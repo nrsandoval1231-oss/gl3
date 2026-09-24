@@ -1,0 +1,14 @@
+{
+  "name": "GridLens",
+  "version": "1.0.0",
+  "colors": {
+    "deep_current": "#101F2D",
+    "gridlens_navy": "#17324A",
+    "steel_blue": "#395A75",
+    "atmosphere": "#6F879D",
+    "mist": "#D5DEE5",
+    "ice": "#F3F6F7",
+    "white": "#FFFFFF"
+  },
+  "primary_ui_color": "#17324A"
+}

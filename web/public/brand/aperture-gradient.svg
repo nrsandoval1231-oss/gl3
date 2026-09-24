@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="624" height="624" viewBox="0 -22 624 624" role="img" aria-label="GridLens Aperture"><title>GridLens Aperture</title><defs>
+  <linearGradient id="ul" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#284761"/><stop offset="1" stop-color="#17324A"/></linearGradient>
+  <linearGradient id="ur" x1="0" y1="0" x2="1" y2=".4"><stop stop-color="#E5F0F6"/><stop offset=".42" stop-color="#88A1B4"/><stop offset="1" stop-color="#18324A"/></linearGradient>
+  <linearGradient id="ll" x1="0" y1=".2" x2="1" y2="1"><stop stop-color="#395A75"/><stop offset=".5" stop-color="#85A0B3"/><stop offset="1" stop-color="#DAE8F1"/></linearGradient>
+  <linearGradient id="lr" x1="0" y1="1" x2="1" y2="0"><stop stop-color="#496B84"/><stop offset="1" stop-color="#101F2D"/></linearGradient>
+</defs><polygon id="upper-left" points="284,0 0,181 0,404 127,295 284,185" fill="url(#ul)"/><polygon id="upper-right" points="340,0 624,181 624,404 497,295 340,185" fill="url(#ur)"/><polygon id="lower-left" points="0,404 284,580 284,402 127,295" fill="url(#ll)"/><polygon id="lower-right" points="624,404 340,580 340,402 497,295" fill="url(#lr)"/></svg>

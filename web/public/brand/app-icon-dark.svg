@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" role="img" aria-label="GridLens app icon"><title>GridLens app icon</title><rect width="1024" height="1024" fill="#101F2D"/><g transform="translate(232 252) scale(.897)"><defs>
+  <linearGradient id="ul" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#FFFFFF"/><stop offset="1" stop-color="#BFD1E0"/></linearGradient>
+  <linearGradient id="ur" x1="0" y1="0" x2="1" y2=".4"><stop stop-color="#FFFFFF"/><stop offset="1" stop-color="#91ACC0"/></linearGradient>
+  <linearGradient id="ll" x1="0" y1=".2" x2="1" y2="1"><stop stop-color="#B4C9D8"/><stop offset="1" stop-color="#FFFFFF"/></linearGradient>
+  <linearGradient id="lr" x1="0" y1="1" x2="1" y2="0"><stop stop-color="#F3F8FA"/><stop offset="1" stop-color="#A3B9C8"/></linearGradient>
+</defs><polygon id="upper-left" points="284,0 0,181 0,404 127,295 284,185" fill="url(#ul)"/><polygon id="upper-right" points="340,0 624,181 624,404 497,295 340,185" fill="url(#ur)"/><polygon id="lower-left" points="0,404 284,580 284,402 127,295" fill="url(#ll)"/><polygon id="lower-right" points="624,404 340,580 340,402 497,295" fill="url(#lr)"/></g></svg>
