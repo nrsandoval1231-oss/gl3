@@ -21,6 +21,10 @@ The product's core loop is:
 
 This is a new implementation in a new repository and database. Existing GridLens code, schemas, pipelines, tests, and architecture are excluded. Decisions agreed in the current product discussion define this specification.
 
+## Frozen application UI
+
+The approved visual and interaction direction is [the frozen UI canon](../design/UI_CANON.md), with the [browse](../design/references/browse.webp) and [detail](../design/references/detail.webp) reference screens. Visual examples are fictional. Product and evidence requirements in this PRD govern actual values and tier behavior.
+
 ## Product outcomes
 
 | Outcome | Meaning |

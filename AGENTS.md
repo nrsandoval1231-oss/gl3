@@ -7,3 +7,4 @@
 - Keep source-specific logic in ingestion adapters and integrations, calculations and tier gates in domain, and user presentation in web.
 - Add modules when needed by a milestone. A folder README documents ownership; it does not claim that the named capability exists.
 - Show the real-source evidence, relevant tests, and remaining limitations when reporting completion.
+- Follow `docs/design/UI_CANON.md` for the frozen application UI. Its images are illustrative; the PRD governs actual values, tier gates, and evidence.
