@@ -1,0 +1,19 @@
+# Local secrets and runtime files
+.env
+.env.*
+!.env.example
+*.log
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+node_modules/
+dist/
+build/
+coverage/
+*.sqlite
+*.db
+.artifacts/
+.tmp/
