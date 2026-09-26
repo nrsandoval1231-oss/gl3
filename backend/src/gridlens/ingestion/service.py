@@ -49,6 +49,10 @@ def process_job(
     client: httpx.Client | None = None,
 ) -> dict[str, Any]:
     records = retrieve_source(source_definition, client)
+    if source_definition.get("retrieval_method") == "publisher-rss":
+        return _process_collection_only(
+            session, job_id, worker_id, fence, source_definition, records
+        )
     counts: dict[str, Any] = {
         "new": 0,
         "changed": 0,
@@ -330,6 +334,123 @@ def process_job(
                 )
             interpretation.status, interpretation.error = "accepted", None
 
+        job = assert_fence(session, job_id, worker_id, fence)
+        job.checkpoint = external_id
+        job.lease_until = datetime.now(UTC) + timedelta(seconds=90)
+        session.commit()
+    return counts
+
+
+def _process_collection_only(
+    session: Session,
+    job_id: Any,
+    worker_id: str,
+    fence: int,
+    source_definition: dict[str, Any],
+    records: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """Persist RSS metadata and excerpts without entering matching or qualification."""
+    counts: dict[str, Any] = {
+        "new": 0,
+        "changed": 0,
+        "unchanged": 0,
+        "signals": 0,
+        "latest_publication_date": None,
+        "snapshot_item_count": len(records),
+        "snapshot_oldest_publication_date": None,
+        "snapshot_newest_publication_date": None,
+    }
+    publications = [row["publication_date"] for row in records]
+    if publications:
+        counts["snapshot_oldest_publication_date"] = min(publications)
+        counts["snapshot_newest_publication_date"] = max(publications)
+        counts["latest_publication_date"] = max(publications)
+    for record in records:
+        assert_fence(session, job_id, worker_id, fence)
+        source = session.get(Source, source_definition["id"])
+        assert source is not None
+        external_id = record["document_number"]
+        digest = _hash(record)
+        evidence_digest = record.get("source_hash") or _source_version_hash(record)
+        publication = date.fromisoformat(record["publication_date"])
+        observation = session.scalar(
+            select(Observation)
+            .where(Observation.source_id == source.id, Observation.external_id == external_id)
+            .with_for_update()
+        )
+        is_new = observation is None
+        same_material_fields = bool(
+            observation
+            and observation.title == record["title"]
+            and " ".join((observation.abstract or "").split())
+            == " ".join((record.get("abstract") or "").split())
+            and observation.published_at == publication
+            and observation.url == record["html_url"]
+        )
+        if is_new:
+            observation = Observation(
+                source_id=source.id,
+                external_id=external_id,
+                title=record["title"],
+                abstract=record.get("abstract"),
+                published_at=publication,
+                url=record["html_url"],
+                content_hash=digest,
+            )
+            session.add(observation)
+            session.flush()
+            counts["new"] += 1
+        elif same_material_fields:
+            counts["unchanged"] += 1
+        else:
+            assert observation is not None
+            observation.title = record["title"]
+            observation.abstract = record.get("abstract")
+            observation.published_at = publication
+            observation.url = record["html_url"]
+            observation.content_hash = digest
+            counts["changed"] += 1
+        assert observation is not None
+        if (
+            session.scalar(
+                select(Evidence.id).where(
+                    Evidence.observation_id == observation.id,
+                    Evidence.content_hash == evidence_digest,
+                )
+            )
+            is None
+        ):
+            session.add(
+                Evidence(
+                    observation_id=observation.id,
+                    content_hash=evidence_digest,
+                    title=record["title"],
+                    abstract=record.get("abstract"),
+                    url=record["html_url"],
+                    published_at=publication,
+                    extraction_location=record.get(
+                        "extraction_location", "RSS item title and description/summary"
+                    ),
+                    event_date=None,
+                )
+            )
+        interpretation = session.scalar(
+            select(Interpretation)
+            .where(Interpretation.observation_id == observation.id)
+            .with_for_update()
+        )
+        if interpretation is None:
+            interpretation = Interpretation(
+                observation_id=observation.id,
+                content_hash=digest,
+                status="collection_only",
+                attempts=0,
+            )
+            session.add(interpretation)
+        else:
+            interpretation.content_hash = digest
+            interpretation.status = "collection_only"
+            interpretation.error = None
         job = assert_fence(session, job_id, worker_id, fence)
         job.checkpoint = external_id
         job.lease_until = datetime.now(UTC) + timedelta(seconds=90)

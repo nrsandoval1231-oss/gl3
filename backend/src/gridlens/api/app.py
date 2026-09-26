@@ -2,10 +2,16 @@ from datetime import UTC, date, datetime, timedelta
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
-from fastapi import Depends, FastAPI, HTTPException, Request, Response
+from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
 from pydantic import BaseModel, SecretStr
 from sqlalchemy import Date, func, select
 
+from gridlens.domain.collection_watch import (
+    candidate_expression as collection_watch_expression,
+)
+from gridlens.domain.collection_watch import (
+    matched_terms as collection_watch_terms,
+)
 from gridlens.jobs.queue import enqueue
 from gridlens.persistence.database import SessionLocal
 from gridlens.persistence.models import (
@@ -84,6 +90,11 @@ class HealthSourceOut(BaseModel):
     pdf_skipped_limit: int = 0
     error: str | None = None
     latest_publication_date: str | None = None
+    snapshot_item_count: int | None = None
+    snapshot_oldest_publication_date: str | None = None
+    snapshot_newest_publication_date: str | None = None
+    collection_scope: str | None = None
+    coverage_limitation: str | None = None
 
 
 class HealthOut(BaseModel):
@@ -118,6 +129,34 @@ class LogoutOut(BaseModel):
 
 class RefreshOut(BaseModel):
     queued: list[str]
+
+
+class IngestionItemOut(BaseModel):
+    source_id: str
+    publisher: str
+    endpoint: str
+    verticals: list[str]
+    source_scope: str
+    external_id: str
+    title: str
+    published_at: date
+    first_seen_at: datetime
+    latest_evidence_at: datetime
+    excerpt: str | None
+    extraction_location: str
+    content_hash: str
+    citation_url: str
+    collection_state: str
+    qualification_state: str
+    matched_terms: list[str]
+    topic_label: str | None
+
+
+class IngestionPageOut(BaseModel):
+    items: list[IngestionItemOut]
+    total: int
+    limit: int
+    offset: int
 
 
 @app.get("/openapi.json", include_in_schema=False)
@@ -201,6 +240,13 @@ def health():
                 "family": row.family,
                 "geography": row.geography,
             }
+            if row.family == "news":
+                info["collection_scope"] = row.geography
+                info["coverage_limitation"] = (
+                    "Latest publisher snapshot only; rolling feeds can omit items "
+                    "between snapshots. "
+                    "Hourly checks do not guarantee catch-up after local downtime."
+                )
             last_attempt = row.health.get("last_attempt")
             if (
                 row.enabled
@@ -218,6 +264,94 @@ def health():
             "backlog": jobs,
             "pending_interpretations": pending,
         }
+
+
+def _ingestion_filters(source_id: str | None, vertical: str | None, watch_only: bool):
+    predicates = []
+    if source_id:
+        predicates.append(Observation.source_id == source_id)
+    if vertical:
+        predicates.append(Source.industries.contains([vertical]))
+    if watch_only:
+        predicates.append(Observation.source_id == "mjbizdaily-news")
+        predicates.append(collection_watch_expression(Evidence.title, Evidence.abstract))
+    return predicates
+
+
+@app.get(
+    "/api/ingestion",
+    response_model=IngestionPageOut,
+    dependencies=[Depends(require_session)],
+)
+def ingestion(
+    source_id: str | None = None,
+    vertical: str | None = None,
+    watch_only: bool = False,
+    limit: int = Query(25, ge=1, le=100),
+    offset: int = Query(0, ge=0, le=100000),
+):
+    predicates = _ingestion_filters(source_id, vertical, watch_only)
+    with SessionLocal() as session:
+        base = (
+            select(Evidence, Observation, Source, Interpretation)
+            .join(Observation, Evidence.observation_id == Observation.id)
+            .join(Source, Observation.source_id == Source.id)
+            .outerjoin(Interpretation, Interpretation.observation_id == Observation.id)
+            .where(*predicates)
+        )
+        total = session.scalar(select(func.count()).select_from(base.subquery())) or 0
+        rows = session.execute(
+            base.order_by(
+                Evidence.observed_at.desc(),
+                Observation.source_id,
+                Observation.external_id,
+                Evidence.content_hash,
+            )
+            .limit(limit)
+            .offset(offset)
+        ).all()
+        items = []
+        for evidence, observation, source, interpretation in rows:
+            terms = (
+                collection_watch_terms(evidence.title, evidence.abstract)
+                if observation.source_id == "mjbizdaily-news"
+                else []
+            )
+            if watch_only:
+                assert terms, "SQL topic filter and displayed topic matcher must agree"
+            items.append(
+                {
+                    "source_id": source.id,
+                    "publisher": source.publisher,
+                    "endpoint": source.endpoint,
+                    "verticals": source.industries,
+                    "source_scope": source.geography,
+                    "external_id": observation.external_id,
+                    "title": evidence.title,
+                    "published_at": evidence.published_at,
+                    "first_seen_at": observation.first_seen_at,
+                    "latest_evidence_at": evidence.observed_at,
+                    "excerpt": evidence.abstract,
+                    "extraction_location": evidence.extraction_location,
+                    "content_hash": evidence.content_hash,
+                    "citation_url": evidence.url,
+                    "collection_state": "Evidence retained",
+                    "qualification_state": (
+                        {
+                            "collection_only": "Not assessed",
+                            "accepted": "Linked to opportunity",
+                            "rejected": "Reviewed; not qualified",
+                            "failed": "Interpretation failed",
+                            "pending": "Not assessed",
+                        }.get(interpretation.status, "Not assessed")
+                        if interpretation
+                        else "Not assessed"
+                    ),
+                    "matched_terms": terms,
+                    "topic_label": "Topic match - review required" if terms else None,
+                }
+            )
+        return {"items": items, "total": total, "limit": limit, "offset": offset}
 
 
 @app.get(
