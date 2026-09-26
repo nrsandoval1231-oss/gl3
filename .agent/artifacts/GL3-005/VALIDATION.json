@@ -1,0 +1,77 @@
+{
+  "candidate": "6a92c9a15356e858cfd393bf6fc15ec7e30b0f18103167f06a799b8be999b0e8",
+  "started": {
+    "current_time": "2026-09-26 20:09:32 UTC"
+  },
+  "finished": {
+    "current_time": "2026-09-26 20:10:09 UTC"
+  },
+  "initial_checks": "VALIDATION_INITIAL.json: backend 62 tests/lint/types, migration/replay apply unchanged; only three frontend files changed",
+  "checks": [
+    {
+      "status": "fulfilled",
+      "value": {
+        "gate": "frontend types",
+        "command": "npm run typecheck",
+        "chunk_id": "747d61",
+        "wall_time_seconds": 1.5669277,
+        "exit_code": 0,
+        "original_token_count": 12,
+        "output": "\n> gridlens-web@0.1.0 typecheck\n> tsc --noEmit\n\n"
+      }
+    },
+    {
+      "status": "fulfilled",
+      "value": {
+        "gate": "frontend build",
+        "command": "npm run build",
+        "chunk_id": "69aaad",
+        "wall_time_seconds": 2.4136059,
+        "exit_code": 0,
+        "original_token_count": 95,
+        "output": "\n> gridlens-web@0.1.0 build\n> tsc -b && vite build\n\nvite v6.4.3 building for production...\ntransforming...\n✓ 31 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/index.html                   0.52 kB │ gzip:  0.33 kB\ndist/assets/index-Cl4R0kUW.css   11.38 kB │ gzip:  3.05 kB\ndist/assets/index-CXZXHnkp.js   205.57 kB │ gzip: 64.44 kB\n✓ built in 527ms\n"
+      }
+    },
+    {
+      "status": "fulfilled",
+      "value": {
+        "gate": "browser",
+        "command": "@'\nimport os,subprocess\nfrom pathlib import Path\nenv=os.environ.copy();env['GRIDLENS_TEST_PASSWORD']=Path('.artifacts/local-auth.txt').read_text().splitlines()[1]\nraise SystemExit(subprocess.run(['npm.cmd','run','test','--','--reporter=line'],cwd='web',env=env).returncode)\n'@ | uv run --project backend python -",
+        "chunk_id": "279c7c",
+        "wall_time_seconds": 2.9210648,
+        "exit_code": 0,
+        "original_token_count": 126,
+        "output": "\n> gridlens-web@0.1.0 test\n> playwright test --reporter=line\n\n\nRunning 2 tests using 1 worker\n\n(node:38568) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\n(Use `node --trace-warnings ...` to show where the warning was created)\n\n\n[1/2] tests\\first_path.spec.ts:8:1 › private browse/detail keeps context and source health fits a phone\n[2/2] tests\\first_path.spec.ts:57:1 › news inbox and cannabis watch are separate review views with back navigation\n  2 passed (1.9s)\n"
+      }
+    },
+    {
+      "status": "fulfilled",
+      "value": {
+        "gate": "visual runtime",
+        "command": "node .artifacts/breadth-browser.cjs",
+        "chunk_id": "8b32bc",
+        "wall_time_seconds": 1.3025608,
+        "exit_code": 0,
+        "original_token_count": 20,
+        "output": "{\"dcd\":20,\"watchCount\":3,\"errors\":[],\"dimensions\":{\"page\":390,\"viewport\":390}}\n"
+      }
+    },
+    {
+      "status": "fulfilled",
+      "value": {
+        "gate": "diff hygiene",
+        "command": "git diff --check",
+        "chunk_id": "9024b8",
+        "wall_time_seconds": 0.1693621,
+        "exit_code": 0,
+        "original_token_count": 176,
+        "output": "warning: in the working copy of 'config/sources/registry.v1.json', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'web/src/api/client.ts', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'web/src/api/generated.ts', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'web/src/app/App.tsx', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'web/src/styles/app.css', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'web/tests/first_path.spec.ts', LF will be replaced by CRLF the next time Git touches it\n"
+      }
+    }
+  ],
+  "attempt_notes": [
+    "Initial migration invocation omitted PYTHONPATH; corrected invocation passed",
+    "Visual script initially used two obsolete labels; corrected selectors passed",
+    "Initial mobile pager overlapped cards; UI repair followed by passing affected gates"
+  ]
+}

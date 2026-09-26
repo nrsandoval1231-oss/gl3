@@ -1,0 +1,22 @@
+{
+  "status": "ACCEPTED_LOCAL",
+  "candidate_sha256": "6a92c9a15356e858cfd393bf6fc15ec7e30b0f18103167f06a799b8be999b0e8",
+  "finished_at_utc": "2026-09-26T20:12:47.202644+00:00",
+  "direction": "CONTINUE local official-source breadth",
+  "independent_review": "REVIEW.json PASS",
+  "repair_count_after_initial_freeze": 1,
+  "planning_build_audit_durations": "UNKNOWN; not comprehensively measured",
+  "tokens": "UNKNOWN",
+  "config_identity": "UNKNOWN",
+  "lane": "one Luna builder, independent Sol review",
+  "parent_finish": "OPEN",
+  "episode": {
+    "state": "2 feeds with narrow collection",
+    "decision": "Broaden collection separately from qualification",
+    "action": "Add six bounded RSS adapters through shared adapter and local topic watch",
+    "outcome": "105 new observations; stable replay; existing Signals unchanged",
+    "evaluation": "Controller gates plus independent exact candidate PASS",
+    "candidate_lesson": "Verify collection count and replay before qualification tuning; inspect mobile flow before freeze",
+    "lesson_status": "candidate only, not promoted to global policy"
+  }
+}

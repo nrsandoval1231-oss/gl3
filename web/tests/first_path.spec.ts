@@ -53,3 +53,42 @@ test('private browse/detail keeps context and source health fits a phone', async
   const widths = await page.evaluate(() => ({ page: document.documentElement.scrollWidth, viewport: document.documentElement.clientWidth }))
   expect(widths.page).toBeLessThanOrEqual(widths.viewport)
 })
+
+test('news inbox and cannabis watch are separate review views with back navigation', async ({ page }) => {
+  test.skip(!password, 'Set GRIDLENS_TEST_PASSWORD to run the authenticated browser proof')
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/')
+  await page.getByLabel('Password').fill(password ?? '')
+  await page.getByRole('button', { name: 'Continue' }).click()
+  await page.getByRole('button', { name: 'Ingestion' }).click()
+  await expect(page.getByRole('heading', { name: 'Ingestion inbox' })).toBeVisible()
+  await expect(page.getByLabel('Filter by source')).toBeVisible()
+  await expect(page.getByLabel('Filter by vertical')).toBeVisible()
+  await expect(page.getByText(/Source evidence stays visible/)).toBeVisible()
+  const watchNavigation = page.getByRole('navigation', { name: 'Workspace views' })
+  const watchButton = watchNavigation.getByRole('button', { name: 'Cannabis watch' })
+  await watchButton.scrollIntoViewIfNeeded()
+  await expect(watchButton).toBeInViewport()
+  await watchButton.click()
+  await expect(page.getByRole('heading', { name: 'Cannabis business news watch' })).toBeVisible()
+  await expect(page.getByText(/A mention does not establish a facility announcement/)).toBeVisible()
+  const articles = page.locator('.ingestion-card')
+  await expect(articles.first()).toBeVisible()
+  const pager = page.locator('.collection-pagination')
+  await expect(pager).toBeVisible()
+  const flowPositions = await page.evaluate(() => {
+    const lastArticle = document.querySelector('.ingestion-card:last-child')
+    const collectionPager = document.querySelector('.collection-pagination')
+    if (!lastArticle || !collectionPager) return null
+    return {
+      articleBottom: lastArticle.getBoundingClientRect().bottom + window.scrollY,
+      pagerTop: collectionPager.getBoundingClientRect().top + window.scrollY,
+      pagerPosition: getComputedStyle(collectionPager).position,
+    }
+  })
+  expect(flowPositions).not.toBeNull()
+  expect(flowPositions?.pagerPosition).toBe('static')
+  expect(flowPositions?.pagerTop).toBeGreaterThanOrEqual(flowPositions?.articleBottom ?? Infinity)
+  await page.goBack()
+  await expect(page.getByRole('heading', { name: 'Ingestion inbox' })).toBeVisible()
+})

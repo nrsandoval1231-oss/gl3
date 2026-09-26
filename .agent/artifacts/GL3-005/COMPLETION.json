@@ -1,0 +1,119 @@
+{
+  "packet_id": "GL3-005",
+  "objective": "Add bounded local collection of six public RSS news sources, an authenticated evidence inbox, and a cannabis business-news topic watch without automatic qualification.",
+  "status": "IMPLEMENTATION_HANDOFF_PENDING_CONTROLLER_ACCEPTANCE",
+  "repository": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3",
+  "branch": "improve/local-ingestion-quality",
+  "base_commit": "9926a9896997359d65ec7849a5969ce8f0a6109e",
+  "candidate_commit": "UNKNOWN; working tree is uncommitted",
+  "files": [
+    "config/sources/registry.v1.json",
+    "backend/src/gridlens/api/app.py",
+    "backend/src/gridlens/domain/collection_watch.py",
+    "backend/src/gridlens/ingestion/adapters/__init__.py",
+    "backend/src/gridlens/ingestion/adapters/publisher_rss.py",
+    "backend/src/gridlens/ingestion/registry.py",
+    "backend/src/gridlens/ingestion/service.py",
+    "backend/src/gridlens/jobs/worker.py",
+    "backend/tests/integration/test_collection_only_ingestion.py",
+    "backend/tests/unit/test_publisher_rss.py",
+    "docs/sources/coverage.md",
+    "docs/sources/local-news-breadth.md",
+    "web/src/api/client.ts",
+    "web/src/api/generated.ts",
+    "web/src/api/openapi.json",
+    "web/src/app/App.tsx",
+    "web/src/styles/app.css",
+    "web/tests/first_path.spec.ts"
+  ],
+  "validation": [
+    {
+      "command": "cd backend && uv run ruff check src tests",
+      "result": "PASS: All checks passed",
+      "elapsed_seconds": 0.13
+    },
+    {
+      "command": "cd backend && uv run mypy src/gridlens",
+      "result": "PASS: Success, no issues found in 26 source files",
+      "elapsed_seconds": 0.62
+    },
+    {
+      "command": "cd backend && uv run pytest",
+      "result": "PASS: 62 passed, 1 Starlette/httpx deprecation warning",
+      "elapsed_seconds": 3.30
+    },
+    {
+      "command": "cd backend && uv run python ../scripts/export_openapi.py",
+      "result": "PASS: regenerated web/src/api/openapi.json",
+      "elapsed_seconds": "UNKNOWN"
+    },
+    {
+      "command": "cd web && npm run generate:api",
+      "result": "PASS: regenerated web/src/api/generated.ts with openapi-typescript 7.8.0",
+      "elapsed_seconds": "UNKNOWN"
+    },
+    {
+      "command": "cd web && npm run typecheck",
+      "result": "PASS: tsc --noEmit",
+      "elapsed_seconds": 1.46
+    },
+    {
+      "command": "cd web && npm run build",
+      "result": "PASS: TypeScript project build and Vite production build",
+      "elapsed_seconds": 2.37
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS: no whitespace errors; Git reported expected LF-to-CRLF normalization warnings",
+      "elapsed_seconds": 0.17
+    }
+  ],
+  "retained_failed_attempts": [
+    {
+      "command": "initial focused RSS/unit, OpenAPI import, and web typecheck",
+      "result": "FAIL; collection_watch.py had not landed, RSS registry validation required window_days, App.tsx effect had a malformed newline, and OpenAPI types were stale",
+      "resolution": "Added the module, exempted RSS from legacy query-window validation, repaired the effect, and regenerated the contract/types"
+    },
+    {
+      "command": "first focused RSS unit run",
+      "result": "FAIL; nested XML description markup returned an empty summary, oversize response reason was too generic, and one expected matched-term label was wrong",
+      "resolution": "Flattened nested XML text, preserved the byte-bound error, and aligned the assertion with the displayed topic label"
+    },
+    {
+      "command": "intermediate full backend pytest run",
+      "result": "FAIL; new API integration assertion expected 2 source rows after adding two adversarial watch rows; actual count 4 was correct",
+      "resolution": "Corrected test expectation and added watch pagination consistency coverage"
+    },
+    {
+      "command": "subsequent full backend pytest run",
+      "result": "FAIL once in existing test_reclaimed_fence_blocks_stale_pdf_and_interpretation_writes when nested lease_one returned None; that test passed alone, both ingestion modules passed together, and a later full run passed all 62 tests",
+      "resolution": "No legacy queue/test changes made; final full suite passed"
+    }
+  ],
+  "execution_record": {
+    "started_at_utc": "UNKNOWN; not captured at dispatch",
+    "finished_at_utc": "2026-09-26 19:53 UTC (approximate; recorded after final validation)",
+    "planning_duration": "UNKNOWN",
+    "build_duration": "UNKNOWN; work was interleaved with implementation repairs",
+    "validation_duration": "UNKNOWN overall because independent gates ran concurrently",
+    "audit_duration": "UNKNOWN; independent controller review pending",
+    "repair_iterations": "Multiple bounded implementation corrections; see retained failed attempts",
+    "lane": "Single implementation worker following GL3-005",
+    "model": "UNKNOWN",
+    "configuration_identity": "UNKNOWN",
+    "tokens_measured": "UNKNOWN",
+    "elapsed_to_acceptance": "UNKNOWN; no independent acceptance yet"
+  },
+  "controller_owned_pending": [
+    "Run the updated browser inbox/watch navigation proof against the rebuilt local API and UI; existing API/Vite processes were not restarted or used as proof.",
+    "Run live worker retrieval and identical replay, then verify persisted snapshot counts/date bounds and unchanged Signal counts against the controller baseline.",
+    "Freeze the exact candidate, perform independent review, and record acceptance or repair direction."
+  ],
+  "limitations": [
+    "Publisher feeds expose rolling latest snapshots, not historical query windows; local hourly polling can miss items after downtime if they rotate out before the next check.",
+    "Feed scope is global for DCD and OGJ, and US-focused with possible international items for the other feeds; source scope is not project geography.",
+    "The implementation was not live-run in this worker. Direct public feed access/snapshot evidence is controller-owned and was not seeded into PostgreSQL.",
+    "The topic watch is a collection review cue only. It does not establish a facility announcement, project, power need, qualification, or external alert."
+  ],
+  "authority": "No live worker/API restart, production database mutation, push, merge, deployment, paid access, or outbound notification was performed by this worker."
+}

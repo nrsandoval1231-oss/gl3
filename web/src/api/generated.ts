@@ -72,6 +72,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/ingestion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Ingestion */
+        get: operations["ingestion_api_ingestion_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/opportunities": {
         parameters: {
             query?: never;
@@ -244,6 +261,75 @@ export interface components {
             error?: string | null;
             /** Latest Publication Date */
             latest_publication_date?: string | null;
+            /** Snapshot Item Count */
+            snapshot_item_count?: number | null;
+            /** Snapshot Oldest Publication Date */
+            snapshot_oldest_publication_date?: string | null;
+            /** Snapshot Newest Publication Date */
+            snapshot_newest_publication_date?: string | null;
+            /** Collection Scope */
+            collection_scope?: string | null;
+            /** Coverage Limitation */
+            coverage_limitation?: string | null;
+        };
+        /** IngestionItemOut */
+        IngestionItemOut: {
+            /** Source Id */
+            source_id: string;
+            /** Publisher */
+            publisher: string;
+            /** Endpoint */
+            endpoint: string;
+            /** Verticals */
+            verticals: string[];
+            /** Source Scope */
+            source_scope: string;
+            /** External Id */
+            external_id: string;
+            /** Title */
+            title: string;
+            /**
+             * Published At
+             * Format: date
+             */
+            published_at: string;
+            /**
+             * First Seen At
+             * Format: date-time
+             */
+            first_seen_at: string;
+            /**
+             * Latest Evidence At
+             * Format: date-time
+             */
+            latest_evidence_at: string;
+            /** Excerpt */
+            excerpt: string | null;
+            /** Extraction Location */
+            extraction_location: string;
+            /** Content Hash */
+            content_hash: string;
+            /** Citation Url */
+            citation_url: string;
+            /** Collection State */
+            collection_state: string;
+            /** Qualification State */
+            qualification_state: string;
+            /** Matched Terms */
+            matched_terms: string[];
+            /** Topic Label */
+            topic_label: string | null;
+        };
+        /** IngestionPageOut */
+        IngestionPageOut: {
+            /** Items */
+            items: components["schemas"]["IngestionItemOut"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
         };
         /** LoginBody */
         LoginBody: {
@@ -418,6 +504,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HealthOut"];
+                };
+            };
+        };
+    };
+    ingestion_api_ingestion_get: {
+        parameters: {
+            query?: {
+                source_id?: string | null;
+                vertical?: string | null;
+                watch_only?: boolean;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IngestionPageOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
