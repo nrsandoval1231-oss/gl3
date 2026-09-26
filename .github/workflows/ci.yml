@@ -1,0 +1,61 @@
+name: CI
+on:
+  push:
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18.6
+        env:
+          POSTGRES_USER: gridlens
+          POSTGRES_PASSWORD: gridlens-ci-only
+          POSTGRES_DB: gridlens
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U gridlens -d gridlens"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+    env:
+      DATABASE_URL: postgresql+psycopg://gridlens:gridlens-ci-only@127.0.0.1:5432/gridlens
+      TEST_DATABASE_URL: postgresql+psycopg://gridlens:gridlens-ci-only@127.0.0.1:5432/gridlens_test
+      APP_PASSWORD_HASH: $2b$12$9s8D9s3m2HZphkBcSx8YxO6dECGe4rN1hZYSso3A8G4/Gyn9m0Q6K
+      SESSION_SECRET: ci-only-not-a-production-secret-32-bytes
+      TRUSTED_ORIGINS: http://127.0.0.1:5173
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.11"
+          enable-cache: true
+      - run: uv sync --locked --extra dev
+        working-directory: backend
+      - run: uv run ruff check src tests
+        working-directory: backend
+      - run: uv run mypy src
+        working-directory: backend
+      - run: uv run alembic upgrade head
+        working-directory: backend
+      - run: uv run alembic upgrade head
+        working-directory: backend
+      - run: uv run alembic check
+        working-directory: backend
+      - run: PGPASSWORD=gridlens-ci-only psql -h 127.0.0.1 -U gridlens -d gridlens -c 'CREATE DATABASE gridlens_test'
+      - run: uv run pytest tests
+        working-directory: backend
+
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci --prefix web
+      - run: npm audit --prefix web --audit-level=high
+      - run: npm run typecheck --prefix web
+      - run: npm run build --prefix web

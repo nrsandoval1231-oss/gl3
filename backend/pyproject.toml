@@ -1,0 +1,40 @@
+[project]
+name = "gridlens"
+version = "0.1.0"
+requires-python = ">=3.11,<3.12"
+dependencies = [
+  "fastapi==0.141.1",
+  "starlette==1.7.0",
+  "uvicorn[standard]==0.34.2",
+  "sqlalchemy==2.0.41",
+  "psycopg[binary]==3.2.9",
+  "alembic==1.16.1",
+  "pydantic-settings==2.9.1",
+  "httpx==0.28.1",
+  "beautifulsoup4==4.13.4",
+  "pypdf==6.19.0",
+  "bcrypt==4.3.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest==9.1.1", "pytest-cov==6.2.1", "ruff==0.11.13", "mypy==1.16.0"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.11"
+mypy_path = "src"
+ignore_missing_imports = true
+strict = false

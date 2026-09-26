@@ -17,3 +17,6 @@ coverage/
 *.db
 .artifacts/
 .tmp/
+*.tsbuildinfo
+test-results/
+playwright-report/

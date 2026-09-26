@@ -1,0 +1,2 @@
+# Agent rules
+Follow repository AGENTS.md and owner control system. One Luna initial dependent path; serialized integration; Sol independent review. Keep original product/design requirements unchanged. Preserve secrets and raw runtime artifacts outside Git. Bind tests/review to candidate manifest; changed candidate invalidates review. Builder supplies claims, controller reruns gates. Two materially different repairs then revisit canonical intent. Timings/tokens unmeasured = UNKNOWN.
