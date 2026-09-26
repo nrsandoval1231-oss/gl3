@@ -1,0 +1,16 @@
+{
+  "recorded_at_utc": "2026-09-26T03:34:50.708029+00:00",
+  "candidate_commit": "b0fe5d9f383dc4dc5fc691b031578a5a30b7a4ad",
+  "product_manifest": "dc1a49e0e5e9a1d3636f3a71be8fa99ef8756dc362c32f22f7ce18990df8d072",
+  "pr": "https://github.com/nrsandoval1231-oss/gl3/pull/1",
+  "status": "MERGE_BLOCKED",
+  "cause": "GitHub Actions account billing/spending limit; backend and web jobs received no runner and executed no steps",
+  "run_ids": [
+    36215178138,
+    36215178971
+  ],
+  "local_review": "REVIEW_REPAIR1.json PASS; product unchanged",
+  "authority": "User authorized commit/push/merge; no new cloud deployment or spending authorization",
+  "next_action": "Resolve GitHub Actions account billing/spending limit, rerun unchanged CI, then verify and merge exact head",
+  "local_container_probe": "Docker Linux engine pipe unavailable; no container runtime validation claimed"
+}
