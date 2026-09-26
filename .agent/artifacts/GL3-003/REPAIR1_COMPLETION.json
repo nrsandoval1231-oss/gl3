@@ -1,0 +1,46 @@
+{
+  "packet_id": "GL3-003-repair-1",
+  "status": "IMPLEMENTATION_READY_FOR_CONTROLLER_VALIDATION",
+  "scope": "Repair only: ingestion service and ingestion integration test",
+  "repository": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3",
+  "branch": "build/ingestion-slice",
+  "reviewed_candidate": "515d20e63ee65a9709166c61ee01b0be5b74473fa62addab5564ac8a40c31bda",
+  "started_at_utc": "UNKNOWN (not captured at repair dispatch)",
+  "finished_at_utc": "2026-09-25T20:03:51Z",
+  "elapsed_seconds": "UNKNOWN (not instrumented)",
+  "measured_tokens": "UNKNOWN",
+  "changed_files": [
+    "backend/src/gridlens/ingestion/service.py",
+    "backend/tests/integration/test_ingestion.py"
+  ],
+  "candidate_file_sha256": {
+    "backend/tests/integration/test_ingestion.py": "9faa449a7afe3ec865e8a72d212a183ee9e6f18a0b0f03439fe6952796cbe74a",
+    "backend/src/gridlens/ingestion/service.py": "d4699d032bad6731dcf7ce71d109fde1883a3b3191d3313cdda4312c3a374b55"
+  },
+  "validation": [
+    {
+      "command": "uv run pytest tests/integration/test_ingestion.py::test_reclaimed_fence_blocks_stale_pdf_and_interpretation_writes -q (backend/)",
+      "result": "PASS: 1 passed; two-session takeover during PDF retrieval blocks stale-worker write"
+    },
+    {
+      "command": "uv run pytest tests/integration/test_ingestion.py tests/integration/test_jobs.py -q (backend/)",
+      "result": "PASS: 17 passed; one existing Starlette/httpx deprecation warning"
+    },
+    {
+      "command": "uv run ruff check src/gridlens/ingestion/service.py tests/integration/test_ingestion.py (backend/)",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run ruff format --check src/gridlens/ingestion/service.py tests/integration/test_ingestion.py (backend/)",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run mypy src (backend/)",
+      "result": "PASS: no issues in 24 source files"
+    }
+  ],
+  "repair": "Revalidate the locked job fence immediately after PDF network retrieval before inspecting/persisting its result, and again after the PDF commit before creating/updating/committing the interpretation backlog. No job lock is held during network retrieval. Audited other commits: raw-evidence commit follows loop-entry fence; interpretation-failure and final project/need commits each reacquire the fence.",
+  "regression": "Old worker commits raw evidence, PDF retrieval hook expires and reclaims the lease in a second PostgreSQL session, replacement worker processes a changed record and commits new PDF/interpretation/project/need/change event. Old worker then returns with a stale PDF citation and raises fence-lost. Assertions verify both raw source versions are retained, only replacement PDF hash is present, observation and interpretation use replacement digest, and project/need/change history has only replacement effects.",
+  "preserved": "Original .agent/artifacts/GL3-003/REVIEW.json unchanged. No schema or application database reset, no state advancement, commit, push, merge, deployment or self-certification. Test DB lease released.",
+  "self_certification": false
+}

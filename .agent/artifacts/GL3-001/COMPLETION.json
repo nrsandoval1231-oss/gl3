@@ -1,0 +1,137 @@
+{
+  "packet_id": "GL3-001",
+  "node_id": "build/ingestion-slice",
+  "repository": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3",
+  "base_sha": "07b05b3e7de5b4a67ad9ae8aebd1cd918ba4b128",
+  "head_sha": "07b05b3e7de5b4a67ad9ae8aebd1cd918ba4b128",
+  "candidate_state": "uncommitted shared working tree; controller must review the integrated candidate",
+  "started_at_utc": "UNKNOWN",
+  "finished_at_utc": "2026-09-25T19:54:26Z",
+  "elapsed_seconds": "UNKNOWN",
+  "model": "GPT-6; exact variant/config UNKNOWN",
+  "tokens": "UNKNOWN",
+  "changed_files": [
+    ".gitignore",
+    ".dockerignore",
+    ".env.example",
+    ".github/workflows/ci.yml",
+    "README.md",
+    "compose.yaml",
+    "backend/README.md",
+    "backend/alembic.ini",
+    "backend/migrations/env.py",
+    "backend/migrations/script.py.mako",
+    "backend/migrations/versions/0001_initial.py",
+    "backend/migrations/versions/0002_interpretations_and_withdrawals.py",
+    "backend/src/gridlens/api/app.py",
+    "backend/src/gridlens/jobs/queue.py",
+    "backend/src/gridlens/jobs/refresh_sources.py",
+    "backend/src/gridlens/jobs/worker.py",
+    "backend/src/gridlens/settings.py",
+    "backend/tests/README.md",
+    "backend/tests/integration/test_jobs.py",
+    "backend/tests/unit/test_api_auth.py",
+    "deploy/Dockerfile.backend",
+    "deploy/Dockerfile.web",
+    "deploy/README.md",
+    "deploy/initdb/01-test-database.sh",
+    "deploy/nginx.conf",
+    "deploy/scheduler.preparation.yaml",
+    "scripts/README.md",
+    "scripts/export_openapi.py",
+    "scripts/setup_compose.py",
+    "scripts/setup_local.py",
+    "web/README.md",
+    "web/package.json",
+    "web/package-lock.json",
+    "web/src/api/openapi.json",
+    "web/src/api/generated.ts",
+    "web/src/styles/layout.css",
+    "web/tests/first_path.spec.ts"
+  ],
+  "validation": [
+    {
+      "command": "uv run ruff check src/gridlens/api/app.py src/gridlens/jobs/worker.py src/gridlens/jobs/refresh_sources.py src/gridlens/jobs/queue.py src/gridlens/settings.py tests/integration/test_jobs.py tests/unit/test_api_auth.py ../scripts/setup_local.py ../scripts/setup_compose.py ../scripts/export_openapi.py",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run mypy src",
+      "result": "PASS at prior checkpoint; latest combined run was blocked by a new adapter-owned missing annotation in ingestion/service.py"
+    },
+    {
+      "command": "uv run pytest tests/unit/test_api_auth.py",
+      "result": "PASS: 3 tests, including private OpenAPI denial and Chicago date-boundary behavior"
+    },
+    {
+      "command": "uv run pytest tests/unit",
+      "result": "FAIL on latest shared candidate: 24 passed, 1 adapter-owned NC Commerce pagination assertion failed; details in controller message"
+    },
+    {
+      "command": "uv run pytest tests/integration/test_jobs.py tests/integration/test_ingestion.py tests/unit/test_api_auth.py",
+      "result": "PASS: 7 tests at earlier checkpoint before adding daily scheduler idempotency and same-session stale-fence regression; final PostgreSQL run remains pending because adapter owner held gridlens_test lease"
+    },
+    {
+      "command": "uv run --directory backend alembic current && uv run --directory backend alembic upgrade head",
+      "result": "PASS: current 0002_interpretations (head); upgrade no-op"
+    },
+    {
+      "command": "uv run alembic upgrade head && uv run alembic upgrade head && uv run alembic check (from backend/)",
+      "result": "PASS: repeat upgrades; no metadata drift detected"
+    },
+    {
+      "command": "npm run typecheck && npm run build && npm audit --audit-level=high (from web/)",
+      "result": "PASS: typecheck and production build; 0 vulnerabilities"
+    },
+    {
+      "command": "npm run test -- --reporter=line (from web/)",
+      "result": "PASS: 1 live Playwright test covering authenticated browse/detail, browser Back/focus, and all rendered source-health rows on mobile"
+    },
+    {
+      "command": "$env:PYTHONPATH=(Join-Path $PWD 'backend/src'); uv run --project backend python -c \"import gridlens.jobs.worker as worker; assert callable(worker.main)\"",
+      "result": "PASS: documented worker module import is runnable with explicit source path"
+    },
+    {
+      "command": "uv run ruff check src/gridlens/jobs/worker.py src/gridlens/api/app.py; uv run mypy --follow-imports=silent src/gridlens/jobs/worker.py src/gridlens/api/app.py; npm run typecheck (from web/)",
+      "result": "PASS after adding and generating PDF evidence health counters; full PostgreSQL integration test for the counters was not run because the shared test-database lease was held"
+    },
+    {
+      "command": "uv run --project backend python scripts/setup_compose.py --force; capture `docker compose --env-file .env.compose config --environment` in Python memory and bcrypt.checkpw the Compose auth password against APP_PASSWORD_HASH",
+      "result": "PASS: dotenv_bcrypt_password_hash_match=true; only the boolean was emitted. No container was started."
+    },
+    {
+      "command": "npm run test -- --reporter=line (from web/)",
+      "result": "PASS after updating repeated UNKNOWN event-date evidence locator to check every matching evidence item"
+    }
+  ],
+  "runtime_evidence": {
+    "controller_verified": [
+      "Federal Register API returned a complete two-page explicit window sample of 147 records; a narrower recent runtime window persisted 77 observations/evidence with one project and one Signal.",
+      "Controller browser proof completed real login, browse/detail, publication-date and UNKNOWN event-date display, browser Back/context restoration, and mobile source-health layout.",
+      "Controller API proof observed 401 without a session, successful login, and protected data after login."
+    ],
+    "local_receipts": [
+      ".artifacts/first-path-api-proof.json",
+      ".artifacts/first-path-replay-proof.json",
+      ".artifacts/first-path-browse.png",
+      ".artifacts/first-path-detail.png",
+      ".artifacts/first-path-mobile.png"
+    ],
+    "not_run": [
+      "Docker Compose build/up was not run.",
+      "The latest scheduler idempotency and same-session stale-owner PostgreSQL regression tests were not run after editing because the adapter owner held the shared gridlens_test lease.",
+      "No push, merge, deployment, or paid service was performed."
+    ]
+  },
+  "source_findings": [
+    "Federal Register structured results preserve document number, title, abstract, publication date, URL, retrieval time, content hash, and title/abstract extraction location.",
+    "Signal qualification requires a specific project title and explicit proposed development activity; generic mining policy and continuation/cancellation notices remain non-Signal observations.",
+    "MW, power supply, and event date remain UNKNOWN unless supported by evidence.",
+    "GovInfo PDF is treated as alternate evidence linked by Federal Register document identity, not a new source record or fresh digest.",
+    "Source health persists and exposes PDF candidate, eligible, enriched, non-Signal-skipped, and bounded-deferred counts; the FR health line shows enriched/eligible and deferred totals."
+  ],
+  "handoff_notes": [
+    "Released files remain owned by GL3-002: backend/src/gridlens/ingestion/**, backend/src/gridlens/intelligence/**, backend/src/gridlens/domain/qualification.py, config/sources/registry.v1.json, backend/tests/integration/test_ingestion.py, backend/tests/unit/test_federal_register.py, backend/pyproject.toml, and backend/uv.lock. No further edits were made there.",
+    "Latest whole-tree checks exposed adapter-owned Ruff/mypy/unit-test findings; controller routed them to the adapter owner. Re-run integrated gates after adapter freeze.",
+    "Test database lease was released after the last destructive integration run; do not run destructive integration tests concurrently."
+  ]
+}
