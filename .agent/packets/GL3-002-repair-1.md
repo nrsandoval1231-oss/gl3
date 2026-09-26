@@ -1,0 +1,11 @@
+# GL3-002 repair 1 — unsupported aggregate Signal
+
+Evidence: controller live worker/API receipt `.artifacts/integrated-live-ingestion.json` at 2026-09-25T19:36:45Z. 92 observations, 93 evidence versions, four Signals. The NC September 21 Main Street program aggregate is not an identifiable physical project. Admission via generic building/job statistics violates the owner Signal gate. This checkpoint is NOT accepted.
+
+Luna ownership: existing GL3-002 ingestion/intelligence/domain files and their tests only. No direct application database edits/deletes, schema change, broader source expansion, external authority or unrelated implementation. Preserve raw evidence and history. The API/worker/UI builder has released its files, but this packet does not need to edit them.
+
+Repair: require a supported physical company/site project in NC announcements and reject aggregate program/statistical reports without hardcoded real article IDs. Add distinctly synthetic adversarial coverage. Re-evaluate cheap deterministic interpretation on identical-content replay so corrected rules can remove a previously unsupported active need and refresh explicitly supported project name/location. A classification correction on unchanged source content is `reclassified`, not a fabricated source cancellation. Keep all prior observations/evidence; preserve the inactive need/history. Identical replay after correction must create no new observation, evidence, project, need or material digest entry.
+
+Acceptance: the real Main Street aggregate becomes inactive through the normal worker; supported SteelFab and boat-campus announcements remain Signals with unknown MW/timing/supply, alongside Roca Honda. Test same-version corrected classification, retained evidence, subsequent replay idempotency, and supported display-field refresh. Run focused tests then release for controller live verification and final frozen-candidate gates. At most two materially different repair attempts before revisiting the source gate/canonical PRD; do not retry an unchanged approach.
+
+Handoff: update GL3-002 completion with failure, repair, exact checks and remaining limits; do not certify acceptance. Controller captures the corrected live result and retains this failed checkpoint.

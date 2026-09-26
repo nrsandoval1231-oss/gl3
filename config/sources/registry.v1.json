@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "sources": [
+    {
+      "id": "federal-register-eis",
+      "publisher": "Federal Register",
+      "endpoint": "https://www.federalregister.gov/api/v1/documents.json",
+      "family": "structured-government",
+      "geography": "United States",
+      "industries": ["mining", "energy", "infrastructure"],
+      "retrieval_method": "json-api",
+      "cadence_hours": 24,
+      "publication_cadence": "daily",
+      "credential_reference": null,
+      "enabled": true,
+      "retention": "Public metadata and short abstract retained; link to publisher source",
+      "query": {
+        "term": "environmental impact statement",
+        "document_type": "NOTICE",
+        "window_days": 30,
+        "per_page": 100,
+        "max_pages": 10,
+        "max_response_bytes": 4000000,
+        "max_run_bytes": 20000000
+      }
+    },
+    {
+      "id": "nc-commerce",
+      "publisher": "North Carolina Department of Commerce",
+      "endpoint": "https://www.commerce.nc.gov/news/press-releases",
+      "family": "economic-development-publication",
+      "geography": "North Carolina",
+      "industries": ["manufacturing", "data centers", "commercial construction"],
+      "retrieval_method": "nc-commerce-html",
+      "cadence_hours": 24,
+      "publication_cadence": "irregular",
+      "credential_reference": null,
+      "enabled": true,
+      "retention": "Short attributed factual excerpts and source hashes; no article body or images retained",
+      "query": {
+        "window_days": 30,
+        "max_pages": 12,
+        "max_articles": 100,
+        "max_response_bytes": 2000000,
+        "max_run_bytes": 20000000
+      }
+    }
+  ]
+}

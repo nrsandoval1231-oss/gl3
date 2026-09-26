@@ -1,0 +1,16 @@
+{
+  "scope": "local development; not cloud deployment",
+  "repository": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3",
+  "application_url": "http://127.0.0.1:5173",
+  "api_url": "http://127.0.0.1:8000",
+  "postgres_host_port": "127.0.0.1:55439",
+  "root_owned_exec_sessions": {
+    "api": 22127,
+    "worker": 29391,
+    "vite": 8438
+  },
+  "credential_location": ".artifacts/local-auth.txt (ignored; never print or commit)",
+  "database_cluster": ".artifacts/local-postgres/data (isolated; existing service on 5432 unchanged)",
+  "restart_instructions": "README.md and docs/operations/local-runtime.md",
+  "note": "Session identifiers belong to this controller tool context and may not be reusable from another agent. Verify process ownership before stopping any process."
+}

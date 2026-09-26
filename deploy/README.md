@@ -1,3 +1,9 @@
-# Deployment
+# Container and scheduling preparation
 
-Store repeatable API/worker container and managed-scheduler configuration after cloud selection. Keep credentials in deployment secret management and document rollback and backup restoration.
+`docker compose --env-file .env.compose up --build` runs PostgreSQL, one-time Alembic migrations, the API, a separate durable-queue worker, and an Nginx static web container that proxies `/api`. PostgreSQL data persists in the `postgres-data` volume. Back up that volume/database before upgrading; restore into a new database and verify migrations before switching traffic. The repository does not deploy this stack or publish its image.
+
+Create Compose-specific credentials with `uv run --project backend python scripts/setup_compose.py`. Keep `.env.compose` and `.artifacts/compose-auth.txt` private. For local HTTP, the generated configuration trusts loopback port 8080 and disables the Secure cookie flag. Before remote HTTPS access, set the exact HTTPS `TRUSTED_ORIGINS` and `COOKIE_SECURE=true`. The stack binds the UI to loopback port 8080; put it behind an HTTPS reverse proxy before remote access. Use a secret manager and separate database credentials for any future host.
+
+`scheduler.preparation.yaml` is a **suspended preparation artifact**. It invokes the same durable queue for all enabled sources once per America/Chicago calendar day, with source-row locking and a stored day key making repeated triggers idempotent. It reads runtime values from the `gridlens-runtime` Kubernetes Secret. Replace its example image reference, set `WORKER_AUTO_REFRESH=false` in that Secret to disable worker polling, create the Secret in the target cluster, inspect timezone support, and explicitly unsuspend only as part of a separately authorized deployment. The current worker's hourly scheduler stays enabled by default; running both schedules is unnecessary.
+
+Migration revisions use explicit schema operations and are immutable after release. CI runs migrations twice and compares metadata with the migrated schema using `alembic check`.

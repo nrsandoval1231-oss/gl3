@@ -1,0 +1,114 @@
+{
+  "packet_id": "GL3-002",
+  "objective": "Add bounded NC Commerce HTML discovery and GovInfo PDF companion evidence through the existing durable ingestion service.",
+  "repository": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3",
+  "branch": "build/ingestion-slice",
+  "base_sha": "07b05b3e7de5b4a67ad9ae8aebd1cd918ba4b128",
+  "head_sha": "07b05b3e7de5b4a67ad9ae8aebd1cd918ba4b128",
+  "candidate_state": "uncommitted shared working tree; controller live runtime proof and independent review pending",
+  "status": "IMPLEMENTATION_READY_FOR_CONTROLLER_VALIDATION",
+  "started_at_utc": "UNKNOWN (not captured at dispatch)",
+  "finished_at_utc": "UNKNOWN (not captured at task finish)",
+  "elapsed_seconds": "UNKNOWN (not instrumented)",
+  "measured_tokens": "UNKNOWN",
+  "model": "GPT-6; exact variant/config UNKNOWN",
+  "repair_count": 3,
+  "changed_files": [
+    "backend/pyproject.toml",
+    "backend/uv.lock",
+    "config/sources/registry.v1.json",
+    "backend/src/gridlens/ingestion/adapters/__init__.py",
+    "backend/src/gridlens/ingestion/adapters/bounded_http.py",
+    "backend/src/gridlens/ingestion/adapters/federal_register.py",
+    "backend/src/gridlens/ingestion/adapters/govinfo_pdf.py",
+    "backend/src/gridlens/ingestion/adapters/nc_commerce.py",
+    "backend/src/gridlens/ingestion/registry.py",
+    "backend/src/gridlens/ingestion/service.py",
+    "backend/src/gridlens/intelligence/matching.py",
+    "backend/src/gridlens/domain/qualification.py",
+    "backend/tests/integration/test_ingestion.py",
+    "backend/tests/unit/test_federal_register.py",
+    "backend/tests/unit/test_govinfo_pdf.py",
+    "backend/tests/unit/test_nc_commerce.py",
+    "backend/tests/unit/test_qualification.py"
+  ],
+  "candidate_file_sha256": {
+    "backend/src/gridlens/intelligence/matching.py": "94e89619af961285ff46c46fed68aabb981b146b13c147b3046854f95d0b7036",
+    "backend/tests/unit/test_qualification.py": "ded547a2cbb98db7bc944174c1ecb1d201a695d86a3cf566b3c104de8ae79617",
+    "backend/src/gridlens/ingestion/adapters/nc_commerce.py": "836494bdac2968e59a50899945876bd140725db1f4128c4f6803e49a94fce0de",
+    "backend/src/gridlens/domain/qualification.py": "e0fe059e94b3d56e2684c43ec7e2479d97bf59c46dcf16fbe853b77f9a9a8c45",
+    "backend/src/gridlens/ingestion/adapters/govinfo_pdf.py": "da2e852f41a66a9a1532378c0257281c2d9a6d499b50c410dded19e47527a4ac",
+    "backend/tests/unit/test_federal_register.py": "1d8582ac9c2036d5bd61e6fcb235210d6b508bda1a201b3add474a772efd2156",
+    "backend/pyproject.toml": "04e51413b809b67a82d3eda00bf873e917f082bdbedebe8ce3d142d81cd4ef81",
+    "backend/src/gridlens/ingestion/adapters/federal_register.py": "224e53a5a08752801ceee7d8ba402d0a2a0b7d7105669ac6bee9057eb683c668",
+    "backend/src/gridlens/ingestion/adapters/__init__.py": "37ae93c5057bf884c700e19c442b96da32d4c5b6b8a850c85e2cd2991fbd9b88",
+    "backend/src/gridlens/ingestion/registry.py": "20c45bdcc08be1d175371718f8d6228f04a087853f2240408effecd16071abe1",
+    "backend/tests/unit/test_govinfo_pdf.py": "21dfa97dae7b4c001b2ed59f95aa96b5468d30f7ee2b0e9b85b7ede9d53e144c",
+    "backend/tests/unit/test_nc_commerce.py": "7659889d8a257e4e61b205970df50c25f47d7cb96fd5db74e25396a623c8cd0d",
+    "backend/uv.lock": "4e33410d0c1adbde20b08b2b8b521b9caed4c5318f98be2fe1033aba80a1bdcd",
+    "backend/src/gridlens/ingestion/adapters/bounded_http.py": "2eef4d956e083d3042f717760f0c6f8cfb9aeee6b94bd2ac59af38c81fe8e7bb",
+    "backend/src/gridlens/ingestion/service.py": "66d695e24f27f76db3abcd6c5199c054656791142c47c991f5cbae6c72e1cf80",
+    "config/sources/registry.v1.json": "d45831b3266ca868f118d58e4e8dc4cf088c4832119bc5befad7a9b062d40b4b",
+    "backend/tests/integration/test_ingestion.py": "47a0c6cecc97282806a9bb2d9e4f504e3c9d7cd92126161697731b9bbf79a228"
+  },
+  "validation": [
+    {
+      "command": "uv lock; uv sync --extra dev (backend/)",
+      "result": "PASS; pypdf pinned to 6.19.0 and dependency environment synced"
+    },
+    {
+      "command": "uv run ruff check src tests (backend/)",
+      "result": "PASS: all checks passed"
+    },
+    {
+      "command": "uv run mypy src (backend/)",
+      "result": "PASS: no issues in 24 source files"
+    },
+    {
+      "command": "Read-only live NC adapter retrieval via configured source",
+      "result": "PASS: complete declared 2026-08-26 through 2026-09-25 window, 15 records, 15 unique canonical article IDs; SteelFab article independently found; not persisted by this probe"
+    },
+    {
+      "command": "GovInfo PDF parser via MockTransport of ignored discovered-notice.pdf",
+      "result": "PASS: page 1 excerpt begins at Roca Honda target title, excludes preceding AMS notice, matches FR Doc. 2026-18765, 858 characters, SHA-256 402f9993f238abff3fbcf6"
+    },
+    {
+      "command": "uv run pytest tests -q (backend/) after repair",
+      "result": "PASS: 44 passed; one existing Starlette/httpx deprecation warning"
+    },
+    {
+      "command": "uv run ruff check src tests (backend/) after repair",
+      "result": "PASS: all checks passed"
+    },
+    {
+      "command": "uv run mypy src (backend/) after repair",
+      "result": "PASS: no issues in 24 source files"
+    },
+    {
+      "command": "uv run pytest tests/integration/test_ingestion.py::test_source_parse_failure_preserves_prior_accepted_observation_and_signal -q (backend/)",
+      "result": "PASS: 1 passed; malformed/login response leaves prior accepted observation, evidence, project, publication date and active Signal unchanged"
+    }
+  ],
+  "source_findings": [
+    "NC parser follows the complete newest-first listing window with bounded pages, article count, per-response bytes, total run bytes, strict article URL/date/title checks, and visible login/empty/malformed/pagination failures.",
+    "NC records use canonical article paths as stable IDs, full-body content hashes plus short first-two-paragraph evidence excerpts, and deterministic physical facility expansion qualification. Explicit counties are retained; no buyer/company name is inferred.",
+    "Federal Register PDF companion retrieval runs only for deterministic Signal candidates, is limited to 25 documents per run, 5 MB and 50 pages per document, validates GovInfo URL/document number and matching Federal Register footer, and writes page-cited evidence to the same observation.",
+    "Semantic record fingerprints ignore source markup/footer noise and alternate PDF URLs; source-version/PDF hashes retain changed evidence versions without extra discovery or material-change events. Prior candidate hashes are replay-compatible.",
+    "Signal projects preserve exact project names and recognized state locations from semicolon-delimited Federal Register titles; MW, timing, duration, supply, and buyer remain unknown without evidence.",
+    "NC Commerce qualification now rejects aggregate program/statistics reports using general aggregate-language and requires a project-specific company/site action; SteelFab and boat-campus announcements remain supported.",
+    "Same-content replay reruns deterministic interpretation, deactivates a newly rejected active need with a reclassified event, refreshes explicit project label/location, retains evidence and NeedObservation history, and remains event-idempotent on later replay."
+  ],
+  "limitations": [
+    "The adapter-level live NC probe is read-only; persistence, replay, authenticated source detail, visible failures, and browser proof for these new sources remain for controller runtime integration.",
+    "The GovInfo parse used an existing ignored access-probe artifact through MockTransport, not a fresh live worker retrieval.",
+    "The controller must rerun the final dependency vulnerability audit against pypdf 6.19.0 and the frozen integrated candidate.",
+    "Controller live worker/API verification of the corrected Main Street declassification and stable replay is pending; implementation is not self-certified."
+  ],
+  "followups": [
+    "Existing API evidence shape already exposes source_id, document_number, content hash, short excerpt, and extraction_location; existing source-health API/UI integration now handles PDF enrichment counters.",
+    "No migrations, persistence schema, jobs, API, web, deployment, or ops files were modified by this builder.",
+    "No push, merge, deployment, external account, paid API, or probe-data seeding was performed."
+  ],
+  "self_certification": false,
+  "handoff_recorded_at_utc": "2026-09-25T19:43:02Z"
+}

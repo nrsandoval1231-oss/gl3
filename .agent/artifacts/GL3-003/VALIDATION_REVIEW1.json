@@ -1,0 +1,199 @@
+{
+  "candidate_sha256": "515d20e63ee65a9709166c61ee01b0be5b74473fa62addab5564ac8a40c31bda",
+  "started_at_utc": "2026-09-25 19:55:31 UTC",
+  "finished_at_utc": "2026-09-25 19:56:23 UTC",
+  "status": "DETERMINISTIC_GATES_PASS_REVIEW_PENDING",
+  "checks": [
+    {
+      "status": "fulfilled",
+      "value": {
+        "gate": "backend lint",
+        "command": "uv run ruff check src tests ../scripts",
+        "chunk_id": "62c0dc",
+        "wall_time_seconds": 0.1124586,
+        "exit_code": 0,
+        "original_token_count": 5,
+        "output": "All checks passed!\n"
+      }
+    },
+    {
+      "status": "fulfilled",
+      "value": {
+        "gate": "backend types",
+        "command": "uv run mypy src",
+        "chunk_id": "20af36",
+        "wall_time_seconds": 0.6705855,
+        "exit_code": 0,
+        "original_token_count": 12,
+        "output": "Success: no issues found in 24 source files\r\n"
+      }
+    },
+    {
+      "status": "fulfilled",
+      "value": {
+        "gate": "PostgreSQL and unit tests",
+        "command": "uv run pytest tests -q",
+        "chunk_id": "9d016c",
+        "wall_time_seconds": 4.2292328,
+        "exit_code": 0,
+        "original_token_count": 152,
+        "output": ".............................................                            [100%]\r\n============================== warnings summary ===============================\r\n.venv\\Lib\\site-packages\\fastapi\\testclient.py:1\r\n  C:\\Users\\nrsan\\Nucleus\\02_Projects\\GridLens\\gl3\\backend\\.venv\\Lib\\site-packages\\fastapi\\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.\r\n    from starlette.testclient import TestClient as TestClient  # noqa\r\n\r\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\r\n45 passed, 1 warning in 3.35s\r\n"
+      }
+    },
+    {
+      "status": "fulfilled",
+      "value": {
+        "gate": "fresh migration repeat and drift",
+        "command": "$env:PYTHONPATH = (Join-Path $PWD 'backend/src'); uv run --project backend python .artifacts/final_migrations.py",
+        "chunk_id": "b2d363",
+        "wall_time_seconds": 3.534464,
+        "exit_code": 0,
+        "original_token_count": 698,
+        "output": "{\r\n  \"checked_at\": \"2026-09-25T19:55:47.990374+00:00\",\r\n  \"isolated_database\": \"gridlens_migration_20260925195545\",\r\n  \"checks\": [\r\n    {\r\n      \"command\": \"uv run alembic upgrade head\",\r\n      \"exit_code\": 0,\r\n      \"output\": \"INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.\\nINFO  [alembic.runtime.migration] Context impl PostgresqlImpl.\\nINFO  [alembic.runtime.migration] Will assume transactional DDL.\\nINFO  [alembic.runtime.migration] Will assume transactional DDL.\\nINFO  [alembic.runtime.migration] Running upgrade  -> 0001_initial, Initial frozen PostgreSQL schema for structured ingestion.\\nINFO  [alembic.runtime.migration] Running upgrade  -> 0001_initial, Initial frozen PostgreSQL schema for structured ingestion.\\nINFO  [alembic.runtime.migration] Running upgrade 0001_initial -> 0002_interpretations, retryable interpretation backlog and visible Signal withdrawal\\nINFO  [alembic.runtime.migration] Running upgrade 0001_initial -> 0002_interpretations, retryable interpretation backlog and visible Signal withdrawal\\n\"\r\n    },\r\n    {\r\n      \"command\": \"uv run alembic upgrade head\",\r\n      \"exit_code\": 0,\r\n      \"output\": \"INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.\\nINFO  [alembic.runtime.migration] Context impl PostgresqlImpl.\\nINFO  [alembic.runtime.migration] Will assume transactional DDL.\\nINFO  [alembic.runtime.migration] Will assume transactional DDL.\\n\"\r\n    },\r\n    {\r\n      \"command\": \"uv run alembic check\",\r\n      \"exit_code\": 0,\r\n      \"output\": \"No new upgrade operations detected.\\nINFO  [alembic.runtime.migration] Context impl PostgresqlImpl.\\nINFO  [alembic.runtime.migration] Context impl PostgresqlImpl.\\nINFO  [alembic.runtime.migration] Will assume transactional DDL.\\nINFO  [alembic.runtime.migration] Will assume transactional DDL.\\nINFO  [alembic.ddl.postgresql] Detected sequence named 'change_events_id_seq' as owned by integer column 'change_events(id)', assuming SERIAL and omitting\\nINFO  [alembic.ddl.postgresql] Detected sequence named 'change_events_id_seq' as owned by integer column 'change_events(id)', assuming SERIAL and omitting\\nINFO  [alembic.ddl.postgresql] Detected sequence named 'need_observations_id_seq' as owned by integer column 'need_observations(id)', assuming SERIAL and omitting\\nINFO  [alembic.ddl.postgresql] Detected sequence named 'need_observations_id_seq' as owned by integer column 'need_observations(id)', assuming SERIAL and omitting\\nINFO  [alembic.ddl.postgresql] Detected sequence named 'interpretations_id_seq' as owned by integer column 'interpretations(id)', assuming SERIAL and omitting\\nINFO  [alembic.ddl.postgresql] Detected sequence named 'interpretations_id_seq' as owned by integer column 'interpretations(id)', assuming SERIAL and omitting\\n\"\r\n    }\r\n  ]\r\n}\r\n"
+      }
+    },
+    {
+      "status": "fulfilled",
+      "value": {
+        "gate": "Python vulnerability audit",
+        "command": "uvx --python 3.11 pip-audit --path .venv/Lib/site-packages --format json --output ../.artifacts/python-audit-final.json",
+        "chunk_id": "49cf79",
+        "wall_time_seconds": 2.064551,
+        "exit_code": 0,
+        "original_token_count": 8,
+        "output": "No known vulnerabilities found\r\n"
+      }
+    },
+    {
+      "status": "fulfilled",
+      "value": {
+        "gate": "frontend types",
+        "command": "npm run typecheck",
+        "chunk_id": "e00415",
+        "wall_time_seconds": 1.5697736,
+        "exit_code": 0,
+        "original_token_count": 12,
+        "output": "\n> gridlens-web@0.1.0 typecheck\n> tsc --noEmit\n\n"
+      }
+    },
+    {
+      "status": "fulfilled",
+      "value": {
+        "gate": "npm vulnerability audit",
+        "command": "npm audit --audit-level=high --json > ../.artifacts/npm-audit-final.json; exit $LASTEXITCODE",
+        "chunk_id": "c09a23",
+        "wall_time_seconds": 1.18649,
+        "exit_code": 0,
+        "original_token_count": 0,
+        "output": ""
+      }
+    },
+    {
+      "status": "fulfilled",
+      "value": {
+        "gate": "Compose literal credentials/config",
+        "command": "uv run --project backend python .artifacts/compose_verify.py",
+        "chunk_id": "fda5e0",
+        "wall_time_seconds": 1.3643087,
+        "exit_code": 0,
+        "original_token_count": 35,
+        "output": "{\r\n  \"dotenv_bcrypt_password_hash_match\": true,\r\n  \"config_exit\": 0,\r\n  \"config_warnings_absent\": true,\r\n  \"container_started\": false\r\n}\r\n"
+      }
+    },
+    {
+      "status": "fulfilled",
+      "value": {
+        "gate": "secret hygiene",
+        "command": "uv run --project backend python .artifacts/secret_hygiene.py",
+        "chunk_id": "8a732c",
+        "wall_time_seconds": 0.4086619,
+        "exit_code": 0,
+        "original_token_count": 53,
+        "output": "{\r\n  \"actual_runtime_secret_matches\": [],\r\n  \"ignored_paths\": [\r\n    \".env\",\r\n    \".env.compose\",\r\n    \".artifacts/local-auth.txt\",\r\n    \".artifacts/local-postgres/password.txt\"\r\n  ],\r\n  \"ignored_exit\": 0\r\n}\r\n"
+      }
+    },
+    {
+      "status": "fulfilled",
+      "value": {
+        "gate": "diff whitespace",
+        "command": "git diff --check",
+        "chunk_id": "4d1978",
+        "wall_time_seconds": 0.2201068,
+        "exit_code": 0,
+        "original_token_count": 217,
+        "output": "warning: in the working copy of '.gitignore', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'backend/README.md', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'backend/tests/README.md', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'deploy/README.md', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'docs/decisions.md', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'scripts/README.md', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'web/README.md', LF will be replaced by CRLF the next time Git touches it\n"
+      }
+    },
+    {
+      "status": "fulfilled",
+      "value": {
+        "gate": "frontend build",
+        "command": "npm run build",
+        "chunk_id": "476b37",
+        "wall_time_seconds": 2.1398503,
+        "exit_code": 0,
+        "original_token_count": 95,
+        "output": "\n> gridlens-web@0.1.0 build\n> tsc -b && vite build\n\nvite v6.4.3 building for production...\ntransforming...\n✓ 31 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/index.html                   0.51 kB │ gzip:  0.32 kB\ndist/assets/index-CM34dZ9E.css    9.41 kB │ gzip:  2.73 kB\ndist/assets/index-Cu3tKT0C.js   199.76 kB │ gzip: 62.88 kB\n✓ built in 509ms\n"
+      }
+    },
+    {
+      "status": "fulfilled",
+      "value": {
+        "gate": "live browser context/mobile test",
+        "command": "npm run test -- --reporter=line",
+        "chunk_id": "79b903",
+        "wall_time_seconds": 1.9049301,
+        "exit_code": 0,
+        "original_token_count": 96,
+        "output": "\n> gridlens-web@0.1.0 test\n> playwright test --reporter=line\n\n\nRunning 1 test using 1 worker\n\n(node:19792) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\n(Use `node --trace-warnings ...` to show where the warning was created)\n\n\n[1/1] tests\\first_path.spec.ts:8:1 › private browse/detail keeps context and source health fits a phone\n  1 passed (1.2s)\n"
+      }
+    },
+    {
+      "status": "fulfilled",
+      "value": {
+        "gate": "live source replay",
+        "command": "$env:PYTHONPATH = (Join-Path $PWD 'backend/src'); uv run --project backend python .artifacts/runtime_checkpoint.py integrated-final-candidate-replay",
+        "chunk_id": "a5569f",
+        "wall_time_seconds": 5.1338949,
+        "exit_code": 0,
+        "original_token_count": 556,
+        "output": "{\r\n  \"checked_at\": \"2026-09-25T19:56:01.450104+00:00\",\r\n  \"unauthenticated\": {\r\n    \"/api/opportunities\": 401,\r\n    \"/api/health\": 401,\r\n    \"/api/changes\": 401\r\n  },\r\n  \"before\": {\r\n    \"observations\": 92,\r\n    \"evidence\": 93,\r\n    \"projects\": 4,\r\n    \"power_needs\": 4,\r\n    \"change_events\": 5\r\n  },\r\n  \"after\": {\r\n    \"observations\": 92,\r\n    \"evidence\": 93,\r\n    \"projects\": 4,\r\n    \"power_needs\": 4,\r\n    \"change_events\": 5\r\n  },\r\n  \"counts_unchanged\": true,\r\n  \"digest_unchanged\": true,\r\n  \"jobs\": [\r\n    {\r\n      \"id\": \"25ae2046-04a8-468b-aab4-c030aefaac7e\",\r\n      \"source\": \"nc-commerce\",\r\n      \"status\": \"succeeded\",\r\n      \"attempts\": 1,\r\n      \"error\": null\r\n    },\r\n    {\r\n      \"id\": \"d17bee38-948b-4a99-9da9-77bf3e209cd1\",\r\n      \"source\": \"federal-register-eis\",\r\n      \"status\": \"succeeded\",\r\n      \"attempts\": 1,\r\n      \"error\": null\r\n    }\r\n  ],\r\n  \"health\": {\r\n    \"sources\": [\r\n      {\r\n        \"id\": \"federal-register-eis\",\r\n        \"status\": \"Checked\\u2014No Change\",\r\n        \"family\": \"structured-government\",\r\n        \"geography\": \"United States\",\r\n        \"last_attempt\": \"2026-09-25T19:55:58.462366+00:00\",\r\n        \"last_success\": \"2026-09-25T19:55:58.462366+00:00\",\r\n        \"new_records\": 0,\r\n        \"changed_records\": 0,\r\n        \"parse_failures\": 0,\r\n        \"pdf_candidates\": 77,\r\n        \"pdf_eligible\": 1,\r\n        \"pdf_enriched\": 1,\r\n        \"pdf_skipped_not_signal\": 76,\r\n        \"pdf_skipped_limit\": 0,\r\n        \"error\": null,\r\n        \"latest_publication_date\": \"2026-09-25\"\r\n      },\r\n      {\r\n        \"id\": \"nc-commerce\",\r\n        \"status\": \"Checked\\u2014No Change\",\r\n        \"family\": \"economic-development-publication\",\r\n        \"geography\": \"North Carolina\",\r\n        \"last_attempt\": \"2026-09-25T19:55:59.349111+00:00\",\r\n        \"last_success\": \"2026-09-25T19:55:59.349111+00:00\",\r\n        \"new_records\": 0,\r\n        \"changed_records\": 0,\r\n        \"parse_failures\": 0,\r\n        \"pdf_candidates\": 0,\r\n        \"pdf_eligible\": 0,\r\n        \"pdf_enriched\": 0,\r\n        \"pdf_skipped_not_signal\": 0,\r\n        \"pdf_skipped_limit\": 0,\r\n        \"error\": null,\r\n        \"latest_publication_date\": \"2026-09-25\"\r\n      }\r\n    ],\r\n    \"backlog\": 0,\r\n    \"pending_interpretations\": 0\r\n  }\r\n}\r\n"
+      }
+    },
+    {
+      "gate": "OpenAPI generation",
+      "chunk_id": "8e6922",
+      "wall_time_seconds": 0.764729,
+      "exit_code": 0,
+      "original_token_count": 0,
+      "output": ""
+    },
+    {
+      "gate": "generated TypeScript",
+      "chunk_id": "76e579",
+      "wall_time_seconds": 0.7216602,
+      "exit_code": 0,
+      "original_token_count": 48,
+      "output": "\n> gridlens-web@0.1.0 generate:api\n> openapi-typescript src/api/openapi.json -o src/api/generated.ts\n\n✨ openapi-typescript 7.8.0\n🚀 src/api/openapi.json → src/api/generated.ts [28.1ms]\n"
+    },
+    {
+      "gate": "post-generation manifest",
+      "chunk_id": "a563ab",
+      "wall_time_seconds": 0.241584,
+      "exit_code": 0,
+      "original_token_count": 45,
+      "output": "{\"previous\": \"515d20e63ee65a9709166c61ee01b0be5b74473fa62addab5564ac8a40c31bda\", \"current\": \"515d20e63ee65a9709166c61ee01b0be5b74473fa62addab5564ac8a40c31bda\", \"unchanged\": true}\r\n"
+    }
+  ],
+  "inherited_unchanged_evidence": [
+    "Locked uv sync and npm ci passed before final two-file repair; dependency lockfiles unchanged in exact manifest comparison.",
+    "Local restore receipt .artifacts/final-restore-proof.json; schema/data unchanged by Compose script and browser test repair.",
+    "Desktop/mobile all-Signal screenshots and .artifacts/final-browser-proof.json; product UI unchanged by final two-file repair."
+  ],
+  "unverified": [
+    "Docker container runtime (engine unavailable)",
+    "Remote CI (no push authorized)",
+    "Cloud deployment and PC-off scheduled check",
+    "Full PRD launch gates"
+  ]
+}
