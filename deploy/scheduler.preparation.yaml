@@ -1,0 +1,24 @@
+# Preparation only. This suspended manifest is not deployed by the repository workflow.
+# The worker also schedules due refreshes hourly. The CronJob is a deploy-time
+# alternative; its database URL comes from a cluster Secret.
+# Set WORKER_AUTO_REFRESH=false in that Secret when adopting this scheduler.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: gridlens-refresh-preparation-only
+spec:
+  schedule: "0 7 * * *"
+  timeZone: America/Chicago
+  suspend: true
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: enqueue-due-sources
+              image: ghcr.io/example/gridlens:replace-before-deploy
+              command: ["uv", "run", "python", "-m", "gridlens.jobs.refresh_sources"]
+              envFrom:
+                - secretRef:
+                    name: gridlens-runtime
