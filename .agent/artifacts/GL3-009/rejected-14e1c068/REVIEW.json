@@ -1,0 +1,39 @@
+{
+  "verdict": "FIX",
+  "candidate_sha256": "d7eb8e2d4d612ccbf22c26ac1d117842485c3c81b3cb30bdc7bf4c94c6b4033f",
+  "base_sha": "c5a98a69b20b382501468cb03c8c824d6c75abaf",
+  "branch": "fix/vertical-navigation",
+  "manifest_files": 183,
+  "reviewed_at_utc": "2026-09-27T15:45:24Z",
+  "candidate_binding": "Independently recomputed the aggregate SHA-256 from the 183 sorted manifest entries and checked every per-file SHA-256 against disk bytes; all match. Relative to accepted GL3-008, exactly the six packet files changed. Controller validation names this candidate.",
+  "scope": "Independent review of the local GL3-009 rental-generator and temporary-power screening slice. This is not a national, cloud, launch, deployment, or parent Finish Contract completion verdict.",
+  "reviewed": [
+    "Repository agent rules, GL3-009 packet, canonical PRD Signal and negative-evidence gates, and accepted GL3-008 baseline",
+    "Actual permit evaluator, permit lifecycle in ingestion service, affected tests, and temporary-power screening documentation",
+    "Retained 992-row before/after preview, all 32 newly accepted original descriptions including 19 related Zilker permit rows, negative samples, controller challenge results, source proofs, worker/replay receipts, browser receipt, and preservation receipt"
+  ],
+  "deterministic_evidence": {
+    "controller_receipt": ".agent/artifacts/GL3-009/CONTROLLER_VALIDATION.json",
+    "gates": "Controller recorded Ruff, mypy across 29 source files, 158 backend tests, web typecheck/build, and 21 of 21 synthetic challenges passing on this candidate.",
+    "runtime": "Controller recorded three ordinary city permit jobs and three exact replay jobs succeeding on first attempts; 993 permit observations after one new rejected Seattle row, 43 permit Signals, 50 total Signals, zero Prospects or Leads, and unchanged replay digest.",
+    "source_and_preservation": "Controller recorded 32 newly accepted original city-row GET comparisons plus six positive/negative samples; 992 earlier permit decisions, 11 earlier permit Signals, and prior nonpermit evidence were preserved.",
+    "independent_read_only_reproduction": "With a dated, cited, Active commercial permit at an identified site, 'Rental generator installed and supplying construction loads.' and 'Temporary generator already installed and operational.' both return accepted/temporary_power. Their rationale states that supply remains unknown. No database or source rows were changed."
+  },
+  "findings": [
+    {
+      "severity": "blocking",
+      "file": "backend/src/gridlens/domain/permit_interpretation.py",
+      "lines": [35, 210, 241],
+      "problem": "The secured-supply grammar covers 'provided', 'available', 'secured', and 'in place', but misses plain statements that a temporary or rental generator is already installed, operational, and supplying the load. The temporary-power branch then creates an open Signal and says supply remains unknown despite explicit evidence of supplied power.",
+      "contract": "GL3-009 requires explicit provided temporary supply not to assert an open rental requirement unless a distinct open activity remains stated; the PRD requires negative and secured-supply evidence to affect active needs.",
+      "repair": "Narrowly recognize explicit installed/operational/supplying temporary supply as secured for the same activity, preserving a Signal only for a separately stated open activity. Add same-keyword positive/negative regression cases and an integration case showing a formerly active need closes on an updated secured-supply permit while evidence and history remain retained. Re-run focused checks, freeze a new manifest, and rerun controller final gates before a new independent review."
+    }
+  ],
+  "limitations": [
+    "The 32 new accepted permit rows are plausible investigation Signals; 19 Zilker rows describe related festival activity and are not 19 independent opportunities.",
+    "Event aging is evaluated only when a permit row is retrieved; the rolling 30-day issue-date window can miss later changes to older permits. This is a documented source-monitoring gap outside this repair.",
+    "Three-city coverage, narrow date/phrase grammar, and unknown buyer, MW, suitable supply, start, and duration prevent any national, Prospect, Lead, or launch claim."
+  ],
+  "completion_candidate": false,
+  "next_direction": "Issue one repair-only GL3-009 packet to Luna on the same bounded candidate branch, preserve this REVIEW.json, and return a new frozen candidate for controller validation and independent review. Keep the parent Finish Contract OPEN."
+}

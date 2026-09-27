@@ -188,6 +188,13 @@ export interface components {
             source_id: string;
             /** Document Number */
             document_number: string;
+            /**
+             * Assessment Current
+             * @default false
+             */
+            assessment_current: boolean;
+            /** Permit Status */
+            permit_status?: string | null;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -261,6 +268,23 @@ export interface components {
             error?: string | null;
             /** Latest Publication Date */
             latest_publication_date?: string | null;
+            /** Latest Permit Issue Date */
+            latest_permit_issue_date?: string | null;
+            /**
+             * Records Scanned
+             * @default 0
+             */
+            records_scanned: number;
+            /**
+             * Permit Accepted
+             * @default 0
+             */
+            permit_accepted: number;
+            /**
+             * Permit Rejected
+             * @default 0
+             */
+            permit_rejected: number;
             /** Snapshot Item Count */
             snapshot_item_count?: number | null;
             /** Snapshot Oldest Publication Date */
@@ -319,6 +343,25 @@ export interface components {
             matched_terms: string[];
             /** Topic Label */
             topic_label: string | null;
+            /**
+             * Assessment Current
+             * @default false
+             */
+            assessment_current: boolean;
+            /** Assessment Reason */
+            assessment_reason?: string | null;
+            /** Supported Subject */
+            supported_subject?: string | null;
+            /** Supported Action */
+            supported_action?: string | null;
+            /** Demand Quote */
+            demand_quote?: string | null;
+            /** Supply Quote */
+            supply_quote?: string | null;
+            /** Missing Facts */
+            missing_facts?: string[];
+            /** Permit Status */
+            permit_status?: string | null;
         };
         /** IngestionPageOut */
         IngestionPageOut: {
@@ -380,6 +423,18 @@ export interface components {
             next_action: string;
             /** Conflict State */
             conflict_state: string;
+            /** Assessment Reason */
+            assessment_reason?: string | null;
+            /** Supported Subject */
+            supported_subject?: string | null;
+            /** Supported Action */
+            supported_action?: string | null;
+            /** Demand Quote */
+            demand_quote?: string | null;
+            /** Supply Quote */
+            supply_quote?: string | null;
+            /** Missing Facts */
+            missing_facts?: string[];
             /** Evidence */
             evidence: components["schemas"]["EvidenceOut"][];
         };

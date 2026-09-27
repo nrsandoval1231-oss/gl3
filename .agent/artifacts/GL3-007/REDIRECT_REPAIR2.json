@@ -1,0 +1,30 @@
+{
+  "packet": "GL3-007-review-correction",
+  "repair": 2,
+  "status": "IMPLEMENTED_NOT_SELF_ACCEPTED",
+  "preserved_negative_receipts": ["REDIRECT_COMPLETION.json", "REDIRECT_REPAIR1.json"],
+  "candidate": {
+    "news_interpretation_sha256": "744e3c415735c73337449a338fcb19cd1fba82c1560c64a941ad0f3d51ae2a4b",
+    "unit_test_sha256": "14f7ec41d55082684558bb2ad6d294041ffe5711e513f937757c7053e4b99159"
+  },
+  "correction": "Demand selection now parses controlled complete clauses only: exact named site, explicit activity, affirmative requirement verb, and positive qualifier/number/unit. It never uses sentence-wide activity presence plus the first MW. Omitted-site clauses, other-site requirements, negated requirements, and multiple competing same-activity requirements remain Signal.",
+  "validation": [
+    {"command": "focused unit and collection-only integration tests", "result": "PASS: 27 passed"},
+    {"command": "controller-challenges.py", "result": "PASS: 7 adverse-supply challenges reject Prospect; mixed capacity persists 42 MW"},
+    {"command": "backend full pytest", "result": "PASS: 87 passed; one existing Starlette/httpx deprecation warning"},
+    {"command": "ruff src tests; mypy src", "result": "PASS"},
+    {"command": "read-only 105-row baseline", "result": "PASS: 101 rejected, 4 Signals, 0 Prospects"}
+  ],
+  "new_regressions": [
+    "operations 200 MW plus omitted-site construction 42 MW does not promote",
+    "same-site construction text plus Other Site 70 MW does not promote",
+    "construction no longer requires 42 MW does not promote",
+    "multiple exact-site construction requirements remain ambiguous Signal",
+    "unrelated campus 200 MW followed by exact-site construction 42 MW still promotes with demand_mw 42 MW"
+  ],
+  "repair_budget": "Second and final redirected repair consumed; return further unresolved parser constraints to controller.",
+  "authority": "No runtime, live DB, network, provider, migration, UI, API, deployment, push, merge, or external effect.",
+  "finished_at": "2026-09-26T18:39:57-05:00",
+  "timings_tokens": "UNKNOWN",
+  "handoff": "Controller reruns final combined gates and requests fresh independent review. Builder does not certify acceptance."
+}

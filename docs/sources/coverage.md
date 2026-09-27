@@ -1,5 +1,7 @@
 # Source coverage — access checks, 2026-09-25 UTC
 
+GL3-008 adds three regionally bounded permit datasets. The implementation query fields, selected-row counts, and issue-date limits are recorded in [permit breadth](permit-breadth.md); those local GET checks do not establish national coverage.
+
 This matrix records direct public access, inspected samples and local runtime proof. Planned, access-tested, locally validated, disabled, and active are distinct: active requires deployed scheduling. The two configured feeds and three formats have completed real local retrieval, persistence and replay; final gate results and independent acceptance are recorded in [the validation receipt](../delivery/validation.md). No feed is claimed cloud-active.
 
 | Source ID / publisher | Endpoint / family / geography / industries | Useful events and power relevance | Access, retention and cadence | Collection and identity | Current evidence / limitations |
@@ -17,7 +19,7 @@ Six directly tested publisher RSS feeds are configured for hourly local collecti
 
 These are the latest items exposed by each rolling publisher feed, not a historical collection window. A one-hour local poll does not guarantee catch-up after the computer or worker is offline; items may age out of the publisher snapshot between checks. Snapshot count and oldest/newest publication dates appear in source health after successful retrieval. DCD and OGJ feeds are global; the others are US-focused and may include international items. Feed scope does not establish a project's location. The retained inbox holds canonical links, dates, titles, short publisher summaries, hashes, and extraction attribution. Article pages and full `content:encoded` bodies are not retrieved or retained.
 
-RSS records use a collection-only worker branch and do not pass through mine/project matching or qualification. Existing Signals are unaffected by the configured news sources. The MJBizDaily topic watch matches cultivation-related mentions, or licensing together with facility language, in retained titles and short summaries; each match is labeled “Topic match - review required.” It is not an alert or a facility/power qualification. General news and sponsored/editorial items can remain in the inbox without being promoted.
+RSS records pass through the retained-text project interpreter after evidence is durably committed. Its project and power gates are described in [project interpretation](project-interpretation.md). The MJBizDaily topic watch still matches cultivation-related mentions, or licensing together with facility language, in retained titles and short summaries; each match is labeled “Topic match - review required.” It is not an alert or a facility/power qualification. General news and sponsored/editorial items can remain in the inbox without being promoted.
 
 GPO retention context: https://www.govinfo.gov/about/policies (Public Domain & Copyright Notice, inspected September 25). Robots files were retrieved from the three publishers and retained with hash receipts. No paid API, LLM, Firecrawl credit, or external account was used in these checks. Public GET request charges are not imposed by these endpoints; network/infrastructure cost is not measured.
 

@@ -1,0 +1,26 @@
+{
+  "packet": "GL3-007-review-correction shared evidence-unit redirection",
+  "status": "IMPLEMENTED_NOT_SELF_ACCEPTED",
+  "frozen_candidate_manifest_sha256": "9437fdb9f140d7646eed2082d1be1f8211809f99e77d8f995dd7b6ade5ae9d4c",
+  "evaluator_version": "rss-project-v4",
+  "changed_file_hashes": {
+    "backend/src/gridlens/domain/news_interpretation.py": "7ba9aa70564a6b2a64e4ffab8ae82acf904214689c98809c0d2c775d4fae2b00",
+    "backend/tests/unit/test_news_interpretation.py": "126419a264afae913a6066025a7b40f39dd1ae451441a77397c2e3e403ba400d",
+    "docs/sources/project-interpretation.md": "8bdead28b09bc4eb12c0083057dc9a58901eabe88f7720c388d8d6aae8f63e8d"
+  },
+  "implementation": "One shared evidence-unit parser splits retained claim clauses on sentence punctuation, semicolons, and controlled but/while boundaries without splitting decimal numbers. Demand, adverse supply, and resolved supply each require exact named site and activity inside the same clause. Decimal MW values retain exact source phrases; other-site resolution does not withdraw the named site.",
+  "builder_evidence": {
+    "focused_domain": "PASS: 20 unit tests; Ruff and mypy passed",
+    "controller_challenges": "PASS as reported by controller: 13 regressions including decimal and other-site resolution",
+    "historical_full_gate_failure": "test_reclaimed_fence_blocks_stale_pdf_and_interpretation_writes failed before product freeze because assertion `assert lease is not None` received None while setting up replacement lease; no domain parser stack frame; no ingestion/fence edit made."
+  },
+  "controller_final_evidence": {
+    "full_backend": "PASS: 88 tests on frozen candidate, independently rerun by controller",
+    "challenge_gate": "PASS: 13 controller challenges",
+    "claim_boundary": "Controller evidence is distinct from builder-focused checks and controls final candidate acceptance."
+  },
+  "authority": "Artifact-only action after product freeze. No product, runtime, database, network, deployment, push, merge, or external effect.",
+  "finished_at": "2026-09-26T18:50:43-05:00",
+  "timings_tokens": "UNKNOWN",
+  "handoff": "Fresh independent review governs acceptance; this artifact does not certify completion."
+}

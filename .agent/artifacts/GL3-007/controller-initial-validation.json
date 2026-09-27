@@ -1,0 +1,28 @@
+{
+  "candidate": "f68889363977cf8ccaf386ffe5fe1a0097d99235e5b2fb7d6595e8d792aac056",
+  "at": "2026-09-26T23:23:53.840771+00:00",
+  "gates": {
+    "ruff src tests ../scripts": "PASS",
+    "mypy src": "PASS 27 files",
+    "pytest tests -q": "PASS 81",
+    "frontend typecheck/build": "PASS",
+    "API regeneration": "PASS unchanged manifest",
+    "fresh/repeated migrations/schema": "PASS",
+    "live migration/schema": "PASS",
+    "diff/secrets": "PASS",
+    "browser suite": "PASS 2",
+    "custom desktop/mobile": "PASS 7 cards no errors or overflow",
+    "retained apply/replay": "PASS 105 assessments, 7Signal0Prospect, unchanged baseline evidence and original needs",
+    "worker RSS replay": "PASS 6 jobs first attempt, identical digest"
+  },
+  "independent_review": "FIX: supply predicate and MW binding; see REVIEW-initial.json",
+  "acceptance": "NOT ACCEPTED",
+  "runtime": "API91794 and Vite23690 running; worker49824 stopped for correction",
+  "artifacts": [
+    ".artifacts/GL3-007/runtime-proof.json",
+    ".artifacts/GL3-007/browser-proof.json",
+    ".artifacts/GL3-007/worker-result.json",
+    ".artifacts/final-migrations.json"
+  ],
+  "tokens": "UNKNOWN"
+}

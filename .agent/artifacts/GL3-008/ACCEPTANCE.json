@@ -1,0 +1,17 @@
+{
+  "status": "ACCEPTED_LOCAL",
+  "at": "2026-09-27T14:53:06.489838+00:00",
+  "candidate_sha256": "b62cca763b89cdc2c2ce6e99014842620d62c7cc95ed3153f1171bc77d74982b",
+  "review": "REVIEW.json",
+  "validation": "CONTROLLER_VALIDATION.json",
+  "runtime": "All11sourcehealthCheckedNoChange;auto_refreshtrue;18activeSignals",
+  "parent_completion": false,
+  "next_direction": "CONTINUE",
+  "next_scope": "Expand official permit coverage toward additional power-intensive markets; address old-permit monitoring and supported project/phase linking in bounded packets",
+  "runtime_sessions": {
+    "api": 71768,
+    "vite": 53704,
+    "worker": 43689
+  },
+  "remote_actions": "None"
+}

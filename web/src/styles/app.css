@@ -6,3 +6,4 @@
 .collection-pagination{position:static;display:flex;justify-content:space-between;margin-top:16px}
 .collection-pagination button{background:white;border:1px solid #bdcbd5;border-radius:5px;color:#17324a;padding:9px 13px}
 .collection-pagination button:disabled{opacity:.45;cursor:default}
+.ingestion-assessment{margin:12px 0;padding:12px 14px;border-left:3px solid #395a75;background:#f4f7f9;color:#17324a;font-size:13px;line-height:1.5}.ingestion-card blockquote,.detail blockquote{margin:10px 0;padding:10px 14px;border-left:3px solid #86a2b5;background:#f7f9fa;color:#395a75;font-size:13px;line-height:1.5}

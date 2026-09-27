@@ -1,0 +1,61 @@
+{
+  "packet": "GL3-009-clause-recovery",
+  "status": "BUILDER_COMPLETE_PENDING_CONTROLLER_VALIDATION_AND_FRESH_REVIEW",
+  "base_sha": "c5a98a69b20b382501468cb03c8c824d6c75abaf",
+  "branch": "fix/vertical-navigation",
+  "finished_at_utc": "2026-09-27T16:18:36.8570574Z",
+  "repair_count": 4,
+  "scope": "Fact-bound rationale wording only; supplied-state classification logic is unchanged.",
+  "changed_files": [
+    {
+      "path": "backend/src/gridlens/domain/permit_interpretation.py",
+      "sha256": "c7411c353c44da371e0351186beea97b8dc665367d8edf5aa639d9bb3ad26b56"
+    },
+    {
+      "path": "backend/tests/unit/test_permit_interpretation.py",
+      "sha256": "0a235bb8a92d8074581012f84f571fb5ac5193cd77870c66e6beaaf99c1e645f"
+    },
+    {
+      "path": "backend/tests/integration/test_ingestion.py",
+      "sha256": "5027e8e8d10f57c82deef447bc77cd3e5b4cd5a89fc651284e9f7937ade436e4"
+    }
+  ],
+  "behavior": "For a distinct remaining clause, the rationale is 'Permit reports a distinct remaining power activity: {clause} Rental relevance is inferred; suitable supply for this activity remains unknown.' It preserves the full clause and does not characterize a permanent backup system as supplied temporary power.",
+  "version": "permit-project-v7",
+  "validation": [
+    {
+      "command": "uv run --extra dev pytest tests/unit/test_permit_interpretation.py tests/integration/test_ingestion.py::test_permit_assessment_replay_correction_and_deactivation tests/integration/test_ingestion.py::test_permit_v5_rejected_to_v6_clause_recovery_and_replay -q",
+      "workdir": "backend",
+      "result": "PASS: 62 passed in 0.90s"
+    },
+    {
+      "command": "uv run --extra dev ruff check src tests",
+      "workdir": "backend",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run --extra dev mypy src",
+      "workdir": "backend",
+      "result": "PASS: Success: no issues found in 29 source files"
+    },
+    {
+      "command": "$env:PYTHONPATH='src'; uv run --extra dev python ..\\.artifacts\\GL3-009\\supply_matrix.py",
+      "workdir": "backend",
+      "result": "PASS: 22 of 22 controller-owned supplied-state cases"
+    },
+    {
+      "command": "$env:PYTHONPATH='src'; uv run --extra dev python ..\\.artifacts\\GL3-009\\challenge.py",
+      "workdir": "backend",
+      "result": "PASS: 21 of 21 original controller challenge cases"
+    }
+  ],
+  "unknown_metrics": ["planning duration", "build duration", "validation duration", "tokens"],
+  "preserved": [
+    ".agent/artifacts/GL3-009/REVIEW.json",
+    ".agent/artifacts/GL3-009/REVIEW-r2.json",
+    ".agent/artifacts/GL3-009/REVIEW-r3.json",
+    ".agent/artifacts/GL3-009/ASTRA_RECOVERY.json",
+    ".agent/artifacts/GL3-009/CLAUSE_RECOVERY.json"
+  ],
+  "authority": "No live DB writes, network calls, source/provider changes, service control, commit, push, merge, deploy, spending, or outreach were performed."
+}

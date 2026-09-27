@@ -29,6 +29,11 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
                 "www.ogj.com",
                 "mjbizdaily.com",
             },
+            "socrata-permits": {
+                "data.austintexas.gov",
+                "data.seattle.gov",
+                "data.cityofchicago.org",
+            },
         }
         if source["id"] in ids or urlparse(source["endpoint"]).hostname not in allowed_hosts.get(
             source["retrieval_method"], set()
@@ -62,6 +67,18 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
                 source.get("cadence_hours") == 1
                 and 1024 <= query.get("max_response_bytes", 0) <= 5_000_000
                 and 1 <= query.get("max_items", 0) <= 50
+            )
+        elif source["retrieval_method"] == "socrata-permits":
+            bounded = (
+                source.get("family") == "construction-permits"
+                and source.get("cadence_hours") == 24
+                and query.get("per_page") == 1000
+                and 1 <= query.get("window_days", 0) <= 90
+                and 1 <= query.get("max_pages", 0) <= 20
+                and query.get("max_response_bytes") == 2_000_000
+                and query.get("max_run_bytes") == 20_000_000
+                and source.get("city") in {"Austin", "Seattle", "Chicago"}
+                and source.get("state") in {"TX", "WA", "IL"}
             )
         else:
             bounded = False

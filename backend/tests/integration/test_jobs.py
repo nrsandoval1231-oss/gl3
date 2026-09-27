@@ -171,3 +171,54 @@ def test_parser_failure_preserves_accepted_health_and_is_visible(db, monkeypatch
     assert source["new_records"] == 0
     with factory() as session:
         assert session.scalar(select(Job.status)) == "queued"
+
+
+def test_permit_queue_priority_and_news_age_fairness(db):
+    _, factory = db
+    now = datetime.now(UTC)
+    with factory.begin() as session:
+        session.add_all(
+            [
+                Source(
+                    id="city-permits",
+                    publisher="City",
+                    endpoint="https://data.example/permits",
+                    family="construction-permits",
+                    geography="City",
+                    industries=["construction"],
+                    retrieval_method="socrata-permits",
+                    cadence_hours=24,
+                    health={},
+                ),
+                Source(
+                    id="daily-news",
+                    publisher="Publisher",
+                    endpoint="https://news.example/feed",
+                    family="news",
+                    geography="US",
+                    industries=["infrastructure"],
+                    retrieval_method="publisher-rss",
+                    cadence_hours=1,
+                    health={},
+                ),
+            ]
+        )
+        session.flush()
+        session.add_all(
+            [
+                Job(source_id="daily-news", status="queued", available_at=now, created_at=now),
+                Job(source_id="city-permits", status="queued", available_at=now, created_at=now),
+            ]
+        )
+    with factory.begin() as session:
+        first, _ = lease_one(session, "priority-worker")
+        assert first.source_id == "city-permits"
+        news = session.scalar(select(Job).where(Job.source_id == "daily-news"))
+        assert news
+        news.created_at = now - timedelta(days=2)
+        session.add(
+            Job(source_id="city-permits", status="queued", available_at=now, created_at=now)
+        )
+    with factory.begin() as session:
+        aged_news, _ = lease_one(session, "fairness-worker")
+        assert aged_news.source_id == "daily-news"
