@@ -2,10 +2,16 @@ from datetime import UTC, date, datetime, timedelta
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
-from fastapi import Depends, FastAPI, HTTPException, Request, Response
-from pydantic import BaseModel, SecretStr
+from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
+from pydantic import BaseModel, Field, SecretStr
 from sqlalchemy import Date, func, select
 
+from gridlens.domain.collection_watch import (
+    candidate_expression as collection_watch_expression,
+)
+from gridlens.domain.collection_watch import (
+    matched_terms as collection_watch_terms,
+)
 from gridlens.jobs.queue import enqueue
 from gridlens.persistence.database import SessionLocal
 from gridlens.persistence.models import (
@@ -49,6 +55,8 @@ class EvidenceOut(BaseModel):
     event_date_label: str
     source_id: str
     document_number: str
+    assessment_current: bool = False
+    permit_status: str | None = None
 
 
 class OpportunityOut(BaseModel):
@@ -64,6 +72,12 @@ class OpportunityOut(BaseModel):
     supply: str
     next_action: str
     conflict_state: str
+    assessment_reason: str | None = None
+    supported_subject: str | None = None
+    supported_action: str | None = None
+    demand_quote: str | None = None
+    supply_quote: str | None = None
+    missing_facts: list[str] = Field(default_factory=list)
     evidence: list[EvidenceOut]
 
 
@@ -84,6 +98,15 @@ class HealthSourceOut(BaseModel):
     pdf_skipped_limit: int = 0
     error: str | None = None
     latest_publication_date: str | None = None
+    latest_permit_issue_date: str | None = None
+    records_scanned: int = 0
+    permit_accepted: int = 0
+    permit_rejected: int = 0
+    snapshot_item_count: int | None = None
+    snapshot_oldest_publication_date: str | None = None
+    snapshot_newest_publication_date: str | None = None
+    collection_scope: str | None = None
+    coverage_limitation: str | None = None
 
 
 class HealthOut(BaseModel):
@@ -118,6 +141,42 @@ class LogoutOut(BaseModel):
 
 class RefreshOut(BaseModel):
     queued: list[str]
+
+
+class IngestionItemOut(BaseModel):
+    source_id: str
+    publisher: str
+    endpoint: str
+    verticals: list[str]
+    source_scope: str
+    external_id: str
+    title: str
+    published_at: date
+    first_seen_at: datetime
+    latest_evidence_at: datetime
+    excerpt: str | None
+    extraction_location: str
+    content_hash: str
+    citation_url: str
+    collection_state: str
+    qualification_state: str
+    matched_terms: list[str]
+    topic_label: str | None
+    assessment_current: bool = False
+    assessment_reason: str | None = None
+    supported_subject: str | None = None
+    supported_action: str | None = None
+    demand_quote: str | None = None
+    supply_quote: str | None = None
+    missing_facts: list[str] = Field(default_factory=list)
+    permit_status: str | None = None
+
+
+class IngestionPageOut(BaseModel):
+    items: list[IngestionItemOut]
+    total: int
+    limit: int
+    offset: int
 
 
 @app.get("/openapi.json", include_in_schema=False)
@@ -172,6 +231,21 @@ def _valid(request: Request) -> bool:
     return valid_token(request.cookies.get("gridlens_session"))
 
 
+def _assessment_for_evidence(
+    interpretation: Interpretation | None, observation: Observation, evidence: Evidence
+) -> dict | None:
+    if interpretation is None or not interpretation.assessment:
+        return None
+    assessment = interpretation.assessment
+    if (
+        assessment.get("semantic_hash") != observation.content_hash
+        or assessment.get("evidence_hash") != evidence.content_hash
+        or assessment.get("evidence", {}).get("id") != str(evidence.id)
+    ):
+        return None
+    return assessment
+
+
 @app.get("/api/health", response_model=HealthOut, dependencies=[Depends(require_session)])
 def health():
     with SessionLocal() as session:
@@ -201,6 +275,13 @@ def health():
                 "family": row.family,
                 "geography": row.geography,
             }
+            if row.family == "news":
+                info["collection_scope"] = row.geography
+                info["coverage_limitation"] = (
+                    "Latest publisher snapshot only; rolling feeds can omit items "
+                    "between snapshots. "
+                    "Hourly checks do not guarantee catch-up after local downtime."
+                )
             last_attempt = row.health.get("last_attempt")
             if (
                 row.enabled
@@ -218,6 +299,123 @@ def health():
             "backlog": jobs,
             "pending_interpretations": pending,
         }
+
+
+def _ingestion_filters(source_id: str | None, vertical: str | None, watch_only: bool):
+    predicates = []
+    if source_id:
+        predicates.append(Observation.source_id == source_id)
+    if vertical:
+        predicates.append(Source.industries.contains([vertical]))
+    if watch_only:
+        predicates.append(Observation.source_id == "mjbizdaily-news")
+        predicates.append(collection_watch_expression(Evidence.title, Evidence.abstract))
+    return predicates
+
+
+@app.get(
+    "/api/ingestion",
+    response_model=IngestionPageOut,
+    dependencies=[Depends(require_session)],
+)
+def ingestion(
+    source_id: str | None = None,
+    vertical: str | None = None,
+    watch_only: bool = False,
+    limit: int = Query(25, ge=1, le=100),
+    offset: int = Query(0, ge=0, le=100000),
+):
+    predicates = _ingestion_filters(source_id, vertical, watch_only)
+    with SessionLocal() as session:
+        base = (
+            select(Evidence, Observation, Source, Interpretation)
+            .join(Observation, Evidence.observation_id == Observation.id)
+            .join(Source, Observation.source_id == Source.id)
+            .outerjoin(Interpretation, Interpretation.observation_id == Observation.id)
+            .where(*predicates)
+        )
+        total = session.scalar(select(func.count()).select_from(base.subquery())) or 0
+        rows = session.execute(
+            base.order_by(
+                Evidence.observed_at.desc(),
+                Observation.source_id,
+                Observation.external_id,
+                Evidence.content_hash,
+            )
+            .limit(limit)
+            .offset(offset)
+        ).all()
+        items = []
+        for evidence, observation, source, interpretation in rows:
+            assessment = _assessment_for_evidence(interpretation, observation, evidence)
+            terms = (
+                collection_watch_terms(evidence.title, evidence.abstract)
+                if observation.source_id == "mjbizdaily-news"
+                else []
+            )
+            if watch_only:
+                assert terms, "SQL topic filter and displayed topic matcher must agree"
+            items.append(
+                {
+                    "source_id": source.id,
+                    "publisher": source.publisher,
+                    "endpoint": source.endpoint,
+                    "verticals": source.industries,
+                    "source_scope": source.geography,
+                    "external_id": observation.external_id,
+                    "title": evidence.title,
+                    "published_at": evidence.published_at,
+                    "first_seen_at": observation.first_seen_at,
+                    "latest_evidence_at": evidence.observed_at,
+                    "excerpt": evidence.abstract,
+                    "extraction_location": evidence.extraction_location,
+                    "content_hash": evidence.content_hash,
+                    "citation_url": evidence.url,
+                    "collection_state": "Evidence retained",
+                    "qualification_state": (
+                        "Linked to opportunity"
+                        if session.scalar(
+                            select(func.count())
+                            .select_from(NeedObservation)
+                            .where(NeedObservation.observation_id == observation.id)
+                        )
+                        or (
+                            assessment
+                            and assessment.get("decision") == "accepted"
+                            and session.scalar(
+                                select(func.count())
+                                .select_from(Project)
+                                .join(PowerNeed, PowerNeed.project_id == Project.id)
+                                .where(
+                                    Project.source_id == observation.source_id,
+                                    Project.external_id == observation.external_id,
+                                    PowerNeed.active.is_(True),
+                                )
+                            )
+                        )
+                        else f"{assessment['tier']} created"
+                        if assessment and assessment.get("decision") == "accepted"
+                        else "Reviewed; no project Signal"
+                        if assessment and assessment.get("decision") == "rejected"
+                        else "Interpretation failed"
+                        if interpretation and interpretation.status == "failed"
+                        else "Reassessment required"
+                        if interpretation and interpretation.assessment
+                        else "Not assessed"
+                    ),
+                    "matched_terms": terms,
+                    "topic_label": "Topic match - review required" if terms else None,
+                    "assessment_current": assessment is not None,
+                    "assessment_reason": assessment.get("reason") if assessment else None,
+                    "supported_subject": assessment.get("subject") if assessment else None,
+                    "supported_action": assessment.get("action") if assessment else None,
+                    "demand_quote": assessment.get("demand_quote") if assessment else None,
+                    "supply_quote": assessment.get("supply_quote") if assessment else None,
+                    "missing_facts": assessment.get("missing_facts", []) if assessment else [],
+                    "permit_status": assessment.get("permit_status") if assessment else None,
+                }
+            )
+        return {"items": items, "total": total, "limit": limit, "offset": offset}
 
 
 @app.get(
@@ -241,28 +439,55 @@ def opportunities(tier: str | None = None, search: str | None = None):
         result = []
         for need, project in rows:
             links = session.execute(
-                select(Observation, Evidence)
+                select(Observation, Evidence, Interpretation)
                 .join(NeedObservation, NeedObservation.observation_id == Observation.id)
                 .join(Evidence, Evidence.observation_id == Observation.id)
+                .outerjoin(Interpretation, Interpretation.observation_id == Observation.id)
                 .where(NeedObservation.need_id == need.id)
                 .order_by(Evidence.observed_at.desc())
             ).all()
-            evidence = [
-                {
-                    "title": ev.title,
-                    "abstract": ev.abstract,
-                    "url": ev.url,
-                    "published_at": ev.published_at,
-                    "retrieved_at": ev.observed_at,
-                    "extraction_location": ev.extraction_location,
-                    "content_hash": ev.content_hash,
-                    "event_date": ev.event_date,
-                    "event_date_label": ev.event_date.isoformat() if ev.event_date else "Unknown",
-                    "source_id": obs.source_id,
-                    "document_number": obs.external_id,
-                }
-                for obs, ev in links
-            ]
+            evidence = []
+            current_assessments = []
+            for obs, ev, interpretation in links:
+                current_assessment = _assessment_for_evidence(interpretation, obs, ev)
+                if current_assessment:
+                    current_assessments.append(current_assessment)
+                evidence.append(
+                    {
+                        "title": ev.title,
+                        "abstract": ev.abstract,
+                        "url": ev.url,
+                        "published_at": ev.published_at,
+                        "retrieved_at": ev.observed_at,
+                        "extraction_location": ev.extraction_location,
+                        "content_hash": ev.content_hash,
+                        "event_date": ev.event_date,
+                        "event_date_label": ev.event_date.isoformat()
+                        if ev.event_date
+                        else "Unknown",
+                        "source_id": obs.source_id,
+                        "document_number": obs.external_id,
+                        "assessment_current": current_assessment is not None,
+                        "permit_status": current_assessment.get("permit_status")
+                        if current_assessment
+                        else None,
+                    }
+                )
+            current_assessment = current_assessments[0] if current_assessments else None
+            missing_facts = (
+                current_assessment.get("missing_facts", [])
+                if current_assessment
+                else [
+                    label
+                    for value, label in (
+                        (need.required_mw, "activity-specific power requirement"),
+                        (need.supply != "Unknown", "suitable supply"),
+                        (need.start_window, "start window"),
+                        (need.duration, "duration"),
+                    )
+                    if not value
+                ]
+            )
             result.append(
                 {
                     "id": need.id,
@@ -276,10 +501,27 @@ def opportunities(tier: str | None = None, search: str | None = None):
                     "duration": need.duration,
                     "supply": need.supply,
                     "next_action": (
-                        "Confirm the project's construction power requirement, timing, "
-                        "duration, and utility service plan."
+                        "Confirm timing, duration, and remaining suitable supply for this activity."
+                        if need.tier == "Prospect"
+                        else "Confirm activity power needs, timing, duration, and service plan."
                     ),
                     "conflict_state": "Not assessed",
+                    "assessment_reason": current_assessment.get("reason", need.rationale)
+                    if current_assessment
+                    else need.rationale,
+                    "supported_subject": current_assessment.get("subject", project.name)
+                    if current_assessment
+                    else project.name,
+                    "supported_action": current_assessment.get("action")
+                    if current_assessment
+                    else None,
+                    "demand_quote": current_assessment.get("demand_quote")
+                    if current_assessment
+                    else None,
+                    "supply_quote": current_assessment.get("supply_quote")
+                    if current_assessment
+                    else None,
+                    "missing_facts": missing_facts,
                     "evidence": evidence,
                 }
             )

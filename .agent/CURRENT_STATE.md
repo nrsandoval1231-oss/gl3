@@ -1,7 +1,19 @@
 # Current state
-Repository: gl3; branch build/ingestion-slice; base 07b05b3e7de5b4a67ad9ae8aebd1cd918ba4b128.
-Owner request: first usable real ingestion-backed slice, then authorized READY milestone work. Canonical PRD, ingestion strategy and frozen UI remain authoritative. No old GridLens imports.
-Opening Tribunal completed once. GL3-001/002/003 accepted locally after deterministic validation and independent Sol PASS in REVIEW_REPAIR1.json. Original FIX and failed checkpoints preserved. Accepted 163-file product manifest: dc1a49e0e5e9a1d3636f3a71be8fa99ef8756dc362c32f22f7ce18990df8d072.
-46 tests plus lint/types/build/migrations/browser/replay/restore/config/hygiene passed. Three active real Signals, 92 observations, 93 evidence versions; four retained histories include one inactive correction. App http://127.0.0.1:5173; API8000; isolated PostgreSQL55439. Runtime session handoff is in artifacts/GL3-003/RUNTIME.json.
-User subsequently authorized merge and continued work. Implementation committed as b0fe5d9f383dc4dc5fc691b031578a5a30b7a4ad and pushed; PR #1 open. Owner subsequently instructed Local validation only: accepted local gates and independent review govern merge. GitHub billing prevents CI execution and is recorded as unavailable, not a product failure or acceptance blocker. See artifacts/GL3-003/MERGE_STATUS.json. No merge or deployment occurred. Container engine remains unavailable; cloud/spending authorization remains absent.
-Next milestone packet: A-cloud, blocked on explicit deployment authority and owner host/secret configuration. PRD line368 requires sequential milestone deployment. No milestone-level successor is READY; local preparation and immediate slice are complete. A and full launch gates remain OPEN.
+
+Owner direction: rental generators, temporary and bridge power are the main discovery focus. Permits primary, news supplemental. Canonical docs/product/PRD.md and WORK_GRAPH.md govern; parent Finish Contract OPEN. No push/deploy/spending/outreach authorized by this slice.
+
+Repo gl3; branch fix/vertical-navigation; HEAD c5a98a69b20b382501468cb03c8c824d6c75abaf. Accepted GL3-006/007/008/009 edits remain uncommitted. Prior state preserved in artifacts/GL3-009/STATE_BEFORE_BUILD.md.
+
+GL3-009 ACCEPTED LOCAL at 2026-09-27T16:24:24.789409+00:00: exact183-file candidate 654979d62a57d6344636e37eb34010184857310ee13a82b1bcbcb4165a62e621. Independent Sol PASS artifacts/GL3-009/REVIEW-r5.json. Four earlier FIX reviews, Astra rawREDIRECT and rejected candidate snapshots retained. See ACCEPTANCE.json, CONTROLLER_VALIDATION.json and EPISODE.json.
+
+permit-project-v7 admits supported equipment-changeout continuity, temporary generation, bridge activity, powered events and critical hospital remodeling as Signals. Clause-scoped supplied/negative/open evidence keeps distinct remaining activity visible with a source-bound rationale. Explicit event-end aging runs on retrieved rows. No MW/buyer/start/duration/supply invented; no Prospect/Lead promotion.
+
+Latest validated snapshot: Austin311/29Signals; Seattle85/1; Chicago597/13. Total993permitrecords/43permitSignals; 50totalactiveSignals,0Prospects/Leads. All11 prior permit Signals and992v2 decisions retained; v3-v6 versions also retained. Original evidence/nonpermit facts unchanged. 1190observations/1191evidence.
+
+Validation:174backendtests, Ruff/mypy, webtypes/build;22supplied-state and21originalchallenge cases;32newaccepted original-source checks plus6samples;6ordinaryworkerjobs with identical replay; authenticated browser50cards and390px no overflow. API8000 session32414, Vite5173 session56190; worker resumed session54639, auto_refreshtrue. These are local processes, not cloud availability.
+
+Limits: three-city building-permit feeds only; dedicated electrical/generator feeds and national coverage open.19Zilker records describe related festival activity, not19independent opportunities. No cross-permit consolidation.30dayissuewindow misses older-row updates; bounded grammar/date parser may miss relevant work. General LLM interpretation/research and parent launch remain OPEN; cloud owner-DEFERRED.
+
+Next direction CONTINUE the next bounded source/monitoring node, prioritizing rental-relevant electrical/generator feeds and evidence-backed consolidation. User review: .artifacts/GL3-009/Rental-power-permit-review.md and permit-decisions.csv.
+
+Owner update 2026-09-27: 'PERFECT!! merge it' authorizes publication and merge of the accepted stack. All 183 candidate files reverified unchanged; runtime secrets excluded. Existing local-validation acceptance instruction retained. Deployment remains outside this action. Merge outcome is verified separately in GitHub.

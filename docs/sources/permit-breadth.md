@@ -1,0 +1,29 @@
+# GL3-008 permit breadth — 2026-09-27
+
+This is regional discovery coverage through three official city Socrata datasets. It does not establish national permit coverage, historical completeness, or that an issued permit means work began or needs temporary power.
+
+## Source checks
+
+The builder ran the same bounded adapter used by durable jobs against the configured official public endpoints. Each run first queried an exact matching-row count and then retrieved every page in deterministic issue-date and stable-row-ID order. The selected 30-day inclusive window was 2026-08-28 through 2026-09-27 UTC. The source endpoints returned these matching row counts; each paged result equaled its count query and every row date passed the local window check.
+
+| Source | Official endpoint | Verified filter and stable row ID | Rows retrieved | Candidate status | Notes |
+|---|---|---|---:|---:|---|
+| Austin Building Permits | [Austin open data](https://data.austintexas.gov/resource/3syk-w9eu.json) | Commercial class + Building Permit; `permit_number` | 311 | 7 v2 rule candidates in retained sample | Event date `issue_date`; status `status_current`; site address and publisher record link retained. |
+| Seattle Building Permits | [Seattle open data](https://data.seattle.gov/resource/76t5-zqzr.json) | Non-Residential class + Building type; `permitnum` | 84 | 1 v2 rule candidate in retained sample | Event date `issueddate`; status `statuscurrent`; city/state are configured dataset geography because the row has no city/state fields; official Seattle record link is retained when on the approved host. |
+| Chicago Building Permits | [Chicago data portal](https://data.cityofchicago.org/resource/ydr8-5enu.json) | New Construction or Renovation/Alteration permit type; `id` | 597 | 3 v2 rule candidates in retained sample | Event date `issue_date`; status `permit_status`; address assembled from street number/direction/name. Blank status is UNKNOWN and rejected. Dataset resource URL plus stable row ID is the citation when no row link is supplied. |
+
+The ignored public audit files retain the normalized GET rows and builder rule decisions. A bounded domain specialist re-evaluated all 992 retained rows with permit-project-v2 and reported 7 Austin, 3 Chicago, and 1 Seattle accepted candidate. This is deterministic retained-sample review, not independent exact-candidate acceptance; no candidate is yet a retained runtime Signal. Controller runtime jobs and replay are the proof of durable local operation. The GETs used no credentials, paid services, or application database writes.
+
+## Retention and interpretation
+
+The adapter uses explicit city field maps and fixed city predicates. Source row text cannot choose an endpoint, column, or SoQL clause. Responses are bounded to 2 MB per page, 20 MB per run, 1,000 rows per page, and 20 pages; redirects, malformed or non-JSON responses, an empty window, duplicate/missing row IDs, escaped issue dates, page/count mismatch, or bound overflow fail the source run before processing results. Austin and Seattle status fields are retained as supplied; Chicago blank status remains UNKNOWN. Off-host row links are discarded in favor of the configured official dataset citation.
+
+Observations use the permit row ID as their per-source identity. The semantic hash covers mapped stable source fields, including status, address, classification, work, cost, area, and source project hint. A material row correction creates a new Evidence version and assessment history. The issue date is stored as the dated permit event; it is not an independently verified publication date. First-seen and Evidence retrieval timestamps remain separate. Cost and area are source facts only; neither is converted into MW.
+
+Only current `Active`, `Issued`, or `Approved` rows with a street address and explicit major-facility activity can become Signals. Common residential, trade-only, signage, maintenance, inspection, and routine office/tenant work are excluded. Explicit ordinary restaurant/office/retail conversions and negated construction language are rejected. Each accepted Signal says work start and power gap are unverified. Buyer, activity-specific requirement, supply, start, and duration remain UNKNOWN. Permit rows do not promote Prospects or Leads.
+
+The adapter checks issue dates within a rolling 30-day window with overlap. A source that edits an older permit while retaining an issue date outside that window will not be discovered by this query. No modified-date reconciliation was verified or implemented. These datasets can change after a row-count check; a duplicate or count mismatch fails closed, but a same-count concurrent replacement cannot be ruled out from one bounded request sequence.
+
+## Sample review direction
+
+The domain specialist re-evaluated the retained sample against official row citations, including data-center/laboratory conversions and industrial construction alongside office fit-outs, withdrawn or completed permits, routine maintenance, negated scope, and missing status. Controller runtime must still verify retained signals and replay. A Signal is an inspection queue for power questions, not proof of construction start, load, or supply shortfall.

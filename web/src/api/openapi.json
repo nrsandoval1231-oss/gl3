@@ -97,6 +97,102 @@
         }
       }
     },
+    "/api/ingestion": {
+      "get": {
+        "summary": "Ingestion",
+        "operationId": "ingestion_api_ingestion_get",
+        "parameters": [
+          {
+            "name": "source_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Source Id"
+            }
+          },
+          {
+            "name": "vertical",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Vertical"
+            }
+          },
+          {
+            "name": "watch_only",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Watch Only"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 25,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100000,
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestionPageOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/opportunities": {
       "get": {
         "summary": "Opportunities",
@@ -297,6 +393,22 @@
           "document_number": {
             "type": "string",
             "title": "Document Number"
+          },
+          "assessment_current": {
+            "type": "boolean",
+            "title": "Assessment Current",
+            "default": false
+          },
+          "permit_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Permit Status"
           }
         },
         "type": "object",
@@ -455,6 +567,87 @@
               }
             ],
             "title": "Latest Publication Date"
+          },
+          "latest_permit_issue_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Permit Issue Date"
+          },
+          "records_scanned": {
+            "type": "integer",
+            "title": "Records Scanned",
+            "default": 0
+          },
+          "permit_accepted": {
+            "type": "integer",
+            "title": "Permit Accepted",
+            "default": 0
+          },
+          "permit_rejected": {
+            "type": "integer",
+            "title": "Permit Rejected",
+            "default": 0
+          },
+          "snapshot_item_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snapshot Item Count"
+          },
+          "snapshot_oldest_publication_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snapshot Oldest Publication Date"
+          },
+          "snapshot_newest_publication_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Snapshot Newest Publication Date"
+          },
+          "collection_scope": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Collection Scope"
+          },
+          "coverage_limitation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Coverage Limitation"
           }
         },
         "type": "object",
@@ -465,6 +658,236 @@
           "geography"
         ],
         "title": "HealthSourceOut"
+      },
+      "IngestionItemOut": {
+        "properties": {
+          "source_id": {
+            "type": "string",
+            "title": "Source Id"
+          },
+          "publisher": {
+            "type": "string",
+            "title": "Publisher"
+          },
+          "endpoint": {
+            "type": "string",
+            "title": "Endpoint"
+          },
+          "verticals": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Verticals"
+          },
+          "source_scope": {
+            "type": "string",
+            "title": "Source Scope"
+          },
+          "external_id": {
+            "type": "string",
+            "title": "External Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "published_at": {
+            "type": "string",
+            "format": "date",
+            "title": "Published At"
+          },
+          "first_seen_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "First Seen At"
+          },
+          "latest_evidence_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Latest Evidence At"
+          },
+          "excerpt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Excerpt"
+          },
+          "extraction_location": {
+            "type": "string",
+            "title": "Extraction Location"
+          },
+          "content_hash": {
+            "type": "string",
+            "title": "Content Hash"
+          },
+          "citation_url": {
+            "type": "string",
+            "title": "Citation Url"
+          },
+          "collection_state": {
+            "type": "string",
+            "title": "Collection State"
+          },
+          "qualification_state": {
+            "type": "string",
+            "title": "Qualification State"
+          },
+          "matched_terms": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Matched Terms"
+          },
+          "topic_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Topic Label"
+          },
+          "assessment_current": {
+            "type": "boolean",
+            "title": "Assessment Current",
+            "default": false
+          },
+          "assessment_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assessment Reason"
+          },
+          "supported_subject": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supported Subject"
+          },
+          "supported_action": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supported Action"
+          },
+          "demand_quote": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Demand Quote"
+          },
+          "supply_quote": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supply Quote"
+          },
+          "missing_facts": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Missing Facts"
+          },
+          "permit_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Permit Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source_id",
+          "publisher",
+          "endpoint",
+          "verticals",
+          "source_scope",
+          "external_id",
+          "title",
+          "published_at",
+          "first_seen_at",
+          "latest_evidence_at",
+          "excerpt",
+          "extraction_location",
+          "content_hash",
+          "citation_url",
+          "collection_state",
+          "qualification_state",
+          "matched_terms",
+          "topic_label"
+        ],
+        "title": "IngestionItemOut"
+      },
+      "IngestionPageOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/IngestionItemOut"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "IngestionPageOut"
       },
       "LoginBody": {
         "properties": {
@@ -590,6 +1013,68 @@
           "conflict_state": {
             "type": "string",
             "title": "Conflict State"
+          },
+          "assessment_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assessment Reason"
+          },
+          "supported_subject": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supported Subject"
+          },
+          "supported_action": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supported Action"
+          },
+          "demand_quote": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Demand Quote"
+          },
+          "supply_quote": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supply Quote"
+          },
+          "missing_facts": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Missing Facts"
           },
           "evidence": {
             "items": {
