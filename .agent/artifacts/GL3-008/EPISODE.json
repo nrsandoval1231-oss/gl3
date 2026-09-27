@@ -1,0 +1,43 @@
+{
+  "state": "7activeSignals;8sources;no city permit adapter",
+  "decision": "Owner permit-primary/news-supplemental;Sol approved3citysharedadapter",
+  "action": "One Luna integration;Terra bounded domain repair;controller tests/live jobs/source checks;independent Sol review",
+  "outcome": "992permitrecords11permitSignals;18total;alloldstatepreserved;exactreplaystable",
+  "deterministic_evaluation": "135backendtests;Ruff/mypy;webtypes/build2browser;6permitjobs;32originalrowchecks;PASS independent review",
+  "attribution": "Sourcecoverage, not lower tier gates, increased available Signals",
+  "candidate_lesson": "Use explicit source ID fixtures, complete source status mappings, and inspect accepted/rejected real records before live ingestion",
+  "lesson_status": "CANDIDATE_ONLY",
+  "promotion": "Not promoted without matched repeated scope evidence",
+  "metric": {
+    "useful_permit_signals": 11,
+    "baseline": 0,
+    "direction": "increase",
+    "permit_replay_duplicate_state": 0
+  },
+  "reversibility": "Local snapshot retained; source registration can be disabled; no destructive resets performed",
+  "integration_repairs": 2,
+  "domain_specialist_repairs": 1,
+  "initial_development_refinements": "unmeasured, retained failed examples and handoffs",
+  "lane": "full existing initiative",
+  "timing": {
+    "start_utc": "UNKNOWN",
+    "finish_utc": "2026-09-27T14:53:06.489838+00:00",
+    "planning_seconds": "UNKNOWN",
+    "build_seconds": "UNKNOWN",
+    "validation_command_seconds": [
+      0.062,
+      0.704,
+      5.281
+    ],
+    "audit_seconds": "UNKNOWN",
+    "elapsed_to_accepted": "UNKNOWN"
+  },
+  "models": {
+    "builder": "gpt-6-luna low",
+    "specialist": "gpt-5.6-terra medium",
+    "reviewer": "gpt-6-sol medium",
+    "config_identity": "tool role configuration; local config load UNKNOWN"
+  },
+  "tokens": "UNKNOWN",
+  "next_direction": "CONTINUE"
+}

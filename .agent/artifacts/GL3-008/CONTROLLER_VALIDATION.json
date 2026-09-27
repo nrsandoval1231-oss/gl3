@@ -1,0 +1,111 @@
+{
+  "status": "VALIDATED_PENDING_INDEPENDENT_REVIEW",
+  "candidate_sha256": "b62cca763b89cdc2c2ce6e99014842620d62c7cc95ed3153f1171bc77d74982b",
+  "base_sha": "c5a98a69b20b382501468cb03c8c824d6c75abaf",
+  "branch": "fix/vertical-navigation",
+  "files": 182,
+  "at": "2026-09-27T14:46:54.719415+00:00",
+  "validation": {
+    "backend": "135 passed; Ruff and mypy29files pass",
+    "frontend": "typecheck, production build,2browser tests pass",
+    "contracts": "OpenAPI/types regenerated, same candidate",
+    "diff_and_secrets": "diff check pass; no actual runtime secrets in nonignored files",
+    "schema": "No GL3-008 migration/model change; existing migration acceptance retained",
+    "runtime": "3ordinary worker source jobs+3replay jobs succeeded first attempt; exact retained state digest unchanged",
+    "source_sample": "32original-row public GET checks11accepted21rejected; ID/description/status matches retained evidence",
+    "browser": "18cards; permit issue date and unknown publication label;3cityhealth;390px no overflow;no JSerrors"
+  },
+  "runtime": {
+    "at": "2026-09-27T14:43:44.516464+00:00",
+    "counts": {
+      "sources": 11,
+      "observations": 1189,
+      "evidence": 1190,
+      "projects": 19,
+      "power_needs": 19,
+      "change_events": 20,
+      "interpretations": 1189,
+      "need_observations": 19
+    },
+    "tiers": {
+      "Signal": 18,
+      "Prospect": 0,
+      "Lead": 0
+    },
+    "permit_sources": [
+      "austin-building-permits",
+      "seattle-building-permits",
+      "chicago-building-permits"
+    ],
+    "permit_observations": 992,
+    "permit_decisions": {
+      "accepted": 11,
+      "rejected": 981,
+      "failed": 0,
+      "pending": 0
+    },
+    "source_counts": {
+      "austin-building-permits": {
+        "observations": 311,
+        "signals": 7
+      },
+      "seattle-building-permits": {
+        "observations": 84,
+        "signals": 1
+      },
+      "chicago-building-permits": {
+        "observations": 597,
+        "signals": 3
+      }
+    },
+    "prior_data_unchanged": true,
+    "digest": "fb3815ec34941a0d93ce87bbde8be4991370824518036c183ed58a1cea60f5cb",
+    "replay_unchanged": true
+  },
+  "artifacts": [
+    ".artifacts/GL3-008/backend-final.json",
+    ".artifacts/GL3-008/first-live.json",
+    ".artifacts/GL3-008/first-live-jobs.json",
+    ".artifacts/GL3-008/replay.json",
+    ".artifacts/GL3-008/replay-jobs.json",
+    ".artifacts/GL3-008/source-sample-proof.json",
+    ".artifacts/GL3-008/browser-proof.json",
+    ".artifacts/GL3-008/permit-detail.png",
+    ".artifacts/GL3-008/permit-health-mobile.png"
+  ],
+  "failed_attempts": [
+    "Initial broad evaluator false-positive/false-negative cases corrected; bounded Terra v2 repair",
+    "First full gate16FRfixture failures due positional registry and4type errors; Luna repair1",
+    "Second browser stale text assertion; Luna repair2"
+  ],
+  "limits": [
+    "Three cities only, not nationwide",
+    "30dayissuewindow; changes to older permits not monitored",
+    "Explicit bounded grammar has false-negative risk; no general recall claim",
+    "Permit-level identities; possible shared sites/phases remain separate pending supported matching",
+    "No real Prospects/Leads; power inputs unknown",
+    "Local only;cloud/launchOPEN; no push/merge/deploy/spend/outreach"
+  ],
+  "timing": {
+    "start_utc": "UNKNOWN",
+    "validation_finish_utc": "2026-09-27T14:46:54.719432+00:00",
+    "planning_seconds": "UNKNOWN",
+    "build_seconds": "UNKNOWN",
+    "audit_seconds": "UNKNOWN",
+    "tokens": "UNKNOWN",
+    "elapsed_to_accepted": "UNKNOWN"
+  },
+  "lane": "full existing initiative,one Luna,bounded Terra domain specialist,independent Sol review",
+  "models": {
+    "builder": "gpt-6-luna low",
+    "specialist": "gpt-5.6-terra medium",
+    "reviewer": "gpt-6-sol medium",
+    "config_identity": "tool role configuration; local config load UNKNOWN"
+  },
+  "runtime_sessions": {
+    "api": 71768,
+    "vite": 53704,
+    "worker": "not running yet"
+  },
+  "parent_completion": false
+}

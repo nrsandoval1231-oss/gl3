@@ -1,0 +1,73 @@
+{
+  "packet": "GL3-004",
+  "base_sha": "9926a9896997359d65ec7849a5969ce8f0a6109e",
+  "status": "implementation_complete_pending_controller_review",
+  "utc": {
+    "start": "UNKNOWN",
+    "finish": "2026-09-26T19:00:53Z",
+    "planning_duration": "UNKNOWN",
+    "build_duration": "UNKNOWN",
+    "validation_duration": "UNKNOWN",
+    "audit_duration": "UNKNOWN",
+    "retry_count": 1,
+    "lane": "single builder",
+    "model": "UNKNOWN",
+    "config_identity": "UNKNOWN",
+    "tokens": "UNKNOWN"
+  },
+  "changed_files": [
+    "scripts/export_review_sample.py",
+    "backend/tests/unit/test_review_export.py",
+    "docs/sources/local-quality-review.md",
+    ".agent/artifacts/GL3-004/COMPLETION.json"
+  ],
+  "validation": [
+    {
+      "command": "uv run --directory backend pytest tests/unit/test_review_export.py -q",
+      "exit_code": 0,
+      "result": "1 passed"
+    },
+    {
+      "command": "uv run --directory backend ruff check ../scripts/export_review_sample.py tests/unit/test_review_export.py",
+      "exit_code": 0,
+      "result": "All checks passed"
+    },
+    {
+      "command": "uv run --directory backend mypy ../scripts/export_review_sample.py",
+      "exit_code": 0,
+      "result": "Success: no issues found"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0,
+      "result": "passed"
+    },
+    {
+      "command": "$env:PYTHONPATH=(Resolve-Path backend/src).Path; uv run --directory backend python ../scripts/export_review_sample.py --output ../.artifacts/local-review-sample.json",
+      "exit_code": 0,
+      "result": "Exported 92 observations; source counts Federal Register EIS=77, NC Commerce=15"
+    }
+  ],
+  "sample": {
+    "path": ".artifacts/local-review-sample.json (ignored local artifact)",
+    "observations": 92,
+    "evidence_versions": 93,
+    "observation_date_range": ["2026-08-26", "2026-09-25"],
+    "sha256": "8abb8ac81e04524054a97d04eb44dc1905e11d85686f15e43a1f943a93486f84",
+    "linked_needs": {
+      "active_signal": 3,
+      "inactive_signal": 1
+    }
+  },
+  "findings": [
+    "Only two feeds are present in the retained snapshot.",
+    "Source-declared industry tags do not demonstrate observed industry breadth.",
+    "The national Federal Register feed has 77 observations but one linked active Signal; the only linked project location observed for it is New Mexico.",
+    "NC Commerce has 15 observations and two linked active Signals plus one inactive Signal.",
+    "A retained inactive Main Street aggregate-program record is a review candidate, not an established false positive.",
+    "The export cannot measure false negatives or validate external source claims, and is not the PRD's 30-record review."
+  ],
+  "recommended_next_narrow_repair": "Continue with source-breadth work tied to explicit target industries and geographies; scope any independent Signal qualification review separately.",
+  "authority": "Read-only database access; no qualification edits, database mutations, external communications, push, merge, or deployment.",
+  "uncertainty": "Independent controller review and exact-candidate verification remain pending."
+}

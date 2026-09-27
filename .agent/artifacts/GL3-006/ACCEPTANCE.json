@@ -1,0 +1,21 @@
+{
+  "at_utc": "2026-09-26T21:12:00.186947+00:00",
+  "candidate": "905002a7aa15aa4e7076e8662b4fdb5bd0428ff10a4a4700f50e2c6f4c806327",
+  "status": "ACCEPTED_LOCAL",
+  "review": "REVIEW.json PASS",
+  "controller_validation": "VALIDATION.json",
+  "product_files_changed": [
+    "web/src/app/App.tsx",
+    "web/tests/first_path.spec.ts"
+  ],
+  "episode": {
+    "cause": "watch-only scope intersected unrelated vertical; stale filters persisted",
+    "action": "transition to inbox and restore coherent filter history",
+    "outcome": "populated cross-vertical browser checks pass",
+    "candidate_lesson": "Test cross-view filter transitions against populated data",
+    "promotion": "not promoted"
+  },
+  "timings_and_tokens": "UNKNOWN except measurements in validation and handoff",
+  "next_direction": "CONTINUE local coverage",
+  "authority": "no push/merge/deploy"
+}

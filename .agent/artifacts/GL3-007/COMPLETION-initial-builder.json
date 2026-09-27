@@ -1,0 +1,82 @@
+{
+  "status": "IMPLEMENTED_NOT_SELF_ACCEPTED",
+  "objective": "Interpret retained RSS evidence into durable, evidence-bound project Signals and conservatively gated Prospects through both the offline replay and future RSS jobs.",
+  "repository": {
+    "path": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3",
+    "branch": "fix/vertical-navigation",
+    "base_sha": "c5a98a69b20b382501468cb03c8c824d6c75abaf"
+  },
+  "files": [
+    "backend/migrations/versions/0003_news_assessments.py",
+    "backend/src/gridlens/domain/news_interpretation.py",
+    "backend/src/gridlens/persistence/models.py",
+    "backend/src/gridlens/ingestion/service.py",
+    "backend/src/gridlens/api/app.py",
+    "backend/tests/unit/test_news_interpretation.py",
+    "backend/tests/integration/test_collection_only_ingestion.py",
+    "scripts/reinterpret_news.py",
+    "web/src/api/openapi.json",
+    "web/src/api/generated.ts",
+    "web/src/app/App.tsx",
+    "web/src/styles/app.css",
+    "web/tests/first_path.spec.ts",
+    "docs/sources/project-interpretation.md",
+    "docs/sources/local-news-breadth.md",
+    "docs/sources/coverage.md"
+  ],
+  "validation": [
+    {
+      "command": "uv run ruff check src/gridlens/domain/news_interpretation.py src/gridlens/ingestion/service.py src/gridlens/api/app.py src/gridlens/persistence/models.py tests/integration/test_collection_only_ingestion.py ../scripts/reinterpret_news.py migrations/versions/0003_news_assessments.py",
+      "result": "PASS: All checks passed"
+    },
+    {
+      "command": "uv run mypy src",
+      "result": "PASS: Success; no issues found in 27 source files"
+    },
+    {
+      "command": "uv run pytest -q (from backend)",
+      "result": "PASS: 81 passed, one Starlette httpx deprecation warning"
+    },
+    {
+      "command": "npm run generate:api && npm run typecheck && npm run build (from web)",
+      "result": "PASS: OpenAPI types generated, TypeScript clean, Vite production build succeeded"
+    },
+    {
+      "command": "npm run test (from web)",
+      "result": "PASS: 2 Playwright tests passed"
+    },
+    {
+      "command": "uv run --project backend python scripts/reinterpret_news.py --output .artifacts/GL3-007/dry-run-final.json",
+      "result": "PASS: 105 RSS items; 4 accepted Signals, 101 rejected, 0 Prospects; no database writes"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "dry_run": {
+    "path": ".artifacts/GL3-007/dry-run-final.json",
+    "sha256": "DFF57B519CF5E76591538826766B192B2981C9DD400E65A27E8F4F040CA9A04C",
+    "decision_counts": {
+      "accepted:Signal": 4,
+      "rejected:none": 101
+    }
+  },
+  "repaired_failures": [
+    "Initial focused PostgreSQL tests found test fixture source/job insertion order and API legacy status expectations; corrected fixtures and preserved status semantics.",
+    "Duplicate syndicated exact-copy fixture initially produced a duplicate project/event; project identity now uses normalized title/summary plus supported subject, location, and action, and a distinct-site regression verifies same-company/same-state headlines remain separate.",
+    "Correction handling now evaluates all linked observations so an older accepted copy cannot mask a newer superseding rejection.",
+    "Apply failure semantics are tested: a failed evaluator retains the prior assessment, records failed status, writes a report, exits nonzero, and succeeds on retry."
+  ],
+  "timing_utc": {
+    "started": "UNKNOWN",
+    "finished": "2026-09-26T23:14:56Z",
+    "elapsed_minutes": "UNKNOWN"
+  },
+  "tokens": "UNKNOWN",
+  "limitations_and_handoff": [
+    "No builder --apply, migration application, API restart, live database write, or runtime/browser verification was performed. Controller owns migration/runtime and controlled apply plus post-apply API/browser proof.",
+    "No Prospect was admitted from the retained 105-item snapshot; Prospect logic is covered by the domain evaluator contract and adversarial tests, while retained evidence did not satisfy its gate.",
+    "Preserved existing dirty GL3-006 App.tsx and first_path.spec.ts changes; review the integrated candidate before any acceptance claim."
+  ]
+}

@@ -144,6 +144,8 @@ class Interpretation(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     observation_id: Mapped[UUID] = mapped_column(ForeignKey("observations.id"))
     content_hash: Mapped[str] = mapped_column(String(64))
+    evaluator_version: Mapped[str | None] = mapped_column(String(40), nullable=True)
+    assessment: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     status: Mapped[str] = mapped_column(String(20), default="pending", server_default="pending")
     attempts: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     error: Mapped[str | None] = mapped_column(Text)

@@ -1,0 +1,26 @@
+{
+  "packet_id": "GL3-005",
+  "verdict": "PASS",
+  "candidate_sha256": "6a92c9a15356e858cfd393bf6fc15ec7e30b0f18103167f06a799b8be999b0e8",
+  "candidate_manifest": ".agent/artifacts/GL3-005/candidate_manifest.json",
+  "base_sha": "9926a9896997359d65ec7849a5969ce8f0a6109e",
+  "review_scope": "Independent review of GL3-004 read-only exporter and GL3-005 local public-news collection, retained evidence, API, and UI. The verdict accepts this bounded local candidate only; it does not certify product launch or deployment.",
+  "evidence": [
+    "Recomputed the candidate digest from 171 manifest entries and verified every listed file against its SHA-256; no mismatches.",
+    "Initial-to-final manifest comparison found only web/src/app/App.tsx, web/src/styles/app.css, and web/tests/first_path.spec.ts changed after backend validation.",
+    "Controller VALIDATION_INITIAL.json records backend lint, mypy, 62 passing tests, corrected isolated migration gate, live API proof, replay, browser test, build, and diff hygiene. VALIDATION.json records rerun frontend types/build, two browser tests, visual runtime, and diff hygiene for the final candidate.",
+    "Ignored live worker/API receipts show 105 RSS observations added across six publishers, 197 total observations and 198 evidence versions; replay left observation, evidence, project, power-need, change-event counts and Today digest unchanged. Existing needs stayed unchanged.",
+    "Code inspection confirms the publisher RSS branch stores Observation/Evidence and collection_only Interpretation without invoking project matching or qualification. It enforces response/item bounds, content type, unsafe XML and link rejection, date checks, duplicate handling, and no article-body retention.",
+    "Authenticated ingestion query provides stable pagination and source/vertical filters; cannabis watch is source-scoped, deterministic, and labeled for review. Mobile browser proof shows no horizontal overflow and pager follows the cards. The GL3-004 export is read-only, ordered, refuses overwrite, and preserves unmatched, active/inactive, and attributed evidence states."
+  ],
+  "findings": [],
+  "limitations": [
+    "The six publisher feeds expose latest rolling snapshots, so hourly local polling cannot guarantee catch-up after downtime or historical completeness.",
+    "Source scope is metadata, not an item's project geography; the three cannabis topic matches are not verified facility announcements or power opportunities.",
+    "The allowlist is trusted checked-in registry configuration and current URLs are the approved endpoints. Runtime RSS validation constrains HTTPS publisher hosts but does not pin each source ID to an exact path; this is a defense-in-depth follow-up if registry editing becomes an untrusted boundary.",
+    "The GL3-004 review sample is a retained-state baseline, not false-negative measurement or the PRD 30-Signal launch review. Cloud cycles, broader source families, commercial proof, and product finish gates remain open."
+  ],
+  "authority": "No implementation, live database changes, push, merge, deployment, or external communication performed by reviewer.",
+  "reviewer_role": "Sol independent reviewer",
+  "reviewed_at_utc": "2026-09-26T20:11:31Z"
+}

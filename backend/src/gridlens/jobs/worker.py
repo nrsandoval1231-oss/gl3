@@ -99,6 +99,19 @@ def run_one(definitions: dict[str, dict]) -> bool:
                 "parse_failures": 0,
                 "error": None,
                 "latest_publication_date": counts["latest_publication_date"],
+                **{
+                    key: counts[key]
+                    for key in (
+                        "snapshot_item_count",
+                        "snapshot_oldest_publication_date",
+                        "snapshot_newest_publication_date",
+                        "latest_permit_issue_date",
+                        "records_scanned",
+                        "permit_accepted",
+                        "permit_rejected",
+                    )
+                    if key in counts
+                },
                 "pdf_candidates": counts.get("pdf_candidates", 0),
                 "pdf_eligible": counts.get("pdf_eligible", 0),
                 "pdf_enriched": counts.get("pdf_enriched", 0),

@@ -1,0 +1,30 @@
+{
+  "status": "IMPLEMENTED_NOT_SELF_ACCEPTED",
+  "scope": "UI-only semantic deduplication of the Opportunity detail Still unknown list.",
+  "input_evidence": ".artifacts/GL3-007/signal-mobile.png",
+  "changed_files": [
+    "web/src/app/App.tsx"
+  ],
+  "behavior": "Assessment missing-fact labels and field-derived fallbacks now map to stable categories for project location, activity power requirement, suitable utility supply, start window, and duration. Each category appears once; uncategorized facts retain their original wording. Existing opportunity fields and navigation are unchanged.",
+  "validation": [
+    {
+      "command": "npm run typecheck (from web)",
+      "result": "PASS"
+    },
+    {
+      "command": "npm run build (from web)",
+      "result": "PASS"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "candidate_sha256": {
+    "web/src/app/App.tsx": "A04EC9D8E8B8380B02D1A58968DD357FC86147696E4EF7E644B176CF3B75A540"
+  },
+  "limitations": [
+    "No live runtime or browser screenshot verification was run for this localized repair."
+  ],
+  "finished_utc": "2026-09-26T23:26:47Z"
+}

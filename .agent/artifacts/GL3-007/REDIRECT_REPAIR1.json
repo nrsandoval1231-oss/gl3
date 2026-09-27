@@ -1,0 +1,26 @@
+{
+  "packet": "GL3-007-review-correction",
+  "repair": 1,
+  "status": "IMPLEMENTED_NOT_SELF_ACCEPTED",
+  "prior_completion_preserved": "REDIRECT_COMPLETION.json",
+  "candidate": {
+    "news_interpretation_sha256": "138ace22b981c9acb603489bb5769cc4c8d597556e865d65290fcaa8711c2934",
+    "unit_test_sha256": "41a13161d6de477cc00ccbb299ecfbf6a75714e4e2610c21d2f912a8ccc351be"
+  },
+  "correction": "Adverse supply is now recognized only by a complete full-sentence clause: Power/electricity supply, grid connection, or utility service for the exact named site and exact activity is/remains delayed, insufficient, or unavailable. Partial substring matches, compound tails, and resolution clauses cannot satisfy the positive predicate.",
+  "controller_gate": {
+    "command": "backend/.venv/Scripts/python.exe .artifacts/GL3-007/controller-challenges.py",
+    "result": "PASS: 7 adversarial clauses are non-Prospects; mixed campus 200 MW and construction 42 MW returns 42 MW"
+  },
+  "validation": [
+    {"command": "focused unit and collection-only integration tests", "result": "PASS: 25 passed"},
+    {"command": "backend full pytest", "result": "PASS: 85 passed; one existing Starlette/httpx deprecation warning"},
+    {"command": "ruff src tests; mypy src", "result": "PASS"},
+    {"command": "read-only 105-row baseline", "result": "PASS: 101 rejected, 4 Signals, 0 Prospects"}
+  ],
+  "failure_history": "The prior grammar used an 80-character substring expression, which accepted an adverse prefix before a same-sentence availability resolution. This repair replaces that approach with a complete positive clause grammar.",
+  "authority": "No live DB, runtime, network, provider, migration, API, UI, deployment, push, merge, or external effects.",
+  "finished_at": "2026-09-26T18:34:11-05:00",
+  "timings_tokens": "UNKNOWN",
+  "handoff": "Controller must rerun combined validation and fresh independent review; builder does not self-accept."
+}

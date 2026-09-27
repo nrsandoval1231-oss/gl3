@@ -1,0 +1,42 @@
+{
+  "state": "Owner prioritizes rental generators and temporary/bridge power; v2 blanket exclusions missed concrete activity.",
+  "decision": "Admit evidence-bound lower-tier rental hypotheses; preserve supplied, negative, timing and history boundaries.",
+  "action": "Bounded Luna implementation; two integration repairs; Terra supplied-state repairs; Astra REDIRECT to clause scope; fact-bound rationale correction.",
+  "outcome": "Accepted local: 43 permit Signals (32 added); 50 total; all previous evidence retained.",
+  "deterministic_evaluation": "174 backend tests; Ruff/mypy; web types/build; 22 supplied-state and 21 original challenge cases; ordinary worker refresh/replay; independent Sol PASS.",
+  "attribution": "Global keyword overrides caused supplied-state and cross-activity errors; clause-bound positive/negative evidence and quoted remaining activity resolved demonstrated cases.",
+  "candidate_lesson": "Before first freeze, test a consolidated matrix of fulfilled, negated, proposed, distinct-phase and clause-order cases; source-only replay cannot prove those boundaries.",
+  "lesson_status": "CANDIDATE_NOT_PROMOTED; matched-scope execution improvement not measured.",
+  "metric": {
+    "supplied_state_matrix_cases": 22,
+    "final_failures": 0,
+    "earlier_comparable_matrix_failures": "UNKNOWN"
+  },
+  "reversibility": "Prior reviews, per-version snapshots, source evidence, decision histories and local database backups retained.",
+  "direction": "CONTINUE",
+  "candidate_sha256": "654979d62a57d6344636e37eb34010184857310ee13a82b1bcbcb4165a62e621",
+  "metrics": {
+    "start_utc": "UNKNOWN",
+    "finish_utc": "2026-09-27T16:24:24.789409+00:00",
+    "first_measured_checkpoint_utc": "2026-09-27T15:10:30.180340+00:00",
+    "observed_seconds_since_checkpoint": 4434.609069,
+    "elapsed_to_accepted_seconds": "UNKNOWN: full task start not recorded",
+    "planning_seconds": "UNKNOWN",
+    "build_seconds": "UNKNOWN",
+    "audit_seconds": "UNKNOWN",
+    "final_gate_command_seconds_only": 9.011,
+    "validation_total_seconds": "UNKNOWN",
+    "tokens": "UNKNOWN",
+    "config_identity": "UNKNOWN",
+    "lane": "One builder at a time; independent Sol; exceptional Astra recovery audit",
+    "routing": [
+      "Luna gpt-6-luna low",
+      "Terra gpt-5.6-terra medium",
+      "Sol gpt-6-sol medium",
+      "Astra gpt-6-astra medium"
+    ],
+    "post_freeze_correction_packets": 6,
+    "repair_breakdown": "Two Luna integration corrections; two Terra supply corrections; clause-scope redirect implementation; wording correction.",
+    "speedup": "UNKNOWN"
+  }
+}

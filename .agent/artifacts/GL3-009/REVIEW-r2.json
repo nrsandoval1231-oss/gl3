@@ -1,0 +1,38 @@
+{
+  "verdict": "FIX",
+  "candidate_sha256": "23e96f9d5b04c350accc02cebfd2ce340f45d98556ff55e5f569ad19fad6752d",
+  "base_sha": "c5a98a69b20b382501468cb03c8c824d6c75abaf",
+  "branch": "fix/vertical-navigation",
+  "manifest_files": 183,
+  "reviewed_at_utc": "2026-09-27T15:56:01Z",
+  "candidate_binding": "Recomputed the aggregate SHA-256 and checked all 183 per-file SHA-256 hashes against disk bytes; all match. The controller receipt names this repaired candidate. The original rejected candidate and REVIEW.json remain retained.",
+  "scope": "Fresh independent review of the local GL3-009 supplied-temporary-generation repair and retained permit Signal slice. Parent Finish Contract remains OPEN; no national, cloud, launch, or deployment verdict.",
+  "reviewed": [
+    "Original GL3-009 FIX, supply repair handoff, repaired evaluator, permit service history/lifecycle, affected unit and integration tests, and screening documentation",
+    "Controller validation, current retained preview and source proofs, runtime version-history and preservation receipts, browser receipt, and source worker/replay results"
+  ],
+  "deterministic_evidence": {
+    "controller_receipt": ".agent/artifacts/GL3-009/CONTROLLER_VALIDATION.json",
+    "gates": "Controller reports 164 backend tests, Ruff, mypy across 29 source files, web typecheck/build, and 21 of 21 challenge cases passing on this candidate.",
+    "runtime": "Controller reports three ordinary permit refresh jobs and three exact replay jobs succeeding; 993 permit observations, 43 permit Signals, 50 total Signals, zero Prospects/Leads, and a stable replay digest. It reports all 993 v3 decisions retained with actual version and prior 992 v2 histories intact.",
+    "source": "The v4 rerun of the retained 992-row preview has zero classification changes from v3; the 32 newly accepted original source identities remain verified.",
+    "independent_read_only_reproduction": "With a dated, cited, Active commercial permit at a named site, 'Temporary generator installed and supplying construction loads; no rental power required.' returns accepted/temporary_power and a reason stating supply remains unknown. The same occurs for 'no additional rental power required' and 'rental power no longer required'. No database or source records were changed."
+  },
+  "findings": [
+    {
+      "severity": "blocking",
+      "file": "backend/src/gridlens/domain/permit_interpretation.py",
+      "lines": [35, 44, 218, 249],
+      "problem": "The new open-need override sees the words 'rental power required' inside an explicit negation, suppresses the secured-supply gate, and admits an open Signal for the same already-supplied activity. The accepted rationale falsely says supply is unknown.",
+      "contract": "GL3-009 requires explicit supplied temporary power and negated requirements to avoid an open rental claim unless a distinct open activity is stated; the PRD's negative-evidence and requalification gates preserve that boundary.",
+      "repair": "Treat explicitly negated/no-longer-required temporary-power phrases as closed before recognizing a separately stated open need. Keep the positive case for a genuinely distinct required activity. Add same-keyword regression cases for supplied plus negated 'required' wording, then freeze a new manifest and rerun controller gates and independent review."
+    }
+  ],
+  "limitations": [
+    "The original installed-and-supplying examples now close correctly, and versioned reprocessing/history is represented in code, tests, and controller proof.",
+    "Nineteen Zilker rows are related permit records, not independent opportunities. Event aging requires retrieval; the rolling 30-day issue-date query can miss older-row updates.",
+    "Only Austin, Seattle, and Chicago are covered here. Buyer, rental demand, MW, suitable supply, start, and duration remain unknown for active Signals."
+  ],
+  "completion_candidate": false,
+  "next_direction": "Repair only the negated-required interaction in the supplied-state gate, preserve this review and the earlier FIX, validate a new frozen candidate, and obtain fresh independent review. Keep the parent Finish Contract OPEN."
+}

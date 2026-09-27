@@ -1,0 +1,31 @@
+{
+  "packet": "GL3-009",
+  "repair": 1,
+  "scope": "Type-only local repair in permit assessment lifecycle.",
+  "change": "Renamed the rejection-path loop variable from need to stale_need so its non-null collection element type does not constrain the later nullable PowerNeed lookup.",
+  "files": ["backend/src/gridlens/ingestion/service.py"],
+  "validation": [
+    {
+      "command": "uv run --extra dev mypy src tests/integration/test_ingestion.py",
+      "result": "PASS",
+      "evidence": "Success: no issues found in 30 source files."
+    },
+    {
+      "command": "uv run --extra dev pytest tests/integration/test_ingestion.py -k 'permit_v3_upgrade_activity_change_withdrawal_and_replay'",
+      "result": "PASS",
+      "evidence": "1 passed, 13 deselected."
+    },
+    {
+      "command": "uv run --extra dev ruff check tests/integration/test_ingestion.py",
+      "result": "PASS",
+      "evidence": "All checks passed."
+    },
+    {
+      "command": "uv run --extra dev pytest tests/integration/test_ingestion.py -k 'event_signal_closes_after_explicit_end_date_on_same_hash_replay'",
+      "result": "PASS",
+      "evidence": "1 passed, 14 deselected. The test freezes time on the event's final day, confirms exact replay leaves the persisted content hash, assessment JSON, active need, event count, and need-observation count unchanged, advances one day with the same source hash and confirms a single close event, then verifies the next replay leaves that full state snapshot unchanged."
+    }
+  ],
+  "finish_utc": "2026-09-27T15:36:50Z",
+  "review": "Repair evidence only; candidate requires controller gates and independent review."
+}

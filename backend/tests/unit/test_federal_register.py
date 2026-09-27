@@ -7,8 +7,12 @@ from gridlens.ingestion.adapters.federal_register import SourceParseError, retri
 from gridlens.ingestion.registry import load_registry
 
 
+def federal_register_source():
+    return next(source for source in load_registry() if source["id"] == "federal-register-eis")
+
+
 def test_complete_pagination_preserves_published_date():
-    source = load_registry()[0]
+    source = federal_register_source()
     requested = []
 
     def responder(request: httpx.Request) -> httpx.Response:
@@ -37,7 +41,7 @@ def test_complete_pagination_preserves_published_date():
 
 
 def test_overlarge_bounded_result_fails_closed():
-    source = load_registry()[0]
+    source = federal_register_source()
     client = httpx.Client(
         transport=httpx.MockTransport(
             lambda request: httpx.Response(
@@ -50,7 +54,7 @@ def test_overlarge_bounded_result_fails_closed():
 
 
 def test_unexpected_empty_page_is_failure():
-    source = load_registry()[0]
+    source = federal_register_source()
     client = httpx.Client(
         transport=httpx.MockTransport(
             lambda request: httpx.Response(200, json={"total_pages": 1, "count": 1, "results": []})
@@ -61,7 +65,7 @@ def test_unexpected_empty_page_is_failure():
 
 
 def test_oversized_response_fails_before_json_decode():
-    source = load_registry()[0]
+    source = federal_register_source()
     source = {
         **source,
         "query": {

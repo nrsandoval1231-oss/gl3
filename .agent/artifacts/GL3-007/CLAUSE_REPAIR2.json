@@ -1,0 +1,52 @@
+{
+  "packet": "GL3-007 shared-representation repair 2",
+  "status": "IMPLEMENTED_NOT_SELF_ACCEPTED",
+  "finished_at": "2026-09-27T00:02:23Z",
+  "evaluator_version": "rss-project-v6",
+  "scope": {
+    "changed_files": [
+      "backend/src/gridlens/domain/news_interpretation.py",
+      "backend/tests/unit/test_news_interpretation.py",
+      "backend/tests/integration/test_collection_only_ingestion.py",
+      "docs/sources/project-interpretation.md"
+    ],
+    "seam": "backend/src/gridlens/ingestion/service.py consumes the unchanged domain helper",
+    "excluded": ["live database write", "migrations", "network", "runtime", "API schema", "UI"]
+  },
+  "repair": {
+    "observed_runtime_failure": "apply-v5.json reported one failed decision for Applied Digital because admitted action 'will be built' did not map to a power activity during persistence.",
+    "rule": "Every action admitted by _ACTION maps to construction except admitted open forms, which map to operations; strings outside that admitted grammar remain null.",
+    "identity": "rss-project-v6 invalidates v5 decisions for deterministic reassessment.",
+    "contract": "NewsAssessment and API schema remain unchanged."
+  },
+  "regressions": [
+    "signal_power_activity('will be built') returns construction",
+    "news_power_activity maps 'will be built' to construction",
+    "the exact retained Applied Digital title and summary persist through the isolated PostgreSQL test database as accepted Signal with construction activity"
+  ],
+  "preserved_receipts": [
+    "CLAUSE_CONTRACT_COMPLETION.json",
+    "CLAUSE_REPAIR1.json",
+    "RELEASE_IDENTITY_V4.json",
+    "apply-v5.json"
+  ],
+  "validation": {
+    "focused": [
+      "backend/.venv/Scripts/python.exe -m pytest tests/unit/test_news_interpretation.py -q => 23 passed",
+      "backend/.venv/Scripts/python.exe -m pytest tests/integration/test_collection_only_ingestion.py -q => 10 passed",
+      "backend/.venv/Scripts/python.exe -m ruff check domain/service/tests => pass",
+      "backend/.venv/Scripts/python.exe -m mypy domain/service => Success: no issues found in 2 source files"
+    ],
+    "controller_challenges": "backend/.venv/Scripts/python.exe .artifacts/GL3-007/controller-challenges.py => PASS; 7 adversarial cases; mixed capacity required MW = 42 MW",
+    "backend": "backend/.venv/Scripts/python.exe -m pytest backend/tests -q => 93 passed; ruff backend/src backend/tests => pass; mypy backend/src => Success: no issues found in 27 source files",
+    "snapshot": "105 retained items => 101 rejected, 4 accepted Signals, 0 Prospects"
+  },
+  "file_sha256": {
+    "backend/src/gridlens/domain/news_interpretation.py": "9dba798f47392bc8db7feb4309097e21fe71cb64629c2c5c92522087dbdbc3ab",
+    "backend/src/gridlens/ingestion/service.py": "37568b0ac47fc78e9c9c1fbf8118a84d0b99b19af3e8f4a2430565ef84553e04",
+    "backend/tests/unit/test_news_interpretation.py": "8d82580d3e7df5e6258b00305ac2e4cdbdf57c933faee9b7a392efc74d69b64c",
+    "backend/tests/integration/test_collection_only_ingestion.py": "9fd4177254b51d06f2dbed99d5a0238236b7e43a620c740223194b151beae34c",
+    "docs/sources/project-interpretation.md": "aa0c9c989232569922766ce10df8413c7ff1402c779a037d59817e541a52801e"
+  },
+  "next": "Controller must run the authorized v6 reassessment and bind final review to these hashes; this artifact does not claim release acceptance."
+}

@@ -1,0 +1,29 @@
+{
+  "verdict": "PASS",
+  "candidate_sha256": "654979d62a57d6344636e37eb34010184857310ee13a82b1bcbcb4165a62e621",
+  "base_sha": "c5a98a69b20b382501468cb03c8c824d6c75abaf",
+  "branch": "fix/vertical-navigation",
+  "manifest_files": 183,
+  "reviewed_at_utc": "2026-09-27T16:22:06Z",
+  "candidate_binding": "Independently recomputed the aggregate candidate SHA-256 and verified all 183 manifest file hashes against exact disk bytes; zero mismatches. Controller validation names this exact candidate. Four earlier FIX reviews and rejected snapshots remain preserved.",
+  "scope": "Independent acceptance of the local GL3-009 rental-generator and temporary-power permit Signal slice, including the v7 fact-bound rationale correction. This does not certify the parent Finish Contract, national coverage, cloud operation, launch, or deployment.",
+  "reviewed": [
+    "GL3-009 packet, canonical PRD Signal/negative-evidence/activity-specific supply gates, prior FIX reviews and Astra REDIRECT, actual v7 evaluator/helper, permit lifecycle and version-history code, affected tests, and screening documentation",
+    "Controller final gates, 22-case supplied-state matrix, 21 original challenges, retained 992-row preview, source identity checks, ordinary worker/replay receipts, version-history/preservation proof, and fresh API/browser proof"
+  ],
+  "deterministic_evidence": {
+    "controller_receipt": ".agent/artifacts/GL3-009/CONTROLLER_VALIDATION.json",
+    "gates": "Ruff, mypy across 29 source files, 174 backend tests, web typecheck/build, 22 of 22 supplied-state cases, and 21 of 21 original challenges passed for this candidate.",
+    "runtime": "Three ordinary city permit refresh jobs and three exact replay jobs succeeded with unchanged replay digest; 993 permit observations, 43 permit Signals, 50 total Signals, zero Prospects/Leads, and retained v3-v6 actual-version decision histories plus prior v2 history.",
+    "source_and_preservation": "The v7 preview has zero classification changes across 992 previously retained rows; all 32 new accepted source identities remain verified, 11 prior permit Signals remain accepted, and prior evidence/nonpermit data remain unchanged.",
+    "independent_read_only_reproduction": "Available permanent backup plus separate construction rental power is accepted with a rationale quoting only the remaining construction-power clause, rental relevance explicitly inferred, and suitable supply for that activity unknown. Installed/supplying temporary power plus 'no rental power required' is rejected. Supplied phase 1 plus an explicit separate phase-2 requirement is accepted with the phase-2 clause in its rationale. No database or source rows were changed."
+  },
+  "findings": [],
+  "limitations": [
+    "Permit-level identities are separate: 19 Zilker rows concern related festival activity and are not 19 independent rental opportunities. The slice covers Austin, Seattle, and Chicago only.",
+    "The bounded grammar and date parser do not establish full recall. Event aging depends on row retrieval, and the rolling 30-day issue-date query can miss later changes to older permits.",
+    "Every accepted permit remains a Signal. Rental requirement, buyer, MW, start, duration, and suitable supply remain unconfirmed unless supported by later evidence. No Prospect, Lead, national, cloud, or launch completion is claimed."
+  ],
+  "completion_candidate": false,
+  "next_direction": "Controller may accept GL3-009 locally for this exact candidate, preserve the review and validation artifacts, and continue the next PRD-aligned READY node. Keep the parent Finish Contract OPEN and do not infer external release authority."
+}

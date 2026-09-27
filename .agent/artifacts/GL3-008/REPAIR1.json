@@ -1,0 +1,22 @@
+{
+  "packet": "GL3-008",
+  "repair": 1,
+  "status": "focused_checks_passed",
+  "scope": [
+    "Narrowed configured Socrata permit source IDs and typed SoQL parameter maps for mypy.",
+    "Updated Federal Register unit and integration fixtures to select federal-register-eis by ID.",
+    "Updated source-health browser assertion to distinguish permit issue dates from publication dates."
+  ],
+  "validation": [
+    { "command": "uv run mypy src/gridlens/ingestion/adapters/socrata_permits.py", "cwd": "backend", "exit_code": 0, "result": "Success: no issues found in 1 source file" },
+    { "command": "uv run pytest tests/unit/test_federal_register.py -q", "cwd": "backend", "exit_code": 0, "result": "4 passed" },
+    { "command": "uv run pytest tests/integration/test_ingestion.py -q", "cwd": "backend", "exit_code": 0, "result": "13 passed" },
+    { "command": "npm run typecheck", "cwd": "web", "exit_code": 0, "result": "passed" },
+    { "command": "npm test -- tests/first_path.spec.ts --grep 'private browse/detail'", "cwd": "web", "exit_code": 0, "result": "1 passed" }
+  ],
+  "limitations": [
+    "No full repository gate was rerun; controller owns final gates.",
+    "No live source retrieval or live database writes were performed.",
+    "These focused results do not certify overall GL3-008 completion."
+  ]
+}

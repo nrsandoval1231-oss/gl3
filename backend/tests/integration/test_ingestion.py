@@ -27,6 +27,10 @@ from gridlens.persistence.models import (
 from gridlens.settings import settings
 
 
+def federal_register_source():
+    return next(source for source in load_registry() if source["id"] == "federal-register-eis")
+
+
 @pytest.fixture
 def db():
     target = make_url(settings.test_database_url)
@@ -87,7 +91,7 @@ def record(abstract: str):
 
 
 def run(factory, job_id, row):
-    definition = load_registry()[0]
+    definition = federal_register_source()
     client = httpx.Client(
         transport=httpx.MockTransport(lambda request: httpx.Response(200, json=response_for(row)))
     )
@@ -119,6 +123,444 @@ def test_replay_versions_and_withdrawal_preserve_evidence(db):
         assert session.scalar(select(Observation.published_at)) == datetime(2026, 9, 14).date()
         assert session.scalar(select(PowerNeed.active)) is False
         assert session.scalar(select(Interpretation.status)) == "rejected"
+
+
+def test_permit_assessment_replay_correction_and_deactivation(db):
+    _, factory, _ = db
+    from datetime import date
+
+    definition = next(row for row in load_registry() if row["id"] == "austin-building-permits")
+    with factory.begin() as session:
+        session.add(
+            Source(
+                id=definition["id"],
+                publisher=definition["publisher"],
+                endpoint=definition["endpoint"],
+                family=definition["family"],
+                geography=definition["geography"],
+                industries=definition["industries"],
+                retrieval_method=definition["retrieval_method"],
+                cadence_hours=24,
+                health={},
+            )
+        )
+        session.flush()
+        job = Job(
+            source_id=definition["id"],
+            status="running",
+            lease_owner="test",
+            fence=1,
+            lease_until=datetime.now(UTC) + timedelta(minutes=10),
+        )
+        session.add(job)
+        session.flush()
+        job_id = job.id
+    row = {
+        "permit_number": "2026-SYN-1",
+        "issue_date": date.today().isoformat(),
+        "description": "Replace natural gas generator and ATS at existing telecom shelter.",
+        "permit_class_mapped": "Commercial",
+        "work_class": "New",
+        "permit_type_desc": "Building Permit",
+        "status_current": "Active",
+        "original_address1": "100 Factory Way",
+        "original_city": "AUSTIN",
+        "original_state": "TX",
+        "project_id": "SYN-1",
+        "link": {"url": "https://abc.austintexas.gov/permit/1"},
+    }
+
+    def run():
+        def handler(request):
+            params = dict(request.url.params)
+            return httpx.Response(200, json=[{"row_count": "1"}] if "$select" in params else [row])
+
+        with factory() as session:
+            return process_job(
+                session,
+                job_id,
+                "test",
+                1,
+                definition,
+                httpx.Client(transport=httpx.MockTransport(handler)),
+            )
+
+    assert run()["signals"] == 1
+    assert run()["unchanged"] == 1
+    row["description"] = "Rental generator installed and supplying construction loads."
+    assert run()["changed"] == 1
+    with factory() as session:
+        interpretation = session.scalar(
+            select(Interpretation)
+            .join(Observation)
+            .where(Observation.source_id == definition["id"])
+        )
+        assert interpretation is not None
+        assert interpretation.status == "rejected"
+        assert interpretation.assessment["rental_category"] == "secured_supply"
+        assert interpretation.assessment["previous_decisions"]
+        assert session.scalar(
+            select(PowerNeed.active).join(Project).where(Project.source_id == definition["id"])
+        ) is False
+    with factory.begin() as session:
+        interpretation = session.scalar(
+            select(Interpretation)
+            .join(Observation)
+            .where(Observation.source_id == definition["id"])
+        )
+        assert interpretation is not None
+        interpretation.evaluator_version = "permit-project-v4"
+        close_event_count = session.scalar(select(func.count()).select_from(ChangeEvent))
+    assert run()["unchanged"] == 1
+    with factory() as session:
+        interpretation = session.scalar(
+            select(Interpretation)
+            .join(Observation)
+            .where(Observation.source_id == definition["id"])
+        )
+        assert interpretation is not None
+        assert interpretation.status == "rejected"
+        assert interpretation.assessment["rental_category"] == "secured_supply"
+        assert interpretation.assessment["evaluator_version"] == "permit-project-v7"
+        assert (
+            interpretation.assessment["previous_decisions"][-1]["evaluator_version"]
+            == "permit-project-v4"
+        )
+        assert session.scalar(
+            select(PowerNeed.active).join(Project).where(Project.source_id == definition["id"])
+        ) is False
+        assert session.scalar(select(func.count()).select_from(ChangeEvent)) == close_event_count
+        history_count = len(interpretation.assessment["previous_decisions"])
+        evidence_count = session.scalar(select(func.count()).select_from(Evidence))
+    assert run()["unchanged"] == 1
+    with factory() as session:
+        interpretation = session.scalar(
+            select(Interpretation)
+            .join(Observation)
+            .where(Observation.source_id == definition["id"])
+        )
+        assert interpretation is not None
+        assert len(interpretation.assessment["previous_decisions"]) == history_count
+        assert session.scalar(select(func.count()).select_from(Evidence)) == evidence_count
+    row["status_current"] = "Withdrawn"
+    assert run()["changed"] == 1
+    with factory() as session:
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(Observation)
+                .where(Observation.source_id == definition["id"])
+            )
+            == 1
+        )
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(Evidence)
+                .join(Observation)
+                .where(Observation.source_id == definition["id"])
+            )
+            == 3
+        )
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(Project)
+                .where(Project.source_id == definition["id"])
+            )
+            == 1
+        )
+        assert (
+            session.scalar(
+                select(PowerNeed.active).join(Project).where(Project.source_id == definition["id"])
+            )
+            is False
+        )
+        assert (
+            session.scalar(
+                select(Interpretation.status)
+                .join(Observation)
+                .where(Observation.source_id == definition["id"])
+            )
+            == "rejected"
+        )
+
+
+def test_permit_v5_rejected_to_v6_clause_recovery_and_replay(db):
+    _, factory, _ = db
+    from datetime import date
+
+    definition = next(row for row in load_registry() if row["id"] == "austin-building-permits")
+    with factory.begin() as session:
+        session.add(
+            Source(
+                id=definition["id"],
+                publisher=definition["publisher"],
+                endpoint=definition["endpoint"],
+                family=definition["family"],
+                geography=definition["geography"],
+                industries=definition["industries"],
+                retrieval_method=definition["retrieval_method"],
+                cadence_hours=24,
+                health={},
+            )
+        )
+        session.flush()
+        job = Job(
+            source_id=definition["id"],
+            status="running",
+            lease_owner="test",
+            fence=1,
+            lease_until=datetime.now(UTC) + timedelta(minutes=10),
+        )
+        session.add(job)
+        session.flush()
+        job_id = job.id
+    row = {
+        "permit_number": "2026-SYN-009",
+        "issue_date": date.today().isoformat(),
+        "description": (
+            "Temporary generator installed and supplying phase 1; no additional rental power "
+            "required for phase 1. Separate construction power required for phase 2."
+        ),
+        "permit_class_mapped": "Commercial",
+        "work_class": "New",
+        "permit_type_desc": "Building Permit",
+        "status_current": "Active",
+        "original_address1": "100 Factory Way",
+        "original_city": "AUSTIN",
+        "original_state": "TX",
+        "project_id": "SYN-009",
+        "link": {"url": "https://abc.austintexas.gov/permit/9"},
+    }
+
+    def run():
+        def handler(request):
+            return httpx.Response(
+                200, json=[{"row_count": "1"}] if "$select" in dict(request.url.params) else [row]
+            )
+
+        with factory() as session:
+            return process_job(
+                session,
+                job_id,
+                "test",
+                1,
+                definition,
+                httpx.Client(transport=httpx.MockTransport(handler)),
+            )
+
+    assert run()["signals"] == 1
+    with factory.begin() as session:
+        interpretation = session.scalar(
+            select(Interpretation)
+            .join(Observation)
+            .where(Observation.source_id == definition["id"])
+        )
+        assert interpretation is not None
+        prior = dict(interpretation.assessment)
+        prior.update(
+            {
+                "decision": "rejected",
+                "tier": None,
+                    "reason": (
+                        "Permit reports temporary power as provided or secured; "
+                        "no open rental need is asserted."
+                    ),
+                "subject": None,
+                "action": None,
+                "rental_category": "secured_supply",
+                "reported_claim": None,
+                "rental_hypothesis": None,
+            }
+        )
+        interpretation.status = "rejected"
+        interpretation.evaluator_version = "permit-project-v5"
+        interpretation.assessment = prior
+        temporary_need = session.scalar(
+            select(PowerNeed).join(Project).where(Project.source_id == definition["id"])
+        )
+        assert temporary_need is not None
+        temporary_need.active = False
+    assert run()["unchanged"] == 1
+    assert run()["unchanged"] == 1
+    with factory() as session:
+        needs = session.scalars(
+            select(PowerNeed).join(Project).where(Project.source_id == definition["id"])
+        ).all()
+        active = [need for need in needs if need.active]
+        assert len(active) == 1 and active[0].activity_key == "temporary-power"
+        interpretation = session.scalar(
+            select(Interpretation)
+            .join(Observation)
+            .where(Observation.source_id == definition["id"])
+        )
+        assert interpretation is not None and interpretation.assessment["previous_decisions"]
+        assert interpretation.assessment["evaluator_version"] == "permit-project-v7"
+        assert (
+            interpretation.assessment["previous_decisions"][-1]["evaluator_version"]
+            == "permit-project-v5"
+        )
+        event_count = session.scalar(select(func.count()).select_from(ChangeEvent))
+        link_count = session.scalar(select(func.count()).select_from(NeedObservation))
+    row["status_current"] = "Withdrawn"
+    assert run()["changed"] == 1
+    with factory() as session:
+        assert not session.scalar(
+            select(PowerNeed.active).join(Project).where(Project.source_id == definition["id"])
+        )
+        assert session.scalar(select(func.count()).select_from(ChangeEvent)) == event_count + 1
+        assert session.scalar(select(func.count()).select_from(NeedObservation)) == link_count
+
+
+def test_event_signal_closes_after_explicit_end_date_on_same_hash_replay(db, monkeypatch):
+    _, factory, _ = db
+    from datetime import date as RealDate
+
+    import gridlens.ingestion.service as service
+    from gridlens.domain.permit_interpretation import assess_permit
+
+    definition = next(row for row in load_registry() if row["id"] == "austin-building-permits")
+    with factory.begin() as session:
+        session.add(
+            Source(
+                id=definition["id"],
+                publisher=definition["publisher"],
+                endpoint=definition["endpoint"],
+                family=definition["family"],
+                geography=definition["geography"],
+                industries=definition["industries"],
+                retrieval_method=definition["retrieval_method"],
+                cadence_hours=24,
+                health={},
+            )
+        )
+        session.flush()
+        job = Job(
+            source_id=definition["id"],
+            status="running",
+            lease_owner="test",
+            fence=1,
+            lease_until=datetime.now(UTC) + timedelta(minutes=10),
+        )
+        session.add(job)
+        session.flush()
+        job_id = job.id
+
+    row = {
+        "permit_number": "2026-EVENT-1",
+        "issue_date": "2026-09-27",
+        "description": "Concert stage with food vendors October 2-4, 2026.",
+        "permit_class_mapped": "Commercial",
+        "work_class": "Temporary",
+        "permit_type_desc": "Event Permit",
+        "status_current": "Active",
+        "original_address1": "1 Festival Way",
+        "original_city": "AUSTIN",
+        "original_state": "TX",
+        "project_id": "EVENT-1",
+        "link": {"url": "https://abc.austintexas.gov/permit/event-1"},
+    }
+    as_of = [RealDate(2026, 10, 4)]
+
+    class FrozenDate(RealDate):
+        @classmethod
+        def today(cls):
+            return as_of[0]
+
+    original_assess = assess_permit
+
+    def assess_at_frozen_date(record):
+        return original_assess(record, as_of=as_of[0])
+
+    monkeypatch.setattr(service, "date", FrozenDate)
+    monkeypatch.setattr(service, "assess_permit", assess_at_frozen_date)
+
+    def run():
+        def handler(request):
+            payload = [{"row_count": "1"}] if "$select" in dict(request.url.params) else [row]
+            return httpx.Response(200, json=payload)
+
+        with factory() as session:
+            return process_job(
+                session,
+                job_id,
+                "test",
+                1,
+                definition,
+                httpx.Client(transport=httpx.MockTransport(handler)),
+            )
+
+    assert run()["permit_accepted"] == 1
+    with factory() as session:
+        observation = session.scalar(select(Observation))
+        interpretation = session.scalar(select(Interpretation))
+        need = session.scalar(select(PowerNeed))
+        assert observation is not None and interpretation is not None and need is not None
+        assert interpretation.status == "accepted"
+        assert interpretation.assessment["activity_end_date"] == "2026-10-04"
+        assert interpretation.assessment["review_after"] == "2026-10-04"
+        assert need.active is True and need.activity_key == "event-power"
+        source_hash = observation.content_hash
+        first_snapshot = (
+            observation.content_hash,
+            interpretation.status,
+            json.dumps(interpretation.assessment, sort_keys=True),
+            need.active,
+            session.scalar(select(func.count()).select_from(ChangeEvent)),
+            session.scalar(select(func.count()).select_from(NeedObservation)),
+        )
+    assert run()["unchanged"] == 1
+    with factory() as session:
+        observation = session.scalar(select(Observation))
+        interpretation = session.scalar(select(Interpretation))
+        need = session.scalar(select(PowerNeed))
+        assert observation is not None and interpretation is not None and need is not None
+        repeated_end_day = (
+            observation.content_hash,
+            interpretation.status,
+            json.dumps(interpretation.assessment, sort_keys=True),
+            need.active,
+            session.scalar(select(func.count()).select_from(ChangeEvent)),
+            session.scalar(select(func.count()).select_from(NeedObservation)),
+        )
+        assert repeated_end_day == first_snapshot
+
+    as_of[0] = RealDate(2026, 10, 5)
+    assert run()["permit_rejected"] == 1
+    with factory() as session:
+        observation = session.scalar(select(Observation))
+        interpretation = session.scalar(select(Interpretation))
+        need = session.scalar(select(PowerNeed))
+        assert observation is not None and interpretation is not None and need is not None
+        assert observation.content_hash == source_hash
+        assert interpretation.status == "rejected"
+        assert interpretation.assessment["rental_category"] == "past_event"
+        assert need.active is False
+        closed_snapshot = (
+            observation.content_hash,
+            interpretation.status,
+            json.dumps(interpretation.assessment, sort_keys=True),
+            need.active,
+            session.scalar(select(func.count()).select_from(ChangeEvent)),
+            session.scalar(select(func.count()).select_from(NeedObservation)),
+        )
+        assert closed_snapshot[-2] == first_snapshot[-2] + 1
+    assert run()["unchanged"] == 1
+    with factory() as session:
+        observation = session.scalar(select(Observation))
+        interpretation = session.scalar(select(Interpretation))
+        need = session.scalar(select(PowerNeed))
+        assert observation is not None and interpretation is not None and need is not None
+        repeated_next_day = (
+            observation.content_hash,
+            interpretation.status,
+            json.dumps(interpretation.assessment, sort_keys=True),
+            need.active,
+            session.scalar(select(func.count()).select_from(ChangeEvent)),
+            session.scalar(select(func.count()).select_from(NeedObservation)),
+        )
+        assert repeated_next_day == closed_snapshot
 
 
 def test_interpretation_failure_is_durable_and_retried_on_replay(db, monkeypatch):
@@ -395,7 +837,7 @@ def test_source_parse_failure_preserves_prior_accepted_observation_and_signal(db
         )
     )
     with factory() as session, pytest.raises(SourceParseError):
-        process_job(session, job_id, "test", 1, load_registry()[0], client)
+        process_job(session, job_id, "test", 1, federal_register_source(), client)
     client.close()
 
     with factory() as session:
@@ -459,7 +901,7 @@ def test_reclaimed_fence_blocks_stale_pdf_and_interpretation_writes(db, monkeypa
                         job_id,
                         "replacement",
                         replacement_fence,
-                        load_registry()[0],
+                        federal_register_source(),
                     )
                 )
         return [citation]
@@ -469,7 +911,7 @@ def test_reclaimed_fence_blocks_stale_pdf_and_interpretation_writes(db, monkeypa
         "https://www.govinfo.gov/content/pkg/FR-2099-01-01/pdf/2099-01001.pdf"
     )
     with factory() as old_session, pytest.raises(RuntimeError, match="fence lost"):
-        process_job(old_session, job_id, "test", 1, load_registry()[0])
+        process_job(old_session, job_id, "test", 1, federal_register_source())
         old_session.rollback()
 
     assert new_worker_result["changed"] == 1

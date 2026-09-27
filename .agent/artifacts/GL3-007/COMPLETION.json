@@ -1,0 +1,134 @@
+{
+  "status": "ACCEPTED_LOCAL_PACKET",
+  "candidate_sha256": "8e22a19e1a0e5fea8b3acdccaaf32cfb6dc27f8d87071474e4d46f5481a5b811",
+  "manifest_files": 176,
+  "base_sha": "c5a98a69b20b382501468cb03c8c824d6c75abaf",
+  "branch": "fix/vertical-navigation",
+  "evaluator": "rss-project-v6",
+  "validation": [
+    {
+      "command": "uv run ruff check src tests ../scripts",
+      "result": "PASS",
+      "exit_code": 0
+    },
+    {
+      "command": "uv run mypy src",
+      "result": "PASS 27 files",
+      "exit_code": 0
+    },
+    {
+      "command": "uv run pytest tests -q",
+      "result": "PASS 93 tests; existing Starlette/httpx deprecation warning",
+      "exit_code": 0
+    },
+    {
+      "command": "npm run typecheck; npm run build",
+      "result": "PASS",
+      "exit_code": 0
+    },
+    {
+      "command": "export_openapi.py; npm run generate:api; project_manifest.py",
+      "result": "PASS unchanged exact candidate",
+      "exit_code": 0
+    },
+    {
+      "command": "fresh/repeated alembic upgrade head; alembic check",
+      "result": "PASS",
+      "exit_code": 0
+    },
+    {
+      "command": "git diff --check; breadth_secret_hygiene.py",
+      "result": "PASS",
+      "exit_code": 0
+    },
+    {
+      "command": "controller-challenges.py",
+      "result": "PASS all retained adversarial cases, decimal and activity isolation",
+      "exit_code": 0
+    },
+    {
+      "command": "reinterpret_news.py --apply and repeated --apply",
+      "result": "PASS 105, failed_or_pending0 each",
+      "exit_code": 0
+    },
+    {
+      "command": "verify_project_pipeline.py after apply/replay/worker",
+      "result": "PASS baseline facts/evidence unchanged, identical digest",
+      "exit_code": 0
+    },
+    {
+      "command": "six normal RSS worker jobs",
+      "result": "PASS six first-attempt successes",
+      "exit_code": 0
+    },
+    {
+      "command": "npm run test -- --reporter=line",
+      "result": "PASS 2 browser tests",
+      "exit_code": 0
+    },
+    {
+      "command": "project-pipeline-browser.cjs",
+      "result": "PASS 7cards, 4 distinct missing facts, no JS errors/mobile overflow",
+      "exit_code": 0
+    }
+  ],
+  "live": {
+    "counts": {
+      "observations": 197,
+      "evidence": 198,
+      "projects": 8,
+      "power_needs": 8,
+      "change_events": 9,
+      "interpretations": 197
+    },
+    "tiers": {
+      "Signal": 7,
+      "Prospect": 0,
+      "Lead": 0
+    },
+    "old_needs_unchanged": true,
+    "source_identity_unchanged": true,
+    "rss_decisions": 105,
+    "digest": "e7107eba2cf439bc8aed0fc221eb01fc3ef6c7dc1b1c4a7af1b34173ce6b906f",
+    "replay_unchanged": true
+  },
+  "evidence": [
+    ".artifacts/GL3-007/apply-v6.json",
+    ".artifacts/GL3-007/replay-v6.json",
+    ".artifacts/GL3-007/runtime-proof.json",
+    ".artifacts/GL3-007/worker-result-v6.json",
+    ".artifacts/GL3-007/browser-proof.json",
+    ".artifacts/final-migrations.json"
+  ],
+  "failed_attempts": "Preserved initial builder and DOMAIN_REPAIR*, REDIRECT*, CLAUSE*, REVIEW* and controller-*-validation receipts. Includes prior false claims, phase/decimal issues, lease test setup failure, and v5 Applied Digital persistence failure. No earlier PASS claimed acceptance.",
+  "scope_limits": [
+    "Short RSS title/summary only, narrow explicit grammar; no full article missing-fact research",
+    "No real retained Prospect or Lead proof",
+    "No cloud/full launch acceptance",
+    "All changes local and uncommitted; no push/deploy/spend/outreach"
+  ],
+  "runtime_sessions": {
+    "api": 93419,
+    "worker": 78001,
+    "vite": 23690
+  },
+  "timing": {
+    "start_utc": "UNKNOWN",
+    "finish_utc": "2026-09-27T00:05:32.581779+00:00",
+    "planning_seconds": "UNKNOWN",
+    "build_seconds": "UNKNOWN",
+    "validation_seconds": "UNKNOWN",
+    "audit_seconds": "UNKNOWN",
+    "elapsed_to_accepted": "UNKNOWN"
+  },
+  "models": {
+    "main_builder": "gpt-6-luna",
+    "specialist": "gpt-5.6-terra",
+    "reviewer": "gpt-6-sol",
+    "config_identity": "tool role configuration; local config load UNKNOWN"
+  },
+  "tokens": "UNKNOWN",
+  "parent_completion": false,
+  "independent_review": "PASS REVIEW.json",
+  "accepted_at": "2026-09-27T00:08:39.768759+00:00"
+}

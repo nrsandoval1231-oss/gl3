@@ -1,0 +1,12 @@
+# Current state
+Owner direction: local-only ingestion improvements. No push, deployment, spending or outbound notifications.
+
+Repository gl3; branch fix/vertical-navigation; base c5a98a69b20b382501468cb03c8c824d6c75abaf, accepted ingestion breadth merged into local main. GL3-006 is uncommitted local frontend repair.
+
+GL3-006 ACCEPTED LOCAL: other verticals selected from Cannabis watch open matching inbox results; stale source/offset reset; watch reentry normalizes cannabis; URL/history retain coherent filters. Exact candidate 905002a7aa15aa4e7076e8662b4fdb5bd0428ff10a4a4700f50e2c6f4c806327, 171 files. Controller types/build/two authenticated browser tests/diff pass; independent Sol PASS in artifacts/GL3-006/REVIEW.json. Backend and ingestion unchanged.
+
+Prior breadth acceptance GL3-004/005 remains historical: eight feeds, 197 observations/198 evidence versions at checkpoint, three cannabis topic matches and unchanged three active Signals; stable replay. See artifacts/GL3-005 and docs/delivery/ingestion-breadth-validation.md. Counts are snapshots, not completeness claims.
+
+Runtime PostgreSQL55439/API8000/Vite5173/local hourly worker. Rolling feeds may miss downtime; official cultivation-license registry and comprehensive permits remain gaps. Cloud/full launch gates OPEN. Active GL3-007: owner authorized retained news to cross-industry US Signals and evidence-supported Prospects. Main Luna owns durable interpretation/migration/API/UI; bounded Terra specialist owns disjoint claim assessment and unit tests after Luna release. Sol approved narrow assessment JSONB/evaluator-version schema amendment. Controller owns dry-run review, local migration/apply/runtime proof; independent review follows freeze. See packets/GL3-007.md and GL3-007-domain-specialist.md. Canonical docs/product/PRD.md and WORK_GRAPH.md govern.
+
+GL3-007 correction checkpoint: local retained backfill now seven active Signals, zero Prospects, unchanged197observations/198evidence and originalneeds. Full gates/runtime replay pass, but independent review FIX preserved in artifacts/GL3-007/REVIEW-initial.json and REVIEW-redirect1-final.json. Sol REDIRECT to complete affirmative site/activity claim grammar after initialdomain budget; redirected repair2 addresses demandbinding. Do not accept from green tests alone. Worker stopped duringrepair; API12885 and Vite23690 running. Final exactcandidate review required.

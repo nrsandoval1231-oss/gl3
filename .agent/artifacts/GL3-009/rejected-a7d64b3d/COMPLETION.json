@@ -1,0 +1,53 @@
+{
+  "packet": "GL3-009",
+  "builder_result": "IMPLEMENTED_FOR_CONTROLLER_VALIDATION",
+  "candidate_review": "PENDING_CONTROLLER_GATES_AND_INDEPENDENT_SOL_REVIEW",
+  "files": [
+    "backend/src/gridlens/domain/permit_interpretation.py",
+    "backend/src/gridlens/ingestion/service.py",
+    "backend/tests/unit/test_permit_interpretation.py",
+    "backend/tests/unit/test_socrata_permits.py",
+    "backend/tests/integration/test_ingestion.py",
+    "docs/sources/temporary-power-screening.md",
+    ".artifacts/GL3-009/preview.json"
+  ],
+  "validation": [
+    {
+      "command": "py -3 .artifacts/GL3-009/challenge.py",
+      "result": "PASS",
+      "evidence": "21/21 controller-provided synthetic screening cases passed."
+    },
+    {
+      "command": "uv run --project backend --extra dev pytest backend/tests/unit/test_permit_interpretation.py backend/tests/unit/test_socrata_permits.py backend/tests/integration/test_ingestion.py -k 'permit or ingestion'",
+      "result": "PASS",
+      "evidence": "75 passed. Includes 61 focused unit/evaluator cases and 14 ingestion integration tests against isolated gridlens_test."
+    },
+    {
+      "command": "uv run --project backend --extra dev ruff check backend/src/gridlens/domain/permit_interpretation.py backend/src/gridlens/ingestion/service.py backend/tests/unit/test_permit_interpretation.py backend/tests/unit/test_socrata_permits.py backend/tests/integration/test_ingestion.py",
+      "result": "PASS",
+      "evidence": "All checks passed."
+    },
+    {
+      "command": "Read-only re-evaluate retained normalized snapshots against .artifacts/GL3-008/domain-review.json",
+      "result": "PASS",
+      "evidence": "992/992 permit rows included in .artifacts/GL3-009/preview.json; 11 prior v2 accepts retained; 32 additional permit rows accepted; 16 explicitly past powered events rejected; 19 related Austin Zilker records accepted as permit-level rows, not unique opportunities. No retrieval or database writes."
+    }
+  ],
+  "failed_attempts_and_repairs": [
+    "Initial synthetic challenge exposed false positives for a generator-room lightbulb replacement, an advertisement for rental generators, and an already secured generator; rules were narrowed and the challenge passed.",
+    "Expanded challenge exposed incidental roof work near a transformer and a permanent utility generator installation; equipment-change matching was narrowed and 21/21 passed.",
+    "Review of retained event text exposed a negated DJ-stage/sound claim; negated event clauses are removed before powered-event evidence matching, with regression coverage."
+  ],
+  "timing_utc": {
+    "start": "UNKNOWN: start timestamp was not recorded at dispatch",
+    "finish": "2026-09-27T15:34:07Z",
+    "duration": "UNKNOWN",
+    "measured_tokens": "UNKNOWN"
+  },
+  "limitations": [
+    "The full repository gates, source-worker replay, live-source sampling, existing-runtime preservation, and independent Sol review are controller-owned and remain pending.",
+    "Only retained Austin, Seattle, and Chicago snapshots were evaluated; this is not a live refresh or nationwide coverage claim.",
+    "Unparseable event timing remains unknown; permit dates are not used as activity start dates.",
+    "Permit-level counts may include several rows for the same event/site; no cross-row merging or unique-project count is claimed."
+  ]
+}

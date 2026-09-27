@@ -1,0 +1,94 @@
+{
+  "packet": "GL3-009-supply-repair2",
+  "status": "BUILDER_COMPLETE_PENDING_CONTROLLER_VALIDATION_AND_FRESH_REVIEW",
+  "base_sha": "c5a98a69b20b382501468cb03c8c824d6c75abaf",
+  "branch": "fix/vertical-navigation",
+  "started_at_utc": "UNKNOWN",
+  "finished_at_utc": "2026-09-27T15:59:34.8881533Z",
+  "repair_count": 2,
+  "scope": "Affirmative distinct remaining temporary-power need binding after supplied-state recognition; evaluator version bump only.",
+  "changed_files": [
+    {
+      "path": "backend/src/gridlens/domain/permit_interpretation.py",
+      "sha256": "480fa45d58670e1378b5300eab9742f3a396b006dca704cbe6fccc182cda119f"
+    },
+    {
+      "path": "backend/src/gridlens/ingestion/service.py",
+      "sha256": "f1c6081b617de9bbed3382e65924939949bd45c90712d6c90e046843288ae794"
+    },
+    {
+      "path": "backend/tests/unit/test_permit_interpretation.py",
+      "sha256": "f00b4c991c9c3f82750e69236250d6e851fdcf27be5388cc0d59c7b1981d527d"
+    },
+    {
+      "path": "backend/tests/integration/test_ingestion.py",
+      "sha256": "6043ea168b747d6785e979737b660c7c8ea8a9ed65ebe10292b4119e2f080f69"
+    },
+    {
+      "path": "docs/sources/temporary-power-screening.md",
+      "sha256": "abe17e3594cab5dd712ebecd3eb31fa1cb76984b9121fdaf144f585bfb61134d"
+    }
+  ],
+  "behavior": {
+    "closed": [
+      "Temporary generator installed and supplying construction loads; no rental power required.",
+      "Temporary generator installed and supplying construction loads; no additional rental power required.",
+      "Temporary generator installed and supplying construction loads; rental power no longer required.",
+      "Temporary power required for construction; rental generator installed and supplying those construction loads."
+    ],
+    "open_only_when_distinct": [
+      "Permanent backup power is available; separate construction power still required.",
+      "Temporary generator installed and supplying construction loads; additional construction power required.",
+      "Temporary generator installed and supplying construction loads; unserved construction load requires rental power."
+    ],
+    "ordinary_open_cases_retained": [
+      "Temporary generator is not yet installed; rental power required for construction.",
+      "Proposed temporary generator will be installed for construction power."
+    ],
+    "version_history": "An isolated same-source-hash v4 to v5 reevaluation keeps the secured decision closed, preserves evidence, appends the v4 assessment once, and leaves the next exact replay unchanged."
+  },
+  "validation": [
+    {
+      "command": "uv run --extra dev pytest tests/unit/test_permit_interpretation.py tests/integration/test_ingestion.py::test_permit_assessment_replay_correction_and_deactivation tests/integration/test_ingestion.py::test_permit_v3_upgrade_activity_change_withdrawal_and_replay -q",
+      "workdir": "backend",
+      "result": "PASS: 58 passed in 0.96s"
+    },
+    {
+      "command": "uv run --extra dev ruff check src tests",
+      "workdir": "backend",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run --extra dev mypy src",
+      "workdir": "backend",
+      "result": "PASS: Success: no issues found in 29 source files"
+    },
+    {
+      "command": "git diff --check -- backend/src/gridlens/domain/permit_interpretation.py backend/src/gridlens/ingestion/service.py backend/tests/unit/test_permit_interpretation.py backend/tests/integration/test_ingestion.py docs/sources/temporary-power-screening.md",
+      "workdir": ".",
+      "result": "PASS; CRLF conversion warnings only"
+    }
+  ],
+  "not_run": [
+    "Full retained-992 preview regeneration",
+    "Live database, source jobs, worker, replay, API, browser, deployment, or network validation",
+    "Controller final gates and fresh independent Sol review"
+  ],
+  "unknown_metrics": [
+    "planning duration",
+    "build duration",
+    "validation duration",
+    "tokens",
+    "retained-992 before/after counts"
+  ],
+  "preserved": [
+    ".agent/artifacts/GL3-009/REVIEW.json",
+    ".agent/artifacts/GL3-009/REVIEW-r2.json",
+    ".agent/artifacts/GL3-009/SUPPLY_REPAIR.json",
+    ".agent/artifacts/GL3-009/rejected-d7eb8e2d",
+    ".agent/artifacts/GL3-009/rejected-23e96f9d",
+    ".artifacts/GL3-009/preview.json",
+    ".artifacts/GL3-008/domain-review.json"
+  ],
+  "authority": "No live DB writes, network calls, service control, seed data, commit, push, merge, deploy, spending, or outreach were performed."
+}

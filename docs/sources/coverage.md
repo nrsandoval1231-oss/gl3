@@ -1,5 +1,7 @@
 # Source coverage — access checks, 2026-09-25 UTC
 
+GL3-008 adds three regionally bounded permit datasets. The implementation query fields, selected-row counts, and issue-date limits are recorded in [permit breadth](permit-breadth.md); those local GET checks do not establish national coverage.
+
 This matrix records direct public access, inspected samples and local runtime proof. Planned, access-tested, locally validated, disabled, and active are distinct: active requires deployed scheduling. The two configured feeds and three formats have completed real local retrieval, persistence and replay; final gate results and independent acceptance are recorded in [the validation receipt](../delivery/validation.md). No feed is claimed cloud-active.
 
 | Source ID / publisher | Endpoint / family / geography / industries | Useful events and power relevance | Access, retention and cadence | Collection and identity | Current evidence / limitations |
@@ -10,6 +12,14 @@ This matrix records direct public access, inspected samples and local runtime pr
 | usace-little-rock / USACE | https://www.swl.usace.army.mil/Missions/Regulatory/Public-Notices/ ; construction/permits; Arkansas/Missouri | Potential data-center construction notices | Public website but direct runtime request returned 403. No bypass attempted. | Not implemented | DISABLED candidate after failed direct access check; search-index accessibility is not adapter readiness. |
 
 Real source probe files are retained separately under ignored `.artifacts/source-probes/`, not in synthetic fixtures or Git. `fr-window.json`, `fr-window-page2.json`, `nc.raw`, `nc-detail.html`, `discovered-notice.pdf`, `pdf-probe.json`, and `access-policy-checks.json` record the initial samples. These probes are not ingested production evidence and must never be seeded as live application discoveries.
+
+## Public-news breadth packet — September 26, 2026
+
+Six directly tested publisher RSS feeds are configured for hourly local collection. Direct feed snapshots returned HTTP 200 XML; the saved access and snapshot probes are external inspection evidence, not application data. Observed snapshot sizes and publication date bounds were DCD 20 (September 24–25), Utility Dive 10 (September 23–25), Manufacturing Dive 10 (September 22–25), Construction Dive 10 (September 23–25), OGJ 25 (August 18–September 25), and MJBizDaily 30 (September 14–25). See [the local news breadth proof](local-news-breadth.md) for source-level examples and collection limits.
+
+These are the latest items exposed by each rolling publisher feed, not a historical collection window. A one-hour local poll does not guarantee catch-up after the computer or worker is offline; items may age out of the publisher snapshot between checks. Snapshot count and oldest/newest publication dates appear in source health after successful retrieval. DCD and OGJ feeds are global; the others are US-focused and may include international items. Feed scope does not establish a project's location. The retained inbox holds canonical links, dates, titles, short publisher summaries, hashes, and extraction attribution. Article pages and full `content:encoded` bodies are not retrieved or retained.
+
+RSS records pass through the retained-text project interpreter after evidence is durably committed. Its project and power gates are described in [project interpretation](project-interpretation.md). The MJBizDaily topic watch still matches cultivation-related mentions, or licensing together with facility language, in retained titles and short summaries; each match is labeled “Topic match - review required.” It is not an alert or a facility/power qualification. General news and sponsored/editorial items can remain in the inbox without being promoted.
 
 GPO retention context: https://www.govinfo.gov/about/policies (Public Domain & Copyright Notice, inspected September 25). Robots files were retrieved from the three publishers and retained with hash receipts. No paid API, LLM, Firecrawl credit, or external account was used in these checks. Public GET request charges are not imposed by these endpoints; network/infrastructure cost is not measured.
 
@@ -24,4 +34,6 @@ The access-test labels in the initial matrix above describe the discovery phase.
 
 Receipts: ignored `.artifacts/integrated-corrected-live.json`, `integrated-final-replay.json`, `final-browser-proof.json`; initial rejected checkpoint retained as `integrated-live-ingestion.json`. No probe file was seeded into the application. Qualification is deliberately narrow and can miss useful announcements; this small inspected set is not a general precision or recall claim.
 
-Full launch coverage remains OPEN: 12 independent active feeds across five families, two national structured sources and three industries. Three adapter formats alone cannot satisfy it. Historical quality review, seven daily cloud cycles, managed recovery, and Nick-reviewed Lead proof remain open. Local snapshot restore is separately proven in [the recovery receipt](../operations/local-recovery-proof.md).
+Full launch coverage remains OPEN: 12 independent active feeds across five families, two national structured sources and three industries. The six local RSS sources are not a claim of national completeness or deployed active feeds. Historical quality review, seven daily cloud cycles, managed recovery, and Nick-reviewed Lead proof remain open. Local snapshot restore is separately proven in [the recovery receipt](../operations/local-recovery-proof.md).
+
+Local September 26 breadth checkpoint: eight configured feeds have real worker retrieval/persistence/replay evidence. Six RSS feeds added 105 observations, with 197 retained observations total. See [breadth evidence](local-news-breadth.md) and [controller validation](../delivery/ingestion-breadth-validation.md) for exact counts, candidate acceptance and limitations. These remain local collection routes; source-family diversity and national structured/permit/licensing coverage are unfinished.

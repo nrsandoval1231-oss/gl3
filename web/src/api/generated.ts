@@ -72,6 +72,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/ingestion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Ingestion */
+        get: operations["ingestion_api_ingestion_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/opportunities": {
         parameters: {
             query?: never;
@@ -171,6 +188,13 @@ export interface components {
             source_id: string;
             /** Document Number */
             document_number: string;
+            /**
+             * Assessment Current
+             * @default false
+             */
+            assessment_current: boolean;
+            /** Permit Status */
+            permit_status?: string | null;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -244,6 +268,111 @@ export interface components {
             error?: string | null;
             /** Latest Publication Date */
             latest_publication_date?: string | null;
+            /** Latest Permit Issue Date */
+            latest_permit_issue_date?: string | null;
+            /**
+             * Records Scanned
+             * @default 0
+             */
+            records_scanned: number;
+            /**
+             * Permit Accepted
+             * @default 0
+             */
+            permit_accepted: number;
+            /**
+             * Permit Rejected
+             * @default 0
+             */
+            permit_rejected: number;
+            /** Snapshot Item Count */
+            snapshot_item_count?: number | null;
+            /** Snapshot Oldest Publication Date */
+            snapshot_oldest_publication_date?: string | null;
+            /** Snapshot Newest Publication Date */
+            snapshot_newest_publication_date?: string | null;
+            /** Collection Scope */
+            collection_scope?: string | null;
+            /** Coverage Limitation */
+            coverage_limitation?: string | null;
+        };
+        /** IngestionItemOut */
+        IngestionItemOut: {
+            /** Source Id */
+            source_id: string;
+            /** Publisher */
+            publisher: string;
+            /** Endpoint */
+            endpoint: string;
+            /** Verticals */
+            verticals: string[];
+            /** Source Scope */
+            source_scope: string;
+            /** External Id */
+            external_id: string;
+            /** Title */
+            title: string;
+            /**
+             * Published At
+             * Format: date
+             */
+            published_at: string;
+            /**
+             * First Seen At
+             * Format: date-time
+             */
+            first_seen_at: string;
+            /**
+             * Latest Evidence At
+             * Format: date-time
+             */
+            latest_evidence_at: string;
+            /** Excerpt */
+            excerpt: string | null;
+            /** Extraction Location */
+            extraction_location: string;
+            /** Content Hash */
+            content_hash: string;
+            /** Citation Url */
+            citation_url: string;
+            /** Collection State */
+            collection_state: string;
+            /** Qualification State */
+            qualification_state: string;
+            /** Matched Terms */
+            matched_terms: string[];
+            /** Topic Label */
+            topic_label: string | null;
+            /**
+             * Assessment Current
+             * @default false
+             */
+            assessment_current: boolean;
+            /** Assessment Reason */
+            assessment_reason?: string | null;
+            /** Supported Subject */
+            supported_subject?: string | null;
+            /** Supported Action */
+            supported_action?: string | null;
+            /** Demand Quote */
+            demand_quote?: string | null;
+            /** Supply Quote */
+            supply_quote?: string | null;
+            /** Missing Facts */
+            missing_facts?: string[];
+            /** Permit Status */
+            permit_status?: string | null;
+        };
+        /** IngestionPageOut */
+        IngestionPageOut: {
+            /** Items */
+            items: components["schemas"]["IngestionItemOut"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
         };
         /** LoginBody */
         LoginBody: {
@@ -294,6 +423,18 @@ export interface components {
             next_action: string;
             /** Conflict State */
             conflict_state: string;
+            /** Assessment Reason */
+            assessment_reason?: string | null;
+            /** Supported Subject */
+            supported_subject?: string | null;
+            /** Supported Action */
+            supported_action?: string | null;
+            /** Demand Quote */
+            demand_quote?: string | null;
+            /** Supply Quote */
+            supply_quote?: string | null;
+            /** Missing Facts */
+            missing_facts?: string[];
             /** Evidence */
             evidence: components["schemas"]["EvidenceOut"][];
         };
@@ -418,6 +559,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HealthOut"];
+                };
+            };
+        };
+    };
+    ingestion_api_ingestion_get: {
+        parameters: {
+            query?: {
+                source_id?: string | null;
+                vertical?: string | null;
+                watch_only?: boolean;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IngestionPageOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
