@@ -1,12 +1,19 @@
 # Current state
-Owner direction: keep GridLens local until ingestion is perfected; prioritize wider collection and cannabis cultivation business-news alerts. Local validation is authoritative. No push/deployment/spending/outbound notifications for this slice.
 
-Repository: gl3; branch improve/local-ingestion-quality; base/main merge 9926a9896997359d65ec7849a5969ce8f0a6109e. Owner authorized merging the accepted candidate into local main. Remote push and deployment remain deferred; Git history records the integration commit.
+Owner direction: rental generators, temporary and bridge power are the main discovery focus. Permits primary, news supplemental. Canonical docs/product/PRD.md and WORK_GRAPH.md govern; parent Finish Contract OPEN. No push/deploy/spending/outreach authorized by this slice.
 
-GL3-004 auxiliary read-only export and GL3-005 local breadth are ACCEPTED LOCAL. Exact 171-file candidate: 6a92c9a15356e858cfd393bf6fc15ec7e30b0f18103167f06a799b8be999b0e8. Evidence: artifacts/GL3-005/candidate_manifest.json, VALIDATION_INITIAL.json, VALIDATION.json, REVIEW.json (independent Sol PASS). Product files frozen; governance receipts excluded explicitly.
+Repo gl3; branch fix/vertical-navigation; HEAD c5a98a69b20b382501468cb03c8c824d6c75abaf. Accepted GL3-006/007/008/009 edits remain uncommitted. Prior state preserved in artifacts/GL3-009/STATE_BEFORE_BUILD.md.
 
-Eight feeds retained 197 observations/198 evidence versions; six RSS feeds added 105 observations. Three cannabis topic matches visible in local watch, not three projects. Existing three active Signals unchanged. Identical replay preserved all counts and Today digest. Controller passed 62 backend tests, frontend types/build, two browser tests, fresh/repeated migrations and schema check. Mobile pager overlap repaired and verified.
+GL3-009 ACCEPTED LOCAL at 2026-09-27T16:24:24.789409+00:00: exact183-file candidate 654979d62a57d6344636e37eb34010184857310ee13a82b1bcbcb4165a62e621. Independent Sol PASS artifacts/GL3-009/REVIEW-r5.json. Four earlier FIX reviews, Astra rawREDIRECT and rejected candidate snapshots retained. See ACCEPTANCE.json, CONTROLLER_VALIDATION.json and EPISODE.json.
 
-Runtime: local PostgreSQL55439, API8000, Vite5173, hourly local worker. Rolling feeds can miss items during downtime. No official cultivation license registry or comprehensive permit coverage yet. Cloud and parent finish gates remain OPEN/deferred.
+permit-project-v7 admits supported equipment-changeout continuity, temporary generation, bridge activity, powered events and critical hospital remodeling as Signals. Clause-scoped supplied/negative/open evidence keeps distinct remaining activity visible with a source-bound rationale. Explicit event-end aging runs on retrieved rows. No MW/buyer/start/duration/supply invented; no Prospect/Lead promotion.
 
-Next direction: CONTINUE local ingestion breadth with a bounded official-source coverage packet; prioritize cultivation licensing/facility records and missing source families. Do not tighten qualification merely to compensate for collection gaps. Canonical intent remains docs/product/PRD.md; graph WORK_GRAPH.md. No claim ingestion is perfected.
+Latest validated snapshot: Austin311/29Signals; Seattle85/1; Chicago597/13. Total993permitrecords/43permitSignals; 50totalactiveSignals,0Prospects/Leads. All11 prior permit Signals and992v2 decisions retained; v3-v6 versions also retained. Original evidence/nonpermit facts unchanged. 1190observations/1191evidence.
+
+Validation:174backendtests, Ruff/mypy, webtypes/build;22supplied-state and21originalchallenge cases;32newaccepted original-source checks plus6samples;6ordinaryworkerjobs with identical replay; authenticated browser50cards and390px no overflow. API8000 session32414, Vite5173 session56190; worker resumed session54639, auto_refreshtrue. These are local processes, not cloud availability.
+
+Limits: three-city building-permit feeds only; dedicated electrical/generator feeds and national coverage open.19Zilker records describe related festival activity, not19independent opportunities. No cross-permit consolidation.30dayissuewindow misses older-row updates; bounded grammar/date parser may miss relevant work. General LLM interpretation/research and parent launch remain OPEN; cloud owner-DEFERRED.
+
+Next direction CONTINUE the next bounded source/monitoring node, prioritizing rental-relevant electrical/generator feeds and evidence-backed consolidation. User review: .artifacts/GL3-009/Rental-power-permit-review.md and permit-decisions.csv.
+
+Owner update 2026-09-27: 'PERFECT!! merge it' authorizes publication and merge of the accepted stack. All 183 candidate files reverified unchanged; runtime secrets excluded. Existing local-validation acceptance instruction retained. Deployment remains outside this action. Merge outcome is verified separately in GitHub.

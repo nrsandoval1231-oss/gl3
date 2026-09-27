@@ -2,12 +2,48 @@
   "version": 1,
   "sources": [
     {
+      "id": "austin-building-permits", "publisher": "City of Austin Open Data",
+      "endpoint": "https://data.austintexas.gov/resource/3syk-w9eu.json",
+      "family": "construction-permits", "geography": "Austin, Texas", "city": "Austin", "state": "TX",
+      "record_link_host": "abc.austintexas.gov",
+      "industries": ["construction", "manufacturing", "data centers", "healthcare", "commercial facilities"],
+      "retrieval_method": "socrata-permits", "cadence_hours": 24,
+      "publication_cadence": "daily; issue date is the dated permit event", "credential_reference": null,
+      "enabled": true, "retention": "Public permit row fields and attributed excerpt; source publication time is unknown",
+      "query": {"window_days": 30, "per_page": 1000, "max_pages": 20, "max_response_bytes": 2000000, "max_run_bytes": 20000000, "where_profile": "commercial-building"}
+    },
+    {
+      "id": "seattle-building-permits", "publisher": "City of Seattle Open Data",
+      "endpoint": "https://data.seattle.gov/resource/76t5-zqzr.json",
+      "family": "construction-permits", "geography": "Seattle, Washington", "city": "Seattle", "state": "WA",
+      "record_link_host": "services.seattle.gov",
+      "industries": ["construction", "manufacturing", "data centers", "healthcare", "commercial facilities"],
+      "retrieval_method": "socrata-permits", "cadence_hours": 24,
+      "publication_cadence": "daily; issue date is the dated permit event", "credential_reference": null,
+      "enabled": true, "retention": "Public permit row fields and attributed excerpt; source publication time is unknown",
+      "query": {"window_days": 30, "per_page": 1000, "max_pages": 20, "max_response_bytes": 2000000, "max_run_bytes": 20000000, "where_profile": "nonresidential-building"}
+    },
+    {
+      "id": "chicago-building-permits", "publisher": "City of Chicago Data Portal",
+      "endpoint": "https://data.cityofchicago.org/resource/ydr8-5enu.json",
+      "family": "construction-permits", "geography": "Chicago, Illinois", "city": "Chicago", "state": "IL",
+      "industries": ["construction", "manufacturing", "data centers", "healthcare", "commercial facilities"],
+      "retrieval_method": "socrata-permits", "cadence_hours": 24,
+      "publication_cadence": "daily; issue date is the dated permit event", "credential_reference": null,
+      "enabled": true, "retention": "Public permit row fields and attributed excerpt; source publication time is unknown",
+      "query": {"window_days": 30, "per_page": 1000, "max_pages": 20, "max_response_bytes": 2000000, "max_run_bytes": 20000000, "where_profile": "new-construction-or-renovation"}
+    },
+    {
       "id": "federal-register-eis",
       "publisher": "Federal Register",
       "endpoint": "https://www.federalregister.gov/api/v1/documents.json",
       "family": "structured-government",
       "geography": "United States",
-      "industries": ["mining", "energy", "infrastructure"],
+      "industries": [
+        "mining",
+        "energy",
+        "infrastructure"
+      ],
       "retrieval_method": "json-api",
       "cadence_hours": 24,
       "publication_cadence": "daily",
@@ -30,7 +66,11 @@
       "endpoint": "https://www.commerce.nc.gov/news/press-releases",
       "family": "economic-development-publication",
       "geography": "North Carolina",
-      "industries": ["manufacturing", "data centers", "commercial construction"],
+      "industries": [
+        "manufacturing",
+        "data centers",
+        "commercial construction"
+      ],
       "retrieval_method": "nc-commerce-html",
       "cadence_hours": 24,
       "publication_cadence": "irregular",
@@ -51,14 +91,21 @@
       "endpoint": "https://www.datacenterdynamics.com/en/rss/news/",
       "family": "news",
       "geography": "Global, including US and international coverage",
-      "industries": ["data centers", "energy", "infrastructure"],
+      "industries": [
+        "data centers",
+        "energy",
+        "infrastructure"
+      ],
       "retrieval_method": "publisher-rss",
       "cadence_hours": 1,
       "publication_cadence": "rolling publisher snapshot",
       "credential_reference": null,
       "enabled": true,
       "retention": "At most 500-character publisher summary and canonical item metadata; no article body retained",
-      "query": {"max_items": 50, "max_response_bytes": 2000000}
+      "query": {
+        "max_items": 50,
+        "max_response_bytes": 2000000
+      }
     },
     {
       "id": "utility-dive-news",
@@ -66,14 +113,21 @@
       "endpoint": "https://www.utilitydive.com/feeds/news/",
       "family": "news",
       "geography": "US-focused with international coverage",
-      "industries": ["utilities", "energy", "infrastructure"],
+      "industries": [
+        "utilities",
+        "energy",
+        "infrastructure"
+      ],
       "retrieval_method": "publisher-rss",
       "cadence_hours": 1,
       "publication_cadence": "rolling publisher snapshot",
       "credential_reference": null,
       "enabled": true,
       "retention": "At most 500-character publisher summary and canonical item metadata; no article body retained",
-      "query": {"max_items": 50, "max_response_bytes": 2000000}
+      "query": {
+        "max_items": 50,
+        "max_response_bytes": 2000000
+      }
     },
     {
       "id": "manufacturing-dive-news",
@@ -81,14 +135,21 @@
       "endpoint": "https://www.manufacturingdive.com/feeds/news/",
       "family": "news",
       "geography": "US-focused with international coverage",
-      "industries": ["manufacturing", "energy", "infrastructure"],
+      "industries": [
+        "manufacturing",
+        "energy",
+        "infrastructure"
+      ],
       "retrieval_method": "publisher-rss",
       "cadence_hours": 1,
       "publication_cadence": "rolling publisher snapshot",
       "credential_reference": null,
       "enabled": true,
       "retention": "At most 500-character publisher summary and canonical item metadata; no article body retained",
-      "query": {"max_items": 50, "max_response_bytes": 2000000}
+      "query": {
+        "max_items": 50,
+        "max_response_bytes": 2000000
+      }
     },
     {
       "id": "construction-dive-news",
@@ -96,14 +157,21 @@
       "endpoint": "https://www.constructiondive.com/feeds/news/",
       "family": "news",
       "geography": "US-focused with international coverage",
-      "industries": ["construction", "data centers", "infrastructure"],
+      "industries": [
+        "construction",
+        "data centers",
+        "infrastructure"
+      ],
       "retrieval_method": "publisher-rss",
       "cadence_hours": 1,
       "publication_cadence": "rolling publisher snapshot",
       "credential_reference": null,
       "enabled": true,
       "retention": "At most 500-character publisher summary and canonical item metadata; no article body retained",
-      "query": {"max_items": 50, "max_response_bytes": 2000000}
+      "query": {
+        "max_items": 50,
+        "max_response_bytes": 2000000
+      }
     },
     {
       "id": "ogj-exploration-news",
@@ -111,14 +179,21 @@
       "endpoint": "https://www.ogj.com/__rss/website-scheduled-content.xml?input=%7B%22sectionAlias%22%3A%22exploration-development%22%7D",
       "family": "news",
       "geography": "Global, including US and international coverage",
-      "industries": ["oil and gas", "energy", "infrastructure"],
+      "industries": [
+        "oil and gas",
+        "energy",
+        "infrastructure"
+      ],
       "retrieval_method": "publisher-rss",
       "cadence_hours": 1,
       "publication_cadence": "rolling publisher snapshot",
       "credential_reference": null,
       "enabled": true,
       "retention": "At most 500-character publisher summary and canonical item metadata; no article body retained",
-      "query": {"max_items": 50, "max_response_bytes": 2000000}
+      "query": {
+        "max_items": 50,
+        "max_response_bytes": 2000000
+      }
     },
     {
       "id": "mjbizdaily-news",
@@ -126,14 +201,21 @@
       "endpoint": "https://mjbizdaily.com/feed/",
       "family": "news",
       "geography": "US-focused with international coverage",
-      "industries": ["cannabis", "manufacturing", "energy"],
+      "industries": [
+        "cannabis",
+        "manufacturing",
+        "energy"
+      ],
       "retrieval_method": "publisher-rss",
       "cadence_hours": 1,
       "publication_cadence": "rolling publisher snapshot",
       "credential_reference": null,
       "enabled": true,
       "retention": "At most 500-character publisher summary and canonical item metadata; no article body retained",
-      "query": {"max_items": 50, "max_response_bytes": 2000000}
+      "query": {
+        "max_items": 50,
+        "max_response_bytes": 2000000
+      }
     }
   ]
 }

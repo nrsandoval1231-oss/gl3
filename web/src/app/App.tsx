@@ -13,6 +13,17 @@ function routeUrl(tier: Tier, search: string, hash = '') {
   const query = new URLSearchParams({ tier, q: search })
   return `${location.pathname}?${query.toString()}${hash}`
 }
+function ingestionUrl(view: Extract<View, 'ingestion' | 'watch'>, source: string, vertical: string, offset: number) {
+  const query = new URLSearchParams({ view })
+  if (source) query.set('source', source)
+  if (vertical) query.set('vertical', vertical)
+  if (offset) query.set('offset', String(offset))
+  return `${location.pathname}?${query.toString()}`
+}
+function parseOffset(value: string | null) {
+  const parsed = Number(value ?? 0)
+  return Number.isInteger(parsed) && parsed >= 0 && parsed <= 100_000 ? parsed : 0
+}
 
 export function App() {
   const [authenticated, setAuthenticated] = useState<boolean | null>(null)
@@ -44,6 +55,9 @@ export function App() {
     setSearch(params.get('q') ?? '')
     const initialView = params.get('view')
     if (initialView === 'ingestion' || initialView === 'watch') setView(initialView)
+    setSourceFilter(initialView === 'watch' ? '' : params.get('source') ?? '')
+    setVerticalFilter(initialView === 'watch' ? 'cannabis' : params.get('vertical') ?? '')
+    setOffset(initialView === 'watch' ? 0 : parseOffset(params.get('offset')))
   }, [])
 
   useEffect(() => {
@@ -81,9 +95,9 @@ export function App() {
     })()
     const url = view === 'opportunities'
       ? routeUrl(tier, search, selected ? `#${encodeURIComponent(selected.id)}` : '')
-      : `${location.pathname}?view=${view}`
+      : ingestionUrl(view, sourceFilter, verticalFilter, offset)
     history.replaceState(
-      { ...(history.state ?? {}), tier, search, view, scrollY: window.scrollY },
+      { ...(history.state ?? {}), tier, search, view, sourceFilter, verticalFilter, offset, scrollY: window.scrollY },
       '',
       url,
     )
@@ -91,11 +105,15 @@ export function App() {
 
   useEffect(() => {
     function onPopState(event: PopStateEvent) {
-      const state = event.state as { tier?: Tier; search?: string; id?: string; view?: View; scrollY?: number; focusedId?: string } | null
+      const state = event.state as { tier?: Tier; search?: string; id?: string; view?: View; sourceFilter?: string; verticalFilter?: string; offset?: number; scrollY?: number; focusedId?: string } | null
+      const params = new URLSearchParams(location.search)
       if (state?.tier && tiers.includes(state.tier)) setTier(state.tier)
       else setTier('Signals')
       setView(state?.view === 'ingestion' || state?.view === 'watch' ? state.view : 'opportunities')
       setSearch(state?.search ?? '')
+      setSourceFilter(state?.sourceFilter ?? params.get('source') ?? '')
+      setVerticalFilter(state?.verticalFilter ?? params.get('vertical') ?? '')
+      setOffset(state?.offset ?? parseOffset(params.get('offset')))
       setSelected(state?.id ? itemsRef.current.find((item) => item.id === state.id) ?? null : null)
       requestAnimationFrame(() => {
         window.scrollTo(0, state?.scrollY ?? 0)
@@ -143,11 +161,27 @@ export function App() {
 
   function chooseView(value: View) {
     setView(value)
-    if (value === 'watch') setSourceFilter('')
+    if (value === 'watch') {
+      setSourceFilter('')
+      setVerticalFilter('cannabis')
+    }
     setSelected(null)
     setOffset(0)
-    history.pushState({ tier, search, view: value, scrollY: 0 }, '', value === 'opportunities' ? routeUrl(tier, search) : `${location.pathname}?view=${value}`)
+    history.pushState({ tier, search, view: value, sourceFilter: value === 'watch' ? '' : sourceFilter, verticalFilter: value === 'watch' ? 'cannabis' : verticalFilter, offset: 0, scrollY: 0 }, '', value === 'opportunities' ? routeUrl(tier, search) : ingestionUrl(value, value === 'watch' ? '' : sourceFilter, value === 'watch' ? 'cannabis' : verticalFilter, 0))
     window.scrollTo(0, 0)
+  }
+
+  function chooseVertical(value: string) {
+    setVerticalFilter(value)
+    setSourceFilter('')
+    setOffset(0)
+    if (view === 'watch' && value !== 'cannabis') {
+      const nextView = 'ingestion'
+      setView(nextView)
+      setSelected(null)
+      history.pushState({ tier, search, view: nextView, sourceFilter: '', verticalFilter: value, offset: 0, scrollY: 0 }, '', ingestionUrl(nextView, '', value, 0))
+      window.scrollTo(0, 0)
+    }
   }
 
   function open(item: Opportunity) {
@@ -171,14 +205,14 @@ export function App() {
     <header className="topbar"><a className="brand" href={routeUrl('Signals', '')} aria-label="GridLens home" onClick={(event) => { event.preventDefault(); chooseTier('Signals') }}><img src="/brand/lockup-horizontal-navy.svg" alt="GridLens"/></a><nav aria-label="Workspace views">{tiers.map((name) => <button key={name} className={view === 'opportunities' && tier === name ? 'nav-active' : ''} aria-current={view === 'opportunities' && tier === name ? 'page' : undefined} onClick={() => chooseTier(name)}>{name}</button>)}<button className={view === 'ingestion' ? 'nav-active' : ''} aria-current={view === 'ingestion' ? 'page' : undefined} onClick={() => chooseView('ingestion')}>Ingestion</button><button className={view === 'watch' ? 'nav-active' : ''} aria-current={view === 'watch' ? 'page' : undefined} onClick={() => chooseView('watch')}>Cannabis watch</button></nav><div className="header-actions"><button className="health-toggle" onClick={() => setShowHealth((value) => !value)} aria-expanded={showHealth}>Source health</button><button className="signout" onClick={() => void signOut()}>Sign out</button></div></header>
     <main className="workspace">
       {!selected && view === 'opportunities' && <div className="overview-grid"><section className="hero"><div><p className="eyebrow">Evidence-led project discovery</p><h1>{tier}</h1><p>Projects with sourced events that may warrant a power discovery conversation.</p></div></section><section className="today"><div><p className="eyebrow">Today</p><strong>{changes.length} material {changes.length === 1 ? 'change' : 'changes'}</strong></div>{changes.slice(0, 3).map((change, index) => <a href={change.url} key={`${change.kind}-${index}`} target="_blank" rel="noreferrer"><span>{change.kind}</span>{change.title}</a>)}{changes.length === 0 && <span className="today-empty">No material opportunity changes today.</span>}</section></div>}
-      {!selected && view !== 'opportunities' && <section className="hero"><div><p className="eyebrow">Retained evidence · Publisher and government sources</p><h1>{view === 'watch' ? 'Cannabis business news watch' : 'Ingestion inbox'}</h1><p>{view === 'watch' ? 'MJBizDaily topic matches need human review. A mention does not establish a facility announcement, project, power need, or qualified opportunity.' : 'Source evidence stays visible with collection and qualification status. News records remain separate from Signals unless independently qualified.'}</p></div></section>}
+      {!selected && view !== 'opportunities' && <section className="hero"><div><p className="eyebrow">Retained evidence · Publisher and government sources</p><h1>{view === 'watch' ? 'Cannabis business news watch' : 'Ingestion inbox'}</h1><p>{view === 'watch' ? 'MJBizDaily topic matches need human review. A mention does not establish a facility announcement, project, power need, or qualified opportunity.' : 'Permits are primary project discovery; news is supplemental. Source evidence and qualification stay visible. City permit coverage is regional and limited to a rolling issue-date window.'}</p></div></section>}
       {selected && <section className="hero detail-hero"><div><p className="eyebrow">{selected.tier} · {selected.activity.replaceAll('-', ' ')}</p><h1>{selected.name}</h1><p>{selected.rationale}</p></div><button className="back-button" onClick={returnToBrowse}>← Back to {tier}</button></section>}
       {showHealth && <HealthPanel health={health} />}
       {view === 'opportunities' && <div className="list-toolbar"><div><h2>{selected ? 'Opportunity brief' : `${tier} · ${items.length}`}</h2>{!selected && <p>Browse the evidence and open a project for its source details.</p>}</div><label className="search"><span className="sr-only">Search projects</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search projects"/></label></div>}
-      {view !== 'opportunities' && <div className="ingestion-tools"><label>Source<select aria-label="Filter by source" value={sourceFilter} onChange={(event) => { setSourceFilter(event.target.value); setOffset(0) }}><option value="">All sources</option>{sources.filter((source) => view !== 'watch' || source.id === 'mjbizdaily-news').map((source) => <option value={source.id} key={source.id}>{source.name}</option>)}</select></label><label>Vertical<select aria-label="Filter by vertical" value={verticalFilter} onChange={(event) => { setVerticalFilter(event.target.value); setOffset(0) }}><option value="">All verticals</option>{verticals.map((item) => <option key={item}>{item}</option>)}</select></label><span>{ingestionTotal} retained {ingestionTotal === 1 ? 'item' : 'items'} · page {Math.floor(offset / pageSize) + 1}</span></div>}
+      {view !== 'opportunities' && <div className="ingestion-tools"><label>Source<select aria-label="Filter by source" value={sourceFilter} onChange={(event) => { setSourceFilter(event.target.value); setOffset(0) }}><option value="">All sources</option>{sources.filter((source) => view !== 'watch' || source.id === 'mjbizdaily-news').map((source) => <option value={source.id} key={source.id}>{source.name}</option>)}</select></label><label>Vertical<select aria-label="Filter by vertical" value={verticalFilter} onChange={(event) => chooseVertical(event.target.value)}><option value="">All verticals</option>{verticals.map((item) => <option key={item}>{item}</option>)}</select></label><span>{ingestionTotal} retained {ingestionTotal === 1 ? 'item' : 'items'} · page {Math.floor(offset / pageSize) + 1}</span></div>}
       {error && <p role="alert" className="error-banner">{error}</p>}
       {loading && <p className="loading-inline" role="status">Updating this view…</p>}
-      {selected ? <><OpportunityDetail item={selected}/><div className="detail-navigation"><button disabled={selectedIndex <= 0} onClick={() => moveTo(items[selectedIndex - 1])}>← Previous</button><button disabled={selectedIndex < 0 || selectedIndex >= items.length - 1} onClick={() => moveTo(items[selectedIndex + 1])}>Next →</button></div></> : view === 'opportunities' ? items.length ? <div className="opportunity-list">{items.map((item) => <button key={item.id} data-opportunity-id={item.id} className="opportunity-row" onClick={() => open(item)}><span className="row-marker"/><span className="row-main"><strong>{item.name}</strong><span>{item.activity.replaceAll('-', ' ')} · {item.location ?? 'Location unknown'}</span><span>{item.rationale}</span><span>{item.evidence[0]?.source_id} · Published {item.evidence[0]?.published_at ?? 'date unknown'}</span></span><span className="row-meta"><span>{item.tier}</span><span>Load unknown</span></span><span className="arrow" aria-hidden="true">→</span></button>)}</div> : !loading ? <div className="empty"><span className="empty-mark" aria-hidden="true">◇</span><h3>{tier === 'Signals' ? 'No signals yet' : `No ${tier.toLowerCase()} yet`}</h3><p>{tier === 'Signals' ? 'A Signal appears when a dated source identifies a concrete project event that may create a reason to investigate power.' : `${tier} require additional supported facts. They will appear here when the evidence meets the qualification gate.`}</p></div> : null : <><IngestionList items={ingestionItems} watch={view === 'watch'} loading={loading}/><div className="collection-pagination"><button disabled={offset <= 0 || loading} onClick={() => setOffset(Math.max(0, offset - pageSize))}>← Previous</button><button disabled={offset + pageSize >= ingestionTotal || loading} onClick={() => setOffset(offset + pageSize)}>Next →</button></div></>}
+      {selected ? <><OpportunityDetail item={selected}/><div className="detail-navigation"><button disabled={selectedIndex <= 0} onClick={() => moveTo(items[selectedIndex - 1])}>← Previous</button><button disabled={selectedIndex < 0 || selectedIndex >= items.length - 1} onClick={() => moveTo(items[selectedIndex + 1])}>Next →</button></div></> : view === 'opportunities' ? items.length ? <div className="opportunity-list">{items.map((item) => <button key={item.id} data-opportunity-id={item.id} className="opportunity-row" onClick={() => open(item)}><span className="row-marker"/><span className="row-main"><strong>{item.name}</strong><span>{item.activity.replaceAll('-', ' ')} · {item.location ?? 'Location unknown'}</span><span>{item.assessment_reason ?? item.rationale}</span><span>{item.evidence[0]?.source_id} · {item.evidence[0]?.source_id.endsWith('-building-permits') ? 'Permit issue date' : 'Published'} {item.evidence[0]?.published_at ?? 'date unknown'}{item.evidence[0]?.source_id.endsWith('-building-permits') ? ' · publication date unknown' : ''}</span></span><span className="row-meta"><span>{item.tier}</span><span>{item.required_mw ?? 'Load unknown'}</span></span><span className="arrow" aria-hidden="true">→</span></button>)}</div> : !loading ? <div className="empty"><span className="empty-mark" aria-hidden="true">◇</span><h3>{tier === 'Signals' ? 'No signals yet' : `No ${tier.toLowerCase()} yet`}</h3><p>{tier === 'Signals' ? 'A Signal appears when a dated source identifies a concrete project event that may create a reason to investigate power.' : `${tier} require additional supported facts. They will appear here when the evidence meets the qualification gate.`}</p></div> : null : <><IngestionList items={ingestionItems} watch={view === 'watch'} loading={loading}/><div className="collection-pagination"><button disabled={offset <= 0 || loading} onClick={() => setOffset(Math.max(0, offset - pageSize))}>← Previous</button><button disabled={offset + pageSize >= ingestionTotal || loading} onClick={() => setOffset(offset + pageSize)}>Next →</button></div></>}
       </main><footer>Coverage is limited to configured and checked sources. Unknown project facts stay unknown.</footer>
   </div>
 }
@@ -189,21 +223,55 @@ const newsSources = [
   { id: 'ogj-exploration-news', name: 'Oil & Gas Journal' }, { id: 'mjbizdaily-news', name: 'MJBizDaily' },
 ]
 const sources = [
+  { id: 'austin-building-permits', name: 'Austin Building Permits' },
+  { id: 'seattle-building-permits', name: 'Seattle Building Permits' },
+  { id: 'chicago-building-permits', name: 'Chicago Building Permits' },
   { id: 'federal-register-eis', name: 'Federal Register' },
   { id: 'nc-commerce', name: 'North Carolina Department of Commerce' },
   ...newsSources,
 ]
-const verticals = ['data centers', 'utilities', 'manufacturing', 'construction', 'oil and gas', 'cannabis', 'mining', 'energy', 'infrastructure']
+const verticals = ['data centers', 'utilities', 'manufacturing', 'construction', 'healthcare', 'commercial facilities', 'oil and gas', 'cannabis', 'mining', 'energy', 'infrastructure']
 
 function IngestionList({ items, watch, loading }: { items: IngestionItem[]; watch: boolean; loading: boolean }) {
   if (!items.length) return loading ? null : <div className="empty"><span className="empty-mark" aria-hidden="true">◇</span><h3>{watch ? 'No topic matches in this snapshot' : 'No retained news items'}</h3><p>{watch ? 'The watch reviews retained title and short-summary text. A fresh publisher snapshot may change this list.' : 'Try another publisher or vertical filter.'}</p></div>
-  return <div className="ingestion-list">{items.map((item) => <article className="ingestion-card" key={`${item.source_id}-${item.external_id}-${item.content_hash}`}><div className="ingestion-card-heading"><span>{item.publisher} · {item.verticals.join(', ')}</span><span>{item.collection_state} · {item.qualification_state}</span></div><h2><a href={item.citation_url} target="_blank" rel="noreferrer">{item.title}</a></h2><p className="ingestion-excerpt">{item.excerpt || 'Publisher supplied no short summary.'}</p>{item.topic_label && <p className="topic-label">{item.topic_label}</p>}{item.matched_terms.length > 0 && <p className="matched-terms">Matched terms: {item.matched_terms.join(', ')}</p>}<div className="ingestion-meta"><span>Published {item.published_at}</span><span>{item.extraction_location}</span><span>First seen {new Date(item.first_seen_at).toLocaleString()}</span><span>Latest evidence {new Date(item.latest_evidence_at).toLocaleString()}</span><span>Scope: {item.source_scope}</span><span>Hash {item.content_hash.slice(0, 16)}</span></div><p className="ingestion-disclaimer">A news topic match is not proof of a facility announcement, project location, power need, or qualification.</p></article>)}</div>
+  return <div className="ingestion-list">{items.map((item) => <article className="ingestion-card" key={`${item.source_id}-${item.external_id}-${item.content_hash}`}><div className="ingestion-card-heading"><span>{item.publisher} · {item.verticals.join(', ')}</span><span>{item.collection_state} · {item.qualification_state}</span></div><h2><a href={item.citation_url} target="_blank" rel="noreferrer">{item.title}</a></h2><p className="ingestion-excerpt">{item.excerpt || 'Publisher supplied no short summary.'}</p>{item.source_id.endsWith('-building-permits') && <p className="ingestion-assessment">Permit status: {item.permit_status ?? 'Unknown'}</p>}{item.assessment_current && item.assessment_reason && <p className="ingestion-assessment">{item.assessment_reason}{item.supported_subject ? ` Supported subject: ${item.supported_subject}.` : ''}{item.supported_action ? ` Action: ${item.supported_action}.` : ''}</p>}{item.demand_quote && <blockquote>{item.demand_quote}</blockquote>}{item.supply_quote && <blockquote>{item.supply_quote}</blockquote>}{item.topic_label && <p className="topic-label">{item.topic_label}</p>}{item.matched_terms.length > 0 && <p className="matched-terms">Matched terms: {item.matched_terms.join(', ')}</p>}<div className="ingestion-meta"><span>{item.source_id.endsWith('-building-permits') ? `Permit issue date ${item.published_at} · source publication date unknown` : `Published ${item.published_at}`}</span><span>{item.extraction_location}</span><span>First seen {new Date(item.first_seen_at).toLocaleString()}</span><span>Latest evidence {new Date(item.latest_evidence_at).toLocaleString()}</span><span>Scope: {item.source_scope}</span><span>Hash {item.content_hash.slice(0, 16)}</span></div>{!item.source_id.endsWith('-building-permits') && <p className="ingestion-disclaimer">A news topic match is not proof of a facility announcement, project location, power need, or qualification.</p>}</article>)}</div>
 }
 
 function HealthPanel({ health }: { health: Health | null }) {
-  return <section className="health-panel" aria-label="Source health"><div className="health-heading"><div><p className="eyebrow">Collection status</p><h2>Source health</h2></div><span>{health?.backlog ?? 0} jobs · {health?.pending_interpretations ?? 0} interpretations waiting</span></div>{health?.sources.length ? health.sources.map((source) => <div className="health-row" key={source.id}><strong>{source.id}</strong><span className={`status status-${source.status === 'Failed' ? 'bad' : source.status === 'Overdue' ? 'warn' : 'ok'}`}>{source.status}</span><span>{source.last_attempt ? `Last attempt ${new Date(source.last_attempt).toLocaleString()}` : 'No attempts yet'}<br/>{source.last_success ? `Last success ${new Date(source.last_success).toLocaleString()}` : 'No verified success'}<br/>Latest publication {source.latest_publication_date ?? 'unknown'} · {source.new_records} new · {source.changed_records} changed · {source.parse_failures} parse failures{source.snapshot_item_count !== undefined && source.snapshot_item_count !== null ? <><br/>Latest publisher snapshot: {source.snapshot_item_count} items, {source.snapshot_oldest_publication_date ?? 'unknown'}–{source.snapshot_newest_publication_date ?? 'unknown'}<br/>{source.coverage_limitation}</> : null}{source.id === 'federal-register-eis' ? <><br/>PDF evidence {source.pdf_enriched}/{source.pdf_eligible} eligible; deferred {source.pdf_skipped_limit}</> : null}</span>{source.error && <span className="error">{source.error}</span>}</div>) : <p>Source health is not yet available.</p>}</section>
+  return <section className="health-panel" aria-label="Source health"><div className="health-heading"><div><p className="eyebrow">Collection status</p><h2>Source health</h2></div><span>{health?.backlog ?? 0} jobs · {health?.pending_interpretations ?? 0} interpretations waiting</span></div>{health?.sources.length ? health.sources.map((source) => <div className="health-row" key={source.id}><strong>{source.id}</strong><span className={`status status-${source.status === 'Failed' ? 'bad' : source.status === 'Overdue' ? 'warn' : 'ok'}`}>{source.status}</span><span>{source.last_attempt ? `Last attempt ${new Date(source.last_attempt).toLocaleString()}` : 'No attempts yet'}<br/>{source.last_success ? `Last success ${new Date(source.last_success).toLocaleString()}` : 'No verified success'}<br/>{source.id.endsWith('-building-permits') ? `Latest permit issue date ${source.latest_permit_issue_date ?? source.latest_publication_date ?? 'unknown'} · source publication time unknown · ${source.records_scanned ?? 0} rows scanned, ${source.permit_accepted ?? 0} Signals, ${source.permit_rejected ?? 0} held out` : `Latest publication ${source.latest_publication_date ?? 'unknown'}`} · {source.new_records} new · {source.changed_records} changed · {source.parse_failures} parse failures{source.snapshot_item_count !== undefined && source.snapshot_item_count !== null ? <><br/>Latest publisher snapshot: {source.snapshot_item_count} items, {source.snapshot_oldest_publication_date ?? 'unknown'}–{source.snapshot_newest_publication_date ?? 'unknown'}<br/>{source.coverage_limitation}</> : source.family === 'construction-permits' ? <><br/>Regional city datasets only; rolling 30-day issue-date window, with late older-date corrections outside the query and no national coverage claim.</> : null}{source.id === 'federal-register-eis' ? <><br/>PDF evidence {source.pdf_enriched}/{source.pdf_eligible} eligible; deferred {source.pdf_skipped_limit}</> : null}</span>{source.error && <span className="error">{source.error}</span>}</div>) : <p>Source health is not yet available.</p>}</section>
+}
+
+function missingFactCategory(fact: string) {
+  const normalized = fact.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+  if (/\b(location|site|city|state)\b/.test(normalized)) return 'location'
+  if (/\b(supply|utility|service|interconnection)\b/.test(normalized)) return 'supply'
+  if (/\b(power|mw|load|demand|electricity)\b/.test(normalized)) return 'power'
+  if (/\b(start|timing|schedule)\b/.test(normalized)) return 'start'
+  if (/\b(duration|term)\b/.test(normalized)) return 'duration'
+  return normalized
 }
 
 function OpportunityDetail({ item }: { item: Opportunity }) {
-  return <article className="detail"><div className="detail-summary"><div><span className="tier-pill">{item.tier}</span><p className="eyebrow">{item.activity.replaceAll('-', ' ')}</p><h2>{item.name}</h2><p className="location">{item.location ?? 'Location unknown'}</p></div><div className="unknown-grid"><div><span>Required power</span><strong>{item.required_mw ?? 'Unknown'}</strong></div><div><span>Start</span><strong>{item.start_window ?? 'Unknown'}</strong></div><div><span>Duration</span><strong>{item.duration ?? 'Unknown'}</strong></div><div><span>Suitable supply</span><strong>{item.supply}</strong></div></div></div><section className="detail-section"><p className="eyebrow">Why this is a Signal</p><p>{item.rationale}</p><p className="integrity">Power need is not established. A Signal does not imply a power gap.</p></section><section className="detail-section"><p className="eyebrow">Next action</p><p>{item.next_action}</p></section><section className="detail-section"><div className="evidence-heading"><div><p className="eyebrow">Source evidence</p><h3>{item.evidence.length} {item.evidence.length === 1 ? 'record' : 'records'}</h3></div><span>Conflicts: {item.conflict_state}</span></div>{item.evidence.map((evidence) => <div className="evidence" key={`${evidence.document_number}-${evidence.content_hash}`}><h4><a href={evidence.url} target="_blank" rel="noreferrer">{evidence.title}</a></h4><div className="evidence-meta"><span>Published {evidence.published_at}</span><span>Retrieved {new Date(evidence.retrieved_at).toLocaleString()}</span><span>Described event: {evidence.event_date_label}</span><span>{evidence.extraction_location}</span><span>{evidence.source_id} · {evidence.document_number} · {evidence.content_hash.slice(0, 12)}</span></div><p>{evidence.abstract ?? 'No abstract provided by the source.'}</p></div>)}</section><section className="detail-section missing"><h3>Still unknown</h3><ul><li>Project location</li><li>Activity-specific power requirement</li><li>Utility service plan and suitable supply</li><li>Start window and duration</li><li>Responsible buyer or contractor</li></ul></section></article>
+  const missingFactLabels: Record<string, string> = {
+    location: 'Project location',
+    power: 'Activity-specific power requirement',
+    supply: 'Suitable utility supply',
+    start: 'Start window',
+    duration: 'Duration',
+  }
+  const missingFacts = [
+    ...(item.missing_facts ?? []),
+    ...(!item.location ? ['Project location'] : []),
+    ...(!item.required_mw ? ['Activity-specific power requirement'] : []),
+    ...(item.supply === 'Unknown' ? ['Utility service and suitable supply'] : []),
+    ...(!item.start_window ? ['Start window'] : []),
+    ...(!item.duration ? ['Duration'] : []),
+  ]
+  const stillUnknown = [...new Map(
+    missingFacts.map((fact) => {
+      const category = missingFactCategory(fact)
+      return [category, missingFactLabels[category] ?? fact.trim()] as const
+    }),
+  ).values()]
+  return <article className="detail"><div className="detail-summary"><div><span className="tier-pill">{item.tier}</span><p className="eyebrow">{item.activity.replaceAll('-', ' ')}</p><h2>{item.name}</h2><p className="location">{item.location ?? 'Location unknown'}</p></div><div className="unknown-grid"><div><span>Required power</span><strong>{item.required_mw ?? 'Unknown'}</strong></div><div><span>Start</span><strong>{item.start_window ?? 'Unknown'}</strong></div><div><span>Duration</span><strong>{item.duration ?? 'Unknown'}</strong></div><div><span>Suitable supply</span><strong>{item.supply}</strong></div></div></div><section className="detail-section"><p className="eyebrow">Evidence-based assessment</p><p>{item.assessment_reason ?? item.rationale}</p>{item.supported_subject && <p>Supported subject: {item.supported_subject}{item.supported_action ? ` · ${item.supported_action}` : ''}</p>}{item.demand_quote && <blockquote>{item.demand_quote}</blockquote>}{item.supply_quote && <blockquote>{item.supply_quote}</blockquote>}{item.tier === 'Signal' && <p className="integrity">Power need is not established. A Signal does not imply a power gap.</p>}</section><section className="detail-section"><p className="eyebrow">Next action</p><p>{item.next_action}</p></section><section className="detail-section"><div className="evidence-heading"><div><p className="eyebrow">Source evidence</p><h3>{item.evidence.length} {item.evidence.length === 1 ? 'record' : 'records'}</h3></div><span>Conflicts: {item.conflict_state}</span></div>{item.evidence.map((evidence) => <div className="evidence" key={`${evidence.document_number}-${evidence.content_hash}`}><h4><a href={evidence.url} target="_blank" rel="noreferrer">{evidence.title}</a></h4>{!evidence.assessment_current && <p className="integrity">Historical evidence version; the current assessment is bound to another retained version.</p>}<div className="evidence-meta"><span>{evidence.source_id.endsWith('-building-permits') ? `Permit issue date ${evidence.event_date_label} · source publication date unknown` : `Published ${evidence.published_at}`}</span><span>Retrieved {new Date(evidence.retrieved_at).toLocaleString()}</span><span>{evidence.source_id.endsWith('-building-permits') ? 'Permit event date' : 'Described event'}: {evidence.event_date_label}</span><span>{evidence.extraction_location}</span><span>{evidence.source_id} · {evidence.document_number} · {evidence.content_hash.slice(0, 12)}</span></div><p>{evidence.abstract ?? 'No abstract provided by the source.'}</p></div>)}</section>{stillUnknown.length > 0 && <section className="detail-section missing"><h3>Still unknown</h3><ul>{stillUnknown.map((fact) => <li key={fact}>{fact}</li>)}</ul></section>}</article>
 }

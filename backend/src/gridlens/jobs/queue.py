@@ -1,7 +1,7 @@
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import case, select
 from sqlalchemy.orm import Session
 
 from gridlens.persistence.models import Job, Source
@@ -52,7 +52,17 @@ def lease_one(session: Session, worker_id: str, lease_seconds: int = 90) -> tupl
             Job.available_at <= now,
             ((Job.status == "queued") | ((Job.status == "running") & (Job.lease_until < now))),
         )
-        .order_by(Job.created_at)
+        # Permit jobs lead recent work, while a one-day age bucket guarantees
+        # old news jobs advance even during sustained permit refresh activity.
+        .order_by(
+            case(
+                (Job.created_at < now - timedelta(days=1), 0),
+                (Source.family == "construction-permits", 1),
+                else_=2,
+            ).asc(),
+            Job.created_at,
+        )
+        .join(Source, Source.id == Job.source_id)
         .with_for_update(skip_locked=True)
         .limit(1)
     )

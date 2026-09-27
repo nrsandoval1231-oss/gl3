@@ -105,6 +105,10 @@ def run_one(definitions: dict[str, dict]) -> bool:
                         "snapshot_item_count",
                         "snapshot_oldest_publication_date",
                         "snapshot_newest_publication_date",
+                        "latest_permit_issue_date",
+                        "records_scanned",
+                        "permit_accepted",
+                        "permit_rejected",
                     )
                     if key in counts
                 },

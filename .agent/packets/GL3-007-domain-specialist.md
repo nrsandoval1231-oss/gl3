@@ -1,0 +1,15 @@
+# GL3-007 domain specialist lease
+
+Bounded difficult text-claim binding problem, same approved goal. Controller selected Terra after early dry-run exposed missed named subjects/wrong headquarters location and WIP claim-binding remained uncertain. Do not broaden product architecture.
+
+After Luna releases ownership, Terra owns ONLY backend/src/gridlens/domain/news_interpretation.py and backend/tests/unit/test_news_interpretation.py plus artifacts/GL3-007/DOMAIN_COMPLETION.json. Luna owns disjoint persistence/migration/service/CLI/API/UI/integration. You are not alone; do not edit their files. Do not run DB tests or mutate any DB/runtime. No new agents or external effects.
+
+Freeze contract: assess_news(title: str, summary: str|None) -> NewsAssessment; fields decision,tier,reason,subject,action,location,demand_quote,supply_quote,missing_facts; as_dict(); EVALUATOR_VERSION. Preserve dataclass fields. Helper functions allowed. No paid models/network/dependencies. Bounded deterministic parser with explicit limitations; do not pretend general NLP solved.
+
+Read GL3-007 main packet, PRD110-124, SAMPLE_REVIEW.md and ignored105rows .artifacts/project-candidates-baseline.json. Current four real candidates should assess from source-supported text generically: AppliedDigitalDeltaForge2Alabama, HanwhaArkansas, LillyHouston, PecanCreekTexas. No projectnameallowlist. No plant location from headquarters. Proper US geography association, international inbox retained. Named site where available instead of company-only subject.
+
+Signal requires affirmative identifiable actor/site+physicalfacility+action+USsite event. Policy, aggregates, generic investment, recalls, denied/canceled/negated/speculative claims do not pass. Contradictory summary cannot be ignored because headline is affirmative. Ambiguous relations can defer/reject.
+
+Prospect requires TWO distinct explicit quoted spans on same namedsite and same poweractivity: actual activity-specific MW requirement, and supported unsuitable/late/insufficient supply for that activity/timing. Initial contract can demand explicit same site/activity in each claim; no obligation for ambiguous pronoun resolution. A shared city is insufficient. Reject mismatched actors/sites/activities, genericregionalgridshortage, campusnameplate, generatoroutput, demanddenial, supplynegation/adequatesupply, speculativefutureconstraints. Match whole terms and preserve source quote exact substrings. Title and summary are separate spans (never let title identity falsely establish first summaryclaim actor). No liveProspects expected in105sample. Positive synthetic Prospect test must prove implemented path without fiction in liveDB.
+
+Run Ruff/mypy on module and unit tests, existing affected unit tests when relevant, plus all105 dryrun decision comparisons read-only. Return sample counts and named findings; preserve failedattempts. Don't selfaccept or run fullsharedDB suite. Maximum2material repairs then return constraint. Main builder waits domain handoff for combined validation.

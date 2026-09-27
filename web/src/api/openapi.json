@@ -393,6 +393,22 @@
           "document_number": {
             "type": "string",
             "title": "Document Number"
+          },
+          "assessment_current": {
+            "type": "boolean",
+            "title": "Assessment Current",
+            "default": false
+          },
+          "permit_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Permit Status"
           }
         },
         "type": "object",
@@ -551,6 +567,32 @@
               }
             ],
             "title": "Latest Publication Date"
+          },
+          "latest_permit_issue_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Permit Issue Date"
+          },
+          "records_scanned": {
+            "type": "integer",
+            "title": "Records Scanned",
+            "default": 0
+          },
+          "permit_accepted": {
+            "type": "integer",
+            "title": "Permit Accepted",
+            "default": 0
+          },
+          "permit_rejected": {
+            "type": "integer",
+            "title": "Permit Rejected",
+            "default": 0
           },
           "snapshot_item_count": {
             "anyOf": [
@@ -713,6 +755,84 @@
               }
             ],
             "title": "Topic Label"
+          },
+          "assessment_current": {
+            "type": "boolean",
+            "title": "Assessment Current",
+            "default": false
+          },
+          "assessment_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assessment Reason"
+          },
+          "supported_subject": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supported Subject"
+          },
+          "supported_action": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supported Action"
+          },
+          "demand_quote": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Demand Quote"
+          },
+          "supply_quote": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supply Quote"
+          },
+          "missing_facts": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Missing Facts"
+          },
+          "permit_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Permit Status"
           }
         },
         "type": "object",
@@ -893,6 +1013,68 @@
           "conflict_state": {
             "type": "string",
             "title": "Conflict State"
+          },
+          "assessment_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assessment Reason"
+          },
+          "supported_subject": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supported Subject"
+          },
+          "supported_action": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supported Action"
+          },
+          "demand_quote": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Demand Quote"
+          },
+          "supply_quote": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supply Quote"
+          },
+          "missing_facts": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Missing Facts"
           },
           "evidence": {
             "items": {

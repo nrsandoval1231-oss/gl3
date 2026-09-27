@@ -6,7 +6,12 @@ from gridlens.ingestion.registry import load_registry
 
 
 def test_registry_is_versioned_and_validated():
-    assert load_registry()[0]["id"] == "federal-register-eis"
+    assert {source["id"] for source in load_registry()} >= {
+        "federal-register-eis",
+        "austin-building-permits",
+        "seattle-building-permits",
+        "chicago-building-permits",
+    }
 
 
 def test_registry_rejects_unbounded_page_query(tmp_path: Path):
