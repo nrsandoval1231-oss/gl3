@@ -12,6 +12,20 @@ function requirePassword() {
   return password
 }
 
+async function openCardMember(
+  page: import('@playwright/test').Page,
+  card: ReturnType<typeof projectCards>[number],
+  opportunityId: string,
+) {
+  if (card.grouped) {
+    const group = page.locator('.opportunity-row').filter({ hasText: projectTitle(card.members[0]) }).first()
+    if (await group.getAttribute('aria-expanded') !== 'true') await group.click()
+    await page.locator(`.project-member[data-opportunity-id="${opportunityId}"]`).click()
+    return
+  }
+  await page.locator(`.opportunity-row[data-opportunity-id="${opportunityId}"]`).click()
+}
+
 async function signIn(page: import('@playwright/test').Page) {
   await page.goto('/')
   await page.getByLabel('Password').fill(requirePassword())
@@ -37,20 +51,19 @@ test('authenticated desktop browse, detail, back, and search use a live Signal',
   if (!signalCard) throw new Error('No project card exists for the selected Signal')
 
   const title = projectTitle(signal)
-  const row = page.locator(`[data-opportunity-id="${signalCard.members[0].id}"]`).first()
+  const row = page.locator('.opportunity-row').filter({ hasText: title }).first()
   await expect(row).toBeVisible()
   await page.getByRole('textbox', { name: 'Search projects' }).fill(title)
   await expect(row).toBeVisible()
-  await row.click()
-  if (signalCard.grouped) await page.locator(`[data-opportunity-id="${signal.id}"]`).last().click()
+  await openCardMember(page, signalCard, signal.id)
   await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible()
   await expect(page.getByText(signal.evidence[0].source_id, { exact: false }).first()).toBeVisible()
   await page.getByRole('button', { name: /Back to Signals/ }).click()
   await expect(page.getByRole('textbox', { name: 'Search projects' })).toHaveValue(title)
   await expect(page.locator(`[data-opportunity-id="${signal.id}"]`).first()).toBeFocused()
 
-  await page.locator(`[data-opportunity-id="${signalCard.members[0].id}"]`).first().click()
-  if (signalCard.grouped) await page.locator(`[data-opportunity-id="${signal.id}"]`).last().click()
+  await openCardMember(page, signalCard, signal.id)
+  await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible()
   await page.goBack()
   await expect(page.locator(`[data-opportunity-id="${signal.id}"]`).first()).toBeFocused()
 })

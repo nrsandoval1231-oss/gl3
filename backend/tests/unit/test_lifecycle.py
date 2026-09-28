@@ -1,7 +1,7 @@
 from datetime import date
 
 from gridlens.domain.lifecycle import AssetType, classify_event, estimate_first_production
-from gridlens.intelligence.project_identity import decide_project_match
+from gridlens.intelligence.project_identity import decide_project_match, stable_asset_identity
 
 
 def test_same_permit_has_asset_specific_meaning() -> None:
@@ -54,3 +54,23 @@ def test_company_name_alone_never_merges_projects() -> None:
     match = decide_project_match(same_address=True, same_project_name=True, same_owner=True)
     assert match.decision == "matched"
     assert "physical address" in match.reason
+
+
+def test_future_or_negated_milestones_are_not_reported_events() -> None:
+    assert classify_event("Operator plans to spud the well next month") is None
+    assert classify_event("The well has not reached completion") is None
+
+
+def test_stable_asset_ids_reject_placeholders_and_malformed_us_api_numbers() -> None:
+    for value in ("unknown", "N/A", "00-000-00000", "35-01-12345", "not-an-api"):
+        assert stable_asset_identity({"api_number": value}, "permit-feed") is None
+    assert stable_asset_identity({"api_number": "35-011-12345"}, "permit-feed") == (
+        "us_well_api",
+        "3501112345",
+    )
+    assert stable_asset_identity(
+        {"permit": {"project": "PARENT-1"}}, "seattle-building-permits"
+    ) == ("seattle-building-permits:permit_project", "parent-1")
+    assert stable_asset_identity(
+        {"permit": {"project": "PARENT-1"}}, "austin-building-permits"
+    ) != stable_asset_identity({"permit": {"project": "PARENT-1"}}, "seattle-building-permits")

@@ -1,0 +1,37 @@
+{
+  "node": "GL3-014",
+  "scope": "Repair open PR4 without changing GL3-013 ingestion, qualification, or frozen UI",
+  "repository": "nrsandoval1231-oss/gl3",
+  "base_pr_head": "44312fc6a9faffbcef1d90f7a930c556f56b355f",
+  "branch": "repair/pr4-lifecycle",
+  "isolated_checkout": "gl3-pr4-repair",
+  "original_dirty_checkout_preserved": true,
+  "inspection": {
+    "pr_conversation_read_before_edits": true,
+    "inline_findings": ["Publication dates incorrectly used as occurrences", "Matching disconnected from ingestion", "Repeated corrected evidence discarded"],
+    "hosted_ci_retry": "36417941520",
+    "jobs": "backend and web failed with runner_id=0 and zero steps",
+    "annotation": "The job was not started because recent account payments have failed or your spending limit needs to be increased. Please check the Billing & plans section in your settings",
+    "branch_protection_graphql": "No configured branchProtectionRules; normal merge only after final gates and review; recheck required"
+  },
+  "test_isolation": {
+    "postgresql": "18",
+    "host": "127.0.0.1",
+    "port": 55434,
+    "cluster": ".artifacts/pr4/pgdata",
+    "application": "gl3_pr4_app_test",
+    "destructive_suite": "gl3_pr4_suite_test",
+    "historical_restore": "gl3_pr4_history_test",
+    "all_created_for_this_task": true,
+    "production_connections": "None",
+    "historical_backup_sha256": "235e883d4d7bead0729da6ef42a49aa202e636d99723c3e6c939acb7f317b5ec"
+  },
+  "initial_candidate_validation": {
+    "migration_0005_and_drift": "PASS",
+    "backend": "207 passed, 1 optional retained-probe skip, 1 isolated-origin configuration failure",
+    "configuration_repair": "Added fixture origin 5173 alongside dedicated browser origin5179; copied existing retained NC probe to ignored task directory",
+    "frontend_typecheck_build_audit": "PASS, zero vulnerabilities",
+    "limitations": "Initial checks do not validate final repaired candidate"
+  },
+  "metrics": {"lane":"single Luna builder + Sol architecture/review", "model":"named Luna low, Sol medium", "tokens":"UNKNOWN", "configuration_load":"UNKNOWN", "planning_duration":"UNKNOWN", "elapsed_to_accepted":"NOT_ACCEPTED"}
+}
