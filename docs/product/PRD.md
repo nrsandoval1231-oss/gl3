@@ -21,6 +21,10 @@ The product's core loop is:
 
 This is a new implementation in a new repository and database. Existing GridLens code, schemas, pipelines, tests, and architecture are excluded. Decisions agreed in the current product discussion define this specification.
 
+## Vertical lifecycle intelligence
+
+The canonical vertical/asset lifecycle doctrine is [Vertical Lifecycle Intelligence Strategy](VERTICAL_LIFECYCLE_STRATEGY.md). GridLens optimizes for earliest actionable awareness of a future power requirement, not permit collection. Source events must be interpreted relative to asset lifecycle. Data centers prioritize pre-permit discovery and construction/commissioning monitoring. Upstream O&G uses drilling and subsequent milestones to estimate the future production/electrification window. Fixed O&G infrastructure retains project-formation → regulatory/permitting → construction → commissioning/startup lifecycle intelligence. Commercial tier remains separate from lifecycle state, and deterministic qualification gates remain authoritative.
+
 ## Frozen application UI
 
 The approved visual and interaction direction is [the frozen UI canon](../design/UI_CANON.md), with the [browse](../design/references/browse.webp) and [detail](../design/references/detail.webp) reference screens. Visual examples are fictional. Product and evidence requirements in this PRD govern actual values and tier behavior.
@@ -67,7 +71,7 @@ The short morning list is a convenience. All active records remain searchable an
 
 1. **Fresh implementation.** Create a new repository and new database. Author the implementation and tests from this specification. Do not import old GridLens application code, schemas, migrations, pipeline configuration, or architecture. Leave existing repositories untouched.
 
-2. **National, cross-industry scope.** Accept relevant projects anywhere in the United States and across industries. Default rankings prioritize data center construction and commissioning. Geography, industry, and activity preferences change what users see and how it is ranked; they must not silently stop national collection.
+2. **National, cross-industry scope.** Accept relevant projects anywhere in the United States and across industries. Default acquisition and rankings prioritize data-center pre-permit formation, construction and commissioning, plus asset-aware O&G production and fixed-infrastructure intelligence. Geography, industry, and activity preferences change what users see and how it is ranked; they must not silently stop national collection.
 
 3. **Private, usable first release.** Provide an authenticated web application and automated cloud execution that continue when Nick's computer is off. Keep read access, edits, source administration, and private notes protected by server-side authorization.
 
