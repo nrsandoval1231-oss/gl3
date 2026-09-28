@@ -18,6 +18,7 @@ from gridlens.domain.permit_interpretation import evaluator_version as permit_ev
 from gridlens.domain.qualification import assess_signal
 from gridlens.ingestion.adapters import retrieve_source
 from gridlens.ingestion.adapters.govinfo_pdf import MAX_PDFS_PER_RUN, retrieve_companion
+from gridlens.intelligence.lifecycle_service import apply_lifecycle_observation
 from gridlens.intelligence.matching import interpret
 from gridlens.jobs.queue import assert_fence
 from gridlens.persistence.models import (
@@ -328,6 +329,7 @@ def assess_retained_news(
             is None
         ):
             session.add(NeedObservation(need_id=current_need.id, observation_id=observation.id))
+        apply_lifecycle_observation(session, project, observation, evidence)
         if (
             not was_active
             or previous_rationale != claim["reason"]
@@ -874,6 +876,14 @@ def process_job(
                     )
                 )
             interpretation.status, interpretation.error = "accepted", None
+            lifecycle_evidence = session.scalar(
+                select(Evidence).where(
+                    Evidence.observation_id == observation.id,
+                    Evidence.content_hash == evidence_digest,
+                )
+            )
+            if lifecycle_evidence is not None:
+                apply_lifecycle_observation(session, project, observation, lifecycle_evidence)
             if permit_assessment:
                 current_evidence = session.scalar(
                     select(Evidence).where(
