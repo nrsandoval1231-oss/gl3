@@ -972,6 +972,46 @@
         ],
         "title": "IngestionPageOut"
       },
+      "LifecycleEventOut": {
+        "properties": {
+          "state": {
+            "type": "string",
+            "title": "State"
+          },
+          "event_type": {
+            "type": "string",
+            "title": "Event Type"
+          },
+          "date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date"
+          },
+          "value_kind": {
+            "type": "string",
+            "title": "Value Kind"
+          },
+          "evidence_url": {
+            "type": "string",
+            "title": "Evidence Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "state",
+          "event_type",
+          "date",
+          "value_kind",
+          "evidence_url"
+        ],
+        "title": "LifecycleEventOut"
+      },
       "LoginBody": {
         "properties": {
           "password": {
@@ -1172,6 +1212,105 @@
             },
             "type": "array",
             "title": "Evidence"
+          },
+          "asset_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Asset Type"
+          },
+          "lifecycle_state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lifecycle State"
+          },
+          "lifecycle_timeline": {
+            "items": {
+              "$ref": "#/components/schemas/LifecycleEventOut"
+            },
+            "type": "array",
+            "title": "Lifecycle Timeline"
+          },
+          "expected_next_milestone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Next Milestone"
+          },
+          "expected_power_event": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Power Event"
+          },
+          "time_to_power_window": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Time To Power Window"
+          },
+          "estimate_basis": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estimate Basis"
+          },
+          "estimate_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estimate Version"
+          },
+          "lifecycle_open_questions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Lifecycle Open Questions"
+          },
+          "monitoring_requirements": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Monitoring Requirements"
           }
         },
         "type": "object",

@@ -100,6 +100,62 @@ class Project(Base):
     location: Mapped[str | None] = mapped_column(Text)
     source_id: Mapped[str] = mapped_column(ForeignKey("sources.id"))
     external_id: Mapped[str] = mapped_column(String(200))
+    asset_type: Mapped[str] = mapped_column(String(60), default="unknown", server_default="unknown")
+
+
+class ProjectLifecycle(Base):
+    """Current lifecycle projection; the immutable events below remain authoritative."""
+
+    __tablename__ = "project_lifecycles"
+    project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id"), primary_key=True)
+    current_state: Mapped[str] = mapped_column(String(80))
+    expected_next_milestone: Mapped[str | None] = mapped_column(Text)
+    expected_power_event: Mapped[str | None] = mapped_column(Text)
+    time_to_power_start: Mapped[date | None] = mapped_column(Date)
+    time_to_power_end: Mapped[date | None] = mapped_column(Date)
+    estimate_basis: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    estimate_version: Mapped[str | None] = mapped_column(String(50))
+    open_questions: Mapped[list[str]] = mapped_column(JSONB, default=list)
+    monitoring_requirements: Mapped[list[str]] = mapped_column(JSONB, default=list)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class LifecycleEvent(Base):
+    __tablename__ = "lifecycle_events"
+    __table_args__ = (
+        UniqueConstraint(
+            "project_id", "observation_id", "event_type", "state", name="uq_lifecycle_event_replay"
+        ),
+    )
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id"))
+    observation_id: Mapped[UUID] = mapped_column(ForeignKey("observations.id"))
+    evidence_id: Mapped[UUID] = mapped_column(ForeignKey("evidence.id"))
+    event_type: Mapped[str] = mapped_column(String(80))
+    state: Mapped[str] = mapped_column(String(80))
+    value_kind: Mapped[str] = mapped_column(String(20), default="reported")
+    occurred_on: Mapped[date | None] = mapped_column(Date)
+    recorded_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class ProjectMatchDecision(Base):
+    __tablename__ = "project_match_decisions"
+    __table_args__ = (
+        UniqueConstraint(
+            "observation_id", "candidate_project_id", name="uq_project_match_candidate"
+        ),
+    )
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    observation_id: Mapped[UUID] = mapped_column(ForeignKey("observations.id"))
+    candidate_project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id"))
+    decision: Mapped[str] = mapped_column(String(20))
+    reason: Mapped[str] = mapped_column(Text)
+    matched_facts: Mapped[list[str]] = mapped_column(JSONB, default=list)
+    decided_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class PowerNeed(Base):

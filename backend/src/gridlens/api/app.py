@@ -19,10 +19,12 @@ from gridlens.persistence.models import (
     Evidence,
     Interpretation,
     Job,
+    LifecycleEvent,
     NeedObservation,
     Observation,
     PowerNeed,
     Project,
+    ProjectLifecycle,
     Source,
 )
 from gridlens.security import (
@@ -59,6 +61,14 @@ class EvidenceOut(BaseModel):
     permit_status: str | None = None
 
 
+class LifecycleEventOut(BaseModel):
+    state: str
+    event_type: str
+    date: str | None
+    value_kind: str
+    evidence_url: str
+
+
 class OpportunityOut(BaseModel):
     id: UUID
     name: str
@@ -80,6 +90,16 @@ class OpportunityOut(BaseModel):
     missing_facts: list[str] = Field(default_factory=list)
     reported_power_facts: list[str] = Field(default_factory=list)
     evidence: list[EvidenceOut]
+    asset_type: str | None = None
+    lifecycle_state: str | None = None
+    lifecycle_timeline: list[LifecycleEventOut] = Field(default_factory=list)
+    expected_next_milestone: str | None = None
+    expected_power_event: str | None = None
+    time_to_power_window: str | None = None
+    estimate_basis: dict | None = None
+    estimate_version: str | None = None
+    lifecycle_open_questions: list[str] = Field(default_factory=list)
+    monitoring_requirements: list[str] = Field(default_factory=list)
 
 
 class HealthSourceOut(BaseModel):
@@ -451,6 +471,13 @@ def opportunities(tier: str | None = None, search: str | None = None):
         rows = session.execute(query).all()
         result = []
         for need, project in rows:
+            lifecycle = session.get(ProjectLifecycle, project.id)
+            lifecycle_rows = session.execute(
+                select(LifecycleEvent, Evidence)
+                .join(Evidence, LifecycleEvent.evidence_id == Evidence.id)
+                .where(LifecycleEvent.project_id == project.id)
+                .order_by(LifecycleEvent.occurred_on.asc().nullslast(), LifecycleEvent.recorded_at)
+            ).all()
             links = session.execute(
                 select(Observation, Evidence, Interpretation)
                 .join(NeedObservation, NeedObservation.observation_id == Observation.id)
@@ -492,6 +519,12 @@ def opportunities(tier: str | None = None, search: str | None = None):
                     }
                 )
             current_assessment = current_assessments[0] if current_assessments else None
+            time_to_power_window = None
+            if lifecycle and lifecycle.time_to_power_start and lifecycle.time_to_power_end:
+                time_to_power_window = (
+                    f"{lifecycle.time_to_power_start.isoformat()} to "
+                    f"{lifecycle.time_to_power_end.isoformat()} (estimated)"
+                )
             missing_facts = (
                 current_assessment.get("missing_facts", [])
                 if current_assessment
@@ -544,6 +577,29 @@ def opportunities(tier: str | None = None, search: str | None = None):
                     if current_assessment
                     else [],
                     "evidence": evidence,
+                    "asset_type": project.asset_type,
+                    "lifecycle_state": lifecycle.current_state if lifecycle else None,
+                    "lifecycle_timeline": [
+                        {
+                            "state": event.state,
+                            "event_type": event.event_type,
+                            "date": event.occurred_on.isoformat() if event.occurred_on else None,
+                            "value_kind": event.value_kind,
+                            "evidence_url": lifecycle_evidence.url,
+                        }
+                        for event, lifecycle_evidence in lifecycle_rows
+                    ],
+                    "expected_next_milestone": lifecycle.expected_next_milestone
+                    if lifecycle
+                    else None,
+                    "expected_power_event": lifecycle.expected_power_event if lifecycle else None,
+                    "time_to_power_window": time_to_power_window,
+                    "estimate_basis": lifecycle.estimate_basis if lifecycle else None,
+                    "estimate_version": lifecycle.estimate_version if lifecycle else None,
+                    "lifecycle_open_questions": lifecycle.open_questions if lifecycle else [],
+                    "monitoring_requirements": lifecycle.monitoring_requirements
+                    if lifecycle
+                    else [],
                 }
             )
         return result

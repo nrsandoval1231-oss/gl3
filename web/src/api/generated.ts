@@ -385,6 +385,19 @@ export interface components {
             /** Offset */
             offset: number;
         };
+        /** LifecycleEventOut */
+        LifecycleEventOut: {
+            /** State */
+            state: string;
+            /** Event Type */
+            event_type: string;
+            /** Date */
+            date: string | null;
+            /** Value Kind */
+            value_kind: string;
+            /** Evidence Url */
+            evidence_url: string;
+        };
         /** LoginBody */
         LoginBody: {
             /**
@@ -450,6 +463,28 @@ export interface components {
             reported_power_facts?: string[];
             /** Evidence */
             evidence: components["schemas"]["EvidenceOut"][];
+            /** Asset Type */
+            asset_type?: string | null;
+            /** Lifecycle State */
+            lifecycle_state?: string | null;
+            /** Lifecycle Timeline */
+            lifecycle_timeline?: components["schemas"]["LifecycleEventOut"][];
+            /** Expected Next Milestone */
+            expected_next_milestone?: string | null;
+            /** Expected Power Event */
+            expected_power_event?: string | null;
+            /** Time To Power Window */
+            time_to_power_window?: string | null;
+            /** Estimate Basis */
+            estimate_basis?: {
+                [key: string]: unknown;
+            } | null;
+            /** Estimate Version */
+            estimate_version?: string | null;
+            /** Lifecycle Open Questions */
+            lifecycle_open_questions?: string[];
+            /** Monitoring Requirements */
+            monitoring_requirements?: string[];
         };
         /** RefreshOut */
         RefreshOut: {
