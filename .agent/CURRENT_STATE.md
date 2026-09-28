@@ -45,3 +45,8 @@ The local Signal ingestion foundation is sufficiently verified to stop expanding
 6. Measure the next slice on real current Signals and commercial usefulness, not test count or raw source volume.
 
 README, CURRENT_STATE and WORK_GRAPH should describe merged `main`, not superseded feature branches. Parent Finish Contract remains OPEN.
+
+
+## Owner strategy update — 2026-09-27
+
+Canonical strategy: `docs/product/VERTICAL_LIFECYCLE_STRATEGY.md`. GridLens now explicitly optimizes for earliest actionable awareness rather than permit discovery. Data centers prioritize pre-permit formation and construction/commissioning intelligence. Upstream O&G uses drilling permits and subsequent milestones as a deterministic clock toward production/electrification; pre-permit upstream prediction is experimental. Compressor stations, gas processing/cryogenic plants, SWD/produced-water systems, gathering/pipeline facilities, pump/compressor facilities, treatment facilities, terminals and field-electrification projects remain first-class fixed O&G asset classes with their own project lifecycles. Source events must be interpreted by asset lifecycle before commercial qualification. Next builder work must preserve GL3-013 ingestion integrity while implementing this doctrine.
