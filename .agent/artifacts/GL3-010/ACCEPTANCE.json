@@ -1,0 +1,10 @@
+{
+  "at": "2026-09-27T19:20:33.664338+00:00",
+  "candidate_sha256": "c1524aa5c876082f6b9968c8d8298e63e352d67d6f9c6d350e98234d9be8bb77",
+  "verdict": "ACCEPTED_LOCAL",
+  "review": "REVIEW-r3.json",
+  "repairs": 2,
+  "lane": "focused",
+  "tokens": "UNKNOWN",
+  "parent_complete": false
+}

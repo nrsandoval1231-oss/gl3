@@ -1,0 +1,53 @@
+{
+  "packet": "GL3-012",
+  "status": "BUILDER_COMPLETE_FROZEN",
+  "started_utc": "UNKNOWN",
+  "finished_utc": "2026-09-27T23:13:43Z",
+  "repository": "GridLens/gl3",
+  "branch": "fix/project-cards",
+  "base_sha": "a7ee3e4d22c5375481402c637d22c08eba59cbac",
+  "head_sha": "a7ee3e4d22c5375481402c637d22c08eba59cbac",
+  "owned_files": [
+    "web/src/features/opportunities/projectCards.ts",
+    "web/src/app/App.tsx",
+    "web/tests/project_cards.spec.ts"
+  ],
+  "file_hashes_git_blob": {
+    "web/src/app/App.tsx": "54bbc1e1810ba8953aba2c18a133236ef7a6c67b",
+    "web/src/features/opportunities/projectCards.ts": "85e3ce865fe5b0464855da212cccbc32231a4c39",
+    "web/tests/project_cards.spec.ts": "0c449adb6af77301d0f5dd09460e22f36fa5e9fb"
+  },
+  "changes": [
+    "Signal browse rows show concise project/activity summary, location, tier, optional reported source figures, and grouped-record count.",
+    "Georgia titles derive only from current supported_action with bounded summaries for all nine live accepted records; sparse actions use neutral activity and site.",
+    "Assessment, full evidence, raw titles, figures, and search data remain intact in details/search.",
+    "Added focused Georgia title, sparse fallback, figures, grouping, search, and browse presentation regressions."
+  ],
+  "validation": [
+    {
+      "exit_code": 0,
+      "command": "npm run typecheck"
+    },
+    {
+      "command": "npx playwright test tests/project_cards.spec.ts",
+      "passed": 1,
+      "exit_code": 0
+    },
+    {
+      "exit_code": 0,
+      "command": "npm run build"
+    }
+  ],
+  "repair_count": 3,
+  "metrics": {
+    "planning": "UNKNOWN",
+    "implementation": "UNKNOWN",
+    "elapsed": "UNKNOWN",
+    "validation": "UNKNOWN",
+    "tokens": "UNKNOWN"
+  },
+  "limitations": [
+    "Controller owns authenticated live browse/detail proof, 59-record/41-card baseline comparison, 19-member Zilker grouping, and 390px viewport check."
+  ],
+  "frozen": true
+}

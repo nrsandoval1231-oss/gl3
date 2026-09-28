@@ -1,0 +1,76 @@
+{
+  "task": "GL3-013 web verification",
+  "status": "WEB_BUILD_AND_FOCUSED_LIVE_BROWSER_TESTS_PASS",
+  "repository": "gl3-local-proof",
+  "branch": "verify/local-signal-pipeline",
+  "base_sha": "a7ee3e4d22c5375481402c637d22c08eba59cbac",
+  "head_sha": "a7ee3e4d22c5375481402c637d22c08eba59cbac",
+  "started_at_utc": "UNKNOWN",
+  "finished_at_utc": "2026-09-28T00:40:10.0511705Z",
+  "model": "gpt-6-luna",
+  "reasoning_effort": "low",
+  "config_identity": "UNKNOWN",
+  "tokens": "UNKNOWN",
+  "changed_files": [
+    "web/playwright.config.ts",
+    "web/vite.config.ts",
+    "web/tests/first_path.spec.ts",
+    "web/tests/project_cards.spec.ts"
+  ],
+  "file_hashes": {
+    "web/playwright.config.ts": "6f44facbea018398d020e1e28da4ebaf65cb6f0f",
+    "web/vite.config.ts": "08fbfff10386bedf74e1ed2780b8d3f4b2b07394",
+    "web/tests/first_path.spec.ts": "f6b2a2e544444300a3553c72c343c70ae5804db4",
+    "web/tests/project_cards.spec.ts": "4e762ccbe083403a0de1f6404058ecbeb0666bbf"
+  },
+  "product_ui_source_changes_by_builder": [],
+  "environment_settings": {
+    "GRIDLENS_API_PORT": "8001",
+    "GRIDLENS_WEB_PORT": "5174",
+    "GRIDLENS_TEST_PASSWORD": "required or ../.artifacts/local-auth.txt"
+  },
+  "validation": [
+    {
+      "command": "npm run typecheck",
+      "exit_code": 0,
+      "result": "PASS"
+    },
+    {
+      "command": "npm run build",
+      "exit_code": 0,
+      "result": "PASS; vite production build completed"
+    },
+    {
+      "command": "npm run test -- --grep \"only exact dated event evidence groups\"",
+      "exit_code": 0,
+      "result": "PASS; 1 test at default API8000/Web5173"
+    },
+    {
+      "command": "$env:GRIDLENS_API_PORT='8001'; $env:GRIDLENS_WEB_PORT='5174'; npm run test -- --grep \"only exact dated event evidence groups\"",
+      "exit_code": 0,
+      "result": "PASS; 1 test with isolated API8001/Web5174 overrides"
+    },
+    {
+      "command": "git diff --check -- web/playwright.config.ts web/vite.config.ts web/tests/first_path.spec.ts web/tests/project_cards.spec.ts",
+      "exit_code": 0,
+      "result": "PASS"
+    }
+  ],
+  "retained_failed_attempt": {
+    "command": "npm run test -- --grep \"only exact dated event evidence groups\" with page.route('**/api/**') interceptors",
+    "exit_code": 1,
+    "result": "FAIL; expected mocked New data center construction card absent",
+    "diagnosis": "The broad API glob intercepted the Vite /src/api/client.ts module request as well as API calls, so the mock route did not provide the intended UI data.",
+    "repair": "Use the configured origin-specific URL pattern http://127.0.0.1:${GRIDLENS_WEB_PORT}/api/**; original fixtures and assertions retained.",
+    "repair_count": 1
+  },
+  "live_browser_gate": {
+    "status": "FOCUSED_CASES_PASS_IN_SEPARATE_RUNS",
+    "reason": "Authenticated desktop case passed in the controller full run; mobile case initially failed at 421px and passed in a focused rerun after the responsive wrapping repair. The combined suite was not rerun after that final repair.",
+    "mobile_repair_artifact": ".agent/artifacts/GL3-013/WEB_OVERFLOW_REPAIR.json"
+  },
+  "limitations": [
+    "The combined browser suite was not rerun after the final CSS repair.",
+    "The local UI product/source files were not edited by this builder; they contain pre-existing shared-worktree changes from the approved UI candidate."
+  ]
+}

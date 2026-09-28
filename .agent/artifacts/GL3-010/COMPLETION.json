@@ -1,0 +1,120 @@
+{
+  "packet": "GL3-010",
+  "builder_result": "IMPLEMENTED_FOR_CONTROLLER_VALIDATION",
+  "repository": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3",
+  "branch": "fix/project-cards",
+  "base_sha": "a7ee3e4d22c5375481402c637d22c08eba59cbac",
+  "candidate_identity": "UNFROZEN; controller to bind final gates and review to the frozen candidate",
+  "files": [
+    ".agent/packets/GL3-010.md",
+    ".agent/packets/GL3-010-title-fallback-repair.md",
+    ".agent/packets/GL3-010-title-fallback-repair2.md",
+    ".agent/artifacts/GL3-010/COMPLETION.json",
+    "web/src/features/opportunities/projectCards.ts",
+    "web/src/app/App.tsx",
+    "web/src/styles/app.css",
+    "web/tests/project_cards.spec.ts"
+  ],
+  "implementation": [
+    "Added evidence-gated, presentation-only permit grouping keyed by source, tier, full normalized location, activity, and exact normalized action text with explicit place and date evidence.",
+    "The observed 19 identical Zilker Park event permits form one card; all member permit IDs and details remain individually accessible. The authenticated baseline is 32 browse cards over 50 underlying opportunity records.",
+    "Search now filters the complete tier result locally across project title, permit identifiers, work descriptions, locations, and evidence. Matching one permit keeps its containing group and its full member list in context; the UI shows matching and underlying record counts.",
+    "Permit headings derive from reported work/event text with bounded removal of source labels and known permit boilerplate. Non-permit project names remain unchanged; grouped permit issue dates use the source event-date label."
+  ],
+  "validation": [
+    {
+      "command": "npm test -- --grep \"exact dated event evidence groups\"",
+      "result": "PASS",
+      "evidence": "1 focused Playwright regression passed: exact dated group, separate year, work-derived titles, grouped member detail access, permit-ID search context, and underlying record count."
+    },
+    {
+      "command": "npm run typecheck",
+      "result": "PASS",
+      "evidence": "TypeScript check completed successfully."
+    },
+    {
+      "command": "npm run build",
+      "result": "PASS",
+      "evidence": "TypeScript project build and Vite production build completed successfully."
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS",
+      "evidence": "No whitespace errors."
+    },
+    {
+      "command": "Controller authenticated live browser proof against retained API baseline",
+      "result": "CONTROLLER_REPORTED_PASS_PENDING_ARTIFACT_RECONCILIATION",
+      "evidence": "Controller reports 32 cards, all 19 Zilker member permits, permit search grouping, mobile 390px layout, and no browser errors; controller owns recording and rerunning this proof against the frozen candidate."
+    }
+  ],
+  "resolved_test_issue": "An initial mock route pattern also intercepted the Vite /src/api module URL, causing a MIME error. The route was narrowed to the /api endpoint origin and the focused browser test then passed.",
+  "review_repair": {
+    "prior_review": ".agent/artifacts/GL3-010/REVIEW.json",
+    "prior_verdict": "FIX; preserved unchanged",
+    "repair_scope": [
+      "When supported_action is absent, parse structured permit abstract fields and use a substantive description/work/project/type value, ignoring row/date/status fields.",
+      "When supported action contains only removable permit boilerplate, use a neutral activity plus location title."
+    ],
+    "regressions_added": [
+      "Boilerplate-only action yields activity and location.",
+      "Structured raw abstract without supported_action yields its description rather than row ID/date.",
+      "Structured abstract with no description falls back to activity and location."
+    ],
+    "validation": [
+      {
+        "command": "npm test -- --grep \"exact dated event evidence groups\"",
+        "result": "PASS",
+        "evidence": "1 focused Playwright regression passed after the review repair."
+      },
+      {
+        "command": "npm run typecheck",
+        "result": "PASS",
+        "evidence": "TypeScript check passed after the review repair."
+      },
+      {
+        "command": "git diff --check",
+        "result": "PASS",
+        "evidence": "No whitespace errors after the review repair."
+      }
+    ],
+    "new_candidate": "UNFROZEN; controller to bind a new exact candidate and obtain independent review"
+  },
+  "review_repair_2": {
+    "prior_review": ".agent/artifacts/GL3-010/REVIEW-r2.json",
+    "prior_verdict": "FIX; preserved unchanged",
+    "repair_scope": "Structured permit abstracts now supply only a non-generic description field as a fallback; supported_action remains independently eligible. work/project/type fields are ignored when no description exists. Generic values including New, Building Permit, Permit, Addition, and Alteration fall back to activity plus location.",
+    "regression": "Added structured abstract case with row/date metadata, work: New, and type: Building Permit but no description; expected neutral facility-expansion plus full location title.",
+    "validation": [
+      {
+        "command": "npm test -- --grep \"exact dated event evidence groups\"",
+        "result": "PASS",
+        "evidence": "1 focused Playwright regression passed after the second review repair."
+      },
+      {
+        "command": "npm run typecheck",
+        "result": "PASS",
+        "evidence": "TypeScript check passed after the second review repair."
+      },
+      {
+        "command": "git diff --check",
+        "result": "PASS",
+        "evidence": "No whitespace errors after the second review repair."
+      }
+    ],
+    "new_candidate": "UNFROZEN; controller to bind final gates and a fresh independent review"
+  },
+  "limitations": [
+    "Grouping is intentionally conservative and only applies to exact shared permit descriptions with explicit place and date evidence; related permits with different descriptions remain separate.",
+    "Permit title cleanup is deterministic and bounded; unclear or missing descriptions fall back to activity and location. It does not claim all repeated source records are consolidated.",
+    "All counts are for the selected tier response; no database, API, schema, or retained evidence rows were changed."
+  ],
+  "authority": "No live database writes, process restarts, external actions, source changes, schema changes, PRD changes, push, merge, or deployment by builder.",
+  "timing_utc": {
+    "start": "UNKNOWN: dispatch timestamp not recorded by builder",
+    "finish": "2026-09-27T19:18:28Z",
+    "duration": "UNKNOWN",
+    "measured_tokens": "UNKNOWN"
+  },
+  "next": "Controller freezes the current repaired candidate, reruns exact-candidate runtime/final gates, records new evidence, and obtains independent Sol review."
+}

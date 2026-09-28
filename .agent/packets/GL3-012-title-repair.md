@@ -1,0 +1,3 @@
+# GL3-012 title repair
+
+READY bounded repair1; samebranch/base/packet. Only projectCards.ts and project_cards.spec.ts. Livecontroller found Azalea fallback despite explicit generator-until-grid currentactivity; priorAPI data and allwebgates preserved. Match factual sentence 'The operations will be powered ... generator sets ... until grid power is available' and return concise generic generator-until-grid summary without assumingindustry. Use exact actualsource wording fixture. Preserveallotherbehaviors. Focusedtest/typecheck, REPAIR.json thenfreeze. No runtime orbackendedits. Controllerrepeatfinalwebgates/runtimeproof thenindependentreview.

@@ -7,6 +7,7 @@ from datetime import date, datetime
 from typing import Any
 
 EVALUATOR_VERSION = "permit-project-v7"
+GEORGIA_AIR_EVALUATOR_VERSION = "georgia-air-discovery-v1"
 MISSING = [
     "buyer or responsible operator",
     "activity-specific power requirement",
@@ -134,6 +135,183 @@ _SQUARE_FEET = re.compile(r"\b([0-9][0-9,]*)\s*(?:sf|sq\.?\s*ft\.?|square\s*feet
 _NUMERIC_DATES = re.compile(
     r"(?<!\d)(?:(?P<year>20\d{2})/(?P<month1>\d{1,2})/(?P<day1>\d{1,2})|(?P<month2>\d{1,2})/(?P<day2>\d{1,2})/(?P<year2>20\d{2}))(?!\d)"
 )
+_AIR_FACILITY_ACTIVITY = re.compile(
+    r"\b(?:greenfield project|new (?:data cent(?:er|re)|industrial|manufacturing|"
+    r"processing|energy) facility|new quarry|"
+    r"proposed (?:new )?data cent(?:er|re)|construction (?:of|and operation of) "
+    r"(?:(?:a|the) )?(?:new )?"
+    r"(?:data cent(?:er|re)|facility|campus)|(?:construct|build)(?:ing)? (?:a )?(?:new )?"
+    r"(?:data cent(?:er|re)|facility|campus)|(?:expand|expansion|addition) of (?:the )?"
+    r"(?:facility|campus|data cent(?:er|re))|major facility (?:modification|expansion)|"
+    r"(?:construct|build)(?:ing)?\b.{0,120}\b(?:facility|plant|campus|quarry|"
+    r"processing unit|data cent(?:er|re))|"
+    r"(?:replace(?:ment)?|replacing|install(?:ation|ing)?|add(?:s|ed|ing)?|"
+    r"addition\s+of|"
+    r"modif(?:y|ication|ying)|upgrade|increase(?:d|ing)?)\b.{0,100}\b"
+    r"(?:dryer|baghouse|crusher|processing plant|generator|turbine|boiler|kiln|furnace|"
+    r"compressor|engine|equipment|production line|processing unit|production rate|"
+    r"production capacity|throughput|permitted capacity)|"
+    r"update(?:d|ing)?\b.{0,100}\b(?:equipment list|capacity|production rate|throughput))\b",
+    re.I,
+)
+_AIR_GENERATION_ACTIVITY = re.compile(
+    r"\b(?:proposed|new|additional|install(?:ation|ed)?|adding|added)\b.{0,100}\b"
+    r"(?:emergency |critical |house |backup )?generators?\b|"
+    r"\b(?:generator|turbine) (?:addition|installation|replacement|modification)\b",
+    re.I,
+)
+_AIR_WITHDRAWN = re.compile(
+    r"\bapplication (?:has been |was )?withdrawn\b|\bwithdrawn application\b", re.I
+)
+_AIR_COMPLETED = re.compile(
+    r"\b(?:project (?:is |has been )?completed|construction (?:is |has been )?completed)\b",
+    re.I,
+)
+_AIR_NEW_ACTIVITY = re.compile(
+    r"\b(?:proposed|planned|new|additional|phase\s*[2-9]|install(?:ation|ed)?|adding|added|"
+    r"expansion|expanding|construction|greenfield)\b.{0,100}\b(?:facility|campus|"
+    r"data cent(?:er|re)|generator|turbine|unit|building|phase)\b",
+    re.I,
+)
+_AIR_POWER_CONTEXT = re.compile(
+    r"\b(?:campus|data cent(?:er|re))\b.{0,180}\b(?:\d[\d,.]*\s*MW|utility|"
+    r"service|energiz|bridge|capacity|power allocation)\b|"
+    r"\b(?:utility service|available service|partial service|power allocation|energization delay|"
+    r"bridge power)\b.{0,180}\b\d[\d,.]*\s*MW\b",
+    re.I,
+)
+_REPORTED_MW = re.compile(r"(?<![\w.])\d[\d,]*(?:\.\d+)?\s*MW\b", re.I)
+
+
+def evaluator_version(record: dict[str, Any]) -> str:
+    permit = record.get("permit")
+    if isinstance(permit, dict) and permit.get("source_type") == "georgia-air-draft-title-v":
+        return GEORGIA_AIR_EVALUATOR_VERSION
+    return EVALUATOR_VERSION
+
+
+def _reported_mw_facts(text: str) -> list[str]:
+    facts = []
+    for match in _REPORTED_MW.finditer(text):
+        left = max(text.rfind(delimiter, 0, match.start()) for delimiter in (".", ";", "\n"))
+        right_candidates = [
+            position
+            for delimiter in (".", ";", "\n")
+            if (position := text.find(delimiter, match.end())) >= 0
+        ]
+        right = min(right_candidates) if right_candidates else len(text)
+        clause = text[left + 1 : right]
+        local_end = min(len(clause), match.end() - (left + 1) + 60)
+        suffix = " ".join(clause[match.end() - (left + 1) : local_end].split())
+        quote = " ".join(part for part in (match.group(0), suffix) if part)
+        if quote and quote not in facts:
+            facts.append(quote[:240])
+    return facts[:12]
+
+
+def _assess_georgia_air(
+    record: dict[str, Any], permit: dict[str, Any], description: str, as_of: date
+) -> dict[str, Any]:
+    facility = str(record.get("title") or permit.get("facility") or "").strip()
+    location_value = str(permit.get("address") or permit.get("city") or "").strip()
+    location = ", ".join(
+        part for part in (location_value, "Georgia" if location_value else "") if part
+    )
+    current_scope = str(permit.get("current_scope") or "")
+    has_site_activity = bool(_AIR_FACILITY_ACTIVITY.search(current_scope))
+    has_generation_activity = bool(_AIR_GENERATION_ACTIVITY.search(current_scope))
+    has_power_context = bool(_AIR_POWER_CONTEXT.search(current_scope))
+    has_distinct_new_activity = bool(_AIR_NEW_ACTIVITY.search(current_scope))
+    withdrawn = bool(_AIR_WITHDRAWN.search(current_scope))
+    completed = bool(_AIR_COMPLETED.search(current_scope)) and not has_distinct_new_activity
+    withdrawn_or_done = withdrawn or completed
+    citation_ok = bool(record.get("html_url") and permit.get("row_id") and permit.get("record_id"))
+    date_value = record.get("event_date")
+    date_label = record.get("event_date_label")
+    has_dated_source = bool(date_value and date_label)
+    activity = "facility-expansion" if has_site_activity else "backup-power"
+    accepted = bool(
+        facility
+        and location_value
+        and citation_ok
+        and has_dated_source
+        and (has_site_activity or has_generation_activity or has_power_context)
+        and not withdrawn_or_done
+    )
+    if accepted:
+        event_description = (
+            "named facility construction or expansion"
+            if has_site_activity
+            else (
+                "proposed onsite generator addition, partial utility service, or "
+                "power-related campus activity"
+            )
+        )
+        reason = (
+            f"Georgia EPD's current draft-permit listing and linked narrative report a concrete "
+            f"{event_description} at {facility} ({location}). This is a discovery Signal. "
+            "Any reported campus, utility-service, or equipment values remain source facts; a "
+            "possible construction/commissioning or bridge-power question is inferred. The "
+            "filing does not establish rental MW, an unmet requirement, suitable supply, buyer, "
+            "energization date, or project completion."
+        )
+    elif withdrawn_or_done:
+        reason = (
+            "Current Georgia application-purpose text explicitly reports withdrawal, "
+            "completion, or operation; "
+            "retain it as history, not an open project Signal."
+        )
+    elif not facility or not location_value:
+        reason = "Georgia filing does not identify both a named facility and site location."
+    elif not has_dated_source or not citation_ok:
+        reason = (
+            "Georgia listing lacks a dated source event or stable application/document citation."
+        )
+    else:
+        reason = (
+            "Georgia filing is listed, but its current application-purpose excerpt "
+            "does not establish concrete "
+            "facility construction/expansion or proposed generator activity; routine renewals "
+            "remain evidence only."
+        )
+    reported_facts = _reported_mw_facts(current_scope)
+    return {
+        "schema_version": 1,
+        "decision": "accepted" if accepted else "rejected",
+        "tier": "Signal" if accepted else None,
+        "reason": reason,
+        "subject": facility if accepted else None,
+        "action": current_scope if accepted else None,
+        "location": location or None,
+        "missing_facts": MISSING,
+        "source_field_citations": {
+            **permit.get("source_fields", {}),
+            "current_scope_pages": permit.get("current_scope_pages", []),
+        },
+        "stable_row_id": permit.get("application_number") or permit.get("row_id"),
+        "permit_status": permit.get("status"),
+        "event_date": date_value,
+        "event_date_label": date_label,
+        "issue_date": None,
+        "issue_date_label": None,
+        "public_comment_deadline": permit.get("public_comment_deadline"),
+        "application_received_date": permit.get("application_received_date"),
+        "project_hint": facility or None,
+        "power_activity": activity,
+        "rental_category": "air-permit-discovery",
+        "reported_claim": current_scope if accepted else None,
+        "reported_power_facts": reported_facts,
+        "rental_hypothesis": (
+            "Inferred review question only. Reported campus, available-service, and generator "
+            "values remain separate source claims; no rental MW is calculated."
+            if accepted
+            else None
+        ),
+        "activity_end_date": None,
+        "review_after": None,
+        "as_of_date": as_of.isoformat(),
+        "document_links": permit.get("document_links", {}),
+    }
 
 
 def _explicit_event_end(description: str) -> date | None:
@@ -241,6 +419,8 @@ def assess_permit(record: dict[str, Any], *, as_of: date | None = None) -> dict[
         raise ValueError("Permit fields are missing")
     description = str(permit.get("description") or "")
     as_of = as_of or date.today()
+    if permit.get("source_type") == "georgia-air-draft-title-v":
+        return _assess_georgia_air(record, permit, str(permit.get("current_scope") or ""), as_of)
     event_end = _explicit_event_end(description)
     status = str(permit.get("status") or "")
     address, city, state = (str(permit.get(key) or "") for key in ("address", "city", "state"))

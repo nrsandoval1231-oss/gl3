@@ -1,0 +1,28 @@
+{
+  "node": "GL3-011",
+  "recorded_at_utc": "2026-09-27T21:32:11Z",
+  "direction": "CONTINUE",
+  "decision": "For this Georgia Draft Title V source, require bounded retrieval, identity validation, hashing, and cited extraction of each linked narrative and draft permit. Preserve official public-notice URLs as unextracted listing references. Do not claim public-notice PDF content was retrieved, validated, hashed, or used as evidence.",
+  "basis": {
+    "snapshot": "18 listed rows; 18 narratives and 18 draft permits passed the existing identity check. Eight linked public notices were probed; six passed and two failed strict facility/application-to-site matching.",
+    "failed_notice_examples": [
+      "Sewall Creek Energy Facility listing versus Sewell Creek notice spelling",
+      "Southwire - Carrollton listing versus Southwire Company notice legal name"
+    ],
+    "rationale": "Narratives and draft permits supply the site-bound activity detail needed for broad Signals. Public notices are useful official references, but are not required to extract that detail in this bounded source. Fuzzy or alias-based identity merging would add unsupported matching authority for two optional documents. A link alone is not evidence of its contents."
+  },
+  "implementation_contract": [
+    "Validate and retain the complete, consistent listing of 18 rows as observed; keep the configured source bounded to its fixed official page and document paths.",
+    "Require the narrative and draft permit for every row in the configured scope. A missing, rejected, oversized, or failed required PDF makes the run visibly incomplete and must preserve previously accepted evidence.",
+    "Record public-notice URLs under an explicit link-only/unextracted label; exclude them from extracted companions and from page-cited claims. Do not claim all 44 linked PDFs were extracted. If the listing or a notice URL changes, preserve that source change in listing/semantic history without implying notice-content validation.",
+    "Use only extracted narrative/draft content and separately labeled listing fields for Signal interpretation. Preserve source-stated public-comment deadlines as regulatory dates, never as publication, project start, or completion dates.",
+    "Keep identity checks strict for required documents. Do not add aliases or fuzzy matching to make the two public notices pass."
+  ],
+  "required_validation": [
+    "Fixture with 18 rows, 18 valid narratives, 18 valid drafts, and the two known notice name variants succeeds with 36 extracted documents and eight link-only notice references; it makes no notice-content claim.",
+    "A required narrative or draft failure rejects the run visibly and does not replace prior accepted evidence; a missing or malformed listing still fails closed.",
+    "A changed public-notice URL changes retained listing history without a fabricated PDF hash or citation; unchanged retrieval replays without duplicate Signals.",
+    "Documentation and source-health output state the 36-document extraction scope and eight unextracted notice links for the observed snapshot, and distinguish successful configured-scope retrieval from all-linked-document retrieval."
+  ],
+  "limits": "This is a bounded scope decision for the current official list. It does not certify live retrieval, replay, runtime health, comprehensive Georgia coverage, or completion of GL3-011."
+}

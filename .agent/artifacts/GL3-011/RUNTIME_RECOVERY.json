@@ -1,0 +1,10 @@
+{
+  "node": "GL3-011",
+  "failed_job": "49bc2d5a-5de1-4d8f-b9c0-efab2cc2b24f",
+  "attempt_one": "DataError: two Southwire PDF extraction_location labels were 102 characters against the existing 100-character column. Fifteen observations were retained, fourteen with completed companion evidence and the Southwire parent only. No worker was left running to retry blindly.",
+  "diagnosis": "Compared actual adapter outputs with the SQLAlchemy column limits and inspected persisted Georgia observation/evidence counts before retry.",
+  "repair": "Lossless compact PDF pages citation syntax; no schema relaxation or evidence deletion. Regression covers pages 98 through 102 within the existing column bound.",
+  "outcome": "Same queued job resumed normally and succeeded on attempt two. All 18 observations retained; nine Signals admitted. Subsequent separate ordinary replay succeeded on attempt one with identical retained-table digest 48c11baecf2c60d0794cb05a1072490c792d06b59fe3a86e56f0f6f4aef591e7. Every pre-build original row field remained unchanged.",
+  "lesson_candidate": "Validate adapter citation lengths against persistence limits with realistic multi-page documents, in addition to parser bounds. Metric: persistence failures caused by citation formatting, lower is better. This candidate is local to this source; no global memory or policy was modified.",
+  "evidence": [".artifacts/GL3-011/first-live.json", ".artifacts/GL3-011/replay.json", ".artifacts/GL3-011/source-health.json"]
+}

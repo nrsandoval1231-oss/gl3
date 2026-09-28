@@ -317,8 +317,15 @@
             "title": "Url"
           },
           "published_at": {
-            "type": "string",
-            "format": "date",
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Published At"
           }
         },
@@ -353,8 +360,15 @@
             "title": "Url"
           },
           "published_at": {
-            "type": "string",
-            "format": "date",
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Published At"
           },
           "retrieved_at": {
@@ -579,6 +593,28 @@
             ],
             "title": "Latest Permit Issue Date"
           },
+          "latest_public_comment_deadline": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Public Comment Deadline"
+          },
+          "earliest_public_comment_deadline": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Earliest Public Comment Deadline"
+          },
           "records_scanned": {
             "type": "integer",
             "title": "Records Scanned",
@@ -592,6 +628,16 @@
           "permit_rejected": {
             "type": "integer",
             "title": "Permit Rejected",
+            "default": 0
+          },
+          "documents_extracted": {
+            "type": "integer",
+            "title": "Documents Extracted",
+            "default": 0
+          },
+          "unextracted_public_notice_references": {
+            "type": "integer",
+            "title": "Unextracted Public Notice References",
             "default": 0
           },
           "snapshot_item_count": {
@@ -693,9 +739,39 @@
             "title": "Title"
           },
           "published_at": {
-            "type": "string",
-            "format": "date",
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Published At"
+          },
+          "event_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Event Date"
+          },
+          "event_date_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Event Date Label"
           },
           "first_seen_at": {
             "type": "string",
@@ -822,6 +898,13 @@
             },
             "type": "array",
             "title": "Missing Facts"
+          },
+          "reported_power_facts": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Reported Power Facts"
           },
           "permit_status": {
             "anyOf": [
@@ -1075,6 +1158,13 @@
             },
             "type": "array",
             "title": "Missing Facts"
+          },
+          "reported_power_facts": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Reported Power Facts"
           },
           "evidence": {
             "items": {

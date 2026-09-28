@@ -3,6 +3,7 @@ from typing import Any
 import httpx
 
 from gridlens.ingestion.adapters.federal_register import SourceParseError
+from gridlens.ingestion.adapters.georgia_air_permits import retrieve as retrieve_georgia_air_permits
 from gridlens.ingestion.adapters.nc_commerce import retrieve as retrieve_nc_commerce
 from gridlens.ingestion.adapters.publisher_rss import retrieve as retrieve_publisher_rss
 from gridlens.ingestion.adapters.socrata_permits import retrieve as retrieve_socrata_permits
@@ -22,4 +23,6 @@ def retrieve_source(
         return retrieve_publisher_rss(source, client)
     if method == "socrata-permits":
         return retrieve_socrata_permits(source, client)
+    if method == "georgia-air-permits":
+        return retrieve_georgia_air_permits(source, client)
     raise SourceParseError(f"Unsupported source retrieval method: {method}")

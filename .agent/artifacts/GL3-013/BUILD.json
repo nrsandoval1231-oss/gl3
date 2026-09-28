@@ -1,0 +1,69 @@
+{
+  "packet": "GL3-013",
+  "repository": "C:\\Users\\nrsan\\Nucleus\\02_Projects\\GridLens\\gl3-local-proof",
+  "branch": "verify/local-signal-pipeline",
+  "base_sha": "a7ee3e4d22c5375481402c637d22c08eba59cbac",
+  "candidate_sha": "UNKNOWN; controller integration and freeze pending",
+  "status": "BUILDER_IMPLEMENTATION_READY_FOR_CONTROLLER_RUNTIME",
+  "started_at_utc": "UNKNOWN",
+  "finished_at_utc": "2026-09-28T00:51:53Z",
+  "durations": {
+    "build_seconds": "UNKNOWN",
+    "focused_validation_seconds": "UNKNOWN"
+  },
+  "model": "gpt-6-luna",
+  "tokens": "UNKNOWN",
+  "changed_files_owned": [
+    "backend/src/gridlens/ingestion/adapters/socrata_permits.py",
+    "backend/src/gridlens/ingestion/service.py",
+    "backend/src/gridlens/jobs/worker.py",
+    "backend/tests/unit/test_socrata_permits.py",
+    "backend/tests/unit/test_review_export.py",
+    "backend/tests/integration/test_ingestion.py",
+    "scripts/export_review_sample.py",
+    "scripts/local_pipeline_check.py",
+    "config/sources/registry.v1.json",
+    "docs/operations/local-signal-verification.md",
+    ".agent/artifacts/GL3-013/BUILD.json"
+  ],
+  "implementation": {
+    "socrata_monitoring": "Austin uses official statusdate for permits whose status or expiration changed within seven days; recent issue-date discovery remains 30 days. Seattle and Chicago have explicit gaps and bounded follow-on remedies because their per-row modification signal is absent or unreliable.",
+    "proof_script": "Uses registry-enabled official sources, existing enqueue and ordinary run_one worker; refuses non-gridlens_verify_* or non-fresh databases; records per-source retrieved/parsed/new/changed/unchanged/failure/overdue values, normal queue retry attempts, counts and deterministic digests for observations/evidence/projects/needs/links/changes/interpretations, and canonical /api/changes hashes. Persists the receipt incrementally and exits nonzero when a source fails or replay evidence changes.",
+    "review_export": "Nullable publication dates now export as JSON null, preserving unknown source dates instead of crashing.",
+    "source_metadata_evidence": ".artifacts/GL3-013/socrata-monitoring-source-check.json (ignored runtime evidence)"
+  },
+  "source_monitoring_evidence": {
+    "austin_statusdate_definition": "Official metadata describes statusdate as the date the permit status or ExpiresDate was last updated in AMANDA.",
+    "austin_seven_day_commercial_building_rows": 1443,
+    "socrata_updated_at_recent_row_counts": {
+      "austin_2d_7d_30d": [2377703, 2377703, 2377703],
+      "seattle_2d_7d_30d": [193257, 193257, 193257],
+      "chicago_2d_7d_30d": [255, 1997, 10881]
+    },
+    "interpretation": "Austin and Seattle :updated_at refresh counts are bulk-wide and unsuitable for row monitoring; Austin uses statusdate. Chicago lacks a verified per-row status date, so its 10881 30-day :updated_at rows do not establish reliable row changes."
+  },
+  "focused_validation": {
+    "command": "backend/.venv/Scripts/python.exe -m pytest tests/unit/test_socrata_permits.py tests/unit/test_review_export.py",
+    "result": "PASS; 20 passed in 0.57s after the null-statusdate repair",
+    "other_commands": [
+      "backend/.venv/Scripts/ruff.exe check [owned changed Python files]",
+      "backend/.venv/Scripts/python.exe -m compileall -q scripts/local_pipeline_check.py scripts/export_review_sample.py",
+      "git diff --check"
+    ],
+    "other_result": "PASS; Ruff reported All checks passed; compileall passed; diff check passed with unrelated LF-to-CRLF working-copy warnings."
+  },
+  "not_run_by_builder": [
+    "Integration regression in backend/tests/integration/test_ingestion.py; controller owns integration and runtime gates.",
+    "Fresh ordinary-worker source ingestion/replay; controller owns source execution and sample review.",
+    "Full repository gates, retained 30+ Signal review, frozen candidate review, commit, and PR."
+  ],
+  "repair_history": [
+    {
+      "attempt": 1,
+      "evidence": "Controller full backend gate reported two integration failures because Socrata omits null optional statusdate keys on ordinary rows.",
+      "repair": "Accept missing/null statusdate on recent issue-window rows, while requiring a supplied in-window statusdate for older rows.",
+      "focused_result": "20 tests passed, including recent-row omitted-statusdate and old-permit status-change regressions."
+    }
+  ],
+  "authority": "No commit, push, merge, deployment, source expansion, or external service changes performed."
+}

@@ -1,0 +1,23 @@
+[
+  {
+    "command": "alembic upgrade head",
+    "started": "2026-09-28T00:34:14.884962+00:00",
+    "finished": "2026-09-28T00:34:15.707272+00:00",
+    "exit_code": 0,
+    "output": "INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.\nINFO  [alembic.runtime.migration] Context impl PostgresqlImpl.\nINFO  [alembic.runtime.migration] Will assume transactional DDL.\nINFO  [alembic.runtime.migration] Will assume transactional DDL.\nINFO  [alembic.runtime.migration] Running upgrade  -> 0001_initial, Initial frozen PostgreSQL schema for structured ingestion.\nINFO  [alembic.runtime.migration] Running upgrade  -> 0001_initial, Initial frozen PostgreSQL schema for structured ingestion.\nINFO  [alembic.runtime.migration] Running upgrade 0001_initial -> 0002_interpretations, retryable interpretation backlog and visible Signal withdrawal\nINFO  [alembic.runtime.migration] Running upgrade 0001_initial -> 0002_interpretations, retryable interpretation backlog and visible Signal withdrawal\nINFO  [alembic.runtime.migration] Running upgrade 0002_interpretations -> 0003_news_assessments, retain version-bound structured RSS project assessments\nINFO  [alembic.runtime.migration] Running upgrade 0002_interpretations -> 0003_news_assessments, retain version-bound structured RSS project assessments\nINFO  [alembic.runtime.migration] Running upgrade 0003_news_assessments -> 0004_unknown_publication_dates, allow unknown publication dates and label source event dates\nINFO  [alembic.runtime.migration] Running upgrade 0003_news_assessments -> 0004_unknown_publication_dates, allow unknown publication dates and label source event dates\n"
+  },
+  {
+    "command": "alembic upgrade head",
+    "started": "2026-09-28T00:34:15.707272+00:00",
+    "finished": "2026-09-28T00:34:16.435312+00:00",
+    "exit_code": 0,
+    "output": "INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.\nINFO  [alembic.runtime.migration] Context impl PostgresqlImpl.\nINFO  [alembic.runtime.migration] Will assume transactional DDL.\nINFO  [alembic.runtime.migration] Will assume transactional DDL.\n"
+  },
+  {
+    "command": "alembic check",
+    "started": "2026-09-28T00:34:16.435312+00:00",
+    "finished": "2026-09-28T00:34:17.264103+00:00",
+    "exit_code": 0,
+    "output": "No new upgrade operations detected.\nINFO  [alembic.runtime.migration] Context impl PostgresqlImpl.\nINFO  [alembic.runtime.migration] Context impl PostgresqlImpl.\nINFO  [alembic.runtime.migration] Will assume transactional DDL.\nINFO  [alembic.runtime.migration] Will assume transactional DDL.\nINFO  [alembic.ddl.postgresql] Detected sequence named 'change_events_id_seq' as owned by integer column 'change_events(id)', assuming SERIAL and omitting\nINFO  [alembic.ddl.postgresql] Detected sequence named 'change_events_id_seq' as owned by integer column 'change_events(id)', assuming SERIAL and omitting\nINFO  [alembic.ddl.postgresql] Detected sequence named 'interpretations_id_seq' as owned by integer column 'interpretations(id)', assuming SERIAL and omitting\nINFO  [alembic.ddl.postgresql] Detected sequence named 'interpretations_id_seq' as owned by integer column 'interpretations(id)', assuming SERIAL and omitting\nINFO  [alembic.ddl.postgresql] Detected sequence named 'need_observations_id_seq' as owned by integer column 'need_observations(id)', assuming SERIAL and omitting\nINFO  [alembic.ddl.postgresql] Detected sequence named 'need_observations_id_seq' as owned by integer column 'need_observations(id)', assuming SERIAL and omitting\n"
+  }
+]

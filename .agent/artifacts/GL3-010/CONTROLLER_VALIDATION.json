@@ -1,0 +1,32 @@
+{
+  "at": "2026-09-27T19:19:03.462590+00:00",
+  "base": "a7ee3e4d22c5375481402c637d22c08eba59cbac",
+  "candidate_sha256": "c1524aa5c876082f6b9968c8d8298e63e352d67d6f9c6d350e98234d9be8bb77",
+  "files": [
+    {
+      "path": "web/src/app/App.tsx",
+      "sha256": "39c18a532fdb0abdaa566d50d43ad0c3ae62c14da53bf4e7459f72748e5a81bb"
+    },
+    {
+      "path": "web/src/features/opportunities/projectCards.ts",
+      "sha256": "3ae4e06ca342cf4299bb4546a41674566094229c428b81e58f66bcfd43e3639f"
+    },
+    {
+      "path": "web/src/styles/app.css",
+      "sha256": "e8b8efa8a9f6c2fe7082a0ded8bbd0ce78b42f5bb569fee7511b148256033bcc"
+    },
+    {
+      "path": "web/tests/project_cards.spec.ts",
+      "sha256": "6392dabd8a873f6ed2948e47fe7d971621cbbe54289c835e8f762d3b380118f8"
+    }
+  ],
+  "gates": {
+    "web_typecheck": "PASS",
+    "web_build": "PASS",
+    "playwright": "3 passed",
+    "diff_check": "PASS",
+    "live_browser": "32 cards; 50 records;19 Zilker members accessible; permit search preserved;390px no overflow;zero page errors"
+  },
+  "scope": "Frontend presentation only; no database or backend changes",
+  "tokens": "UNKNOWN"
+}

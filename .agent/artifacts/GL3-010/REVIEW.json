@@ -1,0 +1,24 @@
+{
+  "verdict": "FIX",
+  "candidate_sha256": "43f9faa5c6cd1b653da96a03e6fcc299becb126c110cfe918a1b571169b32f23",
+  "base_sha": "a7ee3e4d22c5375481402c637d22c08eba59cbac",
+  "branch": "fix/project-cards",
+  "candidate_binding": "The four implementation-file SHA256 values were independently checked against CONTROLLER_VALIDATION.json and matched. The controller's recorded web typecheck, build, three Playwright tests, and authenticated browser proof apply to this candidate.",
+  "scope": "Independent review of GL3-010 local frontend grouping and permit headings only; no parent completion or release claim.",
+  "reviewed": [
+    "AGENTS.md, GL3-010 packet, PRD requirements 13 and 14, current App.tsx and CSS diff, new pure helper and Playwright test",
+    "Retained 50-row authenticated API baseline, including the nineteen identical Zilker event descriptions, phase-specific manufacturing permits, Chicago event permits, and non-permit records",
+    "Group identity, card and record counts, member access, search, detail presentation, and source-date labeling"
+  ],
+  "findings": [
+    {
+      "severity": "material",
+      "location": "web/src/features/opportunities/projectCards.ts:92",
+      "issue": "The required neutral activity-and-location fallback is absent after permit boilerplate removal. For a permit whose reported action is only removable boilerplate, such as 'CBC 2019.', permitWorkTitle returns 'Construction activity' without its location. When supported_action is absent but a raw permit evidence abstract is present, reportedAction passes that whole structured abstract to the title parser, which can expose a 'row: <permit ID>' heading instead of the described work. These are ordinary missing/low-information evidence states and breach the packet's safe heading fallback.",
+      "required_repair": "Keep the existing grouping and current 50-row results. Derive a title only from a usable work description; otherwise return a neutral activity plus the record location. Add focused cases for a boilerplate-only action and a raw permit abstract with no supported_action."
+    }
+  ],
+  "accepted_evidence": "The nineteen exact Zilker rows safely produce one presentation card, each source permit remains available, all 50 records remain counted, non-identical phase/date/activity rows stay separate, and controller runtime proof reports 32 cards with no browser errors or mobile overflow.",
+  "completion_candidate": false,
+  "next_direction": "Issue one repair-only GL3-010 packet for the title fallback, then freeze and validate a new exact candidate before independent review."
+}
