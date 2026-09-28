@@ -62,7 +62,7 @@ class Observation(Base):
     external_id: Mapped[str] = mapped_column(String(200))
     title: Mapped[str] = mapped_column(Text)
     abstract: Mapped[str | None] = mapped_column(Text)
-    published_at: Mapped[date] = mapped_column(Date)
+    published_at: Mapped[date | None] = mapped_column(Date, nullable=True)
     url: Mapped[str] = mapped_column(Text)
     content_hash: Mapped[str] = mapped_column(String(64))
     first_seen_at: Mapped[datetime] = mapped_column(
@@ -82,12 +82,13 @@ class Evidence(Base):
     title: Mapped[str] = mapped_column(Text)
     abstract: Mapped[str | None] = mapped_column(Text)
     url: Mapped[str] = mapped_column(Text)
-    published_at: Mapped[date] = mapped_column(Date)
+    published_at: Mapped[date | None] = mapped_column(Date, nullable=True)
     observed_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
     extraction_location: Mapped[str] = mapped_column(String(100), default="title and abstract")
     event_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    event_date_label: Mapped[str | None] = mapped_column(String(100), nullable=True)
     observation: Mapped[Observation] = relationship(back_populates="evidence")
 
 

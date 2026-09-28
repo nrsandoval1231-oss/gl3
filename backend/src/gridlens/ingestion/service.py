@@ -13,8 +13,8 @@ from gridlens.domain.news_interpretation import (
     prospect_power_activity,
     signal_power_activity,
 )
-from gridlens.domain.permit_interpretation import EVALUATOR_VERSION as PERMIT_EVALUATOR_VERSION
 from gridlens.domain.permit_interpretation import assess_permit
+from gridlens.domain.permit_interpretation import evaluator_version as permit_evaluator_version
 from gridlens.domain.qualification import assess_signal
 from gridlens.ingestion.adapters import retrieve_source
 from gridlens.ingestion.adapters.govinfo_pdf import MAX_PDFS_PER_RUN, retrieve_companion
@@ -30,6 +30,12 @@ from gridlens.persistence.models import (
     Project,
     Source,
 )
+
+PERMIT_RETRIEVAL_METHODS = {"socrata-permits", "georgia-air-permits"}
+
+
+def _optional_date(value: str | None) -> date | None:
+    return date.fromisoformat(value) if value else None
 
 
 def _hash(record: dict[str, Any]) -> str:
@@ -59,6 +65,7 @@ def _permit_assessment_payload(
     previous: dict[str, Any] | None,
     prior_evaluator_version: str | None,
 ) -> dict[str, Any]:
+    current_evaluator = permit_evaluator_version(record)
     payload = {
         **assessment,
         "semantic_hash": digest,
@@ -66,16 +73,21 @@ def _permit_assessment_payload(
         "evidence": {
             "id": str(evidence.id) if evidence else None,
             "url": record["html_url"],
-            "issue_date": record["event_date"],
+            "issue_date": record["event_date"]
+            if str(record.get("event_date_label", "")).startswith("Permit issue date")
+            else None,
+            "event_date": record.get("event_date"),
+            "event_date_label": record.get("event_date_label"),
+            "publication_date": record.get("publication_date"),
         },
-        "evaluator_version": PERMIT_EVALUATOR_VERSION,
+        "evaluator_version": current_evaluator,
     }
     if previous and (
         previous.get("semantic_hash") != digest
         or previous.get("power_activity") != assessment.get("power_activity")
         or previous.get("rental_category") != assessment.get("rental_category")
         or previous.get("decision") != assessment.get("decision")
-        or prior_evaluator_version != PERMIT_EVALUATOR_VERSION
+        or prior_evaluator_version != current_evaluator
     ):
         history = list(previous.get("previous_decisions", []))
         prior_entry = {key: value for key, value in previous.items() if key != "previous_decisions"}
@@ -146,7 +158,7 @@ def _assessment_payload(
         "evidence": {
             "id": str(evidence.id),
             "url": evidence.url,
-            "published_at": evidence.published_at.isoformat(),
+            "published_at": evidence.published_at.isoformat() if evidence.published_at else None,
             "extraction_location": evidence.extraction_location,
         },
         **assessment,
@@ -415,16 +427,26 @@ def process_job(
         "changed": 0,
         "unchanged": 0,
         "signals": 0,
+        "retrieved_records": len(records),
+        "parsed_records": len(records),
         "records_scanned": len(records),
         "permit_accepted": 0,
         "permit_rejected": 0,
         "latest_publication_date": None,
+        "latest_public_comment_deadline": None,
         "pdf_candidates": 0,
         "pdf_eligible": 0,
         "pdf_enriched": 0,
         "pdf_skipped_not_signal": 0,
         "pdf_skipped_limit": 0,
     }
+    if source_definition.get("retrieval_method") == "georgia-air-permits":
+        counts["snapshot_item_count"] = len(records)
+        counts["documents_extracted"] = sum(len(record.get("companions", [])) for record in records)
+        counts["unextracted_public_notice_references"] = sum(
+            "public notice" in record.get("permit", {}).get("unextracted_document_links", {})
+            for record in records
+        )
     pdf_documents = 0
     for record in records:
         assert_fence(session, job_id, worker_id, fence)
@@ -433,9 +455,22 @@ def process_job(
         external_id = record["document_number"]
         digest = _hash(record)
         evidence_digest = record.get("source_hash") or _source_version_hash(record)
-        counts["latest_publication_date"] = max(
-            counts["latest_publication_date"] or "0000-00-00", record["publication_date"]
-        )
+        if record.get("publication_date"):
+            counts["latest_publication_date"] = max(
+                counts["latest_publication_date"] or "0000-00-00", record["publication_date"]
+            )
+        permit_info = record.get("permit")
+        if isinstance(permit_info, dict) and permit_info.get("public_comment_deadline"):
+            counts["earliest_public_comment_deadline"] = min(
+                counts.get("earliest_public_comment_deadline")
+                or permit_info["public_comment_deadline"],
+                permit_info["public_comment_deadline"],
+            )
+            counts["latest_public_comment_deadline"] = max(
+                counts["latest_public_comment_deadline"] or "0000-00-00",
+                permit_info["public_comment_deadline"],
+            )
+        is_permit_source = source_definition.get("retrieval_method") in PERMIT_RETRIEVAL_METHODS
         if source_definition.get("retrieval_method") == "socrata-permits":
             counts["latest_permit_issue_date"] = counts["latest_publication_date"]
         observation = session.scalar(
@@ -449,18 +484,14 @@ def process_job(
             and observation.title == record["title"]
             and " ".join((observation.abstract or "").split())
             == " ".join((record.get("abstract") or "").split())
-            and observation.published_at == date.fromisoformat(record["publication_date"])
+            and observation.published_at == _optional_date(record.get("publication_date"))
             and observation.url == record["html_url"]
         )
         # Accept the prior candidate's hash during the first replay after this
         # semantic fingerprint is introduced; compare retained claims, not
         # provider-side representation links or irrelevant source markup.
         same_version = observation is not None and (
-            observation.content_hash == digest
-            or (
-                source_definition.get("retrieval_method") != "socrata-permits"
-                and same_material_fields
-            )
+            observation.content_hash == digest or (not is_permit_source and same_material_fields)
         )
         change_kind = "discovered" if is_new else "updated"
         if is_new:
@@ -469,7 +500,7 @@ def process_job(
                 external_id=external_id,
                 title=record["title"],
                 abstract=record.get("abstract"),
-                published_at=date.fromisoformat(record["publication_date"]),
+                published_at=_optional_date(record.get("publication_date")),
                 url=record["html_url"],
                 content_hash=digest,
             )
@@ -482,7 +513,7 @@ def process_job(
             assert observation is not None
             observation.title = record["title"]
             observation.abstract = record.get("abstract")
-            observation.published_at = date.fromisoformat(record["publication_date"])
+            observation.published_at = _optional_date(record.get("publication_date"))
             observation.url = record["html_url"]
             observation.content_hash = digest
             counts["changed"] += 1
@@ -503,14 +534,48 @@ def process_job(
                     title=record["title"],
                     abstract=record.get("abstract"),
                     url=record["html_url"],
-                    published_at=date.fromisoformat(record["publication_date"]),
+                    published_at=_optional_date(record.get("publication_date")),
                     extraction_location=record.get("extraction_location", "title and abstract"),
                     event_date=date.fromisoformat(record["event_date"])
                     if record.get("event_date")
                     else None,
+                    event_date_label=record.get("event_date_label"),
                 )
             )
         session.commit()  # Keep retrieved source evidence durable if PDF enrichment fails.
+        companions = record.get("companions", [])
+        if not isinstance(companions, list):
+            raise ValueError("Source companions must be a list")
+        for companion in companions:
+            if not isinstance(companion, dict) or not all(
+                companion.get(key)
+                for key in ("content_hash", "title", "url", "extraction_location")
+            ):
+                raise ValueError("Source companion evidence is incomplete")
+            if (
+                session.scalar(
+                    select(Evidence.id).where(
+                        Evidence.observation_id == observation.id,
+                        Evidence.content_hash == companion["content_hash"],
+                    )
+                )
+                is None
+            ):
+                session.add(
+                    Evidence(
+                        observation_id=observation.id,
+                        content_hash=companion["content_hash"],
+                        title=companion["title"],
+                        abstract=companion.get("abstract"),
+                        url=companion["url"],
+                        published_at=_optional_date(companion.get("published_at")),
+                        extraction_location=companion["extraction_location"],
+                        event_date=_optional_date(companion.get("event_date")),
+                        event_date_label=companion.get("event_date_label"),
+                    )
+                )
+        if companions:
+            session.commit()
         # The PDF is an alternate representation of the FR record. Attach its
         # content hash and page citation to this observation only.
         if record.get("pdf_url"):
@@ -552,7 +617,7 @@ def process_job(
                             title=pdf["title"],
                             abstract=pdf["abstract"],
                             url=pdf["url"],
-                            published_at=date.fromisoformat(pdf["published_at"]),
+                            published_at=_optional_date(pdf.get("published_at")),
                             extraction_location=pdf["extraction_location"],
                             event_date=None,
                         )
@@ -572,11 +637,11 @@ def process_job(
             interpretation.evaluator_version if interpretation is not None else None
         )
         if (
-            source_definition.get("retrieval_method") == "socrata-permits"
+            is_permit_source
             and interpretation is not None
             and interpretation.status in {"accepted", "rejected"}
             and interpretation.content_hash == digest
-            and interpretation.evaluator_version == PERMIT_EVALUATOR_VERSION
+            and interpretation.evaluator_version == permit_evaluator_version(record)
             and interpretation.assessment is not None
             and interpretation.assessment.get("semantic_hash") == digest
             and interpretation.assessment.get("evidence_hash") == evidence_digest
@@ -606,11 +671,7 @@ def process_job(
         session.commit()  # Raw evidence and the interpretation backlog survive a crash.
 
         try:
-            permit_assessment = (
-                assess_permit(record)
-                if source_definition.get("retrieval_method") == "socrata-permits"
-                else None
-            )
+            permit_assessment = assess_permit(record) if is_permit_source else None
             interpreted = (
                 {
                     "name": permit_assessment["subject"],
@@ -644,7 +705,7 @@ def process_job(
                         Evidence.content_hash == evidence_digest,
                     )
                 )
-                interpretation.evaluator_version = PERMIT_EVALUATOR_VERSION
+                interpretation.evaluator_version = permit_evaluator_version(record)
                 interpretation.assessment = _permit_assessment_payload(
                     permit_assessment,
                     current_evidence,
@@ -820,7 +881,7 @@ def process_job(
                         Evidence.content_hash == evidence_digest,
                     )
                 )
-                interpretation.evaluator_version = PERMIT_EVALUATOR_VERSION
+                interpretation.evaluator_version = permit_evaluator_version(record)
                 interpretation.assessment = _permit_assessment_payload(
                     permit_assessment,
                     current_evidence,
@@ -852,6 +913,9 @@ def _process_collection_only(
         "changed": 0,
         "unchanged": 0,
         "signals": 0,
+        "retrieved_records": len(records),
+        "parsed_records": len(records),
+        "records_scanned": len(records),
         "latest_publication_date": None,
         "snapshot_item_count": len(records),
         "snapshot_oldest_publication_date": None,

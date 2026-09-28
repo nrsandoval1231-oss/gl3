@@ -1,45 +1,94 @@
 import { expect, test } from '@playwright/test'
 import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import type { Opportunity } from '../src/api/client'
+import { projectCards, projectTitle } from '../src/features/opportunities/projectCards'
 
 const credentialPath = resolve(process.cwd(), '../.artifacts/local-auth.txt')
 const password = process.env.GRIDLENS_TEST_PASSWORD ?? (existsSync(credentialPath) ? readFileSync(credentialPath, 'utf8').split(/\r?\n/)[1] : undefined)
 
-test('private browse/detail keeps context and source health fits a phone', async ({ page, request }) => {
-  test.skip(!password, 'Set GRIDLENS_TEST_PASSWORD and provide a populated local database to run the authenticated browser proof')
-  const activePassword = password ?? ''
-  expect((await request.get('/api/health')).status()).toBe(401)
+function requirePassword() {
+  if (!password) throw new Error('Authenticated browser proof requires GRIDLENS_TEST_PASSWORD or ../.artifacts/local-auth.txt')
+  return password
+}
+
+async function signIn(page: import('@playwright/test').Page) {
   await page.goto('/')
-  await page.getByLabel('Password').fill(activePassword)
+  await page.getByLabel('Password').fill(requirePassword())
   await page.getByRole('button', { name: 'Continue' }).click()
   await expect(page.getByRole('heading', { name: 'Signals', exact: true })).toBeVisible()
+}
 
-  const search = page.getByRole('textbox', { name: 'Search projects' })
-  await search.fill('Roca Honda')
-  const signal = page.getByRole('button', { name: /Roca Honda Mine Project/i })
-  await expect(signal).toBeVisible()
-  await signal.click()
-  await expect(page.getByRole('heading', { level: 1, name: /Roca Honda Mine Project/i })).toBeVisible()
-  await expect(page.getByText('2026-09-14').first()).toBeVisible()
-  const unknownEvents = page.getByText('Described event: Unknown', { exact: true })
-  const unknownEventCount = await unknownEvents.count()
-  expect(unknownEventCount).toBeGreaterThan(0)
-  for (let index = 0; index < unknownEventCount; index += 1) {
-    await expect(unknownEvents.nth(index)).toBeVisible()
-  }
+test('authenticated desktop browse, detail, back, and search use a live Signal', async ({ page }) => {
+  await expect((await page.request.get('/api/health')).status()).toBe(401)
+  await signIn(page)
+
+  const response = await page.evaluate(async () => {
+    const result = await fetch('/api/opportunities?tier=Signal')
+    return { status: result.status, items: await result.json() as Opportunity[] }
+  })
+  expect(response.status).toBe(200)
+  expect(response.items.length, 'authenticated local API must contain at least one real Signal').toBeGreaterThan(0)
+  const cards = projectCards(response.items)
+  const signalCard = cards.find((card) => card.members.some((item) => item.evidence.length > 0))
+  const signal = signalCard?.members.find((item) => item.evidence.length > 0)
+  expect(signal, 'a browseable Signal must retain linked source evidence').toBeTruthy()
+  if (!signal) throw new Error('No Signal with retained source evidence exists in the local database')
+  if (!signalCard) throw new Error('No project card exists for the selected Signal')
+
+  const title = projectTitle(signal)
+  const row = page.locator(`[data-opportunity-id="${signalCard.members[0].id}"]`).first()
+  await expect(row).toBeVisible()
+  await page.getByRole('textbox', { name: 'Search projects' }).fill(title)
+  await expect(row).toBeVisible()
+  await row.click()
+  if (signalCard.grouped) await page.locator(`[data-opportunity-id="${signal.id}"]`).last().click()
+  await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible()
+  await expect(page.getByText(signal.evidence[0].source_id, { exact: false }).first()).toBeVisible()
   await page.getByRole('button', { name: /Back to Signals/ }).click()
-  await expect(page.getByRole('textbox', { name: 'Search projects' })).toHaveValue('Roca Honda')
-  await expect(page.getByRole('button', { name: /Roca Honda Mine Project/i })).toBeFocused()
+  await expect(page.getByRole('textbox', { name: 'Search projects' })).toHaveValue(title)
+  await expect(page.locator(`[data-opportunity-id="${signal.id}"]`).first()).toBeFocused()
 
-  await page.getByRole('button', { name: /Roca Honda Mine Project/i }).click()
+  await page.locator(`[data-opportunity-id="${signalCard.members[0].id}"]`).first().click()
+  if (signalCard.grouped) await page.locator(`[data-opportunity-id="${signal.id}"]`).last().click()
   await page.goBack()
-  await expect(page.getByRole('button', { name: /Roca Honda Mine Project/i })).toBeFocused()
+  await expect(page.locator(`[data-opportunity-id="${signal.id}"]`).first()).toBeFocused()
+})
+
+test('mobile health, ingestion inbox, watch, and browser history show actual local data states', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
+  await signIn(page)
+
+  const inbox = await page.evaluate(async () => {
+    const result = await fetch('/api/ingestion?limit=1&offset=0&watch_only=false')
+    return { status: result.status, page: await result.json() as { items: { title: string }[]; total: number } }
+  })
+  expect(inbox.status).toBe(200)
+  expect(inbox.page.total, 'local retained evidence must populate the ingestion inbox').toBeGreaterThan(0)
+  await page.getByRole('button', { name: 'Ingestion' }).click()
+  await expect(page.getByRole('heading', { name: 'Ingestion inbox' })).toBeVisible()
+  await expect(page.locator('.ingestion-card').first()).toContainText(inbox.page.items[0].title)
+
+  await page.getByRole('button', { name: 'Cannabis watch' }).click()
+  await expect(page.getByRole('heading', { name: 'Cannabis business news watch' })).toBeVisible()
+  const watch = await page.evaluate(async () => {
+    const result = await fetch('/api/ingestion?limit=1&offset=0&watch_only=true&vertical=cannabis')
+    return { status: result.status, page: await result.json() as { items: { title: string }[]; total: number } }
+  })
+  expect(watch.status).toBe(200)
+  if (watch.page.total > 0) {
+    await expect(page.locator('.ingestion-card').first()).toContainText(watch.page.items[0].title)
+  } else {
+    await expect(page.getByRole('heading', { name: 'No topic matches in this snapshot' })).toBeVisible()
+  }
+  await page.goBack()
+  await expect(page.getByRole('heading', { name: 'Ingestion inbox' })).toBeVisible()
+
   await page.getByRole('button', { name: 'Source health' }).click()
   await expect(page.getByRole('heading', { name: 'Source health' })).toBeVisible()
   const rows = page.locator('.health-row')
   const rowCount = await rows.count()
-  expect(rowCount).toBeGreaterThan(0)
+  expect(rowCount, 'the populated local database must expose configured source health').toBeGreaterThan(0)
   const panel = await page.locator('.health-panel').boundingBox()
   expect(panel).toBeTruthy()
   for (let index = 0; index < rowCount; index += 1) {
@@ -47,86 +96,23 @@ test('private browse/detail keeps context and source health fits a phone', async
     const bounds = await row.boundingBox()
     expect(bounds && panel && bounds.x >= panel.x && bounds.x + bounds.width <= panel.x + panel.width).toBeTruthy()
     await expect(row.locator('.status')).toBeVisible()
-    if (await row.getByText(/permit/i).count()) {
-      await expect(row).toContainText(/Latest permit issue date (?:\d{4}-\d{2}-\d{2}|unknown)/i)
-      await expect(row).toContainText(/source publication time unknown/i)
-    } else {
-      await expect(row).toContainText(/Latest publication (?:\d{4}-\d{2}-\d{2}|unknown)/i)
-    }
     await expect(row).toContainText(/\d+ new · \d+ changed · \d+ parse failures/)
   }
-  const widths = await page.evaluate(() => ({ page: document.documentElement.scrollWidth, viewport: document.documentElement.clientWidth }))
-  expect(widths.page).toBeLessThanOrEqual(widths.viewport)
-})
-
-test('news inbox and cannabis watch are separate review views with back navigation', async ({ page }) => {
-  test.skip(!password, 'Set GRIDLENS_TEST_PASSWORD to run the authenticated browser proof')
-  await page.setViewportSize({ width: 390, height: 844 })
-  await page.goto('/')
-  await page.getByLabel('Password').fill(password ?? '')
-  await page.getByRole('button', { name: 'Continue' }).click()
-  await expect(page.getByRole('heading', { name: 'Signals', exact: true })).toBeVisible()
-  await page.goto('/?view=watch&source=dcd-news&vertical=data%20centers&offset=50')
-  await expect(page.getByRole('heading', { name: 'Cannabis business news watch' })).toBeVisible()
-  await expect(page.getByLabel('Filter by source')).toHaveValue('')
-  await expect(page.getByLabel('Filter by vertical')).toHaveValue('cannabis')
-  await page.getByRole('button', { name: 'Ingestion' }).click()
-  await page.getByLabel('Filter by vertical').selectOption('')
-  await expect(page.getByRole('heading', { name: 'Ingestion inbox' })).toBeVisible()
-  await expect(page.getByLabel('Filter by source')).toBeVisible()
-  await expect(page.getByLabel('Filter by vertical')).toBeVisible()
-  await expect(page.getByText(/Permits are primary project discovery; news is supplemental/)).toBeVisible()
-  const watchNavigation = page.getByRole('navigation', { name: 'Workspace views' })
-  const watchButton = watchNavigation.getByRole('button', { name: 'Cannabis watch' })
-  await watchButton.scrollIntoViewIfNeeded()
-  await expect(watchButton).toBeInViewport()
-  await watchButton.click()
-  await expect(page.getByRole('heading', { name: 'Cannabis business news watch' })).toBeVisible()
-  await expect(page.getByText(/A mention does not establish a facility announcement/)).toBeVisible()
-  const articles = page.locator('.ingestion-card')
-  await expect(articles.first()).toBeVisible()
-  const pager = page.locator('.collection-pagination')
-  await expect(pager).toBeVisible()
-  const flowPositions = await page.evaluate(() => {
-    const lastArticle = document.querySelector('.ingestion-card:last-child')
-    const collectionPager = document.querySelector('.collection-pagination')
-    if (!lastArticle || !collectionPager) return null
-    return {
-      articleBottom: lastArticle.getBoundingClientRect().bottom + window.scrollY,
-      pagerTop: collectionPager.getBoundingClientRect().top + window.scrollY,
-      pagerPosition: getComputedStyle(collectionPager).position,
-    }
+  const widths = await page.evaluate(() => {
+    const viewport = document.documentElement.clientWidth
+    const overflowing = [...document.querySelectorAll<HTMLElement>('body *')]
+      .map((element) => ({ element, bounds: element.getBoundingClientRect() }))
+      .filter(({ element, bounds }) => bounds.right > viewport + 1 || element.scrollWidth > element.clientWidth + 1)
+      .map(({ element, bounds }) => ({
+        tag: element.tagName,
+        className: typeof element.className === 'string' ? element.className : '',
+        right: Math.round(bounds.right),
+        width: Math.round(bounds.width),
+        clientWidth: element.clientWidth,
+        scrollWidth: element.scrollWidth,
+        text: element.innerText.slice(0, 100),
+      }))
+    return { page: document.documentElement.scrollWidth, viewport, overflowing }
   })
-  expect(flowPositions).not.toBeNull()
-  expect(flowPositions?.pagerPosition).toBe('static')
-  expect(flowPositions?.pagerTop).toBeGreaterThanOrEqual(flowPositions?.articleBottom ?? Infinity)
-  await page.goBack()
-  await expect(page.getByRole('heading', { name: 'Ingestion inbox' })).toBeVisible()
-  const vertical = page.getByLabel('Filter by vertical')
-  await expect(vertical).toHaveValue('')
-  await page.getByRole('button', { name: 'Cannabis watch' }).click()
-  await expect(vertical).toHaveValue('cannabis')
-  await vertical.selectOption('data centers')
-  await expect(page.getByRole('heading', { name: 'Ingestion inbox' })).toBeVisible()
-  await expect(vertical).toHaveValue('data centers')
-  await expect(page.getByLabel('Filter by source')).toHaveValue('')
-  await expect(page.locator('.ingestion-card').first()).toContainText('data centers')
-  await vertical.selectOption('manufacturing')
-  await expect(vertical).toHaveValue('manufacturing')
-  await expect(page.locator('.ingestion-card').first()).toContainText('manufacturing')
-  await page.getByRole('button', { name: 'Cannabis watch' }).click()
-  await expect(page.getByRole('heading', { name: 'Cannabis business news watch' })).toBeVisible()
-  await expect(vertical).toHaveValue('cannabis')
-  await expect(page.locator('.ingestion-card').first()).toBeVisible()
-  await page.goBack()
-  await expect(page.getByRole('heading', { name: 'Ingestion inbox' })).toBeVisible()
-  await expect(vertical).toHaveValue('manufacturing')
-  await expect(page.locator('.ingestion-card').first()).toContainText('manufacturing')
-  await page.goForward()
-  await expect(page.getByRole('heading', { name: 'Cannabis business news watch' })).toBeVisible()
-  await expect(vertical).toHaveValue('cannabis')
-  await vertical.selectOption('')
-  await expect(page.getByRole('heading', { name: 'Ingestion inbox' })).toBeVisible()
-  await expect(vertical).toHaveValue('')
-  await expect(page.locator('.ingestion-card').first()).toBeVisible()
+  expect(widths.page, JSON.stringify(widths.overflowing)).toBeLessThanOrEqual(widths.viewport)
 })

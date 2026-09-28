@@ -1,4 +1,4 @@
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 
 import httpx
 import pytest
@@ -26,6 +26,7 @@ def test_city_maps_and_counted_ordered_pagination():
             "description": "New manufacturing facility construction",
             "permit_type_desc": "Building Permit",
             "permit_class_mapped": "Commercial",
+            "statusdate": datetime.now(UTC).date().isoformat(),
             "work_class": "New",
             "status_current": "Active",
             "original_address1": "1 Industry Way",
@@ -55,6 +56,113 @@ def test_city_maps_and_counted_ordered_pagination():
     assert result[0]["permit"]["row_id"] == "P-0000"
 
 
+def test_old_austin_permit_status_change_is_included_by_official_status_date():
+    definition = source("austin-building-permits")
+    row = {
+        "permit_number": "OLD-1",
+        "issue_date": "2020-05-10",
+        "statusdate": datetime.now(UTC).date().isoformat(),
+        "description": "New industrial facility construction",
+        "permit_type_desc": "Building Permit",
+        "permit_class_mapped": "Commercial",
+        "status_current": "Active",
+        "original_address1": "1 Industry Way",
+        "original_city": "Austin",
+        "original_state": "TX",
+    }
+    requests = []
+
+    def retrieve_row():
+        def handler(request):
+            params = dict(request.url.params)
+            requests.append(params)
+            return httpx.Response(
+                200,
+                json=[{"row_count": "1"}] if "$select" in params else [dict(row)],
+            )
+
+        return retrieve(definition, httpx.Client(transport=httpx.MockTransport(handler)))[0]
+
+    active = retrieve_row()
+    row["status_current"] = "Withdrawn"
+    withdrawn = retrieve_row()
+    assert active["event_date"] == "2020-05-10"
+    assert active["permit"]["status"] == "Active"
+    assert withdrawn["permit"]["status"] == "Withdrawn"
+    assert active["source_hash"] != withdrawn["source_hash"]
+    assert all("statusdate >=" in request["$where"] for request in requests)
+    assert all("issue_date IS NOT NULL" in request["$where"] for request in requests)
+
+
+def test_recent_austin_permit_allows_socrata_to_omit_null_statusdate():
+    definition = source("austin-building-permits")
+    row = {
+        "permit_number": "RECENT-NULL-STATUSDATE",
+        "issue_date": datetime.now(UTC).date().isoformat(),
+        "description": "New industrial facility construction",
+        "permit_type_desc": "Building Permit",
+        "permit_class_mapped": "Commercial",
+        "status_current": "Active",
+        "original_address1": "2 Industry Way",
+        "original_city": "Austin",
+        "original_state": "TX",
+    }
+
+    def handler(request):
+        params = dict(request.url.params)
+        return httpx.Response(
+            200,
+            json=[{"row_count": "1"}] if "$select" in params else [row],
+        )
+
+    result = retrieve(definition, httpx.Client(transport=httpx.MockTransport(handler)))
+    assert len(result) == 1
+    assert result[0]["permit"]["status"] == "Active"
+
+
+def test_old_chicago_permit_status_change_uses_selected_socrata_updated_at():
+    definition = source("chicago-building-permits")
+    row = {
+        "id": "OLD-CHICAGO-1",
+        "issue_date": "2020-05-10T00:00:00",
+        ":updated_at": datetime.now(UTC).isoformat().replace("+00:00", "Z"),
+        "work_description": "New industrial facility construction",
+        "work_type": "NEW CONSTRUCTION",
+        "permit_type": "PERMIT - NEW CONSTRUCTION",
+        "permit_status": "ACTIVE",
+        "street_number": "1",
+        "street_direction": "",
+        "street_name": "INDUSTRY WAY",
+    }
+    page_requests = []
+
+    def retrieve_row():
+        def handler(request):
+            params = dict(request.url.params)
+            if params.get("$select") == "count(*) AS row_count":
+                return httpx.Response(200, json=[{"row_count": "1"}])
+            page_requests.append(params)
+            return httpx.Response(200, json=[dict(row)])
+
+        return retrieve(definition, httpx.Client(transport=httpx.MockTransport(handler)))[0]
+
+    active = retrieve_row()
+    row["permit_status"] = "EXPIRED"
+    row[":updated_at"] = (
+        (datetime.now(UTC) + timedelta(seconds=1)).isoformat().replace("+00:00", "Z")
+    )
+    expired = retrieve_row()
+    assert active["event_date"] == "2020-05-10"
+    assert active["permit"]["status"] == "ACTIVE"
+    assert active["permit"]["source_modified_at"]
+    assert expired["permit"]["status"] == "EXPIRED"
+    assert active["source_hash"] != expired["source_hash"]
+    assert all(params["$select"] == "*, :updated_at" for params in page_requests)
+    assert all(":updated_at >=" in params["$where"] for params in page_requests)
+    assert all(":updated_at <=" in params["$where"] for params in page_requests)
+    assert all("issue_date IS NOT NULL" in params["$where"] for params in page_requests)
+
+
 @pytest.mark.parametrize("mutation", ["duplicate", "out_of_window", "empty_count", "off_host"])
 def test_adapter_fails_closed_on_inconsistent_or_unsafe_result(mutation):
     row = {
@@ -63,6 +171,7 @@ def test_adapter_fails_closed_on_inconsistent_or_unsafe_result(mutation):
         "description": "Construction of manufacturing facility",
         "permit_type_desc": "Building Permit",
         "permit_class_mapped": "Commercial",
+        "statusdate": datetime.now(UTC).date().isoformat(),
         "work_class": "New",
         "original_address1": "1 Main St",
         "original_city": "Austin",
@@ -80,6 +189,7 @@ def test_adapter_fails_closed_on_inconsistent_or_unsafe_result(mutation):
             return httpx.Response(200, json=[row, row])
         if mutation == "out_of_window":
             row["issue_date"] = "2020-01-01"
+            row["statusdate"] = "2020-01-01"
         return httpx.Response(200, json=[row])
 
     if mutation == "off_host":

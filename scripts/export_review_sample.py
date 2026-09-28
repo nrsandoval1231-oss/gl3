@@ -57,7 +57,9 @@ def build_export(session: Session) -> dict[str, Any]:
                 "external_id": observation.external_id,
                 "title": observation.title,
                 "abstract": observation.abstract,
-                "published_at": observation.published_at.isoformat(),
+                "published_at": observation.published_at.isoformat()
+                if observation.published_at
+                else None,
                 "url": observation.url,
                 "content_hash": observation.content_hash,
                 "evidence": [
@@ -67,7 +69,9 @@ def build_export(session: Session) -> dict[str, Any]:
                         "title": item.title,
                         "abstract": item.abstract,
                         "url": item.url,
-                        "published_at": item.published_at.isoformat(),
+                        "published_at": item.published_at.isoformat()
+                        if item.published_at
+                        else None,
                         "observed_at": item.observed_at.isoformat(),
                         "extraction_location": item.extraction_location,
                         "event_date": item.event_date.isoformat() if item.event_date else None,
@@ -108,9 +112,7 @@ def build_export(session: Session) -> dict[str, Any]:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument(
-        "--output", type=Path, default=Path(".artifacts/local-review-sample.json")
-    )
+    parser.add_argument("--output", type=Path, default=Path(".artifacts/local-review-sample.json"))
     args = parser.parse_args()
     output = args.output.resolve()
     if output.exists():
