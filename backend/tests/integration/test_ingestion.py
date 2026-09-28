@@ -157,7 +157,8 @@ def test_permit_assessment_replay_correction_and_deactivation(db):
         job_id = job.id
     row = {
         "permit_number": "2026-SYN-1",
-        "issue_date": date.today().isoformat(),
+        "issue_date": "2020-05-10",
+        "statusdate": date.today().isoformat(),
         "description": "Replace natural gas generator and ATS at existing telecom shelter.",
         "permit_class_mapped": "Commercial",
         "work_class": "New",
@@ -173,6 +174,7 @@ def test_permit_assessment_replay_correction_and_deactivation(db):
     def run():
         def handler(request):
             params = dict(request.url.params)
+            assert "statusdate >=" in params["$where"]
             return httpx.Response(200, json=[{"row_count": "1"}] if "$select" in params else [row])
 
         with factory() as session:
@@ -199,9 +201,12 @@ def test_permit_assessment_replay_correction_and_deactivation(db):
         assert interpretation.status == "rejected"
         assert interpretation.assessment["rental_category"] == "secured_supply"
         assert interpretation.assessment["previous_decisions"]
-        assert session.scalar(
-            select(PowerNeed.active).join(Project).where(Project.source_id == definition["id"])
-        ) is False
+        assert (
+            session.scalar(
+                select(PowerNeed.active).join(Project).where(Project.source_id == definition["id"])
+            )
+            is False
+        )
     with factory.begin() as session:
         interpretation = session.scalar(
             select(Interpretation)
@@ -226,9 +231,12 @@ def test_permit_assessment_replay_correction_and_deactivation(db):
             interpretation.assessment["previous_decisions"][-1]["evaluator_version"]
             == "permit-project-v4"
         )
-        assert session.scalar(
-            select(PowerNeed.active).join(Project).where(Project.source_id == definition["id"])
-        ) is False
+        assert (
+            session.scalar(
+                select(PowerNeed.active).join(Project).where(Project.source_id == definition["id"])
+            )
+            is False
+        )
         assert session.scalar(select(func.count()).select_from(ChangeEvent)) == close_event_count
         history_count = len(interpretation.assessment["previous_decisions"])
         evidence_count = session.scalar(select(func.count()).select_from(Evidence))
@@ -363,10 +371,10 @@ def test_permit_v5_rejected_to_v6_clause_recovery_and_replay(db):
             {
                 "decision": "rejected",
                 "tier": None,
-                    "reason": (
-                        "Permit reports temporary power as provided or secured; "
-                        "no open rental need is asserted."
-                    ),
+                "reason": (
+                    "Permit reports temporary power as provided or secured; "
+                    "no open rental need is asserted."
+                ),
                 "subject": None,
                 "action": None,
                 "rental_category": "secured_supply",

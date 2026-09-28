@@ -34,6 +34,7 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
                 "data.seattle.gov",
                 "data.cityofchicago.org",
             },
+            "georgia-air-permits": {"epd.georgia.gov"},
         }
         if source["id"] in ids or urlparse(source["endpoint"]).hostname not in allowed_hosts.get(
             source["retrieval_method"], set()
@@ -41,7 +42,7 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
             raise ValueError("Duplicate source ID or unapproved host")
         ids.add(source["id"])
         query = source.get("query", {})
-        valid_window = source["retrieval_method"] == "publisher-rss" or (
+        valid_window = source["retrieval_method"] in {"publisher-rss", "georgia-air-permits"} or (
             1 <= query.get("window_days", 0) <= 90
         )
         if source["retrieval_method"] in {"json-api", "federal-register-json"}:
@@ -79,6 +80,21 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
                 and query.get("max_run_bytes") == 20_000_000
                 and source.get("city") in {"Austin", "Seattle", "Chicago"}
                 and source.get("state") in {"TX", "WA", "IL"}
+            )
+        elif source["retrieval_method"] == "georgia-air-permits":
+            bounded = (
+                source.get("family") == "construction-permits"
+                and source.get("cadence_hours") == 24
+                and query.get("rows_per_page") == 100
+                and 1 <= query.get("max_pages", 0) <= 5
+                and 1 <= query.get("max_records", 0) <= 500
+                and query.get("max_response_bytes") == 2_000_000
+                    and query.get("max_run_bytes") == 30_000_000
+                    and 1 <= query.get("max_pdfs_per_run", 0) <= 50
+                    and query.get("max_pdf_bytes") == 4_000_000
+                    and query.get("max_pdf_pages") == 200
+                    and query.get("max_pdf_total_pages") == 5000
+                and source.get("geography") == "Georgia"
             )
         else:
             bounded = False

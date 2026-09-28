@@ -152,11 +152,8 @@ export interface components {
             title: string;
             /** Url */
             url: string;
-            /**
-             * Published At
-             * Format: date
-             */
-            published_at: string;
+            /** Published At */
+            published_at: string | null;
         };
         /** EvidenceOut */
         EvidenceOut: {
@@ -166,11 +163,8 @@ export interface components {
             abstract: string | null;
             /** Url */
             url: string;
-            /**
-             * Published At
-             * Format: date
-             */
-            published_at: string;
+            /** Published At */
+            published_at: string | null;
             /**
              * Retrieved At
              * Format: date-time
@@ -270,6 +264,10 @@ export interface components {
             latest_publication_date?: string | null;
             /** Latest Permit Issue Date */
             latest_permit_issue_date?: string | null;
+            /** Latest Public Comment Deadline */
+            latest_public_comment_deadline?: string | null;
+            /** Earliest Public Comment Deadline */
+            earliest_public_comment_deadline?: string | null;
             /**
              * Records Scanned
              * @default 0
@@ -285,6 +283,16 @@ export interface components {
              * @default 0
              */
             permit_rejected: number;
+            /**
+             * Documents Extracted
+             * @default 0
+             */
+            documents_extracted: number;
+            /**
+             * Unextracted Public Notice References
+             * @default 0
+             */
+            unextracted_public_notice_references: number;
             /** Snapshot Item Count */
             snapshot_item_count?: number | null;
             /** Snapshot Oldest Publication Date */
@@ -312,11 +320,12 @@ export interface components {
             external_id: string;
             /** Title */
             title: string;
-            /**
-             * Published At
-             * Format: date
-             */
-            published_at: string;
+            /** Published At */
+            published_at: string | null;
+            /** Event Date */
+            event_date?: string | null;
+            /** Event Date Label */
+            event_date_label?: string | null;
             /**
              * First Seen At
              * Format: date-time
@@ -360,6 +369,8 @@ export interface components {
             supply_quote?: string | null;
             /** Missing Facts */
             missing_facts?: string[];
+            /** Reported Power Facts */
+            reported_power_facts?: string[];
             /** Permit Status */
             permit_status?: string | null;
         };
@@ -435,6 +446,8 @@ export interface components {
             supply_quote?: string | null;
             /** Missing Facts */
             missing_facts?: string[];
+            /** Reported Power Facts */
+            reported_power_facts?: string[];
             /** Evidence */
             evidence: components["schemas"]["EvidenceOut"][];
         };

@@ -47,7 +47,7 @@ class EvidenceOut(BaseModel):
     title: str
     abstract: str | None
     url: str
-    published_at: date
+    published_at: date | None
     retrieved_at: datetime
     extraction_location: str
     content_hash: str
@@ -78,6 +78,7 @@ class OpportunityOut(BaseModel):
     demand_quote: str | None = None
     supply_quote: str | None = None
     missing_facts: list[str] = Field(default_factory=list)
+    reported_power_facts: list[str] = Field(default_factory=list)
     evidence: list[EvidenceOut]
 
 
@@ -99,9 +100,13 @@ class HealthSourceOut(BaseModel):
     error: str | None = None
     latest_publication_date: str | None = None
     latest_permit_issue_date: str | None = None
+    latest_public_comment_deadline: str | None = None
+    earliest_public_comment_deadline: str | None = None
     records_scanned: int = 0
     permit_accepted: int = 0
     permit_rejected: int = 0
+    documents_extracted: int = 0
+    unextracted_public_notice_references: int = 0
     snapshot_item_count: int | None = None
     snapshot_oldest_publication_date: str | None = None
     snapshot_newest_publication_date: str | None = None
@@ -119,7 +124,7 @@ class ChangeOut(BaseModel):
     kind: str
     title: str
     url: str
-    published_at: date
+    published_at: date | None
 
 
 class LoginBody(BaseModel):
@@ -151,7 +156,9 @@ class IngestionItemOut(BaseModel):
     source_scope: str
     external_id: str
     title: str
-    published_at: date
+    published_at: date | None
+    event_date: date | None = None
+    event_date_label: str | None = None
     first_seen_at: datetime
     latest_evidence_at: datetime
     excerpt: str | None
@@ -169,6 +176,7 @@ class IngestionItemOut(BaseModel):
     demand_quote: str | None = None
     supply_quote: str | None = None
     missing_facts: list[str] = Field(default_factory=list)
+    reported_power_facts: list[str] = Field(default_factory=list)
     permit_status: str | None = None
 
 
@@ -365,6 +373,8 @@ def ingestion(
                     "external_id": observation.external_id,
                     "title": evidence.title,
                     "published_at": evidence.published_at,
+                    "event_date": evidence.event_date,
+                    "event_date_label": evidence.event_date_label,
                     "first_seen_at": observation.first_seen_at,
                     "latest_evidence_at": evidence.observed_at,
                     "excerpt": evidence.abstract,
@@ -412,6 +422,9 @@ def ingestion(
                     "demand_quote": assessment.get("demand_quote") if assessment else None,
                     "supply_quote": assessment.get("supply_quote") if assessment else None,
                     "missing_facts": assessment.get("missing_facts", []) if assessment else [],
+                    "reported_power_facts": assessment.get("reported_power_facts", [])
+                    if assessment
+                    else [],
                     "permit_status": assessment.get("permit_status") if assessment else None,
                 }
             )
@@ -462,9 +475,14 @@ def opportunities(tier: str | None = None, search: str | None = None):
                         "extraction_location": ev.extraction_location,
                         "content_hash": ev.content_hash,
                         "event_date": ev.event_date,
-                        "event_date_label": ev.event_date.isoformat()
-                        if ev.event_date
-                        else "Unknown",
+                        "event_date_label": ev.event_date_label
+                        or (
+                            "Permit issue date (source publication date unknown)"
+                            if ev.event_date and obs.source_id.endswith("-building-permits")
+                            else "Source event date"
+                            if ev.event_date
+                            else "Unknown"
+                        ),
                         "source_id": obs.source_id,
                         "document_number": obs.external_id,
                         "assessment_current": current_assessment is not None,
@@ -522,6 +540,9 @@ def opportunities(tier: str | None = None, search: str | None = None):
                     if current_assessment
                     else None,
                     "missing_facts": missing_facts,
+                    "reported_power_facts": current_assessment.get("reported_power_facts", [])
+                    if current_assessment
+                    else [],
                     "evidence": evidence,
                 }
             )
@@ -544,7 +565,7 @@ def changes():
                 "kind": event.kind,
                 "title": obs.title,
                 "url": obs.url,
-                "published_at": obs.published_at.isoformat(),
+                "published_at": obs.published_at.isoformat() if obs.published_at else None,
             }
             for event, obs in rows
         ]
