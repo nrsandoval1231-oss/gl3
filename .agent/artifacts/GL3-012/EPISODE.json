@@ -1,0 +1,19 @@
+{
+  "audit_seconds": "UNKNOWN",
+  "finish_utc": "2026-09-27T23:20:43.2871276Z",
+  "build_seconds": "UNKNOWN",
+  "validation_definition": "Measured final typecheck/build/Playwright/diff subprocess durations only",
+  "lesson": "Summarize current supported activity; preserve full evidence and API data; test real source wording for concise titles",
+  "node": "GL3-012",
+  "tokens": "UNKNOWN",
+  "start_definition": "Packet creation; earlier planning duration UNKNOWN",
+  "planning_seconds": "UNKNOWN",
+  "start_utc": "2026-09-27T23:01:59.4283630Z",
+  "models": "Luna low builder; Sol medium independent review",
+  "lesson_status": "Local candidate only; no global memory update",
+  "lane": "focused UI",
+  "repair_count": 1,
+  "validation_seconds": 6.656,
+  "config_identity": "UNKNOWN",
+  "status": "ACCEPTED_LOCAL"
+}

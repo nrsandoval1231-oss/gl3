@@ -96,19 +96,28 @@ def run_one(definitions: dict[str, dict]) -> bool:
                 "last_success": attempted,
                 "new_records": counts["new"],
                 "changed_records": counts["changed"],
+                "unchanged_records": counts["unchanged"],
                 "parse_failures": 0,
                 "error": None,
                 "latest_publication_date": counts["latest_publication_date"],
+                "collection_scope": definition.get("collection_scope"),
+                "coverage_limitation": definition.get("coverage_limitation"),
                 **{
                     key: counts[key]
                     for key in (
+                        "retrieved_records",
+                        "parsed_records",
                         "snapshot_item_count",
                         "snapshot_oldest_publication_date",
                         "snapshot_newest_publication_date",
                         "latest_permit_issue_date",
+                        "latest_public_comment_deadline",
+                        "earliest_public_comment_deadline",
                         "records_scanned",
                         "permit_accepted",
                         "permit_rejected",
+                        "documents_extracted",
+                        "unextracted_public_notice_references",
                     )
                     if key in counts
                 },

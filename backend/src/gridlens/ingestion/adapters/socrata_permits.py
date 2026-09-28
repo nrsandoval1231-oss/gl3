@@ -22,6 +22,7 @@ MAPS: dict[str, dict[str, Any]] = {
     "austin-building-permits": {
         "row": "permit_number",
         "date": "issue_date",
+        "modified_date": "statusdate",
         "description": "description",
         "class": "permit_class_mapped",
         "work": "work_class",
@@ -38,6 +39,7 @@ MAPS: dict[str, dict[str, Any]] = {
     "seattle-building-permits": {
         "row": "permitnum",
         "date": "issueddate",
+        "modified_date": None,
         "description": "description",
         "class": "permitclassmapped",
         "work": "permittypemapped",
@@ -54,6 +56,7 @@ MAPS: dict[str, dict[str, Any]] = {
     "chicago-building-permits": {
         "row": "id",
         "date": "issue_date",
+        "modified_date": ":updated_at",
         "description": "work_description",
         "class": None,
         "work": "work_type",
@@ -70,6 +73,7 @@ MAPS: dict[str, dict[str, Any]] = {
         "area": None,
     },
 }
+SYSTEM_FIELD_SELECTS = {"chicago-building-permits": "*, :updated_at"}
 PAGE_SIZE = 1000
 MAX_RESPONSE = 2_000_000
 MAX_RUN = 20_000_000
@@ -103,8 +107,12 @@ def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list
     window = int(query.get("window_days", 30))
     if not 1 <= window <= 90:
         raise SourceParseError("Permit issue-date window is out of bounds")
+    modified_window = int(query.get("modified_window_days", 7))
+    if not 1 <= modified_window <= 90:
+        raise SourceParseError("Permit modification window is out of bounds")
     today = datetime.now(UTC).date()
     start = today - timedelta(days=window)
+    modified_start = today - timedelta(days=modified_window)
     # Fixed field name from the reviewed map; only a literal date enters SoQL.
     date_field = fields["date"]
     class_filters = {
@@ -118,16 +126,32 @@ def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list
             "permit_type IN ('PERMIT - NEW CONSTRUCTION','PERMIT - RENOVATION/ALTERATION')"
         ),
     }
+    issue_filter = (
+        f"({date_field} >= '{start.isoformat()}T00:00:00.000' "
+        f"AND {date_field} <= '{today.isoformat()}T23:59:59.999')"
+    )
+    modified_field = fields.get("modified_date")
+    modified_timestamp_suffix = "Z" if modified_field and modified_field.startswith(":") else ""
+    modified_lower = (
+        f"{modified_start.isoformat()}T00:00:00.000{modified_timestamp_suffix}"
+    )
+    modified_upper = f"{today.isoformat()}T23:59:59.999{modified_timestamp_suffix}"
+    modified_filter = (
+        f" OR ({modified_field} >= '{modified_lower}' AND {modified_field} <= '{modified_upper}')"
+        if modified_field
+        else ""
+    )
     where = (
-        f"{date_field} >= '{start.isoformat()}T00:00:00.000' "
-        f"AND {date_field} <= '{today.isoformat()}T23:59:59.999' "
-        f"AND ({class_filters[source_id]})"
+        f"{date_field} IS NOT NULL AND {date_field} <= '{today.isoformat()}T23:59:59.999' "
+        f"AND ({issue_filter}{modified_filter}) AND ({class_filters[source_id]})"
     )
     params_base: dict[str, str | int] = {
         "$where": where,
         "$order": f"{date_field} ASC,{fields['row']} ASC",
         "$limit": PAGE_SIZE,
     }
+    if source_id in SYSTEM_FIELD_SELECTS:
+        params_base["$select"] = SYSTEM_FIELD_SELECTS[source_id]
     http = client or httpx.Client(
         timeout=20, follow_redirects=False, headers={"Accept": "application/json"}
     )
@@ -208,8 +232,14 @@ def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list
                     raise SourceParseError("Permit response schema changed")
                 row_id = _field(row, fields["row"])
                 issue_date = _date(_field(row, fields["date"]))
-                if not start <= issue_date <= today:
-                    raise SourceParseError("Permit row escaped the requested issue-date window")
+                modified_value = _field(row, modified_field)
+                modified_date = _date(modified_value) if modified_value else None
+                in_issue_window = start <= issue_date <= today
+                in_modified_window = bool(
+                    modified_date and modified_start <= modified_date <= today
+                )
+                if not in_issue_window and not in_modified_window:
+                    raise SourceParseError("Permit row escaped issue and modification windows")
                 if not row_id or row_id in seen:
                     raise SourceParseError("Permit page has missing or duplicate stable row ID")
                 seen.add(row_id)
@@ -269,6 +299,7 @@ def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list
                             "work": _field(row, fields["work"]),
                             "type": _field(row, fields["type"]),
                             "status": _field(row, fields["status"]) or "Unknown",
+                            "source_modified_at": _field(row, modified_field) or None,
                             "description": _field(row, fields["description"]),
                             "cost": _field(row, fields["cost"]),
                             "area": _field(row, fields["area"]),

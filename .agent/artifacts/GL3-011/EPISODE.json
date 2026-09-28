@@ -1,0 +1,26 @@
+{
+  "elapsed_to_accepted": "UNKNOWN",
+  "repair_count_scope": "Formal post-freeze integration repair packet; pre-freeze corrective iterations and runtime recovery preserved separately, not included in this count",
+  "runtime_worker_processes": [
+    47872,
+    38540
+  ],
+  "parent_finish_contract": "OPEN",
+  "planning_seconds": "UNKNOWN",
+  "finished_at_utc": "2026-09-27T22:21:30.8835940Z",
+  "start_utc": "UNKNOWN",
+  "config_identity": "UNKNOWN",
+  "deterministic": "199 backend tests; 3 browser tests; static/types/build/diff; migration; normal job and stable replay; browser and secret scan PASS",
+  "node": "GL3-011",
+  "status": "ACCEPTED_LOCAL",
+  "direction": "CONTINUE",
+  "build_seconds": "UNKNOWN",
+  "lesson_status": "Local candidate lesson; no global memory promotion",
+  "repair_count": 1,
+  "models": "Luna low; Sol medium",
+  "lesson": "Retain current-purpose source passages separately from historical permit tables; test full live excerpts and citation lengths before ingestion",
+  "tokens": "UNKNOWN",
+  "candidate": "b3122aebae423816445d376180304c46c6579700c06074b3f3c276bcbe297398",
+  "audit_seconds": "UNKNOWN",
+  "lane": "One Luna builder; bounded Sol direction and independent review"
+}

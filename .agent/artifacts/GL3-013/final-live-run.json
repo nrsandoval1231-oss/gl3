@@ -1,0 +1,3261 @@
+{
+  "schema_version": 1,
+  "status": "passed",
+  "objective": "fresh real-source ordinary-worker ingestion and replay",
+  "database_name": "gridlens_verify_20260927_final",
+  "started_at_utc": "2026-09-28T01:15:32.672504+00:00",
+  "model": "gpt-6-luna",
+  "tokens": "UNKNOWN",
+  "source_count": 12,
+  "digest_policy": {
+    "content_digest": "All retained columns except Interpretation.attempts and Interpretation.updated_at, which are retry bookkeeping.",
+    "operational_digest": "Full row content, including retry counters and timestamps.",
+    "excluded_from_semantic_content": {
+      "interpretations": [
+        "attempts",
+        "updated_at"
+      ]
+    }
+  },
+  "initial_database_counts": {
+    "observations": 0,
+    "evidence": 0,
+    "projects": 0,
+    "needs": 0,
+    "need_observations": 0,
+    "changes": 0,
+    "interpretations": 0
+  },
+  "initial_database_digests": {
+    "observations": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "operational_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "evidence": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "operational_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "projects": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "operational_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "needs": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "operational_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "need_observations": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "operational_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "changes": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "operational_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "interpretations": {
+      "count": 0,
+      "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+      "operational_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    }
+  },
+  "initial_morning_changes": {
+    "count": 0,
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "items": []
+  },
+  "first_pass": [
+    {
+      "source_id": "austin-building-permits",
+      "publisher": "City of Austin Open Data",
+      "attempted": true,
+      "status": "Updated",
+      "overdue_before_run": true,
+      "overdue_after_run": false,
+      "last_success": "2026-09-28T01:15:32.915332+00:00",
+      "parse_failures": 0,
+      "retrieved_records": 1600,
+      "parsed_records": 1600,
+      "new_records": 1600,
+      "changed_records": 0,
+      "unchanged_records": 0,
+      "failed_jobs": 0,
+      "failed_records": 0,
+      "failed_interpretations": 0,
+      "pending_interpretations": 0,
+      "pipeline_status": "PASS",
+      "error": null,
+      "source_database_counts": {
+        "observations": 1600,
+        "evidence": 1600,
+        "projects": 58,
+        "needs": 58,
+        "changes": 58,
+        "failed_interpretations": 0,
+        "pending_interpretations": 0
+      },
+      "job_status": "succeeded",
+      "job_attempts": 1,
+      "incidental_attempts": []
+    },
+    {
+      "source_id": "chicago-building-permits",
+      "publisher": "City of Chicago Data Portal",
+      "attempted": true,
+      "status": "Updated",
+      "overdue_before_run": true,
+      "overdue_after_run": false,
+      "last_success": "2026-09-28T01:15:43.106161+00:00",
+      "parse_failures": 0,
+      "retrieved_records": 638,
+      "parsed_records": 638,
+      "new_records": 638,
+      "changed_records": 0,
+      "unchanged_records": 0,
+      "failed_jobs": 0,
+      "failed_records": 0,
+      "failed_interpretations": 0,
+      "pending_interpretations": 0,
+      "pipeline_status": "PASS",
+      "error": null,
+      "source_database_counts": {
+        "observations": 638,
+        "evidence": 638,
+        "projects": 13,
+        "needs": 13,
+        "changes": 13,
+        "failed_interpretations": 0,
+        "pending_interpretations": 0
+      },
+      "job_status": "succeeded",
+      "job_attempts": 1,
+      "incidental_attempts": []
+    },
+    {
+      "source_id": "construction-dive-news",
+      "publisher": "Construction Dive",
+      "attempted": true,
+      "status": "Updated",
+      "overdue_before_run": true,
+      "overdue_after_run": false,
+      "last_success": "2026-09-28T01:15:48.440248+00:00",
+      "parse_failures": 0,
+      "retrieved_records": 10,
+      "parsed_records": 10,
+      "new_records": 10,
+      "changed_records": 0,
+      "unchanged_records": 0,
+      "failed_jobs": 0,
+      "failed_records": 0,
+      "failed_interpretations": 0,
+      "pending_interpretations": 0,
+      "pipeline_status": "PASS",
+      "error": null,
+      "source_database_counts": {
+        "observations": 10,
+        "evidence": 10,
+        "projects": 2,
+        "needs": 2,
+        "changes": 2,
+        "failed_interpretations": 0,
+        "pending_interpretations": 0
+      },
+      "job_status": "succeeded",
+      "job_attempts": 1,
+      "incidental_attempts": []
+    },
+    {
+      "source_id": "dcd-news",
+      "publisher": "Data Center Dynamics",
+      "attempted": true,
+      "status": "Updated",
+      "overdue_before_run": true,
+      "overdue_after_run": false,
+      "last_success": "2026-09-28T01:15:48.621606+00:00",
+      "parse_failures": 0,
+      "retrieved_records": 20,
+      "parsed_records": 20,
+      "new_records": 20,
+      "changed_records": 0,
+      "unchanged_records": 0,
+      "failed_jobs": 0,
+      "failed_records": 0,
+      "failed_interpretations": 0,
+      "pending_interpretations": 0,
+      "pipeline_status": "PASS",
+      "error": null,
+      "source_database_counts": {
+        "observations": 20,
+        "evidence": 20,
+        "projects": 1,
+        "needs": 1,
+        "changes": 1,
+        "failed_interpretations": 0,
+        "pending_interpretations": 0
+      },
+      "job_status": "succeeded",
+      "job_attempts": 1,
+      "incidental_attempts": []
+    },
+    {
+      "source_id": "federal-register-eis",
+      "publisher": "Federal Register",
+      "attempted": true,
+      "status": "Updated",
+      "overdue_before_run": true,
+      "overdue_after_run": false,
+      "last_success": "2026-09-28T01:15:49.640798+00:00",
+      "parse_failures": 0,
+      "retrieved_records": 73,
+      "parsed_records": 73,
+      "new_records": 73,
+      "changed_records": 0,
+      "unchanged_records": 0,
+      "failed_jobs": 0,
+      "failed_records": 0,
+      "failed_interpretations": 0,
+      "pending_interpretations": 0,
+      "pipeline_status": "PASS",
+      "error": null,
+      "source_database_counts": {
+        "observations": 73,
+        "evidence": 74,
+        "projects": 1,
+        "needs": 1,
+        "changes": 1,
+        "failed_interpretations": 0,
+        "pending_interpretations": 0
+      },
+      "job_status": "succeeded",
+      "job_attempts": 1,
+      "incidental_attempts": []
+    },
+    {
+      "source_id": "georgia-air-draft-title-v",
+      "publisher": "Georgia Environmental Protection Division",
+      "attempted": true,
+      "status": "Updated",
+      "overdue_before_run": true,
+      "overdue_after_run": false,
+      "last_success": "2026-09-28T01:15:50.636719+00:00",
+      "parse_failures": 0,
+      "retrieved_records": 18,
+      "parsed_records": 18,
+      "new_records": 18,
+      "changed_records": 0,
+      "unchanged_records": 0,
+      "failed_jobs": 0,
+      "failed_records": 0,
+      "failed_interpretations": 0,
+      "pending_interpretations": 0,
+      "pipeline_status": "PASS",
+      "error": null,
+      "source_database_counts": {
+        "observations": 18,
+        "evidence": 54,
+        "projects": 9,
+        "needs": 9,
+        "changes": 9,
+        "failed_interpretations": 0,
+        "pending_interpretations": 0
+      },
+      "job_status": "succeeded",
+      "job_attempts": 1,
+      "incidental_attempts": []
+    },
+    {
+      "source_id": "manufacturing-dive-news",
+      "publisher": "Manufacturing Dive",
+      "attempted": true,
+      "status": "Updated",
+      "overdue_before_run": true,
+      "overdue_after_run": false,
+      "last_success": "2026-09-28T01:16:19.648499+00:00",
+      "parse_failures": 0,
+      "retrieved_records": 10,
+      "parsed_records": 10,
+      "new_records": 10,
+      "changed_records": 0,
+      "unchanged_records": 0,
+      "failed_jobs": 0,
+      "failed_records": 0,
+      "failed_interpretations": 0,
+      "pending_interpretations": 0,
+      "pipeline_status": "PASS",
+      "error": null,
+      "source_database_counts": {
+        "observations": 10,
+        "evidence": 10,
+        "projects": 1,
+        "needs": 1,
+        "changes": 1,
+        "failed_interpretations": 0,
+        "pending_interpretations": 0
+      },
+      "job_status": "succeeded",
+      "job_attempts": 1,
+      "incidental_attempts": []
+    },
+    {
+      "source_id": "mjbizdaily-news",
+      "publisher": "MJBizDaily",
+      "attempted": true,
+      "status": "Updated",
+      "overdue_before_run": true,
+      "overdue_after_run": false,
+      "last_success": "2026-09-28T01:16:19.873228+00:00",
+      "parse_failures": 0,
+      "retrieved_records": 30,
+      "parsed_records": 30,
+      "new_records": 30,
+      "changed_records": 0,
+      "unchanged_records": 0,
+      "failed_jobs": 0,
+      "failed_records": 0,
+      "failed_interpretations": 0,
+      "pending_interpretations": 0,
+      "pipeline_status": "PASS",
+      "error": null,
+      "source_database_counts": {
+        "observations": 30,
+        "evidence": 30,
+        "projects": 0,
+        "needs": 0,
+        "changes": 0,
+        "failed_interpretations": 0,
+        "pending_interpretations": 0
+      },
+      "job_status": "succeeded",
+      "job_attempts": 1,
+      "incidental_attempts": []
+    },
+    {
+      "source_id": "nc-commerce",
+      "publisher": "North Carolina Department of Commerce",
+      "attempted": true,
+      "status": "Updated",
+      "overdue_before_run": true,
+      "overdue_after_run": false,
+      "last_success": "2026-09-28T01:16:20.343130+00:00",
+      "parse_failures": 0,
+      "retrieved_records": 14,
+      "parsed_records": 14,
+      "new_records": 14,
+      "changed_records": 0,
+      "unchanged_records": 0,
+      "failed_jobs": 0,
+      "failed_records": 0,
+      "failed_interpretations": 0,
+      "pending_interpretations": 0,
+      "pipeline_status": "PASS",
+      "error": null,
+      "source_database_counts": {
+        "observations": 14,
+        "evidence": 14,
+        "projects": 1,
+        "needs": 1,
+        "changes": 1,
+        "failed_interpretations": 0,
+        "pending_interpretations": 0
+      },
+      "job_status": "succeeded",
+      "job_attempts": 1,
+      "incidental_attempts": []
+    },
+    {
+      "source_id": "ogj-exploration-news",
+      "publisher": "Oil & Gas Journal",
+      "attempted": true,
+      "status": "Updated",
+      "overdue_before_run": true,
+      "overdue_after_run": false,
+      "last_success": "2026-09-28T01:16:23.938792+00:00",
+      "parse_failures": 0,
+      "retrieved_records": 25,
+      "parsed_records": 25,
+      "new_records": 25,
+      "changed_records": 0,
+      "unchanged_records": 0,
+      "failed_jobs": 0,
+      "failed_records": 0,
+      "failed_interpretations": 0,
+      "pending_interpretations": 0,
+      "pipeline_status": "PASS",
+      "error": null,
+      "source_database_counts": {
+        "observations": 25,
+        "evidence": 25,
+        "projects": 0,
+        "needs": 0,
+        "changes": 0,
+        "failed_interpretations": 0,
+        "pending_interpretations": 0
+      },
+      "job_status": "succeeded",
+      "job_attempts": 1,
+      "incidental_attempts": []
+    },
+    {
+      "source_id": "seattle-building-permits",
+      "publisher": "City of Seattle Open Data",
+      "attempted": true,
+      "status": "Updated",
+      "overdue_before_run": true,
+      "overdue_after_run": false,
+      "last_success": "2026-09-28T01:16:24.258928+00:00",
+      "parse_failures": 0,
+      "retrieved_records": 82,
+      "parsed_records": 82,
+      "new_records": 82,
+      "changed_records": 0,
+      "unchanged_records": 0,
+      "failed_jobs": 0,
+      "failed_records": 0,
+      "failed_interpretations": 0,
+      "pending_interpretations": 0,
+      "pipeline_status": "PASS",
+      "error": null,
+      "source_database_counts": {
+        "observations": 82,
+        "evidence": 82,
+        "projects": 1,
+        "needs": 1,
+        "changes": 1,
+        "failed_interpretations": 0,
+        "pending_interpretations": 0
+      },
+      "job_status": "succeeded",
+      "job_attempts": 1,
+      "incidental_attempts": []
+    },
+    {
+      "source_id": "utility-dive-news",
+      "publisher": "Utility Dive",
+      "attempted": true,
+      "status": "Updated",
+      "overdue_before_run": true,
+      "overdue_after_run": false,
+      "last_success": "2026-09-28T01:16:25.378456+00:00",
+      "parse_failures": 0,
+      "retrieved_records": 10,
+      "parsed_records": 10,
+      "new_records": 10,
+      "changed_records": 0,
+      "unchanged_records": 0,
+      "failed_jobs": 0,
+      "failed_records": 0,
+      "failed_interpretations": 0,
+      "pending_interpretations": 0,
+      "pipeline_status": "PASS",
+      "error": null,
+      "source_database_counts": {
+        "observations": 10,
+        "evidence": 10,
+        "projects": 0,
+        "needs": 0,
+        "changes": 0,
+        "failed_interpretations": 0,
+        "pending_interpretations": 0
+      },
+      "job_status": "succeeded",
+      "job_attempts": 1,
+      "incidental_attempts": []
+    }
+  ],
+  "replay": [
+    {
+      "source_id": "austin-building-permits",
+      "publisher": "City of Austin Open Data",
+      "attempted": true,
+      "status": "Checked\u2014No Change",
+      "overdue_before_run": false,
+      "overdue_after_run": false,
+      "last_success": "2026-09-28T01:16:26.292208+00:00",
+      "parse_failures": 0,
+      "retrieved_records": 1600,
+      "parsed_records": 1600,
+      "new_records": 0,
+      "changed_records": 0,
+      "unchanged_records": 1600,
+      "failed_jobs": 0,
+      "failed_records": 0,
+      "failed_interpretations": 0,
+      "pending_interpretations": 0,
+      "pipeline_status": "PASS",
+      "error": null,
+      "source_database_counts": {
+        "observations": 1600,
+        "evidence": 1600,
+        "projects": 58,
+        "needs": 58,
+        "changes": 58,
+        "failed_interpretations": 0,
+        "pending_interpretations": 0
+      },
+      "job_status": "succeeded",
+      "job_attempts": 1,
+      "incidental_attempts": [],
+      "before_database_counts": {
+        "observations": 2530,
+        "evidence": 2567,
+        "projects": 87,
+        "needs": 87,
+        "need_observations": 87,
+        "changes": 87,
+        "interpretations": 2530
+      },
+      "before_database_digests": {
+        "observations": {
+          "count": 2530,
+          "sha256": "b6c7cc0008e2c08b1da989e05ac2af2c59552732a355580b46df58a407e42a32",
+          "operational_sha256": "b6c7cc0008e2c08b1da989e05ac2af2c59552732a355580b46df58a407e42a32"
+        },
+        "evidence": {
+          "count": 2567,
+          "sha256": "c286dfe8b6e67ce0e4ec250531abf7951a5fbe467d1a96662ac2b12a89c13e12",
+          "operational_sha256": "c286dfe8b6e67ce0e4ec250531abf7951a5fbe467d1a96662ac2b12a89c13e12"
+        },
+        "projects": {
+          "count": 87,
+          "sha256": "111eea59ea0f66f7edb3acb591cfd09b905e7efa44d0240a8f54992d9411d990",
+          "operational_sha256": "111eea59ea0f66f7edb3acb591cfd09b905e7efa44d0240a8f54992d9411d990"
+        },
+        "needs": {
+          "count": 87,
+          "sha256": "66cd7c914d778ccbd770df5af25a5f034e2f6775299444837cd199f423cc948c",
+          "operational_sha256": "66cd7c914d778ccbd770df5af25a5f034e2f6775299444837cd199f423cc948c"
+        },
+        "need_observations": {
+          "count": 87,
+          "sha256": "8989aa482e33f4ac4748c6921a7da8361d25819a5b09fee9049f1e584daa61ef",
+          "operational_sha256": "8989aa482e33f4ac4748c6921a7da8361d25819a5b09fee9049f1e584daa61ef"
+        },
+        "changes": {
+          "count": 87,
+          "sha256": "d73e468f7315fcfac53ef093fb6f03a5a1e509e0a71aee0d161c74fdac9a89e2",
+          "operational_sha256": "d73e468f7315fcfac53ef093fb6f03a5a1e509e0a71aee0d161c74fdac9a89e2"
+        },
+        "interpretations": {
+          "count": 2530,
+          "sha256": "544f248f59e9b783250784e58c3d5c984d50ef84e17b1a71cf4644edc481a07b",
+          "operational_sha256": "042c63852097e08a9309d572f8adf468a0236363840f81429880fe553d37658e"
+        }
+      },
+      "after_database_counts": {
+        "observations": 2530,
+        "evidence": 2567,
+        "projects": 87,
+        "needs": 87,
+        "need_observations": 87,
+        "changes": 87,
+        "interpretations": 2530
+      },
+      "after_database_digests": {
+        "observations": {
+          "count": 2530,
+          "sha256": "b6c7cc0008e2c08b1da989e05ac2af2c59552732a355580b46df58a407e42a32",
+          "operational_sha256": "b6c7cc0008e2c08b1da989e05ac2af2c59552732a355580b46df58a407e42a32"
+        },
+        "evidence": {
+          "count": 2567,
+          "sha256": "c286dfe8b6e67ce0e4ec250531abf7951a5fbe467d1a96662ac2b12a89c13e12",
+          "operational_sha256": "c286dfe8b6e67ce0e4ec250531abf7951a5fbe467d1a96662ac2b12a89c13e12"
+        },
+        "projects": {
+          "count": 87,
+          "sha256": "111eea59ea0f66f7edb3acb591cfd09b905e7efa44d0240a8f54992d9411d990",
+          "operational_sha256": "111eea59ea0f66f7edb3acb591cfd09b905e7efa44d0240a8f54992d9411d990"
+        },
+        "needs": {
+          "count": 87,
+          "sha256": "66cd7c914d778ccbd770df5af25a5f034e2f6775299444837cd199f423cc948c",
+          "operational_sha256": "66cd7c914d778ccbd770df5af25a5f034e2f6775299444837cd199f423cc948c"
+        },
+        "need_observations": {
+          "count": 87,
+          "sha256": "8989aa482e33f4ac4748c6921a7da8361d25819a5b09fee9049f1e584daa61ef",
+          "operational_sha256": "8989aa482e33f4ac4748c6921a7da8361d25819a5b09fee9049f1e584daa61ef"
+        },
+        "changes": {
+          "count": 87,
+          "sha256": "d73e468f7315fcfac53ef093fb6f03a5a1e509e0a71aee0d161c74fdac9a89e2",
+          "operational_sha256": "d73e468f7315fcfac53ef093fb6f03a5a1e509e0a71aee0d161c74fdac9a89e2"
+        },
+        "interpretations": {
+          "count": 2530,
+          "sha256": "544f248f59e9b783250784e58c3d5c984d50ef84e17b1a71cf4644edc481a07b",
+          "operational_sha256": "042c63852097e08a9309d572f8adf468a0236363840f81429880fe553d37658e"
+        }
+      },
+      "content_digest_unchanged": true,
+      "operational_digest_unchanged": true,
+      "counts_unchanged": true,
+      "morning_changes_before": {
+        "count": 87,
+        "sha256": "70cf6594fea09a5c8782a70c879ffbb233a085a2af9d8d49d6d575211bc3acf0"
+      },
+      "morning_changes_after": {
+        "count": 87,
+        "sha256": "70cf6594fea09a5c8782a70c879ffbb233a085a2af9d8d49d6d575211bc3acf0"
+      }
+    },
+    {
+      "source_id": "chicago-building-permits",
+      "publisher": "City of Chicago Data Portal",
+      "attempted": true,
+      "status": "Checked\u2014No Change",
+      "overdue_before_run": false,
+      "overdue_after_run": false,
+      "last_success": "2026-09-28T01:16:32.646854+00:00",
+      "parse_failures": 0,
+      "retrieved_records": 638,
+      "parsed_records": 638,
+      "new_records": 0,
+      "changed_records": 0,
+      "unchanged_records": 638,
+      "failed_jobs": 0,
+      "failed_records": 0,
+      "failed_interpretations": 0,
+      "pending_interpretations": 0,
+      "pipeline_status": "PASS",
+      "error": null,
+      "source_database_counts": {
+        "observations": 638,
+        "evidence": 638,
+        "projects": 13,
+        "needs": 13,
+        "changes": 13,
+        "failed_interpretations": 0,
+        "pending_interpretations": 0
+      },
+      "job_status": "succeeded",
+      "job_attempts": 1,
+      "incidental_attempts": [],
+      "before_database_counts": {
+        "observations": 2530,
+        "evidence": 2567,
+        "projects": 87,
+        "needs": 87,
+        "need_observations": 87,
+        "changes": 87,
+        "interpretations": 2530
+      },
+      "before_database_digests": {
+        "observations": {
+          "count": 2530,
+          "sha256": "b6c7cc0008e2c08b1da989e05ac2af2c59552732a355580b46df58a407e42a32",
+          "operational_sha256": "b6c7cc0008e2c08b1da989e05ac2af2c59552732a355580b46df58a407e42a32"
+        },
+        "evidence": {
+          "count": 2567,
+          "sha256": "c286dfe8b6e67ce0e4ec250531abf7951a5fbe467d1a96662ac2b12a89c13e12",
+          "operational_sha256": "c286dfe8b6e67ce0e4ec250531abf7951a5fbe467d1a96662ac2b12a89c13e12"
+        },
+        "projects": {
+          "count": 87,
+          "sha256": "111eea59ea0f66f7edb3acb591cfd09b905e7efa44d0240a8f54992d9411d990",
+          "operational_sha256": "111eea59ea0f66f7edb3acb591cfd09b905e7efa44d0240a8f54992d9411d990"
+        },
+        "needs": {
+          "count": 87,
+          "sha256": "66cd7c914d778ccbd770df5af25a5f034e2f6775299444837cd199f423cc948c",
+          "operational_sha256": "66cd7c914d778ccbd770df5af25a5f034e2f6775299444837cd199f423cc948c"
+        },
+        "need_observations": {
+          "count": 87,
+          "sha256": "8989aa482e33f4ac4748c6921a7da8361d25819a5b09fee9049f1e584daa61ef",
+          "operational_sha256": "8989aa482e33f4ac4748c6921a7da8361d25819a5b09fee9049f1e584daa61ef"
+        },
+        "changes": {
+          "count": 87,
+          "sha256": "d73e468f7315fcfac53ef093fb6f03a5a1e509e0a71aee0d161c74fdac9a89e2",
+          "operational_sha256": "d73e468f7315fcfac53ef093fb6f03a5a1e509e0a71aee0d161c74fdac9a89e2"
+        },
+        "interpretations": {
+          "count": 2530,
+          "sha256": "544f248f59e9b783250784e58c3d5c984d50ef84e17b1a71cf4644edc481a07b",
+          "operational_sha256": "042c63852097e08a9309d572f8adf468a0236363840f81429880fe553d37658e"
+        }
+      },
+      "after_database_counts": {
+        "observations": 2530,
+        "evidence": 2567,
+        "projects": 87,
+        "needs": 87,
+        "need_observations": 87,
+        "changes": 87,
+        "interpretations": 2530
+      },
+      "after_database_digests": {
+        "observations": {
+          "count": 2530,
+          "sha256": "b6c7cc0008e2c08b1da989e05ac2af2c59552732a355580b46df58a407e42a32",
+          "operational_sha256": "b6c7cc0008e2c08b1da989e05ac2af2c59552732a355580b46df58a407e42a32"
+        },
+        "evidence": {
+          "count": 2567,
+          "sha256": "c286dfe8b6e67ce0e4ec250531abf7951a5fbe467d1a96662ac2b12a89c13e12",
+          "operational_sha256": "c286dfe8b6e67ce0e4ec250531abf7951a5fbe467d1a96662ac2b12a89c13e12"
+        },
+        "projects": {
+          "count": 87,
+          "sha256": "111eea59ea0f66f7edb3acb591cfd09b905e7efa44d0240a8f54992d9411d990",
+          "operational_sha256": "111eea59ea0f66f7edb3acb591cfd09b905e7efa44d0240a8f54992d9411d990"
+        },
+        "needs": {
+          "count": 87,
+          "sha256": "66cd7c914d778ccbd770df5af25a5f034e2f6775299444837cd199f423cc948c",
+          "operational_sha256": "66cd7c914d778ccbd770df5af25a5f034e2f6775299444837cd199f423cc948c"
+        },
+        "need_observations": {
+          "count": 87,
+          "sha256": "8989aa482e33f4ac4748c6921a7da8361d25819a5b09fee9049f1e584daa61ef",
+          "operational_sha256": "8989aa482e33f4ac4748c6921a7da8361d25819a5b09fee9049f1e584daa61ef"
+        },
+        "changes": {
+          "count": 87,
+          "sha256": "d73e468f7315fcfac53ef093fb6f03a5a1e509e0a71aee0d161c74fdac9a89e2",
+          "operational_sha256": "d73e468f7315fcfac53ef093fb6f03a5a1e509e0a71aee0d161c74fdac9a89e2"
+        },
+        "interpretations": {
+          "count": 2530,
+          "sha256": "544f248f59e9b783250784e58c3d5c984d50ef84e17b1a71cf4644edc481a07b",
+          "operational_sha256": "042c63852097e08a9309d572f8adf468a0236363840f81429880fe553d37658e"
+        }
+      },
+      "content_digest_unchanged": true,
+      "operational_digest_unchanged": true,
+      "counts_unchanged": true,
+      "morning_changes_before": {
+        "count": 87,
+        "sha256": "70cf6594fea09a5c8782a70c879ffbb233a085a2af9d8d49d6d575211bc3acf0"
+      },
+      "morning_changes_after": {
+        "count": 87,
+        "sha256": "70cf6594fea09a5c8782a70c879ffbb233a085a2af9d8d49d6d575211bc3acf0"
+      }
+    },
+    {
+      "source_id": "construction-dive-news",
+      "publisher": "Construction Dive",
+      "attempted": true,
+      "status": "Checked\u2014No Change",
+      "overdue_before_run": false,
+      "overdue_after_run": false,
+      "last_success": "2026-09-28T01:16:36.543163+00:00",
+      "parse_failures": 0,
+      "retrieved_records": 10,
+      "parsed_records": 10,
+      "new_records": 0,
+      "changed_records": 0,
+      "unchanged_records": 10,
+      "failed_jobs": 0,
+      "failed_records": 0,
+      "failed_interpretations": 0,
+      "pending_interpretations": 0,
+      "pipeline_status": "PASS",
+      "error": null,
+      "source_database_counts": {
+        "observations": 10,
+        "evidence": 10,
+        "projects": 2,
+        "needs": 2,
+        "changes": 2,
+        "failed_interpretations": 0,
+        "pending_interpretations": 0
+      },
+      "job_status": "succeeded",
+      "job_attempts": 1,
+      "incidental_attempts": [],
+      "before_database_counts": {
+        "observations": 2530,
+        "evidence": 2567,
+        "projects": 87,
+        "needs": 87,
+        "need_observations": 87,
+        "changes": 87,
+        "interpretations": 2530
+      },
+      "before_database_digests": {
+        "observations": {
+          "count": 2530,
+          "sha256": "b6c7cc0008e2c08b1da989e05ac2af2c59552732a355580b46df58a407e42a32",
+          "operational_sha256": "b6c7cc0008e2c08b1da989e05ac2af2c59552732a355580b46df58a407e42a32"
+        },
+        "evidence": {
+          "count": 2567,
+          "sha256": "c286dfe8b6e67ce0e4ec250531abf7951a5fbe467d1a96662ac2b12a89c13e12",
+          "operational_sha256": "c286dfe8b6e67ce0e4ec250531abf7951a5fbe467d1a96662ac2b12a89c13e12"
+        },
+        "projects": {
+          "count": 87,
+          "sha256": "111eea59ea0f66f7edb3acb591cfd09b905e7efa44d0240a8f54992d9411d990",
+          "operational_sha256": "111eea59ea0f66f7edb3acb591cfd09b905e7efa44d0240a8f54992d9411d990"
+        },
+        "needs": {
+          "count": 87,
+          "sha256": "66cd7c914d778ccbd770df5af25a5f034e2f6775299444837cd199f423cc948c",
+          "operational_sha256": "66cd7c914d778ccbd770df5af25a5f034e2f6775299444837cd199f423cc948c"
+        },
+        "need_observations": {
+          "count": 87,
+          "sha256": "8989aa482e33f4ac4748c6921a7da8361d25819a5b09fee9049f1e584daa61ef",
+          "operational_sha256": "8989aa482e33f4ac4748c6921a7da8361d25819a5b09fee9049f1e584daa61ef"
+        },
+        "changes": {
+          "count": 87,
+          "sha256": "d73e468f7315fcfac53ef093fb6f03a5a1e509e0a71aee0d161c74fdac9a89e2",
+          "operational_sha256": "d73e468f7315fcfac53ef093fb6f03a5a1e509e0a71aee0d161c74fdac9a89e2"
+        },
+        "interpretations": {
+          "count": 2530,
+          "sha256": "544f248f59e9b783250784e58c3d5c984d50ef84e17b1a71cf4644edc481a07b",
+          "operational_sha256": "042c63852097e08a9309d572f8adf468a0236363840f81429880fe553d37658e"
+        }
+      },
+      "after_database_counts": {
+        "observations": 2530,
+        "evidence": 2567,
+        "projects": 87,
+        "needs": 87,
+        "need_observations": 87,
+        "changes": 87,
+        "interpretations": 2530
+      },
+      "after_database_digests": {
+        "observations": {
+          "count": 2530,
+          "sha256": "b6c7cc0008e2c08b1da989e05ac2af2c59552732a355580b46df58a407e42a32",
+          "operational_sha256": "b6c7cc0008e2c08b1da989e05ac2af2c59552732a355580b46df58a407e42a32"
+        },
+        "evidence": {
+          "count": 2567,
+          "sha256": "c286dfe8b6e67ce0e4ec250531abf7951a5fbe467d1a96662ac2b12a89c13e12",
+          "operational_sha256": "c286dfe8b6e67ce0e4ec250531abf7951a5fbe467d1a96662ac2b12a89c13e12"
+        },
+        "projects": {
+          "count": 87,
+          "sha256": "111eea59ea0f66f7edb3acb591cfd09b905e7efa44d0240a8f54992d9411d990",
+          "operational_sha256": "111eea59ea0f66f7edb3acb591cfd09b905e7efa44d0240a8f54992d9411d990"
+        },
+        "needs": {
+          "count": 87,
+          "sha256": "66cd7c914d778ccbd770df5af25a5f034e2f6775299444837cd199f423cc948c",
+          "operational_sha256": "66cd7c914d778ccbd770df5af25a5f034e2f6775299444837cd199f423cc948c"
+        },
+        "need_observations": {
+          "count": 87,
+          "sha256": "8989aa482e33f4ac4748c6921a7da8361d25819a5b09fee9049f1e584daa61ef",
+          "operational_sha256": "8989aa482e33f4ac4748c6921a7da8361d25819a5b09fee9049f1e584daa61ef"
+        },
+        "changes": {
+          "count": 87,
+          "sha256": "d73e468f7315fcfac53ef093fb6f03a5a1e509e0a71aee0d161c74fdac9a89e2",
+          "operational_sha256": "d73e468f7315fcfac53ef093fb6f03a5a1e509e0a71aee0d161c74fdac9a89e2"
+        },
+        "interpretations": {
+          "count": 2530,
+          "sha256": "544f248f59e9b783250784e58c3d5c984d50ef84e17b1a71cf4644edc481a07b",
+          "operational_sha256": "042c63852097e08a9309d572f8adf468a0236363840f81429880fe553d37658e"
+        }
+      },
+      "content_digest_unchanged": true,
+      "operational_digest_unchanged": true,
+      "counts_unchanged": true,
+      "morning_changes_before": {
+        "count": 87,
+        "sha256": "70cf6594fea09a5c8782a70c879ffbb233a085a2af9d8d49d6d575211bc3acf0"
+      },
+      "morning_changes_after": {
+        "count": 87,
+        "sha256": "70cf6594fea09a5c8782a70c879ffbb233a085a2af9d8d49d6d575211bc3acf0"
+      }
+    },
+    {
+      "source_id": "dcd-news",
+      "publisher": "Data Center Dynamics",
+      "attempted": true,
+      "status": "Checked\u2014No Change",
+      "overdue_before_run": false,
+      "overdue_after_run": false,
+      "last_success": "2026-09-28T01:16:37.355880+00:00",
+      "parse_failures": 0,
+      "retrieved_records": 20,
+      "parsed_records": 20,
+      "new_records": 0,
+      "changed_records": 0,
+      "unchanged_records": 20,
+      "failed_jobs": 0,
+      "failed_records": 0,
+      "failed_interpretations": 0,
+      "pending_interpretations": 0,
+      "pipeline_status": "PASS",
+      "error": null,
+      "source_database_counts": {
+        "observations": 20,
+        "evidence": 20,
+        "projects": 1,
+        "needs": 1,
+        "changes": 1,
+        "failed_interpretations": 0,
+        "pending_interpretations": 0
+      },
+      "job_status": "succeeded",
+      "job_attempts": 1,
+      "incidental_attempts": [],
+      "before_database_counts": {
+        "observations": 2530,
+        "evidence": 2567,
+        "projects": 87,
+        "needs": 87,
+        "need_observations": 87,
+        "changes": 87,
+        "interpretations": 2530
+      },
+      "before_database_digests": {
+        "observations": {
+          "count": 2530,
+          "sha256": "b6c7cc0008e2c08b1da989e05ac2af2c59552732a355580b46df58a407e42a32",
+          "operational_sha256": "b6c7cc0008e2c08b1da989e05ac2af2c59552732a355580b46df58a407e42a32"
+        },
+        "evidence": {
+          "count": 2567,
+          "sha256": "c286dfe8b6e67ce0e4ec250531abf7951a5fbe467d1a96662ac2b12a89c13e12",
+          "operational_sha256": "c286dfe8b6e67ce0e4ec250531abf7951a5fbe467d1a96662ac2b12a89c13e12"
+        },
+        "projects": {
+          "count": 87,
+          "sha256": "111eea59ea0f66f7edb3acb591cfd09b905e7efa44d0240a8f54992d9411d990",
+          "operational_sha256": "111eea59ea0f66f7edb3acb591cfd09b905e7efa44d0240a8f54992d9411d990"
+        },
+        "needs": {
+          "count": 87,
+          "sha256": "66cd7c914d778ccbd770df5af25a5f034e2f6775299444837cd199f423cc948c",
+          "operational_sha256": "66cd7c914d778ccbd770df5af25a5f034e2f6775299444837cd199f423cc948c"
+        },
+        "need_observations": {
+          "count": 87,
+          "sha256": "8989aa482e33f4ac4748c6921a7da8361d25819a5b09fee9049f1e584daa61ef",
+          "operational_sha256": "8989aa482e33f4ac4748c6921a7da8361d25819a5b09fee9049f1e584daa61ef"
+        },
+        "changes": {
+          "count": 87,
+          "sha256": "d73e468f7315fcfac53ef093fb6f03a5a1e509e0a71aee0d161c74fdac9a89e2",
+          "operational_sha256": "d73e468f7315fcfac53ef093fb6f03a5a1e509e0a71aee0d161c74fdac9a89e2"
+        },
+        "interpretations": {
+          "count": 2530,
+          "sha256": "544f248f59e9b783250784e58c3d5c984d50ef84e17b1a71cf4644edc481a07b",
+          "operational_sha256": "042c63852097e08a9309d572f8adf468a0236363840f81429880fe553d37658e"
+        }
+      },
+      "after_database_counts": {
+        "observations": 2530,
+        "evidence": 2567,
+        "projects": 87,
+        "needs": 87,
+        "need_observations": 87,
+        "changes": 87,
+        "interpretations": 2530
+      },
+      "after_database_digests": {
+        "observations": {
+          "count": 2530,
+          "sha256": "b6c7cc0008e2c08b1da989e05ac2af2c59552732a355580b46df58a407e42a32",
+          "operational_sha256": "b6c7cc0008e2c08b1da989e05ac2af2c59552732a355580b46df58a407e42a32"
+        },
+        "evidence": {
+          "count": 2567,
+          "sha256": "c286dfe8b6e67ce0e4ec250531abf7951a5fbe467d1a96662ac2b12a89c13e12",
+          "operational_sha256": "c286dfe8b6e67ce0e4ec250531abf7951a5fbe467d1a96662ac2b12a89c13e12"
+        },
+        "projects": {
+          "count": 87,
+          "sha256": "111eea59ea0f66f7edb3acb591cfd09b905e7efa44d0240a8f54992d9411d990",
+          "operational_sha256": "111eea59ea0f66f7edb3acb591cfd09b905e7efa44d0240a8f54992d9411d990"
+        },
+        "needs": {
+          "count": 87,
+          "sha256": "66cd7c914d778ccbd770df5af25a5f034e2f6775299444837cd199f423cc948c",
+          "operational_sha256": "66cd7c914d778ccbd770df5af25a5f034e2f6775299444837cd199f423cc948c"
+        },
+        "need_observations": {
+          "count": 87,
+          "sha256": "8989aa482e33f4ac4748c6921a7da8361d25819a5b09fee9049f1e584daa61ef",
+          "operational_sha256": "8989aa482e33f4ac4748c6921a7da8361d25819a5b09fee9049f1e584daa61ef"
+        },
+        "changes": {
+          "count": 87,
+          "sha256": "d73e468f7315fcfac53ef093fb6f03a5a1e509e0a71aee0d161c74fdac9a89e2",
+          "operational_sha256": "d73e468f7315fcfac53ef093fb6f03a5a1e509e0a71aee0d161c74fdac9a89e2"
+        },
+        "interpretations": {
+          "count": 2530,
+          "sha256": "544f248f59e9b783250784e58c3d5c984d50ef84e17b1a71cf4644edc481a07b",
+          "operational_sha256": "042c63852097e08a9309d572f8adf468a0236363840f81429880fe553d37658e"
+        }
+      },
+      "content_digest_unchanged": true,
+      "operational_digest_unchanged": true,
+      "counts_unchanged": true,
+      "morning_changes_before": {
+        "count": 87,
+        "sha256": "70cf6594fea09a5c8782a70c879ffbb233a085a2af9d8d49d6d575211bc3acf0"
+      },
+      "morning_changes_after": {
+        "count": 87,
+        "sha256": "70cf6594fea09a5c8782a70c879ffbb233a085a2af9d8d49d6d575211bc3acf0"
+      }
+    },
+    {
+      "source_id": "federal-register-eis",
+      "publisher": "Federal Register",
+      "attempted": true,
+      "status": "Checked\u2014No Change",
+      "overdue_before_run": false,
+      "overdue_after_run": false,
+      "last_success": "2026-09-28T01:16:38.181597+00:00",
+      "parse_failures": 0,
+      "retrieved_records": 73,
+      "parsed_records": 73,
+      "new_records": 0,
+      "changed_records": 0,
+      "unchanged_records": 73,
+      "failed_jobs": 0,
+      "failed_records": 0,
+      "failed_interpretations": 0,
+      "pending_interpretations": 0,
+      "pipeline_status": "PASS",
+      "error": null,
+      "source_database_counts": {
+        "observations": 73,
+        "evidence": 74,
+        "projects": 1,
+        "needs": 1,
+        "changes": 1,
+        "failed_interpretations": 0,
+        "pending_interpretations": 0
+      },
+      "job_status": "succeeded",
+      "job_attempts": 1,
+      "incidental_attempts": [],
+      "before_database_counts": {
+        "observations": 2530,
+        "evidence": 2567,
+        "projects": 87,
+        "needs": 87,
+        "need_observations": 87,
+        "changes": 87,
+        "interpretations": 2530
+      },
+      "before_database_digests": {
+        "observations": {
+          "count": 2530,
+          "sha256": "b6c7cc0008e2c08b1da989e05ac2af2c59552732a355580b46df58a407e42a32",
+          "operational_sha256": "b6c7cc0008e2c08b1da989e05ac2af2c59552732a355580b46df58a407e42a32"
+        },
+        "evidence": {
+          "count": 2567,
+          "sha256": "c286dfe8b6e67ce0e4ec250531abf7951a5fbe467d1a96662ac2b12a89c13e12",
+          "operational_sha256": "c286dfe8b6e67ce0e4ec250531abf7951a5fbe467d1a96662ac2b12a89c13e12"
+        },
+        "projects": {
+          "count": 87,
+          "sha256": "111eea59ea0f66f7edb3acb591cfd09b905e7efa44d0240a8f54992d9411d990",
+          "operational_sha256": "111eea59ea0f66f7edb3acb591cfd09b905e7efa44d0240a8f54992d9411d990"
+        },
+        "needs": {
+          "count": 87,
+          "sha256": "66cd7c914d778ccbd770df5af25a5f034e2f6775299444837cd199f423cc948c",
+          "operational_sha256": "66cd7c914d778ccbd770df5af25a5f034e2f6775299444837cd199f423cc948c"
+        },
+        "need_observations": {
+          "count": 87,
+          "sha256": "8989aa482e33f4ac4748c6921a7da8361d25819a5b09fee9049f1e584daa61ef",
+          "operational_sha256": "8989aa482e33f4ac4748c6921a7da8361d25819a5b09fee9049f1e584daa61ef"
+        },
+        "changes": {
+          "count": 87,
+          "sha256": "d73e468f7315fcfac53ef093fb6f03a5a1e509e0a71aee0d161c74fdac9a89e2",
+          "operational_sha256": "d73e468f7315fcfac53ef093fb6f03a5a1e509e0a71aee0d161c74fdac9a89e2"
+        },
+        "interpretations": {
+          "count": 2530,
+          "sha256": "544f248f59e9b783250784e58c3d5c984d50ef84e17b1a71cf4644edc481a07b",
+          "operational_sha256": "042c63852097e08a9309d572f8adf468a0236363840f81429880fe553d37658e"
+        }
+      },
+      "after_database_counts": {
+        "observations": 2530,
+        "evidence": 2567,
+        "projects": 87,
+        "needs": 87,
+        "need_observations": 87,
+        "changes": 87,
+        "interpretations": 2530
+      },
+      "after_database_digests": {
+        "observations": {
+          "count": 2530,
+          "sha256": "b6c7cc0008e2c08b1da989e05ac2af2c59552732a355580b46df58a407e42a32",
+          "operational_sha256": "b6c7cc0008e2c08b1da989e05ac2af2c59552732a355580b46df58a407e42a32"
+        },
+        "evidence": {
+          "count": 2567,
+          "sha256": "c286dfe8b6e67ce0e4ec250531abf7951a5fbe467d1a96662ac2b12a89c13e12",
+          "operational_sha256": "c286dfe8b6e67ce0e4ec250531abf7951a5fbe467d1a96662ac2b12a89c13e12"
+        },
+        "projects": {
+          "count": 87,
+          "sha256": "111eea59ea0f66f7edb3acb591cfd09b905e7efa44d0240a8f54992d9411d990",
+          "operational_sha256": "111eea59ea0f66f7edb3acb591cfd09b905e7efa44d0240a8f54992d9411d990"
+        },
+        "needs": {
+          "count": 87,
+          "sha256": "66cd7c914d778ccbd770df5af25a5f034e2f6775299444837cd199f423cc948c",
+          "operational_sha256": "66cd7c914d778ccbd770df5af25a5f034e2f6775299444837cd199f423cc948c"
+        },
+        "need_observations": {
+          "count": 87,
+          "sha256": "8989aa482e33f4ac4748c6921a7da8361d25819a5b09fee9049f1e584daa61ef",
+          "operational_sha256": "8989aa482e33f4ac4748c6921a7da8361d25819a5b09fee9049f1e584daa61ef"
+        },
+        "changes": {
+          "count": 87,
+          "sha256": "d73e468f7315fcfac53ef093fb6f03a5a1e509e0a71aee0d161c74fdac9a89e2",
+          "operational_sha256": "d73e468f7315fcfac53ef093fb6f03a5a1e509e0a71aee0d161c74fdac9a89e2"
+        },
+        "interpretations": {
+          "count": 2530,
+          "sha256": "544f248f59e9b783250784e58c3d5c984d50ef84e17b1a71cf4644edc481a07b",
+          "operational_sha256": "93d1de551cd3f49992b088a7d8b8ecd0bebcefdc59c374ab31f10506c600990b"
+        }
+      },
+      "content_digest_unchanged": true,
+      "operational_digest_unchanged": false,
+      "counts_unchanged": true,
+      "morning_changes_before": {
+        "count": 87,
+        "sha256": "70cf6594fea09a5c8782a70c879ffbb233a085a2af9d8d49d6d575211bc3acf0"
+      },
+      "morning_changes_after": {
+        "count": 87,
+        "sha256": "70cf6594fea09a5c8782a70c879ffbb233a085a2af9d8d49d6d575211bc3acf0"
+      }
+    },
+    {
+      "source_id": "georgia-air-draft-title-v",
+      "publisher": "Georgia Environmental Protection Division",
+      "attempted": true,
+      "status": "Checked\u2014No Change",
+      "overdue_before_run": false,
+      "overdue_after_run": false,
+      "last_success": "2026-09-28T01:16:39.691045+00:00",
+      "parse_failures": 0,
+      "retrieved_records": 18,
+      "parsed_records": 18,
+      "new_records": 0,
+      "changed_records": 0,
+      "unchanged_records": 18,
+      "failed_jobs": 0,
+      "failed_records": 0,
+      "failed_interpretations": 0,
+      "pending_interpretations": 0,
+      "pipeline_status": "PASS",
+      "error": null,
+      "source_database_counts": {
+        "observations": 18,
+        "evidence": 54,
+        "projects": 9,
+        "needs": 9,
+        "changes": 9,
+        "failed_interpretations": 0,
+        "pending_interpretations": 0
+      },
+      "job_status": "succeeded",
+      "job_attempts": 1,
+      "incidental_attempts": [],
+      "before_database_counts": {
+        "observations": 2530,
+        "evidence": 2567,
+        "projects": 87,
+        "needs": 87,
+        "need_observations": 87,
+        "changes": 87,
+        "interpretations": 2530
+      },
+      "before_database_digests": {
+        "observations": {
+          "count": 2530,
+          "sha256": "b6c7cc0008e2c08b1da989e05ac2af2c59552732a355580b46df58a407e42a32",
+          "operational_sha256": "b6c7cc0008e2c08b1da989e05ac2af2c59552732a355580b46df58a407e42a32"
+        },
+        "evidence": {
+          "count": 2567,
+          "sha256": "c286dfe8b6e67ce0e4ec250531abf7951a5fbe467d1a96662ac2b12a89c13e12",
+          "operational_sha256": "c286dfe8b6e67ce0e4ec250531abf7951a5fbe467d1a96662ac2b12a89c13e12"
+        },
+        "projects": {
+          "count": 87,
+          "sha256": "111eea59ea0f66f7edb3acb591cfd09b905e7efa44d0240a8f54992d9411d990",
+          "operational_sha256": "111eea59ea0f66f7edb3acb591cfd09b905e7efa44d0240a8f54992d9411d990"
+        },
+        "needs": {
+          "count": 87,
+          "sha256": "66cd7c914d778ccbd770df5af25a5f034e2f6775299444837cd199f423cc948c",
+          "operational_sha256": "66cd7c914d778ccbd770df5af25a5f034e2f6775299444837cd199f423cc948c"
+        },
+        "need_observations": {
+          "count": 87,
+          "sha256": "8989aa482e33f4ac4748c6921a7da8361d25819a5b09fee9049f1e584daa61ef",
+          "operational_sha256": "8989aa482e33f4ac4748c6921a7da8361d25819a5b09fee9049f1e584daa61ef"
+        },
+        "changes": {
+          "count": 87,
+          "sha256": "d73e468f7315fcfac53ef093fb6f03a5a1e509e0a71aee0d161c74fdac9a89e2",
+          "operational_sha256": "d73e468f7315fcfac53ef093fb6f03a5a1e509e0a71aee0d161c74fdac9a89e2"
+        },
+        "interpretations": {
+          "count": 2530,
+          "sha256": "544f248f59e9b783250784e58c3d5c984d50ef84e17b1a71cf4644edc481a07b",
+          "operational_sha256": "93d1de551cd3f49992b088a7d8b8ecd0bebcefdc59c374ab31f10506c600990b"
+        }
+      },
+      "after_database_counts": {
+        "observations": 2530,
+        "evidence": 2567,
+        "projects": 87,
+        "needs": 87,
+        "need_observations": 87,
+        "changes": 87,
+        "interpretations": 2530
+      },
+      "after_database_digests": {
+        "observations": {
+          "count": 2530,
+          "sha256": "b6c7cc0008e2c08b1da989e05ac2af2c59552732a355580b46df58a407e42a32",
+          "operational_sha256": "b6c7cc0008e2c08b1da989e05ac2af2c59552732a355580b46df58a407e42a32"
+        },
+        "evidence": {
+          "count": 2567,
+          "sha256": "c286dfe8b6e67ce0e4ec250531abf7951a5fbe467d1a96662ac2b12a89c13e12",
+          "operational_sha256": "c286dfe8b6e67ce0e4ec250531abf7951a5fbe467d1a96662ac2b12a89c13e12"
+        },
+        "projects": {
+          "count": 87,
+          "sha256": "111eea59ea0f66f7edb3acb591cfd09b905e7efa44d0240a8f54992d9411d990",
+          "operational_sha256": "111eea59ea0f66f7edb3acb591cfd09b905e7efa44d0240a8f54992d9411d990"
+        },
+        "needs": {
+          "count": 87,
+          "sha256": "66cd7c914d778ccbd770df5af25a5f034e2f6775299444837cd199f423cc948c",
+          "operational_sha256": "66cd7c914d778ccbd770df5af25a5f034e2f6775299444837cd199f423cc948c"
+        },
+        "need_observations": {
+          "count": 87,
+          "sha256": "8989aa482e33f4ac4748c6921a7da8361d25819a5b09fee9049f1e584daa61ef",
+          "operational_sha256": "8989aa482e33f4ac4748c6921a7da8361d25819a5b09fee9049f1e584daa61ef"
+        },
+        "changes": {
+          "count": 87,
+          "sha256": "d73e468f7315fcfac53ef093fb6f03a5a1e509e0a71aee0d161c74fdac9a89e2",
+          "operational_sha256": "d73e468f7315fcfac53ef093fb6f03a5a1e509e0a71aee0d161c74fdac9a89e2"
+        },
+        "interpretations": {
+          "count": 2530,
+          "sha256": "544f248f59e9b783250784e58c3d5c984d50ef84e17b1a71cf4644edc481a07b",
+          "operational_sha256": "93d1de551cd3f49992b088a7d8b8ecd0bebcefdc59c374ab31f10506c600990b"
+        }
+      },
+      "content_digest_unchanged": true,
+      "operational_digest_unchanged": true,
+      "counts_unchanged": true,
+      "morning_changes_before": {
+        "count": 87,
+        "sha256": "70cf6594fea09a5c8782a70c879ffbb233a085a2af9d8d49d6d575211bc3acf0"
+      },
+      "morning_changes_after": {
+        "count": 87,
+        "sha256": "70cf6594fea09a5c8782a70c879ffbb233a085a2af9d8d49d6d575211bc3acf0"
+      }
+    },
+    {
+      "source_id": "manufacturing-dive-news",
+      "publisher": "Manufacturing Dive",
+      "attempted": true,
+      "status": "Checked\u2014No Change",
+      "overdue_before_run": false,
+      "overdue_after_run": false,
+      "last_success": "2026-09-28T01:17:06.619129+00:00",
+      "parse_failures": 0,
+      "retrieved_records": 10,
+      "parsed_records": 10,
+      "new_records": 0,
+      "changed_records": 0,
+      "unchanged_records": 10,
+      "failed_jobs": 0,
+      "failed_records": 0,
+      "failed_interpretations": 0,
+      "pending_interpretations": 0,
+      "pipeline_status": "PASS",
+      "error": null,
+      "source_database_counts": {
+        "observations": 10,
+        "evidence": 10,
+        "projects": 1,
+        "needs": 1,
+        "changes": 1,
+        "failed_interpretations": 0,
+        "pending_interpretations": 0
+      },
+      "job_status": "succeeded",
+      "job_attempts": 1,
+      "incidental_attempts": [],
+      "before_database_counts": {
+        "observations": 2530,
+        "evidence": 2567,
+        "projects": 87,
+        "needs": 87,
+        "need_observations": 87,
+        "changes": 87,
+        "interpretations": 2530
+      },
+      "before_database_digests": {
+        "observations": {
+          "count": 2530,
+          "sha256": "b6c7cc0008e2c08b1da989e05ac2af2c59552732a355580b46df58a407e42a32",
+          "operational_sha256": "b6c7cc0008e2c08b1da989e05ac2af2c59552732a355580b46df58a407e42a32"
+        },
+        "evidence": {
+          "count": 2567,
+          "sha256": "c286dfe8b6e67ce0e4ec250531abf7951a5fbe467d1a96662ac2b12a89c13e12",
+          "operational_sha256": "c286dfe8b6e67ce0e4ec250531abf7951a5fbe467d1a96662ac2b12a89c13e12"
+        },
+        "projects": {
+          "count": 87,
+          "sha256": "111eea59ea0f66f7edb3acb591cfd09b905e7efa44d0240a8f54992d9411d990",
+          "operational_sha256": "111eea59ea0f66f7edb3acb591cfd09b905e7efa44d0240a8f54992d9411d990"
+        },
+        "needs": {
+          "count": 87,
+          "sha256": "66cd7c914d778ccbd770df5af25a5f034e2f6775299444837cd199f423cc948c",
+          "operational_sha256": "66cd7c914d778ccbd770df5af25a5f034e2f6775299444837cd199f423cc948c"
+        },
+        "need_observations": {
+          "count": 87,
+          "sha256": "8989aa482e33f4ac4748c6921a7da8361d25819a5b09fee9049f1e584daa61ef",
+          "operational_sha256": "8989aa482e33f4ac4748c6921a7da8361d25819a5b09fee9049f1e584daa61ef"
+        },
+        "changes": {
+          "count": 87,
+          "sha256": "d73e468f7315fcfac53ef093fb6f03a5a1e509e0a71aee0d161c74fdac9a89e2",
+          "operational_sha256": "d73e468f7315fcfac53ef093fb6f03a5a1e509e0a71aee0d161c74fdac9a89e2"
+        },
+        "interpretations": {
+          "count": 2530,
+          "sha256": "544f248f59e9b783250784e58c3d5c984d50ef84e17b1a71cf4644edc481a07b",
+          "operational_sha256": "93d1de551cd3f49992b088a7d8b8ecd0bebcefdc59c374ab31f10506c600990b"
+        }
+      },
+      "after_database_counts": {
+        "observations": 2530,
+        "evidence": 2567,
+        "projects": 87,
+        "needs": 87,
+        "need_observations": 87,
+        "changes": 87,
+        "interpretations": 2530
+      },
+      "after_database_digests": {
+        "observations": {
+          "count": 2530,
+          "sha256": "b6c7cc0008e2c08b1da989e05ac2af2c59552732a355580b46df58a407e42a32",
+          "operational_sha256": "b6c7cc0008e2c08b1da989e05ac2af2c59552732a355580b46df58a407e42a32"
+        },
+        "evidence": {
+          "count": 2567,
+          "sha256": "c286dfe8b6e67ce0e4ec250531abf7951a5fbe467d1a96662ac2b12a89c13e12",
+          "operational_sha256": "c286dfe8b6e67ce0e4ec250531abf7951a5fbe467d1a96662ac2b12a89c13e12"
+        },
+        "projects": {
+          "count": 87,
+          "sha256": "111eea59ea0f66f7edb3acb591cfd09b905e7efa44d0240a8f54992d9411d990",
+          "operational_sha256": "111eea59ea0f66f7edb3acb591cfd09b905e7efa44d0240a8f54992d9411d990"
+        },
+        "needs": {
+          "count": 87,
+          "sha256": "66cd7c914d778ccbd770df5af25a5f034e2f6775299444837cd199f423cc948c",
+          "operational_sha256": "66cd7c914d778ccbd770df5af25a5f034e2f6775299444837cd199f423cc948c"
+        },
+        "need_observations": {
+          "count": 87,
+          "sha256": "8989aa482e33f4ac4748c6921a7da8361d25819a5b09fee9049f1e584daa61ef",
+          "operational_sha256": "8989aa482e33f4ac4748c6921a7da8361d25819a5b09fee9049f1e584daa61ef"
+        },
+        "changes": {
+          "count": 87,
+          "sha256": "d73e468f7315fcfac53ef093fb6f03a5a1e509e0a71aee0d161c74fdac9a89e2",
+          "operational_sha256": "d73e468f7315fcfac53ef093fb6f03a5a1e509e0a71aee0d161c74fdac9a89e2"
+        },
+        "interpretations": {
+          "count": 2530,
+          "sha256": "544f248f59e9b783250784e58c3d5c984d50ef84e17b1a71cf4644edc481a07b",
+          "operational_sha256": "93d1de551cd3f49992b088a7d8b8ecd0bebcefdc59c374ab31f10506c600990b"
+        }
+      },
+      "content_digest_unchanged": true,
+      "operational_digest_unchanged": true,
+      "counts_unchanged": true,
+      "morning_changes_before": {
+        "count": 87,
+        "sha256": "70cf6594fea09a5c8782a70c879ffbb233a085a2af9d8d49d6d575211bc3acf0"
+      },
+      "morning_changes_after": {
+        "count": 87,
+        "sha256": "70cf6594fea09a5c8782a70c879ffbb233a085a2af9d8d49d6d575211bc3acf0"
+      }
+    },
+    {
+      "source_id": "mjbizdaily-news",
+      "publisher": "MJBizDaily",
+      "attempted": true,
+      "status": "Checked\u2014No Change",
+      "overdue_before_run": false,
+      "overdue_after_run": false,
+      "last_success": "2026-09-28T01:17:07.432499+00:00",
+      "parse_failures": 0,
+      "retrieved_records": 30,
+      "parsed_records": 30,
+      "new_records": 0,
+      "changed_records": 0,
+      "unchanged_records": 30,
+      "failed_jobs": 0,
+      "failed_records": 0,
+      "failed_interpretations": 0,
+      "pending_interpretations": 0,
+      "pipeline_status": "PASS",
+      "error": null,
+      "source_database_counts": {
+        "observations": 30,
+        "evidence": 30,
+        "projects": 0,
+        "needs": 0,
+        "changes": 0,
+        "failed_interpretations": 0,
+        "pending_interpretations": 0
+      },
+      "job_status": "succeeded",
+      "job_attempts": 1,
+      "incidental_attempts": [],
+      "before_database_counts": {
+        "observations": 2530,
+        "evidence": 2567,
+        "projects": 87,
+        "needs": 87,
+        "need_observations": 87,
+        "changes": 87,
+        "interpretations": 2530
+      },
+      "before_database_digests": {
+        "observations": {
+          "count": 2530,
+          "sha256": "b6c7cc0008e2c08b1da989e05ac2af2c59552732a355580b46df58a407e42a32",
+          "operational_sha256": "b6c7cc0008e2c08b1da989e05ac2af2c59552732a355580b46df58a407e42a32"
+        },
+        "evidence": {
+          "count": 2567,
+          "sha256": "c286dfe8b6e67ce0e4ec250531abf7951a5fbe467d1a96662ac2b12a89c13e12",
+          "operational_sha256": "c286dfe8b6e67ce0e4ec250531abf7951a5fbe467d1a96662ac2b12a89c13e12"
+        },
+        "projects": {
+          "count": 87,
+          "sha256": "111eea59ea0f66f7edb3acb591cfd09b905e7efa44d0240a8f54992d9411d990",
+          "operational_sha256": "111eea59ea0f66f7edb3acb591cfd09b905e7efa44d0240a8f54992d9411d990"
+        },
+        "needs": {
+          "count": 87,
+          "sha256": "66cd7c914d778ccbd770df5af25a5f034e2f6775299444837cd199f423cc948c",
+          "operational_sha256": "66cd7c914d778ccbd770df5af25a5f034e2f6775299444837cd199f423cc948c"
+        },
+        "need_observations": {
+          "count": 87,
+          "sha256": "8989aa482e33f4ac4748c6921a7da8361d25819a5b09fee9049f1e584daa61ef",
+          "operational_sha256": "8989aa482e33f4ac4748c6921a7da8361d25819a5b09fee9049f1e584daa61ef"
+        },
+        "changes": {
+          "count": 87,
+          "sha256": "d73e468f7315fcfac53ef093fb6f03a5a1e509e0a71aee0d161c74fdac9a89e2",
+          "operational_sha256": "d73e468f7315fcfac53ef093fb6f03a5a1e509e0a71aee0d161c74fdac9a89e2"
+        },
+        "interpretations": {
+          "count": 2530,
+          "sha256": "544f248f59e9b783250784e58c3d5c984d50ef84e17b1a71cf4644edc481a07b",
+          "operational_sha256": "93d1de551cd3f49992b088a7d8b8ecd0bebcefdc59c374ab31f10506c600990b"
+        }
+      },
+      "after_database_counts": {
+        "observations": 2530,
+        "evidence": 2567,
+        "projects": 87,
+        "needs": 87,
+        "need_observations": 87,
+        "changes": 87,
+        "interpretations": 2530
+      },
+      "after_database_digests": {
+        "observations": {
+          "count": 2530,
+          "sha256": "b6c7cc0008e2c08b1da989e05ac2af2c59552732a355580b46df58a407e42a32",
+          "operational_sha256": "b6c7cc0008e2c08b1da989e05ac2af2c59552732a355580b46df58a407e42a32"
+        },
+        "evidence": {
+          "count": 2567,
+          "sha256": "c286dfe8b6e67ce0e4ec250531abf7951a5fbe467d1a96662ac2b12a89c13e12",
+          "operational_sha256": "c286dfe8b6e67ce0e4ec250531abf7951a5fbe467d1a96662ac2b12a89c13e12"
+        },
+        "projects": {
+          "count": 87,
+          "sha256": "111eea59ea0f66f7edb3acb591cfd09b905e7efa44d0240a8f54992d9411d990",
+          "operational_sha256": "111eea59ea0f66f7edb3acb591cfd09b905e7efa44d0240a8f54992d9411d990"
+        },
+        "needs": {
+          "count": 87,
+          "sha256": "66cd7c914d778ccbd770df5af25a5f034e2f6775299444837cd199f423cc948c",
+          "operational_sha256": "66cd7c914d778ccbd770df5af25a5f034e2f6775299444837cd199f423cc948c"
+        },
+        "need_observations": {
+          "count": 87,
+          "sha256": "8989aa482e33f4ac4748c6921a7da8361d25819a5b09fee9049f1e584daa61ef",
+          "operational_sha256": "8989aa482e33f4ac4748c6921a7da8361d25819a5b09fee9049f1e584daa61ef"
+        },
+        "changes": {
+          "count": 87,
+          "sha256": "d73e468f7315fcfac53ef093fb6f03a5a1e509e0a71aee0d161c74fdac9a89e2",
+          "operational_sha256": "d73e468f7315fcfac53ef093fb6f03a5a1e509e0a71aee0d161c74fdac9a89e2"
+        },
+        "interpretations": {
+          "count": 2530,
+          "sha256": "544f248f59e9b783250784e58c3d5c984d50ef84e17b1a71cf4644edc481a07b",
+          "operational_sha256": "93d1de551cd3f49992b088a7d8b8ecd0bebcefdc59c374ab31f10506c600990b"
+        }
+      },
+      "content_digest_unchanged": true,
+      "operational_digest_unchanged": true,
+      "counts_unchanged": true,
+      "morning_changes_before": {
+        "count": 87,
+        "sha256": "70cf6594fea09a5c8782a70c879ffbb233a085a2af9d8d49d6d575211bc3acf0"
+      },
+      "morning_changes_after": {
+        "count": 87,
+        "sha256": "70cf6594fea09a5c8782a70c879ffbb233a085a2af9d8d49d6d575211bc3acf0"
+      }
+    },
+    {
+      "source_id": "nc-commerce",
+      "publisher": "North Carolina Department of Commerce",
+      "attempted": true,
+      "status": "Checked\u2014No Change",
+      "overdue_before_run": false,
+      "overdue_after_run": false,
+      "last_success": "2026-09-28T01:17:08.437914+00:00",
+      "parse_failures": 0,
+      "retrieved_records": 14,
+      "parsed_records": 14,
+      "new_records": 0,
+      "changed_records": 0,
+      "unchanged_records": 14,
+      "failed_jobs": 0,
+      "failed_records": 0,
+      "failed_interpretations": 0,
+      "pending_interpretations": 0,
+      "pipeline_status": "PASS",
+      "error": null,
+      "source_database_counts": {
+        "observations": 14,
+        "evidence": 14,
+        "projects": 1,
+        "needs": 1,
+        "changes": 1,
+        "failed_interpretations": 0,
+        "pending_interpretations": 0
+      },
+      "job_status": "succeeded",
+      "job_attempts": 1,
+      "incidental_attempts": [],
+      "before_database_counts": {
+        "observations": 2530,
+        "evidence": 2567,
+        "projects": 87,
+        "needs": 87,
+        "need_observations": 87,
+        "changes": 87,
+        "interpretations": 2530
+      },
+      "before_database_digests": {
+        "observations": {
+          "count": 2530,
+          "sha256": "b6c7cc0008e2c08b1da989e05ac2af2c59552732a355580b46df58a407e42a32",
+          "operational_sha256": "b6c7cc0008e2c08b1da989e05ac2af2c59552732a355580b46df58a407e42a32"
+        },
+        "evidence": {
+          "count": 2567,
+          "sha256": "c286dfe8b6e67ce0e4ec250531abf7951a5fbe467d1a96662ac2b12a89c13e12",
+          "operational_sha256": "c286dfe8b6e67ce0e4ec250531abf7951a5fbe467d1a96662ac2b12a89c13e12"
+        },
+        "projects": {
+          "count": 87,
+          "sha256": "111eea59ea0f66f7edb3acb591cfd09b905e7efa44d0240a8f54992d9411d990",
+          "operational_sha256": "111eea59ea0f66f7edb3acb591cfd09b905e7efa44d0240a8f54992d9411d990"
+        },
+        "needs": {
+          "count": 87,
+          "sha256": "66cd7c914d778ccbd770df5af25a5f034e2f6775299444837cd199f423cc948c",
+          "operational_sha256": "66cd7c914d778ccbd770df5af25a5f034e2f6775299444837cd199f423cc948c"
+        },
+        "need_observations": {
+          "count": 87,
+          "sha256": "8989aa482e33f4ac4748c6921a7da8361d25819a5b09fee9049f1e584daa61ef",
+          "operational_sha256": "8989aa482e33f4ac4748c6921a7da8361d25819a5b09fee9049f1e584daa61ef"
+        },
+        "changes": {
+          "count": 87,
+          "sha256": "d73e468f7315fcfac53ef093fb6f03a5a1e509e0a71aee0d161c74fdac9a89e2",
+          "operational_sha256": "d73e468f7315fcfac53ef093fb6f03a5a1e509e0a71aee0d161c74fdac9a89e2"
+        },
+        "interpretations": {
+          "count": 2530,
+          "sha256": "544f248f59e9b783250784e58c3d5c984d50ef84e17b1a71cf4644edc481a07b",
+          "operational_sha256": "93d1de551cd3f49992b088a7d8b8ecd0bebcefdc59c374ab31f10506c600990b"
+        }
+      },
+      "after_database_counts": {
+        "observations": 2530,
+        "evidence": 2567,
+        "projects": 87,
+        "needs": 87,
+        "need_observations": 87,
+        "changes": 87,
+        "interpretations": 2530
+      },
+      "after_database_digests": {
+        "observations": {
+          "count": 2530,
+          "sha256": "b6c7cc0008e2c08b1da989e05ac2af2c59552732a355580b46df58a407e42a32",
+          "operational_sha256": "b6c7cc0008e2c08b1da989e05ac2af2c59552732a355580b46df58a407e42a32"
+        },
+        "evidence": {
+          "count": 2567,
+          "sha256": "c286dfe8b6e67ce0e4ec250531abf7951a5fbe467d1a96662ac2b12a89c13e12",
+          "operational_sha256": "c286dfe8b6e67ce0e4ec250531abf7951a5fbe467d1a96662ac2b12a89c13e12"
+        },
+        "projects": {
+          "count": 87,
+          "sha256": "111eea59ea0f66f7edb3acb591cfd09b905e7efa44d0240a8f54992d9411d990",
+          "operational_sha256": "111eea59ea0f66f7edb3acb591cfd09b905e7efa44d0240a8f54992d9411d990"
+        },
+        "needs": {
+          "count": 87,
+          "sha256": "66cd7c914d778ccbd770df5af25a5f034e2f6775299444837cd199f423cc948c",
+          "operational_sha256": "66cd7c914d778ccbd770df5af25a5f034e2f6775299444837cd199f423cc948c"
+        },
+        "need_observations": {
+          "count": 87,
+          "sha256": "8989aa482e33f4ac4748c6921a7da8361d25819a5b09fee9049f1e584daa61ef",
+          "operational_sha256": "8989aa482e33f4ac4748c6921a7da8361d25819a5b09fee9049f1e584daa61ef"
+        },
+        "changes": {
+          "count": 87,
+          "sha256": "d73e468f7315fcfac53ef093fb6f03a5a1e509e0a71aee0d161c74fdac9a89e2",
+          "operational_sha256": "d73e468f7315fcfac53ef093fb6f03a5a1e509e0a71aee0d161c74fdac9a89e2"
+        },
+        "interpretations": {
+          "count": 2530,
+          "sha256": "544f248f59e9b783250784e58c3d5c984d50ef84e17b1a71cf4644edc481a07b",
+          "operational_sha256": "cc7ce245595b18c5ebf968106be398a5d97d64463cab5b93c215a5801815a00e"
+        }
+      },
+      "content_digest_unchanged": true,
+      "operational_digest_unchanged": false,
+      "counts_unchanged": true,
+      "morning_changes_before": {
+        "count": 87,
+        "sha256": "70cf6594fea09a5c8782a70c879ffbb233a085a2af9d8d49d6d575211bc3acf0"
+      },
+      "morning_changes_after": {
+        "count": 87,
+        "sha256": "70cf6594fea09a5c8782a70c879ffbb233a085a2af9d8d49d6d575211bc3acf0"
+      }
+    },
+    {
+      "source_id": "ogj-exploration-news",
+      "publisher": "Oil & Gas Journal",
+      "attempted": true,
+      "status": "Checked\u2014No Change",
+      "overdue_before_run": false,
+      "overdue_after_run": false,
+      "last_success": "2026-09-28T01:17:09.638482+00:00",
+      "parse_failures": 0,
+      "retrieved_records": 25,
+      "parsed_records": 25,
+      "new_records": 0,
+      "changed_records": 0,
+      "unchanged_records": 25,
+      "failed_jobs": 0,
+      "failed_records": 0,
+      "failed_interpretations": 0,
+      "pending_interpretations": 0,
+      "pipeline_status": "PASS",
+      "error": null,
+      "source_database_counts": {
+        "observations": 25,
+        "evidence": 25,
+        "projects": 0,
+        "needs": 0,
+        "changes": 0,
+        "failed_interpretations": 0,
+        "pending_interpretations": 0
+      },
+      "job_status": "succeeded",
+      "job_attempts": 1,
+      "incidental_attempts": [],
+      "before_database_counts": {
+        "observations": 2530,
+        "evidence": 2567,
+        "projects": 87,
+        "needs": 87,
+        "need_observations": 87,
+        "changes": 87,
+        "interpretations": 2530
+      },
+      "before_database_digests": {
+        "observations": {
+          "count": 2530,
+          "sha256": "b6c7cc0008e2c08b1da989e05ac2af2c59552732a355580b46df58a407e42a32",
+          "operational_sha256": "b6c7cc0008e2c08b1da989e05ac2af2c59552732a355580b46df58a407e42a32"
+        },
+        "evidence": {
+          "count": 2567,
+          "sha256": "c286dfe8b6e67ce0e4ec250531abf7951a5fbe467d1a96662ac2b12a89c13e12",
+          "operational_sha256": "c286dfe8b6e67ce0e4ec250531abf7951a5fbe467d1a96662ac2b12a89c13e12"
+        },
+        "projects": {
+          "count": 87,
+          "sha256": "111eea59ea0f66f7edb3acb591cfd09b905e7efa44d0240a8f54992d9411d990",
+          "operational_sha256": "111eea59ea0f66f7edb3acb591cfd09b905e7efa44d0240a8f54992d9411d990"
+        },
+        "needs": {
+          "count": 87,
+          "sha256": "66cd7c914d778ccbd770df5af25a5f034e2f6775299444837cd199f423cc948c",
+          "operational_sha256": "66cd7c914d778ccbd770df5af25a5f034e2f6775299444837cd199f423cc948c"
+        },
+        "need_observations": {
+          "count": 87,
+          "sha256": "8989aa482e33f4ac4748c6921a7da8361d25819a5b09fee9049f1e584daa61ef",
+          "operational_sha256": "8989aa482e33f4ac4748c6921a7da8361d25819a5b09fee9049f1e584daa61ef"
+        },
+        "changes": {
+          "count": 87,
+          "sha256": "d73e468f7315fcfac53ef093fb6f03a5a1e509e0a71aee0d161c74fdac9a89e2",
+          "operational_sha256": "d73e468f7315fcfac53ef093fb6f03a5a1e509e0a71aee0d161c74fdac9a89e2"
+        },
+        "interpretations": {
+          "count": 2530,
+          "sha256": "544f248f59e9b783250784e58c3d5c984d50ef84e17b1a71cf4644edc481a07b",
+          "operational_sha256": "cc7ce245595b18c5ebf968106be398a5d97d64463cab5b93c215a5801815a00e"
+        }
+      },
+      "after_database_counts": {
+        "observations": 2530,
+        "evidence": 2567,
+        "projects": 87,
+        "needs": 87,
+        "need_observations": 87,
+        "changes": 87,
+        "interpretations": 2530
+      },
+      "after_database_digests": {
+        "observations": {
+          "count": 2530,
+          "sha256": "b6c7cc0008e2c08b1da989e05ac2af2c59552732a355580b46df58a407e42a32",
+          "operational_sha256": "b6c7cc0008e2c08b1da989e05ac2af2c59552732a355580b46df58a407e42a32"
+        },
+        "evidence": {
+          "count": 2567,
+          "sha256": "c286dfe8b6e67ce0e4ec250531abf7951a5fbe467d1a96662ac2b12a89c13e12",
+          "operational_sha256": "c286dfe8b6e67ce0e4ec250531abf7951a5fbe467d1a96662ac2b12a89c13e12"
+        },
+        "projects": {
+          "count": 87,
+          "sha256": "111eea59ea0f66f7edb3acb591cfd09b905e7efa44d0240a8f54992d9411d990",
+          "operational_sha256": "111eea59ea0f66f7edb3acb591cfd09b905e7efa44d0240a8f54992d9411d990"
+        },
+        "needs": {
+          "count": 87,
+          "sha256": "66cd7c914d778ccbd770df5af25a5f034e2f6775299444837cd199f423cc948c",
+          "operational_sha256": "66cd7c914d778ccbd770df5af25a5f034e2f6775299444837cd199f423cc948c"
+        },
+        "need_observations": {
+          "count": 87,
+          "sha256": "8989aa482e33f4ac4748c6921a7da8361d25819a5b09fee9049f1e584daa61ef",
+          "operational_sha256": "8989aa482e33f4ac4748c6921a7da8361d25819a5b09fee9049f1e584daa61ef"
+        },
+        "changes": {
+          "count": 87,
+          "sha256": "d73e468f7315fcfac53ef093fb6f03a5a1e509e0a71aee0d161c74fdac9a89e2",
+          "operational_sha256": "d73e468f7315fcfac53ef093fb6f03a5a1e509e0a71aee0d161c74fdac9a89e2"
+        },
+        "interpretations": {
+          "count": 2530,
+          "sha256": "544f248f59e9b783250784e58c3d5c984d50ef84e17b1a71cf4644edc481a07b",
+          "operational_sha256": "cc7ce245595b18c5ebf968106be398a5d97d64463cab5b93c215a5801815a00e"
+        }
+      },
+      "content_digest_unchanged": true,
+      "operational_digest_unchanged": true,
+      "counts_unchanged": true,
+      "morning_changes_before": {
+        "count": 87,
+        "sha256": "70cf6594fea09a5c8782a70c879ffbb233a085a2af9d8d49d6d575211bc3acf0"
+      },
+      "morning_changes_after": {
+        "count": 87,
+        "sha256": "70cf6594fea09a5c8782a70c879ffbb233a085a2af9d8d49d6d575211bc3acf0"
+      }
+    },
+    {
+      "source_id": "seattle-building-permits",
+      "publisher": "City of Seattle Open Data",
+      "attempted": true,
+      "status": "Checked\u2014No Change",
+      "overdue_before_run": false,
+      "overdue_after_run": false,
+      "last_success": "2026-09-28T01:17:10.488619+00:00",
+      "parse_failures": 0,
+      "retrieved_records": 82,
+      "parsed_records": 82,
+      "new_records": 0,
+      "changed_records": 0,
+      "unchanged_records": 82,
+      "failed_jobs": 0,
+      "failed_records": 0,
+      "failed_interpretations": 0,
+      "pending_interpretations": 0,
+      "pipeline_status": "PASS",
+      "error": null,
+      "source_database_counts": {
+        "observations": 82,
+        "evidence": 82,
+        "projects": 1,
+        "needs": 1,
+        "changes": 1,
+        "failed_interpretations": 0,
+        "pending_interpretations": 0
+      },
+      "job_status": "succeeded",
+      "job_attempts": 1,
+      "incidental_attempts": [],
+      "before_database_counts": {
+        "observations": 2530,
+        "evidence": 2567,
+        "projects": 87,
+        "needs": 87,
+        "need_observations": 87,
+        "changes": 87,
+        "interpretations": 2530
+      },
+      "before_database_digests": {
+        "observations": {
+          "count": 2530,
+          "sha256": "b6c7cc0008e2c08b1da989e05ac2af2c59552732a355580b46df58a407e42a32",
+          "operational_sha256": "b6c7cc0008e2c08b1da989e05ac2af2c59552732a355580b46df58a407e42a32"
+        },
+        "evidence": {
+          "count": 2567,
+          "sha256": "c286dfe8b6e67ce0e4ec250531abf7951a5fbe467d1a96662ac2b12a89c13e12",
+          "operational_sha256": "c286dfe8b6e67ce0e4ec250531abf7951a5fbe467d1a96662ac2b12a89c13e12"
+        },
+        "projects": {
+          "count": 87,
+          "sha256": "111eea59ea0f66f7edb3acb591cfd09b905e7efa44d0240a8f54992d9411d990",
+          "operational_sha256": "111eea59ea0f66f7edb3acb591cfd09b905e7efa44d0240a8f54992d9411d990"
+        },
+        "needs": {
+          "count": 87,
+          "sha256": "66cd7c914d778ccbd770df5af25a5f034e2f6775299444837cd199f423cc948c",
+          "operational_sha256": "66cd7c914d778ccbd770df5af25a5f034e2f6775299444837cd199f423cc948c"
+        },
+        "need_observations": {
+          "count": 87,
+          "sha256": "8989aa482e33f4ac4748c6921a7da8361d25819a5b09fee9049f1e584daa61ef",
+          "operational_sha256": "8989aa482e33f4ac4748c6921a7da8361d25819a5b09fee9049f1e584daa61ef"
+        },
+        "changes": {
+          "count": 87,
+          "sha256": "d73e468f7315fcfac53ef093fb6f03a5a1e509e0a71aee0d161c74fdac9a89e2",
+          "operational_sha256": "d73e468f7315fcfac53ef093fb6f03a5a1e509e0a71aee0d161c74fdac9a89e2"
+        },
+        "interpretations": {
+          "count": 2530,
+          "sha256": "544f248f59e9b783250784e58c3d5c984d50ef84e17b1a71cf4644edc481a07b",
+          "operational_sha256": "cc7ce245595b18c5ebf968106be398a5d97d64463cab5b93c215a5801815a00e"
+        }
+      },
+      "after_database_counts": {
+        "observations": 2530,
+        "evidence": 2567,
+        "projects": 87,
+        "needs": 87,
+        "need_observations": 87,
+        "changes": 87,
+        "interpretations": 2530
+      },
+      "after_database_digests": {
+        "observations": {
+          "count": 2530,
+          "sha256": "b6c7cc0008e2c08b1da989e05ac2af2c59552732a355580b46df58a407e42a32",
+          "operational_sha256": "b6c7cc0008e2c08b1da989e05ac2af2c59552732a355580b46df58a407e42a32"
+        },
+        "evidence": {
+          "count": 2567,
+          "sha256": "c286dfe8b6e67ce0e4ec250531abf7951a5fbe467d1a96662ac2b12a89c13e12",
+          "operational_sha256": "c286dfe8b6e67ce0e4ec250531abf7951a5fbe467d1a96662ac2b12a89c13e12"
+        },
+        "projects": {
+          "count": 87,
+          "sha256": "111eea59ea0f66f7edb3acb591cfd09b905e7efa44d0240a8f54992d9411d990",
+          "operational_sha256": "111eea59ea0f66f7edb3acb591cfd09b905e7efa44d0240a8f54992d9411d990"
+        },
+        "needs": {
+          "count": 87,
+          "sha256": "66cd7c914d778ccbd770df5af25a5f034e2f6775299444837cd199f423cc948c",
+          "operational_sha256": "66cd7c914d778ccbd770df5af25a5f034e2f6775299444837cd199f423cc948c"
+        },
+        "need_observations": {
+          "count": 87,
+          "sha256": "8989aa482e33f4ac4748c6921a7da8361d25819a5b09fee9049f1e584daa61ef",
+          "operational_sha256": "8989aa482e33f4ac4748c6921a7da8361d25819a5b09fee9049f1e584daa61ef"
+        },
+        "changes": {
+          "count": 87,
+          "sha256": "d73e468f7315fcfac53ef093fb6f03a5a1e509e0a71aee0d161c74fdac9a89e2",
+          "operational_sha256": "d73e468f7315fcfac53ef093fb6f03a5a1e509e0a71aee0d161c74fdac9a89e2"
+        },
+        "interpretations": {
+          "count": 2530,
+          "sha256": "544f248f59e9b783250784e58c3d5c984d50ef84e17b1a71cf4644edc481a07b",
+          "operational_sha256": "cc7ce245595b18c5ebf968106be398a5d97d64463cab5b93c215a5801815a00e"
+        }
+      },
+      "content_digest_unchanged": true,
+      "operational_digest_unchanged": true,
+      "counts_unchanged": true,
+      "morning_changes_before": {
+        "count": 87,
+        "sha256": "70cf6594fea09a5c8782a70c879ffbb233a085a2af9d8d49d6d575211bc3acf0"
+      },
+      "morning_changes_after": {
+        "count": 87,
+        "sha256": "70cf6594fea09a5c8782a70c879ffbb233a085a2af9d8d49d6d575211bc3acf0"
+      }
+    },
+    {
+      "source_id": "utility-dive-news",
+      "publisher": "Utility Dive",
+      "attempted": true,
+      "status": "Checked\u2014No Change",
+      "overdue_before_run": false,
+      "overdue_after_run": false,
+      "last_success": "2026-09-28T01:17:12.146563+00:00",
+      "parse_failures": 0,
+      "retrieved_records": 10,
+      "parsed_records": 10,
+      "new_records": 0,
+      "changed_records": 0,
+      "unchanged_records": 10,
+      "failed_jobs": 0,
+      "failed_records": 0,
+      "failed_interpretations": 0,
+      "pending_interpretations": 0,
+      "pipeline_status": "PASS",
+      "error": null,
+      "source_database_counts": {
+        "observations": 10,
+        "evidence": 10,
+        "projects": 0,
+        "needs": 0,
+        "changes": 0,
+        "failed_interpretations": 0,
+        "pending_interpretations": 0
+      },
+      "job_status": "succeeded",
+      "job_attempts": 1,
+      "incidental_attempts": [],
+      "before_database_counts": {
+        "observations": 2530,
+        "evidence": 2567,
+        "projects": 87,
+        "needs": 87,
+        "need_observations": 87,
+        "changes": 87,
+        "interpretations": 2530
+      },
+      "before_database_digests": {
+        "observations": {
+          "count": 2530,
+          "sha256": "b6c7cc0008e2c08b1da989e05ac2af2c59552732a355580b46df58a407e42a32",
+          "operational_sha256": "b6c7cc0008e2c08b1da989e05ac2af2c59552732a355580b46df58a407e42a32"
+        },
+        "evidence": {
+          "count": 2567,
+          "sha256": "c286dfe8b6e67ce0e4ec250531abf7951a5fbe467d1a96662ac2b12a89c13e12",
+          "operational_sha256": "c286dfe8b6e67ce0e4ec250531abf7951a5fbe467d1a96662ac2b12a89c13e12"
+        },
+        "projects": {
+          "count": 87,
+          "sha256": "111eea59ea0f66f7edb3acb591cfd09b905e7efa44d0240a8f54992d9411d990",
+          "operational_sha256": "111eea59ea0f66f7edb3acb591cfd09b905e7efa44d0240a8f54992d9411d990"
+        },
+        "needs": {
+          "count": 87,
+          "sha256": "66cd7c914d778ccbd770df5af25a5f034e2f6775299444837cd199f423cc948c",
+          "operational_sha256": "66cd7c914d778ccbd770df5af25a5f034e2f6775299444837cd199f423cc948c"
+        },
+        "need_observations": {
+          "count": 87,
+          "sha256": "8989aa482e33f4ac4748c6921a7da8361d25819a5b09fee9049f1e584daa61ef",
+          "operational_sha256": "8989aa482e33f4ac4748c6921a7da8361d25819a5b09fee9049f1e584daa61ef"
+        },
+        "changes": {
+          "count": 87,
+          "sha256": "d73e468f7315fcfac53ef093fb6f03a5a1e509e0a71aee0d161c74fdac9a89e2",
+          "operational_sha256": "d73e468f7315fcfac53ef093fb6f03a5a1e509e0a71aee0d161c74fdac9a89e2"
+        },
+        "interpretations": {
+          "count": 2530,
+          "sha256": "544f248f59e9b783250784e58c3d5c984d50ef84e17b1a71cf4644edc481a07b",
+          "operational_sha256": "cc7ce245595b18c5ebf968106be398a5d97d64463cab5b93c215a5801815a00e"
+        }
+      },
+      "after_database_counts": {
+        "observations": 2530,
+        "evidence": 2567,
+        "projects": 87,
+        "needs": 87,
+        "need_observations": 87,
+        "changes": 87,
+        "interpretations": 2530
+      },
+      "after_database_digests": {
+        "observations": {
+          "count": 2530,
+          "sha256": "b6c7cc0008e2c08b1da989e05ac2af2c59552732a355580b46df58a407e42a32",
+          "operational_sha256": "b6c7cc0008e2c08b1da989e05ac2af2c59552732a355580b46df58a407e42a32"
+        },
+        "evidence": {
+          "count": 2567,
+          "sha256": "c286dfe8b6e67ce0e4ec250531abf7951a5fbe467d1a96662ac2b12a89c13e12",
+          "operational_sha256": "c286dfe8b6e67ce0e4ec250531abf7951a5fbe467d1a96662ac2b12a89c13e12"
+        },
+        "projects": {
+          "count": 87,
+          "sha256": "111eea59ea0f66f7edb3acb591cfd09b905e7efa44d0240a8f54992d9411d990",
+          "operational_sha256": "111eea59ea0f66f7edb3acb591cfd09b905e7efa44d0240a8f54992d9411d990"
+        },
+        "needs": {
+          "count": 87,
+          "sha256": "66cd7c914d778ccbd770df5af25a5f034e2f6775299444837cd199f423cc948c",
+          "operational_sha256": "66cd7c914d778ccbd770df5af25a5f034e2f6775299444837cd199f423cc948c"
+        },
+        "need_observations": {
+          "count": 87,
+          "sha256": "8989aa482e33f4ac4748c6921a7da8361d25819a5b09fee9049f1e584daa61ef",
+          "operational_sha256": "8989aa482e33f4ac4748c6921a7da8361d25819a5b09fee9049f1e584daa61ef"
+        },
+        "changes": {
+          "count": 87,
+          "sha256": "d73e468f7315fcfac53ef093fb6f03a5a1e509e0a71aee0d161c74fdac9a89e2",
+          "operational_sha256": "d73e468f7315fcfac53ef093fb6f03a5a1e509e0a71aee0d161c74fdac9a89e2"
+        },
+        "interpretations": {
+          "count": 2530,
+          "sha256": "544f248f59e9b783250784e58c3d5c984d50ef84e17b1a71cf4644edc481a07b",
+          "operational_sha256": "cc7ce245595b18c5ebf968106be398a5d97d64463cab5b93c215a5801815a00e"
+        }
+      },
+      "content_digest_unchanged": true,
+      "operational_digest_unchanged": true,
+      "counts_unchanged": true,
+      "morning_changes_before": {
+        "count": 87,
+        "sha256": "70cf6594fea09a5c8782a70c879ffbb233a085a2af9d8d49d6d575211bc3acf0"
+      },
+      "morning_changes_after": {
+        "count": 87,
+        "sha256": "70cf6594fea09a5c8782a70c879ffbb233a085a2af9d8d49d6d575211bc3acf0"
+      }
+    }
+  ],
+  "limitations": [
+    "A failed worker job retains UNKNOWN record counts; it is not reported as zero.",
+    "Failed or pending record interpretations are reported and fail the source pipeline gate.",
+    "Replay uses the ordinary worker and honors its queued retry backoff.",
+    "This local check does not establish cloud, national coverage, or Lead qualification."
+  ],
+  "updated_at_utc": "2026-09-28T01:17:12.925546+00:00",
+  "post_ingestion_database_counts": {
+    "observations": 2530,
+    "evidence": 2567,
+    "projects": 87,
+    "needs": 87,
+    "need_observations": 87,
+    "changes": 87,
+    "interpretations": 2530
+  },
+  "post_ingestion_database_digests": {
+    "observations": {
+      "count": 2530,
+      "sha256": "b6c7cc0008e2c08b1da989e05ac2af2c59552732a355580b46df58a407e42a32",
+      "operational_sha256": "b6c7cc0008e2c08b1da989e05ac2af2c59552732a355580b46df58a407e42a32"
+    },
+    "evidence": {
+      "count": 2567,
+      "sha256": "c286dfe8b6e67ce0e4ec250531abf7951a5fbe467d1a96662ac2b12a89c13e12",
+      "operational_sha256": "c286dfe8b6e67ce0e4ec250531abf7951a5fbe467d1a96662ac2b12a89c13e12"
+    },
+    "projects": {
+      "count": 87,
+      "sha256": "111eea59ea0f66f7edb3acb591cfd09b905e7efa44d0240a8f54992d9411d990",
+      "operational_sha256": "111eea59ea0f66f7edb3acb591cfd09b905e7efa44d0240a8f54992d9411d990"
+    },
+    "needs": {
+      "count": 87,
+      "sha256": "66cd7c914d778ccbd770df5af25a5f034e2f6775299444837cd199f423cc948c",
+      "operational_sha256": "66cd7c914d778ccbd770df5af25a5f034e2f6775299444837cd199f423cc948c"
+    },
+    "need_observations": {
+      "count": 87,
+      "sha256": "8989aa482e33f4ac4748c6921a7da8361d25819a5b09fee9049f1e584daa61ef",
+      "operational_sha256": "8989aa482e33f4ac4748c6921a7da8361d25819a5b09fee9049f1e584daa61ef"
+    },
+    "changes": {
+      "count": 87,
+      "sha256": "d73e468f7315fcfac53ef093fb6f03a5a1e509e0a71aee0d161c74fdac9a89e2",
+      "operational_sha256": "d73e468f7315fcfac53ef093fb6f03a5a1e509e0a71aee0d161c74fdac9a89e2"
+    },
+    "interpretations": {
+      "count": 2530,
+      "sha256": "544f248f59e9b783250784e58c3d5c984d50ef84e17b1a71cf4644edc481a07b",
+      "operational_sha256": "042c63852097e08a9309d572f8adf468a0236363840f81429880fe553d37658e"
+    }
+  },
+  "post_ingestion_morning_changes": {
+    "count": 87,
+    "sha256": "70cf6594fea09a5c8782a70c879ffbb233a085a2af9d8d49d6d575211bc3acf0",
+    "items": [
+      {
+        "kind": "discovered",
+        "title": "Seattle building permit 7143336-CN \u2014 Addition/Alteration",
+        "url": "https://services.seattle.gov/portal/customize/LinkToRecord.aspx?altId=7143336-CN",
+        "published_at": "2026-09-16"
+      },
+      {
+        "kind": "discovered",
+        "title": "National Steel Fabrication Company Plans a $19 Million Manufacturing Expansion in Fayetteville",
+        "url": "https://www.commerce.nc.gov/news/press-releases/2026/09/09/national-steel-fabrication-company-plans-19-million-manufacturing-expansion-fayetteville",
+        "published_at": "2026-09-09"
+      },
+      {
+        "kind": "discovered",
+        "title": "Hanwha Defense to establish $2.2B manufacturing campus in Arkansas",
+        "url": "https://www.manufacturingdive.com/news/hanwha-defense-army-pine-bluff-arsenal-arkansas-manufacturing-campus/830927/",
+        "published_at": "2026-09-22"
+      },
+      {
+        "kind": "discovered",
+        "title": "Walker County Quarry",
+        "url": "https://epd.georgia.gov/draft-title-v-permitsamendments-other-draft-permits",
+        "published_at": null
+      },
+      {
+        "kind": "discovered",
+        "title": "Vulcan Construction Materials, LLC \u2013 Siloam Quarry",
+        "url": "https://epd.georgia.gov/draft-title-v-permitsamendments-other-draft-permits",
+        "published_at": null
+      },
+      {
+        "kind": "discovered",
+        "title": "TADG \u2013 ATL02 / Ellenwood",
+        "url": "https://epd.georgia.gov/draft-title-v-permitsamendments-other-draft-permits",
+        "published_at": null
+      },
+      {
+        "kind": "discovered",
+        "title": "South Atlanta Asphalt Plant",
+        "url": "https://epd.georgia.gov/draft-title-v-permitsamendments-other-draft-permits",
+        "published_at": null
+      },
+      {
+        "kind": "discovered",
+        "title": "QTS Fayetteville I, LLC",
+        "url": "https://epd.georgia.gov/draft-title-v-permitsamendments-other-draft-permits",
+        "published_at": null
+      },
+      {
+        "kind": "discovered",
+        "title": "QTS ATL3",
+        "url": "https://epd.georgia.gov/draft-title-v-permitsamendments-other-draft-permits",
+        "published_at": null
+      },
+      {
+        "kind": "discovered",
+        "title": "Grady Road Renewable Energy, LLC",
+        "url": "https://epd.georgia.gov/draft-title-v-permitsamendments-other-draft-permits",
+        "published_at": null
+      },
+      {
+        "kind": "discovered",
+        "title": "Azalea Quarry",
+        "url": "https://epd.georgia.gov/draft-title-v-permitsamendments-other-draft-permits",
+        "published_at": null
+      },
+      {
+        "kind": "discovered",
+        "title": "Apex Site Solutions LLC",
+        "url": "https://epd.georgia.gov/draft-title-v-permitsamendments-other-draft-permits",
+        "published_at": null
+      },
+      {
+        "kind": "discovered",
+        "title": "Mount Taylor Ranger District, Cibola National Forest & National Grasslands; New Mexico; Roca Honda Mine Project",
+        "url": "https://www.federalregister.gov/documents/2026/09/14/2026-18765/mount-taylor-ranger-district-cibola-national-forest-and-national-grasslands-new-mexico-roca-honda",
+        "published_at": "2026-09-14"
+      },
+      {
+        "kind": "discovered",
+        "title": "Applied Digital reveals $3.2bn Delta Forge 2 AI data center will be built in Alabama",
+        "url": "https://www.datacenterdynamics.com/en/news/applied-digital-reveals-32bn-delta-forge-2-ai-data-center-will-be-built-in-alabama/",
+        "published_at": "2026-09-25"
+      },
+      {
+        "kind": "discovered",
+        "title": "Sundt breaks ground on $92M Texas water project",
+        "url": "https://www.constructiondive.com/news/sundt-breaks-ground-texas-water-project-denton/831119/",
+        "published_at": "2026-09-23"
+      },
+      {
+        "kind": "discovered",
+        "title": "Eli Lilly breaks ground on $6.5B Houston manufacturing plant",
+        "url": "https://www.constructiondive.com/news/eli-lilly-breaks-ground-houston-manufacturing-plant/831307/",
+        "published_at": "2026-09-24"
+      },
+      {
+        "kind": "discovered",
+        "title": "Chicago building permit 3442494 \u2014 PERMIT - RENOVATION/ALTERATION",
+        "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json",
+        "published_at": "2026-09-23"
+      },
+      {
+        "kind": "discovered",
+        "title": "Chicago building permit 3460877 \u2014 PERMIT - NEW CONSTRUCTION",
+        "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json",
+        "published_at": "2026-09-18"
+      },
+      {
+        "kind": "discovered",
+        "title": "Chicago building permit 3459792 \u2014 PERMIT - NEW CONSTRUCTION",
+        "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json",
+        "published_at": "2026-09-18"
+      },
+      {
+        "kind": "discovered",
+        "title": "Chicago building permit 3460956 \u2014 PERMIT - NEW CONSTRUCTION",
+        "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json",
+        "published_at": "2026-09-17"
+      },
+      {
+        "kind": "discovered",
+        "title": "Chicago building permit 3460757 \u2014 PERMIT - NEW CONSTRUCTION",
+        "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json",
+        "published_at": "2026-09-17"
+      },
+      {
+        "kind": "discovered",
+        "title": "Chicago building permit 3451848 \u2014 PERMIT - RENOVATION/ALTERATION",
+        "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json",
+        "published_at": "2026-09-16"
+      },
+      {
+        "kind": "discovered",
+        "title": "Chicago building permit 3460446 \u2014 PERMIT - NEW CONSTRUCTION",
+        "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json",
+        "published_at": "2026-09-14"
+      },
+      {
+        "kind": "discovered",
+        "title": "Chicago building permit 3460318 \u2014 PERMIT - NEW CONSTRUCTION",
+        "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json",
+        "published_at": "2026-09-11"
+      },
+      {
+        "kind": "discovered",
+        "title": "Chicago building permit 3460191 \u2014 PERMIT - NEW CONSTRUCTION",
+        "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json",
+        "published_at": "2026-09-10"
+      },
+      {
+        "kind": "discovered",
+        "title": "Chicago building permit 3460046 \u2014 PERMIT - NEW CONSTRUCTION",
+        "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json",
+        "published_at": "2026-09-09"
+      },
+      {
+        "kind": "discovered",
+        "title": "Chicago building permit 3460022 \u2014 PERMIT - NEW CONSTRUCTION",
+        "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json",
+        "published_at": "2026-09-09"
+      },
+      {
+        "kind": "discovered",
+        "title": "Chicago building permit 3459696 \u2014 PERMIT - NEW CONSTRUCTION",
+        "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json",
+        "published_at": "2026-09-09"
+      },
+      {
+        "kind": "discovered",
+        "title": "Chicago building permit 3449966 \u2014 PERMIT - RENOVATION/ALTERATION",
+        "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json",
+        "published_at": "2026-09-02"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-126812 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13779199",
+        "published_at": "2026-09-26"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-126791 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13779178",
+        "published_at": "2026-09-26"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-126787 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13779174",
+        "published_at": "2026-09-26"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-126767 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13779149",
+        "published_at": "2026-09-26"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-126737 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13779119",
+        "published_at": "2026-09-26"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-126732 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13779114",
+        "published_at": "2026-09-26"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-125566 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13777698",
+        "published_at": "2026-09-24"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-124757 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13776762",
+        "published_at": "2026-09-24"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-124752 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13776756",
+        "published_at": "2026-09-24"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-124749 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13776753",
+        "published_at": "2026-09-24"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-124744 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13776748",
+        "published_at": "2026-09-24"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-124724 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13776728",
+        "published_at": "2026-09-24"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-124714 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13776718",
+        "published_at": "2026-09-24"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-124700 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13776704",
+        "published_at": "2026-09-24"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-123264 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13775057",
+        "published_at": "2026-09-24"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-123259 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13775051",
+        "published_at": "2026-09-24"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-123250 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13775042",
+        "published_at": "2026-09-24"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-123195 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13774983",
+        "published_at": "2026-09-24"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-123190 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13774978",
+        "published_at": "2026-09-24"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-117984 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13769155",
+        "published_at": "2026-09-17"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-117983 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13769154",
+        "published_at": "2026-09-17"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-117982 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13769153",
+        "published_at": "2026-09-17"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-119402 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13770761",
+        "published_at": "2026-09-15"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-118574 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13769852",
+        "published_at": "2026-09-10"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-118573 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13769851",
+        "published_at": "2026-09-10"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-116148 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13766913",
+        "published_at": "2026-09-08"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2024-163869 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13444515",
+        "published_at": "2026-09-02"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2024-163868 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13444514",
+        "published_at": "2026-09-02"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-097374 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13745507",
+        "published_at": "2026-09-01"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-060198 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13703282",
+        "published_at": "2026-08-10"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-095413 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13743166",
+        "published_at": "2026-07-27"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-060197 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13703281",
+        "published_at": "2026-05-18"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-059493 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13702484",
+        "published_at": "2026-05-18"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-047761 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13689066",
+        "published_at": "2026-04-23"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2025-061221 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13519371",
+        "published_at": "2026-04-03"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-025858 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13664021",
+        "published_at": "2026-03-05"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2025-049094 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13505261",
+        "published_at": "2026-02-19"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-009429 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13645441",
+        "published_at": "2026-02-04"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2025-155325 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13624967",
+        "published_at": "2025-12-18"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2025-083701 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13544834",
+        "published_at": "2025-07-09"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2025-083700 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13544833",
+        "published_at": "2025-07-09"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2025-083699 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13544832",
+        "published_at": "2025-07-09"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2025-030010 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13483102",
+        "published_at": "2025-04-15"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2025-030009 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13483101",
+        "published_at": "2025-04-15"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2025-030008 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13483100",
+        "published_at": "2025-04-15"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2025-030011 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13483103",
+        "published_at": "2025-03-21"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2024-075880 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13346161",
+        "published_at": "2025-03-10"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2025-021103 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13472826",
+        "published_at": "2025-03-07"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2025-021102 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13472825",
+        "published_at": "2025-03-07"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2025-021101 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13472824",
+        "published_at": "2025-03-07"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2025-021100 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13472823",
+        "published_at": "2025-03-07"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2024-075881 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13346162",
+        "published_at": "2024-12-03"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2024-128817 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13404870",
+        "published_at": "2024-11-01"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2023-086827 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13172136",
+        "published_at": "2024-01-23"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2023-086826 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13172135",
+        "published_at": "2024-01-23"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2023-086825 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13172134",
+        "published_at": "2024-01-23"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2023-086823 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13172132",
+        "published_at": "2024-01-23"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2023-106541 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13194840",
+        "published_at": "2023-08-21"
+      }
+    ]
+  },
+  "final_database_counts": {
+    "observations": 2530,
+    "evidence": 2567,
+    "projects": 87,
+    "needs": 87,
+    "need_observations": 87,
+    "changes": 87,
+    "interpretations": 2530
+  },
+  "final_database_digests": {
+    "observations": {
+      "count": 2530,
+      "sha256": "b6c7cc0008e2c08b1da989e05ac2af2c59552732a355580b46df58a407e42a32",
+      "operational_sha256": "b6c7cc0008e2c08b1da989e05ac2af2c59552732a355580b46df58a407e42a32"
+    },
+    "evidence": {
+      "count": 2567,
+      "sha256": "c286dfe8b6e67ce0e4ec250531abf7951a5fbe467d1a96662ac2b12a89c13e12",
+      "operational_sha256": "c286dfe8b6e67ce0e4ec250531abf7951a5fbe467d1a96662ac2b12a89c13e12"
+    },
+    "projects": {
+      "count": 87,
+      "sha256": "111eea59ea0f66f7edb3acb591cfd09b905e7efa44d0240a8f54992d9411d990",
+      "operational_sha256": "111eea59ea0f66f7edb3acb591cfd09b905e7efa44d0240a8f54992d9411d990"
+    },
+    "needs": {
+      "count": 87,
+      "sha256": "66cd7c914d778ccbd770df5af25a5f034e2f6775299444837cd199f423cc948c",
+      "operational_sha256": "66cd7c914d778ccbd770df5af25a5f034e2f6775299444837cd199f423cc948c"
+    },
+    "need_observations": {
+      "count": 87,
+      "sha256": "8989aa482e33f4ac4748c6921a7da8361d25819a5b09fee9049f1e584daa61ef",
+      "operational_sha256": "8989aa482e33f4ac4748c6921a7da8361d25819a5b09fee9049f1e584daa61ef"
+    },
+    "changes": {
+      "count": 87,
+      "sha256": "d73e468f7315fcfac53ef093fb6f03a5a1e509e0a71aee0d161c74fdac9a89e2",
+      "operational_sha256": "d73e468f7315fcfac53ef093fb6f03a5a1e509e0a71aee0d161c74fdac9a89e2"
+    },
+    "interpretations": {
+      "count": 2530,
+      "sha256": "544f248f59e9b783250784e58c3d5c984d50ef84e17b1a71cf4644edc481a07b",
+      "operational_sha256": "cc7ce245595b18c5ebf968106be398a5d97d64463cab5b93c215a5801815a00e"
+    }
+  },
+  "final_morning_changes": {
+    "count": 87,
+    "sha256": "70cf6594fea09a5c8782a70c879ffbb233a085a2af9d8d49d6d575211bc3acf0",
+    "items": [
+      {
+        "kind": "discovered",
+        "title": "Seattle building permit 7143336-CN \u2014 Addition/Alteration",
+        "url": "https://services.seattle.gov/portal/customize/LinkToRecord.aspx?altId=7143336-CN",
+        "published_at": "2026-09-16"
+      },
+      {
+        "kind": "discovered",
+        "title": "National Steel Fabrication Company Plans a $19 Million Manufacturing Expansion in Fayetteville",
+        "url": "https://www.commerce.nc.gov/news/press-releases/2026/09/09/national-steel-fabrication-company-plans-19-million-manufacturing-expansion-fayetteville",
+        "published_at": "2026-09-09"
+      },
+      {
+        "kind": "discovered",
+        "title": "Hanwha Defense to establish $2.2B manufacturing campus in Arkansas",
+        "url": "https://www.manufacturingdive.com/news/hanwha-defense-army-pine-bluff-arsenal-arkansas-manufacturing-campus/830927/",
+        "published_at": "2026-09-22"
+      },
+      {
+        "kind": "discovered",
+        "title": "Walker County Quarry",
+        "url": "https://epd.georgia.gov/draft-title-v-permitsamendments-other-draft-permits",
+        "published_at": null
+      },
+      {
+        "kind": "discovered",
+        "title": "Vulcan Construction Materials, LLC \u2013 Siloam Quarry",
+        "url": "https://epd.georgia.gov/draft-title-v-permitsamendments-other-draft-permits",
+        "published_at": null
+      },
+      {
+        "kind": "discovered",
+        "title": "TADG \u2013 ATL02 / Ellenwood",
+        "url": "https://epd.georgia.gov/draft-title-v-permitsamendments-other-draft-permits",
+        "published_at": null
+      },
+      {
+        "kind": "discovered",
+        "title": "South Atlanta Asphalt Plant",
+        "url": "https://epd.georgia.gov/draft-title-v-permitsamendments-other-draft-permits",
+        "published_at": null
+      },
+      {
+        "kind": "discovered",
+        "title": "QTS Fayetteville I, LLC",
+        "url": "https://epd.georgia.gov/draft-title-v-permitsamendments-other-draft-permits",
+        "published_at": null
+      },
+      {
+        "kind": "discovered",
+        "title": "QTS ATL3",
+        "url": "https://epd.georgia.gov/draft-title-v-permitsamendments-other-draft-permits",
+        "published_at": null
+      },
+      {
+        "kind": "discovered",
+        "title": "Grady Road Renewable Energy, LLC",
+        "url": "https://epd.georgia.gov/draft-title-v-permitsamendments-other-draft-permits",
+        "published_at": null
+      },
+      {
+        "kind": "discovered",
+        "title": "Azalea Quarry",
+        "url": "https://epd.georgia.gov/draft-title-v-permitsamendments-other-draft-permits",
+        "published_at": null
+      },
+      {
+        "kind": "discovered",
+        "title": "Apex Site Solutions LLC",
+        "url": "https://epd.georgia.gov/draft-title-v-permitsamendments-other-draft-permits",
+        "published_at": null
+      },
+      {
+        "kind": "discovered",
+        "title": "Mount Taylor Ranger District, Cibola National Forest & National Grasslands; New Mexico; Roca Honda Mine Project",
+        "url": "https://www.federalregister.gov/documents/2026/09/14/2026-18765/mount-taylor-ranger-district-cibola-national-forest-and-national-grasslands-new-mexico-roca-honda",
+        "published_at": "2026-09-14"
+      },
+      {
+        "kind": "discovered",
+        "title": "Applied Digital reveals $3.2bn Delta Forge 2 AI data center will be built in Alabama",
+        "url": "https://www.datacenterdynamics.com/en/news/applied-digital-reveals-32bn-delta-forge-2-ai-data-center-will-be-built-in-alabama/",
+        "published_at": "2026-09-25"
+      },
+      {
+        "kind": "discovered",
+        "title": "Sundt breaks ground on $92M Texas water project",
+        "url": "https://www.constructiondive.com/news/sundt-breaks-ground-texas-water-project-denton/831119/",
+        "published_at": "2026-09-23"
+      },
+      {
+        "kind": "discovered",
+        "title": "Eli Lilly breaks ground on $6.5B Houston manufacturing plant",
+        "url": "https://www.constructiondive.com/news/eli-lilly-breaks-ground-houston-manufacturing-plant/831307/",
+        "published_at": "2026-09-24"
+      },
+      {
+        "kind": "discovered",
+        "title": "Chicago building permit 3442494 \u2014 PERMIT - RENOVATION/ALTERATION",
+        "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json",
+        "published_at": "2026-09-23"
+      },
+      {
+        "kind": "discovered",
+        "title": "Chicago building permit 3460877 \u2014 PERMIT - NEW CONSTRUCTION",
+        "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json",
+        "published_at": "2026-09-18"
+      },
+      {
+        "kind": "discovered",
+        "title": "Chicago building permit 3459792 \u2014 PERMIT - NEW CONSTRUCTION",
+        "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json",
+        "published_at": "2026-09-18"
+      },
+      {
+        "kind": "discovered",
+        "title": "Chicago building permit 3460956 \u2014 PERMIT - NEW CONSTRUCTION",
+        "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json",
+        "published_at": "2026-09-17"
+      },
+      {
+        "kind": "discovered",
+        "title": "Chicago building permit 3460757 \u2014 PERMIT - NEW CONSTRUCTION",
+        "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json",
+        "published_at": "2026-09-17"
+      },
+      {
+        "kind": "discovered",
+        "title": "Chicago building permit 3451848 \u2014 PERMIT - RENOVATION/ALTERATION",
+        "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json",
+        "published_at": "2026-09-16"
+      },
+      {
+        "kind": "discovered",
+        "title": "Chicago building permit 3460446 \u2014 PERMIT - NEW CONSTRUCTION",
+        "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json",
+        "published_at": "2026-09-14"
+      },
+      {
+        "kind": "discovered",
+        "title": "Chicago building permit 3460318 \u2014 PERMIT - NEW CONSTRUCTION",
+        "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json",
+        "published_at": "2026-09-11"
+      },
+      {
+        "kind": "discovered",
+        "title": "Chicago building permit 3460191 \u2014 PERMIT - NEW CONSTRUCTION",
+        "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json",
+        "published_at": "2026-09-10"
+      },
+      {
+        "kind": "discovered",
+        "title": "Chicago building permit 3460046 \u2014 PERMIT - NEW CONSTRUCTION",
+        "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json",
+        "published_at": "2026-09-09"
+      },
+      {
+        "kind": "discovered",
+        "title": "Chicago building permit 3460022 \u2014 PERMIT - NEW CONSTRUCTION",
+        "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json",
+        "published_at": "2026-09-09"
+      },
+      {
+        "kind": "discovered",
+        "title": "Chicago building permit 3459696 \u2014 PERMIT - NEW CONSTRUCTION",
+        "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json",
+        "published_at": "2026-09-09"
+      },
+      {
+        "kind": "discovered",
+        "title": "Chicago building permit 3449966 \u2014 PERMIT - RENOVATION/ALTERATION",
+        "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json",
+        "published_at": "2026-09-02"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-126812 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13779199",
+        "published_at": "2026-09-26"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-126791 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13779178",
+        "published_at": "2026-09-26"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-126787 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13779174",
+        "published_at": "2026-09-26"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-126767 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13779149",
+        "published_at": "2026-09-26"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-126737 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13779119",
+        "published_at": "2026-09-26"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-126732 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13779114",
+        "published_at": "2026-09-26"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-125566 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13777698",
+        "published_at": "2026-09-24"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-124757 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13776762",
+        "published_at": "2026-09-24"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-124752 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13776756",
+        "published_at": "2026-09-24"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-124749 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13776753",
+        "published_at": "2026-09-24"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-124744 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13776748",
+        "published_at": "2026-09-24"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-124724 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13776728",
+        "published_at": "2026-09-24"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-124714 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13776718",
+        "published_at": "2026-09-24"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-124700 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13776704",
+        "published_at": "2026-09-24"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-123264 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13775057",
+        "published_at": "2026-09-24"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-123259 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13775051",
+        "published_at": "2026-09-24"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-123250 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13775042",
+        "published_at": "2026-09-24"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-123195 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13774983",
+        "published_at": "2026-09-24"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-123190 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13774978",
+        "published_at": "2026-09-24"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-117984 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13769155",
+        "published_at": "2026-09-17"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-117983 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13769154",
+        "published_at": "2026-09-17"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-117982 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13769153",
+        "published_at": "2026-09-17"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-119402 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13770761",
+        "published_at": "2026-09-15"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-118574 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13769852",
+        "published_at": "2026-09-10"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-118573 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13769851",
+        "published_at": "2026-09-10"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-116148 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13766913",
+        "published_at": "2026-09-08"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2024-163869 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13444515",
+        "published_at": "2026-09-02"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2024-163868 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13444514",
+        "published_at": "2026-09-02"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-097374 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13745507",
+        "published_at": "2026-09-01"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-060198 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13703282",
+        "published_at": "2026-08-10"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-095413 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13743166",
+        "published_at": "2026-07-27"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-060197 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13703281",
+        "published_at": "2026-05-18"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-059493 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13702484",
+        "published_at": "2026-05-18"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-047761 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13689066",
+        "published_at": "2026-04-23"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2025-061221 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13519371",
+        "published_at": "2026-04-03"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-025858 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13664021",
+        "published_at": "2026-03-05"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2025-049094 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13505261",
+        "published_at": "2026-02-19"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2026-009429 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13645441",
+        "published_at": "2026-02-04"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2025-155325 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13624967",
+        "published_at": "2025-12-18"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2025-083701 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13544834",
+        "published_at": "2025-07-09"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2025-083700 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13544833",
+        "published_at": "2025-07-09"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2025-083699 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13544832",
+        "published_at": "2025-07-09"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2025-030010 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13483102",
+        "published_at": "2025-04-15"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2025-030009 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13483101",
+        "published_at": "2025-04-15"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2025-030008 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13483100",
+        "published_at": "2025-04-15"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2025-030011 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13483103",
+        "published_at": "2025-03-21"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2024-075880 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13346161",
+        "published_at": "2025-03-10"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2025-021103 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13472826",
+        "published_at": "2025-03-07"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2025-021102 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13472825",
+        "published_at": "2025-03-07"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2025-021101 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13472824",
+        "published_at": "2025-03-07"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2025-021100 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13472823",
+        "published_at": "2025-03-07"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2024-075881 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13346162",
+        "published_at": "2024-12-03"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2024-128817 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13404870",
+        "published_at": "2024-11-01"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2023-086827 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13172136",
+        "published_at": "2024-01-23"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2023-086826 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13172135",
+        "published_at": "2024-01-23"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2023-086825 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13172134",
+        "published_at": "2024-01-23"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2023-086823 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13172132",
+        "published_at": "2024-01-23"
+      },
+      {
+        "kind": "discovered",
+        "title": "Austin building permit 2023-106541 BP \u2014 Building Permit",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13194840",
+        "published_at": "2023-08-21"
+      }
+    ]
+  },
+  "all_replays_unchanged": true,
+  "finished_at_utc": "2026-09-28T01:17:12.925546+00:00",
+  "duration_seconds": 100.253
+}

@@ -1,0 +1,301 @@
+{
+  "at": "2026-09-27T17:19:00.589365-05:00",
+  "candidate_sha256": "b3122aebae423816445d376180304c46c6579700c06074b3f3c276bcbe297398",
+  "base_sha": "a7ee3e4d22c5375481402c637d22c08eba59cbac",
+  "branch": "fix/project-cards",
+  "migration": {
+    "revision": "0004_unknown_publication_dates",
+    "review": "MIGRATION_REVIEW.json",
+    "upgrade_exit": 0,
+    "alembic_check_exit": 0
+  },
+  "gates": {
+    "at": "2026-09-27T17:18:39.70579-05:00",
+    "results": [
+      {
+        "command": [
+          "uv",
+          "run",
+          "ruff",
+          "check",
+          "src",
+          "tests"
+        ],
+        "cwd": "backend",
+        "exit_code": 0,
+        "seconds": 0.203,
+        "stdout": "All checks passed!\n",
+        "stderr": ""
+      },
+      {
+        "command": [
+          "uv",
+          "run",
+          "mypy",
+          "src"
+        ],
+        "cwd": "backend",
+        "exit_code": 0,
+        "seconds": 1.438,
+        "stdout": "Success: no issues found in 30 source files\n",
+        "stderr": ""
+      },
+      {
+        "command": [
+          "uv",
+          "run",
+          "pytest",
+          "-q"
+        ],
+        "cwd": "backend",
+        "exit_code": 0,
+        "seconds": 16.109,
+        "stdout": "........................................................................ [ 36%]\n........................................................................ [ 72%]\n.......................................................                  [100%]\n============================== warnings summary ===============================\n.venv\\Lib\\site-packages\\fastapi\\testclient.py:1\n  C:\\Users\\nrsan\\Nucleus\\02_Projects\\GridLens\\gl3\\backend\\.venv\\Lib\\site-packages\\fastapi\\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.\n    from starlette.testclient import TestClient as TestClient  # noqa\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n199 passed, 1 warning in 14.55s\n",
+        "stderr": ""
+      },
+      {
+        "command": [
+          "cmd",
+          "/c",
+          "npm",
+          "run",
+          "typecheck"
+        ],
+        "cwd": "web",
+        "exit_code": 0,
+        "seconds": 2.234,
+        "stdout": "\n> gridlens-web@0.1.0 typecheck\n> tsc --noEmit\n\n",
+        "stderr": ""
+      },
+      {
+        "command": [
+          "cmd",
+          "/c",
+          "npm",
+          "run",
+          "build"
+        ],
+        "cwd": "web",
+        "exit_code": 0,
+        "seconds": 3.907,
+        "stdout": "\n> gridlens-web@0.1.0 build\n> tsc -b && vite build\n\nvite v6.4.3 building for production...\ntransforming...\nâœ“ 32 modules transformed.\nrendering chunks...\ncomputing gzip size...\ndist/index.html                   0.52 kB â”‚ gzip:  0.32 kB\ndist/assets/index-i13U_zsO.css   12.70 kB â”‚ gzip:  3.30 kB\ndist/assets/index-CUk83tFN.js   217.70 kB â”‚ gzip: 68.48 kB\nâœ“ built in 751ms\n",
+        "stderr": ""
+      },
+      {
+        "command": [
+          "git",
+          "diff",
+          "--check"
+        ],
+        "cwd": ".",
+        "exit_code": 0,
+        "seconds": 0.218,
+        "stdout": "",
+        "stderr": "warning: in the working copy of '.agent/WORK_GRAPH.md', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'backend/src/gridlens/api/app.py', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'backend/src/gridlens/ingestion/adapters/__init__.py', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'backend/src/gridlens/ingestion/registry.py', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'backend/src/gridlens/ingestion/service.py', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'backend/src/gridlens/jobs/worker.py', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'backend/src/gridlens/persistence/models.py', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'config/sources/registry.v1.json', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'docs/sources/coverage.md', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'web/src/api/client.ts', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'web/src/api/generated.ts', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'web/src/styles/app.css', LF will be replaced by CRLF the next time Git touches it\nwarning: in the working copy of 'web/tests/first_path.spec.ts', LF will be replaced by CRLF the next time Git touches it\n"
+      }
+    ]
+  },
+  "controller_cases": [
+    {
+      "case": "partial-service",
+      "expected": true,
+      "actual": true,
+      "reason": "Georgia EPD's current draft-permit listing and linked narrative report a concrete proposed onsite generator addition, partial utility service, or power-related campus activity at Example Data Center (100 Example Road, Georgia). This is a discovery Signal. Any reported campus, utility-service, or equipment values remain source facts; a possible construction/commissioning or bridge-power question is inferred. The filing does not establish rental MW, an unmet requirement, suitable supply, buyer, energization date, or project completion."
+    },
+    {
+      "case": "unknown-date",
+      "expected": true,
+      "actual": true,
+      "reason": "Georgia EPD's current draft-permit listing and linked narrative report a concrete named facility construction or expansion at Example Data Center (100 Example Road, Georgia). This is a discovery Signal. Any reported campus, utility-service, or equipment values remain source facts; a possible construction/commissioning or bridge-power question is inferred. The filing does not establish rental MW, an unmet requirement, suitable supply, buyer, energization date, or project completion."
+    },
+    {
+      "case": "standby",
+      "expected": true,
+      "actual": true,
+      "reason": "Georgia EPD's current draft-permit listing and linked narrative report a concrete proposed onsite generator addition, partial utility service, or power-related campus activity at Example Data Center (100 Example Road, Georgia). This is a discovery Signal. Any reported campus, utility-service, or equipment values remain source facts; a possible construction/commissioning or bridge-power question is inferred. The filing does not establish rental MW, an unmet requirement, suitable supply, buyer, energization date, or project completion."
+    },
+    {
+      "case": "operating-expansion",
+      "expected": true,
+      "actual": true,
+      "reason": "Georgia EPD's current draft-permit listing and linked narrative report a concrete named facility construction or expansion at Example Data Center (100 Example Road, Georgia). This is a discovery Signal. Any reported campus, utility-service, or equipment values remain source facts; a possible construction/commissioning or bridge-power question is inferred. The filing does not establish rental MW, an unmet requirement, suitable supply, buyer, energization date, or project completion."
+    },
+    {
+      "case": "old-phase-new-phase",
+      "expected": true,
+      "actual": true,
+      "reason": "Georgia EPD's current draft-permit listing and linked narrative report a concrete named facility construction or expansion at Example Data Center (100 Example Road, Georgia). This is a discovery Signal. Any reported campus, utility-service, or equipment values remain source facts; a possible construction/commissioning or bridge-power question is inferred. The filing does not establish rental MW, an unmet requirement, suitable supply, buyer, energization date, or project completion."
+    },
+    {
+      "case": "renewal-only",
+      "expected": false,
+      "actual": false,
+      "reason": "Georgia filing is listed, but its current application-purpose excerpt does not establish concrete facility construction/expansion or proposed generator activity; routine renewals remain evidence only."
+    },
+    {
+      "case": "withdrawn",
+      "expected": false,
+      "actual": false,
+      "reason": "Current Georgia application-purpose text explicitly reports withdrawal, completion, or operation; retain it as history, not an open project Signal."
+    }
+  ],
+  "first_live": {
+    "at": "2026-09-27T17:10:11.052735-05:00",
+    "job": {
+      "id": "49bc2d5a-5de1-4d8f-b9c0-efab2cc2b24f",
+      "source": "georgia-air-draft-title-v",
+      "status": "succeeded",
+      "attempts": 2,
+      "error": null
+    },
+    "counts": {
+      "sources": 12,
+      "observations": 1208,
+      "evidence": 1260,
+      "projects": 60,
+      "power_needs": 60,
+      "change_events": 78,
+      "interpretations": 1208,
+      "need_observations": 60
+    },
+    "digest": "48c11baecf2c60d0794cb05a1072490c792d06b59fe3a86e56f0f6f4aef591e7",
+    "prior_rows_unchanged": true,
+    "replay_unchanged": false
+  },
+  "replay": {
+    "at": "2026-09-27T17:11:12.131726-05:00",
+    "job": {
+      "id": "dc4d54a8-f41f-47b8-bfa0-4707cb916ec3",
+      "source": "georgia-air-draft-title-v",
+      "status": "succeeded",
+      "attempts": 1,
+      "error": null
+    },
+    "counts": {
+      "sources": 12,
+      "observations": 1208,
+      "evidence": 1260,
+      "projects": 60,
+      "power_needs": 60,
+      "change_events": 78,
+      "interpretations": 1208,
+      "need_observations": 60
+    },
+    "digest": "48c11baecf2c60d0794cb05a1072490c792d06b59fe3a86e56f0f6f4aef591e7",
+    "prior_rows_unchanged": true,
+    "replay_unchanged": true
+  },
+  "browser": {
+    "at": "2026-09-27T22:16:48.591Z",
+    "records": 59,
+    "cards": 41,
+    "air_signals": [
+      {
+        "id": "939b93cd-09ff-43fc-9ab9-0d9113b3225a",
+        "name": "Walker County Quarry",
+        "location": "LaFayette, Georgia",
+        "tier": "Signal",
+        "evidence": 3
+      },
+      {
+        "id": "481a730c-a99d-4195-8634-489879467c36",
+        "name": "Vulcan Construction Materials, LLC â€“ Siloam Quarry",
+        "location": "Siloam, Georgia",
+        "tier": "Signal",
+        "evidence": 3
+      },
+      {
+        "id": "ed7e1fc6-fb75-4fc3-843d-30a492da7d93",
+        "name": "TADG â€“ ATL02 / Ellenwood",
+        "location": "Ellenwood, Georgia",
+        "tier": "Signal",
+        "evidence": 3
+      },
+      {
+        "id": "1432c507-96dc-491f-a4a4-15817b12a46e",
+        "name": "South Atlanta Asphalt Plant",
+        "location": "Atlanta, Georgia",
+        "tier": "Signal",
+        "evidence": 4
+      },
+      {
+        "id": "4249b051-769c-4bbe-8b6c-4efbaee05598",
+        "name": "QTS Fayetteville I, LLC",
+        "location": "Fayetteville, Georgia",
+        "tier": "Signal",
+        "evidence": 4
+      },
+      {
+        "id": "0ce50cb9-a912-4ccb-a67c-bda3e971e284",
+        "name": "QTS ATL3",
+        "location": "Augusta, Georgia",
+        "tier": "Signal",
+        "evidence": 4
+      },
+      {
+        "id": "71d792d6-02da-4bae-ab24-54f89c0c4b44",
+        "name": "Grady Road Renewable Energy, LLC",
+        "location": "Rockmart, Georgia",
+        "tier": "Signal",
+        "evidence": 4
+      },
+      {
+        "id": "8d2c0395-5669-4252-aa02-b185692b1129",
+        "name": "Azalea Quarry",
+        "location": "Grovetown, Georgia",
+        "tier": "Signal",
+        "evidence": 4
+      },
+      {
+        "id": "8d8669fd-cfe5-4934-9cdd-0f815642f8d1",
+        "name": "Apex Site Solutions LLC",
+        "location": "Hampton, Georgia",
+        "tier": "Signal",
+        "evidence": 4
+      }
+    ],
+    "deadline_label": true,
+    "source_links": [
+      "https://epd.georgia.gov/document/document/30192-draft/download",
+      "https://epd.georgia.gov/document/document/30192-nar/download",
+      "https://epd.georgia.gov/draft-title-v-permitsamendments-other-draft-permits"
+    ],
+    "widths": {
+      "page": 390,
+      "viewport": 390
+    },
+    "errors": []
+  },
+  "scope": "Local Georgia current Draft Title V source only; national rollout and parent Finish Contract open. No push, merge, deploy or outreach.",
+  "playwright": {
+    "seconds": 3.8,
+    "exit_code": 0,
+    "command": "npm test",
+    "passed": 3
+  },
+  "source_health": {
+    "error": null,
+    "status": "Checked—No Change",
+    "new_records": 0,
+    "last_attempt": "2026-09-27T17:10:37.626477-05:00",
+    "last_success": "2026-09-27T17:10:37.626477-05:00",
+    "pdf_eligible": 0,
+    "pdf_enriched": 0,
+    "parse_failures": 0,
+    "pdf_candidates": 0,
+    "changed_records": 0,
+    "permit_accepted": 9,
+    "permit_rejected": 9,
+    "records_scanned": 18,
+    "collection_scope": "Georgia EPD Draft Title V snapshot; fetch narratives and draft permits, retain public notices as unextracted references",
+    "pdf_skipped_limit": 0,
+    "coverage_limitation": "Georgia EPD current Draft Title V public list only; not every air application, issued permit, amendment, or project status",
+    "documents_extracted": 36,
+    "snapshot_item_count": 18,
+    "pdf_skipped_not_signal": 0,
+    "latest_publication_date": null,
+    "latest_public_comment_deadline": "2026-10-26",
+    "earliest_public_comment_deadline": "2026-09-28",
+    "unextracted_public_notice_references": 8
+  }
+}

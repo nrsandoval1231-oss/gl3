@@ -1,0 +1,7 @@
+{
+  "started": "2026-09-28T00:58:56.1648031Z",
+  "output": "\r\n> gridlens-web@0.1.0 test\r\n> playwright test --reporter=list\r\n\r\n\r\nRunning 3 tests using 2 workers\r\n\r\n(node:52120) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\r\n(Use `node --trace-warnings ...` to show where the warning was created)\r\n(node:18708) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.\r\n(Use `node --trace-warnings ...` to show where the warning was created)\r\n  ok 1 tests\\project_cards.spec.ts:47:1 › only exact dated event evidence groups; titles describe permit work; all records stay openable (478ms)\r\n  ok 2 tests\\first_path.spec.ts:22:1 › authenticated desktop browse, detail, back, and search use a live Signal (980ms)\r\n  ok 3 tests\\first_path.spec.ts:58:1 › mobile health, ingestion inbox, watch, and browser history show actual local data states (679ms)\r\n\r\n  3 passed (2.2s)\r\n",
+  "finished": "2026-09-28T00:58:58.9637138Z",
+  "exit_code": 0,
+  "command": "GRIDLENS_API_PORT=8001 GRIDLENS_WEB_PORT=5174 npm test -- --reporter=list"
+}

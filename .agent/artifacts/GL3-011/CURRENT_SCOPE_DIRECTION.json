@@ -1,0 +1,24 @@
+{
+  "node": "GL3-011",
+  "direction": "CORRECT",
+  "decision": "Bind Georgia Signal admission to the filing's current application purpose and separately explicit prospective site activity. Preserve the full narrative as evidence, but do not search historical permit inventories, prior approvals, existing equipment, or legal background as if they described new work in this application.",
+  "observed_defect": {
+    "live_probe": "The retained local probe assessed 18 official rows: 10 accepted and 8 rejected before this repair. That count is diagnostic, not an acceptance target.",
+    "colonial": "The 2021 construction permit appears in background. Application 30031 seeks a permit-status change and explicitly proposes no production-process or equipment changes. The current accepted Signal is unsupported.",
+    "southwire": "The current filing is a Title V renewal and removes references to a closed facility. The apparent generator/new wire equipment activity is in the 2018-2019 Existing Permits table. The current accepted Signal is unsupported.",
+    "walker": "The background explicitly says facility construction is planned; the current application seeks increased crushing capacity and an updated equipment list. Its current rejection discards prospective site activity that should remain a discovery Signal."
+  },
+  "bounded_implementation_direction": [
+    "In the Georgia adapter, derive a short page-cited current-scope field from the validated narrative PDF, with an application-purpose section and any explicit prospective, site-bound construction/equipment clauses in background. Use the already bounded PDF text; do not rely on arbitrary first-three-page text or a whole-document keyword scan. If headings are absent or ambiguous, retain the filing as evidence with current scope UNKNOWN rather than infer new work from historical text.",
+    "Exclude Existing Permits tables, previously issued permits, existing equipment inventories, and descriptions of completed or closed operations from the admission field. Keep those passages in retained document evidence where available.",
+    "In the Georgia domain branch, apply the existing broad activity patterns only to that cited current-scope field. A renewal, permit reclassification, or emissions-limit change with an explicit no-physical-change statement and no distinct prospective site activity remains evidence only. An explicitly planned facility build, equipment installation/change, generator fleet, or partial-service campus activity remains a Signal even when rental MW, energization timing, suitable supply, or a confirmed gap is UNKNOWN.",
+    "Preserve reported facts and inferred rental inquiry separately. Do not add facility-name exceptions, aliases, an all-record quota, a Prospect/Lead gate, or a new architecture. A past planned date alone does not prove completion; use source-stated completion, withdrawal, or supplied/energized evidence for closure."
+  ],
+  "required_proof": [
+    "Focused fixtures show Colonial and Southwire evidence retained but no Signal, and Walker accepted with the planned-construction clause and application scope cited. Tests must establish the operative passage, not merely assert a facility name or expected count.",
+    "Positive regressions preserve named proposed facilities, proposed standby generation, equipment changes, and 100 MW campus/20 MW reported utility service as Signals without computing rental MW or requiring a confirmed gap.",
+    "Negative and mixed fixtures cover renewal-only history, an Existing Permits table containing construction words, a no-change current purpose, and a renewal that separately proposes real new equipment or site work; the last remains a Signal.",
+    "Re-run the 18-row probe and report per-row decisions and cited current-scope text. Explain any delta from the provisional useful-case list through source evidence, not a fixed nine-Signal target. Then run the packet's focused and final exact-candidate gates."
+  ],
+  "boundary": "This corrects the local candidate's admission logic only. It does not establish live worker success, nationwide coverage, a power gap, Prospect/Lead status, or GL3-011 completion."
+}

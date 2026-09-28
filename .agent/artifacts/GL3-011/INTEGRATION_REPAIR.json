@@ -1,0 +1,60 @@
+{
+  "packet": "GL3-011-INTEGRATION-REPAIR",
+  "candidate": {
+    "repository": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3",
+    "branch": "fix/project-cards",
+    "base_commit": "a7ee3e4d22c5375481402c637d22c08eba59cbac",
+    "candidate_state": "Uncommitted worktree; controller owns the final exact-candidate manifest"
+  },
+  "repair": "Regenerated the OpenAPI contract and TypeScript client types from the current FastAPI API, then corrected browser health-row routing so Georgia air permits receive dedicated snapshot assertions before the city-issued-permit checks.",
+  "files": [
+    "web/src/api/openapi.json",
+    "web/src/api/generated.ts",
+    "web/tests/first_path.spec.ts"
+  ],
+  "contract_fields_verified": [
+    "documents_extracted",
+    "unextracted_public_notice_references",
+    "earliest_public_comment_deadline"
+  ],
+  "browser_assertions": [
+    "Georgia row shows Draft Title V snapshot row count",
+    "Georgia row states publication/submittal date unknown",
+    "Georgia row shows latest public-comment deadline",
+    "Georgia row shows narrative/draft PDF extraction count",
+    "Georgia row shows public notices retained as unextracted references",
+    "Existing city permit issue-date/source-publication assertions remain unchanged",
+    "Existing news publication-date assertion remains unchanged"
+  ],
+  "validation": [
+    {
+      "command": "uv run --project ../backend python ../scripts/export_openapi.py",
+      "exit_code": 0
+    },
+    {
+      "command": "npm run generate:api",
+      "exit_code": 0,
+      "result": "openapi-typescript 7.8.0 generated src/api/generated.ts"
+    },
+    {
+      "command": "npm run typecheck",
+      "exit_code": 0
+    },
+    {
+      "command": "npm run build",
+      "exit_code": 0
+    },
+    {
+      "command": "npm test",
+      "exit_code": 0,
+      "result": "3 Playwright tests passed"
+    },
+    {
+      "command": "git diff --check -- web/src/api/openapi.json web/src/api/generated.ts web/tests/first_path.spec.ts",
+      "exit_code": 0,
+      "result": "No whitespace errors; Git emitted line-ending conversion warnings only"
+    }
+  ],
+  "runtime_or_database_writes": false,
+  "completed_at_utc": "2026-09-27T22:17:32Z"
+}

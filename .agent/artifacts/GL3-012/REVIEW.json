@@ -1,0 +1,33 @@
+{
+  "packet": "GL3-012",
+  "reviewed_at_utc": "2026-09-27T23:19:41Z",
+  "reviewer": "Sol independent focused UI review",
+  "verdict": "PASS",
+  "candidate": {
+    "repository": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3",
+    "branch": "fix/project-cards",
+    "base_sha": "a7ee3e4d22c5375481402c637d22c08eba59cbac",
+    "manifest": ".agent/artifacts/GL3-012/candidate_manifest.json",
+    "sha256": "c6473ec0d7b6e1c48601a744973605277d46ecb42abd359f5568460cd4ccfcbd",
+    "file_count": 191,
+    "exact_bytes_verified": true
+  },
+  "scope": "GL3-012 local Signal card presentation only. Parent product Finish Contract remains OPEN; no remote, deployment, backend, ingestion, or data acceptance is implied by this review.",
+  "basis": [
+    "Independently checked all 191 manifest file hashes against disk bytes and recomputed the manifest candidate SHA-256; all match. Comparison with accepted GL3-011 changes only App.tsx, projectCards.ts, and project_cards.spec.ts.",
+    "Signal browse rows now show a concise summary title, location, tier, optional reported source figures, and grouped-record count. Assessment prose, provenance identifiers, and repeated unknown-load text are absent from browse rows while detail retains the assessment, source evidence, raw title, and uncertainty.",
+    "Georgia summaries derive from current supported_action and use a neutral activity and site fallback. The Azalea title follows the explicit generator-until-grid clause. Backup installation titles do not claim a rental requirement or calculate rental MW from reported 100 MW and 20 MW values.",
+    "Project grouping identity is unchanged. Search still includes original name, supported action, assessment, and evidence fields; grouped members remain individually openable.",
+    "Controller's frozen-candidate receipt records web typecheck and build PASS, all three Playwright tests PASS, git diff check PASS, authenticated API digest unchanged at 59 records and 41 cards, nine informative Georgia titles, full Azalea detail evidence, 19 Zilker members, 390px mobile width without overflow, and zero browser errors. Desktop and mobile screenshots were inspected."
+  ],
+  "receipts": [
+    ".agent/artifacts/GL3-012/CONTROLLER_VALIDATION.json",
+    ".agent/artifacts/GL3-012/COMPLETION.json",
+    ".agent/artifacts/GL3-012/REPAIR.json"
+  ],
+  "limits": [
+    "Live browser and API proof is the local authenticated application, not a deployed environment.",
+    "This review covers the GL3-012 UI change over accepted GL3-011; it does not reopen the full ingestion or product-completion claim."
+  ],
+  "next_direction": "Controller may accept GL3-012 locally against this exact candidate and continue the existing Work Graph. Any implementation file change requires fresh validation and independent review."
+}

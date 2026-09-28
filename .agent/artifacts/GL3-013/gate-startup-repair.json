@@ -1,0 +1,1 @@
+{"stage":"controller harness startup","error":"WinError 2 resolving relative executable before subprocess cwd change","application_tests_ran":false,"repair":"Use absolute venv executable paths"}

@@ -30,7 +30,7 @@ class ReadSession:
                 external_id="2",
                 title="Second",
                 abstract="Retained excerpt 2",
-                published_at=date(2026, 1, 2),
+                published_at=None,
                 url="https://example.test/2",
                 content_hash="b" * 64,
             ),
@@ -52,7 +52,7 @@ class ReadSession:
             title="Retained evidence title",
             abstract="Retained evidence excerpt",
             url="https://example.test/evidence",
-            published_at=date(2026, 1, 2),
+            published_at=None,
             observed_at=datetime(2026, 1, 3, tzinfo=UTC),
             extraction_location="abstract",
             event_date=None,
@@ -117,6 +117,8 @@ def test_export_preserves_retained_and_active_inactive_admissions_and_evidence_a
     retained = records[1]
     assert retained["evidence"][0]["abstract"] == "Retained evidence excerpt"
     assert retained["evidence"][0]["url"] == "https://example.test/evidence"
+    assert retained["published_at"] is None
+    assert retained["evidence"][0]["published_at"] is None
     assert [item["active"] for item in retained["admissions"]] == [True, False]
     assert retained["admissions"][1]["rationale"] == "Retained but inactive"
     assert result["scope"]["limits"]

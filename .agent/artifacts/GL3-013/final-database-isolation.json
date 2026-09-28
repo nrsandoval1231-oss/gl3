@@ -1,0 +1,9 @@
+{
+  "host": "127.0.0.1",
+  "port": 55439,
+  "application": "gridlens_verify_20260927_final",
+  "test": "gridlens_verify_20260927_final_test",
+  "migration_test": "gridlens_verify_20260927_final_migration_test",
+  "initial_verification_db_preserved": "gridlens_verify_20260927",
+  "original_application_untouched": "gridlens"
+}

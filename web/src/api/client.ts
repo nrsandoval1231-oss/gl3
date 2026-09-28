@@ -18,7 +18,7 @@ export const client = {
   login: (password: string) => api<{ authenticated: boolean }>('/api/auth/login', { method: 'POST', body: JSON.stringify({ password }) }),
   logout: () => api('/api/auth/logout', { method: 'POST' }),
   opportunities: (tier: string, search: string) => api<Opportunity[]>(`/api/opportunities?tier=${encodeURIComponent(tier)}&search=${encodeURIComponent(search)}`),
-  changes: () => api<{ kind: string; title: string; url: string; published_at: string }[]>('/api/changes'),
+  changes: () => api<{ kind: string; title: string; url: string; published_at: string | null }[]>('/api/changes'),
   health: () => api<components['schemas']['HealthOut']>('/api/health'),
   ingestion: (sourceId: string, vertical: string, watchOnly: boolean, limit: number, offset: number) => {
     const params = new URLSearchParams({ limit: String(limit), offset: String(offset), watch_only: String(watchOnly) })
