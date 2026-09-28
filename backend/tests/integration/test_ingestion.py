@@ -18,10 +18,13 @@ from gridlens.persistence.models import (
     Evidence,
     Interpretation,
     Job,
+    LifecycleEvent,
     NeedObservation,
     Observation,
     PowerNeed,
     Project,
+    ProjectLifecycle,
+    ProjectMatchDecision,
     Source,
 )
 from gridlens.settings import settings
@@ -736,6 +739,530 @@ def test_prior_candidate_hash_replays_without_a_migration_or_duplicate_evidence(
     with factory() as session:
         assert session.scalar(select(func.count()).select_from(Evidence)) == 1
         assert session.scalar(select(func.count()).select_from(ChangeEvent)) == 1
+
+
+def test_lifecycle_projection_is_evidence_version_bound_and_never_uses_publication_date(db):
+    _, factory, _ = db
+    from gridlens.intelligence.lifecycle_service import apply_lifecycle_observation
+
+    with factory.begin() as session:
+        project = Project(
+            identity_key="lifecycle:test",
+            name="Test well",
+            location="Oklahoma",
+            source_id="federal-register-eis",
+            external_id="lifecycle-test",
+            asset_type="unknown",
+        )
+        observation = Observation(
+            source_id="federal-register-eis",
+            external_id="lifecycle-test",
+            title="Spud reported at Test well",
+            abstract=None,
+            published_at=datetime(2026, 9, 20).date(),
+            url="https://example.test/well",
+            content_hash="a" * 64,
+        )
+        session.add_all([project, observation])
+        session.flush()
+        evidence = Evidence(
+            observation_id=observation.id,
+            content_hash="b" * 64,
+            title="Spud reported at Test well",
+            abstract=None,
+            url=observation.url,
+            published_at=observation.published_at,
+            extraction_location="title",
+            event_date=datetime(2026, 9, 10).date(),
+            event_date_label="Permit issue date",
+        )
+        session.add(evidence)
+        session.flush()
+        session.add(
+            Interpretation(
+                observation_id=observation.id,
+                content_hash=observation.content_hash,
+                status="accepted",
+                evaluator_version="test",
+                assessment={
+                    "evidence_hash": evidence.content_hash,
+                    "project_identity_key": project.identity_key,
+                },
+            )
+        )
+        session.flush()
+        apply_lifecycle_observation(session, project, observation, evidence)
+        event = session.scalar(select(LifecycleEvent))
+        projection = session.get(ProjectLifecycle, project.id)
+        assert event is not None and event.occurred_on is None
+        assert projection is not None and projection.current_state == "spud"
+        from gridlens.intelligence.lifecycle_replay import replay_accepted_lifecycle
+
+        assert replay_accepted_lifecycle(session)["events_added"] == 0
+        assert replay_accepted_lifecycle(session)["events_added"] == 0
+        corrected = Evidence(
+            observation_id=observation.id,
+            content_hash="c" * 64,
+            title="Routine regional operations update",
+            abstract=None,
+            url=observation.url,
+            published_at=observation.published_at,
+            extraction_location="title",
+        )
+        session.add(corrected)
+        session.flush()
+        interpretation = session.scalar(
+            select(Interpretation).where(Interpretation.observation_id == observation.id)
+        )
+        assert interpretation is not None
+        interpretation.status = "rejected"
+        interpretation.assessment = {"evidence_hash": corrected.content_hash}
+        apply_lifecycle_observation(session, project, observation, corrected)
+        assert session.scalar(select(func.count()).select_from(LifecycleEvent)) == 1
+        assert session.get(ProjectLifecycle, project.id) is None
+        assert project.asset_type == "unknown"
+
+        # A correction may return to a retained accepted evidence version. Its event
+        # must become current again, and the existing-event path restores asset type.
+        interpretation.status = "accepted"
+        interpretation.assessment = {"evidence_hash": evidence.content_hash}
+        assert apply_lifecycle_observation(session, project, observation, evidence) is False
+        projection = session.get(ProjectLifecycle, project.id)
+        assert projection is not None and projection.current_state == "spud"
+        assert project.asset_type == "upstream_well"
+
+
+def test_identity_match_requires_corroborated_site_and_keeps_ambiguous_candidates_separate(
+    db, monkeypatch
+):
+    _, factory, job_id = db
+    import gridlens.ingestion.service as service
+
+    definition = federal_register_source()
+    first = {
+        "document_number": "FIRST",
+        "title": "Same Facility",
+        "abstract": "123 Main Street, Austin, TX",
+        "publication_date": "2026-09-14",
+        "html_url": "https://example.test/first",
+    }
+    monkeypatch.setattr(service, "retrieve_source", lambda *_args: [first])
+    monkeypatch.setattr(
+        service,
+        "interpret",
+        lambda row: {
+            "name": row["title"],
+            "activity_key": "mine-development",
+            "rationale": "Specific construction evidence",
+            "location": row["abstract"],
+        },
+    )
+    with factory() as session:
+        process_job(session, job_id, "test", 1, definition, None)
+    with factory.begin() as session:
+        session.add(
+            Source(
+                id="second-source",
+                publisher="Test Publisher",
+                endpoint="https://example.test",
+                family="test",
+                geography="US",
+                industries=["industrial"],
+                retrieval_method="json-api",
+                health={},
+            )
+        )
+        session.flush()
+        job = Job(
+            source_id="second-source",
+            status="running",
+            lease_owner="test",
+            fence=1,
+            lease_until=datetime.now(UTC) + timedelta(minutes=10),
+        )
+        session.add(job)
+        session.flush()
+        second_job_id = job.id
+    second = {**first, "document_number": "SECOND", "html_url": "https://example.test/second"}
+    second_definition = {**definition, "id": "second-source", "retrieval_method": "json-api"}
+    monkeypatch.setattr(service, "retrieve_source", lambda *_args: [second])
+    with factory() as session:
+        process_job(session, second_job_id, "test", 1, second_definition, None)
+    with factory() as session:
+        assert session.scalar(select(func.count()).select_from(Project)) == 1
+        assert session.scalar(select(func.count()).select_from(NeedObservation)) == 2
+        second_observation = session.scalar(
+            select(Observation).where(Observation.source_id == "second-source")
+        )
+        assert second_observation is not None
+        first_decision = session.scalar(
+            select(ProjectMatchDecision).where(
+                ProjectMatchDecision.observation_id == second_observation.id
+            )
+        )
+        assert first_decision and first_decision.decision == "matched"
+        original_evidence_id = first_decision.evidence_id
+
+    # Changing the cited site creates a new version-bound separate decision;
+    # the original positive match remains queryable.
+    second["abstract"] = "500 Different Avenue, Austin, TX"
+    second["html_url"] = "https://example.test/second-corrected"
+    with factory() as session:
+        process_job(session, second_job_id, "test", 1, second_definition, None)
+    with factory() as session:
+        second_observation = session.scalar(
+            select(Observation).where(Observation.source_id == "second-source")
+        )
+        assert second_observation is not None
+        decisions = session.scalars(
+            select(ProjectMatchDecision)
+            .where(ProjectMatchDecision.observation_id == second_observation.id)
+            .order_by(ProjectMatchDecision.evidence_id)
+        ).all()
+        candidate_decisions = [row for row in decisions if row.candidate_project_id is not None]
+        assert len(candidate_decisions) == 2
+        assert {decision.decision for decision in candidate_decisions} == {"matched", "separate"}
+        assert original_evidence_id in {decision.evidence_id for decision in candidate_decisions}
+        assert all(decision.identity_facts for decision in decisions)
+
+
+def test_city_only_location_does_not_match_even_when_names_are_equal(db, monkeypatch):
+    _, factory, job_id = db
+    import gridlens.ingestion.service as service
+
+    rows = [
+        {
+            "document_number": "CITY-1",
+            "title": "Same Facility",
+            "abstract": "Austin, TX",
+            "publication_date": "2026-09-14",
+            "html_url": "https://example.test/city1",
+        }
+    ]
+    monkeypatch.setattr(service, "retrieve_source", lambda *_args: rows)
+    monkeypatch.setattr(
+        service,
+        "interpret",
+        lambda row: {
+            "name": row["title"],
+            "activity_key": "mine-development",
+            "rationale": "Specific construction evidence",
+            "location": row["abstract"],
+        },
+    )
+    definition = federal_register_source()
+    with factory() as session:
+        process_job(session, job_id, "test", 1, definition, None)
+    rows[0]["document_number"] = "CITY-2"
+    rows[0]["html_url"] = "https://example.test/city2"
+    with factory() as session:
+        process_job(session, job_id, "test", 1, definition, None)
+    with factory() as session:
+        assert session.scalar(select(func.count()).select_from(Project)) == 2
+        second_observation = session.scalar(
+            select(Observation).where(Observation.external_id == "CITY-2")
+        )
+        assert second_observation is not None
+        decision = session.scalar(
+            select(ProjectMatchDecision).where(
+                ProjectMatchDecision.observation_id == second_observation.id,
+                ProjectMatchDecision.candidate_project_id.is_(None),
+            )
+        )
+        assert decision and decision.candidate_project_id is None
+        assert "No single existing project candidate" in decision.reason
+        assert decision.identity_facts["project_name"] == "Same Facility"
+
+
+def test_multiple_supported_identity_candidates_remain_separate_with_reasons(db, monkeypatch):
+    _, factory, job_id = db
+    import gridlens.ingestion.service as service
+    from gridlens.persistence.models import ProjectMatchDecision
+
+    with factory.begin() as session:
+        for suffix in ("a", "b"):
+            session.add(
+                Project(
+                    identity_key=f"candidate:{suffix}",
+                    name="Same Facility",
+                    location="123 Main Street, Austin, TX",
+                    source_id="federal-register-eis",
+                    external_id=suffix,
+                    identity_facts={
+                        "project_name": "Same Facility",
+                        "site": "123 Main Street, Austin, TX",
+                    },
+                )
+            )
+    row = {
+        "document_number": "AMBIGUOUS",
+        "title": "Same Facility",
+        "abstract": "123 Main Street, Austin, TX",
+        "publication_date": "2026-09-14",
+        "html_url": "https://example.test/ambiguous",
+    }
+    monkeypatch.setattr(service, "retrieve_source", lambda *_args: [row])
+    monkeypatch.setattr(
+        service,
+        "interpret",
+        lambda value: {
+            "name": value["title"],
+            "activity_key": "mine-development",
+            "rationale": "Specific construction evidence",
+            "location": value["abstract"],
+        },
+    )
+    with factory() as session:
+        process_job(session, job_id, "test", 1, federal_register_source(), None)
+    with factory() as session:
+        decisions = session.scalars(select(ProjectMatchDecision)).all()
+        assert len(decisions) == 2
+        assert {decision.decision for decision in decisions} == {"separate"}
+        assert all("Multiple supported" in decision.reason for decision in decisions)
+
+
+def test_ingested_upstream_versions_replay_and_authenticated_api_attribution(db, monkeypatch):
+    _, factory, _ = db
+    from fastapi.testclient import TestClient
+
+    import gridlens.api.app as api
+    import gridlens.ingestion.service as service
+    from gridlens.intelligence.lifecycle_replay import replay_accepted_lifecycle
+    from gridlens.security import token_for
+
+    source_ids = ("synthetic-well-permit", "synthetic-well-spud", "synthetic-well-completion")
+    jobs = {}
+    with factory.begin() as session:
+        for source_id in source_ids:
+            session.add(
+                Source(
+                    id=source_id,
+                    publisher="Synthetic lifecycle fixture",
+                    endpoint="https://example.test/feed",
+                    family="test",
+                    geography="US",
+                    industries=["industrial"],
+                    retrieval_method="json-api",
+                    health={},
+                )
+            )
+            session.flush()
+            job = Job(
+                source_id=source_id,
+                status="running",
+                lease_owner="test",
+                fence=1,
+                lease_until=datetime.now(UTC) + timedelta(minutes=10),
+            )
+            session.add(job)
+            session.flush()
+            jobs[source_id] = job.id
+
+    def row(source_id, external_id, title, event_date, label, abstract="Source-reported milestone"):
+        return {
+            "document_number": external_id,
+            "title": title,
+            "abstract": abstract,
+            "publication_date": "2026-09-20",
+            "event_date": event_date,
+            "event_date_label": label,
+            "html_url": f"https://example.test/{source_id}/{external_id}",
+        }
+
+    permit = row(
+        source_ids[0],
+        "P-1",
+        "Operator begins construction after a well permit at Site A",
+        "2026-06-10",
+        "Permit issue date",
+    )
+    completion = row(
+        source_ids[2],
+        "C-1",
+        "Operator begins construction after well completion at Site A",
+        "2026-07-24",
+        "Completion date",
+    )
+    spud_a = row(
+        source_ids[1],
+        "S-1",
+        "Operator begins construction after spud at Site A",
+        "2026-07-12",
+        "Spud date",
+    )
+    rows = {source_ids[0]: [permit], source_ids[1]: [spud_a], source_ids[2]: [completion]}
+    monkeypatch.setattr(
+        service, "retrieve_source", lambda definition, _client: rows[definition["id"]]
+    )
+    monkeypatch.setattr(
+        service,
+        "interpret",
+        lambda _record: {
+            "name": "Atlas Mesa Well",
+            "activity_key": "facility-expansion",
+            "rationale": "Synthetic upstream lifecycle fixture; not a power requirement.",
+            "location": "123 Main Street, Austin, TX",
+        },
+    )
+
+    def ingest(source_id):
+        with factory() as session:
+            return process_job(
+                session,
+                jobs[source_id],
+                "test",
+                1,
+                {"id": source_id, "retrieval_method": "json-api"},
+            )
+
+    # Deliberately ingest completion before spud to verify rank-based projection.
+    assert ingest(source_ids[0])["signals"] == 1
+    assert ingest(source_ids[2])["signals"] == 0
+    assert ingest(source_ids[1])["signals"] == 0
+    with factory() as session:
+        project = session.scalar(select(Project))
+        need = session.scalar(select(PowerNeed))
+        assert project and project.asset_type == "upstream_well"
+        assert need and need.active and need.tier == "Signal"
+        assert need.required_mw is None and need.supply == "Unknown"
+        assert session.scalar(select(func.count()).select_from(Project)) == 1
+        assert session.scalar(select(func.count()).select_from(NeedObservation)) == 3
+        assert session.scalar(select(func.count()).select_from(LifecycleEvent)) == 3
+        projection = session.get(ProjectLifecycle, project.id)
+        assert projection and projection.current_state == "completion"
+        assert projection.time_to_power_start.isoformat() == "2026-08-08"
+        assert projection.estimate_basis["inputs"]["completion_date"] == "2026-07-24"
+        events = session.scalars(select(LifecycleEvent)).all()
+        permit_event = next(event for event in events if event.event_type == "drilling_permit")
+        assert permit_event.occurred_on.isoformat() == "2026-06-10"
+
+    # A changed reported date appends a retained event version and supersedes A.
+    spud_b = row(
+        source_ids[1],
+        "S-1",
+        "Operator begins construction after spud report at Site A",
+        "2026-07-13",
+        "Spud date",
+    )
+    rows[source_ids[1]] = [spud_b]
+    assert ingest(source_ids[1])["changed"] == 1
+    with factory() as session:
+        spud_events = session.scalars(
+            select(LifecycleEvent).where(LifecycleEvent.event_type == "spud")
+        ).all()
+        assert {event.occurred_on.isoformat() for event in spud_events} == {
+            "2026-07-12",
+            "2026-07-13",
+        }
+        current_hash = session.scalar(
+            select(Interpretation.assessment["evidence_hash"])
+            .join(Observation)
+            .where(Observation.source_id == source_ids[1])
+        )
+        assert current_hash
+
+    # Correct the currently winning completion anchor. The new estimate must use
+    # the corrected completion event while retaining its former evidence version.
+    completion_b = row(
+        source_ids[2],
+        "C-1",
+        "Operator begins construction after well completion at Site A",
+        "2026-08-02",
+        "Completion date",
+    )
+    rows[source_ids[2]] = [completion_b]
+    assert (
+        ingest(source_ids[2])["unchanged"] == 1
+    )  # Same semantic permit/story row; new bound evidence.
+    with factory() as session:
+        projection = session.get(ProjectLifecycle, session.scalar(select(Project.id)))
+        assert projection and projection.current_state == "completion"
+        assert projection.time_to_power_start.isoformat() == "2026-08-17"
+        assert projection.estimate_basis["inputs"]["completion_date"] == "2026-08-02"
+        completion_events = session.scalars(
+            select(LifecycleEvent).where(LifecycleEvent.event_type == "completion")
+        ).all()
+        assert {event.occurred_on.isoformat() for event in completion_events} == {
+            "2026-07-24",
+            "2026-08-02",
+        }
+
+    # A current but unclassifiable correction withdraws the old event; restoring
+    # retained A reactivates that same event instead of letting superseded B mask it.
+    no_event = row(
+        source_ids[1],
+        "S-1",
+        "Routine regional operations update at Site A",
+        "2026-07-14",
+        "Source event date",
+        "No lifecycle milestone reported.",
+    )
+    rows[source_ids[1]] = [no_event]
+    monkeypatch.setattr(service, "interpret", lambda _record: None)
+    assert ingest(source_ids[1])["changed"] == 1
+    with factory() as session:
+        spud_interpretation = session.scalar(
+            select(Interpretation).join(Observation).where(Observation.source_id == source_ids[1])
+        )
+        project = session.scalar(select(Project))
+        assert spud_interpretation and spud_interpretation.status == "rejected"
+        assert project and project.asset_type == "upstream_well"
+        assert session.scalar(select(func.count()).select_from(LifecycleEvent)) == 5
+
+    rows[source_ids[1]] = [spud_a]
+    monkeypatch.setattr(
+        service,
+        "interpret",
+        lambda _record: {
+            "name": "Atlas Mesa Well",
+            "activity_key": "facility-expansion",
+            "rationale": "Synthetic upstream lifecycle fixture; not a power requirement.",
+            "location": "123 Main Street, Austin, TX",
+        },
+    )
+    assert ingest(source_ids[1])["changed"] == 1
+    with factory() as session:
+        interpretation = session.scalar(
+            select(Interpretation).join(Observation).where(Observation.source_id == source_ids[1])
+        )
+        assert interpretation and interpretation.status == "accepted"
+        assert session.scalar(select(func.count()).select_from(Evidence)) == 6
+        assert session.scalar(select(func.count()).select_from(LifecycleEvent)) == 5
+        replay_before = (
+            session.scalar(select(func.count()).select_from(Evidence)),
+            session.scalar(select(func.count()).select_from(LifecycleEvent)),
+            session.scalar(select(func.count()).select_from(ProjectMatchDecision)),
+        )
+        assert replay_accepted_lifecycle(session)["events_added"] == 0
+        assert replay_accepted_lifecycle(session)["events_added"] == 0
+        assert replay_before == (
+            session.scalar(select(func.count()).select_from(Evidence)),
+            session.scalar(select(func.count()).select_from(LifecycleEvent)),
+            session.scalar(select(func.count()).select_from(ProjectMatchDecision)),
+        )
+
+    monkeypatch.setattr(api, "SessionLocal", factory)
+    client = TestClient(api.app)
+    client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
+    response = client.get("/api/opportunities?tier=Signal")
+    assert response.status_code == 200
+    [opportunity] = response.json()
+    assert opportunity["tier"] == "Signal"
+    assert opportunity["required_mw"] is None and opportunity["supply"] == "Unknown"
+    assert opportunity["time_to_power_window"].startswith("2026-08-17 to ")
+    assert opportunity["estimate_basis"]["inputs"]["completion_date"] == "2026-08-02"
+    assert {item["source_id"] for item in opportunity["evidence"]} == set(source_ids)
+    timeline = opportunity["lifecycle_timeline"]
+    assert len(timeline) == 5
+    spud_rows = [item for item in timeline if item["event_type"] == "spud"]
+    assert [item["current"] for item in spud_rows] == [True, False]
+    assert spud_rows[0]["published_at"] == "2026-09-20"
+    assert spud_rows[0]["date"] == "2026-07-12"
+    assert spud_rows[0]["event_date_label"] == "Spud date"
+    completion_rows = [item for item in timeline if item["event_type"] == "completion"]
+    assert [item["current"] for item in completion_rows] == [False, True]
+    assert completion_rows[1]["date"] == "2026-08-02"
+    assert timeline[0]["date"] != timeline[0]["published_at"]
 
 
 def test_similar_project_names_at_different_sites_remain_distinct_and_unknown(db, monkeypatch):

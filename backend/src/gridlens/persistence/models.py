@@ -101,6 +101,7 @@ class Project(Base):
     source_id: Mapped[str] = mapped_column(ForeignKey("sources.id"))
     external_id: Mapped[str] = mapped_column(String(200))
     asset_type: Mapped[str] = mapped_column(String(60), default="unknown", server_default="unknown")
+    identity_facts: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
 
 
 class ProjectLifecycle(Base):
@@ -126,7 +127,12 @@ class LifecycleEvent(Base):
     __tablename__ = "lifecycle_events"
     __table_args__ = (
         UniqueConstraint(
-            "project_id", "observation_id", "event_type", "state", name="uq_lifecycle_event_replay"
+            "project_id",
+            "observation_id",
+            "evidence_id",
+            "event_type",
+            "state",
+            name="uq_lifecycle_event_replay",
         ),
     )
     id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
@@ -146,16 +152,23 @@ class ProjectMatchDecision(Base):
     __tablename__ = "project_match_decisions"
     __table_args__ = (
         UniqueConstraint(
-            "observation_id", "candidate_project_id", name="uq_project_match_candidate"
+            "observation_id",
+            "candidate_project_id",
+            "evidence_id",
+            name="uq_project_match_candidate_version",
         ),
     )
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     observation_id: Mapped[UUID] = mapped_column(ForeignKey("observations.id"))
-    candidate_project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id"))
+    candidate_project_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("projects.id"), nullable=True
+    )
     decision: Mapped[str] = mapped_column(String(20))
     reason: Mapped[str] = mapped_column(Text)
     matched_facts: Mapped[list[str]] = mapped_column(JSONB, default=list)
     decided_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    evidence_id: Mapped[UUID | None] = mapped_column(ForeignKey("evidence.id"), nullable=True)
+    identity_facts: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
 
 
 class PowerNeed(Base):

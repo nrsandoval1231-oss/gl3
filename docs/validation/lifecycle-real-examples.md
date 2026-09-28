@@ -38,7 +38,11 @@ change, so existing qualification correctly rejects it as a new opportunity. Sou
 
 ## Current limitations
 
-Lifecycle persistence begins when accepted opportunity evidence is processed after migration 0005;
-the migration deliberately does not fabricate lifecycle events for historical rows. Backfill requires
-an explicit evidence replay. Timing v1 uses transparent broad ranges, not learned operator/basin
-distributions. No source-specific upstream adapter or live OCC example is added in this slice.
+Migration 0006 records project identity provenance, removes only lifecycle dates unsupported by
+retained event-date fields, and resets projections affected by that repair. Run the explicit
+`uv run --project backend python scripts/replay_lifecycle_history.py` after migration to rebuild lifecycle events from
+accepted interpretations whose assessment is bound to a retained evidence hash. Replaying twice is
+idempotent; old event rows remain as history, and superseded rows are marked in the API timeline.
+Unbound legacy assessments are reported as skipped rather than inferred. Timing v1 uses transparent
+broad ranges, not learned operator/basin distributions. No source-specific upstream adapter or live
+OCC example is added in this slice.

@@ -243,6 +243,27 @@ def classify_event(title: str, abstract: str | None = None) -> Classification | 
             else FixedInfrastructureState.FORMATION
         )
         match = ("project_formation", initial_state.value, None)
+    else:
+        milestone_terms = {
+            "drilling_permit": r"permit|well permit",
+            "spud": r"spud",
+            "drilling": r"drilling|drilled",
+            "completion": r"complet",
+            "first_production": r"production|producing",
+            "construction": r"construction|grading|building permit",
+            "electrical_buildout": r"substation|transformer|switchgear|electrical permit",
+            "commissioning": r"commission|load bank|testing",
+        }.get(match[0], re.escape(match[0].replace("_", " ")))
+        if re.search(
+            rf"\b(?:will|plans? to|planned to|expects? to|expected to|scheduled to|not yet|"
+            rf"did not|has not|never)\b[^.;]{{0,80}}\b(?:{milestone_terms})\b",
+            text,
+        ) or re.search(
+            rf"\b(?:{milestone_terms})\b[^.;]{{0,50}}\b(?:has not occurred|not started|"
+            rf"not begun|not yet occurred)\b",
+            text,
+        ):
+            return None
     event, state_value, nxt = match
     return Classification(
         asset,

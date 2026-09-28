@@ -1000,6 +1000,34 @@
           "evidence_url": {
             "type": "string",
             "title": "Evidence Url"
+          },
+          "current": {
+            "type": "boolean",
+            "title": "Current",
+            "default": true
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published At"
+          },
+          "event_date_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Event Date Label"
           }
         },
         "type": "object",

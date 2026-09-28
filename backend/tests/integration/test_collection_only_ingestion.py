@@ -270,6 +270,104 @@ def test_prospect_persists_exact_requirement_not_campus_capacity(db, monkeypatch
         assert interpretation and interpretation.assessment["demand_mw"] == "about 42 MW"
 
 
+@pytest.mark.parametrize("prospect_first", [True, False])
+def test_shared_need_selects_complete_current_prospect_claim_and_recomputes_on_withdrawal(
+    db, monkeypatch, prospect_first
+):
+    _, factory, _ = db
+    prospect_job = _rss_source_job(factory, "atlas-prospect-news", "Atlas Prospect News")
+    signal_job = _rss_source_job(factory, "atlas-signal-news", "Atlas Signal News")
+    import gridlens.ingestion.service as service
+
+    title = "Atlas begins construction at Atlas Mesa data center in Texas"
+    site = "Site address: 100 Main Street, Austin, TX."
+    prospect = _project_record(
+        "Atlas Mesa data center campus capacity is 200 MW, but Atlas Mesa data center "
+        "construction requires about 42 MW. Power supply for Atlas Mesa data center "
+        f"construction is delayed. {site}",
+        title,
+    )
+    signal = _project_record(f"{site} Atlas Mesa data center construction is planned.", title)
+    rows = {"atlas-prospect-news": prospect, "atlas-signal-news": signal}
+    jobs = {"atlas-prospect-news": prospect_job, "atlas-signal-news": signal_job}
+    monkeypatch.setattr(
+        service, "retrieve_source", lambda definition, _client: [rows[definition["id"]]]
+    )
+
+    def ingest(source_id):
+        with factory() as session:
+            return service.process_job(
+                session,
+                jobs[source_id],
+                "test",
+                1,
+                {"id": source_id, "retrieval_method": "publisher-rss"},
+            )
+
+    order = (
+        ["atlas-prospect-news", "atlas-signal-news"]
+        if prospect_first
+        else ["atlas-signal-news", "atlas-prospect-news"]
+    )
+    for source_id in order:
+        ingest(source_id)
+    with factory() as session:
+        assert session.scalar(select(func.count()).select_from(Project)) == 1
+        assert session.scalar(select(func.count()).select_from(PowerNeed)) == 1
+        assert session.scalar(select(func.count()).select_from(NeedObservation)) == 2
+        need = session.scalar(select(PowerNeed))
+        assert need and need.active and need.tier == "Prospect"
+        assert need.required_mw == "about 42 MW" and need.supply == "Reported constraint"
+        signal_assessment = session.scalar(
+            select(Interpretation.assessment)
+            .join(Observation)
+            .where(Observation.source_id == "atlas-signal-news")
+        )
+        assert signal_assessment and signal_assessment["tier"] == "Signal"
+        prospect_row = session.scalar(
+            select(Observation).where(Observation.source_id == "atlas-prospect-news")
+        )
+        signal_row = session.scalar(
+            select(Observation).where(Observation.source_id == "atlas-signal-news")
+        )
+        assert prospect_row and signal_row
+        project = session.scalar(select(Project))
+        assert project and signal_assessment["project_identity_key"] == project.identity_key
+        retained_ids = {prospect_row.id, signal_row.id}
+        signal_reason = signal_assessment["reason"]
+
+    rows["atlas-prospect-news"] = _project_record(
+        f"Atlas canceled construction at Atlas Mesa data center. {site}",
+        title.replace("begins", "canceled"),
+    )
+    assert ingest("atlas-prospect-news")["changed"] == 1
+    with factory() as session:
+        need = session.scalar(select(PowerNeed))
+        assert need and need.active and need.tier == "Signal"
+        assert need.required_mw is None and need.supply == "Unknown"
+        assert need.rationale == signal_reason
+        assert session.scalar(select(func.count()).select_from(NeedObservation)) == 2
+        assert {
+            row[0]
+            for row in session.execute(
+                select(NeedObservation.observation_id).where(NeedObservation.need_id == need.id)
+            )
+        } == retained_ids
+        counts_before = (
+            session.scalar(select(func.count()).select_from(Evidence)),
+            session.scalar(select(func.count()).select_from(ChangeEvent)),
+        )
+
+    ingest("atlas-prospect-news")
+    with factory() as session:
+        assert counts_before == (
+            session.scalar(select(func.count()).select_from(Evidence)),
+            session.scalar(select(func.count()).select_from(ChangeEvent)),
+        )
+        need = session.scalar(select(PowerNeed))
+        assert need and need.active and need.tier == "Signal" and need.required_mw is None
+
+
 def test_rss_future_path_exact_duplicate_correction_and_replay(db, monkeypatch):
     _, factory, _ = db
     dcd_job = _rss_source_job(factory, "dcd-news", "Data Center Dynamics")
@@ -307,7 +405,7 @@ def test_rss_future_path_exact_duplicate_correction_and_replay(db, monkeypatch):
         need = session.scalar(select(PowerNeed))
         assert need and need.active and need.tier == "Signal" and need.required_mw is None
 
-    # A current correction supersedes the exact syndicated old version and closes its need.
+    # One source correction preserves the need while the second cited source remains current.
     corrected = _project_record(
         "Atlas canceled construction at the Atlas Mesa data center in Texas."
     )
@@ -318,7 +416,7 @@ def test_rss_future_path_exact_duplicate_correction_and_replay(db, monkeypatch):
         )
     with factory() as session:
         need = session.scalar(select(PowerNeed))
-        assert need and not need.active
+        assert need and need.active
         assert session.scalar(select(func.count()).select_from(Project)) == 1
         assert session.scalar(select(func.count()).select_from(Evidence)) == 3
         interpretation = session.scalar(
@@ -329,13 +427,355 @@ def test_rss_future_path_exact_duplicate_correction_and_replay(db, monkeypatch):
         assert len(interpretation.assessment["previous_decisions"]) == 1
         event_count = session.scalar(select(func.count()).select_from(ChangeEvent))
 
+    # The need closes only after its final currently accepted source is withdrawn.
+    monkeypatch.setattr(service, "retrieve_source", lambda *_args: [corrected])
+    with factory() as session:
+        service.process_job(
+            session,
+            utility_job,
+            "test",
+            1,
+            {"id": "utility-dive-news", "retrieval_method": "publisher-rss"},
+        )
+    with factory() as session:
+        need = session.scalar(select(PowerNeed))
+        assert need and not need.active
+        assert session.scalar(select(func.count()).select_from(Project)) == 1
+        assert session.scalar(select(func.count()).select_from(Evidence)) == 4
+        event_count = session.scalar(select(func.count()).select_from(ChangeEvent))
+
     with factory() as session:
         service.process_job(
             session, dcd_job, "test", 1, {"id": "dcd-news", "retrieval_method": "publisher-rss"}
         )
     with factory() as session:
         assert session.scalar(select(func.count()).select_from(ChangeEvent)) == event_count
-        assert session.scalar(select(func.count()).select_from(Evidence)) == 3
+        assert session.scalar(select(func.count()).select_from(Evidence)) == 4
+
+
+def test_current_rss_grammar_matches_current_permit_by_explicit_project_and_site(db, monkeypatch):
+    _, factory, _ = db
+    from gridlens.ingestion.registry import load_registry
+    from gridlens.persistence.models import ProjectMatchDecision
+
+    permit_source_id = "austin-building-permits"
+    news_source_id = "northstar-news"
+    permit_definition = next(row for row in load_registry() if row["id"] == permit_source_id)
+    with factory.begin() as session:
+        for source_id, publisher, endpoint, method in (
+            (
+                permit_source_id,
+                permit_definition["publisher"],
+                permit_definition["endpoint"],
+                permit_definition["retrieval_method"],
+            ),
+            (news_source_id, "Northstar News", "https://example.test/feed", "publisher-rss"),
+        ):
+            session.add(
+                Source(
+                    id=source_id,
+                    publisher=publisher,
+                    endpoint=endpoint,
+                    family="test",
+                    geography="US",
+                    industries=["industrial"],
+                    retrieval_method=method,
+                    health={},
+                )
+            )
+            session.flush()
+            job = Job(
+                source_id=source_id,
+                status="running",
+                lease_owner="test",
+                fence=1,
+                lease_until=datetime.now(UTC) + timedelta(minutes=10),
+            )
+            session.add(job)
+            session.flush()
+            if source_id == permit_source_id:
+                permit_job_id = job.id
+            else:
+                news_job_id = job.id
+
+    permit = {
+        "document_number": "PX-1",
+        "title": "Austin building permit PX-1 — Building Permit",
+        "abstract": (
+            "address: 100 Main Street, Austin, TX\n"
+            "project: Northstar Mesa data center\n"
+            "description: Construction of the Northstar Mesa data center at 100 Main Street, "
+            "Austin, TX\n"
+            "status: Active"
+        ),
+        "publication_date": "2026-09-20",
+        "event_date": "2026-09-20",
+        "html_url": "https://example.test/permit/PX-1",
+        "permit": {
+            "row_id": "PX-1",
+            "description": (
+                "Construction of the Northstar Mesa data center at 100 Main Street, Austin, TX"
+            ),
+            "status": "Active",
+            "address": "100 Main Street",
+            "city": "Austin",
+            "state": "TX",
+            "project": "Northstar Mesa data center",
+            "source_fields": {"address": "original_address1", "project": "project_id"},
+        },
+    }
+    news = {
+        "document_number": "N-1",
+        "title": "Northstar begins construction at the Northstar Mesa data center in Austin, Texas",
+        "abstract": "Site address: 100 Main Street, Austin, TX.",
+        "publication_date": "2026-09-21",
+        "html_url": "https://example.test/news/N-1",
+    }
+    records = {permit_source_id: [permit], news_source_id: [news]}
+    import gridlens.ingestion.service as service
+
+    monkeypatch.setattr(
+        service, "retrieve_source", lambda definition, _client: records[definition["id"]]
+    )
+    with factory() as session:
+        permit_counts = service.process_job(
+            session,
+            permit_job_id,
+            "test",
+            1,
+            {**permit_definition, "id": permit_source_id},
+        )
+    assert permit_counts["permit_accepted"] == 1
+    with factory() as session:
+        news_counts = service.process_job(
+            session,
+            news_job_id,
+            "test",
+            1,
+            {"id": news_source_id, "retrieval_method": "publisher-rss"},
+        )
+    assert news_counts["signals"] == 1
+    with factory() as session:
+        assert session.scalar(select(func.count()).select_from(Project)) == 1
+        assert session.scalar(select(func.count()).select_from(PowerNeed)) == 1
+        assert session.scalar(select(func.count()).select_from(NeedObservation)) == 2
+        project = session.scalar(select(Project))
+        need = session.scalar(select(PowerNeed))
+        assert project and project.identity_facts["project_aliases"] == [
+            "Northstar Mesa data center"
+        ]
+        assert need and need.activity_key == "facility-expansion" and need.tier == "Signal"
+        assert need.required_mw is None and need.supply == "Unknown"
+        news_observation = session.scalar(
+            select(Observation).where(Observation.source_id == news_source_id)
+        )
+        assert news_observation is not None
+        decision = session.scalar(
+            select(ProjectMatchDecision).where(
+                ProjectMatchDecision.observation_id == news_observation.id
+            )
+        )
+        assert decision and decision.decision == "matched"
+        assert "physical address" in decision.reason
+        assert "project name/alias" in decision.reason
+        assert decision.identity_facts["site"] == "100 Main Street, Austin, TX"
+        citations = session.scalars(
+            select(Observation.source_id)
+            .join(NeedObservation, NeedObservation.observation_id == Observation.id)
+            .where(NeedObservation.need_id == need.id)
+        ).all()
+        assert set(citations) == {permit_source_id, news_source_id}
+
+    news_correction = {
+        **news,
+        "title": (
+            "Northstar canceled construction at the Northstar Mesa data center in Austin, Texas"
+        ),
+    }
+    records[news_source_id] = [news_correction]
+    with factory() as session:
+        service.process_job(
+            session,
+            news_job_id,
+            "test",
+            1,
+            {"id": news_source_id, "retrieval_method": "publisher-rss"},
+        )
+    with factory() as session:
+        need = session.scalar(select(PowerNeed))
+        assert need and need.active
+        assert session.scalar(select(func.count()).select_from(NeedObservation)) == 2
+
+    permit["abstract"] = (
+        "address: 100 Main Street, Austin, TX\nproject: Northstar Mesa data center\n"
+        "description: Routine maintenance at an existing office; no construction work\n"
+        "status: Active"
+    )
+    permit["permit"]["description"] = (
+        "Routine maintenance at an existing office; no construction work"
+    )
+    records[permit_source_id] = [permit]
+    with factory() as session:
+        permit_counts = service.process_job(
+            session,
+            permit_job_id,
+            "test",
+            1,
+            {**permit_definition, "id": permit_source_id},
+        )
+    assert permit_counts["permit_rejected"] == 1
+    with factory() as session:
+        need = session.scalar(select(PowerNeed))
+        assert need and not need.active
+        assert session.scalar(select(func.count()).select_from(NeedObservation)) == 2
+        assert session.scalar(select(func.count()).select_from(Evidence)) == 4
+        assert session.scalar(select(func.count()).select_from(Project)) == 1
+        stable_event_count = session.scalar(select(func.count()).select_from(ChangeEvent))
+    with factory() as session:
+        service.process_job(
+            session,
+            news_job_id,
+            "test",
+            1,
+            {"id": news_source_id, "retrieval_method": "publisher-rss"},
+        )
+    with factory() as session:
+        assert session.scalar(select(func.count()).select_from(ChangeEvent)) == stable_event_count
+        assert session.scalar(select(func.count()).select_from(Evidence)) == 4
+
+
+def test_multiple_labeled_rss_sites_keep_record_separate_with_persisted_ambiguity(
+    db, monkeypatch
+):
+    _, factory, _ = db
+    from gridlens.ingestion.registry import load_registry
+    from gridlens.intelligence.project_identity import labeled_site
+    from gridlens.persistence.models import ProjectMatchDecision
+
+    permit_source_id = "austin-building-permits"
+    news_source_id = "northstar-news"
+    permit_definition = next(row for row in load_registry() if row["id"] == permit_source_id)
+    with factory.begin() as session:
+        for source_id, publisher, endpoint, method in (
+            (
+                permit_source_id,
+                permit_definition["publisher"],
+                permit_definition["endpoint"],
+                permit_definition["retrieval_method"],
+            ),
+            (news_source_id, "Northstar News", "https://example.test/feed", "publisher-rss"),
+        ):
+            session.add(
+                Source(
+                    id=source_id,
+                    publisher=publisher,
+                    endpoint=endpoint,
+                    family="test",
+                    geography="US",
+                    industries=["industrial"],
+                    retrieval_method=method,
+                    health={},
+                )
+            )
+            session.flush()
+            job = Job(
+                source_id=source_id,
+                status="running",
+                lease_owner="test",
+                fence=1,
+                lease_until=datetime.now(UTC) + timedelta(minutes=10),
+            )
+            session.add(job)
+            session.flush()
+            if source_id == permit_source_id:
+                permit_job_id = job.id
+            else:
+                news_job_id = job.id
+
+    permit = {
+        "document_number": "PX-1",
+        "title": "Austin building permit PX-1 — Building Permit",
+        "abstract": (
+            "address: 100 Main Street, Austin, TX\n"
+            "project: Northstar Mesa data center\n"
+            "description: Construction of the Northstar Mesa data center at 100 Main Street, "
+            "Austin, TX\nstatus: Active"
+        ),
+        "publication_date": "2026-09-20",
+        "event_date": "2026-09-20",
+        "html_url": "https://example.test/permit/PX-1",
+        "permit": {
+            "row_id": "PX-1",
+            "description": (
+                "Construction of the Northstar Mesa data center at 100 Main Street, Austin, TX"
+            ),
+            "status": "Active",
+            "address": "100 Main Street",
+            "city": "Austin",
+            "state": "TX",
+            "project": "Northstar Mesa data center",
+            "source_fields": {"address": "original_address1", "project": "project_id"},
+        },
+    }
+    news = {
+        "document_number": "N-2",
+        "title": "Northstar begins construction at the Northstar Mesa data center in Austin, Texas",
+        "abstract": (
+            "Site address: 100 Main Street, Austin, TX. "
+            "Site address: 200 Elm Street, Austin, TX."
+        ),
+        "publication_date": "2026-09-21",
+        "html_url": "https://example.test/news/N-2",
+    }
+    assert labeled_site(
+        "Site address: 100 Main Street, Austin, TX. "
+        "Site address: 100 Main Street, Austin, TX."
+    ) == "100 Main Street, Austin, TX"
+    assert labeled_site(news["abstract"]) is None
+    records = {permit_source_id: [permit], news_source_id: [news]}
+    import gridlens.ingestion.service as service
+
+    monkeypatch.setattr(
+        service, "retrieve_source", lambda definition, _client: records[definition["id"]]
+    )
+    with factory() as session:
+        service.process_job(
+            session,
+            permit_job_id,
+            "test",
+            1,
+            {**permit_definition, "id": permit_source_id},
+        )
+    with factory() as session:
+        counts = service.process_job(
+            session,
+            news_job_id,
+            "test",
+            1,
+            {"id": news_source_id, "retrieval_method": "publisher-rss"},
+        )
+    assert counts["signals"] == 1
+    with factory() as session:
+        assert session.scalar(select(func.count()).select_from(Project)) == 2
+        observation = session.scalar(
+            select(Observation).where(Observation.source_id == news_source_id)
+        )
+        assert observation is not None
+        decision = session.scalar(
+            select(ProjectMatchDecision).where(
+                ProjectMatchDecision.observation_id == observation.id,
+                ProjectMatchDecision.candidate_project_id.is_not(None),
+            )
+        )
+        assert decision and decision.decision == "separate"
+        assert decision.reason == (
+            "Multiple distinct labeled site addresses; identity ambiguous, "
+            "so the record remains separate."
+        )
+        assert decision.identity_facts["site_candidates"] == [
+            "100 Main Street, Austin, TX",
+            "200 Elm Street, Austin, TX",
+        ]
 
 
 def test_rss_fence_loss_after_durable_evidence_is_retryable(db, monkeypatch):

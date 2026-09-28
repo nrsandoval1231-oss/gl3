@@ -1,4 +1,5 @@
 from datetime import UTC, date, datetime, timedelta
+from datetime import date as DateType
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
@@ -67,6 +68,9 @@ class LifecycleEventOut(BaseModel):
     date: str | None
     value_kind: str
     evidence_url: str
+    current: bool = True
+    published_at: DateType | None = None
+    event_date_label: str | None = None
 
 
 class OpportunityOut(BaseModel):
@@ -478,6 +482,21 @@ def opportunities(tier: str | None = None, search: str | None = None):
                 .where(LifecycleEvent.project_id == project.id)
                 .order_by(LifecycleEvent.occurred_on.asc().nullslast(), LifecycleEvent.recorded_at)
             ).all()
+            current_lifecycle_ids = set()
+            for lifecycle_event, lifecycle_evidence in lifecycle_rows:
+                lifecycle_interpretation = session.scalar(
+                    select(Interpretation).where(
+                        Interpretation.observation_id == lifecycle_event.observation_id
+                    )
+                )
+                if (
+                    lifecycle_interpretation is not None
+                    and lifecycle_interpretation.status == "accepted"
+                    and lifecycle_interpretation.assessment is not None
+                    and lifecycle_interpretation.assessment.get("evidence_hash")
+                    == lifecycle_evidence.content_hash
+                ):
+                    current_lifecycle_ids.add(lifecycle_event.id)
             links = session.execute(
                 select(Observation, Evidence, Interpretation)
                 .join(NeedObservation, NeedObservation.observation_id == Observation.id)
@@ -586,6 +605,9 @@ def opportunities(tier: str | None = None, search: str | None = None):
                             "date": event.occurred_on.isoformat() if event.occurred_on else None,
                             "value_kind": event.value_kind,
                             "evidence_url": lifecycle_evidence.url,
+                            "current": event.id in current_lifecycle_ids,
+                            "published_at": lifecycle_evidence.published_at,
+                            "event_date_label": lifecycle_evidence.event_date_label,
                         }
                         for event, lifecycle_evidence in lifecycle_rows
                     ],

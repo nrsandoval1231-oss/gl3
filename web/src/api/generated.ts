@@ -397,6 +397,15 @@ export interface components {
             value_kind: string;
             /** Evidence Url */
             evidence_url: string;
+            /**
+             * Current
+             * @default true
+             */
+            current: boolean;
+            /** Published At */
+            published_at?: string | null;
+            /** Event Date Label */
+            event_date_label?: string | null;
         };
         /** LoginBody */
         LoginBody: {
