@@ -64,3 +64,12 @@ GL3-012 BUILD -> CORRECT -> VALIDATE -> ACCEPTED LOCAL: c6473ec0d7b6e1c48601a744
 GL3-013 READY -> BUILD/VALIDATE: owner redirects from source expansion to independent local verification. New branch verify/local-signal-pipeline from current origin/main a7ee3e4; isolated checkout gl3-local-proof carries accepted uncommitted GL3-010/011/012 bytes without touching running original checkout. Two disjoint Luna packets: backend monitor/proof script and browser gate configuration; controller owns CI, isolated DBs, source run/sample, final gates/integration. Exact final commit Sol review required before PR. No merge/deploy. Latest CI jobs never started: GitHub annotations cite account payment/spending limit. Fresh migration-test DB upgrade twice and drift pass. Parent launch remains OPEN; next direction VALIDATE.
 
 GL3-013 final frontier: BUILD complete -> local VALIDATE passed -> exact-commit independent review pending. Source expansion and cloud launch remain blocked/deferred. Next direction VALIDATE; commit and PR authorized, merge/deploy excluded. See delivery report and retained final gates.
+
+
+## Post-merge canonical checkpoint — GL3-013
+
+GL3-013: **MERGED to main** through PR #3 at `c021f77c71b731b79c3b59d3bd9aa7e2351b9169`. Exact candidate `37fdcbbc092cd4a8583a960872384b0a341520ab` received independent Sol PASS before merge. Fresh isolated validation: 205 backend tests, frontend typecheck/build, zero-vulnerability npm audit, three browser tests, 12 ordinary-worker source runs plus stable replay, 2,530 observations, 2,567 evidence versions, 87 Signal records / 69 displayed cards, and 34-card / 52-record original-citation review. No Prospect or Lead is established.
+
+Hosted CI admission remains blocked before runner execution by GitHub account payment/spending-limit state. Cloud operation, national completeness, seven scheduled cycles, alerts/restore proof and Lead acceptance remain OPEN.
+
+**Next direction:** stop treating basic ingestion proof as the primary frontier. Preserve the verified ingestion foundation and move to bounded project consolidation plus evidence-backed Signal investigation toward the first defensible Prospect. Do not promote a Prospect to satisfy a milestone; deterministic PRD gates remain authoritative.
