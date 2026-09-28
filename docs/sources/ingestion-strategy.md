@@ -3,9 +3,12 @@
 **Date:** September 24, 2026  
 **Status:** Owner-approved implementation direction; source readiness and operational results remain unproven.  
 **Applies to:** The fresh `gl3` implementation.  
-**Product authority:** [PRD](../product/PRD.md).
+**Product authority:** [PRD](../product/PRD.md).  
+**Vertical lifecycle authority:** [Vertical Lifecycle Intelligence Strategy](../product/VERTICAL_LIFECYCLE_STRATEGY.md).
 
 ## Objective and priority
+
+GridLens optimizes for **earliest actionable awareness**, not earliest permit discovery. The vertical lifecycle strategy governs the commercial meaning of source events. Data-center acquisition prioritizes pre-permit project formation plus construction/electrical/commissioning monitoring. Upstream O&G treats drilling permits and subsequent milestones as inputs to a deterministic production/electrification clock. Fixed O&G infrastructure retains pre-permit project discovery plus regulatory, construction and commissioning monitoring. Generic permit volume is not the acquisition objective.
 
 Prove that GridLens consistently discovers new projects and detects material changes before adding n8n research workflows. The PRD already specifies many reliability requirements. Actual source selection, production access, completeness within declared collection windows, and commercially useful output still require evidence.
 
@@ -28,7 +31,7 @@ This strategy elaborates the PRD's ingestion and verification requirements. It p
 
 ### Broad discovery
 
-Find new projects and events across the national scope through a mix of:
+Prioritize sources by commercial timing advantage. Data-center pre-permit formation, data-center construction/commissioning, upstream drilling/production lifecycle, and fixed O&G infrastructure are the first deep acquisition programs. Find new projects and events across the national scope through a mix of:
 
 - Structured regulatory and industrial records.
 - Construction and permit publications.
