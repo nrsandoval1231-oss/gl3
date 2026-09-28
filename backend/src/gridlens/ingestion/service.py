@@ -6,7 +6,9 @@ from typing import Any
 import httpx
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import flag_modified
 
+from gridlens.domain.lifecycle import classify_event
 from gridlens.domain.news_interpretation import (
     EVALUATOR_VERSION,
     assess_news,
@@ -18,7 +20,18 @@ from gridlens.domain.permit_interpretation import evaluator_version as permit_ev
 from gridlens.domain.qualification import assess_signal
 from gridlens.ingestion.adapters import retrieve_source
 from gridlens.ingestion.adapters.govinfo_pdf import MAX_PDFS_PER_RUN, retrieve_companion
+from gridlens.intelligence.lifecycle_service import apply_lifecycle_observation
 from gridlens.intelligence.matching import interpret
+from gridlens.intelligence.project_identity import (
+    conflicting_geography,
+    decide_project_match,
+    labeled_site,
+    labeled_sites,
+    normalized_identity,
+    physical_site,
+    same_physical_site,
+    stable_asset_identity,
+)
 from gridlens.jobs.queue import assert_fence
 from gridlens.persistence.models import (
     ChangeEvent,
@@ -28,6 +41,7 @@ from gridlens.persistence.models import (
     Observation,
     PowerNeed,
     Project,
+    ProjectMatchDecision,
     Source,
 )
 
@@ -125,7 +139,14 @@ def _news_identity_key(
         "location": assessment.get("location"),
         "action": assessment.get("action"),
     }
-    if not all((material["title"], material["subject"], material["location"], material["action"])):
+    if not all(
+        (
+            material["title"],
+            material["subject"],
+            material["location"],
+            material["action"],
+        )
+    ):
         material = {"source_id": source_id, "external_id": external_id}
     raw = json.dumps(material, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     return f"rss:{hashlib.sha256(raw.encode('utf-8')).hexdigest()}"
@@ -134,6 +155,130 @@ def _news_identity_key(
 def _reported_mw(assessment: dict[str, Any]) -> str | None:
     value = assessment.get("demand_mw")
     return value if isinstance(value, str) and value else None
+
+
+def _asset_type_conflicts(candidate_type: str, classification: Any | None) -> bool:
+    return bool(
+        classification
+        and candidate_type != "unknown"
+        and candidate_type != classification.asset_type.value
+    )
+
+
+def _need_has_current_support(session: Session, need: PowerNeed, project: Project) -> bool:
+    rows = session.execute(
+        select(Observation, Interpretation)
+        .join(NeedObservation, NeedObservation.observation_id == Observation.id)
+        .outerjoin(Interpretation, Interpretation.observation_id == Observation.id)
+        .where(NeedObservation.need_id == need.id)
+    ).all()
+    for linked_observation, interpretation in rows:
+        if (
+            interpretation is None
+            or interpretation.status != "accepted"
+            or interpretation.content_hash != linked_observation.content_hash
+        ):
+            continue
+        assessment = interpretation.assessment or {}
+        if assessment.get("semantic_hash") not in {None, linked_observation.content_hash}:
+            continue
+        identity_key = assessment.get("project_identity_key")
+        if identity_key is not None and identity_key != project.identity_key:
+            continue
+        activity = assessment.get("power_activity") or assessment.get("activity_key")
+        if activity is not None and activity != need.activity_key:
+            continue
+        evidence_hash = assessment.get("evidence_hash")
+        if isinstance(evidence_hash, str):
+            bound = session.scalar(
+                select(Evidence.id).where(
+                    Evidence.observation_id == linked_observation.id,
+                    Evidence.content_hash == evidence_hash,
+                )
+            )
+            if bound is None:
+                continue
+        elif (
+            session.scalar(
+                select(Evidence.id).where(Evidence.observation_id == linked_observation.id)
+            )
+            is None
+        ):
+            continue
+        return True
+    return False
+
+
+def _current_need_claims(
+    session: Session, need: PowerNeed, project: Project
+) -> list[dict[str, Any]]:
+    rows = session.execute(
+        select(Observation, Interpretation)
+        .join(NeedObservation, NeedObservation.observation_id == Observation.id)
+        .join(Interpretation, Interpretation.observation_id == Observation.id)
+        .where(NeedObservation.need_id == need.id)
+    ).all()
+    claims: list[dict[str, Any]] = []
+    for observation, interpretation in rows:
+        if (
+            interpretation.status != "accepted"
+            or interpretation.content_hash != observation.content_hash
+        ):
+            continue
+        assessment = interpretation.assessment or {}
+        if assessment.get("semantic_hash") not in {None, observation.content_hash}:
+            continue
+        if assessment.get("project_identity_key") not in {None, project.identity_key}:
+            continue
+        activity = assessment.get("power_activity") or assessment.get("activity_key")
+        if activity not in {None, need.activity_key}:
+            continue
+        evidence_hash = assessment.get("evidence_hash")
+        if not isinstance(evidence_hash, str) or session.scalar(
+            select(Evidence.id).where(
+                Evidence.observation_id == observation.id,
+                Evidence.content_hash == evidence_hash,
+            )
+        ) is None:
+            continue
+
+        tier = assessment.get("tier")
+        reason = assessment.get("reason") or assessment.get("rationale")
+        if tier == "Prospect":
+            if not all(
+                isinstance(assessment.get(key), str) and assessment[key].strip()
+                for key in ("demand_mw", "demand_quote", "supply_quote")
+            ) or not isinstance(reason, str) or not reason.strip():
+                continue
+            claim = {**assessment, "reason": reason, "tier": "Prospect"}
+        elif tier == "Signal" or (tier is None and assessment.get("decision") == "accepted"):
+            if not isinstance(reason, str) or not reason.strip():
+                continue
+            claim = {
+                "tier": "Signal",
+                "reason": reason,
+                "demand_mw": None,
+            }
+        else:
+            continue
+        claims.append(
+            {
+                "claim": claim,
+                "priority": 0 if claim["tier"] == "Prospect" else 1,
+                "content_hash": observation.content_hash,
+                "source_id": observation.source_id,
+                "external_id": observation.external_id,
+            }
+        )
+    claims.sort(
+        key=lambda row: (
+            row["priority"],
+            row["content_hash"],
+            row["source_id"],
+            row["external_id"],
+        )
+    )
+    return [row["claim"] for row in claims]
 
 
 def _assessment_payload(
@@ -283,17 +428,186 @@ def assess_retained_news(
         project = session.scalar(
             select(Project).where(Project.identity_key == identity_key).with_for_update()
         )
-        if project is None:
-            project = Project(
-                identity_key=identity_key,
-                name=claim["subject"],
-                location=claim["location"],
-                source_id=observation.source_id,
-                external_id=observation.external_id,
+        if project is not None and project.source_id != observation.source_id:
+            exact_copy = session.scalar(
+                select(ProjectMatchDecision).where(
+                    ProjectMatchDecision.observation_id == observation.id,
+                    ProjectMatchDecision.candidate_project_id == project.id,
+                    ProjectMatchDecision.evidence_id == evidence.id,
+                )
             )
-            session.add(project)
-            session.flush()
+            if exact_copy is None:
+                session.add(
+                    ProjectMatchDecision(
+                        observation_id=observation.id,
+                        candidate_project_id=project.id,
+                        evidence_id=evidence.id,
+                        decision="matched",
+                        reason=(
+                            "Exact retained title and summary copy with identical cited "
+                            "project facts."
+                        ),
+                        matched_facts=[
+                            "exact title",
+                            "exact summary",
+                            "same cited subject, location, and action",
+                        ],
+                        identity_facts={
+                            "title": observation.title,
+                            "abstract_hash": hashlib.sha256(
+                                (observation.abstract or "").encode("utf-8")
+                            ).hexdigest(),
+                            "project_name": claim["subject"],
+                            "site": labeled_site(
+                                f"{observation.title} {observation.abstract or ''}"
+                            )
+                            or claim["location"],
+                        },
+                    )
+                )
+        if project is None:
+            candidates = session.scalars(select(Project).with_for_update()).all()
+            matching_candidates: list[tuple[Project, Any]] = []
+            identity_decisions = []
+            site_claims = labeled_sites(f"{observation.title} {observation.abstract or ''}")
+            site_claim = site_claims[0] if len(site_claims) == 1 else None
+            ambiguous_sites = len(site_claims) > 1
+            for candidate in candidates:
+                aliases = (candidate.identity_facts or {}).get("project_aliases", [])
+                same_name = normalized_identity(candidate.name) == normalized_identity(
+                    claim["subject"]
+                ) or any(
+                    normalized_identity(alias) == normalized_identity(claim["subject"])
+                    for alias in aliases
+                    if isinstance(alias, str)
+                )
+                candidate_site = (candidate.identity_facts or {}).get("site") or (
+                    candidate.location
+                )
+                incoming_site = site_claim or claim.get("location")
+                same_site = not ambiguous_sites and same_physical_site(
+                    candidate_site, incoming_site
+                )
+                decision = decide_project_match(
+                    same_address=same_site,
+                    same_project_name=same_name,
+                    conflicting_geography=bool(
+                        conflicting_geography(candidate.location, claim.get("location"))
+                    ),
+                    conflicting_asset_type=_asset_type_conflicts(
+                        candidate.asset_type,
+                        classify_event(observation.title, observation.abstract),
+                    ),
+                )
+                identity_decisions.append((candidate, decision))
+                if decision.decision == "matched":
+                    matching_candidates.append((candidate, decision))
+            if len(matching_candidates) == 1:
+                project = matching_candidates[0][0]
+                payload["project_identity_key"] = project.identity_key
+            else:
+                project = Project(
+                    identity_key=identity_key,
+                    name=claim["subject"],
+                    location=claim["location"],
+                    source_id=observation.source_id,
+                    external_id=observation.external_id,
+                    identity_facts={
+                        "project_name": claim["subject"],
+                        "project_aliases": [claim["subject"]],
+                        "site": site_claim or claim["location"],
+                    },
+                )
+                session.add(project)
+                session.flush()
+            if matching_candidates or any(
+                decision.matched_facts for _, decision in identity_decisions
+            ):
+                for candidate, decision in identity_decisions:
+                    if not decision.matched_facts and len(matching_candidates) < 2:
+                        continue
+                    row = session.scalar(
+                        select(ProjectMatchDecision)
+                        .where(
+                            ProjectMatchDecision.observation_id == observation.id,
+                            ProjectMatchDecision.candidate_project_id == candidate.id,
+                            ProjectMatchDecision.evidence_id == evidence.id,
+                        )
+                        .with_for_update()
+                    )
+                    if row is None:
+                        row = ProjectMatchDecision(
+                            observation_id=observation.id,
+                            candidate_project_id=candidate.id,
+                            decision="separate",
+                            reason="Pending identity decision.",
+                            matched_facts=[],
+                        )
+                        session.add(row)
+                    row.decision = "matched" if len(matching_candidates) == 1 else "separate"
+                    row.reason = (
+                        decision.reason
+                        if len(matching_candidates) == 1
+                        and not ambiguous_sites
+                        else "Multiple supported project candidates; retained separately."
+                    )
+                    if ambiguous_sites:
+                        row.reason = (
+                            "Multiple distinct labeled site addresses; identity ambiguous, "
+                            "so the record remains separate."
+                        )
+                    row.matched_facts = list(decision.matched_facts)
+                    row.evidence_id = evidence.id
+                    row.identity_facts = {
+                        "project_name": claim["subject"],
+                        "project_aliases": [claim["subject"]],
+                        "site": site_claim or claim["location"],
+                        "site_candidates": list(site_claims),
+                    }
+            if not matching_candidates:
+                unmatched = session.scalar(
+                    select(ProjectMatchDecision).where(
+                        ProjectMatchDecision.observation_id == observation.id,
+                        ProjectMatchDecision.candidate_project_id.is_(None),
+                        ProjectMatchDecision.evidence_id == evidence.id,
+                    )
+                )
+                if unmatched is None:
+                    session.add(
+                        ProjectMatchDecision(
+                            observation_id=observation.id,
+                            candidate_project_id=None,
+                            evidence_id=evidence.id,
+                            decision="separate",
+                        reason=(
+                            "Multiple distinct labeled site addresses; identity ambiguous, "
+                            "so the record remains separate."
+                            if ambiguous_sites
+                            else "No supported existing project candidate met conservative "
+                            "identity evidence."
+                            ),
+                            matched_facts=[],
+                            identity_facts={
+                                "project_name": claim["subject"],
+                                "site": site_claim or claim["location"],
+                                "site_candidates": list(site_claims),
+                            },
+                        )
+                    )
+        identity_key = project.identity_key
         activity_key = payload["power_activity"]
+        if activity_key == "construction":
+            permit_activity_need = session.scalar(
+                select(PowerNeed)
+                .where(
+                    PowerNeed.project_id == project.id,
+                    PowerNeed.activity_key == "facility-expansion",
+                )
+                .with_for_update()
+            )
+            if permit_activity_need is not None:
+                activity_key = "facility-expansion"
+                payload["power_activity"] = activity_key
         current_need = session.scalar(
             select(PowerNeed)
             .where(PowerNeed.project_id == project.id, PowerNeed.activity_key == activity_key)
@@ -318,6 +632,9 @@ def assess_retained_news(
         current_need.required_mw = _reported_mw(claim)
         current_need.supply = "Reported constraint" if claim["tier"] == "Prospect" else "Unknown"
         payload["project_identity_key"] = identity_key
+        # Assign a fresh JSON value before support queries can autoflush it.
+        interpretation.assessment = {**payload}
+        flag_modified(interpretation, "assessment")
         if (
             session.scalar(
                 select(NeedObservation.id).where(
@@ -328,6 +645,7 @@ def assess_retained_news(
             is None
         ):
             session.add(NeedObservation(need_id=current_need.id, observation_id=observation.id))
+        apply_lifecycle_observation(session, project, observation, evidence)
         if (
             not was_active
             or previous_rationale != claim["reason"]
@@ -359,38 +677,13 @@ def assess_retained_news(
         project = session.get(Project, need.project_id)
         if project is None:
             continue
-        linked = session.scalars(
-            select(Observation)
-            .join(NeedObservation, NeedObservation.observation_id == Observation.id)
-            .where(NeedObservation.need_id == need.id)
-        ).all()
-        supported = False
-        superseded = False
-        for linked_observation in linked:
-            linked_interpretation = session.scalar(
-                select(Interpretation).where(Interpretation.observation_id == linked_observation.id)
-            )
-            linked_assessment = linked_interpretation.assessment if linked_interpretation else None
-            if (
-                linked_interpretation
-                and linked_interpretation.status in {"accepted", "rejected"}
-                and linked_assessment
-                and linked_assessment.get("semantic_hash") == linked_observation.content_hash
-                and linked_assessment.get("superseded_project_identity_key") == project.identity_key
-            ):
-                superseded = True
-            if (
-                linked_interpretation
-                and linked_interpretation.status == "accepted"
-                and linked_assessment
-                and linked_assessment.get("semantic_hash") == linked_observation.content_hash
-                and linked_assessment.get("project_identity_key") == project.identity_key
-                and linked_assessment.get("power_activity") == need.activity_key
-            ):
-                supported = True
-        supported = supported and not superseded
+        supported = _need_has_current_support(session, need, project)
         if need.active and not supported:
             need.active = False
+            need.tier = "Signal"
+            need.required_mw = None
+            need.supply = "Unknown"
+            need.rationale = "No current accepted evidence supports this activity."
             session.add(
                 ChangeEvent(
                     observation_id=observation.id,
@@ -398,8 +691,20 @@ def assess_retained_news(
                     kind="closed",
                 )
             )
+        elif supported:
+            claims = _current_need_claims(session, need, project)
+            if claims:
+                selected = claims[0]
+                need.active = True
+                need.tier = selected["tier"]
+                need.rationale = selected["reason"]
+                need.required_mw = _reported_mw(selected)
+                need.supply = (
+                    "Reported constraint" if selected["tier"] == "Prospect" else "Unknown"
+                )
     # Reassign after in-place edits so SQLAlchemy marks the JSON value dirty.
-    interpretation.assessment = payload
+    interpretation.assessment = {**payload}
+    flag_modified(interpretation, "assessment")
     if job_id is not None:
         assert worker_id is not None and fence is not None
         job = assert_fence(session, job_id, worker_id, fence)
@@ -539,7 +844,10 @@ def process_job(
                     event_date=date.fromisoformat(record["event_date"])
                     if record.get("event_date")
                     else None,
-                    event_date_label=record.get("event_date_label"),
+                    event_date_label=(
+                        record.get("event_date_label")
+                        or ("Permit issue date" if is_permit_source else None)
+                    ),
                 )
             )
         session.commit()  # Keep retrieved source evidence durable if PDF enrichment fails.
@@ -696,15 +1004,26 @@ def process_job(
             select(Project).where(Project.identity_key == project_key).with_for_update()
         )
         if interpreted is None:
+            impacted_needs = session.scalars(
+                select(PowerNeed)
+                .join(NeedObservation, NeedObservation.need_id == PowerNeed.id)
+                .where(NeedObservation.observation_id == observation.id)
+                .with_for_update()
+            ).all()
+            if project is None and impacted_needs:
+                impacted_project_ids = {need.project_id for need in impacted_needs}
+                if len(impacted_project_ids) == 1:
+                    project = session.get(Project, next(iter(impacted_project_ids)))
             interpretation.status = "rejected"
+            interpretation.content_hash = digest
+            current_evidence = session.scalar(
+                select(Evidence).where(
+                    Evidence.observation_id == observation.id,
+                    Evidence.content_hash == evidence_digest,
+                )
+            )
             if permit_assessment:
                 counts["permit_rejected"] += 1
-                current_evidence = session.scalar(
-                    select(Evidence).where(
-                        Evidence.observation_id == observation.id,
-                        Evidence.content_hash == evidence_digest,
-                    )
-                )
                 interpretation.evaluator_version = permit_evaluator_version(record)
                 interpretation.assessment = _permit_assessment_payload(
                     permit_assessment,
@@ -715,6 +1034,16 @@ def process_job(
                     prior_assessment,
                     prior_evaluator_version,
                 )
+                if project is not None:
+                    interpretation.assessment["project_identity_key"] = project.identity_key
+            else:
+                interpretation.assessment = {
+                    "semantic_hash": digest,
+                    "evidence_hash": evidence_digest,
+                    "decision": "rejected",
+                    "project_identity_key": project.identity_key if project else None,
+                }
+            needs = list(impacted_needs)
             if project is not None:
                 activity_keys = (
                     {
@@ -729,7 +1058,7 @@ def process_job(
                         "facility-expansion" if source.id == "nc-commerce" else "mine-development"
                     }
                 )
-                needs = session.scalars(
+                project_needs = session.scalars(
                     select(PowerNeed)
                     .where(
                         PowerNeed.project_id == project.id,
@@ -737,31 +1066,47 @@ def process_job(
                     )
                     .with_for_update()
                 ).all()
-                for stale_need in needs:
-                    if stale_need.active:
-                        stale_need.active = False
-                        session.add(
-                            ChangeEvent(
-                                observation_id=observation.id,
-                                content_hash=digest,
-                                kind=(
-                                    "reclassified"
-                                    if same_version and prior_interpretation_status == "accepted"
-                                    else "closed"
-                                ),
-                            )
+                needs.extend(project_needs)
+            unique_needs = {need.id: need for need in needs}
+            impacted_project_ids = set()
+            for stale_need in unique_needs.values():
+                impacted_project_ids.add(stale_need.project_id)
+                if (
+                    current_evidence is not None
+                    and session.scalar(
+                        select(NeedObservation.id).where(
+                            NeedObservation.need_id == stale_need.id,
+                            NeedObservation.observation_id == observation.id,
                         )
-                    if (
-                        session.scalar(
-                            select(NeedObservation.id).where(
-                                NeedObservation.need_id == stale_need.id,
-                                NeedObservation.observation_id == observation.id,
-                            )
+                    )
+                    is None
+                ):
+                    session.add(
+                        NeedObservation(need_id=stale_need.id, observation_id=observation.id)
+                    )
+                stale_project = session.get(Project, stale_need.project_id)
+                has_support = bool(
+                    stale_project and _need_has_current_support(session, stale_need, stale_project)
+                )
+                if stale_need.active and not has_support:
+                    stale_need.active = False
+                    session.add(
+                        ChangeEvent(
+                            observation_id=observation.id,
+                            content_hash=digest,
+                            kind=(
+                                "reclassified"
+                                if same_version and prior_interpretation_status == "accepted"
+                                else "closed"
+                            ),
                         )
-                        is None
-                    ):
-                        session.add(
-                            NeedObservation(need_id=stale_need.id, observation_id=observation.id)
+                    )
+            if current_evidence is not None:
+                for impacted_project_id in impacted_project_ids:
+                    impacted_project = session.get(Project, impacted_project_id)
+                    if impacted_project is not None:
+                        apply_lifecycle_observation(
+                            session, impacted_project, observation, current_evidence
                         )
         else:
             if permit_assessment:
@@ -773,15 +1118,192 @@ def process_job(
             assert project_name is not None and activity_key is not None and rationale is not None
             assert project_location is None or isinstance(project_location, str)
             if project is None:
-                project = Project(
-                    identity_key=project_key,
-                    name=project_name,
-                    location=project_location,
-                    source_id=source.id,
-                    external_id=external_id,
+                asset_identity = stable_asset_identity(record, source.id)
+                candidates = session.scalars(select(Project).with_for_update()).all()
+                supported: list[tuple[Project, Any]] = []
+                decisions: list[tuple[Project, Any]] = []
+                permit_alias = (
+                    permit_assessment.get("project_hint")
+                    if permit_assessment and isinstance(permit_assessment.get("project_hint"), str)
+                    else None
                 )
-                session.add(project)
-                session.flush()
+                for candidate in candidates:
+                    candidate_aliases = (candidate.identity_facts or {}).get("project_aliases", [])
+                    same_name = (
+                        normalized_identity(candidate.name) == normalized_identity(project_name)
+                        or any(
+                            normalized_identity(alias) == normalized_identity(project_name)
+                            for alias in candidate_aliases
+                            if isinstance(alias, str)
+                        )
+                        or bool(
+                            permit_alias
+                            and normalized_identity(permit_alias)
+                            in {
+                                normalized_identity(candidate.name),
+                                *{
+                                    normalized_identity(alias)
+                                    for alias in candidate_aliases
+                                    if isinstance(alias, str)
+                                },
+                            }
+                        )
+                    )
+                    candidate_site = (candidate.identity_facts or {}).get(
+                        "site"
+                    ) or candidate.location
+                    same_site = same_physical_site(candidate_site, project_location) or (
+                        physical_site(project_location)
+                        and physical_site(candidate.location)
+                        and normalized_identity(candidate.location)
+                        == normalized_identity(project_location)
+                    )
+                    same_asset = bool(asset_identity) and candidate.identity_facts.get(
+                        "asset_identity"
+                    ) == (list(asset_identity) if asset_identity else None)
+                    geographic_conflict = conflicting_geography(
+                        candidate.location, project_location
+                    )
+                    decision = decide_project_match(
+                        same_address=same_site,
+                        same_project_name=same_name,
+                        same_asset_identity=same_asset,
+                        conflicting_geography=geographic_conflict,
+                        conflicting_asset_type=_asset_type_conflicts(
+                            candidate.asset_type,
+                            classify_event(observation.title, observation.abstract),
+                        ),
+                    )
+                    decisions.append((candidate, decision))
+                    if decision.decision == "matched":
+                        supported.append((candidate, decision))
+                if len(supported) == 1:
+                    project = supported[0][0]
+                else:
+                    project = Project(
+                        identity_key=project_key,
+                        name=project_name,
+                        location=project_location,
+                        source_id=source.id,
+                        external_id=external_id,
+                    )
+                    session.add(project)
+                    session.flush()
+                for candidate, decision in decisions:
+                    if (
+                        decision.decision == "matched"
+                        or len(supported) > 1
+                        or decision.matched_facts
+                    ):
+                        match_row = session.scalar(
+                            select(ProjectMatchDecision)
+                            .where(
+                                ProjectMatchDecision.observation_id == observation.id,
+                                ProjectMatchDecision.candidate_project_id == candidate.id,
+                                ProjectMatchDecision.evidence_id
+                                == session.scalar(
+                                    select(Evidence.id).where(
+                                        Evidence.observation_id == observation.id,
+                                        Evidence.content_hash == evidence_digest,
+                                    )
+                                ),
+                            )
+                            .with_for_update()
+                        )
+                        if match_row is None:
+                            match_row = ProjectMatchDecision(
+                                observation_id=observation.id,
+                                candidate_project_id=candidate.id,
+                                decision="separate",
+                                reason="Pending identity decision.",
+                                matched_facts=[],
+                            )
+                            session.add(match_row)
+                        match_row.decision = (
+                            "matched"
+                            if len(supported) == 1 and decision.decision == "matched"
+                            else "separate"
+                        )
+                        match_row.reason = (
+                            decision.reason
+                            if len(supported) <= 1
+                            else "Multiple supported project candidates; retained separately."
+                        )
+                        match_row.matched_facts = list(decision.matched_facts)
+                        match_row.evidence_id = session.scalar(
+                            select(Evidence.id).where(
+                                Evidence.observation_id == observation.id,
+                                Evidence.content_hash == evidence_digest,
+                            )
+                        )
+                        match_row.identity_facts = {
+                            "project_name": project_name,
+                            "site": project_location,
+                            "asset_identity": list(asset_identity) if asset_identity else None,
+                        }
+                if not supported:
+                    match_evidence_id = session.scalar(
+                        select(Evidence.id).where(
+                            Evidence.observation_id == observation.id,
+                            Evidence.content_hash == evidence_digest,
+                        )
+                    )
+                    unmatched = session.scalar(
+                        select(ProjectMatchDecision).where(
+                            ProjectMatchDecision.observation_id == observation.id,
+                            ProjectMatchDecision.candidate_project_id.is_(None),
+                            ProjectMatchDecision.evidence_id == match_evidence_id,
+                        )
+                    )
+                    if unmatched is None:
+                        session.add(
+                            ProjectMatchDecision(
+                                observation_id=observation.id,
+                                candidate_project_id=None,
+                                evidence_id=match_evidence_id,
+                                decision="separate",
+                                reason=(
+                                    "No single existing project candidate met "
+                                    "conservative identity evidence."
+                                ),
+                                matched_facts=[],
+                                identity_facts={
+                                    "project_name": project_name,
+                                    "site": project_location,
+                                    "asset_identity": list(asset_identity)
+                                    if asset_identity
+                                    else None,
+                                },
+                            )
+                        )
+                if not supported or len(supported) != 1:
+                    project.identity_facts = {
+                        "asset_identity": list(asset_identity) if asset_identity else None,
+                        "site": project_location,
+                        "project_name": project_name,
+                    }
+                elif supported[0][1].decision == "matched":
+                    project.identity_facts = {
+                        **(project.identity_facts or {}),
+                        "asset_identity": list(asset_identity)
+                        if asset_identity
+                        else (project.identity_facts or {}).get("asset_identity"),
+                        "site": project_location or (project.identity_facts or {}).get("site"),
+                        "project_name": project_name,
+                    }
+                if permit_alias:
+                    current_facts = dict(project.identity_facts or {})
+                    aliases = [
+                        value
+                        for value in current_facts.get("project_aliases", [])
+                        if isinstance(value, str)
+                    ]
+                    if normalized_identity(permit_alias) not in {
+                        normalized_identity(value) for value in aliases
+                    }:
+                        aliases.append(permit_alias)
+                    current_facts["project_aliases"] = aliases
+                    project.identity_facts = current_facts
             else:
                 project.name = project_name
                 if project_location and project.location != project_location:
@@ -824,6 +1346,17 @@ def process_job(
                             observation_id=observation.id, content_hash=digest, kind="reclassified"
                         )
                     )
+                if activity_key == "facility-expansion":
+                    news_activity_need = session.scalar(
+                        select(PowerNeed)
+                        .where(
+                            PowerNeed.project_id == project.id,
+                            PowerNeed.activity_key == "construction",
+                        )
+                        .with_for_update()
+                    )
+                    if news_activity_need is not None:
+                        activity_key = "construction"
             need = session.scalar(
                 select(PowerNeed)
                 .where(
@@ -874,6 +1407,12 @@ def process_job(
                     )
                 )
             interpretation.status, interpretation.error = "accepted", None
+            lifecycle_evidence = session.scalar(
+                select(Evidence).where(
+                    Evidence.observation_id == observation.id,
+                    Evidence.content_hash == evidence_digest,
+                )
+            )
             if permit_assessment:
                 current_evidence = session.scalar(
                     select(Evidence).where(
@@ -891,6 +1430,23 @@ def process_job(
                     prior_assessment,
                     prior_evaluator_version,
                 )
+                interpretation.assessment["project_identity_key"] = project.identity_key
+                interpretation.assessment["power_activity"] = activity_key
+            else:
+                interpretation.assessment = {
+                    "semantic_hash": digest,
+                    "evidence_hash": evidence_digest,
+                    "decision": "accepted",
+                    "project_identity_key": project.identity_key,
+                    "power_activity": activity_key,
+                    "activity_key": activity_key,
+                    "evidence": {
+                        "id": str(lifecycle_evidence.id) if lifecycle_evidence else None,
+                        "url": lifecycle_evidence.url if lifecycle_evidence else observation.url,
+                    },
+                }
+            if lifecycle_evidence is not None:
+                apply_lifecycle_observation(session, project, observation, lifecycle_evidence)
 
         job = assert_fence(session, job_id, worker_id, fence)
         job.checkpoint = external_id
