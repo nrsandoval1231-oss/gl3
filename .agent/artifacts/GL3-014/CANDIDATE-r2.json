@@ -1,0 +1,88 @@
+{
+  "node": "GL3-014",
+  "base_sha": "44312fc6a9faffbcef1d90f7a930c556f56b355f",
+  "candidate_sha256": "36e31a6b3f049ff8b445207f407e261372a5d36ed6830361aa076e4b05918a78",
+  "hash_method": "SHA-256 over sorted path=SHA-256(file bytes) lines joined by LF",
+  "excluded": [
+    "review and completion artifacts",
+    "untracked packet artifacts"
+  ],
+  "files": [
+    {
+      "path": ".agent/WORK_GRAPH.md",
+      "sha256": "87f2bed190766cb58588d931ae3663941b3aaff8e6ff70aaa292870075ccb921"
+    },
+    {
+      "path": "backend/migrations/versions/0006_lifecycle_identity_versions.py",
+      "sha256": "40473d6bc8baa7410ae71a1dff351922372b8b6a9c358dc714e0f7c3bbf3b980"
+    },
+    {
+      "path": "backend/src/gridlens/api/app.py",
+      "sha256": "ac2a7bf87b3fb8bffe4e398e5118b6a4132ef619c5bbc755fba9d2a331a42fe8"
+    },
+    {
+      "path": "backend/src/gridlens/domain/lifecycle.py",
+      "sha256": "dc4af4f96831332f9abc045e6e882e16154dffede4a1b0692ded3a9007daf53e"
+    },
+    {
+      "path": "backend/src/gridlens/ingestion/service.py",
+      "sha256": "79836ba980f356c134032ef52c24db02648e3f4ebe1ac3b2ccb814f91da4b22e"
+    },
+    {
+      "path": "backend/src/gridlens/intelligence/lifecycle_replay.py",
+      "sha256": "0a721d987381aeeeee2e8d7285ad222c60e48b8699506678d3ec23c3d7ba91c7"
+    },
+    {
+      "path": "backend/src/gridlens/intelligence/lifecycle_service.py",
+      "sha256": "7bddd0281f320009a77055a77390c85a3b3c5384dbe3fc41e10a04d359d979ea"
+    },
+    {
+      "path": "backend/src/gridlens/intelligence/project_identity.py",
+      "sha256": "9dfcee7e7bea32ab4ad04db75155e4aa4cafc6fddbc20ca2e388b950fb056dc1"
+    },
+    {
+      "path": "backend/src/gridlens/persistence/models.py",
+      "sha256": "d235ea934eb0ec0e15332a1364f451837608c8cf86c754cea22e4b43b39a0eac"
+    },
+    {
+      "path": "backend/tests/integration/test_collection_only_ingestion.py",
+      "sha256": "18a6fa1c985a7ede8d816a49dec43c71bc42f91a8dbb11acdf9cd670699aaf27"
+    },
+    {
+      "path": "backend/tests/integration/test_ingestion.py",
+      "sha256": "8196f08104755892463f4bb0612a708e937a86484f495516b9571ba5d8e1cb50"
+    },
+    {
+      "path": "backend/tests/unit/test_lifecycle.py",
+      "sha256": "e346485200a2a70392ae26e57998fc28de0170b30e8f757736cf2f157ab3fb81"
+    },
+    {
+      "path": "docs/validation/lifecycle-real-examples.md",
+      "sha256": "125a698e5041cdbf6df7b2e36065285ab1e6774bc5e20fa484629358a8907cfb"
+    },
+    {
+      "path": "docs/validation/pr4-repair-validation.md",
+      "sha256": "bbc113e8341d6bd0bc979b7b3b941f2846b6db7793660a2954bb018053a6ac74"
+    },
+    {
+      "path": "scripts/replay_lifecycle_history.py",
+      "sha256": "f5902ddb25bda8122a643e6ab5f8e780e4f04e1d4b52f3b0f6e2cf35f5b3c228"
+    },
+    {
+      "path": "web/src/api/generated.ts",
+      "sha256": "10507fee1e54ec2284c07b188c67cbcec8204deeb988c11a821ce84c33f09396"
+    },
+    {
+      "path": "web/src/api/openapi.json",
+      "sha256": "a20b16d663e66397c3fe87ad7e4b56b3dcbd40ccd79b3b613132ef3354451b8f"
+    },
+    {
+      "path": "web/src/app/App.tsx",
+      "sha256": "b45b037c169f8be8cb9fe4b57768e5119adc3de4ce9e2e425eb301c01e05ad01"
+    },
+    {
+      "path": "web/tests/first_path.spec.ts",
+      "sha256": "61245185e2600a7ed173bbbf5b0097f8f4ae2d421124cdf6e9c5d1e77e9a75d2"
+    }
+  ]
+}

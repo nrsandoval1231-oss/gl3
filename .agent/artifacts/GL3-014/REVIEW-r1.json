@@ -1,0 +1,49 @@
+{
+  "node": "GL3-014",
+  "verdict": "FIX",
+  "candidate_manifest": ".agent/artifacts/GL3-014/CANDIDATE-r1.json",
+  "candidate_sha256": "fa9aa0d179030c7dc93ab61875c1b29d9dd5f208e572e8626fd85d5b1e176b69",
+  "base_sha": "44312fc6a9faffbcef1d90f7a930c556f56b355f",
+  "review_scope": "Read-only diff against base and origin/main, packet, governing PRD, lifecycle strategy, source paths, migration, replay, API, and controller receipts. Review file is excluded from the frozen candidate.",
+  "evidence": {
+    "ruff": ".artifacts/pr4/ruff.json: exit 0",
+    "mypy": ".artifacts/pr4/mypy.json: exit 0",
+    "backend": ".artifacts/pr4/backend-suite.json: 213 passed, 1 failed",
+    "historical_replay": "Controller reports fresh 0003-to-0006 migration and repeat/drift pass; explicit retained replay added 2 events then 0 with stable table hashes. Final receipts remain controller-owned.",
+    "browser": "Pending at review time"
+  },
+  "findings": [
+    {
+      "severity": "blocking",
+      "location": "backend/src/gridlens/ingestion/service.py:_news_identity_key, assess_retained_news",
+      "finding": "The source-scoped RSS key and physical-address-only matching split an exact syndicated title/summary copy that previously formed one project and need. The accepted full-suite test test_rss_future_path_exact_duplicate_correction_and_replay fails with 2 projects instead of 1. This also prevents the tested correction and replay path from exercising its preserved shared-need behavior.",
+      "repair": "Restore a narrowly defined exact-copy identity path using retained source identity/content and citation evidence, while keeping source-specific fallback for partial or conflicting records. Prove the full accepted duplicate, correction, and replay test without owner-only or city-only fuzzy matching."
+    },
+    {
+      "severity": "blocking",
+      "location": "backend/src/gridlens/intelligence/lifecycle_service.py:_rebuild_projection",
+      "finding": "The code first keeps only the last event for each observation by observed_at/recorded_at, then checks whether that event matches the current accepted evidence_hash. If an accepted correction returns to an older retained evidence version, the later superseded event masks the now-current older event and removes or understates the projection. The ordering also lacks a deterministic tie-breaker.",
+      "repair": "Filter to current accepted, hash-bound evidence before selecting one event per observation; use a deterministic order or explicit current-version identity. Test A-to-B-to-A evidence correction and repeated replay, including out-of-order upstream milestones."
+    },
+    {
+      "severity": "blocking",
+      "location": "backend/src/gridlens/ingestion/service.py:ProjectMatchDecision writes; backend/migrations/versions/0006_lifecycle_identity_versions.py",
+      "finding": "Match decisions remain unique on observation_id and candidate_project_id. On corrected evidence, ingestion overwrites the row's evidence_id, reason, matched_facts, and identity_facts, discarding the prior version-bound decision. This violates the required durable correction and matching-reason history even though source Evidence rows remain.",
+      "repair": "Retain decisions per evidence version, with uniqueness that includes evidence_id or an append-only revision table. Ensure old reasons remain queryable and exact replay creates no new decision rows. Add a correction test where identity facts or candidate outcome change."
+    },
+    {
+      "severity": "blocking",
+      "location": "backend/src/gridlens/ingestion/service.py:process_job rejected path and shared PowerNeed updates",
+      "finding": "A cross-source accepted observation can attach to a Project whose identity_key belongs to another source. On a later rejection, process_job looks up only source.id:external_id and therefore finds no project, leaving its linked need active and lifecycle projection unreconciled. Conversely, when a local-key project has multiple supporting observations, rejection closes its activity needs without checking whether another current accepted observation still supports them. This violates correction and source-support semantics introduced by consolidation.",
+      "repair": "Resolve impacted needs from NeedObservation for the corrected observation; recompute support from each linked observation's current accepted interpretation, project identity, activity, and evidence binding before closing or retaining the need. Reconcile the affected lifecycle projection on rejection. Test withdrawal of one cross-source member with a second valid supporter, then withdrawal of the final supporter, with stable replay and original citation links."
+    },
+    {
+      "severity": "blocking-validation",
+      "location": "backend/tests/integration/test_ingestion.py and API tests",
+      "finding": "The added cases do not exercise actual accepted ingestion of an upstream permit, spud, and completion from separate/out-of-order observations, corrected event dates, or the authenticated API's current/superseded timeline and original per-observation source references after cross-source matching. Unit classification and a direct service test cannot establish those integration contracts.",
+      "repair": "Add focused PostgreSQL integration cases through ingestion plus an API assertion. Verify projection, date basis, retained old evidence, original source IDs/URLs, Signal tier and unknown power facts, then exact replay counts. Preserve GL3-013 and frozen UI behavior."
+    }
+  ],
+  "direction": "One bounded Luna repair on identity/replay/schema and focused tests; do not change qualification rules, source adapters, GL3-013 monitoring, or frozen UI. Re-freeze manifest and rerun final backend, migration/replay, web, and browser gates before independent review.",
+  "completion_claim": "Not accepted; parent Finish Contract remains open."
+}
