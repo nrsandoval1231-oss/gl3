@@ -481,7 +481,11 @@ def opportunities(tier: str | None = None, search: str | None = None):
                 select(LifecycleEvent, Evidence)
                 .join(Evidence, LifecycleEvent.evidence_id == Evidence.id)
                 .where(LifecycleEvent.project_id == project.id)
-                .order_by(LifecycleEvent.occurred_on.asc().nullslast(), LifecycleEvent.recorded_at)
+                .order_by(
+                    Evidence.published_at.asc().nullslast(),
+                    Evidence.observed_at,
+                    LifecycleEvent.recorded_at,
+                )
             ).all()
             current_lifecycle_ids = set()
             for lifecycle_event, lifecycle_evidence in lifecycle_rows:
@@ -492,10 +496,17 @@ def opportunities(tier: str | None = None, search: str | None = None):
                 )
                 if (
                     lifecycle_interpretation is not None
-                    and lifecycle_interpretation.status == "accepted"
                     and lifecycle_interpretation.assessment is not None
                     and lifecycle_interpretation.assessment.get("evidence_hash")
                     == lifecycle_evidence.content_hash
+                    and (
+                        lifecycle_interpretation.status == "accepted"
+                        or (
+                            lifecycle_event.event_type == "planning_application_withdrawn"
+                            and lifecycle_interpretation.assessment.get("withdrawal_supported")
+                            is True
+                        )
+                    )
                 ):
                     current_lifecycle_ids.add(lifecycle_event.id)
             links = session.execute(
@@ -506,44 +517,23 @@ def opportunities(tier: str | None = None, search: str | None = None):
                 .where(NeedObservation.need_id == need.id)
                 .order_by(Evidence.observed_at.desc())
             ).all()
-            taylor_revisions = [
-                (obs, ev)
-                for obs, ev, _ in links
-                if obs.source_id == "taylor-development-newsflash"
-            ]
+            taylor_withdrawn = bool(
+                lifecycle and lifecycle.current_state == "planning_application_withdrawn"
+            )
             taylor_identity_conflict = any(
                 obs.source_id == "taylor-development-newsflash"
                 and interpretation is not None
-                and "conflicting project or site facts" in str(
-                    (interpretation.assessment or {}).get("reason") or ""
-                )
+                and "conflicting project or site facts"
+                in str((interpretation.assessment or {}).get("reason") or "")
                 for obs, _, interpretation in links
-            )
-            latest_taylor = max(
-                taylor_revisions,
-                key=lambda pair: (
-                    pair[1].published_at or date.min,
-                    int(pair[0].external_id.rsplit("arcId=", 1)[-1])
-                    if "arcId=" in pair[0].external_id
-                    and pair[0].external_id.rsplit("arcId=", 1)[-1].isdigit()
-                    else -1,
-                    pair[1].observed_at,
-                ),
-                default=None,
-            )
-            taylor_withdrawn = bool(
-                latest_taylor
-                and not taylor_identity_conflict
-                and "withdrawn" in latest_taylor[1].title.casefold()
             )
             evidence = []
             current_assessments = []
             for obs, ev, interpretation in links:
                 current_assessment = _assessment_for_evidence(interpretation, obs, ev)
                 if (
-                    (taylor_withdrawn or taylor_identity_conflict)
-                    and obs.source_id == "taylor-development-newsflash"
-                ):
+                    taylor_withdrawn or taylor_identity_conflict
+                ) and obs.source_id == "taylor-development-newsflash":
                     current_assessment = None
                 if current_assessment:
                     current_assessments.append(current_assessment)
@@ -662,13 +652,7 @@ def opportunities(tier: str | None = None, search: str | None = None):
                     else [],
                     "evidence": evidence,
                     "asset_type": project.asset_type,
-                    "lifecycle_state": (
-                        "planning_application_withdrawn"
-                        if taylor_withdrawn
-                        else "planning_status_unknown"
-                        if taylor_identity_conflict
-                        else lifecycle.current_state if lifecycle else None
-                    ),
+                    "lifecycle_state": lifecycle.current_state if lifecycle else None,
                     "lifecycle_timeline": [
                         {
                             "state": event.state,
@@ -677,32 +661,29 @@ def opportunities(tier: str | None = None, search: str | None = None):
                             "value_kind": event.value_kind,
                             "evidence_url": lifecycle_evidence.url,
                             "current": event.id in current_lifecycle_ids
-                            and not (taylor_withdrawn or taylor_identity_conflict),
+                            and (
+                                not taylor_withdrawn
+                                or event.event_type == "planning_application_withdrawn"
+                            )
+                            and not taylor_identity_conflict,
                             "published_at": lifecycle_evidence.published_at,
                             "event_date_label": lifecycle_evidence.event_date_label,
                         }
                         for event, lifecycle_evidence in lifecycle_rows
-                    ] + (
-                        [{
-                            "state": "planning_application_withdrawn",
-                            "event_type": "planning_application_withdrawn",
-                            "date": latest_taylor[1].published_at.isoformat()
-                            if latest_taylor and latest_taylor[1].published_at else None,
-                            "value_kind": "reported",
-                            "evidence_url": latest_taylor[1].url,
-                            "current": True,
-                            "published_at": latest_taylor[1].published_at,
-                            "event_date_label": "Official withdrawal revision",
-                        }]
-                        if taylor_withdrawn and latest_taylor else []
-                    ),
+                    ],
                     "expected_next_milestone": (
-                        None if taylor_withdrawn or taylor_identity_conflict
-                        else lifecycle.expected_next_milestone if lifecycle else None
+                        None
+                        if taylor_withdrawn or taylor_identity_conflict
+                        else lifecycle.expected_next_milestone
+                        if lifecycle
+                        else None
                     ),
                     "expected_power_event": (
-                        None if taylor_withdrawn or taylor_identity_conflict
-                        else lifecycle.expected_power_event if lifecycle else None
+                        None
+                        if taylor_withdrawn or taylor_identity_conflict
+                        else lifecycle.expected_power_event
+                        if lifecycle
+                        else None
                     ),
                     "time_to_power_window": (
                         None
@@ -712,23 +693,21 @@ def opportunities(tier: str | None = None, search: str | None = None):
                     "estimate_basis": (
                         None
                         if taylor_withdrawn or taylor_identity_conflict
-                        else lifecycle.estimate_basis if lifecycle else None
+                        else lifecycle.estimate_basis
+                        if lifecycle
+                        else None
                     ),
                     "estimate_version": (
                         None
                         if taylor_withdrawn
-                        else lifecycle.estimate_version if lifecycle else None
+                        else lifecycle.estimate_version
+                        if lifecycle
+                        else None
                     ),
-                    "lifecycle_open_questions": (
-                        ["Project status after withdrawal is UNKNOWN."]
-                        if taylor_withdrawn
-                        else lifecycle.open_questions if lifecycle else []
-                    ),
-                    "monitoring_requirements": (
-                        ["Check for a new application or official project-status update."]
-                        if taylor_withdrawn
-                        else lifecycle.monitoring_requirements if lifecycle else []
-                    ),
+                    "lifecycle_open_questions": lifecycle.open_questions if lifecycle else [],
+                    "monitoring_requirements": lifecycle.monitoring_requirements
+                    if lifecycle
+                    else [],
                 }
             )
         return result

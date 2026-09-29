@@ -203,13 +203,26 @@ def retrieve(
             bytes_seen += len(content)
             soup = BeautifulSoup(content, "html.parser")
             table = soup.select_one("#archiveTable")
-            if table is None:
-                raise SourceParseError("Taylor archive table is missing")
             summary = soup.get_text(" ", strip=True)
             page_range = re.search(r"(\d+)\s*[-–]\s*(\d+)\s+of\s+(\d+)", summary, re.I)
             if page_range is None:
                 raise SourceParseError("Taylor archive page bounds/total are missing")
             first, last, page_total = map(int, page_range.groups())
+            if page_total == 0:
+                if offset != 0 or (first, last) != (0, 0):
+                    raise SourceParseError("Taylor archive zero-result bounds are inconsistent")
+                if table is not None and table.select("tbody tr"):
+                    raise SourceParseError("Taylor archive zero-result page has rows")
+                next_link = soup.select_one("[aria-label='Next Page']")
+                if next_link is not None and not (
+                    next_link.has_attr("disabled") or next_link.get("aria-disabled") == "true"
+                ):
+                    raise SourceParseError("Taylor zero-result archive has active pagination")
+                total = 0
+                terminal = True
+                break
+            if table is None:
+                raise SourceParseError("Taylor archive table is missing")
             if total is None:
                 total = page_total
             if page_total != total or first != offset + 1 or last < first:
@@ -280,8 +293,21 @@ def retrieve(
         replay_range = re.search(
             r"(\d+)\s*[-–]\s*(\d+)\s+of\s+(\d+)", replay.get_text(" ", strip=True), re.I
         )
-        if replay_range is None or int(replay_range.group(3)) != total:
+        if (
+            replay_range is None
+            or int(replay_range.group(3)) != total
+            or (total == 0 and tuple(map(int, replay_range.groups())) != (0, 0, 0))
+        ):
             raise SourceParseError("Taylor archive first-page replay total changed")
+        if total == 0:
+            replay_table = replay.select_one("#archiveTable")
+            if replay_table is not None and replay_table.select("tbody tr"):
+                raise SourceParseError("Taylor archive zero-result replay has rows")
+            replay_next = replay.select_one("[aria-label='Next Page']")
+            if replay_next is not None and not (
+                replay_next.has_attr("disabled") or replay_next.get("aria-disabled") == "true"
+            ):
+                raise SourceParseError("Taylor zero-result replay has active pagination")
         replay_pairs = []
         for link in replay.select("#archiveTable a[href*='/NewsFlash/Archive/Item/']"):
             path = urlparse(str(link.get("href"))).path

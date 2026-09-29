@@ -22,7 +22,11 @@ from gridlens.domain.qualification import assess_signal
 from gridlens.domain.taylor_planning import interpret_taylor_planning
 from gridlens.ingestion.adapters import retrieve_source
 from gridlens.ingestion.adapters.govinfo_pdf import MAX_PDFS_PER_RUN, retrieve_companion
-from gridlens.intelligence.lifecycle_service import apply_lifecycle_observation
+from gridlens.intelligence.lifecycle_service import (
+    apply_lifecycle_observation,
+    apply_planning_withdrawal,
+    refresh_lifecycle_projection,
+)
 from gridlens.intelligence.matching import interpret
 from gridlens.intelligence.project_identity import (
     conflicting_geography,
@@ -91,9 +95,7 @@ def _taylor_article_identity_conflict(
             else str(record.get("abstract") or "")
         )
         article_text = f"{title} {abstract}"
-        project_labels.update(
-            match.casefold() for match in project_pattern.findall(article_text)
-        )
+        project_labels.update(match.casefold() for match in project_pattern.findall(article_text))
         site_addresses.update(
             normalized_identity(match) for match in address_pattern.findall(article_text)
         )
@@ -264,21 +266,29 @@ def _current_need_claims(
         if activity not in {None, need.activity_key}:
             continue
         evidence_hash = assessment.get("evidence_hash")
-        if not isinstance(evidence_hash, str) or session.scalar(
-            select(Evidence.id).where(
-                Evidence.observation_id == observation.id,
-                Evidence.content_hash == evidence_hash,
+        if (
+            not isinstance(evidence_hash, str)
+            or session.scalar(
+                select(Evidence.id).where(
+                    Evidence.observation_id == observation.id,
+                    Evidence.content_hash == evidence_hash,
+                )
             )
-        ) is None:
+            is None
+        ):
             continue
 
         tier = assessment.get("tier")
         reason = assessment.get("reason") or assessment.get("rationale")
         if tier == "Prospect":
-            if not all(
-                isinstance(assessment.get(key), str) and assessment[key].strip()
-                for key in ("demand_mw", "demand_quote", "supply_quote")
-            ) or not isinstance(reason, str) or not reason.strip():
+            if (
+                not all(
+                    isinstance(assessment.get(key), str) and assessment[key].strip()
+                    for key in ("demand_mw", "demand_quote", "supply_quote")
+                )
+                or not isinstance(reason, str)
+                or not reason.strip()
+            ):
                 continue
             claim = {**assessment, "reason": reason, "tier": "Prospect"}
         elif tier == "Signal" or (tier is None and assessment.get("decision") == "accepted"):
@@ -577,8 +587,7 @@ def assess_retained_news(
                     row.decision = "matched" if len(matching_candidates) == 1 else "separate"
                     row.reason = (
                         decision.reason
-                        if len(matching_candidates) == 1
-                        and not ambiguous_sites
+                        if len(matching_candidates) == 1 and not ambiguous_sites
                         else "Multiple supported project candidates; retained separately."
                     )
                     if ambiguous_sites:
@@ -609,12 +618,12 @@ def assess_retained_news(
                             candidate_project_id=None,
                             evidence_id=evidence.id,
                             decision="separate",
-                        reason=(
-                            "Multiple distinct labeled site addresses; identity ambiguous, "
-                            "so the record remains separate."
-                            if ambiguous_sites
-                            else "No supported existing project candidate met conservative "
-                            "identity evidence."
+                            reason=(
+                                "Multiple distinct labeled site addresses; identity ambiguous, "
+                                "so the record remains separate."
+                                if ambiguous_sites
+                                else "No supported existing project candidate met conservative "
+                                "identity evidence."
                             ),
                             matched_facts=[],
                             identity_facts={
@@ -729,9 +738,7 @@ def assess_retained_news(
                 need.tier = selected["tier"]
                 need.rationale = selected["reason"]
                 need.required_mw = _reported_mw(selected)
-                need.supply = (
-                    "Reported constraint" if selected["tier"] == "Prospect" else "Unknown"
-                )
+                need.supply = "Reported constraint" if selected["tier"] == "Prospect" else "Unknown"
     # Reassign after in-place edits so SQLAlchemy marks the JSON value dirty.
     interpretation.assessment = {**payload}
     flag_modified(interpretation, "assessment")
@@ -1043,9 +1050,7 @@ def process_job(
         )
         taylor_revision_ambiguous = False
         withdrawn_taylor = bool(
-            is_taylor
-            and record.get("disposition") == "withdrawn"
-            and article_id.isdigit()
+            is_taylor and record.get("disposition") == "withdrawn" and article_id.isdigit()
         )
         if is_taylor and article_id.isdigit() and interpreted is not None:
             prior_observations = session.scalars(
@@ -1078,9 +1083,10 @@ def process_job(
                         Interpretation.content_hash == prior_observation.content_hash,
                     )
                 )
-                if prior_interpretation is None or not (
-                    prior_interpretation.assessment or {}
-                ).get("decision") == "accepted":
+                if (
+                    prior_interpretation is None
+                    or not (prior_interpretation.assessment or {}).get("decision") == "accepted"
+                ):
                     continue
                 for prior_need in session.scalars(
                     select(PowerNeed)
@@ -1148,7 +1154,10 @@ def process_job(
                 prior_observations = session.scalars(
                     select(Observation).where(
                         Observation.source_id == source.id,
-                        Observation.external_id.like(f"{record['article_id']}:arcId=%"),
+                        or_(
+                            Observation.external_id == article_id,
+                            Observation.external_id.like(f"{article_id}:arcId=%"),
+                        ),
                         Observation.id != observation.id,
                     )
                 ).all()
@@ -1167,7 +1176,7 @@ def process_job(
                     [*prior_observations, *retained_article_evidence, record]
                 )
                 candidate_needs: dict[Any, PowerNeed] = {}
-                for prior_observation in ([] if taylor_revision_ambiguous else prior_observations):
+                for prior_observation in [] if taylor_revision_ambiguous else prior_observations:
                     prior_interpretation = session.scalar(
                         select(Interpretation).where(
                             Interpretation.observation_id == prior_observation.id,
@@ -1193,25 +1202,31 @@ def process_job(
                     )
                 if len(candidate_needs) == 1:
                     linked_withdrawn_need = next(iter(candidate_needs.values()))
-                    if session.scalar(
-                        select(NeedObservation.id).where(
-                            NeedObservation.need_id == linked_withdrawn_need.id,
-                            NeedObservation.observation_id == observation.id,
+                    if (
+                        session.scalar(
+                            select(NeedObservation.id).where(
+                                NeedObservation.need_id == linked_withdrawn_need.id,
+                                NeedObservation.observation_id == observation.id,
+                            )
                         )
-                    ) is None:
+                        is None
+                    ):
                         session.add(
                             NeedObservation(
                                 need_id=linked_withdrawn_need.id,
                                 observation_id=observation.id,
                             )
                         )
-                    if session.scalar(
-                        select(ChangeEvent.id).where(
-                            ChangeEvent.observation_id == observation.id,
-                            ChangeEvent.content_hash == digest,
-                            ChangeEvent.kind == "withdrawn",
+                    if (
+                        session.scalar(
+                            select(ChangeEvent.id).where(
+                                ChangeEvent.observation_id == observation.id,
+                                ChangeEvent.content_hash == digest,
+                                ChangeEvent.kind == "withdrawn",
+                            )
                         )
-                    ) is None:
+                        is None
+                    ):
                         session.add(
                             ChangeEvent(
                                 observation_id=observation.id,
@@ -1275,6 +1290,37 @@ def process_job(
                     )
                     assessment_payload["previous_assessments"] = prior_history
                 interpretation.assessment = assessment_payload
+                if taylor_revision_ambiguous:
+                    previous_project = session.scalar(
+                        select(Project).where(Project.identity_key == project_key)
+                    )
+                    if previous_project is not None:
+                        refresh_lifecycle_projection(session, previous_project)
+                if withdrawn_taylor and not taylor_revision_ambiguous and current_evidence:
+                    supported_need = linked_withdrawn_need or (
+                        impacted_needs[0] if len(impacted_needs) == 1 else None
+                    )
+                    if supported_need is not None:
+                        interpretation.assessment["withdrawal_supported"] = True
+                        supported_project = session.get(Project, supported_need.project_id)
+                        if supported_project is not None:
+                            apply_planning_withdrawal(
+                                session, supported_project, observation, current_evidence
+                            )
+                            if session.scalar(
+                                select(ChangeEvent.id).where(
+                                    ChangeEvent.observation_id == observation.id,
+                                    ChangeEvent.content_hash == digest,
+                                    ChangeEvent.kind == "withdrawn",
+                                )
+                            ) is None:
+                                session.add(
+                                    ChangeEvent(
+                                        observation_id=observation.id,
+                                        content_hash=digest,
+                                        kind="withdrawn",
+                                    )
+                                )
             needs = list(impacted_needs)
             if project is not None:
                 activity_keys = (
@@ -1335,9 +1381,7 @@ def process_job(
                             ),
                         )
                     )
-            if current_evidence is not None and not (
-                withdrawn_taylor or taylor_revision_ambiguous
-            ):
+            if current_evidence is not None and not (withdrawn_taylor or taylor_revision_ambiguous):
                 for impacted_project_id in impacted_project_ids:
                     impacted_project = session.get(Project, impacted_project_id)
                     if impacted_project is not None:

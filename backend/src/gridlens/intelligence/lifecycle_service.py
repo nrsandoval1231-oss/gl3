@@ -68,6 +68,39 @@ def apply_lifecycle_observation(
     return existing is None
 
 
+def apply_planning_withdrawal(
+    session: Session, project: Project, observation: Observation, evidence: Evidence
+) -> bool:
+    """Retain an official linked application withdrawal and update its projection."""
+    existing = session.scalar(
+        select(LifecycleEvent).where(
+            LifecycleEvent.project_id == project.id,
+            LifecycleEvent.observation_id == observation.id,
+            LifecycleEvent.evidence_id == evidence.id,
+            LifecycleEvent.event_type == "planning_application_withdrawn",
+        )
+    )
+    if existing is None:
+        session.add(
+            LifecycleEvent(
+                project_id=project.id,
+                observation_id=observation.id,
+                evidence_id=evidence.id,
+                event_type="planning_application_withdrawn",
+                state="planning_application_withdrawn",
+                value_kind="reported",
+                occurred_on=evidence.published_at,
+            )
+        )
+    _rebuild_projection(session, project)
+    return existing is None
+
+
+def refresh_lifecycle_projection(session: Session, project: Project) -> None:
+    """Recompute current state after an interpretation correction."""
+    _rebuild_projection(session, project)
+
+
 def _supported_event_date(evidence: Evidence, event_type: str):
     if evidence.event_date is None:
         return None
@@ -115,7 +148,15 @@ def _rebuild_projection(session: Session, project: Project) -> None:
             select(Interpretation).where(Interpretation.observation_id == event.observation_id)
         )
         evidence = session.get(Evidence, event.evidence_id)
-        if (
+        supported_withdrawal = (
+            evidence is not None
+            and event.event_type == "planning_application_withdrawn"
+            and interpretation is not None
+            and interpretation.assessment is not None
+            and interpretation.assessment.get("withdrawal_supported") is True
+            and interpretation.assessment.get("evidence_hash") == evidence.content_hash
+        )
+        if supported_withdrawal or (
             evidence is not None
             and interpretation is not None
             and interpretation.status == "accepted"
@@ -135,6 +176,41 @@ def _rebuild_projection(session: Session, project: Project) -> None:
             session.delete(projection)
         project.asset_type = "unknown"
         return
+    withdrawal_events = [
+        item for item in current if item.event_type == "planning_application_withdrawn"
+    ]
+    if withdrawal_events:
+        withdrawal = max(
+            withdrawal_events,
+            key=lambda item: (item.occurred_on or item.recorded_at.date(), item.recorded_at),
+        )
+        withdrawal_evidence = session.get(Evidence, withdrawal.evidence_id)
+        later_positive = any(
+            item.event_type != "planning_application_withdrawn"
+            and (positive_evidence := session.get(Evidence, item.evidence_id)) is not None
+            and withdrawal_evidence is not None
+            and positive_evidence.published_at is not None
+            and withdrawal_evidence.published_at is not None
+            and positive_evidence.published_at > withdrawal_evidence.published_at
+            for item in current
+        )
+        if not later_positive:
+            if projection is None:
+                projection = ProjectLifecycle(project_id=project.id, current_state=withdrawal.state)
+                session.add(projection)
+            projection.current_state = withdrawal.state
+            projection.expected_next_milestone = None
+            projection.expected_power_event = None
+            projection.monitoring_requirements = [
+                "Check for a new application or official project-status update."
+            ]
+            projection.open_questions = ["Project status after withdrawal is UNKNOWN."]
+            projection.time_to_power_start = projection.time_to_power_end = None
+            projection.estimate_basis = None
+            projection.estimate_version = None
+            session.flush()
+            return
+        current = [item for item in current if item.event_type != "planning_application_withdrawn"]
     current.sort(
         key=lambda item: (
             lifecycle_rank(AssetType(project.asset_type), item.state),

@@ -66,9 +66,7 @@ def test_evidence_location_fails_instead_of_truncating_overlong_category():
 def test_unknown_category_and_incomplete_article_fail_closed():
     with pytest.raises(SourceParseError, match="structure is incomplete"):
         _article(b"<html><main>unexpected</main></html>", "https://taylortx.gov/x", "1", None)
-    soup = BeautifulSoup(
-        (FIXTURES / "taylor-newsflash-2079-3434.html").read_bytes(), "html.parser"
-    )
+    soup = BeautifulSoup((FIXTURES / "taylor-newsflash-2079-3434.html").read_bytes(), "html.parser")
     category = soup.select_one("main .articles-category:not(.article-footer) > .article-badge")
     assert category is not None
     category.clear()
@@ -120,9 +118,7 @@ def test_mixed_category_archive_accounts_for_all_rows_and_only_target_can_interp
     source = {**source, "query": {**source["query"], "max_pages": 1}}
     target_article = (FIXTURES / "taylor-newsflash-2079-3434.html").read_bytes()
     news_soup = BeautifulSoup(target_article, "html.parser")
-    category = news_soup.select_one(
-        "main .articles-category:not(.article-footer) > .article-badge"
-    )
+    category = news_soup.select_one("main .articles-category:not(.article-footer) > .article-badge")
     assert category is not None
     category.clear()
     category.append("News")
@@ -162,8 +158,7 @@ def test_mixed_category_archive_accounts_for_all_rows_and_only_target_can_interp
         record["publication_date"] or "" for record in records
     )
     assert any(
-        record["document_number"] == "2069" and record["category"] == "News"
-        for record in records
+        record["document_number"] == "2069" and record["category"] == "News" for record in records
     )
     by_id = {record["document_number"]: record for record in records}
     assert set(by_id) == {"2069", "2079:arcId=3434", "1839:arcId=3427"}
@@ -180,9 +175,10 @@ def test_mixed_category_archive_accounts_for_all_rows_and_only_target_can_interp
     from gridlens.domain.taylor_planning import interpret_taylor_planning
 
     assert interpret_taylor_planning({**by_id["2069"], "source_geography": "Taylor, Texas"}) is None
-    assert interpret_taylor_planning(
-        {**by_id["1839:arcId=3427"], "source_geography": "Taylor, Texas"}
-    ) is None
+    assert (
+        interpret_taylor_planning({**by_id["1839:arcId=3427"], "source_geography": "Taylor, Texas"})
+        is None
+    )
 
 
 def test_login_response_fails_closed_for_enabled_source():
@@ -201,3 +197,97 @@ def test_archive_interval_rolls_forward_with_configured_overlap_and_fixed_cutoff
     query = {"archive_window_days": 59, "archive_overlap_days": 7}
     assert _archive_interval(query, date(2026, 9, 28)) == ("2026-07-25", "2026-09-28")
     assert _archive_interval(query, date(2026, 9, 29)) == ("2026-07-26", "2026-09-29")
+
+
+@pytest.mark.parametrize(
+    ("archive_html", "expected_error"),
+    [
+        ("<div>0–0 of 0</div>", None),
+        ("<div>0–0 of 0</div><table id='archiveTable'><tbody></tbody></table>", None),
+        ("<div>0–0 of 1</div>", "archive table is missing"),
+        ("<div>0–1 of 0</div>", "zero-result bounds"),
+        ("<div>0–0 of 0</div><button aria-label='Next Page'></button>", "active pagination"),
+        ("<div>No records</div>", "bounds/total are missing"),
+    ],
+)
+def test_stable_empty_archive_keeps_current_category_articles(
+    archive_html: str, expected_error: str | None
+):
+    source = next(item for item in load_registry() if item["id"] == "taylor-development-newsflash")
+    current = (FIXTURES / "taylor-newsflash-2079-3434.html").read_bytes()
+    calls = 0
+
+    def response(request):
+        nonlocal calls
+        if request.url.params.get("cat"):
+            return httpx.Response(200, text="<a href='/m/NewsFlash/Home/Detail/2079'>Notice</a>")
+        if "/Home/Detail/2079" in str(request.url):
+            return httpx.Response(200, content=current)
+        calls += 1
+        return httpx.Response(200, text=archive_html)
+
+    with httpx.Client(transport=httpx.MockTransport(response)) as client:
+        if expected_error:
+            with pytest.raises(SourceParseError, match=expected_error):
+                retrieve(source, client, today=date(2026, 9, 29))
+        else:
+            records = retrieve(source, client, today=date(2026, 9, 29))
+            assert [record["document_number"] for record in records] == ["2079"]
+            assert calls == 2  # The zero total is stable on the first-page replay.
+
+
+def test_empty_archive_replay_with_changed_total_fails():
+    source = next(item for item in load_registry() if item["id"] == "taylor-development-newsflash")
+    current = (FIXTURES / "taylor-newsflash-2079-3434.html").read_bytes()
+    archive_calls = 0
+
+    def response(request):
+        nonlocal archive_calls
+        if request.url.params.get("cat"):
+            return httpx.Response(200, text="<a href='/m/NewsFlash/Home/Detail/2079'>Notice</a>")
+        if "/Home/Detail/2079" in str(request.url):
+            return httpx.Response(200, content=current)
+        archive_calls += 1
+        return httpx.Response(
+            200,
+            text="<div>0–0 of 0</div>" if archive_calls == 1 else "<div>1–1 of 1</div>",
+        )
+
+    with httpx.Client(transport=httpx.MockTransport(response)) as client:
+        with pytest.raises(SourceParseError, match="first-page replay total changed"):
+            retrieve(source, client, today=date(2026, 9, 29))
+
+
+@pytest.mark.parametrize(
+    ("replay_html", "error"),
+    [
+        (
+            "<div>0–0 of 0</div><table id='archiveTable'><tbody>"
+            "<tr><td>unexpected</td></tr></tbody></table>",
+            "zero-result replay has rows",
+        ),
+        (
+            "<div>0–0 of 0</div><button aria-label='Next Page'></button>",
+            "zero-result replay has active pagination",
+        ),
+    ],
+)
+def test_empty_archive_replay_rejects_changed_rows_or_pagination(replay_html, error):
+    source = next(item for item in load_registry() if item["id"] == "taylor-development-newsflash")
+    current = (FIXTURES / "taylor-newsflash-2079-3434.html").read_bytes()
+    archive_calls = 0
+
+    def response(request):
+        nonlocal archive_calls
+        if request.url.params.get("cat"):
+            return httpx.Response(200, text="<a href='/m/NewsFlash/Home/Detail/2079'>Notice</a>")
+        if "/Home/Detail/2079" in str(request.url):
+            return httpx.Response(200, content=current)
+        archive_calls += 1
+        return httpx.Response(
+            200, text="<div>0–0 of 0</div>" if archive_calls == 1 else replay_html
+        )
+
+    with httpx.Client(transport=httpx.MockTransport(response)) as client:
+        with pytest.raises(SourceParseError, match=error):
+            retrieve(source, client, today=date(2026, 9, 29))

@@ -19,6 +19,7 @@ from gridlens.persistence.models import (
     Observation,
     PowerNeed,
     Project,
+    ProjectLifecycle,
     Source,
 )
 from gridlens.settings import settings
@@ -305,9 +306,7 @@ def test_changed_same_external_id_project_conflict_preserves_prior_evidence_and_
         )
 
 
-def test_changed_same_external_id_nonconflicting_update_replays_on_same_project(
-    db, monkeypatch
-):
+def test_changed_same_external_id_nonconflicting_update_replays_on_same_project(db, monkeypatch):
     factory, job_id = db
     import gridlens.ingestion.service as service
 
@@ -359,7 +358,13 @@ def test_withdrawn_revision_evidence_is_visible_from_prior_signal(db, monkeypatc
         need = session.scalar(select(PowerNeed))
         assert withdrawn is not None and need is not None
         assert need.active is True
-        assert session.scalar(select(func.count()).select_from(LifecycleEvent)) == lifecycle_count
+        assert (
+            session.scalar(select(func.count()).select_from(LifecycleEvent)) == lifecycle_count + 1
+        )
+        assert (
+            session.scalar(select(ProjectLifecycle)).current_state
+            == "planning_application_withdrawn"
+        )
         assert (
             session.scalar(
                 select(NeedObservation.id).where(
@@ -369,9 +374,12 @@ def test_withdrawn_revision_evidence_is_visible_from_prior_signal(db, monkeypatc
             )
             is not None
         )
-        assert session.scalar(
-            select(func.count()).select_from(ChangeEvent).where(ChangeEvent.kind == "withdrawn")
-        ) == 1
+        assert (
+            session.scalar(
+                select(func.count()).select_from(ChangeEvent).where(ChangeEvent.kind == "withdrawn")
+            )
+            == 1
+        )
     import importlib
 
     api_module = importlib.import_module("gridlens.api.app")
@@ -465,6 +473,174 @@ def test_conflicting_withdrawn_revision_does_not_withdraw_prior_project(db, monk
         )
 
 
+def test_current_page_notice_links_later_archive_withdrawal_after_window_rolls(db, monkeypatch):
+    factory, job_id = db
+    import gridlens.ingestion.service as service
+
+    source = {"id": "taylor-development-newsflash", "retrieval_method": "taylor-newsflash"}
+    monkeypatch.setattr(
+        service,
+        "retrieve_source",
+        lambda *_args: [{**_direct_article("2079"), "publication_date": "2026-08-07"}],
+    )
+    with factory() as session:
+        process_job(session, job_id, "test", 1, source)
+        original = session.scalar(select(Observation).where(Observation.external_id == "2079"))
+        need = session.scalar(select(PowerNeed))
+        assert original is not None and need is not None
+        original_id, need_id = original.id, need.id
+
+    # The current category has rolled forward; only the archive revision is retrieved.
+    monkeypatch.setattr(service, "retrieve_source", lambda *_args: [_withdrawn_archive_record()])
+    with factory() as session:
+        process_job(session, job_id, "test", 1, source)
+        withdrawn = session.scalar(
+            select(Observation).where(Observation.external_id == "2079:arcId=3442")
+        )
+        need = session.get(PowerNeed, need_id)
+        assert withdrawn is not None and need is not None and need.active
+        assert (
+            session.scalar(select(ProjectLifecycle)).current_state
+            == "planning_application_withdrawn"
+        )
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(NeedObservation)
+                .where(NeedObservation.need_id == need_id)
+            )
+            == 2
+        )
+        assert session.get(Observation, original_id) is not None
+        before = tuple(
+            session.scalar(select(func.count()).select_from(model))
+            for model in (
+                Observation,
+                Evidence,
+                Project,
+                PowerNeed,
+                NeedObservation,
+                LifecycleEvent,
+                ChangeEvent,
+            )
+        )
+        process_job(session, job_id, "test", 1, source)
+        assert before == tuple(
+            session.scalar(select(func.count()).select_from(model))
+            for model in (
+                Observation,
+                Evidence,
+                Project,
+                PowerNeed,
+                NeedObservation,
+                LifecycleEvent,
+                ChangeEvent,
+            )
+        )
+
+    import importlib
+
+    api_module = importlib.import_module("gridlens.api.app")
+    monkeypatch.setattr(api_module, "SessionLocal", factory)
+    cards = api_module.opportunities(tier="Signal")
+    assert len(cards) == 1
+    assert cards[0]["signal_evidence_state"] == "planning_application_withdrawn"
+    assert cards[0]["lifecycle_state"] == "planning_application_withdrawn"
+    assert len(cards[0]["evidence"]) == 2
+    assert [event["event_type"] for event in cards[0]["lifecycle_timeline"]] == [
+        "project_formation",
+        "planning_application_withdrawn",
+    ]
+    assert [event["current"] for event in cards[0]["lifecycle_timeline"]] == [False, True]
+
+
+def test_same_id_supported_withdrawal_updates_stored_state_and_replays(db, monkeypatch):
+    factory, job_id = db
+    import gridlens.ingestion.service as service
+
+    source = {"id": "taylor-development-newsflash", "retrieval_method": "taylor-newsflash"}
+    initial = _direct_article()
+    monkeypatch.setattr(service, "retrieve_source", lambda *_args: [initial])
+    with factory() as session:
+        process_job(session, job_id, "test", 1, source)
+
+    withdrawn = {**initial, "title": "WITHDRAWN - " + initial["title"], "disposition": "withdrawn"}
+    withdrawn["source_hash"] = hashlib.sha256(withdrawn["title"].encode()).hexdigest()
+    monkeypatch.setattr(service, "retrieve_source", lambda *_args: [withdrawn])
+    with factory() as session:
+        process_job(session, job_id, "test", 1, source)
+        need = session.scalar(select(PowerNeed))
+        projection = session.scalar(select(ProjectLifecycle))
+        assert need is not None and need.active
+        assert projection is not None
+        assert projection.current_state == "planning_application_withdrawn"
+        assert session.scalar(
+            select(func.count()).select_from(ChangeEvent).where(ChangeEvent.kind == "withdrawn")
+        ) == 1
+        before = tuple(
+            session.scalar(select(func.count()).select_from(model))
+            for model in (Observation, Evidence, Project, PowerNeed, LifecycleEvent, ChangeEvent)
+        )
+        process_job(session, job_id, "test", 1, source)
+        assert before == tuple(
+            session.scalar(select(func.count()).select_from(model))
+            for model in (Observation, Evidence, Project, PowerNeed, LifecycleEvent, ChangeEvent)
+        )
+
+    import importlib
+
+    api_module = importlib.import_module("gridlens.api.app")
+    monkeypatch.setattr(api_module, "SessionLocal", factory)
+    card = api_module.opportunities(tier="Signal")[0]
+    assert card["signal_evidence_state"] == "planning_application_withdrawn"
+    assert len(card["evidence"]) == 2
+    assert {event["event_type"] for event in card["lifecycle_timeline"]} == {
+        "project_formation", "planning_application_withdrawn"
+    }
+
+
+def test_conflict_after_supported_same_id_withdrawal_returns_to_unknown(db, monkeypatch):
+    factory, job_id = db
+    import gridlens.ingestion.service as service
+
+    source = {"id": "taylor-development-newsflash", "retrieval_method": "taylor-newsflash"}
+    initial = _direct_article()
+    withdrawn = {**initial, "title": "WITHDRAWN - " + initial["title"], "disposition": "withdrawn"}
+    withdrawn["source_hash"] = hashlib.sha256(withdrawn["title"].encode()).hexdigest()
+    conflicting = _direct_article(project="Other", body_suffix="Project Other is at 9900 FM 112.")
+    conflicting["title"] = "WITHDRAWN - " + conflicting["title"]
+    conflicting["disposition"] = "withdrawn"
+    for record in (initial, withdrawn, conflicting):
+        monkeypatch.setattr(service, "retrieve_source", lambda *_args, row=record: [row])
+        with factory() as session:
+            process_job(session, job_id, "test", 1, source)
+    with factory() as session:
+        assert session.scalar(select(ProjectLifecycle)) is None
+        assert session.scalar(select(func.count()).select_from(LifecycleEvent)) == 2
+        assert session.scalar(select(func.count()).select_from(Evidence)) == 3
+        assert session.scalar(select(func.count()).select_from(Project)) == 1
+        assert session.scalar(select(func.count()).select_from(PowerNeed)) == 1
+        before = tuple(
+            session.scalar(select(func.count()).select_from(model))
+            for model in (Observation, Evidence, Project, PowerNeed, LifecycleEvent, ChangeEvent)
+        )
+        process_job(session, job_id, "test", 1, source)
+        assert before == tuple(
+            session.scalar(select(func.count()).select_from(model))
+            for model in (Observation, Evidence, Project, PowerNeed, LifecycleEvent, ChangeEvent)
+        )
+
+    import importlib
+
+    api_module = importlib.import_module("gridlens.api.app")
+    monkeypatch.setattr(api_module, "SessionLocal", factory)
+    card = api_module.opportunities(tier="Signal")[0]
+    assert card["signal_evidence_state"] == "planning_status_unknown"
+    assert card["lifecycle_state"] is None
+    assert len(card["evidence"]) == 3
+    assert "UNKNOWN" in card["rationale"]
+
+
 def test_conflicting_withdrawal_at_same_external_id_keeps_status_unknown(db, monkeypatch):
     factory, job_id = db
     import gridlens.ingestion.service as service
@@ -494,6 +670,7 @@ def test_conflicting_withdrawal_at_same_external_id_keeps_status_unknown(db, mon
         assert interpretation is not None
         assert interpretation.assessment["decision"] == "unknown"
         assert "conflicting project or site facts" in interpretation.assessment["reason"]
+        assert session.scalar(select(ProjectLifecycle)) is None
 
     import importlib
 
@@ -502,7 +679,7 @@ def test_conflicting_withdrawal_at_same_external_id_keeps_status_unknown(db, mon
     cards = api_module.opportunities(tier="Signal")
     assert len(cards) == 1
     assert cards[0]["signal_evidence_state"] == "planning_status_unknown"
-    assert cards[0]["lifecycle_state"] == "planning_status_unknown"
+    assert cards[0]["lifecycle_state"] is None
     assert cards[0]["expected_next_milestone"] is None
     assert len(cards[0]["evidence"]) == 2
     assert "UNKNOWN" in cards[0]["rationale"]
