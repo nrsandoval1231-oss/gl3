@@ -1,0 +1,41 @@
+{
+  "packet": "GL3-015E",
+  "base_commit": "e20f28f4edcf0325df9790cd9e92fb0f241e1cab",
+  "files": [
+    {
+      "path": "docs/validation/gl3-015-rrc-field-map.md",
+      "sha256": "1a7d8d5c174e50b26276659981f7eebca86931948316d43db15ed6796fb12505",
+      "bytes": 8128
+    },
+    {
+      "path": ".agent/artifacts/GL3-015E/field-map.json",
+      "sha256": "7067982e2d36977457fbeab285926104e121877e4f9b89b2f52da71d6a2182c2",
+      "bytes": 10198
+    },
+    {
+      "path": ".agent/artifacts/GL3-015E/validate_rrc_field_map.py",
+      "sha256": "3ee7cc3b3e8577ff5fa03c5c1ee21b29dcdaa5965270dbf2f5dda4f94c2c5832",
+      "bytes": 18151
+    },
+    {
+      "path": ".agent/artifacts/GL3-015E/validation.json",
+      "sha256": "f28278929c4ce72d9fe0ae3bff0a57acb1975a901411965c8e4844ec8e16341d",
+      "bytes": 7104
+    },
+    {
+      "path": ".agent/artifacts/GL3-015E/validator-output.json",
+      "sha256": "f28278929c4ce72d9fe0ae3bff0a57acb1975a901411965c8e4844ec8e16341d",
+      "bytes": 7104
+    },
+    {
+      "path": ".agent/artifacts/GL3-015E/controller-validation.json",
+      "sha256": "aed23fd47fe2cdccd5b2a30466936d246e75ad4faedbac96fd50fd86c8882a7f",
+      "bytes": 7104
+    },
+    {
+      "path": ".agent/artifacts/GL3-015E/COMPLETION.json",
+      "sha256": "088008f4322ca84a6eac475dd6a41c783f77609ea1a089876ea221b48c552a82",
+      "bytes": 3467
+    }
+  ]
+}
