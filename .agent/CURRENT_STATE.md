@@ -12,9 +12,10 @@ Its retained baseline contains 2,530 observations, 2,567 evidence versions,
 87 Signal/project records, and 87 morning changes. National completeness and the
 distinct commercial-project count remain UNKNOWN.
 
-GL3-014 repairs PR #4. Local gates and independent Sol review accepted the exact
-candidate recorded in artifacts/GL3-014/ACCEPTANCE.json. Delivery/merge identity
-is recorded on PR #4; local acceptance alone is not a GitHub merge or deployment.
+GL3-014 was merged to `main` through PR #4 at
+`0199022e2f4188195da87e5fd493c40c46969551`. Local gates and independent
+Sol review accepted the exact pre-merge candidate recorded in
+artifacts/GL3-014/ACCEPTANCE.json. Merge does not establish deployment.
 The isolated checkout preserves the original dirty checkout and original data.
 
 220 backend tests, Ruff, mypy, PostgreSQL migration twice/drift, frontend
@@ -32,12 +33,25 @@ Observed milestones, derived state, and production estimates remain distinct.
 
 Hosted CI runner admission remains blocked by account payment/spending state;
 jobs execute zero steps. The workflow and branch protection were not weakened.
-Only normal GitHub merge is authorized when permitted after required gates.
 No cloud deployment or live upstream OCC adapter is established. Production
 windows are heuristic estimates, never power-demand or supply-gap evidence.
 No mass historical project merging is performed.
 
 Cloud operation, national coverage, seven scheduled cycles, alerts, production
-restore proof, and the parent launch Finish Contract remain OPEN. Next direction:
-deliver the accepted PR through normal GitHub merge if permitted, then retain the
-bounded intelligence frontier without rewriting ingestion or inventing promotion.
+restore proof, and the parent launch Finish Contract remain OPEN.
+
+GL3-015 is active in isolated `feat/gl3-015` from merged `main` at `0199022`.
+Its opening Tribunal selected GL3-015A, a read-only Texas pre-permit source proof.
+Direct official retrievals and five candidate projects are retained in
+`artifacts/GL3-015A` and `docs/validation/gl3-015-source-candidates.md`.
+Taylor CivicPlus Development News/Notices plus archive is the next bounded
+adapter-proof target; archive completeness and update semantics remain UNKNOWN.
+No new source is active, no live data were ingested, and no permit lead time was
+measured. GL3-015A source feasibility passed independent Sol review on frozen
+42-file manifest `67616b28…a96d78f` after two retained FIX repairs. This
+post-review state update is bookkeeping outside that reviewed manifest. Next
+direction: prove Taylor access/completeness/replay before activation.
+
+GL3-015B local Taylor adapter proof is ACCEPTED on exact candidate `aa9345e1d67f6f0269505cc607da2140d150afe2d409bfb29ec57db4ea7a61af` (85/85 hashes, independent Sol PASS). Official bounded sweep returned 25 records, two Taylor planning Signals; isolated `gridlens_test` worker stored 25 observations/evidence and replayed 25 unchanged. Full gates: 238 backend tests passed, one skipped; Ruff/mypy, frontend typecheck/build, zero-vulnerability audit, fresh/repeat migration and drift pass. Source remains disabled, app DB untouched, no deployment, GL3-015 parent OPEN. Review/acceptance and post-review bookkeeping are outside the reviewed manifest. Next graph direction CONTINUE bounded GL3-015 frontier.
+
+GL3-015C bounded automatic-enrichment slice is ACCEPTED LOCAL on exact candidate `a1bc6a268c6533c8d46f502ea1bc0fe0f4c533e8aa614855bee4fbdb04526f3f` (109/109 file hashes, independent Sol PASS). Accepted Project Comal Signal in isolated `gridlens_test` auto-queued one developer question; a separate bounded worker GET on official Taylor project page retained one cited KDC Developer role. Replay added no job/evidence/role; unsupported Signal stayed Unavailable (UNKNOWN), uncited recorded facts are explicit. Final gates: 247 backend passed/1 skipped, Ruff/mypy, frontend typecheck/build, 3 authenticated browser tests, zero-vulnerability audit, fresh/repeat migration/drift, diff check. Taylor source remains disabled, application DB untouched, no deployment; GL3-015 parent OPEN. Post-review state/graph updates are bookkeeping outside candidate. Next: bounded Texas/Oklahoma upstream source-access proof and broader real validation.

@@ -7,6 +7,7 @@ from gridlens.ingestion.adapters.georgia_air_permits import retrieve as retrieve
 from gridlens.ingestion.adapters.nc_commerce import retrieve as retrieve_nc_commerce
 from gridlens.ingestion.adapters.publisher_rss import retrieve as retrieve_publisher_rss
 from gridlens.ingestion.adapters.socrata_permits import retrieve as retrieve_socrata_permits
+from gridlens.ingestion.adapters.taylor_newsflash import retrieve as retrieve_taylor_newsflash
 
 
 def retrieve_source(
@@ -25,4 +26,6 @@ def retrieve_source(
         return retrieve_socrata_permits(source, client)
     if method == "georgia-air-permits":
         return retrieve_georgia_air_permits(source, client)
+    if method == "taylor-newsflash":
+        return retrieve_taylor_newsflash(source, client)
     raise SourceParseError(f"Unsupported source retrieval method: {method}")

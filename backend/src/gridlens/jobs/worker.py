@@ -7,7 +7,7 @@ from gridlens.ingestion.registry import load_registry
 from gridlens.ingestion.service import process_job
 from gridlens.jobs.queue import assert_fence, lease_one
 from gridlens.persistence.database import SessionLocal
-from gridlens.persistence.models import Job, Source
+from gridlens.persistence.models import Job, ResearchJob, Source
 from gridlens.settings import settings
 
 WORKER_ID = f"{socket.gethostname()}-{os.getpid()}"
@@ -66,21 +66,36 @@ def run_one(definitions: dict[str, dict]) -> bool:
         if leased is None:
             return False
         job, fence = leased
-        job_id, source_id = job.id, job.source_id
-        source = session.get(Source, source_id)
+        job_id, source_id, job_kind = job.id, job.source_id, job.kind
+        source = session.get(Source, source_id) if source_id else None
         if source:
             source.health = {
                 **source.health,
                 "status": "Running",
                 "last_attempt": datetime.now(UTC).isoformat(),
             }
-    definition = definitions[source_id]
+    definition = definitions.get(source_id) if source_id else None
     attempted = datetime.now(UTC).isoformat()
     try:
+        if job_kind == "research":
+            from gridlens.intelligence.research import process_research_job
+
+            with SessionLocal() as session:
+                process_research_job(session, job_id, WORKER_ID, fence)
+                finished_job = session.get(Job, job_id)
+                assert finished_job is not None
+                assert_fence(session, job_id, WORKER_ID, fence)
+                finished_job.status = "succeeded"
+                finished_job.lease_until = finished_job.lease_owner = None
+                finished_job.error = None
+                session.commit()
+            return True
+        if definition is None or source_id is None:
+            raise ValueError("Ingestion job has no registered source")
         with SessionLocal() as session:
             counts = process_job(session, job_id, WORKER_ID, fence, definition)
             finished_job = session.get(Job, job_id)
-            source = session.get(Source, source_id)
+            source = session.get(Source, source_id) if source_id else None
             assert finished_job and source
             assert_fence(session, job_id, WORKER_ID, fence)
             (
@@ -131,7 +146,7 @@ def run_one(definitions: dict[str, dict]) -> bool:
     except Exception as exc:
         with SessionLocal.begin() as session:
             failed_job = session.get(Job, job_id)
-            source = session.get(Source, source_id)
+            source = session.get(Source, source_id) if source_id else None
             valid_owner = bool(
                 failed_job
                 and failed_job.fence == fence
@@ -151,6 +166,20 @@ def run_one(definitions: dict[str, dict]) -> bool:
                 failed_job.error = (
                     str(exc)[:250] if isinstance(exc, SourceParseError) else type(exc).__name__
                 )
+            if failed_job and failed_job.kind == "research" and valid_owner:
+                research = session.get(ResearchJob, job_id)
+                if research is not None:
+                    if failed_job.attempts >= 5:
+                        research.status = "unresolved"
+                        research.unresolved_reason = f"Worker failed: {type(exc).__name__}"
+                        research.completed_at = datetime.now(UTC)
+                    else:
+                        research.status = "queued"
+                        research.unresolved_reason = None
+                    research.next_action = (
+                        "Review the saved research job and retry after fixing the "
+                        "recorded worker failure."
+                    )
             if source and valid_owner:
                 from gridlens.ingestion.adapters.federal_register import SourceParseError
 
