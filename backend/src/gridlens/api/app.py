@@ -521,6 +521,14 @@ def opportunities(tier: str | None = None, search: str | None = None):
                 for obs, ev, _ in links
                 if obs.source_id == "taylor-development-newsflash"
             ]
+            taylor_identity_conflict = any(
+                obs.source_id == "taylor-development-newsflash"
+                and interpretation is not None
+                and "conflicting project or site facts" in str(
+                    (interpretation.assessment or {}).get("reason") or ""
+                )
+                for obs, _, interpretation in links
+            )
             latest_taylor = max(
                 taylor_revisions,
                 key=lambda pair: (
@@ -534,13 +542,18 @@ def opportunities(tier: str | None = None, search: str | None = None):
                 default=None,
             )
             taylor_withdrawn = bool(
-                latest_taylor and "withdrawn" in latest_taylor[1].title.casefold()
+                latest_taylor
+                and not taylor_identity_conflict
+                and "withdrawn" in latest_taylor[1].title.casefold()
             )
             evidence = []
             current_assessments = []
             for obs, ev, interpretation in links:
                 current_assessment = _assessment_for_evidence(interpretation, obs, ev)
-                if taylor_withdrawn and obs.source_id == "taylor-development-newsflash":
+                if (
+                    (taylor_withdrawn or taylor_identity_conflict)
+                    and obs.source_id == "taylor-development-newsflash"
+                ):
                     current_assessment = None
                 if current_assessment:
                     current_assessments.append(current_assessment)
@@ -652,11 +665,18 @@ def opportunities(tier: str | None = None, search: str | None = None):
                         "Earlier project evidence remains historical; current project viability "
                         "and power need are UNKNOWN."
                         if taylor_withdrawn
+                        else "A later Taylor revision conflicts with retained project or "
+                        "site facts. "
+                        "The earlier planning evidence remains historical; current application "
+                        "and project status are UNKNOWN."
+                        if taylor_identity_conflict
                         else need.rationale
                     ),
                     "signal_evidence_state": (
                         "planning_application_withdrawn"
                         if taylor_withdrawn
+                        else "planning_status_unknown"
+                        if taylor_identity_conflict
                         else "active_evidence"
                     ),
                     "required_mw": need.required_mw,
@@ -674,6 +694,11 @@ def opportunities(tier: str | None = None, search: str | None = None):
                         "Earlier project evidence remains historical; current project viability "
                         "and power need are UNKNOWN."
                         if taylor_withdrawn
+                        else "A later Taylor revision conflicts with retained project or "
+                        "site facts. "
+                        "The earlier planning evidence remains historical; current application "
+                        "and project status are UNKNOWN."
+                        if taylor_identity_conflict
                         else current_assessment.get("reason", need.rationale)
                         if current_assessment
                         else need.rationale
@@ -699,6 +724,8 @@ def opportunities(tier: str | None = None, search: str | None = None):
                     "lifecycle_state": (
                         "planning_application_withdrawn"
                         if taylor_withdrawn
+                        else "planning_status_unknown"
+                        if taylor_identity_conflict
                         else lifecycle.current_state if lifecycle else None
                     ),
                     "lifecycle_timeline": [
@@ -708,7 +735,8 @@ def opportunities(tier: str | None = None, search: str | None = None):
                             "date": event.occurred_on.isoformat() if event.occurred_on else None,
                             "value_kind": event.value_kind,
                             "evidence_url": lifecycle_evidence.url,
-                            "current": event.id in current_lifecycle_ids and not taylor_withdrawn,
+                            "current": event.id in current_lifecycle_ids
+                            and not (taylor_withdrawn or taylor_identity_conflict),
                             "published_at": lifecycle_evidence.published_at,
                             "event_date_label": lifecycle_evidence.event_date_label,
                         }
@@ -728,17 +756,21 @@ def opportunities(tier: str | None = None, search: str | None = None):
                         if taylor_withdrawn and latest_taylor else []
                     ),
                     "expected_next_milestone": (
-                        None if taylor_withdrawn
+                        None if taylor_withdrawn or taylor_identity_conflict
                         else lifecycle.expected_next_milestone if lifecycle else None
                     ),
                     "expected_power_event": (
-                        None if taylor_withdrawn
+                        None if taylor_withdrawn or taylor_identity_conflict
                         else lifecycle.expected_power_event if lifecycle else None
                     ),
-                    "time_to_power_window": None if taylor_withdrawn else time_to_power_window,
+                    "time_to_power_window": (
+                        None
+                        if taylor_withdrawn or taylor_identity_conflict
+                        else time_to_power_window
+                    ),
                     "estimate_basis": (
                         None
-                        if taylor_withdrawn
+                        if taylor_withdrawn or taylor_identity_conflict
                         else lifecycle.estimate_basis if lifecycle else None
                     ),
                     "estimate_version": (

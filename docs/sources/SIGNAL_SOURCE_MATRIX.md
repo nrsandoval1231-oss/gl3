@@ -26,7 +26,7 @@ Pipeline: **source → observation → retained evidence → conservative projec
 
 - **Signal-worthy:** dated, linked, identifiable physical site/project plus a concrete lifecycle action and a plain explanation of why that action merits future power investigation. A permit class by itself is insufficient. A repair, routine Title V renewal or generic tariff is retained as an observation but normally not surfaced.
 - **Match:** exact application/facility/parcel linkage or strong same-site evidence plus compatible project identity. Retain each observation and its revision. Record ambiguous candidates without merging. Addressless company news should not consolidate sites by name alone.
-- **History:** show new projects and meaningful changes to known projects. Do not reannounce an unchanged record. A withdrawal, denial, cancellation or occupancy event can alter the lifecycle interpretation without deleting earlier evidence.
+- **History:** show new projects and meaningful changes to known projects. Do not reannounce an unchanged record. A withdrawal, denial, cancellation or occupancy event can alter the lifecycle interpretation without deleting earlier evidence. Taylor withdrawal revisions link to an earlier Signal only when the same article has one accepted Signal and no conflicting project or site facts. A conflicting same-ID update retains both evidence versions and presents current planning status as UNKNOWN.
 - **Unknown:** MW, energization dates, buyer, utility adequacy and temporary-power requirement remain `UNKNOWN` unless the cited source actually says them. Reported generator capacity and requested grid load are distinct from project operating load.
 
 ## Public research anchors

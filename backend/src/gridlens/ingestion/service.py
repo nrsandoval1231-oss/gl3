@@ -1112,6 +1112,23 @@ def process_job(
                 interpreted = None
                 project = None
         if interpreted is None:
+            if withdrawn_taylor:
+                retained_article_evidence = session.scalars(
+                    select(Evidence)
+                    .join(Observation, Evidence.observation_id == Observation.id)
+                    .where(
+                        Observation.source_id == source.id,
+                        or_(
+                            Observation.external_id == article_id,
+                            Observation.external_id.like(f"{article_id}:arcId=%"),
+                        ),
+                    )
+                ).all()
+                taylor_revision_ambiguous = _taylor_article_identity_conflict(
+                    [*retained_article_evidence, record]
+                )
+                if taylor_revision_ambiguous:
+                    project = None
             impacted_needs = (
                 []
                 if taylor_revision_ambiguous
@@ -1135,8 +1152,22 @@ def process_job(
                         Observation.id != observation.id,
                     )
                 ).all()
+                retained_article_evidence = session.scalars(
+                    select(Evidence)
+                    .join(Observation, Evidence.observation_id == Observation.id)
+                    .where(
+                        Observation.source_id == source.id,
+                        or_(
+                            Observation.external_id == article_id,
+                            Observation.external_id.like(f"{article_id}:arcId=%"),
+                        ),
+                    )
+                ).all()
+                taylor_revision_ambiguous = _taylor_article_identity_conflict(
+                    [*prior_observations, *retained_article_evidence, record]
+                )
                 candidate_needs: dict[Any, PowerNeed] = {}
-                for prior_observation in prior_observations:
+                for prior_observation in ([] if taylor_revision_ambiguous else prior_observations):
                     prior_interpretation = session.scalar(
                         select(Interpretation).where(
                             Interpretation.observation_id == prior_observation.id,
@@ -1223,12 +1254,12 @@ def process_job(
                         "Signal; project status and power impact remain UNKNOWN."
                         if linked_withdrawn_need is not None
                         or (withdrawn_taylor and len(impacted_needs) == 1)
-                        else "Withdrawn revision retained; no unique accepted same-article "
-                        "Signal; reason UNKNOWN."
-                        if withdrawn_taylor
                         else "Taylor article identity spans conflicting project or site facts; "
                         "reason UNKNOWN."
                         if taylor_revision_ambiguous
+                        else "Withdrawn revision retained; no unique accepted same-article "
+                        "Signal; reason UNKNOWN."
+                        if withdrawn_taylor
                         else None
                     ),
                     "project_identity_key": project.identity_key if project else None,
