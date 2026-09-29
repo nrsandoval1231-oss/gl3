@@ -158,6 +158,9 @@ def test_mixed_category_archive_accounts_for_all_rows_and_only_target_can_interp
 
     client = httpx.Client(transport=httpx.MockTransport(response))
     records = retrieve(source, client, today=date(2026, 9, 28))
+    assert [record["publication_date"] or "" for record in records] == sorted(
+        record["publication_date"] or "" for record in records
+    )
     assert any(
         record["document_number"] == "2069" and record["category"] == "News"
         for record in records

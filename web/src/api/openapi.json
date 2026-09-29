@@ -259,6 +259,44 @@
         }
       }
     },
+    "/api/opportunities/{need_id}/research": {
+      "post": {
+        "summary": "Queue Opportunity Research",
+        "operationId": "queue_opportunity_research_api_opportunities__need_id__research_post",
+        "parameters": [
+          {
+            "name": "need_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Need Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/changes": {
       "get": {
         "summary": "Changes",
@@ -1120,6 +1158,11 @@
             "type": "string",
             "title": "Rationale"
           },
+          "signal_evidence_state": {
+            "type": "string",
+            "title": "Signal Evidence State",
+            "default": "active_evidence"
+          },
           "required_mw": {
             "anyOf": [
               {
@@ -1339,6 +1382,56 @@
             },
             "type": "array",
             "title": "Monitoring Requirements"
+          },
+          "research_status": {
+            "type": "string",
+            "title": "Research Status",
+            "default": "Not researched"
+          },
+          "research_next_action": {
+            "type": "string",
+            "title": "Research Next Action"
+          },
+          "research_unavailable_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Research Unavailable Reason"
+          },
+          "research_recorded_identity": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Research Recorded Identity"
+          },
+          "research_recorded_evidence_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Research Recorded Evidence Status"
+          },
+          "known_organizations": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Known Organizations"
           }
         },
         "type": "object",
@@ -1355,7 +1448,8 @@
           "supply",
           "next_action",
           "conflict_state",
-          "evidence"
+          "evidence",
+          "research_next_action"
         ],
         "title": "OpportunityOut"
       },

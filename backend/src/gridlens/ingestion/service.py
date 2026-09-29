@@ -1174,6 +1174,20 @@ def process_job(
                                 observation_id=observation.id,
                             )
                         )
+                    if session.scalar(
+                        select(ChangeEvent.id).where(
+                            ChangeEvent.observation_id == observation.id,
+                            ChangeEvent.content_hash == digest,
+                            ChangeEvent.kind == "withdrawn",
+                        )
+                    ) is None:
+                        session.add(
+                            ChangeEvent(
+                                observation_id=observation.id,
+                                content_hash=digest,
+                                kind="withdrawn",
+                            )
+                        )
                     project = session.get(Project, linked_withdrawn_need.project_id)
             interpretation.status = "rejected"
             interpretation.content_hash = digest
@@ -1208,6 +1222,7 @@ def process_job(
                         "Withdrawn revision retained; linked through accepted same-article "
                         "Signal; project status and power impact remain UNKNOWN."
                         if linked_withdrawn_need is not None
+                        or (withdrawn_taylor and len(impacted_needs) == 1)
                         else "Withdrawn revision retained; no unique accepted same-article "
                         "Signal; reason UNKNOWN."
                         if withdrawn_taylor
