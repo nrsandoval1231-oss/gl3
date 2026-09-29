@@ -1,0 +1,11 @@
+{
+  "verdict": "FIX",
+  "candidate_sha256": "f80b243e614e0d4835fae3d4d33076be1b05d75d47c00dddb61689a71123140e",
+  "file_count": 82,
+  "all_manifest_hashes_matched": true,
+  "reviewer": "independent Sol",
+  "prior_findings": "Separate arcId identity and missing header date repaired",
+  "finding": "An in-place changed Taylor article overwrites Observation title/abstract before conflict checking and excludes that same Observation from prior-revision comparison. Retained earlier Evidence is not compared, so a different project name may overwrite the existing Project and keep its Signal rather than UNKNOWN.",
+  "source_enabled": false,
+  "parent_gl3_015_complete": false
+}

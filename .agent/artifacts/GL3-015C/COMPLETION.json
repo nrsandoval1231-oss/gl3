@@ -1,0 +1,136 @@
+{
+  "packet": "GL3-015C",
+  "status": "BUILT_PENDING_CONTROLLER_VALIDATION",
+  "base_sha": "0199022e2f4188195da87e5fd493c40c46969551",
+  "candidate_sha256": "PENDING_CONTROLLER_FREEZE",
+  "files": [
+    "backend/migrations/versions/0007_bounded_research_jobs.py",
+    "backend/src/gridlens/api/app.py",
+    "backend/src/gridlens/intelligence/research.py",
+    "backend/src/gridlens/jobs/queue.py",
+    "backend/src/gridlens/jobs/worker.py",
+    "backend/src/gridlens/persistence/models.py",
+    "backend/tests/integration/test_research.py",
+    "docs/intelligence/research.md",
+    ".agent/artifacts/GL3-015C/COMPLETION.json",
+    ".agent/artifacts/GL3-015C/SOURCE_ACCESS.json",
+    ".agent/artifacts/GL3-015C/taylor-project-comal-research.html",
+    "backend/src/gridlens/ingestion/service.py",
+    "backend/tests/integration/test_taylor_ingestion.py"
+  ],
+  "migration": {
+    "revision": "0007_bounded_research_jobs",
+    "parent": "0006_lifecycle_identity_versions",
+    "fresh_upgrade_exit": 0,
+    "repeat_upgrade_exit": 0,
+    "alembic_check_exit": 0,
+    "database_class": "new isolated *_test database"
+  },
+  "question": {
+    "project": "Project Comal at 1051 CR 401",
+    "signal_source": "Taylor Development News article 2032, current accepted Observation/Evidence/Interpretation hash binding",
+    "target_fact": "developer",
+    "question": "Which organization is the documented developer of Project Comal at 1051 CR 401?",
+    "allowlisted_official_url": "https://taylortx.gov/1383/KDC-Project-Comal",
+    "fact_missing_from_structured_signal": true,
+    "identity_link": "The accepted Signal retains Project Comal and 1051 CR 401; the distinct official page names Project Comal and the matching 1051 County Road 401 site.",
+    "finding": "KDC Real Estate Development and Investments is explicitly named as proposing the data center; the same page says Developer KDC seeks the project's Employment Center Zoning.",
+    "evidence_date": null,
+    "source_date_note": "No page publication/modified date was exposed in the retrieved official page metadata; no date was inferred from project timeline events.",
+    "retrieval": "SOURCE_ACCESS.json"
+  },
+  "architecture": {
+    "queue": "Existing PostgreSQL jobs with explicit kind; ingestion source references remain required and research jobs have no synthetic Source row.",
+    "bounds": {
+      "sources_per_job": 1,
+      "requests_per_job": 1,
+      "response_bytes": 2000000,
+      "wall_seconds": 20,
+      "socket_timeout_seconds": 5,
+      "spend_cents": 0,
+      "redirects_followed": 0
+    },
+    "evidence": "ResearchEvidence retains the official URL, publisher, source date when provided, retrieval timestamp, exact excerpt/location, SHA-256 response hash, label, basis, confidence, and relationship.",
+    "relationship": "Organization and ProjectRole link the supported Developer relationship to the exact project, need, and research evidence.",
+    "replay": "Unique need/target-fact research job; evidence unique per job/hash; role unique per project/need/organization/role/evidence. Unresolved retries append the prior result/reason/time to the durable job history and respect the five-attempt fence limit.",
+    "authority": "No Signal tier or lifecycle changes, no power/supply claim, no Prospect/Lead, no contact, no outreach, no source activation."
+  },
+  "validation": [
+    {
+      "command": "uv run --directory backend --extra dev pytest -q tests/integration/test_research.py tests/integration/test_jobs.py --tb=short",
+      "result": "12 passed; one upstream Starlette/httpx deprecation warning."
+    },
+    {
+      "command": "uv run --directory backend --extra dev ruff check src/gridlens/persistence/models.py src/gridlens/jobs/queue.py src/gridlens/jobs/worker.py src/gridlens/intelligence/research.py src/gridlens/api/app.py tests/integration/test_research.py migrations/versions/0007_bounded_research_jobs.py",
+      "result": "All checks passed."
+    },
+    {
+      "command": "uv run --directory backend --extra dev mypy src/gridlens/persistence/models.py src/gridlens/jobs/queue.py src/gridlens/jobs/worker.py src/gridlens/intelligence/research.py src/gridlens/api/app.py",
+      "result": "Success: no issues found in 5 source files."
+    },
+    {
+      "command": "Fresh Alembic upgrade, repeat upgrade, alembic check on a new isolated *_test database",
+      "result": "All three exited 0."
+    },
+    {
+      "command": "git diff --check",
+      "result": "Exit 0; only existing working-tree LF/CRLF notices were printed."
+    },
+    {
+      "command": ".\\backend\\.venv\\Scripts\\python.exe -m pytest backend/tests/integration/test_research.py backend/tests/integration/test_taylor_ingestion.py -q",
+      "result": "14 passed; one upstream Starlette/httpx deprecation warning. Includes automatic article 2032 queue, separate worker processing, exact replay, and unsupported Signal API projection."
+    },
+    {
+      "command": ".\\backend\\.venv\\Scripts\\ruff.exe check backend/src/gridlens/ingestion/service.py backend/src/gridlens/jobs/queue.py backend/src/gridlens/api/app.py backend/tests/integration/test_taylor_ingestion.py backend/tests/integration/test_research.py",
+      "result": "All checks passed."
+    },
+    {
+      "command": ".\\backend\\.venv\\Scripts\\mypy.exe --python-executable .\\backend\\.venv\\Scripts\\python.exe backend/src/gridlens/ingestion/service.py backend/src/gridlens/jobs/queue.py backend/src/gridlens/api/app.py",
+      "result": "Success: no issues found in 3 source files."
+    },
+    {
+      "command": ".\\backend\\.venv\\Scripts\\python.exe -m pytest backend/tests/integration/test_jobs.py -q",
+      "result": "6 passed; one upstream Starlette/httpx deprecation warning. Existing source job queue and fencing coverage passed."
+    },
+    {
+      "command": "git diff --check",
+      "result": "Exit 0; only pre-existing LF/CRLF notices."
+    },
+    {
+      "command": ".\\backend\\.venv\\Scripts\\python.exe -m pytest backend/tests/integration/test_research.py::test_unsupported_signal_projects_unknown_and_specific_research_action backend/tests/integration/test_research.py::test_authenticated_opportunity_projection_shows_specific_research_action -q",
+      "result": "2 passed; unsupported Signal now exposes a plain official-record action and separate user-facing unavailable reason with UNKNOWN status."
+    },
+    {
+      "command": ".\\backend\\.venv\\Scripts\\ruff.exe check backend/src/gridlens/api/app.py backend/tests/integration/test_research.py",
+      "result": "All checks passed."
+    },
+    {
+      "command": ".\\backend\\.venv\\Scripts\\mypy.exe --python-executable .\\backend\\.venv\\Scripts\\python.exe backend/src/gridlens/api/app.py",
+      "result": "Success: no issues found in 1 source file."
+    },
+    {
+      "command": ".\\backend\\.venv\\Scripts\\python.exe -m pytest backend/tests/integration/test_research.py -q",
+      "result": "9 passed; includes cited ProjectRole on another need, recorded identity fact without role, unsupported UNKNOWN, and completed Comal projection."
+    },
+    {
+      "command": ".\\backend\\.venv\\Scripts\\ruff.exe check backend/src/gridlens/api/app.py backend/tests/integration/test_research.py",
+      "result": "All checks passed."
+    },
+    {
+      "command": ".\\backend\\.venv\\Scripts\\mypy.exe --python-executable .\\backend\\.venv\\Scripts\\python.exe backend/src/gridlens/api/app.py",
+      "result": "Success: no issues found in 1 source file."
+    },
+    {
+      "command": "git diff --check",
+      "result": "Exit 0; only existing LF/CRLF notices."
+    }
+  ],
+  "known_limits": [
+    "The planner intentionally supports only the identity-verified Project Comal developer question; it is not a generic search or full missing-fact planner.",
+    "The official page supplied no publication/modified date; stored source_date remains null.",
+    "This artifact is a builder handoff, not controller acceptance. Live test-database worker run/replay, exact candidate freeze, full repository gates, and independent Sol review remain pending.",
+    "The Taylor source registry remains disabled; the application database was not written; no push, merge, deployment, spend, or outreach occurred.",
+    "This review repair handoff has not been independently reviewed; controller owns exact-candidate freeze and fresh Sol review."
+  ],
+  "self_review": "Not performed; controller owns candidate acceptance and independent review."
+}

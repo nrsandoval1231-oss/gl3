@@ -1,0 +1,12 @@
+{
+  "verdict": "FIX",
+  "candidate_sha256": "05c7cbadc10169b8938d4c9420bc3c2ba75a251675605359ee659784c91c130a",
+  "file_count": 103,
+  "all_manifest_hashes_matched": true,
+  "reviewer": "independent Sol",
+  "findings": [
+    "The only production call to enqueue_owner_research is the manual POST API; accepted Signal ingestion never automatically queues the bounded question.",
+    "Every unresearched Signal shows the same official developer research action, but the planner accepts only the identity-linked Project Comal Signal and returns 409 for others."
+  ],
+  "parent_gl3_015_complete": false
+}

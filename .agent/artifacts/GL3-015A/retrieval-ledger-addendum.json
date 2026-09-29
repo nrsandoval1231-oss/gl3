@@ -1,0 +1,56 @@
+[
+  {
+    "url": "https://taylortx.gov/m/NewsFlash?cat=31",
+    "retrieved_utc": "2026-09-28T21:09:21.3099900Z",
+    "status": 200,
+    "content_type": "text/html; charset=utf-8",
+    "bytes": 307352,
+    "sha256": "c24586612efe0a05f32299d81bbffc6f65143501b8db5dee0de53a9baa8432a5",
+    "file": "taylortx.gov-m_NewsFlash.html"
+  },
+  {
+    "url": "https://taylortx.gov/m/NewsFlash/Home/Detail/2095",
+    "retrieved_utc": "2026-09-28T21:09:21.9153800Z",
+    "status": 200,
+    "content_type": "text/html; charset=utf-8",
+    "bytes": 266222,
+    "sha256": "a7ec2d57a7d450ba96b92ecbdb619837daf6778cce4d5c15dce020264ffa7c0e",
+    "file": "taylortx.gov-m_NewsFlash_Home_Detail_2095.html"
+  },
+  {
+    "url": "https://taylortx.gov/m/NewsFlash/Home/Detail/2094",
+    "retrieved_utc": "2026-09-28T21:09:22.1982991Z",
+    "status": 200,
+    "content_type": "text/html; charset=utf-8",
+    "bytes": 266414,
+    "sha256": "9d9e557e84fb57baeb75123f93d25781aa2245f557fad9d4ef3bd74c0e1b6bdd",
+    "file": "taylortx.gov-m_NewsFlash_Home_Detail_2094.html"
+  },
+  {
+    "url": "https://taylortx.gov/m/NewsFlash/Home/Detail/2093",
+    "retrieved_utc": "2026-09-28T21:09:22.4699541Z",
+    "status": 200,
+    "content_type": "text/html; charset=utf-8",
+    "bytes": 261379,
+    "sha256": "65c89e20099dbf373872c7bc324c1448ce9c7edb90a45fb21df98e85fb27ef44",
+    "file": "taylortx.gov-m_NewsFlash_Home_Detail_2093.html"
+  },
+  {
+    "url": "https://taylortx.gov/m/NewsFlash/Archive",
+    "retrieved_utc": "2026-09-28T21:09:22.7420763Z",
+    "status": 200,
+    "content_type": "text/html; charset=utf-8",
+    "bytes": 267758,
+    "sha256": "50aca1a6f0e6cea0df0a3668a6ba8943df05d5ba890c1d19a598372640b04daf",
+    "file": "taylortx.gov-m_NewsFlash_Archive.html"
+  },
+  {
+    "url": "https://www.roundrocktexas.gov/city-departments/planning-and-development-services/zoning-and-puds/planned-unit-developments-puds/",
+    "retrieved_utc": "2026-09-28T21:09:22.9959913Z",
+    "status": 200,
+    "content_type": "text/html; charset=UTF-8",
+    "bytes": 356859,
+    "sha256": "f3f58fadf66c93aa7d00e8678a36ae72ec51f72a716472cea6680e1f7ef71bd9",
+    "file": "www.roundrocktexas.gov-city-departments_planning-and-development-services_zoning-and-puds_planned-unit-developments-puds.html"
+  }
+]

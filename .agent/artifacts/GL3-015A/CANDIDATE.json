@@ -1,0 +1,174 @@
+{
+  "base_sha": "0199022e2f4188195da87e5fd493c40c46969551",
+  "branch": "feat/gl3-015",
+  "files": [
+    {
+      "path": ".agent/artifacts/GL3-015/TRIBUNAL.md",
+      "sha256": "123114a8232e83b7173d9c3af82cd39d632304bc1077bb92350b2c7b23a1fb40"
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/category-snapshot-hashes.json",
+      "sha256": "d720fa9768e92a03384e8c1f1963cac394282dd29387eed453f079260ddb0e99"
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/COMPLETION.json",
+      "sha256": "a37beb7eb3b20327cc029a3813f2937c06cc86203fd6a94b9b8c3c76ac219605"
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/htmx-taylortx.gov-cat-31_page-1_sortBy-Category.html",
+      "sha256": "f1945cd6c19e56b3c1c78943ef5ec18116907a4ca1efc40a57d48ab1db7adfc5"
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/htmx-taylortx.gov-cat-31_page-2_sortBy-Category.html",
+      "sha256": "f1945cd6c19e56b3c1c78943ef5ec18116907a4ca1efc40a57d48ab1db7adfc5"
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/htmx-westlake-tx.org-cat-6_page-1_sortBy-Category.html",
+      "sha256": "88f37818eedea43215bbd0276c7713e173611c62d37a973888cd7a169cd91500"
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/htmx-westlake-tx.org-cat-6_page-2_sortBy-Category.html",
+      "sha256": "f1945cd6c19e56b3c1c78943ef5ec18116907a4ca1efc40a57d48ab1db7adfc5"
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/mustang-project-page-receipt.json",
+      "sha256": "4e8f11b6dfa840a3aea688e25791fa351d8ee8d87aaa684b3ab60de96d088be5"
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/page1.html",
+      "sha256": "c24586612efe0a05f32299d81bbffc6f65143501b8db5dee0de53a9baa8432a5"
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/page2.html",
+      "sha256": "6a2eecd4af9bf12a960775f84075bfa525f260aacc6909f7860e42ca3a9c2717"
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/page3.html",
+      "sha256": "50aca1a6f0e6cea0df0a3668a6ba8943df05d5ba890c1d19a598372640b04daf"
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/probe-taylortx.gov-cat-31_page-1_sortBy-Category.html",
+      "sha256": "85d0857bfd0fe6b7b83462b88418934cfd0a91ce72a6650a15109769e47288bd"
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/probe-taylortx.gov-cat-31_page-2_sortBy-Category.html",
+      "sha256": "85d0857bfd0fe6b7b83462b88418934cfd0a91ce72a6650a15109769e47288bd"
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/probe-westlake-tx.org-cat-6_page-1_sortBy-Category.html",
+      "sha256": "97d0a37dfee79c866905fca052da7855636486d89e7df86b2b349a05e2d76ad9"
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/probe-westlake-tx.org-cat-6_page-2_sortBy-Category.html",
+      "sha256": "153b791f503a469fed36fd251a96064209d95f42b8bf6e89019eb52fcc9e7307"
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/retrieval-ledger-addendum.json",
+      "sha256": "f1f346a2c74e6775c60b7acc646d41a42efeeadb822aa700062abcc7680ac028"
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/retrieval-ledger.json",
+      "sha256": "9b3b60c3588200882c9061c3b919e4e4db49abe52bb9ffd4709c6da1e64b0bd2"
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/REVIEW-r1.json",
+      "sha256": "a993266052829afd5be26d0e67c3face1cf4c595dfb39a2f38ce8b37af223e49"
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/REVIEW-r2.json",
+      "sha256": "4caab7d037c32710533884282765acf6367b23dfe48e8ae0ea3ff6aab51ad716"
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/taylor-project-mustang-1416.html",
+      "sha256": "5e6826596e3d175a6fc9a7f3cb144eea2b014b2e461e6eb037fce519e20b0396"
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/taylortx.gov-1293_Blueprint-Projects-Data-Center.html",
+      "sha256": "45d8e1a97d62d1116cbb3640ab4d3991a1a5194804ed7fbb9dfadc53b594c204"
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/taylortx.gov-1383_KDC-Project-Comal.html",
+      "sha256": "02006f6b9968270284c5f51e5d03f00a22b94e4dc9eebb8e6a46634f427e081d"
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/taylortx.gov-1395_Data-Centers-in-Taylor.html",
+      "sha256": "71e99b79bb80292957bb2d9f20de8f60d2125c73540945ae28f82caca4cbb845"
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/taylortx.gov-m_NewsFlash_Archive_Item_2079.html",
+      "sha256": "e3ffe3ea296987f95ee05af547ba60a2820658a153653cd6e102b7ad33f5e7e9"
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/taylortx.gov-m_NewsFlash_Archive.html",
+      "sha256": "50aca1a6f0e6cea0df0a3668a6ba8943df05d5ba890c1d19a598372640b04daf"
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/taylortx.gov-m_NewsFlash_Home_Detail_2093.html",
+      "sha256": "65c89e20099dbf373872c7bc324c1448ce9c7edb90a45fb21df98e85fb27ef44"
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/taylortx.gov-m_NewsFlash_Home_Detail_2094.html",
+      "sha256": "9d9e557e84fb57baeb75123f93d25781aa2245f557fad9d4ef3bd74c0e1b6bdd"
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/taylortx.gov-m_NewsFlash_Home_Detail_2095.html",
+      "sha256": "a7ec2d57a7d450ba96b92ecbdb619837daf6778cce4d5c15dce020264ffa7c0e"
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/taylortx.gov-m_NewsFlash.html",
+      "sha256": "c24586612efe0a05f32299d81bbffc6f65143501b8db5dee0de53a9baa8432a5"
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/westlake-tx.org-m_NewsFlash_Home_Detail_824.html",
+      "sha256": "560781e60e7e57b8ee5088cefeca6532bf7e0599474fd4aa206c0e5073486556"
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/westlake-tx.org-m_NewsFlash_Home_Detail_825.html",
+      "sha256": "a4bbb0de40257ccc6be926ab6d4fbed77f259d979f6291c2a1a1d930b3fe6eb1"
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/westlake-tx.org-m_NewsFlash.html",
+      "sha256": "1a09cbb0a9e5ac250fc68811d85be326e679f7bd7a650b867024523428149b5e"
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/www.roundrocktexas.gov-city-departments_administration_data-centers-in-round-rock.html",
+      "sha256": "7315f8c4bed95552880d8c0ee9f00c46d405a54ac48c5173391cd048f712a357"
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/www.roundrocktexas.gov-city-departments_planning-and-development-services_zoning-and-puds_planned-un.html",
+      "sha256": "9048ac38fd9c5800e563fff76b40410d7bfcf68526c9c15bf00a2c79113190c4"
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/www.roundrocktexas.gov-city-departments_planning-and-development-services_zoning-and-puds_planned-unit-developments-puds.html",
+      "sha256": "f3f58fadf66c93aa7d00e8678a36ae72ec51f72a716472cea6680e1f7ef71bd9"
+    },
+    {
+      "path": ".agent/CURRENT_STATE.md",
+      "sha256": "5bd1c34c9f808c19c31313b53e670e8559816656669a57b72bf35d931d44920c"
+    },
+    {
+      "path": ".agent/packets/GL3-015A-repair1.md",
+      "sha256": "f9795caeba4636940a3fd2ff5a4eb01918180e9717334f25dd5165f199029067"
+    },
+    {
+      "path": ".agent/packets/GL3-015A-repair2.md",
+      "sha256": "71a0fa742853fb465e1c88311484e17eee8a33a960894ed001495a84de4c9f78"
+    },
+    {
+      "path": ".agent/packets/GL3-015A.md",
+      "sha256": "a90b2ac62f25a6efbf509bc6eb09eafa26887921e06c2e805049f179c2d8eb13"
+    },
+    {
+      "path": ".agent/WORK_GRAPH.md",
+      "sha256": "c46c7858e9e08d161f98d00954a2f9f582283b20a9934fa5381d56fd9e7198b2"
+    },
+    {
+      "path": "docs/sources/coverage.md",
+      "sha256": "1daa23cec7d111ef185b5a4be73f9aa486ab534ff08da7d12f12eca9fe886a11"
+    },
+    {
+      "path": "docs/validation/gl3-015-source-candidates.md",
+      "sha256": "2cc54810ac6c97cb2e03d0488be7eb76f5ddd30716b39625ff4a4a00a178e216"
+    }
+  ]
+}

@@ -1,0 +1,58 @@
+{
+  "packet": "GL3-015A",
+  "objective": "Assess direct public Texas planning and site-control sources and select one bounded adapter target or no-go.",
+  "candidate": {
+    "base_sha": "0199022e2f4188195da87e5fd493c40c46969551",
+    "branch": "feat/gl3-015",
+    "worktree": "C:\\Users\\nrsan\\Nucleus\\02_Projects\\GridLens\\gl3-015"
+  },
+  "decision": "GO_BOUNDED_ACCESS_TEST_ONLY",
+  "target": "City of Taylor CivicPlus NewsFlash Development News (category 30), Development Notices (category 31), and archive reconciliation.",
+  "direction": "CONTINUE with a bounded local access/completeness and replay proof; do not claim source activation or coverage before that proof.",
+  "evidence": {
+    "official_project_candidates": 5,
+    "construction_permit_comparisons": "UNKNOWN for all five; no lead-time statistic calculated",
+    "retrieval_receipts": [
+      ".agent/artifacts/GL3-015A/retrieval-ledger.json",
+      ".agent/artifacts/GL3-015A/retrieval-ledger-addendum.json",
+      ".agent/artifacts/GL3-015A/category-snapshot-hashes.json",
+      ".agent/artifacts/GL3-015A/mustang-project-page-receipt.json"
+    ],
+    "mustang_chronology": "Taylor official project-page timeline lists a Taylor Press notice on 2026-08-02, mail notices and city web/social publication on 2026-08-03, the PZ 2026-2715 public hearing notice posted 2026-08-07, and zoning/annexation application withdrawal on 2026-09-03. August 2 is the earliest public-notice date listed in the inspected page, not proven to be the first public disclosure. The 2026-08-07 hearing notice is explicitly WITHDRAWN.",
+    "westlake_date_boundary": "Official Westlake planning proceedings are dated January 2025 in the retrospective and precede the August 2026 development-agreement follow-up; timing relative to a building permit remains UNKNOWN.",
+    "mustang_source_snapshot": ".agent/artifacts/GL3-015A/taylor-project-mustang-1416.html",
+    "raw_html": "Official source response snapshots are retained in this directory; page1.html is Taylor category 31, page2.html is category 30, and page3.html is its archive root. Exact timestamps for those three snapshots were not separately captured; their local SHA-256 and byte sizes are recorded.",
+    "limitations": [
+      "CivicPlus pages are public HTML, not a documented stable API.",
+      "Archive continuation/completeness and update semantics remain unproven.",
+      "An inferred lazy-loading endpoint returned empty content in the direct probe; it is not accepted as a pagination contract.",
+      "No source provides a supported building-permit comparison for these candidates.",
+      "Taylor source describes the proposed Mustang development and agreement negotiations while recording the zoning/annexation applications as withdrawn; post-withdrawal project status remains unresolved by this snapshot.",
+      "The August 2 Taylor Press notice is the earliest date listed in the inspected timeline, not evidence that no earlier public disclosure existed.",
+      "Westlake planning dates are compared only with the August 2026 follow-up; no building-permit date was verified."
+    ]
+  },
+  "files_changed": [
+    "docs/validation/gl3-015-source-candidates.md",
+    "docs/sources/coverage.md",
+    ".agent/artifacts/GL3-015A/COMPLETION.json",
+    ".agent/artifacts/GL3-015A/retrieval-ledger.json",
+    ".agent/artifacts/GL3-015A/retrieval-ledger-addendum.json",
+    ".agent/artifacts/GL3-015A/category-snapshot-hashes.json",
+    ".agent/artifacts/GL3-015A/mustang-project-page-receipt.json",
+    ".agent/artifacts/GL3-015A/taylor-project-mustang-1416.html",
+    ".agent/artifacts/GL3-015A/*.html"
+  ],
+  "repair2_files_changed": [
+    "docs/validation/gl3-015-source-candidates.md",
+    ".agent/artifacts/GL3-015A/COMPLETION.json"
+  ],
+  "checks": {
+    "documentation_review": "repair2 removes first-disclosure overclaim for Taylor and limits Westlake timing comparison to its dated August 2026 follow-up; permit dates remain UNKNOWN",
+    "json_parse": "passed for completion and all retrieval/hash ledgers",
+    "git_diff_check": "passed",
+    "application_tests": "not applicable; documentation/source feasibility only"
+  },
+  "authority": "Read-only public retrieval and local documentation only; no code, database, registry activation, push, merge, or deployment.",
+  "uncertainty": "Access and candidacy are established; complete paginated/archived retrieval and runtime idempotency are not."
+}

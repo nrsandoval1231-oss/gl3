@@ -1,0 +1,154 @@
+{
+  "packet": "GL3-015B",
+  "status": "REVIEW_REPAIR2_COMPLETE_PENDING_CONTROLLER_RERUN_AND_FRESH_REVIEW",
+  "base_sha": "0199022e2f4188195da87e5fd493c40c46969551",
+  "source_registry_id": "taylor-development-newsflash",
+  "registry_enabled": false,
+  "changed_files": [
+    ".agent/artifacts/GL3-015B/COMPLETION.json",
+    "backend/src/gridlens/domain/taylor_planning.py",
+    "backend/src/gridlens/ingestion/adapters/__init__.py",
+    "backend/src/gridlens/ingestion/adapters/taylor_newsflash.py",
+    "backend/src/gridlens/ingestion/registry.py",
+    "backend/src/gridlens/ingestion/service.py",
+    "backend/tests/fixtures/taylor-newsflash-1839-3427.html",
+    "backend/tests/fixtures/taylor-newsflash-2032.html",
+    "backend/tests/integration/test_taylor_ingestion.py",
+    "backend/tests/unit/test_taylor_newsflash.py",
+    "backend/tests/unit/test_taylor_planning.py",
+    "config/sources/registry.v1.json",
+    "docs/sources/taylor-newsflash.md"
+  ],
+  "implementation": [
+    "Added host-bounded Taylor category 30/31 and archive retrieval using the observed archive controls, response size/run byte bounds, contiguous ranges, stable totals, terminal disabled control, unique article/arcId identities, and repeated first-page total/identity check.",
+    "Preserved article ID and arcId as separate observation identity; raw article hashes and category/archive response hashes are attached to evidence extraction metadata. Archive table Published Date and Archived Date are kept as labeled excerpt metadata; event_date remains UNKNOWN unless separately supported.",
+    "Selects the visible CivicPlus main h1.article-header-title and article-content body; a generic News Flash heading or missing content fails closed. The retained official Project Comal article 2032 now produces a planning Signal from its own sentence linking a data center to address 1051 CR 401, with Taylor, Texas supplied by the configured official source geography. The page footer is excluded from title/body interpretation.",
+    "Planning Signals include no MW, load, supply, buyer, cancellation, Prospect, or Lead claim. Withdrawn records are rejected by the interpreter and retained as observations/evidence.",
+    "The archive interval now ends on the retrieval date and spans a configured 59-day window plus seven-day overlap. Tests inject the cutoff date. Registry entry remains disabled pending controller runtime acceptance.",
+    "Explicit News category crossposts linked from category 30/31 are retained as non-target observations; complete category retrieval continues, while missing/unknown categories remain fail-closed and the Taylor interpreter cannot create a Signal for News.",
+    "Withdrawn archive revisions are linked to an existing Taylor Signal only through exact same-source numeric article identity and exactly one earlier accepted same-article Signal need. The retained withdrawn evidence is attached to that need with UNKNOWN status/reason; no lifecycle event, cancellation, new need, or power/supply fact is created. Missing or ambiguous matching remains unlinked with reason UNKNOWN.",
+    "Changed category extraction to require exactly one nonempty article-header .article-badge, excluding the related-news footer and reading the posted date separately. Exact category labels are preserved without fuzzy matching; only Development News and Development Notices pass the existing Taylor planning interpreter.",
+    "Archive row totals, page ranges, and article/arcId identity checks run across the complete mixed-category listing before article parsing/filtering. Every bounded revision is retained as a record with exact category, article source hash, archive dates, and archive page/category evidence hashes, including News and unrelated categories; no Signal/lifecycle/project link is created from those non-target rows.",
+    "Replaced unbounded hash concatenation in Evidence.extraction_location with a meaningful bounded locator containing the exact category badge; archive locators also identify table dates. The locator is length-checked against the existing varchar(100) limit and fails explicitly instead of truncating. Article/revision identity, URL, full-response source hash, and separately labeled archive dates remain in their existing record/evidence fields.",
+    "Category-root and archive-page response hashes are not individually copied into database evidence rows. The approved raw upstream page captures and recorded hashes remain available in the retained GL3-015B access artifacts and ACCESS.json for inspection/replay.",
+    "Taylor Project identity is now keyed by the numeric article ID, while observation/evidence identity retains each arcId. A later accepted revision reuses the unique prior accepted Signal project/need. Conflicting project labels or distinct article site addresses, or multiple prior projects for one article, cause a retained UNKNOWN observation with no new Signal/project link/lifecycle effect. Different numeric article IDs remain distinct absent the existing independent physical-site plus project-name matcher evidence.",
+    "Publication date parsing is limited to the article category header and head publication metadata. The whole-page MM/DD/YYYY fallback was removed, so dates in body/related/footer content cannot satisfy dated Signal admission; absence or malformed publication date fails closed.",
+    "For in-place changes to a Taylor category-page observation, the identity guard now compares the incoming record against all retained Evidence for the same numeric article, including prior Evidence attached to the currently changing external ID, as well as prior archive revisions. Explicit conflicting project labels or site addresses leave the new version as UNKNOWN before Project rename, Signal acceptance, or lifecycle advancement.",
+    "The prior accepted interpretation assessment is retained in the changed version assessment history when identity is UNKNOWN. Raw Observation and new Evidence remain stored, while the existing Project name, Signal need, and lifecycle history stay unchanged."
+  ],
+  "validation": [
+    {
+      "command": "uv run --directory backend --extra dev python -m pytest tests/unit/test_taylor_newsflash.py tests/unit/test_taylor_planning.py tests/unit/test_registry.py tests/integration/test_taylor_ingestion.py -q",
+      "exit_code": 0,
+      "result": "15 passed in 2.72s. Crosspost retrieval continues through the complete archive sweep; News is non-promotable and unknown labels fail closed. Strict withdrawn linkage test passes using actual 2079/arcId=3442 HTML; withdrawn evidence is attached to the prior Signal need, the prior Signal remains active, and lifecycle event count is unchanged."
+    },
+    {
+      "command": "uv run --directory backend --extra dev ruff check src/gridlens/ingestion/adapters/taylor_newsflash.py src/gridlens/ingestion/service.py tests/unit/test_taylor_newsflash.py tests/integration/test_taylor_ingestion.py",
+      "exit_code": 0,
+      "result": "All checks passed."
+    },
+    {
+      "command": "uv run --directory backend --extra dev mypy src/gridlens/ingestion/adapters/taylor_newsflash.py src/gridlens/ingestion/service.py",
+      "exit_code": 0,
+      "result": "Success: no issues found in 2 source files."
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0,
+      "result": "Passed. Git emitted pre-existing LF-to-CRLF working-copy warnings for controller-owned dirty files."
+    },
+    {
+      "command": "uv run --directory backend --extra dev python -m pytest tests/unit/test_taylor_newsflash.py tests/unit/test_taylor_planning.py tests/unit/test_registry.py tests/integration/test_taylor_ingestion.py -q",
+      "exit_code": 0,
+      "result": "15 passed in 4.29s. Mixed category sweep accounted for all row identities (Development Notices 2079/3434, unrelated Wellness and Recreation Center Study Project Updates 1839/3427, and linked News 2069); News and unrelated article interpretations were None. Missing and ambiguous badges fail closed; target category parsing remains intact. Existing integration checks still pass."
+    },
+    {
+      "command": "uv run --directory backend --extra dev ruff check src/gridlens/ingestion/adapters/taylor_newsflash.py tests/unit/test_taylor_newsflash.py",
+      "exit_code": 0,
+      "result": "All checks passed."
+    },
+    {
+      "command": "uv run --directory backend --extra dev mypy src/gridlens/ingestion/adapters/taylor_newsflash.py",
+      "exit_code": 0,
+      "result": "Success: no issues found in 1 source file."
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0,
+      "result": "Passed; existing LF-to-CRLF working-copy warnings refer to controller-owned dirty files."
+    },
+    {
+      "command": "uv run --directory backend --extra dev python -m pytest tests/unit/test_taylor_newsflash.py tests/unit/test_taylor_planning.py tests/unit/test_registry.py tests/integration/test_taylor_ingestion.py -q",
+      "exit_code": 0,
+      "result": "16 passed in 2.73s. Target and non-target adapter records have extraction_location <= 100 characters with exact category preserved; archive table dates remain separately labeled in abstract/fields; overlong category locator raises SourceParseError instead of truncating. Mixed-category/withdrawn integration coverage remains green."
+    },
+    {
+      "command": "uv run --directory backend --extra dev ruff check src/gridlens/ingestion/adapters/taylor_newsflash.py tests/unit/test_taylor_newsflash.py",
+      "exit_code": 0,
+      "result": "All checks passed."
+    },
+    {
+      "command": "uv run --directory backend --extra dev mypy src/gridlens/ingestion/adapters/taylor_newsflash.py",
+      "exit_code": 0,
+      "result": "Success: no issues found in 1 source file."
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0,
+      "result": "Passed; Git emitted pre-existing LF-to-CRLF working-copy warnings for controller-owned dirty files."
+    },
+    {
+      "command": "uv run --directory backend --extra dev python -m pytest tests/unit/test_taylor_newsflash.py tests/unit/test_taylor_planning.py tests/unit/test_registry.py tests/integration/test_taylor_ingestion.py -q",
+      "exit_code": 0,
+      "result": "19 passed in 3.57s. Integration proves two accepted same-article arcIds retain two observations/evidence but one Project and one Signal PowerNeed with idempotent replay; two distinct article IDs with same title/city remain two projects/needs; conflicting project labels for one article remain UNKNOWN without a second project/need. Unit coverage removes the official 2032 header Posted on date, adds a related-footer date, and confirms parsing fails while the untouched article retains 2026-04-21."
+    },
+    {
+      "command": "uv run --directory backend --extra dev ruff check src/gridlens/ingestion/adapters/taylor_newsflash.py src/gridlens/ingestion/service.py tests/unit/test_taylor_newsflash.py tests/integration/test_taylor_ingestion.py",
+      "exit_code": 0,
+      "result": "All checks passed."
+    },
+    {
+      "command": "uv run --directory backend --extra dev mypy src/gridlens/ingestion/adapters/taylor_newsflash.py src/gridlens/ingestion/service.py",
+      "exit_code": 0,
+      "result": "Success: no issues found in 2 source files."
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0,
+      "result": "Passed; pre-existing LF-to-CRLF warnings are from controller-owned dirty files."
+    },
+    {
+      "command": "uv run --directory backend --extra dev python -m pytest tests/unit/test_taylor_newsflash.py tests/unit/test_taylor_planning.py tests/unit/test_registry.py tests/integration/test_taylor_ingestion.py -q",
+      "exit_code": 0,
+      "result": "21 passed in 5.02s. Same external ID changed from Project Mustang to Project Other retains old/new Evidence and prior accepted assessment, leaves project/Signal unchanged, creates no lifecycle event, and returns zero new Signals. Nonconflicting in-place content edit reuses same project/need and its replay is unchanged/idempotent. Existing archive revision, date, and withdrawn tests pass."
+    },
+    {
+      "command": "uv run --directory backend --extra dev ruff check src/gridlens/ingestion/service.py tests/integration/test_taylor_ingestion.py",
+      "exit_code": 0,
+      "result": "All checks passed."
+    },
+    {
+      "command": "uv run --directory backend --extra dev mypy src/gridlens/ingestion/service.py",
+      "exit_code": 0,
+      "result": "Success: no issues found in 1 source file."
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0,
+      "result": "Passed; Git emitted existing LF-to-CRLF warnings for controller-owned dirty files."
+    }
+  ],
+  "limitations": [
+    "The official Project Comal article 2032 response is retained at backend/tests/fixtures/taylor-newsflash-2032.html; the retrieval returned HTTP 200, 251492 bytes, SHA-256 4b8a8e5b0d9d5095f98868fc639b7e10b374f0a9d5d537dc0d11b7ee1caa26e1. Its parsed visible title and cited body create one Signal, and isolated PostgreSQL replay is idempotent.",
+    "The actual withdrawn article fixture from the earlier access artifact is parsed in the integration path. The focused integration suite used only the isolated gridlens_test PostgreSQL database, never the application gridlens database.",
+    "No live end-to-end adapter retrieval or application database runtime was performed by this repair. Controller live retrieval/replay digest, production worker runtime, full backend gates, and independent review remain pending. Keep the source disabled until controller acceptance.",
+    "The rolling archive has a bounded 66-day default request interval and no atomic upstream snapshot token. A changed total or first-page replay identity set fails closed, but this is not snapshot isolation.",
+    "Terms, copyright, robots policy, bulk republication rights, request limits, collection cost, and update latency remain unknown.",
+    "The official archive item 1839/arcId=3427 HTML is retained at backend/tests/fixtures/taylor-newsflash-1839-3427.html; public GET returned HTTP 200, 257708 bytes, SHA-256 95e6205869064c89d503b17345035e96ae666086a0ca3e254e81380438ef2382. Its exact article-header badge is Wellness and Recreation Center Study Project Updates and it is non-target.",
+    "This bounded packet validated a mocked complete mixed-category archive and retained the official 1839 page. A live public sweep, test-database job/replay, full gates, and independent Sol review remain controller-owned; source remains disabled.",
+    "Controller reported the first live gridlens_test job failed before writing any app database; 25/25 Taylor records exceeded Evidence.extraction_location varchar(100), with measured values 135 to 463 characters. This bounded adapter repair addresses the field overflow; controller must repeat the isolated test-database job/replay and full gates.",
+    "Category/archive response hashes are not individually stored with each database Evidence row. Earlier access proof remains in .agent/artifacts/GL3-015B/ACCESS.json and the raw retained HTML captures; the current adapter does not persist those response hashes per run.",
+    "The focused database integration tests ran against isolated gridlens_test only. Controller must repeat live retrieval/test-database job and replay, full gates, freeze the exact repaired candidate, and obtain fresh independent review. The source registry remains disabled.",
+    "This repair used only the isolated gridlens_test integration fixture. No application database was accessed. Controller must rerun live retrieval/test-database replay and full gates on the new exact candidate, then obtain fresh independent review; source remains disabled."
+  ]
+}

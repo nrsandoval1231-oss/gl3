@@ -1,0 +1,9 @@
+{
+  "verdict": "PASS",
+  "candidate_sha256": "a1bc6a268c6533c8d46f502ea1bc0fe0f4c533e8aa614855bee4fbdb04526f3f",
+  "file_count": 109,
+  "all_manifest_hashes_matched": true,
+  "reviewer": "independent Sol",
+  "scope": "GL3-015C bounded automatic developer research slice",
+  "findings": "Automatic queue, separate leased retrieval, replay, and known/unverified/unavailable research projection satisfy this packet. No duplicate job or fabricated citation. Source remains disabled and GL3-015 parent open."
+}

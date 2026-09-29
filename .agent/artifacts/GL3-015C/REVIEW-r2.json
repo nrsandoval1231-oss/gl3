@@ -1,0 +1,10 @@
+{
+  "verdict": "FIX",
+  "candidate_sha256": "a750c18a7f5dcc8f8148b77381a2a7b3a452636e133b7ae86b0b5328d06c74f6",
+  "file_count": 107,
+  "all_manifest_hashes_matched": true,
+  "reviewer": "independent Sol",
+  "prior_findings": "Automatic eligible-Signal queueing and unsupported-Signal action repaired",
+  "finding": "API maps every planner-ineligible Signal with no same-need ProjectRole to Unavailable (UNKNOWN), even when project identity facts already record owner/developer or a ProjectRole exists on another need. That falsely calls a known/recorded developer UNKNOWN and repeats the verification action.",
+  "parent_gl3_015_complete": false
+}

@@ -1,0 +1,122 @@
+[
+  {
+    "url": "https://taylortx.gov/m/NewsFlash?cat=6",
+    "retrieved_utc": "2026-09-28T21:05:50.1953275Z",
+    "status": 200,
+    "content_type": [
+      "text/html; charset=utf-8"
+    ],
+    "bytes": 250638,
+    "sha256": "8f771d1aecc93be51cdc31002c4be7b02aacfca8ab78b509bd42c4f9bfc784c3",
+    "path": "taylortx.gov-m_NewsFlash.html",
+    "title": "News Flash &#x2022; Taylor, TX"
+  },
+  {
+    "url": "https://taylortx.gov/1395/Data-Centers-in-Taylor",
+    "retrieved_utc": "2026-09-28T21:05:50.6712271Z",
+    "status": 200,
+    "content_type": [
+      "text/html; charset=utf-8"
+    ],
+    "bytes": 99474,
+    "sha256": "71e99b79bb80292957bb2d9f20de8f60d2125c73540945ae28f82caca4cbb845",
+    "path": "taylortx.gov-1395_Data-Centers-in-Taylor.html",
+    "title": "Data Centers in Taylor | Taylor, TX - Official Website"
+  },
+  {
+    "url": "https://taylortx.gov/m/NewsFlash/Archive/Item/2079?arcId=3442",
+    "retrieved_utc": "2026-09-28T21:05:50.9708257Z",
+    "status": 200,
+    "content_type": [
+      "text/html; charset=utf-8"
+    ],
+    "bytes": 271498,
+    "sha256": "e3ffe3ea296987f95ee05af547ba60a2820658a153653cd6e102b7ad33f5e7e9",
+    "path": "taylortx.gov-m_NewsFlash_Archive_Item_2079.html",
+    "title": "News Flash Archive - WITHDRAWN - Notice of Public Hearings - PZ 2026-2715 - Employment Center Plan - Project Mustang"
+  },
+  {
+    "url": "https://taylortx.gov/1383/KDC-Project-Comal",
+    "retrieved_utc": "2026-09-28T21:05:51.4339183Z",
+    "status": 200,
+    "content_type": [
+      "text/html; charset=utf-8"
+    ],
+    "bytes": 95950,
+    "sha256": "02006f6b9968270284c5f51e5d03f00a22b94e4dc9eebb8e6a46634f427e081d",
+    "path": "taylortx.gov-1383_KDC-Project-Comal.html",
+    "title": "KDC Project Comal | Taylor, TX - Official Website"
+  },
+  {
+    "url": "https://taylortx.gov/1293/Blueprint-Projects-Data-Center",
+    "retrieved_utc": "2026-09-28T21:05:51.8744545Z",
+    "status": 200,
+    "content_type": [
+      "text/html; charset=utf-8"
+    ],
+    "bytes": 116704,
+    "sha256": "45d8e1a97d62d1116cbb3640ab4d3991a1a5194804ed7fbb9dfadc53b594c204",
+    "path": "taylortx.gov-1293_Blueprint-Projects-Data-Center.html",
+    "title": "Blueprint Projects Data Center | Taylor, TX - Official Website"
+  },
+  {
+    "url": "https://westlake-tx.org/m/NewsFlash?cat=6",
+    "retrieved_utc": "2026-09-28T21:05:52.8736087Z",
+    "status": 200,
+    "content_type": [
+      "text/html; charset=utf-8"
+    ],
+    "bytes": 925020,
+    "sha256": "1a09cbb0a9e5ac250fc68811d85be326e679f7bd7a650b867024523428149b5e",
+    "path": "westlake-tx.org-m_NewsFlash.html",
+    "title": "News Flash &#x2022; Westlake, TX"
+  },
+  {
+    "url": "https://westlake-tx.org/m/NewsFlash/Home/Detail/824",
+    "retrieved_utc": "2026-09-28T21:05:53.1168530Z",
+    "status": 200,
+    "content_type": [
+      "text/html; charset=utf-8"
+    ],
+    "bytes": 105616,
+    "sha256": "560781e60e7e57b8ee5088cefeca6532bf7e0599474fd4aa206c0e5073486556",
+    "path": "westlake-tx.org-m_NewsFlash_Home_Detail_824.html",
+    "title": "Special Town Council Meeting &#x2022; Westlake, TX"
+  },
+  {
+    "url": "https://westlake-tx.org/m/NewsFlash/Home/Detail/825",
+    "retrieved_utc": "2026-09-28T21:05:53.3671037Z",
+    "status": 200,
+    "content_type": [
+      "text/html; charset=utf-8"
+    ],
+    "bytes": 104863,
+    "sha256": "a4bbb0de40257ccc6be926ab6d4fbed77f259d979f6291c2a1a1d930b3fe6eb1",
+    "path": "westlake-tx.org-m_NewsFlash_Home_Detail_825.html",
+    "title": "Town Council Recap (8-17-2026) &#x2022; Westlake, TX"
+  },
+  {
+    "url": "https://www.roundrocktexas.gov/city-departments/planning-and-development-services/zoning-and-puds/planned-unit-developments-puds/",
+    "retrieved_utc": "2026-09-28T21:05:53.7817236Z",
+    "status": 200,
+    "content_type": [
+      "text/html; charset=UTF-8"
+    ],
+    "bytes": 356859,
+    "sha256": "9048ac38fd9c5800e563fff76b40410d7bfcf68526c9c15bf00a2c79113190c4",
+    "path": "www.roundrocktexas.gov-city-departments_planning-and-development-services_zoning-and-puds_planned-un.html",
+    "title": "Planned Unit Developments (PUDs) - City of Round Rock"
+  },
+  {
+    "url": "https://www.roundrocktexas.gov/city-departments/administration/data-centers-in-round-rock/",
+    "retrieved_utc": "2026-09-28T21:05:54.1953250Z",
+    "status": 200,
+    "content_type": [
+      "text/html; charset=UTF-8"
+    ],
+    "bytes": 269702,
+    "sha256": "7315f8c4bed95552880d8c0ee9f00c46d405a54ac48c5173391cd048f712a357",
+    "path": "www.roundrocktexas.gov-city-departments_administration_data-centers-in-round-rock.html",
+    "title": "Data Centers in Round Rock - City of Round Rock"
+  }
+]

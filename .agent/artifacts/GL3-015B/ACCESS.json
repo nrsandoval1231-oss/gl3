@@ -1,0 +1,112 @@
+{
+  "packet": "GL3-015B",
+  "decision": "GO_BOUNDED_IMPLEMENTATION_WITH_FAIL_CLOSED_COMPLETENESS",
+  "decision_utc": "2026-09-28T21:38:00Z",
+  "scope": "Unauthenticated, bounded public GET proof for City of Taylor CivicPlus NewsFlash categories 30 and 31 and archive enumeration/revision identity. No adapter or registry code was changed.",
+  "declared_archive_window": {
+    "start_date_inclusive": "2026-08-01",
+    "end_date_inclusive": "2026-09-28",
+    "date_semantics": "Observed archive table returns Published Date and Archived Date; returned archived revisions include older publication dates and Archived Date values within the requested interval. Treat the filter as archive/revision date and preserve both displayed dates separately.",
+    "enumeration": "GET /m/NewsFlash/Archive?archCc=2&startDate=2026-08-01&endDate=2026-09-28&count=10&skip=N. archCc=2, date inputs, count options 10/25/50, skip values, page bounds, total, and disabled Next Page were observed in the official archive HTML controls. Follow observed links only. The filter returns all archived items; inspect each detail's category label before assigning it to category 30 or 31.",
+    "completeness_stop_rule": "For a crawl, retain original response bytes and hashes for every page; require each page to report a consistent total, expected page bounds with no gaps or overlaps, and the terminal page range to end at total with Next Page disabled. Increase skip by the selected count. Re-fetch the first page or repeat the bounded sweep and compare total plus the ordered (article_id, arc_id) set; on drift, missing range, malformed page, or unstable replay, mark the run incomplete/UNKNOWN and retry from the fixed window. No server-side snapshot token was observed, so this proves stable client-side enumeration, not atomic database snapshot isolation.",
+    "observed_result": {
+      "total": 13,
+      "page_1": "1-10 of 13 at skip=0",
+      "page_2": "11-13 of 13 at skip=10; Next Page and Last Page disabled",
+      "observed_item_count": 13,
+      "example_revision_identity": {
+        "article_id": 2079,
+        "archive_revision_ids": [3434, 3442],
+        "identity_key": "(source=taylortx.gov, article_id=2079, arc_id)",
+        "revision_3434_sha256": "1759d088f675ecc818d7a65776ed213c631e7aad05e52721dcd480c72350e214",
+        "revision_3442_sha256": "e3ffe3ea296987f95ee05af547ba60a2820658a153653cd6e102b7ad33f5e7e9",
+        "observed_change": "Same article ID and title family; arcId 3434 has the non-WITHDRAWN title and arcId 3442 has WITHDRAWN in its title. Distinct arcId is the revision key; hash canonical response bytes to detect replay equality or changed content."
+      }
+    }
+  },
+  "retrievals": [
+    {
+      "url": "https://taylortx.gov/m/NewsFlash?cat=30",
+      "retrieved_utc": "2026-09-28T21:33:09.1744594Z",
+      "status": 200,
+      "content_type": "text/html; charset=utf-8",
+      "bytes": 305621,
+      "sha256": "5c4392115b356ba000df62750b3909e096554a28464d309c0ee172c69bdd18ae",
+      "file": "category-30.html",
+      "observed": "Official category 30 page; rendered response contains linked article IDs and category labels."
+    },
+    {
+      "url": "https://taylortx.gov/m/NewsFlash?cat=31",
+      "retrieved_utc": "2026-09-28T21:33:09.3641247Z",
+      "status": 200,
+      "content_type": "text/html; charset=utf-8",
+      "bytes": 307349,
+      "sha256": "826f17e0e219b98579f6b62b4c6f939a66df5ac56e308d12a7e6d4b114d9f04f",
+      "file": "category-31.html",
+      "observed": "Official category 31 page; rendered response exposes article detail links /m/NewsFlash/Home/Detail/{numeric-id}."
+    },
+    {
+      "url": "https://taylortx.gov/m/NewsFlash/Archive",
+      "retrieved_utc": "2026-09-28T21:33:09.4832247Z",
+      "status": 200,
+      "content_type": "text/html; charset=utf-8",
+      "bytes": 267755,
+      "sha256": "12c5121618787ec51288eb11196be34dd298e248b98f67a6a0d65199acd8c2d8",
+      "file": "archive-root.html",
+      "observed": "Archive page exposes startDate/endDate filters, category/item mode, count options, skip-based pagination, page ranges, total, and terminal disabled controls."
+    },
+    {
+      "url": "https://taylortx.gov/m/NewsFlash/Archive/Category/31?arcId=41",
+      "retrieved_utc": "2026-09-28T21:33:47.2034767Z",
+      "status": 200,
+      "content_type": "text/html; charset=utf-8",
+      "bytes": 245574,
+      "sha256": "50526d3f226f9fc2670d26d126bdc6a522506ed200df2b3609a81227f84beea7",
+      "file": "archive-category-31.html",
+      "observed": "Observed category archive link from the root; response identifies archived Development Notices and original publication interval."
+    },
+    {
+      "url": "https://taylortx.gov/m/NewsFlash/Archive?archCc=2&startDate=2026-08-01&endDate=2026-09-28&count=10&skip=0",
+      "retrieved_utc": "2026-09-28T21:34:53.9704108Z",
+      "status": 200,
+      "content_type": "text/html; charset=utf-8",
+      "bytes": 269091,
+      "sha256": "a6202017f1d90b83c2c5770f37d5aa104a717a3723a1c27899e3c6fdba1a526c",
+      "file": "archive-items-recent-skip-0.html",
+      "observed": "First page has 10 rows; total is 13. Archive rows expose article and arcId links, Published Date, and Archived Date."
+    },
+    {
+      "url": "https://taylortx.gov/m/NewsFlash/Archive?archCc=2&startDate=2026-08-01&endDate=2026-09-28&count=10&skip=10",
+      "retrieved_utc": "2026-09-28T21:34:54.0712749Z",
+      "status": 200,
+      "content_type": "text/html; charset=utf-8",
+      "bytes": 258374,
+      "sha256": "bd9c0bb1b5d4f97f2a40aed0fe98979ca8ff1b893da83730d53ac7951ff1151c",
+      "file": "archive-items-recent-skip-10.html",
+      "observed": "Second page reports 11-13 of 13 and disables Next Page and Last Page."
+    },
+    {
+      "url": "https://taylortx.gov/m/NewsFlash/Archive/Item/2079?arcId=3434",
+      "retrieved_utc": "2026-09-28T21:36:01.6908902Z",
+      "status": 200,
+      "content_type": "text/html; charset=utf-8",
+      "bytes": 270166,
+      "sha256": "1759d088f675ecc818d7a65776ed213c631e7aad05e52721dcd480c72350e214",
+      "file": "archive-item-2079-arcId-3434.html",
+      "observed": "Archived revision's title omits WITHDRAWN; its category label is Development Notices. The later arcId=3442 response with a changed title is retained in GL3-015A evidence and cited in the comparison above."
+    }
+  ],
+  "identity_and_replay": {
+    "article_identity": "Stable source article URL/id (numeric article id), correlated with case number when present; category pages link /m/NewsFlash/Home/Detail/{id}.",
+    "revision_identity": "Archive item link includes arcId; preserve the pair (article_id, arcId) as distinct source revision identity. Archive changes can update title/status while article_id stays constant.",
+    "replay_rule": "Same article_id + arcId + identical raw-byte SHA-256 is byte-identical replay. Same pair with changed bytes is a changed retrieval and must be retained as a new observed version/health event pending review; a different arcId is an upstream revision even when title/body appear equivalent.",
+    "limitations": "No ETag, Last-Modified, documented API schema, stable snapshot token, or published retention/latency contract was validated in this probe. Do not infer item ordering beyond observed UI, and do not treat category roots as an exhaustive history."
+  },
+  "public_and_legal_limits": {
+    "access": "Only direct unauthenticated HTTPS GET requests to public taylortx.gov HTML pages; no credentials, account, paid service, form submission, or non-public endpoint used.",
+    "reuse": "This probe establishes technical public retrieval only. It does not determine copyright, terms-of-use, robots policy, or permission for bulk republication. Keep stored extracts factual and attributed; obtain legal review for wider republication or materially increased collection.",
+    "cost": "No fee or request limit was presented during these GETs; network/compute cost was not measured. No polling cadence is claimed."
+  },
+  "failures": [],
+  "raw_html": "All response bodies listed above are retained in this directory for replay and independent inspection."
+}

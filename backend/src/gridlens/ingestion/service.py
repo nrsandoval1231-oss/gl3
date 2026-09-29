@@ -1,10 +1,11 @@
 import hashlib
 import json
+import re
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 import httpx
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
@@ -18,6 +19,7 @@ from gridlens.domain.news_interpretation import (
 from gridlens.domain.permit_interpretation import assess_permit
 from gridlens.domain.permit_interpretation import evaluator_version as permit_evaluator_version
 from gridlens.domain.qualification import assess_signal
+from gridlens.domain.taylor_planning import interpret_taylor_planning
 from gridlens.ingestion.adapters import retrieve_source
 from gridlens.ingestion.adapters.govinfo_pdf import MAX_PDFS_PER_RUN, retrieve_companion
 from gridlens.intelligence.lifecycle_service import apply_lifecycle_observation
@@ -32,7 +34,7 @@ from gridlens.intelligence.project_identity import (
     same_physical_site,
     stable_asset_identity,
 )
-from gridlens.jobs.queue import assert_fence
+from gridlens.jobs.queue import assert_fence, enqueue_owner_research_if_eligible
 from gridlens.persistence.models import (
     ChangeEvent,
     Evidence,
@@ -68,6 +70,34 @@ def _hash(record: dict[str, Any]) -> str:
 def _source_version_hash(record: dict[str, Any]) -> str:
     raw = json.dumps(record, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+
+def _taylor_article_identity_conflict(
+    records: list[Observation | Evidence | dict[str, Any]],
+) -> bool:
+    project_labels: set[str] = set()
+    site_addresses: set[str] = set()
+    project_pattern = re.compile(r"\bProject\s+([A-Z0-9][A-Za-z0-9&'’-]*)\b", re.I)
+    address_pattern = re.compile(r"\b\d{1,6}\s+(?:CR|FM|Hwy|Highway)\s+[\w-]+\b", re.I)
+    for record in records:
+        title = (
+            record.title
+            if isinstance(record, Observation | Evidence)
+            else str(record.get("title") or "")
+        )
+        abstract = (
+            record.abstract
+            if isinstance(record, Observation | Evidence)
+            else str(record.get("abstract") or "")
+        )
+        article_text = f"{title} {abstract}"
+        project_labels.update(
+            match.casefold() for match in project_pattern.findall(article_text)
+        )
+        site_addresses.update(
+            normalized_identity(match) for match in address_pattern.findall(article_text)
+        )
+    return len(project_labels) > 1 or len(site_addresses) > 1
 
 
 def _permit_assessment_payload(
@@ -990,6 +1020,8 @@ def process_job(
                 if permit_assessment and permit_assessment["decision"] == "accepted"
                 else None
                 if permit_assessment
+                else interpret_taylor_planning(record)
+                if source.id == "taylor-development-newsflash"
                 else interpret({**record, "source_id": source.id})
             )
         except Exception as exc:
@@ -999,21 +1031,150 @@ def process_job(
             continue
         assert_fence(session, job_id, worker_id, fence)
 
-        project_key = f"{source.id}:{external_id}"
+        is_taylor = source.id == "taylor-development-newsflash"
+        article_id = str(record.get("article_id") or "")
+        project_key = (
+            f"{source.id}:{article_id}"
+            if is_taylor and article_id.isdigit()
+            else f"{source.id}:{external_id}"
+        )
         project = session.scalar(
             select(Project).where(Project.identity_key == project_key).with_for_update()
         )
-        if interpreted is None:
-            impacted_needs = session.scalars(
-                select(PowerNeed)
-                .join(NeedObservation, NeedObservation.need_id == PowerNeed.id)
-                .where(NeedObservation.observation_id == observation.id)
-                .with_for_update()
+        taylor_revision_ambiguous = False
+        withdrawn_taylor = bool(
+            is_taylor
+            and record.get("disposition") == "withdrawn"
+            and article_id.isdigit()
+        )
+        if is_taylor and article_id.isdigit() and interpreted is not None:
+            prior_observations = session.scalars(
+                select(Observation).where(
+                    Observation.source_id == source.id,
+                    Observation.id != observation.id,
+                    or_(
+                        Observation.external_id == article_id,
+                        Observation.external_id.like(f"{article_id}:arcId=%"),
+                    ),
+                )
             ).all()
+            retained_article_evidence = session.scalars(
+                select(Evidence)
+                .join(Observation, Evidence.observation_id == Observation.id)
+                .where(
+                    Observation.source_id == source.id,
+                    or_(
+                        Observation.external_id == article_id,
+                        Observation.external_id.like(f"{article_id}:arcId=%"),
+                    ),
+                )
+            ).all()
+            prior_projects: dict[Any, Project] = {}
+            for prior_observation in prior_observations:
+                prior_interpretation = session.scalar(
+                    select(Interpretation).where(
+                        Interpretation.observation_id == prior_observation.id,
+                        Interpretation.status == "accepted",
+                        Interpretation.content_hash == prior_observation.content_hash,
+                    )
+                )
+                if prior_interpretation is None or not (
+                    prior_interpretation.assessment or {}
+                ).get("decision") == "accepted":
+                    continue
+                for prior_need in session.scalars(
+                    select(PowerNeed)
+                    .join(NeedObservation, NeedObservation.need_id == PowerNeed.id)
+                    .where(NeedObservation.observation_id == prior_observation.id)
+                ).all():
+                    if (
+                        prior_need.tier == "Signal"
+                        and prior_need.activity_key == "facility-expansion"
+                    ):
+                        prior_project = session.get(Project, prior_need.project_id)
+                        if prior_project is not None:
+                            prior_projects[prior_project.id] = prior_project
+            if (
+                _taylor_article_identity_conflict(
+                    [*prior_observations, *retained_article_evidence, record]
+                )
+                or len(prior_projects) > 1
+            ):
+                taylor_revision_ambiguous = True
+            elif len(prior_projects) == 1:
+                prior_project = next(iter(prior_projects.values()))
+                if project is not None and project.id != prior_project.id:
+                    taylor_revision_ambiguous = True
+                else:
+                    project = prior_project
+                    project.identity_key = project_key
+            if taylor_revision_ambiguous:
+                interpreted = None
+                project = None
+        if interpreted is None:
+            impacted_needs = (
+                []
+                if taylor_revision_ambiguous
+                else session.scalars(
+                    select(PowerNeed)
+                    .join(NeedObservation, NeedObservation.need_id == PowerNeed.id)
+                    .where(NeedObservation.observation_id == observation.id)
+                    .with_for_update()
+                ).all()
+            )
             if project is None and impacted_needs:
                 impacted_project_ids = {need.project_id for need in impacted_needs}
                 if len(impacted_project_ids) == 1:
                     project = session.get(Project, next(iter(impacted_project_ids)))
+            linked_withdrawn_need = None
+            if withdrawn_taylor and not impacted_needs:
+                prior_observations = session.scalars(
+                    select(Observation).where(
+                        Observation.source_id == source.id,
+                        Observation.external_id.like(f"{record['article_id']}:arcId=%"),
+                        Observation.id != observation.id,
+                    )
+                ).all()
+                candidate_needs: dict[Any, PowerNeed] = {}
+                for prior_observation in prior_observations:
+                    prior_interpretation = session.scalar(
+                        select(Interpretation).where(
+                            Interpretation.observation_id == prior_observation.id,
+                            Interpretation.status == "accepted",
+                            Interpretation.content_hash == prior_observation.content_hash,
+                        )
+                    )
+                    if prior_interpretation is None:
+                        continue
+                    assessment = prior_interpretation.assessment or {}
+                    if assessment.get("decision") != "accepted":
+                        continue
+                    candidate_needs.update(
+                        {
+                            need.id: need
+                            for need in session.scalars(
+                                select(PowerNeed)
+                                .join(NeedObservation, NeedObservation.need_id == PowerNeed.id)
+                                .where(NeedObservation.observation_id == prior_observation.id)
+                            ).all()
+                            if need.tier == "Signal" and need.activity_key == "facility-expansion"
+                        }
+                    )
+                if len(candidate_needs) == 1:
+                    linked_withdrawn_need = next(iter(candidate_needs.values()))
+                    if session.scalar(
+                        select(NeedObservation.id).where(
+                            NeedObservation.need_id == linked_withdrawn_need.id,
+                            NeedObservation.observation_id == observation.id,
+                        )
+                    ) is None:
+                        session.add(
+                            NeedObservation(
+                                need_id=linked_withdrawn_need.id,
+                                observation_id=observation.id,
+                            )
+                        )
+                    project = session.get(Project, linked_withdrawn_need.project_id)
             interpretation.status = "rejected"
             interpretation.content_hash = digest
             current_evidence = session.scalar(
@@ -1037,12 +1198,37 @@ def process_job(
                 if project is not None:
                     interpretation.assessment["project_identity_key"] = project.identity_key
             else:
-                interpretation.assessment = {
+                assessment_payload = {
                     "semantic_hash": digest,
                     "evidence_hash": evidence_digest,
-                    "decision": "rejected",
+                    "decision": "unknown"
+                    if withdrawn_taylor or taylor_revision_ambiguous
+                    else "rejected",
+                    "reason": (
+                        "Withdrawn revision retained; linked through accepted same-article "
+                        "Signal; project status and power impact remain UNKNOWN."
+                        if linked_withdrawn_need is not None
+                        else "Withdrawn revision retained; no unique accepted same-article "
+                        "Signal; reason UNKNOWN."
+                        if withdrawn_taylor
+                        else "Taylor article identity spans conflicting project or site facts; "
+                        "reason UNKNOWN."
+                        if taylor_revision_ambiguous
+                        else None
+                    ),
                     "project_identity_key": project.identity_key if project else None,
                 }
+                if taylor_revision_ambiguous and prior_assessment is not None:
+                    prior_history = list(prior_assessment.get("previous_assessments", []))
+                    prior_history.append(
+                        {
+                            key: value
+                            for key, value in prior_assessment.items()
+                            if key != "previous_assessments"
+                        }
+                    )
+                    assessment_payload["previous_assessments"] = prior_history
+                interpretation.assessment = assessment_payload
             needs = list(impacted_needs)
             if project is not None:
                 activity_keys = (
@@ -1069,7 +1255,9 @@ def process_job(
                 needs.extend(project_needs)
             unique_needs = {need.id: need for need in needs}
             impacted_project_ids = set()
-            for stale_need in unique_needs.values():
+            for stale_need in (
+                () if withdrawn_taylor or taylor_revision_ambiguous else unique_needs.values()
+            ):
                 impacted_project_ids.add(stale_need.project_id)
                 if (
                     current_evidence is not None
@@ -1101,7 +1289,9 @@ def process_job(
                             ),
                         )
                     )
-            if current_evidence is not None:
+            if current_evidence is not None and not (
+                withdrawn_taylor or taylor_revision_ambiguous
+            ):
                 for impacted_project_id in impacted_project_ids:
                     impacted_project = session.get(Project, impacted_project_id)
                     if impacted_project is not None:
@@ -1447,6 +1637,8 @@ def process_job(
                 }
             if lifecycle_evidence is not None:
                 apply_lifecycle_observation(session, project, observation, lifecycle_evidence)
+            if activity_key and source_definition.get("id") == "taylor-development-newsflash":
+                enqueue_owner_research_if_eligible(session, need.id)
 
         job = assert_fence(session, job_id, worker_id, fence)
         job.checkpoint = external_id

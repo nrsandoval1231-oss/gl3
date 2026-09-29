@@ -1,0 +1,7 @@
+{
+  "reviewer": "Sol independent reviewer",
+  "verdict": "FIX",
+  "candidate_files": 36,
+  "finding": "Project Mustang later-update citation returned 404 and lacked a retained snapshot. The official project page records August 2/3 public notices before the August 7 archived hearing notice.",
+  "direction": "Retain the official project page and receipt, repair chronology and citation, then freeze a new candidate."
+}

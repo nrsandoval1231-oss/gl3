@@ -1,0 +1,79 @@
+{
+  "status": "VALIDATED_PENDING_INDEPENDENT_REVIEW",
+  "base_sha": "0199022e2f4188195da87e5fd493c40c46969551",
+  "live_runtime": {
+    "receipt": "RUNTIME_AUTO_r3.json",
+    "database": "gridlens_test",
+    "public_page": "https://taylortx.gov/1383/KDC-Project-Comal",
+    "source_date": null,
+    "research_status": "completed (automatically queued by accepted Signal ingestion)",
+    "decision": "supported",
+    "organization": "KDC Real Estate Development and Investments",
+    "role": "Developer",
+    "research_evidence_versions": 1,
+    "project_role_rows": 1,
+    "replay_evidence_versions": 1,
+    "replay_project_role_rows": 1,
+    "need_tier": "Signal",
+    "application_database_written": false
+  },
+  "gates": [
+    {
+      "command": "uv run --directory backend --extra dev pytest tests -q",
+      "exit_code": 0,
+      "result": "247 passed, 1 skipped"
+    },
+    {
+      "command": "uv run --directory backend --extra dev ruff check src tests",
+      "exit_code": 0
+    },
+    {
+      "command": "uv run --directory backend --extra dev ruff check migrations/versions/0007_bounded_research_jobs.py",
+      "exit_code": 0
+    },
+    {
+      "command": "uv run --directory backend --extra dev mypy src",
+      "exit_code": 0,
+      "result": "37 source files"
+    },
+    {
+      "command": "npm --prefix web run typecheck",
+      "exit_code": 0
+    },
+    {
+      "command": "npm --prefix web run build",
+      "exit_code": 0
+    },
+    {
+      "command": "npm --prefix web audit --audit-level=high",
+      "exit_code": 0,
+      "result": "0 vulnerabilities"
+    },
+    {
+      "command": "npm --prefix web run test -- --reporter=line with isolated test DB and trusted origin",
+      "exit_code": 0,
+      "result": "3 passed, authenticated desktop/mobile"
+    },
+    {
+      "command": "alembic upgrade head fresh, repeat, check on isolated gridlens_test",
+      "exit_code": 0,
+      "result": "No new upgrade operations detected"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "diagnostics": [
+    "The broad exploratory Ruff invocation including all legacy migrations failed on 21 pre-existing migration lint findings. Canonical src/tests and the new migration each pass.",
+    "Two browser setup attempts failed before trusted origin was configured; final isolated test database run passed all three tests.",
+    "Builder source receipt files were moved from backend/.agent to the canonical .agent/artifacts/GL3-015C folder with the raw page SHA-256 verified.",
+    "Final browser run: 3 passed on isolated test DB with explicit trusted origin. First two setup failures were environment configuration only.",
+    "Final review-repair2 tests distinguish sourced Known, Recorded (unverified), and Unavailable (UNKNOWN) developer states; browser 3 passed, migrations/drift clean on the repaired candidate."
+  ],
+  "limits": [
+    "This slice answers one allowlisted developer question for one identity-linked Signal; it is not the full deterministic research planner.",
+    "No publication or modified date was exposed on the official project page; source_date remains UNKNOWN.",
+    "No application database research run, cloud deployment, or parent GL3-015 completion is claimed."
+  ]
+}

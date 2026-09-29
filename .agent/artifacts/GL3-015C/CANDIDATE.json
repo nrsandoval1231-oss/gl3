@@ -1,0 +1,553 @@
+{
+  "base_sha": "0199022e2f4188195da87e5fd493c40c46969551",
+  "branch": "feat/gl3-015",
+  "file_count": 109,
+  "candidate_sha256": "a1bc6a268c6533c8d46f502ea1bc0fe0f4c533e8aa614855bee4fbdb04526f3f",
+  "files": [
+    {
+      "path": ".agent/CURRENT_STATE.md",
+      "sha256": "b40f878341fdf9b9bc3aa10ba082525130eee12852928a5dbef9202420f215a5",
+      "bytes": 3781
+    },
+    {
+      "path": ".agent/WORK_GRAPH.md",
+      "sha256": "a1d3cb23695d0b9500ad46c3055094879c6f38c25e55ef59c695286cbfa0b216",
+      "bytes": 14896
+    },
+    {
+      "path": ".agent/artifacts/GL3-015/TRIBUNAL.md",
+      "sha256": "123114a8232e83b7173d9c3af82cd39d632304bc1077bb92350b2c7b23a1fb40",
+      "bytes": 2129
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/ACCEPTANCE.json",
+      "sha256": "288673936eb26192de4d66f9f072c7fbdeb43b0b760d8ea507cdffd7860f1a80",
+      "bytes": 1042
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/CANDIDATE.json",
+      "sha256": "67616b28a5195cb239fc28537b33cf73e7294cb520a26883e160915d7a96d78f",
+      "bytes": 7672
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/COMPLETION.json",
+      "sha256": "a37beb7eb3b20327cc029a3813f2937c06cc86203fd6a94b9b8c3c76ac219605",
+      "bytes": 4431
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/EPISODE.json",
+      "sha256": "b6dd6e4c8a9350e4e707989ccb9bbd87e4c94c5c7df7330d3431e65850d9d930",
+      "bytes": 1725
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/REVIEW-r1.json",
+      "sha256": "a993266052829afd5be26d0e67c3face1cf4c595dfb39a2f38ce8b37af223e49",
+      "bytes": 419
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/REVIEW-r2.json",
+      "sha256": "4caab7d037c32710533884282765acf6367b23dfe48e8ae0ea3ff6aab51ad716",
+      "bytes": 485
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/REVIEW.json",
+      "sha256": "40809af4885f9402dce63ba6472b4648ae60c4c88c511518e356a9469199e97d",
+      "bytes": 565
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/category-snapshot-hashes.json",
+      "sha256": "d720fa9768e92a03384e8c1f1963cac394282dd29387eed453f079260ddb0e99",
+      "bytes": 431
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/htmx-taylortx.gov-cat-31_page-1_sortBy-Category.html",
+      "sha256": "f1945cd6c19e56b3c1c78943ef5ec18116907a4ca1efc40a57d48ab1db7adfc5",
+      "bytes": 3
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/htmx-taylortx.gov-cat-31_page-2_sortBy-Category.html",
+      "sha256": "f1945cd6c19e56b3c1c78943ef5ec18116907a4ca1efc40a57d48ab1db7adfc5",
+      "bytes": 3
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/htmx-westlake-tx.org-cat-6_page-1_sortBy-Category.html",
+      "sha256": "88f37818eedea43215bbd0276c7713e173611c62d37a973888cd7a169cd91500",
+      "bytes": 163534
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/htmx-westlake-tx.org-cat-6_page-2_sortBy-Category.html",
+      "sha256": "f1945cd6c19e56b3c1c78943ef5ec18116907a4ca1efc40a57d48ab1db7adfc5",
+      "bytes": 3
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/mustang-project-page-receipt.json",
+      "sha256": "4e8f11b6dfa840a3aea688e25791fa351d8ee8d87aaa684b3ab60de96d088be5",
+      "bytes": 346
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/page1.html",
+      "sha256": "c24586612efe0a05f32299d81bbffc6f65143501b8db5dee0de53a9baa8432a5",
+      "bytes": 307352
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/page2.html",
+      "sha256": "6a2eecd4af9bf12a960775f84075bfa525f260aacc6909f7860e42ca3a9c2717",
+      "bytes": 305624
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/page3.html",
+      "sha256": "50aca1a6f0e6cea0df0a3668a6ba8943df05d5ba890c1d19a598372640b04daf",
+      "bytes": 267758
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/probe-taylortx.gov-cat-31_page-1_sortBy-Category.html",
+      "sha256": "85d0857bfd0fe6b7b83462b88418934cfd0a91ce72a6650a15109769e47288bd",
+      "bytes": 243042
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/probe-taylortx.gov-cat-31_page-2_sortBy-Category.html",
+      "sha256": "85d0857bfd0fe6b7b83462b88418934cfd0a91ce72a6650a15109769e47288bd",
+      "bytes": 243042
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/probe-westlake-tx.org-cat-6_page-1_sortBy-Category.html",
+      "sha256": "97d0a37dfee79c866905fca052da7855636486d89e7df86b2b349a05e2d76ad9",
+      "bytes": 259207
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/probe-westlake-tx.org-cat-6_page-2_sortBy-Category.html",
+      "sha256": "153b791f503a469fed36fd251a96064209d95f42b8bf6e89019eb52fcc9e7307",
+      "bytes": 95676
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/retrieval-ledger-addendum.json",
+      "sha256": "f1f346a2c74e6775c60b7acc646d41a42efeeadb822aa700062abcc7680ac028",
+      "bytes": 2315
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/retrieval-ledger.json",
+      "sha256": "9b3b60c3588200882c9061c3b919e4e4db49abe52bb9ffd4709c6da1e64b0bd2",
+      "bytes": 4739
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/taylor-project-mustang-1416.html",
+      "sha256": "5e6826596e3d175a6fc9a7f3cb144eea2b014b2e461e6eb037fce519e20b0396",
+      "bytes": 99276
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/taylortx.gov-1293_Blueprint-Projects-Data-Center.html",
+      "sha256": "45d8e1a97d62d1116cbb3640ab4d3991a1a5194804ed7fbb9dfadc53b594c204",
+      "bytes": 116704
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/taylortx.gov-1383_KDC-Project-Comal.html",
+      "sha256": "02006f6b9968270284c5f51e5d03f00a22b94e4dc9eebb8e6a46634f427e081d",
+      "bytes": 95950
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/taylortx.gov-1395_Data-Centers-in-Taylor.html",
+      "sha256": "71e99b79bb80292957bb2d9f20de8f60d2125c73540945ae28f82caca4cbb845",
+      "bytes": 99474
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/taylortx.gov-m_NewsFlash.html",
+      "sha256": "c24586612efe0a05f32299d81bbffc6f65143501b8db5dee0de53a9baa8432a5",
+      "bytes": 307352
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/taylortx.gov-m_NewsFlash_Archive.html",
+      "sha256": "50aca1a6f0e6cea0df0a3668a6ba8943df05d5ba890c1d19a598372640b04daf",
+      "bytes": 267758
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/taylortx.gov-m_NewsFlash_Archive_Item_2079.html",
+      "sha256": "e3ffe3ea296987f95ee05af547ba60a2820658a153653cd6e102b7ad33f5e7e9",
+      "bytes": 271498
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/taylortx.gov-m_NewsFlash_Home_Detail_2093.html",
+      "sha256": "65c89e20099dbf373872c7bc324c1448ce9c7edb90a45fb21df98e85fb27ef44",
+      "bytes": 261379
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/taylortx.gov-m_NewsFlash_Home_Detail_2094.html",
+      "sha256": "9d9e557e84fb57baeb75123f93d25781aa2245f557fad9d4ef3bd74c0e1b6bdd",
+      "bytes": 266414
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/taylortx.gov-m_NewsFlash_Home_Detail_2095.html",
+      "sha256": "a7ec2d57a7d450ba96b92ecbdb619837daf6778cce4d5c15dce020264ffa7c0e",
+      "bytes": 266222
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/westlake-tx.org-m_NewsFlash.html",
+      "sha256": "1a09cbb0a9e5ac250fc68811d85be326e679f7bd7a650b867024523428149b5e",
+      "bytes": 925020
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/westlake-tx.org-m_NewsFlash_Home_Detail_824.html",
+      "sha256": "560781e60e7e57b8ee5088cefeca6532bf7e0599474fd4aa206c0e5073486556",
+      "bytes": 105616
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/westlake-tx.org-m_NewsFlash_Home_Detail_825.html",
+      "sha256": "a4bbb0de40257ccc6be926ab6d4fbed77f259d979f6291c2a1a1d930b3fe6eb1",
+      "bytes": 104863
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/www.roundrocktexas.gov-city-departments_administration_data-centers-in-round-rock.html",
+      "sha256": "7315f8c4bed95552880d8c0ee9f00c46d405a54ac48c5173391cd048f712a357",
+      "bytes": 269702
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/www.roundrocktexas.gov-city-departments_planning-and-development-services_zoning-and-puds_planned-un.html",
+      "sha256": "9048ac38fd9c5800e563fff76b40410d7bfcf68526c9c15bf00a2c79113190c4",
+      "bytes": 356859
+    },
+    {
+      "path": ".agent/artifacts/GL3-015A/www.roundrocktexas.gov-city-departments_planning-and-development-services_zoning-and-puds_planned-unit-developments-puds.html",
+      "sha256": "f3f58fadf66c93aa7d00e8678a36ae72ec51f72a716472cea6680e1f7ef71bd9",
+      "bytes": 356859
+    },
+    {
+      "path": ".agent/artifacts/GL3-015B/ACCEPTANCE.json",
+      "sha256": "9cf9531d4d6e5ac913271367c9fd72c04ece61776c3c9f1d95c81d38822041b7",
+      "bytes": 518
+    },
+    {
+      "path": ".agent/artifacts/GL3-015B/ACCESS.json",
+      "sha256": "aa8b334bfe6639da3227b37d51b36613b93fc53a58d3a799cddc501d9f67194d",
+      "bytes": 8117
+    },
+    {
+      "path": ".agent/artifacts/GL3-015B/CANDIDATE.json",
+      "sha256": "b0cdec10fb04f9e649809f11b7e6c794728260575e3a638a41f330059af54c91",
+      "bytes": 16654
+    },
+    {
+      "path": ".agent/artifacts/GL3-015B/COMPLETION.json",
+      "sha256": "ce7567f8cb53d74dd1129857f5bc936bbd347f52706d54cbbb0d472c24017852",
+      "bytes": 15914
+    },
+    {
+      "path": ".agent/artifacts/GL3-015B/CONTROLLER_VALIDATION.json",
+      "sha256": "1b1c8f0684daa9fcaf63f25d02a6584e1ca01a37751be3367b29dd8b90d0d394",
+      "bytes": 2266
+    },
+    {
+      "path": ".agent/artifacts/GL3-015B/EPISODE.json",
+      "sha256": "c23122e74be614ed4e3397c9e72603d1febf627552d602a4f5e1a0170c7a69c8",
+      "bytes": 1589
+    },
+    {
+      "path": ".agent/artifacts/GL3-015B/REVIEW-r1.json",
+      "sha256": "e44ca6b811a12a081caf3768c3713b3b0a406fa32184eb33f247e645037b5c69",
+      "bytes": 792
+    },
+    {
+      "path": ".agent/artifacts/GL3-015B/REVIEW-r2.json",
+      "sha256": "80bc9460076e2fe935526627647a5f7505a9365ff4d6296a6dedbef1d39d80d8",
+      "bytes": 676
+    },
+    {
+      "path": ".agent/artifacts/GL3-015B/REVIEW.json",
+      "sha256": "86d9baceb5fcbae986c75db4cfcd5ea2697992c6cd3df4b54bbf4c27a93a4393",
+      "bytes": 653
+    },
+    {
+      "path": ".agent/artifacts/GL3-015B/RUNTIME_DB_FAILURE.json",
+      "sha256": "9afa4f77d46064b6cf5b535bec11212ab84fcec79d88b43b98442cfc14c96308",
+      "bytes": 496
+    },
+    {
+      "path": ".agent/artifacts/GL3-015B/RUNTIME_INITIAL.json",
+      "sha256": "2046da2c70348a40caed20bde0e5aea710cbd031213cb4fc60e90609b63f1961",
+      "bytes": 1423
+    },
+    {
+      "path": ".agent/artifacts/GL3-015B/RUNTIME_LIVE.json",
+      "sha256": "8fa7a5870fa09e4dba204d22d9c411166f05886893b5b5feea4f040db58d271c",
+      "bytes": 1483
+    },
+    {
+      "path": ".agent/artifacts/GL3-015B/RUNTIME_LIVE_r2.json",
+      "sha256": "ff6d32db69e78f13c26d33b62578279ca2618e7703b2729d71c475831fcec3bd",
+      "bytes": 1354
+    },
+    {
+      "path": ".agent/artifacts/GL3-015B/RUNTIME_LIVE_r3.json",
+      "sha256": "11d96d0e913fadcf7e5fca266b9914867d63f0c72076dd4698f0a51928f2ba06",
+      "bytes": 501
+    },
+    {
+      "path": ".agent/artifacts/GL3-015B/RUNTIME_REPAIR1.json",
+      "sha256": "ebb26c91607e59099e6698eaa346cd88cf727c67eef1f1ba4a10074523cf1079",
+      "bytes": 890
+    },
+    {
+      "path": ".agent/artifacts/GL3-015B/RUNTIME_REPAIR2.json",
+      "sha256": "7d76d8d7f642d9a07137642eaab34a3475f486fe6f9cf907a3970b8067be7369",
+      "bytes": 808
+    },
+    {
+      "path": ".agent/artifacts/GL3-015B/archive-category-31.html",
+      "sha256": "50526d3f226f9fc2670d26d126bdc6a522506ed200df2b3609a81227f84beea7",
+      "bytes": 245574
+    },
+    {
+      "path": ".agent/artifacts/GL3-015B/archive-item-2079-arcId-3434.html",
+      "sha256": "1759d088f675ecc818d7a65776ed213c631e7aad05e52721dcd480c72350e214",
+      "bytes": 270166
+    },
+    {
+      "path": ".agent/artifacts/GL3-015B/archive-items-recent-skip-0.html",
+      "sha256": "a6202017f1d90b83c2c5770f37d5aa104a717a3723a1c27899e3c6fdba1a526c",
+      "bytes": 269091
+    },
+    {
+      "path": ".agent/artifacts/GL3-015B/archive-items-recent-skip-10.html",
+      "sha256": "bd9c0bb1b5d4f97f2a40aed0fe98979ca8ff1b893da83730d53ac7951ff1151c",
+      "bytes": 258374
+    },
+    {
+      "path": ".agent/artifacts/GL3-015B/archive-root.html",
+      "sha256": "12c5121618787ec51288eb11196be34dd298e248b98f67a6a0d65199acd8c2d8",
+      "bytes": 267755
+    },
+    {
+      "path": ".agent/artifacts/GL3-015B/category-30.html",
+      "sha256": "5c4392115b356ba000df62750b3909e096554a28464d309c0ee172c69bdd18ae",
+      "bytes": 305621
+    },
+    {
+      "path": ".agent/artifacts/GL3-015B/category-31.html",
+      "sha256": "826f17e0e219b98579f6b62b4c6f939a66df5ac56e308d12a7e6d4b114d9f04f",
+      "bytes": 307349
+    },
+    {
+      "path": ".agent/artifacts/GL3-015C/COMPLETION.json",
+      "sha256": "473d27d674f3af9a55b272daae2fca4120edc2b18a7d0f195b586f7e4e8b222f",
+      "bytes": 8584
+    },
+    {
+      "path": ".agent/artifacts/GL3-015C/CONTROLLER_VALIDATION.json",
+      "sha256": "b1998cc22769f7e2d1a4c84442806280e142672eafab4a550c3e3b5766d226b4",
+      "bytes": 3321
+    },
+    {
+      "path": ".agent/artifacts/GL3-015C/REVIEW-r1.json",
+      "sha256": "bd886bf810694b5001e2a83fc518820e480f3f50fc459a492759914e353eb049",
+      "bytes": 601
+    },
+    {
+      "path": ".agent/artifacts/GL3-015C/REVIEW-r2.json",
+      "sha256": "5eb6c66965a548600b3f7cd531f25548316ad5424132501a0652e0b2a9a7a244",
+      "bytes": 648
+    },
+    {
+      "path": ".agent/artifacts/GL3-015C/RUNTIME_AUTO_r2.json",
+      "sha256": "480eef70122eca2956a6a12f80f1914d3c036b87c66a5959fd6545ecf6cb0dfe",
+      "bytes": 727
+    },
+    {
+      "path": ".agent/artifacts/GL3-015C/RUNTIME_AUTO_r3.json",
+      "sha256": "1f9f063e9fa04954c3a92e981d4eaba8bb08297d73d2df70b489237c9e78034c",
+      "bytes": 763
+    },
+    {
+      "path": ".agent/artifacts/GL3-015C/RUNTIME_LIVE_INITIAL.json",
+      "sha256": "d4e17f6ca79e5e4faf83e9e95bbda7abe3c2ca7e18539b00d26975083ee6e18b",
+      "bytes": 822
+    },
+    {
+      "path": ".agent/artifacts/GL3-015C/SOURCE_ACCESS.json",
+      "sha256": "530de1852911de864d3a962228cdd7f19635e29b90459d8d51516cc941879b9e",
+      "bytes": 840
+    },
+    {
+      "path": ".agent/artifacts/GL3-015C/taylor-project-comal-research.html",
+      "sha256": "4751d79240db89f90e4ad3f37acaa3c6c12026ce1ae4f0a1818a33f45fa3886c",
+      "bytes": 95947
+    },
+    {
+      "path": ".agent/packets/GL3-015A-repair1.md",
+      "sha256": "f9795caeba4636940a3fd2ff5a4eb01918180e9717334f25dd5165f199029067",
+      "bytes": 1144
+    },
+    {
+      "path": ".agent/packets/GL3-015A-repair2.md",
+      "sha256": "71a0fa742853fb465e1c88311484e17eee8a33a960894ed001495a84de4c9f78",
+      "bytes": 799
+    },
+    {
+      "path": ".agent/packets/GL3-015A.md",
+      "sha256": "a90b2ac62f25a6efbf509bc6eb09eafa26887921e06c2e805049f179c2d8eb13",
+      "bytes": 2324
+    },
+    {
+      "path": ".agent/packets/GL3-015B-archive-scope.md",
+      "sha256": "0ca037a0de78850264e6dfac64959aaa412f2b119344544dbf6a2803a3cf6bb7",
+      "bytes": 2427
+    },
+    {
+      "path": ".agent/packets/GL3-015B-repair1.md",
+      "sha256": "15921d26b1314d38f98d5380823407b28be17d74bd6bba91345c89372f1e0003",
+      "bytes": 1928
+    },
+    {
+      "path": ".agent/packets/GL3-015B-repair2.md",
+      "sha256": "c5dc821e2e43e9efc0ff0596dcdc766b542cd1057a2d95b05f9f38335f9866c1",
+      "bytes": 2192
+    },
+    {
+      "path": ".agent/packets/GL3-015B-review-repair1.md",
+      "sha256": "7ed88bdc16c478f8354e56f2bdd91911446b7bec8c65b5e8361b96700a926eca",
+      "bytes": 2057
+    },
+    {
+      "path": ".agent/packets/GL3-015B-review-repair2.md",
+      "sha256": "3f4ed3f588cf2df77467db0f1b4b11fde4d7a2d450fd449f2915145de06688f7",
+      "bytes": 2073
+    },
+    {
+      "path": ".agent/packets/GL3-015B-runtime-repair1.md",
+      "sha256": "f6bb37ff46d592acd5d4875fb8afd73757d61d45aea96b9e5f74987276eb4207",
+      "bytes": 1539
+    },
+    {
+      "path": ".agent/packets/GL3-015B.md",
+      "sha256": "3b4586e82015ac62408f411ab21ce84ac3e81adb8ae9a023d294a24975b0a0dd",
+      "bytes": 3812
+    },
+    {
+      "path": ".agent/packets/GL3-015C-review-repair1.md",
+      "sha256": "7c9e7eb1a0a9f8f240e80c5a9a37d8fc0dfa714adbbaf0c45397d39056386d9f",
+      "bytes": 2599
+    },
+    {
+      "path": ".agent/packets/GL3-015C-review-repair2.md",
+      "sha256": "6ce28f51c7a592c111d862068bd73bafded829dbc78646709d1c7036009160d4",
+      "bytes": 1957
+    },
+    {
+      "path": ".agent/packets/GL3-015C.md",
+      "sha256": "b2a2db4de5d9e3834a4071a505fd6c4ccd2b6039194d3083bae0cba9b5383754",
+      "bytes": 4471
+    },
+    {
+      "path": "backend/migrations/versions/0007_bounded_research_jobs.py",
+      "sha256": "413d538633e82aa4e662fbf6554c1cb34bd9b27fbece5aa0e59d8e92255601e2",
+      "bytes": 5608
+    },
+    {
+      "path": "backend/src/gridlens/api/app.py",
+      "sha256": "34223b931242501f7f68cf216c465a6968f08a71188b96a0427631e3adc3d43f",
+      "bytes": 34780
+    },
+    {
+      "path": "backend/src/gridlens/domain/taylor_planning.py",
+      "sha256": "b62f7f61ea7ace43e240af51d8c5d09644ffde96a01a3a68df163152d0b70609",
+      "bytes": 2794
+    },
+    {
+      "path": "backend/src/gridlens/ingestion/adapters/__init__.py",
+      "sha256": "ea1c68536a39f59c792a72809b91c8a0b2485083256fdff83d9dff56fa5d1bd5",
+      "bytes": 1474
+    },
+    {
+      "path": "backend/src/gridlens/ingestion/adapters/taylor_newsflash.py",
+      "sha256": "dc8a801525aefce1dde9b88c915446427552ca0007ba0619f45661b5f389e383",
+      "bytes": 14644
+    },
+    {
+      "path": "backend/src/gridlens/ingestion/registry.py",
+      "sha256": "3e8657e2953f65a9365b9ed08e013d82674ce73e4a7f460733684951b6fde6bc",
+      "bytes": 5840
+    },
+    {
+      "path": "backend/src/gridlens/ingestion/service.py",
+      "sha256": "631ada0b8a5a4225b6c9fff20598b798e13b5dcd14fb1ae120af113283ad0e64",
+      "bytes": 81557
+    },
+    {
+      "path": "backend/src/gridlens/intelligence/research.py",
+      "sha256": "eee9593e60624ce94951464cafb12388f3684c470df22a6e668c8112689ecf11",
+      "bytes": 9329
+    },
+    {
+      "path": "backend/src/gridlens/jobs/queue.py",
+      "sha256": "29d7f666a3b990894de8c832c639cb152196a311ab98e7d30831794d0268748e",
+      "bytes": 9223
+    },
+    {
+      "path": "backend/src/gridlens/jobs/worker.py",
+      "sha256": "9c559a59593473b88c6c6b42377c46b80db5dc9546c1c42ee9e2bbb119e541e4",
+      "bytes": 9097
+    },
+    {
+      "path": "backend/src/gridlens/persistence/models.py",
+      "sha256": "9fd8c9d217a0f2c6b7625601ea0482ef774aa57d5474b74c8058e9635ab82a84",
+      "bytes": 14955
+    },
+    {
+      "path": "backend/tests/fixtures/taylor-newsflash-1839-3427.html",
+      "sha256": "95e6205869064c89d503b17345035e96ae666086a0ca3e254e81380438ef2382",
+      "bytes": 257708
+    },
+    {
+      "path": "backend/tests/fixtures/taylor-newsflash-2032.html",
+      "sha256": "4b8a8e5b0d9d5095f98868fc639b7e10b374f0a9d5d537dc0d11b7ee1caa26e1",
+      "bytes": 251492
+    },
+    {
+      "path": "backend/tests/integration/test_research.py",
+      "sha256": "7c6fafe5e61c5d6f5646303cfba1c592db2739a56924f5d495a8ef03c8c329bf",
+      "bytes": 19451
+    },
+    {
+      "path": "backend/tests/integration/test_taylor_ingestion.py",
+      "sha256": "025e4fcd12d305c04524d755d3d8c6e406db85c3bc427be3346d18e20299c968",
+      "bytes": 17384
+    },
+    {
+      "path": "backend/tests/unit/test_taylor_newsflash.py",
+      "sha256": "b99a0cb3ac90d7d263b4a424a0b796b63745e2062b90dbc8ed8fdacebf5374aa",
+      "bytes": 8637
+    },
+    {
+      "path": "backend/tests/unit/test_taylor_planning.py",
+      "sha256": "86986a4640ae87049882312e80aedf56ee96a13254485e511ae61140cb2ada52",
+      "bytes": 2621
+    },
+    {
+      "path": "config/sources/registry.v1.json",
+      "sha256": "ffa8ca4d2c3f5729075d2a04ab746f31178ec0df71ccc2f5184d5a14061e9112",
+      "bytes": 12388
+    },
+    {
+      "path": "docs/intelligence/research.md",
+      "sha256": "feff1893a47b17cc2321f564ab3ae391b2b4a7f5a0887c84a191337ddac22b1e",
+      "bytes": 3473
+    },
+    {
+      "path": "docs/sources/coverage.md",
+      "sha256": "1daa23cec7d111ef185b5a4be73f9aa486ab534ff08da7d12f12eca9fe886a11",
+      "bytes": 12838
+    },
+    {
+      "path": "docs/sources/taylor-access-contract.md",
+      "sha256": "0bd67efee40d5f0ad5dae5125d4d45d02cd4585745b35c1ef355624cc1913449",
+      "bytes": 4814
+    },
+    {
+      "path": "docs/sources/taylor-newsflash.md",
+      "sha256": "9d268a68ed702c40b9387b511ffc4ebba7b9ffc72eae2e5ce6cdbee9388d0abc",
+      "bytes": 4853
+    },
+    {
+      "path": "docs/validation/gl3-015-source-candidates.md",
+      "sha256": "2cc54810ac6c97cb2e03d0488be7eb76f5ddd30716b39625ff4a4a00a178e216",
+      "bytes": 14278
+    }
+  ]
+}

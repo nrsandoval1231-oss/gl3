@@ -4,6 +4,7 @@ from uuid import UUID, uuid4
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     Date,
     DateTime,
     ForeignKey,
@@ -37,8 +38,16 @@ class Source(Base):
 
 class Job(Base):
     __tablename__ = "jobs"
+    __table_args__ = (
+        CheckConstraint(
+            "(kind = 'ingestion' AND source_id IS NOT NULL) "
+            "OR (kind = 'research' AND source_id IS NULL)",
+            name="ck_jobs_kind_source",
+        ),
+    )
     id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
-    source_id: Mapped[str] = mapped_column(ForeignKey("sources.id"))
+    kind: Mapped[str] = mapped_column(String(20), default="ingestion", server_default="ingestion")
+    source_id: Mapped[str | None] = mapped_column(ForeignKey("sources.id"), nullable=True)
     status: Mapped[str] = mapped_column(String(20), default="queued")
     attempts: Mapped[int] = mapped_column(Integer, default=0)
     checkpoint: Mapped[str | None] = mapped_column(Text)
@@ -50,6 +59,91 @@ class Job(Base):
     )
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     error: Mapped[str | None] = mapped_column(Text)
+
+
+class ResearchJob(Base):
+    __tablename__ = "research_jobs"
+    __table_args__ = (
+        UniqueConstraint("need_id", "target_fact", name="uq_research_need_fact"),
+        CheckConstraint(
+            "max_sources = 1 AND max_requests = 1 AND max_seconds BETWEEN 1 AND 20 "
+            "AND max_spend_cents = 0",
+            name="ck_research_job_limits",
+        ),
+        CheckConstraint(
+            "status IN ('queued', 'running', 'completed', 'unresolved')",
+            name="ck_research_job_status",
+        ),
+    )
+    job_id: Mapped[UUID] = mapped_column(
+        ForeignKey("jobs.id", ondelete="CASCADE"), primary_key=True
+    )
+    need_id: Mapped[UUID] = mapped_column(ForeignKey("power_needs.id"))
+    target_fact: Mapped[str] = mapped_column(String(60))
+    question: Mapped[str] = mapped_column(Text)
+    source_url: Mapped[str] = mapped_column(Text)
+    max_sources: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
+    max_requests: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
+    max_seconds: Mapped[int] = mapped_column(Integer, default=20, server_default="20")
+    max_spend_cents: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    status: Mapped[str] = mapped_column(String(20), default="queued", server_default="queued")
+    result: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict, server_default="{}")
+    history: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, default=list, server_default="[]")
+    unresolved_reason: Mapped[str | None] = mapped_column(Text)
+    next_action: Mapped[str] = mapped_column(Text)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class ResearchEvidence(Base):
+    __tablename__ = "research_evidence"
+    __table_args__ = (
+        UniqueConstraint("job_id", "content_hash", name="uq_research_evidence_version"),
+    )
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    job_id: Mapped[UUID] = mapped_column(ForeignKey("research_jobs.job_id"))
+    source_url: Mapped[str] = mapped_column(Text)
+    publisher: Mapped[str] = mapped_column(String(200))
+    source_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    retrieved_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    excerpt: Mapped[str] = mapped_column(Text)
+    extraction_location: Mapped[str] = mapped_column(String(200))
+    content_hash: Mapped[str] = mapped_column(String(64))
+    label: Mapped[str] = mapped_column(String(20))
+    basis: Mapped[str] = mapped_column(Text)
+    confidence: Mapped[str] = mapped_column(String(20))
+    relationship: Mapped[str | None] = mapped_column(String(40), nullable=True)
+
+
+class Organization(Base):
+    __tablename__ = "organizations"
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    name: Mapped[str] = mapped_column(String(300), unique=True)
+
+
+class ProjectRole(Base):
+    __tablename__ = "project_roles"
+    __table_args__ = (
+        UniqueConstraint(
+            "project_id",
+            "need_id",
+            "organization_id",
+            "role",
+            "evidence_id",
+            name="uq_project_role_evidence",
+        ),
+    )
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id"))
+    need_id: Mapped[UUID] = mapped_column(ForeignKey("power_needs.id"))
+    organization_id: Mapped[UUID] = mapped_column(ForeignKey("organizations.id"))
+    role: Mapped[str] = mapped_column(String(40))
+    evidence_id: Mapped[UUID] = mapped_column(ForeignKey("research_evidence.id"))
+    basis: Mapped[str] = mapped_column(Text)
+    confidence: Mapped[str] = mapped_column(String(20))
+    effective_date: Mapped[date | None] = mapped_column(Date, nullable=True)
 
 
 class Observation(Base):
