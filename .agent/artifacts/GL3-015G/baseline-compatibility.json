@@ -1,0 +1,422 @@
+{
+  "packet": "GL3-015G",
+  "purpose": "Verifier baseline against previously accepted GL3-015F bytes only; not current-file evidence.",
+  "is_current_G_file": false,
+  "source_path": ".artifacts/GL3-015D/raw/rrc-daily-permit-current-month.bin",
+  "source_bytes": 2391338,
+  "source_sha256": "c0215842369f14d6e725b011649ffa0076f373344e3ce5bb0d2ed411fce79cd6",
+  "compatibility": {
+    "decision": "GO",
+    "sha256": "c0215842369f14d6e725b011649ffa0076f373344e3ce5bb0d2ed411fce79cd6",
+    "bytes": 2391338,
+    "physical_lines": 29494,
+    "classified_segments": 29459,
+    "segment_counts": {
+      "DAROOT": 884,
+      "DAPERMIT": 884,
+      "DAFIELD": 1008,
+      "DACANRES": 1352,
+      "DAFRERES": 13427,
+      "DAW999A1": 108,
+      "DAW999B1": 107,
+      "DAFLDSPC": 422,
+      "DAFLDBHL": 803,
+      "DAFREFLD": 9913,
+      "DACANFLD": 468,
+      "DAALTADD": 83
+    },
+    "opaque_unknown_count": 35,
+    "opaque_unknown_lines": [
+      {
+        "line": 14753,
+        "bytes": 1
+      },
+      {
+        "line": 14754,
+        "bytes": 50
+      },
+      {
+        "line": 14763,
+        "bytes": 64
+      },
+      {
+        "line": 14806,
+        "bytes": 1
+      },
+      {
+        "line": 14807,
+        "bytes": 50
+      },
+      {
+        "line": 14816,
+        "bytes": 1
+      },
+      {
+        "line": 14817,
+        "bytes": 62
+      },
+      {
+        "line": 14860,
+        "bytes": 1
+      },
+      {
+        "line": 14861,
+        "bytes": 50
+      },
+      {
+        "line": 14870,
+        "bytes": 1
+      },
+      {
+        "line": 14871,
+        "bytes": 1
+      },
+      {
+        "line": 14872,
+        "bytes": 60
+      },
+      {
+        "line": 14915,
+        "bytes": 1
+      },
+      {
+        "line": 14916,
+        "bytes": 50
+      },
+      {
+        "line": 14967,
+        "bytes": 1
+      },
+      {
+        "line": 14968,
+        "bytes": 50
+      },
+      {
+        "line": 14977,
+        "bytes": 64
+      },
+      {
+        "line": 17806,
+        "bytes": 1
+      },
+      {
+        "line": 17807,
+        "bytes": 23
+      },
+      {
+        "line": 17843,
+        "bytes": 12
+      },
+      {
+        "line": 17850,
+        "bytes": 1
+      },
+      {
+        "line": 17851,
+        "bytes": 30
+      },
+      {
+        "line": 20095,
+        "bytes": 1
+      },
+      {
+        "line": 20096,
+        "bytes": 24
+      },
+      {
+        "line": 20147,
+        "bytes": 1
+      },
+      {
+        "line": 20148,
+        "bytes": 24
+      },
+      {
+        "line": 20199,
+        "bytes": 1
+      },
+      {
+        "line": 20200,
+        "bytes": 24
+      },
+      {
+        "line": 20207,
+        "bytes": 53
+      },
+      {
+        "line": 21770,
+        "bytes": 1
+      },
+      {
+        "line": 21771,
+        "bytes": 24
+      },
+      {
+        "line": 23328,
+        "bytes": 1
+      },
+      {
+        "line": 23329,
+        "bytes": 24
+      },
+      {
+        "line": 23375,
+        "bytes": 1
+      },
+      {
+        "line": 23376,
+        "bytes": 24
+      }
+    ],
+    "permit_revision_count": 884,
+    "unique_permit_number_sequence_keys": 884,
+    "sample": [
+      {
+        "identity": "0918584/99",
+        "root_line": 1,
+        "permit_line": 2,
+        "reported_county_code": "001",
+        "approved_county_code": "001",
+        "received": "2026-09-10",
+        "issued": "2026-09-14",
+        "optional_dates": {
+          "amended": {
+            "raw": "00000000",
+            "date": null
+          },
+          "extended": {
+            "raw": "00000000",
+            "date": null
+          },
+          "spud": {
+            "raw": "00000000",
+            "date": null
+          }
+        },
+        "api8": "00132879"
+      },
+      {
+        "identity": "0917422/98",
+        "root_line": 11,
+        "permit_line": 12,
+        "reported_county_code": "003",
+        "approved_county_code": "003",
+        "received": "2026-09-10",
+        "issued": "2026-07-29",
+        "optional_dates": {
+          "amended": {
+            "raw": "20260916",
+            "date": "2026-09-16"
+          },
+          "extended": {
+            "raw": "00000000",
+            "date": null
+          },
+          "spud": {
+            "raw": "20260917",
+            "date": "2026-09-17"
+          }
+        },
+        "api8": "00349418"
+      },
+      {
+        "identity": "0907829/98",
+        "root_line": 47,
+        "permit_line": 48,
+        "reported_county_code": "003",
+        "approved_county_code": "003",
+        "received": "2026-08-31",
+        "issued": "2025-05-08",
+        "optional_dates": {
+          "amended": {
+            "raw": "20260903",
+            "date": "2026-09-03"
+          },
+          "extended": {
+            "raw": "00000000",
+            "date": null
+          },
+          "spud": {
+            "raw": "20250911",
+            "date": "2025-09-11"
+          }
+        },
+        "api8": "00349159"
+      },
+      {
+        "identity": "0877584/98",
+        "root_line": 54,
+        "permit_line": 55,
+        "reported_county_code": "003",
+        "approved_county_code": "003",
+        "received": "2026-08-10",
+        "issued": "2022-03-07",
+        "optional_dates": {
+          "amended": {
+            "raw": "20260911",
+            "date": "2026-09-11"
+          },
+          "extended": {
+            "raw": "00000000",
+            "date": null
+          },
+          "spud": {
+            "raw": "20220721",
+            "date": "2022-07-21"
+          }
+        },
+        "api8": "00348541"
+      },
+      {
+        "identity": "0877889/98",
+        "root_line": 86,
+        "permit_line": 87,
+        "reported_county_code": "003",
+        "approved_county_code": "003",
+        "received": "2026-08-17",
+        "issued": "2022-03-15",
+        "optional_dates": {
+          "amended": {
+            "raw": "20260911",
+            "date": "2026-09-11"
+          },
+          "extended": {
+            "raw": "00000000",
+            "date": null
+          },
+          "spud": {
+            "raw": "20220802",
+            "date": "2022-08-02"
+          }
+        },
+        "api8": "00348543"
+      },
+      {
+        "identity": "0877609/98",
+        "root_line": 118,
+        "permit_line": 119,
+        "reported_county_code": "003",
+        "approved_county_code": "003",
+        "received": "2026-08-12",
+        "issued": "2022-03-07",
+        "optional_dates": {
+          "amended": {
+            "raw": "20260921",
+            "date": "2026-09-21"
+          },
+          "extended": {
+            "raw": "00000000",
+            "date": null
+          },
+          "spud": {
+            "raw": "20220720",
+            "date": "2022-07-20"
+          }
+        },
+        "api8": "00348538"
+      },
+      {
+        "identity": "0918767/99",
+        "root_line": 150,
+        "permit_line": 151,
+        "reported_county_code": "003",
+        "approved_county_code": "003",
+        "received": "2026-09-17",
+        "issued": "2026-09-18",
+        "optional_dates": {
+          "amended": {
+            "raw": "00000000",
+            "date": null
+          },
+          "extended": {
+            "raw": "00000000",
+            "date": null
+          },
+          "spud": {
+            "raw": "20260923",
+            "date": "2026-09-23"
+          }
+        },
+        "api8": "00349452"
+      },
+      {
+        "identity": "0918765/99",
+        "root_line": 184,
+        "permit_line": 185,
+        "reported_county_code": "003",
+        "approved_county_code": "003",
+        "received": "2026-09-17",
+        "issued": "2026-09-18",
+        "optional_dates": {
+          "amended": {
+            "raw": "00000000",
+            "date": null
+          },
+          "extended": {
+            "raw": "00000000",
+            "date": null
+          },
+          "spud": {
+            "raw": "20260921",
+            "date": "2026-09-21"
+          }
+        },
+        "api8": "00349454"
+      },
+      {
+        "identity": "0918769/99",
+        "root_line": 220,
+        "permit_line": 221,
+        "reported_county_code": "003",
+        "approved_county_code": "003",
+        "received": "2026-09-17",
+        "issued": "2026-09-18",
+        "optional_dates": {
+          "amended": {
+            "raw": "00000000",
+            "date": null
+          },
+          "extended": {
+            "raw": "00000000",
+            "date": null
+          },
+          "spud": {
+            "raw": "00000000",
+            "date": null
+          }
+        },
+        "api8": "00349453"
+      },
+      {
+        "identity": "0918768/99",
+        "root_line": 254,
+        "permit_line": 255,
+        "reported_county_code": "003",
+        "approved_county_code": "003",
+        "received": "2026-09-17",
+        "issued": "2026-09-18",
+        "optional_dates": {
+          "amended": {
+            "raw": "00000000",
+            "date": null
+          },
+          "extended": {
+            "raw": "00000000",
+            "date": null
+          },
+          "spud": {
+            "raw": "20260925",
+            "date": "2026-09-25"
+          }
+        },
+        "api8": "00349455"
+      }
+    ],
+    "limitations": [
+      "Compatibility is established only for this exact file hash.",
+      "35/other opaque 0x85 lines are counted, not decoded; their meaning remains UNKNOWN.",
+      "Other recognized segment families are counted only.",
+      "No pending, completion, production, pad, operator, power-demand, or commercial inference is made."
+    ]
+  }
+}
