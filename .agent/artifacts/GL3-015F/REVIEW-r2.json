@@ -1,0 +1,16 @@
+{
+  "packet": "GL3-015F",
+  "verdict": "PASS",
+  "reviewer": "Sol independent",
+  "candidate_sha256": "0d1da97fe9034962e42d45a5f312a08b56736b537504dc0feacacfcbb022c7a1",
+  "reviewed_at_utc": "2026-09-29T11:34:23.7074026Z",
+  "checks": [
+    "7/7 candidate hashes and bytes match",
+    "6/6 Completion candidate hash claims match",
+    "default proof twice byte-identical and nonmutating",
+    "export into tracked directory rejected",
+    "884 revisions; 10 D samples; 35 opaque UNKNOWN lines"
+  ],
+  "direction": "CONTINUE separately reviewed source integration/access; future file requires field-profile validation",
+  "parent_gl3_015_complete": false
+}

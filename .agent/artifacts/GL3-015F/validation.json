@@ -1,0 +1,593 @@
+{
+  "packet": "GL3-015F",
+  "decision": "GO",
+  "decision_scope": "Offline parser proof for this exact retained RRC file/profile only; source remains nonactivated.",
+  "validated_at_utc": "2026-09-29T11:29:07.241811+00:00",
+  "source": {
+    "path": ".artifacts/GL3-015D/raw/rrc-daily-permit-current-month.bin",
+    "bytes": 2391338,
+    "sha256": "c0215842369f14d6e725b011649ffa0076f373344e3ce5bb0d2ed411fce79cd6",
+    "manual_path": ".artifacts/GL3-015D/raw/drilling-permit-daily-manual.pdf",
+    "manual_bytes": 162000,
+    "manual_sha256": "760a25367df8fb3bd7b240a41d9471953e2ee1eab1878d5367c673548adec874"
+  },
+  "candidate_files": {
+    "backend/src/gridlens/ingestion/adapters/rrc_daily_permits.py": "3ad2c294089ece382517cbf1a781ac670d88e09cd2ef0580e48a6a83c0ad4977",
+    "backend/tests/unit/test_rrc_daily_permits.py": "1e972247a9388b9ef39449e97d3d96ed687e27c1235a06f33b669d000723a04d",
+    "docs/validation/gl3-015-rrc-adapter-proof.md": "be7a09a55f37414d7428d95cf1375a8f3091e6a2fe9594ce2c38af4200c59f7d",
+    ".agent/artifacts/GL3-015F/validate_rrc_daily_permits.py": "6bed93887c2eb1339e99d3e95370afe588a5c5a2becc1faf139faa2e74bcbeb6"
+  },
+  "profile_id": "rrc-drilling-permit-master-daily-v1-observed",
+  "physical_lines": 29494,
+  "classified_segments": 29459,
+  "segment_counts": {
+    "DAROOT": 884,
+    "DAPERMIT": 884,
+    "DAFIELD": 1008,
+    "DACANRES": 1352,
+    "DAFRERES": 13427,
+    "DAW999A1": 108,
+    "DAW999B1": 107,
+    "DAFLDSPC": 422,
+    "DAFLDBHL": 803,
+    "DAFREFLD": 9913,
+    "DACANFLD": 468,
+    "DAALTADD": 83
+  },
+  "permit_revision_count": 884,
+  "unique_permit_revision_keys": 884,
+  "opaque_unknown_count": 35,
+  "opaque_unknown_lines": [
+    {
+      "line": 14753,
+      "byte_length": 1,
+      "raw_line_sha256": "c00e7f889cfc9216ec818bf2e1682fc6af0d89939c91776669478caf27c9727c",
+      "meaning": "UNKNOWN; opaque bytes retained by source file only"
+    },
+    {
+      "line": 14754,
+      "byte_length": 50,
+      "raw_line_sha256": "6f5e1337309ea63abe6bc0945ee9297b88903a0cbb2a0bfb73d5c6b60f6d477d",
+      "meaning": "UNKNOWN; opaque bytes retained by source file only"
+    },
+    {
+      "line": 14763,
+      "byte_length": 64,
+      "raw_line_sha256": "802700233d9139b4002769cdd71fb82f2cb5c70de08e7b1fbd7ef91d260f708b",
+      "meaning": "UNKNOWN; opaque bytes retained by source file only"
+    },
+    {
+      "line": 14806,
+      "byte_length": 1,
+      "raw_line_sha256": "c00e7f889cfc9216ec818bf2e1682fc6af0d89939c91776669478caf27c9727c",
+      "meaning": "UNKNOWN; opaque bytes retained by source file only"
+    },
+    {
+      "line": 14807,
+      "byte_length": 50,
+      "raw_line_sha256": "6f5e1337309ea63abe6bc0945ee9297b88903a0cbb2a0bfb73d5c6b60f6d477d",
+      "meaning": "UNKNOWN; opaque bytes retained by source file only"
+    },
+    {
+      "line": 14816,
+      "byte_length": 1,
+      "raw_line_sha256": "c00e7f889cfc9216ec818bf2e1682fc6af0d89939c91776669478caf27c9727c",
+      "meaning": "UNKNOWN; opaque bytes retained by source file only"
+    },
+    {
+      "line": 14817,
+      "byte_length": 62,
+      "raw_line_sha256": "85027d92ec9d1257b2bcc8ed58c7534f2d98b55f7e5b3ee8b73186536b7858c0",
+      "meaning": "UNKNOWN; opaque bytes retained by source file only"
+    },
+    {
+      "line": 14860,
+      "byte_length": 1,
+      "raw_line_sha256": "c00e7f889cfc9216ec818bf2e1682fc6af0d89939c91776669478caf27c9727c",
+      "meaning": "UNKNOWN; opaque bytes retained by source file only"
+    },
+    {
+      "line": 14861,
+      "byte_length": 50,
+      "raw_line_sha256": "6f5e1337309ea63abe6bc0945ee9297b88903a0cbb2a0bfb73d5c6b60f6d477d",
+      "meaning": "UNKNOWN; opaque bytes retained by source file only"
+    },
+    {
+      "line": 14870,
+      "byte_length": 1,
+      "raw_line_sha256": "c00e7f889cfc9216ec818bf2e1682fc6af0d89939c91776669478caf27c9727c",
+      "meaning": "UNKNOWN; opaque bytes retained by source file only"
+    },
+    {
+      "line": 14871,
+      "byte_length": 1,
+      "raw_line_sha256": "c00e7f889cfc9216ec818bf2e1682fc6af0d89939c91776669478caf27c9727c",
+      "meaning": "UNKNOWN; opaque bytes retained by source file only"
+    },
+    {
+      "line": 14872,
+      "byte_length": 60,
+      "raw_line_sha256": "09dccae02e590aaf95e8c1ef9d9783d50cf672b3e3eabdd1e946a57b2a277e6c",
+      "meaning": "UNKNOWN; opaque bytes retained by source file only"
+    },
+    {
+      "line": 14915,
+      "byte_length": 1,
+      "raw_line_sha256": "c00e7f889cfc9216ec818bf2e1682fc6af0d89939c91776669478caf27c9727c",
+      "meaning": "UNKNOWN; opaque bytes retained by source file only"
+    },
+    {
+      "line": 14916,
+      "byte_length": 50,
+      "raw_line_sha256": "6f5e1337309ea63abe6bc0945ee9297b88903a0cbb2a0bfb73d5c6b60f6d477d",
+      "meaning": "UNKNOWN; opaque bytes retained by source file only"
+    },
+    {
+      "line": 14967,
+      "byte_length": 1,
+      "raw_line_sha256": "c00e7f889cfc9216ec818bf2e1682fc6af0d89939c91776669478caf27c9727c",
+      "meaning": "UNKNOWN; opaque bytes retained by source file only"
+    },
+    {
+      "line": 14968,
+      "byte_length": 50,
+      "raw_line_sha256": "6f5e1337309ea63abe6bc0945ee9297b88903a0cbb2a0bfb73d5c6b60f6d477d",
+      "meaning": "UNKNOWN; opaque bytes retained by source file only"
+    },
+    {
+      "line": 14977,
+      "byte_length": 64,
+      "raw_line_sha256": "802700233d9139b4002769cdd71fb82f2cb5c70de08e7b1fbd7ef91d260f708b",
+      "meaning": "UNKNOWN; opaque bytes retained by source file only"
+    },
+    {
+      "line": 17806,
+      "byte_length": 1,
+      "raw_line_sha256": "c00e7f889cfc9216ec818bf2e1682fc6af0d89939c91776669478caf27c9727c",
+      "meaning": "UNKNOWN; opaque bytes retained by source file only"
+    },
+    {
+      "line": 17807,
+      "byte_length": 23,
+      "raw_line_sha256": "721fbb20190ab31d2a52a11693391c6a2e40b842e51dbfd4efa7872d5832d40d",
+      "meaning": "UNKNOWN; opaque bytes retained by source file only"
+    },
+    {
+      "line": 17843,
+      "byte_length": 12,
+      "raw_line_sha256": "1d6dfd18fd058047f44f12cc8ad11c3d95c59905c4c89d1f85eb18d07caeddcb",
+      "meaning": "UNKNOWN; opaque bytes retained by source file only"
+    },
+    {
+      "line": 17850,
+      "byte_length": 1,
+      "raw_line_sha256": "c00e7f889cfc9216ec818bf2e1682fc6af0d89939c91776669478caf27c9727c",
+      "meaning": "UNKNOWN; opaque bytes retained by source file only"
+    },
+    {
+      "line": 17851,
+      "byte_length": 30,
+      "raw_line_sha256": "da02b21be692e84b36365bd115d18e7c31185096bc3e555b1a319802ee4ace1d",
+      "meaning": "UNKNOWN; opaque bytes retained by source file only"
+    },
+    {
+      "line": 20095,
+      "byte_length": 1,
+      "raw_line_sha256": "c00e7f889cfc9216ec818bf2e1682fc6af0d89939c91776669478caf27c9727c",
+      "meaning": "UNKNOWN; opaque bytes retained by source file only"
+    },
+    {
+      "line": 20096,
+      "byte_length": 24,
+      "raw_line_sha256": "528893ce4eb3ec89517d04f7fd668792da819f3bce1740fe833b63e9a1b223eb",
+      "meaning": "UNKNOWN; opaque bytes retained by source file only"
+    },
+    {
+      "line": 20147,
+      "byte_length": 1,
+      "raw_line_sha256": "c00e7f889cfc9216ec818bf2e1682fc6af0d89939c91776669478caf27c9727c",
+      "meaning": "UNKNOWN; opaque bytes retained by source file only"
+    },
+    {
+      "line": 20148,
+      "byte_length": 24,
+      "raw_line_sha256": "528893ce4eb3ec89517d04f7fd668792da819f3bce1740fe833b63e9a1b223eb",
+      "meaning": "UNKNOWN; opaque bytes retained by source file only"
+    },
+    {
+      "line": 20199,
+      "byte_length": 1,
+      "raw_line_sha256": "c00e7f889cfc9216ec818bf2e1682fc6af0d89939c91776669478caf27c9727c",
+      "meaning": "UNKNOWN; opaque bytes retained by source file only"
+    },
+    {
+      "line": 20200,
+      "byte_length": 24,
+      "raw_line_sha256": "528893ce4eb3ec89517d04f7fd668792da819f3bce1740fe833b63e9a1b223eb",
+      "meaning": "UNKNOWN; opaque bytes retained by source file only"
+    },
+    {
+      "line": 20207,
+      "byte_length": 53,
+      "raw_line_sha256": "2e53d904cd9a821bb4baf7b0a82de140f9b84b674de38dd197367fc376f1b2c7",
+      "meaning": "UNKNOWN; opaque bytes retained by source file only"
+    },
+    {
+      "line": 21770,
+      "byte_length": 1,
+      "raw_line_sha256": "c00e7f889cfc9216ec818bf2e1682fc6af0d89939c91776669478caf27c9727c",
+      "meaning": "UNKNOWN; opaque bytes retained by source file only"
+    },
+    {
+      "line": 21771,
+      "byte_length": 24,
+      "raw_line_sha256": "55e2d0ae6ba92eace62646f58bfcbf4da8137bb01722b56a2e97a1b85b16aed0",
+      "meaning": "UNKNOWN; opaque bytes retained by source file only"
+    },
+    {
+      "line": 23328,
+      "byte_length": 1,
+      "raw_line_sha256": "c00e7f889cfc9216ec818bf2e1682fc6af0d89939c91776669478caf27c9727c",
+      "meaning": "UNKNOWN; opaque bytes retained by source file only"
+    },
+    {
+      "line": 23329,
+      "byte_length": 24,
+      "raw_line_sha256": "55e2d0ae6ba92eace62646f58bfcbf4da8137bb01722b56a2e97a1b85b16aed0",
+      "meaning": "UNKNOWN; opaque bytes retained by source file only"
+    },
+    {
+      "line": 23375,
+      "byte_length": 1,
+      "raw_line_sha256": "c00e7f889cfc9216ec818bf2e1682fc6af0d89939c91776669478caf27c9727c",
+      "meaning": "UNKNOWN; opaque bytes retained by source file only"
+    },
+    {
+      "line": 23376,
+      "byte_length": 24,
+      "raw_line_sha256": "55e2d0ae6ba92eace62646f58bfcbf4da8137bb01722b56a2e97a1b85b16aed0",
+      "meaning": "UNKNOWN; opaque bytes retained by source file only"
+    }
+  ],
+  "unknown_semantics": "UNKNOWN; 35 lines start 0x85; no decoding or meaning inferred",
+  "sample_prior_D_matches": 10,
+  "sample": [
+    {
+      "identity": "0918584/99",
+      "source_lines": {
+        "root": 1,
+        "permit": 2
+      },
+      "approved_county_code": "001",
+      "approved_lease_name": "MUSTANG",
+      "well_number": "1",
+      "dates": {
+        "application_received": {
+          "raw": "20260910",
+          "date": "2026-09-10"
+        },
+        "permit_issued": {
+          "raw": "20260914",
+          "date": "2026-09-14"
+        },
+        "permit_amended": {
+          "raw": "00000000",
+          "date": null
+        },
+        "permit_extended": {
+          "raw": "00000000",
+          "date": null
+        },
+        "permit_spud": {
+          "raw": "00000000",
+          "date": null
+        }
+      },
+      "api8": "00132879"
+    },
+    {
+      "identity": "0917422/98",
+      "source_lines": {
+        "root": 11,
+        "permit": 12
+      },
+      "approved_county_code": "003",
+      "approved_lease_name": "FEE 'BV'",
+      "well_number": "2712WB",
+      "dates": {
+        "application_received": {
+          "raw": "20260910",
+          "date": "2026-09-10"
+        },
+        "permit_issued": {
+          "raw": "20260729",
+          "date": "2026-07-29"
+        },
+        "permit_amended": {
+          "raw": "20260916",
+          "date": "2026-09-16"
+        },
+        "permit_extended": {
+          "raw": "00000000",
+          "date": null
+        },
+        "permit_spud": {
+          "raw": "20260917",
+          "date": "2026-09-17"
+        }
+      },
+      "api8": "00349418"
+    },
+    {
+      "identity": "0877584/98",
+      "source_lines": {
+        "root": 54,
+        "permit": 55
+      },
+      "approved_county_code": "003",
+      "approved_lease_name": "UNIVERSITY 8-14",
+      "well_number": "H  4LS",
+      "dates": {
+        "application_received": {
+          "raw": "20260810",
+          "date": "2026-08-10"
+        },
+        "permit_issued": {
+          "raw": "20220307",
+          "date": "2022-03-07"
+        },
+        "permit_amended": {
+          "raw": "20260911",
+          "date": "2026-09-11"
+        },
+        "permit_extended": {
+          "raw": "00000000",
+          "date": null
+        },
+        "permit_spud": {
+          "raw": "20220721",
+          "date": "2022-07-21"
+        }
+      },
+      "api8": "00348541"
+    },
+    {
+      "identity": "0918767/99",
+      "source_lines": {
+        "root": 150,
+        "permit": 151
+      },
+      "approved_county_code": "003",
+      "approved_lease_name": "UL BLUE WATER 36-25 A",
+      "well_number": "1JM",
+      "dates": {
+        "application_received": {
+          "raw": "20260917",
+          "date": "2026-09-17"
+        },
+        "permit_issued": {
+          "raw": "20260918",
+          "date": "2026-09-18"
+        },
+        "permit_amended": {
+          "raw": "00000000",
+          "date": null
+        },
+        "permit_extended": {
+          "raw": "00000000",
+          "date": null
+        },
+        "permit_spud": {
+          "raw": "20260923",
+          "date": "2026-09-23"
+        }
+      },
+      "api8": "00349452"
+    },
+    {
+      "identity": "0918769/99",
+      "source_lines": {
+        "root": 220,
+        "permit": 221
+      },
+      "approved_county_code": "003",
+      "approved_lease_name": "UL BLUE WATER 36-25 C",
+      "well_number": "1DN",
+      "dates": {
+        "application_received": {
+          "raw": "20260917",
+          "date": "2026-09-17"
+        },
+        "permit_issued": {
+          "raw": "20260918",
+          "date": "2026-09-18"
+        },
+        "permit_amended": {
+          "raw": "00000000",
+          "date": null
+        },
+        "permit_extended": {
+          "raw": "00000000",
+          "date": null
+        },
+        "permit_spud": {
+          "raw": "00000000",
+          "date": null
+        }
+      },
+      "api8": "00349453"
+    },
+    {
+      "identity": "0918771/99",
+      "source_lines": {
+        "root": 288,
+        "permit": 289
+      },
+      "approved_county_code": "003",
+      "approved_lease_name": "UL BLUE WATER 36-25 D",
+      "well_number": "1WB",
+      "dates": {
+        "application_received": {
+          "raw": "20260917",
+          "date": "2026-09-17"
+        },
+        "permit_issued": {
+          "raw": "20260922",
+          "date": "2026-09-22"
+        },
+        "permit_amended": {
+          "raw": "00000000",
+          "date": null
+        },
+        "permit_extended": {
+          "raw": "00000000",
+          "date": null
+        },
+        "permit_spud": {
+          "raw": "00000000",
+          "date": null
+        }
+      },
+      "api8": "00349457"
+    },
+    {
+      "identity": "0918527/99",
+      "source_lines": {
+        "root": 356,
+        "permit": 357
+      },
+      "approved_county_code": "003",
+      "approved_lease_name": "LOGSDON, ETAL -D-",
+      "well_number": "4",
+      "dates": {
+        "application_received": {
+          "raw": "20260909",
+          "date": "2026-09-09"
+        },
+        "permit_issued": {
+          "raw": "20260914",
+          "date": "2026-09-14"
+        },
+        "permit_amended": {
+          "raw": "00000000",
+          "date": null
+        },
+        "permit_extended": {
+          "raw": "00000000",
+          "date": null
+        },
+        "permit_spud": {
+          "raw": "00000000",
+          "date": null
+        }
+      },
+      "api8": "00305265"
+    },
+    {
+      "identity": "0918290/99",
+      "source_lines": {
+        "root": 368,
+        "permit": 369
+      },
+      "approved_county_code": "009",
+      "approved_lease_name": "ANDREWS 'D'",
+      "well_number": "1",
+      "dates": {
+        "application_received": {
+          "raw": "20260831",
+          "date": "2026-08-31"
+        },
+        "permit_issued": {
+          "raw": "20260908",
+          "date": "2026-09-08"
+        },
+        "permit_amended": {
+          "raw": "00000000",
+          "date": null
+        },
+        "permit_extended": {
+          "raw": "00000000",
+          "date": null
+        },
+        "permit_spud": {
+          "raw": "00000000",
+          "date": null
+        }
+      },
+      "api8": "00943443"
+    },
+    {
+      "identity": "0918736/99",
+      "source_lines": {
+        "root": 386,
+        "permit": 387
+      },
+      "approved_county_code": "013",
+      "approved_lease_name": "LBJ A",
+      "well_number": "1H",
+      "dates": {
+        "application_received": {
+          "raw": "20260917",
+          "date": "2026-09-17"
+        },
+        "permit_issued": {
+          "raw": "20260923",
+          "date": "2026-09-23"
+        },
+        "permit_amended": {
+          "raw": "00000000",
+          "date": null
+        },
+        "permit_extended": {
+          "raw": "00000000",
+          "date": null
+        },
+        "permit_spud": {
+          "raw": "00000000",
+          "date": null
+        }
+      },
+      "api8": "01336315"
+    },
+    {
+      "identity": "0918737/99",
+      "source_lines": {
+        "root": 433,
+        "permit": 434
+      },
+      "approved_county_code": "013",
+      "approved_lease_name": "LBJ B",
+      "well_number": "2H",
+      "dates": {
+        "application_received": {
+          "raw": "20260917",
+          "date": "2026-09-17"
+        },
+        "permit_issued": {
+          "raw": "20260923",
+          "date": "2026-09-23"
+        },
+        "permit_amended": {
+          "raw": "00000000",
+          "date": null
+        },
+        "permit_extended": {
+          "raw": "00000000",
+          "date": null
+        },
+        "permit_spud": {
+          "raw": "00000000",
+          "date": null
+        }
+      },
+      "api8": "01336316"
+    }
+  ],
+  "limits": [
+    "No source activation, network access, database writes, or application observations.",
+    "Only the pinned type-01/type-02 fields are parsed; other known segment families are counted only.",
+    "API8 is retained as a field and is not used as permit revision identity or a join key.",
+    "Zero date values are preserved as raw 00000000 with normalized date null; no negative event is inferred.",
+    "No pad, operator, production, electrification, demand, opportunity tier, or timing estimate is derived."
+  ]
+}

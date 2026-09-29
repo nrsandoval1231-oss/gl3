@@ -1,0 +1,60 @@
+{
+  "decision": "GO",
+  "status": "READY_FOR_FRESH_REVIEW",
+  "packet": "GL3-015F",
+  "failed_attempts": [
+    "Initial real-sample comparison exposed left-padded well-number display values; parser trims only presentation values while raw hash and byte-span citations preserve traceability.",
+    "Initial focused tests caught assertion expectations that did not match parser error wording/validation order; assertions were corrected, then the full focused suite passed.",
+    "Initial Ruff run found line-length issues; formatting was corrected and Ruff passed.",
+    "Controller review found that a pending DAROOT could be silently cleared by a following 0x85 or other segment and that non-A status could be emitted as a permit revision; parser now rejects both cases, with focused tests for each.",
+    "Sol FIX: validator previously rewrote tracked validation/sample receipts with a current UTC timestamp, making the completion hashes stale. Default is now read-only; refreshed frozen receipts were generated once from explicit ignored output and completion hashes were recomputed."
+  ],
+  "limitations": [
+    "35 lines beginning 0x85 remain opaque with UNKNOWN meaning; no decoding or interpretation.",
+    "Only fields in accepted GL3-015E profile are parsed; other known families are counted.",
+    "API8 is not a revision or join key. Zero dates remain literal values and do not imply a negative event.",
+    "No operator, pad, production, electrification, demand, commercial qualification, or timing estimate derived.",
+    "No registry/service/domain/database/API/UI/source activation/network/push/commit/deploy changes.",
+    "Independent controller rerun and Sol review pending; parent GL3-015 remains OPEN."
+  ],
+  "candidate_files": {
+    ".agent/artifacts/GL3-015F/sample.json": "cfa7954ba3d89ae30eb94149a1424013db923c22ff8c804ad3f9094a4ba438ab",
+    "docs/validation/gl3-015-rrc-adapter-proof.md": "be7a09a55f37414d7428d95cf1375a8f3091e6a2fe9594ce2c38af4200c59f7d",
+    "backend/src/gridlens/ingestion/adapters/rrc_daily_permits.py": "3ad2c294089ece382517cbf1a781ac670d88e09cd2ef0580e48a6a83c0ad4977",
+    "backend/tests/unit/test_rrc_daily_permits.py": "1e972247a9388b9ef39449e97d3d96ed687e27c1235a06f33b669d000723a04d",
+    ".agent/artifacts/GL3-015F/validation.json": "2270acdf6aae3fc871e082307d347ebe83c5046c7509337c1e39a080fec42947",
+    ".agent/artifacts/GL3-015F/validate_rrc_daily_permits.py": "6bed93887c2eb1339e99d3e95370afe588a5c5a2becc1faf139faa2e74bcbeb6"
+  },
+  "measured_elapsed": "UNKNOWN",
+  "measured_tokens": "UNKNOWN",
+  "decision_scope": "Offline parser proof for exact retained archive/profile only; no source activation or parent GL3-015 completion",
+  "validation": {
+    "manual_sha256": "760a25367df8fb3bd7b240a41d9471953e2ee1eab1878d5367c673548adec874",
+    "ruff": "passed",
+    "opaque_0x85_lines": 35,
+    "commands": [
+      "uv run --project backend pytest backend/tests/unit/test_rrc_daily_permits.py -q",
+      "uv run --project backend ruff check backend/src/gridlens/ingestion/adapters/rrc_daily_permits.py backend/tests/unit/test_rrc_daily_permits.py .agent/artifacts/GL3-015F/validate_rrc_daily_permits.py",
+      "uv run --project backend mypy backend/src/gridlens/ingestion/adapters/rrc_daily_permits.py",
+      "uv run --project backend python .agent/artifacts/GL3-015F/validate_rrc_daily_permits.py",
+      "git diff --check"
+    ],
+    "source_sha256": "c0215842369f14d6e725b011649ffa0076f373344e3ce5bb0d2ed411fce79cd6",
+    "classified_segments": 29459,
+    "physical_lines": 29494,
+    "unique_permit_number_sequence_keys": 884,
+    "focused_tests": "14 passed",
+    "parsed_permit_revisions": 884,
+    "prior_D_sample_matches": 10,
+    "mypy": "passed",
+    "git_diff_check": "passed (existing WORK_GRAPH LF/CRLF warning only)",
+    "validator_default_mode": "read-only; printed summary; two reruns byte-identical",
+    "explicit_export_mode": "writes only to caller-selected ignored .artifacts directory"
+  },
+  "prior_review": {
+    "fresh_review": "required",
+    "record": ".agent/artifacts/GL3-015F/REVIEW-r1.md",
+    "candidate": "0dfb09fb…",
+    "verdict": "FIX"
+  }
+}

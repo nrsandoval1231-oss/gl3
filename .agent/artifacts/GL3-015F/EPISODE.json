@@ -1,0 +1,20 @@
+{
+  "packet": "GL3-015F",
+  "lane": "one Luna builder; Sol independent reviewer",
+  "model_builder": "gpt-6-luna low",
+  "model_reviewer": "gpt-6-sol medium",
+  "config_identity": "UNKNOWN",
+  "started_at_utc": "UNKNOWN",
+  "accepted_at_utc": "2026-09-29T11:34:23.7074026Z",
+  "planning_duration": "UNKNOWN",
+  "build_duration": "UNKNOWN",
+  "validation_duration": "UNKNOWN",
+  "audit_duration": "UNKNOWN",
+  "repair_count": 2,
+  "tokens": "UNKNOWN",
+  "elapsed_to_accepted": "UNKNOWN",
+  "outcome": "PASS after parser fail-closed correction and proof stability FIX",
+  "lesson": "Make reproducibility checks read-only by default and require explicit ignored-path exports.",
+  "metric": "Tracked candidate hash drift on default rerun: zero after repair",
+  "reversible": true
+}

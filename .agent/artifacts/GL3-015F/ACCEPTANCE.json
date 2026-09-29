@@ -1,0 +1,11 @@
+{
+  "packet": "GL3-015F",
+  "status": "ACCEPTED_LOCAL_OFFLINE_ADAPTER_PROOF",
+  "candidate_sha256": "0d1da97fe9034962e42d45a5f312a08b56736b537504dc0feacacfcbb022c7a1",
+  "independent_review": "PASS",
+  "accepted_at_utc": "2026-09-29T11:34:23.7074026Z",
+  "parser_scope": "exact retained RRC archive and profile only",
+  "source_activated": false,
+  "parent_gl3_015_complete": false,
+  "next_direction": "CONTINUE bounded source integration/access"
+}
