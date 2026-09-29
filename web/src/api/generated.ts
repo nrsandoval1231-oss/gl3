@@ -106,23 +106,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/opportunities/{need_id}/research": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Queue Opportunity Research */
-        post: operations["queue_opportunity_research_api_opportunities__need_id__research_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/changes": {
         parameters: {
             query?: never;
@@ -516,23 +499,6 @@ export interface components {
             lifecycle_open_questions?: string[];
             /** Monitoring Requirements */
             monitoring_requirements?: string[];
-            /**
-             * Research Status
-             * @default Not researched
-             */
-            research_status: string;
-            /** Research Next Action */
-            research_next_action: string;
-            /** Research Unavailable Reason */
-            research_unavailable_reason?: string | null;
-            /** Research Recorded Identity */
-            research_recorded_identity?: string | null;
-            /** Research Recorded Evidence Status */
-            research_recorded_evidence_status?: string | null;
-            /** Known Organizations */
-            known_organizations?: {
-                [key: string]: unknown;
-            }[];
         };
         /** RefreshOut */
         RefreshOut: {
@@ -713,37 +679,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OpportunityOut"][];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    queue_opportunity_research_api_opportunities__need_id__research_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                need_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */

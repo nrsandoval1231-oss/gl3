@@ -2,7 +2,7 @@
 
 GridLens 3 is a private, evidence-backed workspace for discovering emerging commercial power needs. The current local registry enables 13 public sources spanning municipal planning notices, construction permits, air permitting/regulatory records, government/economic-development publications, public documents, and industry news. Taylor planning notices have fresh isolated ordinary-worker persistence/replay and authenticated card proof; deployed daily operation remains unproven. The system preserves source observations and evidence history, groups supported records into project-oriented Signal cards, and keeps unsupported commercial facts explicitly unknown.
 
-The current verified local checkpoint is `main` at the GL3-013 merge. A fresh isolated run collected 2,530 observations and 2,567 evidence versions, producing 87 Signal records displayed as 69 project-oriented cards. Identical replay added no observations, evidence, projects, or morning-change entries. These counts are Signal records/cards, not a claim of 69 distinct real projects. Prospect and Lead readiness, national coverage, and cloud daily operation remain open.
+The GL3-015 isolated local run collected 2,802 observations and 2,839 evidence versions from 13 enabled public sources, producing 81 Signal records displayed as 63 project-oriented cards. Identical replay added no observations, evidence, projects, or morning-change entries. These counts are Signal records/cards, not a claim of 63 distinct real projects. National coverage and deployed daily operation remain unproven.
 
 ## Product model
 

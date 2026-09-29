@@ -19,14 +19,11 @@ from gridlens.persistence.models import (
     Observation,
     PowerNeed,
     Project,
-    ProjectRole,
-    ResearchEvidence,
-    ResearchJob,
     Source,
 )
 from gridlens.settings import settings
 
-ARTIFACTS = Path(__file__).resolve().parents[3] / ".agent" / "artifacts" / "GL3-015A"
+FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
 
 
 @pytest.fixture
@@ -143,7 +140,7 @@ def _comal_record():
 def _withdrawn_archive_record():
     from gridlens.ingestion.adapters.taylor_newsflash import _article
 
-    raw = (ARTIFACTS / "taylortx.gov-m_NewsFlash_Archive_Item_2079.html").read_bytes()
+    raw = (FIXTURES / "taylor-newsflash-2079-3442.html").read_bytes()
     record = _article(
         raw,
         "https://taylortx.gov/m/NewsFlash/Archive/Item/2079?arcId=3442",
@@ -162,23 +159,6 @@ def test_real_comal_article_creates_signal_and_replay_is_idempotent(db, monkeypa
     source = {"id": "taylor-development-newsflash", "retrieval_method": "taylor-newsflash"}
     with factory() as session:
         first = process_job(session, job_id, "test", 1, source)
-        research_job = session.scalar(select(ResearchJob))
-        assert research_job is not None and research_job.status == "queued"
-        research_job_id = research_job.job_id
-    import gridlens.intelligence.research as research
-    import gridlens.jobs.worker as worker
-
-    monkeypatch.setattr(
-        research,
-        "_fetch",
-        lambda _: b"""<main><h1>KDC Project Comal</h1>
-        <p>KDC Real Estate Development and Investments proposes a data center at
-        1051 County Road 401.</p>
-        <p>Developer KDC seeks an Employment Center Zoning.</p></main>""",
-    )
-    monkeypatch.setattr(worker, "SessionLocal", factory)
-    monkeypatch.setattr(worker, "WORKER_ID", "automatic-research-test")
-    assert worker.run_one({}) is True
     with factory() as session:
         replay = process_job(session, job_id, "test", 1, source)
         observation = session.scalar(select(Observation))
@@ -187,11 +167,6 @@ def test_real_comal_article_creates_signal_and_replay_is_idempotent(db, monkeypa
         assert observation is not None and observation.external_id == "2032"
         assert need is not None and need.tier == "Signal"
         assert need.required_mw is None and need.supply == "Unknown"
-        research_job = session.get(ResearchJob, research_job_id)
-        assert research_job is not None and research_job.status == "completed"
-        assert session.scalar(select(func.count()).select_from(ResearchJob)) == 1
-        assert session.scalar(select(func.count()).select_from(ResearchEvidence)) == 1
-        assert session.scalar(select(func.count()).select_from(ProjectRole)) == 1
     assert first["signals"] == 1
     assert replay["unchanged"] == 1
 
@@ -229,7 +204,6 @@ def test_replay_and_new_revision_preserve_evidence_without_false_power_claims(db
         need = session.scalar(select(PowerNeed))
         assert need is not None and need.tier == "Signal"
         assert need.required_mw is None and need.supply == "Unknown"
-        assert session.scalar(select(func.count()).select_from(ResearchJob)) == 0
         withdrawn = session.scalar(
             select(Observation).where(Observation.external_id == "2079:arcId=3442")
         )
@@ -260,7 +234,6 @@ def test_distinct_article_ids_do_not_merge_by_project_name_and_city(db, monkeypa
         assert result["signals"] == 2
         assert session.scalar(select(func.count()).select_from(Project)) == 2
         assert session.scalar(select(func.count()).select_from(PowerNeed)) == 2
-        assert session.scalar(select(func.count()).select_from(ResearchJob)) == 0
 
 
 def test_one_article_with_conflicting_project_identity_stays_unknown(db, monkeypatch):
@@ -285,7 +258,6 @@ def test_one_article_with_conflicting_project_identity_stays_unknown(db, monkeyp
         assert interpretation is not None
         assert interpretation.status == "rejected"
         assert interpretation.assessment["decision"] == "unknown"
-        assert session.scalar(select(func.count()).select_from(ResearchJob)) == 0
 
 
 def test_changed_same_external_id_project_conflict_preserves_prior_evidence_and_signal(

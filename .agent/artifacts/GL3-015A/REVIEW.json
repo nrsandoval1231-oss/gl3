@@ -1,8 +1,0 @@
-{
-  "reviewer": "Sol independent reviewer",
-  "verdict": "PASS",
-  "candidate_manifest_sha256": "67616b28a5195cb239fc28537b33cf73e7294cb520a26883e160915d7a96d78f",
-  "candidate_files": 42,
-  "finding": "Official-source chronology and status claims are supported after two repairs. Taylor categories 30/31 and archive are access-tested only; completeness, update semantics, source activation, and permit lead time remain unproven.",
-  "scope": "GL3-015A source feasibility and bounded Taylor adapter-proof GO only; GL3-015 and parent Finish Contract remain open."
-}

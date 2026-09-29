@@ -1,8 +1,0 @@
-{
-  "reviewer": "Sol independent reviewer",
-  "verdict": "FIX",
-  "candidate_manifest_sha256": "347d40d89d9a367140baaa32052067e75e2022e5e1413777c0f178cee6f28761",
-  "candidate_files": 39,
-  "finding": "Taylor's August 2 notice was described as first without source support; Westlake planning was called pre-building-permit although the permit comparison remains UNKNOWN.",
-  "direction": "Qualify both date labels while preserving the bounded GO and all UNKNOWN permit comparisons."
-}

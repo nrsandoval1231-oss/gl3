@@ -1,4 +1,4 @@
-# Taylor CivicPlus access contract — GL3-015B
+# Taylor CivicPlus access contract
 
 **Decision:** GO for a bounded adapter implementation using the observed official HTML surfaces, with fail-closed enumeration and replay checks. This is not source activation, production coverage, or proof of an atomic upstream snapshot.
 
@@ -36,4 +36,4 @@ For a repeated retrieval of the same `(article_id, arcId)`, identical SHA-256 ov
 
 The proof used only public, unauthenticated HTTPS GETs to official Taylor pages. No credentials, paid API, POST, or hidden route was used. Successful retrieval does not establish rights for bulk republication; this work makes no determination about copyright, terms, or robots rules. Keep any future use to attributable factual evidence and obtain review before wider republication or materially increased collection. Request cost, service rate limits, retention, and update latency remain unpublished/UNKNOWN.
 
-Raw response bodies, exact UTC timestamps, status, bytes, hashes, and the observed decision are in [ACCESS.json](ACCESS.json). The probe was limited to these roots, two archive pages, one archive category, and one archived article revision.
+The bounded access check covered the category roots, two archive pages, one archive category, and one archived article revision. The retained article fixtures used by parser tests are in `backend/tests/fixtures/`.

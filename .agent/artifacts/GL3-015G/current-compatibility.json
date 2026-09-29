@@ -1,1 +1,0 @@
-{"compatibility": "UNKNOWN", "current_file_sha256": "UNKNOWN", "decision": "REDIRECT", "file_pull_attempts": 1, "reason": "bounded probe stopped: AccessError: download redirect rejected (HTTP 302)"}
