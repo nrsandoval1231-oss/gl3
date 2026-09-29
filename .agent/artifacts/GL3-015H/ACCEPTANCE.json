@@ -1,0 +1,12 @@
+{
+  "packet": "GL3-015H",
+  "status": "ACCEPTED_LOCAL_HANDOFF_ANALYSIS",
+  "candidate_sha256": "70926a3f3f8f5d2e67f3dbb2fba616097e75c23fcb73894fc8d2bbf964d4c5a0",
+  "independent_review": "PASS",
+  "accepted_at_utc": "2026-09-29T12:23:34.3607581Z",
+  "decision": "GO for one separately bounded same-host handoff probe",
+  "current_file_hash": "UNKNOWN",
+  "source_activated": false,
+  "parent_gl3_015_complete": false,
+  "next_direction": "CONTINUE one-hop fileServer probe"
+}

@@ -1,0 +1,15 @@
+{
+  "packet": "GL3-015H",
+  "verdict": "PASS",
+  "reviewer": "Sol independent",
+  "candidate_sha256": "70926a3f3f8f5d2e67f3dbb2fba616097e75c23fcb73894fc8d2bbf964d4c5a0",
+  "reviewed_at_utc": "2026-09-29T12:23:34.3607581Z",
+  "checks": [
+    "4/4 candidate hashes/bytes match",
+    "15/15 D and 4/4 G raw hashes match",
+    "D attachment body SHA retained; request/redirect sequence UNKNOWN",
+    "one explicit same-host fileServer GET proposal remains conditional"
+  ],
+  "direction": "CONTINUE separate bounded one-hop public fileServer probe",
+  "parent_gl3_015_complete": false
+}

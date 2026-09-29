@@ -1,0 +1,27 @@
+{
+  "packet": "GL3-015H",
+  "status": "READY_FOR_REVIEW",
+  "base_candidate": "440f7dc5de7e35c71186e1f27b7d139b9bd4fa07",
+  "files": [
+    {
+      "path": "docs/validation/gl3-015-rrc-handoff-comparison.md",
+      "bytes": 4854,
+      "sha256": "5b87d019b1a802c7c2e9fde15056774aece2139310e1d94c5c15ffc4453fcd85"
+    },
+    {
+      "path": ".agent/artifacts/GL3-015H/compare_handoff.py",
+      "bytes": 7866,
+      "sha256": "407fa1368bbc2d8f7f06ba1add43ca7abb6a85914c6065134c3749b02fff2569"
+    },
+    {
+      "path": ".agent/artifacts/GL3-015H/comparison.json",
+      "bytes": 11532,
+      "sha256": "91036bbc15b4ee798a43d279cdef67d6c3682395780dd7a097caec6af1a7859a"
+    },
+    {
+      "path": ".agent/artifacts/GL3-015H/COMPLETION.json",
+      "bytes": 2744,
+      "sha256": "ca9bf81581db8bf737b5355b1feb64f3557f6b5aeee47e7dd87e8f19ecbfe5ac"
+    }
+  ]
+}
