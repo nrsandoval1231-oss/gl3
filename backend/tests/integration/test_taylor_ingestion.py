@@ -432,3 +432,116 @@ def test_withdrawn_revision_evidence_is_visible_from_prior_signal(db, monkeypatc
             row.assessment
             for row in session.scalars(select(Interpretation).order_by(Interpretation.id))
         ]
+
+
+def test_conflicting_withdrawn_revision_does_not_withdraw_prior_project(db, monkeypatch):
+    factory, job_id = db
+    import gridlens.ingestion.service as service
+
+    source = {"id": "taylor-development-newsflash", "retrieval_method": "taylor-newsflash"}
+    monkeypatch.setattr(service, "retrieve_source", lambda *_args: [_record()])
+    with factory() as session:
+        process_job(session, job_id, "test", 1, source)
+
+    conflicting = _record("3442", " Project Other is at 9900 FM 112.")
+    conflicting["title"] = conflicting["title"].replace("Mustang", "Other")
+    monkeypatch.setattr(service, "retrieve_source", lambda *_args: [conflicting])
+    with factory() as session:
+        process_job(session, job_id, "test", 1, source)
+        withdrawn = session.scalar(
+            select(Observation).where(Observation.external_id == "2079:arcId=3442")
+        )
+        need = session.scalar(select(PowerNeed))
+        assert withdrawn is not None and need is not None
+        assert session.scalar(select(func.count()).select_from(Evidence)) == 2
+        assert session.scalar(select(func.count()).select_from(Project)) == 1
+        assert session.scalar(select(func.count()).select_from(LifecycleEvent)) == 1
+        assert session.scalar(select(func.count()).select_from(ChangeEvent)) == 1
+        assert (
+            session.scalar(
+                select(NeedObservation.id).where(
+                    NeedObservation.observation_id == withdrawn.id,
+                    NeedObservation.need_id == need.id,
+                )
+            )
+            is None
+        )
+        interpretation = session.scalar(
+            select(Interpretation).where(Interpretation.observation_id == withdrawn.id)
+        )
+        assert interpretation is not None
+        assert "conflicting project or site facts" in interpretation.assessment["reason"]
+
+    import importlib
+
+    api_module = importlib.import_module("gridlens.api.app")
+    monkeypatch.setattr(api_module, "SessionLocal", factory)
+    cards = api_module.opportunities(tier="Signal")
+    assert len(cards) == 1
+    assert cards[0]["signal_evidence_state"] != "planning_application_withdrawn"
+    assert len(cards[0]["evidence"]) == 1
+
+    with factory() as session:
+        before = tuple(
+            session.scalar(select(func.count()).select_from(model))
+            for model in (Observation, Evidence, Project, LifecycleEvent, ChangeEvent)
+        )
+        process_job(session, job_id, "test", 1, source)
+        assert before == tuple(
+            session.scalar(select(func.count()).select_from(model))
+            for model in (Observation, Evidence, Project, LifecycleEvent, ChangeEvent)
+        )
+
+
+def test_conflicting_withdrawal_at_same_external_id_keeps_status_unknown(db, monkeypatch):
+    factory, job_id = db
+    import gridlens.ingestion.service as service
+
+    source = {"id": "taylor-development-newsflash", "retrieval_method": "taylor-newsflash"}
+    monkeypatch.setattr(service, "retrieve_source", lambda *_args: [_direct_article()])
+    with factory() as session:
+        process_job(session, job_id, "test", 1, source)
+        lifecycle_count = session.scalar(select(func.count()).select_from(LifecycleEvent))
+
+    conflicting = _direct_article(project="Other", body_suffix="Project Other is at 9900 FM 112.")
+    conflicting["title"] = "WITHDRAWN - " + conflicting["title"]
+    conflicting["disposition"] = "withdrawn"
+    monkeypatch.setattr(service, "retrieve_source", lambda *_args: [conflicting])
+    with factory() as session:
+        process_job(session, job_id, "test", 1, source)
+        observation = session.scalar(select(Observation).where(Observation.external_id == "2091"))
+        need = session.scalar(select(PowerNeed))
+        assert observation is not None and need is not None
+        assert session.scalar(select(func.count()).select_from(Evidence)) == 2
+        assert session.scalar(select(func.count()).select_from(Project)) == 1
+        assert session.scalar(select(func.count()).select_from(LifecycleEvent)) == lifecycle_count
+        assert session.scalar(select(func.count()).select_from(ChangeEvent)) == 1
+        interpretation = session.scalar(
+            select(Interpretation).where(Interpretation.observation_id == observation.id)
+        )
+        assert interpretation is not None
+        assert interpretation.assessment["decision"] == "unknown"
+        assert "conflicting project or site facts" in interpretation.assessment["reason"]
+
+    import importlib
+
+    api_module = importlib.import_module("gridlens.api.app")
+    monkeypatch.setattr(api_module, "SessionLocal", factory)
+    cards = api_module.opportunities(tier="Signal")
+    assert len(cards) == 1
+    assert cards[0]["signal_evidence_state"] == "planning_status_unknown"
+    assert cards[0]["lifecycle_state"] == "planning_status_unknown"
+    assert cards[0]["expected_next_milestone"] is None
+    assert len(cards[0]["evidence"]) == 2
+    assert "UNKNOWN" in cards[0]["rationale"]
+
+    with factory() as session:
+        before = tuple(
+            session.scalar(select(func.count()).select_from(model))
+            for model in (Observation, Evidence, Project, LifecycleEvent, ChangeEvent)
+        )
+        process_job(session, job_id, "test", 1, source)
+        assert before == tuple(
+            session.scalar(select(func.count()).select_from(model))
+            for model in (Observation, Evidence, Project, LifecycleEvent, ChangeEvent)
+        )
