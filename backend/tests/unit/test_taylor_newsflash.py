@@ -14,12 +14,12 @@ from gridlens.ingestion.adapters.taylor_newsflash import (
 )
 from gridlens.ingestion.registry import load_registry
 
-ARTIFACTS = Path(__file__).resolve().parents[3] / ".agent" / "artifacts" / "GL3-015B"
+FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
 
 
 def test_archived_revision_identity_and_category_are_retained():
     record = _article(
-        (ARTIFACTS / "archive-item-2079-arcId-3434.html").read_bytes(),
+        (FIXTURES / "taylor-newsflash-2079-3434.html").read_bytes(),
         "https://taylortx.gov/m/NewsFlash/Archive/Item/2079?arcId=3434",
         "2079",
         "3434",
@@ -67,7 +67,7 @@ def test_unknown_category_and_incomplete_article_fail_closed():
     with pytest.raises(SourceParseError, match="structure is incomplete"):
         _article(b"<html><main>unexpected</main></html>", "https://taylortx.gov/x", "1", None)
     soup = BeautifulSoup(
-        (ARTIFACTS / "archive-item-2079-arcId-3434.html").read_bytes(), "html.parser"
+        (FIXTURES / "taylor-newsflash-2079-3434.html").read_bytes(), "html.parser"
     )
     category = soup.select_one("main .articles-category:not(.article-footer) > .article-badge")
     assert category is not None
@@ -76,7 +76,7 @@ def test_unknown_category_and_incomplete_article_fail_closed():
     unknown = _article(str(soup).encode(), "https://taylortx.gov/x", "1", None)
     assert unknown["category"] == "Unrecognized"
     missing_soup = BeautifulSoup(
-        (ARTIFACTS / "archive-item-2079-arcId-3434.html").read_bytes(), "html.parser"
+        (FIXTURES / "taylor-newsflash-2079-3434.html").read_bytes(), "html.parser"
     )
     missing_soup.select_one(
         "main .articles-category:not(.article-footer) > .article-badge"
@@ -84,7 +84,7 @@ def test_unknown_category_and_incomplete_article_fail_closed():
     with pytest.raises(SourceParseError, match="category badge is missing"):
         _article(str(missing_soup).encode(), "https://taylortx.gov/x", "1", None)
     ambiguous_soup = BeautifulSoup(
-        (ARTIFACTS / "archive-item-2079-arcId-3434.html").read_bytes(), "html.parser"
+        (FIXTURES / "taylor-newsflash-2079-3434.html").read_bytes(), "html.parser"
     )
     badge = ambiguous_soup.select_one(
         "main .articles-category:not(.article-footer) > .article-badge"
@@ -96,7 +96,7 @@ def test_unknown_category_and_incomplete_article_fail_closed():
 
 
 def test_explicit_news_category_is_retained_as_non_target_crosspost():
-    raw = (ARTIFACTS / "archive-item-2079-arcId-3434.html").read_bytes()
+    raw = (FIXTURES / "taylor-newsflash-2079-3434.html").read_bytes()
     soup = BeautifulSoup(raw, "html.parser")
     category = soup.select_one("main .articles-category:not(.article-footer) > .article-badge")
     assert category is not None
@@ -118,7 +118,7 @@ def test_explicit_news_category_is_retained_as_non_target_crosspost():
 def test_mixed_category_archive_accounts_for_all_rows_and_only_target_can_interpret():
     source = next(item for item in load_registry() if item["id"] == "taylor-development-newsflash")
     source = {**source, "query": {**source["query"], "max_pages": 1}}
-    target_article = (ARTIFACTS / "archive-item-2079-arcId-3434.html").read_bytes()
+    target_article = (FIXTURES / "taylor-newsflash-2079-3434.html").read_bytes()
     news_soup = BeautifulSoup(target_article, "html.parser")
     category = news_soup.select_one(
         "main .articles-category:not(.article-footer) > .article-badge"

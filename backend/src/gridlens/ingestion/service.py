@@ -34,7 +34,7 @@ from gridlens.intelligence.project_identity import (
     same_physical_site,
     stable_asset_identity,
 )
-from gridlens.jobs.queue import assert_fence, enqueue_owner_research_if_eligible
+from gridlens.jobs.queue import assert_fence
 from gridlens.persistence.models import (
     ChangeEvent,
     Evidence,
@@ -1683,8 +1683,6 @@ def process_job(
                 }
             if lifecycle_evidence is not None:
                 apply_lifecycle_observation(session, project, observation, lifecycle_evidence)
-            if activity_key and source_definition.get("id") == "taylor-development-newsflash":
-                enqueue_owner_research_if_eligible(session, need.id)
 
         job = assert_fence(session, job_id, worker_id, fence)
         job.checkpoint = external_id

@@ -21,8 +21,6 @@ function permit(id: string, action: string | null, options: { location?: string;
     supply: 'Unknown',
     next_action: 'Confirm activity power needs, timing, duration, and service plan.',
     conflict_state: 'Not assessed',
-    research_status: 'Not researched',
-    research_next_action: 'Review the source evidence.',
     assessment_reason: 'Permit reports a dated powered event activity; temporary rental power is a question to investigate.',
     supported_subject: `AUSTIN permit ${id}`,
     supported_action: action,

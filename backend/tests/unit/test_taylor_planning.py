@@ -51,13 +51,7 @@ def test_real_comal_article_uses_visible_title_body_address_and_original_citatio
 
 
 def test_real_withdrawn_mustang_revision_stays_observation_only():
-    path = (
-        Path(__file__).resolve().parents[3]
-        / ".agent"
-        / "artifacts"
-        / "GL3-015A"
-        / "taylortx.gov-m_NewsFlash_Archive_Item_2079.html"
-    )
+    path = Path(__file__).resolve().parents[1] / "fixtures" / "taylor-newsflash-2079-3442.html"
     article = _article(
         path.read_bytes(),
         "https://taylortx.gov/m/NewsFlash/Archive/Item/2079?arcId=3442",

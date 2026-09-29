@@ -13,7 +13,7 @@ from gridlens.domain.collection_watch import (
 from gridlens.domain.collection_watch import (
     matched_terms as collection_watch_terms,
 )
-from gridlens.jobs.queue import enqueue, enqueue_owner_research, owner_research_ineligibility
+from gridlens.jobs.queue import enqueue
 from gridlens.persistence.database import SessionLocal
 from gridlens.persistence.models import (
     ChangeEvent,
@@ -23,13 +23,9 @@ from gridlens.persistence.models import (
     LifecycleEvent,
     NeedObservation,
     Observation,
-    Organization,
     PowerNeed,
     Project,
     ProjectLifecycle,
-    ProjectRole,
-    ResearchEvidence,
-    ResearchJob,
     Source,
 )
 from gridlens.security import (
@@ -109,12 +105,6 @@ class OpportunityOut(BaseModel):
     estimate_version: str | None = None
     lifecycle_open_questions: list[str] = Field(default_factory=list)
     monitoring_requirements: list[str] = Field(default_factory=list)
-    research_status: str = "Not researched"
-    research_next_action: str
-    research_unavailable_reason: str | None = None
-    research_recorded_identity: str | None = None
-    research_recorded_evidence_status: str | None = None
-    known_organizations: list[dict] = Field(default_factory=list)
 
 
 class HealthSourceOut(BaseModel):
@@ -584,40 +574,6 @@ def opportunities(tier: str | None = None, search: str | None = None):
                     }
                 )
             current_assessment = current_assessments[0] if current_assessments else None
-            research_row = session.execute(
-                select(ResearchJob, Job)
-                .join(Job, Job.id == ResearchJob.job_id)
-                .where(ResearchJob.need_id == need.id)
-                .order_by(Job.created_at.desc())
-                .limit(1)
-            ).first()
-            role_rows = session.execute(
-                select(ProjectRole, Organization, ResearchEvidence)
-                .join(Organization, Organization.id == ProjectRole.organization_id)
-                .join(ResearchEvidence, ResearchEvidence.id == ProjectRole.evidence_id)
-                .where(
-                    ProjectRole.project_id == project.id,
-                    ProjectRole.role.in_(["Owner", "Developer"]),
-                )
-                .order_by(ResearchEvidence.retrieved_at.desc())
-            ).all()
-            research_ineligibility = owner_research_ineligibility(session, need.id)
-            identity_facts = project.identity_facts or {}
-            recorded_identity_keys = (
-                ("owner", "Owner"),
-                ("owner_name", "Owner"),
-                ("developer", "Developer"),
-                ("developer_name", "Developer"),
-            )
-            recorded_identity_values = [
-                f"{label}: {value.strip()}"
-                for key, label in recorded_identity_keys
-                if isinstance((value := identity_facts.get(key)), str) and value.strip()
-            ]
-            has_recorded_identity = any(
-                identity_facts.get(key) for key, _ in recorded_identity_keys
-            )
-            recorded_identity = "; ".join(dict.fromkeys(recorded_identity_values))
             time_to_power_window = None
             if lifecycle and lifecycle.time_to_power_start and lifecycle.time_to_power_end:
                 time_to_power_window = (
@@ -637,21 +593,6 @@ def opportunities(tier: str | None = None, search: str | None = None):
                     )
                     if not value
                 ]
-            )
-            next_missing_fact = next(
-                iter(missing_facts),
-            ) if missing_facts else next(
-                (
-                    label
-                    for value, label in (
-                        (need.required_mw, "activity-specific power requirement"),
-                        (need.start_window, "start window"),
-                        (need.duration, "duration"),
-                        (need.supply if need.supply != "Unknown" else None, "suitable supply"),
-                    )
-                    if not value
-                ),
-                None,
             )
             result.append(
                 {
@@ -788,125 +729,9 @@ def opportunities(tier: str | None = None, search: str | None = None):
                         if taylor_withdrawn
                         else lifecycle.monitoring_requirements if lifecycle else []
                     ),
-                    "research_status": (
-                        research_row[0].status.title()
-                        if research_row
-                        else "Known"
-                        if role_rows
-                        else "Recorded (unverified)"
-                        if need.tier == "Signal" and has_recorded_identity
-                        else "Unavailable (UNKNOWN)"
-                        if (
-                            need.tier == "Signal"
-                            and research_ineligibility is not None
-                            and not role_rows
-                        )
-                        else "Not queued"
-                        if need.tier == "Signal"
-                        else "Not researched"
-                    ),
-                    "research_next_action": (
-                        research_row[0].next_action
-                        if research_row
-                        else (
-                            "The project relationship is already supported by cited evidence. "
-                            f"Review the next missing Signal fact: {next_missing_fact}. "
-                            "No further developer verification is needed."
-                            if next_missing_fact
-                            else "The project relationship is already supported by cited "
-                            "evidence; no further developer verification is needed."
-                        )
-                        if role_rows
-                        else (
-                            "Review the recorded owner/developer identity against an official, "
-                            "project-specific source and retain a citation before treating it "
-                            "as verified."
-                        )
-                        if need.tier == "Signal" and has_recorded_identity
-                        else (
-                            "Verify the developer in an official, project-specific planning "
-                            "or development record. Keep the relationship UNKNOWN until the "
-                            "record names the organization and ties it to this project."
-                        )
-                        if (
-                            need.tier == "Signal"
-                            and research_ineligibility is not None
-                            and not role_rows
-                        )
-                        else (
-                            "Research queues automatically when this accepted Signal is ingested; "
-                            "no owner action is required."
-                        )
-                        if need.tier == "Signal"
-                        else (
-                            "Review the sourced project organization and identify "
-                            "the next missing fact."
-                        )
-                        if role_rows
-                        else "Research is available for active Signals."
-                    ),
-                    "research_unavailable_reason": (
-                        "No identity-linked official project record currently supports the "
-                        "developer relationship."
-                        if not research_row
-                        and not role_rows
-                        and need.tier == "Signal"
-                        and not has_recorded_identity
-                        and research_ineligibility is not None
-                        else None
-                    ),
-                    "research_recorded_identity": (
-                        recorded_identity or "Owner/developer identity fact recorded"
-                        if need.tier == "Signal" and has_recorded_identity and not role_rows
-                        else None
-                    ),
-                    "research_recorded_evidence_status": (
-                        "No cited ProjectRole evidence is recorded; review before verification."
-                        if need.tier == "Signal" and has_recorded_identity and not role_rows
-                        else None
-                    ),
-                    "known_organizations": [
-                        {
-                            "name": organization.name,
-                            "role": role.role,
-                            "evidence_url": evidence.source_url,
-                            "source_date": evidence.source_date,
-                            "retrieved_at": evidence.retrieved_at,
-                            "excerpt": evidence.excerpt,
-                            "label": evidence.label,
-                            "basis": role.basis,
-                            "confidence": role.confidence,
-                        }
-                        for role, organization, evidence in role_rows
-                    ],
                 }
             )
         return result
-
-
-@app.post(
-    "/api/opportunities/{need_id}/research",
-    dependencies=[Depends(require_session)],
-)
-def queue_opportunity_research(need_id: UUID, request: Request):
-    require_same_origin(request)
-    try:
-        with SessionLocal.begin() as session:
-            job_id = enqueue_owner_research(session, need_id)
-            research = session.get(ResearchJob, job_id)
-            assert research is not None
-            return {
-                "job_id": str(job_id),
-                "status": research.status,
-                "question": research.question,
-                "source_url": research.source_url,
-                "max_sources": research.max_sources,
-                "max_requests": research.max_requests,
-                "max_seconds": research.max_seconds,
-                "max_spend_cents": research.max_spend_cents,
-            }
-    except ValueError as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
 @app.get("/api/changes", response_model=list[ChangeOut], dependencies=[Depends(require_session)])
