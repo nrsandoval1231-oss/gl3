@@ -236,7 +236,7 @@
       "cadence_hours": 24,
       "publication_cadence": "irregular; current category pages plus bounded archive revisions",
       "credential_reference": null,
-      "enabled": false,
+      "enabled": true,
       "retention": "Attributed factual excerpts, source URLs, retrieval hashes, and separate article/archive revision identities; wider republication not assessed",
       "query": {"archive_window_days": 59, "archive_overlap_days": 7, "archive_count": 10, "max_pages": 5, "max_response_bytes": 2000000, "max_run_bytes": 30000000},
       "coverage_limitation": "Bounded rolling Taylor CivicPlus Development News/Notices categories 30/31 archive lookback with configured overlap; no atomic upstream snapshot is available."

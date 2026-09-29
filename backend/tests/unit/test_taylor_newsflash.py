@@ -182,9 +182,9 @@ def test_mixed_category_archive_accounts_for_all_rows_and_only_target_can_interp
     ) is None
 
 
-def test_login_response_fails_closed_and_registry_stays_disabled():
+def test_login_response_fails_closed_for_enabled_source():
     source = next(item for item in load_registry() if item["id"] == "taylor-development-newsflash")
-    assert source["enabled"] is False
+    assert source["enabled"] is True
     client = httpx.Client(
         transport=httpx.MockTransport(
             lambda request: httpx.Response(200, text="<form id='user-login-form'></form>")
