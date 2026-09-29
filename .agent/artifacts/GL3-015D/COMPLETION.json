@@ -1,0 +1,61 @@
+{
+  "packet": "GL3-015D",
+  "status": "REPAIR_COMPLETE_REVIEW_REQUIRED",
+  "result": "REDIRECT",
+  "base_commit": "fa5e667045ddeb448c16ed0351d91ea35ad83ed7",
+  "scope": "Read-only public source access proof; no application or database changes",
+  "changed_files": [
+    "docs/sources/texas-upstream-access.md",
+    "docs/validation/gl3-015-texas-upstream-sample.md",
+    ".agent/artifacts/GL3-015D/ACCESS.json",
+    ".agent/artifacts/GL3-015D/COMPLETION.json",
+    ".agent/artifacts/GL3-015D/retrieval-ledger.md",
+    ".agent/artifacts/GL3-015D/sample-validation.json",
+    ".agent/artifacts/GL3-015D/REVIEW-r1.md"
+  ],
+  "validation": {
+    "official_file_retrievals": 2,
+    "bytes_each": 2391338,
+    "sha256_each": "c0215842369f14d6e725b011649ffa0076f373344e3ce5bb0d2ed411fce79cd6",
+    "identical": true,
+    "adjacent_root_permit_pairs_checked": 884,
+    "pair_key_matches": 884,
+    "sample_rows": 10,
+    "pending_current_file": "not proven; two bounded attempts retained",
+    "physical_lines": 29494,
+    "classified_segments": 29459,
+    "unclassified_lines": 35,
+    "unclassified_prefix_hex": "85",
+    "unclassified_meaning": "UNKNOWN; no semantic inference"
+  },
+  "authority": {
+    "source_activated": false,
+    "code_or_registry_changed": false,
+    "database_written": false,
+    "push_merge_deploy_spend_outreach": false
+  },
+  "parent_gl3_015_and_finish_contract": "OPEN",
+  "controller_action": "Independently verify receipts/sample and select the next bounded packet; field-map validation is recommended before any adapter work.",
+  "raw_evidence_directory": ".artifacts/GL3-015D/raw/ (root .artifacts/ ignored by Git)",
+  "candidate_manifest_recommendation": {
+    "include": [
+      "docs/sources/texas-upstream-access.md",
+      "docs/validation/gl3-015-texas-upstream-sample.md",
+      ".agent/artifacts/GL3-015D/ACCESS.json",
+      ".agent/artifacts/GL3-015D/COMPLETION.json",
+      ".agent/artifacts/GL3-015D/REVIEW-r1.md",
+      ".agent/artifacts/GL3-015D/retrieval-ledger.md",
+      ".agent/artifacts/GL3-015D/sample-validation.json"
+    ],
+    "exclude": [
+      ".artifacts/GL3-015D/raw/**",
+      "unrelated pre-existing .agent/WORK_GRAPH.md and packet changes"
+    ],
+    "rule": "Confirm only the include paths are staged; all raw source evidence is ignored and must remain unstaged."
+  },
+  "review": {
+    "prior_verdict_preserved_at": ".agent/artifacts/GL3-015D/REVIEW-r1.md",
+    "prior_candidate_verdict": "FIX",
+    "repaired_candidate_review_required": true
+  }
+}

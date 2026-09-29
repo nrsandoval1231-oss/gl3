@@ -1,0 +1,11 @@
+{
+  "packet": "GL3-015D",
+  "status": "ACCEPTED_LOCAL_SOURCE_ACCESS",
+  "candidate_sha256": "7f57ff1d0ea8827810db4937f1dcebb4964de94fd9340e4b84eda26b71b2adfb",
+  "independent_review": "PASS",
+  "accepted_at_utc": "2026-09-29T01:59:28.7909760Z",
+  "decision": "REDIRECT overall; narrow approved-permit access GO",
+  "source_activated": false,
+  "parent_gl3_015_complete": false,
+  "next_direction": "CONTINUE to read-only type-01/type-02 field-map validation before adapter"
+}

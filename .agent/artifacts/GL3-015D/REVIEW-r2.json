@@ -1,0 +1,16 @@
+{
+  "packet": "GL3-015D",
+  "verdict": "PASS",
+  "reviewer": "Sol independent",
+  "candidate_sha256": "7f57ff1d0ea8827810db4937f1dcebb4964de94fd9340e4b84eda26b71b2adfb",
+  "reviewed_at_utc": "2026-09-29T01:59:28.7909760Z",
+  "checks": [
+    "7/7 candidate file hashes and byte counts match",
+    "15/15 ignored raw files match ledger hashes and sizes",
+    "29494 physical lines; 29459 classified segments; 35 unclassified 0x85 lines",
+    "884/884 adjacent permit keys match; 10 sample identities match",
+    "pending, completion, production, field map remain UNKNOWN"
+  ],
+  "direction": "CONTINUE to read-only type-01/type-02 field-map validation before adapter",
+  "parent_gl3_015_complete": false
+}

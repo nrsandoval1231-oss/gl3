@@ -1,0 +1,41 @@
+{
+  "packet": "GL3-015D",
+  "base_commit": "fa5e667045ddeb448c16ed0351d91ea35ad83ed7",
+  "files": [
+    {
+      "path": "docs/sources/texas-upstream-access.md",
+      "sha256": "f8046bd18554d59b37c543a561dde1027085b2ff1dea7e70a686110e773cecb2",
+      "bytes": 5531
+    },
+    {
+      "path": "docs/validation/gl3-015-texas-upstream-sample.md",
+      "sha256": "60621ee251fa905dfc31948ae5aa43496aa3207b9e521486e9a8ac89747cc69a",
+      "bytes": 3652
+    },
+    {
+      "path": ".agent/artifacts/GL3-015D/ACCESS.json",
+      "sha256": "2ce89553d6d1ac9f617e2cf6750a7d856185f4ff38c451a986d53f00cd4aedab",
+      "bytes": 2444
+    },
+    {
+      "path": ".agent/artifacts/GL3-015D/COMPLETION.json",
+      "sha256": "a7c97c045bd19fc3b6c2698345a2f90a05dd38d7797c7d17fb841badd66e91ec",
+      "bytes": 2569
+    },
+    {
+      "path": ".agent/artifacts/GL3-015D/REVIEW-r1.md",
+      "sha256": "28dd9255462dea469cb4aa9cc5da9622ab83aba05d01e306dea6290eb3ba0348",
+      "bytes": 1262
+    },
+    {
+      "path": ".agent/artifacts/GL3-015D/retrieval-ledger.md",
+      "sha256": "c05f319bf0342c50a6ff814f68b30ed3a03e3e44924905afa572d67dad995d2d",
+      "bytes": 6153
+    },
+    {
+      "path": ".agent/artifacts/GL3-015D/sample-validation.json",
+      "sha256": "8ecc7ecdafbf260c55bc9b2d811c0e682341528112da90fc5ff22e20dccbe400",
+      "bytes": 4959
+    }
+  ]
+}

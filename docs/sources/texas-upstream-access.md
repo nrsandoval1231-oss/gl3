@@ -1,0 +1,27 @@
+# Texas upstream source access: RRC
+
+**Decision: REDIRECT for end-to-end upstream source readiness.** A bounded direct route to the official RRC nightly approved-permit archive is reproducible and supports a narrow permit/spud proof. Current pending applications, completion snapshots, and a well-level first-production feed were not directly validated in this packet. No RRC source is activated by this result.
+
+## Verified narrow route
+
+Official entry point: [RRC data sets available for download](https://www.rrc.texas.gov/resource-center/research/data-sets-available-for-download/). The page links its Drilling Permit Master + Trailer Daily download folder (GoDrive folder `5f07cc72-2e79-4df8-ade1-9aeb792e03fc`). Its current listing advertised `daf420.dat`, 2.28 MB, and nightly updates; RRC describes the monthly file as cumulative for the current month. A single published row was selected through the standard public GoDrive form POST, yielding HTTP 200 `application/force-download`, 2,391,338 bytes. A fresh-session repeat yielded identical bytes and SHA-256. The procedure, URLs, times, hashes, and retained response paths are in [the retrieval ledger](../../.agent/artifacts/GL3-015D/retrieval-ledger.md).
+
+The archived fixed-width response contains 29,494 physical lines: 29,459 classified segments across the published type counts below and 35 lines whose first byte is `0x85`. The meaning of those 35 lines is UNKNOWN; they are retained but not interpreted. Among the classified segments are 884 type-01 root records and 884 immediately following type-02 permit records. The final bounded check found all 884 adjacent pairs share the same status-number/sequence bytes. The prior dictionary-based cross-record check was invalid because keys collided; it is superseded by this adjacency check. The type-02 records contain 884 nonzero eight-digit API values (868 distinct values across the archive); repeated APIs therefore exist and API alone does not uniquely identify a permit revision. Ten representative rows and field values are preserved in [the sample metadata](../../.agent/artifacts/GL3-015D/sample-validation.json) and [the sample report](../validation/gl3-015-texas-upstream-sample.md).
+
+The official [daily permit manual](https://www.rrc.texas.gov/media/zgccdjpi/drillingpermitmasterpluslatitudeslongitudes_oga049m_july1.pdf) describes permit number, two-digit sequence (original filing `99`, amendments decrement), issued/amended/extended dates, API and spud date; it defines spud as when drilling started. The archived file parses consistently for the sampled business fields, but some manual DAPERMIT offsets differ from the observed feed layout. Treat a parser as unapproved until a dedicated fixed-width field-map validation packet resolves the offsets against the official manual and all record types.
+
+## Milestone coverage and limits
+
+| Milestone | Official path and evidence | Decision |
+|---|---|---|
+| Pending application | RRC pending-permit download folder and [manual](https://www.rrc.texas.gov/media/pkgkvkcb/pendingdrillingpermits.pdf); manual describes status `P`, submission date, status number, and wellbore linkage. The public listing exposes 40,432 dated files, but two bounded last-page selection POSTs returned only 269-byte ViewState XML; no current snapshot was retrieved. | **UNKNOWN / REDIRECT** |
+| Approved permit | Nightly cumulative current-month Master + Trailer archive downloaded twice, byte-identical. | **GO for bounded source proof only** |
+| Spud | Permit manual defines spud as drilling start; 189 of the 884 sampled permit segments have nonzero spud-date fields. | **GO as an observed milestone field, parser offsets need follow-up validation** |
+| Completion | RRC lists nightly completion information, ZIP by district, submitted or approved previous day. Official [manual](https://www.rrc.texas.gov/media/ltudbyql/cmpldatasubscriptions_usermanual_20171101.pdf) documents tracking/packet IDs, submit/approval dates, API, permit, completion/recompletion, permit and spud dates. Current ZIP was not retrieved. | **UNKNOWN / REDIRECT** |
+| Production / first production | RRC lists monthly district production ledgers (available by the 20th) and monthly statewide PDQ query. Exact well-level direct feed, date semantics, archive snapshot and bounded retrieval were not established. RRC Online Research Queries warns against automated volume retrieval and says query data are informational, not authoritative public records. | **UNKNOWN; do not infer first production** |
+
+The [Wellbore Query manual](https://www.rrc.texas.gov/media/di1mm5or/og_wellbore_ewadefinitionmanual2013-10-30_subscription.pdf) describes a 456.91 MB CSV in its linked listing; it was not downloaded. RRC’s official index says users are responsible for conversion of downloaded formats. No licensing/redistribution conclusion beyond public download availability is asserted here. Query-volume limits are a concrete constraint; do not automate bulk query retrieval.
+
+## Next bounded action
+
+Controller should issue a separate read-only packet to validate a versioned type-01/type-02 field map against the manual using this retained archive, then decide whether the narrow permit/spud source merits an adapter packet. Keep pending, completion, and production as separate source-access nodes until a current official snapshot and their identifiers/date meanings are proven. Do not join records by operator/county, derive first production, infer power need, or activate the source from this packet.

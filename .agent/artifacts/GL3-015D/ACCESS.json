@@ -1,0 +1,48 @@
+{
+  "packet": "GL3-015D",
+  "decision": "REDIRECT",
+  "source": "Texas Railroad Commission public downloads",
+  "bounded_route": {
+    "name": "Drilling Permit Master + Trailer Daily current-month cumulative file",
+    "folder_guid": "5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+    "listed_file": "daf420.dat",
+    "retrievals": 2,
+    "bytes_each": 2391338,
+    "sha256_each": "c0215842369f14d6e725b011649ffa0076f373344e3ce5bb0d2ed411fce79cd6",
+    "identical": true,
+    "adjacent_type01_type02_pairs": 884,
+    "pair_key_matches": 884,
+    "permit_records_with_api8": 884,
+    "distinct_api8": 868,
+    "permit_records_with_nonzero_spud": 189,
+    "sample_records": 10,
+    "physical_lines": 29494,
+    "classified_segments": 29459,
+    "unclassified_lines": 35,
+    "unclassified_prefix_hex": "85",
+    "unclassified_meaning": "UNKNOWN; not interpreted"
+  },
+  "milestones": {
+    "pending_application": "UNKNOWN; official listing/manual found, current snapshot selection returned only 269-byte ViewState XML twice",
+    "approved_permit": "GO for bounded access proof only",
+    "spud": "GO as feed field candidate; exact field map requires follow-up validation",
+    "completion": "UNKNOWN; official cadence/manual documented, current ZIP not fetched",
+    "production_or_first_production": "UNKNOWN; no bounded well-level retrieval or date semantics proved"
+  },
+  "recommended_next": "Issue a bounded read-only field-map validation packet for type-01/type-02 records. Keep pending, completion, and production retrieval separate until directly proven.",
+  "source_activation": false,
+  "parent_gl3_015_complete": false,
+  "limitations": [
+    "Official manual and observed DAPERMIT offsets differ in several fields; production parser not certified.",
+    "RRC query documentation warns against automated volume retrieval and describes query output as informational.",
+    "No claims about completion, first production, power demand, fuel/service availability, or commercial opportunity."
+  ],
+  "evidence": [
+    ".agent/artifacts/GL3-015D/retrieval-ledger.md",
+    ".agent/artifacts/GL3-015D/sample-validation.json",
+    ".agent/artifacts/GL3-015D/REVIEW-r1.md",
+    "docs/sources/texas-upstream-access.md",
+    "docs/validation/gl3-015-texas-upstream-sample.md"
+  ],
+  "evidence_location": ".artifacts/GL3-015D/raw/ (ignored local evidence; hashes and byte counts in retrieval-ledger.md)"
+}
