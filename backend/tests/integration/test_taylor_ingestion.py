@@ -10,6 +10,7 @@ from sqlalchemy.orm import sessionmaker
 from gridlens.ingestion.service import process_job
 from gridlens.persistence.database import Base
 from gridlens.persistence.models import (
+    ChangeEvent,
     Evidence,
     Interpretation,
     Job,
@@ -369,7 +370,11 @@ def test_withdrawn_revision_evidence_is_visible_from_prior_signal(db, monkeypatc
     import gridlens.ingestion.service as service
 
     source = {"id": "taylor-development-newsflash", "retrieval_method": "taylor-newsflash"}
-    monkeypatch.setattr(service, "retrieve_source", lambda *_args: [_record()])
+    monkeypatch.setattr(
+        service,
+        "retrieve_source",
+        lambda *_args: [{**_record(), "publication_date": "2026-08-07"}],
+    )
     with factory() as session:
         process_job(session, job_id, "test", 1, source)
         lifecycle_count = session.scalar(select(func.count()).select_from(LifecycleEvent))
@@ -392,3 +397,38 @@ def test_withdrawn_revision_evidence_is_visible_from_prior_signal(db, monkeypatc
             )
             is not None
         )
+        assert session.scalar(
+            select(func.count()).select_from(ChangeEvent).where(ChangeEvent.kind == "withdrawn")
+        ) == 1
+    import importlib
+
+    api_module = importlib.import_module("gridlens.api.app")
+    monkeypatch.setattr(api_module, "SessionLocal", factory)
+    cards = api_module.opportunities(tier="Signal")
+    assert len(cards) == 1
+    assert cards[0]["signal_evidence_state"] == "planning_application_withdrawn"
+    assert cards[0]["lifecycle_state"] == "planning_application_withdrawn"
+    assert cards[0]["expected_next_milestone"] is None
+    assert cards[0]["expected_power_event"] is None
+    assert cards[0]["lifecycle_timeline"][-1]["event_type"] == "planning_application_withdrawn"
+    assert "historical" in cards[0]["rationale"].lower()
+    assert len(cards[0]["evidence"]) == 2
+    with factory() as session:
+        before = tuple(
+            session.scalar(select(func.count()).select_from(model))
+            for model in (Observation, Evidence, Project, LifecycleEvent, ChangeEvent)
+        )
+        before_assessments = [
+            row.assessment
+            for row in session.scalars(select(Interpretation).order_by(Interpretation.id))
+        ]
+        process_job(session, job_id, "test", 1, source)
+        after = tuple(
+            session.scalar(select(func.count()).select_from(model))
+            for model in (Observation, Evidence, Project, LifecycleEvent, ChangeEvent)
+        )
+        assert before == after
+        assert before_assessments == [
+            row.assessment
+            for row in session.scalars(select(Interpretation).order_by(Interpretation.id))
+        ]

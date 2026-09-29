@@ -73,7 +73,12 @@ MAPS: dict[str, dict[str, Any]] = {
         "area": None,
     },
 }
-SYSTEM_FIELD_SELECTS = {"chicago-building-permits": "*, :updated_at"}
+SYSTEM_FIELD_SELECTS = {
+    "chicago-building-permits": (
+        "id,issue_date,work_description,work_type,permit_type,permit_status,"
+        "street_number,street_direction,street_name,permit_,reported_cost,:updated_at"
+    )
+}
 PAGE_SIZE = 1000
 MAX_RESPONSE = 2_000_000
 MAX_RUN = 20_000_000

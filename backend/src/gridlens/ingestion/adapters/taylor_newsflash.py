@@ -315,7 +315,17 @@ def retrieve(
             rows[record["document_number"]] = record
             if bytes_seen > max_run:
                 raise SourceParseError("Taylor response bytes exceed configured run bound")
-        return list(rows.values())
+        # Process older article revisions before later dispositions. CivicPlus
+        # presents the archive newest first; reversing that order only on a
+        # second run would create a late withdrawal change during replay.
+        return sorted(
+            rows.values(),
+            key=lambda record: (
+                record.get("publication_date") or "",
+                str(record.get("article_id") or ""),
+                int(record.get("archive_revision_id") or 0),
+            ),
+        )
     except SourceParseError:
         raise
     except (ValueError, OverflowError) as exc:

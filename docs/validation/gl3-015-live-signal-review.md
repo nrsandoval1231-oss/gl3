@@ -1,5 +1,7 @@
 # GL3-015 current-source Signal review
 
+This was the **pre-repair read-only selector review**. The final ordinary-worker, persisted-card and withdrawal review is [GL3-015 persisted Signal card review](gl3-015-persisted-signal-review.md); its findings supersede this document's activation assessment.
+
 Read-only run on 2026-09-29 from `feat/gl3-015`: loaded the configured Taylor source and called `taylor_newsflash.retrieve`, then `interpret_taylor_planning` on every returned row. This made bounded public GETs only. No application database, production-like records, or fixture rows were written. Command shape:
 
 ```powershell
