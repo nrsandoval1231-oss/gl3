@@ -1,7 +1,7 @@
 """retryable interpretation backlog and visible Signal withdrawal"""
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects import postgresql
 
 revision = "0002_interpretations"

@@ -6,7 +6,7 @@ import hashlib
 import json
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import urlencode, urlparse
 
 import httpx
 
@@ -71,12 +71,19 @@ MAPS: dict[str, dict[str, Any]] = {
         "project": "permit_",
         "cost": "reported_cost",
         "area": None,
+        "parcel": "pin_list",
+        **{
+            f"contact_{i}_{part}": f"contact_{i}_{part}"
+            for i in range(1, 16)
+            for part in ("type", "name")
+        },
     },
 }
 SYSTEM_FIELD_SELECTS = {
     "chicago-building-permits": (
         "id,issue_date,work_description,work_type,permit_type,permit_status,"
-        "street_number,street_direction,street_name,permit_,reported_cost,:updated_at"
+        "street_number,street_direction,street_name,permit_,reported_cost,pin_list,:updated_at,"
+        + ",".join(f"contact_{i}_{part}" for i in range(1, 16) for part in ("type", "name"))
     )
 }
 PAGE_SIZE = 1000
@@ -128,7 +135,9 @@ def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list
             "permitclassmapped='Non-Residential' AND permittypemapped='Building'"
         ),
         "chicago-building-permits": (
-            "permit_type IN ('PERMIT - NEW CONSTRUCTION','PERMIT - RENOVATION/ALTERATION')"
+            "(permit_type IN ('PERMIT - NEW CONSTRUCTION','PERMIT - RENOVATION/ALTERATION') "
+            "OR (permit_type='PERMIT – EXPRESS PERMIT PROGRAM' "
+            "AND work_type='Electrical Work'))"
         ),
     }
     issue_filter = (
@@ -137,9 +146,7 @@ def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list
     )
     modified_field = fields.get("modified_date")
     modified_timestamp_suffix = "Z" if modified_field and modified_field.startswith(":") else ""
-    modified_lower = (
-        f"{modified_start.isoformat()}T00:00:00.000{modified_timestamp_suffix}"
-    )
+    modified_lower = f"{modified_start.isoformat()}T00:00:00.000{modified_timestamp_suffix}"
     modified_upper = f"{today.isoformat()}T23:59:59.999{modified_timestamp_suffix}"
     modified_filter = (
         f" OR ({modified_field} >= '{modified_lower}' AND {modified_field} <= '{modified_upper}')"
@@ -274,6 +281,14 @@ def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list
                 if link and link_host not in {expected_host, source.get("record_link_host")}:
                     link = ""
                 citation = link or source["endpoint"]
+                if source_id == "chicago-building-permits":
+                    citation = (
+                        source["endpoint"]
+                        + "?"
+                        + urlencode(
+                            {"$where": "id='" + row_id.replace("'", "''") + "'", "$limit": 1}
+                        )
+                    )
                 semantic = {key: _field(row, name) for key, name in fields.items() if name}
                 retained_fields = {
                     label: _field(row, field_name)

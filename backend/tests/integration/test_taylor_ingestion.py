@@ -8,20 +8,14 @@ from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 
 from gridlens.ingestion.service import process_job
-from gridlens.intelligence.signal_adjudication import POLICY_VERSION, adjudicate_current_signals
 from gridlens.persistence.database import Base
 from gridlens.persistence.models import (
-    ChangeEvent,
     Evidence,
     Interpretation,
     Job,
-    LifecycleEvent,
-    NeedObservation,
     Observation,
     PowerNeed,
     Project,
-    ProjectLifecycle,
-    SignalDecision,
     Source,
 )
 from gridlens.settings import settings
@@ -154,7 +148,7 @@ def _withdrawn_archive_record():
     return record
 
 
-def test_real_comal_article_creates_signal_and_replay_is_idempotent(db, monkeypatch):
+def test_real_comal_article_is_research_context_and_replay_is_idempotent(db, monkeypatch):
     factory, job_id = db
     import gridlens.ingestion.service as service
 
@@ -168,9 +162,12 @@ def test_real_comal_article_creates_signal_and_replay_is_idempotent(db, monkeypa
         need = session.scalar(select(PowerNeed))
         assert session.scalar(select(func.count()).select_from(Evidence)) == 1
         assert observation is not None and observation.external_id == "2032"
-        assert need is not None and need.tier == "Signal"
-        assert need.required_mw is None and need.supply == "Unknown"
-    assert first["signals"] == 1
+        assert need is None
+        assessment = session.scalar(select(Interpretation)).assessment
+        assert assessment["decision"] == "context_only"
+        assert assessment["admission_origin"] == "Official planning context"
+        assert session.scalar(select(func.count()).select_from(Project)) == 0
+    assert first["signals"] == 0
     assert replay["unchanged"] == 1
 
 
@@ -182,7 +179,7 @@ def test_replay_and_new_revision_preserve_evidence_without_false_power_claims(db
     source = {"id": "taylor-development-newsflash", "retrieval_method": "taylor-newsflash"}
     with factory() as session:
         first = process_job(session, job_id, "test", 1, source)
-    assert first["signals"] == 1
+    assert first["signals"] == 0
     with factory() as session:
         replay = process_job(session, job_id, "test", 1, source)
     assert replay["unchanged"] == 1
@@ -202,11 +199,8 @@ def test_replay_and_new_revision_preserve_evidence_without_false_power_claims(db
     with factory() as session:
         assert session.scalar(select(func.count()).select_from(Observation)) == 3
         assert session.scalar(select(func.count()).select_from(Evidence)) == 3
-        assert session.scalar(select(func.count()).select_from(Project)) == 1
-        assert session.scalar(select(func.count()).select_from(PowerNeed)) == 1
-        need = session.scalar(select(PowerNeed))
-        assert need is not None and need.tier == "Signal"
-        assert need.required_mw is None and need.supply == "Unknown"
+        assert session.scalar(select(func.count()).select_from(Project)) == 0
+        assert session.scalar(select(func.count()).select_from(PowerNeed)) == 0
         withdrawn = session.scalar(
             select(Observation).where(Observation.external_id == "2079:arcId=3442")
         )
@@ -234,9 +228,11 @@ def test_distinct_article_ids_do_not_merge_by_project_name_and_city(db, monkeypa
     )
     with factory() as session:
         result = process_job(session, job_id, "test", 1, source)
-        assert result["signals"] == 2
-        assert session.scalar(select(func.count()).select_from(Project)) == 2
-        assert session.scalar(select(func.count()).select_from(PowerNeed)) == 2
+        assert result["signals"] == 0
+        assert session.scalar(select(func.count()).select_from(Observation)) == 2
+        assert session.scalar(select(func.count()).select_from(Evidence)) == 2
+        assert session.scalar(select(func.count()).select_from(Project)) == 0
+        assert session.scalar(select(func.count()).select_from(PowerNeed)) == 0
 
 
 def test_one_article_with_conflicting_project_identity_stays_unknown(db, monkeypatch):
@@ -251,21 +247,19 @@ def test_one_article_with_conflicting_project_identity_stays_unknown(db, monkeyp
     monkeypatch.setattr(service, "retrieve_source", lambda *_args: [conflicting])
     with factory() as session:
         process_job(session, job_id, "test", 1, source)
-        assert session.scalar(select(func.count()).select_from(Project)) == 1
-        assert session.scalar(select(func.count()).select_from(PowerNeed)) == 1
+        assert session.scalar(select(func.count()).select_from(Project)) == 0
+        assert session.scalar(select(func.count()).select_from(PowerNeed)) == 0
         interpretation = session.scalar(
             select(Interpretation)
             .join(Observation)
             .where(Observation.external_id == "2079:arcId=3435")
         )
         assert interpretation is not None
-        assert interpretation.status == "rejected"
-        assert interpretation.assessment["decision"] == "unknown"
+        assert interpretation.status == "accepted"
+        assert interpretation.assessment["decision"] == "context_only"
 
 
-def test_changed_same_external_id_project_conflict_preserves_prior_evidence_and_signal(
-    db, monkeypatch
-):
+def test_changed_same_external_id_project_conflict_preserves_context_evidence(db, monkeypatch):
     factory, job_id = db
     import gridlens.ingestion.service as service
 
@@ -274,41 +268,33 @@ def test_changed_same_external_id_project_conflict_preserves_prior_evidence_and_
     monkeypatch.setattr(service, "retrieve_source", lambda *_args: [original])
     with factory() as session:
         first = process_job(session, job_id, "test", 1, source)
-        original_lifecycle_count = session.scalar(select(func.count()).select_from(LifecycleEvent))
-        original_project = session.scalar(select(Project))
-        original_need = session.scalar(select(PowerNeed))
-        assert first["signals"] == 1
-        assert original_project is not None and "Mustang" in original_project.name
-        assert original_need is not None and original_need.tier == "Signal"
+        assert first["signals"] == 0
+        assert session.scalar(select(Project)) is None
+        assert session.scalar(select(PowerNeed)) is None
 
     conflicting = _direct_article(project="Other", body_suffix="Project Other was substituted.")
     monkeypatch.setattr(service, "retrieve_source", lambda *_args: [conflicting])
     with factory() as session:
         result = process_job(session, job_id, "test", 1, source)
         observation = session.scalar(select(Observation).where(Observation.external_id == "2091"))
-        project = session.scalar(select(Project))
-        need = session.scalar(select(PowerNeed))
         interpretation = session.scalar(select(Interpretation))
         evidence = session.scalars(select(Evidence).order_by(Evidence.observed_at)).all()
         assert result["changed"] == 1
         assert result["signals"] == 0
         assert observation is not None and "Other" in observation.title
-        assert project is not None and project.name == original_project.name
-        assert need is not None and need.id == original_need.id and need.tier == "Signal"
-        assert interpretation is not None and interpretation.assessment["decision"] == "unknown"
-        assert interpretation.assessment["previous_assessments"][0]["decision"] == "accepted"
+        assert (
+            interpretation is not None and interpretation.assessment["decision"] == "context_only"
+        )
+        assert interpretation.assessment["previous_decisions"][0]["decision"] == "context_only"
         assert len(evidence) == 2
         assert any("Mustang" in item.title for item in evidence)
         assert any("Other" in item.title for item in evidence)
-        assert session.scalar(select(func.count()).select_from(Project)) == 1
-        assert session.scalar(select(func.count()).select_from(PowerNeed)) == 1
-        assert (
-            session.scalar(select(func.count()).select_from(LifecycleEvent))
-            == original_lifecycle_count
-        )
+        assert session.scalar(select(func.count()).select_from(Project)) == 0
+        assert session.scalar(select(func.count()).select_from(PowerNeed)) == 0
+        assert session.scalar(select(func.count()).select_from(Project)) == 0
 
 
-def test_changed_same_external_id_nonconflicting_update_replays_on_same_project(db, monkeypatch):
+def test_changed_same_external_id_nonconflicting_update_replays_as_context(db, monkeypatch):
     factory, job_id = db
     import gridlens.ingestion.service as service
 
@@ -320,22 +306,38 @@ def test_changed_same_external_id_nonconflicting_update_replays_on_same_project(
     monkeypatch.setattr(service, "retrieve_source", lambda *_args: [updated])
     with factory() as session:
         changed = process_job(session, job_id, "test", 1, source)
-        project_id = session.scalar(select(Project.id))
-        need_id = session.scalar(select(PowerNeed.id))
-        lifecycle_count = session.scalar(select(func.count()).select_from(LifecycleEvent))
+        assert session.scalar(select(func.count()).select_from(Project)) == 0
     assert changed["changed"] == 1
     monkeypatch.setattr(service, "retrieve_source", lambda *_args: [updated])
     with factory() as session:
         replay = process_job(session, job_id, "test", 1, source)
         assert replay["unchanged"] == 1
         assert session.scalar(select(func.count()).select_from(Evidence)) == 2
-        assert session.scalar(select(func.count()).select_from(Project)) == 1
-        assert session.scalar(select(func.count()).select_from(PowerNeed)) == 1
-        assert session.scalar(select(Project.id)) == project_id
-        assert session.scalar(select(PowerNeed.id)) == need_id
-        assert session.scalar(select(func.count()).select_from(LifecycleEvent)) == lifecycle_count
+        assert session.scalar(select(func.count()).select_from(Project)) == 0
+        assert session.scalar(select(func.count()).select_from(PowerNeed)) == 0
+        assert session.scalar(select(func.count()).select_from(Project)) == 0
         interpretation = session.scalar(select(Interpretation))
-        assert interpretation is not None and interpretation.assessment["decision"] == "accepted"
+        assert (
+            interpretation is not None and interpretation.assessment["decision"] == "context_only"
+        )
+
+
+def _assert_planning_context_has_no_opportunity(factory, monkeypatch):
+    import importlib
+
+    with factory() as session:
+        assert session.scalar(select(func.count()).select_from(Project)) == 0
+        assert session.scalar(select(func.count()).select_from(PowerNeed)) == 0
+        assessments = session.scalars(select(Interpretation)).all()
+        assert assessments
+        assert all(
+            row.assessment.get("decision") in {"context_only", "unknown"}
+            or row.assessment.get("admission_status") == "context_only"
+            for row in assessments
+        )
+    api_module = importlib.import_module("gridlens.api.app")
+    monkeypatch.setattr(api_module, "SessionLocal", factory)
+    assert api_module.opportunities() == []
 
 
 def test_withdrawn_revision_evidence_is_visible_from_prior_signal(db, monkeypatch):
@@ -344,118 +346,24 @@ def test_withdrawn_revision_evidence_is_visible_from_prior_signal(db, monkeypatc
 
     source = {"id": "taylor-development-newsflash", "retrieval_method": "taylor-newsflash"}
     monkeypatch.setattr(
-        service,
-        "retrieve_source",
-        lambda *_args: [{**_record(), "publication_date": "2026-08-07"}],
+        service, "retrieve_source", lambda *_args: [{**_record(), "publication_date": "2026-08-07"}]
     )
     with factory() as session:
-        process_job(session, job_id, "test", 1, source)
-        lifecycle_count = session.scalar(select(func.count()).select_from(LifecycleEvent))
-        prior_observation = session.scalar(select(Observation))
-        prior_evidence = session.scalar(select(Evidence))
-        assert prior_observation is not None and prior_evidence is not None
-        session.add(
-            SignalDecision(
-                observation_id=prior_observation.id,
-                content_hash=prior_evidence.content_hash,
-                policy_version=POLICY_VERSION,
-                decision="SHOW",
-                source="jev",
-                model_version="jev-1.13.0",
-                dimensions={"physical_project_event": 0.99},
-                reason="Earlier supported planning event.",
-            )
-        )
-        session.commit()
+        first = process_job(session, job_id, "test", 1, source)
+    assert first["signals"] == 0
     monkeypatch.setattr(service, "retrieve_source", lambda *_args: [_withdrawn_archive_record()])
     with factory() as session:
-        process_job(session, job_id, "test", 1, source)
+        withdrawn_result = process_job(session, job_id, "test", 1, source)
         withdrawn = session.scalar(
             select(Observation).where(Observation.external_id == "2079:arcId=3442")
         )
-        need = session.scalar(select(PowerNeed))
-        assert withdrawn is not None and need is not None
-        withdrawal_decision = session.scalar(
-            select(SignalDecision)
-            .where(SignalDecision.observation_id == withdrawn.id)
-            .order_by(SignalDecision.id.desc())
-        )
-        assert withdrawal_decision is not None
-        assert withdrawal_decision.decision == "HOLD"
-        assert withdrawal_decision.dimensions == {"planning_application_withdrawn": True}
-        session.delete(withdrawal_decision)
-        session.flush()
-        backfill = adjudicate_current_signals(session)
-        session.flush()
-        assert backfill["hold"] == 1
-        assert session.scalar(
-            select(SignalDecision)
-            .where(SignalDecision.observation_id == withdrawn.id)
-            .order_by(SignalDecision.id.desc())
-        ).decision == "HOLD"
-        session.commit()
-        assert need.active is True
-        assert (
-            session.scalar(select(func.count()).select_from(LifecycleEvent)) == lifecycle_count + 1
-        )
-        assert (
-            session.scalar(select(ProjectLifecycle)).current_state
-            == "planning_application_withdrawn"
-        )
-        assert (
-            session.scalar(
-                select(NeedObservation.id).where(
-                    NeedObservation.observation_id == withdrawn.id,
-                    NeedObservation.need_id == need.id,
-                )
-            )
-            is not None
-        )
-        assert (
-            session.scalar(
-                select(func.count()).select_from(ChangeEvent).where(ChangeEvent.kind == "withdrawn")
-            )
-            == 1
-        )
-    import importlib
-
-    api_module = importlib.import_module("gridlens.api.app")
-    monkeypatch.setattr(api_module, "SessionLocal", factory)
-    cards = api_module.opportunities(tier="Signal")
-    assert len(cards) == 1
-    assert cards[0]["signal_evidence_state"] == "planning_application_withdrawn"
-    assert cards[0]["signal_display_decision"] == "HOLD"
-    assert cards[0]["signal_display_source"] == "deterministic"
-    assert api_module.signal_decision_counts()["hold"] == 1
-    assert cards[0]["lifecycle_state"] == "planning_application_withdrawn"
-    assert cards[0]["expected_next_milestone"] is None
-    assert cards[0]["expected_power_event"] is None
-    assert cards[0]["lifecycle_timeline"][-1]["event_type"] == "planning_application_withdrawn"
-    assert "historical" in cards[0]["rationale"].lower()
-    assert len(cards[0]["evidence"]) == 2
-    with factory() as session:
-        before = tuple(
-            session.scalar(select(func.count()).select_from(model))
-            for model in (
-                Observation, Evidence, Project, LifecycleEvent, ChangeEvent, SignalDecision
-            )
-        )
-        before_assessments = [
-            row.assessment
-            for row in session.scalars(select(Interpretation).order_by(Interpretation.id))
-        ]
-        process_job(session, job_id, "test", 1, source)
-        after = tuple(
-            session.scalar(select(func.count()).select_from(model))
-            for model in (
-                Observation, Evidence, Project, LifecycleEvent, ChangeEvent, SignalDecision
-            )
-        )
-        assert before == after
-        assert before_assessments == [
-            row.assessment
-            for row in session.scalars(select(Interpretation).order_by(Interpretation.id))
-        ]
+        assert withdrawn_result["signals"] == 0
+        assert withdrawn is not None and "WITHDRAWN" in withdrawn.title
+        assert session.scalar(select(func.count()).select_from(Evidence)) == 2
+        assert session.scalar(select(func.count()).select_from(Project)) == 0
+        assert session.scalar(select(func.count()).select_from(PowerNeed)) == 0
+        assert session.scalar(select(func.count()).select_from(Interpretation)) == 2
+    _assert_planning_context_has_no_opportunity(factory, monkeypatch)
 
 
 def test_conflicting_withdrawn_revision_does_not_withdraw_prior_project(db, monkeypatch):
@@ -466,7 +374,6 @@ def test_conflicting_withdrawn_revision_does_not_withdraw_prior_project(db, monk
     monkeypatch.setattr(service, "retrieve_source", lambda *_args: [_record()])
     with factory() as session:
         process_job(session, job_id, "test", 1, source)
-
     conflicting = _record("3442", " Project Other is at 9900 FM 112.")
     conflicting["title"] = conflicting["title"].replace("Mustang", "Other")
     monkeypatch.setattr(service, "retrieve_source", lambda *_args: [conflicting])
@@ -475,46 +382,17 @@ def test_conflicting_withdrawn_revision_does_not_withdraw_prior_project(db, monk
         withdrawn = session.scalar(
             select(Observation).where(Observation.external_id == "2079:arcId=3442")
         )
-        need = session.scalar(select(PowerNeed))
-        assert withdrawn is not None and need is not None
+        assert withdrawn is not None
         assert session.scalar(select(func.count()).select_from(Evidence)) == 2
-        assert session.scalar(select(func.count()).select_from(Project)) == 1
-        assert session.scalar(select(func.count()).select_from(LifecycleEvent)) == 1
-        assert session.scalar(select(func.count()).select_from(ChangeEvent)) == 1
+        assert session.scalar(select(func.count()).select_from(Project)) == 0
+        assert session.scalar(select(func.count()).select_from(PowerNeed)) == 0
         assert (
             session.scalar(
-                select(NeedObservation.id).where(
-                    NeedObservation.observation_id == withdrawn.id,
-                    NeedObservation.need_id == need.id,
-                )
-            )
-            is None
+                select(Interpretation).where(Interpretation.observation_id == withdrawn.id)
+            ).assessment["decision"]
+            == "unknown"
         )
-        interpretation = session.scalar(
-            select(Interpretation).where(Interpretation.observation_id == withdrawn.id)
-        )
-        assert interpretation is not None
-        assert "conflicting project or site facts" in interpretation.assessment["reason"]
-
-    import importlib
-
-    api_module = importlib.import_module("gridlens.api.app")
-    monkeypatch.setattr(api_module, "SessionLocal", factory)
-    cards = api_module.opportunities(tier="Signal")
-    assert len(cards) == 1
-    assert cards[0]["signal_evidence_state"] != "planning_application_withdrawn"
-    assert len(cards[0]["evidence"]) == 1
-
-    with factory() as session:
-        before = tuple(
-            session.scalar(select(func.count()).select_from(model))
-            for model in (Observation, Evidence, Project, LifecycleEvent, ChangeEvent)
-        )
-        process_job(session, job_id, "test", 1, source)
-        assert before == tuple(
-            session.scalar(select(func.count()).select_from(model))
-            for model in (Observation, Evidence, Project, LifecycleEvent, ChangeEvent)
-        )
+    _assert_planning_context_has_no_opportunity(factory, monkeypatch)
 
 
 def test_current_page_notice_links_later_archive_withdrawal_after_window_rolls(db, monkeypatch):
@@ -529,73 +407,21 @@ def test_current_page_notice_links_later_archive_withdrawal_after_window_rolls(d
     )
     with factory() as session:
         process_job(session, job_id, "test", 1, source)
-        original = session.scalar(select(Observation).where(Observation.external_id == "2079"))
-        need = session.scalar(select(PowerNeed))
-        assert original is not None and need is not None
-        original_id, need_id = original.id, need.id
-
-    # The current category has rolled forward; only the archive revision is retrieved.
     monkeypatch.setattr(service, "retrieve_source", lambda *_args: [_withdrawn_archive_record()])
     with factory() as session:
         process_job(session, job_id, "test", 1, source)
-        withdrawn = session.scalar(
-            select(Observation).where(Observation.external_id == "2079:arcId=3442")
-        )
-        need = session.get(PowerNeed, need_id)
-        assert withdrawn is not None and need is not None and need.active
-        assert (
-            session.scalar(select(ProjectLifecycle)).current_state
-            == "planning_application_withdrawn"
-        )
-        assert (
-            session.scalar(
-                select(func.count())
-                .select_from(NeedObservation)
-                .where(NeedObservation.need_id == need_id)
-            )
-            == 2
-        )
-        assert session.get(Observation, original_id) is not None
         before = tuple(
             session.scalar(select(func.count()).select_from(model))
-            for model in (
-                Observation,
-                Evidence,
-                Project,
-                PowerNeed,
-                NeedObservation,
-                LifecycleEvent,
-                ChangeEvent,
-            )
+            for model in (Observation, Evidence, Project, PowerNeed, Interpretation)
         )
         process_job(session, job_id, "test", 1, source)
-        assert before == tuple(
+        after = tuple(
             session.scalar(select(func.count()).select_from(model))
-            for model in (
-                Observation,
-                Evidence,
-                Project,
-                PowerNeed,
-                NeedObservation,
-                LifecycleEvent,
-                ChangeEvent,
-            )
+            for model in (Observation, Evidence, Project, PowerNeed, Interpretation)
         )
-
-    import importlib
-
-    api_module = importlib.import_module("gridlens.api.app")
-    monkeypatch.setattr(api_module, "SessionLocal", factory)
-    cards = api_module.opportunities(tier="Signal")
-    assert len(cards) == 1
-    assert cards[0]["signal_evidence_state"] == "planning_application_withdrawn"
-    assert cards[0]["lifecycle_state"] == "planning_application_withdrawn"
-    assert len(cards[0]["evidence"]) == 2
-    assert [event["event_type"] for event in cards[0]["lifecycle_timeline"]] == [
-        "project_formation",
-        "planning_application_withdrawn",
-    ]
-    assert [event["current"] for event in cards[0]["lifecycle_timeline"]] == [False, True]
+        assert before == after
+        assert before[:2] == (2, 2)
+    _assert_planning_context_has_no_opportunity(factory, monkeypatch)
 
 
 def test_same_id_supported_withdrawal_updates_stored_state_and_replays(db, monkeypatch):
@@ -607,40 +433,25 @@ def test_same_id_supported_withdrawal_updates_stored_state_and_replays(db, monke
     monkeypatch.setattr(service, "retrieve_source", lambda *_args: [initial])
     with factory() as session:
         process_job(session, job_id, "test", 1, source)
-
     withdrawn = {**initial, "title": "WITHDRAWN - " + initial["title"], "disposition": "withdrawn"}
     withdrawn["source_hash"] = hashlib.sha256(withdrawn["title"].encode()).hexdigest()
     monkeypatch.setattr(service, "retrieve_source", lambda *_args: [withdrawn])
     with factory() as session:
         process_job(session, job_id, "test", 1, source)
-        need = session.scalar(select(PowerNeed))
-        projection = session.scalar(select(ProjectLifecycle))
-        assert need is not None and need.active
-        assert projection is not None
-        assert projection.current_state == "planning_application_withdrawn"
-        assert session.scalar(
-            select(func.count()).select_from(ChangeEvent).where(ChangeEvent.kind == "withdrawn")
-        ) == 1
+        observation = session.scalar(select(Observation).where(Observation.external_id == "2091"))
+        assert observation is not None
+        assert session.scalar(select(func.count()).select_from(Evidence)) == 2
         before = tuple(
             session.scalar(select(func.count()).select_from(model))
-            for model in (Observation, Evidence, Project, PowerNeed, LifecycleEvent, ChangeEvent)
+            for model in (Observation, Evidence, Project, PowerNeed, Interpretation)
         )
         process_job(session, job_id, "test", 1, source)
-        assert before == tuple(
+        after = tuple(
             session.scalar(select(func.count()).select_from(model))
-            for model in (Observation, Evidence, Project, PowerNeed, LifecycleEvent, ChangeEvent)
+            for model in (Observation, Evidence, Project, PowerNeed, Interpretation)
         )
-
-    import importlib
-
-    api_module = importlib.import_module("gridlens.api.app")
-    monkeypatch.setattr(api_module, "SessionLocal", factory)
-    card = api_module.opportunities(tier="Signal")[0]
-    assert card["signal_evidence_state"] == "planning_application_withdrawn"
-    assert len(card["evidence"]) == 2
-    assert {event["event_type"] for event in card["lifecycle_timeline"]} == {
-        "project_formation", "planning_application_withdrawn"
-    }
+        assert before == after
+    _assert_planning_context_has_no_opportunity(factory, monkeypatch)
 
 
 def test_conflict_after_supported_same_id_withdrawal_returns_to_unknown(db, monkeypatch):
@@ -659,43 +470,11 @@ def test_conflict_after_supported_same_id_withdrawal_returns_to_unknown(db, monk
         with factory() as session:
             process_job(session, job_id, "test", 1, source)
     with factory() as session:
-        assert session.scalar(select(ProjectLifecycle)) is None
-        assert session.scalar(select(func.count()).select_from(LifecycleEvent)) == 2
         assert session.scalar(select(func.count()).select_from(Evidence)) == 3
-        assert session.scalar(select(func.count()).select_from(Project)) == 1
-        assert session.scalar(select(func.count()).select_from(PowerNeed)) == 1
-        conflict_decision = session.scalar(
-            select(SignalDecision).order_by(SignalDecision.id.desc())
-        )
-        assert conflict_decision is not None
-        assert conflict_decision.decision == "REVIEW"
-        assert conflict_decision.dimensions == {"identity_conflict": True}
-        before = tuple(
-            session.scalar(select(func.count()).select_from(model))
-            for model in (
-                Observation, Evidence, Project, PowerNeed, LifecycleEvent, ChangeEvent,
-                SignalDecision,
-            )
-        )
-        process_job(session, job_id, "test", 1, source)
-        assert before == tuple(
-            session.scalar(select(func.count()).select_from(model))
-            for model in (
-                Observation, Evidence, Project, PowerNeed, LifecycleEvent, ChangeEvent,
-                SignalDecision,
-            )
-        )
-
-    import importlib
-
-    api_module = importlib.import_module("gridlens.api.app")
-    monkeypatch.setattr(api_module, "SessionLocal", factory)
-    card = api_module.opportunities(tier="Signal")[0]
-    assert card["signal_evidence_state"] == "planning_status_unknown"
-    assert card["signal_display_decision"] == "REVIEW"
-    assert card["lifecycle_state"] is None
-    assert len(card["evidence"]) == 3
-    assert "UNKNOWN" in card["rationale"]
+        assert session.scalar(select(func.count()).select_from(Project)) == 0
+        assert session.scalar(select(func.count()).select_from(PowerNeed)) == 0
+        assert session.scalar(select(func.count()).select_from(Interpretation)) == 1
+    _assert_planning_context_has_no_opportunity(factory, monkeypatch)
 
 
 def test_conflicting_withdrawal_at_same_external_id_keeps_status_unknown(db, monkeypatch):
@@ -706,8 +485,6 @@ def test_conflicting_withdrawal_at_same_external_id_keeps_status_unknown(db, mon
     monkeypatch.setattr(service, "retrieve_source", lambda *_args: [_direct_article()])
     with factory() as session:
         process_job(session, job_id, "test", 1, source)
-        lifecycle_count = session.scalar(select(func.count()).select_from(LifecycleEvent))
-
     conflicting = _direct_article(project="Other", body_suffix="Project Other is at 9900 FM 112.")
     conflicting["title"] = "WITHDRAWN - " + conflicting["title"]
     conflicting["disposition"] = "withdrawn"
@@ -715,39 +492,13 @@ def test_conflicting_withdrawal_at_same_external_id_keeps_status_unknown(db, mon
     with factory() as session:
         process_job(session, job_id, "test", 1, source)
         observation = session.scalar(select(Observation).where(Observation.external_id == "2091"))
-        need = session.scalar(select(PowerNeed))
-        assert observation is not None and need is not None
+        assert observation is not None
         assert session.scalar(select(func.count()).select_from(Evidence)) == 2
-        assert session.scalar(select(func.count()).select_from(Project)) == 1
-        assert session.scalar(select(func.count()).select_from(LifecycleEvent)) == lifecycle_count
-        assert session.scalar(select(func.count()).select_from(ChangeEvent)) == 1
+        assert session.scalar(select(func.count()).select_from(Project)) == 0
+        assert session.scalar(select(func.count()).select_from(PowerNeed)) == 0
         interpretation = session.scalar(
             select(Interpretation).where(Interpretation.observation_id == observation.id)
         )
         assert interpretation is not None
-        assert interpretation.assessment["decision"] == "unknown"
-        assert "conflicting project or site facts" in interpretation.assessment["reason"]
-        assert session.scalar(select(ProjectLifecycle)) is None
-
-    import importlib
-
-    api_module = importlib.import_module("gridlens.api.app")
-    monkeypatch.setattr(api_module, "SessionLocal", factory)
-    cards = api_module.opportunities(tier="Signal")
-    assert len(cards) == 1
-    assert cards[0]["signal_evidence_state"] == "planning_status_unknown"
-    assert cards[0]["lifecycle_state"] is None
-    assert cards[0]["expected_next_milestone"] is None
-    assert len(cards[0]["evidence"]) == 2
-    assert "UNKNOWN" in cards[0]["rationale"]
-
-    with factory() as session:
-        before = tuple(
-            session.scalar(select(func.count()).select_from(model))
-            for model in (Observation, Evidence, Project, LifecycleEvent, ChangeEvent)
-        )
-        process_job(session, job_id, "test", 1, source)
-        assert before == tuple(
-            session.scalar(select(func.count()).select_from(model))
-            for model in (Observation, Evidence, Project, LifecycleEvent, ChangeEvent)
-        )
+        assert interpretation.assessment["decision"] in {"context_only", "unknown"}
+    _assert_planning_context_has_no_opportunity(factory, monkeypatch)

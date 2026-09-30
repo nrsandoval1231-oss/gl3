@@ -6,8 +6,8 @@ import re
 from datetime import date, datetime
 from typing import Any
 
-EVALUATOR_VERSION = "permit-project-v7"
-GEORGIA_AIR_EVALUATOR_VERSION = "georgia-air-discovery-v1"
+EVALUATOR_VERSION = "permit-project-v8"
+GEORGIA_AIR_EVALUATOR_VERSION = "georgia-air-discovery-v2"
 MISSING = [
     "buyer or responsible operator",
     "activity-specific power requirement",
@@ -64,6 +64,7 @@ _GENERATOR_CHANGE = re.compile(
     re.I,
 )
 _TEMP_POWER = re.compile(
+    r"\btemporary\s+\d[\d,.]*\s*(?:amp(?:ere)?s?\s+(?:electrical\s+)?service|(?:kW|MW)\s+(?:diesel\s+|gas\s+)?generator)\b|"
     r"\b(?:temporary|rental|rented|mobile|portable) (?:power|electric(?:al)?|generator|generation)|\b(?:construction power|temporary generator|rental generator|mobile generator|portable generator)\b",  # noqa: E501
     re.I,
 )
@@ -300,7 +301,18 @@ def _assess_georgia_air(
         "power_activity": activity,
         "rental_category": "air-permit-discovery",
         "reported_claim": current_scope if accepted else None,
-        "reported_power_facts": reported_facts,
+        "reported_power_facts": reported_facts
+        + [
+            f"Generator document context, page {fact['page']}: {fact['quote'][:220]}"
+            + ("…" if len(fact["quote"]) > 220 else "")
+            + " [scope/history unassigned; not rental demand]"
+            for fact in permit.get("generator_facts", [])
+            if fact.get("power_quantities")
+            and all(q.get("basis") != "regulatory context" for q in fact["power_quantities"])
+        ][:2],
+        "generator_facts": permit.get("generator_facts", []),
+        "generator_excerpts_omitted": permit.get("generator_excerpts_omitted", 0),
+        "application_document_available": permit.get("application_document_available", False),
         "rental_hypothesis": (
             "Inferred review question only. Reported campus, available-service, and generator "
             "values remain separate source claims; no rental MW is calculated."
@@ -311,6 +323,7 @@ def _assess_georgia_air(
         "review_after": None,
         "as_of_date": as_of.isoformat(),
         "document_links": permit.get("document_links", {}),
+        "document_hashes": permit.get("document_hashes", {}),
     }
 
 

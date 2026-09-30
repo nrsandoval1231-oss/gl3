@@ -1,5 +1,7 @@
 # Signal Source Matrix
 
+> GL3-018 supersedes standalone news/planning Signal admission and expands the existing Chicago/Georgia routes. See [current admission and acquisition behavior](gl3-018-admission-and-acquisition.md). Historical validation below is not a new live check.
+
 Canonical acquisition roadmap for GL3-015. Status describes **current GL3 acquisition**, not the existence of public records. `ACTIVE` means enabled locally with retrieval, persistence and replay proof; `PARTIAL` means selected places or event types; `PLANNED` means a plausible public route without an accepted adapter; `BLOCKED` means a known access or integrity obstacle; `NOT YET RESEARCHED` means no source contract has been checked. None implies nationwide coverage. The governing unit is a physical project **event**, not a permit type. The Taylor municipal source is **accepted ACTIVE locally** after the fresh isolated 13-source run and unchanged replay; the wider planning family remains `PARTIAL` because Taylor is only one city.
 
 Pipeline: **source → observation → retained evidence → conservative project match → lifecycle event → Signal-worthiness**. Ingest a record without necessarily surfacing a Signal. Preserve dated revisions and negative events. Names alone never merge sites. An approval, generator rating, requested load or drilling authorization never establishes a temporary-power gap.

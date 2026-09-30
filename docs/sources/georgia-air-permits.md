@@ -1,5 +1,7 @@
 # Georgia EPD Draft Title V source
 
+> GL3-018 supersedes standalone news/planning Signal admission and expands the existing Chicago/Georgia routes. See [current admission and acquisition behavior](gl3-018-admission-and-acquisition.md). Historical validation below is not a new live check.
+
 Checked 2026-09-27 UTC. The configured source is the official [Georgia EPD Draft Title V permits and amendments listing](https://epd.georgia.gov/draft-title-v-permitsamendments-other-draft-permits). Its page embeds a public Knack app (`5582edf87a0f92370d4ae1f9`), scene `scene_1`, view `view_1`. Retrieval uses the observed public GET endpoints for fixed app metadata and that fixed records view. The adapter does not accept URLs, app IDs, field maps, or page controls from returned rows.
 
 The observed snapshot returned 18 of 18 rows. Public-comment deadlines ranged from 2026-09-28 to 2026-10-26. These dates describe comment windows only. The source does not provide a publication timestamp, so the evidence publication date remains unknown. A separately source-stated application date or received date is retained only as a labeled event date; the record's retrieval timestamp is also preserved independently. A closed comment window does not by itself show that the listed draft has been withdrawn, completed, or supplied.

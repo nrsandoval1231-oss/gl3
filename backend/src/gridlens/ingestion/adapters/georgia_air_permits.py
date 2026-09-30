@@ -14,6 +14,7 @@ import httpx
 from pypdf import PdfReader
 
 from gridlens.ingestion.adapters.federal_register import SourceParseError
+from gridlens.ingestion.parsers.generator_schedule import VERSION, extract_generator_facts
 
 SOURCE_ID = "georgia-air-draft-title-v"
 APP_ID = "5582edf87a0f92370d4ae1f9"
@@ -208,7 +209,7 @@ def _extract_document(
     facility: str,
     application_number: str,
     location: str,
-) -> dict[str, str] | None:
+) -> dict[str, Any] | None:
     if not url:
         return None
     if run_state["pdf_count"] >= MAX_PDFS_PER_RUN:
@@ -296,13 +297,29 @@ def _extract_document(
                 total_chars += len(excerpt)
             if total_chars >= 16_000:
                 break
+        scope_abstract = "\n".join(excerpts)
+        schedule = extract_generator_facts(nonempty_pages, url)
+        excerpts.extend(
+            f"Page {fact['page']} generator schedule context: {fact['quote']}"
+            for fact in schedule["facts"]
+        )
         page_text = "\n".join(excerpts)
+        pdf_hash = hashlib.sha256(content).hexdigest()
         return {
-            "content_hash": hashlib.sha256(content).hexdigest(),
+            "content_hash": hashlib.sha256(f"{pdf_hash}:{VERSION}".encode()).hexdigest(),
+            "pdf_hash": pdf_hash,
+            "generator_schedule": schedule,
+            "scope_abstract": scope_abstract,
             "title": f"Georgia EPD {label}",
             "abstract": page_text,
             "url": url,
-            "extraction_location": "PDF pages " + ", ".join(str(page) for _, page, _ in chosen),
+            "extraction_location": "PDF pages "
+            + ", ".join(
+                str(page)
+                for page in sorted(
+                    {page for _, page, _ in chosen} | {f["page"] for f in schedule["facts"]}
+                )
+            ),
         }
     except SourceParseError:
         raise
@@ -446,7 +463,9 @@ def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list
                     for section in re.split(r"(?=Page\s+\d+:)", narrative_text)
                     if re.match(r"Page\s+[1-3]:", section)
                 )
-                current_scope_text = _current_scope_excerpt(narrative_text)
+                current_scope_text = _current_scope_excerpt(
+                    narrative["scope_abstract"] if narrative else ""
+                )
                 current_scope_pages = sorted(
                     {int(value) for value in re.findall(r"\bPage\s+(\d+):", current_scope_text)}
                 )
@@ -510,6 +529,14 @@ def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list
                     "application_date": application_date,
                     "current_scope": current_scope_text,
                     "document_links": links,
+                    "document_hashes": {d["url"]: d["pdf_hash"] for d in documents},
+                    "generator_facts": [
+                        f for d in documents for f in d["generator_schedule"]["facts"]
+                    ],
+                    "generator_excerpts_omitted": sum(
+                        d["generator_schedule"]["omitted"] for d in documents
+                    ),
+                    "application_document_available": "application" in links,
                     "documents": [
                         {
                             key: document[key]
@@ -537,7 +564,7 @@ def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list
                         "publication_date": None,
                         "html_url": LISTING_URL,
                         "extraction_location": (
-                            "Georgia EPD public Draft Title V list fields; "
+                            "Georgia EPD draft Title V/SIP/synthetic-minor list fields; "
                             "narrative linked PDF pages"
                         ),
                         "event_date": received_date or application_date or deadline,
@@ -555,11 +582,11 @@ def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list
                             "city": location,
                             "state": "GA",
                             "address": location,
-                            "class": "Draft Title V permit listing",
+                            "class": "Draft air permit listing (Title V/SIP/synthetic minor)",
                             "work": "air permit application or modification",
-                            "type": "Draft Title V permit",
+                            "type": "Draft air permit; category requires document review",
                             "status": (
-                                "Listed in current Georgia EPD Draft Title V permits view; "
+                                "Listed in current Georgia EPD draft air permits view; "
                                 "project status unconfirmed"
                             ),
                             "description": (
@@ -575,6 +602,14 @@ def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list
                             "application_received_date": received_date,
                             "application_date": application_date,
                             "document_links": links,
+                            "document_hashes": {d["url"]: d["pdf_hash"] for d in documents},
+                            "generator_facts": [
+                                f for d in documents for f in d["generator_schedule"]["facts"]
+                            ],
+                            "generator_excerpts_omitted": sum(
+                                d["generator_schedule"]["omitted"] for d in documents
+                            ),
+                            "application_document_available": "application" in links,
                             "unextracted_document_links": unextracted_links,
                             "source_fields": source_fields,
                             "reported_values": {},

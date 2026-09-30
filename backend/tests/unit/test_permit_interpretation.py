@@ -80,7 +80,7 @@ def test_assess_permit_rejects_incidental_or_unsupported_work(description, statu
 
 def test_assessment_preserves_official_date_and_unknowns():
     assessment = assess_permit(permit("New construction of manufacturing plant."))
-    assert EVALUATOR_VERSION == "permit-project-v7"
+    assert EVALUATOR_VERSION == "permit-project-v8"
     assert assessment["issue_date"] == date.today().isoformat()
     assert (
         assessment["issue_date_label"]
@@ -293,3 +293,17 @@ def test_event_date_not_permit_issue_or_expiry_controls_current_signal():
     next_day = assess_permit(future_event, as_of=date(2026, 10, 5))
     assert final_day["decision"] == "accepted"
     assert next_day["decision"] == "rejected"
+
+
+@pytest.mark.parametrize(
+    "description",
+    [
+        "LINE VOLTAGE ELECTRICAL WORK. NEW TEMPORARY 100 AMP SERVICE DISCONNECTING MEANS.",
+        "LINE VOLTAGE ELECTRICAL WORK. INSTALL TEMPORARY 60 KW DIESEL GENERATOR.",
+    ],
+)
+def test_express_electrical_explicit_temporary_scope(description):
+    result = assess_permit(permit(description))
+    assert result["decision"] == "accepted"
+    assert result["tier"] == "Signal"
+    assert result["power_activity"] == "temporary-power"
