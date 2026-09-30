@@ -8,7 +8,7 @@ from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 
 from gridlens.ingestion.service import process_job
-from gridlens.intelligence.signal_adjudication import adjudicate_current_signals
+from gridlens.intelligence.signal_adjudication import POLICY_VERSION, adjudicate_current_signals
 from gridlens.persistence.database import Base
 from gridlens.persistence.models import (
     ChangeEvent,
@@ -358,7 +358,7 @@ def test_withdrawn_revision_evidence_is_visible_from_prior_signal(db, monkeypatc
             SignalDecision(
                 observation_id=prior_observation.id,
                 content_hash=prior_evidence.content_hash,
-                policy_version="signal-display-v1",
+                policy_version=POLICY_VERSION,
                 decision="SHOW",
                 source="jev",
                 model_version="jev-1.13.0",

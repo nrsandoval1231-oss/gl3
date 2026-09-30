@@ -26,7 +26,7 @@ from gridlens.persistence.models import (
     Source,
 )
 
-POLICY_VERSION = "signal-display-v1"
+POLICY_VERSION = "signal-display-v2"
 MODEL = "jev-1.13.0"
 
 
@@ -187,7 +187,9 @@ def adjudicate(
                 ):
                     raise ValueError("invalid factual dimension")
                 dimension_values[name] = float(score)
-            decision = map_dimensions(dimension_values)
+            decision = map_dimensions(
+                dimension_values, title=state["title"], abstract=state["abstract"]
+            )
             source, model, dims = "jev", str(result["model"]), dimension_values
             reason = (
                 "GL3 display policy mapped retained factual Jev dimensions to a display decision."
@@ -332,20 +334,87 @@ def _evidence_state(
     return fields
 
 
-def map_dimensions(dimensions: dict[str, float]) -> str:
-    """Apply GL3 policy to factual probabilities; Jev never chooses a display label."""
+def map_dimensions(
+    dimensions: dict[str, float], *, title: str = "", abstract: str = ""
+) -> str:
+    """Apply GL3 policy to factual probabilities and retained source context."""
     if dimensions["transient_event"] >= 0.8:
         return "HOLD"
     if dimensions["routine_maintenance"] >= 0.8 and dimensions["meaningful_new_activity"] <= 0.3:
         return "HOLD"
+    context = f"{title}\n{abstract}".casefold()
+    activity_match = re.search(
+        r"(?im)^(?:description|scope of work|project description):\s*([^\n]{1,1200})",
+        abstract,
+    )
+    activity_excerpt = activity_match.group(1) if activity_match else abstract[:800]
+    activity_context = f"{title}\n{activity_excerpt}".casefold()
+    power_relevant_sector = re.search(
+        r"\b(?:data cent(?:er|re)|manufactur\w*|mine|quarry|renewable natural gas|\brng\b|"
+        r"power plant|until (?:the )?(?:grid|utility) (?:power|service))\b",
+        context,
+    )
+    generic_building = re.search(
+        r"\b(?:office\s*/?\s*(?:limited\s+)?warehouse|warehouse|hospital|"
+        r"office to laborator\w*)\b",
+        activity_context,
+    )
+    existing_building_work = re.search(
+        r"\b(?:remodel|renovat\w*|alterations?|interior remodel)\b", activity_context
+    )
+    additional_emergency_generators = re.search(
+        r"\badditional\s+(?:two|\d+)?\s*\(?\s*\d*\s*\)?\s*"
+        r"(?:diesel[- ]fired\s+)?emergency generators?\b",
+        context,
+    )
+    existing_standby_fleet = re.search(
+        r"\b(?:facility|data center)\s+(?:is\s+)?(?:operating|consists of)\b"
+        r".{0,180}\bemergency generators\b",
+        context,
+    )
+    explicit_development = re.search(
+        r"\b(?:new|construct\w*|expand\w*|increas\w*|install\w*|development|"
+        r"until (?:the )?(?:grid|utility))\b",
+        context,
+    )
+    unchanged_site_capacity = re.search(
+        r"\bno change in (?:the )?(?:facility\s*-?\s*wide )?"
+        r"(?:fuel consumption|load|capacity)\b",
+        context,
+    )
     if (
-        dimensions["physical_project_event"] >= 0.8
+        dimensions["physical_project_event"] >= 0.75
         and dimensions["meaningful_new_activity"] >= 0.8
-        and dimensions["commercial_relevance"] >= 0.8
         and dimensions["routine_maintenance"] <= 0.2
         and dimensions["transient_event"] <= 0.2
     ):
-        return "SHOW"
+        if (
+            dimensions["commercial_relevance"] >= 0.7
+            or (
+                power_relevant_sector
+                and dimensions["commercial_relevance"] >= 0.3
+                and explicit_development
+            )
+        ) and not (
+            dimensions["temporary_power_relevance"] < 0.5
+            and (
+                generic_building
+                or (
+                    existing_building_work
+                    and not (
+                        re.search(r"\bdata cent(?:er|re)\b", context)
+                        and explicit_development
+                    )
+                )
+            )
+        ) and not (
+            dimensions["commercial_relevance"] < 0.7
+            and additional_emergency_generators
+            and existing_standby_fleet
+        ) and not (
+            dimensions["commercial_relevance"] < 0.7 and unchanged_site_capacity
+        ):
+            return "SHOW"
     return "REVIEW"
 
 

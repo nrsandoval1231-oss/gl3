@@ -42,9 +42,11 @@ when the full normalized source scope, exact source address, geography, and
 asset type agree. Distinct labeled buildings remain separate; no uncertain
 historical rows are migrated.
 
-The production credential was absent during this slice; no live Jev request was
-made. Thresholds are initial policy constants and have not been tuned against
-the frozen editorial corpus. `gl3-016-human-corpus.json` binds all 63 human
+The local production credential was used to run 79 live Jev calls against the
+frozen editorial corpus; two records used deterministic policy. The observed
+probabilities informed `signal-display-v2`. The full comparison and every
+disagreement are in [gl3-016-live-adjudication.md](gl3-016-live-adjudication.md).
+`gl3-016-human-corpus.json` binds all 63 human
 card decisions to 81 record IDs; `gl3-016-jev-corpus.json` commits the
 source-backed input state for those 81 current evidence versions. The request
 boundary applies its normal text limits to that retained state. Both identify the

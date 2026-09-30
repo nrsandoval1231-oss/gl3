@@ -164,7 +164,7 @@ def test_evidence_and_policy_version_create_distinct_retained_decisions(db):
             changed,
             api_key="unit-key",
             caller=caller,
-            policy_version="signal-display-v2",
+            policy_version="signal-display-v3-test",
         )
         assert first.id != second.id != upgraded.id
         assert session.query(SignalDecision).count() == 3
