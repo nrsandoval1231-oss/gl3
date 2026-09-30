@@ -14,18 +14,16 @@ GridLens is focused on turning evidence-backed Signals into commercially useful 
 
 National acquisition coverage and deployed daily operation remain unproven. Current RRC ingestion, broad utility/large-load records, and many construction/commissioning lifecycle sources remain absent or partial. A Signal is still not a Prospect or Lead unless evidence supports the actual power requirement, supply gap, timing, and commercial path.
 
-## Next slice
+## GL3-017 draft: project buying chain
 
-GL3-017 is project-specific buying-chain enrichment.
+The slice adds bounded enrichment for a selected existing physical Project ID, with separate Project→Organization, Organization→Person/current role, and Person→Project relationships. DIRECT, ROLE_SUPPORTED and UNKNOWN remain distinct. The API retains project-specific source excerpts, semantic claim versions and run outcomes; the existing detail UI adds a compact inspectable Buying Chain section.
 
-For a selected physical project, GridLens should identify the organizations and people most relevant to temporary/bridge power procurement or influence — especially the electrical contractor, general contractor, EPC, commissioning organization, developer/owner energy or construction team, and other project-specific power decision makers.
+It starts from accepted evidence, reads exact Chicago contractor rows, and accepts up to four additional public links. There is no general web search, source-registry expansion, new worker/queue framework, outreach or tier promotion. Missing supported candidates are reported rather than fabricated to meet a count.
 
-Every enriched contact must be tied by evidence to:
-1. a specific physical project,
-2. an organization,
-3. a relevant buying/influence role,
-4. source evidence supporting that relationship.
+Three existing Chicago projects were manually reviewed against live official municipal/corporate sources: 3459792 (333 E Huron temporary electrical services), 3451848 (400 S LaSalle data-center conversion), and 3442494 (DMG Mori manufacturing renovation). Named construction/electrical-company leadership is ROLE_SUPPORTED; personal project assignment and buying authority remain UNKNOWN. Runtime/parser results and exact validation are recorded in docs/validation/gl3-017-buying-chain.md. Final captured-source parser/PostgreSQL acceptance passed all three chains (3/8/6 candidates), with unchanged replay at 17 claims, 9 evidence versions and 3 runs. Full checks: Ruff/mypy, 356 pytest passes and one existing missing local-probe skip, clean/repeat/drift migrations, frontend typecheck/build and zero npm vulnerabilities.
 
-Do not create generic company contact lists. Do not infer that a person is attached to a project merely because they work for a likely contractor. Unknown remains unknown.
+Two acceptance limits remain explicit: the direct application reader cannot resolve public DNS in this cloud execution, and browser interaction/visual tests cannot run under the current browser/runtime restrictions. Captured real-source parsing and PostgreSQL persistence are partial proof, not a passing direct live-discovery or browser check. Keep the PR draft; do not merge or deploy.
 
-GL3-018 is later acquisition expansion for construction, electrical, temporary service, commissioning, energization, planning, utility, RRC, and fixed O&G lifecycle evidence.
+## Later scope
+
+GL3-018 remains later acquisition expansion for construction, electrical, temporary service, commissioning, energization, planning, utility, RRC, and fixed O&G lifecycle evidence. National coverage and deployed daily operation are still unproven.

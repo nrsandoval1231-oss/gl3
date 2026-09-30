@@ -17,3 +17,19 @@ Deterministic interpretation reruns on identical source content so a corrected r
 Current local topology: PostgreSQL 127.0.0.1:55439, API 127.0.0.1:8000, React development server 127.0.0.1:5173. The unrelated existing database on 5432 is untouched. Permitted source samples and runtime exports remain under ignored `.artifacts/`; this is local storage, not a managed object-store deployment.
 
 Unbuilt/ungated capabilities remain explicit: cloud PC-off scheduling, broad launch coverage, bounded model research, Prospect/Lead evidence gates, commercial feedback workflow and seven-day reliability. See delivery/milestones.md and the Finish Contract rather than inferring those capabilities from folder names.
+
+## GL3-017 buying-chain draft
+
+An explicit authenticated project-detail action performs one bounded enrichment
+pass in the API process. It starts with accepted evidence for the existing
+physical Project ID; Chicago can read its exact official contractor row, and a
+user can supply up to four additional public evidence URLs. Conservative
+extraction retains separate organization involvement, current person/role, and
+personal project relationship claims. No general search crawler, new queue,
+agent framework, registry source, or qualification write is introduced.
+
+Project-bound immutable evidence and claim versions preserve source quotes and
+history. A small run record reports partial/unknown outcomes. The UI separates
+DIRECT, ROLE_SUPPORTED and UNKNOWN and keeps the evidence inspectable. See the
+[contract and validation limits](../validation/gl3-017-buying-chain.md); direct
+live retrieval and browser QA are not established by captured-source tests.

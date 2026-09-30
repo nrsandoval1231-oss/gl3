@@ -83,4 +83,8 @@ Cloud scheduling is **not yet deployed or accepted**. The scheduler manifest is 
 - [Local recovery proof](docs/operations/local-recovery-proof.md)
 - [Current agent state](.agent/CURRENT_STATE.md)
 
-The next product frontier is GL3-017: project-specific buying-chain enrichment. It must identify the organizations and people who can actually influence or buy temporary power for a specific physical project, with evidence linking each contact to the project and relevant role. GL3-018 later expands acquisition coverage.
+## GL3-017 buying-chain draft
+
+Project detail now has a bounded Buying Chain enrichment action. It reuses the physical Project ID and retained evidence, reads exact Chicago permit contractor fields, and accepts up to four additional public evidence links. Organization involvement, a person's current organization role, and personal project assignment remain separate evidence claims. ROLE_SUPPORTED never means a person is assigned to the project or controls its temporary-power purchase. Missing facts remain UNKNOWN.
+
+This is a draft slice, not a verified live deployment. Captured real-source parsing/persistence is distinct from direct application retrieval, which is blocked by this cloud shell's DNS limits. Browser interaction validation is also blocked by the runtime. See [GL3-017 contract, real-source review and validation limitations](docs/validation/gl3-017-buying-chain.md). No outreach, new acquisition source, tier promotion, merge or deployment is included. GL3-018 remains later acquisition expansion.

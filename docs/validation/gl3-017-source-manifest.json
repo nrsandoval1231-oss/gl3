@@ -1,0 +1,56 @@
+{
+  "scope": "Captured-real-source parser acceptance only; application direct network fetch not verified",
+  "capture_method": "Connected research service. HTML is unedited service rawHtml; municipal JSON is complete response payload extracted from a Markdown fence. These hashes are saved capture hashes, not independently verified origin wire hashes.",
+  "sources": [
+    {
+      "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?$where=id%3D%273442494%27&$limit=5",
+      "httpStatus": 200,
+      "fetchedAt": "2026-09-30T15:49:19Z",
+      "contentType": "application/json;charset=utf-8",
+      "format": "markdown_json_fence",
+      "sha256": "9d67f0b707f903bde608e5be58bcdec818500401378bedf6690af9a23f1d54ff",
+      "bytes": 3127,
+      "body_provenance": "Complete JSON response payload extracted from Firecrawl markdown fence; only fence and trailing separator newlines removed. Not an independently verified byte-exact native HTTP body."
+    },
+    {
+      "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?$where=id%3D%273451848%27&$limit=5",
+      "httpStatus": 200,
+      "fetchedAt": "2026-09-30T15:49:19Z",
+      "contentType": "application/json;charset=utf-8",
+      "format": "markdown_json_fence",
+      "sha256": "b6b1deb8fc86e2001f97c95cfc095719882391c7cdf178528f1270d242884596",
+      "bytes": 3104,
+      "body_provenance": "Complete JSON response payload extracted from Firecrawl markdown fence; only fence and trailing separator newlines removed. Not an independently verified byte-exact native HTTP body."
+    },
+    {
+      "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?$where=id%3D%273459792%27&$limit=5",
+      "httpStatus": 200,
+      "fetchedAt": "2026-09-30T15:49:19Z",
+      "contentType": "application/json;charset=utf-8",
+      "format": "markdown_json_fence",
+      "sha256": "d3a7a53a1e22412d97da166a6498318e7961a97e8b638483a0653815fdfd4b21",
+      "bytes": 1838,
+      "body_provenance": "Complete JSON response payload extracted from Firecrawl markdown fence; only fence and trailing separator newlines removed. Not an independently verified byte-exact native HTTP body."
+    },
+    {
+      "url": "https://gurtzelectric.com/david-steffenhagen/",
+      "httpStatus": 200,
+      "fetchedAt": "2026-09-30T15:56:34.486Z",
+      "contentType": "text/html; charset=UTF-8",
+      "format": "rawHtml",
+      "sha256": "4da853516d16e690dbad87f38f07cefac9eeb9ecd89ec2eaa61ae486070a70cc",
+      "bytes": 108604,
+      "body_provenance": "Exact rawHtml string returned by Firecrawl, saved UTF-8 without newline additions or content editing. This is service rawHtml, not independently verified origin wire bytes."
+    },
+    {
+      "url": "https://kelso-burnett.com/about",
+      "httpStatus": 200,
+      "fetchedAt": "2026-09-30T15:56:26.679Z",
+      "contentType": "text/html;charset=utf-8",
+      "format": "rawHtml",
+      "sha256": "77848226e0eaa2fcc0ddd70ead9353dbf87e0bf19988fd2e083e426d8a9cc49c",
+      "bytes": 231534,
+      "body_provenance": "Exact rawHtml string returned by Firecrawl, saved UTF-8 without newline additions or content editing. This is service rawHtml, not independently verified origin wire bytes."
+    }
+  ]
+}

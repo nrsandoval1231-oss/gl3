@@ -1,5 +1,6 @@
 import type { components } from './generated'
 
+export type BuyingChainResult = components['schemas']['BuyingChainOut']
 export type Opportunity = components['schemas']['OpportunityOut']
 export type SourceHealth = components['schemas']['HealthSourceOut']
 export type Evidence = components['schemas']['EvidenceOut']
@@ -14,6 +15,8 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const client = {
+  buyingChain: (projectId: string, signal?: AbortSignal) => api<BuyingChainResult>(`/api/projects/${encodeURIComponent(projectId)}/buying-chain`, { signal }),
+  enrichBuyingChain: (projectId: string, sourceUrls: string[]) => api<BuyingChainResult>(`/api/projects/${encodeURIComponent(projectId)}/buying-chain/enrich`, { method: 'POST', body: JSON.stringify({ source_urls: sourceUrls }) }),
   session: () => api<{ authenticated: boolean }>('/api/auth/session'),
   login: (password: string) => api<{ authenticated: boolean }>('/api/auth/login', { method: 'POST', body: JSON.stringify({ password }) }),
   logout: () => api('/api/auth/logout', { method: 'POST' }),

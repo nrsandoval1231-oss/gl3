@@ -7,12 +7,14 @@ from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
 from pydantic import BaseModel, Field, SecretStr
 from sqlalchemy import Date, func, select
 
+from gridlens.domain.buying_chain import BuyingChainOut, BuyingEnrichBody
 from gridlens.domain.collection_watch import (
     candidate_expression as collection_watch_expression,
 )
 from gridlens.domain.collection_watch import (
     matched_terms as collection_watch_terms,
 )
+from gridlens.intelligence.buying_chain import buying_chain_view, enrich_buying_chain
 from gridlens.intelligence.signal_adjudication import POLICY_VERSION, adjudicate_current_signals
 from gridlens.jobs.queue import enqueue
 from gridlens.persistence.database import SessionLocal
@@ -607,9 +609,7 @@ def opportunities(tier: str | None = None, search: str | None = None):
             display_source = (
                 selected_decision.source
                 if selected_decision
-                and not (
-                    has_unadjudicated_current_signal and selected_decision.decision == "HOLD"
-                )
+                and not (has_unadjudicated_current_signal and selected_decision.decision == "HOLD")
                 else None
             )
             display_reason = (
@@ -860,3 +860,36 @@ def refresh(request: Request):
     with SessionLocal.begin() as session:
         ids = [str(enqueue(session, source["id"])) for source in definitions if source["enabled"]]
     return {"queued": ids}
+
+
+@app.get(
+    "/api/projects/{project_id}/buying-chain",
+    response_model=BuyingChainOut,
+    dependencies=[Depends(require_session)],
+)
+def project_buying_chain(project_id: UUID, history: bool = False):
+    with SessionLocal() as session:
+        try:
+            return buying_chain_view(session, project_id, history=history)
+        except LookupError as exc:
+            raise HTTPException(404, "Project not found") from exc
+
+
+@app.post(
+    "/api/projects/{project_id}/buying-chain/enrich",
+    response_model=BuyingChainOut,
+    dependencies=[Depends(require_session)],
+)
+def enrich_project_buying_chain(
+    project_id: UUID, request: Request, body: BuyingEnrichBody | None = None
+):
+    require_same_origin(request)
+    with SessionLocal.begin() as session:
+        try:
+            return enrich_buying_chain(
+                session, project_id, source_urls=body.source_urls if body else []
+            )
+        except LookupError as exc:
+            raise HTTPException(404, "Project not found") from exc
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc

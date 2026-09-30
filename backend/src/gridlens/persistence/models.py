@@ -240,3 +240,69 @@ class SignalDecision(Base):
     adjudicated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
+
+
+class BuyingChainEvidence(Base):
+    """Immutable excerpt/version with mutable last-seen retrieval metadata."""
+
+    __tablename__ = "buying_chain_evidence"
+    __table_args__ = (
+        UniqueConstraint("project_id", "url", "content_hash", name="uq_buying_evidence_version"),
+    )
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id"))
+    retained_evidence_id: Mapped[UUID | None] = mapped_column(ForeignKey("evidence.id"))
+    url: Mapped[str] = mapped_column(Text)
+    title: Mapped[str] = mapped_column(Text)
+    excerpt: Mapped[str] = mapped_column(Text)
+    content_hash: Mapped[str] = mapped_column(String(64))
+    extraction_location: Mapped[str] = mapped_column(String(100))
+    published_at: Mapped[date | None] = mapped_column(Date)
+    observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    project_match_reason: Mapped[str] = mapped_column(Text)
+
+
+class BuyingChainClaim(Base):
+    """Append-only relationship snapshot; names are scoped to this physical project.
+
+    No global person/company merge, no inferred emails, no opportunity tier writes.
+    Each relationship has its own retained source quote in citations.
+    """
+
+    __tablename__ = "buying_chain_claims"
+    __table_args__ = (UniqueConstraint("project_id", "fingerprint", name="uq_buying_claim_replay"),)
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id"))
+    entity_key: Mapped[str] = mapped_column(String(64))
+    fingerprint: Mapped[str] = mapped_column(String(64))
+    policy_version: Mapped[str] = mapped_column(String(40))
+    organization: Mapped[str] = mapped_column(Text)
+    person_name: Mapped[str | None] = mapped_column(Text)
+    title: Mapped[str | None] = mapped_column(Text)
+    category: Mapped[str] = mapped_column(String(40))
+    organization_relationship: Mapped[str] = mapped_column(String(20))
+    person_organization_relationship: Mapped[str] = mapped_column(String(20))
+    person_project_relationship: Mapped[str] = mapped_column(String(20))
+    evidence_strength: Mapped[str] = mapped_column(String(10))
+    reason: Mapped[str] = mapped_column(Text)
+    citations: Mapped[list[dict[str, Any]]] = mapped_column(JSONB)
+    public_contacts: Mapped[list[dict[str, Any]]] = mapped_column(JSONB)
+    observed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class BuyingChainRun(Base):
+    __tablename__ = "buying_chain_runs"
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id"))
+    input_hash: Mapped[str] = mapped_column(String(64))
+    evidence_ids: Mapped[list[str]] = mapped_column(JSONB, default=list)
+    claim_ids: Mapped[list[str]] = mapped_column(JSONB, default=list)
+    policy_version: Mapped[str] = mapped_column(String(40))
+    status: Mapped[str] = mapped_column(String(20))
+    documents_checked: Mapped[int] = mapped_column(Integer)
+    candidates_added: Mapped[int] = mapped_column(Integer)
+    unresolved: Mapped[list[str]] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
