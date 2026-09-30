@@ -82,7 +82,7 @@ export function BuyingChain({ projectId }: { projectId: string }) {
         {(result.permit_summaries ?? []).length === 0 && <p>No supported permit fields retained for this project yet.</p>}
         {(result.permit_summaries ?? []).map((permit) => <details key={permit.evidence_id} open>
           <summary>{permit.title}</summary>
-          <dl>{permit.facts.map((fact, index) => <div key={index}><dt>{fact.label}</dt><dd><span>{safeUrl(fact.value) ? <a href={safeUrl(fact.value)} target="_blank" rel="noreferrer">{fact.value}</a> : fact.value}</span><details><summary>Field evidence</summary><blockquote>{fact.quote}</blockquote>{fact.role_quote && <blockquote>{fact.role_quote}</blockquote>}</details></dd></div>)}</dl>
+          <dl>{(permit.facts ?? []).map((fact, index) => <div key={index}><dt>{fact.label}</dt><dd><span>{safeUrl(fact.value) ? <a href={safeUrl(fact.value)} target="_blank" rel="noreferrer">{fact.value}</a> : fact.value}</span><details><summary>Field evidence</summary><blockquote>{fact.quote}</blockquote>{fact.role_quote && <blockquote>{fact.role_quote}</blockquote>}</details></dd></div>)}</dl>
           <p className="evidence-meta"><a href={safeUrl(permit.url)} target="_blank" rel="noreferrer">Official permit source</a> · {permit.extraction_location} · Observed {time(permit.observed_at)}</p>
         </details>)}
         <p className="buying-chain-note">Unlisted applicant, operator, GC, electrical contractor, EPC, engineer, named person and business contact fields remain unknown. Permit scope alone does not establish temporary load, fuel suitability, commissioning dates or an unmet supply gap.</p>
