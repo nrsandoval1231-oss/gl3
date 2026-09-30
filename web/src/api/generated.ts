@@ -376,6 +376,11 @@ export interface components {
             /** Document Number */
             document_number: string;
             /**
+             * Source Origin
+             * @default Source evidence
+             */
+            source_origin: string;
+            /**
              * Assessment Current
              * @default false
              */
@@ -407,6 +412,11 @@ export interface components {
             family: string;
             /** Geography */
             geography: string;
+            /**
+             * Enabled
+             * @default true
+             */
+            enabled: boolean;
             /** Last Attempt */
             last_attempt?: string | null;
             /** Last Success */
@@ -451,6 +461,21 @@ export interface components {
              * @default 0
              */
             pdf_skipped_limit: number;
+            /**
+             * Generator Facts
+             * @default 0
+             */
+            generator_facts: number;
+            /**
+             * Generator Excerpts Omitted
+             * @default 0
+             */
+            generator_excerpts_omitted: number;
+            /**
+             * Missing Application Documents
+             * @default 0
+             */
+            missing_application_documents: number;
             /** Error */
             error?: string | null;
             /** Latest Publication Date */
@@ -501,6 +526,11 @@ export interface components {
         IngestionItemOut: {
             /** Source Id */
             source_id: string;
+            /**
+             * Source Origin
+             * @default Source evidence
+             */
+            source_origin: string;
             /** Publisher */
             publisher: string;
             /** Endpoint */
@@ -708,6 +738,8 @@ export interface components {
             signal_display_source?: string | null;
             /** Signal Display Reason */
             signal_display_reason?: string | null;
+            /** Signal Admission Origin */
+            signal_admission_origin?: string | null;
         };
         /** PublicContactOut */
         PublicContactOut: {

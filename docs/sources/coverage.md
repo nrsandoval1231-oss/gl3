@@ -1,5 +1,7 @@
 # Source coverage — access checks, 2026-09-25 UTC
 
+> GL3-018 supersedes standalone news/planning Signal admission and expands the existing Chicago/Georgia routes. See [current admission and acquisition behavior](gl3-018-admission-and-acquisition.md). Historical validation below is not a new live check.
+
 GL3-008 adds three regionally bounded permit datasets. The implementation query fields, selected-row counts, and issue-date limits are recorded in [permit breadth](permit-breadth.md); those local GET checks do not establish national coverage.
 
 This matrix records direct public access, inspected samples and local runtime proof. Planned, access-tested, locally validated, disabled, and active are distinct: active requires deployed scheduling. The two configured feeds and three formats have completed real local retrieval, persistence and replay; final gate results and independent acceptance are recorded in [the validation receipt](../delivery/validation.md). No feed is claimed cloud-active.

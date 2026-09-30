@@ -14,6 +14,9 @@ from gridlens.domain.collection_watch import (
 from gridlens.domain.collection_watch import (
     matched_terms as collection_watch_terms,
 )
+from gridlens.domain.signal_admission import admitted_from_source, source_origin
+from gridlens.ingestion.registry import load_registry
+from gridlens.ingestion.service import _need_has_current_support
 from gridlens.intelligence.buying_chain import buying_chain_view, enrich_buying_chain
 from gridlens.intelligence.signal_adjudication import POLICY_VERSION, adjudicate_current_signals
 from gridlens.jobs.queue import enqueue
@@ -62,6 +65,7 @@ class EvidenceOut(BaseModel):
     event_date_label: str
     source_id: str
     document_number: str
+    source_origin: str = "Source evidence"
     assessment_current: bool = False
     permit_status: str | None = None
 
@@ -114,6 +118,7 @@ class OpportunityOut(BaseModel):
     signal_display_decision_state: str = "unadjudicated"
     signal_display_source: str | None = None
     signal_display_reason: str | None = None
+    signal_admission_origin: str | None = None
 
 
 class HealthSourceOut(BaseModel):
@@ -121,6 +126,7 @@ class HealthSourceOut(BaseModel):
     status: str
     family: str
     geography: str
+    enabled: bool = True
     last_attempt: str | None = None
     last_success: str | None = None
     new_records: int = 0
@@ -131,6 +137,9 @@ class HealthSourceOut(BaseModel):
     pdf_enriched: int = 0
     pdf_skipped_not_signal: int = 0
     pdf_skipped_limit: int = 0
+    generator_facts: int = 0
+    generator_excerpts_omitted: int = 0
+    missing_application_documents: int = 0
     error: str | None = None
     latest_publication_date: str | None = None
     latest_permit_issue_date: str | None = None
@@ -184,6 +193,7 @@ class RefreshOut(BaseModel):
 
 class IngestionItemOut(BaseModel):
     source_id: str
+    source_origin: str = "Source evidence"
     publisher: str
     endpoint: str
     verticals: list[str]
@@ -292,6 +302,7 @@ def _assessment_for_evidence(
 def health():
     with SessionLocal() as session:
         rows = session.scalars(select(Source).order_by(Source.id)).all()
+        definitions = {source["id"]: source for source in load_registry()}
         checked_at = datetime.now(UTC)
         jobs = (
             session.scalar(
@@ -311,11 +322,18 @@ def health():
         )
         source_health = []
         for row in rows:
+            definition = definitions.get(row.id, {})
             info = {
                 "id": row.id,
                 **row.health,
                 "family": row.family,
                 "geography": row.geography,
+                "enabled": row.enabled,
+                "collection_scope": (
+                    definition.get("collection_scope")
+                    or row.health.get("collection_scope")
+                    or row.geography
+                ),
             }
             if row.family == "news":
                 info["collection_scope"] = row.geography
@@ -324,6 +342,8 @@ def health():
                     "between snapshots. "
                     "Hourly checks do not guarantee catch-up after local downtime."
                 )
+            elif definition.get("coverage_limitation"):
+                info["coverage_limitation"] = definition["coverage_limitation"]
             last_attempt = row.health.get("last_attempt")
             if (
                 row.enabled
@@ -400,6 +420,7 @@ def ingestion(
             items.append(
                 {
                     "source_id": source.id,
+                    "source_origin": source_origin(source.family, source.retrieval_method),
                     "publisher": source.publisher,
                     "endpoint": source.endpoint,
                     "verticals": source.industries,
@@ -417,7 +438,13 @@ def ingestion(
                     "citation_url": evidence.url,
                     "collection_state": "Evidence retained",
                     "qualification_state": (
-                        "Linked to opportunity"
+                        "Context only; no standalone opportunity"
+                        if assessment
+                        and assessment.get("admission_status")
+                        in {"context_only", "supplement_unmatched", "supplement_unknown"}
+                        else "Supplemental evidence linked to admitted project need"
+                        if assessment and assessment.get("admission_status") == "supplemental"
+                        else "Linked to opportunity"
                         if session.scalar(
                             select(func.count())
                             .select_from(NeedObservation)
@@ -485,6 +512,8 @@ def opportunities(tier: str | None = None, search: str | None = None):
         rows = session.execute(query).all()
         result = []
         for need, project in rows:
+            if not _need_has_current_support(session, need, project):
+                continue
             lifecycle = session.get(ProjectLifecycle, project.id)
             lifecycle_rows = session.execute(
                 select(LifecycleEvent, Evidence)
@@ -539,12 +568,27 @@ def opportunities(tier: str | None = None, search: str | None = None):
             evidence = []
             current_assessments = []
             for obs, ev, interpretation in links:
+                evidence_source = session.get(Source, obs.source_id)
                 current_assessment = _assessment_for_evidence(interpretation, obs, ev)
+                if current_assessment is not None:
+                    assessment_project = current_assessment.get("project_identity_key")
+                    assessment_activity = current_assessment.get(
+                        "power_activity"
+                    ) or current_assessment.get("activity_key")
+                    if (
+                        assessment_project != project.identity_key
+                        or assessment_activity != need.activity_key
+                    ):
+                        current_assessment = None
                 if (
                     taylor_withdrawn or taylor_identity_conflict
                 ) and obs.source_id == "taylor-development-newsflash":
                     current_assessment = None
-                if current_assessment:
+                if (
+                    current_assessment
+                    and evidence_source is not None
+                    and admitted_from_source(evidence_source, current_assessment, ev).admitted
+                ):
                     current_assessments.append(current_assessment)
                 evidence.append(
                     {
@@ -565,6 +609,11 @@ def opportunities(tier: str | None = None, search: str | None = None):
                             else "Unknown"
                         ),
                         "source_id": obs.source_id,
+                        "source_origin": source_origin(
+                            evidence_source.family, evidence_source.retrieval_method
+                        )
+                        if evidence_source is not None
+                        else "Source evidence",
                         "document_number": obs.external_id,
                         "assessment_current": current_assessment is not None,
                         "permit_status": current_assessment.get("permit_status")
@@ -577,6 +626,24 @@ def opportunities(tier: str | None = None, search: str | None = None):
             has_unadjudicated_current_signal = False
             for obs, ev, interpretation in links:
                 if need.tier != "Signal" or not _assessment_for_evidence(interpretation, obs, ev):
+                    continue
+                source = session.get(Source, obs.source_id)
+                assessment = _assessment_for_evidence(interpretation, obs, ev)
+                if assessment is not None:
+                    assessment_project = assessment.get("project_identity_key")
+                    assessment_activity = assessment.get("power_activity") or assessment.get(
+                        "activity_key"
+                    )
+                    if (
+                        assessment_project != project.identity_key
+                        or assessment_activity != need.activity_key
+                    ):
+                        assessment = None
+                if (
+                    source is None
+                    or assessment is None
+                    or not admitted_from_source(source, assessment, ev).admitted
+                ):
                     continue
                 decision = session.scalar(
                     select(SignalDecision)
@@ -792,6 +859,7 @@ def opportunities(tier: str | None = None, search: str | None = None):
                     "signal_display_decision_state": display_state,
                     "signal_display_source": display_source,
                     "signal_display_reason": display_reason,
+                    "signal_admission_origin": (need.admission_basis or {}).get("origin"),
                 }
             )
         return result

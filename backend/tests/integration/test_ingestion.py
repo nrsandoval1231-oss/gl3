@@ -108,7 +108,7 @@ def test_replay_versions_and_withdrawal_preserve_evidence(db):
         "The proposed Mine Plan of Operations would develop the mine, with dewatering "
         "and ventilation shafts."
     )
-    assert run(factory, job_id, initial)["signals"] == 1
+    assert run(factory, job_id, initial)["signals"] == 0
     assert run(factory, job_id, initial)["unchanged"] == 1
     changed = record(initial["abstract"] + " Construction access roads will also be required.")
     assert run(factory, job_id, changed)["changed"] == 1
@@ -118,13 +118,13 @@ def test_replay_versions_and_withdrawal_preserve_evidence(db):
     run(factory, job_id, negative)
     with factory() as session:
         assert session.scalar(select(func.count()).select_from(Observation)) == 1
-        assert session.scalar(select(func.count()).select_from(Project)) == 1
-        assert session.scalar(select(func.count()).select_from(PowerNeed)) == 1
+        assert session.scalar(select(func.count()).select_from(Project)) == 0
+        assert session.scalar(select(func.count()).select_from(PowerNeed)) == 0
         assert session.scalar(select(func.count()).select_from(Evidence)) == 3
-        assert session.scalar(select(func.count()).select_from(NeedObservation)) == 1
-        assert session.scalar(select(func.count()).select_from(ChangeEvent)) == 4
+        assert session.scalar(select(func.count()).select_from(NeedObservation)) == 0
+        assert session.scalar(select(func.count()).select_from(ChangeEvent)) == 0
         assert session.scalar(select(Observation.published_at)) == datetime(2026, 9, 14).date()
-        assert session.scalar(select(PowerNeed.active)) is False
+        assert session.scalar(select(PowerNeed.active)) is None
         assert session.scalar(select(Interpretation.status)) == "rejected"
 
 
@@ -229,7 +229,7 @@ def test_permit_assessment_replay_correction_and_deactivation(db):
         assert interpretation is not None
         assert interpretation.status == "rejected"
         assert interpretation.assessment["rental_category"] == "secured_supply"
-        assert interpretation.assessment["evaluator_version"] == "permit-project-v7"
+        assert interpretation.assessment["evaluator_version"] == "permit-project-v8"
         assert (
             interpretation.assessment["previous_decisions"][-1]["evaluator_version"]
             == "permit-project-v4"
@@ -407,7 +407,7 @@ def test_permit_v5_rejected_to_v6_clause_recovery_and_replay(db):
             .where(Observation.source_id == definition["id"])
         )
         assert interpretation is not None and interpretation.assessment["previous_decisions"]
-        assert interpretation.assessment["evaluator_version"] == "permit-project-v7"
+        assert interpretation.assessment["evaluator_version"] == "permit-project-v8"
         assert (
             interpretation.assessment["previous_decisions"][-1]["evaluator_version"]
             == "permit-project-v5"
@@ -594,7 +594,7 @@ def test_interpretation_failure_is_durable_and_retried_on_replay(db, monkeypatch
     run(factory, job_id, row)
     with factory() as session:
         assert session.scalar(select(Interpretation.status)) == "accepted"
-        assert session.scalar(select(func.count()).select_from(PowerNeed)) == 1
+        assert session.scalar(select(func.count()).select_from(PowerNeed)) == 0
 
 
 def test_pdf_representation_is_companion_evidence_not_a_second_discovery(db, monkeypatch):
@@ -624,16 +624,16 @@ def test_pdf_representation_is_companion_evidence_not_a_second_discovery(db, mon
             }
         ],
     )
-    assert run(factory, job_id, row)["signals"] == 1
+    assert run(factory, job_id, row)["signals"] == 0
     assert run(factory, job_id, row)["unchanged"] == 1
     pdf_hash[0] = "d" * 64
     assert run(factory, job_id, row)["unchanged"] == 1
     with factory() as session:
         assert session.scalar(select(func.count()).select_from(Observation)) == 1
-        assert session.scalar(select(func.count()).select_from(Project)) == 1
-        assert session.scalar(select(func.count()).select_from(PowerNeed)) == 1
+        assert session.scalar(select(func.count()).select_from(Project)) == 0
+        assert session.scalar(select(func.count()).select_from(PowerNeed)) == 0
         assert session.scalar(select(func.count()).select_from(Evidence)) == 3
-        assert session.scalar(select(func.count()).select_from(ChangeEvent)) == 1
+        assert session.scalar(select(func.count()).select_from(ChangeEvent)) == 0
         locations = set(session.scalars(select(Evidence.extraction_location)))
         assert "GovInfo PDF page 1" in locations
 
@@ -701,17 +701,17 @@ def test_nonmaterial_source_revision_retains_new_evidence_without_today_change(d
     initial["source_hash"] = "b" * 64
     current = [initial]
     monkeypatch.setattr(service, "retrieve_source", lambda *_args: current)
-    assert run(factory, job_id, initial)["signals"] == 1
+    assert run(factory, job_id, initial)["signals"] == 0
     replay = dict(initial)
     replay["source_hash"] = "c" * 64  # Body/footer revision outside retained excerpt.
     current[0] = replay
     assert run(factory, job_id, replay)["unchanged"] == 1
     with factory() as session:
         assert session.scalar(select(func.count()).select_from(Observation)) == 1
-        assert session.scalar(select(func.count()).select_from(Project)) == 1
-        assert session.scalar(select(func.count()).select_from(PowerNeed)) == 1
+        assert session.scalar(select(func.count()).select_from(Project)) == 0
+        assert session.scalar(select(func.count()).select_from(PowerNeed)) == 0
         assert session.scalar(select(func.count()).select_from(Evidence)) == 2
-        assert session.scalar(select(func.count()).select_from(ChangeEvent)) == 1
+        assert session.scalar(select(func.count()).select_from(ChangeEvent)) == 0
 
 
 def test_prior_candidate_hash_replays_without_a_migration_or_duplicate_evidence(db):
@@ -720,7 +720,7 @@ def test_prior_candidate_hash_replays_without_a_migration_or_duplicate_evidence(
         "The proposed Mine Plan of Operations would develop the mine, with dewatering "
         "and ventilation shafts."
     )
-    assert run(factory, job_id, row)["signals"] == 1
+    assert run(factory, job_id, row)["signals"] == 0
     prior_hash = hashlib.sha256(
         json.dumps(
             {**row, "pdf_url": None},
@@ -738,7 +738,7 @@ def test_prior_candidate_hash_replays_without_a_migration_or_duplicate_evidence(
     assert run(factory, job_id, row)["unchanged"] == 1
     with factory() as session:
         assert session.scalar(select(func.count()).select_from(Evidence)) == 1
-        assert session.scalar(select(func.count()).select_from(ChangeEvent)) == 1
+        assert session.scalar(select(func.count()).select_from(ChangeEvent)) == 0
 
 
 def test_lifecycle_projection_is_evidence_version_bound_and_never_uses_publication_date(db):
@@ -889,41 +889,17 @@ def test_identity_match_requires_corroborated_site_and_keeps_ambiguous_candidate
     with factory() as session:
         process_job(session, second_job_id, "test", 1, second_definition, None)
     with factory() as session:
-        assert session.scalar(select(func.count()).select_from(Project)) == 1
-        assert session.scalar(select(func.count()).select_from(NeedObservation)) == 2
-        second_observation = session.scalar(
-            select(Observation).where(Observation.source_id == "second-source")
-        )
-        assert second_observation is not None
-        first_decision = session.scalar(
-            select(ProjectMatchDecision).where(
-                ProjectMatchDecision.observation_id == second_observation.id
-            )
-        )
-        assert first_decision and first_decision.decision == "matched"
-        original_evidence_id = first_decision.evidence_id
-
-    # Changing the cited site creates a new version-bound separate decision;
-    # the original positive match remains queryable.
+        assert session.scalar(select(func.count()).select_from(Project)) == 0
+        assert session.scalar(select(func.count()).select_from(NeedObservation)) == 0
+        assert session.scalar(select(func.count()).select_from(Observation)) == 2
     second["abstract"] = "500 Different Avenue, Austin, TX"
     second["html_url"] = "https://example.test/second-corrected"
     with factory() as session:
         process_job(session, second_job_id, "test", 1, second_definition, None)
     with factory() as session:
-        second_observation = session.scalar(
-            select(Observation).where(Observation.source_id == "second-source")
-        )
-        assert second_observation is not None
-        decisions = session.scalars(
-            select(ProjectMatchDecision)
-            .where(ProjectMatchDecision.observation_id == second_observation.id)
-            .order_by(ProjectMatchDecision.evidence_id)
-        ).all()
-        candidate_decisions = [row for row in decisions if row.candidate_project_id is not None]
-        assert len(candidate_decisions) == 2
-        assert {decision.decision for decision in candidate_decisions} == {"matched", "separate"}
-        assert original_evidence_id in {decision.evidence_id for decision in candidate_decisions}
-        assert all(decision.identity_facts for decision in decisions)
+        assert session.scalar(select(func.count()).select_from(Evidence)) == 3
+        assert session.scalar(select(func.count()).select_from(ProjectMatchDecision)) == 0
+        assert session.scalar(select(func.count()).select_from(PowerNeed)) == 0
 
 
 def test_city_only_location_does_not_match_even_when_names_are_equal(db, monkeypatch):
@@ -958,20 +934,9 @@ def test_city_only_location_does_not_match_even_when_names_are_equal(db, monkeyp
     with factory() as session:
         process_job(session, job_id, "test", 1, definition, None)
     with factory() as session:
-        assert session.scalar(select(func.count()).select_from(Project)) == 2
-        second_observation = session.scalar(
-            select(Observation).where(Observation.external_id == "CITY-2")
-        )
-        assert second_observation is not None
-        decision = session.scalar(
-            select(ProjectMatchDecision).where(
-                ProjectMatchDecision.observation_id == second_observation.id,
-                ProjectMatchDecision.candidate_project_id.is_(None),
-            )
-        )
-        assert decision and decision.candidate_project_id is None
-        assert "No single existing project candidate" in decision.reason
-        assert decision.identity_facts["project_name"] == "Same Facility"
+        assert session.scalar(select(func.count()).select_from(Project)) == 0
+        assert session.scalar(select(func.count()).select_from(Observation)) == 2
+        assert session.scalar(select(func.count()).select_from(ProjectMatchDecision)) == 0
 
 
 def test_multiple_supported_identity_candidates_remain_separate_with_reasons(db, monkeypatch):
@@ -1015,19 +980,20 @@ def test_multiple_supported_identity_candidates_remain_separate_with_reasons(db,
     with factory() as session:
         process_job(session, job_id, "test", 1, federal_register_source(), None)
     with factory() as session:
-        decisions = session.scalars(select(ProjectMatchDecision)).all()
-        assert len(decisions) == 2
-        assert {decision.decision for decision in decisions} == {"separate"}
-        assert all("Multiple supported" in decision.reason for decision in decisions)
+        assert session.scalar(select(func.count()).select_from(Project)) == 2
+        assert session.scalar(select(func.count()).select_from(ProjectMatchDecision)) == 0
+        assert session.scalar(select(func.count()).select_from(Observation)) == 1
+        assert session.scalar(select(func.count()).select_from(PowerNeed)) == 0
 
 
-def test_ingested_upstream_versions_replay_and_authenticated_api_attribution(db, monkeypatch):
+def test_unapproved_lifecycle_source_preserves_versions_without_opportunity_admission(
+    db, monkeypatch
+):
     _, factory, _ = db
     from fastapi.testclient import TestClient
 
     import gridlens.api.app as api
     import gridlens.ingestion.service as service
-    from gridlens.intelligence.lifecycle_replay import replay_accepted_lifecycle
     from gridlens.security import token_for
 
     source_ids = ("synthetic-well-permit", "synthetic-well-spud", "synthetic-well-completion")
@@ -1115,154 +1081,33 @@ def test_ingested_upstream_versions_replay_and_authenticated_api_attribution(db,
                 {"id": source_id, "retrieval_method": "json-api"},
             )
 
-    # Deliberately ingest completion before spud to verify rank-based projection.
-    assert ingest(source_ids[0])["signals"] == 1
-    assert ingest(source_ids[2])["signals"] == 0
-    assert ingest(source_ids[1])["signals"] == 0
-    with factory() as session:
-        project = session.scalar(select(Project))
-        need = session.scalar(select(PowerNeed))
-        assert project and project.asset_type == "upstream_well"
-        assert need and need.active and need.tier == "Signal"
-        assert need.required_mw is None and need.supply == "Unknown"
-        assert session.scalar(select(func.count()).select_from(Project)) == 1
-        assert session.scalar(select(func.count()).select_from(NeedObservation)) == 3
-        assert session.scalar(select(func.count()).select_from(LifecycleEvent)) == 3
-        projection = session.get(ProjectLifecycle, project.id)
-        assert projection and projection.current_state == "completion"
-        assert projection.time_to_power_start.isoformat() == "2026-08-08"
-        assert projection.estimate_basis["inputs"]["completion_date"] == "2026-07-24"
-        events = session.scalars(select(LifecycleEvent)).all()
-        permit_event = next(event for event in events if event.event_type == "drilling_permit")
-        assert permit_event.occurred_on.isoformat() == "2026-06-10"
-
-    # A changed reported date appends a retained event version and supersedes A.
-    spud_b = row(
-        source_ids[1],
-        "S-1",
-        "Operator begins construction after spud report at Site A",
-        "2026-07-13",
-        "Spud date",
-    )
-    rows[source_ids[1]] = [spud_b]
-    assert ingest(source_ids[1])["changed"] == 1
-    with factory() as session:
-        spud_events = session.scalars(
-            select(LifecycleEvent).where(LifecycleEvent.event_type == "spud")
-        ).all()
-        assert {event.occurred_on.isoformat() for event in spud_events} == {
-            "2026-07-12",
+    # An arbitrary lifecycle feed is research context, even when its text says
+    # permit. Source authority cannot be manufactured by a mock interpretation.
+    for source_id in source_ids:
+        assert ingest(source_id)["signals"] == 0
+        assert ingest(source_id)["unchanged"] == 1
+    rows[source_ids[1]] = [
+        row(
+            source_ids[1],
+            "S-1",
+            "Operator begins construction after spud at Site A",
             "2026-07-13",
-        }
-        current_hash = session.scalar(
-            select(Interpretation.assessment["evidence_hash"])
-            .join(Observation)
-            .where(Observation.source_id == source_ids[1])
+            "Spud date",
         )
-        assert current_hash
-
-    # Correct the currently winning completion anchor. The new estimate must use
-    # the corrected completion event while retaining its former evidence version.
-    completion_b = row(
-        source_ids[2],
-        "C-1",
-        "Operator begins construction after well completion at Site A",
-        "2026-08-02",
-        "Completion date",
-    )
-    rows[source_ids[2]] = [completion_b]
-    assert (
-        ingest(source_ids[2])["unchanged"] == 1
-    )  # Same semantic permit/story row; new bound evidence.
+    ]
+    assert ingest(source_ids[1])["unchanged"] == 1
     with factory() as session:
-        projection = session.get(ProjectLifecycle, session.scalar(select(Project.id)))
-        assert projection and projection.current_state == "completion"
-        assert projection.time_to_power_start.isoformat() == "2026-08-17"
-        assert projection.estimate_basis["inputs"]["completion_date"] == "2026-08-02"
-        completion_events = session.scalars(
-            select(LifecycleEvent).where(LifecycleEvent.event_type == "completion")
-        ).all()
-        assert {event.occurred_on.isoformat() for event in completion_events} == {
-            "2026-07-24",
-            "2026-08-02",
-        }
-
-    # A current but unclassifiable correction withdraws the old event; restoring
-    # retained A reactivates that same event instead of letting superseded B mask it.
-    no_event = row(
-        source_ids[1],
-        "S-1",
-        "Routine regional operations update at Site A",
-        "2026-07-14",
-        "Source event date",
-        "No lifecycle milestone reported.",
-    )
-    rows[source_ids[1]] = [no_event]
-    monkeypatch.setattr(service, "interpret", lambda _record: None)
-    assert ingest(source_ids[1])["changed"] == 1
-    with factory() as session:
-        spud_interpretation = session.scalar(
-            select(Interpretation).join(Observation).where(Observation.source_id == source_ids[1])
-        )
-        project = session.scalar(select(Project))
-        assert spud_interpretation and spud_interpretation.status == "rejected"
-        assert project and project.asset_type == "upstream_well"
-        assert session.scalar(select(func.count()).select_from(LifecycleEvent)) == 5
-
-    rows[source_ids[1]] = [spud_a]
-    monkeypatch.setattr(
-        service,
-        "interpret",
-        lambda _record: {
-            "name": "Atlas Mesa Well",
-            "activity_key": "facility-expansion",
-            "rationale": "Synthetic upstream lifecycle fixture; not a power requirement.",
-            "location": "123 Main Street, Austin, TX",
-        },
-    )
-    assert ingest(source_ids[1])["changed"] == 1
-    with factory() as session:
-        interpretation = session.scalar(
-            select(Interpretation).join(Observation).where(Observation.source_id == source_ids[1])
-        )
-        assert interpretation and interpretation.status == "accepted"
-        assert session.scalar(select(func.count()).select_from(Evidence)) == 6
-        assert session.scalar(select(func.count()).select_from(LifecycleEvent)) == 5
-        replay_before = (
-            session.scalar(select(func.count()).select_from(Evidence)),
-            session.scalar(select(func.count()).select_from(LifecycleEvent)),
-            session.scalar(select(func.count()).select_from(ProjectMatchDecision)),
-        )
-        assert replay_accepted_lifecycle(session)["events_added"] == 0
-        assert replay_accepted_lifecycle(session)["events_added"] == 0
-        assert replay_before == (
-            session.scalar(select(func.count()).select_from(Evidence)),
-            session.scalar(select(func.count()).select_from(LifecycleEvent)),
-            session.scalar(select(func.count()).select_from(ProjectMatchDecision)),
-        )
-
+        assert session.scalar(select(func.count()).select_from(Observation)) == 3
+        assert session.scalar(select(func.count()).select_from(Evidence)) == 4
+        assert session.scalar(select(func.count()).select_from(PowerNeed)) == 0
+        dates = set(session.scalars(select(Evidence.event_date)))
+        assert datetime(2026, 7, 12).date() in dates
+        assert datetime(2026, 7, 13).date() in dates
     monkeypatch.setattr(api, "SessionLocal", factory)
     client = TestClient(api.app)
     client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
     response = client.get("/api/opportunities?tier=Signal")
-    assert response.status_code == 200
-    [opportunity] = response.json()
-    assert opportunity["tier"] == "Signal"
-    assert opportunity["required_mw"] is None and opportunity["supply"] == "Unknown"
-    assert opportunity["time_to_power_window"].startswith("2026-08-17 to ")
-    assert opportunity["estimate_basis"]["inputs"]["completion_date"] == "2026-08-02"
-    assert {item["source_id"] for item in opportunity["evidence"]} == set(source_ids)
-    timeline = opportunity["lifecycle_timeline"]
-    assert len(timeline) == 5
-    spud_rows = [item for item in timeline if item["event_type"] == "spud"]
-    assert [item["current"] for item in spud_rows] == [True, False]
-    assert spud_rows[0]["published_at"] == "2026-09-20"
-    assert spud_rows[0]["date"] == "2026-07-12"
-    assert spud_rows[0]["event_date_label"] == "Spud date"
-    completion_rows = [item for item in timeline if item["event_type"] == "completion"]
-    assert [item["current"] for item in completion_rows] == [False, True]
-    assert completion_rows[1]["date"] == "2026-08-02"
-    assert timeline[0]["date"] != timeline[0]["published_at"]
+    assert response.status_code == 200 and response.json() == []
 
 
 def test_similar_project_names_at_different_sites_remain_distinct_and_unknown(db, monkeypatch):
@@ -1289,16 +1134,14 @@ def test_similar_project_names_at_different_sites_remain_distinct_and_unknown(db
     ]
     monkeypatch.setattr(service, "retrieve_source", lambda *_args: rows)
     counts = run(factory, job_id, rows[0])
-    assert counts["signals"] == 2
+    assert counts["signals"] == 0
     with factory() as session:
-        projects = session.scalars(select(Project).order_by(Project.location)).all()
-        needs = session.scalars(select(PowerNeed).order_by(PowerNeed.id)).all()
-        assert len(projects) == len(needs) == 2
-        assert {project.name for project in projects} == {"Silver Ridge Mine Project"}
-        assert {project.location for project in projects} == {"Arizona", "Nevada"}
-        assert {need.tier for need in needs} == {"Signal"}
-        assert {need.supply for need in needs} == {"Unknown"}
-        assert all(need.required_mw is None and need.start_window is None for need in needs)
+        assert session.scalar(select(func.count()).select_from(Project)) == 0
+        assert session.scalar(select(func.count()).select_from(PowerNeed)) == 0
+        observations = session.scalars(select(Observation)).all()
+        assert len(observations) == 2
+        assert any("Arizona" in row.title for row in observations)
+        assert any("Nevada" in row.title for row in observations)
 
 
 def test_same_version_reclassification_deactivates_unsupported_need_idempotently(db, monkeypatch):
@@ -1312,25 +1155,25 @@ def test_same_version_reclassification_deactivates_unsupported_need_idempotently
     original = service.interpret
     states = [original, lambda _row: None, lambda _row: None]
     monkeypatch.setattr(service, "interpret", lambda value: states.pop(0)(value))
-    assert run(factory, job_id, row)["signals"] == 1
+    assert run(factory, job_id, row)["signals"] == 0
     assert run(factory, job_id, row)["unchanged"] == 1
     with factory() as session:
         need = session.scalar(select(PowerNeed))
-        assert need is not None and need.active is False
+        assert need is None
         assert session.scalar(select(Interpretation.status)) == "rejected"
         assert session.scalar(select(func.count()).select_from(Evidence)) == 1
-        assert session.scalar(select(func.count()).select_from(NeedObservation)) == 1
+        assert session.scalar(select(func.count()).select_from(NeedObservation)) == 0
         events = session.scalars(select(ChangeEvent).order_by(ChangeEvent.id)).all()
-        assert [event.kind for event in events] == ["discovered", "reclassified"]
+        assert [event.kind for event in events] == []
         event_count = len(events)
     assert run(factory, job_id, row)["unchanged"] == 1
     with factory() as session:
         assert session.scalar(select(func.count()).select_from(ChangeEvent)) == event_count
         assert session.scalar(select(func.count()).select_from(Evidence)) == 1
-        assert session.scalar(select(PowerNeed.active)) is False
+        assert session.scalar(select(PowerNeed.active)) is None
 
 
-def test_same_version_reinterpretation_refreshes_supported_project_display_fields(db):
+def test_same_version_context_reinterpretation_preserves_source_display_fields(db):
     _, factory, job_id = db
 
     row = record(
@@ -1338,31 +1181,22 @@ def test_same_version_reinterpretation_refreshes_supported_project_display_field
         "and ventilation shafts."
     )
     row["title"] = "Forest District; New Mexico; Roca Honda Mine Project"
-    assert run(factory, job_id, row)["signals"] == 1
-    with factory.begin() as session:
-        project = session.scalar(select(Project))
-        assert project is not None
-        project.name = "stale display label"
-        project.location = None
-    before = None
-    with factory() as session:
-        before = session.scalar(select(func.count()).select_from(ChangeEvent))
+    assert run(factory, job_id, row)["signals"] == 0
     assert run(factory, job_id, row)["unchanged"] == 1
     with factory() as session:
-        project = session.scalar(select(Project))
-        assert project is not None
-        assert project.name == "Roca Honda Mine Project"
-        assert project.location == "New Mexico"
-        assert session.scalar(select(func.count()).select_from(ChangeEvent)) == before
+        assert session.scalar(select(Project)) is None
+        observation = session.scalar(select(Observation))
+        assert observation and observation.title == row["title"]
+        assert session.scalar(select(func.count()).select_from(ChangeEvent)) == 0
 
 
-def test_source_parse_failure_preserves_prior_accepted_observation_and_signal(db):
+def test_source_parse_failure_preserves_prior_accepted_context(db):
     _, factory, job_id = db
     row = record(
         "The proposed Mine Plan of Operations would develop the mine, with dewatering "
         "and ventilation shafts."
     )
-    assert run(factory, job_id, row)["signals"] == 1
+    assert run(factory, job_id, row)["signals"] == 0
 
     client = httpx.Client(
         transport=httpx.MockTransport(
@@ -1383,10 +1217,10 @@ def test_source_parse_failure_preserves_prior_accepted_observation_and_signal(db
         assert observation.published_at.isoformat() == row["publication_date"]
         assert session.scalar(select(func.count()).select_from(Observation)) == 1
         assert session.scalar(select(func.count()).select_from(Evidence)) == 1
-        assert project is not None
-        assert session.scalar(select(func.count()).select_from(Project)) == 1
-        assert need is not None and need.active is True and need.tier == "Signal"
-        assert session.scalar(select(func.count()).select_from(PowerNeed)) == 1
+        assert project is None
+        assert session.scalar(select(func.count()).select_from(Project)) == 0
+        assert need is None
+        assert session.scalar(select(func.count()).select_from(PowerNeed)) == 0
 
 
 def test_reclaimed_fence_blocks_stale_pdf_and_interpretation_writes(db, monkeypatch):
@@ -1460,12 +1294,98 @@ def test_reclaimed_fence_blocks_stale_pdf_and_interpretation_writes(db, monkeypa
         assert observation.content_hash == service._hash(replacement)
         assert interpretation is not None and interpretation.status == "accepted"
         assert interpretation.content_hash == service._hash(replacement)
-        assert project is not None
-        assert need is not None and need.active is True
+        assert project is None
+        assert need is None
         evidence_hashes = set(session.scalars(select(Evidence.content_hash)))
         assert "a" * 64 not in evidence_hashes
         assert "b" * 64 in evidence_hashes
         assert len(evidence_hashes) == 3  # Old/new raw versions plus replacement PDF.
         events = session.scalars(select(ChangeEvent)).all()
-        assert len(events) == 1
-        assert events[0].content_hash == service._hash(replacement)
+        assert events == []
+
+
+@pytest.mark.parametrize(
+    "candidate_sites,matched",
+    [
+        (["123 Main Street, Austin, TX"], True),
+        (["Austin, TX"], False),
+        (["123 Main Street, Austin, TX", "123 Main Street, Austin, TX"], False),
+    ],
+)
+def test_authoritative_permit_identity_requires_one_exact_site_candidate(
+    db, monkeypatch, candidate_sites, matched
+):
+    _, factory, _ = db
+    import gridlens.ingestion.service as service
+
+    definition = next(s for s in load_registry() if s["id"] == "austin-building-permits")
+    with factory.begin() as session:
+        session.add(
+            Source(
+                id=definition["id"],
+                publisher=definition["publisher"],
+                endpoint=definition["endpoint"],
+                family=definition["family"],
+                geography=definition["geography"],
+                industries=[],
+                retrieval_method=definition["retrieval_method"],
+                health={},
+            )
+        )
+        session.flush()
+        for index, site in enumerate(candidate_sites):
+            session.add(
+                Project(
+                    identity_key=f"synthetic:site:{index}",
+                    name="Synthetic Atlas campus",
+                    source_id=definition["id"],
+                    external_id=f"prior-{index}",
+                    location=site,
+                    identity_facts={"site": site, "project_aliases": ["Synthetic Atlas campus"]},
+                )
+            )
+        job = Job(
+            source_id=definition["id"],
+            status="running",
+            lease_owner="test",
+            fence=1,
+            lease_until=datetime.now(UTC) + timedelta(minutes=10),
+        )
+        session.add(job)
+        session.flush()
+        job_id = job.id
+    permit = {
+        "document_number": "SYNTHETIC-ID-1",
+        "title": "Synthetic construction permit",
+        "abstract": "Construction of a new data center at 123 Main Street, Austin, TX.",
+        "publication_date": "2026-09-20",
+        "event_date": "2026-09-20",
+        "html_url": "https://abc.austintexas.gov/permit/synthetic",
+        "permit": {
+            "row_id": "SYNTHETIC-ID-1",
+            "description": "Construction of a new data center.",
+            "status": "Active",
+            "address": "123 Main Street",
+            "city": "Austin",
+            "state": "TX",
+            "project": "Synthetic Atlas campus",
+            "source_fields": {},
+        },
+    }
+    monkeypatch.setattr(service, "retrieve_source", lambda *_args: [permit])
+    with factory() as session:
+        first = process_job(session, job_id, "test", 1, definition)
+        replay = process_job(session, job_id, "test", 1, definition)
+    assert first["signals"] == 1 and replay["unchanged"] == 1
+    with factory() as session:
+        assert session.scalar(select(func.count()).select_from(Project)) == (
+            len(candidate_sites) + (0 if matched else 1)
+        )
+        need = session.scalar(select(PowerNeed))
+        assert need and need.active and need.tier == "Signal" and need.required_mw is None
+        decisions = session.scalars(select(ProjectMatchDecision)).all()
+        assert decisions
+        assert {d.decision for d in decisions} == ({"matched"} if matched else {"separate"})
+        assert all(d.evidence_id is not None for d in decisions)
+        if len(candidate_sites) > 1:
+            assert all("Multiple supported" in d.reason for d in decisions)

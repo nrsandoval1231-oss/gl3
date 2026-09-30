@@ -1,0 +1,1304 @@
+{
+  "captured_at": "2026-09-30T19:23:37.783321+00:00",
+  "transport": "ordinary run_one/process_job with production adapters; no seeded projects or HTTP fixtures",
+  "registry_sources": 13,
+  "new_source_ids": [],
+  "expanded_source_ids": [
+    "chicago-building-permits",
+    "georgia-air-draft-title-v"
+  ],
+  "initial_runs": {
+    "time": "2026-09-30T18:54:44.793229+00:00",
+    "transport": "ordinary run_one -> process_job -> default production httpx adapters",
+    "runs": [
+      {
+        "source": "georgia-air-draft-title-v",
+        "phase": "first",
+        "job": "b2f1f973-8f94-42ec-a3ae-7a0effa97d97",
+        "status": "succeeded",
+        "error": null,
+        "health": {
+          "error": null,
+          "status": "Updated",
+          "new_records": 19,
+          "last_attempt": "2026-09-30T18:54:44.806977+00:00",
+          "last_success": "2026-09-30T18:54:44.806977+00:00",
+          "pdf_eligible": 0,
+          "pdf_enriched": 0,
+          "parse_failures": 0,
+          "parsed_records": 19,
+          "pdf_candidates": 0,
+          "changed_records": 0,
+          "permit_accepted": 9,
+          "permit_rejected": 10,
+          "records_scanned": 19,
+          "collection_scope": "Georgia EPD current draft Title V, SIP and synthetic-minor listing; narratives and draft permits including bounded generator schedule excerpts; application links retained when present.",
+          "pdf_skipped_limit": 0,
+          "retrieved_records": 19,
+          "unchanged_records": 0,
+          "coverage_limitation": "Not a complete air-application registry. Current application-link fields are empty; full applications may require agency request. Public notices are references only. At most 24 generator excerpts per PDF, 8 general pages; bounds and omitted excerpt counts are retained. Installed standby ratings are not rental demand.",
+          "documents_extracted": 38,
+          "snapshot_item_count": 19,
+          "pdf_skipped_not_signal": 0,
+          "latest_publication_date": null,
+          "latest_public_comment_deadline": "2026-10-30",
+          "earliest_public_comment_deadline": "2026-10-02",
+          "unextracted_public_notice_references": 9
+        },
+        "counts": {
+          "observations": 19,
+          "evidence": 57,
+          "projects": 9,
+          "power_needs": 9,
+          "change_events": 9
+        }
+      },
+      {
+        "source": "georgia-air-draft-title-v",
+        "phase": "replay",
+        "job": "1606f141-cdc3-431c-aaf5-1637fca189b8",
+        "status": "succeeded",
+        "error": null,
+        "health": {
+          "error": null,
+          "status": "Checked\u2014No Change",
+          "new_records": 0,
+          "last_attempt": "2026-09-30T18:55:24.732989+00:00",
+          "last_success": "2026-09-30T18:55:24.732989+00:00",
+          "pdf_eligible": 0,
+          "pdf_enriched": 0,
+          "parse_failures": 0,
+          "parsed_records": 19,
+          "pdf_candidates": 0,
+          "changed_records": 0,
+          "permit_accepted": 9,
+          "permit_rejected": 10,
+          "records_scanned": 19,
+          "collection_scope": "Georgia EPD current draft Title V, SIP and synthetic-minor listing; narratives and draft permits including bounded generator schedule excerpts; application links retained when present.",
+          "pdf_skipped_limit": 0,
+          "retrieved_records": 19,
+          "unchanged_records": 19,
+          "coverage_limitation": "Not a complete air-application registry. Current application-link fields are empty; full applications may require agency request. Public notices are references only. At most 24 generator excerpts per PDF, 8 general pages; bounds and omitted excerpt counts are retained. Installed standby ratings are not rental demand.",
+          "documents_extracted": 38,
+          "snapshot_item_count": 19,
+          "pdf_skipped_not_signal": 0,
+          "latest_publication_date": null,
+          "latest_public_comment_deadline": "2026-10-30",
+          "earliest_public_comment_deadline": "2026-10-02",
+          "unextracted_public_notice_references": 9
+        },
+        "counts": {
+          "observations": 19,
+          "evidence": 57,
+          "projects": 9,
+          "power_needs": 9,
+          "change_events": 9
+        }
+      },
+      {
+        "source": "chicago-building-permits",
+        "phase": "first",
+        "job": "f91527be-790f-4c5a-a108-c54a654ad8bb",
+        "status": "succeeded",
+        "error": null,
+        "health": {
+          "error": null,
+          "status": "Updated",
+          "new_records": 1528,
+          "last_attempt": "2026-09-30T18:56:01.933351+00:00",
+          "last_success": "2026-09-30T18:56:01.933351+00:00",
+          "pdf_eligible": 0,
+          "pdf_enriched": 0,
+          "parse_failures": 0,
+          "parsed_records": 1528,
+          "pdf_candidates": 0,
+          "changed_records": 0,
+          "permit_accepted": 16,
+          "permit_rejected": 1512,
+          "records_scanned": 1528,
+          "collection_scope": "Chicago new construction, renovation/alteration and Express Electrical Work permits; 30-day issue window plus 2-day modification overlap; scope, parcel and named contractor roles retained.",
+          "pdf_skipped_limit": 0,
+          "retrieved_records": 1528,
+          "unchanged_records": 0,
+          "coverage_limitation": "Chicago status monitoring uses the official Socrata :updated_at row timestamp with a two-day overlap. Longer outages can miss changes; a dataset-wide replacement may exceed the bounded row limit and will fail visibly. Express Electrical Work includes small and residential work; inclusion in collection does not guarantee Signal admission. No dedicated procurement or commissioning coverage.",
+          "pdf_skipped_not_signal": 0,
+          "latest_publication_date": "2026-09-29",
+          "latest_permit_issue_date": "2026-09-29",
+          "latest_public_comment_deadline": null
+        },
+        "counts": {
+          "observations": 1547,
+          "evidence": 1585,
+          "projects": 25,
+          "power_needs": 25,
+          "change_events": 25
+        }
+      },
+      {
+        "source": "chicago-building-permits",
+        "phase": "replay",
+        "job": "78757f5b-b091-4df2-9aa6-f1ca2e4023f2",
+        "status": "succeeded",
+        "error": null,
+        "health": {
+          "error": null,
+          "status": "Checked\u2014No Change",
+          "new_records": 0,
+          "last_attempt": "2026-09-30T18:56:20.428878+00:00",
+          "last_success": "2026-09-30T18:56:20.428878+00:00",
+          "pdf_eligible": 0,
+          "pdf_enriched": 0,
+          "parse_failures": 0,
+          "parsed_records": 1528,
+          "pdf_candidates": 0,
+          "changed_records": 0,
+          "permit_accepted": 16,
+          "permit_rejected": 1512,
+          "records_scanned": 1528,
+          "collection_scope": "Chicago new construction, renovation/alteration and Express Electrical Work permits; 30-day issue window plus 2-day modification overlap; scope, parcel and named contractor roles retained.",
+          "pdf_skipped_limit": 0,
+          "retrieved_records": 1528,
+          "unchanged_records": 1528,
+          "coverage_limitation": "Chicago status monitoring uses the official Socrata :updated_at row timestamp with a two-day overlap. Longer outages can miss changes; a dataset-wide replacement may exceed the bounded row limit and will fail visibly. Express Electrical Work includes small and residential work; inclusion in collection does not guarantee Signal admission. No dedicated procurement or commissioning coverage.",
+          "pdf_skipped_not_signal": 0,
+          "latest_publication_date": "2026-09-29",
+          "latest_permit_issue_date": "2026-09-29",
+          "latest_public_comment_deadline": null
+        },
+        "counts": {
+          "observations": 1547,
+          "evidence": 1585,
+          "projects": 25,
+          "power_needs": 25,
+          "change_events": 25
+        }
+      },
+      {
+        "source": "dcd-news",
+        "phase": "first",
+        "job": "fb8a8d14-5e1e-4d67-8aad-d1c547e99e5e",
+        "status": "succeeded",
+        "error": null,
+        "health": {
+          "error": null,
+          "status": "Updated",
+          "new_records": 20,
+          "last_attempt": "2026-09-30T18:56:30.172192+00:00",
+          "last_success": "2026-09-30T18:56:30.172192+00:00",
+          "pdf_eligible": 0,
+          "pdf_enriched": 0,
+          "parse_failures": 0,
+          "parsed_records": 20,
+          "pdf_candidates": 0,
+          "changed_records": 0,
+          "records_scanned": 20,
+          "collection_scope": null,
+          "pdf_skipped_limit": 0,
+          "retrieved_records": 20,
+          "unchanged_records": 0,
+          "coverage_limitation": null,
+          "snapshot_item_count": 20,
+          "pdf_skipped_not_signal": 0,
+          "latest_publication_date": "2026-09-30",
+          "snapshot_newest_publication_date": "2026-09-30",
+          "snapshot_oldest_publication_date": "2026-09-30"
+        },
+        "counts": {
+          "observations": 1567,
+          "evidence": 1605,
+          "projects": 25,
+          "power_needs": 25,
+          "change_events": 25
+        }
+      },
+      {
+        "source": "dcd-news",
+        "phase": "replay",
+        "job": "c9205d1e-70af-46f9-b2b2-807584ea525e",
+        "status": "succeeded",
+        "error": null,
+        "health": {
+          "error": null,
+          "status": "Checked\u2014No Change",
+          "new_records": 0,
+          "last_attempt": "2026-09-30T18:56:31.319300+00:00",
+          "last_success": "2026-09-30T18:56:31.319300+00:00",
+          "pdf_eligible": 0,
+          "pdf_enriched": 0,
+          "parse_failures": 0,
+          "parsed_records": 20,
+          "pdf_candidates": 0,
+          "changed_records": 0,
+          "records_scanned": 20,
+          "collection_scope": null,
+          "pdf_skipped_limit": 0,
+          "retrieved_records": 20,
+          "unchanged_records": 20,
+          "coverage_limitation": null,
+          "snapshot_item_count": 20,
+          "pdf_skipped_not_signal": 0,
+          "latest_publication_date": "2026-09-30",
+          "snapshot_newest_publication_date": "2026-09-30",
+          "snapshot_oldest_publication_date": "2026-09-30"
+        },
+        "counts": {
+          "observations": 1567,
+          "evidence": 1605,
+          "projects": 25,
+          "power_needs": 25,
+          "change_events": 25
+        }
+      }
+    ]
+  },
+  "intermediate_runs_with_visible_chicago_failure": {
+    "time": "2026-09-30T19:05:11.774585+00:00",
+    "transport": "ordinary run_one -> process_job -> default production httpx adapters",
+    "runs": [
+      {
+        "source": "georgia-air-draft-title-v",
+        "phase": "first",
+        "job": "d1632df5-1050-4e9a-97bf-f16d5baaedc3",
+        "status": "succeeded",
+        "error": null,
+        "health": {
+          "error": null,
+          "status": "Updated",
+          "new_records": 0,
+          "last_attempt": "2026-09-30T19:05:11.787802+00:00",
+          "last_success": "2026-09-30T19:05:11.787802+00:00",
+          "pdf_eligible": 0,
+          "pdf_enriched": 0,
+          "parse_failures": 0,
+          "parsed_records": 19,
+          "pdf_candidates": 0,
+          "changed_records": 19,
+          "generator_facts": 417,
+          "permit_accepted": 9,
+          "permit_rejected": 10,
+          "records_scanned": 19,
+          "collection_scope": "Georgia EPD current draft Title V, SIP and synthetic-minor listing; narratives and draft permits including bounded generator schedule excerpts; application links retained when present.",
+          "pdf_skipped_limit": 0,
+          "retrieved_records": 19,
+          "unchanged_records": 0,
+          "coverage_limitation": "Not a complete air-application registry. Current application-link fields are empty; full applications may require agency request. Public notices are references only. At most 24 generator excerpts per PDF, 8 general pages; bounds and omitted excerpt counts are retained. Installed standby ratings are not rental demand.",
+          "documents_extracted": 38,
+          "snapshot_item_count": 19,
+          "pdf_skipped_not_signal": 0,
+          "latest_publication_date": null,
+          "generator_excerpts_omitted": 147,
+          "missing_application_documents": 19,
+          "latest_public_comment_deadline": "2026-10-30",
+          "earliest_public_comment_deadline": "2026-10-02",
+          "unextracted_public_notice_references": 9
+        },
+        "counts": {
+          "observations": 1567,
+          "evidence": 1662,
+          "projects": 25,
+          "power_needs": 25,
+          "change_events": 34
+        }
+      },
+      {
+        "source": "georgia-air-draft-title-v",
+        "phase": "replay",
+        "job": "c13bd158-5d43-4689-ab3f-43a79523595f",
+        "status": "succeeded",
+        "error": null,
+        "health": {
+          "error": null,
+          "status": "Checked\u2014No Change",
+          "new_records": 0,
+          "last_attempt": "2026-09-30T19:05:50.558945+00:00",
+          "last_success": "2026-09-30T19:05:50.558945+00:00",
+          "pdf_eligible": 0,
+          "pdf_enriched": 0,
+          "parse_failures": 0,
+          "parsed_records": 19,
+          "pdf_candidates": 0,
+          "changed_records": 0,
+          "generator_facts": 417,
+          "permit_accepted": 9,
+          "permit_rejected": 10,
+          "records_scanned": 19,
+          "collection_scope": "Georgia EPD current draft Title V, SIP and synthetic-minor listing; narratives and draft permits including bounded generator schedule excerpts; application links retained when present.",
+          "pdf_skipped_limit": 0,
+          "retrieved_records": 19,
+          "unchanged_records": 19,
+          "coverage_limitation": "Not a complete air-application registry. Current application-link fields are empty; full applications may require agency request. Public notices are references only. At most 24 generator excerpts per PDF, 8 general pages; bounds and omitted excerpt counts are retained. Installed standby ratings are not rental demand.",
+          "documents_extracted": 38,
+          "snapshot_item_count": 19,
+          "pdf_skipped_not_signal": 0,
+          "latest_publication_date": null,
+          "generator_excerpts_omitted": 147,
+          "missing_application_documents": 19,
+          "latest_public_comment_deadline": "2026-10-30",
+          "earliest_public_comment_deadline": "2026-10-02",
+          "unextracted_public_notice_references": 9
+        },
+        "counts": {
+          "observations": 1567,
+          "evidence": 1662,
+          "projects": 25,
+          "power_needs": 25,
+          "change_events": 34
+        }
+      },
+      {
+        "source": "chicago-building-permits",
+        "phase": "first",
+        "job": "8315daed-b882-47f3-9e22-757b8df47b8b",
+        "status": "queued",
+        "error": "Permit page retrieval failed: HTTPStatusError",
+        "health": {
+          "error": "Permit page retrieval failed: HTTPStatusError",
+          "status": "Failed",
+          "new_records": 0,
+          "last_attempt": "2026-09-30T19:06:22.433236+00:00",
+          "last_success": "2026-09-30T18:56:20.428878+00:00",
+          "pdf_eligible": 0,
+          "pdf_enriched": 0,
+          "parse_failures": 1,
+          "parsed_records": 1528,
+          "pdf_candidates": 0,
+          "changed_records": 0,
+          "permit_accepted": 16,
+          "permit_rejected": 1512,
+          "records_scanned": 1528,
+          "collection_scope": "Chicago new construction, renovation/alteration and Express Electrical Work permits; 30-day issue window plus 2-day modification overlap; scope, parcel and named contractor roles retained.",
+          "pdf_skipped_limit": 0,
+          "retrieved_records": 1528,
+          "unchanged_records": 1528,
+          "coverage_limitation": "Chicago status monitoring uses the official Socrata :updated_at row timestamp with a two-day overlap. Longer outages can miss changes; a dataset-wide replacement may exceed the bounded row limit and will fail visibly. Express Electrical Work includes small and residential work; inclusion in collection does not guarantee Signal admission. No dedicated procurement or commissioning coverage.",
+          "pdf_skipped_not_signal": 0,
+          "latest_publication_date": "2026-09-29",
+          "latest_permit_issue_date": "2026-09-29",
+          "latest_public_comment_deadline": null
+        },
+        "counts": {
+          "observations": 1567,
+          "evidence": 1662,
+          "projects": 25,
+          "power_needs": 25,
+          "change_events": 34
+        }
+      },
+      {
+        "source": "chicago-building-permits",
+        "phase": "replay",
+        "job": "8315daed-b882-47f3-9e22-757b8df47b8b",
+        "status": "queued",
+        "error": "Permit page retrieval failed: HTTPStatusError",
+        "health": {
+          "error": "Permit page retrieval failed: HTTPStatusError",
+          "status": "Failed",
+          "new_records": 0,
+          "last_attempt": "2026-09-30T19:06:22.433236+00:00",
+          "last_success": "2026-09-30T18:56:20.428878+00:00",
+          "pdf_eligible": 0,
+          "pdf_enriched": 0,
+          "parse_failures": 1,
+          "parsed_records": 1528,
+          "pdf_candidates": 0,
+          "changed_records": 0,
+          "permit_accepted": 16,
+          "permit_rejected": 1512,
+          "records_scanned": 1528,
+          "collection_scope": "Chicago new construction, renovation/alteration and Express Electrical Work permits; 30-day issue window plus 2-day modification overlap; scope, parcel and named contractor roles retained.",
+          "pdf_skipped_limit": 0,
+          "retrieved_records": 1528,
+          "unchanged_records": 1528,
+          "coverage_limitation": "Chicago status monitoring uses the official Socrata :updated_at row timestamp with a two-day overlap. Longer outages can miss changes; a dataset-wide replacement may exceed the bounded row limit and will fail visibly. Express Electrical Work includes small and residential work; inclusion in collection does not guarantee Signal admission. No dedicated procurement or commissioning coverage.",
+          "pdf_skipped_not_signal": 0,
+          "latest_publication_date": "2026-09-29",
+          "latest_permit_issue_date": "2026-09-29",
+          "latest_public_comment_deadline": null
+        },
+        "counts": {
+          "observations": 1567,
+          "evidence": 1662,
+          "projects": 25,
+          "power_needs": 25,
+          "change_events": 34
+        }
+      },
+      {
+        "source": "dcd-news",
+        "phase": "first",
+        "job": "fcea88fe-2748-4d50-a080-ab539f8506ef",
+        "status": "succeeded",
+        "error": null,
+        "health": {
+          "error": null,
+          "status": "Checked\u2014No Change",
+          "new_records": 0,
+          "last_attempt": "2026-09-30T19:06:29.046929+00:00",
+          "last_success": "2026-09-30T19:06:29.046929+00:00",
+          "pdf_eligible": 0,
+          "pdf_enriched": 0,
+          "parse_failures": 0,
+          "parsed_records": 20,
+          "pdf_candidates": 0,
+          "changed_records": 0,
+          "records_scanned": 20,
+          "collection_scope": null,
+          "pdf_skipped_limit": 0,
+          "retrieved_records": 20,
+          "unchanged_records": 20,
+          "coverage_limitation": null,
+          "snapshot_item_count": 20,
+          "pdf_skipped_not_signal": 0,
+          "latest_publication_date": "2026-09-30",
+          "snapshot_newest_publication_date": "2026-09-30",
+          "snapshot_oldest_publication_date": "2026-09-30"
+        },
+        "counts": {
+          "observations": 1567,
+          "evidence": 1662,
+          "projects": 25,
+          "power_needs": 25,
+          "change_events": 34
+        }
+      },
+      {
+        "source": "dcd-news",
+        "phase": "replay",
+        "job": "ae2f93d8-4123-4b53-857d-c68c952a7178",
+        "status": "succeeded",
+        "error": null,
+        "health": {
+          "error": null,
+          "status": "Checked\u2014No Change",
+          "new_records": 0,
+          "last_attempt": "2026-09-30T19:06:30.683269+00:00",
+          "last_success": "2026-09-30T19:06:30.683269+00:00",
+          "pdf_eligible": 0,
+          "pdf_enriched": 0,
+          "parse_failures": 0,
+          "parsed_records": 20,
+          "pdf_candidates": 0,
+          "changed_records": 0,
+          "records_scanned": 20,
+          "collection_scope": null,
+          "pdf_skipped_limit": 0,
+          "retrieved_records": 20,
+          "unchanged_records": 20,
+          "coverage_limitation": null,
+          "snapshot_item_count": 20,
+          "pdf_skipped_not_signal": 0,
+          "latest_publication_date": "2026-09-30",
+          "snapshot_newest_publication_date": "2026-09-30",
+          "snapshot_oldest_publication_date": "2026-09-30"
+        },
+        "counts": {
+          "observations": 1567,
+          "evidence": 1662,
+          "projects": 25,
+          "power_needs": 25,
+          "change_events": 34
+        }
+      }
+    ]
+  },
+  "subsequent_runs": {
+    "time": "2026-09-30T19:21:29.216889+00:00",
+    "transport": "ordinary run_one -> process_job -> default production httpx adapters",
+    "runs": [
+      {
+        "source": "georgia-air-draft-title-v",
+        "phase": "first",
+        "job": "eb28a771-61d2-4c21-ab1e-433bd902e2c1",
+        "status": "succeeded",
+        "error": null,
+        "health": {
+          "error": null,
+          "status": "Updated",
+          "new_records": 0,
+          "last_attempt": "2026-09-30T19:21:29.233001+00:00",
+          "last_success": "2026-09-30T19:21:29.233001+00:00",
+          "pdf_eligible": 0,
+          "pdf_enriched": 0,
+          "parse_failures": 0,
+          "parsed_records": 19,
+          "pdf_candidates": 0,
+          "changed_records": 19,
+          "generator_facts": 417,
+          "permit_accepted": 9,
+          "permit_rejected": 10,
+          "records_scanned": 19,
+          "collection_scope": "Georgia EPD current draft Title V, SIP and synthetic-minor listing; narratives and draft permits including bounded generator schedule excerpts; application links retained when present.",
+          "pdf_skipped_limit": 0,
+          "retrieved_records": 19,
+          "unchanged_records": 0,
+          "coverage_limitation": "Not a complete air-application registry. Current application-link fields are empty; full applications may require agency request. Public notices are references only. At most 24 generator excerpts per PDF, 8 general pages; bounds and omitted excerpt counts are retained. Installed standby ratings are not rental demand.",
+          "documents_extracted": 38,
+          "snapshot_item_count": 19,
+          "pdf_skipped_not_signal": 0,
+          "latest_publication_date": null,
+          "generator_excerpts_omitted": 147,
+          "missing_application_documents": 19,
+          "latest_public_comment_deadline": "2026-10-30",
+          "earliest_public_comment_deadline": "2026-10-02",
+          "unextracted_public_notice_references": 9
+        },
+        "counts": {
+          "observations": 1567,
+          "evidence": 1719,
+          "projects": 25,
+          "power_needs": 25,
+          "change_events": 43
+        }
+      },
+      {
+        "source": "georgia-air-draft-title-v",
+        "phase": "replay",
+        "job": "877aa672-8f92-4520-94f0-cd602dde0542",
+        "status": "succeeded",
+        "error": null,
+        "health": {
+          "error": null,
+          "status": "Checked\u2014No Change",
+          "new_records": 0,
+          "last_attempt": "2026-09-30T19:22:12.082784+00:00",
+          "last_success": "2026-09-30T19:22:12.082784+00:00",
+          "pdf_eligible": 0,
+          "pdf_enriched": 0,
+          "parse_failures": 0,
+          "parsed_records": 19,
+          "pdf_candidates": 0,
+          "changed_records": 0,
+          "generator_facts": 417,
+          "permit_accepted": 9,
+          "permit_rejected": 10,
+          "records_scanned": 19,
+          "collection_scope": "Georgia EPD current draft Title V, SIP and synthetic-minor listing; narratives and draft permits including bounded generator schedule excerpts; application links retained when present.",
+          "pdf_skipped_limit": 0,
+          "retrieved_records": 19,
+          "unchanged_records": 19,
+          "coverage_limitation": "Not a complete air-application registry. Current application-link fields are empty; full applications may require agency request. Public notices are references only. At most 24 generator excerpts per PDF, 8 general pages; bounds and omitted excerpt counts are retained. Installed standby ratings are not rental demand.",
+          "documents_extracted": 38,
+          "snapshot_item_count": 19,
+          "pdf_skipped_not_signal": 0,
+          "latest_publication_date": null,
+          "generator_excerpts_omitted": 147,
+          "missing_application_documents": 19,
+          "latest_public_comment_deadline": "2026-10-30",
+          "earliest_public_comment_deadline": "2026-10-02",
+          "unextracted_public_notice_references": 9
+        },
+        "counts": {
+          "observations": 1567,
+          "evidence": 1719,
+          "projects": 25,
+          "power_needs": 25,
+          "change_events": 43
+        }
+      },
+      {
+        "source": "chicago-building-permits",
+        "phase": "first",
+        "job": "85af181a-1bc2-48cf-a099-766b8a1bbafe",
+        "status": "succeeded",
+        "error": null,
+        "health": {
+          "error": null,
+          "status": "Checked\u2014No Change",
+          "new_records": 0,
+          "last_attempt": "2026-09-30T19:22:51.103120+00:00",
+          "last_success": "2026-09-30T19:22:51.103120+00:00",
+          "pdf_eligible": 0,
+          "pdf_enriched": 0,
+          "parse_failures": 0,
+          "parsed_records": 1528,
+          "pdf_candidates": 0,
+          "changed_records": 0,
+          "permit_accepted": 16,
+          "permit_rejected": 1512,
+          "records_scanned": 1528,
+          "collection_scope": "Chicago new construction, renovation/alteration and Express Electrical Work permits; 30-day issue window plus 2-day modification overlap; scope, parcel and named contractor roles retained.",
+          "pdf_skipped_limit": 0,
+          "retrieved_records": 1528,
+          "unchanged_records": 1528,
+          "coverage_limitation": "Chicago status monitoring uses the official Socrata :updated_at row timestamp with a two-day overlap. Longer outages can miss changes; a dataset-wide replacement may exceed the bounded row limit and will fail visibly. Express Electrical Work includes small and residential work; inclusion in collection does not guarantee Signal admission. No dedicated procurement or commissioning coverage.",
+          "pdf_skipped_not_signal": 0,
+          "latest_publication_date": "2026-09-29",
+          "latest_permit_issue_date": "2026-09-29",
+          "latest_public_comment_deadline": null
+        },
+        "counts": {
+          "observations": 1567,
+          "evidence": 1719,
+          "projects": 25,
+          "power_needs": 25,
+          "change_events": 43
+        }
+      },
+      {
+        "source": "chicago-building-permits",
+        "phase": "replay",
+        "job": "b9e51394-bbcc-41c4-af71-464d0176ec0f",
+        "status": "succeeded",
+        "error": null,
+        "health": {
+          "error": null,
+          "status": "Checked\u2014No Change",
+          "new_records": 0,
+          "last_attempt": "2026-09-30T19:23:00.607902+00:00",
+          "last_success": "2026-09-30T19:23:00.607902+00:00",
+          "pdf_eligible": 0,
+          "pdf_enriched": 0,
+          "parse_failures": 0,
+          "parsed_records": 1528,
+          "pdf_candidates": 0,
+          "changed_records": 0,
+          "permit_accepted": 16,
+          "permit_rejected": 1512,
+          "records_scanned": 1528,
+          "collection_scope": "Chicago new construction, renovation/alteration and Express Electrical Work permits; 30-day issue window plus 2-day modification overlap; scope, parcel and named contractor roles retained.",
+          "pdf_skipped_limit": 0,
+          "retrieved_records": 1528,
+          "unchanged_records": 1528,
+          "coverage_limitation": "Chicago status monitoring uses the official Socrata :updated_at row timestamp with a two-day overlap. Longer outages can miss changes; a dataset-wide replacement may exceed the bounded row limit and will fail visibly. Express Electrical Work includes small and residential work; inclusion in collection does not guarantee Signal admission. No dedicated procurement or commissioning coverage.",
+          "pdf_skipped_not_signal": 0,
+          "latest_publication_date": "2026-09-29",
+          "latest_permit_issue_date": "2026-09-29",
+          "latest_public_comment_deadline": null
+        },
+        "counts": {
+          "observations": 1567,
+          "evidence": 1719,
+          "projects": 25,
+          "power_needs": 25,
+          "change_events": 43
+        }
+      },
+      {
+        "source": "dcd-news",
+        "phase": "first",
+        "job": "17120664-cc27-4cf1-85d6-4184cb21de0f",
+        "status": "succeeded",
+        "error": null,
+        "health": {
+          "error": null,
+          "status": "Checked\u2014No Change",
+          "new_records": 0,
+          "last_attempt": "2026-09-30T19:23:10.015935+00:00",
+          "last_success": "2026-09-30T19:23:10.015935+00:00",
+          "pdf_eligible": 0,
+          "pdf_enriched": 0,
+          "parse_failures": 0,
+          "parsed_records": 20,
+          "pdf_candidates": 0,
+          "changed_records": 0,
+          "records_scanned": 20,
+          "collection_scope": null,
+          "pdf_skipped_limit": 0,
+          "retrieved_records": 20,
+          "unchanged_records": 20,
+          "coverage_limitation": null,
+          "snapshot_item_count": 20,
+          "pdf_skipped_not_signal": 0,
+          "latest_publication_date": "2026-09-30",
+          "snapshot_newest_publication_date": "2026-09-30",
+          "snapshot_oldest_publication_date": "2026-09-30"
+        },
+        "counts": {
+          "observations": 1567,
+          "evidence": 1719,
+          "projects": 25,
+          "power_needs": 25,
+          "change_events": 43
+        }
+      },
+      {
+        "source": "dcd-news",
+        "phase": "replay",
+        "job": "a0db8274-a73b-4fb8-b824-a93a4ff0d15f",
+        "status": "succeeded",
+        "error": null,
+        "health": {
+          "error": null,
+          "status": "Checked\u2014No Change",
+          "new_records": 0,
+          "last_attempt": "2026-09-30T19:23:10.407914+00:00",
+          "last_success": "2026-09-30T19:23:10.407914+00:00",
+          "pdf_eligible": 0,
+          "pdf_enriched": 0,
+          "parse_failures": 0,
+          "parsed_records": 20,
+          "pdf_candidates": 0,
+          "changed_records": 0,
+          "records_scanned": 20,
+          "collection_scope": null,
+          "pdf_skipped_limit": 0,
+          "retrieved_records": 20,
+          "unchanged_records": 20,
+          "coverage_limitation": null,
+          "snapshot_item_count": 20,
+          "pdf_skipped_not_signal": 0,
+          "latest_publication_date": "2026-09-30",
+          "snapshot_newest_publication_date": "2026-09-30",
+          "snapshot_oldest_publication_date": "2026-09-30"
+        },
+        "counts": {
+          "observations": 1567,
+          "evidence": 1719,
+          "projects": 25,
+          "power_needs": 25,
+          "change_events": 43
+        }
+      }
+    ]
+  },
+  "counts": {
+    "observations": 1567,
+    "evidence": 1719,
+    "projects": 25,
+    "power_needs": 25,
+    "change_events": 43
+  },
+  "health": {
+    "dcd-news": {
+      "enabled": true,
+      "error": null,
+      "status": "Checked\u2014No Change",
+      "new_records": 0,
+      "last_attempt": "2026-09-30T19:23:10.407914+00:00",
+      "last_success": "2026-09-30T19:23:10.407914+00:00",
+      "pdf_eligible": 0,
+      "pdf_enriched": 0,
+      "parse_failures": 0,
+      "parsed_records": 20,
+      "pdf_candidates": 0,
+      "changed_records": 0,
+      "records_scanned": 20,
+      "collection_scope": null,
+      "pdf_skipped_limit": 0,
+      "retrieved_records": 20,
+      "unchanged_records": 20,
+      "coverage_limitation": null,
+      "snapshot_item_count": 20,
+      "pdf_skipped_not_signal": 0,
+      "latest_publication_date": "2026-09-30",
+      "snapshot_newest_publication_date": "2026-09-30",
+      "snapshot_oldest_publication_date": "2026-09-30"
+    },
+    "georgia-air-draft-title-v": {
+      "enabled": true,
+      "error": null,
+      "status": "Checked\u2014No Change",
+      "new_records": 0,
+      "last_attempt": "2026-09-30T19:22:12.082784+00:00",
+      "last_success": "2026-09-30T19:22:12.082784+00:00",
+      "pdf_eligible": 0,
+      "pdf_enriched": 0,
+      "parse_failures": 0,
+      "parsed_records": 19,
+      "pdf_candidates": 0,
+      "changed_records": 0,
+      "generator_facts": 417,
+      "permit_accepted": 9,
+      "permit_rejected": 10,
+      "records_scanned": 19,
+      "collection_scope": "Georgia EPD current draft Title V, SIP and synthetic-minor listing; narratives and draft permits including bounded generator schedule excerpts; application links retained when present.",
+      "pdf_skipped_limit": 0,
+      "retrieved_records": 19,
+      "unchanged_records": 19,
+      "coverage_limitation": "Not a complete air-application registry. Current application-link fields are empty; full applications may require agency request. Public notices are references only. At most 24 generator excerpts per PDF, 8 general pages; bounds and omitted excerpt counts are retained. Installed standby ratings are not rental demand.",
+      "documents_extracted": 38,
+      "snapshot_item_count": 19,
+      "pdf_skipped_not_signal": 0,
+      "latest_publication_date": null,
+      "generator_excerpts_omitted": 147,
+      "missing_application_documents": 19,
+      "latest_public_comment_deadline": "2026-10-30",
+      "earliest_public_comment_deadline": "2026-10-02",
+      "unextracted_public_notice_references": 9
+    },
+    "chicago-building-permits": {
+      "enabled": true,
+      "error": null,
+      "status": "Checked\u2014No Change",
+      "new_records": 0,
+      "last_attempt": "2026-09-30T19:23:00.607902+00:00",
+      "last_success": "2026-09-30T19:23:00.607902+00:00",
+      "pdf_eligible": 0,
+      "pdf_enriched": 0,
+      "parse_failures": 0,
+      "parsed_records": 1528,
+      "pdf_candidates": 0,
+      "changed_records": 0,
+      "permit_accepted": 16,
+      "permit_rejected": 1512,
+      "records_scanned": 1528,
+      "collection_scope": "Chicago new construction, renovation/alteration and Express Electrical Work permits; 30-day issue window plus 2-day modification overlap; scope, parcel and named contractor roles retained.",
+      "pdf_skipped_limit": 0,
+      "retrieved_records": 1528,
+      "unchanged_records": 1528,
+      "coverage_limitation": "Chicago status monitoring uses the official Socrata :updated_at row timestamp with a two-day overlap. Longer outages can miss changes; a dataset-wide replacement may exceed the bounded row limit and will fail visibly. Express Electrical Work includes small and residential work; inclusion in collection does not guarantee Signal admission. No dedicated procurement or commissioning coverage.",
+      "pdf_skipped_not_signal": 0,
+      "latest_publication_date": "2026-09-29",
+      "latest_permit_issue_date": "2026-09-29",
+      "latest_public_comment_deadline": null
+    }
+  },
+  "api": {
+    "opportunity_count": 25,
+    "origins": [
+      "Official permit"
+    ],
+    "all_required_mw_unknown": true,
+    "all_supply_unknown": true
+  },
+  "reviewed_records": [
+    {
+      "source_id": "chicago-building-permits",
+      "external_id": "3451848",
+      "title": "Chicago building permit 3451848 \u2014 PERMIT - RENOVATION/ALTERATION",
+      "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273451848%27&%24limit=1",
+      "content_hash": "cc3d8f08bdb1f185918273d9dbfeb8e58e87a1b0136d9094cc9fbf09761e7ee1",
+      "interpretation_status": "accepted",
+      "decision": "accepted",
+      "reason": "Official dated permit identifies concrete facility construction, conversion, or remodel; investigate construction or commissioning power. Permit issuance does not prove work start, load, or a power gap.",
+      "source_excerpt": "row: 3451848\ndate: 2026-09-16T00:00:00.000\nmodified_date: 2026-09-17T12:19:34.269Z\ndescription: PHASE 3 OF 3: INTERIOR ALTERATIONS TO EXISTING 7-STORY OFFICE BUILDING TO CONVERT TO A DATA CENTER. WORK TO INCLUDE NEW EQUIPMENT WITH ASSOCIATED MEP UPGRADES. PHASE 1 DEMOLITION ONLY WORK PERMITTED UNDER 101083036. PHASE 2 INFRASTRUCTURE WORK PERMITTED UNDER 101081181. IA CONSTRUCTION; B-BUSINESS\ntype: PERMIT - RENOVATION/ALTERATION\nstatus: ACTIVE\naddress: 400\nstreet_direction: S\nstreet_name: LA SALLE ST\nproject: 101084518\ncost: 151112046\nparcel: 1716242017\ncontact_1_type: OWNER OCCUPIED\ncontact_1_name: LEGACY GI TC 400 LASALLE LLC\ncontact_2_type: ARCHITECT\ncontact_2_name: KRESTEL, CHRISTOPHER D\n",
+      "document_links": null,
+      "document_hashes": null,
+      "retained_generator_excerpt_count": 0,
+      "omitted_generator_excerpt_count": null,
+      "sample_generator_excerpts": [],
+      "evidence_versions": 1,
+      "needs": [
+        {
+          "id": "90836ee2-14fc-4581-bf40-d0e444b1f673",
+          "active": true,
+          "tier": "Signal",
+          "required_mw": null,
+          "supply": "Unknown",
+          "admission_basis": {
+            "origin": "Official permit",
+            "reason": "Accepted evidence from an official permit source.",
+            "source_id": "chicago-building-permits",
+            "evidence_hash": "cc3d8f08bdb1f185918273d9dbfeb8e58e87a1b0136d9094cc9fbf09761e7ee1",
+            "policy_version": "signal-admission-v1"
+          }
+        }
+      ]
+    },
+    {
+      "source_id": "chicago-building-permits",
+      "external_id": "3459792",
+      "title": "Chicago building permit 3459792 \u2014 PERMIT - NEW CONSTRUCTION",
+      "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273459792%27&%24limit=1",
+      "content_hash": "d0f89341658a927b630a35b603ccc7d650da8b9832be5cc1f3843ed41362338f",
+      "interpretation_status": "accepted",
+      "decision": "accepted",
+      "reason": "Permit reports temporary, rental, mobile, portable, or construction power activity; rental relevance is inferred and supply remains unknown.",
+      "source_excerpt": "row: 3459792\ndate: 2026-09-18T00:00:00.000\nmodified_date: 2026-09-21T12:06:42.818Z\ndescription: SPR / 2019 CBC: INSTALLATION OF TWO (2) 2000 AMP TEMPORARY ELECTRICAL SERVICE AS PER PLANS.\ntype: PERMIT - NEW CONSTRUCTION\nstatus: ACTIVE\naddress: 333\nstreet_direction: E\nstreet_name: HURON ST\nproject: 101088149\ncost: 90000\nparcel: 1710202023\ncontact_1_type: OWNER AS ARCHITECT\ncontact_1_name: NORTHWESTERN MEMORIAL HOSPITAL\ncontact_2_type: CONTRACTOR-ELECTRICAL\ncontact_2_name: GURTZ ELECTRIC COMPANY\ncontact_3_type: EXPEDITOR\ncontact_3_name: JOHN LYLE & ASSOCIATES\ncontact_4_type: CONTRACTOR-GENERAL CONTRACTOR\ncontact_4_name: POWER CONSTRUCTION COMPANY, LLC",
+      "document_links": null,
+      "document_hashes": null,
+      "retained_generator_excerpt_count": 0,
+      "omitted_generator_excerpt_count": null,
+      "sample_generator_excerpts": [],
+      "evidence_versions": 1,
+      "needs": [
+        {
+          "id": "64ab930e-cb31-4b21-adea-b4a05c7518fd",
+          "active": true,
+          "tier": "Signal",
+          "required_mw": null,
+          "supply": "Unknown",
+          "admission_basis": {
+            "origin": "Official permit",
+            "reason": "Accepted evidence from an official permit source.",
+            "source_id": "chicago-building-permits",
+            "evidence_hash": "d0f89341658a927b630a35b603ccc7d650da8b9832be5cc1f3843ed41362338f",
+            "policy_version": "signal-admission-v1"
+          }
+        }
+      ]
+    },
+    {
+      "source_id": "chicago-building-permits",
+      "external_id": "N2977370",
+      "title": "Chicago building permit N2977370 \u2014 PERMIT \u2013 EXPRESS PERMIT PROGRAM",
+      "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%27N2977370%27&%24limit=1",
+      "content_hash": "062ac776c0c7246121d44fa84ad6f2dc8872a63573d8eaf558ee4ab8af2a4787",
+      "interpretation_status": "accepted",
+      "decision": "accepted",
+      "reason": "Permit reports temporary, rental, mobile, portable, or construction power activity; rental relevance is inferred and supply remains unknown.",
+      "source_excerpt": "row: N2977370\ndate: 2026-09-24T00:00:00.000\nmodified_date: 2026-09-25T12:21:03.968Z\ndescription: LINE VOLTAGE ELECTRICAL WORK. INSTALL TEMPORARY 60 KW DIESEL GENERATOR. RECEPTACLE OUTLETS: 0 . LIGHTING OUTLETS: 0. SPECIFIC LOCATION: TEMPORARY TENT FOR SPECIAL EVENT.\nwork: Electrical Work\ntype: PERMIT \u2013 EXPRESS PERMIT PROGRAM\nstatus: ACTIVE\naddress: 5848\nstreet_direction: S\nstreet_name: UNIVERSITY AVE\nproject: B200511297\ncost: 2000\nparcel: 0000000000\ncontact_1_type: OWNER\ncontact_1_name: THE UNIVERSITY OF CHICAGO\ncontact_2_type: WEB APPLICANT\ncontact_2_name: GUBA AJ\ncontact_3_type: APPLICANT\u2019S REPRESENTATIVE\ncontact_3_name: GUBA AJ\ncontact_4_type: OWNER\ncontact_4_name: THE UNIVERSITY OF CHICA",
+      "document_links": null,
+      "document_hashes": null,
+      "retained_generator_excerpt_count": 0,
+      "omitted_generator_excerpt_count": null,
+      "sample_generator_excerpts": [],
+      "evidence_versions": 1,
+      "needs": [
+        {
+          "id": "f94c0352-990f-4f1a-af2f-5216711c814a",
+          "active": true,
+          "tier": "Signal",
+          "required_mw": null,
+          "supply": "Unknown",
+          "admission_basis": {
+            "origin": "Official permit",
+            "reason": "Accepted evidence from an official permit source.",
+            "source_id": "chicago-building-permits",
+            "evidence_hash": "062ac776c0c7246121d44fa84ad6f2dc8872a63573d8eaf558ee4ab8af2a4787",
+            "policy_version": "signal-admission-v1"
+          }
+        }
+      ]
+    },
+    {
+      "source_id": "chicago-building-permits",
+      "external_id": "N2982771",
+      "title": "Chicago building permit N2982771 \u2014 PERMIT \u2013 EXPRESS PERMIT PROGRAM",
+      "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%27N2982771%27&%24limit=1",
+      "content_hash": "09d852a910120d35685cdc10774dd13992f0ad10458ae9f0786ce0f9fc33cd08",
+      "interpretation_status": "accepted",
+      "decision": "accepted",
+      "reason": "Permit reports temporary, rental, mobile, portable, or construction power activity; rental relevance is inferred and supply remains unknown.",
+      "source_excerpt": "row: N2982771\ndate: 2026-09-29T00:00:00.000\nmodified_date: 2026-09-30T12:12:35.177Z\ndescription: LINE VOLTAGE ELECTRICAL WORK. NEW TEMPORARY 100 AMP SERVICE DISCONNECTING MEANS WITH 6 CIRCUITS. RECEPTACLE OUTLETS: 1 . LIGHTING OUTLETS: 1. SPECIFIC LOCATION: ELECTRICAL TEMPORARY SERVICE.\nwork: Electrical Work\ntype: PERMIT \u2013 EXPRESS PERMIT PROGRAM\nstatus: ACTIVE\naddress: 2333\nstreet_direction: W\nstreet_name: MONROE ST\nproject: B200512761\ncost: 3000\nparcel: 1718105009\ncontact_1_type: OWNER\ncontact_1_name: JOUDEH INVESTMENTS\ncontact_2_type: WEB APPLICANT\ncontact_2_name: TENDERA ARTUR\ncontact_3_type: APPLICANT\u2019S REPRESENTATIVE\ncontact_3_name: TENDERA ARTUR\ncontact_4_type: ELECTRICAL CONTRACTOR\nco",
+      "document_links": null,
+      "document_hashes": null,
+      "retained_generator_excerpt_count": 0,
+      "omitted_generator_excerpt_count": null,
+      "sample_generator_excerpts": [],
+      "evidence_versions": 1,
+      "needs": [
+        {
+          "id": "54bb2f86-bf6a-4364-b378-f938d8ea4b65",
+          "active": true,
+          "tier": "Signal",
+          "required_mw": null,
+          "supply": "Unknown",
+          "admission_basis": {
+            "origin": "Official permit",
+            "reason": "Accepted evidence from an official permit source.",
+            "source_id": "chicago-building-permits",
+            "evidence_hash": "09d852a910120d35685cdc10774dd13992f0ad10458ae9f0786ce0f9fc33cd08",
+            "policy_version": "signal-admission-v1"
+          }
+        }
+      ]
+    },
+    {
+      "source_id": "dcd-news",
+      "external_id": "https://www.datacenterdynamics.com/en/news/google-named-as-customer-for-crusoes-data-center-campus-in-amarillo-texas/",
+      "title": "Google named as customer for Crusoe's data center campus in Amarillo, Texas",
+      "url": "https://www.datacenterdynamics.com/en/news/google-named-as-customer-for-crusoes-data-center-campus-in-amarillo-texas/",
+      "content_hash": "ff64f64ec4bbee63e8b2abbf67854100aebdc6765489d6fb74f979cef81bdde4",
+      "interpretation_status": "rejected",
+      "decision": "rejected",
+      "reason": "The retained text does not establish a physical facility and a concrete project action.",
+      "source_excerpt": "Campus set to span at least six single-story buildings",
+      "document_links": null,
+      "document_hashes": null,
+      "retained_generator_excerpt_count": 0,
+      "omitted_generator_excerpt_count": null,
+      "sample_generator_excerpts": [],
+      "evidence_versions": 1,
+      "needs": []
+    },
+    {
+      "source_id": "dcd-news",
+      "external_id": "https://www.datacenterdynamics.com/en/news/trane-liquidstack-launch-new-25mw-cdu/",
+      "title": "Trane & LiquidStack launch new 2.5MW CDU",
+      "url": "https://www.datacenterdynamics.com/en/news/trane-liquidstack-launch-new-25mw-cdu/",
+      "content_hash": "645f23a680dcd6266483e0bdc3f2678e5ac119e42927883f8cb67bff63993c39",
+      "interpretation_status": "rejected",
+      "decision": "rejected",
+      "reason": "The retained text does not establish a physical facility and a concrete project action.",
+      "source_excerpt": "Shipping of new unit to start in Q2 2027",
+      "document_links": null,
+      "document_hashes": null,
+      "retained_generator_excerpt_count": 0,
+      "omitted_generator_excerpt_count": null,
+      "sample_generator_excerpts": [],
+      "evidence_versions": 1,
+      "needs": []
+    },
+    {
+      "source_id": "georgia-air-draft-title-v",
+      "external_id": "6aa98dd07d9e5acaef8d109a",
+      "title": "Bonnell Aluminum",
+      "url": "https://epd.georgia.gov/draft-title-v-permitsamendments-other-draft-permits",
+      "content_hash": "ba717f8ce1744000c26791e36081f2e9a29e1c7bd717acf869f056deda329abb",
+      "interpretation_status": "rejected",
+      "decision": "rejected",
+      "reason": "Georgia filing is listed, but its current application-purpose excerpt does not establish concrete facility construction/expansion or proposed generator activity; routine renewals remain evidence only.",
+      "source_excerpt": "Facility: Bonnell Aluminum\nLocation: Newnan, Georgia\nApplication number: TV-874521\nApplication received date: 2024-10-09\nPublic comment deadline: 2026-10-19\nOfficial narrative excerpt: Page 1: Title V Renewal Application Review Bonnell Aluminum, Inc., TV-874521 Printed: September 15, 2026 Page 1 of 25 Facility Name: Bonnell Aluminum, Inc. City: Newnan County: Coweta AIRS #: 04-13-077-00010 Application #: TV-874521 Date Application Received: October 9, 2024 Permit No: 3354-077-0010-V-05-0 Program Review Engineers Review Managers SSPP Zykiria Stallens Cynthia Dorrough ISMU Sheridan Finder Dan McCain SSCP Michael Susky Tammy Swindell Toxics Sherry Waldron Bill Fleming Permitting Program Manager",
+      "document_links": {
+        "narrative": "https://epd.georgia.gov/document/document/tv-874521-nar/download",
+        "draft permit": "https://epd.georgia.gov/document/document/tv-874521-draft/download",
+        "public notice": "https://epd.georgia.gov/document/document/tv-874521-pn/download"
+      },
+      "document_hashes": {
+        "https://epd.georgia.gov/document/document/tv-874521-nar/download": "ddf18d0848c267cf7495ffa9787a75f5d351de7c4d53f29507514452b897bad7",
+        "https://epd.georgia.gov/document/document/tv-874521-draft/download": "d35fdb0508bda9aaeca97bcc652d554b93b1afc97377910bbd8d487fc072e358"
+      },
+      "retained_generator_excerpt_count": 39,
+      "omitted_generator_excerpt_count": 0,
+      "sample_generator_excerpts": [
+        {
+          "url": "https://epd.georgia.gov/document/document/tv-874521-nar/download",
+          "page": 15,
+          "label": "Reported equipment context; not rental demand",
+          "quote": "Minimize the engine's time spent at idle and minimize the engine's startup time at startup to a period needed for appropriate and safe loading of the engine, not to exceed 30 minutes, after which time the non-startup emission limitations apply Emergency generator (Source Code: EGEN) The emergency generator (Source Code: EGEN) is a natural gas -fired emergency generator with maximum engine power of 112 HP (80 KW) installed in June of 2008 and manufactured in 2008.",
+          "power_quantities": [
+            {
+              "mw": "0.08",
+              "basis": "regulatory context",
+              "scope": "Unassigned quantity; not established equipment, campus, supply or rental MW",
+              "source_unit": "KW",
+              "source_value": "80"
+            }
+          ]
+        },
+        {
+          "url": "https://epd.georgia.gov/document/document/tv-874521-nar/download",
+          "page": 15,
+          "label": "Reported equipment context; not rental demand",
+          "quote": "40 CFR 60 Subpart JJJJ, \u201cStandards of Performance for Stationary Spark Ignition Internal Combustion Engines,\u201d 40 CFR 60 Subpart JJJJ states: Owners and operators of stationary SI ICE that commence construction after June 12, 2006, where the stationary SI ICE are manufactured on or after January 1, 2009, for emergency engines with a maximum engine power greater tha n 19 KW (25 HP).",
+          "power_quantities": [
+            {
+              "mw": "0.019",
+              "basis": "regulatory context",
+              "scope": "Unassigned quantity; not established equipment, campus, supply or rental MW",
+              "source_unit": "KW",
+              "source_value": "19"
+            }
+          ]
+        }
+      ],
+      "evidence_versions": 9,
+      "needs": []
+    },
+    {
+      "source_id": "georgia-air-draft-title-v",
+      "external_id": "6ab28b89e8dff589d6a83008",
+      "title": "TADG \u2013 ATL02 / Ellenwood",
+      "url": "https://epd.georgia.gov/draft-title-v-permitsamendments-other-draft-permits",
+      "content_hash": "2cab20f768f8cfeeb87066d8567be1d3d1ed3e7f30e36886826e9d9cb5ebeea3",
+      "interpretation_status": "accepted",
+      "decision": "accepted",
+      "reason": "Georgia EPD's current draft-permit listing and linked narrative report a concrete proposed onsite generator addition, partial utility service, or power-related campus activity at TADG \u2013 ATL02 / Ellenwood (Ellenwood, Georgia). This is a discovery Signal. Any reported campus, utility-service, or equipment values remain source facts; a possible construction/commissioning or bridge-power question is inferred. The filing does not establish rental MW, an unmet requirement, suitable supply, buyer, energization date, or project completion.",
+      "source_excerpt": "Facility: TADG \u2013 ATL02 / Ellenwood\nLocation: Ellenwood, Georgia\nApplication number: 30104\nApplication date: 2026-03-11\nPublic comment deadline: 2026-10-23\nOfficial narrative excerpt: Page 1: Jeffrey W. Cown, Director Air Protection Branch 4244 International Parkway Suite 120 Atlanta, Georgia 30354 404-363-7000 NARRATIVE TO: Cynthia Dorrough FROM: Bradley Prinsen DATE: 4/30/2026 Facility Name: TADG \u2013 ATL02 AIRS No.: 063-00154 Location: Ellenwood, GA (Clayton County) Application #: 30104 Date of Application: March 11, 2026 Background Information TA Digital Realty (TADG) \u2013 ATL02, which is owned by TA Ellenwood LLC, is a proposed greenfield facility to be located in Ellenwood, Georgia (Clayton C",
+      "document_links": {
+        "narrative": "https://epd.georgia.gov/document/document/30104-nar/download",
+        "draft permit": "https://epd.georgia.gov/document/document/30104-draft/download"
+      },
+      "document_hashes": {
+        "https://epd.georgia.gov/document/document/30104-nar/download": "a55f0b92b65d84df3cd3e636fd5c928286eaca5497fc7079d44baaab7c365dbb",
+        "https://epd.georgia.gov/document/document/30104-draft/download": "42eceb0f6bedbcf68757af74ad2f2e594c3ce2100de1a0a558863dc40c34d5fa"
+      },
+      "retained_generator_excerpt_count": 48,
+      "omitted_generator_excerpt_count": 37,
+      "sample_generator_excerpts": [
+        {
+          "url": "https://epd.georgia.gov/document/document/30104-draft/download",
+          "page": 3,
+          "label": "Reported equipment context; not rental demand",
+          "quote": "Subpart IIII Emission Standards For all Stationary 2007 and later Model Year Diesel Engines with A Displacement Of Less Than 30 Liters Per Cylinder And Maximum Engine Power Of Larger Than 560 kW, with emission limits in terms of g/kW-hr (lb/HP-hr) Pollutant \u2192 NOx + NMHC CO PM Emission Limit \u2192 6.4 (0.0105) 3.5 (0.00575) 0.20 (3.29X 10-4) 2.5 The Permittee shall operate the emergency generators according to the requirements specified below.",
+          "power_quantities": [
+            {
+              "mw": "0.56",
+              "basis": "regulatory context",
+              "scope": "Unassigned quantity; not established equipment, campus, supply or rental MW",
+              "source_unit": "kW",
+              "source_value": "560"
+            }
+          ]
+        }
+      ],
+      "evidence_versions": 9,
+      "needs": [
+        {
+          "id": "20b61a18-48b6-4464-b9fa-985a57235531",
+          "active": true,
+          "tier": "Signal",
+          "required_mw": null,
+          "supply": "Unknown",
+          "admission_basis": {
+            "origin": "Official permit",
+            "reason": "Accepted evidence from an official permit source.",
+            "source_id": "georgia-air-draft-title-v",
+            "evidence_hash": "2cab20f768f8cfeeb87066d8567be1d3d1ed3e7f30e36886826e9d9cb5ebeea3",
+            "policy_version": "signal-admission-v1"
+          }
+        }
+      ]
+    },
+    {
+      "source_id": "georgia-air-draft-title-v",
+      "external_id": "6ab28d7a6eaa68c63b6d28d7",
+      "title": "Apex Site Solutions LLC",
+      "url": "https://epd.georgia.gov/draft-title-v-permitsamendments-other-draft-permits",
+      "content_hash": "52f9ab37680d624d6e37c73afb9d1f092c7d424164072ec7a2dc30daa83cb3f2",
+      "interpretation_status": "accepted",
+      "decision": "accepted",
+      "reason": "Georgia EPD's current draft-permit listing and linked narrative report a concrete named facility construction or expansion at Apex Site Solutions LLC (Hampton, Georgia). This is a discovery Signal. Any reported campus, utility-service, or equipment values remain source facts; a possible construction/commissioning or bridge-power question is inferred. The filing does not establish rental MW, an unmet requirement, suitable supply, buyer, energization date, or project completion.",
+      "source_excerpt": "Facility: Apex Site Solutions LLC\nLocation: Hampton, Georgia\nApplication number: 30108\nApplication date: 2026-03-24\nPublic comment deadline: 2026-10-23\nOfficial narrative excerpt: Page 1: Jeffrey W. Cown, Director Air Protection Branch 4244 International Parkway Suite 120 Atlanta, Georgia 30354 404-363-7000 NARRATIVE TO: Cynthia Dorrough FROM: Zykiria Stallens DATE: May 12, 2026 Facility Name: Apex Site Solutions LLC AIRS No.: 151-00069 Location: Hampton, GA (Henry County) Application #: 30108 Date of Application: March 24, 2026 Background Information Apex Site Solutions LLC proposes to construct a data center facility located in Hampton, GA (Henry County). Henry County is currently designat",
+      "document_links": {
+        "narrative": "https://epd.georgia.gov/document/document/30108-nar/download",
+        "draft permit": "https://epd.georgia.gov/document/document/30108-draft/download"
+      },
+      "document_hashes": {
+        "https://epd.georgia.gov/document/document/30108-nar/download": "b10385f9660389a1406d028dab02415e5e5a9759429cd1023c1fe4ec180ca103",
+        "https://epd.georgia.gov/document/document/30108-draft/download": "4c14b2280d75c87ce710bf679062cd226bde403d8bad20960c6e9f0bbe94d9a3"
+      },
+      "retained_generator_excerpt_count": 48,
+      "omitted_generator_excerpt_count": 29,
+      "sample_generator_excerpts": [
+        {
+          "url": "https://epd.georgia.gov/document/document/30108-draft/download",
+          "page": 4,
+          "label": "Reported equipment context; not rental demand",
+          "quote": "Subpart IIII Tier 2 Emission Standards For all Stationary 2007 and later Model Year Diesel Engines with a Displacement of Less Than 10 Liters Per Cylinder and Maximum Engine Power of Greater Than 560 KW, with emission limits in terms of g/kW-hr (lb./HP-hr.) Pollutant NOx + NMHC CO PM Emission Limit 6.4 (0.0105) 3.5 (0.00575) 0.20 (3.29x10-4) Table 2.7-2: NSPS 40 CFR Part 60.",
+          "power_quantities": [
+            {
+              "mw": "0.56",
+              "basis": "regulatory context",
+              "scope": "Unassigned quantity; not established equipment, campus, supply or rental MW",
+              "source_unit": "KW",
+              "source_value": "560"
+            }
+          ]
+        },
+        {
+          "url": "https://epd.georgia.gov/document/document/30108-draft/download",
+          "page": 4,
+          "label": "Reported equipment context; not rental demand",
+          "quote": "Subpart IIII Tier 3 Emission Standards For all Stationary 2007 and later Model Year Diesel Engines with a Displacement of Less Than 10 Liters Per Cylinder and Maximum Engine Power Less Than or Equal to 560 KW, with emission limits in terms of g/kW-hr (lb./HP-hr.) Pollutant NOx + NMHC CO PM Emission Limit 4.0 (0.00658) 3.5 (0.00575) 0.20 (3.29x10-4) 2.8 The Permittee shall not discharge or cause the discharge into the atmosphere from the diesel - fired emergency fire pumps any emissions of non -methane hydrocarbons and nitrogen oxides (NMHC+NOx), hydrocarbons (HC), nitrogen oxides (NOx), carbon",
+          "power_quantities": [
+            {
+              "mw": "0.56",
+              "basis": "regulatory context",
+              "scope": "Unassigned quantity; not established equipment, campus, supply or rental MW",
+              "source_unit": "KW",
+              "source_value": "560"
+            }
+          ]
+        }
+      ],
+      "evidence_versions": 9,
+      "needs": [
+        {
+          "id": "2f772b12-de51-467b-b740-6ca95b2644f1",
+          "active": true,
+          "tier": "Signal",
+          "required_mw": null,
+          "supply": "Unknown",
+          "admission_basis": {
+            "origin": "Official permit",
+            "reason": "Accepted evidence from an official permit source.",
+            "source_id": "georgia-air-draft-title-v",
+            "evidence_hash": "52f9ab37680d624d6e37c73afb9d1f092c7d424164072ec7a2dc30daa83cb3f2",
+            "policy_version": "signal-admission-v1"
+          }
+        }
+      ]
+    },
+    {
+      "source_id": "georgia-air-draft-title-v",
+      "external_id": "6ab53969b07498663d57d07a",
+      "title": "QTS Fayetteville I, LLC",
+      "url": "https://epd.georgia.gov/draft-title-v-permitsamendments-other-draft-permits",
+      "content_hash": "e0b01bd40bac6fc8ce1a444f3048e75bb26169864208ae9ab1ba7c76778c9a58",
+      "interpretation_status": "accepted",
+      "decision": "accepted",
+      "reason": "Georgia EPD's current draft-permit listing and linked narrative report a concrete proposed onsite generator addition, partial utility service, or power-related campus activity at QTS Fayetteville I, LLC (Fayetteville, Georgia). This is a discovery Signal. Any reported campus, utility-service, or equipment values remain source facts; a possible construction/commissioning or bridge-power question is inferred. The filing does not establish rental MW, an unmet requirement, suitable supply, buyer, energization date, or project completion.",
+      "source_excerpt": "Facility: QTS Fayetteville I, LLC\nLocation: Fayetteville, Georgia\nApplication number: 30027\nApplication date: 2026-01-09\nPublic comment deadline: 2026-10-23\nOfficial narrative excerpt: Page 1: Jeffrey W. Cown, Director Air Protection Branch 4244 International Parkway Suite 120 Atlanta, Georgia 30354 404-363-7000 NARRATIVE TO: Cynthia Dorrough FROM: Alexander Lagunas DATE: February 19, 2026 Facility Name: QTS Fayetteville I, LLC AIRS No.: 113-00073 Location: Fayetteville, GA (Fayette County) Application #: 30027 Date of Application: January 9, 2026 Background Information QTS Fayetteville I, LLC is a data center operating under Air Permit No. 7374-113-0073-S-01-0, issued on October 11, 2023, a",
+      "document_links": {
+        "narrative": "https://epd.georgia.gov/document/document/30027-nar/download",
+        "draft permit": "https://epd.georgia.gov/document/document/30027-draft/download"
+      },
+      "document_hashes": {
+        "https://epd.georgia.gov/document/document/30027-nar/download": "17c9028149ae3d72a2e6925d10c49c359c6805a53f130c066d749243a8b2b1ac",
+        "https://epd.georgia.gov/document/document/30027-draft/download": "2f0c2f060dee51d100e068bcd0477a8a50fd697d30dfcd0bc2d96cc93d42aa21"
+      },
+      "retained_generator_excerpt_count": 48,
+      "omitted_generator_excerpt_count": 34,
+      "sample_generator_excerpts": [
+        {
+          "url": "https://epd.georgia.gov/document/document/30027-nar/download",
+          "page": 2,
+          "label": "Reported equipment context; not rental demand",
+          "quote": "Updated Equipment List Emission Units Associated Control Devices Source Code Description Installation Date Source Code Description EG001 \u2013 EG229 227 Main Generators & 2 House Generators 2.5 MW CAT 3516C Diesel-fired 2023 -- -- EG230 \u2013 EG546* 317 Main Generators 2.5 MW CAT 3516C Diesel-fired 2026* -- -- EG547 - EG552** 4 Chiller Yard Generators and 2 House Generators 1.25 MW CAT C32 Formerly EG230 through EG235 Diesel-fired 2024 -- -- EG553 - EG572* 20 House Generators 1.25 MW CAT C32 Diesel-fired 2026* -- -- FP001 & FP002 2 Fire Pumps Clarke JU4H-UFADP0 Diesel-fired 2024 -- -- FP003 - FP011* 9",
+          "power_quantities": [
+            {
+              "mw": "2.5",
+              "basis": "unassigned power quantity",
+              "scope": "Unassigned quantity; not established equipment, campus, supply or rental MW",
+              "source_unit": "MW",
+              "source_value": "2.5"
+            },
+            {
+              "mw": "2.5",
+              "basis": "unassigned power quantity",
+              "scope": "Unassigned quantity; not established equipment, campus, supply or rental MW",
+              "source_unit": "MW",
+              "source_value": "2.5"
+            },
+            {
+              "mw": "1.25",
+              "basis": "unassigned power quantity",
+              "scope": "Unassigned quantity; not established equipment, campus, supply or rental MW",
+              "source_unit": "MW",
+              "source_value": "1.25"
+            },
+            {
+              "mw": "1.25",
+              "basis": "unassigned power quantity",
+              "scope": "Unassigned quantity; not established equipment, campus, supply or rental MW",
+              "source_unit": "MW",
+              "source_value": "1.25"
+            }
+          ]
+        },
+        {
+          "url": "https://epd.georgia.gov/document/document/30027-draft/download",
+          "page": 3,
+          "label": "Reported equipment context; not rental demand",
+          "quote": "Subpart IIII Tier 2 Emission Standards For all Stationary 2007 and later Model Year Diesel Engines with a Displacement of Less Than 10 Liters Per Cylinder And Maximum Engine Power Of Larger Than 560 kW, with emission limits in terms of g/kW-hr (lb/HP-hr) Emission Unit Pollutant NMHC+NOX CO PM EG001 through EG572 Emission Limit 6.4 (0.0105) 3.5 (0.00575) 0.20 (3.29x10-4)",
+          "power_quantities": [
+            {
+              "mw": "0.56",
+              "basis": "regulatory context",
+              "scope": "Unassigned quantity; not established equipment, campus, supply or rental MW",
+              "source_unit": "kW",
+              "source_value": "560"
+            }
+          ]
+        }
+      ],
+      "evidence_versions": 9,
+      "needs": [
+        {
+          "id": "d0674078-b926-406e-bcb8-b7aed23ef7ea",
+          "active": true,
+          "tier": "Signal",
+          "required_mw": null,
+          "supply": "Unknown",
+          "admission_basis": {
+            "origin": "Official permit",
+            "reason": "Accepted evidence from an official permit source.",
+            "source_id": "georgia-air-draft-title-v",
+            "evidence_hash": "e0b01bd40bac6fc8ce1a444f3048e75bb26169864208ae9ab1ba7c76778c9a58",
+            "policy_version": "signal-admission-v1"
+          }
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "All 19 Georgia application-link fields empty; narrative/draft extraction only.",
+    "Generator excerpts bounded; raw power quantities are not rental demand or assigned equipment ratings.",
+    "No utility docket or procurement connector added; these admission paths use regression fixtures.",
+    "Live DCD sample did not contain an exact supported-project news match; supplement matching is regression proof.",
+    "Library prepare_materialize succeeded but signed-blob transfer failed; original ZIP unreadable here; supplied synthesis used.",
+    "No national coverage, live rental opportunity, Prospect/Lead, deployment or scheduled-service proof claimed."
+  ]
+}

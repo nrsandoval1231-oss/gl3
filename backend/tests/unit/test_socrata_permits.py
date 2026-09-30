@@ -269,3 +269,37 @@ def test_permit_interpretation_is_conservative(description, status, expected):
         assert assessment["tier"] == "Signal"
         assert assessment["missing_facts"]
         assert "power" in assessment["reason"]
+
+
+def test_chicago_express_electrical_retains_scope_parcel_and_contractor():
+    requests = []
+    row = {
+        "id": "SYNTHETIC-ELECTRICAL-1",
+        "issue_date": date.today().isoformat(),
+        "permit_type": "PERMIT – EXPRESS PERMIT PROGRAM",
+        "work_type": "Electrical Work",
+        "work_description": "Install temporary 60 kW diesel generator.",
+        "permit_status": "ACTIVE",
+        "street_number": "100",
+        "street_name": "TEST WAY",
+        "pin_list": "TEST-PARCEL",
+        "contact_4_type": "ELECTRICAL CONTRACTOR",
+        "contact_4_name": "Synthetic Electric",
+        "permit_": "TEST-CASE",
+    }
+
+    def handler(request):
+        requests.append(request)
+        if "count(*)" in request.url.params.get("$select", ""):
+            return httpx.Response(200, json=[{"row_count": "1"}])
+        return httpx.Response(200, json=[row])
+
+    result = retrieve(
+        source("chicago-building-permits"), httpx.Client(transport=httpx.MockTransport(handler))
+    )[0]
+    assert "work_type='Electrical Work'" in requests[0].url.params["$where"]
+    assert "Synthetic Electric" in result["abstract"]
+    assert "TEST-PARCEL" in result["abstract"]
+    assert "SYNTHETIC-ELECTRICAL-1" in result["html_url"]
+    assert result["permit"]["source_fields"]["contact_4_name"] == "contact_4_name"
+    assert assess_permit(result)["decision"] == "accepted"
