@@ -278,7 +278,8 @@ def test_official_pdf_is_bound_to_the_listed_site_and_application(monkeypatch):
             "Augusta",
         )
     assert document is not None
-    assert document["content_hash"] == digest
+    assert document["pdf_hash"] == digest
+    assert document["content_hash"] != digest  # Extraction version preserves earlier excerpts.
     assert document["extraction_location"].startswith("PDF pages 1")
     with httpx.Client(transport=transport) as client:
         with pytest.raises(
@@ -611,7 +612,7 @@ def test_georgia_job_retains_null_publication_and_replays_with_pdf_evidence(
         interpretation = session.scalar(select(Interpretation))
         assert interpretation is not None
         assert interpretation.status == "accepted"
-        assert interpretation.evaluator_version == "georgia-air-discovery-v1"
+        assert interpretation.evaluator_version == "georgia-air-discovery-v2"
         original_hash = observation.content_hash
 
     scenario["pdf_version"] = b"v2-changed-required-pdf"

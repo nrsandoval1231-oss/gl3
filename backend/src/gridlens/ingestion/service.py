@@ -19,6 +19,13 @@ from gridlens.domain.news_interpretation import (
 from gridlens.domain.permit_interpretation import assess_permit
 from gridlens.domain.permit_interpretation import evaluator_version as permit_evaluator_version
 from gridlens.domain.qualification import assess_signal
+from gridlens.domain.signal_admission import (
+    POLICY_VERSION as ADMISSION_POLICY_VERSION,
+)
+from gridlens.domain.signal_admission import (
+    admit_standalone,
+    admitted_from_source,
+)
 from gridlens.domain.taylor_planning import interpret_taylor_planning
 from gridlens.ingestion.adapters import retrieve_source
 from gridlens.ingestion.adapters.govinfo_pdf import MAX_PDFS_PER_RUN, retrieve_companion
@@ -216,30 +223,27 @@ def _need_has_current_support(session: Session, need: PowerNeed, project: Projec
         ):
             continue
         assessment = interpretation.assessment or {}
-        if assessment.get("semantic_hash") not in {None, linked_observation.content_hash}:
+        if assessment.get("semantic_hash") != linked_observation.content_hash:
             continue
         identity_key = assessment.get("project_identity_key")
-        if identity_key is not None and identity_key != project.identity_key:
+        if identity_key != project.identity_key:
             continue
         activity = assessment.get("power_activity") or assessment.get("activity_key")
-        if activity is not None and activity != need.activity_key:
+        if activity != need.activity_key:
             continue
         evidence_hash = assessment.get("evidence_hash")
-        if isinstance(evidence_hash, str):
-            bound = session.scalar(
-                select(Evidence.id).where(
-                    Evidence.observation_id == linked_observation.id,
-                    Evidence.content_hash == evidence_hash,
-                )
+        if not isinstance(evidence_hash, str):
+            continue
+        evidence = session.scalar(
+            select(Evidence).where(
+                Evidence.observation_id == linked_observation.id,
+                Evidence.content_hash == evidence_hash,
             )
-            if bound is None:
-                continue
-        elif (
-            session.scalar(
-                select(Evidence.id).where(Evidence.observation_id == linked_observation.id)
-            )
-            is None
-        ):
+        )
+        if evidence is None:
+            continue
+        source = session.get(Source, linked_observation.source_id)
+        if source is None or not admitted_from_source(source, assessment, evidence).admitted:
             continue
         return True
     return False
@@ -262,23 +266,29 @@ def _current_need_claims(
         ):
             continue
         assessment = interpretation.assessment or {}
-        if assessment.get("semantic_hash") not in {None, observation.content_hash}:
+        if assessment.get("semantic_hash") != observation.content_hash:
             continue
-        if assessment.get("project_identity_key") not in {None, project.identity_key}:
+        if assessment.get("project_identity_key") != project.identity_key:
             continue
         activity = assessment.get("power_activity") or assessment.get("activity_key")
-        if activity not in {None, need.activity_key}:
+        if activity != need.activity_key:
             continue
         evidence_hash = assessment.get("evidence_hash")
-        if (
-            not isinstance(evidence_hash, str)
-            or session.scalar(
-                select(Evidence.id).where(
+        evidence = (
+            session.scalar(
+                select(Evidence).where(
                     Evidence.observation_id == observation.id,
                     Evidence.content_hash == evidence_hash,
                 )
             )
-            is None
+            if isinstance(evidence_hash, str)
+            else None
+        )
+        source = session.get(Source, observation.source_id)
+        if (
+            evidence is None
+            or source is None
+            or not admitted_from_source(source, assessment, evidence).admitted
         ):
             continue
 
@@ -354,6 +364,285 @@ def _assessment_payload(
     }
 
 
+def _attach_news_supplement(
+    session: Session,
+    observation: Observation,
+    evidence: Evidence,
+    claim: dict[str, Any],
+    payload: dict[str, Any],
+) -> tuple[PowerNeed | None, dict[str, Any]]:
+    """Attach news only to one already-supported same-project, same-activity need."""
+    phase_marker = re.compile(r"\bphases?\b", re.I)
+    phase_value = re.compile(
+        r"\b(\d+[a-z]?|[ivx]+|one|two|three|four|five|six|seven|eight|nine|ten)\b",
+        re.I,
+    )
+    phase_clause = re.compile(
+        r"phases?\s*[-:#]?\s*(?:\d+[a-z]?|[ivx]+|one|two|three|four|five|six|seven|eight|nine|ten)"
+        r"(?:\s*(?:,|and|&|to|through|[-–—])\s*(?:\d+[a-z]?|[ivx]+|one|two|three|four|five|six|seven|eight|nine|ten))*",
+        re.I,
+    )
+    phase_names = {
+        "one": "1",
+        "two": "2",
+        "three": "3",
+        "four": "4",
+        "five": "5",
+        "six": "6",
+        "seven": "7",
+        "eight": "8",
+        "nine": "9",
+        "ten": "10",
+    }
+
+    def phase_scope(text: str) -> tuple[set[str], bool]:
+        phases: set[str] = set()
+        unknown = False
+        for marker in phase_marker.finditer(text):
+            clause = phase_clause.match(text, marker.start())
+            if clause is None:
+                unknown = True
+                continue
+            values = [
+                phase_names.get(value.casefold(), value.casefold())
+                for value in phase_value.findall(clause.group())
+            ]
+            phases.update(values)
+        return phases, unknown
+
+    incoming_phases, incoming_phase_unknown = phase_scope(
+        f"{observation.title} {observation.abstract or ''}"
+    )
+    if len(incoming_phases) > 1 or incoming_phase_unknown:
+        return None, {
+            **payload,
+            "admission_status": "supplement_unknown",
+            "admission_reason": "Conflicting phase labels; the activity link is UNKNOWN.",
+            "phase_candidates": sorted(incoming_phases),
+        }
+    site_claims = labeled_sites(f"{observation.title} {observation.abstract or ''}")
+    if len(site_claims) > 1:
+        ambiguity_reason = (
+            "Multiple distinct labeled site addresses; the project/activity link is UNKNOWN."
+        )
+        prior_match = session.scalar(
+            select(ProjectMatchDecision).where(
+                ProjectMatchDecision.observation_id == observation.id,
+                ProjectMatchDecision.candidate_project_id.is_(None),
+                ProjectMatchDecision.evidence_id == evidence.id,
+            )
+        )
+        if prior_match is None:
+            session.add(
+                ProjectMatchDecision(
+                    observation_id=observation.id,
+                    candidate_project_id=None,
+                    evidence_id=evidence.id,
+                    decision="separate",
+                    reason=ambiguity_reason,
+                    matched_facts=[],
+                    identity_facts={
+                        "project_name": claim.get("subject"),
+                        "site_candidates": list(site_claims),
+                    },
+                )
+            )
+        else:
+            prior_match.reason = ambiguity_reason
+            prior_match.identity_facts = {
+                "project_name": claim.get("subject"),
+                "site_candidates": list(site_claims),
+            }
+        return None, {
+            **payload,
+            "admission_status": "supplement_unknown",
+            "admission_reason": ambiguity_reason,
+            "site_candidates": list(site_claims),
+        }
+    incoming_site = site_claims[0] if site_claims else claim.get("location")
+    matching_projects: list[Project] = []
+    phase_conflict = False
+    for candidate in session.scalars(select(Project).with_for_update()).all():
+        aliases = (candidate.identity_facts or {}).get("project_aliases", [])
+        same_name = normalized_identity(candidate.name) == normalized_identity(
+            claim.get("subject")
+        ) or any(
+            isinstance(alias, str)
+            and normalized_identity(alias) == normalized_identity(claim.get("subject"))
+            for alias in aliases
+        )
+        candidate_site = (candidate.identity_facts or {}).get("site") or candidate.location
+        same_site = same_physical_site(candidate_site, incoming_site)
+        decision = decide_project_match(
+            same_address=same_site,
+            same_project_name=same_name,
+            conflicting_geography=bool(
+                conflicting_geography(candidate.location, claim.get("location"))
+            ),
+            conflicting_asset_type=_asset_type_conflicts(
+                candidate.asset_type,
+                classify_event(observation.title, observation.abstract),
+            ),
+        )
+        if decision.decision != "matched":
+            continue
+        retained_rows = session.execute(
+            select(Evidence, Observation, Interpretation)
+            .join(Observation, Observation.id == Evidence.observation_id)
+            .join(NeedObservation, NeedObservation.observation_id == Observation.id)
+            .join(PowerNeed, PowerNeed.id == NeedObservation.need_id)
+            .join(Interpretation, Interpretation.observation_id == Observation.id)
+            .where(PowerNeed.project_id == candidate.id, PowerNeed.active.is_(True))
+        ).all()
+        project_phases: set[str] = set()
+        project_phase_unknown = False
+        for prior_evidence, prior_observation, prior_interpretation in retained_rows:
+            prior_source = session.get(Source, prior_observation.source_id)
+            prior_assessment = prior_interpretation.assessment or {}
+            if (
+                prior_source is None
+                or not admitted_from_source(prior_source, prior_assessment, prior_evidence).admitted
+            ):
+                continue
+            prior_phases, prior_unknown = phase_scope(
+                f"{prior_evidence.title} {prior_evidence.abstract or ''}"
+            )
+            project_phases.update(prior_phases)
+            project_phase_unknown = project_phase_unknown or prior_unknown
+        candidate_phase = (candidate.identity_facts or {}).get("phase")
+        if isinstance(candidate_phase, str):
+            project_phases.add(candidate_phase.casefold())
+        if incoming_phases != project_phases and (incoming_phases or project_phases):
+            phase_conflict = True
+            continue
+        if project_phase_unknown or len(project_phases) > 1:
+            phase_conflict = True
+            continue
+        matching_projects.append(candidate)
+    if len(matching_projects) != 1:
+        status = (
+            "supplement_unknown" if phase_conflict or matching_projects else "supplement_unmatched"
+        )
+        reason = (
+            "Conflicting phase evidence; the project/activity link is UNKNOWN."
+            if phase_conflict
+            else "No supported physical project matched this news item; it remains context only."
+            if not matching_projects
+            else "Multiple physical projects matched this news item; the project link is UNKNOWN."
+        )
+        prior_match = session.scalar(
+            select(ProjectMatchDecision).where(
+                ProjectMatchDecision.observation_id == observation.id,
+                ProjectMatchDecision.candidate_project_id.is_(None),
+                ProjectMatchDecision.evidence_id == evidence.id,
+            )
+        )
+        if prior_match is None:
+            session.add(
+                ProjectMatchDecision(
+                    observation_id=observation.id,
+                    candidate_project_id=None,
+                    evidence_id=evidence.id,
+                    decision="separate",
+                    reason=reason,
+                    matched_facts=[],
+                    identity_facts={
+                        "project_name": claim.get("subject"),
+                        "site": incoming_site,
+                        "site_candidates": list(site_claims),
+                    },
+                )
+            )
+        else:
+            prior_match.reason = reason
+            prior_match.identity_facts = {
+                "project_name": claim.get("subject"),
+                "site": incoming_site,
+                "site_candidates": list(site_claims),
+            }
+        return None, {**payload, "admission_status": status, "admission_reason": reason}
+
+    project = matching_projects[0]
+    requested_activity = payload.get("power_activity")
+    if requested_activity == "construction":
+        requested_activity = "facility-expansion"
+    need = session.scalar(
+        select(PowerNeed)
+        .where(
+            PowerNeed.project_id == project.id,
+            PowerNeed.activity_key == requested_activity,
+            PowerNeed.active.is_(True),
+        )
+        .with_for_update()
+    )
+    if need is None or not _need_has_current_support(session, need, project):
+        return None, {
+            **payload,
+            "admission_status": "supplement_unmatched",
+            "admission_reason": (
+                "The matched project has no currently admitted need for this activity."
+            ),
+        }
+    match = session.scalar(
+        select(ProjectMatchDecision).where(
+            ProjectMatchDecision.observation_id == observation.id,
+            ProjectMatchDecision.candidate_project_id == project.id,
+            ProjectMatchDecision.evidence_id == evidence.id,
+        )
+    )
+    if match is None:
+        session.add(
+            ProjectMatchDecision(
+                observation_id=observation.id,
+                candidate_project_id=project.id,
+                evidence_id=evidence.id,
+                decision="matched",
+                reason=(
+                    "Identity supported by physical address and project name/alias; "
+                    "news is supplemental."
+                ),
+                matched_facts=["physical address", "project name/alias"],
+                identity_facts={
+                    "project_name": claim.get("subject"),
+                    "site": incoming_site,
+                    "site_candidates": list(site_claims),
+                },
+            )
+        )
+    else:
+        match.decision = "matched"
+        match.reason = (
+            "Identity supported by physical address and project name/alias; news is supplemental."
+        )
+        match.matched_facts = ["physical address", "project name/alias"]
+        match.identity_facts = {
+            "project_name": claim.get("subject"),
+            "site": incoming_site,
+            "site_candidates": list(site_claims),
+        }
+    if (
+        session.scalar(
+            select(NeedObservation.id).where(
+                NeedObservation.need_id == need.id,
+                NeedObservation.observation_id == observation.id,
+            )
+        )
+        is None
+    ):
+        session.add(NeedObservation(need_id=need.id, observation_id=observation.id))
+    payload.update(
+        {
+            "project_identity_key": project.identity_key,
+            "power_activity": need.activity_key,
+            "admission_status": "supplemental",
+            "admission_reason": (
+                "News is attached as supplemental evidence to an admitted project need."
+            ),
+        }
+    )
+    return need, payload
+
+
 def assess_retained_news(
     session: Session,
     observation: Observation,
@@ -385,6 +674,9 @@ def assess_retained_news(
         and interpretation.assessment is not None
         and interpretation.assessment.get("semantic_hash") == observation.content_hash
         and interpretation.assessment.get("evidence_hash") == evidence.content_hash
+        and interpretation.assessment.get("admission_policy_version") == ADMISSION_POLICY_VERSION
+        and interpretation.assessment.get("admission_status")
+        not in {"supplement_unmatched", "supplement_unknown"}
     ):
         return False
     if job_id is not None:
@@ -393,9 +685,17 @@ def assess_retained_news(
 
     prior_assessment = interpretation.assessment
     prior_identity = prior_assessment.get("project_identity_key") if prior_assessment else None
+    source = session.get(Source, observation.source_id)
+    if source is None:
+        interpretation.status = "failed"
+        interpretation.error = "SourceMissing"
+        interpretation.attempts += 1
+        session.flush()
+        return False
     try:
         claim = assess_news(observation.title, observation.abstract).as_dict()
         payload = _assessment_payload(observation, evidence, claim)
+        payload["admission_policy_version"] = ADMISSION_POLICY_VERSION
         activity_key = news_power_activity(claim)
         if claim.get("decision") == "accepted" and activity_key is None:
             raise ValueError(
@@ -442,6 +742,7 @@ def assess_retained_news(
         if (
             prior_assessment.get("semantic_hash") != observation.content_hash
             or interpretation.evaluator_version != EVALUATOR_VERSION
+            or (prior_assessment or {}).get("admission_policy_version") != ADMISSION_POLICY_VERSION
         ):
             history.append(
                 {
@@ -452,6 +753,16 @@ def assess_retained_news(
             )
     if history:
         payload["previous_decisions"] = history
+
+    admission = admit_standalone(
+        source_id=source.id,
+        family=source.family,
+        retrieval_method=source.retrieval_method,
+        accepted=claim.get("decision") == "accepted",
+        activity=activity_key,
+        title=evidence.title,
+        abstract=evidence.abstract,
+    )
 
     old_needs = session.scalars(
         select(PowerNeed)
@@ -467,7 +778,15 @@ def assess_retained_news(
     interpretation.status = "accepted" if claim["decision"] == "accepted" else "rejected"
 
     current_need: PowerNeed | None = None
-    if claim["decision"] == "accepted":
+    supplemental_only = claim["decision"] == "accepted" and not admission.admitted
+    if supplemental_only:
+        current_need, payload = _attach_news_supplement(
+            session, observation, evidence, claim, payload
+        )
+        payload["admission_origin"] = admission.origin
+        interpretation.assessment = {**payload}
+        flag_modified(interpretation, "assessment")
+    elif claim["decision"] == "accepted":
         identity_key = payload["project_identity_key"]
         project = session.scalar(
             select(Project).where(Project.identity_key == identity_key).with_for_update()
@@ -674,6 +993,7 @@ def assess_retained_news(
         current_need.rationale = claim["reason"]
         current_need.required_mw = _reported_mw(claim)
         current_need.supply = "Reported constraint" if claim["tier"] == "Prospect" else "Unknown"
+        current_need.admission_basis = admission.as_basis(source.id, evidence.content_hash)
         payload["project_identity_key"] = identity_key
         # Assign a fresh JSON value before support queries can autoflush it.
         interpretation.assessment = {**payload}
@@ -709,6 +1029,20 @@ def assess_retained_news(
     impacted_ids = {need.id for need in old_needs}
     if current_need is not None:
         impacted_ids.add(current_need.id)
+    if (
+        current_need is not None
+        and prior_assessment
+        and prior_assessment.get("admission_status")
+        in {"supplement_unmatched", "supplement_unknown"}
+        and payload.get("admission_status") == "supplemental"
+    ):
+        session.add(
+            ChangeEvent(
+                observation_id=observation.id,
+                content_hash=observation.content_hash,
+                kind="supplemented",
+            )
+        )
     impacted = (
         session.scalars(
             select(PowerNeed).where(PowerNeed.id.in_(impacted_ids)).with_for_update()
@@ -789,6 +1123,16 @@ def process_job(
     if source_definition.get("retrieval_method") == "georgia-air-permits":
         counts["snapshot_item_count"] = len(records)
         counts["documents_extracted"] = sum(len(record.get("companions", [])) for record in records)
+        permits = [record.get("permit", {}) for record in records]
+        counts["generator_facts"] = sum(
+            len(permit.get("generator_facts", [])) for permit in permits
+        )
+        counts["generator_excerpts_omitted"] = sum(
+            int(permit.get("generator_excerpts_omitted", 0)) for permit in permits
+        )
+        counts["missing_application_documents"] = sum(
+            not bool(permit.get("application_document_available")) for permit in permits
+        )
         counts["unextracted_public_notice_references"] = sum(
             "public notice" in record.get("permit", {}).get("unextracted_document_links", {})
             for record in records
@@ -999,6 +1343,46 @@ def process_job(
                 and date.fromisoformat(interpretation.assessment["review_after"]) < date.today()
             )
         ):
+            current_source = session.get(Source, source.id)
+            current_evidence = session.scalar(
+                select(Evidence).where(
+                    Evidence.observation_id == observation.id,
+                    Evidence.content_hash == interpretation.assessment.get("evidence_hash"),
+                )
+            )
+            if current_source is not None and current_evidence is not None:
+                admission = admitted_from_source(
+                    current_source, interpretation.assessment, current_evidence
+                )
+                if admission.admitted:
+                    project = session.scalar(
+                        select(Project).where(
+                            Project.identity_key
+                            == interpretation.assessment.get("project_identity_key")
+                        )
+                    )
+                    activity = interpretation.assessment.get("power_activity") or (
+                        interpretation.assessment.get("activity_key")
+                    )
+                    need = (
+                        session.scalar(
+                            select(PowerNeed).where(
+                                PowerNeed.project_id == project.id,
+                                PowerNeed.activity_key == activity,
+                                PowerNeed.active.is_(True),
+                            )
+                        )
+                        if project is not None
+                        else None
+                    )
+                    if (
+                        need is not None
+                        and project is not None
+                        and _need_has_current_support(session, need, project)
+                    ):
+                        need.admission_basis = admission.as_basis(
+                            current_source.id, current_evidence.content_hash
+                        )
             counts[
                 "permit_accepted" if interpretation.status == "accepted" else "permit_rejected"
             ] += 1
@@ -1041,6 +1425,68 @@ def process_job(
             session.commit()
             continue
         assert_fence(session, job_id, worker_id, fence)
+
+        if interpreted is not None:
+            activity = interpreted.get("activity_key")
+            admission = admit_standalone(
+                source_id=source.id,
+                family=source.family,
+                retrieval_method=source.retrieval_method,
+                accepted=True,
+                activity=activity if isinstance(activity, str) else None,
+                title=record["title"],
+                abstract=record.get("abstract"),
+                dated=bool(record.get("publication_date") or record.get("event_date")),
+                citation_url=record.get("html_url"),
+                identified_project=bool(interpreted.get("name") and interpreted.get("location")),
+            )
+            if not admission.admitted:
+                current_evidence = session.scalar(
+                    select(Evidence).where(
+                        Evidence.observation_id == observation.id,
+                        Evidence.content_hash == evidence_digest,
+                    )
+                )
+                interpretation.status = "accepted"
+                interpretation.evaluator_version = (
+                    permit_evaluator_version(record) if permit_assessment else "context-only-v1"
+                )
+                interpretation.error = None
+                interpretation.assessment = {
+                    "semantic_hash": digest,
+                    "evidence_hash": evidence_digest,
+                    "decision": "context_only",
+                    "admission_status": "context_only",
+                    "admission_origin": admission.origin,
+                    "admission_reason": admission.reason,
+                    "subject": interpreted.get("name"),
+                    "action": interpreted.get("rationale"),
+                    "location": interpreted.get("location"),
+                    "reason": interpreted.get("rationale"),
+                    "activity_key": activity,
+                    "evidence": {
+                        "id": str(current_evidence.id) if current_evidence else None,
+                        "url": current_evidence.url if current_evidence else observation.url,
+                    },
+                    "previous_decisions": (
+                        [
+                            *((prior_assessment or {}).get("previous_decisions", [])),
+                            {
+                                key: value
+                                for key, value in (prior_assessment or {}).items()
+                                if key != "previous_decisions"
+                            },
+                        ]
+                        if prior_assessment
+                        else []
+                    ),
+                }
+                job = assert_fence(session, job_id, worker_id, fence)
+                job.checkpoint = external_id
+                job.lease_until = datetime.now(UTC) + timedelta(seconds=90)
+                session.commit()
+                counts["context_only"] = counts.get("context_only", 0) + 1
+                continue
 
         is_taylor = source.id == "taylor-development-newsflash"
         article_id = str(record.get("article_id") or "")
@@ -1515,8 +1961,7 @@ def process_job(
                         facility_scope
                         and candidate.source_id == source.id
                         and same_site
-                        and (candidate.identity_facts or {}).get("facility_scope")
-                        == facility_scope
+                        and (candidate.identity_facts or {}).get("facility_scope") == facility_scope
                         and normalized_identity(
                             (candidate.identity_facts or {}).get("facility_source_address")
                         )
@@ -1761,6 +2206,7 @@ def process_job(
                 material_change = True
                 need.active = True
                 need.rationale = rationale
+            need.admission_basis = admission.as_basis(source.id, evidence_digest)
             if (
                 session.scalar(
                     select(NeedObservation.id).where(
@@ -1815,6 +2261,11 @@ def process_job(
                     "semantic_hash": digest,
                     "evidence_hash": evidence_digest,
                     "decision": "accepted",
+                    "tier": "Signal",
+                    "subject": interpreted.get("name"),
+                    "location": interpreted.get("location"),
+                    "action": interpreted.get("rationale"),
+                    "reason": interpreted.get("rationale"),
                     "project_identity_key": project.identity_key,
                     "power_activity": activity_key,
                     "activity_key": activity_key,
@@ -1945,6 +2396,10 @@ def _process_collection_only(
             and interpretation.assessment
             and interpretation.assessment.get("semantic_hash") == digest
             and interpretation.assessment.get("evidence_hash") == evidence.content_hash
+            and interpretation.assessment.get("admission_policy_version")
+            == ADMISSION_POLICY_VERSION
+            and interpretation.assessment.get("admission_status")
+            not in {"supplement_unmatched", "supplement_unknown"}
         )
         if interpretation is None:
             interpretation = Interpretation(
@@ -1968,8 +2423,19 @@ def _process_collection_only(
             session, observation, evidence, job_id=job_id, worker_id=worker_id, fence=fence
         )
         if interpretation.status == "accepted" and interpretation.assessment:
-            counts["signals"] += int(interpretation.assessment.get("tier") == "Signal")
-            if interpretation.assessment.get("tier") == "Signal":
+            current_source = session.get(Source, observation.source_id)
+            current_admission = (
+                admitted_from_source(current_source, interpretation.assessment, evidence)
+                if current_source is not None
+                else None
+            )
+            if current_admission and current_admission.admitted:
+                counts["signals"] += int(interpretation.assessment.get("tier") == "Signal")
+            if (
+                current_admission
+                and current_admission.admitted
+                and interpretation.assessment.get("tier") == "Signal"
+            ):
                 adjudicate_signal(session, observation, evidence)
         if not changed_decision:
             job = assert_fence(session, job_id, worker_id, fence)

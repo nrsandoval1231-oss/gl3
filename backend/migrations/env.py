@@ -3,8 +3,8 @@ from logging.config import fileConfig
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
-from gridlens.persistence.database import Base
 from gridlens.persistence import models  # noqa: F401
+from gridlens.persistence.database import Base
 from gridlens.settings import settings
 
 config = context.config

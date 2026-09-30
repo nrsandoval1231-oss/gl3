@@ -181,6 +181,9 @@ class PowerNeed(Base):
     activity_key: Mapped[str] = mapped_column(String(100))
     tier: Mapped[str] = mapped_column(String(20), default="Signal")
     rationale: Mapped[str] = mapped_column(Text)
+    admission_basis: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, default=dict, server_default="{}"
+    )
     required_mw: Mapped[str | None] = mapped_column(String(100))
     start_window: Mapped[str | None] = mapped_column(String(100))
     duration: Mapped[str | None] = mapped_column(String(100))

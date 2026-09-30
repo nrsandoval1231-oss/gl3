@@ -1,5 +1,7 @@
 # GridLens ingestion strategy
 
+> GL3-018 supersedes standalone news/planning Signal admission and expands the existing Chicago/Georgia routes. See [current admission and acquisition behavior](gl3-018-admission-and-acquisition.md). Historical validation below is not a new live check.
+
 **Date:** September 24, 2026  
 **Status:** Owner-approved implementation direction; source readiness and operational results remain unproven.  
 **Applies to:** The fresh `gl3` implementation.  

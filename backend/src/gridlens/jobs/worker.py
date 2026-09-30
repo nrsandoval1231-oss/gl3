@@ -118,6 +118,9 @@ def run_one(definitions: dict[str, dict]) -> bool:
                         "permit_rejected",
                         "documents_extracted",
                         "unextracted_public_notice_references",
+                        "generator_facts",
+                        "generator_excerpts_omitted",
+                        "missing_application_documents",
                     )
                     if key in counts
                 },

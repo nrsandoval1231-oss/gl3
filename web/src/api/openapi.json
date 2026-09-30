@@ -851,6 +851,11 @@
             "type": "string",
             "title": "Document Number"
           },
+          "source_origin": {
+            "type": "string",
+            "title": "Source Origin",
+            "default": "Source evidence"
+          },
           "assessment_current": {
             "type": "boolean",
             "title": "Assessment Current",
@@ -941,6 +946,11 @@
             "type": "string",
             "title": "Geography"
           },
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled",
+            "default": true
+          },
           "last_attempt": {
             "anyOf": [
               {
@@ -1001,6 +1011,21 @@
           "pdf_skipped_limit": {
             "type": "integer",
             "title": "Pdf Skipped Limit",
+            "default": 0
+          },
+          "generator_facts": {
+            "type": "integer",
+            "title": "Generator Facts",
+            "default": 0
+          },
+          "generator_excerpts_omitted": {
+            "type": "integer",
+            "title": "Generator Excerpts Omitted",
+            "default": 0
+          },
+          "missing_application_documents": {
+            "type": "integer",
+            "title": "Missing Application Documents",
             "default": 0
           },
           "error": {
@@ -1153,6 +1178,11 @@
           "source_id": {
             "type": "string",
             "title": "Source Id"
+          },
+          "source_origin": {
+            "type": "string",
+            "title": "Source Origin",
+            "default": "Source evidence"
           },
           "publisher": {
             "type": "string",
@@ -1830,6 +1860,17 @@
               }
             ],
             "title": "Signal Display Reason"
+          },
+          "signal_admission_origin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Signal Admission Origin"
           }
         },
         "type": "object",

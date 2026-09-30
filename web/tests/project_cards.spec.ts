@@ -41,6 +41,7 @@ function permit(id: string, action: string | null, options: { location?: string;
       event_date: null,
       event_date_label: 'Unknown',
       source_id: 'austin-building-permits',
+      source_origin: 'Official permit',
       document_number: id,
       assessment_current: true,
       permit_status: 'Issued',
