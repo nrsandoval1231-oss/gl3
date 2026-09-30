@@ -1,0 +1,1462 @@
+{
+  "schema_version": "gl3-017-captured-real-acceptance-v1",
+  "executed_at": "2026-09-30T16:31:50.907921+00:00",
+  "status": "PASS_CAPTURED_SOURCE_ONLY",
+  "scope": "Captured-real-source production parser, extraction, PostgreSQL persistence and unchanged replay",
+  "direct_application_network_fetch": "NOT VERIFIED",
+  "browser_interaction": "NOT VERIFIED",
+  "source_corpus": {
+    "path": "docs/validation/gl3-016-jev-corpus.json",
+    "sha256": "b40e38cd1d885aa5668e5bfc8dcb38ce09cf5a65b210587f27b2c7cf8e81dcb3",
+    "source": "GL3-015 persisted Signal API export, current evidence version per record",
+    "original_export_sha256": "5e5997124864ed1b9846d7af6fff3ff7b6e0a55dc726dabf3a96500b4a38d079"
+  },
+  "seed_contract": "Dedicated disposable test schema reconstructs the three already-accepted GL3-016 source identities and exact retained corpus evidence. Baseline Signal power activity and rationale are reconstructed by production assess_permit from original corpus fields. No organization, person, title, contact or buying-chain claim is seeded. Reconstruction UUIDs are deterministic local IDs, not original physical Project UUIDs.",
+  "date_contract": "Captured permit issue_date remains an event date; captured full permit and corporate sources have no publication date. Historical corpus publication dates are preserved without treating them as newly fetched source publication dates. Reconstructed original-evidence observed_at is execution time, not a claim about original corpus retrieval.",
+  "url_contract": "The application exact-record query uses $limit=1; retained municipal capture uses $limit=5 and contains exactly the same single selected record. Both requested and captured URLs are recorded; no native HTTP byte equivalence is claimed.",
+  "source_manifest": [
+    {
+      "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?$where=id%3D%273442494%27&$limit=5",
+      "httpStatus": 200,
+      "fetchedAt": "2026-09-30T15:49:19Z",
+      "fetchedAt_note": "Verified by researcher at this time; API provided no transport timestamp",
+      "contentType": "application/json;charset=utf-8",
+      "format": "markdown_json_fence",
+      "fetch_method": "Previously captured live Firecrawl scrape, maxAge=0",
+      "sha256": "9d67f0b707f903bde608e5be58bcdec818500401378bedf6690af9a23f1d54ff",
+      "bytes": 3127,
+      "body_provenance": "Complete JSON response payload extracted from Firecrawl markdown fence; only fence and trailing separator newlines removed. Not an independently verified byte-exact native HTTP body."
+    },
+    {
+      "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?$where=id%3D%273451848%27&$limit=5",
+      "httpStatus": 200,
+      "fetchedAt": "2026-09-30T15:49:19Z",
+      "fetchedAt_note": "Verified by researcher at this time; API provided no transport timestamp",
+      "contentType": "application/json;charset=utf-8",
+      "format": "markdown_json_fence",
+      "fetch_method": "Previously captured live Firecrawl scrape, maxAge=0",
+      "sha256": "b6b1deb8fc86e2001f97c95cfc095719882391c7cdf178528f1270d242884596",
+      "bytes": 3104,
+      "body_provenance": "Complete JSON response payload extracted from Firecrawl markdown fence; only fence and trailing separator newlines removed. Not an independently verified byte-exact native HTTP body."
+    },
+    {
+      "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?$where=id%3D%273459792%27&$limit=5",
+      "httpStatus": 200,
+      "fetchedAt": "2026-09-30T15:49:19Z",
+      "fetchedAt_note": "Verified by researcher at this time; API provided no transport timestamp",
+      "contentType": "application/json;charset=utf-8",
+      "format": "markdown_json_fence",
+      "fetch_method": "Previously captured live Firecrawl scrape, maxAge=0",
+      "sha256": "d3a7a53a1e22412d97da166a6498318e7961a97e8b638483a0653815fdfd4b21",
+      "bytes": 1838,
+      "body_provenance": "Complete JSON response payload extracted from Firecrawl markdown fence; only fence and trailing separator newlines removed. Not an independently verified byte-exact native HTTP body."
+    },
+    {
+      "url": "https://gurtzelectric.com/david-steffenhagen/",
+      "httpStatus": 200,
+      "fetchedAt": "2026-09-30T15:56:34.486Z",
+      "fetchedAt_note": null,
+      "contentType": "text/html; charset=UTF-8",
+      "format": "rawHtml",
+      "fetch_method": "Firecrawl scrape, maxAge=0, onlyMainContent=false",
+      "sha256": "4da853516d16e690dbad87f38f07cefac9eeb9ecd89ec2eaa61ae486070a70cc",
+      "bytes": 108604,
+      "body_provenance": "Exact rawHtml string returned by Firecrawl, saved UTF-8 without newline additions or content editing. This is service rawHtml, not independently verified origin wire bytes."
+    },
+    {
+      "url": "https://kelso-burnett.com/about",
+      "httpStatus": 200,
+      "fetchedAt": "2026-09-30T15:56:26.679Z",
+      "fetchedAt_note": null,
+      "contentType": "text/html;charset=utf-8",
+      "format": "rawHtml",
+      "fetch_method": "Firecrawl scrape, maxAge=0, onlyMainContent=false",
+      "sha256": "77848226e0eaa2fcc0ddd70ead9353dbf87e0bf19988fd2e083e426d8a9cc49c",
+      "bytes": 231534,
+      "body_provenance": "Exact rawHtml string returned by Firecrawl, saved UTF-8 without newline additions or content editing. This is service rawHtml, not independently verified origin wire bytes."
+    }
+  ],
+  "implementation_sha256_before": {
+    "backend/src/gridlens/ingestion/adapters/buying_chain_public.py": "6e862a16b944b5c2925040a7d04a69a2d264be9c987574b7ebe7930dc4f40ae0",
+    "backend/src/gridlens/intelligence/buying_chain_extraction.py": "e7b3aac48ac55ef23aa93a3966e224420b4f54863c4a5d339c0b1903a96c8f24",
+    "backend/src/gridlens/intelligence/buying_chain.py": "d71c5fd2054ef08e0d5db84fa59cb1cccf6ee335d6d3fbebed64ddc98ab7493b",
+    "backend/src/gridlens/domain/buying_chain.py": "afdcbb43a958d1b07b5451bce2780a55f960352363a465b573fee4795c1fd9c7",
+    "backend/src/gridlens/persistence/models.py": "f53c07995752f5161b333fba2764eb407baf160fe7cadd72fbd1d9334c43dbad"
+  },
+  "previous_attempts": [
+    {
+      "executed_at": "2026-09-30T16:16:50.503018+00:00",
+      "status": "FAIL_CAPTURED_SOURCE",
+      "counts_after": {
+        "sources": 1,
+        "projects": 3,
+        "observations": 3,
+        "evidence": 3,
+        "interpretations": 3,
+        "power_needs": 3,
+        "need_observations": 3,
+        "buying_chain_claims": 16,
+        "buying_chain_evidence": 8,
+        "buying_chain_runs": 3
+      },
+      "failures": [
+        "3459792: expected_named_chain_present",
+        "3459792: expected_chain_role_supported"
+      ],
+      "implementation_sha256_after": {
+        "backend/src/gridlens/ingestion/adapters/buying_chain_public.py": "f481965adc624888f6e0e8c3adea9747b2d01061dd548e3c40fbff05b5ced4ab",
+        "backend/src/gridlens/intelligence/buying_chain_extraction.py": "0571987dac365f30a547dec7747af8e1b14eff5174263df830268d5e14582bc9",
+        "backend/src/gridlens/intelligence/buying_chain.py": "93a638399d025910c734edc6f7d42832ccc7baf605af2aa14deefabe77a6bd94",
+        "backend/src/gridlens/domain/buying_chain.py": "afdcbb43a958d1b07b5451bce2780a55f960352363a465b573fee4795c1fd9c7",
+        "backend/src/gridlens/persistence/models.py": "f53c07995752f5161b333fba2764eb407baf160fe7cadd72fbd1d9334c43dbad"
+      },
+      "failure_diagnostics": [
+        {
+          "source": "https://gurtzelectric.com/david-steffenhagen/",
+          "finding": "Initial official-profile regex crossed a heading newline into the person name, and lazy title parsing treated the of in Director of Construction Operations as the employer separator. Actual raw capture remained unchanged.",
+          "observed_at": "2026-09-30T16:17:35Z"
+        }
+      ]
+    },
+    {
+      "executed_at": "2026-09-30T16:24:56.945828+00:00",
+      "status": "FAIL_CAPTURED_SOURCE",
+      "counts_after": {
+        "sources": 1,
+        "projects": 3,
+        "observations": 3,
+        "evidence": 3,
+        "interpretations": 3,
+        "power_needs": 3,
+        "need_observations": 3,
+        "buying_chain_claims": 16,
+        "buying_chain_evidence": 8,
+        "buying_chain_runs": 3
+      },
+      "failures": [
+        "3459792: expected_named_chain_present",
+        "3459792: expected_chain_role_supported",
+        "3459792: corporate_role_evidence_retained"
+      ],
+      "failure_diagnostics": [
+        {
+          "source": "https://gurtzelectric.com/david-steffenhagen/",
+          "finding": "End-to-end extraction still misses David after initial heading/title repairs: exact employer regex requires GURTZ ELECTRIC COMPANY from the permit, while the captured biography uses Gurtz Electric Co.; equivalent legal suffixes are rejected before organization_key comparison.",
+          "observed_at": "2026-09-30T16:25:24Z"
+        }
+      ],
+      "implementation_sha256_after": {
+        "backend/src/gridlens/ingestion/adapters/buying_chain_public.py": "6e862a16b944b5c2925040a7d04a69a2d264be9c987574b7ebe7930dc4f40ae0",
+        "backend/src/gridlens/intelligence/buying_chain_extraction.py": "d2ff7f6a692d1dfb9c9eb30b5d40e1409b0b8ede0e79c24321004655c5b0de96",
+        "backend/src/gridlens/intelligence/buying_chain.py": "0e386fa94ed25c93d9ac314fb8542171dd81b6ad86f1bd4eb4bc02c013d7e172",
+        "backend/src/gridlens/domain/buying_chain.py": "afdcbb43a958d1b07b5451bce2780a55f960352363a465b573fee4795c1fd9c7",
+        "backend/src/gridlens/persistence/models.py": "f53c07995752f5161b333fba2764eb407baf160fe7cadd72fbd1d9334c43dbad"
+      }
+    },
+    {
+      "executed_at": "2026-09-30T16:28:05.641947+00:00",
+      "status": "PASS_CAPTURED_SOURCE_ONLY",
+      "counts_after": {
+        "sources": 1,
+        "projects": 3,
+        "observations": 3,
+        "evidence": 3,
+        "interpretations": 3,
+        "power_needs": 3,
+        "need_observations": 3,
+        "buying_chain_claims": 17,
+        "buying_chain_evidence": 9,
+        "buying_chain_runs": 3
+      },
+      "failures": [],
+      "implementation_sha256_after": {
+        "backend/src/gridlens/ingestion/adapters/buying_chain_public.py": "6e862a16b944b5c2925040a7d04a69a2d264be9c987574b7ebe7930dc4f40ae0",
+        "backend/src/gridlens/intelligence/buying_chain_extraction.py": "e7b3aac48ac55ef23aa93a3966e224420b4f54863c4a5d339c0b1903a96c8f24",
+        "backend/src/gridlens/intelligence/buying_chain.py": "83bbbe76064f7d7f56dcc0e0bcba0db6b484a678badb448a59ddc32e9af6d3bb",
+        "backend/src/gridlens/domain/buying_chain.py": "afdcbb43a958d1b07b5451bce2780a55f960352363a465b573fee4795c1fd9c7",
+        "backend/src/gridlens/persistence/models.py": "f53c07995752f5161b333fba2764eb407baf160fe7cadd72fbd1d9334c43dbad"
+      }
+    },
+    {
+      "executed_at": "2026-09-30T16:28:57.180060+00:00",
+      "status": "PASS_CAPTURED_SOURCE_ONLY",
+      "counts_after": {
+        "sources": 1,
+        "projects": 3,
+        "observations": 3,
+        "evidence": 3,
+        "interpretations": 3,
+        "power_needs": 3,
+        "need_observations": 3,
+        "buying_chain_claims": 17,
+        "buying_chain_evidence": 9,
+        "buying_chain_runs": 3
+      },
+      "failures": [],
+      "implementation_sha256_after": {
+        "backend/src/gridlens/ingestion/adapters/buying_chain_public.py": "6e862a16b944b5c2925040a7d04a69a2d264be9c987574b7ebe7930dc4f40ae0",
+        "backend/src/gridlens/intelligence/buying_chain_extraction.py": "e7b3aac48ac55ef23aa93a3966e224420b4f54863c4a5d339c0b1903a96c8f24",
+        "backend/src/gridlens/intelligence/buying_chain.py": "83bbbe76064f7d7f56dcc0e0bcba0db6b484a678badb448a59ddc32e9af6d3bb",
+        "backend/src/gridlens/domain/buying_chain.py": "afdcbb43a958d1b07b5451bce2780a55f960352363a465b573fee4795c1fd9c7",
+        "backend/src/gridlens/persistence/models.py": "f53c07995752f5161b333fba2764eb407baf160fe7cadd72fbd1d9334c43dbad"
+      }
+    }
+  ],
+  "validator_sha256": "9fd7ca53008d0b1271902666e4b5cfdc5e4d9a7249c5cd4795dc257b14cc15a3",
+  "projects": [
+    {
+      "external_id": "3459792",
+      "project_id": "8e3331d1-f14e-5290-888b-a8bef692d159",
+      "original_corpus_record_id": "111419d9-b01f-44f4-a8df-16fa315cc1cb",
+      "project_name": "Chicago permit 3459792",
+      "location": "333 E HURON ST, Chicago, IL",
+      "role_url": "https://gurtzelectric.com/david-steffenhagen/",
+      "expected_comparison_only": {
+        "organization": "GURTZ ELECTRIC COMPANY",
+        "person": "David Steffenhagen"
+      },
+      "first_fetches": [
+        {
+          "requested_url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273459792%27&%24limit=1",
+          "captured_url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?$where=id%3D%273459792%27&$limit=5",
+          "capture_sha256": "d3a7a53a1e22412d97da166a6498318e7961a97e8b638483a0653815fdfd4b21",
+          "source_fetched_at": "2026-09-30T15:49:19Z",
+          "parsed_title": "Official project record",
+          "parsed_text_sha256": "6d7c046e36bf359a419df8ca7b7c20c10532217342400a5e6d612a9e8fe0b550",
+          "parsed_text_characters": 1959,
+          "publication_date": null,
+          "structured_records": 1
+        },
+        {
+          "requested_url": "https://gurtzelectric.com/david-steffenhagen/",
+          "captured_url": "https://gurtzelectric.com/david-steffenhagen/",
+          "capture_sha256": "4da853516d16e690dbad87f38f07cefac9eeb9ecd89ec2eaa61ae486070a70cc",
+          "source_fetched_at": "2026-09-30T15:56:34.486Z",
+          "parsed_title": "David Steffenhagen \u2013 Gurtz Electric Co.",
+          "parsed_text_sha256": "6be3955a1b74fa42f517bd889ef9d981226cf9fae4fb866058c5cc549e6cc071",
+          "parsed_text_characters": 1248,
+          "publication_date": null,
+          "structured_records": 0
+        }
+      ],
+      "replay_fetches": [
+        {
+          "requested_url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273459792%27&%24limit=1",
+          "captured_url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?$where=id%3D%273459792%27&$limit=5",
+          "capture_sha256": "d3a7a53a1e22412d97da166a6498318e7961a97e8b638483a0653815fdfd4b21",
+          "source_fetched_at": "2026-09-30T15:49:19Z",
+          "parsed_title": "Official project record",
+          "parsed_text_sha256": "6d7c046e36bf359a419df8ca7b7c20c10532217342400a5e6d612a9e8fe0b550",
+          "parsed_text_characters": 1959,
+          "publication_date": null,
+          "structured_records": 1
+        },
+        {
+          "requested_url": "https://gurtzelectric.com/david-steffenhagen/",
+          "captured_url": "https://gurtzelectric.com/david-steffenhagen/",
+          "capture_sha256": "4da853516d16e690dbad87f38f07cefac9eeb9ecd89ec2eaa61ae486070a70cc",
+          "source_fetched_at": "2026-09-30T15:56:34.486Z",
+          "parsed_title": "David Steffenhagen \u2013 Gurtz Electric Co.",
+          "parsed_text_sha256": "6be3955a1b74fa42f517bd889ef9d981226cf9fae4fb866058c5cc549e6cc071",
+          "parsed_text_characters": 1248,
+          "publication_date": null,
+          "structured_records": 0
+        }
+      ],
+      "counts_before": {
+        "sources": 1,
+        "projects": 3,
+        "observations": 3,
+        "evidence": 3,
+        "interpretations": 3,
+        "power_needs": 3,
+        "need_observations": 3,
+        "buying_chain_claims": 0,
+        "buying_chain_evidence": 0,
+        "buying_chain_runs": 0
+      },
+      "counts_after_first": {
+        "sources": 1,
+        "projects": 3,
+        "observations": 3,
+        "evidence": 3,
+        "interpretations": 3,
+        "power_needs": 3,
+        "need_observations": 3,
+        "buying_chain_claims": 3,
+        "buying_chain_evidence": 3,
+        "buying_chain_runs": 1
+      },
+      "counts_after_replay": {
+        "sources": 1,
+        "projects": 3,
+        "observations": 3,
+        "evidence": 3,
+        "interpretations": 3,
+        "power_needs": 3,
+        "need_observations": 3,
+        "buying_chain_claims": 3,
+        "buying_chain_evidence": 3,
+        "buying_chain_runs": 1
+      },
+      "candidate_count": 3,
+      "named_candidate_count": 1,
+      "checks": {
+        "expected_named_chain_present": true,
+        "expected_chain_role_supported": true,
+        "unchanged_replay_counts": true,
+        "committed_round_trip_ids": true,
+        "durable_candidate_ids_unchanged": true,
+        "no_named_direct_assignment": true,
+        "unknown_authority_exposed": true,
+        "exact_citation_substrings": true,
+        "no_fabricated_contacts": true,
+        "corporate_publication_unknown": true,
+        "corporate_role_evidence_retained": true
+      },
+      "parsed_result": {
+        "project_id": "8e3331d1-f14e-5290-888b-a8bef692d159",
+        "status": "partial",
+        "candidates": [
+          {
+            "id": "2d81fa9f-05fd-4117-a61d-d62a6b2d2306",
+            "organization": "GURTZ ELECTRIC COMPANY",
+            "person_name": "David Steffenhagen",
+            "title": "Director of Construction Operations",
+            "category": "electrical_contractor",
+            "organization_relationship": "DIRECT",
+            "person_organization_relationship": "CURRENT",
+            "person_project_relationship": "ROLE_SUPPORTED",
+            "evidence_strength": "Medium",
+            "reason": "Current role; project assignment and buying authority are UNKNOWN.",
+            "observed_at": "2026-09-30T10:56:34.486000-05:00",
+            "verified_at": "2026-09-30T11:31:50.907921-05:00",
+            "public_contacts": [],
+            "evidence": [
+              {
+                "id": "a433633b-6d4e-4ae7-bfde-614ff0b606bd",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273459792%27&%24limit=1",
+                "quote": "\"contact_2_type\": \"CONTRACTOR-ELECTRICAL\"",
+                "supports": "organization_category",
+                "extraction_location": "official exact-record JSON",
+                "published_at": null,
+                "observed_at": "2026-09-30T10:49:19-05:00",
+                "content_hash": "5971fec52c34d1e0bb7a9bd5fa4b0852a4d05485bce133e0e51796140782f2b9"
+              },
+              {
+                "id": "a433633b-6d4e-4ae7-bfde-614ff0b606bd",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273459792%27&%24limit=1",
+                "quote": "\"contact_2_name\": \"GURTZ ELECTRIC COMPANY\"",
+                "supports": "project_organization",
+                "extraction_location": "official exact-record JSON",
+                "published_at": null,
+                "observed_at": "2026-09-30T10:49:19-05:00",
+                "content_hash": "5971fec52c34d1e0bb7a9bd5fa4b0852a4d05485bce133e0e51796140782f2b9"
+              },
+              {
+                "id": "b9cf6717-61e9-4442-9655-f7c78f28a303",
+                "url": "https://gurtzelectric.com/david-steffenhagen/",
+                "quote": "David Steffenhagen serves as Director of Construction Operations at Gurtz Electric Co., overseeing electrical and low voltage construction operations, preconstruction, prefabrication and manufacturing across the company\u2019s growing portfolio of projects.",
+                "supports": "organization_person_role",
+                "extraction_location": "public page text",
+                "published_at": null,
+                "observed_at": "2026-09-30T10:56:34.486000-05:00",
+                "content_hash": "19857b5c6df4f889f5e46525520880261308bfbf311008c14fdfebd78d7be66c"
+              }
+            ],
+            "history_count": 1,
+            "stale": false
+          },
+          {
+            "id": "6c7ff1b4-ab6f-406f-9ede-91dcd23fce66",
+            "organization": "GURTZ ELECTRIC COMPANY",
+            "person_name": null,
+            "title": null,
+            "category": "electrical_contractor",
+            "organization_relationship": "DIRECT",
+            "person_organization_relationship": "UNKNOWN",
+            "person_project_relationship": "UNKNOWN",
+            "evidence_strength": "High",
+            "reason": "Organization involvement is explicitly reported for the selected project.",
+            "observed_at": "2026-09-30T10:49:19-05:00",
+            "verified_at": "2026-09-30T11:31:50.907921-05:00",
+            "public_contacts": [],
+            "evidence": [
+              {
+                "id": "a433633b-6d4e-4ae7-bfde-614ff0b606bd",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273459792%27&%24limit=1",
+                "quote": "\"contact_2_type\": \"CONTRACTOR-ELECTRICAL\"",
+                "supports": "organization_category",
+                "extraction_location": "official exact-record JSON",
+                "published_at": null,
+                "observed_at": "2026-09-30T10:49:19-05:00",
+                "content_hash": "5971fec52c34d1e0bb7a9bd5fa4b0852a4d05485bce133e0e51796140782f2b9"
+              },
+              {
+                "id": "a433633b-6d4e-4ae7-bfde-614ff0b606bd",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273459792%27&%24limit=1",
+                "quote": "\"contact_2_name\": \"GURTZ ELECTRIC COMPANY\"",
+                "supports": "project_organization",
+                "extraction_location": "official exact-record JSON",
+                "published_at": null,
+                "observed_at": "2026-09-30T10:49:19-05:00",
+                "content_hash": "5971fec52c34d1e0bb7a9bd5fa4b0852a4d05485bce133e0e51796140782f2b9"
+              }
+            ],
+            "history_count": 1,
+            "stale": false
+          },
+          {
+            "id": "bb09567a-a977-4baf-b0de-c2db0b0adafc",
+            "organization": "POWER CONSTRUCTION COMPANY, LLC",
+            "person_name": null,
+            "title": null,
+            "category": "general_contractor",
+            "organization_relationship": "DIRECT",
+            "person_organization_relationship": "UNKNOWN",
+            "person_project_relationship": "UNKNOWN",
+            "evidence_strength": "High",
+            "reason": "Organization involvement is explicitly reported for the selected project.",
+            "observed_at": "2026-09-30T10:49:19-05:00",
+            "verified_at": "2026-09-30T11:31:50.907921-05:00",
+            "public_contacts": [],
+            "evidence": [
+              {
+                "id": "a433633b-6d4e-4ae7-bfde-614ff0b606bd",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273459792%27&%24limit=1",
+                "quote": "\"contact_4_type\": \"CONTRACTOR-GENERAL CONTRACTOR\"",
+                "supports": "organization_category",
+                "extraction_location": "official exact-record JSON",
+                "published_at": null,
+                "observed_at": "2026-09-30T10:49:19-05:00",
+                "content_hash": "5971fec52c34d1e0bb7a9bd5fa4b0852a4d05485bce133e0e51796140782f2b9"
+              },
+              {
+                "id": "a433633b-6d4e-4ae7-bfde-614ff0b606bd",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273459792%27&%24limit=1",
+                "quote": "\"contact_4_name\": \"POWER CONSTRUCTION COMPANY, LLC\"",
+                "supports": "project_organization",
+                "extraction_location": "official exact-record JSON",
+                "published_at": null,
+                "observed_at": "2026-09-30T10:49:19-05:00",
+                "content_hash": "5971fec52c34d1e0bb7a9bd5fa4b0852a4d05485bce133e0e51796140782f2b9"
+              }
+            ],
+            "history_count": 1,
+            "stale": false
+          }
+        ],
+        "unresolved": [
+          "Named individual project assignment and purchasing authority remain UNKNOWN."
+        ],
+        "runs": [
+          {
+            "id": "1234fac5-4f91-4237-8024-4e8f5da7761f",
+            "status": "partial",
+            "documents_checked": 3,
+            "candidates_added": 3,
+            "unresolved": [
+              "Named individual project assignment and purchasing authority remain UNKNOWN."
+            ],
+            "created_at": "2026-09-30T11:31:50.907921-05:00"
+          }
+        ],
+        "policy_version": "buying-chain-v1"
+      }
+    },
+    {
+      "external_id": "3451848",
+      "project_id": "0869ee5f-6017-5ffe-9294-47d5869c8972",
+      "original_corpus_record_id": "78279bec-e55e-4a60-9eea-f7a393bbda80",
+      "project_name": "Chicago permit 3451848",
+      "location": "400 S LA SALLE ST, Chicago, IL",
+      "role_url": "https://kelso-burnett.com/about",
+      "expected_comparison_only": {
+        "organization": "KELSO-BURNETT CO.",
+        "person": "Jeff Weir"
+      },
+      "first_fetches": [
+        {
+          "requested_url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273451848%27&%24limit=1",
+          "captured_url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?$where=id%3D%273451848%27&$limit=5",
+          "capture_sha256": "b6b1deb8fc86e2001f97c95cfc095719882391c7cdf178528f1270d242884596",
+          "source_fetched_at": "2026-09-30T15:49:19Z",
+          "parsed_title": "Official project record",
+          "parsed_text_sha256": "a435a852fd4508d2d9638486e2d366b763c5f7d5398dcdf5be3d7abddf3c78a4",
+          "parsed_text_characters": 3285,
+          "publication_date": null,
+          "structured_records": 1
+        },
+        {
+          "requested_url": "https://kelso-burnett.com/about",
+          "captured_url": "https://kelso-burnett.com/about",
+          "capture_sha256": "77848226e0eaa2fcc0ddd70ead9353dbf87e0bf19988fd2e083e426d8a9cc49c",
+          "source_fetched_at": "2026-09-30T15:56:26.679Z",
+          "parsed_title": "About \u2014 Kelso-Burnett",
+          "parsed_text_sha256": "a102b9f69395057bdc2de60b7fff1164e5506a0df63571d9b09136fb8092f926",
+          "parsed_text_characters": 1927,
+          "publication_date": null,
+          "structured_records": 0
+        }
+      ],
+      "replay_fetches": [
+        {
+          "requested_url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273451848%27&%24limit=1",
+          "captured_url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?$where=id%3D%273451848%27&$limit=5",
+          "capture_sha256": "b6b1deb8fc86e2001f97c95cfc095719882391c7cdf178528f1270d242884596",
+          "source_fetched_at": "2026-09-30T15:49:19Z",
+          "parsed_title": "Official project record",
+          "parsed_text_sha256": "a435a852fd4508d2d9638486e2d366b763c5f7d5398dcdf5be3d7abddf3c78a4",
+          "parsed_text_characters": 3285,
+          "publication_date": null,
+          "structured_records": 1
+        },
+        {
+          "requested_url": "https://kelso-burnett.com/about",
+          "captured_url": "https://kelso-burnett.com/about",
+          "capture_sha256": "77848226e0eaa2fcc0ddd70ead9353dbf87e0bf19988fd2e083e426d8a9cc49c",
+          "source_fetched_at": "2026-09-30T15:56:26.679Z",
+          "parsed_title": "About \u2014 Kelso-Burnett",
+          "parsed_text_sha256": "a102b9f69395057bdc2de60b7fff1164e5506a0df63571d9b09136fb8092f926",
+          "parsed_text_characters": 1927,
+          "publication_date": null,
+          "structured_records": 0
+        }
+      ],
+      "counts_before": {
+        "sources": 1,
+        "projects": 3,
+        "observations": 3,
+        "evidence": 3,
+        "interpretations": 3,
+        "power_needs": 3,
+        "need_observations": 3,
+        "buying_chain_claims": 3,
+        "buying_chain_evidence": 3,
+        "buying_chain_runs": 1
+      },
+      "counts_after_first": {
+        "sources": 1,
+        "projects": 3,
+        "observations": 3,
+        "evidence": 3,
+        "interpretations": 3,
+        "power_needs": 3,
+        "need_observations": 3,
+        "buying_chain_claims": 11,
+        "buying_chain_evidence": 6,
+        "buying_chain_runs": 2
+      },
+      "counts_after_replay": {
+        "sources": 1,
+        "projects": 3,
+        "observations": 3,
+        "evidence": 3,
+        "interpretations": 3,
+        "power_needs": 3,
+        "need_observations": 3,
+        "buying_chain_claims": 11,
+        "buying_chain_evidence": 6,
+        "buying_chain_runs": 2
+      },
+      "candidate_count": 8,
+      "named_candidate_count": 4,
+      "checks": {
+        "expected_named_chain_present": true,
+        "expected_chain_role_supported": true,
+        "unchanged_replay_counts": true,
+        "committed_round_trip_ids": true,
+        "durable_candidate_ids_unchanged": true,
+        "no_named_direct_assignment": true,
+        "unknown_authority_exposed": true,
+        "exact_citation_substrings": true,
+        "no_fabricated_contacts": true,
+        "corporate_publication_unknown": true,
+        "corporate_role_evidence_retained": true
+      },
+      "parsed_result": {
+        "project_id": "0869ee5f-6017-5ffe-9294-47d5869c8972",
+        "status": "partial",
+        "candidates": [
+          {
+            "id": "8af6204e-c64b-4d0e-9d92-da1bc50dd67e",
+            "organization": "KELSO-BURNETT CO.",
+            "person_name": "Corey Gates",
+            "title": "SVP",
+            "category": "electrical_contractor",
+            "organization_relationship": "DIRECT",
+            "person_organization_relationship": "CURRENT",
+            "person_project_relationship": "ROLE_SUPPORTED",
+            "evidence_strength": "Medium",
+            "reason": "Current roster; project assignment and buying authority are UNKNOWN.",
+            "observed_at": "2026-09-30T10:56:26.679000-05:00",
+            "verified_at": "2026-09-30T11:31:50.907921-05:00",
+            "public_contacts": [],
+            "evidence": [
+              {
+                "id": "6df0f4a7-365f-4f83-b5b2-28ef06efc935",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273451848%27&%24limit=1",
+                "quote": "\"contact_5_type\": \"CONTRACTOR-ELECTRICAL\"",
+                "supports": "organization_category",
+                "extraction_location": "official exact-record JSON",
+                "published_at": null,
+                "observed_at": "2026-09-30T10:49:19-05:00",
+                "content_hash": "1859fc1264292b5317e9b5ea2b88b17754879e60167818bf9a6a55c1a39a7bed"
+              },
+              {
+                "id": "6df0f4a7-365f-4f83-b5b2-28ef06efc935",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273451848%27&%24limit=1",
+                "quote": "\"contact_5_name\": \"KELSO-BURNETT CO.\"",
+                "supports": "project_organization",
+                "extraction_location": "official exact-record JSON",
+                "published_at": null,
+                "observed_at": "2026-09-30T10:49:19-05:00",
+                "content_hash": "1859fc1264292b5317e9b5ea2b88b17754879e60167818bf9a6a55c1a39a7bed"
+              },
+              {
+                "id": "00a64786-e0ba-4b8b-86a1-2dc85a153c50",
+                "url": "https://kelso-burnett.com/about",
+                "quote": "Corey Gates, SVP",
+                "supports": "organization_person_role",
+                "extraction_location": "public page text",
+                "published_at": null,
+                "observed_at": "2026-09-30T10:56:26.679000-05:00",
+                "content_hash": "2e800358ffe5be73eaf4dad464de34561488d90ae42a51bb02773d3d13283965"
+              }
+            ],
+            "history_count": 1,
+            "stale": false
+          },
+          {
+            "id": "d6c4f582-1566-434d-871a-dc765db123e3",
+            "organization": "KELSO-BURNETT CO.",
+            "person_name": "Jeff Weir",
+            "title": "President",
+            "category": "electrical_contractor",
+            "organization_relationship": "DIRECT",
+            "person_organization_relationship": "CURRENT",
+            "person_project_relationship": "ROLE_SUPPORTED",
+            "evidence_strength": "Medium",
+            "reason": "Current roster; project assignment and buying authority are UNKNOWN.",
+            "observed_at": "2026-09-30T10:56:26.679000-05:00",
+            "verified_at": "2026-09-30T11:31:50.907921-05:00",
+            "public_contacts": [],
+            "evidence": [
+              {
+                "id": "6df0f4a7-365f-4f83-b5b2-28ef06efc935",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273451848%27&%24limit=1",
+                "quote": "\"contact_5_type\": \"CONTRACTOR-ELECTRICAL\"",
+                "supports": "organization_category",
+                "extraction_location": "official exact-record JSON",
+                "published_at": null,
+                "observed_at": "2026-09-30T10:49:19-05:00",
+                "content_hash": "1859fc1264292b5317e9b5ea2b88b17754879e60167818bf9a6a55c1a39a7bed"
+              },
+              {
+                "id": "6df0f4a7-365f-4f83-b5b2-28ef06efc935",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273451848%27&%24limit=1",
+                "quote": "\"contact_5_name\": \"KELSO-BURNETT CO.\"",
+                "supports": "project_organization",
+                "extraction_location": "official exact-record JSON",
+                "published_at": null,
+                "observed_at": "2026-09-30T10:49:19-05:00",
+                "content_hash": "1859fc1264292b5317e9b5ea2b88b17754879e60167818bf9a6a55c1a39a7bed"
+              },
+              {
+                "id": "00a64786-e0ba-4b8b-86a1-2dc85a153c50",
+                "url": "https://kelso-burnett.com/about",
+                "quote": "Jeff Weir, President",
+                "supports": "organization_person_role",
+                "extraction_location": "public page text",
+                "published_at": null,
+                "observed_at": "2026-09-30T10:56:26.679000-05:00",
+                "content_hash": "2e800358ffe5be73eaf4dad464de34561488d90ae42a51bb02773d3d13283965"
+              }
+            ],
+            "history_count": 1,
+            "stale": false
+          },
+          {
+            "id": "bf2854b3-e604-408c-bf9b-a78f1d58abf5",
+            "organization": "KELSO-BURNETT CO.",
+            "person_name": "Mark Weir",
+            "title": "SVP",
+            "category": "electrical_contractor",
+            "organization_relationship": "DIRECT",
+            "person_organization_relationship": "CURRENT",
+            "person_project_relationship": "ROLE_SUPPORTED",
+            "evidence_strength": "Medium",
+            "reason": "Current roster; project assignment and buying authority are UNKNOWN.",
+            "observed_at": "2026-09-30T10:56:26.679000-05:00",
+            "verified_at": "2026-09-30T11:31:50.907921-05:00",
+            "public_contacts": [],
+            "evidence": [
+              {
+                "id": "6df0f4a7-365f-4f83-b5b2-28ef06efc935",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273451848%27&%24limit=1",
+                "quote": "\"contact_5_type\": \"CONTRACTOR-ELECTRICAL\"",
+                "supports": "organization_category",
+                "extraction_location": "official exact-record JSON",
+                "published_at": null,
+                "observed_at": "2026-09-30T10:49:19-05:00",
+                "content_hash": "1859fc1264292b5317e9b5ea2b88b17754879e60167818bf9a6a55c1a39a7bed"
+              },
+              {
+                "id": "6df0f4a7-365f-4f83-b5b2-28ef06efc935",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273451848%27&%24limit=1",
+                "quote": "\"contact_5_name\": \"KELSO-BURNETT CO.\"",
+                "supports": "project_organization",
+                "extraction_location": "official exact-record JSON",
+                "published_at": null,
+                "observed_at": "2026-09-30T10:49:19-05:00",
+                "content_hash": "1859fc1264292b5317e9b5ea2b88b17754879e60167818bf9a6a55c1a39a7bed"
+              },
+              {
+                "id": "00a64786-e0ba-4b8b-86a1-2dc85a153c50",
+                "url": "https://kelso-burnett.com/about",
+                "quote": "Mark Weir, SVP",
+                "supports": "organization_person_role",
+                "extraction_location": "public page text",
+                "published_at": null,
+                "observed_at": "2026-09-30T10:56:26.679000-05:00",
+                "content_hash": "2e800358ffe5be73eaf4dad464de34561488d90ae42a51bb02773d3d13283965"
+              }
+            ],
+            "history_count": 1,
+            "stale": false
+          },
+          {
+            "id": "71510c73-3a1f-4496-8651-a148799bdc13",
+            "organization": "KELSO-BURNETT CO.",
+            "person_name": "Tony Arnone",
+            "title": "SVP",
+            "category": "electrical_contractor",
+            "organization_relationship": "DIRECT",
+            "person_organization_relationship": "CURRENT",
+            "person_project_relationship": "ROLE_SUPPORTED",
+            "evidence_strength": "Medium",
+            "reason": "Current roster; project assignment and buying authority are UNKNOWN.",
+            "observed_at": "2026-09-30T10:56:26.679000-05:00",
+            "verified_at": "2026-09-30T11:31:50.907921-05:00",
+            "public_contacts": [],
+            "evidence": [
+              {
+                "id": "6df0f4a7-365f-4f83-b5b2-28ef06efc935",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273451848%27&%24limit=1",
+                "quote": "\"contact_5_type\": \"CONTRACTOR-ELECTRICAL\"",
+                "supports": "organization_category",
+                "extraction_location": "official exact-record JSON",
+                "published_at": null,
+                "observed_at": "2026-09-30T10:49:19-05:00",
+                "content_hash": "1859fc1264292b5317e9b5ea2b88b17754879e60167818bf9a6a55c1a39a7bed"
+              },
+              {
+                "id": "6df0f4a7-365f-4f83-b5b2-28ef06efc935",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273451848%27&%24limit=1",
+                "quote": "\"contact_5_name\": \"KELSO-BURNETT CO.\"",
+                "supports": "project_organization",
+                "extraction_location": "official exact-record JSON",
+                "published_at": null,
+                "observed_at": "2026-09-30T10:49:19-05:00",
+                "content_hash": "1859fc1264292b5317e9b5ea2b88b17754879e60167818bf9a6a55c1a39a7bed"
+              },
+              {
+                "id": "00a64786-e0ba-4b8b-86a1-2dc85a153c50",
+                "url": "https://kelso-burnett.com/about",
+                "quote": "Tony Arnone, SVP",
+                "supports": "organization_person_role",
+                "extraction_location": "public page text",
+                "published_at": null,
+                "observed_at": "2026-09-30T10:56:26.679000-05:00",
+                "content_hash": "2e800358ffe5be73eaf4dad464de34561488d90ae42a51bb02773d3d13283965"
+              }
+            ],
+            "history_count": 1,
+            "stale": false
+          },
+          {
+            "id": "9bb1361e-bffc-4e0a-98d5-dd77e57024e1",
+            "organization": "ABCO ELECTRICAL CONSTRUCTION &",
+            "person_name": null,
+            "title": null,
+            "category": "electrical_contractor",
+            "organization_relationship": "DIRECT",
+            "person_organization_relationship": "UNKNOWN",
+            "person_project_relationship": "UNKNOWN",
+            "evidence_strength": "High",
+            "reason": "Organization involvement is explicitly reported for the selected project.",
+            "observed_at": "2026-09-30T10:49:19-05:00",
+            "verified_at": "2026-09-30T11:31:50.907921-05:00",
+            "public_contacts": [],
+            "evidence": [
+              {
+                "id": "6df0f4a7-365f-4f83-b5b2-28ef06efc935",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273451848%27&%24limit=1",
+                "quote": "\"contact_3_type\": \"CONTRACTOR-ELECTRICAL\"",
+                "supports": "organization_category",
+                "extraction_location": "official exact-record JSON",
+                "published_at": null,
+                "observed_at": "2026-09-30T10:49:19-05:00",
+                "content_hash": "1859fc1264292b5317e9b5ea2b88b17754879e60167818bf9a6a55c1a39a7bed"
+              },
+              {
+                "id": "6df0f4a7-365f-4f83-b5b2-28ef06efc935",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273451848%27&%24limit=1",
+                "quote": "\"contact_3_name\": \"ABCO ELECTRICAL CONSTRUCTION &\"",
+                "supports": "project_organization",
+                "extraction_location": "official exact-record JSON",
+                "published_at": null,
+                "observed_at": "2026-09-30T10:49:19-05:00",
+                "content_hash": "1859fc1264292b5317e9b5ea2b88b17754879e60167818bf9a6a55c1a39a7bed"
+              }
+            ],
+            "history_count": 1,
+            "stale": false
+          },
+          {
+            "id": "223c63a1-fc45-4e10-af67-901154723f7d",
+            "organization": "BONUS ELECTRIC",
+            "person_name": null,
+            "title": null,
+            "category": "electrical_contractor",
+            "organization_relationship": "DIRECT",
+            "person_organization_relationship": "UNKNOWN",
+            "person_project_relationship": "UNKNOWN",
+            "evidence_strength": "High",
+            "reason": "Organization involvement is explicitly reported for the selected project.",
+            "observed_at": "2026-09-30T10:49:19-05:00",
+            "verified_at": "2026-09-30T11:31:50.907921-05:00",
+            "public_contacts": [],
+            "evidence": [
+              {
+                "id": "6df0f4a7-365f-4f83-b5b2-28ef06efc935",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273451848%27&%24limit=1",
+                "quote": "\"contact_4_type\": \"CONTRACTOR-ELECTRICAL\"",
+                "supports": "organization_category",
+                "extraction_location": "official exact-record JSON",
+                "published_at": null,
+                "observed_at": "2026-09-30T10:49:19-05:00",
+                "content_hash": "1859fc1264292b5317e9b5ea2b88b17754879e60167818bf9a6a55c1a39a7bed"
+              },
+              {
+                "id": "6df0f4a7-365f-4f83-b5b2-28ef06efc935",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273451848%27&%24limit=1",
+                "quote": "\"contact_4_name\": \"BONUS ELECTRIC\"",
+                "supports": "project_organization",
+                "extraction_location": "official exact-record JSON",
+                "published_at": null,
+                "observed_at": "2026-09-30T10:49:19-05:00",
+                "content_hash": "1859fc1264292b5317e9b5ea2b88b17754879e60167818bf9a6a55c1a39a7bed"
+              }
+            ],
+            "history_count": 1,
+            "stale": false
+          },
+          {
+            "id": "ad6451cd-67af-46aa-b335-20d8fb64e491",
+            "organization": "KELSO-BURNETT CO.",
+            "person_name": null,
+            "title": null,
+            "category": "electrical_contractor",
+            "organization_relationship": "DIRECT",
+            "person_organization_relationship": "UNKNOWN",
+            "person_project_relationship": "UNKNOWN",
+            "evidence_strength": "High",
+            "reason": "Organization involvement is explicitly reported for the selected project.",
+            "observed_at": "2026-09-30T10:49:19-05:00",
+            "verified_at": "2026-09-30T11:31:50.907921-05:00",
+            "public_contacts": [],
+            "evidence": [
+              {
+                "id": "6df0f4a7-365f-4f83-b5b2-28ef06efc935",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273451848%27&%24limit=1",
+                "quote": "\"contact_5_type\": \"CONTRACTOR-ELECTRICAL\"",
+                "supports": "organization_category",
+                "extraction_location": "official exact-record JSON",
+                "published_at": null,
+                "observed_at": "2026-09-30T10:49:19-05:00",
+                "content_hash": "1859fc1264292b5317e9b5ea2b88b17754879e60167818bf9a6a55c1a39a7bed"
+              },
+              {
+                "id": "6df0f4a7-365f-4f83-b5b2-28ef06efc935",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273451848%27&%24limit=1",
+                "quote": "\"contact_5_name\": \"KELSO-BURNETT CO.\"",
+                "supports": "project_organization",
+                "extraction_location": "official exact-record JSON",
+                "published_at": null,
+                "observed_at": "2026-09-30T10:49:19-05:00",
+                "content_hash": "1859fc1264292b5317e9b5ea2b88b17754879e60167818bf9a6a55c1a39a7bed"
+              }
+            ],
+            "history_count": 1,
+            "stale": false
+          },
+          {
+            "id": "c54494b4-c01c-4177-904a-ef57b7e99f52",
+            "organization": "ARCO/MURRAY NATIONAL CONSTRUCTION COMPANY LLC",
+            "person_name": null,
+            "title": null,
+            "category": "general_contractor",
+            "organization_relationship": "DIRECT",
+            "person_organization_relationship": "UNKNOWN",
+            "person_project_relationship": "UNKNOWN",
+            "evidence_strength": "High",
+            "reason": "Organization involvement is explicitly reported for the selected project.",
+            "observed_at": "2026-09-30T10:49:19-05:00",
+            "verified_at": "2026-09-30T11:31:50.907921-05:00",
+            "public_contacts": [],
+            "evidence": [
+              {
+                "id": "6df0f4a7-365f-4f83-b5b2-28ef06efc935",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273451848%27&%24limit=1",
+                "quote": "\"contact_7_type\": \"CONTRACTOR-GENERAL CONTRACTOR\"",
+                "supports": "organization_category",
+                "extraction_location": "official exact-record JSON",
+                "published_at": null,
+                "observed_at": "2026-09-30T10:49:19-05:00",
+                "content_hash": "1859fc1264292b5317e9b5ea2b88b17754879e60167818bf9a6a55c1a39a7bed"
+              },
+              {
+                "id": "6df0f4a7-365f-4f83-b5b2-28ef06efc935",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273451848%27&%24limit=1",
+                "quote": "\"contact_7_name\": \"ARCO/MURRAY NATIONAL CONSTRUCTION COMPANY LLC\"",
+                "supports": "project_organization",
+                "extraction_location": "official exact-record JSON",
+                "published_at": null,
+                "observed_at": "2026-09-30T10:49:19-05:00",
+                "content_hash": "1859fc1264292b5317e9b5ea2b88b17754879e60167818bf9a6a55c1a39a7bed"
+              }
+            ],
+            "history_count": 1,
+            "stale": false
+          }
+        ],
+        "unresolved": [
+          "Named individual project assignment and purchasing authority remain UNKNOWN."
+        ],
+        "runs": [
+          {
+            "id": "73ee28d1-cef9-4c8a-b81a-19d4d6d729c5",
+            "status": "partial",
+            "documents_checked": 3,
+            "candidates_added": 8,
+            "unresolved": [
+              "Named individual project assignment and purchasing authority remain UNKNOWN."
+            ],
+            "created_at": "2026-09-30T11:31:50.907921-05:00"
+          }
+        ],
+        "policy_version": "buying-chain-v1"
+      }
+    },
+    {
+      "external_id": "3442494",
+      "project_id": "45be4f2b-50b7-5738-8a6f-242044c2106a",
+      "original_corpus_record_id": "af0ea614-2937-4e39-bac6-705c9a016943",
+      "project_name": "Chicago permit 3442494",
+      "location": "1300 N NORTH BRANCH ST, Chicago, IL",
+      "role_url": "https://kelso-burnett.com/about",
+      "expected_comparison_only": {
+        "organization": "KELSO-BURNETT CO.",
+        "person": "Jeff Weir"
+      },
+      "first_fetches": [
+        {
+          "requested_url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273442494%27&%24limit=1",
+          "captured_url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?$where=id%3D%273442494%27&$limit=5",
+          "capture_sha256": "9d67f0b707f903bde608e5be58bcdec818500401378bedf6690af9a23f1d54ff",
+          "source_fetched_at": "2026-09-30T15:49:19Z",
+          "parsed_title": "Official project record",
+          "parsed_text_sha256": "cb35d9db2835c645385e96bc53c3f051b5e0bcfaf150469007922117cf2366a4",
+          "parsed_text_characters": 3298,
+          "publication_date": null,
+          "structured_records": 1
+        },
+        {
+          "requested_url": "https://kelso-burnett.com/about",
+          "captured_url": "https://kelso-burnett.com/about",
+          "capture_sha256": "77848226e0eaa2fcc0ddd70ead9353dbf87e0bf19988fd2e083e426d8a9cc49c",
+          "source_fetched_at": "2026-09-30T15:56:26.679Z",
+          "parsed_title": "About \u2014 Kelso-Burnett",
+          "parsed_text_sha256": "a102b9f69395057bdc2de60b7fff1164e5506a0df63571d9b09136fb8092f926",
+          "parsed_text_characters": 1927,
+          "publication_date": null,
+          "structured_records": 0
+        }
+      ],
+      "replay_fetches": [
+        {
+          "requested_url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273442494%27&%24limit=1",
+          "captured_url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?$where=id%3D%273442494%27&$limit=5",
+          "capture_sha256": "9d67f0b707f903bde608e5be58bcdec818500401378bedf6690af9a23f1d54ff",
+          "source_fetched_at": "2026-09-30T15:49:19Z",
+          "parsed_title": "Official project record",
+          "parsed_text_sha256": "cb35d9db2835c645385e96bc53c3f051b5e0bcfaf150469007922117cf2366a4",
+          "parsed_text_characters": 3298,
+          "publication_date": null,
+          "structured_records": 1
+        },
+        {
+          "requested_url": "https://kelso-burnett.com/about",
+          "captured_url": "https://kelso-burnett.com/about",
+          "capture_sha256": "77848226e0eaa2fcc0ddd70ead9353dbf87e0bf19988fd2e083e426d8a9cc49c",
+          "source_fetched_at": "2026-09-30T15:56:26.679Z",
+          "parsed_title": "About \u2014 Kelso-Burnett",
+          "parsed_text_sha256": "a102b9f69395057bdc2de60b7fff1164e5506a0df63571d9b09136fb8092f926",
+          "parsed_text_characters": 1927,
+          "publication_date": null,
+          "structured_records": 0
+        }
+      ],
+      "counts_before": {
+        "sources": 1,
+        "projects": 3,
+        "observations": 3,
+        "evidence": 3,
+        "interpretations": 3,
+        "power_needs": 3,
+        "need_observations": 3,
+        "buying_chain_claims": 11,
+        "buying_chain_evidence": 6,
+        "buying_chain_runs": 2
+      },
+      "counts_after_first": {
+        "sources": 1,
+        "projects": 3,
+        "observations": 3,
+        "evidence": 3,
+        "interpretations": 3,
+        "power_needs": 3,
+        "need_observations": 3,
+        "buying_chain_claims": 17,
+        "buying_chain_evidence": 9,
+        "buying_chain_runs": 3
+      },
+      "counts_after_replay": {
+        "sources": 1,
+        "projects": 3,
+        "observations": 3,
+        "evidence": 3,
+        "interpretations": 3,
+        "power_needs": 3,
+        "need_observations": 3,
+        "buying_chain_claims": 17,
+        "buying_chain_evidence": 9,
+        "buying_chain_runs": 3
+      },
+      "candidate_count": 6,
+      "named_candidate_count": 4,
+      "checks": {
+        "expected_named_chain_present": true,
+        "expected_chain_role_supported": true,
+        "unchanged_replay_counts": true,
+        "committed_round_trip_ids": true,
+        "durable_candidate_ids_unchanged": true,
+        "no_named_direct_assignment": true,
+        "unknown_authority_exposed": true,
+        "exact_citation_substrings": true,
+        "no_fabricated_contacts": true,
+        "corporate_publication_unknown": true,
+        "corporate_role_evidence_retained": true
+      },
+      "parsed_result": {
+        "project_id": "45be4f2b-50b7-5738-8a6f-242044c2106a",
+        "status": "partial",
+        "candidates": [
+          {
+            "id": "46222ba6-5fc7-4956-9be7-aa611a588940",
+            "organization": "KELSO-BURNETT CO.",
+            "person_name": "Corey Gates",
+            "title": "SVP",
+            "category": "electrical_contractor",
+            "organization_relationship": "DIRECT",
+            "person_organization_relationship": "CURRENT",
+            "person_project_relationship": "ROLE_SUPPORTED",
+            "evidence_strength": "Medium",
+            "reason": "Current roster; project assignment and buying authority are UNKNOWN.",
+            "observed_at": "2026-09-30T10:56:26.679000-05:00",
+            "verified_at": "2026-09-30T11:31:50.907921-05:00",
+            "public_contacts": [],
+            "evidence": [
+              {
+                "id": "7ea0c587-1de0-4958-b48c-c27342ef4c08",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273442494%27&%24limit=1",
+                "quote": "\"contact_3_type\": \"CONTRACTOR-ELECTRICAL\"",
+                "supports": "organization_category",
+                "extraction_location": "official exact-record JSON",
+                "published_at": null,
+                "observed_at": "2026-09-30T10:49:19-05:00",
+                "content_hash": "8320533cbf4b62444c1f41ab03d630a30ef56e5ba509170c65efd5789215fb6e"
+              },
+              {
+                "id": "7ea0c587-1de0-4958-b48c-c27342ef4c08",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273442494%27&%24limit=1",
+                "quote": "\"contact_3_name\": \"KELSO-BURNETT CO.\"",
+                "supports": "project_organization",
+                "extraction_location": "official exact-record JSON",
+                "published_at": null,
+                "observed_at": "2026-09-30T10:49:19-05:00",
+                "content_hash": "8320533cbf4b62444c1f41ab03d630a30ef56e5ba509170c65efd5789215fb6e"
+              },
+              {
+                "id": "3fbcf32e-7687-4929-bd4a-47130d1a8335",
+                "url": "https://kelso-burnett.com/about",
+                "quote": "Corey Gates, SVP",
+                "supports": "organization_person_role",
+                "extraction_location": "public page text",
+                "published_at": null,
+                "observed_at": "2026-09-30T10:56:26.679000-05:00",
+                "content_hash": "2e800358ffe5be73eaf4dad464de34561488d90ae42a51bb02773d3d13283965"
+              }
+            ],
+            "history_count": 1,
+            "stale": false
+          },
+          {
+            "id": "1e0ad5fb-9d0a-45a3-bca6-c88519e549e8",
+            "organization": "KELSO-BURNETT CO.",
+            "person_name": "Jeff Weir",
+            "title": "President",
+            "category": "electrical_contractor",
+            "organization_relationship": "DIRECT",
+            "person_organization_relationship": "CURRENT",
+            "person_project_relationship": "ROLE_SUPPORTED",
+            "evidence_strength": "Medium",
+            "reason": "Current roster; project assignment and buying authority are UNKNOWN.",
+            "observed_at": "2026-09-30T10:56:26.679000-05:00",
+            "verified_at": "2026-09-30T11:31:50.907921-05:00",
+            "public_contacts": [],
+            "evidence": [
+              {
+                "id": "7ea0c587-1de0-4958-b48c-c27342ef4c08",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273442494%27&%24limit=1",
+                "quote": "\"contact_3_type\": \"CONTRACTOR-ELECTRICAL\"",
+                "supports": "organization_category",
+                "extraction_location": "official exact-record JSON",
+                "published_at": null,
+                "observed_at": "2026-09-30T10:49:19-05:00",
+                "content_hash": "8320533cbf4b62444c1f41ab03d630a30ef56e5ba509170c65efd5789215fb6e"
+              },
+              {
+                "id": "7ea0c587-1de0-4958-b48c-c27342ef4c08",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273442494%27&%24limit=1",
+                "quote": "\"contact_3_name\": \"KELSO-BURNETT CO.\"",
+                "supports": "project_organization",
+                "extraction_location": "official exact-record JSON",
+                "published_at": null,
+                "observed_at": "2026-09-30T10:49:19-05:00",
+                "content_hash": "8320533cbf4b62444c1f41ab03d630a30ef56e5ba509170c65efd5789215fb6e"
+              },
+              {
+                "id": "3fbcf32e-7687-4929-bd4a-47130d1a8335",
+                "url": "https://kelso-burnett.com/about",
+                "quote": "Jeff Weir, President",
+                "supports": "organization_person_role",
+                "extraction_location": "public page text",
+                "published_at": null,
+                "observed_at": "2026-09-30T10:56:26.679000-05:00",
+                "content_hash": "2e800358ffe5be73eaf4dad464de34561488d90ae42a51bb02773d3d13283965"
+              }
+            ],
+            "history_count": 1,
+            "stale": false
+          },
+          {
+            "id": "afb5720d-d02b-4687-b6c9-2d3d3fce9d18",
+            "organization": "KELSO-BURNETT CO.",
+            "person_name": "Mark Weir",
+            "title": "SVP",
+            "category": "electrical_contractor",
+            "organization_relationship": "DIRECT",
+            "person_organization_relationship": "CURRENT",
+            "person_project_relationship": "ROLE_SUPPORTED",
+            "evidence_strength": "Medium",
+            "reason": "Current roster; project assignment and buying authority are UNKNOWN.",
+            "observed_at": "2026-09-30T10:56:26.679000-05:00",
+            "verified_at": "2026-09-30T11:31:50.907921-05:00",
+            "public_contacts": [],
+            "evidence": [
+              {
+                "id": "7ea0c587-1de0-4958-b48c-c27342ef4c08",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273442494%27&%24limit=1",
+                "quote": "\"contact_3_type\": \"CONTRACTOR-ELECTRICAL\"",
+                "supports": "organization_category",
+                "extraction_location": "official exact-record JSON",
+                "published_at": null,
+                "observed_at": "2026-09-30T10:49:19-05:00",
+                "content_hash": "8320533cbf4b62444c1f41ab03d630a30ef56e5ba509170c65efd5789215fb6e"
+              },
+              {
+                "id": "7ea0c587-1de0-4958-b48c-c27342ef4c08",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273442494%27&%24limit=1",
+                "quote": "\"contact_3_name\": \"KELSO-BURNETT CO.\"",
+                "supports": "project_organization",
+                "extraction_location": "official exact-record JSON",
+                "published_at": null,
+                "observed_at": "2026-09-30T10:49:19-05:00",
+                "content_hash": "8320533cbf4b62444c1f41ab03d630a30ef56e5ba509170c65efd5789215fb6e"
+              },
+              {
+                "id": "3fbcf32e-7687-4929-bd4a-47130d1a8335",
+                "url": "https://kelso-burnett.com/about",
+                "quote": "Mark Weir, SVP",
+                "supports": "organization_person_role",
+                "extraction_location": "public page text",
+                "published_at": null,
+                "observed_at": "2026-09-30T10:56:26.679000-05:00",
+                "content_hash": "2e800358ffe5be73eaf4dad464de34561488d90ae42a51bb02773d3d13283965"
+              }
+            ],
+            "history_count": 1,
+            "stale": false
+          },
+          {
+            "id": "63bee6da-c627-4ee4-b717-b1c5c82ab338",
+            "organization": "KELSO-BURNETT CO.",
+            "person_name": "Tony Arnone",
+            "title": "SVP",
+            "category": "electrical_contractor",
+            "organization_relationship": "DIRECT",
+            "person_organization_relationship": "CURRENT",
+            "person_project_relationship": "ROLE_SUPPORTED",
+            "evidence_strength": "Medium",
+            "reason": "Current roster; project assignment and buying authority are UNKNOWN.",
+            "observed_at": "2026-09-30T10:56:26.679000-05:00",
+            "verified_at": "2026-09-30T11:31:50.907921-05:00",
+            "public_contacts": [],
+            "evidence": [
+              {
+                "id": "7ea0c587-1de0-4958-b48c-c27342ef4c08",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273442494%27&%24limit=1",
+                "quote": "\"contact_3_type\": \"CONTRACTOR-ELECTRICAL\"",
+                "supports": "organization_category",
+                "extraction_location": "official exact-record JSON",
+                "published_at": null,
+                "observed_at": "2026-09-30T10:49:19-05:00",
+                "content_hash": "8320533cbf4b62444c1f41ab03d630a30ef56e5ba509170c65efd5789215fb6e"
+              },
+              {
+                "id": "7ea0c587-1de0-4958-b48c-c27342ef4c08",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273442494%27&%24limit=1",
+                "quote": "\"contact_3_name\": \"KELSO-BURNETT CO.\"",
+                "supports": "project_organization",
+                "extraction_location": "official exact-record JSON",
+                "published_at": null,
+                "observed_at": "2026-09-30T10:49:19-05:00",
+                "content_hash": "8320533cbf4b62444c1f41ab03d630a30ef56e5ba509170c65efd5789215fb6e"
+              },
+              {
+                "id": "3fbcf32e-7687-4929-bd4a-47130d1a8335",
+                "url": "https://kelso-burnett.com/about",
+                "quote": "Tony Arnone, SVP",
+                "supports": "organization_person_role",
+                "extraction_location": "public page text",
+                "published_at": null,
+                "observed_at": "2026-09-30T10:56:26.679000-05:00",
+                "content_hash": "2e800358ffe5be73eaf4dad464de34561488d90ae42a51bb02773d3d13283965"
+              }
+            ],
+            "history_count": 1,
+            "stale": false
+          },
+          {
+            "id": "629bc0e2-35a5-40c8-881a-1c534f9b4305",
+            "organization": "KELSO-BURNETT CO.",
+            "person_name": null,
+            "title": null,
+            "category": "electrical_contractor",
+            "organization_relationship": "DIRECT",
+            "person_organization_relationship": "UNKNOWN",
+            "person_project_relationship": "UNKNOWN",
+            "evidence_strength": "High",
+            "reason": "Organization involvement is explicitly reported for the selected project.",
+            "observed_at": "2026-09-30T10:49:19-05:00",
+            "verified_at": "2026-09-30T11:31:50.907921-05:00",
+            "public_contacts": [],
+            "evidence": [
+              {
+                "id": "7ea0c587-1de0-4958-b48c-c27342ef4c08",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273442494%27&%24limit=1",
+                "quote": "\"contact_3_type\": \"CONTRACTOR-ELECTRICAL\"",
+                "supports": "organization_category",
+                "extraction_location": "official exact-record JSON",
+                "published_at": null,
+                "observed_at": "2026-09-30T10:49:19-05:00",
+                "content_hash": "8320533cbf4b62444c1f41ab03d630a30ef56e5ba509170c65efd5789215fb6e"
+              },
+              {
+                "id": "7ea0c587-1de0-4958-b48c-c27342ef4c08",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273442494%27&%24limit=1",
+                "quote": "\"contact_3_name\": \"KELSO-BURNETT CO.\"",
+                "supports": "project_organization",
+                "extraction_location": "official exact-record JSON",
+                "published_at": null,
+                "observed_at": "2026-09-30T10:49:19-05:00",
+                "content_hash": "8320533cbf4b62444c1f41ab03d630a30ef56e5ba509170c65efd5789215fb6e"
+              }
+            ],
+            "history_count": 1,
+            "stale": false
+          },
+          {
+            "id": "cc60b34f-3b3f-4bc5-be8a-ac0da714a192",
+            "organization": "ACCEND CONSTRUCTION LLC",
+            "person_name": null,
+            "title": null,
+            "category": "general_contractor",
+            "organization_relationship": "DIRECT",
+            "person_organization_relationship": "UNKNOWN",
+            "person_project_relationship": "UNKNOWN",
+            "evidence_strength": "High",
+            "reason": "Organization involvement is explicitly reported for the selected project.",
+            "observed_at": "2026-09-30T10:49:19-05:00",
+            "verified_at": "2026-09-30T11:31:50.907921-05:00",
+            "public_contacts": [],
+            "evidence": [
+              {
+                "id": "7ea0c587-1de0-4958-b48c-c27342ef4c08",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273442494%27&%24limit=1",
+                "quote": "\"contact_5_type\": \"CONTRACTOR-GENERAL CONTRACTOR\"",
+                "supports": "organization_category",
+                "extraction_location": "official exact-record JSON",
+                "published_at": null,
+                "observed_at": "2026-09-30T10:49:19-05:00",
+                "content_hash": "8320533cbf4b62444c1f41ab03d630a30ef56e5ba509170c65efd5789215fb6e"
+              },
+              {
+                "id": "7ea0c587-1de0-4958-b48c-c27342ef4c08",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273442494%27&%24limit=1",
+                "quote": "\"contact_5_name\": \"ACCEND CONSTRUCTION LLC\"",
+                "supports": "project_organization",
+                "extraction_location": "official exact-record JSON",
+                "published_at": null,
+                "observed_at": "2026-09-30T10:49:19-05:00",
+                "content_hash": "8320533cbf4b62444c1f41ab03d630a30ef56e5ba509170c65efd5789215fb6e"
+              }
+            ],
+            "history_count": 1,
+            "stale": false
+          }
+        ],
+        "unresolved": [
+          "Named individual project assignment and purchasing authority remain UNKNOWN."
+        ],
+        "runs": [
+          {
+            "id": "d3bdff93-b7b6-4cf8-84c5-75969c11c11b",
+            "status": "partial",
+            "documents_checked": 3,
+            "candidates_added": 6,
+            "unresolved": [
+              "Named individual project assignment and purchasing authority remain UNKNOWN."
+            ],
+            "created_at": "2026-09-30T11:31:50.907921-05:00"
+          }
+        ],
+        "policy_version": "buying-chain-v1"
+      }
+    }
+  ],
+  "failures": [],
+  "counts_before": {
+    "sources": 1,
+    "projects": 3,
+    "observations": 3,
+    "evidence": 3,
+    "interpretations": 3,
+    "power_needs": 3,
+    "need_observations": 3,
+    "buying_chain_claims": 0,
+    "buying_chain_evidence": 0,
+    "buying_chain_runs": 0
+  },
+  "power_needs_before": [
+    {
+      "id": "111419d9-b01f-44f4-a8df-16fa315cc1cb",
+      "project_id": "8e3331d1-f14e-5290-888b-a8bef692d159",
+      "tier": "Signal",
+      "activity": "temporary-power",
+      "required_mw": null,
+      "start_window": null,
+      "duration": null,
+      "supply": "Unknown"
+    },
+    {
+      "id": "78279bec-e55e-4a60-9eea-f7a393bbda80",
+      "project_id": "0869ee5f-6017-5ffe-9294-47d5869c8972",
+      "tier": "Signal",
+      "activity": "facility-expansion",
+      "required_mw": null,
+      "start_window": null,
+      "duration": null,
+      "supply": "Unknown"
+    },
+    {
+      "id": "af0ea614-2937-4e39-bac6-705c9a016943",
+      "project_id": "45be4f2b-50b7-5738-8a6f-242044c2106a",
+      "tier": "Signal",
+      "activity": "facility-expansion",
+      "required_mw": null,
+      "start_window": null,
+      "duration": null,
+      "supply": "Unknown"
+    }
+  ],
+  "counts_after": {
+    "sources": 1,
+    "projects": 3,
+    "observations": 3,
+    "evidence": 3,
+    "interpretations": 3,
+    "power_needs": 3,
+    "need_observations": 3,
+    "buying_chain_claims": 17,
+    "buying_chain_evidence": 9,
+    "buying_chain_runs": 3
+  },
+  "power_needs_after": [
+    {
+      "id": "111419d9-b01f-44f4-a8df-16fa315cc1cb",
+      "project_id": "8e3331d1-f14e-5290-888b-a8bef692d159",
+      "tier": "Signal",
+      "activity": "temporary-power",
+      "required_mw": null,
+      "start_window": null,
+      "duration": null,
+      "supply": "Unknown"
+    },
+    {
+      "id": "78279bec-e55e-4a60-9eea-f7a393bbda80",
+      "project_id": "0869ee5f-6017-5ffe-9294-47d5869c8972",
+      "tier": "Signal",
+      "activity": "facility-expansion",
+      "required_mw": null,
+      "start_window": null,
+      "duration": null,
+      "supply": "Unknown"
+    },
+    {
+      "id": "af0ea614-2937-4e39-bac6-705c9a016943",
+      "project_id": "45be4f2b-50b7-5738-8a6f-242044c2106a",
+      "tier": "Signal",
+      "activity": "facility-expansion",
+      "required_mw": null,
+      "start_window": null,
+      "duration": null,
+      "supply": "Unknown"
+    }
+  ],
+  "checks": {
+    "source_bytes_match_manifest": true,
+    "no_tier_or_power_claim_changes": true,
+    "production_files_unchanged_during_run": true
+  },
+  "implementation_sha256_after": {
+    "backend/src/gridlens/ingestion/adapters/buying_chain_public.py": "6e862a16b944b5c2925040a7d04a69a2d264be9c987574b7ebe7930dc4f40ae0",
+    "backend/src/gridlens/intelligence/buying_chain_extraction.py": "e7b3aac48ac55ef23aa93a3966e224420b4f54863c4a5d339c0b1903a96c8f24",
+    "backend/src/gridlens/intelligence/buying_chain.py": "d71c5fd2054ef08e0d5db84fa59cb1cccf6ee335d6d3fbebed64ddc98ab7493b",
+    "backend/src/gridlens/domain/buying_chain.py": "afdcbb43a958d1b07b5451bce2780a55f960352363a465b573fee4795c1fd9c7",
+    "backend/src/gridlens/persistence/models.py": "f53c07995752f5161b333fba2764eb407baf160fe7cadd72fbd1d9334c43dbad"
+  },
+  "finished_at": "2026-09-30T16:31:51.491520+00:00"
+}

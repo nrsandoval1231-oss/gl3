@@ -262,7 +262,7 @@
     "/api/signals/decisions": {
       "get": {
         "summary": "Signal Decision Counts",
-        "description": "Return current Signal decision counts while keeping legacy Signals visible.",
+        "description": "Count active Signal opportunity records using the same lifecycle policy as browse.",
         "operationId": "signal_decision_counts_api_signals_decisions_get",
         "responses": {
           "200": {
@@ -358,10 +358,393 @@
           }
         }
       }
+    },
+    "/api/projects/{project_id}/buying-chain": {
+      "get": {
+        "summary": "Project Buying Chain",
+        "operationId": "project_buying_chain_api_projects__project_id__buying_chain_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "history",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "History"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BuyingChainOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/projects/{project_id}/buying-chain/enrich": {
+      "post": {
+        "summary": "Enrich Project Buying Chain",
+        "operationId": "enrich_project_buying_chain_api_projects__project_id__buying_chain_enrich_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/BuyingEnrichBody"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BuyingChainOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "BuyingCandidateOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "organization": {
+            "type": "string",
+            "title": "Organization"
+          },
+          "person_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Person Name"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "category": {
+            "type": "string",
+            "title": "Category"
+          },
+          "organization_relationship": {
+            "type": "string",
+            "title": "Organization Relationship"
+          },
+          "person_organization_relationship": {
+            "type": "string",
+            "title": "Person Organization Relationship"
+          },
+          "person_project_relationship": {
+            "type": "string",
+            "title": "Person Project Relationship"
+          },
+          "evidence_strength": {
+            "type": "string",
+            "title": "Evidence Strength"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "observed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Observed At"
+          },
+          "verified_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verified At"
+          },
+          "public_contacts": {
+            "items": {
+              "$ref": "#/components/schemas/PublicContactOut"
+            },
+            "type": "array",
+            "title": "Public Contacts"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/BuyingEvidenceOut"
+            },
+            "type": "array",
+            "title": "Evidence"
+          },
+          "history_count": {
+            "type": "integer",
+            "title": "History Count",
+            "default": 1
+          },
+          "stale": {
+            "type": "boolean",
+            "title": "Stale",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "organization",
+          "person_name",
+          "title",
+          "category",
+          "organization_relationship",
+          "person_organization_relationship",
+          "person_project_relationship",
+          "evidence_strength",
+          "reason",
+          "observed_at",
+          "verified_at"
+        ],
+        "title": "BuyingCandidateOut"
+      },
+      "BuyingChainOut": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "candidates": {
+            "items": {
+              "$ref": "#/components/schemas/BuyingCandidateOut"
+            },
+            "type": "array",
+            "title": "Candidates"
+          },
+          "unresolved": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Unresolved"
+          },
+          "runs": {
+            "items": {
+              "$ref": "#/components/schemas/BuyingRunOut"
+            },
+            "type": "array",
+            "title": "Runs"
+          },
+          "policy_version": {
+            "type": "string",
+            "title": "Policy Version",
+            "default": "buying-chain-v1"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "status"
+        ],
+        "title": "BuyingChainOut"
+      },
+      "BuyingEnrichBody": {
+        "properties": {
+          "source_urls": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 4,
+            "title": "Source Urls"
+          }
+        },
+        "type": "object",
+        "title": "BuyingEnrichBody"
+      },
+      "BuyingEvidenceOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "quote": {
+            "type": "string",
+            "title": "Quote"
+          },
+          "supports": {
+            "type": "string",
+            "title": "Supports"
+          },
+          "extraction_location": {
+            "type": "string",
+            "title": "Extraction Location"
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published At"
+          },
+          "observed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Observed At"
+          },
+          "content_hash": {
+            "type": "string",
+            "title": "Content Hash"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "url",
+          "quote",
+          "supports",
+          "extraction_location",
+          "published_at",
+          "observed_at",
+          "content_hash"
+        ],
+        "title": "BuyingEvidenceOut"
+      },
+      "BuyingRunOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "documents_checked": {
+            "type": "integer",
+            "title": "Documents Checked"
+          },
+          "candidates_added": {
+            "type": "integer",
+            "title": "Candidates Added"
+          },
+          "unresolved": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Unresolved"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "documents_checked",
+          "candidates_added",
+          "unresolved",
+          "created_at"
+        ],
+        "title": "BuyingRunOut"
+      },
       "ChangeOut": {
         "properties": {
           "kind": {
@@ -1467,6 +1850,40 @@
           "evidence"
         ],
         "title": "OpportunityOut"
+      },
+      "PublicContactOut": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "value": {
+            "type": "string",
+            "title": "Value"
+          },
+          "source_url": {
+            "type": "string",
+            "title": "Source Url"
+          },
+          "quote": {
+            "type": "string",
+            "title": "Quote"
+          },
+          "observed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Observed At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "value",
+          "source_url",
+          "quote",
+          "observed_at"
+        ],
+        "title": "PublicContactOut"
       },
       "RefreshOut": {
         "properties": {

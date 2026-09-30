@@ -1,0 +1,439 @@
+import hashlib
+import json
+from dataclasses import replace
+from datetime import UTC, date, datetime
+from uuid import uuid4
+
+import pytest
+
+from gridlens.domain.buying_chain import current_role, person_project_relationship
+from gridlens.ingestion.adapters.buying_chain_public import (
+    PublicDocument,
+    _public_ip,
+    parse_document,
+    validate_public_url,
+)
+from gridlens.intelligence.buying_chain_extraction import (
+    Extracted,
+    _official_profile,
+    document_content_hash,
+    document_key,
+    extract_organizations,
+    extract_people,
+    project_document_match,
+)
+from gridlens.persistence.models import Project
+
+NOW = datetime(2026, 9, 30, tzinfo=UTC)
+
+
+def project():
+    return Project(
+        id=uuid4(),
+        identity_key="orion",
+        name="Orion Data Center",
+        location="Austin, TX",
+        source_id="test",
+        external_id="42",
+        identity_facts={},
+    )
+
+
+def doc(text, *, url="https://acme.com/team", published=date(2026, 9, 20), title="Acme team"):
+    return PublicDocument(url, title, text, published, NOW)
+
+
+def people(text, **kwargs):
+    return extract_people(
+        doc(text, **kwargs),
+        [Extracted("Acme", "general_contractor")],
+        project(),
+        project_scoped=True,
+        today=NOW.date(),
+    )
+
+
+def test_no_company_only_project_match():
+    assert not project_document_match(project(), doc("Acme is headquartered in Austin, TX."))[0]
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Acme is the general contractor for Orion Data Center in Dallas, TX. "
+        "Its headquarters are in Austin, TX.",
+        "Acme is the general contractor for Orion Data Center in Dallas, TX, "
+        "and its headquarters are in Austin, TX.",
+        "Acme is the general contractor for Orion Data Center West in Austin, TX.",
+        "Acme is the general contractor for Orion Data Center-West in Austin, TX.",
+        "Acme is the general contractor for Orion Data Center Phase 2 in Austin, TX.",
+    ],
+)
+def test_wrong_geography_or_sibling_name_cannot_establish_project_relationship(text):
+    source = doc(text)
+    assert not project_document_match(project(), source)[0]
+    assert extract_organizations(source, project()) == []
+
+
+def test_explicit_wrong_geography_blocks_matching_title():
+    source = doc(
+        "Acme is the general contractor for Orion Data Center in Dallas, TX.",
+        title="Orion Data Center, Austin, TX",
+    )
+    assert not project_document_match(project(), source)[0]
+    assert extract_organizations(source, project()) == []
+
+
+def test_headquarters_location_cannot_complete_a_project_name_match():
+    source = doc(
+        "Orion Data Center. Acme is headquartered in Austin, TX.",
+        title="Orion Data Center",
+    )
+    assert not project_document_match(project(), source)[0]
+
+
+def test_exact_project_with_own_geography_still_matches():
+    source = doc("Acme is the general contractor for Orion Data Center in Austin, TX.")
+    assert project_document_match(project(), source)[0]
+    assert extract_organizations(source, project())[0].organization_relationship == "DIRECT"
+
+
+def test_exact_declared_project_alias_still_matches():
+    selected = project()
+    selected.identity_facts = {"project_aliases": ["Orion Campus"]}
+    source = doc("Acme is the general contractor for Orion Campus in Austin, TX.")
+    assert project_document_match(selected, source)[0]
+    assert extract_organizations(source, selected)[0].organization_relationship == "DIRECT"
+
+
+def test_named_physical_site_remains_sufficient_without_facility_keyword():
+    selected = project()
+    selected.name = "Orion Expansion"
+    selected.location = "123 Main St, Austin, TX"
+    source = doc("Orion Expansion at 123 Main St, Austin, TX.")
+    assert project_document_match(selected, source)[0]
+
+
+def test_same_street_cannot_override_conflicting_city():
+    selected = project()
+    selected.identity_facts = {"site": "123 Main St"}
+    source = doc("Orion Data Center at 123 Main St, Dallas, TX.")
+    assert not project_document_match(selected, source)[0]
+
+
+def test_document_identity_matches_retained_hash_and_tracks_metadata():
+    source = doc("Identical retained text")
+    expected = hashlib.sha256(
+        json.dumps(
+            {"text": source.text, "title": source.title, "published": source.published_at},
+            sort_keys=True,
+            default=str,
+        ).encode()
+    ).hexdigest()
+    assert document_content_hash(source) == expected
+    assert document_key(source) == source.url + ":" + expected
+    assert document_key(replace(source, observed_at=NOW.replace(hour=12))) == document_key(source)
+    assert document_key(replace(source, title="Changed title")) != document_key(source)
+    assert document_key(replace(source, published_at=None)) != document_key(source)
+    assert document_key(replace(source, url="https://acme.com/about")) != document_key(source)
+
+
+def test_wrong_project_same_document_and_same_sentence_do_not_assign_organization():
+    for text in [
+        "Orion Data Center in Austin, TX.\n"
+        "Acme is the general contractor for Vega Plant in Dallas.",
+        "Acme is the general contractor for Vega Plant, "
+        "while BuildCo handles Orion Data Center in Austin, TX.",
+    ]:
+        assert extract_organizations(doc(text), project()) == []
+
+
+def test_explicit_organization_relation_and_removal():
+    positive = extract_organizations(
+        doc("Acme is the general contractor for Orion Data Center."), project()
+    )
+    assert positive[0].organization == "Acme"
+    assert positive[0].organization_relationship == "DIRECT"
+    negative = extract_organizations(
+        doc("Acme was the general contractor for Orion Data Center, but was removed in June."),
+        project(),
+    )
+    assert negative[0].organization_relationship == "UNKNOWN"
+
+
+def test_no_longer_working_on_project_keeps_organization_unknown():
+    source = doc(
+        "Acme was general contractor for Orion Data Center in Austin, TX "
+        "but no longer works on this project."
+    )
+    result = extract_organizations(source, project())
+    assert result[0].organization_relationship == "UNKNOWN"
+    assert result[0].evidence_strength == "Low"
+
+
+def test_employment_never_silently_means_direct_assignment():
+    result = people("Alice Smith is Project Director at Acme.")
+    assert result[0].person_project_relationship == "ROLE_SUPPORTED"
+    quoted = people(
+        "Alice Smith is Project Director at Acme, and she commented on Orion Data Center "
+        "without being assigned to it."
+    )
+    assert quoted[0].person_project_relationship != "DIRECT"
+
+
+def test_explicit_individual_assignment_is_direct():
+    result = people("Alice Smith is Project Director at Acme, on Orion Data Center.")
+    assert result[0].person_project_relationship == "DIRECT"
+    assert any(c["supports"] == "person_project_assignment" for c in result[0].citations)
+
+
+@pytest.mark.parametrize("target", ["Orion Data Center West", "Orion Data Center in Dallas, TX"])
+def test_sibling_or_wrong_geography_cannot_assign_person(target):
+    result = people(f"Alice Smith is Project Director at Acme, on {target}.")
+    assert result[0].person_project_relationship != "DIRECT"
+    assert not any(c["supports"] == "person_project_assignment" for c in result[0].citations)
+
+
+def test_negated_person_role_stays_unknown():
+    result = people("Alice Smith is not Project Director at Acme.")
+    assert result[0].person_organization_relationship == "UNKNOWN"
+    assert result[0].person_project_relationship == "UNKNOWN"
+
+
+def test_stale_title_keeps_employment_and_assignment_unknown():
+    result = people(
+        "Alice Smith is Project Director at Acme, on Orion Data Center.", published=date(2023, 1, 1)
+    )
+    assert result[0].person_organization_relationship == "UNKNOWN"
+    assert result[0].person_project_relationship == "UNKNOWN"
+
+
+def test_official_current_roster_does_not_invent_publication_date():
+    source = doc("Alice Smith, President", published=None)
+    result = extract_people(
+        source,
+        [Extracted("Acme", "general_contractor")],
+        project(),
+        project_scoped=False,
+        today=NOW.date(),
+    )
+    assert result[0].person_organization_relationship == "CURRENT"
+    assert result[0].person_project_relationship == "ROLE_SUPPORTED"
+    assert source.published_at is None
+
+
+@pytest.mark.parametrize(
+    ("title", "heading"),
+    [("Acme leadership", "Former leadership"), ("Acme retired leadership", "Leadership")],
+)
+def test_historical_leadership_context_cannot_become_current_roster(title, heading):
+    source = doc(
+        heading + "\nAlice Smith, President",
+        url="https://acme.com/leadership",
+        title=title,
+        published=None,
+    )
+    assert not _official_profile(source, "Acme")
+    assert (
+        extract_people(
+            source,
+            [Extracted("Acme", "general_contractor")],
+            project(),
+            project_scoped=False,
+            today=NOW.date(),
+        )
+        == []
+    )
+
+
+@pytest.mark.parametrize("organization", ["Gurtz Electric Co.", "GURTZ ELECTRIC COMPANY"])
+def test_official_biography_heading_does_not_join_name_or_split_title_at_of(organization):
+    source = doc(
+        "Construction Operations\nDavid Steffenhagen serves as Director of Construction Operations "
+        "at Gurtz Electric Co., overseeing electrical and low voltage construction operations, "
+        "preconstruction, prefabrication and manufacturing across the company’s growing "
+        "portfolio of projects.",
+        url="https://gurtzelectric.com/david-steffenhagen/",
+        title="David Steffenhagen – Gurtz Electric Co.",
+        published=None,
+    )
+    assert _official_profile(source, organization)
+    result = extract_people(
+        source,
+        [Extracted(organization, "electrical_contractor")],
+        project(),
+        project_scoped=False,
+        today=NOW.date(),
+    )
+    assert len(result) == 1
+    assert result[0].person_name == "David Steffenhagen"
+    assert result[0].title == "Director of Construction Operations"
+    assert result[0].person_organization_relationship == "CURRENT"
+    assert result[0].person_project_relationship == "ROLE_SUPPORTED"
+
+
+def test_legal_suffix_alias_preserves_assignment_and_rejects_other_employers():
+    result = people("Alice Smith is Project Director at Acme, Inc., on Orion Data Center.")
+    assert result[0].person_project_relationship == "DIRECT"
+    assert people("Alice Smith is Project Director at Acme Builders.") == []
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://acme.evil.example/team",
+        "https://acme.com/archive",
+        "https://acme.com/news/old",
+        "https://directory.com/acme",
+    ],
+)
+def test_fake_or_archive_roster_is_not_current(url):
+    assert not _official_profile(doc("Alice Smith, President", url=url, published=None), "Acme")
+
+
+def test_undated_biography_without_official_identity_stays_unknown():
+    assert (
+        people(
+            "Alice Smith is Project Director at Acme.",
+            url="https://directory.example/alice",
+            published=None,
+        )[0].person_project_relationship
+        == "UNKNOWN"
+    )
+
+
+def test_another_person_email_is_not_assigned():
+    result = people(
+        "Alice Smith is Project Director at Acme; "
+        "for inquiries contact Bob Jones at bob@acme.example"
+    )
+    assert result[0].public_contacts == []
+
+
+@pytest.mark.parametrize(
+    ("statement", "kind", "value"),
+    [
+        ("Alice Smith email: alice@acme.example", "email", "alice@acme.example"),
+        ("Alice Smith can be reached at alice@acme.example.", "email", "alice@acme.example"),
+        ("Alice Smith can be reached at +1 (312) 555-0123.", "phone", "+1 (312) 555-0123"),
+    ],
+)
+def test_exact_named_public_business_contact_has_retained_provenance(statement, kind, value):
+    result = people("Alice Smith is Project Director at Acme.\n" + statement)
+    assert result[0].public_contacts == [
+        {
+            "kind": kind,
+            "value": value,
+            "source_url": "https://acme.com/team",
+            "quote": statement,
+            "observed_at": NOW.isoformat(),
+        }
+    ]
+    assert any(c["supports"] == "public_contact" for c in result[0].citations)
+
+
+@pytest.mark.parametrize(
+    "statement",
+    [
+        "Bob Jones email: bob@acme.example",
+        "Bob Jones can be reached at +1 (312) 555-0123.",
+        "Alice Smith\nemail: alice@acme.example",
+        "Contact: info@acme.example",
+        "Alice Smith can be reached at Bob Jones email: bob@acme.example",
+        "Alice Smith cannot be reached at alice@acme.example",
+    ],
+)
+def test_unattributed_or_other_person_contact_is_not_attached(statement):
+    result = people("Alice Smith is Project Director at Acme.\n" + statement)
+    assert result[0].public_contacts == []
+
+
+def test_oil_gas_asset_specific_role_is_preserved():
+    result = extract_people(
+        doc("Alice Smith is Drilling Operations Manager at Acme."),
+        [Extracted("Acme", "asset_operator")],
+        project(),
+        project_scoped=False,
+        today=NOW.date(),
+    )
+    assert result[0].category == "field_operations"
+    assert result[0].person_project_relationship == "ROLE_SUPPORTED"
+
+
+def test_structured_chicago_requires_official_origin_exact_record_and_site():
+    p = Project(
+        id=uuid4(),
+        name="Chicago permit 42",
+        source_id="chicago-building-permits",
+        external_id="42",
+        location="333 E HURON ST, Chicago, IL",
+        identity_facts={},
+    )
+    raw = (
+        b'[{"id":"42","street_number":"333","street_direction":"E",'
+        b'"street_name":"HURON ST","issue_date":"2026-09-01"}]'
+    )
+    official = parse_document(
+        "https://data.cityofchicago.org/resource/ydr8-5enu.json", raw, "application/json"
+    )
+    assert project_document_match(p, official)[0]
+    assert official.published_at is None
+    spoof = parse_document("https://arbitrary.example/claim", raw, "application/json")
+    assert not project_document_match(p, spoof)[0]
+    p.external_id = "43"
+    assert not project_document_match(p, official)[0]
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "http://example.com",
+        "https://localhost/",
+        "https://127.0.0.1/",
+        "https://[::1]/",
+        "https://user:pass@example.com/",
+        "https://example.com:444/",
+    ],
+)
+def test_unsafe_urls_rejected(url):
+    with pytest.raises(ValueError):
+        validate_public_url(url)
+
+
+def test_dns_mixed_public_private_rejected(monkeypatch):
+    monkeypatch.setattr(
+        "socket.getaddrinfo",
+        lambda *args, **kwargs: [
+            (2, 1, 6, "", ("8.8.8.8", 443)),
+            (2, 1, 6, "", ("127.0.0.1", 443)),
+        ],
+    )
+    with pytest.raises(ValueError):
+        _public_ip("public.example")
+
+
+def test_relationship_policy_requires_current_role_and_org_link():
+    assert not current_role(None, NOW.date())
+    assert (
+        person_project_relationship(
+            organization_direct=False, current_role=True, relevant_role=True, direct_assignment=True
+        )
+        == "UNKNOWN"
+    )
+
+
+def test_exact_permit_id_does_not_override_conflicting_street_number_prefix():
+    p = Project(
+        id=uuid4(),
+        name="Chicago permit 42",
+        source_id="chicago-building-permits",
+        external_id="42",
+        location="3333 E HURON ST, Chicago, IL",
+        identity_facts={},
+    )
+    source = parse_document(
+        "https://data.cityofchicago.org/resource/ydr8-5enu.json",
+        b'[{"id":"42","street_number":"333","street_direction":"E","street_name":"HURON ST"}]',
+        "application/json",
+    )
+    assert not project_document_match(p, source)[0]
