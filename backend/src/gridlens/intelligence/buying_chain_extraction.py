@@ -255,7 +255,7 @@ def extract_retained_permit_organizations(doc: PublicDocument, source_id: str) -
                     Category.OPERATOR.value,
                     organization_relationship="DIRECT",
                     reason=(
-                        "Operator named on the drilling permit; "
+                        "Operator named on the W-1 well permit; "
                         "current buying authority, people and contacts are UNKNOWN."
                     ),
                     citations=[_citation(doc, operator[1], "project_organization")],

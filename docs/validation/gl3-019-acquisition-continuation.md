@@ -50,8 +50,9 @@ cloud environment. Normal public requests were used; no source restriction bypas
   to the September 2 daily backup; September 3 resets to 36 groups. This observed lag
   is why collection uses the dedicated EOM product, not a guessed first-day backup.
   This is **current plus prior month**, not all historical Texas drilling permits.
-  Longer outages and older corrections remain gaps. Permits are early-production
-  Signals without a proven power gap. Exact W-1 types are preserved: drilling,
+  Longer outages and older corrections remain gaps. Drill permits are early-production
+  Signals without a proven power gap. Rework permits support a separate field-activity
+  question without asserting new drilling. Exact W-1 types are preserved: drilling,
   reentry and recompletion support activity Signals; administrative field transfer
   and reclass remain observations, not invented new drilling. Reentry/recompletion
   do not assert a completed phase. Production date, load, fuel suitability and
