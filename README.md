@@ -2,7 +2,7 @@
 
 GridLens 3 is a private, evidence-backed workspace for discovering emerging commercial power needs. The current local registry enables 13 public sources spanning municipal planning notices, construction permits, air permitting/regulatory records, government/economic-development publications, public documents, and industry news. Taylor planning notices have fresh isolated ordinary-worker persistence/replay and authenticated card proof; deployed daily operation remains unproven. The system preserves source observations and evidence history, groups supported records into project-oriented Signal cards, and keeps unsupported commercial facts explicitly unknown.
 
-GL3-017 and GL3-018 are merged on main (verified at `7f24174`). GL3-018 adds authoritative Signal admission, Chicago electrical permits and deeper Georgia permit documents. The accepted local Signal foundation retains 14 enabled public sources and adds bounded Jev adjudication for ambiguous evidence, persisted reproducible SHOW / REVIEW / HOLD decisions, and conservative physical-project grouping. The frozen GL3-015 corpus contained 81 Signal records displayed as 63 cards; GL3-016 preserved the evidence rather than promoting unsupported commercial facts. National coverage and deployed daily operation remain unproven.
+GL3-017 and GL3-018 are merged on main (verified at `7f24174`). GL3-018 adds authoritative Signal admission, Chicago electrical permits and deeper Georgia permit documents. The accepted local Signal foundation retains 15 enabled public sources and adds bounded Jev adjudication for ambiguous evidence, persisted reproducible SHOW / REVIEW / HOLD decisions, and conservative physical-project grouping. The frozen GL3-015 corpus contained 81 Signal records displayed as 63 cards; GL3-016 preserved the evidence rather than promoting unsupported commercial facts. National coverage and deployed daily operation remain unproven.
 
 ## Product model
 
@@ -18,9 +18,10 @@ Current production-like local behavior is intentionally conservative: Signals do
 
 ## Current source coverage
 
-The registry currently contains 14 enabled sources, including:
+The registry currently contains 15 enabled sources, including:
 
 - Austin commercial building/electrical permits with a bounded 2026 data-center backfill; Seattle and Chicago permits.
+- Texas RRC current-month drilling file plus official prior-month EOM overlap, with amendment history and unknown production timing.
 - Houston’s four latest linked weekly permit workbooks, with reporting lag and limited fields explicitly retained.
 - Georgia Draft Title V air-permit filings and supporting public documents.
 - Federal Register environmental-impact notices with eligible GovInfo PDF evidence.
@@ -92,4 +93,4 @@ GL3-017 and GL3-018 are merged; this is not a deployment claim. GL3-018 live acq
 
 GL3-019 prioritizes **data-center construction temporary power**, then **data-center commissioning temporary power**, then **oil and gas temporary power**. Permit-derived project/site, scope, dates and organizations should be useful directly from retained evidence. Drilling permits are valid early production Signals without an already-proven power gap; production date, load and fuel suitability stay unknown unless supported. Upstream wells and fixed O&G infrastructure retain separate lifecycles. News stays supplemental.
 
-GL3-019 repairs permit enrichment using existing evidence and persistence, including Austin permit-listed organizations, names and permit-listed phone fields. Dallas and El Paso official routes currently return access errors from this cloud executor; neither is enabled. It does not claim national completeness, an active drilling feed, a commissioning connector, rental demand from generator nameplate, or a supply gap from missing energization. See [GL3-019 scope](docs/sources/gl3-019-permit-enrichment.md).
+GL3-019 repairs permit enrichment using existing evidence and persistence, including Austin permit-listed organizations, names and permit-listed phone fields. Dallas and El Paso official routes currently return access errors from this cloud executor; neither is enabled. It does not claim national completeness, all historical Texas drilling permits, a commissioning connector, rental demand from generator nameplate, or a supply gap from missing energization. See [GL3-019 scope](docs/sources/gl3-019-permit-enrichment.md).

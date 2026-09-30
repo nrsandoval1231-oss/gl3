@@ -246,6 +246,24 @@ CHICAGO_CATEGORIES = {
 
 
 def extract_retained_permit_organizations(doc: PublicDocument, source_id: str) -> list[Extracted]:
+    if source_id == "texas-rrc-drilling-permits":
+        operator = permit_fields(source_id, doc.text).get("operator")
+        return (
+            [
+                Extracted(
+                    operator[0],
+                    Category.OPERATOR.value,
+                    organization_relationship="DIRECT",
+                    reason=(
+                        "Operator named on the drilling permit; "
+                        "current buying authority, people and contacts are UNKNOWN."
+                    ),
+                    citations=[_citation(doc, operator[1], "project_organization")],
+                )
+            ]
+            if operator
+            else []
+        )
     if source_id == "austin-building-permits":
         parsed = permit_fields(source_id, doc.text)
         result = []

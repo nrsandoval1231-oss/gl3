@@ -4,7 +4,7 @@ GridLens is focused on turning evidence-backed Signals into commercially useful 
 
 ## Implemented through GL3-016
 
-- The ingestion foundation retains source observations, evidence versions, lifecycle history, source health, and project-oriented Signal cards across 14 enabled public sources.
+- The ingestion foundation retains source observations, evidence versions, lifecycle history, source health, and project-oriented Signal cards across 15 enabled public sources.
 - GL3-015 established the lifecycle-based Signal Source Matrix, acquisition gap audit, Taylor planning lifecycle proof, and retained conflicting/withdrawn evidence.
 - GL3-016 is merged on main. It adds one bounded TypeSafe Jev adjudication path for ambiguous retained Signal evidence, a conservative GridLens SHOW / REVIEW / HOLD policy, persisted reproducible decisions, and conservative physical-project grouping.
 - Jev does not replace deterministic facts or evidence. It adjudicates bounded ambiguity; underlying observations and evidence remain authoritative and inspectable.
@@ -12,7 +12,7 @@ GridLens is focused on turning evidence-backed Signals into commercially useful 
 
 ## Current limitations
 
-National acquisition coverage and deployed daily operation remain unproven. Current RRC ingestion, broad utility/large-load records, and many construction/commissioning lifecycle sources remain absent or partial. A Signal is still not a Prospect or Lead unless evidence supports the actual power requirement, supply gap, timing, and commercial path.
+National acquisition coverage and deployed daily operation remain unproven. Historical Texas drilling coverage, broad utility/large-load records, and many construction/commissioning lifecycle sources remain absent or partial. A Signal is still not a Prospect or Lead unless evidence supports the actual power requirement, supply gap, timing, and commercial path.
 
 ## GL3-017 merged: project buying chain
 
@@ -73,4 +73,4 @@ Fresh branch from verified remote main `7f24174`. Priority: data-center construc
 GL3-019 repairs native retained-permit extraction, adds Chicago application/milestone/full-address fields and Georgia draft identity, and displays permit facts alongside the existing enrichment action. Exact reviewed code candidate: `426c2e670bc4b5b705675fd42e2e590287942195`. Live cloud acceptance has 25 permit-backed Signals and 29 current organization candidates, no personal relationship claims or public contacts, no Prospects/Leads. LaSalle and QTS ATL3 are verified data-center examples; Huron remains a hospital example. Full backend: 386 passes/one existing skip; 11 browser checks; typecheck/build, Ruff/mypy, migrations/drift and zero-vulnerability audit pass. Source and enrichment replay preserve counts. Details, raw-field named architect attribution, exact file hashes and remaining commissioning/drilling gaps: `docs/validation/gl3-019-validation.md`. No merge, outreach or deployment.
 
 
-GL3-019 acquisition continuation on the same PR9 adds Austin commercial electrical permits and a fixed 2026 literal-data-center backfill, plus four official Houston weekly report snapshots. Austin live retrieval: 2,609 rows, 78 accepted permit observations / 76 projects, 57 organization and 57 permit-listed person candidates, permit-listed phones attached only to organizations. Houston: 1,543 retained rows, no Signals because status is absent. Both replay unchanged. Dallas reports 401 / DallasNow 403, El Paso 403; not enabled. RRC download verified but full framing/amendments/rollover unvalidated; not enabled. Commissioning remains a gap. See docs/validation/gl3-019-acquisition-continuation.md for current acceptance and limits.
+GL3-019 acquisition continuation on the same PR9 adds Austin commercial electrical permits and a fixed 2026 literal-data-center backfill, plus four official Houston weekly report snapshots. Austin live retrieval: 2,609 rows, 78 accepted permit observations / 76 projects, 57 organization and 57 permit-listed person candidates, permit-listed phones attached only to organizations. Houston: 1,543 retained rows, no Signals because status is absent. Both replay unchanged. Dallas reports 401 / DallasNow 403, El Paso 403; not enabled. RRC current + official previous-month EOM acquisition is implemented with complete framing, amendment preservation and no inferred production dates; all-history coverage remains unclaimed. Commissioning remains a gap. See docs/validation/gl3-019-acquisition-continuation.md for current acceptance and limits.

@@ -33,7 +33,23 @@ def apply_lifecycle_observation(
     ):
         _rebuild_projection(session, project)
         return False
-    classification = classify_event(evidence.title, evidence.abstract)
+    if observation.source_id == "texas-rrc-drilling-permits":
+        from gridlens.ingestion.adapters.retained_permits import fields
+
+        project.asset_type = AssetType.UPSTREAM_WELL.value
+        kind = fields(observation.source_id, evidence.abstract or "").get("application_type")
+        if not kind or kind[0] != "01":
+            # An approved recompletion/transfer/reclass filing does not report
+            # completed work or a new drilling phase. Keep the well's phase unknown.
+            _rebuild_projection(session, project)
+            project.asset_type = AssetType.UPSTREAM_WELL.value
+            return False
+    classification = classify_event(
+        "Drilling permit"
+        if observation.source_id == "texas-rrc-drilling-permits"
+        else evidence.title,
+        None if observation.source_id == "texas-rrc-drilling-permits" else evidence.abstract,
+    )
     if classification is None:
         _rebuild_projection(session, project)
         return False
@@ -220,7 +236,13 @@ def _rebuild_projection(session: Session, project: Project) -> None:
     event = current[-1]
     evidence = session.get(Evidence, event.evidence_id)
     assert evidence is not None
-    classification = classify_event(evidence.title, evidence.abstract)
+    source_observation = session.get(Observation, evidence.observation_id)
+    is_rrc = bool(
+        source_observation and source_observation.source_id == "texas-rrc-drilling-permits"
+    )
+    classification = classify_event(
+        "Drilling permit" if is_rrc else evidence.title, None if is_rrc else evidence.abstract
+    )
     assert classification is not None
     if projection is None:
         projection = ProjectLifecycle(project_id=project.id, current_state=event.state)
@@ -237,6 +259,7 @@ def _rebuild_projection(session: Session, project: Project) -> None:
         classification.asset_type == AssetType.UPSTREAM_WELL
         and event.event_type in {"drilling_permit", "spud", "completion"}
         and event.occurred_on
+        and not is_rrc
     ):
         estimate = estimate_first_production(
             permit_date=event.occurred_on,

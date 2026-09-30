@@ -23,6 +23,10 @@ def retrieve_source(
         return retrieve_nc_commerce(source, client)
     if method == "publisher-rss":
         return retrieve_publisher_rss(source, client)
+    if method == "rrc-drilling-permits":
+        from gridlens.ingestion.adapters.rrc_drilling import retrieve
+
+        return retrieve(source, client)
     if method == "houston-weekly-permits":
         return retrieve_houston_permits(source, client)
     if method == "socrata-permits":

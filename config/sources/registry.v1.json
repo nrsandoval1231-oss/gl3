@@ -2,6 +2,30 @@
   "version": 1,
   "sources": [
 {
+  "id": "texas-rrc-drilling-permits",
+  "publisher": "Railroad Commission of Texas",
+  "endpoint": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+  "family": "construction-permits",
+  "geography": "Texas",
+  "state": "TX",
+  "industries": [
+    "oil and gas"
+  ],
+  "retrieval_method": "rrc-drilling-permits",
+  "cadence_hours": 24,
+  "publication_cadence": "Daily cumulative current-month file plus official previous-month end-of-month file",
+  "credential_reference": null,
+  "enabled": true,
+  "retention": "Exact permit root/master/opaque child bytes, native fields and amendment provenance",
+  "collection_scope": "All framed permit groups in current daf420.dat plus previous calendar month official end-of-month snapshot. One permit identity; lowest sequence is newest amendment. Older retained entities are never deleted by snapshot absence.",
+  "coverage_limitation": "Not all historical Texas permits. No pending-application feed or older-month correction monitoring. Outages longer than the prior-month overlap can miss activity. Current file over four days old, missing previous-month EOM, changed framing, or bounds fail visibly. Production date, load, fuel suitability, rental demand and contacts are UNKNOWN.",
+  "query": {
+    "max_snapshot_bytes": 10000000,
+    "max_roots_per_snapshot": 5000,
+    "previous_month_overlap": true
+  }
+},
+{
   "id": "houston-weekly-permits",
   "publisher": "City of Houston Permitting Center",
   "endpoint": "https://www.houstonpermittingcenter.org/sold-permits-search",

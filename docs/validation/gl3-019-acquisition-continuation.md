@@ -31,9 +31,31 @@ cloud environment. Normal public requests were used; no source restriction bypas
   all unchanged on replay. Two exact duplicate source rows are deduplicated;
   conflicting duplicates, changed headers/footer, foreign links, excessive bytes,
   unexpected sheets and stale listing (>30 days) fail visibly. No status or party
-  fields exist in these reports, so **zero Signals** pass existing status gates.
+  fields exist in these reports. Official page/search/report-definition follow-through
+  establishes permit activity and a “permits sold” search, but not an explicit
+  issuance/current-status contract for every weekly report row. Therefore **zero Signals** pass existing status gates.
   Records remain in the ingestion inbox, not fabricated project cards. Latest
   published interval is 16 days behind this check; it is not live citywide coverage.
+
+- **RRC:** current official daily file plus the preceding calendar month's official
+  end-of-month file are retrieved through ordinary public GoDrive forms. The
+  current capture has 966 root/master groups; August EOM has 992. Combining
+  amendments yields 1,904 permit identities. Every source byte, including NEL
+  continuations in opaque type-08 restrictions, is retained. Original sequence 99
+  decrements on amendment; 34 permits overlap months with newer September sequences.
+  Prior snapshots cannot replace a newer amendment. Official `P` permit cancellation
+  and `F` filing cancellation prevent admission; no active status is inferred from
+  a cancelled filing. Current files over four days old, missing previous-month EOM,
+  changed framing or exceeded bounds fail visibly. The August EOM is byte-identical
+  to the September 2 daily backup; September 3 resets to 36 groups. This observed lag
+  is why collection uses the dedicated EOM product, not a guessed first-day backup.
+  This is **current plus prior month**, not all historical Texas drilling permits.
+  Longer outages and older corrections remain gaps. Permits are early-production
+  Signals without a proven power gap. Exact W-1 types are preserved: drilling,
+  reentry and recompletion support activity Signals; administrative field transfer
+  and reclass remain observations, not invented new drilling. Reentry/recompletion
+  do not assert a completed phase. Production date, load, fuel suitability and
+  contacts remain UNKNOWN. No production-date heuristic is applied to this feed.
 
 ## Real data-center inspection
 
@@ -61,15 +83,6 @@ cloud environment. Normal public requests were used; no source restriction bypas
 - **El Paso:** official planning page and Accela Building search HTTP 403.
   No current connector enabled. These are tested endpoint denials, not a claim
   that public permit records do not exist.
-- **RRC:** official current `daf420.dat` download verified twice, 2,623,180 bytes,
-  SHA-256 `4bf8b0f65a6e3f077802d9e95ea33bd184c6b0d3ca452efa49129915ea895fc3`.
-  Root-only inspection: 966 distinct status/sequence records, 949 permit numbers;
-  dates span 2013–2026. The OGA049M guide describes 510-byte tape records; live
-  download uses variable-length segments, with 57 CRLF fragments lacking a record
-  prefix. Full framing, amendment sequencing and monthly rollover recovery are
-  unvalidated. **No RRC ingestion enabled**; retrieval is feasible, not denied.
-  Drilling permits remain valid early-production Signals when ingested reliably;
-  this work does not establish production dates, power load or supply gaps.
 - **Commissioning:** bounded Chicago/Austin searches found decommissioning,
   residential EVSE/solar and unrelated solar commissioning, not data-center
   commissioning. No dedicated commissioning acquisition claim.

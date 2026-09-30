@@ -7,7 +7,12 @@ from typing import Any
 
 POLICY_VERSION = "signal-admission-v1"
 
-_PERMIT_METHODS = {"socrata-permits", "georgia-air-permits", "houston-weekly-permits"}
+_PERMIT_METHODS = {
+    "socrata-permits",
+    "georgia-air-permits",
+    "houston-weekly-permits",
+    "rrc-drilling-permits",
+}
 _UTILITY_FAMILIES = {"official-utility-filings"}
 _UTILITY_METHODS = {"utility-docket", "utility-filings"}
 _PROCUREMENT_FAMILIES = {"temporary-power-procurement"}

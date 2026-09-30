@@ -1389,3 +1389,106 @@ def test_authoritative_permit_identity_requires_one_exact_site_candidate(
         assert all(d.evidence_id is not None for d in decisions)
         if len(candidate_sites) > 1:
             assert all("Multiple supported" in d.reason for d in decisions)
+
+
+def test_rrc_amendment_rollover_history_no_duplicate_asset_or_inferred_production(db, monkeypatch):
+    import gridlens.ingestion.service as service
+    from gridlens.ingestion.adapters.rrc_drilling import PORTAL
+
+    _, factory, _ = db
+    definition = next(row for row in load_registry() if row["id"] == "texas-rrc-drilling-permits")
+    with factory.begin() as session:
+        session.add(
+            Source(
+                **{
+                    key: definition[key]
+                    for key in (
+                        "id",
+                        "publisher",
+                        "endpoint",
+                        "family",
+                        "geography",
+                        "industries",
+                        "retrieval_method",
+                    )
+                },
+                health={},
+            )
+        )
+        session.flush()
+        job = Job(
+            source_id=definition["id"],
+            status="running",
+            lease_owner="test",
+            fence=1,
+            lease_until=datetime.now(UTC) + timedelta(minutes=10),
+        )
+        session.add(job)
+        session.flush()
+        job_id = job.id
+
+    def row(sequence, status="Approved", application_type="01"):
+        digest = hashlib.sha256(f"{sequence}:{status}:{application_type}".encode()).hexdigest()
+        return {
+            "document_number": "9999999",
+            "title": "Drilling permit 9999999",
+            "abstract": (
+                f"amendment_sequence: {sequence}\noperator: EXAMPLE OPERATOR LLC"
+                f"\nlease: Example\nwell: 1H\nstatus: {status}"
+                f"\napplication_type: {application_type}"
+            ),
+            "publication_date": "2026-09-01",
+            "event_date": "2026-09-01",
+            "html_url": PORTAL,
+            "source_hash": digest,
+            "extraction_location": "Synthetic OGA049M fixture",
+            "permit": {
+                "source_type": definition["id"],
+                "project": "9999999",
+                "row_id": "9999999",
+                "lease": "Example",
+                "well": "1H",
+                "operator": "EXAMPLE OPERATOR LLC",
+                "location": "RRC county code 001, Texas",
+                "state": "TX",
+                "status": status,
+                "description": "Drilling permit 9999999",
+                "application_type": application_type,
+                "sequence": sequence,
+            },
+        }
+
+    incoming = [row(98)]
+    monkeypatch.setattr(service, "retrieve_source", lambda *_: incoming)
+
+    def run():
+        with factory() as session:
+            return process_job(session, job_id, "test", 1, definition)
+
+    assert run()["signals"] == 1
+    assert run()["unchanged"] == 1
+    incoming[:] = [row(99)]  # Older filing returning in a rollover snapshot.
+    assert run()["older_amendments_retained"] == 1
+    run()
+    with factory() as session:
+        assert session.scalar(select(func.count()).select_from(Project)) == 1
+        assert session.scalar(select(func.count()).select_from(Observation)) == 1
+        assert session.scalar(select(func.count()).select_from(Evidence)) == 2
+        assert "amendment_sequence: 98" in session.scalar(select(Observation.abstract))
+        projection = session.scalar(select(ProjectLifecycle))
+        assert projection.current_state == "drilling_permit"
+        assert projection.time_to_power_start is None and projection.time_to_power_end is None
+        need = session.scalar(select(PowerNeed))
+        assert need.tier == "Signal" and need.required_mw is None
+    incoming[:] = [row(97, application_type="14")]
+    run()
+    with factory() as session:
+        assert session.scalar(select(ProjectLifecycle)) is None
+        assert session.scalar(select(Project.asset_type)) == "upstream_well"
+        assert session.scalar(select(PowerNeed.active)) is True
+    incoming[:] = [row(96, "Cancelled")]
+    run()
+    with factory() as session:
+        assert session.scalar(select(PowerNeed.active)) is False
+        assert session.scalar(select(func.count()).select_from(Project)) == 1
+        assert session.scalar(select(func.count()).select_from(Evidence)) == 4

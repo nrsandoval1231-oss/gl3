@@ -58,17 +58,25 @@ This is still a bounded project action, not automatic general-purpose research.
   connector was added. Construction/MEP and standby-generator permits can reveal
   relevant projects, but these examples do not establish a commissioning rental
   package, date, load or power gap.
-- **Drilling:** current official `daf420.dat` download was verified twice with
-  identical SHA-256 `4bf8b0f65a6e3f077802d9e95ea33bd184c6b0d3ca452efa49129915ea895fc3`
-  (2,623,180 bytes). Retrieval is permitted, not denied. Full ingestion remains
-  disabled: OGA049M documents 510-byte tape records, while the current download
-  has variable-length segments (type 01: 212 bytes, type 02: 510, type 08 mostly
-  87) and 57 CRLF fragments without a documented record prefix. Root-only parsing
-  finds 966 permit/status-sequence records and 949 permit numbers, including
-  original issue dates from 2013. Full transport framing, amendment ordering,
-  rollover/archive recovery and independent completeness are not yet validated.
-  Silently discarding unknown fragments or treating the file as new permits only
-  would lose evidence. No RRC connector or all-Texas-history claim is enabled.
+- **RRC:** current official daily file plus the preceding calendar month's official
+  end-of-month file are retrieved through ordinary public GoDrive forms. The
+  current capture has 966 root/master groups; August EOM has 992. Combining
+  amendments yields 1,904 permit identities. Every source byte, including NEL
+  continuations in opaque type-08 restrictions, is retained. Original sequence 99
+  decrements on amendment; 34 permits overlap months with newer September sequences.
+  Prior snapshots cannot replace a newer amendment. Official `P` permit cancellation
+  and `F` filing cancellation prevent admission; no active status is inferred from
+  a cancelled filing. Current files over four days old, missing previous-month EOM,
+  changed framing or exceeded bounds fail visibly. The August EOM is byte-identical
+  to the September 2 daily backup; September 3 resets to 36 groups. This observed lag
+  is why collection uses the dedicated EOM product, not a guessed first-day backup.
+  This is **current plus prior month**, not all historical Texas drilling permits.
+  Longer outages and older corrections remain gaps. Permits are early-production
+  Signals without a proven power gap. Exact W-1 types are preserved: drilling,
+  reentry and recompletion support activity Signals; administrative field transfer
+  and reclass remain observations, not invented new drilling. Reentry/recompletion
+  do not assert a completed phase. Production date, load, fuel suitability and
+  contacts remain UNKNOWN. No production-date heuristic is applied to this feed.
 - **Dallas:** official reports page returned HTTP 401 and DallasNow Accela 403.
   The old Dallas Open Data Building Permits dataset explicitly says it is no
   longer updated. Current reliable retrieval is blocked at the tested routes;
@@ -88,3 +96,20 @@ This is still a bounded project action, not automatic general-purpose research.
 
 See [live acceptance and validation](../validation/gl3-019-validation.md) for
 measured examples, exact code hashes, before/after results and source limits.
+
+## RRC authoritative contract
+
+The [official source index](https://www.rrc.texas.gov/resource-center/research/data-sets-available-for-download/)
+links both the daily and end-of-month products and the
+[OGA049M layout](https://www.rrc.texas.gov/media/zgccdjpi/drillingpermitmasterpluslatitudeslongitudes_oga049m_july1.pdf).
+The daily file is current-month cumulative; EOM is produced after month-end.
+The type-02 printed copybook repeats the two-byte record ID; the live export has
+one ID. Every root/master permit+sequence and issue date is cross-checked before
+using the adjusted offsets. Child records remain opaque, byte-exact evidence;
+no restriction, coordinate, contact or fuel facts are guessed from them.
+
+Houston follow-through inspected the Sold Permits page, city planning report
+explanation, public search form and workbook headings. “Permits sold” describes
+the search, while weekly reports are described as permit activity. None explicitly
+defines every weekly row as issued/current. Report inclusion and permit date are
+retained; issuance/current status remain unverified, not denied or invented.

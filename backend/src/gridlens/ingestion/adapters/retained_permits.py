@@ -23,6 +23,15 @@ LABELS = {
             ("applicant_phone", "Applicant permit-listed phone (permit field)"),
         )
     },
+    "operator": "Permit-listed operator",
+    "operator_number": "RRC operator number",
+    "lease": "Lease",
+    "well": "Well number",
+    "county_code": "RRC county code",
+    "amendment_sequence": "RRC amendment sequence (decreases on amendment)",
+    "amended_date": "Reported amendment date",
+    "application_received": "Application received date",
+    "application_type": "RRC application type code",
     "row": "Source record",
     "project": "Permit / case",
     "address": "Site address",
@@ -45,13 +54,17 @@ GEORGIA = "georgia-air-draft-title-v"
 
 
 def fields(source_id: str, text: str) -> dict[str, tuple[str, str]]:
-    if source_id not in MAPS and source_id not in {GEORGIA, "houston-weekly-permits"}:
+    if source_id not in MAPS and source_id not in {
+        GEORGIA,
+        "houston-weekly-permits",
+        "texas-rrc-drilling-permits",
+    }:
         return {}
     allowed = (
         set(MAPS[source_id])
         if source_id in MAPS
         else set(LABELS)
-        if source_id == "houston-weekly-permits"
+        if source_id in {"houston-weekly-permits", "texas-rrc-drilling-permits"}
         else set(LABELS) - set(MAPS["chicago-building-permits"])
     )
     result: dict[str, tuple[str, str]] = {}
