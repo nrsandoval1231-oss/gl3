@@ -115,7 +115,7 @@ export interface paths {
         };
         /**
          * Signal Decision Counts
-         * @description Return current Signal decision counts while keeping legacy Signals visible.
+         * @description Count active Signal opportunity records using the same lifecycle policy as browse.
          */
         get: operations["signal_decision_counts_api_signals_decisions_get"];
         put?: never;
@@ -180,10 +180,163 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/projects/{project_id}/buying-chain": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Project Buying Chain */
+        get: operations["project_buying_chain_api_projects__project_id__buying_chain_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{project_id}/buying-chain/enrich": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Enrich Project Buying Chain */
+        post: operations["enrich_project_buying_chain_api_projects__project_id__buying_chain_enrich_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** BuyingCandidateOut */
+        BuyingCandidateOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Organization */
+            organization: string;
+            /** Person Name */
+            person_name: string | null;
+            /** Title */
+            title: string | null;
+            /** Category */
+            category: string;
+            /** Organization Relationship */
+            organization_relationship: string;
+            /** Person Organization Relationship */
+            person_organization_relationship: string;
+            /** Person Project Relationship */
+            person_project_relationship: string;
+            /** Evidence Strength */
+            evidence_strength: string;
+            /** Reason */
+            reason: string;
+            /**
+             * Observed At
+             * Format: date-time
+             */
+            observed_at: string;
+            /** Verified At */
+            verified_at: string | null;
+            /** Public Contacts */
+            public_contacts?: components["schemas"]["PublicContactOut"][];
+            /** Evidence */
+            evidence?: components["schemas"]["BuyingEvidenceOut"][];
+            /**
+             * History Count
+             * @default 1
+             */
+            history_count: number;
+            /**
+             * Stale
+             * @default false
+             */
+            stale: boolean;
+        };
+        /** BuyingChainOut */
+        BuyingChainOut: {
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /** Status */
+            status: string;
+            /** Candidates */
+            candidates?: components["schemas"]["BuyingCandidateOut"][];
+            /** Unresolved */
+            unresolved?: string[];
+            /** Runs */
+            runs?: components["schemas"]["BuyingRunOut"][];
+            /**
+             * Policy Version
+             * @default buying-chain-v1
+             */
+            policy_version: string;
+        };
+        /** BuyingEnrichBody */
+        BuyingEnrichBody: {
+            /** Source Urls */
+            source_urls?: string[];
+        };
+        /** BuyingEvidenceOut */
+        BuyingEvidenceOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Url */
+            url: string;
+            /** Quote */
+            quote: string;
+            /** Supports */
+            supports: string;
+            /** Extraction Location */
+            extraction_location: string;
+            /** Published At */
+            published_at: string | null;
+            /**
+             * Observed At
+             * Format: date-time
+             */
+            observed_at: string;
+            /** Content Hash */
+            content_hash: string;
+        };
+        /** BuyingRunOut */
+        BuyingRunOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Status */
+            status: string;
+            /** Documents Checked */
+            documents_checked: number;
+            /** Candidates Added */
+            candidates_added: number;
+            /** Unresolved */
+            unresolved: string[];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
         /** ChangeOut */
         ChangeOut: {
             /** Kind */
@@ -556,6 +709,22 @@ export interface components {
             /** Signal Display Reason */
             signal_display_reason?: string | null;
         };
+        /** PublicContactOut */
+        PublicContactOut: {
+            /** Kind */
+            kind: string;
+            /** Value */
+            value: string;
+            /** Source Url */
+            source_url: string;
+            /** Quote */
+            quote: string;
+            /**
+             * Observed At
+             * Format: date-time
+             */
+            observed_at: string;
+        };
         /** RefreshOut */
         RefreshOut: {
             /** Queued */
@@ -846,6 +1015,74 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RefreshOut"];
+                };
+            };
+        };
+    };
+    project_buying_chain_api_projects__project_id__buying_chain_get: {
+        parameters: {
+            query?: {
+                history?: boolean;
+            };
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BuyingChainOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    enrich_project_buying_chain_api_projects__project_id__buying_chain_enrich_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["BuyingEnrichBody"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BuyingChainOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

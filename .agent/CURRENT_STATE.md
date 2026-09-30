@@ -14,18 +14,20 @@ GridLens is focused on turning evidence-backed Signals into commercially useful 
 
 National acquisition coverage and deployed daily operation remain unproven. Current RRC ingestion, broad utility/large-load records, and many construction/commissioning lifecycle sources remain absent or partial. A Signal is still not a Prospect or Lead unless evidence supports the actual power requirement, supply gap, timing, and commercial path.
 
-## Next slice
+## GL3-017 draft: project buying chain
 
-GL3-017 is project-specific buying-chain enrichment.
+The slice adds bounded enrichment for a selected existing physical Project ID, with separate Project→Organization, Organization→Person/current role, and Person→Project relationships. DIRECT, ROLE_SUPPORTED and UNKNOWN remain distinct. The API retains project-specific source excerpts, semantic claim versions and run outcomes; the existing detail UI adds a compact inspectable Buying Chain section.
 
-For a selected physical project, GridLens should identify the organizations and people most relevant to temporary/bridge power procurement or influence — especially the electrical contractor, general contractor, EPC, commissioning organization, developer/owner energy or construction team, and other project-specific power decision makers.
+It starts from accepted evidence, reads exact Chicago contractor rows, and accepts up to four additional public links. There is no general web search, source-registry expansion, new worker/queue framework, outreach or tier promotion. Missing supported candidates are reported rather than fabricated to meet a count.
 
-Every enriched contact must be tied by evidence to:
-1. a specific physical project,
-2. an organization,
-3. a relevant buying/influence role,
-4. source evidence supporting that relationship.
+Three existing Chicago projects were manually reviewed against live official municipal/corporate sources: 3459792 (333 E Huron temporary electrical services), 3451848 (400 S LaSalle data-center conversion), and 3442494 (DMG Mori manufacturing renovation). Named construction/electrical-company leadership is ROLE_SUPPORTED; personal project assignment and buying authority remain UNKNOWN. Runtime/parser results and exact validation are recorded in docs/validation/gl3-017-buying-chain.md. Final captured-source parser/PostgreSQL acceptance passed all three chains (3/8/6 candidates), with unchanged replay at 17 claims, 9 evidence versions and 3 runs. Full checks: Ruff/mypy, 356 pytest passes and one existing missing local-probe skip, clean/repeat/drift migrations, frontend typecheck/build and zero npm vulnerabilities.
 
-Do not create generic company contact lists. Do not infer that a person is attached to a project merely because they work for a likely contractor. Unknown remains unknown.
+Saved-cloud validation on 2026-09-30 closes the browser execution blocker: all eight existing frontend tests pass (seven browser tests plus one pure grouping test), including real authenticated local browsing of reconstructed corpus records and synthetic buying-chain interaction/error cases. A reviewed one-line UI repair removes the misleading retained-findings sentence for empty results. Final backend checks again passed 356 tests with one existing local-probe skip, Ruff/mypy, PostgreSQL 18.4 clean/repeat/drift migrations, web typecheck/build and zero npm vulnerabilities. Generated API contracts are unchanged.
 
-GL3-018 is later acquisition expansion for construction, electrical, temporary service, commissioning, energization, planning, utility, RRC, and fixed O&G lifecycle evidence.
+The live-retrieval acceptance gate still fails in the saved environment. Genuine production enrichment and replay for Chicago 3459792, 3451848 and 3442494 returned unresolved/zero candidates because all required public hosts fail DNS resolution (`gaierror [Errno -3]`), including outside the execution sandbox. Three failed-source run rows persist, with no buying-chain claims and unchanged power fields. No captured fixtures were substituted for live retrieval. Prior captured named chains remain ROLE_SUPPORTED only. See docs/validation/gl3-017-cloud-validation.json and the saved-cloud section in docs/validation/gl3-017-buying-chain.md for exact results and setup corrections.
+
+The owner authorized conditional merge after our complete validation; that condition is not met. Keep PR #7 draft and unmerged until genuine live evidence-backed retrieval passes. Browser and application security, CI and branch protections remain intact. No deployment is authorized or performed.
+
+## Later scope
+
+GL3-018 remains later acquisition expansion for construction, electrical, temporary service, commissioning, energization, planning, utility, RRC, and fixed O&G lifecycle evidence. National coverage and deployed daily operation are still unproven.

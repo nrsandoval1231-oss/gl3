@@ -1,0 +1,166 @@
+{
+  "schema_version": "gl3-017-cloud-validation-v1",
+  "executed_at": "2026-09-30T16:54:44.104366+00:00",
+  "base_candidate": "814e9e5c0434d2a5eaf42fee9de0528c2cc8a5e7",
+  "base_reviewed_tree": "10b2be97dda91741ed01a3b2ca2cf2b54e1707fb",
+  "result": "BLOCKED_LIVE_RETRIEVAL_DO_NOT_MERGE",
+  "repair": {
+    "file": "web/src/features/buyingChain/BuyingChain.tsx",
+    "git_blob": "a0520538b62a9974007edff0c168dc69409f33f0",
+    "sha256": "6b2adc281cbcc5d27af64dc20b09890f833e04df23d882d7951b0f72d707de67",
+    "description": "Only say retained findings remain below when candidate rows exist. Optional candidates remain type-safe.",
+    "independent_review": "PASS: corrected one-line change; reviewer independently ran typecheck and diff check."
+  },
+  "checks": {
+    "pytest": {
+      "passed": 356,
+      "skipped": 1,
+      "skip_reason": "Existing North Carolina Commerce local-access probe missing"
+    },
+    "ruff": "PASS src/tests and committed capture validator",
+    "mypy": "PASS 41 source files",
+    "postgresql": "18.4; isolated loopback-only database; empty upgrade to 0008, repeat upgrade, alembic check PASS",
+    "web_typecheck": "PASS",
+    "web_build": "PASS",
+    "npm_audit": "0 vulnerabilities",
+    "generated_api_contract": "Regenerated; no diff",
+    "git_diff_check": "PASS"
+  },
+  "browser": {
+    "stats": {
+      "startTime": "2026-09-30T16:53:01.434Z",
+      "duration": 8065.331,
+      "expected": 8,
+      "skipped": 0,
+      "unexpected": 0,
+      "flaky": 0
+    },
+    "chromium": "151.0.7922.173",
+    "chromium_sandbox": true,
+    "execution": "Outside execution sandbox with explicit tool approval; no --no-sandbox and no browser protection changes",
+    "viewport_desktop": [
+      1280,
+      900
+    ],
+    "viewport_mobile": [
+      390,
+      844
+    ],
+    "coverage": [
+      "Separate relationship labels and evidence disclosure",
+      "503 preserves accepted candidate display",
+      "Pending request suppresses repeated clicks",
+      "Late result cannot overwrite a newly selected project",
+      "Empty and UNKNOWN mobile display; invalid-source message; no horizontal overflow",
+      "Authenticated desktop browsing, detail, search, focus and back navigation",
+      "Authenticated mobile ingestion, watch, source health and browser history",
+      "Project grouping and SHOW/REVIEW/HOLD filters"
+    ],
+    "provenance": "Buying-chain and card interaction cases use explicit synthetic API fixtures. Two first_path cases use real authentication/API/PostgreSQL on three reconstructed committed GL3-016 corpus records, not freshly discovered live projects. Seven browser-dependent tests plus one pure grouping test. Desktop/mobile screenshots inspected.",
+    "report_sha256": "23756be2c96cdbb2573bd61947bf152d5ca264359120ebcbabd6984c65650611"
+  },
+  "live_enrichment": {
+    "scope": "Genuine unchanged production enrichment on reconstructed committed corpus identities; no contractor or people claims seeded",
+    "reader": "Unchanged production enrich_buying_chain with default retrieve; no fetcher override, proxy substitution, DNS override or fixtures",
+    "network_error": "socket.gaierror [Errno -3] Temporary failure in name resolution, including outside execution sandbox. Separate environment proxy probe returned HTTP 403 CONNECT tunnel failed for Chicago.",
+    "projects": [
+      {
+        "external_id": "3459792",
+        "project_id": "8e3331d1-f14e-5290-888b-a8bef692d159",
+        "role_url": "https://gurtzelectric.com/david-steffenhagen/",
+        "first_status": "unresolved",
+        "replay_status": "unresolved",
+        "candidates": 0,
+        "unresolved": [
+          "Public retrieval unavailable for https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273459792%27&%24limit=1: gaierror.",
+          "Public retrieval unavailable for https://gurtzelectric.com/david-steffenhagen/: gaierror.",
+          "No explicit buying-chain relationship found; buyer remains UNKNOWN.",
+          "Named individual project assignment and purchasing authority remain UNKNOWN."
+        ],
+        "power_unchanged": true,
+        "counts_after_replay": {
+          "sources": 1,
+          "projects": 3,
+          "observations": 3,
+          "evidence": 3,
+          "interpretations": 3,
+          "power_needs": 3,
+          "need_observations": 3,
+          "buying_chain_claims": 0,
+          "buying_chain_evidence": 1,
+          "buying_chain_runs": 1
+        }
+      },
+      {
+        "external_id": "3451848",
+        "project_id": "0869ee5f-6017-5ffe-9294-47d5869c8972",
+        "role_url": "https://kelso-burnett.com/about",
+        "first_status": "unresolved",
+        "replay_status": "unresolved",
+        "candidates": 0,
+        "unresolved": [
+          "Public retrieval unavailable for https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273451848%27&%24limit=1: gaierror.",
+          "Public retrieval unavailable for https://kelso-burnett.com/about: gaierror.",
+          "No explicit buying-chain relationship found; buyer remains UNKNOWN.",
+          "Named individual project assignment and purchasing authority remain UNKNOWN."
+        ],
+        "power_unchanged": true,
+        "counts_after_replay": {
+          "sources": 1,
+          "projects": 3,
+          "observations": 3,
+          "evidence": 3,
+          "interpretations": 3,
+          "power_needs": 3,
+          "need_observations": 3,
+          "buying_chain_claims": 0,
+          "buying_chain_evidence": 2,
+          "buying_chain_runs": 2
+        }
+      },
+      {
+        "external_id": "3442494",
+        "project_id": "45be4f2b-50b7-5738-8a6f-242044c2106a",
+        "role_url": "https://kelso-burnett.com/about",
+        "first_status": "unresolved",
+        "replay_status": "unresolved",
+        "candidates": 0,
+        "unresolved": [
+          "Public retrieval unavailable for https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273442494%27&%24limit=1: gaierror.",
+          "Public retrieval unavailable for https://kelso-burnett.com/about: gaierror.",
+          "No explicit buying-chain relationship found; buyer remains UNKNOWN.",
+          "Named individual project assignment and purchasing authority remain UNKNOWN."
+        ],
+        "power_unchanged": true,
+        "counts_after_replay": {
+          "sources": 1,
+          "projects": 3,
+          "observations": 3,
+          "evidence": 3,
+          "interpretations": 3,
+          "power_needs": 3,
+          "need_observations": 3,
+          "buying_chain_claims": 0,
+          "buying_chain_evidence": 3,
+          "buying_chain_runs": 3
+        }
+      }
+    ],
+    "accepted_live_person_chains": 0,
+    "prior_captured_acceptance": "Historical capture proof remains in gl3-017-real-acceptance.json; not rerun or relabeled as live. Capture bodies are not present in this workspace."
+  },
+  "earlier_attempts": [
+    "Initial browser run: 5 passed, 1 failed on misleading empty-result error suffix; repaired. Initial guard failed TypeScript optional-candidates check; corrected and independently reviewed.",
+    "Initial unit-only run: 275 passed, 1 skipped, 1 failed due to missing TRUSTED_ORIGINS and 1 database connection error before PostgreSQL setup; final configured full suite passed.",
+    "Initial authenticated browser run: 6 passed, 2 failed because capture-validator reconstruction used empty Source.health. Initialized only test database health to ordinary registry default Overdue; no successful fetch asserted. Final 8 passed.",
+    "Docker PostgreSQL pull and Debian snapshot package retrieval were denied. Isolated PostgreSQL 18.4 binaries obtained from @embedded-postgres/linux-x64@18.4.0-beta.17 in temporary storage; no application dependency change."
+  ],
+  "unknowns": [
+    "Fresh live project-to-organization and organization-to-person chains remain unverified",
+    "Personal project assignment, purchasing authority, open procurement package, power MW, timing and supply gap remain UNKNOWN",
+    "Prior captured ROLE_SUPPORTED people are not direct personal project assignments or purchasing authorities"
+  ],
+  "merge": "Not attempted: own live-retrieval acceptance gate remains blocked",
+  "deployment": "Not authorized; not performed",
+  "security": "No CI, branch protection, SSRF, DNS/IP/TLS, or browser security controls changed"
+}
