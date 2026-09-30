@@ -1,3 +1,4 @@
+from collections import defaultdict
 from datetime import UTC, date, datetime, timedelta
 from datetime import date as DateType
 from uuid import UUID
@@ -510,28 +511,75 @@ def opportunities(tier: str | None = None, search: str | None = None):
         if search:
             query = query.where(Project.name.ilike(f"%{search[:100]}%"))
         rows = session.execute(query).all()
-        result = []
-        for need, project in rows:
-            if not _need_has_current_support(session, need, project):
-                continue
-            lifecycle = session.get(ProjectLifecycle, project.id)
-            lifecycle_rows = session.execute(
-                select(LifecycleEvent, Evidence)
-                .join(Evidence, LifecycleEvent.evidence_id == Evidence.id)
-                .where(LifecycleEvent.project_id == project.id)
-                .order_by(
-                    Evidence.published_at.asc().nullslast(),
-                    Evidence.observed_at,
-                    LifecycleEvent.recorded_at,
-                )
-            ).all()
-            current_lifecycle_ids = set()
-            for lifecycle_event, lifecycle_evidence in lifecycle_rows:
-                lifecycle_interpretation = session.scalar(
+        # One set of evidence/lifecycle reads for the list, preserving the same
+        # version-bound admission checks used by ingestion and detail rendering.
+        need_ids = [need.id for need, _ in rows]
+        project_ids = [project.id for _, project in rows]
+        sources = {source.id: source for source in session.scalars(select(Source))}
+        lifecycle_by_project = {
+            life.project_id: life
+            for life in session.scalars(
+                select(ProjectLifecycle).where(ProjectLifecycle.project_id.in_(project_ids))
+            )
+        }
+        links_by_need = defaultdict(list)
+        interpretations = {}
+        for need_id, observation, evidence_row, interpretation in session.execute(
+            select(NeedObservation.need_id, Observation, Evidence, Interpretation)
+            .join(Observation, NeedObservation.observation_id == Observation.id)
+            .join(Evidence, Evidence.observation_id == Observation.id)
+            .outerjoin(Interpretation, Interpretation.observation_id == Observation.id)
+            .where(NeedObservation.need_id.in_(need_ids))
+            .order_by(Evidence.observed_at.desc(), Evidence.content_hash.desc())
+        ):
+            links_by_need[need_id].append((observation, evidence_row, interpretation))
+            interpretations[observation.id] = interpretation
+        lifecycles_by_project = defaultdict(list)
+        lifecycle_observations = set()
+        for event, evidence_row in session.execute(
+            select(LifecycleEvent, Evidence)
+            .join(Evidence, LifecycleEvent.evidence_id == Evidence.id)
+            .where(LifecycleEvent.project_id.in_(project_ids))
+            .order_by(
+                Evidence.published_at.asc().nullslast(),
+                Evidence.observed_at,
+                LifecycleEvent.recorded_at,
+            )
+        ):
+            lifecycles_by_project[event.project_id].append((event, evidence_row))
+            lifecycle_observations.add(event.observation_id)
+        interpretations.update(
+            {
+                item.observation_id: item
+                for item in session.scalars(
                     select(Interpretation).where(
-                        Interpretation.observation_id == lifecycle_event.observation_id
+                        Interpretation.observation_id.in_(lifecycle_observations)
                     )
                 )
+            }
+        )
+        decisions_by_version: dict[tuple[UUID, str], SignalDecision] = {}
+        for decision_row in session.scalars(
+            select(SignalDecision)
+            .where(
+                SignalDecision.observation_id.in_(list(interpretations)),
+                SignalDecision.policy_version == POLICY_VERSION,
+            )
+            .order_by(SignalDecision.id.desc())
+        ):
+            decisions_by_version.setdefault(
+                (decision_row.observation_id, decision_row.content_hash), decision_row
+            )
+        result = []
+        for need, project in rows:
+            links = links_by_need[need.id]
+            if not _need_has_current_support(session, need, project, links=links):
+                continue
+            lifecycle = lifecycle_by_project.get(project.id)
+            lifecycle_rows = lifecycles_by_project[project.id]
+            current_lifecycle_ids = set()
+            for lifecycle_event, lifecycle_evidence in lifecycle_rows:
+                lifecycle_interpretation = interpretations.get(lifecycle_event.observation_id)
                 if (
                     lifecycle_interpretation is not None
                     and lifecycle_interpretation.assessment is not None
@@ -547,14 +595,6 @@ def opportunities(tier: str | None = None, search: str | None = None):
                     )
                 ):
                     current_lifecycle_ids.add(lifecycle_event.id)
-            links = session.execute(
-                select(Observation, Evidence, Interpretation)
-                .join(NeedObservation, NeedObservation.observation_id == Observation.id)
-                .join(Evidence, Evidence.observation_id == Observation.id)
-                .outerjoin(Interpretation, Interpretation.observation_id == Observation.id)
-                .where(NeedObservation.need_id == need.id)
-                .order_by(Evidence.observed_at.desc())
-            ).all()
             taylor_withdrawn = bool(
                 lifecycle and lifecycle.current_state == "planning_application_withdrawn"
             )
@@ -568,7 +608,7 @@ def opportunities(tier: str | None = None, search: str | None = None):
             evidence = []
             current_assessments = []
             for obs, ev, interpretation in links:
-                evidence_source = session.get(Source, obs.source_id)
+                evidence_source = sources.get(obs.source_id)
                 current_assessment = _assessment_for_evidence(interpretation, obs, ev)
                 if current_assessment is not None:
                     assessment_project = current_assessment.get("project_identity_key")
@@ -627,7 +667,7 @@ def opportunities(tier: str | None = None, search: str | None = None):
             for obs, ev, interpretation in links:
                 if need.tier != "Signal" or not _assessment_for_evidence(interpretation, obs, ev):
                     continue
-                source = session.get(Source, obs.source_id)
+                source = sources.get(obs.source_id)
                 assessment = _assessment_for_evidence(interpretation, obs, ev)
                 if assessment is not None:
                     assessment_project = assessment.get("project_identity_key")
@@ -645,15 +685,7 @@ def opportunities(tier: str | None = None, search: str | None = None):
                     or not admitted_from_source(source, assessment, ev).admitted
                 ):
                     continue
-                decision = session.scalar(
-                    select(SignalDecision)
-                    .where(
-                        SignalDecision.observation_id == obs.id,
-                        SignalDecision.content_hash == ev.content_hash,
-                        SignalDecision.policy_version == POLICY_VERSION,
-                    )
-                    .order_by(SignalDecision.id.desc())
-                )
+                decision = decisions_by_version.get((obs.id, ev.content_hash))
                 if decision is not None:
                     display_decisions.append(decision)
                 else:

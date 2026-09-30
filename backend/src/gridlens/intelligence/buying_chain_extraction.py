@@ -19,6 +19,15 @@ from gridlens.domain.buying_chain import (
     person_project_relationship,
 )
 from gridlens.ingestion.adapters.buying_chain_public import PublicDocument
+from gridlens.ingestion.adapters.retained_permits import (
+    GEORGIA,
+    chicago_contacts,
+    georgia_identity,
+    georgia_proponent,
+)
+from gridlens.ingestion.adapters.retained_permits import (
+    fields as permit_fields,
+)
 from gridlens.intelligence.project_identity import (
     conflicting_geography,
     decide_project_match,
@@ -81,6 +90,10 @@ def _employer_pattern(organization: str) -> str:
 def document_content_hash(doc: PublicDocument) -> str:
     """Canonical retained version identity, including role-freshness metadata."""
     content = {"text": doc.text, "title": doc.title, "published": doc.published_at}
+    if doc.retained_version is not None:
+        # Identical excerpt text can belong to a different accepted observation
+        # version (e.g. changed PDF hash or extraction metadata). Keep its binding.
+        content["retained_version"] = doc.retained_version
     return hashlib.sha256(json.dumps(content, sort_keys=True, default=str).encode()).hexdigest()
 
 
@@ -223,6 +236,161 @@ def project_document_match(project: Project, doc: PublicDocument) -> tuple[bool,
     return decision.decision == "matched", decision.reason
 
 
+CHICAGO_CATEGORIES = {
+    "CONTRACTOR-ELECTRICAL": Category.ELECTRICAL,
+    "CONTRACTOR-GENERAL CONTRACTOR": Category.GC,
+    "OWNER": Category.OWNER,
+    "OWNER OCCUPIED": Category.OWNER,
+    "OWNER AS ARCHITECT": Category.OWNER,
+}
+
+
+def extract_retained_permit_organizations(doc: PublicDocument, source_id: str) -> list[Extracted]:
+    if source_id == "texas-rrc-drilling-permits":
+        operator = permit_fields(source_id, doc.text).get("operator")
+        return (
+            [
+                Extracted(
+                    operator[0],
+                    Category.OPERATOR.value,
+                    organization_relationship="DIRECT",
+                    reason=(
+                        "Operator named on the W-1 well permit; "
+                        "current buying authority, people and contacts are UNKNOWN."
+                    ),
+                    citations=[_citation(doc, operator[1], "project_organization")],
+                )
+            ]
+            if operator
+            else []
+        )
+    if source_id == "austin-building-permits":
+        parsed = permit_fields(source_id, doc.text)
+        result = []
+        for prefix, organization_field, person_field in (
+            ("contractor", "contractor_company_name", "contractor_full_name"),
+            ("applicant", "applicant_org", "applicant_full_name"),
+        ):
+            organization = parsed.get(organization_field)
+            if not organization or _RENTAL.search(organization[0]):
+                continue
+            if prefix == "applicant" and organization_key(organization[0]) == organization_key(
+                parsed.get("contractor_company_name", ("", ""))[0]
+            ):
+                # Exact contractor relationship exists; applicant facts remain.
+                continue
+            trade = parsed.get("contractor_trade") if prefix == "contractor" else None
+            relationship = "DIRECT" if prefix == "contractor" else "UNKNOWN"
+            category = {
+                "Electrical Contractor": Category.ELECTRICAL.value,
+                "General Contractor": Category.GC.value,
+            }.get(trade[0] if trade else "", Category.UNKNOWN.value)
+            citations = [_citation(doc, organization[1], "project_organization")]
+            if trade:
+                citations.append(_citation(doc, trade[1], "organization_category"))
+            phone = parsed.get(prefix + "_phone")
+            contacts = []
+            if phone and re.fullmatch(r"[+()0-9 .-]{10,24}", phone[0]):
+                citations.append(_citation(doc, phone[1], "permit_listed_contact"))
+                contacts.append(
+                    {
+                        "kind": "permit-listed phone",
+                        "value": phone[0],
+                        "source_url": doc.url,
+                        "quote": phone[1],
+                        "observed_at": doc.observed_at.isoformat(),
+                    }
+                )
+            reason = (
+                (
+                    "Permit-listed contractor"
+                    if prefix == "contractor"
+                    else "Applicant-associated organization; project role is UNKNOWN"
+                )
+                + "; current employment, project assignment "
+                "and buying authority are UNKNOWN. Phone is a public permit field; "
+                "phone ownership and business/personal type are UNKNOWN."
+            )
+            result.append(
+                Extracted(
+                    organization[0],
+                    category,
+                    organization_relationship=relationship,
+                    reason=reason,
+                    citations=citations,
+                    public_contacts=contacts,
+                )
+            )
+            person = parsed.get(person_field)
+            if (
+                person
+                and re.fullmatch(_NAME, person[0])
+                and organization_key(person[0]) != organization_key(organization[0])
+                and not re.search(
+                    r"\b(?:LLC|Inc|Corp|Company|Construction|Electric|Contracting)\b",
+                    person[0],
+                    re.I,
+                )
+            ):
+                result.append(
+                    Extracted(
+                        organization[0],
+                        category,
+                        person_name=person[0],
+                        organization_relationship=relationship,
+                        reason=reason,
+                        evidence_strength="Low",
+                        citations=[*citations, _citation(doc, person[1], "permit_listed_person")],
+                    )
+                )
+        return result
+    if source_id == GEORGIA:
+        proponent = georgia_proponent(doc.text)
+        proponents = (
+            [
+                Extracted(
+                    proponent[0],
+                    "construction_proponent",
+                    reason=(
+                        "Named construction proponent in the permit narrative; "
+                        "buying authority is UNKNOWN."
+                    ),
+                    citations=[_citation(doc, proponent[1], "project_organization")],
+                )
+            ]
+            if proponent
+            else []
+        )
+        return proponents + [
+            Extracted(
+                value,
+                "permit_entity",
+                reason=(
+                    "Facility name on the draft permit; ownership, current operation "
+                    "and buying authority are UNKNOWN."
+                ),
+                citations=[_citation(doc, quote, "project_organization")],
+            )
+            for label, value, quote in georgia_identity(doc.text)
+            if label == "Draft permit entity"
+            and re.search(r"\b(?:LLC|Inc\.?|Corporation|Company)\b", value, re.I)
+        ]
+    if source_id != "chicago-building-permits":
+        return []
+    return [
+        Extracted(
+            name,
+            CHICAGO_CATEGORIES[kind.upper()].value,
+            citations=[
+                _citation(doc, name_quote, "project_organization"),
+                _citation(doc, type_quote, "organization_category"),
+            ],
+        )
+        for name, kind, name_quote, type_quote in chicago_contacts(doc.text)
+        if kind.upper() in CHICAGO_CATEGORIES and not _RENTAL.search(name)
+    ]
+
+
 def extract_organizations(doc: PublicDocument, project: Project) -> list[Extracted]:
     found: list[Extracted] = []
     if doc.structured:
@@ -230,11 +398,7 @@ def extract_organizations(doc: PublicDocument, project: Project) -> list[Extract
             for number in range(1, 16):
                 kind = str(row.get(f"contact_{number}_type", ""))
                 name = str(row.get(f"contact_{number}_name", "")).strip()
-                category = {
-                    "CONTRACTOR-ELECTRICAL": Category.ELECTRICAL,
-                    "CONTRACTOR-GENERAL CONTRACTOR": Category.GC,
-                    "OWNER": Category.OWNER,
-                }.get(kind.upper())
+                category = CHICAGO_CATEGORIES.get(kind.upper())
                 if name and category and not _RENTAL.search(name):
                     # Preserve complete field pairs as exact JSON; sorted JSON fields may be apart.
                     name_quote = f'"contact_{number}_name": {json.dumps(name, ensure_ascii=False)}'
@@ -421,6 +585,8 @@ def extract_people(
     # the exact original source remains the citation (no generated quote).
     for sentence in _sentences(doc.text):
         for org in organizations:
+            if org.person_name is not None:
+                continue  # Permit-listed people cannot lend citations to another person.
             normalized_sentence = organization_key(sentence)
             org_name = organization_key(org.organization)
             official = (

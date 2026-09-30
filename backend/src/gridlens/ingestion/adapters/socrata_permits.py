@@ -35,6 +35,18 @@ MAPS: dict[str, dict[str, Any]] = {
         "project": "project_id",
         "cost": "total_job_valuation",
         "area": "total_new_add_sqft",
+        **{
+            key: key
+            for key in (
+                "contractor_trade",
+                "contractor_company_name",
+                "contractor_full_name",
+                "contractor_phone",
+                "applicant_full_name",
+                "applicant_org",
+                "applicant_phone",
+            )
+        },
     },
     "seattle-building-permits": {
         "row": "permitnum",
@@ -72,6 +84,8 @@ MAPS: dict[str, dict[str, Any]] = {
         "cost": "reported_cost",
         "area": None,
         "parcel": "pin_list",
+        "application_start": "application_start_date",
+        "milestone": "permit_milestone",
         **{
             f"contact_{i}_{part}": f"contact_{i}_{part}"
             for i in range(1, 16)
@@ -83,6 +97,7 @@ SYSTEM_FIELD_SELECTS = {
     "chicago-building-permits": (
         "id,issue_date,work_description,work_type,permit_type,permit_status,"
         "street_number,street_direction,street_name,permit_,reported_cost,pin_list,:updated_at,"
+        "application_start_date,permit_milestone,"
         + ",".join(f"contact_{i}_{part}" for i in range(1, 16) for part in ("type", "name"))
     )
 }
@@ -129,7 +144,8 @@ def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list
     date_field = fields["date"]
     class_filters = {
         "austin-building-permits": (
-            "permit_class_mapped='Commercial' AND permit_type_desc='Building Permit'"
+            "permit_class_mapped='Commercial' "
+            "AND permit_type_desc IN ('Building Permit','Electrical Permit')"
         ),
         "seattle-building-permits": (
             "permitclassmapped='Non-Residential' AND permittypemapped='Building'"
@@ -157,6 +173,28 @@ def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list
         f"{date_field} IS NOT NULL AND {date_field} <= '{today.isoformat()}T23:59:59.999' "
         f"AND ({issue_filter}{modified_filter}) AND ({class_filters[source_id]})"
     )
+    backfill = query.get("data_center_backfill")
+    if backfill is not None:
+        if source_id != "austin-building-permits" or not isinstance(backfill, dict):
+            raise SourceParseError("Unsupported permit backfill")
+        try:
+            backfill_start = date.fromisoformat(backfill["start"])
+            backfill_end = date.fromisoformat(backfill["end"])
+        except (ValueError, KeyError, TypeError) as exc:
+            raise SourceParseError("Malformed permit backfill dates") from exc
+        if (
+            not backfill_start <= backfill_end <= today
+            or (backfill_end - backfill_start).days > 365
+        ):
+            raise SourceParseError("Permit backfill exceeds one year or includes future dates")
+        backfill_where = (
+            f"{date_field} >= '{backfill_start.isoformat()}T00:00:00.000' "
+            f"AND {date_field} <= '{backfill_end.isoformat()}T23:59:59.999' "
+            f"AND ({class_filters[source_id]}) "
+            "AND (lower(description) LIKE '%data center%' "
+            "OR lower(description) LIKE '%data centre%')"
+        )
+        where = f"({where}) OR ({backfill_where})"
     params_base: dict[str, str | int] = {
         "$where": where,
         "$order": f"{date_field} ASC,{fields['row']} ASC",
@@ -250,7 +288,15 @@ def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list
                 in_modified_window = bool(
                     modified_date and modified_start <= modified_date <= today
                 )
-                if not in_issue_window and not in_modified_window:
+                in_backfill = bool(
+                    backfill is not None
+                    and backfill_start <= issue_date <= backfill_end
+                    and any(
+                        term in _field(row, fields["description"]).lower()
+                        for term in ("data center", "data centre")
+                    )
+                )
+                if not in_issue_window and not in_modified_window and not in_backfill:
                     raise SourceParseError("Permit row escaped issue and modification windows")
                 if not row_id or row_id in seen:
                     raise SourceParseError("Permit page has missing or duplicate stable row ID")
@@ -295,6 +341,7 @@ def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list
                     for label, field_name in fields.items()
                     if field_name and _field(row, field_name)
                 }
+                retained_fields["address"] = address
                 abstract = "\n".join(
                     f"{label}: {value}" for label, value in retained_fields.items()
                 )

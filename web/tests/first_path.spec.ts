@@ -157,3 +157,39 @@ test('live air documents retain equipment context without creating rental MW', a
   await expect(links.filter({ hasText: 'Georgia EPD narrative' }).first()).toHaveAttribute('href', /^https:\/\/epd\.georgia\.gov\/document\/document\//)
   await page.locator('.detail-section').filter({ hasText: 'Reported power figures (source claims; not rental requirements)' }).screenshot({ path: test.info().outputPath('live-air-detail.png') })
 })
+
+test('live data-center permit enrichment exposes attributed fields and organizations', async ({ page }) => {
+  await signIn(page)
+  const items = await page.evaluate(async () => (await fetch('/api/opportunities?tier=Signal')).json() as Promise<Opportunity[]>)
+  const examples = [
+    items.find((item) => item.evidence.some((e) => e.source_id === 'chicago-building-permits' && /data center/i.test(e.abstract ?? ''))),
+    items.find((item) => item.evidence.some((e) => e.source_id === 'georgia-air-draft-title-v' && /QTS ATL3/.test(e.title))),
+  ]
+  for (const [index, opportunity] of examples.entries()) {
+    expect(opportunity, 'live acceptance requires Chicago and Georgia data-center examples').toBeTruthy()
+    if (!opportunity) throw new Error('Missing data-center acceptance example')
+    await page.goto('/')
+    const card = projectCards(items).find((candidate) => candidate.members.some((item) => item.id === opportunity.id))
+    if (!card) throw new Error('Missing data-center card')
+    const decision = signalDisplayDecision(card.members)
+    if (decision !== 'SHOW') await page.getByRole('button', { name: new RegExp(`^${decision}\\s+\\d+$`) }).click()
+    await openCardMember(page, card, opportunity.id)
+    const section = page.getByRole('region', { name: 'Buying chain' })
+    await expect(section.getByRole('heading', { name: 'Retained permit facts' })).toBeVisible()
+    const response = page.waitForResponse((r) => r.url().endsWith('/buying-chain/enrich') && r.request().method() === 'POST')
+    await section.getByRole('button', { name: 'Enrich buying chain' }).click()
+    const enriched = await response
+    expect(enriched.ok()).toBe(true)
+    const result = await enriched.json() as import('../src/api/client').BuyingChainResult
+    expect(result.permit_summaries?.length).toBeGreaterThan(0)
+    expect(result.candidates?.length).toBeGreaterThan(0)
+    for (const candidate of result.candidates ?? []) {
+      expect(candidate.organization_relationship).toBe('DIRECT')
+      expect(candidate.person_name).toBeNull()
+      expect(candidate.person_project_relationship).toBe('UNKNOWN')
+      expect(candidate.public_contacts).toEqual([])
+      await expect(section.getByRole('heading', { name: candidate.organization, exact: true })).toBeVisible()
+    }
+    await section.locator('.permit-summary').screenshot({ path: test.info().outputPath(`live-dc-permit-${index}.png`) })
+  }
+})

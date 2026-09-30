@@ -6,7 +6,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-POLICY_VERSION = "buying-chain-v1"
+POLICY_VERSION = "buying-chain-v2-permits"
 MAX_CANDIDATES = 8
 MAX_DOCUMENTS = 8
 MAX_SOURCE_URLS = 4
@@ -77,12 +77,30 @@ class BuyingRunOut(BaseModel):
     created_at: datetime
 
 
+class PermitFactOut(BaseModel):
+    label: str
+    value: str
+    quote: str
+    role_quote: str | None = None
+
+
+class PermitSummaryOut(BaseModel):
+    evidence_id: UUID
+    source_id: str
+    url: str
+    title: str
+    observed_at: datetime
+    extraction_location: str
+    facts: list[PermitFactOut] = Field(default_factory=list)
+
+
 class BuyingChainOut(BaseModel):
     project_id: UUID
     status: str
     candidates: list[BuyingCandidateOut] = Field(default_factory=list)
     unresolved: list[str] = Field(default_factory=list)
     runs: list[BuyingRunOut] = Field(default_factory=list)
+    permit_summaries: list[PermitSummaryOut] = Field(default_factory=list)
     policy_version: str = POLICY_VERSION
 
 

@@ -437,3 +437,26 @@ def test_exact_permit_id_does_not_override_conflicting_street_number_prefix():
         "application/json",
     )
     assert not project_document_match(p, source)[0]
+
+
+def test_permit_name_is_not_role_conflict_or_another_persons_evidence():
+    from gridlens.intelligence.buying_chain import _deduplicate
+    from gridlens.intelligence.buying_chain_extraction import extract_retained_permit_organizations
+
+    permit = doc(
+        "contractor_company_name: Acme\ncontractor_trade: General Contractor\n"
+        "contractor_full_name: Blake Combs"
+    )
+    parties = extract_retained_permit_organizations(permit, "austin-building-permits")
+    team = doc(
+        "Blake Combs serves as Project Manager at Acme.\n"
+        "Alice Smith serves as Project Manager at Acme."
+    )
+    roles = extract_people(team, parties, project(), project_scoped=False, today=NOW.date())
+    assert len(roles) == 2
+    assert all(not any(c["supports"] == "permit_listed_person" for c in p.citations) for p in roles)
+    for order in ([*parties, *roles], [*roles, *parties]):
+        people_rows = [p for p in _deduplicate(order) if p.person_name]
+        assert len(people_rows) == 2
+        assert all(p.person_organization_relationship == "CURRENT" for p in people_rows)
+        assert all(p.person_project_relationship == "ROLE_SUPPORTED" for p in people_rows)
