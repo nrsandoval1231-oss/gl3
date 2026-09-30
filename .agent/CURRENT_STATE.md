@@ -1,16 +1,12 @@
 # Current state
 
+Current main: `a737af0207ebe5182764c06fadfb60d69ae1dc63` (GL3-019, PR9 merged September 30, 2026). Start with [the saved-cloud handoff](../docs/operations/post-gl3-019-handoff.md). The milestone sections below preserve historical validation; GL3-019 continuation/recovery supersedes earlier source counts and network failures. Open PR10 is independent unmerged work and must be preserved.
+
 GridLens is focused on turning evidence-backed Signals into commercially useful pursuits without inventing unsupported power facts.
 
-## Current checkpoint
+## Implemented through GL3-016
 
-GL3-018 is merged on main as PR #8, commit `7f24174`. GL3-017 is merged as PR #7, commit `1f18a01`. No deployment is claimed.
-
-Authoritative admission is `signal-admission-v1`. A standalone Signal requires official permit evidence, a project-specific official utility filing, or an explicit temporary-power solicitation. News can supplement one supported physical project. Planning and entitlement remain research context until an owner decision. The registry remains 13 sources. Chicago's existing route includes Express Electrical Work. Georgia's existing route covers Title V, SIP, and synthetic-minor narratives and drafts, with bounded page-cited generator excerpts. Full air-application retrieval was not proven. Recorded local acceptance is in `docs/validation/gl3-018-validation.md`.
-
-## Foundation through GL3-016
-
-- The ingestion foundation retains source observations, evidence versions, lifecycle history, source health, and project-oriented Signal cards across 13 enabled public sources.
+- The ingestion foundation retains source observations, evidence versions, lifecycle history, source health, and project-oriented Signal cards across 15 enabled public sources.
 - GL3-015 established the lifecycle-based Signal Source Matrix, acquisition gap audit, Taylor planning lifecycle proof, and retained conflicting/withdrawn evidence.
 - GL3-016 is merged on main. It adds one bounded TypeSafe Jev adjudication path for ambiguous retained Signal evidence, a conservative GridLens SHOW / REVIEW / HOLD policy, persisted reproducible decisions, and conservative physical-project grouping.
 - Jev does not replace deterministic facts or evidence. It adjudicates bounded ambiguity; underlying observations and evidence remain authoritative and inspectable.
@@ -18,7 +14,7 @@ Authoritative admission is `signal-admission-v1`. A standalone Signal requires o
 
 ## Current limitations
 
-National acquisition coverage and deployed daily operation remain unproven. Current RRC ingestion, broad utility/large-load records, and many construction/commissioning lifecycle sources remain absent or partial. A Signal is still not a Prospect or Lead unless evidence supports the actual power requirement, supply gap, timing, and commercial path.
+National acquisition coverage and deployed daily operation remain unproven. Historical Texas drilling coverage, broad utility/large-load records, and many construction/commissioning lifecycle sources remain absent or partial. A Signal is still not a Prospect or Lead unless evidence supports the actual power requirement, supply gap, timing, and commercial path.
 
 ## GL3-017 merged: project buying chain
 
@@ -32,13 +28,12 @@ Saved-cloud validation on 2026-09-30 closes the browser execution blocker: all e
 
 The live-retrieval acceptance gate still fails in the saved environment. Genuine production enrichment and replay for Chicago 3459792, 3451848 and 3442494 returned unresolved/zero candidates because all required public hosts fail DNS resolution (`gaierror [Errno -3]`), including outside the execution sandbox. Three failed-source run rows persist, with no buying-chain claims and unchanged power fields. No captured fixtures were substituted for live retrieval. Prior captured named chains remain ROLE_SUPPORTED only. See docs/validation/gl3-017-cloud-validation.json and the saved-cloud section in docs/validation/gl3-017-buying-chain.md for exact results and setup corrections.
 
-GitHub history: GL3-017 merged as PR #7, commit `1f18a01`. GL3-018 later merged as PR #8, commit `7f24174`. Subsequent GL3-017 live acceptance was owner-reported; it is not fresh proof from the GL3-018 record. The earlier saved-cloud failure record above remains historical evidence. No deployment is claimed.
+GitHub inspection for GL3-018 on 2026-09-30 confirms PR #7 merged as `1f18a0182922fe8ee3fdc2225cf9c3f7c95d1fea`. Subsequent GL3-017 live acceptance was owner-reported; it is not fresh proof from this agent. The earlier saved-cloud failure record above remains historical evidence, not the current merge status. No deployment is claimed.
 
-## GL3-018 merged: authoritative admission
+## GL3-018 merged
 
-Merged on main as PR #8, commit `7f24174`. The behavior below was built on `feat/gl3-018` from `1f18a01` and is the current admission and acquisition behavior. Deployment is not authorized.
-
-Authoritative admission separates eligible permits, project-specific official utility filings
+Fresh `feat/gl3-018` starts at current GitHub main `1f18a01`. Authoritative
+admission separates eligible permits, project-specific official utility filings
 and explicit temporary-power solicitations from supplemental news and unresolved
 planning/entitlement context. Evidence/history remain retained; inactive historical
 needs are not silently deleted. Source-specific acquisition remains in adapters,
@@ -62,7 +57,7 @@ and replay succeeded for all three sources. Full validation: Ruff (including mig
 mypy, 381 pytest passes/one existing local-probe skip, clean/repeat/drift migrations,
 frontend typecheck/build, zero npm vulnerabilities and all nine Playwright tests.
 Final candidate checks and review are recorded in
-`docs/validation/gl3-018-validation.md`. The slice is merged. Deployment is not authorized.
+`docs/validation/gl3-018-validation.md`. PR #8 is merged on remote main `7f241748f421697877b54ba3f87eb5b0b3e839e1`, freshly fetched for GL3-019. No deployment is claimed.
 
 ## Later scope
 
@@ -71,3 +66,25 @@ and load-bank procurement, broader electrical/commissioning and utility mileston
 acquisition remain unproven. Planning/entitlement standalone Signal admission
 still needs an owner decision. The existing Prospect/Lead evidence gates remain
 authoritative; this slice does not promote on score or equipment MW.
+
+## GL3-019 merged in PR9
+
+Fresh branch from verified remote main `7f24174`. Priority: data-center construction temporary power, commissioning temporary power, then O&G temporary power. All drilling permits are eligible early production Signals; they do not prove production date, MW, fuel suitability, rental demand or a supply gap. Preserve asset-specific lifecycle and separate relationship evidence. Repair retained permit enrichment before broadening source count. Exact scope and validation are recorded in `docs/sources/gl3-019-permit-enrichment.md`.
+
+
+GL3-019 repairs native retained-permit extraction, adds Chicago application/milestone/full-address fields and Georgia draft identity, and displays permit facts alongside the existing enrichment action. Exact reviewed code candidate: `426c2e670bc4b5b705675fd42e2e590287942195`. Live cloud acceptance has 25 permit-backed Signals and 29 current organization candidates, no personal relationship claims or public contacts, no Prospects/Leads. LaSalle and QTS ATL3 are verified data-center examples; Huron remains a hospital example. Full backend: 386 passes/one existing skip; 11 browser checks; typecheck/build, Ruff/mypy, migrations/drift and zero-vulnerability audit pass. Source and enrichment replay preserve counts. Details, raw-field named architect attribution, exact file hashes and remaining commissioning/drilling gaps: `docs/validation/gl3-019-validation.md`. Historical pre-merge acceptance; PR9 is now merged. No outreach or deployment.
+
+
+GL3-019 acquisition continuation on the same PR9 adds Austin commercial electrical permits and a fixed 2026 literal-data-center backfill, plus four official Houston weekly report snapshots. Austin live retrieval: 2,609 rows, 78 accepted permit observations / 76 projects, 57 organization and 57 permit-listed person candidates, permit-listed phones attached only to organizations. Houston: 1,543 retained rows, no Signals because status is absent. Both completed unchanged replays. Austin had a transient HTTPStatusError at 22:00 UTC on 2026-09-30; a fresh database check confirms recovery at 22:22 UTC and a bounded retry succeeded at 23:06 UTC with all 2,609 rows unchanged. The original HTTP status was not retained. See the follow-through and recovery evidence for corrected current health. Dallas reports 401 / DallasNow 403, El Paso 403; not enabled. RRC current + official previous-month EOM acquisition is implemented with complete framing, amendment preservation and no inferred production dates; all-history coverage remains unclaimed. Commissioning remains a gap. See docs/validation/gl3-019-acquisition-continuation.md for current acceptance and limits.
+
+GL3-019 final continuation: 15 enabled sources. RRC current + previous-month EOM
+retains 1,904 permits, with 1,880 active drill/reentry/recompletion Signals and 24
+administrative rows retained without admission. Replay is unchanged; no inferred
+production dates or duplicate active well needs. Austin retains its 76 projects
+and permit-derived organization/person evidence. The enlarged corpus required
+batched opportunity-list reads (15,507→7 queries), preserving all admission gates.
+Final validation: 418 backend passes/one existing skip, 13 browser checks, Ruff/mypy,
+clean/repeat/drift migrations and frontend typecheck/build. Detailed current proof:
+`docs/validation/gl3-019-acquisition-continuation.md` and its evidence manifest.
+PR9 is merged; no deployment or outreach. Dallas/El Paso access and dedicated commissioning
+remain open; drilling scope is not all historical Texas permits.

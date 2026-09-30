@@ -505,6 +505,21 @@ def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list
                     else f"{label} URL: {url}"
                     for label, url in sorted(links.items())
                 )
+                draft = next((d for d in documents if d["url"] == links.get("draft permit")), None)
+                # Front-page identity, bounded independently from technical excerpts.
+                # Keep the exact excerpt and PDF reference in the accepted parent
+                # version so enrichment does not need to refetch a PDF as HTML.
+                draft_identity = ""
+                if draft:
+                    front = draft["scope_abstract"].split("\nPage 2:", 1)[0]
+                    match = re.search(
+                        r"Facility Name: .{1,200}? Facility Address: .{1,500}? "
+                        r"(?:Mailing Address: .{1,500}? )?Facility AIRS Number: .{1,100}? "
+                        r"is issued a Permit for the following: .{1,800}?(?= This Permit)",
+                        front,
+                    )
+                    if match and front.startswith("Page 1: "):
+                        draft_identity = match.group(0)
                 abstract = "\n".join(
                     part
                     for part in (
@@ -515,11 +530,14 @@ def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list
                         f"Application date: {application_date}" if application_date else "",
                         f"Public comment deadline: {deadline}" if deadline else "",
                         f"Official narrative excerpt: {narrative_text}" if narrative_text else "",
+                        f"Draft identity (page 1): {draft_identity}" if draft_identity else "",
                         document_facts,
                     )
                     if part
                 )
                 semantic = {
+                    "permit_identity_version": "ga-permit-identity-v1",
+                    "draft_identity": draft_identity,
                     "record_id": record_id,
                     "facility": facility,
                     "location": location,
@@ -564,8 +582,7 @@ def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list
                         "publication_date": None,
                         "html_url": LISTING_URL,
                         "extraction_location": (
-                            "Georgia EPD draft Title V/SIP/synthetic-minor list fields; "
-                            "narrative linked PDF pages"
+                            "Georgia EPD listing; narrative PDF pages; draft identity PDF page 1"
                         ),
                         "event_date": received_date or application_date or deadline,
                         "event_date_label": (

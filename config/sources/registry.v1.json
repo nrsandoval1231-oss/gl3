@@ -1,6 +1,56 @@
 {
   "version": 1,
   "sources": [
+{
+  "id": "texas-rrc-drilling-permits",
+  "publisher": "Railroad Commission of Texas",
+  "endpoint": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+  "family": "construction-permits",
+  "geography": "Texas",
+  "state": "TX",
+  "industries": [
+    "oil and gas"
+  ],
+  "retrieval_method": "rrc-drilling-permits",
+  "cadence_hours": 24,
+  "publication_cadence": "Daily cumulative current-month file plus official previous-month end-of-month file",
+  "credential_reference": null,
+  "enabled": true,
+  "retention": "Exact permit root/master/opaque child bytes, native fields and amendment provenance",
+  "collection_scope": "All framed permit groups in current daf420.dat plus previous calendar month official end-of-month snapshot. One permit identity; lowest sequence is newest amendment. Older retained entities are never deleted by snapshot absence.",
+  "coverage_limitation": "Not all historical Texas permits. No pending-application feed or older-month correction monitoring. Outages longer than the prior-month overlap can miss activity. Current file over four days old, missing previous-month EOM, changed framing, or bounds fail visibly. Production date, load, fuel suitability, rental demand and contacts are UNKNOWN.",
+  "query": {
+    "max_snapshot_bytes": 10000000,
+    "max_roots_per_snapshot": 5000,
+    "previous_month_overlap": true
+  }
+},
+{
+  "id": "houston-weekly-permits",
+  "publisher": "City of Houston Permitting Center",
+  "endpoint": "https://www.houstonpermittingcenter.org/sold-permits-search",
+  "family": "construction-permits",
+  "geography": "Houston, Texas",
+  "city": "Houston",
+  "state": "TX",
+  "industries": [
+    "construction",
+    "data centers",
+    "manufacturing",
+    "commercial facilities"
+  ],
+  "retrieval_method": "houston-weekly-permits",
+  "cadence_hours": 24,
+  "publication_cadence": "weekly reports, publication lag possible",
+  "credential_reference": null,
+  "enabled": true,
+  "retention": "Public weekly permit row fields and attributed worksheet location",
+  "query": {
+    "max_reports": 4
+  },
+  "collection_scope": "Four most recent weekly XLSX reports linked on official Sold Permits Search page; all rows in those workbooks. Permit date is an event, not report publication time.",
+  "coverage_limitation": "Not complete sold-permit history or electrical/commissioning coverage. No contractor/person/contact fields in these reports. Latest linked report on 2026-09-30 ends 2026-09-14 (16-day lag); latest listing over 30 days old fails visibly. Earlier revisions outside four reports are not monitored."
+},
     {
       "id": "austin-building-permits", "publisher": "City of Austin Open Data",
       "endpoint": "https://data.austintexas.gov/resource/3syk-w9eu.json",
@@ -10,7 +60,9 @@
       "retrieval_method": "socrata-permits", "cadence_hours": 24,
       "publication_cadence": "daily; issue date is the dated permit event", "credential_reference": null,
       "enabled": true, "retention": "Public permit row fields and attributed excerpt; source publication time is unknown",
-      "query": {"window_days": 30, "modified_window_days": 7, "per_page": 1000, "max_pages": 20, "max_response_bytes": 2000000, "max_run_bytes": 20000000, "where_profile": "commercial-building"},
+      "query": {"window_days": 30, "modified_window_days": 7, "per_page": 1000, "max_pages": 20, "max_response_bytes": 2000000, "max_run_bytes": 20000000, "where_profile": "commercial-building-electrical", "data_center_backfill": {"start": "2026-01-01", "end": "2026-09-30"}},
+      "collection_scope": "Commercial Building and Electrical Permits: rolling 30-day issuance / 7-day status changes, plus literal data center/data centre initial backfill issued 2026-01-01 through 2026-09-30, rechecked within the same counted query.",
+      "coverage_limitation": "City limits only; literal-keyword backfill is not all data-center work. Older status changes outside the overlap or fixed backfill are not comprehensively monitored. Permit-listed names and permit-listed phones do not establish current employment or buying authority.",
       "older_record_monitoring": "Austin statusdate is the official AMANDA database date when permit status or expiration was last updated; bounded to the prior 7 days."
     },
     {
@@ -35,7 +87,7 @@
       "enabled": true, "retention": "Public permit row fields and attributed excerpt; source publication time is unknown",
       "query": {"window_days": 30, "modified_window_days": 2, "per_page": 1000, "max_pages": 20, "max_response_bytes": 2000000, "max_run_bytes": 20000000, "where_profile": "new-construction-renovation-or-express-electrical"},
       "coverage_limitation": "Chicago status monitoring uses the official Socrata :updated_at row timestamp with a two-day overlap. Longer outages can miss changes; a dataset-wide replacement may exceed the bounded row limit and will fail visibly. Express Electrical Work includes small and residential work; inclusion in collection does not guarantee Signal admission. No dedicated procurement or commissioning coverage.",
-      "collection_scope": "Chicago new construction, renovation/alteration and Express Electrical Work permits; 30-day issue window plus 2-day modification overlap; scope, parcel and named contractor roles retained."
+      "collection_scope": "Chicago new construction, renovation/alteration and Express Electrical Work permits; 30-day issue window plus 2-day modification overlap; scope, full address, parcel, application start, permit milestone and named party roles retained."
     },
     {
       "id": "georgia-air-draft-title-v",
@@ -47,7 +99,7 @@
       "retrieval_method": "georgia-air-permits",
       "cadence_hours": 24,
       "publication_cadence": "Current public draft-permit listing (Title V, SIP, synthetic minor); publication date unknown; source-stated application date or comment deadline labeled separately",
-      "collection_scope": "Georgia EPD current draft Title V, SIP and synthetic-minor listing; narratives and draft permits including bounded generator schedule excerpts; application links retained when present.",
+      "collection_scope": "Georgia EPD current draft Title V, SIP and synthetic-minor listing; narratives and draft permits including bounded generator schedule excerpts and draft front-page facility identity; application links retained when present.",
       "coverage_limitation": "Not a complete air-application registry. Current application-link fields are empty; full applications may require agency request. Public notices are references only. At most 24 generator excerpts per PDF, 8 general pages; bounds and omitted excerpt counts are retained. Installed standby ratings are not rental demand.",
       "credential_reference": null,
       "enabled": true,

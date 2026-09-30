@@ -34,6 +34,8 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
                 "data.seattle.gov",
                 "data.cityofchicago.org",
             },
+            "rrc-drilling-permits": {"mft.rrc.texas.gov"},
+            "houston-weekly-permits": {"www.houstonpermittingcenter.org"},
             "georgia-air-permits": {"epd.georgia.gov"},
             "taylor-newsflash": {"taylortx.gov"},
         }
@@ -44,6 +46,8 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
         ids.add(source["id"])
         query = source.get("query", {})
         valid_window = source["retrieval_method"] in {
+            "rrc-drilling-permits",
+            "houston-weekly-permits",
             "publisher-rss",
             "georgia-air-permits",
             "taylor-newsflash",
@@ -84,6 +88,16 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
                 and source.get("city") in {"Austin", "Seattle", "Chicago"}
                 and source.get("state") in {"TX", "WA", "IL"}
             )
+        elif source["retrieval_method"] == "rrc-drilling-permits":
+            bounded = (
+                source.get("cadence_hours") == 24
+                and source.get("family") == "construction-permits"
+                and query.get("max_snapshot_bytes") == 10_000_000
+                and query.get("max_roots_per_snapshot") == 5000
+                and query.get("previous_month_overlap") is True
+            )
+        elif source["retrieval_method"] == "houston-weekly-permits":
+            bounded = source.get("cadence_hours") == 24 and query.get("max_reports") == 4
         elif source["retrieval_method"] == "georgia-air-permits":
             bounded = (
                 source.get("family") == "construction-permits"
