@@ -734,3 +734,28 @@ def test_retained_permit_enrichment_without_network_preserves_exact_fields_and_r
         changed = buying_chain_view(session, project.id, now=NOW)
         assert changed["permit_summaries"] == []
         assert all(c["organization_relationship"] == "UNKNOWN" for c in changed["candidates"])
+
+        # Same excerpt, new accepted source hash: never reuse an enrichment row
+        # bound to the superseded Evidence ID (real GA PDF-version regression).
+        replacement = Evidence(
+            observation_id=observation.id,
+            title=evidence.title,
+            abstract=evidence.abstract,
+            url=evidence.url,
+            content_hash="new-source-version",
+            published_at=evidence.published_at,
+            observed_at=NOW + timedelta(minutes=2),
+        )
+        session.add(replacement)
+        observation.content_hash = "new-source-version"
+        interpretation.status = "accepted"
+        interpretation.assessment = {"decision": "accepted", "evidence_hash": "new-source-version"}
+        session.flush()
+        fresh = enrich_buying_chain(
+            session, project.id, fetcher=no_network, now=NOW + timedelta(minutes=3)
+        )
+        assert all(c["organization_relationship"] == "DIRECT" for c in fresh["candidates"])
+        assert all(not c["stale"] for c in fresh["candidates"])
+        before = counts(session)
+        enrich_buying_chain(session, project.id, fetcher=no_network, now=NOW + timedelta(minutes=4))
+        assert counts(session) == before

@@ -87,6 +87,10 @@ def _employer_pattern(organization: str) -> str:
 def document_content_hash(doc: PublicDocument) -> str:
     """Canonical retained version identity, including role-freshness metadata."""
     content = {"text": doc.text, "title": doc.title, "published": doc.published_at}
+    if doc.retained_version is not None:
+        # Identical excerpt text can belong to a different accepted observation
+        # version (e.g. changed PDF hash or extraction metadata). Keep its binding.
+        content["retained_version"] = doc.retained_version
     return hashlib.sha256(json.dumps(content, sort_keys=True, default=str).encode()).hexdigest()
 
 

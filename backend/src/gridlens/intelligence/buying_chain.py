@@ -288,6 +288,7 @@ def enrich_buying_chain(
                     evidence.published_at,
                     evidence.observed_at,
                     evidence.extraction_location,
+                    retained_version=evidence.content_hash,
                 ),
                 True,
                 "Previously accepted evidence linked to this selected physical project.",
