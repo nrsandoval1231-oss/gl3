@@ -65,6 +65,9 @@ acquisition remain unproven. Planning/entitlement standalone Signal admission
 still needs an owner decision. The existing Prospect/Lead evidence gates remain
 authoritative; this slice does not promote on score or equipment MW.
 
-## GL3-019 in progress
+## GL3-019 implemented, draft review
 
 Fresh branch from verified remote main `7f24174`. Priority: data-center construction temporary power, commissioning temporary power, then O&G temporary power. All drilling permits are eligible early production Signals; they do not prove production date, MW, fuel suitability, rental demand or a supply gap. Preserve asset-specific lifecycle and separate relationship evidence. Repair retained permit enrichment before broadening source count. Exact scope and validation are recorded in `docs/sources/gl3-019-permit-enrichment.md`.
+
+
+GL3-019 repairs native retained-permit extraction, adds Chicago application/milestone/full-address fields and Georgia draft identity, and displays permit facts alongside the existing enrichment action. Exact reviewed code candidate: `426c2e670bc4b5b705675fd42e2e590287942195`. Live cloud acceptance has 25 permit-backed Signals and 29 current organization candidates, no personal relationship claims or public contacts, no Prospects/Leads. LaSalle and QTS ATL3 are verified data-center examples; Huron remains a hospital example. Full backend: 386 passes/one existing skip; 11 browser checks; typecheck/build, Ruff/mypy, migrations/drift and zero-vulnerability audit pass. Source and enrichment replay preserve counts. Details, raw-field named architect attribution, exact file hashes and remaining commissioning/drilling gaps: `docs/validation/gl3-019-validation.md`. No merge, outreach or deployment.

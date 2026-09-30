@@ -1,0 +1,1258 @@
+{
+  "code_candidate": "426c2e670bc4b5b705675fd42e2e590287942195",
+  "source_replay": {
+    "before": {
+      "observations": 1547,
+      "evidence": 1623,
+      "projects": 25,
+      "power_needs": 25,
+      "buying_chain_claims": 61,
+      "buying_chain_evidence": 50,
+      "buying_chain_runs": 54
+    },
+    "after": {
+      "observations": 1547,
+      "evidence": 1623,
+      "projects": 25,
+      "power_needs": 25,
+      "buying_chain_claims": 61,
+      "buying_chain_evidence": 50,
+      "buying_chain_runs": 54
+    },
+    "source_health": {
+      "chicago-building-permits": {
+        "error": null,
+        "status": "Checked\u2014No Change",
+        "new_records": 0,
+        "last_attempt": "2026-09-30T21:09:35.495177+00:00",
+        "last_success": "2026-09-30T21:09:35.495177+00:00",
+        "pdf_eligible": 0,
+        "pdf_enriched": 0,
+        "parse_failures": 0,
+        "parsed_records": 1528,
+        "pdf_candidates": 0,
+        "changed_records": 0,
+        "permit_accepted": 16,
+        "permit_rejected": 1512,
+        "records_scanned": 1528,
+        "collection_scope": "Chicago new construction, renovation/alteration and Express Electrical Work permits; 30-day issue window plus 2-day modification overlap; scope, full address, parcel, application start, permit milestone and named party roles retained.",
+        "pdf_skipped_limit": 0,
+        "retrieved_records": 1528,
+        "unchanged_records": 1528,
+        "coverage_limitation": "Chicago status monitoring uses the official Socrata :updated_at row timestamp with a two-day overlap. Longer outages can miss changes; a dataset-wide replacement may exceed the bounded row limit and will fail visibly. Express Electrical Work includes small and residential work; inclusion in collection does not guarantee Signal admission. No dedicated procurement or commissioning coverage.",
+        "pdf_skipped_not_signal": 0,
+        "latest_publication_date": "2026-09-29",
+        "latest_permit_issue_date": "2026-09-29",
+        "latest_public_comment_deadline": null
+      },
+      "georgia-air-draft-title-v": {
+        "error": null,
+        "status": "Checked\u2014No Change",
+        "new_records": 0,
+        "last_attempt": "2026-09-30T21:08:01.216845+00:00",
+        "last_success": "2026-09-30T21:08:01.216845+00:00",
+        "pdf_eligible": 0,
+        "pdf_enriched": 0,
+        "parse_failures": 0,
+        "parsed_records": 19,
+        "pdf_candidates": 0,
+        "changed_records": 0,
+        "generator_facts": 417,
+        "permit_accepted": 9,
+        "permit_rejected": 10,
+        "records_scanned": 19,
+        "collection_scope": "Georgia EPD current draft Title V, SIP and synthetic-minor listing; narratives and draft permits including bounded generator schedule excerpts and draft front-page facility identity; application links retained when present.",
+        "pdf_skipped_limit": 0,
+        "retrieved_records": 19,
+        "unchanged_records": 19,
+        "coverage_limitation": "Not a complete air-application registry. Current application-link fields are empty; full applications may require agency request. Public notices are references only. At most 24 generator excerpts per PDF, 8 general pages; bounds and omitted excerpt counts are retained. Installed standby ratings are not rental demand.",
+        "documents_extracted": 38,
+        "snapshot_item_count": 19,
+        "pdf_skipped_not_signal": 0,
+        "latest_publication_date": null,
+        "generator_excerpts_omitted": 147,
+        "missing_application_documents": 19,
+        "latest_public_comment_deadline": "2026-10-30",
+        "earliest_public_comment_deadline": "2026-10-02",
+        "unextracted_public_notice_references": 9
+      }
+    },
+    "duplicate_keys": {
+      "observations": 0,
+      "evidence": 0,
+      "projects": 0,
+      "buying_chain_claims": 0
+    }
+  },
+  "projects": [
+    {
+      "external_id": "6aaae66ddfc92ac4cd31cd97",
+      "name": "QTS ATL3",
+      "location": "Augusta, Georgia",
+      "prose_only_retained_extraction_candidates": 0,
+      "after": {
+        "project_id": "2f798be2-8cb8-4b28-9c36-60e2ed4a2d8a",
+        "status": "partial",
+        "candidates": [
+          {
+            "id": "106407ea-417c-41ad-9012-c87c6fd93dd1",
+            "organization": "QTS Atlanta III, LLC",
+            "person_name": null,
+            "title": null,
+            "category": "construction_proponent",
+            "organization_relationship": "DIRECT",
+            "person_organization_relationship": "UNKNOWN",
+            "person_project_relationship": "UNKNOWN",
+            "evidence_strength": "High",
+            "reason": "Named construction proponent in the permit narrative; buying authority is UNKNOWN.",
+            "observed_at": "2026-09-30 21:04:47.051822+00:00",
+            "verified_at": "2026-09-30 21:07:48.181851+00:00",
+            "public_contacts": [],
+            "evidence": [
+              {
+                "id": "cb6ca10f-4e87-4035-a819-bc7346b9fc4f",
+                "url": "https://epd.georgia.gov/draft-title-v-permitsamendments-other-draft-permits",
+                "quote": "Background Information QTS Atlanta III, LLC proposes to construct a new data center in Augusta, Richmond County under the name QTS ATL3 Campus.",
+                "supports": "project_organization",
+                "extraction_location": "Georgia EPD listing; narrative PDF pages; draft identity PDF page 1",
+                "published_at": null,
+                "observed_at": "2026-09-30 21:04:47.051822+00:00",
+                "content_hash": "356099ce9f688afa81cce7eed5466ce857c9663c9a2bb3d45b8bd41c70ef8fc7"
+              }
+            ],
+            "history_count": 2,
+            "stale": false
+          }
+        ],
+        "unresolved": [
+          "Named individual project assignment and purchasing authority remain UNKNOWN."
+        ],
+        "runs": [
+          {
+            "id": "e50c8d4b-4d9a-404e-a15c-8a6a043f3337",
+            "status": "partial",
+            "documents_checked": 1,
+            "candidates_added": 1,
+            "unresolved": [
+              "Named individual project assignment and purchasing authority remain UNKNOWN."
+            ],
+            "created_at": "2026-09-30 21:07:48.181851+00:00"
+          },
+          {
+            "id": "859a369b-d8a2-487a-bb52-2bd4d5e87151",
+            "status": "partial",
+            "documents_checked": 1,
+            "candidates_added": 1,
+            "unresolved": [
+              "Named individual project assignment and purchasing authority remain UNKNOWN."
+            ],
+            "created_at": "2026-09-30 21:05:28.161833+00:00"
+          },
+          {
+            "id": "61556136-1695-469a-a161-32f44b17c76c",
+            "status": "unresolved",
+            "documents_checked": 1,
+            "candidates_added": 0,
+            "unresolved": [
+              "No explicit buying-chain relationship found; buyer remains UNKNOWN.",
+              "Named individual project assignment and purchasing authority remain UNKNOWN."
+            ],
+            "created_at": "2026-09-30 21:01:08.446395+00:00"
+          }
+        ],
+        "permit_summaries": [
+          {
+            "evidence_id": "4e19898a-2135-44c1-8f1a-017f28754401",
+            "source_id": "georgia-air-draft-title-v",
+            "url": "https://epd.georgia.gov/draft-title-v-permitsamendments-other-draft-permits",
+            "title": "QTS ATL3",
+            "observed_at": "2026-09-30 21:04:47.051822+00:00",
+            "extraction_location": "Georgia EPD listing; narrative PDF pages; draft identity PDF page 1",
+            "facts": [
+              {
+                "label": "Facility",
+                "value": "QTS ATL3",
+                "quote": "Facility: QTS ATL3"
+              },
+              {
+                "label": "Location",
+                "value": "Augusta, Georgia",
+                "quote": "Location: Augusta, Georgia"
+              },
+              {
+                "label": "Application number",
+                "value": "SIP-30169",
+                "quote": "Application number: SIP-30169"
+              },
+              {
+                "label": "Application date",
+                "value": "2026-05-12",
+                "quote": "Application date: 2026-05-12"
+              },
+              {
+                "label": "Public comment deadline",
+                "value": "2026-10-16",
+                "quote": "Public comment deadline: 2026-10-16"
+              },
+              {
+                "label": "Named construction proponent",
+                "value": "QTS Atlanta III, LLC",
+                "quote": "Background Information QTS Atlanta III, LLC proposes to construct a new data center in Augusta, Richmond County under the name QTS ATL3 Campus."
+              },
+              {
+                "label": "Draft permit document \u00b7 page 1",
+                "value": "https://epd.georgia.gov/document/document/sip-30169-draft/download",
+                "quote": "draft permit URL: https://epd.georgia.gov/document/document/sip-30169-draft/download"
+              },
+              {
+                "label": "Draft permit entity",
+                "value": "QTS ATL3 Campus",
+                "quote": "Facility Name: QTS ATL3 Campus "
+              },
+              {
+                "label": "Draft facility site",
+                "value": "2883 Gordon Highway Augusta, Georgia 30909, Richmond County",
+                "quote": "Facility Address: 2883 Gordon Highway Augusta, Georgia 30909, Richmond County "
+              },
+              {
+                "label": "Draft permit scope",
+                "value": "Construction and operation of a greenfield data center with 224 diesel -fired critical emergency generators and 12 diesel-fired house emergency generators.",
+                "quote": "is issued a Permit for the following: Construction and operation of a greenfield data center with 224 diesel -fired critical emergency generators and 12 diesel-fired house emergency generators."
+              }
+            ]
+          }
+        ],
+        "policy_version": "buying-chain-v2-permits"
+      }
+    },
+    {
+      "external_id": "6ab53969b07498663d57d07a",
+      "name": "QTS Fayetteville I, LLC",
+      "location": "Fayetteville, Georgia",
+      "prose_only_retained_extraction_candidates": 0,
+      "after": {
+        "project_id": "bcc21713-f74a-4343-aa2f-add88feccf23",
+        "status": "partial",
+        "candidates": [
+          {
+            "id": "cdf2b2f5-8b32-484f-b375-bdec474a0c44",
+            "organization": "QTS Fayetteville I, LLC",
+            "person_name": null,
+            "title": null,
+            "category": "permit_entity",
+            "organization_relationship": "DIRECT",
+            "person_organization_relationship": "UNKNOWN",
+            "person_project_relationship": "UNKNOWN",
+            "evidence_strength": "High",
+            "reason": "Facility name on the draft permit; ownership, current operation and buying authority are UNKNOWN.",
+            "observed_at": "2026-09-30 21:04:47.087947+00:00",
+            "verified_at": "2026-09-30 21:08:36.845362+00:00",
+            "public_contacts": [],
+            "evidence": [
+              {
+                "id": "2fd2cb5c-ba57-4c3a-89d7-f11b8f8b1383",
+                "url": "https://epd.georgia.gov/draft-title-v-permitsamendments-other-draft-permits",
+                "quote": "Facility Name: QTS Fayetteville I, LLC ",
+                "supports": "project_organization",
+                "extraction_location": "Georgia EPD listing; narrative PDF pages; draft identity PDF page 1",
+                "published_at": null,
+                "observed_at": "2026-09-30 21:04:47.087947+00:00",
+                "content_hash": "1c03d80ea47d3fcfb6c67b7d18c7d7882bf4b93b264180401fe38ee4c5e7aa72"
+              }
+            ],
+            "history_count": 3,
+            "stale": false
+          }
+        ],
+        "unresolved": [
+          "Named individual project assignment and purchasing authority remain UNKNOWN."
+        ],
+        "runs": [
+          {
+            "id": "caeb052d-01ba-4cf9-9b2a-a40a6a75e70a",
+            "status": "partial",
+            "documents_checked": 1,
+            "candidates_added": 1,
+            "unresolved": [
+              "Named individual project assignment and purchasing authority remain UNKNOWN."
+            ],
+            "created_at": "2026-09-30 21:08:36.845362+00:00"
+          },
+          {
+            "id": "fa6f746b-a43c-457a-9fe4-aae3fdccc27c",
+            "status": "partial",
+            "documents_checked": 1,
+            "candidates_added": 1,
+            "unresolved": [
+              "Named individual project assignment and purchasing authority remain UNKNOWN."
+            ],
+            "created_at": "2026-09-30 21:05:28.379403+00:00"
+          },
+          {
+            "id": "18c9ec5e-8fc5-4818-a0b0-f33aee5d0ef0",
+            "status": "partial",
+            "documents_checked": 1,
+            "candidates_added": 1,
+            "unresolved": [
+              "Named individual project assignment and purchasing authority remain UNKNOWN."
+            ],
+            "created_at": "2026-09-30 21:01:08.515297+00:00"
+          }
+        ],
+        "permit_summaries": [
+          {
+            "evidence_id": "4cda224d-df94-47d2-b6bf-c9002133927a",
+            "source_id": "georgia-air-draft-title-v",
+            "url": "https://epd.georgia.gov/draft-title-v-permitsamendments-other-draft-permits",
+            "title": "QTS Fayetteville I, LLC",
+            "observed_at": "2026-09-30 21:04:47.087947+00:00",
+            "extraction_location": "Georgia EPD listing; narrative PDF pages; draft identity PDF page 1",
+            "facts": [
+              {
+                "label": "Facility",
+                "value": "QTS Fayetteville I, LLC",
+                "quote": "Facility: QTS Fayetteville I, LLC"
+              },
+              {
+                "label": "Location",
+                "value": "Fayetteville, Georgia",
+                "quote": "Location: Fayetteville, Georgia"
+              },
+              {
+                "label": "Application number",
+                "value": "30027",
+                "quote": "Application number: 30027"
+              },
+              {
+                "label": "Application date",
+                "value": "2026-01-09",
+                "quote": "Application date: 2026-01-09"
+              },
+              {
+                "label": "Public comment deadline",
+                "value": "2026-10-23",
+                "quote": "Public comment deadline: 2026-10-23"
+              },
+              {
+                "label": "Draft permit document \u00b7 page 1",
+                "value": "https://epd.georgia.gov/document/document/30027-draft/download",
+                "quote": "draft permit URL: https://epd.georgia.gov/document/document/30027-draft/download"
+              },
+              {
+                "label": "Draft permit entity",
+                "value": "QTS Fayetteville I, LLC",
+                "quote": "Facility Name: QTS Fayetteville I, LLC "
+              },
+              {
+                "label": "Draft facility site",
+                "value": "1435 Hwy 54 West Fayetteville, Georgia 30214, Fayette County",
+                "quote": "Facility Address: 1435 Hwy 54 West Fayetteville, Georgia 30214, Fayette County "
+              },
+              {
+                "label": "Draft permit scope",
+                "value": "Operation of a data center consisting of 572 emergency generators and 11 fire pumps",
+                "quote": "is issued a Permit for the following: Operation of a data center consisting of 572 emergency generators and 11 fire pumps"
+              }
+            ]
+          }
+        ],
+        "policy_version": "buying-chain-v2-permits"
+      }
+    },
+    {
+      "external_id": "3451848",
+      "name": "Chicago permit 3451848",
+      "location": "400 S LA SALLE ST, Chicago, IL",
+      "prose_only_retained_extraction_candidates": 0,
+      "after": {
+        "project_id": "fa5fc820-3e78-4ec2-ba00-c6635f82ee9c",
+        "status": "partial",
+        "candidates": [
+          {
+            "id": "d0af7597-799a-43d3-a83e-379fd2f193af",
+            "organization": "ABCO ELECTRICAL CONSTRUCTION &",
+            "person_name": null,
+            "title": null,
+            "category": "electrical_contractor",
+            "organization_relationship": "DIRECT",
+            "person_organization_relationship": "UNKNOWN",
+            "person_project_relationship": "UNKNOWN",
+            "evidence_strength": "High",
+            "reason": "Organization involvement is explicitly reported for the selected project.",
+            "observed_at": "2026-09-30 20:55:53.619042+00:00",
+            "verified_at": "2026-09-30 21:07:47.301097+00:00",
+            "public_contacts": [],
+            "evidence": [
+              {
+                "id": "726de3f4-d83e-483b-9063-1378aac3e7af",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273451848%27&%24limit=1",
+                "quote": "contact_3_type: CONTRACTOR-ELECTRICAL",
+                "supports": "organization_category",
+                "extraction_location": "Official Chicago permit fields; dated issue and row ID",
+                "published_at": "2026-09-16",
+                "observed_at": "2026-09-30 20:55:53.619042+00:00",
+                "content_hash": "8a4c69fff8f8f2e3997c526b7f5e4662c212252b8b8dbcd98b2e81a1ab62be46"
+              },
+              {
+                "id": "726de3f4-d83e-483b-9063-1378aac3e7af",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273451848%27&%24limit=1",
+                "quote": "contact_3_name: ABCO ELECTRICAL CONSTRUCTION &",
+                "supports": "project_organization",
+                "extraction_location": "Official Chicago permit fields; dated issue and row ID",
+                "published_at": "2026-09-16",
+                "observed_at": "2026-09-30 20:55:53.619042+00:00",
+                "content_hash": "8a4c69fff8f8f2e3997c526b7f5e4662c212252b8b8dbcd98b2e81a1ab62be46"
+              }
+            ],
+            "history_count": 2,
+            "stale": false
+          },
+          {
+            "id": "d77d8fc1-b7b5-4257-8a76-663c50b123f7",
+            "organization": "BONUS ELECTRIC",
+            "person_name": null,
+            "title": null,
+            "category": "electrical_contractor",
+            "organization_relationship": "DIRECT",
+            "person_organization_relationship": "UNKNOWN",
+            "person_project_relationship": "UNKNOWN",
+            "evidence_strength": "High",
+            "reason": "Organization involvement is explicitly reported for the selected project.",
+            "observed_at": "2026-09-30 20:55:53.619042+00:00",
+            "verified_at": "2026-09-30 21:07:47.301097+00:00",
+            "public_contacts": [],
+            "evidence": [
+              {
+                "id": "726de3f4-d83e-483b-9063-1378aac3e7af",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273451848%27&%24limit=1",
+                "quote": "contact_4_type: CONTRACTOR-ELECTRICAL",
+                "supports": "organization_category",
+                "extraction_location": "Official Chicago permit fields; dated issue and row ID",
+                "published_at": "2026-09-16",
+                "observed_at": "2026-09-30 20:55:53.619042+00:00",
+                "content_hash": "8a4c69fff8f8f2e3997c526b7f5e4662c212252b8b8dbcd98b2e81a1ab62be46"
+              },
+              {
+                "id": "726de3f4-d83e-483b-9063-1378aac3e7af",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273451848%27&%24limit=1",
+                "quote": "contact_4_name: BONUS ELECTRIC",
+                "supports": "project_organization",
+                "extraction_location": "Official Chicago permit fields; dated issue and row ID",
+                "published_at": "2026-09-16",
+                "observed_at": "2026-09-30 20:55:53.619042+00:00",
+                "content_hash": "8a4c69fff8f8f2e3997c526b7f5e4662c212252b8b8dbcd98b2e81a1ab62be46"
+              }
+            ],
+            "history_count": 2,
+            "stale": false
+          },
+          {
+            "id": "a784f510-bd0b-45f4-84e9-8d9d2ca6131b",
+            "organization": "KELSO-BURNETT CO.",
+            "person_name": null,
+            "title": null,
+            "category": "electrical_contractor",
+            "organization_relationship": "DIRECT",
+            "person_organization_relationship": "UNKNOWN",
+            "person_project_relationship": "UNKNOWN",
+            "evidence_strength": "High",
+            "reason": "Organization involvement is explicitly reported for the selected project.",
+            "observed_at": "2026-09-30 20:55:53.619042+00:00",
+            "verified_at": "2026-09-30 21:07:47.301097+00:00",
+            "public_contacts": [],
+            "evidence": [
+              {
+                "id": "726de3f4-d83e-483b-9063-1378aac3e7af",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273451848%27&%24limit=1",
+                "quote": "contact_5_type: CONTRACTOR-ELECTRICAL",
+                "supports": "organization_category",
+                "extraction_location": "Official Chicago permit fields; dated issue and row ID",
+                "published_at": "2026-09-16",
+                "observed_at": "2026-09-30 20:55:53.619042+00:00",
+                "content_hash": "8a4c69fff8f8f2e3997c526b7f5e4662c212252b8b8dbcd98b2e81a1ab62be46"
+              },
+              {
+                "id": "726de3f4-d83e-483b-9063-1378aac3e7af",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273451848%27&%24limit=1",
+                "quote": "contact_5_name: KELSO-BURNETT CO.",
+                "supports": "project_organization",
+                "extraction_location": "Official Chicago permit fields; dated issue and row ID",
+                "published_at": "2026-09-16",
+                "observed_at": "2026-09-30 20:55:53.619042+00:00",
+                "content_hash": "8a4c69fff8f8f2e3997c526b7f5e4662c212252b8b8dbcd98b2e81a1ab62be46"
+              }
+            ],
+            "history_count": 2,
+            "stale": false
+          },
+          {
+            "id": "7e07928f-0702-4b8a-8898-75d4e53efca0",
+            "organization": "ARCO/MURRAY NATIONAL CONSTRUCTION COMPANY LLC",
+            "person_name": null,
+            "title": null,
+            "category": "general_contractor",
+            "organization_relationship": "DIRECT",
+            "person_organization_relationship": "UNKNOWN",
+            "person_project_relationship": "UNKNOWN",
+            "evidence_strength": "High",
+            "reason": "Organization involvement is explicitly reported for the selected project.",
+            "observed_at": "2026-09-30 20:55:53.619042+00:00",
+            "verified_at": "2026-09-30 21:07:47.301097+00:00",
+            "public_contacts": [],
+            "evidence": [
+              {
+                "id": "726de3f4-d83e-483b-9063-1378aac3e7af",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273451848%27&%24limit=1",
+                "quote": "contact_7_type: CONTRACTOR-GENERAL CONTRACTOR",
+                "supports": "organization_category",
+                "extraction_location": "Official Chicago permit fields; dated issue and row ID",
+                "published_at": "2026-09-16",
+                "observed_at": "2026-09-30 20:55:53.619042+00:00",
+                "content_hash": "8a4c69fff8f8f2e3997c526b7f5e4662c212252b8b8dbcd98b2e81a1ab62be46"
+              },
+              {
+                "id": "726de3f4-d83e-483b-9063-1378aac3e7af",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273451848%27&%24limit=1",
+                "quote": "contact_7_name: ARCO/MURRAY NATIONAL CONSTRUCTION COMPANY LLC",
+                "supports": "project_organization",
+                "extraction_location": "Official Chicago permit fields; dated issue and row ID",
+                "published_at": "2026-09-16",
+                "observed_at": "2026-09-30 20:55:53.619042+00:00",
+                "content_hash": "8a4c69fff8f8f2e3997c526b7f5e4662c212252b8b8dbcd98b2e81a1ab62be46"
+              }
+            ],
+            "history_count": 2,
+            "stale": false
+          },
+          {
+            "id": "4fb75bd1-087e-4560-a1b7-9a3b4eb9cac2",
+            "organization": "LEGACY GI TC 400 LASALLE LLC",
+            "person_name": null,
+            "title": null,
+            "category": "owner_developer",
+            "organization_relationship": "DIRECT",
+            "person_organization_relationship": "UNKNOWN",
+            "person_project_relationship": "UNKNOWN",
+            "evidence_strength": "High",
+            "reason": "Organization involvement is explicitly reported for the selected project.",
+            "observed_at": "2026-09-30 20:55:53.619042+00:00",
+            "verified_at": "2026-09-30 21:07:47.301097+00:00",
+            "public_contacts": [],
+            "evidence": [
+              {
+                "id": "726de3f4-d83e-483b-9063-1378aac3e7af",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273451848%27&%24limit=1",
+                "quote": "contact_1_type: OWNER OCCUPIED",
+                "supports": "organization_category",
+                "extraction_location": "Official Chicago permit fields; dated issue and row ID",
+                "published_at": "2026-09-16",
+                "observed_at": "2026-09-30 20:55:53.619042+00:00",
+                "content_hash": "8a4c69fff8f8f2e3997c526b7f5e4662c212252b8b8dbcd98b2e81a1ab62be46"
+              },
+              {
+                "id": "726de3f4-d83e-483b-9063-1378aac3e7af",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273451848%27&%24limit=1",
+                "quote": "contact_1_name: LEGACY GI TC 400 LASALLE LLC",
+                "supports": "project_organization",
+                "extraction_location": "Official Chicago permit fields; dated issue and row ID",
+                "published_at": "2026-09-16",
+                "observed_at": "2026-09-30 20:55:53.619042+00:00",
+                "content_hash": "8a4c69fff8f8f2e3997c526b7f5e4662c212252b8b8dbcd98b2e81a1ab62be46"
+              }
+            ],
+            "history_count": 2,
+            "stale": false
+          }
+        ],
+        "unresolved": [
+          "Named individual project assignment and purchasing authority remain UNKNOWN."
+        ],
+        "runs": [
+          {
+            "id": "489227c5-29c9-4e94-8a61-fec0b11204d1",
+            "status": "partial",
+            "documents_checked": 1,
+            "candidates_added": 5,
+            "unresolved": [
+              "Named individual project assignment and purchasing authority remain UNKNOWN."
+            ],
+            "created_at": "2026-09-30 21:07:47.301097+00:00"
+          },
+          {
+            "id": "50a3a424-e530-43ca-9383-aacd0584f945",
+            "status": "partial",
+            "documents_checked": 1,
+            "candidates_added": 5,
+            "unresolved": [
+              "Named individual project assignment and purchasing authority remain UNKNOWN."
+            ],
+            "created_at": "2026-09-30 20:57:30.642886+00:00"
+          }
+        ],
+        "permit_summaries": [
+          {
+            "evidence_id": "9c00b53a-52be-484c-99f8-5fb248cfa3b8",
+            "source_id": "chicago-building-permits",
+            "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273451848%27&%24limit=1",
+            "title": "Chicago building permit 3451848 \u2014 PERMIT - RENOVATION/ALTERATION",
+            "observed_at": "2026-09-30 20:55:53.619042+00:00",
+            "extraction_location": "Official Chicago permit fields; dated issue and row ID",
+            "facts": [
+              {
+                "label": "Source record",
+                "value": "3451848",
+                "quote": "row: 3451848"
+              },
+              {
+                "label": "Permit / case",
+                "value": "101084518",
+                "quote": "project: 101084518"
+              },
+              {
+                "label": "Site address",
+                "value": "400 S LA SALLE ST",
+                "quote": "address: 400 S LA SALLE ST"
+              },
+              {
+                "label": "Permit type",
+                "value": "PERMIT - RENOVATION/ALTERATION",
+                "quote": "type: PERMIT - RENOVATION/ALTERATION"
+              },
+              {
+                "label": "Permit scope",
+                "value": "PHASE 3 OF 3: INTERIOR ALTERATIONS TO EXISTING 7-STORY OFFICE BUILDING TO CONVERT TO A DATA CENTER. WORK TO INCLUDE NEW EQUIPMENT WITH ASSOCIATED MEP UPGRADES. PHASE 1 DEMOLITION ONLY WORK PERMITTED UNDER 101083036. PHASE 2 INFRASTRUCTURE WORK PERMITTED UNDER 101081181. IA CONSTRUCTION; B-BUSINESS",
+                "quote": "description: PHASE 3 OF 3: INTERIOR ALTERATIONS TO EXISTING 7-STORY OFFICE BUILDING TO CONVERT TO A DATA CENTER. WORK TO INCLUDE NEW EQUIPMENT WITH ASSOCIATED MEP UPGRADES. PHASE 1 DEMOLITION ONLY WORK PERMITTED UNDER 101083036. PHASE 2 INFRASTRUCTURE WORK PERMITTED UNDER 101081181. IA CONSTRUCTION; B-BUSINESS"
+              },
+              {
+                "label": "Permit issue date",
+                "value": "2026-09-16T00:00:00.000",
+                "quote": "date: 2026-09-16T00:00:00.000"
+              },
+              {
+                "label": "Application start date",
+                "value": "2026-06-17T00:00:00.000",
+                "quote": "application_start: 2026-06-17T00:00:00.000"
+              },
+              {
+                "label": "Permit status",
+                "value": "ACTIVE",
+                "quote": "status: ACTIVE"
+              },
+              {
+                "label": "Permit milestone",
+                "value": "PERMIT ISSUED (FEE DUE)",
+                "quote": "milestone: PERMIT ISSUED (FEE DUE)"
+              },
+              {
+                "label": "Parcel",
+                "value": "1716242017",
+                "quote": "parcel: 1716242017"
+              },
+              {
+                "label": "Permit-listed party \u00b7 OWNER OCCUPIED",
+                "value": "LEGACY GI TC 400 LASALLE LLC",
+                "quote": "contact_1_name: LEGACY GI TC 400 LASALLE LLC",
+                "role_quote": "contact_1_type: OWNER OCCUPIED"
+              },
+              {
+                "label": "Permit-listed party \u00b7 ARCHITECT",
+                "value": "KRESTEL, CHRISTOPHER D",
+                "quote": "contact_2_name: KRESTEL, CHRISTOPHER D",
+                "role_quote": "contact_2_type: ARCHITECT"
+              },
+              {
+                "label": "Permit-listed party \u00b7 CONTRACTOR-ELECTRICAL",
+                "value": "ABCO ELECTRICAL CONSTRUCTION &",
+                "quote": "contact_3_name: ABCO ELECTRICAL CONSTRUCTION &",
+                "role_quote": "contact_3_type: CONTRACTOR-ELECTRICAL"
+              },
+              {
+                "label": "Permit-listed party \u00b7 CONTRACTOR-ELECTRICAL",
+                "value": "BONUS ELECTRIC",
+                "quote": "contact_4_name: BONUS ELECTRIC",
+                "role_quote": "contact_4_type: CONTRACTOR-ELECTRICAL"
+              },
+              {
+                "label": "Permit-listed party \u00b7 CONTRACTOR-ELECTRICAL",
+                "value": "KELSO-BURNETT CO.",
+                "quote": "contact_5_name: KELSO-BURNETT CO.",
+                "role_quote": "contact_5_type: CONTRACTOR-ELECTRICAL"
+              },
+              {
+                "label": "Permit-listed party \u00b7 EXPEDITOR",
+                "value": "BURNHAM NATIONWIDE, INC.",
+                "quote": "contact_6_name: BURNHAM NATIONWIDE, INC.",
+                "role_quote": "contact_6_type: EXPEDITOR"
+              },
+              {
+                "label": "Permit-listed party \u00b7 CONTRACTOR-GENERAL CONTRACTOR",
+                "value": "ARCO/MURRAY NATIONAL CONSTRUCTION COMPANY LLC",
+                "quote": "contact_7_name: ARCO/MURRAY NATIONAL CONSTRUCTION COMPANY LLC",
+                "role_quote": "contact_7_type: CONTRACTOR-GENERAL CONTRACTOR"
+              },
+              {
+                "label": "Permit-listed party \u00b7 CONTRACTOR-PLUMBER/PLUMBING",
+                "value": "MECHANICAL INC DBA HELM MECHAN",
+                "quote": "contact_8_name: MECHANICAL INC DBA HELM MECHAN",
+                "role_quote": "contact_8_type: CONTRACTOR-PLUMBER/PLUMBING"
+              },
+              {
+                "label": "Permit-listed party \u00b7 CONTRACTOR-REFRIGERATION",
+                "value": "AMS MECHANICAL SYSTEMS, INC.",
+                "quote": "contact_9_name: AMS MECHANICAL SYSTEMS, INC.",
+                "role_quote": "contact_9_type: CONTRACTOR-REFRIGERATION"
+              },
+              {
+                "label": "Permit-listed party \u00b7 CONTRACTOR-VENTILATION",
+                "value": "AMS MECHANICAL SYSTEMS, INC.",
+                "quote": "contact_10_name: AMS MECHANICAL SYSTEMS, INC.",
+                "role_quote": "contact_10_type: CONTRACTOR-VENTILATION"
+              }
+            ]
+          }
+        ],
+        "policy_version": "buying-chain-v2-permits"
+      }
+    },
+    {
+      "external_id": "3459792",
+      "name": "Chicago permit 3459792",
+      "location": "333 E HURON ST, Chicago, IL",
+      "prose_only_retained_extraction_candidates": 0,
+      "after": {
+        "project_id": "8222cd95-54b6-4fb0-97ee-3bcf266eec9b",
+        "status": "partial",
+        "candidates": [
+          {
+            "id": "ad9da75a-2f0b-49cd-bc49-c0feac70f212",
+            "organization": "GURTZ ELECTRIC COMPANY",
+            "person_name": null,
+            "title": null,
+            "category": "electrical_contractor",
+            "organization_relationship": "DIRECT",
+            "person_organization_relationship": "UNKNOWN",
+            "person_project_relationship": "UNKNOWN",
+            "evidence_strength": "High",
+            "reason": "Organization involvement is explicitly reported for the selected project.",
+            "observed_at": "2026-09-30 20:55:54.919412+00:00",
+            "verified_at": "2026-09-30 21:08:42.786258+00:00",
+            "public_contacts": [],
+            "evidence": [
+              {
+                "id": "ff3547ae-1fa1-4f9c-8afa-6d52e87a1d6d",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273459792%27&%24limit=1",
+                "quote": "contact_2_type: CONTRACTOR-ELECTRICAL",
+                "supports": "organization_category",
+                "extraction_location": "Official Chicago permit fields; dated issue and row ID",
+                "published_at": "2026-09-18",
+                "observed_at": "2026-09-30 20:55:54.919412+00:00",
+                "content_hash": "74f753e91c387cefbc83dc51a080540c22cf3c6f629354fd3a728c030ff95eca"
+              },
+              {
+                "id": "ff3547ae-1fa1-4f9c-8afa-6d52e87a1d6d",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273459792%27&%24limit=1",
+                "quote": "contact_2_name: GURTZ ELECTRIC COMPANY",
+                "supports": "project_organization",
+                "extraction_location": "Official Chicago permit fields; dated issue and row ID",
+                "published_at": "2026-09-18",
+                "observed_at": "2026-09-30 20:55:54.919412+00:00",
+                "content_hash": "74f753e91c387cefbc83dc51a080540c22cf3c6f629354fd3a728c030ff95eca"
+              }
+            ],
+            "history_count": 2,
+            "stale": false
+          },
+          {
+            "id": "caf8ed9b-472f-4831-8b28-b77cb3285c60",
+            "organization": "POWER CONSTRUCTION COMPANY, LLC",
+            "person_name": null,
+            "title": null,
+            "category": "general_contractor",
+            "organization_relationship": "DIRECT",
+            "person_organization_relationship": "UNKNOWN",
+            "person_project_relationship": "UNKNOWN",
+            "evidence_strength": "High",
+            "reason": "Organization involvement is explicitly reported for the selected project.",
+            "observed_at": "2026-09-30 20:55:54.919412+00:00",
+            "verified_at": "2026-09-30 21:08:42.786258+00:00",
+            "public_contacts": [],
+            "evidence": [
+              {
+                "id": "ff3547ae-1fa1-4f9c-8afa-6d52e87a1d6d",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273459792%27&%24limit=1",
+                "quote": "contact_4_type: CONTRACTOR-GENERAL CONTRACTOR",
+                "supports": "organization_category",
+                "extraction_location": "Official Chicago permit fields; dated issue and row ID",
+                "published_at": "2026-09-18",
+                "observed_at": "2026-09-30 20:55:54.919412+00:00",
+                "content_hash": "74f753e91c387cefbc83dc51a080540c22cf3c6f629354fd3a728c030ff95eca"
+              },
+              {
+                "id": "ff3547ae-1fa1-4f9c-8afa-6d52e87a1d6d",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273459792%27&%24limit=1",
+                "quote": "contact_4_name: POWER CONSTRUCTION COMPANY, LLC",
+                "supports": "project_organization",
+                "extraction_location": "Official Chicago permit fields; dated issue and row ID",
+                "published_at": "2026-09-18",
+                "observed_at": "2026-09-30 20:55:54.919412+00:00",
+                "content_hash": "74f753e91c387cefbc83dc51a080540c22cf3c6f629354fd3a728c030ff95eca"
+              }
+            ],
+            "history_count": 2,
+            "stale": false
+          },
+          {
+            "id": "d09930b0-194d-4bed-b0e2-e7d8011a4c81",
+            "organization": "NORTHWESTERN MEMORIAL HOSPITAL",
+            "person_name": null,
+            "title": null,
+            "category": "owner_developer",
+            "organization_relationship": "DIRECT",
+            "person_organization_relationship": "UNKNOWN",
+            "person_project_relationship": "UNKNOWN",
+            "evidence_strength": "High",
+            "reason": "Organization involvement is explicitly reported for the selected project.",
+            "observed_at": "2026-09-30 20:55:54.919412+00:00",
+            "verified_at": "2026-09-30 21:08:42.786258+00:00",
+            "public_contacts": [],
+            "evidence": [
+              {
+                "id": "ff3547ae-1fa1-4f9c-8afa-6d52e87a1d6d",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273459792%27&%24limit=1",
+                "quote": "contact_1_type: OWNER AS ARCHITECT",
+                "supports": "organization_category",
+                "extraction_location": "Official Chicago permit fields; dated issue and row ID",
+                "published_at": "2026-09-18",
+                "observed_at": "2026-09-30 20:55:54.919412+00:00",
+                "content_hash": "74f753e91c387cefbc83dc51a080540c22cf3c6f629354fd3a728c030ff95eca"
+              },
+              {
+                "id": "ff3547ae-1fa1-4f9c-8afa-6d52e87a1d6d",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273459792%27&%24limit=1",
+                "quote": "contact_1_name: NORTHWESTERN MEMORIAL HOSPITAL",
+                "supports": "project_organization",
+                "extraction_location": "Official Chicago permit fields; dated issue and row ID",
+                "published_at": "2026-09-18",
+                "observed_at": "2026-09-30 20:55:54.919412+00:00",
+                "content_hash": "74f753e91c387cefbc83dc51a080540c22cf3c6f629354fd3a728c030ff95eca"
+              }
+            ],
+            "history_count": 2,
+            "stale": false
+          }
+        ],
+        "unresolved": [
+          "Named individual project assignment and purchasing authority remain UNKNOWN."
+        ],
+        "runs": [
+          {
+            "id": "a05c5c48-4284-4361-a395-65960ce0bfa0",
+            "status": "partial",
+            "documents_checked": 1,
+            "candidates_added": 3,
+            "unresolved": [
+              "Named individual project assignment and purchasing authority remain UNKNOWN."
+            ],
+            "created_at": "2026-09-30 21:08:42.786258+00:00"
+          },
+          {
+            "id": "16c03c2a-478b-4746-a675-6b94505f7009",
+            "status": "partial",
+            "documents_checked": 1,
+            "candidates_added": 3,
+            "unresolved": [
+              "Named individual project assignment and purchasing authority remain UNKNOWN."
+            ],
+            "created_at": "2026-09-30 20:57:30.944218+00:00"
+          }
+        ],
+        "permit_summaries": [
+          {
+            "evidence_id": "96e10fc2-2f86-45d1-affd-82a84b099067",
+            "source_id": "chicago-building-permits",
+            "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273459792%27&%24limit=1",
+            "title": "Chicago building permit 3459792 \u2014 PERMIT - NEW CONSTRUCTION",
+            "observed_at": "2026-09-30 20:55:54.919412+00:00",
+            "extraction_location": "Official Chicago permit fields; dated issue and row ID",
+            "facts": [
+              {
+                "label": "Source record",
+                "value": "3459792",
+                "quote": "row: 3459792"
+              },
+              {
+                "label": "Permit / case",
+                "value": "101088149",
+                "quote": "project: 101088149"
+              },
+              {
+                "label": "Site address",
+                "value": "333 E HURON ST",
+                "quote": "address: 333 E HURON ST"
+              },
+              {
+                "label": "Permit type",
+                "value": "PERMIT - NEW CONSTRUCTION",
+                "quote": "type: PERMIT - NEW CONSTRUCTION"
+              },
+              {
+                "label": "Permit scope",
+                "value": "SPR / 2019 CBC: INSTALLATION OF TWO (2) 2000 AMP TEMPORARY ELECTRICAL SERVICE AS PER PLANS.",
+                "quote": "description: SPR / 2019 CBC: INSTALLATION OF TWO (2) 2000 AMP TEMPORARY ELECTRICAL SERVICE AS PER PLANS."
+              },
+              {
+                "label": "Permit issue date",
+                "value": "2026-09-18T00:00:00.000",
+                "quote": "date: 2026-09-18T00:00:00.000"
+              },
+              {
+                "label": "Application start date",
+                "value": "2026-09-09T00:00:00.000",
+                "quote": "application_start: 2026-09-09T00:00:00.000"
+              },
+              {
+                "label": "Permit status",
+                "value": "ACTIVE",
+                "quote": "status: ACTIVE"
+              },
+              {
+                "label": "Permit milestone",
+                "value": "INSPECTIONS",
+                "quote": "milestone: INSPECTIONS"
+              },
+              {
+                "label": "Parcel",
+                "value": "1710202023",
+                "quote": "parcel: 1710202023"
+              },
+              {
+                "label": "Permit-listed party \u00b7 OWNER AS ARCHITECT",
+                "value": "NORTHWESTERN MEMORIAL HOSPITAL",
+                "quote": "contact_1_name: NORTHWESTERN MEMORIAL HOSPITAL",
+                "role_quote": "contact_1_type: OWNER AS ARCHITECT"
+              },
+              {
+                "label": "Permit-listed party \u00b7 CONTRACTOR-ELECTRICAL",
+                "value": "GURTZ ELECTRIC COMPANY",
+                "quote": "contact_2_name: GURTZ ELECTRIC COMPANY",
+                "role_quote": "contact_2_type: CONTRACTOR-ELECTRICAL"
+              },
+              {
+                "label": "Permit-listed party \u00b7 EXPEDITOR",
+                "value": "JOHN LYLE & ASSOCIATES",
+                "quote": "contact_3_name: JOHN LYLE & ASSOCIATES",
+                "role_quote": "contact_3_type: EXPEDITOR"
+              },
+              {
+                "label": "Permit-listed party \u00b7 CONTRACTOR-GENERAL CONTRACTOR",
+                "value": "POWER CONSTRUCTION COMPANY, LLC",
+                "quote": "contact_4_name: POWER CONSTRUCTION COMPANY, LLC",
+                "role_quote": "contact_4_type: CONTRACTOR-GENERAL CONTRACTOR"
+              }
+            ]
+          }
+        ],
+        "policy_version": "buying-chain-v2-permits"
+      }
+    },
+    {
+      "external_id": "3442494",
+      "name": "Chicago permit 3442494",
+      "location": "1300 N NORTH BRANCH ST, Chicago, IL",
+      "prose_only_retained_extraction_candidates": 0,
+      "after": {
+        "project_id": "706928cb-1a59-4aa8-b642-6444583c938c",
+        "status": "partial",
+        "candidates": [
+          {
+            "id": "007deb7a-9825-4550-9c93-3540eaa19e2b",
+            "organization": "KELSO-BURNETT CO.",
+            "person_name": null,
+            "title": null,
+            "category": "electrical_contractor",
+            "organization_relationship": "DIRECT",
+            "person_organization_relationship": "UNKNOWN",
+            "person_project_relationship": "UNKNOWN",
+            "evidence_strength": "High",
+            "reason": "Organization involvement is explicitly reported for the selected project.",
+            "observed_at": "2026-09-30 20:55:56.430983+00:00",
+            "verified_at": "2026-09-30 21:08:42.893457+00:00",
+            "public_contacts": [],
+            "evidence": [
+              {
+                "id": "8f8cafb8-5fd0-43af-b636-9461e0d575d4",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273442494%27&%24limit=1",
+                "quote": "contact_3_type: CONTRACTOR-ELECTRICAL",
+                "supports": "organization_category",
+                "extraction_location": "Official Chicago permit fields; dated issue and row ID",
+                "published_at": "2026-09-23",
+                "observed_at": "2026-09-30 20:55:56.430983+00:00",
+                "content_hash": "b6aad70fc8b960702aac4813180c976e0cd6ee4f730a0be779b4f3266c239279"
+              },
+              {
+                "id": "8f8cafb8-5fd0-43af-b636-9461e0d575d4",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273442494%27&%24limit=1",
+                "quote": "contact_3_name: KELSO-BURNETT CO.",
+                "supports": "project_organization",
+                "extraction_location": "Official Chicago permit fields; dated issue and row ID",
+                "published_at": "2026-09-23",
+                "observed_at": "2026-09-30 20:55:56.430983+00:00",
+                "content_hash": "b6aad70fc8b960702aac4813180c976e0cd6ee4f730a0be779b4f3266c239279"
+              }
+            ],
+            "history_count": 2,
+            "stale": false
+          },
+          {
+            "id": "716d8abd-006e-4e7c-8dbd-6a64f6754263",
+            "organization": "ACCEND CONSTRUCTION LLC",
+            "person_name": null,
+            "title": null,
+            "category": "general_contractor",
+            "organization_relationship": "DIRECT",
+            "person_organization_relationship": "UNKNOWN",
+            "person_project_relationship": "UNKNOWN",
+            "evidence_strength": "High",
+            "reason": "Organization involvement is explicitly reported for the selected project.",
+            "observed_at": "2026-09-30 20:55:56.430983+00:00",
+            "verified_at": "2026-09-30 21:08:42.893457+00:00",
+            "public_contacts": [],
+            "evidence": [
+              {
+                "id": "8f8cafb8-5fd0-43af-b636-9461e0d575d4",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273442494%27&%24limit=1",
+                "quote": "contact_5_type: CONTRACTOR-GENERAL CONTRACTOR",
+                "supports": "organization_category",
+                "extraction_location": "Official Chicago permit fields; dated issue and row ID",
+                "published_at": "2026-09-23",
+                "observed_at": "2026-09-30 20:55:56.430983+00:00",
+                "content_hash": "b6aad70fc8b960702aac4813180c976e0cd6ee4f730a0be779b4f3266c239279"
+              },
+              {
+                "id": "8f8cafb8-5fd0-43af-b636-9461e0d575d4",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273442494%27&%24limit=1",
+                "quote": "contact_5_name: ACCEND CONSTRUCTION LLC",
+                "supports": "project_organization",
+                "extraction_location": "Official Chicago permit fields; dated issue and row ID",
+                "published_at": "2026-09-23",
+                "observed_at": "2026-09-30 20:55:56.430983+00:00",
+                "content_hash": "b6aad70fc8b960702aac4813180c976e0cd6ee4f730a0be779b4f3266c239279"
+              }
+            ],
+            "history_count": 2,
+            "stale": false
+          },
+          {
+            "id": "aaba3781-35e9-41e3-b1b1-690e90dd3268",
+            "organization": "DMG MORI FEDERAL SERVICES, INC.",
+            "person_name": null,
+            "title": null,
+            "category": "owner_developer",
+            "organization_relationship": "DIRECT",
+            "person_organization_relationship": "UNKNOWN",
+            "person_project_relationship": "UNKNOWN",
+            "evidence_strength": "High",
+            "reason": "Organization involvement is explicitly reported for the selected project.",
+            "observed_at": "2026-09-30 20:55:56.430983+00:00",
+            "verified_at": "2026-09-30 21:08:42.893457+00:00",
+            "public_contacts": [],
+            "evidence": [
+              {
+                "id": "8f8cafb8-5fd0-43af-b636-9461e0d575d4",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273442494%27&%24limit=1",
+                "quote": "contact_1_type: OWNER OCCUPIED",
+                "supports": "organization_category",
+                "extraction_location": "Official Chicago permit fields; dated issue and row ID",
+                "published_at": "2026-09-23",
+                "observed_at": "2026-09-30 20:55:56.430983+00:00",
+                "content_hash": "b6aad70fc8b960702aac4813180c976e0cd6ee4f730a0be779b4f3266c239279"
+              },
+              {
+                "id": "8f8cafb8-5fd0-43af-b636-9461e0d575d4",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273442494%27&%24limit=1",
+                "quote": "contact_1_name: DMG MORI FEDERAL SERVICES, INC.",
+                "supports": "project_organization",
+                "extraction_location": "Official Chicago permit fields; dated issue and row ID",
+                "published_at": "2026-09-23",
+                "observed_at": "2026-09-30 20:55:56.430983+00:00",
+                "content_hash": "b6aad70fc8b960702aac4813180c976e0cd6ee4f730a0be779b4f3266c239279"
+              }
+            ],
+            "history_count": 2,
+            "stale": false
+          }
+        ],
+        "unresolved": [
+          "Named individual project assignment and purchasing authority remain UNKNOWN."
+        ],
+        "runs": [
+          {
+            "id": "f247b29e-c56b-4f21-94ef-6c0a918915ca",
+            "status": "partial",
+            "documents_checked": 1,
+            "candidates_added": 3,
+            "unresolved": [
+              "Named individual project assignment and purchasing authority remain UNKNOWN."
+            ],
+            "created_at": "2026-09-30 21:08:42.893457+00:00"
+          },
+          {
+            "id": "8224bd82-f40d-480f-ad5c-fbc85e45e7dd",
+            "status": "partial",
+            "documents_checked": 1,
+            "candidates_added": 3,
+            "unresolved": [
+              "Named individual project assignment and purchasing authority remain UNKNOWN."
+            ],
+            "created_at": "2026-09-30 20:57:31.025786+00:00"
+          }
+        ],
+        "permit_summaries": [
+          {
+            "evidence_id": "7e56bbaa-17d0-47ba-947e-cbb979c0e366",
+            "source_id": "chicago-building-permits",
+            "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273442494%27&%24limit=1",
+            "title": "Chicago building permit 3442494 \u2014 PERMIT - RENOVATION/ALTERATION",
+            "observed_at": "2026-09-30 20:55:56.430983+00:00",
+            "extraction_location": "Official Chicago permit fields; dated issue and row ID",
+            "facts": [
+              {
+                "label": "Source record",
+                "value": "3442494",
+                "quote": "row: 3442494"
+              },
+              {
+                "label": "Permit / case",
+                "value": "101080522",
+                "quote": "project: 101080522"
+              },
+              {
+                "label": "Site address",
+                "value": "1300 N NORTH BRANCH ST",
+                "quote": "address: 1300 N NORTH BRANCH ST"
+              },
+              {
+                "label": "Permit type",
+                "value": "PERMIT - RENOVATION/ALTERATION",
+                "quote": "type: PERMIT - RENOVATION/ALTERATION"
+              },
+              {
+                "label": "Permit scope",
+                "value": "DDS 2019 CBRC & CBC: INTERIOR AND EXTERIOR ALTERATIONS TO EXISTING 2 STORY MANUFACTURING WITH ACCESSORY OFFICE USE BUILDING. WORK TO INCLUDE DEMO OF EXISTING STAIR AND ELEVATOR TOWER, NEW 1,200 SF ENTRY AND LOBBY ADDITION, NEW SECURITY GATES. INTERIOR ALTERATIONS TO EXISTING OFFICE AND MANUFACTURING AREAS TO INCLUDE DEMO, NEW PARTITIONS, MECHANICAL, ELECTRICAL AND PLUMBING WORK AS PER PLANS. IIB + IIA CONSTRUCTION. S-1 (STORAGE), F-1 (MODERATE-HAZARD FACTORY), AND B (BUSINESS) OCCUPANCY. CONSULTANT REVIEWER: V3 COMPANIES OF IL",
+                "quote": "description: DDS 2019 CBRC & CBC: INTERIOR AND EXTERIOR ALTERATIONS TO EXISTING 2 STORY MANUFACTURING WITH ACCESSORY OFFICE USE BUILDING. WORK TO INCLUDE DEMO OF EXISTING STAIR AND ELEVATOR TOWER, NEW 1,200 SF ENTRY AND LOBBY ADDITION, NEW SECURITY GATES. INTERIOR ALTERATIONS TO EXISTING OFFICE AND MANUFACTURING AREAS TO INCLUDE DEMO, NEW PARTITIONS, MECHANICAL, ELECTRICAL AND PLUMBING WORK AS PER PLANS. IIB + IIA CONSTRUCTION. S-1 (STORAGE), F-1 (MODERATE-HAZARD FACTORY), AND B (BUSINESS) OCCUPANCY. CONSULTANT REVIEWER: V3 COMPANIES OF IL"
+              },
+              {
+                "label": "Permit issue date",
+                "value": "2026-09-23T00:00:00.000",
+                "quote": "date: 2026-09-23T00:00:00.000"
+              },
+              {
+                "label": "Application start date",
+                "value": "2026-04-01T00:00:00.000",
+                "quote": "application_start: 2026-04-01T00:00:00.000"
+              },
+              {
+                "label": "Permit status",
+                "value": "ACTIVE",
+                "quote": "status: ACTIVE"
+              },
+              {
+                "label": "Permit milestone",
+                "value": "INSPECTIONS (CERTIFICATE OF OCCUPANCY REQUIRED)",
+                "quote": "milestone: INSPECTIONS (CERTIFICATE OF OCCUPANCY REQUIRED)"
+              },
+              {
+                "label": "Parcel",
+                "value": "1705201006",
+                "quote": "parcel: 1705201006"
+              },
+              {
+                "label": "Permit-listed party \u00b7 OWNER OCCUPIED",
+                "value": "DMG MORI FEDERAL SERVICES, INC.",
+                "quote": "contact_1_name: DMG MORI FEDERAL SERVICES, INC.",
+                "role_quote": "contact_1_type: OWNER OCCUPIED"
+              },
+              {
+                "label": "Permit-listed party \u00b7 ARCHITECT",
+                "value": "SCHWAMEL, MARK A",
+                "quote": "contact_2_name: SCHWAMEL, MARK A",
+                "role_quote": "contact_2_type: ARCHITECT"
+              },
+              {
+                "label": "Permit-listed party \u00b7 CONTRACTOR-ELECTRICAL",
+                "value": "KELSO-BURNETT CO.",
+                "quote": "contact_3_name: KELSO-BURNETT CO.",
+                "role_quote": "contact_3_type: CONTRACTOR-ELECTRICAL"
+              },
+              {
+                "label": "Permit-listed party \u00b7 EXPEDITOR",
+                "value": "BURNHAM NATIONWIDE, INC.",
+                "quote": "contact_4_name: BURNHAM NATIONWIDE, INC.",
+                "role_quote": "contact_4_type: EXPEDITOR"
+              },
+              {
+                "label": "Permit-listed party \u00b7 CONTRACTOR-GENERAL CONTRACTOR",
+                "value": "ACCEND CONSTRUCTION LLC",
+                "quote": "contact_5_name: ACCEND CONSTRUCTION LLC",
+                "role_quote": "contact_5_type: CONTRACTOR-GENERAL CONTRACTOR"
+              },
+              {
+                "label": "Permit-listed party \u00b7 MASONRY CONTRACTOR",
+                "value": "A. HORN, INC.",
+                "quote": "contact_6_name: A. HORN, INC.",
+                "role_quote": "contact_6_type: MASONRY CONTRACTOR"
+              },
+              {
+                "label": "Permit-listed party \u00b7 MASONRY CONTRACTOR",
+                "value": "SCURTO CEMENT COMPANY",
+                "quote": "contact_7_name: SCURTO CEMENT COMPANY",
+                "role_quote": "contact_7_type: MASONRY CONTRACTOR"
+              },
+              {
+                "label": "Permit-listed party \u00b7 CONTRACTOR-PLUMBER/PLUMBING",
+                "value": "F.E. MORAN,INC.",
+                "quote": "contact_8_name: F.E. MORAN,INC.",
+                "role_quote": "contact_8_type: CONTRACTOR-PLUMBER/PLUMBING"
+              },
+              {
+                "label": "Permit-listed party \u00b7 CONTRACTOR-VENTILATION",
+                "value": "F.E. MORAN, INC.",
+                "quote": "contact_9_name: F.E. MORAN, INC.",
+                "role_quote": "contact_9_type: CONTRACTOR-VENTILATION"
+              }
+            ]
+          }
+        ],
+        "policy_version": "buying-chain-v2-permits"
+      }
+    }
+  ],
+  "current_candidates": 29,
+  "named_people_in_relationship_claims": 0,
+  "public_contacts_in_relationship_claims": 0,
+  "all_current_candidate_ids_unique": true,
+  "tier_counts": {
+    "Signal": 25,
+    "Prospect": 0,
+    "Lead": 0
+  },
+  "all_required_mw_unknown": true,
+  "all_supply_unknown": true,
+  "code_file_sha256": {
+    "backend/src/gridlens/domain/buying_chain.py": "bc6e13adde1c2b9a20d08cfddeb758ecca3fb13eeb221baace7224465c54ff94",
+    "backend/src/gridlens/ingestion/adapters/buying_chain_public.py": "f495019253c67b4534e0a11476078a9b01d95aefc21ad96cca5ff59fe66f3ba1",
+    "backend/src/gridlens/ingestion/adapters/georgia_air_permits.py": "414ffde9ed32f16ae37a4b35a78878f41bc6207c7875bf948238c1b77013a1cd",
+    "backend/src/gridlens/ingestion/adapters/retained_permits.py": "48126a1e01170604fb1bbd2638227447b88a85bd2f1e83cd925ebaf24938776d",
+    "backend/src/gridlens/ingestion/adapters/socrata_permits.py": "0502d6c70ee1fde51977bbde0c5ab3280b0bc54981cd6fd52964ee7aa416779f",
+    "backend/src/gridlens/intelligence/buying_chain.py": "39d646676b16f5fd76e97640f33a8a327e46f337bb0e3808977d833641c551b0",
+    "backend/src/gridlens/intelligence/buying_chain_extraction.py": "69252cccc4f8230791ac2e36528778218a975369f5855b1d4780288b557945e8",
+    "backend/tests/integration/test_buying_chain.py": "e35f04d183ff1d70b1f42af275d96b37536725634872de3d2965af52cdfe386d",
+    "backend/tests/unit/test_retained_permits.py": "13fbb6be0bf1055572a115dc147989bf60b0d2d583eea05217afb43357ec3676",
+    "config/sources/registry.v1.json": "fa04e11ba36e548c47da0e1dbce3e0a22ae656cbdfa5cd5b2b7c5347e8c11d71",
+    "web/src/api/generated.ts": "c248a9f0e12e01470475c5e2abf25d054e58503e06033875aaed3b96969dc856",
+    "web/src/api/openapi.json": "ed64a4bd2215017c76be26366570ff7e85a11091ad9cc357f0a2339b8e4965a5",
+    "web/src/features/buyingChain/BuyingChain.tsx": "92e3aae5b12d29b0ddbc2844915180cf07a0f858c4f5943566439954bf03832e",
+    "web/tests/buying_chain.spec.ts": "2767e1bceeea81f8bf16ed53fd20acca3283249c24a26a4f6da992ae035000d4",
+    "web/tests/first_path.spec.ts": "61d8928a7dcd84792246391b5cc789bfc2fdf450f93dd64727a69d3d70fce78c"
+  }
+}
