@@ -1,5 +1,7 @@
 # Current state
 
+Current main: `a737af0207ebe5182764c06fadfb60d69ae1dc63` (GL3-019, PR9 merged September 30, 2026). Start with [the saved-cloud handoff](../docs/operations/post-gl3-019-handoff.md). The milestone sections below preserve historical validation; GL3-019 continuation/recovery supersedes earlier source counts and network failures. Open PR10 is independent unmerged work and must be preserved.
+
 GridLens is focused on turning evidence-backed Signals into commercially useful pursuits without inventing unsupported power facts.
 
 ## Implemented through GL3-016
@@ -65,12 +67,12 @@ acquisition remain unproven. Planning/entitlement standalone Signal admission
 still needs an owner decision. The existing Prospect/Lead evidence gates remain
 authoritative; this slice does not promote on score or equipment MW.
 
-## GL3-019 implemented, draft review
+## GL3-019 merged in PR9
 
 Fresh branch from verified remote main `7f24174`. Priority: data-center construction temporary power, commissioning temporary power, then O&G temporary power. All drilling permits are eligible early production Signals; they do not prove production date, MW, fuel suitability, rental demand or a supply gap. Preserve asset-specific lifecycle and separate relationship evidence. Repair retained permit enrichment before broadening source count. Exact scope and validation are recorded in `docs/sources/gl3-019-permit-enrichment.md`.
 
 
-GL3-019 repairs native retained-permit extraction, adds Chicago application/milestone/full-address fields and Georgia draft identity, and displays permit facts alongside the existing enrichment action. Exact reviewed code candidate: `426c2e670bc4b5b705675fd42e2e590287942195`. Live cloud acceptance has 25 permit-backed Signals and 29 current organization candidates, no personal relationship claims or public contacts, no Prospects/Leads. LaSalle and QTS ATL3 are verified data-center examples; Huron remains a hospital example. Full backend: 386 passes/one existing skip; 11 browser checks; typecheck/build, Ruff/mypy, migrations/drift and zero-vulnerability audit pass. Source and enrichment replay preserve counts. Details, raw-field named architect attribution, exact file hashes and remaining commissioning/drilling gaps: `docs/validation/gl3-019-validation.md`. No merge, outreach or deployment.
+GL3-019 repairs native retained-permit extraction, adds Chicago application/milestone/full-address fields and Georgia draft identity, and displays permit facts alongside the existing enrichment action. Exact reviewed code candidate: `426c2e670bc4b5b705675fd42e2e590287942195`. Live cloud acceptance has 25 permit-backed Signals and 29 current organization candidates, no personal relationship claims or public contacts, no Prospects/Leads. LaSalle and QTS ATL3 are verified data-center examples; Huron remains a hospital example. Full backend: 386 passes/one existing skip; 11 browser checks; typecheck/build, Ruff/mypy, migrations/drift and zero-vulnerability audit pass. Source and enrichment replay preserve counts. Details, raw-field named architect attribution, exact file hashes and remaining commissioning/drilling gaps: `docs/validation/gl3-019-validation.md`. Historical pre-merge acceptance; PR9 is now merged. No outreach or deployment.
 
 
 GL3-019 acquisition continuation on the same PR9 adds Austin commercial electrical permits and a fixed 2026 literal-data-center backfill, plus four official Houston weekly report snapshots. Austin live retrieval: 2,609 rows, 78 accepted permit observations / 76 projects, 57 organization and 57 permit-listed person candidates, permit-listed phones attached only to organizations. Houston: 1,543 retained rows, no Signals because status is absent. Both completed unchanged replays. Austin had a transient HTTPStatusError at 22:00 UTC on 2026-09-30; a fresh database check confirms recovery at 22:22 UTC and a bounded retry succeeded at 23:06 UTC with all 2,609 rows unchanged. The original HTTP status was not retained. See the follow-through and recovery evidence for corrected current health. Dallas reports 401 / DallasNow 403, El Paso 403; not enabled. RRC current + official previous-month EOM acquisition is implemented with complete framing, amendment preservation and no inferred production dates; all-history coverage remains unclaimed. Commissioning remains a gap. See docs/validation/gl3-019-acquisition-continuation.md for current acceptance and limits.
@@ -84,5 +86,5 @@ batched opportunity-list reads (15,507→7 queries), preserving all admission ga
 Final validation: 418 backend passes/one existing skip, 13 browser checks, Ruff/mypy,
 clean/repeat/drift migrations and frontend typecheck/build. Detailed current proof:
 `docs/validation/gl3-019-acquisition-continuation.md` and its evidence manifest.
-No merge, deployment or outreach. Dallas/El Paso access and dedicated commissioning
+PR9 is merged; no deployment or outreach. Dallas/El Paso access and dedicated commissioning
 remain open; drilling scope is not all historical Texas permits.

@@ -1,6 +1,6 @@
 # GL3-019 acquisition continuation — 2026-09-30
 
-Continues draft PR9; no merge or deployment. Supersedes the original GL3-019
+PR9 merged as `a737af0207ebe5182764c06fadfb60d69ae1dc63` on September 30, 2026. The results below were captured before merge; no deployment. Supersedes the original GL3-019
 acquisition totals, while retaining its Chicago/Georgia evidence and acceptance.
 Documentation scope was updated before implementation. Work stayed in the saved
 cloud environment. Normal public requests were used; no source restriction bypass.
