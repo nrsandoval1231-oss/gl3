@@ -321,7 +321,8 @@ def enrich_buying_chain(
         and any(georgia_identity(doc.text) for doc, _, _, _ in documents)
     )
     retained_permit = retained_permit or (
-        project.source_id in {"austin-building-permits", "houston-weekly-permits"}
+        project.source_id
+        in {"austin-building-permits", "houston-weekly-permits", "texas-rrc-drilling-permits"}
         and any(permit_facts(project.source_id, doc.text) for doc, _, _, _ in documents)
     )
     if retained_permit:

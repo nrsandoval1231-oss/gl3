@@ -213,13 +213,23 @@ def _asset_type_conflicts(candidate_type: str, classification: Any | None) -> bo
     )
 
 
-def _need_has_current_support(session: Session, need: PowerNeed, project: Project) -> bool:
-    rows = session.execute(
-        select(Observation, Interpretation)
-        .join(NeedObservation, NeedObservation.observation_id == Observation.id)
-        .outerjoin(Interpretation, Interpretation.observation_id == Observation.id)
-        .where(NeedObservation.need_id == need.id)
-    ).all()
+def _need_has_current_support(
+    session: Session,
+    need: PowerNeed,
+    project: Project,
+    *,
+    links: list[tuple[Observation, Evidence, Interpretation | None]] | None = None,
+) -> bool:
+    rows = (
+        [(obs, interpretation) for obs, _, interpretation in links]
+        if links is not None
+        else session.execute(
+            select(Observation, Interpretation)
+            .join(NeedObservation, NeedObservation.observation_id == Observation.id)
+            .outerjoin(Interpretation, Interpretation.observation_id == Observation.id)
+            .where(NeedObservation.need_id == need.id)
+        ).all()
+    )
     for linked_observation, interpretation in rows:
         if (
             interpretation is None
@@ -239,10 +249,21 @@ def _need_has_current_support(session: Session, need: PowerNeed, project: Projec
         evidence_hash = assessment.get("evidence_hash")
         if not isinstance(evidence_hash, str):
             continue
-        evidence = session.scalar(
-            select(Evidence).where(
-                Evidence.observation_id == linked_observation.id,
-                Evidence.content_hash == evidence_hash,
+        evidence = (
+            next(
+                (
+                    ev
+                    for obs, ev, _ in links
+                    if obs.id == linked_observation.id and ev.content_hash == evidence_hash
+                ),
+                None,
+            )
+            if links is not None
+            else session.scalar(
+                select(Evidence).where(
+                    Evidence.observation_id == linked_observation.id,
+                    Evidence.content_hash == evidence_hash,
+                )
             )
         )
         if evidence is None:

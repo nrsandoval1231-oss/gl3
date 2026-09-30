@@ -1392,10 +1392,12 @@ def test_authoritative_permit_identity_requires_one_exact_site_candidate(
 
 
 def test_rrc_amendment_rollover_history_no_duplicate_asset_or_inferred_production(db, monkeypatch):
+    import gridlens.api.app as api
     import gridlens.ingestion.service as service
     from gridlens.ingestion.adapters.rrc_drilling import PORTAL
 
     _, factory, _ = db
+    monkeypatch.setattr(api, "SessionLocal", factory)
     definition = next(row for row in load_registry() if row["id"] == "texas-rrc-drilling-permits")
     with factory.begin() as session:
         session.add(
@@ -1467,6 +1469,20 @@ def test_rrc_amendment_rollover_history_no_duplicate_asset_or_inferred_productio
 
     assert run()["signals"] == 1
     assert run()["unchanged"] == 1
+    from gridlens.intelligence.buying_chain import enrich_buying_chain
+
+    fetched = []
+
+    def forbidden_refetch(url):
+        fetched.append(url)
+        raise AssertionError("Native permit facts must not need a portal refetch")
+
+    with factory.begin() as session:
+        project = session.scalar(select(Project))
+        result = enrich_buying_chain(session, project.id, fetcher=forbidden_refetch)
+        assert fetched == []
+        assert result["candidates"][0]["organization"] == "EXAMPLE OPERATOR LLC"
+        assert result["candidates"][0]["person_name"] is None
     incoming[:] = [row(99)]  # Older filing returning in a rollover snapshot.
     assert run()["older_amendments_retained"] == 1
     run()
@@ -1487,9 +1503,11 @@ def test_rrc_amendment_rollover_history_no_duplicate_asset_or_inferred_productio
         assert session.scalar(select(Project.asset_type)) == "upstream_well"
         active = session.scalars(select(PowerNeed).where(PowerNeed.active.is_(True))).all()
         assert len(active) == 1 and active[0].activity_key == "well-permit"
+    assert [item["activity"] for item in api.opportunities(tier="Signal")] == ["well-permit"]
     incoming[:] = [row(96, "Cancelled")]
     run()
     with factory() as session:
         assert session.scalar(select(PowerNeed.active)) is False
         assert session.scalar(select(func.count()).select_from(Project)) == 1
         assert session.scalar(select(func.count()).select_from(Evidence)) == 4
+    assert api.opportunities(tier="Signal") == []
