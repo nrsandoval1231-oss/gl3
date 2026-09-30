@@ -28,7 +28,7 @@ The live-retrieval acceptance gate still fails in the saved environment. Genuine
 
 GitHub inspection for GL3-018 on 2026-09-30 confirms PR #7 merged as `1f18a0182922fe8ee3fdc2225cf9c3f7c95d1fea`. Subsequent GL3-017 live acceptance was owner-reported; it is not fresh proof from this agent. The earlier saved-cloud failure record above remains historical evidence, not the current merge status. No deployment is claimed.
 
-## GL3-018 implemented, draft review
+## GL3-018 merged
 
 Fresh `feat/gl3-018` starts at current GitHub main `1f18a01`. Authoritative
 admission separates eligible permits, project-specific official utility filings
@@ -55,7 +55,7 @@ and replay succeeded for all three sources. Full validation: Ruff (including mig
 mypy, 381 pytest passes/one existing local-probe skip, clean/repeat/drift migrations,
 frontend typecheck/build, zero npm vulnerabilities and all nine Playwright tests.
 Final candidate checks and review are recorded in
-`docs/validation/gl3-018-validation.md`. No merge or deployment is authorized.
+`docs/validation/gl3-018-validation.md`. PR #8 is merged on remote main `7f241748f421697877b54ba3f87eb5b0b3e839e1`, freshly fetched for GL3-019. No deployment is claimed.
 
 ## Later scope
 
@@ -64,3 +64,7 @@ and load-bank procurement, broader electrical/commissioning and utility mileston
 acquisition remain unproven. Planning/entitlement standalone Signal admission
 still needs an owner decision. The existing Prospect/Lead evidence gates remain
 authoritative; this slice does not promote on score or equipment MW.
+
+## GL3-019 in progress
+
+Fresh branch from verified remote main `7f24174`. Priority: data-center construction temporary power, commissioning temporary power, then O&G temporary power. All drilling permits are eligible early production Signals; they do not prove production date, MW, fuel suitability, rental demand or a supply gap. Preserve asset-specific lifecycle and separate relationship evidence. Repair retained permit enrichment before broadening source count. Exact scope and validation are recorded in `docs/sources/gl3-019-permit-enrichment.md`.
