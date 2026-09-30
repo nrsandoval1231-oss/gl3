@@ -8,9 +8,24 @@ The bounded target is to make retained official permits useful through the exist
 
 Source feasibility, final implementation limits and live validation will be recorded here. No national coverage, full application coverage, commissioning feed or all-drilling-permit ingestion is claimed. No outreach or deployment.
 
-## Shipped boundary
+## Authorized acquisition continuation
 
-The registry still has 13 enabled sources. Chicago acquisition now retains the
+Extend Austin commercial collection to electrical permits and a bounded initial
+2026 data-center backfill, retaining exact contractor/applicant organizations,
+permit-listed names and business-contact fields. These fields do not establish
+current employment, personal telephone ownership or buying authority. Verify
+Dallas, Houston and El Paso official routes as requested; historical or incomplete
+datasets must not be presented as current complete acquisition. Validate the RRC
+current file's framing, amendments, stable identity, freshness and rollover before
+enabling ingestion. Current-file retrieval alone is not statewide history.
+
+The original acceptance below is superseded for acquisition by the continuation
+validation. Houston now collects the four latest linked official XLSX reports;
+it does not manufacture missing status, organizations or contacts.
+
+## Original Chicago / Georgia boundary
+
+The original candidate had 13 enabled sources; the continuation has 14. Chicago acquisition now retains the
 full address, application-start date and permit milestone alongside scope,
 parcel and the exact 15 named-party slots. Georgia retains a bounded, exact
 front-page draft identity excerpt in the accepted parent evidence, versioned
@@ -43,13 +58,30 @@ This is still a bounded project action, not automatic general-purpose research.
   connector was added. Construction/MEP and standby-generator permits can reveal
   relevant projects, but these examples do not establish a commissioning rental
   package, date, load or power gap.
-- **Drilling:** the official RRC download index and its linked daily GoDrive page
-  returned HTTP 200 in this cloud executor. The index describes a current-month
-  cumulative daily file. The portal showed 3,248 files with a 250-row first page;
-  that is a file listing, not permit coverage. Current-file download, stateful
-  pagination, parsing and complete ingestion were not verified. There is no new
-  RRC connector and no claim that all drilling permits are ingested. Access was
-  not denied; reliable current retrieval remains unfinished lower-priority work.
+- **Drilling:** current official `daf420.dat` download was verified twice with
+  identical SHA-256 `4bf8b0f65a6e3f077802d9e95ea33bd184c6b0d3ca452efa49129915ea895fc3`
+  (2,623,180 bytes). Retrieval is permitted, not denied. Full ingestion remains
+  disabled: OGA049M documents 510-byte tape records, while the current download
+  has variable-length segments (type 01: 212 bytes, type 02: 510, type 08 mostly
+  87) and 57 CRLF fragments without a documented record prefix. Root-only parsing
+  finds 966 permit/status-sequence records and 949 permit numbers, including
+  original issue dates from 2013. Full transport framing, amendment ordering,
+  rollover/archive recovery and independent completeness are not yet validated.
+  Silently discarding unknown fragments or treating the file as new permits only
+  would lose evidence. No RRC connector or all-Texas-history claim is enabled.
+- **Dallas:** official reports page returned HTTP 401 and DallasNow Accela 403.
+  The old Dallas Open Data Building Permits dataset explicitly says it is no
+  longer updated. Current reliable retrieval is blocked at the tested routes;
+  other routes remain unverified. No bypass or stale feed enabled.
+- **El Paso:** official city planning page and Accela building search returned
+  HTTP 403. No supported current retrieval verified and no connector enabled.
+- **Houston:** latest official linked report ends September 14 on September 30.
+  Four report snapshots cover August 17–September 14: 1,543 distinct rows after
+  two exact duplicate rows. Footer text is validated, conflicting duplicates fail.
+  Permit status and all party/contact fields are absent. Existing Signal gates
+  reject unknown status; these records remain attributable ingestion evidence,
+  not fabricated Signals. This route is limited published-report acquisition,
+  not complete or real-time sold-permit/electrical/commissioning coverage.
 - **Georgia:** all 19 current application-link fields remained empty. Full air
   applications and comprehensive public contact acquisition remain unproven.
 - No BidBuy bypass, generic procurement expansion, outreach or deployment.

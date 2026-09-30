@@ -303,6 +303,10 @@ def enrich_buying_chain(
         project.source_id == GEORGIA
         and any(georgia_identity(doc.text) for doc, _, _, _ in documents)
     )
+    retained_permit = retained_permit or (
+        project.source_id in {"austin-building-permits", "houston-weekly-permits"}
+        and any(permit_facts(project.source_id, doc.text) for doc, _, _, _ in documents)
+    )
     if retained_permit:
         # The ordinary permit worker refreshes these accepted fields. A redundant
         # network round trip must not be required to make retained evidence useful.

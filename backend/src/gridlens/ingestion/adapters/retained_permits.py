@@ -11,6 +11,18 @@ import re
 from gridlens.ingestion.adapters.socrata_permits import MAPS
 
 LABELS = {
+    **{
+        key: label
+        for key, label in (
+            ("contractor_trade", "Permit contractor trade"),
+            ("contractor_company_name", "Permit contractor organization"),
+            ("contractor_full_name", "Permit-listed contractor name"),
+            ("contractor_phone", "Contractor business phone (permit field)"),
+            ("applicant_org", "Permit applicant organization"),
+            ("applicant_full_name", "Permit-listed applicant name"),
+            ("applicant_phone", "Applicant business phone (permit field)"),
+        )
+    },
     "row": "Source record",
     "project": "Permit / case",
     "address": "Site address",
@@ -33,11 +45,13 @@ GEORGIA = "georgia-air-draft-title-v"
 
 
 def fields(source_id: str, text: str) -> dict[str, tuple[str, str]]:
-    if source_id not in MAPS and source_id != GEORGIA:
+    if source_id not in MAPS and source_id not in {GEORGIA, "houston-weekly-permits"}:
         return {}
     allowed = (
         set(MAPS[source_id])
         if source_id in MAPS
+        else set(LABELS)
+        if source_id == "houston-weekly-permits"
         else set(LABELS) - set(MAPS["chicago-building-permits"])
     )
     result: dict[str, tuple[str, str]] = {}

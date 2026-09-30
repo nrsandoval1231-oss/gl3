@@ -1,5 +1,7 @@
 # GL3-019 cloud validation — 2026-09-30
 
+**Original candidate:** acquisition totals are superseded by [the Austin/Houston continuation](gl3-019-acquisition-continuation.md).
+
 Documentation was updated first in `56d7cb9`, from freshly fetched remote main
 `7f241748f421697877b54ba3f87eb5b0b3e839e1`. Implemented code candidate:
 `426c2e670bc4b5b705675fd42e2e590287942195`. The final reporting commit changes

@@ -303,3 +303,37 @@ def test_chicago_express_electrical_retains_scope_parcel_and_contractor():
     assert "SYNTHETIC-ELECTRICAL-1" in result["html_url"]
     assert result["permit"]["source_fields"]["contact_4_name"] == "contact_4_name"
     assert assess_permit(result)["decision"] == "accepted"
+
+
+def test_austin_backfill_keeps_old_dc_electrical_fields_and_excludes_unrelated_old_rows():
+    definition = source("austin-building-permits")
+    definition["query"]["data_center_backfill"] = {"start": "2026-01-01", "end": "2026-09-30"}
+    row = {
+        "permit_number": "2025-155325 EP",
+        "issue_date": "2026-03-19",
+        "description": "Data center expansion",
+        "permit_type_desc": "Electrical Permit",
+        "permit_class_mapped": "Commercial",
+        "contractor_company_name": "Prism Electric Inc",
+        "contractor_full_name": "Blake Combs",
+        "contractor_phone": "5129262000",
+    }
+    requests = []
+
+    def handler(request):
+        requests.append(dict(request.url.params))
+        return httpx.Response(
+            200, json=[{"row_count": "1"}] if "$select" in request.url.params else [row]
+        )
+
+    client = httpx.Client(transport=httpx.MockTransport(handler))
+    result = retrieve(definition, client)
+    assert "contractor_full_name: Blake Combs" in result[0]["abstract"]
+    assert "'Electrical Permit'" in requests[0]["$where"]
+    assert "statusdate >=" in requests[0]["$where"]
+    row["description"] = "Ordinary old remodel"
+    with pytest.raises(SourceParseError, match="escaped"):
+        retrieve(definition, client)
+    definition["query"]["data_center_backfill"]["start"] = "2020-01-01"
+    with pytest.raises(SourceParseError, match="one year"):
+        retrieve(definition, client)

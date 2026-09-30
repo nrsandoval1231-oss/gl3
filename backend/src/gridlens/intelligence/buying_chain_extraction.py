@@ -25,6 +25,9 @@ from gridlens.ingestion.adapters.retained_permits import (
     georgia_identity,
     georgia_proponent,
 )
+from gridlens.ingestion.adapters.retained_permits import (
+    fields as permit_fields,
+)
 from gridlens.intelligence.project_identity import (
     conflicting_geography,
     decide_project_match,
@@ -243,6 +246,78 @@ CHICAGO_CATEGORIES = {
 
 
 def extract_retained_permit_organizations(doc: PublicDocument, source_id: str) -> list[Extracted]:
+    if source_id == "austin-building-permits":
+        parsed = permit_fields(source_id, doc.text)
+        result = []
+        for prefix, organization_field, person_field in (
+            ("contractor", "contractor_company_name", "contractor_full_name"),
+            ("applicant", "applicant_org", "applicant_full_name"),
+        ):
+            organization = parsed.get(organization_field)
+            if not organization or _RENTAL.search(organization[0]):
+                continue
+            same_contractor = organization[0] == parsed.get("contractor_company_name", ("", ""))[0]
+            trade = (
+                parsed.get("contractor_trade")
+                if prefix == "contractor" or same_contractor
+                else None
+            )
+            category = {
+                "Electrical Contractor": Category.ELECTRICAL.value,
+                "General Contractor": Category.GC.value,
+            }.get(trade[0] if trade else "", Category.UNKNOWN.value)
+            citations = [_citation(doc, organization[1], "project_organization")]
+            if trade:
+                citations.append(_citation(doc, trade[1], "organization_category"))
+            phone = parsed.get(prefix + "_phone")
+            contacts = []
+            if phone and re.fullmatch(r"[+()0-9 .-]{10,24}", phone[0]):
+                citations.append(_citation(doc, phone[1], "public_business_contact"))
+                contacts.append(
+                    {
+                        "kind": "business phone",
+                        "value": phone[0],
+                        "source_url": doc.url,
+                        "quote": phone[1],
+                        "observed_at": doc.observed_at.isoformat(),
+                    }
+                )
+            reason = (
+                "Permit-listed " + prefix + "; current employment, project assignment "
+                "and buying authority are UNKNOWN. Phone is a permit business field, "
+                "not a verified personal number."
+            )
+            result.append(
+                Extracted(
+                    organization[0],
+                    category,
+                    reason=reason,
+                    citations=citations,
+                    public_contacts=contacts,
+                )
+            )
+            person = parsed.get(person_field)
+            if (
+                person
+                and re.fullmatch(_NAME, person[0])
+                and organization_key(person[0]) != organization_key(organization[0])
+                and not re.search(
+                    r"\b(?:LLC|Inc|Corp|Company|Construction|Electric|Contracting)\b",
+                    person[0],
+                    re.I,
+                )
+            ):
+                result.append(
+                    Extracted(
+                        organization[0],
+                        category,
+                        person_name=person[0],
+                        reason=reason,
+                        evidence_strength="Low",
+                        citations=[*citations, _citation(doc, person[1], "permit_listed_person")],
+                    )
+                )
+        return result
     if source_id == GEORGIA:
         proponent = georgia_proponent(doc.text)
         proponents = (

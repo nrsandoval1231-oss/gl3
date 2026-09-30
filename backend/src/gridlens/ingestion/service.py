@@ -62,7 +62,7 @@ from gridlens.persistence.models import (
     Source,
 )
 
-PERMIT_RETRIEVAL_METHODS = {"socrata-permits", "georgia-air-permits"}
+PERMIT_RETRIEVAL_METHODS = {"socrata-permits", "georgia-air-permits", "houston-weekly-permits"}
 
 
 def _optional_date(value: str | None) -> date | None:

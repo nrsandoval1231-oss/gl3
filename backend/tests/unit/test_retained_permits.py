@@ -56,3 +56,29 @@ def test_named_construction_proponent_not_inferred_from_facility_or_agency_title
     assert result[1] in text
     assert georgia_proponent(text.replace("proposes", "previously proposed")) is None
     assert georgia_proponent(text.replace("proposes", "does not propose")) is None
+
+
+def test_austin_permit_people_and_business_phone_do_not_invent_current_roles():
+    from gridlens.ingestion.adapters.buying_chain_public import PublicDocument
+    from gridlens.intelligence.buying_chain_extraction import extract_retained_permit_organizations
+
+    text = (
+        "contractor_company_name: Prism Electric Inc\n"
+        "contractor_trade: Electrical Contractor\ncontractor_full_name: Blake Combs\n"
+        "contractor_phone: 5129262000"
+    )
+    doc = PublicDocument("https://abc.austintexas.gov/permit", "Permit", text)
+    rows = extract_retained_permit_organizations(doc, "austin-building-permits")
+    organization, person = rows
+    assert organization.organization_relationship == "DIRECT"
+    assert organization.public_contacts[0]["kind"] == "business phone"
+    assert person.person_name == "Blake Combs"
+    assert person.title is None
+    assert person.person_organization_relationship == "UNKNOWN"
+    assert person.person_project_relationship == "UNKNOWN"
+    assert person.public_contacts == []
+    assert all(c["quote"] in text for row in rows for c in row.citations)
+    assert len(facts("austin-building-permits", text)) == 4
+    assert extract_retained_permit_organizations(doc, "publisher-rss") == []
+    ambiguous = PublicDocument(doc.url, doc.title, text + "\ncontractor_company_name: Other Inc")
+    assert extract_retained_permit_organizations(ambiguous, "austin-building-permits") == []
