@@ -1,0 +1,446 @@
+"""Evidence-bound Signal display adjudication; commercial tier is independent."""
+
+from __future__ import annotations
+
+import os
+import re
+import time
+from collections.abc import Callable
+from datetime import date
+from typing import Any
+from uuid import UUID
+
+import httpx
+from sqlalchemy import select
+from sqlalchemy.orm import Session
+
+from gridlens.persistence.models import (
+    Evidence,
+    Interpretation,
+    NeedObservation,
+    Observation,
+    PowerNeed,
+    Project,
+    ProjectLifecycle,
+    SignalDecision,
+    Source,
+)
+
+POLICY_VERSION = "signal-display-v1"
+MODEL = "jev-1.13.0"
+
+
+def _jev_call(state: dict[str, str], api_key: str) -> dict[str, Any]:
+    payload = {
+        "state": {
+            "title": state["title"][:300],
+            "abstract": state["abstract"][:1500],
+            "url": state["url"][:500],
+            "published_at": state["published_at"][:30],
+            "source_id": state["source_id"],
+            "source_family": state["source_family"],
+            "publisher": state["publisher"],
+            "event_date": state["event_date"],
+            "event_date_label": state["event_date_label"],
+            "project_name": state["project_name"],
+            "location": state["location"],
+            "asset_type": state["asset_type"],
+            "lifecycle_state": state["lifecycle_state"],
+        },
+        "model": MODEL,
+        "questions": {
+            "physical_project_event": {
+                "type": "noul",
+                "instructions": (
+                    "Does this describe a specific physical project or facility event, rather "
+                    "than a general company announcement?"
+                ),
+            },
+            "meaningful_new_activity": {
+                "type": "noul",
+                "instructions": (
+                    "Does this describe meaningful new construction, conversion, expansion, or "
+                    "commissioning activity rather than routine maintenance or replacement?"
+                ),
+            },
+            "commercial_relevance": {
+                "type": "noul",
+                "instructions": (
+                    "Could the specific described activity reasonably matter to a commercial "
+                    "temporary power provider?"
+                ),
+            },
+            "temporary_power_relevance": {
+                "type": "noul",
+                "instructions": (
+                    "Does the text explicitly support temporary, bridge, construction, "
+                    "commissioning, or generator power relevance?"
+                ),
+            },
+            "routine_maintenance": {
+                "type": "noul",
+                "instructions": (
+                    "Is this primarily routine repair, replacement, resurfacing, or maintenance "
+                    "of an existing facility or equipment?"
+                ),
+            },
+            "transient_event": {
+                "type": "noul",
+                "instructions": (
+                    "Is this a temporary public event, race, walk, festival, or similar activity "
+                    "rather than facility development?"
+                ),
+            },
+        },
+    }
+    last_error: Exception | None = None
+    for attempt in range(3):
+        try:
+            response = httpx.post(
+                "https://api.typesafe.ai/v1/systemone",
+                headers={"Authorization": f"Bearer {api_key}"},
+                json=payload,
+                timeout=12.0,
+            )
+            if response.status_code in {429, 529} and attempt < 2:
+                time.sleep(min(0.25 * (2**attempt), 1.0))
+                continue
+            response.raise_for_status()
+            return response.json()
+        except (httpx.HTTPError, ValueError) as exc:
+            last_error = exc
+            if attempt < 2:
+                continue
+    raise RuntimeError("TypeSafe Jev unavailable or returned malformed data") from last_error
+
+
+def adjudicate(
+    session: Session,
+    observation: Observation,
+    evidence: Evidence,
+    *,
+    api_key: str | None = None,
+    caller: Callable[[dict[str, str], str], dict[str, Any]] = _jev_call,
+    policy_version: str = POLICY_VERSION,
+) -> SignalDecision:
+    prior = session.scalar(
+        select(SignalDecision)
+        .where(
+            SignalDecision.observation_id == observation.id,
+            SignalDecision.content_hash == evidence.content_hash,
+            SignalDecision.policy_version == policy_version,
+        )
+        .order_by(SignalDecision.id.desc())
+    )
+    key = api_key if api_key is not None else os.getenv("TYPESAFE_API_KEY")
+    if prior is not None and not (prior.source == "jev_unavailable" and key):
+        return prior
+    text = f"{evidence.title}\n{evidence.abstract or ''}"
+    override = deterministic_override(text, observation.published_at, evidence.url)
+    if override is not None:
+        decision, dims, reason = override
+        source, model = "deterministic", None
+    else:
+        key = api_key if api_key is not None else os.getenv("TYPESAFE_API_KEY")
+        if not key:
+            pending = SignalDecision(
+                observation_id=observation.id,
+                content_hash=evidence.content_hash,
+                policy_version=policy_version,
+                decision="REVIEW",
+                source="jev_unavailable",
+                model_version=None,
+                dimensions={"status": "missing_api_key"},
+                reason="Ambiguous evidence requires Jev; TYPESAFE_API_KEY is unavailable.",
+            )
+            session.add(pending)
+            session.flush()
+            return pending
+        try:
+            state = _evidence_state(session, observation, evidence)
+            result = caller(state, key)
+            if not isinstance(result, dict):
+                raise ValueError("invalid Jev response")
+            if result.get("model") != MODEL:
+                raise ValueError("unexpected Jev model")
+            answers = result["answers"]
+            if not isinstance(answers, dict):
+                raise ValueError("invalid Jev answers")
+            dimension_values: dict[str, float] = {}
+            for name in (
+                "physical_project_event",
+                "meaningful_new_activity",
+                "commercial_relevance",
+                "temporary_power_relevance",
+                "routine_maintenance",
+                "transient_event",
+            ):
+                answer = answers[name]
+                if not isinstance(answer, dict):
+                    raise ValueError("invalid Jev answer")
+                score = answer.get("noul")
+                if (
+                    answer.get("type") != "noul"
+                    or isinstance(score, bool)
+                    or not isinstance(score, int | float)
+                    or not 0 <= score <= 1
+                ):
+                    raise ValueError("invalid factual dimension")
+                dimension_values[name] = float(score)
+            decision = map_dimensions(dimension_values)
+            source, model, dims = "jev", str(result["model"]), dimension_values
+            reason = (
+                "GL3 display policy mapped retained factual Jev dimensions to a display decision."
+            )
+        except (KeyError, TypeError, ValueError, RuntimeError, httpx.HTTPError):
+            decision, source, model, dims, reason = (
+                "REVIEW",
+                "jev_error",
+                None,
+                {"status": "malformed_or_unavailable"},
+                "Jev response was malformed or unavailable; manual review is required.",
+            )
+    row = SignalDecision(
+        observation_id=observation.id,
+        content_hash=evidence.content_hash,
+        policy_version=policy_version,
+        decision=decision,
+        source=source,
+        model_version=model,
+        dimensions=dims,
+        reason=reason,
+    )
+    session.add(row)
+    session.flush()
+    return row
+
+
+def deterministic_override(
+    text: str, published_at: date | None, url: str
+) -> tuple[str, dict[str, Any], str] | None:
+    """Sparse explicit Signal policy overrides; all other cases remain reviewable."""
+    lower = text.casefold()
+    explicit_negative = re.search(
+        r"\bwithdrawn\b[^\n]{0,100}\b(?:application|permit|project)\b"
+        r"|\b(?:application|permit|project|construction)\s+(?:has been |was )?"
+        r"(?:withdrawn|cancelled|canceled|denied)\b|\b(?:withdrawn|cancelled|canceled|denied)"
+        r"\s+(?:the )?(?:application|permit|project)\b",
+        lower,
+    )
+    transient = re.search(
+        r"\b(?:road race|fun run|walkathon|parade)\b"
+        r"|\b(?:park|race|run|event)\b.{0,40}\bmarathon\b"
+        r"|\bmarathon\b.{0,60}\b(?:run|race|course|participants|event|annual|park)\b"
+        r"|\b(?:one-day|annual) festival\b"
+        r"|\btemporary stage\b.{0,40}\b(?:event|festival|concert)\b"
+        r"|\bstage for (?:the )?(?:event|festival|concert)\b"
+        r"|\bwalk (?:event|for charity|to benefit)\b",
+        lower,
+    )
+    like_for_like_replacement = re.search(
+        r"\b(?:like[- ]for[- ]like|same[- ]for[- ]same)\b.{0,40}\b"
+        r"(?:generator|genset|transformer|switchgear)\b"
+        r"|\b(?:replace|replacing|replacement of)\s+(?:the )?existing\s+"
+        r"(?:backup |emergency )?(?:generator|genset|transformer|switchgear)\b"
+        r"|\bexisting\s+(?:backup |emergency )?"
+        r"(?:generator|genset|transformer|switchgear)\s+replacement\b",
+        lower,
+    )
+    if explicit_negative or transient or like_for_like_replacement:
+        return (
+            "HOLD",
+            {
+                "explicit_negative": bool(explicit_negative),
+                "transient_event": bool(transient),
+                "like_for_like_replacement": bool(like_for_like_replacement),
+            },
+            "Retained text supports a bounded negative display rule for this event.",
+        )
+    elif (
+        not any(
+            phrase in lower
+            for phrase in (
+                "not under construction",
+                "no construction",
+                "construction not started",
+            )
+        )
+        and any(
+            term in lower
+            for term in (
+                "under construction",
+                "construction begins",
+                "begins construction",
+                "construction started",
+                "construction of",
+                "groundbreaking",
+            )
+        )
+        and any(
+            term in lower
+            for term in (
+                "data center",
+                "manufacturing",
+                "mine",
+                "quarry",
+                "power plant",
+                "generator",
+                "conversion",
+            )
+        )
+        and published_at is not None
+        and url.startswith("http")
+    ):
+        return (
+            "SHOW",
+            {"dated": True, "linked": True, "substantive": True},
+            "Explicitly supported high-value construction event; Jev review is not required.",
+        )
+    return None
+
+
+def _evidence_state(
+    session: Session, observation: Observation, evidence: Evidence
+) -> dict[str, str]:
+    source = session.get(Source, observation.source_id)
+    interpretation = session.scalar(
+        select(Interpretation).where(Interpretation.observation_id == observation.id)
+    )
+    assessment = interpretation.assessment if interpretation and interpretation.assessment else {}
+    project_key = assessment.get("project_identity_key")
+    project = (
+        session.scalar(select(Project).where(Project.identity_key == project_key))
+        if isinstance(project_key, str)
+        else None
+    )
+    lifecycle = session.get(ProjectLifecycle, project.id) if project else None
+    fields = {
+        "title": evidence.title,
+        "abstract": evidence.abstract or "",
+        "url": evidence.url,
+        "published_at": str(evidence.published_at or "unknown"),
+        "source_id": observation.source_id,
+        "source_family": source.family if source else "unknown",
+        "publisher": source.publisher if source else "unknown",
+        "event_date": str(evidence.event_date or "unknown"),
+        "event_date_label": evidence.event_date_label or "unknown",
+        "project_name": project.name if project else "unknown",
+        "location": project.location if project and project.location else "unknown",
+        "asset_type": project.asset_type if project else "unknown",
+        "lifecycle_state": lifecycle.current_state if lifecycle else "unknown",
+    }
+    return fields
+
+
+def map_dimensions(dimensions: dict[str, float]) -> str:
+    """Apply GL3 policy to factual probabilities; Jev never chooses a display label."""
+    if dimensions["transient_event"] >= 0.8:
+        return "HOLD"
+    if dimensions["routine_maintenance"] >= 0.8 and dimensions["meaningful_new_activity"] <= 0.3:
+        return "HOLD"
+    if (
+        dimensions["physical_project_event"] >= 0.8
+        and dimensions["meaningful_new_activity"] >= 0.8
+        and dimensions["commercial_relevance"] >= 0.8
+        and dimensions["routine_maintenance"] <= 0.2
+        and dimensions["transient_event"] <= 0.2
+    ):
+        return "SHOW"
+    return "REVIEW"
+
+
+def adjudicate_current_signals(
+    session: Session, *, limit: int = 100, policy_version: str = POLICY_VERSION
+) -> dict[str, int]:
+    """Bounded backfill for retained Signal evidence; safe to replay by version."""
+    bound = max(1, min(limit, 500))
+    counts = {"processed": 0, "show": 0, "review": 0, "hold": 0}
+
+    # Existing Taylor revisions predate this table; retain their current
+    # deterministic display decision without changing the historical evidence.
+    taylor = session.execute(
+        select(Observation, Evidence, Interpretation)
+        .join(Evidence, Evidence.observation_id == Observation.id)
+        .join(Interpretation, Interpretation.observation_id == Observation.id)
+        .where(
+            Observation.source_id == "taylor-development-newsflash",
+            Interpretation.status != "accepted",
+            Interpretation.assessment["evidence_hash"].as_string() == Evidence.content_hash,
+        )
+        .order_by(Observation.id, Evidence.observed_at.desc())
+        .limit(bound)
+    ).all()
+    for observation, evidence, interpretation in taylor:
+        assessment = interpretation.assessment or {}
+        if assessment.get("withdrawal_supported") is True:
+            decision, dimension, reason = (
+                "HOLD",
+                "planning_application_withdrawn",
+                "Official linked planning withdrawal; earlier project evidence remains "
+                "historical and viability is UNKNOWN.",
+            )
+        elif "conflicting project or site facts" in str(assessment.get("reason") or ""):
+            decision, dimension, reason = (
+                "REVIEW",
+                "identity_conflict",
+                "Taylor revision conflicts with retained project or site facts; "
+                "application and project status are UNKNOWN.",
+            )
+        else:
+            continue
+        prior = session.scalar(
+            select(SignalDecision)
+            .where(
+                SignalDecision.observation_id == observation.id,
+                SignalDecision.content_hash == evidence.content_hash,
+                SignalDecision.policy_version == policy_version,
+            )
+            .order_by(SignalDecision.id.desc())
+        )
+        if prior is None or prior.decision != decision or prior.source != "deterministic":
+            session.add(
+                SignalDecision(
+                    observation_id=observation.id,
+                    content_hash=evidence.content_hash,
+                    policy_version=policy_version,
+                    decision=decision,
+                    source="deterministic",
+                    model_version=None,
+                    dimensions={dimension: True},
+                    reason=reason,
+                )
+            )
+        counts["processed"] += 1
+        counts[decision.casefold()] += 1
+
+    remaining = bound - counts["processed"]
+    if remaining <= 0:
+        return counts
+
+    current = session.execute(
+        select(Observation, Evidence)
+        .join(Evidence, Evidence.observation_id == Observation.id)
+        .join(Interpretation, Interpretation.observation_id == Observation.id)
+        .join(NeedObservation, NeedObservation.observation_id == Observation.id)
+        .join(PowerNeed, PowerNeed.id == NeedObservation.need_id)
+        .where(
+            Interpretation.status == "accepted",
+            PowerNeed.tier == "Signal",
+            PowerNeed.active.is_(True),
+            Interpretation.assessment["evidence_hash"].as_string() == Evidence.content_hash,
+        )
+        .distinct()
+        .order_by(Observation.id, Evidence.observed_at.desc())
+        .limit(remaining)
+    ).all()
+    seen: set[UUID] = set()
+    for observation, evidence in current:
+        if observation.id in seen:
+            continue
+        seen.add(observation.id)
+        signal_decision = adjudicate(
+            session, observation, evidence, policy_version=policy_version
+        )
+        counts["processed"] += 1
+        counts[signal_decision.decision.casefold()] += 1
+    return counts

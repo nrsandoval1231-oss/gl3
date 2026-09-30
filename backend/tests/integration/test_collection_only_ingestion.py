@@ -456,7 +456,7 @@ def test_rss_future_path_exact_duplicate_correction_and_replay(db, monkeypatch):
 def test_current_rss_grammar_matches_current_permit_by_explicit_project_and_site(db, monkeypatch):
     _, factory, _ = db
     from gridlens.ingestion.registry import load_registry
-    from gridlens.persistence.models import ProjectMatchDecision
+    from gridlens.persistence.models import ProjectMatchDecision, SignalDecision
 
     permit_source_id = "austin-building-permits"
     news_source_id = "northstar-news"
@@ -576,6 +576,18 @@ def test_current_rss_grammar_matches_current_permit_by_explicit_project_and_site
             )
         )
         assert decision and decision.decision == "matched"
+        display_decision = session.scalar(
+            select(SignalDecision).where(
+                SignalDecision.observation_id == news_observation.id,
+                SignalDecision.content_hash
+                == session.scalar(
+                    select(Evidence.content_hash).where(
+                        Evidence.observation_id == news_observation.id
+                    )
+                ),
+            )
+        )
+        assert display_decision and display_decision.decision == "SHOW"
         assert "physical address" in decision.reason
         assert "project name/alias" in decision.reason
         assert decision.identity_facts["site"] == "100 Main Street, Austin, TX"
@@ -642,6 +654,97 @@ def test_current_rss_grammar_matches_current_permit_by_explicit_project_and_site
     with factory() as session:
         assert session.scalar(select(func.count()).select_from(ChangeEvent)) == stable_event_count
         assert session.scalar(select(func.count()).select_from(Evidence)) == 4
+
+
+def test_phase_numbered_same_building_permits_consolidate_but_distinct_buildings_do_not(
+    db, monkeypatch
+):
+    _, factory, _ = db
+    import gridlens.ingestion.service as service
+    from gridlens.ingestion.registry import load_registry
+
+    source_id = "austin-building-permits"
+    definition = next(row for row in load_registry() if row["id"] == source_id)
+    with factory.begin() as session:
+        session.add(
+            Source(
+                id=source_id,
+                publisher=definition["publisher"],
+                endpoint=definition["endpoint"],
+                family="permits",
+                geography="Austin, TX",
+                industries=["industrial"],
+                retrieval_method=definition["retrieval_method"],
+                health={},
+            )
+        )
+        session.flush()
+        job = Job(
+            source_id=source_id,
+            status="running",
+            lease_owner="test",
+            fence=1,
+            lease_until=datetime.now(UTC) + timedelta(minutes=10),
+        )
+        session.add(job)
+        session.flush()
+        job_id = job.id
+
+    def permit(number: int, building: str) -> dict:
+        address = f"1300 E ANDERSON LN SVRD WB BLDG {building}"
+        description = (
+            f"ePlan: Commercial Expedited Review - Phase {number}: Interior Remodel to "
+            "Existing Manufacturing Facility (20000 SF)."
+        )
+        return {
+            "document_number": f"PH-{building}-{number}",
+            "title": f"Austin building permit PH-{building}-{number} — Building Permit",
+            "abstract": (
+                f"address: {address}, Austin, TX\n"
+                f"description: {description}\nstatus: Active"
+            ),
+            "publication_date": "2026-09-20",
+            "event_date": "2026-09-20",
+            "html_url": f"https://example.test/permit/PH-{building}-{number}",
+            "permit": {
+                "row_id": f"PH-{building}-{number}",
+                "description": description,
+                "status": "Active",
+                "address": address,
+                "city": "Austin",
+                "state": "TX",
+                "project": None,
+                "source_fields": {"address": "original_address1", "project": "project_id"},
+            },
+        }
+
+    records = [permit(2, "B"), permit(3, "B"), permit(4, "B"), permit(2, "A")]
+    monkeypatch.setattr(service, "retrieve_source", lambda *_args: records)
+    with factory() as session:
+        counts = service.process_job(
+            session, job_id, "test", 1, {**definition, "id": source_id}
+        )
+    assert counts["permit_accepted"] == 4
+    with factory() as session:
+        projects = session.scalars(select(Project)).all()
+        assert len(projects) == 2
+        building_b = next(
+            project
+            for project in projects
+            if project.identity_facts.get("facility_source_address", "").endswith("BLDG B")
+        )
+        building_a = next(
+            project
+            for project in projects
+            if project.identity_facts.get("facility_source_address", "").endswith("BLDG A")
+        )
+        assert building_a.id != building_b.id
+        assert session.scalar(
+            select(func.count())
+            .select_from(NeedObservation)
+            .join(PowerNeed, PowerNeed.id == NeedObservation.need_id)
+            .where(PowerNeed.project_id == building_b.id)
+        ) == 3
 
 
 def test_multiple_labeled_rss_sites_keep_record_separate_with_persisted_ambiguity(

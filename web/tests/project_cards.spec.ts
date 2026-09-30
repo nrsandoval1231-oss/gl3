@@ -1,20 +1,23 @@
 import { expect, test } from '@playwright/test'
 import type { Opportunity } from '../src/api/client'
-import { projectCards, projectTitle } from '../src/features/opportunities/projectCards'
+import { projectCards, projectTitle, signalDecisionCards, signalDisplayDecision } from '../src/features/opportunities/projectCards'
 
 const apiRoute = `http://127.0.0.1:${process.env.GRIDLENS_WEB_PORT ?? '5173'}/api/**`
 
 const zilkerDescription = '2026/10/02 - 2026/10/04 - Weekend 1 | 2026/10/09 - 2026/10/11 - Weekend 2 | (2026/09/14) | Music stages food vendors art vendors & hospitality programs. October 2-4 & 9-11 2026 in Zilker Park.'
 
-function permit(id: string, action: string | null, options: { location?: string; activity?: string; tier?: string; abstract?: string } = {}): Opportunity {
+function permit(id: string, action: string | null, options: { location?: string; activity?: string; tier?: string; abstract?: string; projectId?: string; decision?: string | null } = {}): Opportunity {
   return {
     id,
+    project_id: options.projectId ?? '',
     name: `AUSTIN permit ${id}`,
     location: options.location ?? '2100 BARTON SPRINGS RD, AUSTIN, TX',
     tier: options.tier ?? 'Signal',
     activity: options.activity ?? 'event-power',
     rationale: 'Permit reports a dated powered event activity; temporary rental power is a question to investigate.',
     signal_evidence_state: 'active_evidence',
+    signal_display_decision: options.decision === undefined ? 'SHOW' : options.decision,
+    signal_display_decision_state: options.decision === undefined ? 'adjudicated' : options.decision ? 'adjudicated' : 'unadjudicated',
     required_mw: null,
     start_window: null,
     duration: null,
@@ -44,6 +47,56 @@ function permit(id: string, action: string | null, options: { location?: string;
     }],
   }
 }
+
+test('stable project IDs consolidate lifecycle records and decision filters default uncertain records to REVIEW', () => {
+  const planning = permit('planning', 'Planning approval', { projectId: 'project-atlas', decision: 'SHOW' })
+  const electrical = permit('electrical', 'Temporary electrical service', { projectId: 'project-atlas', decision: 'HOLD' })
+  const similarTitle = permit('other', 'Planning approval', { projectId: 'different-project', decision: 'REVIEW' })
+  const unadjudicated = permit('unknown', 'Permit under review', { decision: null })
+  const cards = projectCards([planning, electrical, similarTitle, unadjudicated])
+
+  expect(cards).toHaveLength(3)
+  expect(cards[0].members.map((member) => member.id)).toEqual(['planning', 'electrical'])
+  expect(signalDisplayDecision(cards[0].members)).toBe('SHOW')
+  expect(signalDecisionCards(cards, 'SHOW')).toHaveLength(1)
+  expect(signalDecisionCards(cards, 'REVIEW').map((card) => card.members[0].id)).toEqual(['other', 'unknown'])
+  expect(signalDecisionCards(cards, 'HOLD')).toHaveLength(0)
+})
+
+test('Signals default to SHOW and keep REVIEW and HOLD searchable in their own tabs', async ({ page }) => {
+  let records = [
+    permit('hold-member', 'Routine hospital maintenance', { projectId: 'shared-project', decision: 'HOLD' }),
+    permit('show-member', 'New data center electrical buildout', { projectId: 'shared-project', decision: 'SHOW' }),
+    permit('review', 'Possible industrial expansion', { projectId: 'review-project', decision: 'REVIEW' }),
+    permit('hold', 'Marathon temporary stage', { projectId: 'hold-project', decision: 'HOLD' }),
+    permit('unknown', 'Unadjudicated project', { projectId: 'unknown-project', decision: null }),
+  ]
+  await page.route(apiRoute, async (route) => {
+    const path = new URL(route.request().url()).pathname
+    const body = path === '/api/auth/session' ? { authenticated: true } : path === '/api/opportunities' ? records : path === '/api/health' ? { sources: [], backlog: 0, pending_interpretations: 0 } : []
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
+  })
+  await page.goto('/')
+  await expect(page.getByRole('button', { name: 'SHOW 1' })).toHaveAttribute('aria-pressed', 'true')
+  const sharedProject = page.getByRole('button', { name: /New Data Center Electrical Buildout/ })
+  await expect(sharedProject).toBeVisible()
+  await sharedProject.click()
+  await expect(page.getByRole('button', { name: /Permit hold-member/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Permit show-member/ })).toBeVisible()
+  const groupedMemberIds = await page.locator('.project-member').evaluateAll((members) => members.map((member) => member.getAttribute('data-opportunity-id')))
+  expect(groupedMemberIds.slice(0, 2)).toEqual(['hold-member', 'show-member'])
+  await page.getByRole('button', { name: 'REVIEW 2' }).click()
+  await expect(page.getByRole('button', { name: /Possible Industrial Expansion/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Unadjudicated Project/ })).toBeVisible()
+  await page.getByRole('button', { name: 'HOLD 1' }).click()
+  await expect(page.getByRole('button', { name: /Marathon Temporary Stage/ })).toBeVisible()
+  await page.getByRole('textbox', { name: 'Search projects' }).fill('Marathon')
+  await expect(page.getByRole('button', { name: /Marathon Temporary Stage/ })).toBeVisible()
+  records = [permit('only-review', 'Unadjudicated campus', { projectId: 'only-review', decision: null })]
+  await page.goto('/')
+  await expect(page.getByRole('heading', { name: 'No SHOW decisions yet' })).toBeVisible()
+  await expect(page.getByText('Check REVIEW (1) for uncertain or not-yet-adjudicated projects. An unavailable Jev decision stays visible there.')).toBeVisible()
+})
 
 test('only exact dated event evidence groups; titles describe permit work; all records stay openable', async ({ page }) => {
   const currentYear = permit('2026-126812 BP', zilkerDescription)
@@ -143,7 +196,7 @@ test('only exact dated event evidence groups; titles describe permit work; all r
   await page.getByRole('button', { name: /Back to Signals/ }).click()
 
   await page.getByRole('textbox', { name: 'Search projects' }).fill('2026-126812 BP')
-  await expect(page.getByText('1 matching project cards · 1 matching records · 3 underlying records.')).toBeVisible()
+  await expect(page.getByText('1 matching SHOW project cards · 1 matching Signal records across all decisions · 3 total Signal records.')).toBeVisible()
   const searchResult = page.getByRole('button', { name: /Zilker Park.*Oct 2026/ })
   await expect(searchResult).toBeVisible()
   if (!(await page.getByText('1 matching record · 2 related permit records').isVisible())) await searchResult.click()

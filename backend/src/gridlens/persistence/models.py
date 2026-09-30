@@ -222,3 +222,21 @@ class Interpretation(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+
+
+class SignalDecision(Base):
+    """Immutable, evidence and policy bound display-worthiness decision."""
+
+    __tablename__ = "signal_decisions"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    observation_id: Mapped[UUID] = mapped_column(ForeignKey("observations.id"))
+    content_hash: Mapped[str] = mapped_column(String(64))
+    policy_version: Mapped[str] = mapped_column(String(40))
+    decision: Mapped[str] = mapped_column(String(20))
+    source: Mapped[str] = mapped_column(String(40))
+    model_version: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    dimensions: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
+    reason: Mapped[str] = mapped_column(Text)
+    adjudicated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
