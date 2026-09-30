@@ -74,3 +74,15 @@ GL3-019 repairs native retained-permit extraction, adds Chicago application/mile
 
 
 GL3-019 acquisition continuation on the same PR9 adds Austin commercial electrical permits and a fixed 2026 literal-data-center backfill, plus four official Houston weekly report snapshots. Austin live retrieval: 2,609 rows, 78 accepted permit observations / 76 projects, 57 organization and 57 permit-listed person candidates, permit-listed phones attached only to organizations. Houston: 1,543 retained rows, no Signals because status is absent. Both replay unchanged. Dallas reports 401 / DallasNow 403, El Paso 403; not enabled. RRC current + official previous-month EOM acquisition is implemented with complete framing, amendment preservation and no inferred production dates; all-history coverage remains unclaimed. Commissioning remains a gap. See docs/validation/gl3-019-acquisition-continuation.md for current acceptance and limits.
+
+GL3-019 final continuation: 15 enabled sources. RRC current + previous-month EOM
+retains 1,904 permits, with 1,880 active drill/reentry/recompletion Signals and 24
+administrative rows retained without admission. Replay is unchanged; no inferred
+production dates or duplicate active well needs. Austin retains its 76 projects
+and permit-derived organization/person evidence. The enlarged corpus required
+batched opportunity-list reads (15,507→7 queries), preserving all admission gates.
+Final validation: 418 backend passes/one existing skip, 13 browser checks, Ruff/mypy,
+clean/repeat/drift migrations and frontend typecheck/build. Detailed current proof:
+`docs/validation/gl3-019-acquisition-continuation.md` and its evidence manifest.
+No merge, deployment or outreach. Dallas/El Paso access and dedicated commissioning
+remain open; drilling scope is not all historical Texas permits.

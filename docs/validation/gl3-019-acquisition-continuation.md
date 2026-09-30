@@ -58,6 +58,15 @@ cloud environment. Normal public requests were used; no source restriction bypas
   do not assert a completed phase. Production date, load, fuel suitability and
   contacts remain UNKNOWN. No production-date heuristic is applied to this feed.
 
+The final ordinary-worker RRC run retained **1,904 observations**, accepted
+**1,880 activity Signals** (1,711 drill, 151 recompletion, 18 reentry), and retained
+24 administrative field-transfer/reclass records without current Signal admission.
+Replay returned **1,904 unchanged**, zero new/changed. The initial pre-review
+acceptance run admitted those 24 administrative rows; final re-evaluation closed
+them and preserved their historical evidence. No duplicate active well needs or
+estimated production dates remain. This is not a clean-history count of 1,904 active
+projects: the isolated corpus deliberately retains those superseded decisions.
+
 ## Real data-center inspection
 
 - **7000 Burleson Rd Bldg B Unit 100**, `2025-155325 EP`: permit scope explicitly
@@ -76,6 +85,18 @@ cloud environment. Normal public requests were used; no source restriction bypas
   phones, retained permit facts and UNKNOWN current roles. Existing LaSalle and
   QTS acceptance was rerun. Huron remains a hospital, not a data center.
 
+## Real well/operator inspection
+
+- `0761171`, lease `HAUG-KIESCHNICK AC UNIT 33`, well `1H`: exact operator
+  `TRINITY OPERATING (USG), LLC`; original issue 2013-04-24, application received
+  2026-08-25, amendment 2026-09-15, sequence 98. These dates stay separate.
+- `0780482`, lease `E. BUTLER A`, well `11H`: exact operator `BPX OPERATING COMPANY`;
+  application type 14 **Recompletion**, amendment 2026-09-10. Upstream-well asset
+  identity remains; completed work and current lifecycle phase are UNKNOWN.
+- Operator links are DIRECT permit evidence, with exact `operator:` quotes.
+  No named people, personal contacts, job titles, employment or buying authority
+  are inferred. Existing enrichment uses retained fields without refetching GoDrive.
+
 ## Access and scope still open
 
 - **Dallas:** official permit reports page HTTP 401; DallasNow Accela HTTP 403.
@@ -84,25 +105,46 @@ cloud environment. Normal public requests were used; no source restriction bypas
 - **El Paso:** official planning page and Accela Building search HTTP 403.
   No current connector enabled. These are tested endpoint denials, not a claim
   that public permit records do not exist.
+- Default project ordering remains recency-based, not a new data-center priority
+  rank; site/permit search remains available.
 - **Commissioning:** bounded Chicago/Austin searches found decommissioning,
   residential EVSE/solar and unrelated solar commissioning, not data-center
   commissioning. No dedicated commissioning acquisition claim.
 
 ## Validation
 
-- Ruff, mypy (45 source files), **393 pytest passes / one existing missing-fixture
+- Ruff, mypy (46 source files), **418 pytest passes / one existing missing-fixture
   skip**; source bounds, provenance, admission and stale/unsupported role tests.
 - Fresh database migrations, repeated upgrade and drift check: pass.
 - Frontend typecheck and production build: pass.
-- **12 browser passes**: 11 repository checks plus one cloud-only real Austin
-  acceptance case covering both sites. Chromium sandbox remained enabled.
+- **13 browser passes**: 11 repository checks plus cloud-only real Austin
+  and RRC acceptance cases covering two sites/wells each. RRC desktop/mobile
+  evidence panels have no horizontal overflow. Chromium sandbox remained enabled;
+  all existing repository assertions and timeouts remain unchanged.
 - Initial browser login failures were isolated test-origin misconfiguration,
   corrected without changing application security. Initial Houston parse failures
   exposed link variants, duplicate rows and footer metadata; final complete
   workbook and worker replays pass. No failed check was substituted with a fixture.
+- The enlarged corpus exposed an existing N+1 list-query bottleneck. Batched reads
+  reduced measured requests from **15,507 queries / 10.37 seconds** to **7 queries /
+  1.47 seconds** for 1,981 active opportunities. Admission checks, facts and evidence
+  match the original response; equal-timestamp companion evidence now has a stable
+  hash tiebreak. Encoded raw RRC bytes remain stored but are omitted from the readable
+  UI excerpt, with long source references wrapping on mobile.
+- Global replay: 7,603 observations, 9,583 evidence versions, 2,005 historical
+  projects, 2,174 historical needs; zero duplicate source/project identities,
+  evidence versions or claim fingerprints, and zero unsupported load/supply facts.
+  Historical inactive needs remain inspectable; 1,981 opportunities are active.
 - Final evidence/identity/replay manifest and independent review are recorded
   alongside the final candidate. Hosted CI previously failed to start because
   of account billing limits; executor validation does not imply hosted success.
+
+The exact reviewed code candidate is `bc17fb374f41920aac47d603ea2634227b7029fa`.
+Changed-file hashes, authoritative RRC framing proof,
+source health, real project/organization/contact examples and replay checks are in
+[the final evidence manifest](gl3-019-acquisition-evidence.json). Prior raw transport
+width concerns were resolved against the official copybook and all retained bytes;
+they were ordinary implementation work, not a source-access denial.
 
 Raw official captures, database proofs, browser screenshots and run logs remain
 in ignored `.artifacts/gl3-019-continuation/` and `web/test-results/`.
