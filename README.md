@@ -2,7 +2,7 @@
 
 GridLens 3 is a private, evidence-backed workspace for discovering emerging commercial power needs. The current local registry enables 13 public sources spanning municipal planning notices, construction permits, air permitting/regulatory records, government/economic-development publications, public documents, and industry news. Taylor planning notices have fresh isolated ordinary-worker persistence/replay and authenticated card proof; deployed daily operation remains unproven. The system preserves source observations and evidence history, groups supported records into project-oriented Signal cards, and keeps unsupported commercial facts explicitly unknown.
 
-The GL3-015 isolated local run collected 2,802 observations and 2,839 evidence versions from 13 enabled public sources, producing 81 Signal records displayed as 63 project-oriented cards. Identical replay added no observations, evidence, projects, or morning-change entries. These counts are Signal records/cards, not a claim of 63 distinct real projects. National coverage and deployed daily operation remain unproven.
+GL3-016 is merged on main. The accepted local Signal foundation retains 13 enabled public sources and adds bounded Jev adjudication for ambiguous evidence, persisted reproducible SHOW / REVIEW / HOLD decisions, and conservative physical-project grouping. The frozen GL3-015 corpus contained 81 Signal records displayed as 63 cards; GL3-016 preserved the evidence rather than promoting unsupported commercial facts. National coverage and deployed daily operation remain unproven.
 
 ## Product model
 
@@ -83,4 +83,4 @@ Cloud scheduling is **not yet deployed or accepted**. The scheduler manifest is 
 - [Local recovery proof](docs/operations/local-recovery-proof.md)
 - [Current agent state](.agent/CURRENT_STATE.md)
 
-The next product frontier is no longer basic ingestion proof. It is project consolidation and evidence-backed Signal investigation toward defensible Prospects while preserving the existing deterministic qualification and evidence-integrity boundaries.
+The next product frontier is GL3-017: project-specific buying-chain enrichment. It must identify the organizations and people who can actually influence or buy temporary power for a specific physical project, with evidence linking each contact to the project and relevant role. GL3-018 later expands acquisition coverage.
