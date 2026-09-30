@@ -1,3 +1,3 @@
 # Pursuits
 
-Manage attributed notes, call outcomes, status, next action, and follow-up. A user status does not automatically change the evidence tier.
+Notes, call outcomes, pursuit status, next action, and follow-up are not implemented. This folder records that boundary. A user status must not automatically change the evidence tier.

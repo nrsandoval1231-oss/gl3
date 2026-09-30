@@ -1,8 +1,9 @@
 # GL3-018 local acceptance
 
-Date: 2026-09-30. Base: GitHub main
+Date: 2026-09-30. Merged to main as PR #8, commit `7f24174`.
+The acceptance below was recorded on `feat/gl3-018` before that merge, from base
 `1f18a0182922fe8ee3fdc2225cf9c3f7c95d1fea` (merged GL3-017, PR #7).
-Branch: `feat/gl3-018`. No merge or deployment authorized.
+Deployment is not authorized. These checks are the merge evidence, not a new run.
 
 ## Delivered behavior
 
@@ -112,7 +113,7 @@ evidence section were captured and visually inspected. Raw screenshots/logs rema
 outside Git under `.artifacts/GL3-018/`. Mocked browser tests are explicitly separate
 from the three real-database tests.
 
-The candidate manifest and frozen independent review accompany the draft PR.
+The candidate manifest and frozen independent review accompanied the merged PR.
 Tests distinguish real worker/UI acceptance from explicit synthetic regression fixtures.
 The previous GL3-017 live-validation claim is owner-reported, not fresh proof from this
 agent; its historical saved-cloud failure remains documented in CURRENT_STATE.

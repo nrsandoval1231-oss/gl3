@@ -1,8 +1,8 @@
 # GridLens 3
 
-GridLens 3 is a private, evidence-backed workspace for discovering emerging commercial power needs. The current local registry enables 13 public sources spanning municipal planning notices, construction permits, air permitting/regulatory records, government/economic-development publications, public documents, and industry news. Taylor planning notices have fresh isolated ordinary-worker persistence/replay and authenticated card proof; deployed daily operation remains unproven. The system preserves source observations and evidence history, groups supported records into project-oriented Signal cards, and keeps unsupported commercial facts explicitly unknown.
+GridLens 3 is a private, evidence-backed workspace for discovering emerging commercial power needs. The current local registry enables 13 public sources spanning municipal planning notices, construction permits, air permitting/regulatory records, government/economic-development publications, public documents, and industry news. The system preserves source observations and evidence history, groups supported records into project-oriented Signal cards, and keeps unsupported commercial facts explicitly unknown.
 
-GL3-016 is merged on main. The accepted local Signal foundation retains 13 enabled public sources and adds bounded Jev adjudication for ambiguous evidence, persisted reproducible SHOW / REVIEW / HOLD decisions, and conservative physical-project grouping. The frozen GL3-015 corpus contained 81 Signal records displayed as 63 cards; GL3-016 preserved the evidence rather than promoting unsupported commercial facts. National coverage and deployed daily operation remain unproven.
+GL3-018 is merged on main (PR #8, `7f24174`). Standalone Signals require official permit evidence, a project-specific official utility filing, or an explicit temporary-power solicitation. News supplements one supported physical project. Planning and entitlement remain research context. GL3-016 remains the bounded Jev adjudication path for ambiguous retained evidence, with persisted SHOW / REVIEW / HOLD decisions and conservative physical-project grouping. The frozen GL3-015 corpus contained 81 Signal records displayed as 63 cards. National coverage and deployed daily operation remain unproven.
 
 ## Product model
 
@@ -20,8 +20,8 @@ Current production-like local behavior is intentionally conservative: Signals do
 
 The registry currently contains 13 enabled sources, including:
 
-- Austin, Seattle, and Chicago building-permit feeds.
-- Georgia Draft Title V air-permit filings and supporting public documents.
+- Austin, Seattle, and Chicago building-permit feeds. Chicago also includes Express Permit Program Electrical Work.
+- Georgia Draft Title V, SIP, and synthetic-minor air filings, with bounded page-cited generator excerpts from narratives and drafts. Full air applications remain unretrieved.
 - Federal Register environmental-impact notices with eligible GovInfo PDF evidence.
 - North Carolina Commerce project announcements.
 - Taylor, Texas Development News and Development Notices, including bounded archive revisions.
@@ -64,7 +64,7 @@ npm --prefix web run build
 npm --prefix web audit --audit-level=high
 ```
 
-GL3-013 passed 205 backend tests, frontend typecheck/build, zero-vulnerability npm audit, migrations/replay checks, and three authenticated Playwright tests against isolated databases. Hosted GitHub Actions remain blocked before runner execution by the account payment/spending-limit condition; the workflow itself has not been weakened.
+GL3-013 recorded an earlier checkpoint of 205 backend tests, frontend typecheck/build, zero-vulnerability npm audit, migrations/replay checks, and three authenticated Playwright tests. The latest recorded full local acceptance is GL3-018: 381 pytest passes, one existing local-probe skip, Ruff, mypy, migrations, frontend typecheck/build, and nine Playwright tests, in [GL3-018 validation](docs/validation/gl3-018-validation.md). Earlier records said hosted GitHub Actions were blocked before runner execution by the account payment/spending-limit condition. This repository does not re-check that account state.
 
 ## Containers and deployment
 
@@ -83,8 +83,8 @@ Cloud scheduling is **not yet deployed or accepted**. The scheduler manifest is 
 - [Local recovery proof](docs/operations/local-recovery-proof.md)
 - [Current agent state](.agent/CURRENT_STATE.md)
 
-## GL3-017 buying-chain draft
+## Merged GL3-017 and GL3-018
 
-Project detail now has a bounded Buying Chain enrichment action. It reuses the physical Project ID and retained evidence, reads exact Chicago permit contractor fields, and accepts up to four additional public evidence links. Organization involvement, a person's current organization role, and personal project assignment remain separate evidence claims. ROLE_SUPPORTED never means a person is assigned to the project or controls its temporary-power purchase. Missing facts remain UNKNOWN.
+GL3-017 (PR #7) adds a project-detail Buying Chain. It reuses the physical Project ID and retained evidence, reads exact Chicago permit contractor fields, and accepts up to four additional public evidence links. Organization involvement, a person's current organization role, and personal project assignment remain separate evidence claims. ROLE_SUPPORTED never means a person is assigned to the project or controls its temporary-power purchase. Missing facts remain UNKNOWN. See [GL3-017 validation](docs/validation/gl3-017-buying-chain.md). That record's saved-cloud run did not prove direct live retrieval. Later owner-reported acceptance is not restated here as new proof. No outreach or tier promotion is included.
 
-This is a draft slice, not a verified live deployment. Captured real-source parsing/persistence is distinct from direct application retrieval, which is blocked by this cloud shell's DNS limits. Saved-cloud browser validation now passes all eight existing frontend tests, including authenticated local browsing and synthetic buying-chain interaction cases; this does not prove live retrieval. See [GL3-017 contract, real-source review and validation limitations](docs/validation/gl3-017-buying-chain.md). Conditional merge is authorized but remains blocked on genuine live retrieval. No outreach, new acquisition source, tier promotion or deployment is included. GL3-018 remains later acquisition expansion.
+GL3-018 (PR #8) is the current admission and acquisition behavior. See [GL3-018 admission](docs/sources/gl3-018-admission-and-acquisition.md) and [GL3-018 validation](docs/validation/gl3-018-validation.md). No deployment is included.

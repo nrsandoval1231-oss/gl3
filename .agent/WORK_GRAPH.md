@@ -1,4 +1,7 @@
 # Work Graph
+
+Current main includes merged GL3-015 (PR #5), GL3-016 (PR #6), GL3-017 (PR #7, `1f18a01`), and GL3-018 (PR #8, `7f24174`). The paragraphs below are retained history, including the point when GL3-017 and GL3-018 were still excluded. GL3-018 authoritative admission and the Chicago/Georgia acquisition changes are on main. Deployment, national coverage, and parent launch remain OPEN. Standalone planning/entitlement admission remains an owner decision.
+
 GL3-016-A READY -> BUILD (2026-09-29): owner authorized production Jev Signal adjudication and conservative physical-project consolidation after PR #5 merged. Fresh branch `feat/gl3-016` from `c9a0e5d8887a6e8207a98d41a08ab7f952017d45`; backend packet `packets/GL3-016-backend.md`. Frontend depends on frozen backend contract. Exact human review baseline: 63 cards, 11 SHOW, 29 REVIEW, 23 HOLD; no source evidence deletion. `TYPESAFE_API_KEY` currently absent, so live model/corpus proof remains pending. GL3-017 enrichment and GL3-018 acquisition are excluded.
 
 | Node | Dependencies | Status | Outcome |
@@ -79,3 +82,13 @@ Hosted CI admission remains blocked before runner execution by GitHub account pa
 GL3-014 READY -> BUILD: owner-authorized PR4 repair; single Luna; Sol bounded architecture direction; packet GL3-014. Isolated cluster and checkout; preserve GL3-013. Parent launch remains OPEN.
 
 GL3-014 BUILD -> CORRECT -> VALIDATE -> ACCEPTED LOCAL 2026-09-28T14:32:07.674773+00:00: 1da3d2aa7fce1406ab1e040ec4723abe7a8071b0e41d856de4d7d2f8295a40ef; independent Sol REVIEW-r3 PASS, 220 backend tests and complete isolated runtime gates. REVIEW-r1/r2 FIX preserved; two distinct repairs. Parent launch OPEN; next direction normal PR4 delivery if GitHub permits.
+
+## Post-merge checkpoint — GL3-015 through GL3-018
+
+GL3-015: **MERGED** through PR #5. Taylor planning lifecycle proof and the Signal gap audit are retained historical evidence. GL3-018 later changed standalone admission; news and planning context alone do not create current Signals.
+
+GL3-016: **MERGED** through PR #6. Bounded Jev adjudication and conservative physical-project grouping remain. Jev does not admit a Signal or promote a tier.
+
+GL3-017: **MERGED** through PR #7 at `1f18a01`. Project-scoped buying chain. Saved-cloud live retrieval in the validation record failed DNS; later owner-reported acceptance is not fresh proof in these files. No deployment.
+
+GL3-018: **MERGED** through PR #8 at `7f24174`. Policy `signal-admission-v1`. Registry remains 13 sources. Recorded local acceptance is 381 pytest passes and one existing skip, in `docs/validation/gl3-018-validation.md`. Standalone planning/entitlement admission, deployment, and Prospect/Lead evidence remain owner or later-milestone decisions. Parent launch remains OPEN.
