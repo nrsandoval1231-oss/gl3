@@ -1120,6 +1120,11 @@
             "type": "string",
             "title": "Rationale"
           },
+          "signal_evidence_state": {
+            "type": "string",
+            "title": "Signal Evidence State",
+            "default": "active_evidence"
+          },
           "required_mw": {
             "anyOf": [
               {

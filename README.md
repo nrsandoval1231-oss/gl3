@@ -1,8 +1,8 @@
 # GridLens 3
 
-GridLens 3 is a private, evidence-backed workspace for discovering emerging commercial power needs. The current local system collects from 12 enabled public sources spanning construction permits, air permitting/regulatory records, government/economic-development publications, public documents, and industry news. It preserves source observations and evidence history, groups supported records into project-oriented Signal cards, and keeps unsupported commercial facts explicitly unknown.
+GridLens 3 is a private, evidence-backed workspace for discovering emerging commercial power needs. The current local registry enables 13 public sources spanning municipal planning notices, construction permits, air permitting/regulatory records, government/economic-development publications, public documents, and industry news. Taylor planning notices have fresh isolated ordinary-worker persistence/replay and authenticated card proof; deployed daily operation remains unproven. The system preserves source observations and evidence history, groups supported records into project-oriented Signal cards, and keeps unsupported commercial facts explicitly unknown.
 
-The current verified local checkpoint is `main` at the GL3-013 merge. A fresh isolated run collected 2,530 observations and 2,567 evidence versions, producing 87 Signal records displayed as 69 project-oriented cards. Identical replay added no observations, evidence, projects, or morning-change entries. These counts are Signal records/cards, not a claim of 69 distinct real projects. Prospect and Lead readiness, national coverage, and cloud daily operation remain open.
+The GL3-015 isolated local run collected 2,802 observations and 2,839 evidence versions from 13 enabled public sources, producing 81 Signal records displayed as 63 project-oriented cards. Identical replay added no observations, evidence, projects, or morning-change entries. These counts are Signal records/cards, not a claim of 63 distinct real projects. National coverage and deployed daily operation remain unproven.
 
 ## Product model
 
@@ -18,12 +18,13 @@ Current production-like local behavior is intentionally conservative: Signals do
 
 ## Current source coverage
 
-The registry currently contains 12 enabled sources, including:
+The registry currently contains 13 enabled sources, including:
 
 - Austin, Seattle, and Chicago building-permit feeds.
 - Georgia Draft Title V air-permit filings and supporting public documents.
 - Federal Register environmental-impact notices with eligible GovInfo PDF evidence.
 - North Carolina Commerce project announcements.
+- Taylor, Texas Development News and Development Notices, including bounded archive revisions.
 - Data Center Dynamics, Utility Dive, Manufacturing Dive, Construction Dive, Oil & Gas Journal, and MJBizDaily publisher feeds.
 
 Permits are the primary discovery path and news is supplemental. Coverage is not yet nationally complete. See [source coverage](docs/sources/coverage.md) and the [local Signal verification](docs/delivery/local-signal-verification.md) for measured limits.

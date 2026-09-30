@@ -157,7 +157,12 @@ def test_old_chicago_permit_status_change_uses_selected_socrata_updated_at():
     assert active["permit"]["source_modified_at"]
     assert expired["permit"]["status"] == "EXPIRED"
     assert active["source_hash"] != expired["source_hash"]
-    assert all(params["$select"] == "*, :updated_at" for params in page_requests)
+    assert all(
+        "work_description" in params["$select"]
+        and ":updated_at" in params["$select"]
+        and "*" not in params["$select"]
+        for params in page_requests
+    )
     assert all(":updated_at >=" in params["$where"] for params in page_requests)
     assert all(":updated_at <=" in params["$where"] for params in page_requests)
     assert all("issue_date IS NOT NULL" in params["$where"] for params in page_requests)

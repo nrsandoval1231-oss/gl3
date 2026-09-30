@@ -80,6 +80,7 @@ class OpportunityOut(BaseModel):
     tier: str
     activity: str
     rationale: str
+    signal_evidence_state: str = "active_evidence"
     required_mw: str | None
     start_window: str | None
     duration: str | None
@@ -480,7 +481,11 @@ def opportunities(tier: str | None = None, search: str | None = None):
                 select(LifecycleEvent, Evidence)
                 .join(Evidence, LifecycleEvent.evidence_id == Evidence.id)
                 .where(LifecycleEvent.project_id == project.id)
-                .order_by(LifecycleEvent.occurred_on.asc().nullslast(), LifecycleEvent.recorded_at)
+                .order_by(
+                    Evidence.published_at.asc().nullslast(),
+                    Evidence.observed_at,
+                    LifecycleEvent.recorded_at,
+                )
             ).all()
             current_lifecycle_ids = set()
             for lifecycle_event, lifecycle_evidence in lifecycle_rows:
@@ -491,10 +496,17 @@ def opportunities(tier: str | None = None, search: str | None = None):
                 )
                 if (
                     lifecycle_interpretation is not None
-                    and lifecycle_interpretation.status == "accepted"
                     and lifecycle_interpretation.assessment is not None
                     and lifecycle_interpretation.assessment.get("evidence_hash")
                     == lifecycle_evidence.content_hash
+                    and (
+                        lifecycle_interpretation.status == "accepted"
+                        or (
+                            lifecycle_event.event_type == "planning_application_withdrawn"
+                            and lifecycle_interpretation.assessment.get("withdrawal_supported")
+                            is True
+                        )
+                    )
                 ):
                     current_lifecycle_ids.add(lifecycle_event.id)
             links = session.execute(
@@ -505,10 +517,24 @@ def opportunities(tier: str | None = None, search: str | None = None):
                 .where(NeedObservation.need_id == need.id)
                 .order_by(Evidence.observed_at.desc())
             ).all()
+            taylor_withdrawn = bool(
+                lifecycle and lifecycle.current_state == "planning_application_withdrawn"
+            )
+            taylor_identity_conflict = any(
+                obs.source_id == "taylor-development-newsflash"
+                and interpretation is not None
+                and "conflicting project or site facts"
+                in str((interpretation.assessment or {}).get("reason") or "")
+                for obs, _, interpretation in links
+            )
             evidence = []
             current_assessments = []
             for obs, ev, interpretation in links:
                 current_assessment = _assessment_for_evidence(interpretation, obs, ev)
+                if (
+                    taylor_withdrawn or taylor_identity_conflict
+                ) and obs.source_id == "taylor-development-newsflash":
+                    current_assessment = None
                 if current_assessment:
                     current_assessments.append(current_assessment)
                 evidence.append(
@@ -565,7 +591,25 @@ def opportunities(tier: str | None = None, search: str | None = None):
                     "location": project.location,
                     "tier": need.tier,
                     "activity": need.activity_key,
-                    "rationale": need.rationale,
+                    "rationale": (
+                        "The latest linked Taylor revision withdraws this planning application. "
+                        "Earlier project evidence remains historical; current project viability "
+                        "and power need are UNKNOWN."
+                        if taylor_withdrawn
+                        else "A later Taylor revision conflicts with retained project or "
+                        "site facts. "
+                        "The earlier planning evidence remains historical; current application "
+                        "and project status are UNKNOWN."
+                        if taylor_identity_conflict
+                        else need.rationale
+                    ),
+                    "signal_evidence_state": (
+                        "planning_application_withdrawn"
+                        if taylor_withdrawn
+                        else "planning_status_unknown"
+                        if taylor_identity_conflict
+                        else "active_evidence"
+                    ),
                     "required_mw": need.required_mw,
                     "start_window": need.start_window,
                     "duration": need.duration,
@@ -576,9 +620,20 @@ def opportunities(tier: str | None = None, search: str | None = None):
                         else "Confirm activity power needs, timing, duration, and service plan."
                     ),
                     "conflict_state": "Not assessed",
-                    "assessment_reason": current_assessment.get("reason", need.rationale)
-                    if current_assessment
-                    else need.rationale,
+                    "assessment_reason": (
+                        "The latest linked Taylor revision withdraws this planning application. "
+                        "Earlier project evidence remains historical; current project viability "
+                        "and power need are UNKNOWN."
+                        if taylor_withdrawn
+                        else "A later Taylor revision conflicts with retained project or "
+                        "site facts. "
+                        "The earlier planning evidence remains historical; current application "
+                        "and project status are UNKNOWN."
+                        if taylor_identity_conflict
+                        else current_assessment.get("reason", need.rationale)
+                        if current_assessment
+                        else need.rationale
+                    ),
                     "supported_subject": current_assessment.get("subject", project.name)
                     if current_assessment
                     else project.name,
@@ -605,19 +660,50 @@ def opportunities(tier: str | None = None, search: str | None = None):
                             "date": event.occurred_on.isoformat() if event.occurred_on else None,
                             "value_kind": event.value_kind,
                             "evidence_url": lifecycle_evidence.url,
-                            "current": event.id in current_lifecycle_ids,
+                            "current": event.id in current_lifecycle_ids
+                            and (
+                                not taylor_withdrawn
+                                or event.event_type == "planning_application_withdrawn"
+                            )
+                            and not taylor_identity_conflict,
                             "published_at": lifecycle_evidence.published_at,
                             "event_date_label": lifecycle_evidence.event_date_label,
                         }
                         for event, lifecycle_evidence in lifecycle_rows
                     ],
-                    "expected_next_milestone": lifecycle.expected_next_milestone
-                    if lifecycle
-                    else None,
-                    "expected_power_event": lifecycle.expected_power_event if lifecycle else None,
-                    "time_to_power_window": time_to_power_window,
-                    "estimate_basis": lifecycle.estimate_basis if lifecycle else None,
-                    "estimate_version": lifecycle.estimate_version if lifecycle else None,
+                    "expected_next_milestone": (
+                        None
+                        if taylor_withdrawn or taylor_identity_conflict
+                        else lifecycle.expected_next_milestone
+                        if lifecycle
+                        else None
+                    ),
+                    "expected_power_event": (
+                        None
+                        if taylor_withdrawn or taylor_identity_conflict
+                        else lifecycle.expected_power_event
+                        if lifecycle
+                        else None
+                    ),
+                    "time_to_power_window": (
+                        None
+                        if taylor_withdrawn or taylor_identity_conflict
+                        else time_to_power_window
+                    ),
+                    "estimate_basis": (
+                        None
+                        if taylor_withdrawn or taylor_identity_conflict
+                        else lifecycle.estimate_basis
+                        if lifecycle
+                        else None
+                    ),
+                    "estimate_version": (
+                        None
+                        if taylor_withdrawn
+                        else lifecycle.estimate_version
+                        if lifecycle
+                        else None
+                    ),
                     "lifecycle_open_questions": lifecycle.open_questions if lifecycle else [],
                     "monitoring_requirements": lifecycle.monitoring_requirements
                     if lifecycle
