@@ -28,12 +28,15 @@ from gridlens.ingestion.adapters.buying_chain_public import (
     retrieve,
     validate_public_url,
 )
+from gridlens.ingestion.adapters.retained_permits import GEORGIA, chicago_contacts, georgia_identity
+from gridlens.ingestion.adapters.retained_permits import facts as permit_facts
 from gridlens.intelligence.buying_chain_extraction import (
     Extracted,
     document_content_hash,
     document_key,
     extract_organizations,
     extract_people,
+    extract_retained_permit_organizations,
     organization_key,
     project_document_match,
 )
@@ -292,7 +295,18 @@ def enrich_buying_chain(
             )
         )
     urls: list[str] = []
-    if project.source_id == "chicago-building-permits" and project.external_id.isdigit():
+    retained_permit = project.source_id == "chicago-building-permits" and any(
+        chicago_contacts(doc.text) for doc, _, _, _ in documents
+    )
+    retained_permit = retained_permit or (
+        project.source_id == GEORGIA
+        and any(georgia_identity(doc.text) for doc, _, _, _ in documents)
+    )
+    if retained_permit:
+        # The ordinary permit worker refreshes these accepted fields. A redundant
+        # network round trip must not be required to make retained evidence useful.
+        pass
+    elif project.source_id == "chicago-building-permits" and project.external_id.isdigit():
         registered_source = session.get(Source, project.source_id)
         if registered_source and registered_source.endpoint.startswith(
             "https://data.cityofchicago.org/resource/"
@@ -314,7 +328,13 @@ def enrich_buying_chain(
     if previous_run:
         for evidence_id in previous_run.evidence_ids:
             previous_evidence = session.get(BuyingChainEvidence, UUID(evidence_id))
-            if previous_evidence and previous_evidence.retained_evidence_id is None:
+            if (
+                previous_evidence
+                and previous_evidence.retained_evidence_id is None
+                and not (
+                    retained_permit and previous_evidence.url in {d.url for d, _, _, _ in documents}
+                )
+            ):
                 urls.append(previous_evidence.url)
     urls = list(dict.fromkeys(urls))
     checked_urls: set[str] = set()
@@ -362,6 +382,15 @@ def enrich_buying_chain(
                 seen_at=doc.observed_at if retained_id else now,
             )
             saved[document_key(doc)] = row
+            if retained_id:
+                original = session.get(Evidence, retained_id)
+                observation = (
+                    session.get(Observation, original.observation_id) if original else None
+                )
+                if observation:
+                    organizations.extend(
+                        extract_retained_permit_organizations(doc, observation.source_id)
+                    )
             organizations.extend(extract_organizations(doc, project))
     organizations = _deduplicate(organizations)
     people: list[Extracted] = []
@@ -626,9 +655,10 @@ def buying_chain_view(
                     if original
                     else None
                 )
-                source_superseded = source_superseded or not (
-                    original and _accepted_version(interpretation, original)
-                )
+                # The accepted observation version is authoritative for retained
+                # fields. Native lines and earlier live JSON use different quote
+                # formats; a later research fetch cannot retract accepted evidence.
+                source_superseded = not (original and _accepted_version(interpretation, original))
             if citation["supports"] in {"project_organization", "organization_category"}:
                 organization_stale = organization_stale or source_superseded
             elif citation["supports"] != "person_project_assignment":
@@ -759,5 +789,31 @@ def buying_chain_view(
             }
             for row in runs
         ],
+        "permit_summaries": _permit_summaries(session, project_id),
         "policy_version": POLICY_VERSION,
     }
+
+
+def _permit_summaries(session: Session, project_id: UUID) -> list[dict]:
+    project = session.get(Project, project_id)
+    if project is None:
+        return []
+    summaries = []
+    for evidence in _retained(session, project):
+        observation = session.get(Observation, evidence.observation_id)
+        if observation is None:
+            continue
+        facts = permit_facts(observation.source_id, evidence.abstract or "")
+        if facts:
+            summaries.append(
+                {
+                    "evidence_id": evidence.id,
+                    "source_id": observation.source_id,
+                    "url": evidence.url,
+                    "title": evidence.title,
+                    "observed_at": evidence.observed_at,
+                    "extraction_location": evidence.extraction_location,
+                    "facts": facts,
+                }
+            )
+    return summaries

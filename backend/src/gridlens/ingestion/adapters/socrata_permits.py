@@ -72,6 +72,8 @@ MAPS: dict[str, dict[str, Any]] = {
         "cost": "reported_cost",
         "area": None,
         "parcel": "pin_list",
+        "application_start": "application_start_date",
+        "milestone": "permit_milestone",
         **{
             f"contact_{i}_{part}": f"contact_{i}_{part}"
             for i in range(1, 16)
@@ -83,6 +85,7 @@ SYSTEM_FIELD_SELECTS = {
     "chicago-building-permits": (
         "id,issue_date,work_description,work_type,permit_type,permit_status,"
         "street_number,street_direction,street_name,permit_,reported_cost,pin_list,:updated_at,"
+        "application_start_date,permit_milestone,"
         + ",".join(f"contact_{i}_{part}" for i in range(1, 16) for part in ("type", "name"))
     )
 }
@@ -295,6 +298,7 @@ def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list
                     for label, field_name in fields.items()
                     if field_name and _field(row, field_name)
                 }
+                retained_fields["address"] = address
                 abstract = "\n".join(
                     f"{label}: {value}" for label, value in retained_fields.items()
                 )

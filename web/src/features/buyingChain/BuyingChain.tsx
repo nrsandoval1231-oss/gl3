@@ -76,6 +76,17 @@ export function BuyingChain({ projectId }: { projectId: string }) {
     {enriching && <p role="status">Checking this project’s bounded source evidence. You can leave this view and return later.</p>}
     {error && <p role="alert" className="integrity">{error}{result?.candidates?.length ? ' Previously retained findings remain below.' : ''}</p>}
     {result && <>
+      <div className="permit-summary">
+        <h4>Retained permit facts</h4>
+        <p className="buying-chain-note">Permit dates describe permitting, not the power start date. Listed parties are source roles; employment, purchasing authority and an open power package require separate evidence.</p>
+        {(result.permit_summaries ?? []).length === 0 && <p>No supported permit fields retained for this project yet.</p>}
+        {(result.permit_summaries ?? []).map((permit) => <details key={permit.evidence_id} open>
+          <summary>{permit.title}</summary>
+          <dl>{permit.facts.map((fact, index) => <div key={index}><dt>{fact.label}</dt><dd><span>{safeUrl(fact.value) ? <a href={safeUrl(fact.value)} target="_blank" rel="noreferrer">{fact.value}</a> : fact.value}</span><details><summary>Field evidence</summary><blockquote>{fact.quote}</blockquote>{fact.role_quote && <blockquote>{fact.role_quote}</blockquote>}</details></dd></div>)}</dl>
+          <p className="evidence-meta"><a href={safeUrl(permit.url)} target="_blank" rel="noreferrer">Official permit source</a> · {permit.extraction_location} · Observed {time(permit.observed_at)}</p>
+        </details>)}
+        <p className="buying-chain-note">Unlisted applicant, operator, GC, electrical contractor, EPC, engineer, named person and business contact fields remain unknown. Permit scope alone does not establish temporary load, fuel suitability, commissioning dates or an unmet supply gap.</p>
+      </div>
       <p className="buying-chain-status">Research status: {result.status.replaceAll('_', ' ')}</p>
       {(result.candidates ?? []).length === 0 && <p>No supported buying-chain candidates retained yet. Buyer and project contacts remain unknown.</p>}
       <ol className="buying-chain-list">{(result.candidates ?? []).map((candidate) => <li key={candidate.id}>

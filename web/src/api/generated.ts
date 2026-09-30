@@ -280,9 +280,11 @@ export interface components {
             unresolved?: string[];
             /** Runs */
             runs?: components["schemas"]["BuyingRunOut"][];
+            /** Permit Summaries */
+            permit_summaries?: components["schemas"]["PermitSummaryOut"][];
             /**
              * Policy Version
-             * @default buying-chain-v1
+             * @default buying-chain-v2-permits
              */
             policy_version: string;
         };
@@ -740,6 +742,40 @@ export interface components {
             signal_display_reason?: string | null;
             /** Signal Admission Origin */
             signal_admission_origin?: string | null;
+        };
+        /** PermitFactOut */
+        PermitFactOut: {
+            /** Label */
+            label: string;
+            /** Value */
+            value: string;
+            /** Quote */
+            quote: string;
+            /** Role Quote */
+            role_quote?: string | null;
+        };
+        /** PermitSummaryOut */
+        PermitSummaryOut: {
+            /**
+             * Evidence Id
+             * Format: uuid
+             */
+            evidence_id: string;
+            /** Source Id */
+            source_id: string;
+            /** Url */
+            url: string;
+            /** Title */
+            title: string;
+            /**
+             * Observed At
+             * Format: date-time
+             */
+            observed_at: string;
+            /** Extraction Location */
+            extraction_location: string;
+            /** Facts */
+            facts?: components["schemas"]["PermitFactOut"][];
         };
         /** PublicContactOut */
         PublicContactOut: {

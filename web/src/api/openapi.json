@@ -617,10 +617,17 @@
             "type": "array",
             "title": "Runs"
           },
+          "permit_summaries": {
+            "items": {
+              "$ref": "#/components/schemas/PermitSummaryOut"
+            },
+            "type": "array",
+            "title": "Permit Summaries"
+          },
           "policy_version": {
             "type": "string",
             "title": "Policy Version",
-            "default": "buying-chain-v1"
+            "default": "buying-chain-v2-permits"
           }
         },
         "type": "object",
@@ -1891,6 +1898,87 @@
           "evidence"
         ],
         "title": "OpportunityOut"
+      },
+      "PermitFactOut": {
+        "properties": {
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "value": {
+            "type": "string",
+            "title": "Value"
+          },
+          "quote": {
+            "type": "string",
+            "title": "Quote"
+          },
+          "role_quote": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role Quote"
+          }
+        },
+        "type": "object",
+        "required": [
+          "label",
+          "value",
+          "quote"
+        ],
+        "title": "PermitFactOut"
+      },
+      "PermitSummaryOut": {
+        "properties": {
+          "evidence_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Evidence Id"
+          },
+          "source_id": {
+            "type": "string",
+            "title": "Source Id"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "observed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Observed At"
+          },
+          "extraction_location": {
+            "type": "string",
+            "title": "Extraction Location"
+          },
+          "facts": {
+            "items": {
+              "$ref": "#/components/schemas/PermitFactOut"
+            },
+            "type": "array",
+            "title": "Facts"
+          }
+        },
+        "type": "object",
+        "required": [
+          "evidence_id",
+          "source_id",
+          "url",
+          "title",
+          "observed_at",
+          "extraction_location"
+        ],
+        "title": "PermitSummaryOut"
       },
       "PublicContactOut": {
         "properties": {

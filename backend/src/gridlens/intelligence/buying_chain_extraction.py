@@ -19,6 +19,12 @@ from gridlens.domain.buying_chain import (
     person_project_relationship,
 )
 from gridlens.ingestion.adapters.buying_chain_public import PublicDocument
+from gridlens.ingestion.adapters.retained_permits import (
+    GEORGIA,
+    chicago_contacts,
+    georgia_identity,
+    georgia_proponent,
+)
 from gridlens.intelligence.project_identity import (
     conflicting_geography,
     decide_project_match,
@@ -223,6 +229,63 @@ def project_document_match(project: Project, doc: PublicDocument) -> tuple[bool,
     return decision.decision == "matched", decision.reason
 
 
+CHICAGO_CATEGORIES = {
+    "CONTRACTOR-ELECTRICAL": Category.ELECTRICAL,
+    "CONTRACTOR-GENERAL CONTRACTOR": Category.GC,
+    "OWNER": Category.OWNER,
+    "OWNER OCCUPIED": Category.OWNER,
+    "OWNER AS ARCHITECT": Category.OWNER,
+}
+
+
+def extract_retained_permit_organizations(doc: PublicDocument, source_id: str) -> list[Extracted]:
+    if source_id == GEORGIA:
+        proponent = georgia_proponent(doc.text)
+        proponents = (
+            [
+                Extracted(
+                    proponent[0],
+                    "construction_proponent",
+                    reason=(
+                        "Named construction proponent in the permit narrative; "
+                        "buying authority is UNKNOWN."
+                    ),
+                    citations=[_citation(doc, proponent[1], "project_organization")],
+                )
+            ]
+            if proponent
+            else []
+        )
+        return proponents + [
+            Extracted(
+                value,
+                "permit_entity",
+                reason=(
+                    "Facility name on the draft permit; ownership, current operation "
+                    "and buying authority are UNKNOWN."
+                ),
+                citations=[_citation(doc, quote, "project_organization")],
+            )
+            for label, value, quote in georgia_identity(doc.text)
+            if label == "Draft permit entity"
+            and re.search(r"\b(?:LLC|Inc\.?|Corporation|Company)\b", value, re.I)
+        ]
+    if source_id != "chicago-building-permits":
+        return []
+    return [
+        Extracted(
+            name,
+            CHICAGO_CATEGORIES[kind.upper()].value,
+            citations=[
+                _citation(doc, name_quote, "project_organization"),
+                _citation(doc, type_quote, "organization_category"),
+            ],
+        )
+        for name, kind, name_quote, type_quote in chicago_contacts(doc.text)
+        if kind.upper() in CHICAGO_CATEGORIES and not _RENTAL.search(name)
+    ]
+
+
 def extract_organizations(doc: PublicDocument, project: Project) -> list[Extracted]:
     found: list[Extracted] = []
     if doc.structured:
@@ -230,11 +293,7 @@ def extract_organizations(doc: PublicDocument, project: Project) -> list[Extract
             for number in range(1, 16):
                 kind = str(row.get(f"contact_{number}_type", ""))
                 name = str(row.get(f"contact_{number}_name", "")).strip()
-                category = {
-                    "CONTRACTOR-ELECTRICAL": Category.ELECTRICAL,
-                    "CONTRACTOR-GENERAL CONTRACTOR": Category.GC,
-                    "OWNER": Category.OWNER,
-                }.get(kind.upper())
+                category = CHICAGO_CATEGORIES.get(kind.upper())
                 if name and category and not _RENTAL.search(name):
                     # Preserve complete field pairs as exact JSON; sorted JSON fields may be apart.
                     name_quote = f'"contact_{number}_name": {json.dumps(name, ensure_ascii=False)}'

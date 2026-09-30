@@ -653,3 +653,84 @@ def test_carried_assignment_ages_independently_of_fresh_official_role(db):
         )
         assert carried["person_project_relationship"] == "UNKNOWN"
         assert carried["person_organization_relationship"] == "CURRENT"
+
+
+def test_retained_permit_enrichment_without_network_preserves_exact_fields_and_replay(db):
+    """Regression: GL3-018 field pairs were inert unless a second fetch succeeded."""
+    with db.begin() as session:
+        project = seed(session)
+        source_id = "chicago-building-permits"
+        session.add(
+            Source(
+                id=source_id,
+                publisher="Chicago",
+                endpoint="https://data.cityofchicago.org/resource/ydr8-5enu.json",
+                family="construction-permits",
+                geography="US",
+                industries=[],
+                retrieval_method="socrata-permits",
+                health={},
+            )
+        )
+        session.flush()
+        project.source_id = source_id
+        observation = session.scalar(select(Observation))
+        observation.source_id = source_id
+        evidence = session.scalar(select(Evidence))
+        evidence.abstract = (
+            "row: 42\naddress: 400 S LA SALLE ST\ntype: Renovation\n"
+            "date: 2026-09-16T00:00:00.000\napplication_start: 2026-06-17T00:00:00.000\n"
+            "description: Data center conversion with MEP upgrades\n"
+            "contact_1_type: OWNER OCCUPIED\ncontact_1_name: Example Owner LLC\n"
+            "contact_2_type: CONTRACTOR-ELECTRICAL\ncontact_2_name: Example Electric LLC\n"
+            "contact_3_type: ARCHITECT\ncontact_3_name: DOE, JANE A\n"
+        )
+
+        session.add(
+            BuyingChainEvidence(
+                project_id=project.id,
+                url=evidence.url,
+                title="Earlier live JSON",
+                excerpt='[{"contact_2_name": "Example Electric LLC"}]',
+                content_hash="legacy-json",
+                extraction_location="JSON",
+                observed_at=NOW,
+                last_seen_at=NOW,
+                project_match_reason="Earlier GL3-017 exact permit fetch",
+            )
+        )
+
+        def no_network(url):
+            pytest.fail("Retained permit fields must not require another request")
+
+        first = enrich_buying_chain(session, project.id, fetcher=no_network, now=NOW)
+        before = counts(session)
+        again = enrich_buying_chain(
+            session, project.id, fetcher=no_network, now=NOW + timedelta(minutes=1)
+        )
+        assert counts(session) == before
+        assert len(first["candidates"]) == 2
+        assert all(c["organization_relationship"] == "DIRECT" for c in again["candidates"])
+        assert all(
+            c["person_name"] is None
+            and c["person_project_relationship"] == "UNKNOWN"
+            and not c["public_contacts"]
+            for c in again["candidates"]
+        )
+        facts = again["permit_summaries"][0]["facts"]
+        assert any(f["value"] == "DOE, JANE A" for f in facts)
+        assert any(f["label"] == "Application start date" for f in facts)
+        assert all(f["quote"] in evidence.abstract for f in facts)
+        for c in again["candidates"]:
+            assert all(e["quote"] in evidence.abstract for e in c["evidence"])
+        # A failed interpretation with the last accepted hash keeps the facts;
+        # an actual rejected replacement makes the older facts unavailable.
+        interpretation = session.scalar(select(Interpretation))
+        interpretation.status = "failed"
+        session.flush()
+        assert buying_chain_view(session, project.id, now=NOW)["permit_summaries"]
+        interpretation.status = "rejected"
+        session.flush()
+        changed = buying_chain_view(session, project.id, now=NOW)
+        assert changed["permit_summaries"] == []
+        assert all(c["organization_relationship"] == "UNKNOWN" for c in changed["candidates"])

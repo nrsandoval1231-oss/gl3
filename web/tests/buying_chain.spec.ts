@@ -103,3 +103,28 @@ test('mobile buying chain keeps unknown and empty results readable', async ({ pa
   await expect(page.getByRole('alert')).toHaveText('Use up to four public HTTPS source links, one per line.')
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBeTruthy()
 })
+
+test('retained permit fields are useful before enrichment and preserve source roles', async ({ page }) => {
+  const result = chain('one')
+  result.permit_summaries = [{
+    evidence_id: 'permit-1', source_id: 'chicago-building-permits',
+    url: 'https://data.cityofchicago.org/resource/ydr8-5enu.json',
+    title: 'Synthetic data-center permit', observed_at: stamp,
+    extraction_location: 'Official Chicago permit fields',
+    facts: [
+      { label: 'Permit scope', value: 'Data center conversion with MEP upgrades', quote: 'description: Data center conversion with MEP upgrades' },
+      { label: 'Permit-listed party · ARCHITECT', value: 'DOE, JANE', quote: 'contact_2_name: DOE, JANE', role_quote: 'contact_2_type: ARCHITECT' },
+      { label: 'Application start date', value: '2026-06-17', quote: 'application_start: 2026-06-17' },
+    ],
+  }]
+  await shell(page, async (route) => {
+    expect(route.request().method()).toBe('GET')
+    await route.fulfill({ contentType: 'application/json', body: JSON.stringify(result) })
+  })
+  await expect(page.getByRole('heading', { name: 'Retained permit facts' })).toBeVisible()
+  await expect(page.getByText('Data center conversion with MEP upgrades', { exact: true })).toBeVisible()
+  await expect(page.getByText('DOE, JANE', { exact: true })).toBeVisible()
+  await page.getByText('Field evidence', { exact: true }).nth(1).click()
+  await expect(page.getByText('contact_2_type: ARCHITECT', { exact: true })).toBeVisible()
+  await expect(page.getByText(/Permit dates describe permitting/)).toBeVisible()
+})

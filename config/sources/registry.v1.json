@@ -35,7 +35,7 @@
       "enabled": true, "retention": "Public permit row fields and attributed excerpt; source publication time is unknown",
       "query": {"window_days": 30, "modified_window_days": 2, "per_page": 1000, "max_pages": 20, "max_response_bytes": 2000000, "max_run_bytes": 20000000, "where_profile": "new-construction-renovation-or-express-electrical"},
       "coverage_limitation": "Chicago status monitoring uses the official Socrata :updated_at row timestamp with a two-day overlap. Longer outages can miss changes; a dataset-wide replacement may exceed the bounded row limit and will fail visibly. Express Electrical Work includes small and residential work; inclusion in collection does not guarantee Signal admission. No dedicated procurement or commissioning coverage.",
-      "collection_scope": "Chicago new construction, renovation/alteration and Express Electrical Work permits; 30-day issue window plus 2-day modification overlap; scope, parcel and named contractor roles retained."
+      "collection_scope": "Chicago new construction, renovation/alteration and Express Electrical Work permits; 30-day issue window plus 2-day modification overlap; scope, full address, parcel, application start, permit milestone and named party roles retained."
     },
     {
       "id": "georgia-air-draft-title-v",
@@ -47,7 +47,7 @@
       "retrieval_method": "georgia-air-permits",
       "cadence_hours": 24,
       "publication_cadence": "Current public draft-permit listing (Title V, SIP, synthetic minor); publication date unknown; source-stated application date or comment deadline labeled separately",
-      "collection_scope": "Georgia EPD current draft Title V, SIP and synthetic-minor listing; narratives and draft permits including bounded generator schedule excerpts; application links retained when present.",
+      "collection_scope": "Georgia EPD current draft Title V, SIP and synthetic-minor listing; narratives and draft permits including bounded generator schedule excerpts and draft front-page facility identity; application links retained when present.",
       "coverage_limitation": "Not a complete air-application registry. Current application-link fields are empty; full applications may require agency request. Public notices are references only. At most 24 generator excerpts per PDF, 8 general pages; bounds and omitted excerpt counts are retained. Installed standby ratings are not rental demand.",
       "credential_reference": null,
       "enabled": true,
