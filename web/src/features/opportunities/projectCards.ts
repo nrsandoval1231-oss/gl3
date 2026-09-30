@@ -7,6 +7,19 @@ export type ProjectCard = {
   grouped: boolean
 }
 
+export type SignalDisplayDecision = 'SHOW' | 'REVIEW' | 'HOLD'
+
+export function signalDisplayDecision(members: Opportunity[]): SignalDisplayDecision {
+  const decisions = members.map((item) => item.signal_display_decision)
+  if (decisions.includes('SHOW')) return 'SHOW'
+  if (decisions.includes('REVIEW') || decisions.some((decision) => decision !== 'HOLD')) return 'REVIEW'
+  return 'HOLD'
+}
+
+export function signalDecisionCards(cards: ProjectCard[], decision: SignalDisplayDecision) {
+  return cards.filter((card) => signalDisplayDecision(card.members) === decision)
+}
+
 const permitSource = /-building-permits$/
 const explicitDate = /\b(?:20\d{2}[/-]\d{1,2}[/-]\d{1,2}|(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\.?\s+\d{1,2}(?:-\d{1,2})?,?\s+20\d{2})\b/i
 const explicitPlace = /\b(?:in|at)\s+(?:the\s+)?([A-Z][\w&.'’-]*(?:\s+[A-Z][\w&.'’-]*){1,4})/
@@ -152,7 +165,7 @@ export function projectTitle(item: Opportunity) {
   return neutralTitle(item)
 }
 
-function groupIdentity(item: Opportunity) {
+function exactEventIdentity(item: Opportunity) {
   const action = reportedAction(item)
   const itemSource = source(item)
   if (!permitSource.test(itemSource) || !item.location || !action || !actionWithPlaceAndDate(action)) return null
@@ -167,9 +180,18 @@ function groupIdentity(item: Opportunity) {
 
 export function projectCards(items: Opportunity[]): ProjectCard[] {
   const groups = new Map<string, Opportunity[]>()
+  const projectCounts = new Map<string, number>()
   for (const item of items) {
-    const identity = groupIdentity(item)
-    const key = identity ?? `record:${item.id}`
+    if (item.project_id) {
+      const projectKey = `${item.tier}:${item.project_id}`
+      projectCounts.set(projectKey, (projectCounts.get(projectKey) ?? 0) + 1)
+    }
+  }
+  for (const item of items) {
+    const projectKey = `${item.tier}:${item.project_id}`
+    const hasSharedProjectId = Boolean(item.project_id && (projectCounts.get(projectKey) ?? 0) > 1)
+    const identity = hasSharedProjectId ? `project:${item.tier}:${item.project_id}` : exactEventIdentity(item)
+    const key = identity ?? (item.project_id ? `project:${item.tier}:${item.project_id}` : `record:${item.id}`)
     const members = groups.get(key) ?? []
     members.push(item)
     groups.set(key, members)

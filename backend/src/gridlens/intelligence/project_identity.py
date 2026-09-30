@@ -134,7 +134,7 @@ def physical_site(value: str | None) -> bool:
     return bool(
         re.search(r"\b\d{1,6}\b", clean)
         and re.search(
-            r"\b(st|street|rd|road|ave|avenue|blvd|boulevard|dr|drive|hwy|highway|parcel|lot)\b",
+            r"\b(st|street|rd|road|ave|avenue|blvd|boulevard|dr|drive|ln|lane|hwy|highway|parcel|lot)\b",
             clean,
         )
     )
@@ -223,12 +223,30 @@ def stable_asset_identity(record: dict[str, object], source_id: str) -> tuple[st
     return None
 
 
+def phase_normalized_facility_scope(record: dict[str, object]) -> str | None:
+    """Normalize only an explicit numbered phase; all remaining source text must match."""
+    permit = record.get("permit")
+    if not isinstance(permit, dict):
+        return None
+    description = permit.get("description")
+    address = permit.get("address")
+    if (
+        not isinstance(description, str)
+        or not isinstance(address, str)
+        or not physical_site(address)
+        or not re.search(r"\bphase\s+\d+\s*:", description, re.I)
+    ):
+        return None
+    return normalized_identity(re.sub(r"\bphase\s+\d+\s*:\s*", "phase ", description, flags=re.I))
+
+
 def decide_project_match(
     *,
     same_source_id: bool = False,
     same_address: bool = False,
     same_project_name: bool = False,
     same_asset_identity: bool = False,
+    same_authoritative_scope: bool = False,
     same_owner: bool = False,
     explicit_relationship: bool = False,
     conflicting_geography: bool = False,
@@ -242,13 +260,14 @@ def decide_project_match(
             ("physical address", same_address),
             ("project name/alias", same_project_name),
             ("asset identity", same_asset_identity),
+            ("phase-normalized authoritative permit scope", same_authoritative_scope),
             ("owner/developer", same_owner),
             ("explicit source relationship", explicit_relationship),
         )
         if yes
     )
     strong = same_source_id or same_asset_identity or explicit_relationship
-    corroborated_site = same_address and same_project_name
+    corroborated_site = same_address and (same_project_name or same_authoritative_scope)
     if (strong or corroborated_site) and not conflicting_geography and not conflicting_asset_type:
         return MatchDecision("matched", f"Identity supported by {', '.join(facts)}.", facts)
     if conflicting_geography:

@@ -259,6 +259,66 @@
         }
       }
     },
+    "/api/signals/decisions": {
+      "get": {
+        "summary": "Signal Decision Counts",
+        "description": "Return current Signal decision counts while keeping legacy Signals visible.",
+        "operationId": "signal_decision_counts_api_signals_decisions_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignalDecisionCountsOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/signals/decisions/adjudicate": {
+      "post": {
+        "summary": "Adjudicate Signal Batch",
+        "description": "Explicit bounded replay/backfill; unchanged evidence and policy are idempotent.",
+        "operationId": "adjudicate_signal_batch_api_signals_decisions_adjudicate_post",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/changes": {
       "get": {
         "summary": "Changes",
@@ -1093,6 +1153,11 @@
             "format": "uuid",
             "title": "Id"
           },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id"
+          },
           "name": {
             "type": "string",
             "title": "Name"
@@ -1344,11 +1409,50 @@
             },
             "type": "array",
             "title": "Monitoring Requirements"
+          },
+          "signal_display_decision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Signal Display Decision"
+          },
+          "signal_display_decision_state": {
+            "type": "string",
+            "title": "Signal Display Decision State",
+            "default": "unadjudicated"
+          },
+          "signal_display_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Signal Display Source"
+          },
+          "signal_display_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Signal Display Reason"
           }
         },
         "type": "object",
         "required": [
           "id",
+          "project_id",
           "name",
           "location",
           "tier",
@@ -1392,6 +1496,34 @@
           "authenticated"
         ],
         "title": "SessionOut"
+      },
+      "SignalDecisionCountsOut": {
+        "properties": {
+          "show": {
+            "type": "integer",
+            "title": "Show"
+          },
+          "review": {
+            "type": "integer",
+            "title": "Review"
+          },
+          "hold": {
+            "type": "integer",
+            "title": "Hold"
+          },
+          "unadjudicated": {
+            "type": "integer",
+            "title": "Unadjudicated"
+          }
+        },
+        "type": "object",
+        "required": [
+          "show",
+          "review",
+          "hold",
+          "unadjudicated"
+        ],
+        "title": "SignalDecisionCountsOut"
       },
       "ValidationError": {
         "properties": {
