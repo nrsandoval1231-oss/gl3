@@ -17,10 +17,10 @@ LABELS = {
             ("contractor_trade", "Permit contractor trade"),
             ("contractor_company_name", "Permit contractor organization"),
             ("contractor_full_name", "Permit-listed contractor name"),
-            ("contractor_phone", "Contractor business phone (permit field)"),
-            ("applicant_org", "Permit applicant organization"),
+            ("contractor_phone", "Contractor permit-listed phone (permit field)"),
+            ("applicant_org", "Applicant-associated organization on permit"),
             ("applicant_full_name", "Permit-listed applicant name"),
-            ("applicant_phone", "Applicant business phone (permit field)"),
+            ("applicant_phone", "Applicant permit-listed phone (permit field)"),
         )
     },
     "row": "Source record",

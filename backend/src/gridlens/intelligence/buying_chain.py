@@ -159,6 +159,23 @@ def _deduplicate(items: list[Extracted]) -> list[Extracted]:
         if prior is None:
             grouped[key] = item
             continue
+
+        def permit_name_only(value: Extracted) -> bool:
+            return bool(
+                value.person_name
+                and value.title is None
+                and value.person_organization_relationship == "UNKNOWN"
+                and any(c["supports"] == "permit_listed_person" for c in value.citations)
+            )
+
+        # A permit names a person without reporting a current job. That absence
+        # cannot contradict a separately evidenced current role. Raw permit name
+        # attribution remains in permit facts and immutable evidence/history.
+        if permit_name_only(prior) and item.person_organization_relationship == "CURRENT":
+            grouped[key] = item
+            continue
+        if permit_name_only(item) and prior.person_organization_relationship == "CURRENT":
+            continue
         different = (
             normalized_identity(prior.title) != normalized_identity(item.title)
             or prior.organization_relationship != item.organization_relationship
@@ -397,8 +414,8 @@ def enrich_buying_chain(
                         extract_retained_permit_organizations(doc, observation.source_id)
                     )
             organizations.extend(extract_organizations(doc, project))
-    organizations = _deduplicate(organizations)
-    people: list[Extracted] = []
+    people = [item for item in organizations if item.person_name is not None]
+    organizations = _deduplicate([item for item in organizations if item.person_name is None])
     for doc, matched, reason, retained_id in documents:
         results = extract_people(
             doc, organizations, project, project_scoped=matched, today=now.date()

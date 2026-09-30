@@ -12,7 +12,7 @@ Source feasibility, final implementation limits and live validation will be reco
 
 Extend Austin commercial collection to electrical permits and a bounded initial
 2026 data-center backfill, retaining exact contractor/applicant organizations,
-permit-listed names and business-contact fields. These fields do not establish
+permit-listed names and permit contact fields. These fields do not establish
 current employment, personal telephone ownership or buying authority. Verify
 Dallas, Houston and El Paso official routes as requested; historical or incomplete
 datasets must not be presented as current complete acquisition. Validate the RRC

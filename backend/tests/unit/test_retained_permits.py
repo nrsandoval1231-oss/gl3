@@ -58,7 +58,7 @@ def test_named_construction_proponent_not_inferred_from_facility_or_agency_title
     assert georgia_proponent(text.replace("proposes", "does not propose")) is None
 
 
-def test_austin_permit_people_and_business_phone_do_not_invent_current_roles():
+def test_austin_permit_people_and_listed_phone_do_not_invent_current_roles():
     from gridlens.ingestion.adapters.buying_chain_public import PublicDocument
     from gridlens.intelligence.buying_chain_extraction import extract_retained_permit_organizations
 
@@ -71,7 +71,7 @@ def test_austin_permit_people_and_business_phone_do_not_invent_current_roles():
     rows = extract_retained_permit_organizations(doc, "austin-building-permits")
     organization, person = rows
     assert organization.organization_relationship == "DIRECT"
-    assert organization.public_contacts[0]["kind"] == "business phone"
+    assert organization.public_contacts[0]["kind"] == "permit-listed phone"
     assert person.person_name == "Blake Combs"
     assert person.title is None
     assert person.person_organization_relationship == "UNKNOWN"
@@ -82,3 +82,39 @@ def test_austin_permit_people_and_business_phone_do_not_invent_current_roles():
     assert extract_retained_permit_organizations(doc, "publisher-rss") == []
     ambiguous = PublicDocument(doc.url, doc.title, text + "\ncontractor_company_name: Other Inc")
     assert extract_retained_permit_organizations(ambiguous, "austin-building-permits") == []
+
+
+def test_applicant_affiliation_is_not_direct_project_organization_or_employment():
+    from gridlens.ingestion.adapters.buying_chain_public import PublicDocument
+    from gridlens.intelligence.buying_chain_extraction import extract_retained_permit_organizations
+
+    text = (
+        "applicant_org: Example Consultants\napplicant_full_name: Jane Doe\n"
+        "applicant_phone: 5125550100"
+    )
+    doc = PublicDocument("https://abc.austintexas.gov/permit", "Permit", text)
+    organization, person = extract_retained_permit_organizations(doc, "austin-building-permits")
+    assert organization.organization_relationship == "UNKNOWN"
+    assert organization.category == "unknown"
+    assert person.person_organization_relationship == "UNKNOWN"
+    assert person.person_project_relationship == "UNKNOWN"
+    assert person.public_contacts == []
+    assert organization.public_contacts[0]["kind"] == "permit-listed phone"
+    assert "business/personal type are UNKNOWN" in organization.reason
+
+
+def test_applicant_formatting_variant_cannot_retract_direct_contractor():
+    from gridlens.ingestion.adapters.buying_chain_public import PublicDocument
+    from gridlens.intelligence.buying_chain_extraction import extract_retained_permit_organizations
+
+    text = (
+        "contractor_company_name: Prism Electric Inc\n"
+        "contractor_full_name: Blake Combs\napplicant_org: PRISM ELECTRIC INC.\n"
+        "applicant_full_name: Blake Combs"
+    )
+    rows = extract_retained_permit_organizations(
+        PublicDocument("https://abc.austintexas.gov/permit", "Permit", text),
+        "austin-building-permits",
+    )
+    assert len(rows) == 2
+    assert all(row.organization_relationship == "DIRECT" for row in rows)

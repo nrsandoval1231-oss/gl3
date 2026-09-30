@@ -256,12 +256,13 @@ def extract_retained_permit_organizations(doc: PublicDocument, source_id: str) -
             organization = parsed.get(organization_field)
             if not organization or _RENTAL.search(organization[0]):
                 continue
-            same_contractor = organization[0] == parsed.get("contractor_company_name", ("", ""))[0]
-            trade = (
-                parsed.get("contractor_trade")
-                if prefix == "contractor" or same_contractor
-                else None
-            )
+            if prefix == "applicant" and organization_key(organization[0]) == organization_key(
+                parsed.get("contractor_company_name", ("", ""))[0]
+            ):
+                # Exact contractor relationship exists; applicant facts remain.
+                continue
+            trade = parsed.get("contractor_trade") if prefix == "contractor" else None
+            relationship = "DIRECT" if prefix == "contractor" else "UNKNOWN"
             category = {
                 "Electrical Contractor": Category.ELECTRICAL.value,
                 "General Contractor": Category.GC.value,
@@ -272,10 +273,10 @@ def extract_retained_permit_organizations(doc: PublicDocument, source_id: str) -
             phone = parsed.get(prefix + "_phone")
             contacts = []
             if phone and re.fullmatch(r"[+()0-9 .-]{10,24}", phone[0]):
-                citations.append(_citation(doc, phone[1], "public_business_contact"))
+                citations.append(_citation(doc, phone[1], "permit_listed_contact"))
                 contacts.append(
                     {
-                        "kind": "business phone",
+                        "kind": "permit-listed phone",
                         "value": phone[0],
                         "source_url": doc.url,
                         "quote": phone[1],
@@ -283,14 +284,20 @@ def extract_retained_permit_organizations(doc: PublicDocument, source_id: str) -
                     }
                 )
             reason = (
-                "Permit-listed " + prefix + "; current employment, project assignment "
-                "and buying authority are UNKNOWN. Phone is a permit business field, "
-                "not a verified personal number."
+                (
+                    "Permit-listed contractor"
+                    if prefix == "contractor"
+                    else "Applicant-associated organization; project role is UNKNOWN"
+                )
+                + "; current employment, project assignment "
+                "and buying authority are UNKNOWN. Phone is a public permit field; "
+                "phone ownership and business/personal type are UNKNOWN."
             )
             result.append(
                 Extracted(
                     organization[0],
                     category,
+                    organization_relationship=relationship,
                     reason=reason,
                     citations=citations,
                     public_contacts=contacts,
@@ -312,6 +319,7 @@ def extract_retained_permit_organizations(doc: PublicDocument, source_id: str) -
                         organization[0],
                         category,
                         person_name=person[0],
+                        organization_relationship=relationship,
                         reason=reason,
                         evidence_strength="Low",
                         citations=[*citations, _citation(doc, person[1], "permit_listed_person")],
@@ -559,6 +567,8 @@ def extract_people(
     # the exact original source remains the citation (no generated quote).
     for sentence in _sentences(doc.text):
         for org in organizations:
+            if org.person_name is not None:
+                continue  # Permit-listed people cannot lend citations to another person.
             normalized_sentence = organization_key(sentence)
             org_name = organization_key(org.organization)
             official = (

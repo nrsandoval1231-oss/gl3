@@ -15,11 +15,15 @@ cloud environment. Normal public requests were used; no source restriction bypas
   Live: **2,609 rows**, **78 accepted permit observations across 76 projects**;
   replay: 2,609 unchanged, zero new/changed. No Prospect/Lead promotion.
 - **Permit enrichment:** exact contractor/applicant organization, name, trade and
-  business-phone fields retained and visible before the existing enrichment
+  permit-listed phone fields retained and visible before the existing enrichment
   action. Austin yields **57 organization candidates, 57 permit-listed person
-  candidates, and 57 organization business-phone claims** across those projects.
+  candidates, and 57 organization permit-listed phone claims** across those projects.
   Employment, person assignment, title and buying authority remain UNKNOWN.
-  Phones are not assigned to people. Exact General Contractor and Electrical
+  Phone ownership and business/personal type are UNKNOWN. Phones are not assigned to people.
+  Applicant-only organizations retain UNKNOWN project involvement; same-contractor
+  spelling variants do not duplicate or demote contractor evidence. A permit-listed
+  name without a title cannot contradict an independently sourced current role,
+  and cannot lend its citation to another person at the organization. Exact General Contractor and Electrical
   Contractor field values support organization categories. Duplicate/conflicting
   native field labels cannot create relationships; source attribution persists.
 - **Houston:** four latest official weekly XLSX reports, August 17–September 14,
@@ -35,17 +39,17 @@ cloud environment. Normal public requests were used; no source restriction bypas
 
 - **7000 Burleson Rd Bldg B Unit 100**, `2025-155325 EP`: permit scope explicitly
   describes data-center expansion into an existing shell. Exact fields name
-  **Prism Electric Inc / Blake Combs**, contractor business phone `5129262000`.
+  **Prism Electric Inc / Blake Combs**, contractor permit-listed phone `5129262000`.
 - **811 Clayton Ln**, `2026-036762 EP`: modular data-center foundation work;
-  **Exceed Electrical Contracting / Adam Stockton**, business phone `5126672564`.
-  Associated `2026-036762 BP` names **Novo Construction **Main** / Matt Mullen**,
+  **Exceed Electrical Contracting / Adam Stockton**, permit-listed phone `5126672564`.
+  Associated `2026-036762 BP` names `Novo Construction **Main**` / **Matt Mullen**,
   with `contractor_trade: General Contractor`. Separate permit identities remain;
   shared company names alone do not merge records.
 - These examples are construction evidence. Transformer counts, nameplate,
   permit Active status and foundation dimensions do not prove temporary rental
   demand, commissioning dates, utility delay, load or suitable fuel.
 - Authenticated browser acceptance opened Burleson and Clayton through the actual
-  project cards/review tabs, clicked enrichment and inspected names, business
+  project cards/review tabs, clicked enrichment and inspected names, permit-listed
   phones, retained permit facts and UNKNOWN current roles. Existing LaSalle and
   QTS acceptance was rerun. Huron remains a hospital, not a data center.
 
@@ -72,7 +76,7 @@ cloud environment. Normal public requests were used; no source restriction bypas
 
 ## Validation
 
-- Ruff, mypy (45 source files), **390 pytest passes / one existing missing-fixture
+- Ruff, mypy (45 source files), **393 pytest passes / one existing missing-fixture
   skip**; source bounds, provenance, admission and stale/unsupported role tests.
 - Fresh database migrations, repeated upgrade and drift check: pass.
 - Frontend typecheck and production build: pass.
