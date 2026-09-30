@@ -2186,6 +2186,8 @@ def process_job(
                                 "temporary-power",
                                 "bridge-power",
                                 "event-power",
+                                "drilling",
+                                "well-permit",
                             }
                         ),
                         PowerNeed.activity_key != activity_key,

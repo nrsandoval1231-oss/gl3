@@ -186,6 +186,8 @@ _REPORTED_MW = re.compile(r"(?<![\w.])\d[\d,]*(?:\.\d+)?\s*MW\b", re.I)
 
 def evaluator_version(record: dict[str, Any]) -> str:
     permit = record.get("permit")
+    if isinstance(permit, dict) and permit.get("source_type") == "texas-rrc-drilling-permits":
+        return "rrc-permit-v1"
     if isinstance(permit, dict) and permit.get("source_type") == "georgia-air-draft-title-v":
         return GEORGIA_AIR_EVALUATOR_VERSION
     return EVALUATOR_VERSION

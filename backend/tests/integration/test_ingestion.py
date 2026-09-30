@@ -1485,7 +1485,8 @@ def test_rrc_amendment_rollover_history_no_duplicate_asset_or_inferred_productio
     with factory() as session:
         assert session.scalar(select(ProjectLifecycle)) is None
         assert session.scalar(select(Project.asset_type)) == "upstream_well"
-        assert session.scalar(select(PowerNeed.active)) is True
+        active = session.scalars(select(PowerNeed).where(PowerNeed.active.is_(True))).all()
+        assert len(active) == 1 and active[0].activity_key == "well-permit"
     incoming[:] = [row(96, "Cancelled")]
     run()
     with factory() as session:
