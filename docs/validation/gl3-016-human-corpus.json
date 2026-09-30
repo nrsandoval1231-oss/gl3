@@ -1,0 +1,720 @@
+{
+  "source": "docs/validation/gl3-015-persisted-signal-review.md",
+  "source_sha256": "68c60305ac4426dfda43ef4c52cf902d674c15e4443beb93b417a13d460f83dd",
+  "baseline_api_sha256": "5e5997124864ed1b9846d7af6fff3ff7b6e0a55dc726dabf3a96500b4a38d079",
+  "baseline_signal_records": 81,
+  "baseline_cards": 63,
+  "cards": [
+    {
+      "card": 1,
+      "human_decision": "HOLD",
+      "title": "Archived - Notice of Public Hearings - PZ 2026-2715 - Employment Center Plan - Project Mustang",
+      "source_url": "https://taylortx.gov/m/NewsFlash/Archive/Item/2079?arcId=3442",
+      "review_finding": "[Archived - Notice of Public Hearings - PZ 2026-2715 - Employment Center Plan - Project Mustang](https://taylortx.gov/m/NewsFlash/Archive/Item/2079?arcId=3442). Official zoning notice is historical; later official withdrawal is correctly foregrounded. Campus viability is UNKNOWN; show as a change/history, not fresh positive discovery.",
+      "baseline_title": "Archived - Notice of Public Hearings - PZ 2026-2715 - Employment Center Plan - Project Mustang",
+      "baseline_record_ids": [
+        "45ded54a-90e2-44f0-9fd5-6fb4f97cea0f"
+      ]
+    },
+    {
+      "card": 2,
+      "human_decision": "SHOW",
+      "title": "Project Comal - Employment Center Plan at 1051 CR 401",
+      "source_url": "https://taylortx.gov/m/NewsFlash/Home/Detail/2032",
+      "review_finding": "[Project Comal - Employment Center Plan at 1051 CR 401](https://taylortx.gov/m/NewsFlash/Home/Detail/2032). Official site-specific data-center plan approval at 1051 CR 401; clear planning stage and useful early investigation. No power or service date proved.",
+      "baseline_title": "Project Comal - Employment Center Plan at 1051 CR 401",
+      "baseline_record_ids": [
+        "4ebfec6d-0592-45c1-8a7f-7934eabbee4c"
+      ]
+    },
+    {
+      "card": 3,
+      "human_decision": "REVIEW",
+      "title": "Change Use From Office To Laboratory And Lab Support Per Land Use Code",
+      "source_url": "https://services.seattle.gov/portal/customize/LinkToRecord.aspx?altId=7143336-CN",
+      "review_finding": "[Change Use From Office To Laboratory And Lab Support Per Land Use Code](https://services.seattle.gov/portal/customize/LinkToRecord.aspx?altId=7143336-CN). Official permit identifies an office-to-laboratory conversion, but interior tenant work has weak future-demand significance; explanation should say conversion, not imply new campus.",
+      "baseline_title": "Change Use From Office To Laboratory And Lab Support Per Land Use Code",
+      "baseline_record_ids": [
+        "e057368c-431d-42fb-b81c-806c21458216"
+      ]
+    },
+    {
+      "card": 4,
+      "human_decision": "SHOW",
+      "title": "National Steel Fabrication Company Plans a $19 Million Manufacturing Expansion in Fayetteville",
+      "source_url": "https://www.commerce.nc.gov/news/press-releases/2026/09/09/national-steel-fabrication-company-plans-19-million-manufacturing-expansion-fayetteville",
+      "review_finding": "[National Steel Fabrication Company Plans a $19 Million Manufacturing Expansion in Fayetteville](https://www.commerce.nc.gov/news/press-releases/2026/09/09/national-steel-fabrication-company-plans-19-million-manufacturing-expansion-fayetteville). State announcement names SteelFab expansion in Cumberland County; identifiable formation/expansion event, with location detail and power need still to verify.",
+      "baseline_title": "National Steel Fabrication Company Plans a $19 Million Manufacturing Expansion in Fayetteville",
+      "baseline_record_ids": [
+        "cdcc9d4b-c534-48dc-bf2d-3dbe4a251d83"
+      ]
+    },
+    {
+      "card": 5,
+      "human_decision": "SHOW",
+      "title": "Quarry production capacity increase",
+      "source_url": "https://epd.georgia.gov/document/document/30192-draft/download",
+      "review_finding": "[Quarry production capacity increase](https://epd.georgia.gov/document/document/30192-draft/download). Official quarry air application states production-capacity increase; meaningful fixed-site change, though demand effect remains UNKNOWN.",
+      "baseline_title": "Quarry production capacity increase",
+      "baseline_record_ids": [
+        "2d95d3ee-62f5-4a86-ad72-00989476b1e5"
+      ]
+    },
+    {
+      "card": 6,
+      "human_decision": "REVIEW",
+      "title": "Quarry processing equipment modification",
+      "source_url": "https://epd.georgia.gov/document/document/29927-nar/download",
+      "review_finding": "[Quarry processing equipment modification](https://epd.georgia.gov/document/document/29927-nar/download). Official quarry modification is real, but equipment replacement/processing change has uncertain incremental electrical demand.",
+      "baseline_title": "Quarry processing equipment modification",
+      "baseline_record_ids": [
+        "e6fccb3d-50c6-4caf-98f8-aa7924d62d1b"
+      ]
+    },
+    {
+      "card": 7,
+      "human_decision": "SHOW",
+      "title": "New data center backup generators",
+      "source_url": "https://epd.georgia.gov/document/document/30104-draft/download",
+      "review_finding": "[New data center backup generators](https://epd.georgia.gov/document/document/30104-draft/download). Official air application covers new data-center backup engines; strong equipment milestone, never a temporary rental or campus-load claim.",
+      "baseline_title": "New data center backup generators",
+      "baseline_record_ids": [
+        "3b8195f0-1abe-4296-97d2-fbff47d183d5"
+      ]
+    },
+    {
+      "card": 8,
+      "human_decision": "HOLD",
+      "title": "Asphalt plant equipment replacement",
+      "source_url": "https://epd.georgia.gov/document/document/30323-draft/download",
+      "review_finding": "[Asphalt plant equipment replacement](https://epd.georgia.gov/document/document/30323-draft/download). Official asphalt plant amendment replaces existing dryer/baghouse; routine replacement is weak as a new-project Signal.",
+      "baseline_title": "Asphalt plant equipment replacement",
+      "baseline_record_ids": [
+        "f4032be8-09b0-420d-a9b0-a8c69593c08e"
+      ]
+    },
+    {
+      "card": 9,
+      "human_decision": "REVIEW",
+      "title": "Additional emergency generators",
+      "source_url": "https://epd.georgia.gov/document/document/30027-nar/download",
+      "review_finding": "[Additional emergency generators](https://epd.georgia.gov/document/document/30027-nar/download). Official additional emergency generators at an identified facility; relevant equipment event, but backup capacity is not operating load.",
+      "baseline_title": "Additional emergency generators",
+      "baseline_record_ids": [
+        "c3fde52f-a38a-4e5b-8e7a-882c4b385d4d"
+      ]
+    },
+    {
+      "card": 10,
+      "human_decision": "SHOW",
+      "title": "New data center construction",
+      "source_url": "https://epd.georgia.gov/document/document/sip-30169-nar/download",
+      "review_finding": "[New data center construction](https://epd.georgia.gov/document/document/sip-30169-nar/download). Official new greenfield data-center air application; strong physical-facility evidence and early onsite-generation detail.",
+      "baseline_title": "New data center construction",
+      "baseline_record_ids": [
+        "a75b175c-7845-4754-8b28-80632598f461"
+      ]
+    },
+    {
+      "card": 11,
+      "human_decision": "SHOW",
+      "title": "Renewable natural gas facility construction",
+      "source_url": "https://epd.georgia.gov/document/document/30035-draft/download",
+      "review_finding": "[Renewable natural gas facility construction](https://epd.georgia.gov/document/document/30035-draft/download). Official landfill-gas-to-RNG facility application; identifiable new fixed industrial infrastructure.",
+      "baseline_title": "Renewable natural gas facility construction",
+      "baseline_record_ids": [
+        "ca15c66a-9c1c-4e69-a8a9-d094f71bf25b"
+      ]
+    },
+    {
+      "card": 12,
+      "human_decision": "SHOW",
+      "title": "Generators until grid power is available",
+      "source_url": "https://epd.georgia.gov/document/document/30232-nar/download",
+      "review_finding": "[Generators until grid power is available](https://epd.georgia.gov/document/document/30232-nar/download). Official filing explicitly describes generators until grid power is available; unusually direct power-path evidence, with exact need still unproved.",
+      "baseline_title": "Generators until grid power is available",
+      "baseline_record_ids": [
+        "4f3e8c19-24c9-48c4-b311-7d08f028ec3a"
+      ]
+    },
+    {
+      "card": 13,
+      "human_decision": "SHOW",
+      "title": "Data center backup generator installation",
+      "source_url": "https://epd.georgia.gov/document/document/30108-draft/download",
+      "review_finding": "[Data center backup generator installation](https://epd.georgia.gov/document/document/30108-draft/download). Official data-processing facility generator application; clear site/equipment event, backup generation is not a power gap.",
+      "baseline_title": "Data center backup generator installation",
+      "baseline_record_ids": [
+        "54043f6c-85bf-4a69-b941-4f9c9eb65f80"
+      ]
+    },
+    {
+      "card": 14,
+      "human_decision": "SHOW",
+      "title": "Roca Honda Mine Project",
+      "source_url": "https://www.govinfo.gov/content/pkg/FR-2026-09-14/pdf/2026-18765.pdf",
+      "review_finding": "[Roca Honda Mine Project](https://www.govinfo.gov/content/pkg/FR-2026-09-14/pdf/2026-18765.pdf). Federal EIS notice identifies Roca Honda mine proposal; early authoritative project event, construction timing UNKNOWN.",
+      "baseline_title": "Roca Honda Mine Project",
+      "baseline_record_ids": [
+        "a4edc1ef-eab5-4e27-be8c-7d4e66678411"
+      ]
+    },
+    {
+      "card": 15,
+      "human_decision": "HOLD",
+      "title": "1 - 40x40 Sl320 Mobile Stage With Wings For The Diplo Run Club Event On Oct 3, 2026 At Hu…",
+      "source_url": "https://data.cityofchicago.org/resource/ydr8-5enu.json",
+      "review_finding": "[1 - 40x40 Sl320 Mobile Stage With Wings For The Diplo Run Club Event On Oct 3, 2026 At Hu…](https://data.cityofchicago.org/resource/ydr8-5enu.json). Official permit is a one-day mobile stage; real event but not a durable physical-project lifecycle Signal.",
+      "baseline_title": "1 - 40x40 Sl320 Mobile Stage With Wings For The Diplo Run Club Event On Oct 3, 2026 At Hu…",
+      "baseline_record_ids": [
+        "7df46499-ff99-42c6-885c-dc8ef5adadaa"
+      ]
+    },
+    {
+      "card": 16,
+      "human_decision": "HOLD",
+      "title": "2026 Walk To End Alzheimers Stage In Lincoln Park Grove 2 On Oct 3, 2026",
+      "source_url": "https://data.cityofchicago.org/resource/ydr8-5enu.json",
+      "review_finding": "[2026 Walk To End Alzheimers Stage In Lincoln Park Grove 2 On Oct 3, 2026](https://data.cityofchicago.org/resource/ydr8-5enu.json). Official permit reinstates a charity-walk stage; event-specific power possibility is outside this project-lifecycle morning list.",
+      "baseline_title": "2026 Walk To End Alzheimers Stage In Lincoln Park Grove 2 On Oct 3, 2026",
+      "baseline_record_ids": [
+        "3156a918-62a3-4708-80d9-47a49810b6c5"
+      ]
+    },
+    {
+      "card": 17,
+      "human_decision": "REVIEW",
+      "title": "Interior And Exterior Alterations To Existing 2 Story Manufacturing With Accessory Office…",
+      "source_url": "https://data.cityofchicago.org/resource/ydr8-5enu.json",
+      "review_finding": "[Interior And Exterior Alterations To Existing 2 Story Manufacturing With Accessory Office…](https://data.cityofchicago.org/resource/ydr8-5enu.json). Official manufacturing-building alterations; physical site is clear, but renovation scope does not establish major new load.",
+      "baseline_title": "Interior And Exterior Alterations To Existing 2 Story Manufacturing With Accessory Office…",
+      "baseline_record_ids": [
+        "af0ea614-2937-4e39-bac6-705c9a016943"
+      ]
+    },
+    {
+      "card": 18,
+      "human_decision": "HOLD",
+      "title": "Same SL100 24x20 Stage With Wings For The 2026 Breakthrough T1d Chicago Walk Event At Mon…",
+      "source_url": "https://data.cityofchicago.org/resource/ydr8-5enu.json",
+      "review_finding": "[Same SL100 24x20 Stage With Wings For The 2026 Breakthrough T1d Chicago Walk Event At Mon…](https://data.cityofchicago.org/resource/ydr8-5enu.json). Official permit reinstates a walk-event stage; transient event, not a developing facility.",
+      "baseline_title": "Same SL100 24x20 Stage With Wings For The 2026 Breakthrough T1d Chicago Walk Event At Mon…",
+      "baseline_record_ids": [
+        "fc5f86e3-8a5e-41bd-a153-800e9367cb9d"
+      ]
+    },
+    {
+      "card": 19,
+      "human_decision": "REVIEW",
+      "title": "Installation Of Two (2) 2000 Amp Temporary Electrical Service",
+      "source_url": "https://data.cityofchicago.org/resource/ydr8-5enu.json",
+      "review_finding": "[Installation Of Two (2) 2000 Amp Temporary Electrical Service](https://data.cityofchicago.org/resource/ydr8-5enu.json). Official temporary electrical service is power-relevant, but attached to a known venue/event rather than a new large-load project.",
+      "baseline_title": "Installation Of Two (2) 2000 Amp Temporary Electrical Service",
+      "baseline_record_ids": [
+        "111419d9-b01f-44f4-a8df-16fa315cc1cb"
+      ]
+    },
+    {
+      "card": 20,
+      "human_decision": "HOLD",
+      "title": "Oct 4, 2026 Mobile Stage For The Chicago Bears At Stadium Green",
+      "source_url": "https://data.cityofchicago.org/resource/ydr8-5enu.json",
+      "review_finding": "[Oct 4, 2026 Mobile Stage For The Chicago Bears At Stadium Green](https://data.cityofchicago.org/resource/ydr8-5enu.json). Official one-day stadium event stage; not a project-development Signal.",
+      "baseline_title": "Oct 4, 2026 Mobile Stage For The Chicago Bears At Stadium Green",
+      "baseline_record_ids": [
+        "539e97b2-e864-4fd6-ba67-fdca01870d83"
+      ]
+    },
+    {
+      "card": 21,
+      "human_decision": "HOLD",
+      "title": "2026 Sista Strut 3k - Breast Cancer Walk Stage On Oct 3, 2026",
+      "source_url": "https://data.cityofchicago.org/resource/ydr8-5enu.json",
+      "review_finding": "[2026 Sista Strut 3k - Breast Cancer Walk Stage On Oct 3, 2026](https://data.cityofchicago.org/resource/ydr8-5enu.json). Official walk-event stage; not a project-development Signal.",
+      "baseline_title": "2026 Sista Strut 3k - Breast Cancer Walk Stage On Oct 3, 2026",
+      "baseline_record_ids": [
+        "691f2077-d13e-441d-a408-e4c5d74380e6"
+      ]
+    },
+    {
+      "card": 22,
+      "human_decision": "SHOW",
+      "title": "Phase 3 Of 3: Interior Alterations To Existing 7-Story Office Building To Convert To A Da…",
+      "source_url": "https://data.cityofchicago.org/resource/ydr8-5enu.json",
+      "review_finding": "[Phase 3 Of 3: Interior Alterations To Existing 7-Story Office Building To Convert To A Da…](https://data.cityofchicago.org/resource/ydr8-5enu.json). Official permit converts an office building to data-center use with MEP work; strong construction/electrical lifecycle event.",
+      "baseline_title": "Phase 3 Of 3: Interior Alterations To Existing 7-Story Office Building To Convert To A Da…",
+      "baseline_record_ids": [
+        "78279bec-e55e-4a60-9eea-f7a393bbda80"
+      ]
+    },
+    {
+      "card": 23,
+      "human_decision": "HOLD",
+      "title": "Chicago Marathon Stage Structuresstages- Reinstate Permit 101073740 , 1 Day Event October…",
+      "source_url": "https://data.cityofchicago.org/resource/ydr8-5enu.json",
+      "review_finding": "[Chicago Marathon Stage Structuresstages- Reinstate Permit 101073740 , 1 Day Event October…](https://data.cityofchicago.org/resource/ydr8-5enu.json). Official Chicago Marathon stage reinstatement; transient event, not a physical-project lifecycle milestone.",
+      "baseline_title": "Chicago Marathon Stage Structuresstages- Reinstate Permit 101073740 , 1 Day Event October…",
+      "baseline_record_ids": [
+        "675b585c-950b-4138-b6c2-b8327b061902"
+      ]
+    },
+    {
+      "card": 24,
+      "human_decision": "REVIEW",
+      "title": "Foundation Only For Proposed Addition To Existing F-1 Industrial Occupancy Building For N…",
+      "source_url": "https://data.cityofchicago.org/resource/ydr8-5enu.json",
+      "review_finding": "[Foundation Only For Proposed Addition To Existing F-1 Industrial Occupancy Building For N…](https://data.cityofchicago.org/resource/ydr8-5enu.json). Official foundation-only permit for industrial warehouse addition; real site work, eventual power significance uncertain.",
+      "baseline_title": "Foundation Only For Proposed Addition To Existing F-1 Industrial Occupancy Building For N…",
+      "baseline_record_ids": [
+        "564d4e13-4b59-4cd4-9bd0-3b488f4d951f"
+      ]
+    },
+    {
+      "card": 25,
+      "human_decision": "HOLD",
+      "title": "Zilker Park · Music Stages Food Vendors Art Vendors & Hospitality Programs · Oct 2026",
+      "source_url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13779199",
+      "review_finding": "[Zilker Park · Music Stages Food Vendors Art Vendors & Hospitality Programs · Oct 2026](https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13779199) (19 records). Nineteen official permits for one Zilker Park festival are grouped to one card; grouping is useful, but the event is not a durable project.",
+      "baseline_title": "Zilker Park · Music Stages Food Vendors Art Vendors & Hospitality Programs · Oct 2026",
+      "baseline_record_ids": [
+        "1974d653-79b9-44bf-a0ba-cff78f769582",
+        "55913d0b-13dc-4c1a-903e-b1736a93eee9",
+        "4e01e29f-742c-4893-a90a-ae09bf11d741",
+        "0221df13-50d8-43e5-abeb-b028a03dbe47",
+        "57c9608a-ed7e-4c22-8b86-90ccae560bb0",
+        "1f8dfe30-6c3c-4401-a245-b0b3eaead663",
+        "718b19d5-2cc5-4d30-9fc2-5ce4b6e35cb9",
+        "0c6a5024-065a-479d-bade-ac188ee69920",
+        "e3c7ced4-952d-4034-8f64-03b98ebbde8f",
+        "fd467ac3-d7eb-4c5b-bbc2-9b4ac41277c4",
+        "f8c9c768-99c9-43b4-b90d-24ae63dafefa",
+        "e3f2a31c-6f5b-4fe3-ac04-0f1f84735ac9",
+        "f178b8d7-71b2-4033-9d43-237951c642de",
+        "c1310999-4a40-4a1a-aa83-8552e77f7586",
+        "eed8510d-4a79-487b-a23f-9e8b553c1106",
+        "5bcb0b11-59fd-47b2-bbfc-306e6c70b5d3",
+        "adbd7d8d-3637-47ca-b43e-5e9b20dca712",
+        "edc67aa9-5a05-4810-a69f-9a572f72286a",
+        "bdb1fa0e-9675-4d02-b53c-db7c7edc8cfb"
+      ]
+    },
+    {
+      "card": 26,
+      "human_decision": "REVIEW",
+      "title": "Phase 4: Interior Remodel To Existing Manufacturing Facility",
+      "source_url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13769155",
+      "review_finding": "[Phase 4: Interior Remodel To Existing Manufacturing Facility](https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13769155). Official phase-4 manufacturing interior remodel; likely same site as adjacent phase records, separate project identities remain.",
+      "baseline_title": "Phase 4: Interior Remodel To Existing Manufacturing Facility",
+      "baseline_record_ids": [
+        "6fe2d28b-9938-4fac-a738-549ce5505ecf"
+      ]
+    },
+    {
+      "card": 27,
+      "human_decision": "REVIEW",
+      "title": "Phase 3: Interior Remodel To Existing Manufacturing Facility",
+      "source_url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13769154",
+      "review_finding": "[Phase 3: Interior Remodel To Existing Manufacturing Facility](https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13769154). Official phase-3 manufacturing interior remodel; likely same site as adjacent phases, not independently a new project.",
+      "baseline_title": "Phase 3: Interior Remodel To Existing Manufacturing Facility",
+      "baseline_record_ids": [
+        "6054b77d-9371-4b8a-8f60-02ca9f6aa1d9"
+      ]
+    },
+    {
+      "card": 28,
+      "human_decision": "REVIEW",
+      "title": "Phase 2: Interior Remodel To Existing Manufacturing Facility",
+      "source_url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13769153",
+      "review_finding": "[Phase 2: Interior Remodel To Existing Manufacturing Facility](https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13769153). Official phase-2 manufacturing interior remodel; likely same site as adjacent phases, uncertain load change.",
+      "baseline_title": "Phase 2: Interior Remodel To Existing Manufacturing Facility",
+      "baseline_record_ids": [
+        "5c9f6c51-426b-4360-9507-2d700e184114"
+      ]
+    },
+    {
+      "card": 29,
+      "human_decision": "REVIEW",
+      "title": "Interior Remodel To Existing Light Manufacturing Areas Phase 2",
+      "source_url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13770761",
+      "review_finding": "[Interior Remodel To Existing Light Manufacturing Areas Phase 2](https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13770761). Official large-area manufacturing interior remodel; identifiable site but weak evidence of new electrical demand.",
+      "baseline_title": "Interior Remodel To Existing Light Manufacturing Areas Phase 2",
+      "baseline_record_ids": [
+        "edeb683f-a88f-456b-960f-52c914b0cfeb"
+      ]
+    },
+    {
+      "card": 30,
+      "human_decision": "HOLD",
+      "title": "Remodel Hospital - 2nd Floor - PACU - With Associated Above And Below Ceiling/Floor Work…",
+      "source_url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13769852",
+      "review_finding": "[Remodel Hospital - 2nd Floor - PACU - With Associated Above And Below Ceiling/Floor Work…](https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13769852). Official hospital PACU remodel; routine interior work, not a clear future large-load project.",
+      "baseline_title": "Remodel Hospital - 2nd Floor - PACU - With Associated Above And Below Ceiling/Floor Work…",
+      "baseline_record_ids": [
+        "dfeabc4d-d764-4ed3-a2e4-60e4dd2bd892"
+      ]
+    },
+    {
+      "card": 31,
+      "human_decision": "HOLD",
+      "title": "Remodel Hospital - 2nd Floor - Surgery - With Associated Above And Below Ceiling/Floor Work",
+      "source_url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13769851",
+      "review_finding": "[Remodel Hospital - 2nd Floor - Surgery - With Associated Above And Below Ceiling/Floor Work](https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13769851). Official hospital surgery-floor remodel; routine interior work and possibly same hospital as nearby record.",
+      "baseline_title": "Remodel Hospital - 2nd Floor - Surgery - With Associated Above And Below Ceiling/Floor Work",
+      "baseline_record_ids": [
+        "29524899-689d-4e6a-b5d2-2f0eb2578dae"
+      ]
+    },
+    {
+      "card": 32,
+      "human_decision": "REVIEW",
+      "title": "Interior Remodel To Existing Manufacturing Facility",
+      "source_url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13766913",
+      "review_finding": "[Interior Remodel To Existing Manufacturing Facility](https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13766913). Official manufacturing interior remodel; may be another phase at same address, with project consolidation unresolved.",
+      "baseline_title": "Interior Remodel To Existing Manufacturing Facility",
+      "baseline_record_ids": [
+        "68302199-7856-4349-a6d7-505e113e16dd"
+      ]
+    },
+    {
+      "card": 33,
+      "human_decision": "REVIEW",
+      "title": "New Construction Office Warehouse Building 4",
+      "source_url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13444515",
+      "review_finding": "[New Construction Office Warehouse Building 4](https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13444515). Official new warehouse Building 4; real construction, but likely related to Building 3 at same site.",
+      "baseline_title": "New Construction Office Warehouse Building 4",
+      "baseline_record_ids": [
+        "cbd25837-67e8-4eb8-8be9-f130fc0c52fb"
+      ]
+    },
+    {
+      "card": 34,
+      "human_decision": "REVIEW",
+      "title": "New Construction Office Warehouse Building 3",
+      "source_url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13444514",
+      "review_finding": "[New Construction Office Warehouse Building 3](https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13444514). Official new warehouse Building 3; likely one multi-building development with Building 4, relationship needs explicit support.",
+      "baseline_title": "New Construction Office Warehouse Building 3",
+      "baseline_record_ids": [
+        "2a58d592-5147-4bf9-a980-01ef268564fe"
+      ]
+    },
+    {
+      "card": 35,
+      "human_decision": "HOLD",
+      "title": "Generator Replacement",
+      "source_url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13745507",
+      "review_finding": "[Generator Replacement](https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13745507). Official replacement of existing natural-gas generator; maintenance/replacement does not establish new project demand.",
+      "baseline_title": "Generator Replacement",
+      "baseline_record_ids": [
+        "8b826f35-75f5-44cc-aaa9-dbea8d24159d"
+      ]
+    },
+    {
+      "card": 36,
+      "human_decision": "HOLD",
+      "title": "Facade Renovation Of Existing Warehouse To Shell Condition Including Demolition Of Interi…",
+      "source_url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13703282",
+      "review_finding": "[Facade Renovation Of Existing Warehouse To Shell Condition Including Demolition Of Interi…](https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13703282). Official warehouse facade/shell renovation; limited power relevance and same site as adjacent facade record.",
+      "baseline_title": "Facade Renovation Of Existing Warehouse To Shell Condition Including Demolition Of Interi…",
+      "baseline_record_ids": [
+        "402b40af-3523-45ae-9162-c4edafdfc4e4"
+      ]
+    },
+    {
+      "card": 37,
+      "human_decision": "REVIEW",
+      "title": "[Approved New Construction Of Behavior Health Hospital Located At The Texas Neuro Rehab C…",
+      "source_url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13743166",
+      "review_finding": "[[Approved New Construction Of Behavior Health Hospital Located At The Texas Neuro Rehab C…](https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13743166). Official new behavioral-health hospital at an existing campus; real construction, but needs site/project association beyond permit.",
+      "baseline_title": "[Approved New Construction Of Behavior Health Hospital Located At The Texas Neuro Rehab C…",
+      "baseline_record_ids": [
+        "a797613d-df43-4063-943d-89ab89199cc1"
+      ]
+    },
+    {
+      "card": 38,
+      "human_decision": "HOLD",
+      "title": "Facade Renovation Of Existing Warehouse To Shell Condition Including Demolition Of Interi…",
+      "source_url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13703281",
+      "review_finding": "[Facade Renovation Of Existing Warehouse To Shell Condition Including Demolition Of Interi…](https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13703281). Official second warehouse facade/shell renovation at same address; likely duplicate site story with adjacent record.",
+      "baseline_title": "Facade Renovation Of Existing Warehouse To Shell Condition Including Demolition Of Interi…",
+      "baseline_record_ids": [
+        "a2632b8d-00c9-42b4-9c95-964f8c417012"
+      ]
+    },
+    {
+      "card": 39,
+      "human_decision": "REVIEW",
+      "title": "New Construction Of Office Warehouse",
+      "source_url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13702484",
+      "review_finding": "[New Construction Of Office Warehouse](https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13702484). Official new office warehouse; physical project is clear, eventual power scale unknown.",
+      "baseline_title": "New Construction Of Office Warehouse",
+      "baseline_record_ids": [
+        "de70f1fd-d071-44bc-a8c0-696af2a64814"
+      ]
+    },
+    {
+      "card": 40,
+      "human_decision": "HOLD",
+      "title": "Generator Replacement",
+      "source_url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13689066",
+      "review_finding": "[Generator Replacement](https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13689066). Official diesel-generator replacement; maintenance event, not evidence of new load.",
+      "baseline_title": "Generator Replacement",
+      "baseline_record_ids": [
+        "5675156e-4c6e-43a3-a420-f8b5d95f77f0"
+      ]
+    },
+    {
+      "card": 41,
+      "human_decision": "HOLD",
+      "title": "Interior Remodel To Existing Emergency Department At Hospital - Phase 2",
+      "source_url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13519371",
+      "review_finding": "[Interior Remodel To Existing Emergency Department At Hospital - Phase 2](https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13519371). Official existing hospital emergency-department remodel; weak new-project and load significance.",
+      "baseline_title": "Interior Remodel To Existing Emergency Department At Hospital - Phase 2",
+      "baseline_record_ids": [
+        "bb8b36df-2e47-42d6-9469-a6f9f235d557"
+      ]
+    },
+    {
+      "card": 42,
+      "human_decision": "REVIEW",
+      "title": "New Construction Shell Warehouse For Building 2 Sp-2024-0126c - Concurrent Reviews",
+      "source_url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13664021",
+      "review_finding": "[New Construction Shell Warehouse For Building 2 Sp-2024-0126c - Concurrent Reviews](https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13664021). Official warehouse shell Building 2; site work is real, parent site-plan linkage deserves consolidation.",
+      "baseline_title": "New Construction Shell Warehouse For Building 2 Sp-2024-0126c - Concurrent Reviews",
+      "baseline_record_ids": [
+        "61168e2d-8b3d-4541-b7a9-fa42831cd46a"
+      ]
+    },
+    {
+      "card": 43,
+      "human_decision": "HOLD",
+      "title": "Generator Replacement - The Generator Is Getting Larger To Wire Back Up The Entire Assist…",
+      "source_url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13505261",
+      "review_finding": "[Generator Replacement - The Generator Is Getting Larger To Wire Back Up The Entire Assist…](https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13505261). Official assisted-living backup-generator replacement; larger unit reported, but no new project/load or gap is established.",
+      "baseline_title": "Generator Replacement - The Generator Is Getting Larger To Wire Back Up The Entire Assist…",
+      "baseline_record_ids": [
+        "73d7bc3f-83cb-4f8d-98a5-03da0521c94b"
+      ]
+    },
+    {
+      "card": 44,
+      "human_decision": "HOLD",
+      "title": "Interior Remodel To Existing Admin Office Areas Bldg 3 And Replace Transformer Pad",
+      "source_url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13645441",
+      "review_finding": "[Interior Remodel To Existing Admin Office Areas Bldg 3 And Replace Transformer Pad](https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13645441). Official admin-office remodel with transformer-pad work; electrical element is real, but project/load significance weak.",
+      "baseline_title": "Interior Remodel To Existing Admin Office Areas Bldg 3 And Replace Transformer Pad",
+      "baseline_record_ids": [
+        "6437e42b-1720-4625-89aa-541c0ba98306"
+      ]
+    },
+    {
+      "card": 45,
+      "human_decision": "SHOW",
+      "title": "Finish Out To Expand Data Center Into Existing Shell Areas",
+      "source_url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13624967",
+      "review_finding": "[Finish Out To Expand Data Center Into Existing Shell Areas](https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13624967). Official data-center expansion into existing shell includes two reported transformers; strong site-specific lifecycle change.",
+      "baseline_title": "Finish Out To Expand Data Center Into Existing Shell Areas",
+      "baseline_record_ids": [
+        "6883e143-8e0a-44f0-b4b4-50fc612ce239"
+      ]
+    },
+    {
+      "card": 46,
+      "human_decision": "REVIEW",
+      "title": "New Construction Of Office/Ltd Warehouse Distribution Shell Building",
+      "source_url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13544834",
+      "review_finding": "[New Construction Of Office/Ltd Warehouse Distribution Shell Building](https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13544834). Official new warehouse Building 3; one of three same-address buildings, project relationship unresolved.",
+      "baseline_title": "New Construction Of Office/Ltd Warehouse Distribution Shell Building",
+      "baseline_record_ids": [
+        "90dbf038-e0c7-4e7b-ac3d-be1982d4fe25"
+      ]
+    },
+    {
+      "card": 47,
+      "human_decision": "REVIEW",
+      "title": "New Construction Of Office/Ltd Warehouse Distribution Shell Building",
+      "source_url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13544833",
+      "review_finding": "[New Construction Of Office/Ltd Warehouse Distribution Shell Building](https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13544833). Official new warehouse Building 2; one of three same-address buildings, avoid counting as independent project without support.",
+      "baseline_title": "New Construction Of Office/Ltd Warehouse Distribution Shell Building",
+      "baseline_record_ids": [
+        "296d9862-827c-483d-a6f6-0603f2e9690e"
+      ]
+    },
+    {
+      "card": 48,
+      "human_decision": "REVIEW",
+      "title": "New Construction Of Office/Ltd Warehouse Distribution Shell Building",
+      "source_url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13544832",
+      "review_finding": "[New Construction Of Office/Ltd Warehouse Distribution Shell Building](https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13544832). Official new warehouse Building 1; one of three same-address buildings, likely shared development.",
+      "baseline_title": "New Construction Of Office/Ltd Warehouse Distribution Shell Building",
+      "baseline_record_ids": [
+        "50991d50-a3d5-473d-b227-a1ae73c96de5"
+      ]
+    },
+    {
+      "card": 49,
+      "human_decision": "HOLD",
+      "title": "This Project Consists Of Renovation On The Ground Floor Of The Existing Ascension Seton M…",
+      "source_url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13483102",
+      "review_finding": "[This Project Consists Of Renovation On The Ground Floor Of The Existing Ascension Seton M…](https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13483102). Official hospital sterile-processing renovation, one of four same-address permits; repeated existing-campus work.",
+      "baseline_title": "This Project Consists Of Renovation On The Ground Floor Of The Existing Ascension Seton M…",
+      "baseline_record_ids": [
+        "ad2cc771-c2ce-4a43-a4bf-2804862fc985"
+      ]
+    },
+    {
+      "card": 50,
+      "human_decision": "HOLD",
+      "title": "This Project Consists Of Renovation On The Ground Floor Of The Existing Ascension Seton M…",
+      "source_url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13483101",
+      "review_finding": "[This Project Consists Of Renovation On The Ground Floor Of The Existing Ascension Seton M…](https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13483101). Official hospital sterile-processing renovation companion permit; likely same scope as adjacent records.",
+      "baseline_title": "This Project Consists Of Renovation On The Ground Floor Of The Existing Ascension Seton M…",
+      "baseline_record_ids": [
+        "49edf61c-259e-4ade-841b-cbf9b8e93ff6"
+      ]
+    },
+    {
+      "card": 51,
+      "human_decision": "HOLD",
+      "title": "This Project Consists Of Renovation On The Ground Floor Of The Existing Ascension Seton M…",
+      "source_url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13483100",
+      "review_finding": "[This Project Consists Of Renovation On The Ground Floor Of The Existing Ascension Seton M…](https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13483100). Official hospital sterile-processing renovation companion permit; no distinct project supported.",
+      "baseline_title": "This Project Consists Of Renovation On The Ground Floor Of The Existing Ascension Seton M…",
+      "baseline_record_ids": [
+        "372904a7-1636-4e41-978c-404ffc6c9f14"
+      ]
+    },
+    {
+      "card": 52,
+      "human_decision": "HOLD",
+      "title": "This Project Consists Of Renovation On The Ground Floor Of The Existing Ascension Seton M…",
+      "source_url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13483103",
+      "review_finding": "[This Project Consists Of Renovation On The Ground Floor Of The Existing Ascension Seton M…](https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13483103). Official fourth hospital sterile-processing permit at same site/scope; duplicate presentation risk.",
+      "baseline_title": "This Project Consists Of Renovation On The Ground Floor Of The Existing Ascension Seton M…",
+      "baseline_record_ids": [
+        "e6780fa3-36d8-423b-b799-dd4f96ac888d"
+      ]
+    },
+    {
+      "card": 53,
+      "human_decision": "REVIEW",
+      "title": "New Construction Of A Concrete Tilt-Wall Cold Dark Shell Warehouse With Associated Site W…",
+      "source_url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13472826",
+      "review_finding": "[New Construction Of A Concrete Tilt-Wall Cold Dark Shell Warehouse With Associated Site W…](https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13472826). Official warehouse Building 4 at 7051 Burleson Road, issued March 2025 and modified September 2026; one of four same-description applications, so parent-development association needs review.",
+      "baseline_title": "New Construction Of A Concrete Tilt-Wall Cold Dark Shell Warehouse With Associated Site W…",
+      "baseline_record_ids": [
+        "73032b6a-5379-4ffb-952a-78e37601b0b0"
+      ]
+    },
+    {
+      "card": 54,
+      "human_decision": "REVIEW",
+      "title": "New Construction Of A Concrete Tilt-Wall Cold Dark Shell Warehouse With Associated Site W…",
+      "source_url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13472825",
+      "review_finding": "[New Construction Of A Concrete Tilt-Wall Cold Dark Shell Warehouse With Associated Site W…](https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13472825). Official warehouse Building 3 at the same Burleson Road site; likely related to the other three building permits, but a parent project is not explicitly linked.",
+      "baseline_title": "New Construction Of A Concrete Tilt-Wall Cold Dark Shell Warehouse With Associated Site W…",
+      "baseline_record_ids": [
+        "5ecd912f-0173-47d7-9b8d-27ad9caccd30"
+      ]
+    },
+    {
+      "card": 55,
+      "human_decision": "REVIEW",
+      "title": "New Construction Of A Concrete Tilt-Wall Cold Dark Shell Warehouse With Associated Site W…",
+      "source_url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13472824",
+      "review_finding": "[New Construction Of A Concrete Tilt-Wall Cold Dark Shell Warehouse With Associated Site W…](https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13472824). Official warehouse Building 2 at the same Burleson Road site; real shell/site work with unknown incremental load and unresolved consolidation.",
+      "baseline_title": "New Construction Of A Concrete Tilt-Wall Cold Dark Shell Warehouse With Associated Site W…",
+      "baseline_record_ids": [
+        "0175e801-81a2-4c88-8367-7d2dc5c32ca0"
+      ]
+    },
+    {
+      "card": 56,
+      "human_decision": "REVIEW",
+      "title": "New Construction Of A Concrete Tilt-Wall Cold Dark Shell Warehouse With Associated Site W…",
+      "source_url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13472823",
+      "review_finding": "[New Construction Of A Concrete Tilt-Wall Cold Dark Shell Warehouse With Associated Site W…](https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13472823). Official warehouse Building 1 at the same Burleson Road site; four separately surfaced permits may overstate distinct projects.",
+      "baseline_title": "New Construction Of A Concrete Tilt-Wall Cold Dark Shell Warehouse With Associated Site W…",
+      "baseline_record_ids": [
+        "66f4688c-7d12-49a5-adc3-8ed8a2090cba"
+      ]
+    },
+    {
+      "card": 57,
+      "human_decision": "HOLD",
+      "title": "New Construction Industrial Warehouse (20239 Sf.) Hydraulics / Bearings Shop",
+      "source_url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=12759581",
+      "review_finding": "[New Construction Industrial Warehouse (20239 Sf.) Hydraulics / Bearings Shop](https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=12759581). Official 2025 permit for an industrial hydraulics/bearings shop carries a 2021 permit number and September 2026 modification. Physical work is identifiable, but age/current project stage is unclear for a new morning Signal.",
+      "baseline_title": "New Construction Industrial Warehouse (20239 Sf.) Hydraulics / Bearings Shop",
+      "baseline_record_ids": [
+        "a4a94ce4-7ad8-433f-b194-ddf1c3ff9a58"
+      ]
+    },
+    {
+      "card": 58,
+      "human_decision": "REVIEW",
+      "title": "New Construction Of Office Warehouse Shell.(Not For Occupancy) (Previous Review Expired 2…",
+      "source_url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13404870",
+      "review_finding": "[New Construction Of Office Warehouse Shell.(Not For Occupancy) (Previous Review Expired 2…](https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13404870). Official warehouse shell permit has an expired prior review; real project, but current status/freshness needs verification.",
+      "baseline_title": "New Construction Of Office Warehouse Shell.(Not For Occupancy) (Previous Review Expired 2…",
+      "baseline_record_ids": [
+        "b71358a5-6fde-481e-b4dc-648d12b6dc77"
+      ]
+    },
+    {
+      "card": 59,
+      "human_decision": "REVIEW",
+      "title": "New Ground Of Construction Of One Story Tilt Wall Warehouse With Small Office S-1 And B O…",
+      "source_url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13172136",
+      "review_finding": "[New Ground Of Construction Of One Story Tilt Wall Warehouse With Small Office S-1 And B O…](https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13172136). Official 2023 warehouse Building 2 record; real construction at a shared site, but stale as a new morning Signal.",
+      "baseline_title": "New Ground Of Construction Of One Story Tilt Wall Warehouse With Small Office S-1 And B O…",
+      "baseline_record_ids": [
+        "a52d1667-7b74-43f7-8ac2-b1473bd6e806"
+      ]
+    },
+    {
+      "card": 60,
+      "human_decision": "REVIEW",
+      "title": "New Ground Of Construction Of One Story Tilt Wall Warehouse With Small Office S-1 And B O…",
+      "source_url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13172135",
+      "review_finding": "[New Ground Of Construction Of One Story Tilt Wall Warehouse With Small Office S-1 And B O…](https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13172135). Official 2023 warehouse Building 3 record; likely same campus and stale for current discovery.",
+      "baseline_title": "New Ground Of Construction Of One Story Tilt Wall Warehouse With Small Office S-1 And B O…",
+      "baseline_record_ids": [
+        "16e69831-0dfe-49ad-b7f9-530302efb890"
+      ]
+    },
+    {
+      "card": 61,
+      "human_decision": "REVIEW",
+      "title": "New Ground Of Construction Of One Story Tilt Wall Warehouse With Small Office S-1 And B O…",
+      "source_url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13172134",
+      "review_finding": "[New Ground Of Construction Of One Story Tilt Wall Warehouse With Small Office S-1 And B O…](https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13172134). Official 2023 warehouse Building 4 record; likely same campus and stale for current discovery.",
+      "baseline_title": "New Ground Of Construction Of One Story Tilt Wall Warehouse With Small Office S-1 And B O…",
+      "baseline_record_ids": [
+        "4395fac6-4b64-4860-8f35-56dbedc147b0"
+      ]
+    },
+    {
+      "card": 62,
+      "human_decision": "REVIEW",
+      "title": "New Ground Of Construction Of One Story Tilt Wall Warehouse With Small Office S-1 And B O…",
+      "source_url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13172132",
+      "review_finding": "[New Ground Of Construction Of One Story Tilt Wall Warehouse With Small Office S-1 And B O…](https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13172132). Official 2023 warehouse Building 1 record; same-site relationship likely, current lifecycle state unknown.",
+      "baseline_title": "New Ground Of Construction Of One Story Tilt Wall Warehouse With Small Office S-1 And B O…",
+      "baseline_record_ids": [
+        "dfbf43bc-e5fa-4199-8ce2-c7258586c064"
+      ]
+    },
+    {
+      "card": 63,
+      "human_decision": "REVIEW",
+      "title": "Eplan-Expedited Review: Addition And Remodel To Existing Hospital",
+      "source_url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13194840",
+      "review_finding": "[Eplan-Expedited Review: Addition And Remodel To Existing Hospital](https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13194840). Official 2023 hospital addition/remodel; real campus work, but stale status and current power relevance UNKNOWN.",
+      "baseline_title": "Eplan-Expedited Review: Addition And Remodel To Existing Hospital",
+      "baseline_record_ids": [
+        "cd55d16b-2531-44b5-b4a3-4c7322e602d0"
+      ]
+    }
+  ]
+}

@@ -106,6 +106,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/signals/decisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Signal Decision Counts
+         * @description Return current Signal decision counts while keeping legacy Signals visible.
+         */
+        get: operations["signal_decision_counts_api_signals_decisions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/signals/decisions/adjudicate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Adjudicate Signal Batch
+         * @description Explicit bounded replay/backfill; unchanged evidence and policy are idempotent.
+         */
+        post: operations["adjudicate_signal_batch_api_signals_decisions_adjudicate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/changes": {
         parameters: {
             query?: never;
@@ -434,6 +474,11 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
             /** Name */
             name: string;
             /** Location */
@@ -499,6 +544,17 @@ export interface components {
             lifecycle_open_questions?: string[];
             /** Monitoring Requirements */
             monitoring_requirements?: string[];
+            /** Signal Display Decision */
+            signal_display_decision?: string | null;
+            /**
+             * Signal Display Decision State
+             * @default unadjudicated
+             */
+            signal_display_decision_state: string;
+            /** Signal Display Source */
+            signal_display_source?: string | null;
+            /** Signal Display Reason */
+            signal_display_reason?: string | null;
         };
         /** RefreshOut */
         RefreshOut: {
@@ -509,6 +565,17 @@ export interface components {
         SessionOut: {
             /** Authenticated */
             authenticated: boolean;
+        };
+        /** SignalDecisionCountsOut */
+        SignalDecisionCountsOut: {
+            /** Show */
+            show: number;
+            /** Review */
+            review: number;
+            /** Hold */
+            hold: number;
+            /** Unadjudicated */
+            unadjudicated: number;
         };
         /** ValidationError */
         ValidationError: {
@@ -679,6 +746,57 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OpportunityOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    signal_decision_counts_api_signals_decisions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignalDecisionCountsOut"];
+                };
+            };
+        };
+    };
+    adjudicate_signal_batch_api_signals_decisions_adjudicate_post: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */

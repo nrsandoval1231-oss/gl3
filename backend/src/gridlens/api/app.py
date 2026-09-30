@@ -13,6 +13,7 @@ from gridlens.domain.collection_watch import (
 from gridlens.domain.collection_watch import (
     matched_terms as collection_watch_terms,
 )
+from gridlens.intelligence.signal_adjudication import POLICY_VERSION, adjudicate_current_signals
 from gridlens.jobs.queue import enqueue
 from gridlens.persistence.database import SessionLocal
 from gridlens.persistence.models import (
@@ -26,6 +27,7 @@ from gridlens.persistence.models import (
     PowerNeed,
     Project,
     ProjectLifecycle,
+    SignalDecision,
     Source,
 )
 from gridlens.security import (
@@ -75,6 +77,7 @@ class LifecycleEventOut(BaseModel):
 
 class OpportunityOut(BaseModel):
     id: UUID
+    project_id: UUID
     name: str
     location: str | None
     tier: str
@@ -105,6 +108,10 @@ class OpportunityOut(BaseModel):
     estimate_version: str | None = None
     lifecycle_open_questions: list[str] = Field(default_factory=list)
     monitoring_requirements: list[str] = Field(default_factory=list)
+    signal_display_decision: str | None = None
+    signal_display_decision_state: str = "unadjudicated"
+    signal_display_source: str | None = None
+    signal_display_reason: str | None = None
 
 
 class HealthSourceOut(BaseModel):
@@ -564,6 +571,78 @@ def opportunities(tier: str | None = None, search: str | None = None):
                     }
                 )
             current_assessment = current_assessments[0] if current_assessments else None
+            display_decisions: list[SignalDecision] = []
+            has_unadjudicated_current_signal = False
+            for obs, ev, interpretation in links:
+                if need.tier != "Signal" or not _assessment_for_evidence(interpretation, obs, ev):
+                    continue
+                decision = session.scalar(
+                    select(SignalDecision)
+                    .where(
+                        SignalDecision.observation_id == obs.id,
+                        SignalDecision.content_hash == ev.content_hash,
+                        SignalDecision.policy_version == POLICY_VERSION,
+                    )
+                    .order_by(SignalDecision.id.desc())
+                )
+                if decision is not None:
+                    display_decisions.append(decision)
+                else:
+                    has_unadjudicated_current_signal = True
+            precedence = {"SHOW": 0, "REVIEW": 1, "HOLD": 2}
+            selected_decision = min(
+                display_decisions,
+                key=lambda item: precedence.get(item.decision, 1),
+                default=None,
+            )
+            display_decision = (
+                "SHOW"
+                if any(item.decision == "SHOW" for item in display_decisions)
+                else "REVIEW"
+                if has_unadjudicated_current_signal
+                else selected_decision.decision
+                if selected_decision
+                else None
+            )
+            display_source = (
+                selected_decision.source
+                if selected_decision
+                and not (
+                    has_unadjudicated_current_signal and selected_decision.decision == "HOLD"
+                )
+                else None
+            )
+            display_reason = (
+                "One or more linked current Signal evidence versions have no decision."
+                if has_unadjudicated_current_signal
+                and (selected_decision is None or selected_decision.decision == "HOLD")
+                else selected_decision.reason
+                if selected_decision
+                else None
+            )
+            display_state = (
+                "adjudicated"
+                if display_decisions and not has_unadjudicated_current_signal
+                else "partially_adjudicated"
+                if display_decisions
+                else "unadjudicated"
+            )
+            if need.tier == "Signal" and taylor_withdrawn:
+                display_decision = "HOLD"
+                display_source = "deterministic"
+                display_reason = (
+                    "The current official planning application is withdrawn; earlier "
+                    "positive evidence remains historical and project viability is UNKNOWN."
+                )
+                display_state = "adjudicated"
+            elif need.tier == "Signal" and taylor_identity_conflict:
+                display_decision = "REVIEW"
+                display_source = "deterministic"
+                display_reason = (
+                    "The latest Taylor revision conflicts with retained project or site facts; "
+                    "current application and project status are UNKNOWN."
+                )
+                display_state = "adjudicated"
             time_to_power_window = None
             if lifecycle and lifecycle.time_to_power_start and lifecycle.time_to_power_end:
                 time_to_power_window = (
@@ -587,6 +666,7 @@ def opportunities(tier: str | None = None, search: str | None = None):
             result.append(
                 {
                     "id": need.id,
+                    "project_id": project.id,
                     "name": project.name,
                     "location": project.location,
                     "tier": need.tier,
@@ -708,9 +788,45 @@ def opportunities(tier: str | None = None, search: str | None = None):
                     "monitoring_requirements": lifecycle.monitoring_requirements
                     if lifecycle
                     else [],
+                    "signal_display_decision": display_decision,
+                    "signal_display_decision_state": display_state,
+                    "signal_display_source": display_source,
+                    "signal_display_reason": display_reason,
                 }
             )
         return result
+
+
+class SignalDecisionCountsOut(BaseModel):
+    show: int
+    review: int
+    hold: int
+    unadjudicated: int
+
+
+@app.get(
+    "/api/signals/decisions",
+    response_model=SignalDecisionCountsOut,
+    dependencies=[Depends(require_session)],
+)
+def signal_decision_counts():
+    """Count active Signal opportunity records using the same lifecycle policy as browse."""
+    counts = {"show": 0, "review": 0, "hold": 0, "unadjudicated": 0}
+    for item in opportunities(tier="Signal"):
+        decision = item["signal_display_decision"]
+        counts[decision.casefold() if decision else "unadjudicated"] += 1
+    return counts
+
+
+@app.post("/api/signals/decisions/adjudicate", dependencies=[Depends(require_session)])
+def adjudicate_signal_batch(
+    request: Request,
+    limit: int = Query(default=100, ge=1, le=500),
+):
+    """Explicit bounded replay/backfill; unchanged evidence and policy are idempotent."""
+    require_same_origin(request)
+    with SessionLocal.begin() as session:
+        return adjudicate_current_signals(session, limit=limit)
 
 
 @app.get("/api/changes", response_model=list[ChangeOut], dependencies=[Depends(require_session)])

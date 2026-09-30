@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test'
 import { existsSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import type { Opportunity } from '../src/api/client'
-import { projectCards, projectTitle } from '../src/features/opportunities/projectCards'
+import { projectCards, projectTitle, signalDisplayDecision } from '../src/features/opportunities/projectCards'
 
 const credentialPath = resolve(process.cwd(), '../.artifacts/local-auth.txt')
 const password = process.env.GRIDLENS_TEST_PASSWORD ?? (existsSync(credentialPath) ? readFileSync(credentialPath, 'utf8').split(/\r?\n/)[1] : undefined)
@@ -51,6 +51,8 @@ test('authenticated desktop browse, detail, back, and search use a live Signal',
   if (!signalCard) throw new Error('No project card exists for the selected Signal')
 
   const title = projectTitle(signal)
+  const decision = signalDisplayDecision(signalCard.members)
+  if (decision !== 'SHOW') await page.getByRole('button', { name: new RegExp(`^${decision}\\s+\\d+$`) }).click()
   const row = page.locator('.opportunity-row').filter({ hasText: title }).first()
   await expect(row).toBeVisible()
   await page.getByRole('textbox', { name: 'Search projects' }).fill(title)

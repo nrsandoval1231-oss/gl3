@@ -1,0 +1,1546 @@
+{
+  "source": "GL3-015 persisted Signal API export, current evidence version per record",
+  "source_sha256": "5e5997124864ed1b9846d7af6fff3ff7b6e0a55dc726dabf3a96500b4a38d079",
+  "state_contract": "Source-backed pre-request state; GL3-016 _jev_call applies request bounds",
+  "records": [
+    {
+      "record_id": "45ded54a-90e2-44f0-9fd5-6fb4f97cea0f",
+      "evidence_hash": "00e025df1c1ceb0bb8a677c712ce9fd55d047f6422ea5d4d3bec35082fc3580e",
+      "state": {
+        "title": "Archived - WITHDRAWN - Notice of Public Hearings - PZ 2026-2715 - Employment Center Plan - Project Mustang",
+        "abstract": "The original article was published from 8/7/2026 12:00:00 PM to\n        9/24/2026 12:59:00 PM WITHDRAWN The Planning & Zoning Commission and the City Council of Taylor will be reviewing a request for an Employment Center Plan for property Generally located at 3301 FM 112, legally described as approximately 664.572 acres of land in the H. Pace Survey, Abstract No. 493, more particularly described by the Williamson Central Appraisal District Parcels R006650, R006648, Taylor, Williamson County, Texas Current Zoning: Extra Territorial Jurisdiction (ETJ) Proposed Zoning: EC:Employment Center Purpose of Request: Employment Center Plan to build a closed campus for data center buildings, substations, gas infrastructure for power generation, and auxiliary buildings Applicant: Matt Lissak – Kimley-Horn Applicant Submittal PUBLIC HEARINGS WILL BE HELD BY: Planning and Zoning Commission Public Hearing: Date: Tuesday, August 18, 2026 Time: 6 P.M. Location: City Hall Council Chambers, 400 Porter Street, Taylor, TX 76574 City Council Public Hearing Date: Thursday, September 10, 2026 Time: 6 P.M. Location: City Hall Council Chambers, 400 Porter Street, Taylor, TX 76574 You may speak for or against the request at either public hearing. If you cannot attend but would like your comments to be heard, please send written comments to the Planning Department before the meeting: Email: planning@taylortx.gov Mail: Planning Department, 400 Porter Street, Taylor, TX 76574 Questions? Call us at (512) 352-3675\nSource archive dates: Published Date 2026-09-04; Archived Date 2026-09-24.",
+        "url": "https://taylortx.gov/m/NewsFlash/Archive/Item/2079?arcId=3442",
+        "published_at": "2026-09-04",
+        "source_id": "taylor-development-newsflash",
+        "source_family": "municipal-planning-news",
+        "publisher": "City of Taylor, Texas",
+        "event_date": "unknown",
+        "event_date_label": "Unknown",
+        "project_name": "Archived - Notice of Public Hearings - PZ 2026-2715 - Employment Center Plan - Project Mustang",
+        "location": "Taylor, Texas",
+        "asset_type": "data_center",
+        "lifecycle_state": "planning_application_withdrawn"
+      }
+    },
+    {
+      "record_id": "4ebfec6d-0592-45c1-8a7f-7934eabbee4c",
+      "evidence_hash": "4b8a8e5b0d9d5095f98868fc639b7e10b374f0a9d5d537dc0d11b7ee1caa26e1",
+      "state": {
+        "title": "Project Comal - Employment Center Plan at 1051 CR 401",
+        "abstract": "On March 26, City Council approved an employment center plan for a data center at 1051 CR 401. View the council presentation here.",
+        "url": "https://taylortx.gov/m/NewsFlash/Home/Detail/2032",
+        "published_at": "2026-04-21",
+        "source_id": "taylor-development-newsflash",
+        "source_family": "municipal-planning-news",
+        "publisher": "City of Taylor, Texas",
+        "event_date": "unknown",
+        "event_date_label": "Unknown",
+        "project_name": "Project Comal - Employment Center Plan at 1051 CR 401",
+        "location": "Taylor, Texas",
+        "asset_type": "data_center",
+        "lifecycle_state": "project_formation"
+      }
+    },
+    {
+      "record_id": "e057368c-431d-42fb-b81c-806c21458216",
+      "evidence_hash": "43e7ba9a26d7c6d91afa5ff228fb72442072b3c40a34caa2f389a84f1048a173",
+      "state": {
+        "title": "Seattle building permit 7143336-CN — Addition/Alteration",
+        "abstract": "row: 7143336-CN\ndate: 2026-09-16T00:00:00.000\ndescription: Change use from office to laboratory and lab support per land use code. Construct interior non-structural tenant improvements to Level 6 shell and core office space and occupy per plan.\nclass: Non-Residential\nwork: Building\ntype: Addition/Alteration\nstatus: Issued\naddress: 701 DEXTER AVE N\nlink: https://services.seattle.gov/portal/customize/LinkToRecord.aspx?altId=7143336-CN\ncost: 3980000.0000",
+        "url": "https://services.seattle.gov/portal/customize/LinkToRecord.aspx?altId=7143336-CN",
+        "published_at": "2026-09-16",
+        "source_id": "seattle-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Seattle Open Data",
+        "event_date": "2026-09-16",
+        "event_date_label": "Permit issue date",
+        "project_name": "Seattle permit 7143336-CN",
+        "location": "701 DEXTER AVE N, Seattle, WA",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "cdcc9d4b-c534-48dc-bf2d-3dbe4a251d83",
+      "evidence_hash": "91860266c6ce590d4f6d80f5c2903f2e8ec33441c3ad81ae592081604cf4ed28",
+      "state": {
+        "title": "National Steel Fabrication Company Plans a $19 Million Manufacturing Expansion in Fayetteville",
+        "abstract": "Today Governor Josh Stein announced SteelFab, Inc., a steel fabrication company, will add 38 new jobs in Cumberland County. The company will invest more than $19 million to expand operations in Fayetteville. “North Carolina is a place where businesses like SteelFab can grow,” said Governor Josh Stein. “Cumberland County is home to a world-class workforce, legacy of manufacturing excellence, and convenient East Coast location. We’re grateful that SteelFab is doubling down on Cumberland.”",
+        "url": "https://www.commerce.nc.gov/news/press-releases/2026/09/09/national-steel-fabrication-company-plans-19-million-manufacturing-expansion-fayetteville",
+        "published_at": "2026-09-09",
+        "source_id": "nc-commerce",
+        "source_family": "economic-development-publication",
+        "publisher": "North Carolina Department of Commerce",
+        "event_date": "unknown",
+        "event_date_label": "Unknown",
+        "project_name": "National Steel Fabrication Company Plans a $19 Million Manufacturing Expansion in Fayetteville",
+        "location": "Cumberland County, North Carolina",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "2d95d3ee-62f5-4a86-ad72-00989476b1e5",
+      "evidence_hash": "2369192729d228550352a758d6e98a016c5c5640e1251c62626da33452564da9",
+      "state": {
+        "title": "Georgia EPD draft permit",
+        "abstract": "Page 1: PERMIT AMENDMENT NO. 1422-295-0060-S-01-1 ISSUANCE DATE: Air Quality – Permit Amendment In accordance with The Georgia Air Quality Act, O.C.G.A. Section 12-9-1, et seq and the Rules, Chapter 391-3-1, adopted pursuant to or in effect under that Act, Permit No. 1422-295-0060-S-01-0 issued on September 11, 2025, to: Facility Name: Walker County Quarry Facility Address: 265 Ridgeway Road Lafayette, Georgia 30728 (Walker County) Mailing Address: 500 Duke Drive Franklin, TN 37067 Facility AIRS Number: 04-13- 295-00060 for the following: Construction and operation of a limestone rock quarry stone processing facility with associated air pollution control equipment is hereby amended as follows: Increase the permitted production (crushing) capacity of the Facility to its design capacity of 12,384 tons per day, limit stone shipped to 18,000 tons/day, prohibit operations from 12 am to 6 am, add a Diesel Engine (ENG1) to Primary Crusher (CR101) and update the equipment list for the facility. Reason for Amendment: Application No. 30192 dated June 9, 2026 This Permit is further subject to and conditioned upon the terms, conditions, limitations, standards, or schedules contained in or specified on the attached 5 page(s). This Permit Amendment is hereby made a part of Permit No. 1422-295-0060-S-01-0 and compliance herewith is hereby ordered. Except as amended hereby, the above referenced Permit remains in full force and effect. __________________________________ Jeffrey W. Cown, Director Environmental Protection Division\nPage 2: State of Georgia Department of Natural Resources Environmental Protection Division Permit Amendment No. 1422-295-0060-S-01-1 Page 1 of 5 6. Performance Testing New Condition 6.5 The diesel engine (ENG1) powering the primary Crusher (CR101) shall be certified by U.S. EPA for compliance with the applicable emission standards for nonroad compress ignition engines for the same model year and maximum engine power, as specified in 40 CFR 60.4201 of 40 CFR Part 60, Subpart IIII – “Standards of Performance for Stationary Compression Ignition Internal Combustion Engines”. [40 CFR 60.4201] 6.6 The Permittee shall submit written notification of startup of the diesel engine -powered the primary crusher (CR101) within 15 days after such date. [391-3-1.03(2)(c)] 6.7 For any diesel engine equipped with a diesel particulate filter to comply with the applicable emission standards in 40 CFR 60.4204, the diesel particulate filter must be installed with a backpressure monitor that notifies the operator when the high backpressure limit of the engine is approached. [40 CFR 60.4214(c)] 9. Special Conditions Amended Conditions 9.4 The Permittee shall limit the operation of the crushing plant as stated below. All such records shall be accurate and complete, be kept in a suitable manner, and be readily available for inspection by the Division. a. 12,384 tons per day material processed. No production operations between the hours of 12AM and 6AM. b. 18,000 tons per day stone shipped. No loadout operations between the hours of 12AM and 6AM. 9.5 The Permittee shall pave the first 2 ,000 feet of customer road and provide both paved and unpaved roads with dust control by water truck. The Permittee shall utilize a truck tire wash for all customer trucks. 9.6 The Primary Crusher Engine (ENG1) shall comply with all applicable provisions of NSPS Subparts A and IIII by complying with all applicable provisions of 40 CFR 89 and 1039 by purchasing an engine that is manufacturer -certified to comply with the appropriate Part 1039 standard. [40 CFR 60.4211(c)]\nPage 3: State of Georgia Department of Natural Resources Environmental Protection Division Permit Amendment No. 1422-295-0060-S-01-1 Page 2 of 5 New Condition 9.7 The Permittee shall use diesel fuel that meets the requirements of 40 CFR 1090.305 for non - road diesel fuel, with a sulfur content limit of 15 ppm. [40 CFR 60.4207(b)] 9.8 The Permittee shall operate and maintain the crusher engine (ENG1) according to the manufacturer’s emission -related written instructions, and their emission -related settings changed only as permitted by the manufacturer. [40 CFR 60 Subpart IIII] 9.9 The crusher engine (ENG1) complies with all applicable provisions of the RICE MACT 40 CFR 63 Subpart ZZZZ by complying with all applicable requirements of NSPS Subpart IIII. [40 CFR 63 Subpart ZZZZ] 9.10 The Permittee shall retain fuel oil supplier certifications for each shipment of fuel oil fired in diesel engines powering the stone processing units at this facility/quarry. The certifications shall verify that the fuel oil complies with Condition 9.7. In lieu of fuel supplier certifications, the Permittee may conduct analysis of the fuel oil conducted using methods of sampling and analysis which have been specified or approved by the Division. [391-3-1.03(2)(c)]\nPage 4: State of Georgia Department of Natural Resources Environmental Protection Division Permit Amendment No. 1422-295-0060-S-01-1 Page 3 of 5 Attachment A – Equipment List Walker County Quarry Unit ID Unit Name Category Control Type PF101 60\" X 24' Pan Feeder Screen Water Sprayer SCR101 5' X 6' Grizzly Screen Screen Wet Material CR101 Primary Crusher Crusher Water Sprayer ENG1 Primary Crusher Engine Engine Tier 4 Compliant Engine C101 30\" X 40' Conveyor Drop Point Water Sprayer C101-A 30\" X 100' Conveyor Drop Point Wet Material C101-B 30\" X 100' Conveyor Drop Point Wet Material STK101 30\" X 80' Radial Stacking Conveyor Drop Point Water Sprayer C102 36\" X 115' Conveyor Drop Point Water Sprayer SCR102 616 Single Deck Screen Screen Wet Material C103 30\" X 10' Conveyor Drop Point Water Sprayer C104\nPage 6: State of Georgia Department of Natural Resources Environmental Protection Division Permit Amendment No. 1422-295-0060-S-01-1 Page 5 of 5 [1] This \"Facility Description\" contains information regarding specific emissions points and was created as a reference for certain other Conditions in this Permit (or Permit Amendment). It is not intended to be a comprehensive list of all air pollution sources at this facility and may not include every minor or fugitive emission source. Future minor modifications or additions at this facility may be exempted from permitting by the Georgia Rules for Air Quality Control and may occur without causing this Attachment to be updated. [2] The control device column is intended to identify emissions controls. Sources identified as \"carry over\" rely on water moist",
+        "url": "https://epd.georgia.gov/document/document/30192-draft/download",
+        "published_at": "unknown",
+        "source_id": "georgia-air-draft-title-v",
+        "source_family": "construction-permits",
+        "publisher": "Georgia Environmental Protection Division",
+        "event_date": "unknown",
+        "event_date_label": "Unknown",
+        "project_name": "Walker County Quarry",
+        "location": "LaFayette, Georgia",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "e6fccb3d-50c6-4caf-98f8-aa7924d62d1b",
+      "evidence_hash": "84f739309ab14abcb72df744d11f3885f62dde8dccbb2df4e4050a916f017aad",
+      "state": {
+        "title": "Georgia EPD narrative",
+        "abstract": "Page 1: Jeffrey W. Cown, Director Air Protection Branch 4244 International Parkway Suite 120 Atlanta, Georgia 30354 404-363-7000 NARRATIVE TO: Hamid Yavari FROM: Wei-Wei-Qiu DATE: August 25, 2026 Facility Name: Vulcan Construction Materials, LLC – Siloam Quarry AIRS No.: 133-00018 Location: Siloam, Georgia 30665 (Greene County) Application No.: SIP-29927 Date of Application: Oct 27, 2025 (Revised on April 1 and July 20, 2026) Background Information Vulcan Construction Materials, LLC operates a rock quarry at 1191 Bethany Road, Siloam, Greene County, Georgia. The quarry is currently regulated by Air Quality Permit No. 142 3-133-0018-S-02-0, issued on December 7, 2015, for the operation of the quarry , and Air Quality Permit Amendment No. 1423-133-0018-S-02-1, issued on March 31, 2016, to increase the maximum production rate. This facility is classified as a synthetic minor source per the permit . The area ( Greene County) is currently attainment for all criteria pollutants per U.S. EPA (https://www3.epa.gov/airquality/greenbook/ancl.html). This facility’s pr oduction activities are commonly found in stone quarries, including pit drilling, pit loading and stone hauling , stone crushing and screening, and associated material conveying/ storage, loading and unloading , sales and associated pollution controlling. Production equipment includes hoppers, feeders, trucks, crushers, screens, conveyors , stackers, bins, and wet suppression systems , etc. This quarry also has an onsite aggregate/crushed stone sale operation. Purpose of Application On October 30, 2025, Vulcan Construction Materials, LLC – Siloam Quarry submitted SIP Air permit Application No. 29927 for the modification and operation of this existing quarry and associated stone processing facility. According to Application No. 29927, the proposed facility modification involves: (1) adding a 475 ton-per-hour (TPH) portable stone processing plant consisting of four bin feeders, three crushers, two screens, one wash screen, nine belt conveyors and stackers, and water spray bars for wet suppression of PM emissions . All the crushers, screens, belt stackers and belt conveyors will be powered/driven by onboard diesel engines; (2) increasing main plant production rate and time to 800 TPH, 20 hours per day, and 7 days per week; and (3) limiting aggregate/crushed stone sales to 800 TPH, 16 hours per day and 7 days per week.\nPage 2: SIP Application Review Vulcan Construction Materials, L.P. – Siloam Quarry, Application No. 29927 Page 2 All new equipment/processing units will be subject to 40 CFR 60 Subpart OOO, “Standards of Performance for Nonmetallic Mineral Processing Plants” and require performance testing for visible fugitive emissions per NSPS Subpart OOO. All the diesel engines powering the portable stone processing plant will be subject to the applicable requirements of 40 CFR 60 Subpart IIII, “Standards of Performance for Stationary Compression Ignition Internal Combustion Engines”. Equipment List Facility Equipment List Table 1 to current permit No. 1423 -133-0018-S-02-0 has been updated based on the facility modifications proposed by Application No. 29927 and duplicated below: Process(1) Source Code Controls 40 CFR 60 Subpart OOO Applicability Prior to April 22, 2008 On or After April 22, 2008 Primary Crusher C1 Water Spray Yes Secondary Crusher No. 1 CR1 Water Spray Yes Secondary Crusher No. 2 CR2 Water Spray Yes Primary Feeder F1 Water Spray Yes Secondary Feeder F2 Water Spray Yes Dump Hopper DH1 Water Spray Yes Surge Bin No. 1 B1 Carryover Yes Loader Bin No. 2 B2 Carryover Yes Screen No. 1 (6’X16TD) S1 Carryover Yes Screen No. 2 (8’X20’TD) S2 Carryover Yes Wash Screen No. 3 (6’X16’ TD Wash Screen) S3 Wet Process Yes Sand Screw SC1 Wet Process Yes Conveyor No. 1 (42”BW) C1 Water Spray Yes Conveyor No. 2 (42”BW) C2 Water Spray Yes Conveyor No. 3 (36”BW) C3 Water Spray Yes Conveyor No. 4 (36”BW) C4 Water Spray Yes Conveyor No. 5 (36”BW) C5 Water Spray Yes Conveyor No. 6 (36”BW) C6 Water Spray Yes Conveyor No. 7 (36”BW) C7 Water Spray Yes Conveyor No 8 (30”BW) C8 Carryover Yes Conveyor No. 9 (24”BW) C9 Carryover Yes Conveyor No. 10 (36”BW) C10 Water Spray Yes Conveyor No 11 (36”BW) C11 Carryover Yes Conveyor No 12 (42”BW) C12 Water Spray Yes Conveyor No. 13 (30”BW) C13 Water Spray Yes Conveyor No. 14 (30”BW) C14 Carryover Yes Conveyor No. 15 (24”BW) C15 Water Spray Yes Conveyor No. 16 (36”BW) C16 Water Spray Yes\nPage 3: SIP Application Review Vulcan Construction Materials, L.P. – Siloam Quarry, Application No. 29927 Page 3 Process(1) Source Code Controls 40 CFR 60 Subpart OOO Applicability Prior to April 22, 2008 On or After April 22, 2008 Conveyor No. 200 (30” BW) C200 Wet Process Yes Conveyor No. 201 (30” BW) C201 Wet Process Yes Conveyor No. 200 (36” BW) C202 Wet Process Yes Conveyor No. 204 (30”BW) (Prev ID C18) C18 Wet Process Yes Conveyor No. 203 (30”BW) (Prev ID C19) C19 Wet Process Yes Conveyor No. 205 (30”BW) (Prev ID C20) C20 Wet Process Yes Conveyor No. 206 (30” BW) C206 Wet Process Yes Conveyor No. 21 (24”BW) C21 Water Spray Yes Conveyor No. 22 (24”BW) C22 Water Spray Yes Conveyor (30”) RC1 Water Spray Yes Portable Plant Grizzly Feeder PTGF Water Spray Yes Portable Jaw Crusher (Metso Lokotrack LT116 driven by a Tier III 415 HP diesel engine, or similar) PCR1 Water Spray Yes Portable 5’x16’ Scalping Screen (Metso 2.8 driven by a Tier IV 200 HP diesel engine, or similar) PSC1 Water Spray Yes Portable Cone Crusher (Metso Lokotrack LTHP300 driven by a Tier III 540 HP diesel engine, or similar) PCR2 Water Spray Yes Portable 6’x22’ Screen (Metso Nordtrac S4.12 driven by a Tier III 280 HP diesel engine, or similar) PSC2 Water Spray Yes Portable Cone Crusher (Metso Lokotrack LTHP300 driven by a Tier IV 540 HP diesel engine, or similar) PCR3 Water Spray Yes Portable 36 “Conveyor (Ecostack 8036K Track driven by a Tier IV 49 HP diesel engine, or similar) PCV1 Carryover Yes Portable 36” conveyor (Barford TR6536 driven by a Tier IV 37 kW diesel engine, or similar) PCV2 Carryover Yes Portable 36” conveyor (Barford TR6536 driven by a Tier IV 37 kW diesel engine, or similar) PCV3 Carryover Yes Portable 36” conveyor (Barford TR6536 driven by a Tier IV 37 kW diesel engine, or similar) PCV4 Water Spray Yes Portable 36” Conveyor (Metso CR 3.2 driven by a Tier IV 74 HP diesel engine, or similar) PCV5 Carryover Yes Wash Plant (Mellot MC163 with Metso FS253 6’x16’ Screen driven by electricity, or similar) PWH Wet Process Yes Portable 30” Stacker Conveyor (Mellot 30”x60’ driven by electricity, or similar) PCV6 Carryover Yes Portable 30” Stacker Conveyor (Mellot 30”x60’ driven by electricity, or similar) PCV7 Carryover Yes Portable 30” Stacker Conveyor (Mellot 30”x60’ driven by electricity, or similar) PCV8 Carryover Yes Portable 30” Stacker Conveyor (Mellot 30”x60’ driven by electricity, or similar) PCV9 Carryover Yes\nPage 4: SIP Application Review Vulcan Construction Materials, L.P. – Siloam Quarry, Application No. 29927 Page 4 [1] This table contains information regarding specific emissions points and was created as a reference for certain other Conditions in this Permit (or Permit Amendment). It is not intended to be a comprehensive list of all air pollution sources at this facility an d may not include every minor or fugitive emission source. Future minor modifications or additions at this facility may be exempted fr om permitting by the Georgia Rules for Air Quality Control and may occur without causing this Attachment to be updated. [2] The control device column is inten ded to identify emission controls. Sources identified as “water carryover” rely on water moisture previously applied by required water s\nPage 5: SIP Application Review Vulcan Construction Materials, L.P. – Siloam Quarry, Application No. 29927 Page 5 Facility-Wide Actual and Potential/Maximum PM10 Emissions Source Controlled Actual Emissions[1] Controlled Potential Emissions[2] PM10 PM10 lb./hr. ton/year lb./hr. ton/year Rock Processing Units 4.92 9.84 4.92 17.91 Stockpiles 0.063 0.126 0.063 0.23 Pit 0.077 0.154 0.077 0.28 Quarry Traffic/Roads 8.47 16.94 8.47 30.83 Diesel Engines 0.60 1.20 0.60 2.19 Sum 14.13 28.26 14.13 51.44 [1] Based on actual operating time of 4,000 hours per year, i.e., 16 hours/day, 5 days/week, and 50 weeks/year. [2] Based on potential/max operating time of 20 hours/day, 7 days/week, and 52 weeks/year, i.e., 7,280 hours per year. Facility-Wide Actual and Potential/Maximum Emissions of Criteria Pollutants from\nPage 6: SIP Application Review Vulcan Construction Materials, L.P. – Siloam Quarry, Application No. 29927 Page 6 After the modifications proposed by Applicat ion No. 29927 , this facility will remain a synthetic minor source under pertinent federal and state air quality rules and standards such including NSR, Title V and NESHAP. Application No. 2 9927 also included an ambient PM10 emission dispersion/impact modeling performed for the modified quarry and associated stone processing operations . The modeling analyzed the ambient impact of potential PM 10 emissions from the entire modified quarry regarding National Ambient Air Quality Standards (NAAQS). According to the modeling reconducted by Air Protection Branch’s Data & Modeling Unit (DMU) based on the modeling input data included with Applicatio\nPage 7: SIP Application Review Vulcan Construction Materials, L.P. – Siloam Quarry, Application No. 29927 Page 7 After the modification as proposed in Application No. 29 927, this quarry is still expected to comply with the applicable emission limits in these rules following the existing, modified and new permit conditions. Permit Conditions Air Quality Permit Amendment No. 1423 -133-0018-S-02-2 was proposed for the modification then operation of this existing quarry. Condition 10.4 in the current Permit Amendment No. 1423-133-0018-S-02-1 has been revised to: (1) increase the production and operating time limits for the main crushing plant to from 600 tons per hour (TPH) to 800 TPH and 20 hours per day; (2) limit operation of stone sales to 800 TPH and 16 hours per day; (3) limit the operation of \nPage 8: SIP Application Review Vulcan Construction Materials, L.P. – Siloam Quarry, Application No. 29927 Page 8 Toxic Impact Assessment (TIA) Diesel engines powering the portable stone processing plant will be the solely sources emitting toxic air pollutants (TAP), and some of them are listed by US EPA as HAPs, including benzene and formaldehyde. According to Application No. 29927, combined potential benzene and formaldehyde emissions from all the diesel engines were estimated at 109 and 138 pounds per year, respectively, both exceeding their corresponding “Minimum Emission Rate (MUR)” of 31.6 and 22.1 pounds per year for skipping toxic impact assessment/modeling (TIA). Therefore, ambient impacts assessments/modeling were required for both HAP emissions. According to Application No. 29927, SCREEN",
+        "url": "https://epd.georgia.gov/document/document/29927-nar/download",
+        "published_at": "unknown",
+        "source_id": "georgia-air-draft-title-v",
+        "source_family": "construction-permits",
+        "publisher": "Georgia Environmental Protection Division",
+        "event_date": "unknown",
+        "event_date_label": "Unknown",
+        "project_name": "Vulcan Construction Materials, LLC – Siloam Quarry",
+        "location": "Siloam, Georgia",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "3b8195f0-1abe-4296-97d2-fbff47d183d5",
+      "evidence_hash": "42eceb0f6bedbcf68757af74ad2f2e594c3ce2100de1a0a558863dc40c34d5fa",
+      "state": {
+        "title": "Georgia EPD draft permit",
+        "abstract": "Page 1: PERMIT NO. 7375-063-0154-S-01-0 ISSUANCE DATE: Air Quality Permit In accordance with the provisions of the Georgia Air Quality Act, O.C.G.A. Section 12-9-1, et seq and the Rules, Chapter 391-3-1, adopted pursuant to and in effect under that Act, Facility Name: TADG – ATL02 / Ellenwood Facility Address: 4350 E Tanners Church Rd Ellenwood, Georgia 30294 Clayton County Mailing Address: 19775 Belmont Executive Plaza Ashburn, Virginia 20147 Facility AIRS Number: 04-13-063-00154 is issued a Permit for the following: Construction and operation of a data center consisting of emergency standby stationary generators. This Permit is issued for the purpose of establishing practically enforceable emission limitations such that the facility will not be considered a major source with respect to Title V of the Clean Air Act Amendments of 1990 This Permit is conditioned upon compliance with all provisions of The Georgia Air Quality Act, O.C.G.A. Section 12 -9-1, et seq, the Rules, Chapter 391 -3-1, adopted and in effect under that Act, or any other condition of this Permit. This Permit may be subject to revocation, suspension, modification or amendment by the Director for cause including evidence of noncompliance with any of the above; or for any misrepresentation made in Application No. 30104 dated March 11, 2026 ; any other applications upon which this Permit is based; supporting data entered therein or attached thereto; or any subsequent submittals or supporting data; or for any alterations affecting the emissions from this source. This Permit is further subject to and conditioned upon the terms, conditions, limitations, standards, or schedules contained in or specified on the attached 1 pages. DRAFT __________________________________ Jeffrey W. Cown, Director Environmental Protection Division\nPage 2: State of Georgia Department of Natural Resources Environmental Protection Division Permit No. Page 1 of 11 7375-063-0154-S-01-0 1. General Requirements 1.1 At all times, including periods of startup, shutdown, and malfunction, the Permittee shall maintain and operate this source, including associated air pollution control equipment, in a manner consistent with good air pollution control practice for minimizin g emissions. Determination of whether acceptable operating and maintenance procedures are being used will be based on information available to the Division which may include, but is not limited to, monitoring results, opacity observations, review of operating and maintenance procedures, and inspection or surveillance of the source. 1.2 The Permittee shall not build, erect, install or use any article, machine, equipment or process the use of which conceals an emission which would otherwise constitute a violation of an applicable emission standard. Such concealment includes, but is not l imited to, the use of gaseous diluents to achieve compliance with an opacity standard or with a standard that is based on the concentration of a pollutant in the gases discharged into the atmosphere. 1.3 The Permittee shall submit a Georgia Air Quality Permit application to the Division prior to the commencement of any modification, as defined in 391 -3-1-.01(pp), which may result in air pollution and which is not exempt under 391 -3-1-.03(6). Such application shall be submitted sufficiently in advance of any critical date involved to allow adequate time for review, discussion, or revision of plans, if necessary. The application shall include, but not be limited to, information describing the precise nature of the change, modifications to any emission control system, production capacity and pollutant emission rates of the plant before and after the change, and the anticipated completion date of the change. 1.4 Unless otherwise specified, all records required to be maintained by this Permit shall be recorded in a permanent form suitable for inspection and submission to the Division and shall be retained for at least five (5) years following the date of entry. 1.5 In cases where conditions of this Permit conflict with each other for any particular source or operation, the most stringent condition shall prevail. 2. Allowable Emissions 2.1 The Permittee shall not emit nitrogen oxides (NOₓ) in an amount greater than 99 tons during any consecutive twelve-month period from all emergency generators at the facility. [Avoidance of 40 CFR Part 70] 2.2 The Permittee shall comply with all applicable provisions of the New Source Performance Standards as found in 40 CFR 60, Subpart A “General Provisions” and 40 CFR 60, Subpart IIII “Standards of Performance for Stationary Compression Ignition Internal Combustion Engines” for the operation of the emergency generators, as applicable. [40 CFR 60 Subparts A and IIII]\nPage 3: State of Georgia Department of Natural Resources Environmental Protection Division Permit No. Page 2 of 11 7375-063-0154-S-01-0 2.3 The Permittee shall fuel the emergency generators subject to 40 CFR 60 Subpart IIII with distillate fuel oil that has a maximum sulfur content of 15 ppm (0.0015% by weight) and either a minimum cetane index of 40 or maximum aromatic content of 35 volume percent. [40 CFR 60.4207(b), 40 CFR 1090.305, and 391-3-1-.02(2)(g) (subsumed)] 2.4 The Permittee shall not discharge or cause the discharge into the atmosphere from the diesel - fired emergency generators any emissions of non-methane hydrocarbons and nitrogen oxides (NMHC+NOx), hydrocarbons (HC), nitrogen oxides (NOx), carbon monoxide (CO), and particulate matter (PM) in an amount exceeding the emissions standards specified in 40 CFR 60.4205(b), as indicated in Table 2.4-1: [40 CFR 60.4205(b), 40 CFR 60.4202(b)(2), and 40 CFR 1039, Appendix I(b)] Table 2.4-1: NSPS 40 CFR Part 60. Subpart IIII Emission Standards For all Stationary 2007 and later Model Year Diesel Engines with A Displacement Of Less Than 30 Liters Per Cylinder And Maximum Engine Power Of Larger Than 560 kW, with emission limits in terms of g/kW-hr (lb/HP-hr) Pollutant → NOx + NMHC CO PM Emission Limit → 6.4 (0.0105) 3.5 (0.00575) 0.20 (3.29X 10-4) 2.5 The Permittee shall operate the emergency generators according to the requirements specified below. Any operation other than emergency operation, maintenance check and readiness testing, as described below, is prohibited: [40 CFR 60.4211(f)] a. There is no time limit on the use of emergency stationary ICE in an emergency situation. b. The emergency generators may be operated for maintenance checks and readiness testing for a maximum of 100 hours per calendar year. The Permittee may petition the Division for approval of additional hours to be used for maintenance checks and readiness tes ting, but a petition is not required if the owner or operator maintains records indicating that federal, state, or local standards require maintenance and testing of emergency ICE beyond 100 hours per calendar year. c. The emergency generators may be operated for a maximum of 50 hours per calendar year in non-emergency situations. The 50 hours of operation in non -emergency situations are counted as part of the 100 hours per calendar year for maintenance and testing speci fied in Paragraph b. Except as provided in Condition 2.5.c.i, the 50 hours per calendar year for non- emergency situations cannot be used for peak shaving or non-emergency demand response, or to generate income for a facility to an electric grid or otherwise supply power as part of a financial arrangement with a another entity. i. The 50 hours per year for non-emergency situations can be used to supply power as part of a financial arrangement with another entity if all the following conditions are met:\nPage 5: State of Georgia Department of Natural Resources Environmental Protection Division Permit No. Page 4 of 11 7375-063-0154-S-01-0 2.10 Fuel oil fired in the emergency generators shall be distillate fuel oil. Distillate fuel oil means fuel oil that complies with the specifications for fuel oil number 1 or 2 as defined by the American Society for Testing and Materials (ASTM) standard ASTM D396, “Standard Specifications for Fuel Oils.” [391-3-1-.03(2)(c)] 2.11 The Permittee must operate the emergency generators only when electric power from the local utility is not available and for less than 200 hours per year. [391-3-1-.02(2)(mmm)7] For each emergency generator that cannot meet the definition of Emergency standby stationary engine found in Georgia Rule 391 -3-1-.02(2)(mmm)4, the Permittee sha\nPage 6: State of Georgia Department of Natural Resources Environmental Protection Division Permit No. Page 5 of 11 7375-063-0154-S-01-0 4. Process & Control Equipment 4.1 Each of the emergency generators shall be operated and maintained according to the manufacturer’s emission-related written specifications/instructions or procedures developed by the Permittee that are approved by the engine manufacturer, over the entire life of the engine. In addition, the Permittee shall only change those emission -related settings that are permitted by the manufacturer. [40 CFR 60.4211(a)] 5. Monitoring 5.1 Any monitoring system installed by the Permittee shall be in continuous operation except during calibration checks, zero and span adjustments, or periods of repair. Maintenance or repair shall be conducted i\nPage 8: State of Georgia Department of Natural Resources Environmental Protection Division Permit No. Page 7 of 11 7375-063-0154-S-01-0 the test and shall provide with the notification a test plan in accordance with Division guidelines. d. All monitoring systems and/or monitoring devices required by the Division shall be installed, calibrated and operational prior to conducting any performance test(s). For any performance test, the Permittee shall, using the monitoring systems and/or monito ring devices, acquire data during each performance test run. All monitoring system and/or monitoring device data acquired during the performance testing shall be submitted with the performance test results. 6.2 If the Permittee does not install, configure, operate, and maintain the engine and any associated con\nPage 9: State of Georgia Department of Natural Resources Environmental Protection Division Permit No. Page 8 of 11 7375-063-0154-S-01-0 7.3 The Permittee shall use monthly operating time data required by Condition 7.2 to calculate monthly the twelve-month rolling total of operating time for each emergency generator for each consecutive twelve -month period. All the calculations shall be kept as part of the records required in Condition 7.2. The Permittee shall notify the Division in writing within 15 days if the twelve-month rolling total operating time for any emergency generator equals or exceeds 200 hours. This notification shall include an explanation of how the Permittee intends to comply with Condition 2.11. [391-3-1-.02(2)(mmm)7 and 391-3-1-.02(6)(b)1] 7.4 The Permittee shall use monthly no\nPage 11: State of Georgia Department of Natural Resources Environmental Protection Division Permit No. Page 10 of 11 7375-063-0154-S-01-0 𝐸𝑚 = ∑ 𝐸𝑗 𝑛 𝑗=1 Where: Em = Total monthly NOx emissions from all emergency generators (tons) j = Each individual emergency generator n = Total number of emergency generators Ej = Monthly NOx emissions from emergency generator j (tons) 7.9 The Permittee shall use the monthly records required in Condition 7. 8 to calculate the twelve- month rolling total of NOx emissions from the facility for each calendar month. All the calculations shall be kept as part of the records required in Condition 7.2. The Permittee shall notify the Division in writing within 15 days if any of the twelve-month rolling total of the NOx emissions exceeds 99 tons for the emergency generator",
+        "url": "https://epd.georgia.gov/document/document/30104-draft/download",
+        "published_at": "unknown",
+        "source_id": "georgia-air-draft-title-v",
+        "source_family": "construction-permits",
+        "publisher": "Georgia Environmental Protection Division",
+        "event_date": "unknown",
+        "event_date_label": "Unknown",
+        "project_name": "TADG – ATL02 / Ellenwood",
+        "location": "Ellenwood, Georgia",
+        "asset_type": "data_center",
+        "lifecycle_state": "project_formation"
+      }
+    },
+    {
+      "record_id": "f4032be8-09b0-420d-a9b0-a8c69593c08e",
+      "evidence_hash": "41505c9228b8afdb9e463fea0896ec0584f3fb4846caca90c7c82ea052693ac7",
+      "state": {
+        "title": "Georgia EPD draft permit",
+        "abstract": "Page 1: PERMIT AMENDMENT NO. 2951-089-0398-S-02-1 ISSUANCE DATE: Air Quality – Permit Amendment In accordance with The Georgia Air Quality Act, O.C.G.A. Section 12-9-1, et seq and the Rules, Chapter 391-3-1, adopted pursuant to or in effect under that Act, Permit No. 2951-089-0398-S-02-0 issued on March 10, 2026, to: Facility Name: South Atlanta Asphalt Plant Facility Address: 3384 Almand Rd NE Atlanta, Georgia 30316 (DeKalb County) Mailing Address: 1785 Oak Road Snellville, GA 30078 Facility AIRS Number: 04-13- 089-00398 for the following: Operation of a hot mix asphalt plant including a drum mix asphalt plant with a baghouse to control particulate matter. is hereby amended as follows: Replacement of the Dryer and Baghouse of the hot mix asphalt plant with a new like kind Dryer and Baghouse. Reason for Amendment: Application No. 30323 and date September 11, 2026 This Permit is further subject to and conditioned upon the terms, conditions, limitations, standards, or schedules contained in or specified on the attached 1 page. This Permit Amendment is hereby made a part of Permit No. 2951-089-0398-S-02-0 and compliance herewith is hereby ordered. Except as amended hereby, the above referenced Permit remains in full force and effect. __________________________________ Jeffrey W. Cown, Director Environmental Protection Division\nPage 2: State of Georgia Department of Natural Resources Environmental Protection Division Permit Amendment No. 2951-089-0398-S-02-1 Page 1 of 1 2. Allowable Emissions Amended Condition 2.2 The Permittee shall not emit or cause the emissions from the drum dryer, sulfur dioxide (SO2) in amounts exceeding 95 tons per 12 consecutive calendar months, by complying with the following: [Avoidance of 40 CPR Part 70] a. The sulfur content of the fuel oil shall not exceed 15 ppm. b. The amount of fuel oil combusted shall not exceed 800,000 gallons during any 12- consecutive months. 7. Notification, Reporting and Record Keeping Requirements Amended Condition 7.2 The Permittee shall retain operational records on all fuel burning sources for five years after the date and year of record. The records shall be available for inspection and/or submittal to the Division, upon request, and contain: [391-3-1-.02(6)(b)l and 391-3-l -.03(2)(c)] c. A log of the monthly total production of asphalt (in tons). The total asphalt production for the previous 11 consecutive months must be included in each month's log. d. A log of the monthly total usage of fuel oil in the drum dryer. The total gallons used during the previous 11 consecutive months must be included in each month's log. e. Fuel oil supplier certifications for each shipment of fuel oil verifying that the sulfur content of the oil does not exceed 15 ppm. New Condition 7.4 The Permittee shall submit written notification of startup to the Division after startup of the hot mix asphalt plant with the new dryer and baghouse within 15 days after such date. The notification shall be submitted to: Mr. Sean Taylor Stationary Source Compliance Program 4244 International Parkway, Suite 120 Atlanta GA 30354 Sean.Taylor@dnr.ga.gov",
+        "url": "https://epd.georgia.gov/document/document/30323-draft/download",
+        "published_at": "unknown",
+        "source_id": "georgia-air-draft-title-v",
+        "source_family": "construction-permits",
+        "publisher": "Georgia Environmental Protection Division",
+        "event_date": "unknown",
+        "event_date_label": "Unknown",
+        "project_name": "South Atlanta Asphalt Plant",
+        "location": "Atlanta, Georgia",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "c3fde52f-a38a-4e5b-8e7a-882c4b385d4d",
+      "evidence_hash": "17c9028149ae3d72a2e6925d10c49c359c6805a53f130c066d749243a8b2b1ac",
+      "state": {
+        "title": "Georgia EPD narrative",
+        "abstract": "Page 1: Jeffrey W. Cown, Director Air Protection Branch 4244 International Parkway Suite 120 Atlanta, Georgia 30354 404-363-7000 NARRATIVE TO: Cynthia Dorrough FROM: Alexander Lagunas DATE: February 19, 2026 Facility Name: QTS Fayetteville I, LLC AIRS No.: 113-00073 Location: Fayetteville, GA (Fayette County) Application #: 30027 Date of Application: January 9, 2026 Background Information QTS Fayetteville I, LLC is a data center operating under Air Permit No. 7374-113-0073-S-01-0, issued on October 11, 2023, and its two amendments. It is located in Fayetteville, Fayette County, which is in attainment for all criteria pollutants. The facility consists of 235 diesel-fired emergency generators and two (2) diesel-fired fire pumps. It operates as a synthetic minor source with respect to Title V by limiting diesel fuel consumption to 670,000 gallons per 12 consecutive months. The emergency generators (Source Codes: EG001 through EG235) operate as emergency stationary ICE as defined in 40 CFR 60 Subpart IIII and 40 CFR 63 Subpart ZZZZ, and as emergency standby stationary engines at data centers as defined in Georgia Rule 391-3-1-.02(2)(mmm). The facility submitted App. 28934 on June 26, 2023, for the construction and operation of a greenfield data center with 205 emergency generators and one (1) diesel -fired fire pump, and a facility-wide fuel consumption limit of 670,000 gallons per year. The facility submitted App. 29080 on November 1, 2023, for the construction and operation of an additional two (2) emergency generators for a total of 207 emergency generators and one (1) diesel -fired fire pump with no change in the facility -wide fuel consumption limit. The facility submitted App. 29366 on July 18, 2024, for the construction and operation of an additional 28 emergency generators and one (1) fire pump for a current total of 235 emergency generators and two (2) fire pumps with no change to the facility-wide fuel consumption limit. Purpose of Application QTS Fayetteville I, LLC submitted App. 30027, received on January 9, 2026, for the construction and operation of an additional 337 emergency generators and nine (9) fire pumps and the proposal of a new fuel consumption limit. The proposed fuel consumption limit will allow the facility to remain a minor source with respect to PSD; however, the facility will now be a major source wi th respect to Title V. Other modifications include the removal of an existing make and model and redesignation of Source Codes for existing emergency generators.\nPage 2: SIP Application Review QTS Fayetteville I, LLC, Application No. 30027 Page 2 A Public Advisory was issued and expired on February 27, 2026. Comments were received by the Division and were taken into consideration in the drafting of this permit. Updated Equipment List Emission Units Associated Control Devices Source Code Description Installation Date Source Code Description EG001 – EG229 227 Main Generators & 2 House Generators 2.5 MW CAT 3516C Diesel-fired 2023 -- -- EG230 – EG546* 317 Main Generators 2.5 MW CAT 3516C Diesel-fired 2026* -- -- EG547 - EG552** 4 Chiller Yard Generators and 2 House Generators 1.25 MW CAT C32 Formerly EG230 through EG235 Diesel-fired 2024 -- -- EG553 - EG572* 20 House Generators 1.25 MW CAT C32 Diesel-fired 2026* -- -- FP001 & FP002 2 Fire Pumps Clarke JU4H-UFADP0 Diesel-fired 2024 -- -- FP003 - FP011* 9 Fire Pumps Clark JU4H-UFADP0 Diesel-fired 2026* -- -- *proposed within current application ** Note: Former EG230 through EG235 were redesignated as EG547 through EG552 2.25 MWe MTU DS2250 has been removed as an option for EG001 through EG229. These units will be 2.5 MW CAT 3516C. The facility consists of 572 diesel-fired emergency generators and 11 fire pumps. The emergency generators and fire pumps are divided into thirteen (13) DC Groups, each representing a data center building and associated emergency generators and fire pumps. The table below shows each DC Group, the emergency generators and fire pumps assigned to each DC Group, and the fuel consumption limit (in gallons) allocated to each DC Group.\nPage 3: SIP Application Review QTS Fayetteville I, LLC, Application No. 30027 Page 3 DC Group Source Codes Fuel Consumption Limit per 12 consecutive months -- -- Gallons DC1 EG001 – EG046, EG547, FP001 131,681 DC2 EG047 – EG060, EG548 – EG549, FP002 42,595 DC3 EG061 – EG088, EG550 80,622 DC4 EG089 – EG130, EG551 – EG552, FP003 121,792 DC5 EG131 – EG172, EG553 – EG554 121,645 DC6 EG173 – EG214, EG555 – EG556, FP004 121,792 DC7 EG215 – EG286, EG557 – EG558, FP005 206,645 DC9 EG287 – EG322, EG559, FP006 103,396 DC10 EG323 – EG336, EG560 – EG561, FP007 42,595 DC11 EG337 – EG406, EG562 – EG564, FP008 202,413 DC12 EG407 – EG490, EG565 – EG568, FP009 243,437 DC13 EG491 – EG518, EG569 – EG570, FP010 82,194 DC14 EG519 – EG546, EG571 – EG572, FP011 82,194 *Note: DC8 does not exist. Storage Tanks Source Code Capacity (gallons) Contents Installation Date True Vapor Pressure (psia) -- 8,400 229 Diesel fuel tanks for emergency generators EG001 – EG229 2023 ~0.77 -- 8,400 317 Diesel fuel tanks for emergency generators EG230 – EG546 2026* ~0.77 -- 140 Two (2) diesel fuel tanks for fire pumps 2023 ~0.77 -- 140 Nine (9) diesel fuel tanks for fire pumps* 2026* ~0.77 -- 4,200 Six (6) diesel fuel tanks for emergency generators EG547 – EG552** 2024 ~0.77 -- 4,200 20 diesel tanks for emergency generators EG553 – EG572* 2026* ~0.77 *proposed within current application **Note: Former EG230 through EG235 were redesignated as EG547 through EG552\nPage 5: SIP Application Review QTS Fayetteville I, LLC, Application No. 30027 Page 5 major source with respect to Title V because potential emissions of NO X are greater than the major source threshold of 100 tpy. A Title V application will be required to be submitted within one year of the startup of any proposed emergency generator. 40 CFR 60 Subpart IIII – “Standards of Performance for Stationary Compression Ignition Internal Combustion Engines” Applicable to the emergency generators (Source Codes: EG230 through EG546 and EG553 through EG572) and the fire pumps (Source Codes: FP003 through FP011). This subpart applies to stationary compression ignition (CI) internal combustion engines (ICE) that commenced construction after April 1, 2006. The emergency generators are CI ICE constructed after Ap\nPage 6: SIP Application Review QTS Fayetteville I, LLC, Application No. 30027 Page 6 of this subpart by meeting the requirements of 40 CFR 60 Subpart IIII. The emergency generators are subject to 40 CFR 60 Subpart IIII and thus no further requirements apply. Georgia Rule 391-3-1-.02(2)(b) – “Visible Emissions” Applicable to the emergency generators (Source Codes: EG230 through EG546 and EG553 through EG572) and the fire pumps (Source Codes: FP003 through FP011). This rule applies to emission sources that are also subject to other emission limitations under the Georgia Rules. The emergency generators are also subject to Rules (g) and (mmm) and thus subject to this rule. Georgia Rule 391-3-1-.02(2)(g) – “Sulfur Dioxide” Applicable to the emergency generators (Source Codes: EG230 through EG546 and EG\nPage 7: SIP Application Review QTS Fayetteville I, LLC, Application No. 30027 Page 7 This rule applies to stationary engines used to generate electricity with a capacity greater than 100 kW and less than or equal to 25 MW in a listed county. The emergency generators are stationary engines used to generate electricity with a capacity between 100 kW and 25 MW and located in Fayette County, one of the listed counties, and thus are subject to this rule. The emergency generators are classified as emergency standby stationary engines at a data center , as defined in (mmm)8, and will be not subject to the emission standard in 391-3-1-.02(2)(mmm)1. The fire pump engines (Source Codes: FP001 through FP011) do not generate electricity and thus are not subject to this rule. Permit Conditions Conditions have \nPage 8: SIP Application Review QTS Fayetteville I, LLC, Application No. 30027 Page 8 Condition 2.9 sets the criteria for the emergency generators (Source Codes: EG001 through EG572) and the fire pumps (Source Codes: FP001 through FP011) to be considered emergency standby stationary engines with respect to Georgia Rule (mmm). Former Condition 2.8. Condition 2.10 sets criteria for the diesel fuel fired in the emergency generators (Source Codes: EG001 through EG572) and the fire pumps (Source Codes: FP001 through FP011). Former Condition 2.11. Condition 3.1 is the standard fugitive emissions conditions. Reworded Condition 3.1. Condition 4.1 requires the operation of the emergency generators (Source Codes: EG001 through EG572) and the fire pumps (Source Codes: FP001 through FP011) according to the man\nPage 9: SIP Application Review QTS Fayetteville I, LLC, Application No. 30027 Page 9 Condition 7.4 calculates and records the calendar year total non -emergency operation of each emergency generator (Source Codes: EG001 through EG572) and fire pump (Source Codes: FP001 through FP011), per 40 CFR 60 Subpart IIII. Condition 7. 5 requires record of the manufacturer’s written instructions for the emergency generators (Source Codes: EG001 through EG572) and fire pumps (Source Codes: FP001 through FP011), per 40 CFR 60 Subpart IIII. Replaces former Condition 7.2b. Condition 7.6 requires the purchase of a certified engine to demonstrate compliance with 40 CFR 60 Subpart IIII. Combines former Conditions 2.6, 2.13, and 7.2a Condition 7.7 requires submittal of a report if the emergency generators (Source Co",
+        "url": "https://epd.georgia.gov/document/document/30027-nar/download",
+        "published_at": "unknown",
+        "source_id": "georgia-air-draft-title-v",
+        "source_family": "construction-permits",
+        "publisher": "Georgia Environmental Protection Division",
+        "event_date": "unknown",
+        "event_date_label": "Unknown",
+        "project_name": "QTS Fayetteville I, LLC",
+        "location": "Fayetteville, Georgia",
+        "asset_type": "data_center",
+        "lifecycle_state": "project_formation"
+      }
+    },
+    {
+      "record_id": "a75b175c-7845-4754-8b28-80632598f461",
+      "evidence_hash": "49b1706e69945643012fbd15815901e9990d7de79abdc3d9974b52abe6aeb7f7",
+      "state": {
+        "title": "Georgia EPD narrative",
+        "abstract": "Page 1: Jeffrey W. Cown, Director Air Protection Branch 4244 International Parkway Suite 120 Atlanta, Georgia 30354 404-363-7000 NARRATIVE TO: Cynthia Dorrough FROM: Alexander Lagunas DATE: June 24, 2026 Facility Name: QTS ATL3 Campus AIRS No.: 245-00212 Location: Augusta, GA (Richmond County) Application #: 30169 Date of Application: May 12, 2026 Background Information QTS Atlanta III, LLC proposes to construct a new data center in Augusta, Richmond County under the name QTS ATL3 Campus. It is a greenfield project to be located at 2883 Gordon Highway, Augusta, Richmond County, which is in attainment for all criteria pollutants. The proposed data center will consist of 224 diesel -fired critical emergency generators and 12 house emergency generators, which will provide backup electricity in the event of an emergency. The emergency generators will be Tier 2 and have no additional control devices. The proposed facility will be a major source with respect to Title V because potential emissions of NOX and CO are greater than 100 tpy, the major source threshold under Title V. A Title V application will be required to be submitted within one year upon startup of the proposed facility. The proposed facility will be a minor source with respect to PS D because the facility has requested a NO X emissions limit of 249.0 tpy, which is below the major source threshold under PSD. The facility is not one of the 28 named source categories subject to the 100 tpy threshold limit. The facility will track fuel usage and engine load of each emergency generator to determine monthly and 12 consecutive month total of NOX emissions. Purpose of Application QTS Atlanta III submitted App. 30169, received on May 18, 2026, for the construction and operation of a greenfield data center with 224 diesel-fired critical emergency generators and 12 diesel-fired emergency generators in Augusta, Richmond County. The facility proposes a NOX emission limit of 249.0 to be a minor source with respect to PSD; however, the facility will now be a major source with respect to Title V and be required to submit a Title V application within 12 months of startup. A Public Advisory was issued and expired on June 19, 2026. Comments were received by the Division and were taken into consideration in the drafting of this permit.\nPage 2: SIP Application Review QTS ATL3 Campus, Application No. 30169 Page 2 Updated Equipment List Emission Units Associated Control Devices Source Code Description Installation Date Source Code Description EG001 – EG224 Critical Emergency Generators Group 1 Caterpillar 3516C 2,500 kW Diesel-fired 2026* -- -- HG01 – HG12 House Emergency Generators Group 2 Caterpillar C32 1,250 kW Diesel-fired 2026* -- -- *proposed within current application Emissions Summary Facility-Wide Emissions (in tons per year) Pollutant Potential Emissions Actual Emissions Before Mod. After Mod. Emissions Change Before Mod. After Mod. Emissions Change PM/PM10/PM2.5 -- 8.46 +8.46 -- -- -- NOx -- 249.0 +249.0 -- -- -- SO2 -- 0.22 +0.22 -- -- -- CO -- 126.1 +126.1 -- -- -- VOC -- 26.08 +26.08 -- -- -- Max. Individual HAP -- 0.09 +0.09 -- -- -- Total HAP -- 0.18 +0.18 -- -- -- Potential emissions were based on the worst-case scenario of all critical and house emergency generators operating at the worst-case engine load. NOX emissions are limited to 249. 0 tpy to avoid PSD review. By limiting NOX emissions to this limit, all other criteria pollutants will remain below the PSD major source threshold. The facility will be a major source with respect to Title V because CO and NO X emissions are greater than 100 tpy.\nPage 3: SIP Application Review QTS ATL3 Campus, Application No. 30169 Page 3 Regulatory Applicability 40 CFR 52.21– Prevention of Significant Deterioration of Air Quality Avoidance. The facility will limit NOX emission to be below the PSD major source threshold of 250 tpy. Emissions will be calculated by tracking fuel usage and engine load of the critical emergency generators (Source Codes: EG001 through EG224) and the house emergency generators (Source Codes: HG01 through HG12). 40 CFR 70 – Title V Applicable. Upon the startup of any emergency generator (Source Code: EG001 through EG224 and HG01 through HG12), the facility will be classified as a major source with respect to Title V because potential emissions of NOX and CO are greater than the major source threshold of 100 tpy. A Title V application will be required to be submitted within one year of the startup of any emergency generator. 40 CFR 60 Subpart IIII – “Standards of Performance for Stationary Compression Ignition Internal Combustion Engines” Applicable to the emergency generators (Source Codes: EG001 through EG224 and HG01 through HG12) This subpart applies to stationary compression ignition (CI) internal combustion engines (ICE) that commenced construction after April 1, 2006. The emergency generators are CI ICE constructed after April 1, 2006, and thus are subject to this subpart. All emergency generators are subject to the following: • Emission standards: o NMHC+NOX, CO, and PM, Tier 2 o Fuel content, including sulfur, cetane, and aromatic content • Operational requirements o Operate and maintain according to the manufacturer's specification/instructions o Criteria to meet the definition of an emergency generator under this subpart • Monitoring requirements o Non-resettable hour meter • Performance Testing o Maintenance plan and performance testing if not operating according to the manufacturer's instructions • Recordkeeping o Record of hours of operation in emergency and non-emergency service o Record of non-emergency hours of operation on a 12-month rolling total o Record of manufacturer’s instructions or maintenance plan o Compliance with emissions standards by purchasing, installing, and configuring according to manufacturer’s instructions\nPage 4: SIP Application Review QTS ATL3 Campus, Application No. 30169 Page 4 o Annual report if operating as specified in 40 CFR 60.4211(f)(3)(i) 40 CFR 6 3 Subpart ZZZZ – “National Emission Standard for Hazardous Air Pollutants for Stationary Reciprocating Internal Combustion Engines” Applicable to the emergency generators (Source Codes: EG001 through EG224 and HG01 through HG12). This subpart applies to any stationary reciprocating internal combustion engine (RICE) located at a major or area source of HAP emissions. The emergency generators are located at an area source of HAP emissions and thus are subject to this subpart. The emergency generators are considered new because they were constructed after June 12, 2006 and located at an area source of HAP emissions. New RICE located at an area sour\nPage 5: SIP Application Review QTS ATL3 Campus, Application No. 30169 Page 5 Georgia Rule 391 -3-1-.02(2)(mmm) – “NOX Emissions from Stationary Gas Turbines and Stationary Engines” Not Applicable. 391-3-1-.02(2)(mmm)6 lists the counties required to demonstrate compliance with Georgia Rule (mmm). The facility is located in Richmond County, which is not one of the listed counties, thus is not subject to the rule. Permit Conditions Condition 2.1 sets a NOX emissions limit of 249. 0 tpy from the emergency generators (Source Codes: EG001 through EG224 and HG01 through HG12), as part of PSD Avoidance. Condition 2.2 establishes the applicability of 40 CFR 60 Subpart A and 40 CFR 60 Subpart IIII to the emergency generators (Source Codes: EG001 through EG224 and HG01 through HG12). Condition 2.3 sets NMHC+\nPage 6: SIP Application Review QTS ATL3 Campus, Application No. 30169 Page 6 • A system to track fuel usage. • A system to track engine load. Condition 5.2 requires verification of the diesel fuel in order to demonstrate compliance with Condition 2.9. Condition 6.1 is the standard performance test criteria condition. Condition 6.2 requires performance test and maintenance plan if the emergency generators (Source Codes: EG001 through EG224 and HG01 through HG12) are not operated according to the manufacturer’s instructions, per 40 CFR 60 Subpart IIII. Condition 7.1 requires notification to the Division of startup. Condition 7.2 determines NOX emissions from an emergency generator (Source Codes: EG001 through EG224 and HG01 through HG12) each time the emergency generator is operated, using records o\nPage 7: SIP Application Review QTS ATL3 Campus, Application No. 30169 Page 7 Condition 8.3 requires the submittal of the Title V permit application within 12 months of startup. Toxic Impact Assessment The facility conducted a Toxic Impact Assessment (TIA) following EPD’s Guideline for Ambient Impact Assessment of Toxic Air Pollutants Emissions . Potential emissions of various TAPs (Toxic Air Pollutants) were calculated and compared to each applicable minimum emission rate (MER) found in Appendix A of the Guidelines. The facility identified benzene and formaldehyde as TAPs of interest because potential emissions are greater than the MER and require further analysis. The facility used SCREEN3 (version 13043) to evaluate the short-term (1-hour) concentration of benzene and formaldehyde to determine t\nPage 8: SIP Application Review QTS ATL3 Campus, Application No. 30169 Page 8 Summary & Recommendations I recommend that Permit No. 7374-245-0212-E-01-0 be issued to QTS ATL3 Campus for the construction of a greenfield data center consisting of 224 critical emergency generators and 12 house emergency generators. The facility will be a major source with respect to Title V and a minor source with respect to PSD by limiting NO X emissions to 249.0 tpy. The facility will be required to submit a Title V application upon startup of any emergency generator. Public Advisory expired on June 19, 2026. Comments were received by the Division and were taken into consideration in the drafting of this permit.",
+        "url": "https://epd.georgia.gov/document/document/sip-30169-nar/download",
+        "published_at": "unknown",
+        "source_id": "georgia-air-draft-title-v",
+        "source_family": "construction-permits",
+        "publisher": "Georgia Environmental Protection Division",
+        "event_date": "unknown",
+        "event_date_label": "Unknown",
+        "project_name": "QTS ATL3",
+        "location": "Augusta, Georgia",
+        "asset_type": "data_center",
+        "lifecycle_state": "project_formation"
+      }
+    },
+    {
+      "record_id": "ca15c66a-9c1c-4e69-a8a9-d094f71bf25b",
+      "evidence_hash": "844ebff12731c34dfb3b6c0316e59b70140741cbba76286e3ad240aac5c6ffb9",
+      "state": {
+        "title": "Georgia EPD draft permit",
+        "abstract": "Page 1: PERMIT NO. 2899-233-0059-S-01-0 ISSUANCE DATE: Air Quality Permit In accordance with the provisions of the Georgia Air Quality Act, O.C.G.A. Section 12-9-1, et seq and the Rules, Chapter 391-3-1, adopted pursuant to and in effect under that Act, Facility Name: Grady Road Renewable Energy, LLC Facility Address: 316 Grady Road Rockmart, Georgia 30153 Polk County Mailing Address: 316 Grady Road Rockmart, Georgia 30153 Facility AIRS Number: 04-13-233-00059 is issued a Permit for the following: Construction and operation of a 4,000 scfm renewable natural gas (RNG) facility that processes landfill gas into pipeline quality gas, with enforceable limits to establish the facility as a separate synthetic minor source from the ETC of Georgia, LLC - Grady Road Sanitary Landfill. This Permit is issued for the purpose of establishing practically enforceable emission limitations such that the facility will not be considered a major source with respect to Title V of the Clean Air Act Amendments of 1990. This Permit is conditioned upon compliance with all provisions of The Georgia Air Quality Act, O.C.G.A. Section 12 -9-1, et seq, the Rules, Chapter 391 -3-1, adopted and in effect under that Act, or any other condition of this Permit. This Permit may be subject to revocation, suspension, modification or amendment by the Director for cause including evidence of noncompliance with any of the above; or for any misrepresentation made in Application No. 30035 dated January 27, 2026 ; any other applications upon which this Permit is based; supporting data entered therein or attached thereto; or any subsequent submittals or supporting data; or for any alterations affecting the emissions from this source. This Permit is further subject to and conditioned upon the terms, conditions, limitations, standards, or schedules contained in or specified on the attached 7 pages. [DRAFT] __________________________________ Jeffrey W. Cown, Director Environmental Protection Division\nPage 2: State of Georgia Department of Natural Resources Environmental Protection Division Permit No. Page 1 of 7 2899-233-0059-S-01-0 1. General Requirements 1.1 At all times, including periods of startup, shutdown, and malfunction, the Permittee shall maintain and operate this source, including associated air pollution control equipment, in a manner consistent with good air pollution control practice for minimizin g emissions. Determination of whether acceptable operating and maintenance procedures are being used will be based on information available to the Division which may include, but is not limited to, monitoring results, opacity observations, review of operating and maintenance procedures, and inspection or surveillance of the source. 1.2 The Permittee shall not build, erect, install or use any article, machine, equipment or process the use of which conceals an emission which would otherwise constitute a violation of an applicable emission standard. Such concealment includes, but is not l imited to, the use of gaseous diluents to achieve compliance with an opacity standard or with a standard that is based on the concentration of a pollutant in the gases discharged into the atmosphere. 1.3 The Permittee shall submit a Georgia Air Quality Permit application to the Division prior to the commencement of any modification, as defined in 391 -3-1-.01(pp), which may result in air pollution and which is not exempt under 391 -3-1-.03(6). Such application shall be submitted sufficiently in advance of any critical date involved to allow adequate time for review, discussion, or revision of plans, if necessary. The application shall include, but not be limited to, information describing the precise nature of the change, modifications to any emission control system, production capacity and pollutant emission rates of the plant before and after the change, and the anticipated completion date of the change. 1.4 Unless otherwise specified, all records required to be maintained by this Permit shall be recorded in a permanent form suitable for inspection and submission to the Division and shall be retained for at least five (5) years following the date of entry. 1.5 In cases where conditions of this Permit conflict with each other for any particular source or operation, the most stringent condition shall prevail. 2. Allowable Emissions 2.1 The Permittee shall not discharge or cause the discharge into the atmosphere from the RNG process any gases which contain carbon monoxide (CO) emissions in excess of 99.9 tons during any twelve consecutive month period.. [Avoidance of 40 CFR 70 and 391-3-1-.03(2)(c)] 2.2 The Permittee shall not cause, let, suffer, permit or allow the emissions into the atmosphere from the Flare (Source Code FL01) or the Thermal Oxidizer (Source Code TOU01) the opacity of which is equal to or greater than forty (40) percent. [391-3-1-.02(2)(b)1]\nPage 3: State of Georgia Department of Natural Resources Environmental Protection Division Permit No. Page 2 of 7 2899-233-0059-S-01-0 2.3 The Permittee shall not combust any fuel containing more than 2.5 percent sulfur, by weight, in the Flare (Source Code FL01) or the Thermal Oxidizer (Source Code TOU01). [391-3-1-.02(2)(g)2] 2.4 The Permittee shall comply with all applicable provisions of 40 CFR 62 Subpart OOO – Federal Plan Requirements for Municipal Solid Waste Landfills That Commenced Construction on or Before July 17, 2014 and Have Not Been Modified or Reconstructed Since July 17, 2014 for all equipment operated prior to the defined “treatment system”1. [40 CFR 62 Subpart OOO, 40 CFR 62.16730] 2.5 The Permittee shall design, install, and operate the gas treatment system, in accordance with 40 CFR 62 Subpart OOO – Federal Plan Requirements for Municipal Solid Waste Landfills That Commenced Construction on or Before July 17, 2014 and Have Not Been Modified or Reconstructed Since July 17, 2014. [40 CFR 62 Subpart OOO] 2.6 The Permittee shall comply with 40 CFR 62.16714 for the LFG treatment system with ID No. LFGT, which includes routing the landfill gas (LFG) to a treatment system. All emissions from any atmospheric vent from the gas treatment system, including any compressor, shall be subject to the requirements of 40 CFR 62.16714(c)(2). [40 CFR 62.16714] 2.7 The Permittee shall maintain and operate the LFG treatment system at all times when LFG is received from the landfill and shall operate the system within the manufacturer’s recommended parameter ranges as documented in site record s. In the event the LFG treatment system is inoperable, the gas mover system shall be shut down and all valves in the collection and control system contributing to venting of gas to the atmosphere shall be closed within one hour. [391-3-1-.02(2)(a)10, 391-3-1-.03(2)(c), 40 CFR 62.16716(e) and 40 CFR 62.16716(f)] 2.8 At all times that treated landfill gas is being supplied for subsequent sale or beneficial use (including refining to natural gas specification), the landfill gas shall be processed in the LFG treatment system (LFGT). [40 CFR 62.16714 (c)(3) and 40 CFR 62.16730] 2.9 At all times when the untreated LFG is routed to a LFG treatment system, the Permittee shall maintain and operate the equipment within any parameter ranges recommended by the manufacturer. [40 CFR 62.16716(e), (f) and 391-3-1-.02(6)(b)1] 1 Per 40 CFR 62.16730, a treatment system is defined as a system that filters, de-waters, and compresses landfill gas for sale or beneficial use.\nPage 4: State of Georgia Department of Natural Resources Environmental Protection Division Permit No. Page 3 of 7 2899-233-0059-S-01-0 2.10 At all times the treatment system is in use, the Permittee shall not exceed the parametric thresholds for the treatment system as specified in the treatment system monitoring plan submitted in accordance with 40 CFR 62.16722(d). [391-3-1-.02(6)(b)1 and 40 CFR 62.16714] 2.11 The Permittee shall comply with all applicable requirements of the National Emission Standards for Hazardous Air Pollutants (NESHAP) as found in 40 CFR 63, Subpart A “General Provisions,” as specified in Table 1 of 40 CFR Part 63, Subpart AAAA, and 40 CFR 63, Subpart AAAA – “National Emission Standards for Hazardous Air Pollutants: Municipal Solid Waste Landfills.” [40 CFR 63 Subpart A and \nPage 5: State of Georgia Department of Natural Resources Environmental Protection Division Permit No. Page 4 of 7 2899-233-0059-S-01-0 3.2 The percent opacity from any fugitive dust source listed in Condition 3.1 shall not equal or exceed 20 percent. [391-3-1-.02(2)(n)] 4. Process & Control Equipment 4.1 Routine maintenance shall be performed on all air pollution control equipment. Maintenance records shall be recorded in a permanent form suitable and available for inspection by the Division. The records shall be retained for at least five years following the date of such maintenance. [391-3-1-.02(6)(b)1] 5. Monitoring 5.1 The Permittee shall install, calibrate, maintain, and operate monitoring devices for the measurement of the indicated parameters on the following equipment. Data shall be record\nPage 6: State of Georgia Department of Natural Resources Environmental Protection Division Permit No. Page 5 of 7 2899-233-0059-S-01-0 5.4 The Permittee shall monitor the gas directed to the Flare (Source Code FL01) for flow rate and other applicable parameters as required by Condition 5.1, when the flare is in operation. [391-3-1-.02(6)(b)1 and 40 CFR 70.6(a)(3)(i)] 6. Performance Testing 6.1 The Permittee shall cause to be conducted a performance test at any specified emission point when so directed by the Division. The following provisions shall apply with regard to such tests: a. All tests shall be conducted and data reduced in accordance with applicable procedures and methods specified in the Division’s Procedures for Testing and Monitoring Sources of Air Pollutants. b. All test results shall\nPage 7: State of Georgia Department of Natural Resources Environmental Protection Division Permit No. Page 6 of 7 2899-233-0059-S-01-0 7.2 The Permittee shall develop and implement a site -specific treatment monitoring plan, as required by 40 CFR Part 62 Subpart OOO, to include: [40 CFR 62.16726(b)(5)(ii)] a. Monitoring records of parameters identified in the treatment system monitoring plan and ensuring the treatment system is operating properly for each intended use of the treated landfill gas. At a minimum, records should include records of filtration, dewat ering, and compression parameters that ensure the treatment system is operating properly for each intended use of the treated landfill gas. b. Monitoring methods, frequencies, and operating ranges for each monitored operating parameter base\nPage 8: State of Georgia Department of Natural Resources Environmental Protection Division Permit No. Page 7 of 7 2899-233-0059-S-01-0 7.5 The Permittee shall keep up -to-date and accessible, readily accessible records as specified by 40 CFR 62.16726(b)( 5) measured during the initial performance test or compliance determination for the life of the control equipment. Records of subsequent tests or monitoring shall be maintained for a minimum of 5 years. Records of the control device vendor specifications shall be maintained until removal. Off-site records may be maintained if they are retrievable within 4 hours. Either paper copy or electronic format is acceptable. [40 CFR 62.16726(b)] 8. Special Conditions 8.1 At any time that the Division determines that additional control of emissions from the ",
+        "url": "https://epd.georgia.gov/document/document/30035-draft/download",
+        "published_at": "unknown",
+        "source_id": "georgia-air-draft-title-v",
+        "source_family": "construction-permits",
+        "publisher": "Georgia Environmental Protection Division",
+        "event_date": "unknown",
+        "event_date_label": "Unknown",
+        "project_name": "Grady Road Renewable Energy, LLC",
+        "location": "Rockmart, Georgia",
+        "asset_type": "pipeline_infrastructure",
+        "lifecycle_state": "operation"
+      }
+    },
+    {
+      "record_id": "4f3e8c19-24c9-48c4-b311-7d08f028ec3a",
+      "evidence_hash": "2fa7c9eb7c7edffc3e6f6c671947945a618e475f31094302354a302f43de9e87",
+      "state": {
+        "title": "Georgia EPD narrative",
+        "abstract": "Page 1: Jeffrey W. Cown, Director Air Protection Branch 4244 International Parkway Suite 120 Atlanta, Georgia 30354 404-363-7000 NARRATIVE TO: Hamid Yavari FROM: S. Ganapathy DATE: September 3, 2026 Facility Name: Azelea Quarry AIRS No.: 073-00039 Location: Grovetown, GA (Columbia County) Application #: 30232 Date of Application: July 2, 2026 Background Information On July 2, 2026, Quality Materials Company (QMC), LLC submitted a SIP permit Application (assigned Application No. 30232 for the c onstruction and operation of a rock quarry and stone processing facility located in Grovetown, Columbia County, Georgia. The Project site will be located on an approximately 409-acre area adjacent to Interstate I-20, approximately 16 miles west of Augusta, GA. The proposed Project will have a maximum capacity to process approximately 1.87 million tons of rock per year. A rock processing plant will be included in the quarry. The new permit authorizes the quarry operation after construction. The quarry will operate 12 hours per day (from 6 AM to 6 PM) ; 5 days per week; and 52 weeks per year and will use crushers and screens to obtain the required products. The roads from the quarry entrance will be paved up to approximately 700 ft. All other haul roads inside the quarry area will be unpaved. The proposed quarry operations will consist of material handling and processing (crushing and screening) operations and will generate only fugitive particulate matter (PM) emissions. Fugitive PM emissions generated from the movement of quarry rock haul trucks and customer trucks will be controlled by water spray. Fugitive PM emissions generated from the various material handling and processing operations will be controlled using water spray at all transfer points. There will be no stationary fuel combustion sources at the quarry except for the first two years or when power from the local power grid is available, whichever is earlier. The facility is classified as a synthetic minor source. The area (Columbia County) is currently in attainment for all criteria pollutants per U.S. EPA (https://www3.epa.gov/airquality/greenbook/ancl.html).\nPage 2: SIP Application Review Azelea Quarry Application No. 30232 Page 2 Purpose of Application According to Application No. 30232, this new quarry will consist of pit drilling, crushing, screening, and associated material handling, storage, sale, and pollution control (wet suppression etc.). Involved process equipment/operation includes drillers, ho ppers, feeders, bins, trucks, crushers, screens, belt conveyors, stockpiles, wet suppression systems and water spray trucks. The quarry will also operate a construction aggregate/stone and sand sale operation. The operations will be powered with four Tier 4 certified diesel fired generator sets for the first two years after startup or until grid power is available, whichever is earlier. After the first two years of quarry life or less, the quarry operations will be powered by electricity from the local power grid. A public advisory was issued for this permit application. Equipment List Table-1: Dry Processing Equipment Equipment ID Equipment Description VGF1 Grizzly Feeder 1 4'x10' 5424 VGF F1 Feeder 1 Twin 36\" Pan Feeders C1 Conveyor 1 60\" Wide C2 Conveyor 2 36\" Wide Radial Stacker C3 Conveyor 3 42\" Wide Tunnel Belt C4 Conveyor 4 36\" Wide C5 Conveyor 5 36\" Wide Radial Stacker C6 Conveyor 6 60\" Wide C7 Conveyor 7 36\" Wide C8 Conveyor 8 36\" Wide Radial Stacker C9 Conveyor 9 36\" Wide C10 Conveyor 10 36\" Wide Radial Stacker C11 Conveyor 11 36\" Wide C12 Conveyor 12 48\" Wide Belt Feeder C13 Conveyor 13 36\" Wide C14 Conveyor 14 36\" Wide C15 Conveyor 15 36\" Wide C16 Conveyor 16 36\" Wide C17 Conveyor 17 48\" Wide Belt Feeder C18 Conveyor 18 36\" Wide C19 Conveyor 19 36\" Wide C20 Conveyor 20 36\" Wide C21 Conveyor 21 36\" Wide C22 Conveyor 22 36\" Wide C23 Conveyor 23 36\" Wide C24 Conveyor 24 36\" Wide C25 Conveyor 25 36\" Wide C26 Conveyor 26 36\" Wide\nPage 3: SIP Application Review Azelea Quarry Application No. 30232 Page 3 Equipment ID Equipment Description C27 Conveyor 27 36\" Wide Radial Stacker C28 Conveyor 28 36\" Wide C29 Conveyor 29 36\" Wide C36 Conveyor 36 36\" Wide C37 Conveyor 37 36\" Wide C40 Conveyor 40 48\" Belt Feeder SB1 Surge Bin 1 Surge Bin 1 prior to C12 SB2 Surge Bin 2 Surge Bin 2 prior to C17 SB3 Surge Bin 3 Surge Bin 3 prior to C40 CR1 Crusher 1 4051 Primary Jaw Crusher 5\" CSS CR2 Crusher 2 400 HP Class Cone Crusher - standard medium chamber CR3 Crusher 3 400 HP Class Cone Crusher - short coarse chamber S1 Screen 1 8' x 20' TD Scalping Screen S2 Screen 2 8' x 20' TD Sizing Screen Table 0: Wash Plant Equipment Equipment ID Equipment Description S3 Screen 3 8' x 20' TD Wash Screen MS1 Material Splitter Twin 4432 Fine Material Classifier C30 Conveyor 30 36\" Wide C31 Conveyor 31 36\" Wide Radial Stacker C32 Conveyor 32 36\" Wide C33 Conveyor 33 36\" Wide Radial Stacker C34 Conveyor 34 36\" Wide C35 Conveyor 35 36\" Wide Radial Stacker C38 Conveyor 38 36\" Wide C39 Conveyor 39 36\" Wide Radial Stacker For NSPS Subpart OOO applicability all equipment is post April 22, 2008\nPage 4: SIP Application Review Azelea Quarry Application No. 30232 Page 4 Table 2: Diesel Generators Equipment ID Equipment Make and Model Size Description DG1 Diesel Generator 1 Caterpillar C32 1,000 HP EPA Tier 4 Diesel Engine Powers the Primary Jaw (CR1), Grizzly (VGF1), Scalping Screen (S1), and the first transfer belts (C1-C10) DG2 Diesel Generator 2 Caterpillar 3512C 1,500 HP EPA Tier 4 Diesel Engine Powers the two, 400 HP Cone Crushers (CR2 & CR3), the Sizing Screen (S2), and the surge bin feeders (C12, C17, C40) DG3 Diesel Generator 3 Caterpillar C18 800 HP EPA Tier 4 Diesel Engine Powers all the intermediate routing conveyors and stacking belts (C11, C13–C26, C28–C29, C36– C37) DG4 Diesel Generator 4 Cummins QSK19 760 HP EPA Tier 4 Diesel Engine Powers the Wash Plant equipment (S3, MS1) a\nPage 5: SIP Application Review Azelea Quarry Application No. 30232 Page 5 These PM10 emissions are substantially abated using a combination of wet suppression, truck washing and coverage, as well as road paving and water spraying wherever feasible. The uncontrolled potential and actual controlled PM 10 emissions were estimated based on the capacities and operating hours of the process units listed in Application No. 30232, the applicable emission factors in AP-42, Subchapter 11.19.2, “Crushed Stone Processing & Pulverized Mineral Processing,” Subchapter 13.2.1: Paved Roads, and Subchapter 13.2.2: Unpaved Roads, and following Georgia EPD Guideline for Modeling PM10 Ambient Concentration in Areas Impacted by Quarry Operation Producing Crushed Stone. The facility will operate four diesel -fired power\nPage 6: SIP Application Review Azelea Quarry Application No. 30232 Page 6 • Vehicle movement on paved roads - Movement of the finished product trucks near the entrance inside the quarry property. • Material Transfer Operations – Batch or continuous drop operations associated with handling of raw material, and processed material. • Material Processing Operations – Material processing operations such as screening and crushing. • Wind Erosion – Wind-blown dust from the active dry material stockpiles such as the RIP RAP stockpile, 1.5-inch stone stockpile and the dry screenings stockpile. • Grading – Emissions generated by grading activities inside the mine pits. Emission Factor sources: The potential to emit (PTE) of PM 10 from these activities were estimated using emissions factors and emissions cal\nPage 7: SIP Application Review Azelea Quarry Application No. 30232 Page 7 The NOX, CO, SO2, VOC, and HAPs emissions from the four diesel generators in the first two years of are summarized below: NOx (tpy) CO (tpy) SO2 (tpy) VOC (tpy) Single HAP (tpy) Total HAP (tpy) Generator Emissions 7.0 36.4 0.08 4.5 0.04 0.08 Detailed emission calculations are provided in the permit application. Regulatory Applicability PM/dust emissions from stationary point sources/processing equipment at this facility such as crushers, screeners, and conveyor transfer points are subject to the applicable PM and visible emission limits under Georgia Rules (e) and (b). These sources are expected to comply with the applicable PM and the visible emission limit of 40 percent opacity due to the use of wet suppression/water spray\nPage 8: SIP Application Review Azelea Quarry Application No. 30232 Page 8 • 12% opacity for the crusher if capture system is not used. Note that truck dumping nonmetallic minerals into any screening operation, feed hopper, or crusher is exempt from the opacity requirements in 40 CFR 60.672. The quarry will also be subject to the following testing, reporting, and recordkeeping requirements: • 40 CFR 60.11 and 60.675 – Initial visible emissions testing using EPA Method 9 and compliance with the applicable opacity limits must be based on the average of the five 6-minute average readings. • 40 CFR 60.674(b) – Perform monthly periodic inspections to check that water is flowing to discharge spray nozzles in the wet suppression system. Must initiate corrective action within 24 hours and complete correcti",
+        "url": "https://epd.georgia.gov/document/document/30232-nar/download",
+        "published_at": "unknown",
+        "source_id": "georgia-air-draft-title-v",
+        "source_family": "construction-permits",
+        "publisher": "Georgia Environmental Protection Division",
+        "event_date": "unknown",
+        "event_date_label": "Unknown",
+        "project_name": "Azalea Quarry",
+        "location": "Grovetown, Georgia",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "54043f6c-85bf-4a69-b941-4f9c9eb65f80",
+      "evidence_hash": "4c14b2280d75c87ce710bf679062cd226bde403d8bad20960c6e9f0bbe94d9a3",
+      "state": {
+        "title": "Georgia EPD draft permit",
+        "abstract": "Page 1: PERMIT NO. 7374-151-0069-E-01-0 ISSUANCE DATE: Air Quality Permit In accordance with the provisions of the Georgia Air Quality Act, O.C.G.A. Section 12-9-1, et seq and the Rules, Chapter 391-3-1, adopted pursuant to and in effect under that Act, Facility Name: Apex Site Solutions LLC Facility Address: 70 Lower Woolsey Road Hampton, Georgia 30228 Henry County Mailing Address: 251 Little Falls Drive Wilmington, DE 19808 Facility AIRS Number: 04-13-151-00069 is issued a Permit for the following: Construction and operation of U.S. EPA Tier 2 and Tier 3 certified diesel-fired emergency generators, supporting emergency engines and emergency fire pumps at a computer processing, data preparation and processing facility. This Permit is conditioned upon compliance with all provisions of The Georgia Air Quality Act, O.C.G.A. Section 12 -9-1, et seq, the Rules, Chapter 391 -3-1, adopted and in effect under that Act, or any other condition of this Permit. This Permit may be subject to revocation, suspension, modification or amendment by the Director for cause including evidence of noncompliance with any of the above; or for any misrepresentation made in Application No. 30108 dated March 24, 2026; any other applications upon which this Permit is based; supporting data entered therein or attached thereto; or any subsequent submittals or supporting data; or for any alterations affecting the emissions from this source. This Permit is further subject to and conditioned upon the terms, conditions, limitations, standards, or schedules contained in or specified on the attached 10 pages. DRAFT __________________________________ Jeffrey W. Cown, Director Environmental Protection Division\nPage 2: State of Georgia Department of Natural Resources Environmental Protection Division Permit No. Page 1 of 10 7374-151-0069-E-01-0 1. General Requirements 1.1 At all times, including periods of startup, shutdown, and malfunction, the Permittee shall maintain and operate this source, including associated air pollution control equipment, in a manner consistent with good air pollution control practice for minimizin g emissions. Determination of whether acceptable operating and maintenance procedures are being used will be based on information available to the Division which may include, but is not limited to, monitoring results, opacity observations, review of operating and maintenance procedures, and inspection or surveillance of the source. 1.2 The Permittee shall not build, erect, install or use any article, machine, equipment or process the use of which conceals an emission which would otherwise constitute a violation of an applicable emission standard. Such concealment includes, but is not l imited to, the use of gaseous diluents to achieve compliance with an opacity standard or with a standard that is based on the concentration of a pollutant in the gases discharged into the atmosphere. 1.3 The Permittee shall submit a Georgia Air Quality Permit application to the Division prior to the commencement of any modification, as defined in 391 -3-1-.01(pp), which may result in air pollution and which is not exempt under 391 -3-1-.03(6). Such application shall be submitted sufficiently in advance of any critical date involved to allow adequate time for review, discussion, or revision of plans, if necessary. The application shall include, but not be limited to, information describing the precise nature of the change, modifications to any emission control system, production capacity and pollutant emission rates of the plant before and after the change, and the anticipated completion date of the change. 1.4 Unless otherwise specified, all records required to be maintained by this Permit shall be recorded in a permanent form suitable for inspection and submission to the Division and shall be retained for at least five (5) years following the date of entry. 1.5 In cases where conditions of this Permit conflict with each other for any particular source or operation, the most stringent condition shall prevail. 2. Allowable Emissions 2.1 The Permitte e shall not discharge or cause the discharge into the atmosphere from the emergency generators and supporting emergency engines NOX emissions in excess of 249.0 tons per 12 consecutive month period. [Avoidance of PSD]\nPage 3: State of Georgia Department of Natural Resources Environmental Protection Division Permit No. Page 2 of 10 7374-151-0069-E-01-0 2.2 The Permittee must operate the emergency generators only when electric power from the local utility is not available, for routine maintenance and testing, and for less than 200 hours per year. [391-3-1-.02(2)(mmm)7] For each emergency generator that cannot meet the definition of Emergency standby stationary engine found in Georgia Rule 391 -3-1-.02(2)(mmm)4, the Permittee shall not discharge, or cause the discharge, into the atmosphere, from each engine, any gases whic h contain nitrogen oxides (NO x) in excess of 80 ppm at 15% oxygen, dry basis, during the ozone season. For purposes of this permit, the ozone season is defined as the time period beginning May 1 and ending September 30. 2.3 The Permittee shall comply with all applicable provisions of the New Source Performance Standards, as found in 40 CFR 60, Subpart A “General Provisions” and 40 CFR 60, Subpart IIII “Standards of Performance for Stationary Compression Ignition Internal Combustion Engines” for operation of the emergency generators, supporting emergency engines and the emergency fire pumps. [40 CFR 60 Subparts A and IIII] 2.4 The Permittee shall comply with all applicable provisions of the National Emissions Standards for Hazardous Air Pollutants (NESHAP) as found in 40 CFR 63 Subpart A - \"General Provisions\" and 40 CFR 63 Subpart ZZZZ - \"National Emissions Standards for Hazardous Air Pollutants for Stationary Reciprocating Internal Combustion Engines,\" for the operation of the emergency generators, supporting emergency engines and emergency fire pumps. [40 CFR 63, Subparts A and ZZZZ] 2.5 The Permittee shall not cause, let, suffer, permit or allow emissions from the emergency generators, emergency support engines and emergency fire pumps the opacity of which is equal to or greater than forty (40) percent opacity (6-minute average). [391-3-1-.02(2)(b)(1)] 2.6 The Permittee shall fuel the emergency engines with distillate fuel oil that has a maximum sulfur content of 15 ppm (0.0015% by weight) and either a minimum cetane index of 40 or maximum aromatic content of 35 volume percent.1 [40 CFR 60.4207(b) and 40 CFR 1090.305 and 391-3-1-.02(2)(g)(2) (subsumed)] 2.7 The Permittee shall not discharge or cause the discharge into the atmosphere from the emergency generators and supporting emergency engines any emissions of non -methane hydrocarbons and nitrogen oxides (NMHC+NOx), hydrocarbons (HC), nitrogen oxides (NOx), carbon monoxide (CO), and particulate matter (PM) in an amount exceeding the emissions standards specified in 40 CFR 60.4205(b), as indicated in Tables 2.7-1 and 2.7-2: [40 CFR 60.4205(b), 40 CFR 60.4202(a)(2), 40 CFR 60.4202(b)(2), and 40 CFR 1039, Appendix I(b) and I(c)] 1 Includes renewable diesel fuel oil that meets this definition.\nPage 5: State of Georgia Department of Natural Resources Environmental Protection Division Permit No. Page 4 of 10 7374-151-0069-E-01-0 2.11 The Permittee shall limit the operation of the emergency generators , supporting emergency engines and emergency fire pumps according to the requirements specified below. Any operation other than emergency operation, maintenance check and readiness testing, as described below, is prohibited: [40 CFR 60.4211(f)] a. There is no time limit on the use of emergency stationary ICE in emergency situations. b. The emergency generators, supporting emergency engines and emergency fire pumps may be operated for maintenance checks and readiness testing for a maximum of 100 hours per calendar year. The Permittee may petition the Division for approval of additional hours t\nPage 6: State of Georgia Department of Natural Resources Environmental Protection Division Permit No. Page 5 of 10 7374-151-0069-E-01-0 3. Fugitive Emissions 3.1 The Permittee shall take all reasonable precautions with any operation, process, handling, transportation, or storage facilities to prevent fugitive emissions of air contaminants. 4. Process & Control Equipment 4.1 Each of the emergency generators and supporting emergency engines shall be operated and maintained according to the manufacturer’s written specifications/instructions or procedures developed by the Permittee that are approved by the engine manufacturer, over the entire life of the engine. In addition, the Permittee shal l only change those emission-related settings that are permitted by the manufacturer. [40 CFR 60.4211(a)] 5. \nPage 7: State of Georgia Department of Natural Resources Environmental Protection Division Permit No. Page 6 of 10 7374-151-0069-E-01-0 5.3 The Permittee shall verify that each shipment of diesel fuel oil received for combustion in each emergency generator and supporting emergency engine is distillate oil, No. 2 fuel oil, No. 2 diesel fuel oil or very low sulfur diesel fuel oil and that the oil complies with the requirements of Condition 2.10. Verification shall consist of either of the following: a. Fuel oil receipts obtained from the fuel supplier certifying that the oil is distillate oil, No. 2 fuel oil, No. 2 diesel fuel oil, or very low sulfur diesel fuel oil. Fuel supplier certification shall include the following information: (1) the name of the oil supplier and (2) a statement from the oil\nPage 8: State of Georgia Department of Natural Resources Environmental Protection Division Permit No. Page 7 of 10 7374-151-0069-E-01-0 a. The Permittee must keep a maintenance plan and records of conducted maintenance and must, to the extent practicable, maintain and operate the engine in a manner consistent with good air pollution control practice for minimizing emissions. In addition, an i nitial performance test to demonstrate compliance with the applicable emission standards within 1 year of startup, or within 1 year after an engine and control device is no longer installed, configured, operated, and maintained in accordance with the manuf acturer’s emission related written instructions, or within 1 year after the Permittee changes emission-related settings in a way that is not permitted by t\nPage 10: State of Georgia Department of Natural Resources Environmental Protection Division Permit No. Page 9 of 10 7374-151-0069-E-01-0 7.4 The Permittee shall use the records calculated in Condition 7.3 to calculate the 12 -month consecutive total NO X emissions from the emergency generators and supporting emergency engines for each calendar month. All the calculations shall be kept as part of the records required in Condition 7.2 The Permittee shall notify the Division in writing within 15 days if the twelve- month rolling total NOX emissions equals or exceeds 249.0 tons during any twelve consecutive month period. This notification shall include an explanation of how the Permittee intends to attain future compliance with the NOx emission limit in Condition 2.1. [Avoidance of PSD] 7.5 The Permitt",
+        "url": "https://epd.georgia.gov/document/document/30108-draft/download",
+        "published_at": "unknown",
+        "source_id": "georgia-air-draft-title-v",
+        "source_family": "construction-permits",
+        "publisher": "Georgia Environmental Protection Division",
+        "event_date": "unknown",
+        "event_date_label": "Unknown",
+        "project_name": "Apex Site Solutions LLC",
+        "location": "Hampton, Georgia",
+        "asset_type": "data_center",
+        "lifecycle_state": "project_formation"
+      }
+    },
+    {
+      "record_id": "a4edc1ef-eab5-4e27-be8c-7d4e66678411",
+      "evidence_hash": "402f9993f238abff9c51626bc7085e34e996557b2834286ae8f10af6abcb74b1",
+      "state": {
+        "title": "Mount Taylor Ranger District, Cibola National Forest & National Grasslands; New Mexico; Roca Honda Mine Project",
+        "abstract": "Roca Honda Mine Project AGENCY: Forest Service, Agriculture (USDA). ACTION: Notice of intent to prepare an environmental impact statement. SUMMARY: The U.S. Department of Agriculture Forest Service (Forest Service), Cibola National Forest & National Grasslands, intends to prepare an environmental impact statement (EIS) to assess and disclose the effects of the proposed Plan of Operations (PoO), also referred to as the Mine Operations and Reclamation Plan (MORP), submitted by Roca Honda Resources, LLC (RHR), for the development and operations of the Roca Honda Mine Project. The Forest Service is the lead agency. The Environmental Protection Agency (EPA) Region 6 and the Bureau of Land Management’s VerDate Sep<11>2014 18:36 Sep 11, 2026 Jkt 268001 PO 00000 Frm 00001 Fmt 4703 Sfmt 4703 E:\\FR\\FM\\14SEN1.SGM 14SEN1khammond on DSK9W7S144PROD with NOTICE",
+        "url": "https://www.govinfo.gov/content/pkg/FR-2026-09-14/pdf/2026-18765.pdf",
+        "published_at": "2026-09-14",
+        "source_id": "federal-register-eis",
+        "source_family": "structured-government",
+        "publisher": "Federal Register",
+        "event_date": "unknown",
+        "event_date_label": "Unknown",
+        "project_name": "Roca Honda Mine Project",
+        "location": "New Mexico",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "7df46499-ff99-42c6-885c-dc8ef5adadaa",
+      "evidence_hash": "acef3ec815d5ea1645432f56a4cc803e6c5123d0345626e910f7388ec7917821",
+      "state": {
+        "title": "Chicago building permit 3460991 — PERMIT - NEW CONSTRUCTION",
+        "abstract": "row: 3460991\ndate: 2026-09-28T00:00:00.000\nmodified_date: 2026-09-29T12:17:56.120Z\ndescription: PERMIT EXPIRES ON 11/21/2026 ERECTION STARTS: 10/2/2026, ERECTION ENDS: 10/3/2026. SELF CERT CBC 2019. 1 - 40X40 SL320 MOBILE STAGE WITH WINGS FOR THE DIPLO RUN CLUB EVENT ON OCT 3, 2026 AT HUMBOLDT PARK. SET-UP OCT 2 AND TAKEDOWN ON OCT 3, 2026. MASCOT SPORTS WITH CSEM.\ntype: PERMIT - NEW CONSTRUCTION\nstatus: ACTIVE\naddress: 1440\nstreet_direction: N\nstreet_name: HUMBOLDT DR\nproject: 101088635\ncost: 5000",
+        "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json",
+        "published_at": "2026-09-28",
+        "source_id": "chicago-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Chicago Data Portal",
+        "event_date": "2026-09-28",
+        "event_date_label": "Permit issue date",
+        "project_name": "Chicago permit 3460991",
+        "location": "1440 N HUMBOLDT DR, Chicago, IL",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "3156a918-62a3-4708-80d9-47a49810b6c5",
+      "evidence_hash": "df81b66989ebdb2079b0c6e7c9f7a873b554310009c9f12a31e290e16be7ba2c",
+      "state": {
+        "title": "Chicago building permit 3460750 — PERMIT - NEW CONSTRUCTION",
+        "abstract": "row: 3460750\ndate: 2026-09-28T00:00:00.000\nmodified_date: 2026-09-29T12:17:56.120Z\ndescription: PERMIT EXPIRES ON 11/23/2026 ERECTION STARTS: 10/2/2026, ERECTION ENDS: 10/3/2026. CBC2019. REINSTATEMENT OF 2025 PERMIT 101074410 FOR THE 2026 WALK TO END ALZHEIMERS STAGE IN LINCOLN PARK GROVE 2 ON OCT 3, 2026. SETUP OCT 2 AND TAKEDOWN OCT 3, 2026. SAME 1-24X20 SL-100 MOBILE STAGE WITH WINGS. CSEM.\ntype: PERMIT - NEW CONSTRUCTION\nstatus: ACTIVE\naddress: 2045\nstreet_direction: N\nstreet_name: LINCOLN PARK W\nproject: 101088546\ncost: 3000",
+        "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json",
+        "published_at": "2026-09-28",
+        "source_id": "chicago-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Chicago Data Portal",
+        "event_date": "2026-09-28",
+        "event_date_label": "Permit issue date",
+        "project_name": "Chicago permit 3460750",
+        "location": "2045 N LINCOLN PARK W, Chicago, IL",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "af0ea614-2937-4e39-bac6-705c9a016943",
+      "evidence_hash": "89278d2390f532ef8ba0018537b7ebad041d4c0daac281e104dac5850055ddaa",
+      "state": {
+        "title": "Chicago building permit 3442494 — PERMIT - RENOVATION/ALTERATION",
+        "abstract": "row: 3442494\ndate: 2026-09-23T00:00:00.000\nmodified_date: 2026-09-26T12:09:07.391Z\ndescription: DDS 2019 CBRC & CBC: INTERIOR AND EXTERIOR ALTERATIONS TO EXISTING 2 STORY MANUFACTURING WITH ACCESSORY OFFICE USE BUILDING. WORK TO INCLUDE DEMO OF EXISTING STAIR AND ELEVATOR TOWER, NEW 1,200 SF ENTRY AND LOBBY ADDITION, NEW SECURITY GATES. INTERIOR ALTERATIONS TO EXISTING OFFICE AND MANUFACTURING AREAS TO INCLUDE DEMO, NEW PARTITIONS, MECHANICAL, ELECTRICAL AND PLUMBING WORK AS PER PLANS. IIB + IIA CONSTRUCTION. S-1 (STORAGE), F-1 (MODERATE-HAZARD FACTORY), AND B (BUSINESS) OCCUPANCY. CONSULTANT REVIEWER: V3 COMPANIES OF IL\ntype: PERMIT - RENOVATION/ALTERATION\nstatus: ACTIVE\naddress: 1300\nstreet_direction: N\nstreet_name: NORTH BRANCH ST\nproject: 101080522\ncost: 9965000",
+        "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json",
+        "published_at": "2026-09-23",
+        "source_id": "chicago-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Chicago Data Portal",
+        "event_date": "2026-09-23",
+        "event_date_label": "Permit issue date",
+        "project_name": "Chicago permit 3442494",
+        "location": "1300 N NORTH BRANCH ST, Chicago, IL",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "fc5f86e3-8a5e-41bd-a153-800e9367cb9d",
+      "evidence_hash": "7b4e0d635cb54e7a25389fc45ba3ac94635478b4001f5248965b6ffb06da27ae",
+      "state": {
+        "title": "Chicago building permit 3460877 — PERMIT - NEW CONSTRUCTION",
+        "abstract": "row: 3460877\ndate: 2026-09-18T00:00:00.000\nmodified_date: 2026-09-22T12:08:14.326Z\ndescription: PERMIT EXPIRES ON 11/17/2026 ERECTION STARTS: 10/3/2026, ERECTION ENDS: 10/4/2026. 2019 CBC. REINSTATEMENT OF 2025 PERMIT 101074193 FOR THE SAME SL100 24X20 STAGE WITH WINGS FOR THE 2026 BREAKTHROUGH T1D CHICAGO WALK EVENT AT MONTROSE HARBOR - GROVE 16 ON OCT 4, 2026. SET-UP OCT 3 AND TAKEDOWN OCT 4, 2026. OP3 WITH CREATIVE AUDIO.\ntype: PERMIT - NEW CONSTRUCTION\nstatus: ACTIVE\naddress: 400\nstreet_direction: W\nstreet_name: MONTROSE DR\nproject: 101088591\ncost: 3000",
+        "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json",
+        "published_at": "2026-09-18",
+        "source_id": "chicago-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Chicago Data Portal",
+        "event_date": "2026-09-18",
+        "event_date_label": "Permit issue date",
+        "project_name": "Chicago permit 3460877",
+        "location": "400 W MONTROSE DR, Chicago, IL",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "111419d9-b01f-44f4-a8df-16fa315cc1cb",
+      "evidence_hash": "2129c59e8b34d6b311af2e652f05f9755e721194bd60815e4f961686f5d4fe47",
+      "state": {
+        "title": "Chicago building permit 3459792 — PERMIT - NEW CONSTRUCTION",
+        "abstract": "row: 3459792\ndate: 2026-09-18T00:00:00.000\nmodified_date: 2026-09-21T12:06:42.818Z\ndescription: SPR / 2019 CBC: INSTALLATION OF TWO (2) 2000 AMP TEMPORARY ELECTRICAL SERVICE AS PER PLANS.\ntype: PERMIT - NEW CONSTRUCTION\nstatus: ACTIVE\naddress: 333\nstreet_direction: E\nstreet_name: HURON ST\nproject: 101088149\ncost: 90000",
+        "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json",
+        "published_at": "2026-09-18",
+        "source_id": "chicago-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Chicago Data Portal",
+        "event_date": "2026-09-18",
+        "event_date_label": "Permit issue date",
+        "project_name": "Chicago permit 3459792",
+        "location": "333 E HURON ST, Chicago, IL",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "539e97b2-e864-4fd6-ba67-fdca01870d83",
+      "evidence_hash": "368d4982f49f3b016d31c4c99cb352b3a27afdb1db87c4c7f13ad44d73c8546e",
+      "state": {
+        "title": "Chicago building permit 3460956 — PERMIT - NEW CONSTRUCTION",
+        "abstract": "row: 3460956\ndate: 2026-09-17T00:00:00.000\nmodified_date: 2026-09-22T12:08:14.326Z\ndescription: PERMIT EXPIRES ON 11/17/2026 ERECTION STARTS: 10/4/2026, ERECTION ENDS: 10/4/2026. CBC 2019. REINSTATEMENT OF 2024 PERMIT 101058268 FOR THE OCT 4, 2026 MOBILE STAGE FOR THE CHICAGO BEARS AT STADIUM GREEN. SAME 1 - 24X20 SL100 WITH WINGS. FROST CHICAGO LIGHTING CO. WITH SOUND WORKS PRODUCTION INC.\ntype: PERMIT - NEW CONSTRUCTION\nstatus: ACTIVE\naddress: 1410\nstreet_direction: S\nstreet_name: MUSEUM CAMPUS DR\nproject: 101088624\ncost: 2000",
+        "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json",
+        "published_at": "2026-09-17",
+        "source_id": "chicago-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Chicago Data Portal",
+        "event_date": "2026-09-17",
+        "event_date_label": "Permit issue date",
+        "project_name": "Chicago permit 3460956",
+        "location": "1410 S MUSEUM CAMPUS DR, Chicago, IL",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "691f2077-d13e-441d-a408-e4c5d74380e6",
+      "evidence_hash": "b21d9bd68062efbc5eb94a055dcc99c4f42cbf9e183381d42efa295652bc6fd9",
+      "state": {
+        "title": "Chicago building permit 3460757 — PERMIT - NEW CONSTRUCTION",
+        "abstract": "row: 3460757\ndate: 2026-09-17T00:00:00.000\nmodified_date: 2026-09-21T12:06:42.818Z\ndescription: PERMIT EXPIRES ON 11/17/2026 ERECTION STARTS: 10/2/2026, ERECTION ENDS: 10/3/2026. CBC2019. REINST OF 2023 PERMIT 101032561 FOR THE 2026 SISTA STRUT 3K - BREAST CANCER WALK STAGE ON OCT 3, 2026. SAME 1-24X16 MOBILE STAGE WITH WINGS. SETUP OCT 2 AND TAKEDOWN OCT 3, 2026. IHEART MEDIA WITH AYRE STAGING.\ntype: PERMIT - NEW CONSTRUCTION\nstatus: ACTIVE\naddress: 1250\nstreet_direction: W\nstreet_name: 119TH ST\nproject: 101088549\ncost: 2000",
+        "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json",
+        "published_at": "2026-09-17",
+        "source_id": "chicago-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Chicago Data Portal",
+        "event_date": "2026-09-17",
+        "event_date_label": "Permit issue date",
+        "project_name": "Chicago permit 3460757",
+        "location": "1250 W 119TH ST, Chicago, IL",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "78279bec-e55e-4a60-9eea-f7a393bbda80",
+      "evidence_hash": "17def5b529e66275aa9a8c85182181c00533baf1502ea9b4c42f06741e946bb2",
+      "state": {
+        "title": "Chicago building permit 3451848 — PERMIT - RENOVATION/ALTERATION",
+        "abstract": "row: 3451848\ndate: 2026-09-16T00:00:00.000\nmodified_date: 2026-09-17T12:19:34.269Z\ndescription: PHASE 3 OF 3: INTERIOR ALTERATIONS TO EXISTING 7-STORY OFFICE BUILDING TO CONVERT TO A DATA CENTER. WORK TO INCLUDE NEW EQUIPMENT WITH ASSOCIATED MEP UPGRADES. PHASE 1 DEMOLITION ONLY WORK PERMITTED UNDER 101083036. PHASE 2 INFRASTRUCTURE WORK PERMITTED UNDER 101081181. IA CONSTRUCTION; B-BUSINESS\ntype: PERMIT - RENOVATION/ALTERATION\nstatus: ACTIVE\naddress: 400\nstreet_direction: S\nstreet_name: LA SALLE ST\nproject: 101084518\ncost: 151112046",
+        "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json",
+        "published_at": "2026-09-16",
+        "source_id": "chicago-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Chicago Data Portal",
+        "event_date": "2026-09-16",
+        "event_date_label": "Permit issue date",
+        "project_name": "Chicago permit 3451848",
+        "location": "400 S LA SALLE ST, Chicago, IL",
+        "asset_type": "data_center",
+        "lifecycle_state": "construction"
+      }
+    },
+    {
+      "record_id": "675b585c-950b-4138-b6c2-b8327b061902",
+      "evidence_hash": "5d0708759ddb4d1e1eaca149813bf927f30b4d996b128244ecdae954f3d72d77",
+      "state": {
+        "title": "Chicago building permit 3459696 — PERMIT - NEW CONSTRUCTION",
+        "abstract": "row: 3459696\ndate: 2026-09-09T00:00:00.000\nmodified_date: 2026-09-11T12:22:07.504Z\ndescription: PERMIT EXPIRES ON 11/09/2026 ERECTION STARTS: 9/24/2026, ERECTION ENDS: 10/16/2026. CHICAGO MARATHON STAGE STRUCTURESSTAGES- REINSTATE PERMIT 101073740 SELF-CERT, 1 DAY EVENT OCTOBER 11, 2026ERECT TWO (2) STRUCTURES, ONE (1) 20X20X3 BIL-JAX STAGE, AND ONE (1) 20X80X3 WITH 16X24X3 BUMPOUT START LINE BIL-JAX STAGE..SETUP 9/24/2026- REMOVE 10/16/2026ASSEMBLY\ntype: PERMIT - NEW CONSTRUCTION\nstatus: ACTIVE\naddress: 337\nstreet_direction: E\nstreet_name: RANDOLPH ST\nproject: 101088103\ncost: 23840",
+        "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json",
+        "published_at": "2026-09-09",
+        "source_id": "chicago-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Chicago Data Portal",
+        "event_date": "2026-09-09",
+        "event_date_label": "Permit issue date",
+        "project_name": "Chicago permit 3459696",
+        "location": "337 E RANDOLPH ST, Chicago, IL",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "564d4e13-4b59-4cd4-9bd0-3b488f4d951f",
+      "evidence_hash": "df7ee9709a7fcf5a91efbbefae4da3ce52bf43afbfab6b39aee6a8c228bfb3f2",
+      "state": {
+        "title": "Chicago building permit 3449966 — PERMIT - RENOVATION/ALTERATION",
+        "abstract": "row: 3449966\ndate: 2026-09-02T00:00:00.000\nmodified_date: 2026-09-29T12:17:47.995Z\ndescription: DDS 2019 CBRC: FOUNDATION ONLY FOR PROPOSED ADDITION TO EXISTING F-1 INDUSTRIAL OCCUPANCY BUILDING FOR NEW WAREHOUSE USE TO INCLUDE UNDERGROUND PLUMBING. CONSTRUCTION TYPE IIA. CONSULTANT REVIEWER: V3 COMPANIES OF IL\ntype: PERMIT - RENOVATION/ALTERATION\nstatus: ACTIVE\naddress: 6661\nstreet_direction: N\nstreet_name: RIDGE BLVD\nproject: 101083681\ncost: 800000",
+        "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json",
+        "published_at": "2026-09-02",
+        "source_id": "chicago-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Chicago Data Portal",
+        "event_date": "2026-09-02",
+        "event_date_label": "Permit issue date",
+        "project_name": "Chicago permit 3449966",
+        "location": "6661 N RIDGE BLVD, Chicago, IL",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "1974d653-79b9-44bf-a0ba-cff78f769582",
+      "evidence_hash": "207989b483e266e78ab414ffdd611744223972d1004bd1806df220f4ea9b2359",
+      "state": {
+        "title": "Austin building permit 2026-126812 BP — Building Permit",
+        "abstract": "row: 2026-126812 BP\ndate: 2026-09-26T00:00:00.000\nmodified_date: 2026-09-26T00:00:00.000\ndescription: 2026/10/02 - 2026/10/04 - Weekend 1| 2026/10/09 - 2026/10/11 - Weekend 2 | (2026/09/14) | Music stages food vendors art vendors & hospitality programs. October 2-4 & 9-11 2026 in Zilker Park.\nclass: Commercial\nwork: New\ntype: Building Permit\nstatus: Active\naddress: 2100 BARTON SPRINGS RD\ncity: AUSTIN\nstate: TX\nlink: https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13779199\nproject: 13779199\ncost: 0\narea: 925",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13779199",
+        "published_at": "2026-09-26",
+        "source_id": "austin-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Austin Open Data",
+        "event_date": "2026-09-26",
+        "event_date_label": "Permit issue date",
+        "project_name": "AUSTIN permit 2026-126812 BP",
+        "location": "2100 BARTON SPRINGS RD, AUSTIN, TX",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "55913d0b-13dc-4c1a-903e-b1736a93eee9",
+      "evidence_hash": "4a09566b3440f3029b79d7d7a8d2ea7040f03994ac95afee88180681da055290",
+      "state": {
+        "title": "Austin building permit 2026-126791 BP — Building Permit",
+        "abstract": "row: 2026-126791 BP\ndate: 2026-09-26T00:00:00.000\nmodified_date: 2026-09-26T00:00:00.000\ndescription: 2026/10/02 - 2026/10/04 - Weekend 1| 2026/10/09 - 2026/10/11 - Weekend 2 | (2026/09/14) | Music stages food vendors art vendors & hospitality programs. October 2-4 & 9-11 2026 in Zilker Park.\nclass: Commercial\nwork: New\ntype: Building Permit\nstatus: Active\naddress: 2100 BARTON SPRINGS RD\ncity: AUSTIN\nstate: TX\nlink: https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13779178\nproject: 13779178\ncost: 0\narea: 1500",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13779178",
+        "published_at": "2026-09-26",
+        "source_id": "austin-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Austin Open Data",
+        "event_date": "2026-09-26",
+        "event_date_label": "Permit issue date",
+        "project_name": "AUSTIN permit 2026-126791 BP",
+        "location": "2100 BARTON SPRINGS RD, AUSTIN, TX",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "4e01e29f-742c-4893-a90a-ae09bf11d741",
+      "evidence_hash": "7d33d7178f7635d835097da4bdb3447dae8d333f8515028c7c30586038a21c8c",
+      "state": {
+        "title": "Austin building permit 2026-126787 BP — Building Permit",
+        "abstract": "row: 2026-126787 BP\ndate: 2026-09-26T00:00:00.000\nmodified_date: 2026-09-26T00:00:00.000\ndescription: 2026/10/02 - 2026/10/04 - Weekend 1| 2026/10/09 - 2026/10/11 - Weekend 2 | (2026/09/14) | Music stages food vendors art vendors & hospitality programs. October 2-4 & 9-11 2026 in Zilker Park.\nclass: Commercial\nwork: New\ntype: Building Permit\nstatus: Active\naddress: 2100 BARTON SPRINGS RD\ncity: AUSTIN\nstate: TX\nlink: https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13779174\nproject: 13779174\ncost: 0\narea: 3608",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13779174",
+        "published_at": "2026-09-26",
+        "source_id": "austin-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Austin Open Data",
+        "event_date": "2026-09-26",
+        "event_date_label": "Permit issue date",
+        "project_name": "AUSTIN permit 2026-126787 BP",
+        "location": "2100 BARTON SPRINGS RD, AUSTIN, TX",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "0221df13-50d8-43e5-abeb-b028a03dbe47",
+      "evidence_hash": "e99594fee9f0813b8827e3c9a6f73959df728b9f426ba576547b7edeec311c3c",
+      "state": {
+        "title": "Austin building permit 2026-126767 BP — Building Permit",
+        "abstract": "row: 2026-126767 BP\ndate: 2026-09-26T00:00:00.000\nmodified_date: 2026-09-26T00:00:00.000\ndescription: 2026/10/02 - 2026/10/04 - Weekend 1| 2026/10/09 - 2026/10/11 - Weekend 2 | (2026/09/14) | Music stages food vendors art vendors & hospitality programs. October 2-4 & 9-11 2026 in Zilker Park.\nclass: Commercial\nwork: New\ntype: Building Permit\nstatus: Active\naddress: 2100 BARTON SPRINGS RD\ncity: AUSTIN\nstate: TX\nlink: https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13779149\nproject: 13779149\ncost: 0\narea: 8692",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13779149",
+        "published_at": "2026-09-26",
+        "source_id": "austin-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Austin Open Data",
+        "event_date": "2026-09-26",
+        "event_date_label": "Permit issue date",
+        "project_name": "AUSTIN permit 2026-126767 BP",
+        "location": "2100 BARTON SPRINGS RD, AUSTIN, TX",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "57c9608a-ed7e-4c22-8b86-90ccae560bb0",
+      "evidence_hash": "8adabed6e8d7d0b551ea82c2e5943d46d446255f0957f3684bfc32a7a9e6040c",
+      "state": {
+        "title": "Austin building permit 2026-126737 BP — Building Permit",
+        "abstract": "row: 2026-126737 BP\ndate: 2026-09-26T00:00:00.000\nmodified_date: 2026-09-26T00:00:00.000\ndescription: 2026/10/02 - 2026/10/04 - Weekend 1| 2026/10/09 - 2026/10/11 - Weekend 2 | (2026/09/14) | Music stages food vendors art vendors & hospitality programs. October 2-4 & 9-11 2026 in Zilker Park.\nclass: Commercial\nwork: New\ntype: Building Permit\nstatus: Active\naddress: 2100 BARTON SPRINGS RD\ncity: AUSTIN\nstate: TX\nlink: https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13779119\nproject: 13779119\ncost: 0\narea: 528",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13779119",
+        "published_at": "2026-09-26",
+        "source_id": "austin-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Austin Open Data",
+        "event_date": "2026-09-26",
+        "event_date_label": "Permit issue date",
+        "project_name": "AUSTIN permit 2026-126737 BP",
+        "location": "2100 BARTON SPRINGS RD, AUSTIN, TX",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "1f8dfe30-6c3c-4401-a245-b0b3eaead663",
+      "evidence_hash": "982ac4bd813b157d36d74627937d557b74297b595f5e80a1d8483ecf7b40c66f",
+      "state": {
+        "title": "Austin building permit 2026-126732 BP — Building Permit",
+        "abstract": "row: 2026-126732 BP\ndate: 2026-09-26T00:00:00.000\nmodified_date: 2026-09-26T00:00:00.000\ndescription: 2026/10/02 - 2026/10/04 - Weekend 1| 2026/10/09 - 2026/10/11 - Weekend 2 | (2026/09/14) | Music stages food vendors art vendors & hospitality programs. October 2-4 & 9-11 2026 in Zilker Park.\nclass: Commercial\nwork: New\ntype: Building Permit\nstatus: Active\naddress: 2100 BARTON SPRINGS RD\ncity: AUSTIN\nstate: TX\nlink: https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13779114\nproject: 13779114\ncost: 0\narea: 196",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13779114",
+        "published_at": "2026-09-26",
+        "source_id": "austin-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Austin Open Data",
+        "event_date": "2026-09-26",
+        "event_date_label": "Permit issue date",
+        "project_name": "AUSTIN permit 2026-126732 BP",
+        "location": "2100 BARTON SPRINGS RD, AUSTIN, TX",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "718b19d5-2cc5-4d30-9fc2-5ce4b6e35cb9",
+      "evidence_hash": "cbdd1e0ee2cc89625a71140d3e349c1f75870d6167e071f9883416131198b8ef",
+      "state": {
+        "title": "Austin building permit 2026-125566 BP — Building Permit",
+        "abstract": "row: 2026-125566 BP\ndate: 2026-09-24T00:00:00.000\nmodified_date: 2026-09-26T00:00:00.000\ndescription: 2026/10/02 - 2026/10/04 - Weekend 1| 2026/10/09 - 2026/10/11 - Weekend 2 | (2026/09/14) | Music stages food vendors art vendors & hospitality programs. October 2-4 & 9-11 2026 in Zilker Park.\nclass: Commercial\nwork: New\ntype: Building Permit\nstatus: Active\naddress: 2100 BARTON SPRINGS RD\ncity: AUSTIN\nstate: TX\nlink: https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13777698\nproject: 13777698\ncost: 0\narea: 448",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13777698",
+        "published_at": "2026-09-24",
+        "source_id": "austin-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Austin Open Data",
+        "event_date": "2026-09-24",
+        "event_date_label": "Permit issue date",
+        "project_name": "AUSTIN permit 2026-125566 BP",
+        "location": "2100 BARTON SPRINGS RD, AUSTIN, TX",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "0c6a5024-065a-479d-bade-ac188ee69920",
+      "evidence_hash": "d1a1fbdeb132dfb63cdc76f41321ba78be27a402315cfe914478dccfef5c2c7c",
+      "state": {
+        "title": "Austin building permit 2026-124757 BP — Building Permit",
+        "abstract": "row: 2026-124757 BP\ndate: 2026-09-24T00:00:00.000\nmodified_date: 2026-09-26T00:00:00.000\ndescription: 2026/10/02 - 2026/10/04 - Weekend 1| 2026/10/09 - 2026/10/11 - Weekend 2 | (2026/09/14) | Music stages food vendors art vendors & hospitality programs. October 2-4 & 9-11 2026 in Zilker Park.\nclass: Commercial\nwork: New\ntype: Building Permit\nstatus: Active\naddress: 2100 BARTON SPRINGS RD\ncity: AUSTIN\nstate: TX\nlink: https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13776762\nproject: 13776762\ncost: 0\narea: 1344",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13776762",
+        "published_at": "2026-09-24",
+        "source_id": "austin-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Austin Open Data",
+        "event_date": "2026-09-24",
+        "event_date_label": "Permit issue date",
+        "project_name": "AUSTIN permit 2026-124757 BP",
+        "location": "2100 BARTON SPRINGS RD, AUSTIN, TX",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "e3c7ced4-952d-4034-8f64-03b98ebbde8f",
+      "evidence_hash": "ceda9aff468489a2a22e0f937765756f25b01f16e26944a29bcf674fedb4ad1f",
+      "state": {
+        "title": "Austin building permit 2026-124752 BP — Building Permit",
+        "abstract": "row: 2026-124752 BP\ndate: 2026-09-24T00:00:00.000\nmodified_date: 2026-09-26T00:00:00.000\ndescription: 2026/10/02 - 2026/10/04 - Weekend 1| 2026/10/09 - 2026/10/11 - Weekend 2 | (2026/09/14) | Music stages food vendors art vendors & hospitality programs. October 2-4 & 9-11 2026 in Zilker Park.\nclass: Commercial\nwork: New\ntype: Building Permit\nstatus: Active\naddress: 2100 BARTON SPRINGS RD\ncity: AUSTIN\nstate: TX\nlink: https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13776756\nproject: 13776756\ncost: 0\narea: 1344",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13776756",
+        "published_at": "2026-09-24",
+        "source_id": "austin-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Austin Open Data",
+        "event_date": "2026-09-24",
+        "event_date_label": "Permit issue date",
+        "project_name": "AUSTIN permit 2026-124752 BP",
+        "location": "2100 BARTON SPRINGS RD, AUSTIN, TX",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "fd467ac3-d7eb-4c5b-bbc2-9b4ac41277c4",
+      "evidence_hash": "1651eb82ee0da1abe4b590e8b5d11f8e09082682fd9b51a01b52d578066257cb",
+      "state": {
+        "title": "Austin building permit 2026-124749 BP — Building Permit",
+        "abstract": "row: 2026-124749 BP\ndate: 2026-09-24T00:00:00.000\nmodified_date: 2026-09-26T00:00:00.000\ndescription: 2026/10/02 - 2026/10/04 - Weekend 1| 2026/10/09 - 2026/10/11 - Weekend 2 | (2026/09/14) | Music stages food vendors art vendors & hospitality programs. October 2-4 & 9-11 2026 in Zilker Park.\nclass: Commercial\nwork: New\ntype: Building Permit\nstatus: Active\naddress: 2100 BARTON SPRINGS RD\ncity: AUSTIN\nstate: TX\nlink: https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13776753\nproject: 13776753\ncost: 0\narea: 178",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13776753",
+        "published_at": "2026-09-24",
+        "source_id": "austin-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Austin Open Data",
+        "event_date": "2026-09-24",
+        "event_date_label": "Permit issue date",
+        "project_name": "AUSTIN permit 2026-124749 BP",
+        "location": "2100 BARTON SPRINGS RD, AUSTIN, TX",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "f8c9c768-99c9-43b4-b90d-24ae63dafefa",
+      "evidence_hash": "387ee680d7610ff195f701ff036d4ea6f08a1420ac35863302a14fe28396f40f",
+      "state": {
+        "title": "Austin building permit 2026-124744 BP — Building Permit",
+        "abstract": "row: 2026-124744 BP\ndate: 2026-09-24T00:00:00.000\nmodified_date: 2026-09-26T00:00:00.000\ndescription: 2026/10/02 - 2026/10/04 - Weekend 1| 2026/10/09 - 2026/10/11 - Weekend 2 | (2026/09/14) | Music stages food vendors art vendors & hospitality programs. October 2-4 & 9-11 2026 in Zilker Park.\nclass: Commercial\nwork: New\ntype: Building Permit\nstatus: Active\naddress: 2100 BARTON SPRINGS RD\ncity: AUSTIN\nstate: TX\nlink: https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13776748\nproject: 13776748\ncost: 0\narea: 720",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13776748",
+        "published_at": "2026-09-24",
+        "source_id": "austin-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Austin Open Data",
+        "event_date": "2026-09-24",
+        "event_date_label": "Permit issue date",
+        "project_name": "AUSTIN permit 2026-124744 BP",
+        "location": "2100 BARTON SPRINGS RD, AUSTIN, TX",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "e3f2a31c-6f5b-4fe3-ac04-0f1f84735ac9",
+      "evidence_hash": "5abf09c3f1b751b89fb84d63065f246bcb3a7795bc39702565e4d1041bea662b",
+      "state": {
+        "title": "Austin building permit 2026-124724 BP — Building Permit",
+        "abstract": "row: 2026-124724 BP\ndate: 2026-09-24T00:00:00.000\nmodified_date: 2026-09-26T00:00:00.000\ndescription: 2026/10/02 - 2026/10/04 - Weekend 1| 2026/10/09 - 2026/10/11 - Weekend 2 | (2026/09/14) | Music stages food vendors art vendors & hospitality programs. October 2-4 & 9-11 2026 in Zilker Park.\nclass: Commercial\nwork: New\ntype: Building Permit\nstatus: Active\naddress: 2100 BARTON SPRINGS RD\ncity: AUSTIN\nstate: TX\nlink: https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13776728\nproject: 13776728\ncost: 0\narea: 388",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13776728",
+        "published_at": "2026-09-24",
+        "source_id": "austin-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Austin Open Data",
+        "event_date": "2026-09-24",
+        "event_date_label": "Permit issue date",
+        "project_name": "AUSTIN permit 2026-124724 BP",
+        "location": "2100 BARTON SPRINGS RD, AUSTIN, TX",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "f178b8d7-71b2-4033-9d43-237951c642de",
+      "evidence_hash": "0f7426db79ae9169bbb1d86742165f636772a144ad4564e7692234e61c00ca21",
+      "state": {
+        "title": "Austin building permit 2026-124714 BP — Building Permit",
+        "abstract": "row: 2026-124714 BP\ndate: 2026-09-24T00:00:00.000\nmodified_date: 2026-09-26T00:00:00.000\ndescription: 2026/10/02 - 2026/10/04 - Weekend 1| 2026/10/09 - 2026/10/11 - Weekend 2 | (2026/09/14) | Music stages food vendors art vendors & hospitality programs. October 2-4 & 9-11 2026 in Zilker Park.\nclass: Commercial\nwork: New\ntype: Building Permit\nstatus: Active\naddress: 2100 BARTON SPRINGS RD\ncity: AUSTIN\nstate: TX\nlink: https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13776718\nproject: 13776718\ncost: 0\narea: 16000",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13776718",
+        "published_at": "2026-09-24",
+        "source_id": "austin-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Austin Open Data",
+        "event_date": "2026-09-24",
+        "event_date_label": "Permit issue date",
+        "project_name": "AUSTIN permit 2026-124714 BP",
+        "location": "2100 BARTON SPRINGS RD, AUSTIN, TX",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "c1310999-4a40-4a1a-aa83-8552e77f7586",
+      "evidence_hash": "ff08120709938c135602070d848d6532c1447e748a1fbe55b0b5cd2ff01e799b",
+      "state": {
+        "title": "Austin building permit 2026-124700 BP — Building Permit",
+        "abstract": "row: 2026-124700 BP\ndate: 2026-09-24T00:00:00.000\nmodified_date: 2026-09-26T00:00:00.000\ndescription: 2026/10/02 - 2026/10/04 - Weekend 1| 2026/10/09 - 2026/10/11 - Weekend 2 | (2026/09/14) | Music stages food vendors art vendors & hospitality programs. October 2-4 & 9-11 2026 in Zilker Park.\nclass: Commercial\nwork: New\ntype: Building Permit\nstatus: Active\naddress: 2100 BARTON SPRINGS RD\ncity: AUSTIN\nstate: TX\nlink: https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13776704\nproject: 13776704\ncost: 0\narea: 4544",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13776704",
+        "published_at": "2026-09-24",
+        "source_id": "austin-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Austin Open Data",
+        "event_date": "2026-09-24",
+        "event_date_label": "Permit issue date",
+        "project_name": "AUSTIN permit 2026-124700 BP",
+        "location": "2100 BARTON SPRINGS RD, AUSTIN, TX",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "eed8510d-4a79-487b-a23f-9e8b553c1106",
+      "evidence_hash": "a47b5644c0820393fd081bf1bf1972832048118dc920fb26bc2cd7704ecbe45c",
+      "state": {
+        "title": "Austin building permit 2026-123264 BP — Building Permit",
+        "abstract": "row: 2026-123264 BP\ndate: 2026-09-24T00:00:00.000\nmodified_date: 2026-09-26T00:00:00.000\ndescription: 2026/10/02 - 2026/10/04 - Weekend 1| 2026/10/09 - 2026/10/11 - Weekend 2 | (2026/09/14) | Music stages food vendors art vendors & hospitality programs. October 2-4 & 9-11 2026 in Zilker Park.\nclass: Commercial\nwork: New\ntype: Building Permit\nstatus: Active\naddress: 2100 BARTON SPRINGS RD\ncity: AUSTIN\nstate: TX\nlink: https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13775057\nproject: 13775057\ncost: 0\narea: 4148",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13775057",
+        "published_at": "2026-09-24",
+        "source_id": "austin-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Austin Open Data",
+        "event_date": "2026-09-24",
+        "event_date_label": "Permit issue date",
+        "project_name": "AUSTIN permit 2026-123264 BP",
+        "location": "2100 BARTON SPRINGS RD, AUSTIN, TX",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "5bcb0b11-59fd-47b2-bbfc-306e6c70b5d3",
+      "evidence_hash": "dc1cdf8f362ef09c4e657c6a01b00b759c10996d1546d507301c6aab022e3cfe",
+      "state": {
+        "title": "Austin building permit 2026-123259 BP — Building Permit",
+        "abstract": "row: 2026-123259 BP\ndate: 2026-09-24T00:00:00.000\nmodified_date: 2026-09-26T00:00:00.000\ndescription: 2026/10/02 - 2026/10/04 - Weekend 1| 2026/10/09 - 2026/10/11 - Weekend 2 | (2026/09/14) | Music stages food vendors art vendors & hospitality programs. October 2-4 & 9-11 2026 in Zilker Park.\nclass: Commercial\nwork: New\ntype: Building Permit\nstatus: Active\naddress: 2100 BARTON SPRINGS RD\ncity: AUSTIN\nstate: TX\nlink: https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13775051\nproject: 13775051\ncost: 0\narea: 1024",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13775051",
+        "published_at": "2026-09-24",
+        "source_id": "austin-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Austin Open Data",
+        "event_date": "2026-09-24",
+        "event_date_label": "Permit issue date",
+        "project_name": "AUSTIN permit 2026-123259 BP",
+        "location": "2100 BARTON SPRINGS RD, AUSTIN, TX",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "adbd7d8d-3637-47ca-b43e-5e9b20dca712",
+      "evidence_hash": "058ca52109b6f42ab1f0b23f038341b16fa5e747181f4c5f2008782fae924bb8",
+      "state": {
+        "title": "Austin building permit 2026-123250 BP — Building Permit",
+        "abstract": "row: 2026-123250 BP\ndate: 2026-09-24T00:00:00.000\nmodified_date: 2026-09-26T00:00:00.000\ndescription: 2026/10/02 - 2026/10/04 - Weekend 1| 2026/10/09 - 2026/10/11 - Weekend 2 | (2026/09/14) | Music stages food vendors art vendors & hospitality programs. October 2-4 & 9-11 2026 in Zilker Park.\nclass: Commercial\nwork: New\ntype: Building Permit\nstatus: Active\naddress: 2100 BARTON SPRINGS RD\ncity: AUSTIN\nstate: TX\nlink: https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13775042\nproject: 13775042\ncost: 0\narea: 4365",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13775042",
+        "published_at": "2026-09-24",
+        "source_id": "austin-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Austin Open Data",
+        "event_date": "2026-09-24",
+        "event_date_label": "Permit issue date",
+        "project_name": "AUSTIN permit 2026-123250 BP",
+        "location": "2100 BARTON SPRINGS RD, AUSTIN, TX",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "edc67aa9-5a05-4810-a69f-9a572f72286a",
+      "evidence_hash": "877ccf499184184201517d492030608cb47ab363ad25f9512153eb97a6861b89",
+      "state": {
+        "title": "Austin building permit 2026-123195 BP — Building Permit",
+        "abstract": "row: 2026-123195 BP\ndate: 2026-09-24T00:00:00.000\nmodified_date: 2026-09-26T00:00:00.000\ndescription: 2026/10/02 - 2026/10/04 - Weekend 1| 2026/10/09 - 2026/10/11 - Weekend 2 | (2026/09/14) | Music stages food vendors art vendors & hospitality programs. October 2-4 & 9-11 2026 in Zilker Park.\nclass: Commercial\nwork: New\ntype: Building Permit\nstatus: Active\naddress: 2100 BARTON SPRINGS RD\ncity: AUSTIN\nstate: TX\nlink: https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13774983\nproject: 13774983\ncost: 0\narea: 620",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13774983",
+        "published_at": "2026-09-24",
+        "source_id": "austin-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Austin Open Data",
+        "event_date": "2026-09-24",
+        "event_date_label": "Permit issue date",
+        "project_name": "AUSTIN permit 2026-123195 BP",
+        "location": "2100 BARTON SPRINGS RD, AUSTIN, TX",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "bdb1fa0e-9675-4d02-b53c-db7c7edc8cfb",
+      "evidence_hash": "7b7e2116bb6c3bfd03bfb36837d5c2b55761873e42384b985e2794dea40d5f6f",
+      "state": {
+        "title": "Austin building permit 2026-123190 BP — Building Permit",
+        "abstract": "row: 2026-123190 BP\ndate: 2026-09-24T00:00:00.000\nmodified_date: 2026-09-26T00:00:00.000\ndescription: 2026/10/02 - 2026/10/04 - Weekend 1| 2026/10/09 - 2026/10/11 - Weekend 2 | (2026/09/14) | Music stages food vendors art vendors & hospitality programs. October 2-4 & 9-11 2026 in Zilker Park.\nclass: Commercial\nwork: New\ntype: Building Permit\nstatus: Active\naddress: 2100 BARTON SPRINGS RD\ncity: AUSTIN\nstate: TX\nlink: https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13774978\nproject: 13774978\ncost: 0\narea: 16584",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13774978",
+        "published_at": "2026-09-24",
+        "source_id": "austin-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Austin Open Data",
+        "event_date": "2026-09-24",
+        "event_date_label": "Permit issue date",
+        "project_name": "AUSTIN permit 2026-123190 BP",
+        "location": "2100 BARTON SPRINGS RD, AUSTIN, TX",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "6fe2d28b-9938-4fac-a738-549ce5505ecf",
+      "evidence_hash": "99d6380dfcb5395a9a2e74cb0af83563f9e01cd3e5e1e8339db351637d537cd5",
+      "state": {
+        "title": "Austin building permit 2026-117984 BP — Building Permit",
+        "abstract": "row: 2026-117984 BP\ndate: 2026-09-17T00:00:00.000\nmodified_date: 2026-09-17T00:00:00.000\ndescription: ePlan: Commercial Expedited Review - Phase 4: Interior Remodel to Existing Manufacturing Facility (20000 SF).\nclass: Commercial\nwork: Remodel\ntype: Building Permit\nstatus: Active\naddress: 1300 E ANDERSON LN SVRD WB BLDG B\ncity: AUSTIN\nstate: TX\nlink: https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13769155\nproject: 13769155",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13769155",
+        "published_at": "2026-09-17",
+        "source_id": "austin-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Austin Open Data",
+        "event_date": "2026-09-17",
+        "event_date_label": "Permit issue date",
+        "project_name": "AUSTIN permit 2026-117984 BP",
+        "location": "1300 E ANDERSON LN SVRD WB BLDG B, AUSTIN, TX",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "6054b77d-9371-4b8a-8f60-02ca9f6aa1d9",
+      "evidence_hash": "66abb926398416940a13fe37fad32698b6ebbca2f85dba0c6fc3ef9037743077",
+      "state": {
+        "title": "Austin building permit 2026-117983 BP — Building Permit",
+        "abstract": "row: 2026-117983 BP\ndate: 2026-09-17T00:00:00.000\nmodified_date: 2026-09-17T00:00:00.000\ndescription: ePlan: Commercial Expedited Review - Phase 3: Interior Remodel to Existing Manufacturing Facility (20000 SF).\nclass: Commercial\nwork: Remodel\ntype: Building Permit\nstatus: Active\naddress: 1300 E ANDERSON LN SVRD WB BLDG B\ncity: AUSTIN\nstate: TX\nlink: https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13769154\nproject: 13769154",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13769154",
+        "published_at": "2026-09-17",
+        "source_id": "austin-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Austin Open Data",
+        "event_date": "2026-09-17",
+        "event_date_label": "Permit issue date",
+        "project_name": "AUSTIN permit 2026-117983 BP",
+        "location": "1300 E ANDERSON LN SVRD WB BLDG B, AUSTIN, TX",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "5c9f6c51-426b-4360-9507-2d700e184114",
+      "evidence_hash": "a389328d0f6c933484072499e437e71d5b3c588eca317b776c1c1e3483a9cf04",
+      "state": {
+        "title": "Austin building permit 2026-117982 BP — Building Permit",
+        "abstract": "row: 2026-117982 BP\ndate: 2026-09-17T00:00:00.000\nmodified_date: 2026-09-17T00:00:00.000\ndescription: ePlan: Commercial Expedited Review - Phase 2: Interior Remodel to Existing Manufacturing Facility (20000 SF).\nclass: Commercial\nwork: Remodel\ntype: Building Permit\nstatus: Active\naddress: 1300 E ANDERSON LN SVRD WB BLDG B\ncity: AUSTIN\nstate: TX\nlink: https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13769153\nproject: 13769153",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13769153",
+        "published_at": "2026-09-17",
+        "source_id": "austin-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Austin Open Data",
+        "event_date": "2026-09-17",
+        "event_date_label": "Permit issue date",
+        "project_name": "AUSTIN permit 2026-117982 BP",
+        "location": "1300 E ANDERSON LN SVRD WB BLDG B, AUSTIN, TX",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "edeb683f-a88f-456b-960f-52c914b0cfeb",
+      "evidence_hash": "83d8a2422d4baeee42124125cf618ac5aa7d03c760d95c8ce43f05aa51f14961",
+      "state": {
+        "title": "Austin building permit 2026-119402 BP — Building Permit",
+        "abstract": "row: 2026-119402 BP\ndate: 2026-09-15T00:00:00.000\nmodified_date: 2026-09-15T00:00:00.000\ndescription: ePlan: Commercial Expedited Review - Interior Remodel to Existing Light Manufacturing Areas Phase 2- (128726 SF).\nclass: Commercial\nwork: Remodel\ntype: Building Permit\nstatus: Active\naddress: 6301 E STASSNEY LN BLDG 8\ncity: AUSTIN\nstate: TX\nlink: https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13770761\nproject: 13770761",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13770761",
+        "published_at": "2026-09-15",
+        "source_id": "austin-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Austin Open Data",
+        "event_date": "2026-09-15",
+        "event_date_label": "Permit issue date",
+        "project_name": "AUSTIN permit 2026-119402 BP",
+        "location": "6301 E STASSNEY LN BLDG 8, AUSTIN, TX",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "dfeabc4d-d764-4ed3-a2e4-60e4dd2bd892",
+      "evidence_hash": "8dc3b46d710665b20d885f89acee17f9c4ae21b6b87feea7585be067bba38fb8",
+      "state": {
+        "title": "Austin building permit 2026-118574 BP — Building Permit",
+        "abstract": "row: 2026-118574 BP\ndate: 2026-09-10T00:00:00.000\nmodified_date: 2026-09-10T00:00:00.000\ndescription: Remodel Hospital - 2nd Floor - PACU - with associated above and below ceiling/floor work (2) Applications\nclass: Commercial\nwork: Remodel\ntype: Building Permit\nstatus: Active\naddress: 919 E 32ND ST\ncity: AUSTIN\nstate: TX\nlink: https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13769852\nproject: 13769852",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13769852",
+        "published_at": "2026-09-10",
+        "source_id": "austin-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Austin Open Data",
+        "event_date": "2026-09-10",
+        "event_date_label": "Permit issue date",
+        "project_name": "AUSTIN permit 2026-118574 BP",
+        "location": "919 E 32ND ST, AUSTIN, TX",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "29524899-689d-4e6a-b5d2-2f0eb2578dae",
+      "evidence_hash": "f2253e21bfb07fb7e522cf54bb3a1f6cec94dc7aaa216aa3f89a15ce3832cc3d",
+      "state": {
+        "title": "Austin building permit 2026-118573 BP — Building Permit",
+        "abstract": "row: 2026-118573 BP\ndate: 2026-09-10T00:00:00.000\nmodified_date: 2026-09-10T00:00:00.000\ndescription: Remodel Hospital - 2nd Floor - Surgery - with associated above and below ceiling/floor work. (2) Applications\nclass: Commercial\nwork: Remodel\ntype: Building Permit\nstatus: Active\naddress: 919 E 32ND ST\ncity: AUSTIN\nstate: TX\nlink: https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13769851\nproject: 13769851",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13769851",
+        "published_at": "2026-09-10",
+        "source_id": "austin-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Austin Open Data",
+        "event_date": "2026-09-10",
+        "event_date_label": "Permit issue date",
+        "project_name": "AUSTIN permit 2026-118573 BP",
+        "location": "919 E 32ND ST, AUSTIN, TX",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "68302199-7856-4349-a6d7-505e113e16dd",
+      "evidence_hash": "1a33feffcf9c4d4ae14eace423c1dfe68149874281b53d1ebcd7fb2dfdab0f44",
+      "state": {
+        "title": "Austin building permit 2026-116148 BP — Building Permit",
+        "abstract": "row: 2026-116148 BP\ndate: 2026-09-08T00:00:00.000\nmodified_date: 2026-09-08T00:00:00.000\ndescription: ePlan: Commercial Expedited Review - Interior Remodel to Existing Manufacturing Facility (20000 SF).\nclass: Commercial\nwork: Remodel\ntype: Building Permit\nstatus: Active\naddress: 1300 E ANDERSON LN SVRD WB BLDG A\ncity: AUSTIN\nstate: TX\nlink: https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13766913\nproject: 13766913",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13766913",
+        "published_at": "2026-09-08",
+        "source_id": "austin-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Austin Open Data",
+        "event_date": "2026-09-08",
+        "event_date_label": "Permit issue date",
+        "project_name": "AUSTIN permit 2026-116148 BP",
+        "location": "1300 E ANDERSON LN SVRD WB BLDG A, AUSTIN, TX",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "cbd25837-67e8-4eb8-8be9-f130fc0c52fb",
+      "evidence_hash": "d00456dba31e1e4a3aaba68457899f982139f86d965b116e630c0aafc868bced",
+      "state": {
+        "title": "Austin building permit 2024-163869 BP — Building Permit",
+        "abstract": "row: 2024-163869 BP\ndate: 2026-09-02T00:00:00.000\nmodified_date: 2026-09-17T00:00:00.000\ndescription: New Construction Office Warehouse Building 4\nclass: Commercial\nwork: Shell\ntype: Building Permit\nstatus: Active\naddress: 3500 S SH 130 SVRD SB BLDG 4\ncity: AUSTIN\nstate: TX\nlink: https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13444515\nproject: 13444515\ncost: 1\narea: 133339",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13444515",
+        "published_at": "2026-09-02",
+        "source_id": "austin-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Austin Open Data",
+        "event_date": "2026-09-02",
+        "event_date_label": "Permit issue date",
+        "project_name": "AUSTIN permit 2024-163869 BP",
+        "location": "3500 S SH 130 SVRD SB BLDG 4, AUSTIN, TX",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "2a58d592-5147-4bf9-a980-01ef268564fe",
+      "evidence_hash": "c0489a4c48178b636f1a0ae2ba437930ca6bf8f5879d05af3b275d6cd0157d75",
+      "state": {
+        "title": "Austin building permit 2024-163868 BP — Building Permit",
+        "abstract": "row: 2024-163868 BP\ndate: 2026-09-02T00:00:00.000\nmodified_date: 2026-09-17T00:00:00.000\ndescription: New Construction Office Warehouse Building 3\nclass: Commercial\nwork: Shell\ntype: Building Permit\nstatus: Active\naddress: 3500 S SH 130 SVRD SB BLDG 3\ncity: AUSTIN\nstate: TX\nlink: https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13444514\nproject: 13444514\ncost: 1\narea: 133354",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13444514",
+        "published_at": "2026-09-02",
+        "source_id": "austin-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Austin Open Data",
+        "event_date": "2026-09-02",
+        "event_date_label": "Permit issue date",
+        "project_name": "AUSTIN permit 2024-163868 BP",
+        "location": "3500 S SH 130 SVRD SB BLDG 3, AUSTIN, TX",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "8b826f35-75f5-44cc-aaa9-dbea8d24159d",
+      "evidence_hash": "1aa97da0ac76f614d3cd33341bfde7c778b780b7dc11b7addcc4b7ec9860a336",
+      "state": {
+        "title": "Austin building permit 2026-097374 BP — Building Permit",
+        "abstract": "row: 2026-097374 BP\ndate: 2026-09-01T00:00:00.000\nmodified_date: 2026-09-01T00:00:00.000\ndescription: Generator replacement. Existing natural gas NG generator and its pad will be removed the new 4 x 8 pad to be poured to install new NG generator. A new ATS will be installed to replace existing on AT and Ts existing shelter building\nclass: Commercial\nwork: Remodel\ntype: Building Permit\nstatus: Active\naddress: 13945 1/2 N US 183 HWY SVRD NB\ncity: AUSTIN\nstate: TX\nlink: https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13745507\nproject: 13745507",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13745507",
+        "published_at": "2026-09-01",
+        "source_id": "austin-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Austin Open Data",
+        "event_date": "2026-09-01",
+        "event_date_label": "Permit issue date",
+        "project_name": "AUSTIN permit 2026-097374 BP",
+        "location": "13945 1/2 N US 183 HWY SVRD NB, AUSTIN, TX",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "402b40af-3523-45ae-9162-c4edafdfc4e4",
+      "evidence_hash": "3df2f81bd3d442bbb3f987a91f7fc62dfa488a76917c9832bd44e9119f64f27f",
+      "state": {
+        "title": "Austin building permit 2026-060198 BP — Building Permit",
+        "abstract": "row: 2026-060198 BP\ndate: 2026-08-10T00:00:00.000\nmodified_date: 2026-09-24T00:00:00.000\ndescription: Facade renovation of existing warehouse to shell condition including demolition of interior partitions modification of openings in tilt-wall addition and replacement of storefront and installation of new awnings and planters. [4612 Burleson Rd.]\nclass: Commercial\nwork: Remodel\ntype: Building Permit\nstatus: Active\naddress: 4606 BURLESON RD\ncity: AUSTIN\nstate: TX\nlink: https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13703282\nproject: 13703282",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13703282",
+        "published_at": "2026-08-10",
+        "source_id": "austin-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Austin Open Data",
+        "event_date": "2026-08-10",
+        "event_date_label": "Permit issue date",
+        "project_name": "AUSTIN permit 2026-060198 BP",
+        "location": "4606 BURLESON RD, AUSTIN, TX",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "a797613d-df43-4063-943d-89ab89199cc1",
+      "evidence_hash": "5bf791043e2f0d524e8699ed3ffff3997b20cc1fde8eb2a5a2c16f724bd2e8a5",
+      "state": {
+        "title": "Austin building permit 2026-095413 BP — Building Permit",
+        "abstract": "row: 2026-095413 BP\ndate: 2026-07-27T00:00:00.000\nmodified_date: 2026-09-25T00:00:00.000\ndescription: ePlan: Commercial Expedited Review - [APPROVED New Construction of Behavior Health Hospital located at the Texas Neuro Rehab Center Campus (46219 SF).\nclass: Commercial\nwork: New\ntype: Building Permit\nstatus: Active\naddress: 1106 W DITTMAR RD BLDG 30\ncity: AUSTIN\nstate: TX\nlink: https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13743166\nproject: 13743166\ncost: 30400000\narea: 46219",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13743166",
+        "published_at": "2026-07-27",
+        "source_id": "austin-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Austin Open Data",
+        "event_date": "2026-07-27",
+        "event_date_label": "Permit issue date",
+        "project_name": "AUSTIN permit 2026-095413 BP",
+        "location": "1106 W DITTMAR RD BLDG 30, AUSTIN, TX",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "a2632b8d-00c9-42b4-9c95-964f8c417012",
+      "evidence_hash": "2115362286fccef01fd34a4ac51e07640985575dc979d346fc096b81160a8311",
+      "state": {
+        "title": "Austin building permit 2026-060197 BP — Building Permit",
+        "abstract": "row: 2026-060197 BP\ndate: 2026-05-18T00:00:00.000\nmodified_date: 2026-09-24T00:00:00.000\ndescription: Facade renovation of existing warehouse to shell condition including demolition of interior partitions modification of openings in tilt-wall addition and replacement of storefront and installation of new awnings and planters. [4606 Burleson Rd.]\nclass: Commercial\nwork: Remodel\ntype: Building Permit\nstatus: Active\naddress: 4606 BURLESON RD\ncity: AUSTIN\nstate: TX\nlink: https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13703281\nproject: 13703281",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13703281",
+        "published_at": "2026-05-18",
+        "source_id": "austin-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Austin Open Data",
+        "event_date": "2026-05-18",
+        "event_date_label": "Permit issue date",
+        "project_name": "AUSTIN permit 2026-060197 BP",
+        "location": "4606 BURLESON RD, AUSTIN, TX",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "de70f1fd-d071-44bc-a8c0-696af2a64814",
+      "evidence_hash": "c6d3a98c7d8be58a7eef165de8a010dde435653043a434c718dcf8ed9ceb44c9",
+      "state": {
+        "title": "Austin building permit 2026-059493 BP — Building Permit",
+        "abstract": "row: 2026-059493 BP\ndate: 2026-05-18T00:00:00.000\nmodified_date: 2026-09-25T00:00:00.000\ndescription: New Construction of Office Warehouse.\nclass: Commercial\nwork: New\ntype: Building Permit\nstatus: Active\naddress: 8306 CROSS PARK DR\ncity: AUSTIN\nstate: TX\nlink: https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13702484\nproject: 13702484\ncost: 5000000\narea: 44396",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13702484",
+        "published_at": "2026-05-18",
+        "source_id": "austin-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Austin Open Data",
+        "event_date": "2026-05-18",
+        "event_date_label": "Permit issue date",
+        "project_name": "AUSTIN permit 2026-059493 BP",
+        "location": "8306 CROSS PARK DR, AUSTIN, TX",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "5675156e-4c6e-43a3-a420-f8b5d95f77f0",
+      "evidence_hash": "fe7f07044fd2264e3fe36d49013a807f1e31b99baf30d43f736ba38c7e647653",
+      "state": {
+        "title": "Austin building permit 2026-047761 BP — Building Permit",
+        "abstract": "row: 2026-047761 BP\ndate: 2026-04-23T00:00:00.000\nmodified_date: 2026-09-25T00:00:00.000\ndescription: Generator Replacement. Existing diesel generator/pad will be removed then new 4x10 pad to be poured to install new diesel generator; and install a new ATS to replace existing. All work will be within existing fenced compound.\nclass: Commercial\nwork: New\ntype: Building Permit\nstatus: Active\naddress: 2504 1/2 GARDENIA DR\ncity: AUSTIN\nstate: TX\nlink: https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13689066\nproject: 13689066\ncost: 23500\narea: 40",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13689066",
+        "published_at": "2026-04-23",
+        "source_id": "austin-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Austin Open Data",
+        "event_date": "2026-04-23",
+        "event_date_label": "Permit issue date",
+        "project_name": "AUSTIN permit 2026-047761 BP",
+        "location": "2504 1/2 GARDENIA DR, AUSTIN, TX",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "bb8b36df-2e47-42d6-9469-a6f9f235d557",
+      "evidence_hash": "14d0fc0338fea62bfe2001c460412c34b0895de38096dd05c3fdd0041dddd1ae",
+      "state": {
+        "title": "Austin building permit 2025-061221 BP — Building Permit",
+        "abstract": "row: 2025-061221 BP\ndate: 2026-04-03T00:00:00.000\nmodified_date: 2026-09-25T00:00:00.000\ndescription: ePlan: Commercial Expedited Review - Interior Remodel to Existing Emergency Department at Hospital - Phase 2 (1007145 SF)\nclass: Commercial\nwork: Remodel\ntype: Building Permit\nstatus: Active\naddress: 12221 N MOPAC EXPY SVRD NB\ncity: AUSTIN\nstate: TX\nlink: https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13519371\nproject: 13519371",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13519371",
+        "published_at": "2026-04-03",
+        "source_id": "austin-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Austin Open Data",
+        "event_date": "2026-04-03",
+        "event_date_label": "Permit issue date",
+        "project_name": "AUSTIN permit 2025-061221 BP",
+        "location": "12221 N MOPAC EXPY SVRD NB, AUSTIN, TX",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "61168e2d-8b3d-4541-b7a9-fa42831cd46a",
+      "evidence_hash": "090f3b4275246bf99c83fa99f6f2d96ec3c2d45b76ac7205d747e90ec8b433e6",
+      "state": {
+        "title": "Austin building permit 2026-025858 BP — Building Permit",
+        "abstract": "row: 2026-025858 BP\ndate: 2026-03-05T00:00:00.000\nmodified_date: 2026-09-22T00:00:00.000\ndescription: New Construction Shell Warehouse for Building 2 SP-2024-0126C - Concurrent Reviews\nclass: Commercial\nwork: Shell\ntype: Building Permit\nstatus: Active\naddress: 8001 METROPOLIS DR BLDG 2\ncity: AUSTIN\nstate: TX\nlink: https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13664021\nproject: 13664021\ncost: 1\narea: 121000",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13664021",
+        "published_at": "2026-03-05",
+        "source_id": "austin-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Austin Open Data",
+        "event_date": "2026-03-05",
+        "event_date_label": "Permit issue date",
+        "project_name": "AUSTIN permit 2026-025858 BP",
+        "location": "8001 METROPOLIS DR BLDG 2, AUSTIN, TX",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "73d7bc3f-83cb-4f8d-98a5-03da0521c94b",
+      "evidence_hash": "7e92d680c126b4605a4c1822aed4abd6e219785f112010db00dbb422379e32fd",
+      "state": {
+        "title": "Austin building permit 2025-049094 BP — Building Permit",
+        "abstract": "row: 2025-049094 BP\ndate: 2026-02-19T00:00:00.000\nmodified_date: 2026-09-24T00:00:00.000\ndescription: Generator Replacement - the generator is getting larger to wire back up the entire assisted living care facility (Exterior only for SF)\nclass: Commercial\nwork: Remodel\ntype: Building Permit\nstatus: Active\naddress: 11630 FOUR IRON DR\ncity: AUSTIN\nstate: TX\nlink: https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13505261\nproject: 13505261",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13505261",
+        "published_at": "2026-02-19",
+        "source_id": "austin-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Austin Open Data",
+        "event_date": "2026-02-19",
+        "event_date_label": "Permit issue date",
+        "project_name": "AUSTIN permit 2025-049094 BP",
+        "location": "11630 FOUR IRON DR, AUSTIN, TX",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "6437e42b-1720-4625-89aa-541c0ba98306",
+      "evidence_hash": "60e8db6f488ff3881ca7b503e0f7c8dca2f37aca31841e4da035d6fc2534bd12",
+      "state": {
+        "title": "Austin building permit 2026-009429 BP — Building Permit",
+        "abstract": "row: 2026-009429 BP\ndate: 2026-02-04T00:00:00.000\nmodified_date: 2026-09-25T00:00:00.000\ndescription: ePlan: Commercial Expedited Review - Interior Remodel to Existing Admin Office Areas Bldg 3 and replace transformer pad (103235 SF).\nclass: Commercial\nwork: Remodel\ntype: Building Permit\nstatus: Active\naddress: 7401 E BEN WHITE BLVD SVRD EB BLDG 3\ncity: AUSTIN\nstate: TX\nlink: https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13645441\nproject: 13645441",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13645441",
+        "published_at": "2026-02-04",
+        "source_id": "austin-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Austin Open Data",
+        "event_date": "2026-02-04",
+        "event_date_label": "Permit issue date",
+        "project_name": "AUSTIN permit 2026-009429 BP",
+        "location": "7401 E BEN WHITE BLVD SVRD EB BLDG 3, AUSTIN, TX",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "6883e143-8e0a-44f0-b4b4-50fc612ce239",
+      "evidence_hash": "90bcba953a4b71bcf4aa9465d4e0437448cc7981e347694b61978ae5725f7cb4",
+      "state": {
+        "title": "Austin building permit 2025-155325 BP — Building Permit",
+        "abstract": "row: 2025-155325 BP\ndate: 2025-12-18T00:00:00.000\nmodified_date: 2026-09-22T00:00:00.000\ndescription: ePlan: Commercial Expedited Review - Finish out to Expand Data Center into existing Shell Areas. Scope of Work Includes 2 AE Transformers. (10000 SF)\nclass: Commercial\nwork: Remodel\ntype: Building Permit\nstatus: Active\naddress: 7000 BURLESON RD BLDG B UNIT 100\ncity: AUSTIN\nstate: TX\nlink: https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13624967\nproject: 13624967",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13624967",
+        "published_at": "2025-12-18",
+        "source_id": "austin-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Austin Open Data",
+        "event_date": "2025-12-18",
+        "event_date_label": "Permit issue date",
+        "project_name": "AUSTIN permit 2025-155325 BP",
+        "location": "7000 BURLESON RD BLDG B UNIT 100, AUSTIN, TX",
+        "asset_type": "data_center",
+        "lifecycle_state": "electrical_buildout"
+      }
+    },
+    {
+      "record_id": "90dbf038-e0c7-4e7b-ac3d-be1982d4fe25",
+      "evidence_hash": "4e6a130a65cfd18ae1b66a9d022e30a9f56a7f4c310badc19f760fc5290187b3",
+      "state": {
+        "title": "Austin building permit 2025-083701 BP — Building Permit",
+        "abstract": "row: 2025-083701 BP\ndate: 2025-07-09T00:00:00.000\nmodified_date: 2026-09-24T00:00:00.000\ndescription: New construction of Office/LTD Warehouse Distribution Shell Building\nclass: Commercial\nwork: New\ntype: Building Permit\nstatus: Active\naddress: 3127 E HOWARD LN BLDG 3\ncity: AUSTIN\nstate: TX\nlink: https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13544834\nproject: 13544834\ncost: 15000\narea: 15000",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13544834",
+        "published_at": "2025-07-09",
+        "source_id": "austin-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Austin Open Data",
+        "event_date": "2025-07-09",
+        "event_date_label": "Permit issue date",
+        "project_name": "AUSTIN permit 2025-083701 BP",
+        "location": "3127 E HOWARD LN BLDG 3, AUSTIN, TX",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "296d9862-827c-483d-a6f6-0603f2e9690e",
+      "evidence_hash": "868f1c0c0a3371575d18bc9a5967bc1d032ea0079971ab045a4983c2bd721de9",
+      "state": {
+        "title": "Austin building permit 2025-083700 BP — Building Permit",
+        "abstract": "row: 2025-083700 BP\ndate: 2025-07-09T00:00:00.000\nmodified_date: 2026-09-24T00:00:00.000\ndescription: New construction of Office/LTD Warehouse Distribution Shell Building\nclass: Commercial\nwork: New\ntype: Building Permit\nstatus: Active\naddress: 3127 E HOWARD LN BLDG 2\ncity: AUSTIN\nstate: TX\nlink: https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13544833\nproject: 13544833\ncost: 15000\narea: 15000",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13544833",
+        "published_at": "2025-07-09",
+        "source_id": "austin-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Austin Open Data",
+        "event_date": "2025-07-09",
+        "event_date_label": "Permit issue date",
+        "project_name": "AUSTIN permit 2025-083700 BP",
+        "location": "3127 E HOWARD LN BLDG 2, AUSTIN, TX",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "50991d50-a3d5-473d-b227-a1ae73c96de5",
+      "evidence_hash": "2aaec75c9f08f64a32e1ca472ca8a5db4b760e834cdf7c69fca6b6fa31e36b30",
+      "state": {
+        "title": "Austin building permit 2025-083699 BP — Building Permit",
+        "abstract": "row: 2025-083699 BP\ndate: 2025-07-09T00:00:00.000\nmodified_date: 2026-09-24T00:00:00.000\ndescription: New construction of Office/LTD Warehouse Distribution Shell Building\nclass: Commercial\nwork: New\ntype: Building Permit\nstatus: Active\naddress: 3127 E HOWARD LN BLDG 1\ncity: AUSTIN\nstate: TX\nlink: https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13544832\nproject: 13544832\ncost: 15000\narea: 15000",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13544832",
+        "published_at": "2025-07-09",
+        "source_id": "austin-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Austin Open Data",
+        "event_date": "2025-07-09",
+        "event_date_label": "Permit issue date",
+        "project_name": "AUSTIN permit 2025-083699 BP",
+        "location": "3127 E HOWARD LN BLDG 1, AUSTIN, TX",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "ad2cc771-c2ce-4a43-a4bf-2804862fc985",
+      "evidence_hash": "6459faa2a3f87274fa6fe01953dc2ea54959b501746fa5427a6ad14a127d1fed",
+      "state": {
+        "title": "Austin building permit 2025-030010 BP — Building Permit",
+        "abstract": "row: 2025-030010 BP\ndate: 2025-04-15T00:00:00.000\nmodified_date: 2026-09-28T00:00:00.000\ndescription: THIS PROJECT CONSISTS OF RENOVATION ON THE GROUND FLOOR OF THE EXISTING ASCENSION SETON MAIN CAMPUS HOSPITAL TO EXPAND AND MODERNIZE THE EXISTING STERILE PROCESSING DEPARTMENT. ALTERATIONS WILL ALSO EXTEND INTO AREAS AND FLOORS BEYOND THIS DEPARTMENT TO ACCOMMODATE UPDATED MECHANICAL AND EXHAUST SYSTEMS. FLOOR 1 [Phase 3B]\nclass: Commercial\nwork: Remodel\ntype: Building Permit\nstatus: Active\naddress: 1201 W 38TH ST\ncity: AUSTIN\nstate: TX\nlink: https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13483102\nproject: 13483102",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13483102",
+        "published_at": "2025-04-15",
+        "source_id": "austin-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Austin Open Data",
+        "event_date": "2025-04-15",
+        "event_date_label": "Permit issue date",
+        "project_name": "AUSTIN permit 2025-030010 BP",
+        "location": "1201 W 38TH ST, AUSTIN, TX",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "49edf61c-259e-4ade-841b-cbf9b8e93ff6",
+      "evidence_hash": "c839efcdf095fb1b1806cbd2f150fbdcca699e00678227f3982197fb14370539",
+      "state": {
+        "title": "Austin building permit 2025-030009 BP — Building Permit",
+        "abstract": "row: 2025-030009 BP\ndate: 2025-04-15T00:00:00.000\nmodified_date: 2026-09-28T00:00:00.000\ndescription: THIS PROJECT CONSISTS OF RENOVATION ON THE GROUND FLOOR OF THE EXISTING ASCENSION SETON MAIN CAMPUS HOSPITAL TO EXPAND AND MODERNIZE THE EXISTING STERILE PROCESSING DEPARTMENT. ALTERATIONS WILL ALSO EXTEND INTO AREAS AND FLOORS BEYOND THIS DEPARTMENT TO ACCOMMODATE UPDATED MECHANICAL AND EXHAUST SYSTEMS. FLOOR 1 [Phase 3A]\nclass: Commercial\nwork: Remodel\ntype: Building Permit\nstatus: Active\naddress: 1201 W 38TH ST\ncity: AUSTIN\nstate: TX\nlink: https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13483101\nproject: 13483101",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13483101",
+        "published_at": "2025-04-15",
+        "source_id": "austin-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Austin Open Data",
+        "event_date": "2025-04-15",
+        "event_date_label": "Permit issue date",
+        "project_name": "AUSTIN permit 2025-030009 BP",
+        "location": "1201 W 38TH ST, AUSTIN, TX",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "372904a7-1636-4e41-978c-404ffc6c9f14",
+      "evidence_hash": "b8ec25ee6394d08257e4169ec7063aded4615de73c93d3a1c310a1c9468f69d6",
+      "state": {
+        "title": "Austin building permit 2025-030008 BP — Building Permit",
+        "abstract": "row: 2025-030008 BP\ndate: 2025-04-15T00:00:00.000\nmodified_date: 2026-09-28T00:00:00.000\ndescription: THIS PROJECT CONSISTS OF RENOVATION ON THE GROUND FLOOR OF THE EXISTING ASCENSION SETON MAIN CAMPUS HOSPITAL TO EXPAND AND MODERNIZE THE EXISTING STERILE PROCESSING DEPARTMENT. ALTERATIONS WILL ALSO EXTEND INTO AREAS AND FLOORS BEYOND THIS DEPARTMENT TO ACCOMMODATE UPDATED MECHANICAL AND EXHAUST SYSTEMS. FLOOR 1 [Phase II]\nclass: Commercial\nwork: Remodel\ntype: Building Permit\nstatus: Active\naddress: 1201 W 38TH ST\ncity: AUSTIN\nstate: TX\nlink: https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13483100\nproject: 13483100",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13483100",
+        "published_at": "2025-04-15",
+        "source_id": "austin-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Austin Open Data",
+        "event_date": "2025-04-15",
+        "event_date_label": "Permit issue date",
+        "project_name": "AUSTIN permit 2025-030008 BP",
+        "location": "1201 W 38TH ST, AUSTIN, TX",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "e6780fa3-36d8-423b-b799-dd4f96ac888d",
+      "evidence_hash": "72614e1e4420ebe7aa24ab42cfba187e02ce31932679f5109303c1f3ce99688a",
+      "state": {
+        "title": "Austin building permit 2025-030011 BP — Building Permit",
+        "abstract": "row: 2025-030011 BP\ndate: 2025-03-21T00:00:00.000\nmodified_date: 2026-09-28T00:00:00.000\ndescription: THIS PROJECT CONSISTS OF RENOVATION ON THE GROUND FLOOR OF THE EXISTING ASCENSION SETON MAIN CAMPUS HOSPITAL TO EXPAND AND MODERNIZE THE EXISTING STERILE PROCESSING DEPARTMENT. ALTERATIONS WILL ALSO EXTEND INTO AREAS AND FLOORS BEYOND THIS DEPARTMENT TO ACCOMMODATE UPDATED MECHANICAL AND EXHAUST SYSTEMS. FLOOR 1\nclass: Commercial\nwork: Remodel\ntype: Building Permit\nstatus: Active\naddress: 1201 W 38TH ST\ncity: AUSTIN\nstate: TX\nlink: https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13483103\nproject: 13483103",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13483103",
+        "published_at": "2025-03-21",
+        "source_id": "austin-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Austin Open Data",
+        "event_date": "2025-03-21",
+        "event_date_label": "Permit issue date",
+        "project_name": "AUSTIN permit 2025-030011 BP",
+        "location": "1201 W 38TH ST, AUSTIN, TX",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "73032b6a-5379-4ffb-952a-78e37601b0b0",
+      "evidence_hash": "401d27fdc8522806dfd2b3a1cd1014aaed37d2bf6f84289fdc4eeebc5d91ef95",
+      "state": {
+        "title": "Austin building permit 2025-021103 BP — Building Permit",
+        "abstract": "row: 2025-021103 BP\ndate: 2025-03-07T00:00:00.000\nmodified_date: 2026-09-28T00:00:00.000\ndescription: New Construction Of A Concrete Tilt-Wall Cold Dark Shell Warehouse With Associated Site Work (4) Applications\nclass: Commercial\nwork: New\ntype: Building Permit\nstatus: Active\naddress: 7051 BURLESON RD BLDG 4\ncity: AUSTIN\nstate: TX\nlink: https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13472826\nproject: 13472826\ncost: 1\narea: 118084",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13472826",
+        "published_at": "2025-03-07",
+        "source_id": "austin-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Austin Open Data",
+        "event_date": "2025-03-07",
+        "event_date_label": "Permit issue date",
+        "project_name": "AUSTIN permit 2025-021103 BP",
+        "location": "7051 BURLESON RD BLDG 4, AUSTIN, TX",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "5ecd912f-0173-47d7-9b8d-27ad9caccd30",
+      "evidence_hash": "5c4fd947182e80e2c589bcaae02cc2e0bf9e5b542df1ccf59bbd8f11d81d1426",
+      "state": {
+        "title": "Austin building permit 2025-021102 BP — Building Permit",
+        "abstract": "row: 2025-021102 BP\ndate: 2025-03-07T00:00:00.000\nmodified_date: 2026-09-28T00:00:00.000\ndescription: New Construction Of A Concrete Tilt-Wall Cold Dark Shell Warehouse With Associated Site Work (4) Applications\nclass: Commercial\nwork: New\ntype: Building Permit\nstatus: Active\naddress: 7051 BURLESON RD BLDG 3\ncity: AUSTIN\nstate: TX\nlink: https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13472825\nproject: 13472825\ncost: 1\narea: 103534",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13472825",
+        "published_at": "2025-03-07",
+        "source_id": "austin-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Austin Open Data",
+        "event_date": "2025-03-07",
+        "event_date_label": "Permit issue date",
+        "project_name": "AUSTIN permit 2025-021102 BP",
+        "location": "7051 BURLESON RD BLDG 3, AUSTIN, TX",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "0175e801-81a2-4c88-8367-7d2dc5c32ca0",
+      "evidence_hash": "69ea4b704c75308363c219ebde4b1aaf480719737c8073fa1aba249ab1a7192f",
+      "state": {
+        "title": "Austin building permit 2025-021101 BP — Building Permit",
+        "abstract": "row: 2025-021101 BP\ndate: 2025-03-07T00:00:00.000\nmodified_date: 2026-09-28T00:00:00.000\ndescription: New Construction Of A Concrete Tilt-Wall Cold Dark Shell Warehouse With Associated Site Work (4) Applications\nclass: Commercial\nwork: New\ntype: Building Permit\nstatus: Active\naddress: 7051 BURLESON RD BLDG 2\ncity: AUSTIN\nstate: TX\nlink: https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13472824\nproject: 13472824\ncost: 1\narea: 263684",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13472824",
+        "published_at": "2025-03-07",
+        "source_id": "austin-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Austin Open Data",
+        "event_date": "2025-03-07",
+        "event_date_label": "Permit issue date",
+        "project_name": "AUSTIN permit 2025-021101 BP",
+        "location": "7051 BURLESON RD BLDG 2, AUSTIN, TX",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "66f4688c-7d12-49a5-adc3-8ed8a2090cba",
+      "evidence_hash": "7ee13ae5c14ab59ff87b51ab1cc816736fe3fa139f084d41410dba91995d24a2",
+      "state": {
+        "title": "Austin building permit 2025-021100 BP — Building Permit",
+        "abstract": "row: 2025-021100 BP\ndate: 2025-03-07T00:00:00.000\nmodified_date: 2026-09-28T00:00:00.000\ndescription: New Construction Of A Concrete Tilt-Wall Cold Dark Shell Warehouse With Associated Site Work (4) Applications\nclass: Commercial\nwork: New\ntype: Building Permit\nstatus: Active\naddress: 7051 BURLESON RD BLDG 1\ncity: AUSTIN\nstate: TX\nlink: https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13472823\nproject: 13472823\ncost: 1\narea: 140887",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13472823",
+        "published_at": "2025-03-07",
+        "source_id": "austin-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Austin Open Data",
+        "event_date": "2025-03-07",
+        "event_date_label": "Permit issue date",
+        "project_name": "AUSTIN permit 2025-021100 BP",
+        "location": "7051 BURLESON RD BLDG 1, AUSTIN, TX",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "a4a94ce4-7ad8-433f-b194-ddf1c3ff9a58",
+      "evidence_hash": "c369d3ae51969979f7d80ec44e656ad1f4f764d7c1d4785166cbfb7f39a6a30a",
+      "state": {
+        "title": "Austin building permit 2021-125161 BP — Building Permit",
+        "abstract": "row: 2021-125161 BP\ndate: 2025-02-25T00:00:00.000\nmodified_date: 2026-09-28T00:00:00.000\ndescription: New Construction Industrial Warehouse (20239 sf.) Hydraulics / Bearings Shop\nclass: Commercial\nwork: New\ntype: Building Permit\nstatus: Active\naddress: 6412 OLD BURLESON RD\ncity: AUSTIN\nstate: TX\nlink: https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=12759581\nproject: 12759581\ncost: 2800000\narea: 20239",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=12759581",
+        "published_at": "2025-02-25",
+        "source_id": "austin-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Austin Open Data",
+        "event_date": "2025-02-25",
+        "event_date_label": "Permit issue date",
+        "project_name": "AUSTIN permit 2021-125161 BP",
+        "location": "6412 OLD BURLESON RD, AUSTIN, TX",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "b71358a5-6fde-481e-b4dc-648d12b6dc77",
+      "evidence_hash": "21aed407f70d6b5db4c3eaef335244666e6d230639c277d1653ef641024937bf",
+      "state": {
+        "title": "Austin building permit 2024-128817 BP — Building Permit",
+        "abstract": "row: 2024-128817 BP\ndate: 2024-11-01T00:00:00.000\nmodified_date: 2026-09-25T00:00:00.000\ndescription: New construction of Office Warehouse Shell.(NOT FOR OCCUPANCY) (Previous review expired 2023-011412 PR)\nclass: Commercial\nwork: New\ntype: Building Permit\nstatus: Active\naddress: 8110 E US 290 HWY SVRD WB BLDG 2\ncity: AUSTIN\nstate: TX\nlink: https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13404870\nproject: 13404870\ncost: 895950\narea: 17919",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13404870",
+        "published_at": "2024-11-01",
+        "source_id": "austin-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Austin Open Data",
+        "event_date": "2024-11-01",
+        "event_date_label": "Permit issue date",
+        "project_name": "AUSTIN permit 2024-128817 BP",
+        "location": "8110 E US 290 HWY SVRD WB BLDG 2, AUSTIN, TX",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "a52d1667-7b74-43f7-8ac2-b1473bd6e806",
+      "evidence_hash": "1c033036b6b5b73121f0d12834d27681f34f2823d3fd8162bbb932bc2ae85374",
+      "state": {
+        "title": "Austin building permit 2023-086827 BP — Building Permit",
+        "abstract": "row: 2023-086827 BP\ndate: 2024-01-23T00:00:00.000\nmodified_date: 2026-09-22T00:00:00.000\ndescription: New ground of construction of one story tilt wall warehouse with small office S-1 and B Occupancies\nclass: Commercial\nwork: New\ntype: Building Permit\nstatus: Active\naddress: 7200 BURLESON RD BLDG 4\ncity: AUSTIN\nstate: TX\nlink: https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13172136\nproject: 13172136\ncost: 18104000\narea: 27081",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13172136",
+        "published_at": "2024-01-23",
+        "source_id": "austin-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Austin Open Data",
+        "event_date": "2024-01-23",
+        "event_date_label": "Permit issue date",
+        "project_name": "AUSTIN permit 2023-086827 BP",
+        "location": "7200 BURLESON RD BLDG 4, AUSTIN, TX",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "16e69831-0dfe-49ad-b7f9-530302efb890",
+      "evidence_hash": "0da1922109ef2f558150e7feab966d434eb2eca3a4691d4548ea9fd78c91134e",
+      "state": {
+        "title": "Austin building permit 2023-086826 BP — Building Permit",
+        "abstract": "row: 2023-086826 BP\ndate: 2024-01-23T00:00:00.000\nmodified_date: 2026-09-22T00:00:00.000\ndescription: New ground of construction of one story tilt wall warehouse with small office S-1 and B Occupancies\nclass: Commercial\nwork: New\ntype: Building Permit\nstatus: Active\naddress: 7200 BURLESON RD BLDG 3\ncity: AUSTIN\nstate: TX\nlink: https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13172135\nproject: 13172135\ncost: 18104000\narea: 20222",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13172135",
+        "published_at": "2024-01-23",
+        "source_id": "austin-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Austin Open Data",
+        "event_date": "2024-01-23",
+        "event_date_label": "Permit issue date",
+        "project_name": "AUSTIN permit 2023-086826 BP",
+        "location": "7200 BURLESON RD BLDG 3, AUSTIN, TX",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "4395fac6-4b64-4860-8f35-56dbedc147b0",
+      "evidence_hash": "80dfcbbf629b5c6e6a04a0268c290ae0a5e7c73dc15d27cf997097369d721509",
+      "state": {
+        "title": "Austin building permit 2023-086825 BP — Building Permit",
+        "abstract": "row: 2023-086825 BP\ndate: 2024-01-23T00:00:00.000\nmodified_date: 2026-09-22T00:00:00.000\ndescription: New ground of construction of one story tilt wall warehouse with small office S-1 and B Occupancies\nclass: Commercial\nwork: New\ntype: Building Permit\nstatus: Active\naddress: 7200 BURLESON RD BLDG 2\ncity: AUSTIN\nstate: TX\nlink: https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13172134\nproject: 13172134\ncost: 18104000\narea: 39441",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13172134",
+        "published_at": "2024-01-23",
+        "source_id": "austin-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Austin Open Data",
+        "event_date": "2024-01-23",
+        "event_date_label": "Permit issue date",
+        "project_name": "AUSTIN permit 2023-086825 BP",
+        "location": "7200 BURLESON RD BLDG 2, AUSTIN, TX",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "dfbf43bc-e5fa-4199-8ce2-c7258586c064",
+      "evidence_hash": "54f9a82005aec2b513d6aa18a2b16fc01e4a8c1836f2190f1381e1b0ece3358f",
+      "state": {
+        "title": "Austin building permit 2023-086823 BP — Building Permit",
+        "abstract": "row: 2023-086823 BP\ndate: 2024-01-23T00:00:00.000\nmodified_date: 2026-09-22T00:00:00.000\ndescription: New ground of construction of one story tilt wall warehouse with small office S-1 and B Occupancies\nclass: Commercial\nwork: New\ntype: Building Permit\nstatus: Active\naddress: 7200 BURLESON RD BLDG 1\ncity: AUSTIN\nstate: TX\nlink: https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13172132\nproject: 13172132\ncost: 18104000\narea: 44842",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13172132",
+        "published_at": "2024-01-23",
+        "source_id": "austin-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Austin Open Data",
+        "event_date": "2024-01-23",
+        "event_date_label": "Permit issue date",
+        "project_name": "AUSTIN permit 2023-086823 BP",
+        "location": "7200 BURLESON RD BLDG 1, AUSTIN, TX",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    },
+    {
+      "record_id": "cd55d16b-2531-44b5-b4a3-4c7322e602d0",
+      "evidence_hash": "54a6fd8b3279bf051d338e9f7ac5bab750a541d66609d9d98a52cabf5399a3dc",
+      "state": {
+        "title": "Austin building permit 2023-106541 BP — Building Permit",
+        "abstract": "row: 2023-106541 BP\ndate: 2023-08-21T00:00:00.000\nmodified_date: 2026-09-24T00:00:00.000\ndescription: ePlan-Expedited Review: Addition and Remodel to existing Hospital. Addition to include 4-Story Patient Beds and Penthouse will be enclosed. (147 948 SF)\nclass: Commercial\nwork: Addition and Remodel\ntype: Building Permit\nstatus: Active\naddress: 1500 RED RIVER ST\ncity: AUSTIN\nstate: TX\nlink: https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13194840\nproject: 13194840\ncost: 99000000\narea: 147948",
+        "url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13194840",
+        "published_at": "2023-08-21",
+        "source_id": "austin-building-permits",
+        "source_family": "construction-permits",
+        "publisher": "City of Austin Open Data",
+        "event_date": "2023-08-21",
+        "event_date_label": "Permit issue date",
+        "project_name": "AUSTIN permit 2023-106541 BP",
+        "location": "1500 RED RIVER ST, AUSTIN, TX",
+        "asset_type": "unknown",
+        "lifecycle_state": "unknown"
+      }
+    }
+  ]
+}

@@ -1,4 +1,6 @@
 # Work Graph
+GL3-016-A READY -> BUILD (2026-09-29): owner authorized production Jev Signal adjudication and conservative physical-project consolidation after PR #5 merged. Fresh branch `feat/gl3-016` from `c9a0e5d8887a6e8207a98d41a08ab7f952017d45`; backend packet `packets/GL3-016-backend.md`. Frontend depends on frozen backend contract. Exact human review baseline: 63 cards, 11 SHOW, 29 REVIEW, 23 HOLD; no source evidence deletion. `TYPESAFE_API_KEY` currently absent, so live model/corpus proof remains pending. GL3-017 enrichment and GL3-018 acquisition are excluded.
+
 | Node | Dependencies | Status | Outcome |
 |---|---|---|---|
 | GL3-001 | access checks, Tribunal | ACCEPTED LOCAL | Structured source, durable evidence, authenticated Signal browse/detail/health |
