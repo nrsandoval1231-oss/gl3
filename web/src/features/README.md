@@ -1,3 +1,3 @@
 # Feature areas
 
-`opportunities/`: tiers and detail. `morning/`: changes and digest. `pursuits/`: notes and follow-up. `sources/`: freshness and coverage. Create components when each journey is implemented.
+`opportunities/`: Signal project cards and SHOW / REVIEW / HOLD display used by the app shell. `buyingChain/`: merged GL3-017 project-scoped enrichment. `sources/`: source-health presentation lives in the app shell; this folder documents that boundary. `morning/` and `pursuits/`: intended journeys without their own feature modules.
