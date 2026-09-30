@@ -14,10 +14,10 @@ cloud environment. Normal public requests were used; no source restriction bypas
   This is not all data-center work. Existing page/byte/count/order limits remain.
   Live: **2,609 rows**, **78 accepted permit observations across 76 projects**;
   replay: 2,609 unchanged, zero new/changed. No Prospect/Lead promotion.
-  Latest recorded health on 2026-09-30 is **Failed**: the 22:00 UTC refresh
+  Historical health snapshot on 2026-09-30 was **Failed**: the 22:00 UTC refresh
   reported `Permit page retrieval failed: HTTPStatusError` (one parse failure),
   after the 21:52 UTC success. The successful retrieval/replay above remains
-  established; it does not mean the latest Austin refresh succeeded.
+  established. Follow-through below confirms subsequent recovery.
 - **Permit enrichment:** exact contractor/applicant organization, name, trade and
   permit-listed phone fields retained and visible before the existing enrichment
   action. Austin yields **57 organization candidates, 57 permit-listed person
@@ -152,3 +152,43 @@ they were ordinary implementation work, not a source-access denial.
 
 Raw official captures, database proofs, browser screenshots and run logs remain
 in ignored `.artifacts/gl3-019-continuation/` and `web/test-results/`.
+
+## Austin failure follow-through — 2026-09-30 23:06 UTC
+
+The earlier final report incorrectly described the saved 22:00 failure snapshot as
+latest health. A fresh database read shows Austin had already recovered at
+22:22:33 UTC, status `Checked—No Change`, with no error. One additional normal
+worker retry at 23:06:06 UTC succeeded on unchanged production code: the initial
+count, pages at offsets 0/1000/2000, and final count all passed existing bounds.
+It retained 2,609 unchanged rows, 78 accepted observations and zero new/changed
+records. No restrictions or completeness checks were bypassed.
+
+The historical error was `Permit page retrieval failed: HTTPStatusError` at
+22:00:30.543259 UTC; last success then was 21:52:44.548857 UTC. Its original HTTP
+status/response was not retained, so publisher vs intermediary vs request cause
+cannot be established retrospectively. This was an HTTP response failure, not a
+reported parsing/completeness failure (the shared counter calls it a parse failure).
+The unchanged implementation's successful recovery supports a transient response
+failure; no reproducible acquisition defect was found and no code was changed.
+
+Last-good data remains intact: before/after retry totals are 7,603 observations,
+9,583 evidence records, 2,005 projects, 2,174 historical power needs and 474 claims,
+matching the final audit. Worker failure handling preserves prior success/counts
+and writes `Failed`, error and attempt time; the existing Source health UI renders
+those fields and the separate last-success time. Recovery now reports
+`Checked—No Change`, null error and zero parse failures. The old failure is retained
+in the dated evidence artifact, not presented as current health.
+
+RRC's 24 excluded identities are **18 application-type 09 Field transfer** and
+**6 type 15 Reclass** records, all retained with their source evidence. No type 01
+Drill permit was excluded: all 1,711 became Signals without a power-gap requirement,
+along with 151 Recompletion and 18 Reenter records (1,880 total). The exclusion
+reflects the current administrative action, not missing power evidence. These are
+W-1 records but their current action does not authorize new drilling. This is the
+implemented interpretation of “all drilling permits”; it does not mean every W-1
+administrative action becomes a Signal. No production date or load is inferred.
+Exact excluded permit IDs, operators, wells and native type fields are recorded in
+[the recovery evidence](gl3-019-austin-recovery.json).
+
+This follow-through changes documentation/evidence only; the previously validated
+code and all 31 code hashes remain unchanged.
