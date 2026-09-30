@@ -186,6 +186,8 @@ _REPORTED_MW = re.compile(r"(?<![\w.])\d[\d,]*(?:\.\d+)?\s*MW\b", re.I)
 
 def evaluator_version(record: dict[str, Any]) -> str:
     permit = record.get("permit")
+    if isinstance(permit, dict) and permit.get("source_type") == "texas-rrc-drilling-permits":
+        return "rrc-permit-v1"
     if isinstance(permit, dict) and permit.get("source_type") == "georgia-air-draft-title-v":
         return GEORGIA_AIR_EVALUATOR_VERSION
     return EVALUATOR_VERSION
@@ -434,6 +436,63 @@ def assess_permit(record: dict[str, Any], *, as_of: date | None = None) -> dict[
     as_of = as_of or date.today()
     if permit.get("source_type") == "georgia-air-draft-title-v":
         return _assess_georgia_air(record, permit, str(permit.get("current_scope") or ""), as_of)
+    if permit.get("source_type") == "texas-rrc-drilling-permits":
+        accepted = bool(
+            permit.get("row_id")
+            and permit.get("lease")
+            and permit.get("well")
+            and permit.get("status") == "Approved"
+            and permit.get("application_type") in {"01", "07", "14"}
+            and record.get("event_date")
+            and record.get("html_url")
+        )
+        return {
+            "schema_version": 1,
+            "decision": "accepted" if accepted else "rejected",
+            "tier": "Signal" if accepted else None,
+            "reason": (
+                "Official drilling permit is an early production Signal; no power gap is required."
+                if permit.get("application_type") == "01"
+                else (
+                    "Approved well reentry/recompletion may lead to field power activity; "
+                    "current phase is UNKNOWN."
+                )
+            )
+            if accepted
+            else (
+                "A dated approved drill/reentry/recompletion permit and identified well are "
+                "required; administrative field-transfer/reclass records remain evidence."
+            ),
+            "subject": f"Texas W-1 permit {permit.get('row_id')}" if accepted else None,
+            "action": description if accepted else None,
+            "location": permit.get("location"),
+            "missing_facts": [
+                "production date",
+                "load",
+                "fuel suitability",
+                "suitable supply",
+                "buyer",
+            ],
+            "stable_row_id": permit.get("row_id"),
+            "permit_status": permit.get("status"),
+            "issue_date": record.get("event_date"),
+            "issue_date_label": record.get("event_date_label"),
+            "project_hint": permit.get("project"),
+            "power_activity": "drilling"
+            if permit.get("application_type") == "01"
+            else "well-permit",
+            "rental_category": "early_production"
+            if permit.get("application_type") == "01"
+            else "well_permit_activity",
+            "reported_claim": description if accepted else None,
+            "rental_hypothesis": (
+                "Authorized drilling or well rework may precede production power; "
+                "it does not prove work started/completed. Rental demand, production date, "
+                "load and fuel suitability remain UNKNOWN."
+            )
+            if accepted
+            else None,
+        }
     event_end = _explicit_event_end(description)
     status = str(permit.get("status") or "")
     address, city, state = (str(permit.get(key) or "") for key in ("address", "city", "state"))

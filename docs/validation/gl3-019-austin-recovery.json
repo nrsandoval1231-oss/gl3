@@ -1,0 +1,316 @@
+{
+  "requests": [
+    {
+      "params": {
+        "$select": "count(*) AS row_count",
+        "$where": "(issue_date IS NOT NULL AND issue_date <= '2026-09-30T23:59:59.999' AND ((issue_date >= '2026-08-31T00:00:00.000' AND issue_date <= '2026-09-30T23:59:59.999') OR (statusdate >= '2026-09-23T00:00:00.000' AND statusdate <= '2026-09-30T23:59:59.999')) AND (permit_class_mapped='Commercial' AND permit_type_desc IN ('Building Permit','Electrical Permit'))) OR (issue_date >= '2026-01-01T00:00:00.000' AND issue_date <= '2026-09-30T23:59:59.999' AND (permit_class_mapped='Commercial' AND permit_type_desc IN ('Building Permit','Electrical Permit')) AND (lower(description) LIKE '%data center%' OR lower(description) LIKE '%data centre%'))"
+      },
+      "ok": true,
+      "bytes": 23
+    },
+    {
+      "params": {
+        "$where": "(issue_date IS NOT NULL AND issue_date <= '2026-09-30T23:59:59.999' AND ((issue_date >= '2026-08-31T00:00:00.000' AND issue_date <= '2026-09-30T23:59:59.999') OR (statusdate >= '2026-09-23T00:00:00.000' AND statusdate <= '2026-09-30T23:59:59.999')) AND (permit_class_mapped='Commercial' AND permit_type_desc IN ('Building Permit','Electrical Permit'))) OR (issue_date >= '2026-01-01T00:00:00.000' AND issue_date <= '2026-09-30T23:59:59.999' AND (permit_class_mapped='Commercial' AND permit_type_desc IN ('Building Permit','Electrical Permit')) AND (lower(description) LIKE '%data center%' OR lower(description) LIKE '%data centre%'))",
+        "$order": "issue_date ASC,permit_number ASC",
+        "$limit": 1000,
+        "$offset": 0
+      },
+      "ok": true,
+      "bytes": 1871102
+    },
+    {
+      "params": {
+        "$where": "(issue_date IS NOT NULL AND issue_date <= '2026-09-30T23:59:59.999' AND ((issue_date >= '2026-08-31T00:00:00.000' AND issue_date <= '2026-09-30T23:59:59.999') OR (statusdate >= '2026-09-23T00:00:00.000' AND statusdate <= '2026-09-30T23:59:59.999')) AND (permit_class_mapped='Commercial' AND permit_type_desc IN ('Building Permit','Electrical Permit'))) OR (issue_date >= '2026-01-01T00:00:00.000' AND issue_date <= '2026-09-30T23:59:59.999' AND (permit_class_mapped='Commercial' AND permit_type_desc IN ('Building Permit','Electrical Permit')) AND (lower(description) LIKE '%data center%' OR lower(description) LIKE '%data centre%'))",
+        "$order": "issue_date ASC,permit_number ASC",
+        "$limit": 1000,
+        "$offset": 1000
+      },
+      "ok": true,
+      "bytes": 1808305
+    },
+    {
+      "params": {
+        "$where": "(issue_date IS NOT NULL AND issue_date <= '2026-09-30T23:59:59.999' AND ((issue_date >= '2026-08-31T00:00:00.000' AND issue_date <= '2026-09-30T23:59:59.999') OR (statusdate >= '2026-09-23T00:00:00.000' AND statusdate <= '2026-09-30T23:59:59.999')) AND (permit_class_mapped='Commercial' AND permit_type_desc IN ('Building Permit','Electrical Permit'))) OR (issue_date >= '2026-01-01T00:00:00.000' AND issue_date <= '2026-09-30T23:59:59.999' AND (permit_class_mapped='Commercial' AND permit_type_desc IN ('Building Permit','Electrical Permit')) AND (lower(description) LIKE '%data center%' OR lower(description) LIKE '%data centre%'))",
+        "$order": "issue_date ASC,permit_number ASC",
+        "$limit": 1000,
+        "$offset": 2000
+      },
+      "ok": true,
+      "bytes": 1060469
+    },
+    {
+      "params": {
+        "$select": "count(*) AS row_count",
+        "$where": "(issue_date IS NOT NULL AND issue_date <= '2026-09-30T23:59:59.999' AND ((issue_date >= '2026-08-31T00:00:00.000' AND issue_date <= '2026-09-30T23:59:59.999') OR (statusdate >= '2026-09-23T00:00:00.000' AND statusdate <= '2026-09-30T23:59:59.999')) AND (permit_class_mapped='Commercial' AND permit_type_desc IN ('Building Permit','Electrical Permit'))) OR (issue_date >= '2026-01-01T00:00:00.000' AND issue_date <= '2026-09-30T23:59:59.999' AND (permit_class_mapped='Commercial' AND permit_type_desc IN ('Building Permit','Electrical Permit')) AND (lower(description) LIKE '%data center%' OR lower(description) LIKE '%data centre%'))"
+      },
+      "ok": true,
+      "bytes": 23
+    }
+  ],
+  "before": {
+    "health": {
+      "error": null,
+      "status": "Checked\u2014No Change",
+      "new_records": 0,
+      "last_attempt": "2026-09-30T22:22:33.016683+00:00",
+      "last_success": "2026-09-30T22:22:33.016683+00:00",
+      "pdf_eligible": 0,
+      "pdf_enriched": 0,
+      "parse_failures": 0,
+      "parsed_records": 2609,
+      "pdf_candidates": 0,
+      "changed_records": 0,
+      "permit_accepted": 78,
+      "permit_rejected": 2531,
+      "records_scanned": 2609,
+      "collection_scope": "Commercial Building and Electrical Permits: rolling 30-day issuance / 7-day status changes, plus literal data center/data centre initial backfill issued 2026-01-01 through 2026-09-30, rechecked within the same counted query.",
+      "pdf_skipped_limit": 0,
+      "retrieved_records": 2609,
+      "unchanged_records": 2609,
+      "coverage_limitation": "City limits only; literal-keyword backfill is not all data-center work. Older status changes outside the overlap or fixed backfill are not comprehensively monitored. Permit-listed names and permit-listed phones do not establish current employment or buying authority.",
+      "pdf_skipped_not_signal": 0,
+      "latest_publication_date": "2026-09-28",
+      "latest_permit_issue_date": "2026-09-28",
+      "latest_public_comment_deadline": null
+    },
+    "counts": {
+      "observations": 7603,
+      "evidence": 9583,
+      "projects": 2005,
+      "power_needs": 2174,
+      "buying_chain_claims": 474
+    },
+    "jobs": [
+      {
+        "status": "succeeded",
+        "attempts": 1,
+        "error": null,
+        "available_at": "2026-09-30 21:52:44.541442+00:00"
+      },
+      {
+        "status": "succeeded",
+        "attempts": 1,
+        "error": null,
+        "available_at": "2026-09-30 21:45:34.487615+00:00"
+      },
+      {
+        "status": "succeeded",
+        "attempts": 1,
+        "error": null,
+        "available_at": "2026-09-30 21:33:38.414156+00:00"
+      },
+      {
+        "status": "succeeded",
+        "attempts": 2,
+        "error": null,
+        "available_at": "2026-09-30 22:01:37.203043+00:00"
+      },
+      {
+        "status": "succeeded",
+        "attempts": 1,
+        "error": null,
+        "available_at": "2026-09-30 21:34:14.912354+00:00"
+      },
+      {
+        "status": "succeeded",
+        "attempts": 1,
+        "error": null,
+        "available_at": "2026-09-30 21:52:24.272585+00:00"
+      },
+      {
+        "status": "succeeded",
+        "attempts": 1,
+        "error": null,
+        "available_at": "2026-09-30 21:45:14.133291+00:00"
+      }
+    ]
+  },
+  "after": {
+    "health": {
+      "error": null,
+      "status": "Checked\u2014No Change",
+      "new_records": 0,
+      "last_attempt": "2026-09-30T23:06:06.999031+00:00",
+      "last_success": "2026-09-30T23:06:06.999031+00:00",
+      "pdf_eligible": 0,
+      "pdf_enriched": 0,
+      "parse_failures": 0,
+      "parsed_records": 2609,
+      "pdf_candidates": 0,
+      "changed_records": 0,
+      "permit_accepted": 78,
+      "permit_rejected": 2531,
+      "records_scanned": 2609,
+      "collection_scope": "Commercial Building and Electrical Permits: rolling 30-day issuance / 7-day status changes, plus literal data center/data centre initial backfill issued 2026-01-01 through 2026-09-30, rechecked within the same counted query.",
+      "pdf_skipped_limit": 0,
+      "retrieved_records": 2609,
+      "unchanged_records": 2609,
+      "coverage_limitation": "City limits only; literal-keyword backfill is not all data-center work. Older status changes outside the overlap or fixed backfill are not comprehensively monitored. Permit-listed names and permit-listed phones do not establish current employment or buying authority.",
+      "pdf_skipped_not_signal": 0,
+      "latest_publication_date": "2026-09-28",
+      "latest_permit_issue_date": "2026-09-28",
+      "latest_public_comment_deadline": null
+    },
+    "counts": {
+      "observations": 7603,
+      "evidence": 9583,
+      "projects": 2005,
+      "power_needs": 2174,
+      "buying_chain_claims": 474
+    },
+    "jobs": [
+      {
+        "status": "succeeded",
+        "attempts": 1,
+        "error": null,
+        "available_at": "2026-09-30 21:52:44.541442+00:00"
+      },
+      {
+        "status": "succeeded",
+        "attempts": 1,
+        "error": null,
+        "available_at": "2026-09-30 21:45:34.487615+00:00"
+      },
+      {
+        "status": "succeeded",
+        "attempts": 1,
+        "error": null,
+        "available_at": "2026-09-30 21:33:38.414156+00:00"
+      },
+      {
+        "status": "succeeded",
+        "attempts": 2,
+        "error": null,
+        "available_at": "2026-09-30 22:01:37.203043+00:00"
+      },
+      {
+        "status": "succeeded",
+        "attempts": 1,
+        "error": null,
+        "available_at": "2026-09-30 21:34:14.912354+00:00"
+      },
+      {
+        "status": "succeeded",
+        "attempts": 1,
+        "error": null,
+        "available_at": "2026-09-30 23:06:06.969865+00:00"
+      },
+      {
+        "status": "succeeded",
+        "attempts": 1,
+        "error": null,
+        "available_at": "2026-09-30 21:52:24.272585+00:00"
+      },
+      {
+        "status": "succeeded",
+        "attempts": 1,
+        "error": null,
+        "available_at": "2026-09-30 21:45:14.133291+00:00"
+      }
+    ]
+  },
+  "rrc_admin": [
+    {
+      "permit": "0860957",
+      "fields": "row: 0860957\namendment_sequence: 98\noperator: NOBLE ENERGY INC\noperator_number: 611665\nlease: BALMORHEA STATE 32-15 'A'\nwell: 1H\ncounty_code: 389\ntype: W-1 well permit \u2014 Field transfer\napplication_type: 09\ndate: 2020-01-24\napplication_received: 2026-08-13\namended_date: 2026-09-04\nstatus: Approved\ndescription: W-1 well permit 0860957: Field transfer; lease BALMORHEA STATE 32-15 'A', well 1H.\n"
+    },
+    {
+      "permit": "0867643",
+      "fields": "row: 0867643\namendment_sequence: 98\noperator: NOBLE ENERGY INC\noperator_number: 611665\nlease: CITY OF PECOS 15 -16\nwell: 2HB\ncounty_code: 389\ntype: W-1 well permit \u2014 Field transfer\napplication_type: 09\ndate: 2021-02-09\napplication_received: 2026-08-14\namended_date: 2026-08-28\nstatus: Approved\ndescription: W-1 well permit 0867643: Field transfer; lease CITY OF PECOS 15 -16, well 2HB.\n"
+    },
+    {
+      "permit": "0917554",
+      "fields": "row: 0917554\namendment_sequence: 99\noperator: TEXLAND PETROLEUM, L.P.\noperator_number: 849735\nlease: HOOKER, L.H.\nwell: 7\ncounty_code: 501\ntype: W-1 well permit \u2014 Field transfer\napplication_type: 09\ndate: 2026-08-04\napplication_received: 2026-07-31\namended_date: Unknown\nstatus: Approved\ndescription: W-1 well permit 0917554: Field transfer; lease HOOKER, L.H., well 7.\n"
+    },
+    {
+      "permit": "0917572",
+      "fields": "row: 0917572\namendment_sequence: 99\noperator: BURK ROYALTY CO., LTD.\noperator_number: 108799\nlease: CONDON\nwell: 1U\ncounty_code: 487\ntype: W-1 well permit \u2014 Field transfer\napplication_type: 09\ndate: 2026-08-04\napplication_received: 2026-07-31\namended_date: Unknown\nstatus: Approved\ndescription: W-1 well permit 0917572: Field transfer; lease CONDON, well 1U.\n"
+    },
+    {
+      "permit": "0917570",
+      "fields": "row: 0917570\namendment_sequence: 99\noperator: BURK ROYALTY CO., LTD.\noperator_number: 108799\nlease: CONDON\nwell: 12\ncounty_code: 487\ntype: W-1 well permit \u2014 Field transfer\napplication_type: 09\ndate: 2026-08-04\napplication_received: 2026-07-31\namended_date: Unknown\nstatus: Approved\ndescription: W-1 well permit 0917570: Field transfer; lease CONDON, well 12.\n"
+    },
+    {
+      "permit": "0917672",
+      "fields": "row: 0917672\namendment_sequence: 99\noperator: BURK ROYALTY CO., LTD.\noperator_number: 108799\nlease: SUMNER\nwell: 2\ncounty_code: 487\ntype: W-1 well permit \u2014 Field transfer\napplication_type: 09\ndate: 2026-08-18\napplication_received: 2026-08-05\namended_date: Unknown\nstatus: Approved\ndescription: W-1 well permit 0917672: Field transfer; lease SUMNER, well 2.\n"
+    },
+    {
+      "permit": "0917738",
+      "fields": "row: 0917738\namendment_sequence: 99\noperator: BURK ROYALTY CO., LTD.\noperator_number: 108799\nlease: WHITEFISH B\nwell: 1\ncounty_code: 487\ntype: W-1 well permit \u2014 Field transfer\napplication_type: 09\ndate: 2026-08-12\napplication_received: 2026-08-07\namended_date: Unknown\nstatus: Approved\ndescription: W-1 well permit 0917738: Field transfer; lease WHITEFISH B, well 1.\n"
+    },
+    {
+      "permit": "0917853",
+      "fields": "row: 0917853\namendment_sequence: 99\noperator: TEXAS SOUTHERN PETROLEUM CORP.\noperator_number: 848007\nlease: ALMA 1560\nwell: 1\ncounty_code: 131\ntype: W-1 well permit \u2014 Reclass\napplication_type: 15\ndate: 2026-08-25\napplication_received: 2026-08-12\namended_date: Unknown\nstatus: Approved\ndescription: W-1 well permit 0917853: Reclass; lease ALMA 1560, well 1.\n"
+    },
+    {
+      "permit": "0917854",
+      "fields": "row: 0917854\namendment_sequence: 99\noperator: ROSE CITY RESOURCES, LLC\noperator_number: 727892\nlease: MORRIS\nwell: 1H\ncounty_code: 315\ntype: W-1 well permit \u2014 Field transfer\napplication_type: 09\ndate: 2026-09-16\napplication_received: 2026-08-12\namended_date: Unknown\nstatus: Approved\ndescription: W-1 well permit 0917854: Field transfer; lease MORRIS, well 1H.\n"
+    },
+    {
+      "permit": "0917961",
+      "fields": "row: 0917961\namendment_sequence: 99\noperator: ENSIGN NATURAL RESOURCES II LLC\noperator_number: 104514\nlease: BARNHART (EF)\nwell: 7H\ncounty_code: 177\ntype: W-1 well permit \u2014 Reclass\napplication_type: 15\ndate: 2026-09-01\napplication_received: 2026-08-18\namended_date: Unknown\nstatus: Approved\ndescription: W-1 well permit 0917961: Reclass; lease BARNHART (EF), well 7H.\n"
+    },
+    {
+      "permit": "0918273",
+      "fields": "row: 0918273\namendment_sequence: 99\noperator: SHALLOW PRODUCTION OPER, LLC\noperator_number: 768766\nlease: TOBORG\nwell: 33\ncounty_code: 371\ntype: W-1 well permit \u2014 Reclass\napplication_type: 15\ndate: 2026-09-08\napplication_received: 2026-08-28\namended_date: Unknown\nstatus: Approved\ndescription: W-1 well permit 0918273: Reclass; lease TOBORG, well 33.\n"
+    },
+    {
+      "permit": "0918692",
+      "fields": "row: 0918692\namendment_sequence: 99\noperator: DOUBLE BARREL OIL LLC\noperator_number: 224791\nlease: WHITEFACE UNIT\nwell: 59W\ncounty_code: 079\ntype: W-1 well permit \u2014 Reclass\napplication_type: 15\ndate: 2026-09-21\napplication_received: 2026-09-15\namended_date: Unknown\nstatus: Approved\ndescription: W-1 well permit 0918692: Reclass; lease WHITEFACE UNIT, well 59W.\n"
+    },
+    {
+      "permit": "0917555",
+      "fields": "row: 0917555\namendment_sequence: 99\noperator: TEXLAND PETROLEUM, L.P.\noperator_number: 849735\nlease: HOOKER, L.H.\nwell: 3\ncounty_code: 501\ntype: W-1 well permit \u2014 Field transfer\napplication_type: 09\ndate: 2026-08-04\napplication_received: 2026-07-31\namended_date: Unknown\nstatus: Approved\ndescription: W-1 well permit 0917555: Field transfer; lease HOOKER, L.H., well 3.\n"
+    },
+    {
+      "permit": "0917561",
+      "fields": "row: 0917561\namendment_sequence: 99\noperator: TEXLAND PETROLEUM, L.P.\noperator_number: 849735\nlease: POWELL, MATTIE 'A'\nwell: 5\ncounty_code: 501\ntype: W-1 well permit \u2014 Field transfer\napplication_type: 09\ndate: 2026-08-04\napplication_received: 2026-07-31\namended_date: Unknown\nstatus: Approved\ndescription: W-1 well permit 0917561: Field transfer; lease POWELL, MATTIE 'A', well 5.\n"
+    },
+    {
+      "permit": "0917566",
+      "fields": "row: 0917566\namendment_sequence: 99\noperator: TEXLAND PETROLEUM, L.P.\noperator_number: 849735\nlease: POWELL, MATTIE 'A'\nwell: 7\ncounty_code: 501\ntype: W-1 well permit \u2014 Field transfer\napplication_type: 09\ndate: 2026-08-04\napplication_received: 2026-07-31\namended_date: Unknown\nstatus: Approved\ndescription: W-1 well permit 0917566: Field transfer; lease POWELL, MATTIE 'A', well 7.\n"
+    },
+    {
+      "permit": "0917569",
+      "fields": "row: 0917569\namendment_sequence: 99\noperator: BURK ROYALTY CO., LTD.\noperator_number: 108799\nlease: CONDON\nwell: 11\ncounty_code: 487\ntype: W-1 well permit \u2014 Field transfer\napplication_type: 09\ndate: 2026-08-04\napplication_received: 2026-07-31\namended_date: Unknown\nstatus: Approved\ndescription: W-1 well permit 0917569: Field transfer; lease CONDON, well 11.\n"
+    },
+    {
+      "permit": "0917571",
+      "fields": "row: 0917571\namendment_sequence: 99\noperator: BURK ROYALTY CO., LTD.\noperator_number: 108799\nlease: CONDON\nwell: 13\ncounty_code: 487\ntype: W-1 well permit \u2014 Field transfer\napplication_type: 09\ndate: 2026-08-04\napplication_received: 2026-07-31\namended_date: Unknown\nstatus: Approved\ndescription: W-1 well permit 0917571: Field transfer; lease CONDON, well 13.\n"
+    },
+    {
+      "permit": "0917668",
+      "fields": "row: 0917668\namendment_sequence: 99\noperator: BURK ROYALTY CO., LTD.\noperator_number: 108799\nlease: HANNA TRUST\nwell: 1\ncounty_code: 487\ntype: W-1 well permit \u2014 Field transfer\napplication_type: 09\ndate: 2026-08-06\napplication_received: 2026-08-05\namended_date: Unknown\nstatus: Approved\ndescription: W-1 well permit 0917668: Field transfer; lease HANNA TRUST, well 1.\n"
+    },
+    {
+      "permit": "0917673",
+      "fields": "row: 0917673\namendment_sequence: 99\noperator: BURK ROYALTY CO., LTD.\noperator_number: 108799\nlease: SUMNER\nwell: 3\ncounty_code: 487\ntype: W-1 well permit \u2014 Field transfer\napplication_type: 09\ndate: 2026-08-07\napplication_received: 2026-08-05\namended_date: Unknown\nstatus: Approved\ndescription: W-1 well permit 0917673: Field transfer; lease SUMNER, well 3.\n"
+    },
+    {
+      "permit": "0917734",
+      "fields": "row: 0917734\namendment_sequence: 99\noperator: BURK ROYALTY CO., LTD.\noperator_number: 108799\nlease: SUMNER HEIRS\nwell: 5\ncounty_code: 487\ntype: W-1 well permit \u2014 Field transfer\napplication_type: 09\ndate: 2026-08-12\napplication_received: 2026-08-07\namended_date: Unknown\nstatus: Approved\ndescription: W-1 well permit 0917734: Field transfer; lease SUMNER HEIRS, well 5.\n"
+    },
+    {
+      "permit": "0917736",
+      "fields": "row: 0917736\namendment_sequence: 99\noperator: BURK ROYALTY CO., LTD.\noperator_number: 108799\nlease: WHITEFISH A\nwell: 1\ncounty_code: 487\ntype: W-1 well permit \u2014 Field transfer\napplication_type: 09\ndate: 2026-08-12\napplication_received: 2026-08-07\namended_date: Unknown\nstatus: Approved\ndescription: W-1 well permit 0917736: Field transfer; lease WHITEFISH A, well 1.\n"
+    },
+    {
+      "permit": "0917737",
+      "fields": "row: 0917737\namendment_sequence: 99\noperator: BURK ROYALTY CO., LTD.\noperator_number: 108799\nlease: WHITEFISH A\nwell: 2\ncounty_code: 487\ntype: W-1 well permit \u2014 Field transfer\napplication_type: 09\ndate: 2026-08-12\napplication_received: 2026-08-07\namended_date: Unknown\nstatus: Approved\ndescription: W-1 well permit 0917737: Field transfer; lease WHITEFISH A, well 2.\n"
+    },
+    {
+      "permit": "0917893",
+      "fields": "row: 0917893\namendment_sequence: 99\noperator: KINDER MORGAN PRODUCTION CO LLC\noperator_number: 463316\nlease: YATES FIELD UNIT\nwell: 98B08\ncounty_code: 371\ntype: W-1 well permit \u2014 Reclass\napplication_type: 15\ndate: 2026-08-19\napplication_received: 2026-08-14\namended_date: Unknown\nstatus: Approved\ndescription: W-1 well permit 0917893: Reclass; lease YATES FIELD UNIT, well 98B08.\n"
+    },
+    {
+      "permit": "0918712",
+      "fields": "row: 0918712\namendment_sequence: 99\noperator: BASA RESOURCES, INC.\noperator_number: 053974\nlease: FOSTER, MARY\nwell: 22\ncounty_code: 335\ntype: W-1 well permit \u2014 Reclass\napplication_type: 15\ndate: 2026-09-21\napplication_received: 2026-09-16\namended_date: Unknown\nstatus: Approved\ndescription: W-1 well permit 0918712: Reclass; lease FOSTER, MARY, well 22.\n"
+    }
+  ],
+  "historical_failure": {
+    "last_attempt": "2026-09-30T22:00:30.543259+00:00",
+    "last_success": "2026-09-30T21:52:44.548857+00:00",
+    "error": "Permit page retrieval failed: HTTPStatusError",
+    "http_status": "UNKNOWN: not retained by historical error message"
+  }
+}

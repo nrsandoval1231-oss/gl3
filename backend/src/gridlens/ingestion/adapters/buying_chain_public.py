@@ -36,6 +36,7 @@ class PublicDocument:
     extraction_location: str = "public page text"
     links: tuple[str, ...] = ()
     structured: tuple[dict, ...] = ()
+    retained_version: str | None = None
 
 
 def validate_public_url(url: str) -> str:

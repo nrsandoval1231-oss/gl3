@@ -62,7 +62,12 @@ from gridlens.persistence.models import (
     Source,
 )
 
-PERMIT_RETRIEVAL_METHODS = {"socrata-permits", "georgia-air-permits"}
+PERMIT_RETRIEVAL_METHODS = {
+    "socrata-permits",
+    "georgia-air-permits",
+    "houston-weekly-permits",
+    "rrc-drilling-permits",
+}
 
 
 def _optional_date(value: str | None) -> date | None:
@@ -208,13 +213,23 @@ def _asset_type_conflicts(candidate_type: str, classification: Any | None) -> bo
     )
 
 
-def _need_has_current_support(session: Session, need: PowerNeed, project: Project) -> bool:
-    rows = session.execute(
-        select(Observation, Interpretation)
-        .join(NeedObservation, NeedObservation.observation_id == Observation.id)
-        .outerjoin(Interpretation, Interpretation.observation_id == Observation.id)
-        .where(NeedObservation.need_id == need.id)
-    ).all()
+def _need_has_current_support(
+    session: Session,
+    need: PowerNeed,
+    project: Project,
+    *,
+    links: list[tuple[Observation, Evidence, Interpretation | None]] | None = None,
+) -> bool:
+    rows = (
+        [(obs, interpretation) for obs, _, interpretation in links]
+        if links is not None
+        else session.execute(
+            select(Observation, Interpretation)
+            .join(NeedObservation, NeedObservation.observation_id == Observation.id)
+            .outerjoin(Interpretation, Interpretation.observation_id == Observation.id)
+            .where(NeedObservation.need_id == need.id)
+        ).all()
+    )
     for linked_observation, interpretation in rows:
         if (
             interpretation is None
@@ -234,10 +249,21 @@ def _need_has_current_support(session: Session, need: PowerNeed, project: Projec
         evidence_hash = assessment.get("evidence_hash")
         if not isinstance(evidence_hash, str):
             continue
-        evidence = session.scalar(
-            select(Evidence).where(
-                Evidence.observation_id == linked_observation.id,
-                Evidence.content_hash == evidence_hash,
+        evidence = (
+            next(
+                (
+                    ev
+                    for obs, ev, _ in links
+                    if obs.id == linked_observation.id and ev.content_hash == evidence_hash
+                ),
+                None,
+            )
+            if links is not None
+            else session.scalar(
+                select(Evidence).where(
+                    Evidence.observation_id == linked_observation.id,
+                    Evidence.content_hash == evidence_hash,
+                )
             )
         )
         if evidence is None:
@@ -1168,6 +1194,43 @@ def process_job(
             .where(Observation.source_id == source.id, Observation.external_id == external_id)
             .with_for_update()
         )
+        # Older amendments can recur in rollover snapshots. Retain their exact
+        # evidence but never let an older filing replace the current projection.
+        if observation is not None and source.id == "texas-rrc-drilling-permits":
+            from gridlens.ingestion.adapters.rrc_drilling import amendment_sequence
+
+            retained_sequence = amendment_sequence(observation.abstract)
+            incoming_sequence = amendment_sequence(record.get("abstract"))
+            if retained_sequence is None or incoming_sequence is None:
+                raise ValueError("RRC amendment identity is missing")
+            if incoming_sequence > retained_sequence:
+                prior = session.scalar(
+                    select(Evidence.id).where(
+                        Evidence.observation_id == observation.id,
+                        Evidence.content_hash == evidence_digest,
+                    )
+                )
+                if prior is None:
+                    session.add(
+                        Evidence(
+                            observation_id=observation.id,
+                            content_hash=evidence_digest,
+                            title=record["title"],
+                            abstract=record.get("abstract"),
+                            url=record["html_url"],
+                            published_at=_optional_date(record.get("publication_date")),
+                            extraction_location=record["extraction_location"],
+                            event_date=_optional_date(record.get("event_date")),
+                            event_date_label=record.get("event_date_label"),
+                        )
+                    )
+                counts["older_amendments_retained"] = counts.get("older_amendments_retained", 0) + 1
+                counts["unchanged"] += 1
+                job = assert_fence(session, job_id, worker_id, fence)
+                job.checkpoint = external_id
+                job.lease_until = datetime.now(UTC) + timedelta(seconds=90)
+                session.commit()
+                continue
         is_new = observation is None
         same_material_fields = bool(
             observation
@@ -2144,6 +2207,8 @@ def process_job(
                                 "temporary-power",
                                 "bridge-power",
                                 "event-power",
+                                "drilling",
+                                "well-permit",
                             }
                         ),
                         PowerNeed.activity_key != activity_key,
