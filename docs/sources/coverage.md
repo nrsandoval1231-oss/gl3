@@ -1,4 +1,6 @@
-# Source coverage — access checks, 2026-09-25 UTC
+# Source coverage — current index and historical access checks
+
+Current merged registry: **15 enabled sources** after PR9 (`a737af0`). See [GL3-019 scope](gl3-019-permit-enrichment.md) and [the handoff coverage table](../operations/post-gl3-019-handoff.md) for Austin electrical/backfill, RRC current/prior-month files, Houston limitations, and Dallas/El Paso/commissioning gaps. The September 25 matrix below remains historical evidence, not current health or deployed coverage.
 
 > GL3-018 supersedes standalone news/planning Signal admission and expands the existing Chicago/Georgia routes. See [current admission and acquisition behavior](gl3-018-admission-and-acquisition.md). Historical validation below is not a new live check.
 
