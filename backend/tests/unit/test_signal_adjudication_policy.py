@@ -80,6 +80,66 @@ def test_gl3_policy_holds_transient_or_routine_items_and_shows_supported_activit
     assert map_dimensions({**base, "commercial_relevance": 0.5}) == "REVIEW"
 
 
+def test_gl3_policy_uses_source_context_for_generic_buildings_and_power_relevant_projects():
+    base = {
+        "physical_project_event": 0.95,
+        "meaningful_new_activity": 0.95,
+        "commercial_relevance": 0.85,
+        "temporary_power_relevance": 0.3,
+        "routine_maintenance": 0.05,
+        "transient_event": 0.02,
+    }
+    assert (
+        map_dimensions(base, title="New construction of office warehouse") == "REVIEW"
+    )
+    assert map_dimensions(base, title="Addition and remodel to existing hospital") == "REVIEW"
+    assert (
+        map_dimensions(
+            base,
+            title="Interior and exterior alterations to existing manufacturing facility",
+        )
+        == "REVIEW"
+    )
+    assert (
+        map_dimensions(
+            {**base, "commercial_relevance": 0.62}, title="Additional emergency generators"
+        )
+        == "REVIEW"
+    )
+    assert (
+        map_dimensions(
+            {**base, "commercial_relevance": 0.62},
+            title="Additional emergency generators at a data center",
+            abstract=(
+                "Construction and operation of additional emergency generators with no change "
+                "in the facility-wide fuel consumption limit."
+            ),
+        )
+        == "REVIEW"
+    )
+    assert (
+        map_dimensions(
+            base,
+            title="Finish out to expand data center into existing shell areas",
+        )
+        == "SHOW"
+    )
+    assert (
+        map_dimensions(
+            {**base, "commercial_relevance": 0.38},
+            title="Renewable natural gas facility construction",
+        )
+        == "SHOW"
+    )
+    assert (
+        map_dimensions(
+            {**base, "physical_project_event": 0.76, "commercial_relevance": 0.79},
+            title="Manufacturing expansion",
+        )
+        == "SHOW"
+    )
+
+
 def test_deterministic_hold_grammar_is_event_or_like_for_like_specific():
     assert deterministic_override("temporary stage for one-day event", None, "")
     assert deterministic_override("Zilker Park marathon", None, "")

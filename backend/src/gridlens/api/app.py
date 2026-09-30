@@ -13,7 +13,7 @@ from gridlens.domain.collection_watch import (
 from gridlens.domain.collection_watch import (
     matched_terms as collection_watch_terms,
 )
-from gridlens.intelligence.signal_adjudication import adjudicate_current_signals
+from gridlens.intelligence.signal_adjudication import POLICY_VERSION, adjudicate_current_signals
 from gridlens.jobs.queue import enqueue
 from gridlens.persistence.database import SessionLocal
 from gridlens.persistence.models import (
@@ -581,7 +581,7 @@ def opportunities(tier: str | None = None, search: str | None = None):
                     .where(
                         SignalDecision.observation_id == obs.id,
                         SignalDecision.content_hash == ev.content_hash,
-                        SignalDecision.policy_version == "signal-display-v1",
+                        SignalDecision.policy_version == POLICY_VERSION,
                     )
                     .order_by(SignalDecision.id.desc())
                 )
