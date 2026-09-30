@@ -444,6 +444,11 @@ export interface components {
             activity: string;
             /** Rationale */
             rationale: string;
+            /**
+             * Signal Evidence State
+             * @default active_evidence
+             */
+            signal_evidence_state: string;
             /** Required Mw */
             required_mw: string | null;
             /** Start Window */

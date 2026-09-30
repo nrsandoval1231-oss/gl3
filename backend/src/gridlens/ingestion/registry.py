@@ -35,6 +35,7 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
                 "data.cityofchicago.org",
             },
             "georgia-air-permits": {"epd.georgia.gov"},
+            "taylor-newsflash": {"taylortx.gov"},
         }
         if source["id"] in ids or urlparse(source["endpoint"]).hostname not in allowed_hosts.get(
             source["retrieval_method"], set()
@@ -42,9 +43,11 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
             raise ValueError("Duplicate source ID or unapproved host")
         ids.add(source["id"])
         query = source.get("query", {})
-        valid_window = source["retrieval_method"] in {"publisher-rss", "georgia-air-permits"} or (
-            1 <= query.get("window_days", 0) <= 90
-        )
+        valid_window = source["retrieval_method"] in {
+            "publisher-rss",
+            "georgia-air-permits",
+            "taylor-newsflash",
+        } or (1 <= query.get("window_days", 0) <= 90)
         if source["retrieval_method"] in {"json-api", "federal-register-json"}:
             bounded = (
                 1 <= query.get("max_pages", 0) <= 10
@@ -89,12 +92,27 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
                 and 1 <= query.get("max_pages", 0) <= 5
                 and 1 <= query.get("max_records", 0) <= 500
                 and query.get("max_response_bytes") == 2_000_000
-                    and query.get("max_run_bytes") == 30_000_000
-                    and 1 <= query.get("max_pdfs_per_run", 0) <= 50
-                    and query.get("max_pdf_bytes") == 4_000_000
-                    and query.get("max_pdf_pages") == 200
-                    and query.get("max_pdf_total_pages") == 5000
+                and query.get("max_run_bytes") == 30_000_000
+                and 1 <= query.get("max_pdfs_per_run", 0) <= 50
+                and query.get("max_pdf_bytes") == 4_000_000
+                and query.get("max_pdf_pages") == 200
+                and query.get("max_pdf_total_pages") == 5000
                 and source.get("geography") == "Georgia"
+            )
+        elif source["retrieval_method"] == "taylor-newsflash":
+            bounded = (
+                source.get("family") == "municipal-planning-news"
+                and source.get("cadence_hours") == 24
+                and 1 <= query.get("archive_window_days", 0) <= 90
+                and 0 <= query.get("archive_overlap_days", -1) <= 14
+                and query.get("archive_window_days", 0) + query.get("archive_overlap_days", 0) <= 90
+                and query.get("archive_count") in {10, 25, 50}
+                and 1 <= query.get("max_pages", 0) <= 20
+                and 1024 <= query.get("max_response_bytes", 0) <= 5_000_000
+                and query.get("max_response_bytes", 0)
+                <= query.get("max_run_bytes", 0)
+                <= 100_000_000
+                and source.get("geography") == "Taylor, Texas"
             )
         else:
             bounded = False

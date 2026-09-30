@@ -1,43 +1,18 @@
 # Current state
 
-Owner direction: preserve the verified GL3-013 ingestion foundation and frozen UI;
-add conservative project consolidation and evidence-backed asset lifecycle history.
-Canonical intent remains in docs/product/PRD.md, UI_CANON.md, and
-VERTICAL_LIFECYCLE_STRATEGY.md. No autonomous outreach.
+GridLens is focused on Signals. The existing GL3 ingestion foundation retains source observations, evidence versions, conservative project matching, lifecycle history, source health, and project-oriented Signal cards. The product scope for GL3-015 is acquisition and Signal quality; Prospect, Lead, contact research, and outreach automation are outside this slice.
 
-## Accepted local checkpoint
+## Implemented in GL3-015
 
-GL3-013 merged in PR #3 at c021f77c71b731b79c3b59d3bd9aa7e2351b9169.
-Its retained baseline contains 2,530 observations, 2,567 evidence versions,
-87 Signal/project records, and 87 morning changes. National completeness and the
-distinct commercial-project count remain UNKNOWN.
+- `docs/sources/SIGNAL_SOURCE_MATRIX.md` defines the lifecycle-based acquisition universe and inference boundaries. `docs/sources/SIGNAL_GAP_AUDIT.md` records actual coverage and acquisition gaps.
+- Taylor, Texas Development News/Notices is one ACTIVE local municipal planning source. The planning family remains PARTIAL. The adapter retains article and archive revisions with attributed evidence, bounded retrieval, source health, and idempotent replay.
+- A later official Project Mustang withdrawal remains linked to the earlier planning notice. The Signal card identifies the earlier notice as historical, the planning application as withdrawn, and overall project viability as UNKNOWN. Conflicting same-ID or archive revisions remain evidence without falsely withdrawing a project.
+- Chicago permit retrieval selects mapped fields to stay within its response-size bound. No RRC source is active; historical W-1 parsing had offline proof, while current-file retrieval and compatibility remain unverified.
 
-GL3-014 repairs PR #4. Local gates and independent Sol review accepted the exact
-candidate recorded in artifacts/GL3-014/ACCEPTANCE.json. Delivery/merge identity
-is recorded on PR #4; local acceptance alone is not a GitHub merge or deployment.
-The isolated checkout preserves the original dirty checkout and original data.
+## Verified locally
 
-220 backend tests, Ruff, mypy, PostgreSQL migration twice/drift, frontend
-typecheck/build, zero-vulnerability audit, and three authenticated desktop/mobile
-tests pass. A fresh copy of GL3-013 gains eight applicable lifecycle events through
-explicit replay, then zero. Original data hashes and all second-replay table
-hashes remain identical. Two unbound legacy assessments are reported and skipped.
+The fresh isolated cleanup run migrated from empty to head, ingested all 13 enabled sources, and replayed without duplicate content: 2,802 observations, 2,839 evidence versions, 81 Signal records, and 63 displayed project cards. Taylor retained 25 observations, two Signals, and three material changes. The authenticated card shows Mustang withdrawn with both evidence versions. The unsanitized [Signal review](../docs/validation/gl3-015-persisted-signal-review.md) records 11 SHOW, 29 REVIEW, and 23 HOLD. Ruff, mypy, 240 backend tests with one skip, web typecheck/build, and npm high-level audit passed locally.
 
-Matching is evidence-version-bound and conservative; conflicting/multiple site
-claims stay separate. Shared needs select a complete current supporting claim;
-withdrawal recomputes qualification without changing deterministic tier rules.
-Observed milestones, derived state, and production estimates remain distinct.
+## Unknown and next problem
 
-## External and product limits
-
-Hosted CI runner admission remains blocked by account payment/spending state;
-jobs execute zero steps. The workflow and branch protection were not weakened.
-Only normal GitHub merge is authorized when permitted after required gates.
-No cloud deployment or live upstream OCC adapter is established. Production
-windows are heuristic estimates, never power-demand or supply-gap evidence.
-No mass historical project merging is performed.
-
-Cloud operation, national coverage, seven scheduled cycles, alerts, production
-restore proof, and the parent launch Finish Contract remain OPEN. Next direction:
-deliver the accepted PR through normal GitHub merge if permitted, then retain the
-bounded intelligence frontier without rewriting ingestion or inventing promotion.
+Taylor does not imply Texas-wide or national planning coverage. Deployed daily cadence, current RRC ingestion, broad utility/large-load records, and many construction lifecycle sources remain unproven or absent. Signal precision and conservative project consolidation are the next product problem; weak event, maintenance, stale, and same-site cards remain visible in the review. GL3-016 is the next milestone and has not started.

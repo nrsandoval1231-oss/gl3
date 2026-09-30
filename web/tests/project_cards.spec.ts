@@ -14,6 +14,7 @@ function permit(id: string, action: string | null, options: { location?: string;
     tier: options.tier ?? 'Signal',
     activity: options.activity ?? 'event-power',
     rationale: 'Permit reports a dated powered event activity; temporary rental power is a question to investigate.',
+    signal_evidence_state: 'active_evidence',
     required_mw: null,
     start_window: null,
     duration: null,
