@@ -14,6 +14,10 @@ cloud environment. Normal public requests were used; no source restriction bypas
   This is not all data-center work. Existing page/byte/count/order limits remain.
   Live: **2,609 rows**, **78 accepted permit observations across 76 projects**;
   replay: 2,609 unchanged, zero new/changed. No Prospect/Lead promotion.
+  Latest recorded health on 2026-09-30 is **Failed**: the 22:00 UTC refresh
+  reported `Permit page retrieval failed: HTTPStatusError` (one parse failure),
+  after the 21:52 UTC success. The successful retrieval/replay above remains
+  established; it does not mean the latest Austin refresh succeeded.
 - **Permit enrichment:** exact contractor/applicant organization, name, trade and
   permit-listed phone fields retained and visible before the existing enrichment
   action. Austin yields **57 organization candidates, 57 permit-listed person
