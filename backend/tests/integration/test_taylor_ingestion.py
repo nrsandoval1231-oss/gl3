@@ -8,6 +8,7 @@ from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 
 from gridlens.ingestion.service import process_job
+from gridlens.intelligence.signal_adjudication import adjudicate_current_signals
 from gridlens.persistence.database import Base
 from gridlens.persistence.models import (
     ChangeEvent,
@@ -20,6 +21,7 @@ from gridlens.persistence.models import (
     PowerNeed,
     Project,
     ProjectLifecycle,
+    SignalDecision,
     Source,
 )
 from gridlens.settings import settings
@@ -349,6 +351,22 @@ def test_withdrawn_revision_evidence_is_visible_from_prior_signal(db, monkeypatc
     with factory() as session:
         process_job(session, job_id, "test", 1, source)
         lifecycle_count = session.scalar(select(func.count()).select_from(LifecycleEvent))
+        prior_observation = session.scalar(select(Observation))
+        prior_evidence = session.scalar(select(Evidence))
+        assert prior_observation is not None and prior_evidence is not None
+        session.add(
+            SignalDecision(
+                observation_id=prior_observation.id,
+                content_hash=prior_evidence.content_hash,
+                policy_version="signal-display-v1",
+                decision="SHOW",
+                source="jev",
+                model_version="jev-1.13.0",
+                dimensions={"physical_project_event": 0.99},
+                reason="Earlier supported planning event.",
+            )
+        )
+        session.commit()
     monkeypatch.setattr(service, "retrieve_source", lambda *_args: [_withdrawn_archive_record()])
     with factory() as session:
         process_job(session, job_id, "test", 1, source)
@@ -357,6 +375,25 @@ def test_withdrawn_revision_evidence_is_visible_from_prior_signal(db, monkeypatc
         )
         need = session.scalar(select(PowerNeed))
         assert withdrawn is not None and need is not None
+        withdrawal_decision = session.scalar(
+            select(SignalDecision)
+            .where(SignalDecision.observation_id == withdrawn.id)
+            .order_by(SignalDecision.id.desc())
+        )
+        assert withdrawal_decision is not None
+        assert withdrawal_decision.decision == "HOLD"
+        assert withdrawal_decision.dimensions == {"planning_application_withdrawn": True}
+        session.delete(withdrawal_decision)
+        session.flush()
+        backfill = adjudicate_current_signals(session)
+        session.flush()
+        assert backfill["hold"] == 1
+        assert session.scalar(
+            select(SignalDecision)
+            .where(SignalDecision.observation_id == withdrawn.id)
+            .order_by(SignalDecision.id.desc())
+        ).decision == "HOLD"
+        session.commit()
         assert need.active is True
         assert (
             session.scalar(select(func.count()).select_from(LifecycleEvent)) == lifecycle_count + 1
@@ -387,6 +424,9 @@ def test_withdrawn_revision_evidence_is_visible_from_prior_signal(db, monkeypatc
     cards = api_module.opportunities(tier="Signal")
     assert len(cards) == 1
     assert cards[0]["signal_evidence_state"] == "planning_application_withdrawn"
+    assert cards[0]["signal_display_decision"] == "HOLD"
+    assert cards[0]["signal_display_source"] == "deterministic"
+    assert api_module.signal_decision_counts()["hold"] == 1
     assert cards[0]["lifecycle_state"] == "planning_application_withdrawn"
     assert cards[0]["expected_next_milestone"] is None
     assert cards[0]["expected_power_event"] is None
@@ -396,7 +436,9 @@ def test_withdrawn_revision_evidence_is_visible_from_prior_signal(db, monkeypatc
     with factory() as session:
         before = tuple(
             session.scalar(select(func.count()).select_from(model))
-            for model in (Observation, Evidence, Project, LifecycleEvent, ChangeEvent)
+            for model in (
+                Observation, Evidence, Project, LifecycleEvent, ChangeEvent, SignalDecision
+            )
         )
         before_assessments = [
             row.assessment
@@ -405,7 +447,9 @@ def test_withdrawn_revision_evidence_is_visible_from_prior_signal(db, monkeypatc
         process_job(session, job_id, "test", 1, source)
         after = tuple(
             session.scalar(select(func.count()).select_from(model))
-            for model in (Observation, Evidence, Project, LifecycleEvent, ChangeEvent)
+            for model in (
+                Observation, Evidence, Project, LifecycleEvent, ChangeEvent, SignalDecision
+            )
         )
         assert before == after
         assert before_assessments == [
@@ -620,14 +664,26 @@ def test_conflict_after_supported_same_id_withdrawal_returns_to_unknown(db, monk
         assert session.scalar(select(func.count()).select_from(Evidence)) == 3
         assert session.scalar(select(func.count()).select_from(Project)) == 1
         assert session.scalar(select(func.count()).select_from(PowerNeed)) == 1
+        conflict_decision = session.scalar(
+            select(SignalDecision).order_by(SignalDecision.id.desc())
+        )
+        assert conflict_decision is not None
+        assert conflict_decision.decision == "REVIEW"
+        assert conflict_decision.dimensions == {"identity_conflict": True}
         before = tuple(
             session.scalar(select(func.count()).select_from(model))
-            for model in (Observation, Evidence, Project, PowerNeed, LifecycleEvent, ChangeEvent)
+            for model in (
+                Observation, Evidence, Project, PowerNeed, LifecycleEvent, ChangeEvent,
+                SignalDecision,
+            )
         )
         process_job(session, job_id, "test", 1, source)
         assert before == tuple(
             session.scalar(select(func.count()).select_from(model))
-            for model in (Observation, Evidence, Project, PowerNeed, LifecycleEvent, ChangeEvent)
+            for model in (
+                Observation, Evidence, Project, PowerNeed, LifecycleEvent, ChangeEvent,
+                SignalDecision,
+            )
         )
 
     import importlib
@@ -636,6 +692,7 @@ def test_conflict_after_supported_same_id_withdrawal_returns_to_unknown(db, monk
     monkeypatch.setattr(api_module, "SessionLocal", factory)
     card = api_module.opportunities(tier="Signal")[0]
     assert card["signal_evidence_state"] == "planning_status_unknown"
+    assert card["signal_display_decision"] == "REVIEW"
     assert card["lifecycle_state"] is None
     assert len(card["evidence"]) == 3
     assert "UNKNOWN" in card["rationale"]

@@ -34,10 +34,13 @@ from gridlens.intelligence.project_identity import (
     labeled_site,
     labeled_sites,
     normalized_identity,
+    phase_normalized_facility_scope,
     physical_site,
     same_physical_site,
     stable_asset_identity,
 )
+from gridlens.intelligence.signal_adjudication import POLICY_VERSION
+from gridlens.intelligence.signal_adjudication import adjudicate as adjudicate_signal
 from gridlens.jobs.queue import assert_fence
 from gridlens.persistence.models import (
     ChangeEvent,
@@ -48,6 +51,7 @@ from gridlens.persistence.models import (
     PowerNeed,
     Project,
     ProjectMatchDecision,
+    SignalDecision,
     Source,
 )
 
@@ -1291,6 +1295,36 @@ def process_job(
                     assessment_payload["previous_assessments"] = prior_history
                 interpretation.assessment = assessment_payload
                 if taylor_revision_ambiguous:
+                    if current_evidence is not None:
+                        prior_display = session.scalar(
+                            select(SignalDecision)
+                            .where(
+                                SignalDecision.observation_id == observation.id,
+                                SignalDecision.content_hash == current_evidence.content_hash,
+                                SignalDecision.policy_version == POLICY_VERSION,
+                            )
+                            .order_by(SignalDecision.id.desc())
+                        )
+                        if (
+                            prior_display is None
+                            or prior_display.decision != "REVIEW"
+                            or prior_display.source != "deterministic"
+                        ):
+                            session.add(
+                                SignalDecision(
+                                    observation_id=observation.id,
+                                    content_hash=current_evidence.content_hash,
+                                    policy_version=POLICY_VERSION,
+                                    decision="REVIEW",
+                                    source="deterministic",
+                                    model_version=None,
+                                    dimensions={"identity_conflict": True},
+                                    reason=(
+                                        "Taylor revision conflicts with retained project or "
+                                        "site facts; application and project status are UNKNOWN."
+                                    ),
+                                )
+                            )
                     previous_project = session.scalar(
                         select(Project).where(Project.identity_key == project_key)
                     )
@@ -1307,13 +1341,45 @@ def process_job(
                             apply_planning_withdrawal(
                                 session, supported_project, observation, current_evidence
                             )
-                            if session.scalar(
-                                select(ChangeEvent.id).where(
-                                    ChangeEvent.observation_id == observation.id,
-                                    ChangeEvent.content_hash == digest,
-                                    ChangeEvent.kind == "withdrawn",
+                            prior_display = session.scalar(
+                                select(SignalDecision)
+                                .where(
+                                    SignalDecision.observation_id == observation.id,
+                                    SignalDecision.content_hash == current_evidence.content_hash,
+                                    SignalDecision.policy_version == POLICY_VERSION,
                                 )
-                            ) is None:
+                                .order_by(SignalDecision.id.desc())
+                            )
+                            if (
+                                prior_display is None
+                                or prior_display.decision != "HOLD"
+                                or prior_display.source != "deterministic"
+                            ):
+                                session.add(
+                                    SignalDecision(
+                                        observation_id=observation.id,
+                                        content_hash=current_evidence.content_hash,
+                                        policy_version=POLICY_VERSION,
+                                        decision="HOLD",
+                                        source="deterministic",
+                                        model_version=None,
+                                        dimensions={"planning_application_withdrawn": True},
+                                        reason=(
+                                            "Official linked planning withdrawal; earlier project "
+                                            "evidence remains historical and viability is UNKNOWN."
+                                        ),
+                                    )
+                                )
+                            if (
+                                session.scalar(
+                                    select(ChangeEvent.id).where(
+                                        ChangeEvent.observation_id == observation.id,
+                                        ChangeEvent.content_hash == digest,
+                                        ChangeEvent.kind == "withdrawn",
+                                    )
+                                )
+                                is None
+                            ):
                                 session.add(
                                     ChangeEvent(
                                         observation_id=observation.id,
@@ -1399,6 +1465,13 @@ def process_job(
             assert project_location is None or isinstance(project_location, str)
             if project is None:
                 asset_identity = stable_asset_identity(record, source.id)
+                facility_scope = phase_normalized_facility_scope(record)
+                permit_data = record.get("permit")
+                facility_source_address = (
+                    permit_data.get("address")
+                    if facility_scope and isinstance(permit_data, dict)
+                    else None
+                )
                 candidates = session.scalars(select(Project).with_for_update()).all()
                 supported: list[tuple[Project, Any]] = []
                 decisions: list[tuple[Project, Any]] = []
@@ -1438,6 +1511,17 @@ def process_job(
                         and normalized_identity(candidate.location)
                         == normalized_identity(project_location)
                     )
+                    same_facility_scope = bool(
+                        facility_scope
+                        and candidate.source_id == source.id
+                        and same_site
+                        and (candidate.identity_facts or {}).get("facility_scope")
+                        == facility_scope
+                        and normalized_identity(
+                            (candidate.identity_facts or {}).get("facility_source_address")
+                        )
+                        == normalized_identity(facility_source_address)
+                    )
                     same_asset = bool(asset_identity) and candidate.identity_facts.get(
                         "asset_identity"
                     ) == (list(asset_identity) if asset_identity else None)
@@ -1448,6 +1532,7 @@ def process_job(
                         same_address=same_site,
                         same_project_name=same_name,
                         same_asset_identity=same_asset,
+                        same_authoritative_scope=same_facility_scope,
                         conflicting_geography=geographic_conflict,
                         conflicting_asset_type=_asset_type_conflicts(
                             candidate.asset_type,
@@ -1466,6 +1551,13 @@ def process_job(
                         location=project_location,
                         source_id=source.id,
                         external_id=external_id,
+                        identity_facts={
+                            "facility_scope": facility_scope,
+                            "facility_source_address": facility_source_address,
+                            "site": project_location,
+                        }
+                        if facility_scope
+                        else {},
                     )
                     session.add(project)
                     session.flush()
@@ -1561,6 +1653,8 @@ def process_job(
                         "asset_identity": list(asset_identity) if asset_identity else None,
                         "site": project_location,
                         "project_name": project_name,
+                        "facility_scope": facility_scope,
+                        "facility_source_address": facility_source_address,
                     }
                 elif supported[0][1].decision == "matched":
                     project.identity_facts = {
@@ -1570,6 +1664,10 @@ def process_job(
                         else (project.identity_facts or {}).get("asset_identity"),
                         "site": project_location or (project.identity_facts or {}).get("site"),
                         "project_name": project_name,
+                        "facility_scope": facility_scope
+                        or (project.identity_facts or {}).get("facility_scope"),
+                        "facility_source_address": facility_source_address
+                        or (project.identity_facts or {}).get("facility_source_address"),
                     }
                 if permit_alias:
                     current_facts = dict(project.identity_facts or {})
@@ -1727,6 +1825,8 @@ def process_job(
                 }
             if lifecycle_evidence is not None:
                 apply_lifecycle_observation(session, project, observation, lifecycle_evidence)
+                if need.tier == "Signal":
+                    adjudicate_signal(session, observation, lifecycle_evidence)
 
         job = assert_fence(session, job_id, worker_id, fence)
         job.checkpoint = external_id
@@ -1867,11 +1967,13 @@ def _process_collection_only(
         changed_decision = assess_retained_news(
             session, observation, evidence, job_id=job_id, worker_id=worker_id, fence=fence
         )
+        if interpretation.status == "accepted" and interpretation.assessment:
+            counts["signals"] += int(interpretation.assessment.get("tier") == "Signal")
+            if interpretation.assessment.get("tier") == "Signal":
+                adjudicate_signal(session, observation, evidence)
         if not changed_decision:
             job = assert_fence(session, job_id, worker_id, fence)
             job.checkpoint = external_id
             job.lease_until = datetime.now(UTC) + timedelta(seconds=90)
         session.commit()
-        if interpretation.status == "accepted" and interpretation.assessment:
-            counts["signals"] += int(interpretation.assessment.get("tier") == "Signal")
     return counts

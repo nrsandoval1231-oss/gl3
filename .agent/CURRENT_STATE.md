@@ -15,4 +15,6 @@ The fresh isolated cleanup run migrated from empty to head, ingested all 13 enab
 
 ## Unknown and next problem
 
-Taylor does not imply Texas-wide or national planning coverage. Deployed daily cadence, current RRC ingestion, broad utility/large-load records, and many construction lifecycle sources remain unproven or absent. Signal precision and conservative project consolidation are the next product problem; weak event, maintenance, stale, and same-site cards remain visible in the review. GL3-016 is the next milestone and has not started.
+Taylor does not imply Texas-wide or national planning coverage. Deployed daily cadence, current RRC ingestion, broad utility/large-load records, and many construction lifecycle sources remain unproven or absent. Signal precision and conservative project consolidation are the GL3-016 product problem; weak event, maintenance, stale, and same-site cards remain visible in the review. GL3-016 is in progress. Its production Jev corpus comparison and exact candidate acceptance are not yet proven.
+
+GL3-017 is the next intended slice after accepted Signal adjudication: project-specific buying-chain enrichment. It must connect a person to an organization, a specific physical project, and a relevant buying or influence role with evidence. GL3-018 is later acquisition expansion for construction, electrical, temporary service, commissioning, energization, planning, utility, RRC, and fixed O&G lifecycle evidence. Neither slice is implemented here.
