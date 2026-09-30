@@ -71,7 +71,7 @@ different project. Repeated clicks are suppressed while the request is pending.
 No new model calls are introduced. Jev remains the existing bounded GL3-016
 ambiguity adjudicator, never a source of invented people or commercial facts.
 
-## Verification limitations in this cloud execution
+## Earlier execution limitations (superseded in part below)
 
 Two execution limits must not be mistaken for passing acceptance:
 
@@ -85,8 +85,9 @@ Two execution limits must not be mistaken for passing acceptance:
   a local-file preview under its URL policy. Browser interaction/visual tests
   remain unverified; type checking and build are separate checks.
 
-This slice must remain a draft until those end-to-end checks are completed in a
-suitable authorized runtime. No merge or deployment is part of this slice.
+The owner subsequently authorized conditional merge after our own complete
+validation. The saved-cloud rerun below closes browser execution but leaves live
+retrieval blocked. Keep the PR draft. Deployment remains unauthorized.
 
 ## Manual real-source review, 2026-09-30
 
@@ -167,7 +168,7 @@ multiple contractors and directs current site-work inquiries elsewhere. Exact
 phase/package assignment remains unresolved. It is not counted as one of the
 three primary acceptance chains or used to fill an evidence gap.
 
-## Final candidate validation (2026-09-30)
+## Previous captured-candidate validation (2026-09-30)
 
 - Ruff `src tests`: passed; portable capture validator Ruff check also passed
 - Mypy `src`: passed across 41 source files
@@ -202,4 +203,53 @@ sibling-name conflicts, permit street-number boundaries, negation, historical
 rosters and false publication dates, exact-version citations, A→B→A reobservation,
 separate-source role conflicts, stale roles, unchanged replay, preserved accepted
 assignments during outages/bounded omissions, and processing-failure preservation.
-These checks do not remove the direct-network and browser release blockers above.
+At that stage, those checks did not remove the direct-network and browser release blockers. The saved-cloud results below supersede the browser limitation.
+
+
+## Saved-cloud rerun, 2026-09-30
+
+The remote candidate was verified as `814e9e5c0434d2a5eaf42fee9de0528c2cc8a5e7`
+before work. The only application change is a reviewed one-line UI correction:
+an empty buying-chain result no longer says “Previously retained findings remain
+below.” The optional candidate array remains safely guarded. The existing mobile
+browser test exposed this defect; no test assertion was weakened.
+
+**Browser execution is now verified:** all eight existing frontend tests pass
+(seven browser-dependent tests and one pure grouping test), using Chromium
+151.0.7922.173 with `chromiumSandbox: true`. The execution sandbox prevented the
+initial launch; an approved execution outside that sandbox worked without
+`--no-sandbox` or changing browser protections. Desktop/mobile screenshots were
+inspected. Checks cover relationship/evidence disclosure, 503 preservation,
+pending/repeated actions, late responses after project switching, empty/UNKNOWN
+mobile state, source-link validation, history/navigation, grouping, and filters.
+Two authenticated tests use the real local API and PostgreSQL with the three
+reconstructed committed corpus identities. The other interaction cases use
+explicit synthetic API fixtures. None proves newly retrieved live contacts.
+
+**Live enrichment remains blocked.** The unchanged production enrichment service
+was run and replayed for all three documented identities, with their existing
+source URLs and Gurtz/Kelso role links, without injecting a fetcher or claims.
+Every external retrieval failed with `socket.gaierror: [Errno -3] Temporary
+failure in name resolution`, even outside the execution sandbox. A separate
+proxy connectivity probe returned HTTP 403 for the Chicago CONNECT request.
+Each project durably reports `unresolved`, zero candidates, and the failed source
+URLs. Replays retained three run rows, three retained-corpus evidence rows and
+zero relationship claims across the three projects. Signal/power fields were
+unchanged. No fresh Gurtz/David Steffenhagen or Kelso/Jeff Weir chain was verified.
+The earlier captured results remain historical partial proof; the capture bodies
+are absent here and were not substituted for genuine retrieval.
+
+Final checks on the repaired application: **356 backend tests passed, one existing
+local-probe skip**; Ruff and mypy (41 files) passed; PostgreSQL 18.4 clean/repeat
+migration and schema-drift checks passed; web typecheck/build passed; npm audit
+reported zero vulnerabilities; regenerated API contracts have no diff. An
+independent reviewer checked the corrected UI blob
+`a0520538b62a9974007edff0c168dc69409f33f0` and independently passed typecheck and
+diff checks. Earlier setup/test failures and their corrections are recorded in
+the [saved-cloud validation report](gl3-017-cloud-validation.json).
+
+The owner’s own-validation merge condition is **not met**. Keep PR #7 draft and
+unmerged until genuine live evidence-backed chains are verified. No hosted CI,
+branch protection, application retrieval security, or browser protection was
+changed. No deployment occurred. Personal assignment, purchasing authority,
+package availability, MW, timing and supply gaps remain UNKNOWN.

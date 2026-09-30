@@ -74,7 +74,7 @@ export function BuyingChain({ projectId }: { projectId: string }) {
     <details className="buying-chain-sources"><summary>Add supporting source links</summary><label>Public project or organization sources (up to four)<textarea value={sourceUrls} onChange={(event) => setSourceUrls(event.target.value)} rows={3} placeholder="https://…" disabled={enriching}/></label><p>Existing project evidence is checked first. Links should support this project’s contractors or their current team.</p></details>
     {loading && <p role="status">Loading buying chain…</p>}
     {enriching && <p role="status">Checking this project’s bounded source evidence. You can leave this view and return later.</p>}
-    {error && <p role="alert" className="integrity">{error}{result ? ' Previously retained findings remain below.' : ''}</p>}
+    {error && <p role="alert" className="integrity">{error}{result?.candidates?.length ? ' Previously retained findings remain below.' : ''}</p>}
     {result && <>
       <p className="buying-chain-status">Research status: {result.status.replaceAll('_', ' ')}</p>
       {(result.candidates ?? []).length === 0 && <p>No supported buying-chain candidates retained yet. Buyer and project contacts remain unknown.</p>}
