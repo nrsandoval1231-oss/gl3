@@ -1,12 +1,18 @@
 # GL3-017: project-specific buying-chain enrichment
 
+Status: merged to main as PR #7, commit `1f18a01`. The sections below are the
+pre-merge validation record. Sentences that say to keep PR #7 draft describe
+that saved-cloud live-retrieval result. Later owner-reported live acceptance is
+not fresh proof in this file. GL3-018 later merged authoritative admission on
+the same main line. Deployment is not authorized.
+
 ## Scope and boundaries
 
 GL3-017 adds an explicit, bounded enrichment action for an existing physical
 Project ID. It reuses GL3-016 project identity and accepted source evidence. It
 never merges cards by company name, creates a generic contacts database, sends
 outreach, changes a Signal's tier, or changes power/load/supply claims. It does
-not add sources to the ingestion registry or implement GL3-018.
+not add sources to the ingestion registry. GL3-018 was a later slice.
 
 This is conservative extraction, not a general autonomous research agent. The
 service starts from accepted retained evidence. For Chicago permits it retrieves
@@ -87,7 +93,9 @@ Two execution limits must not be mistaken for passing acceptance:
 
 The owner subsequently authorized conditional merge after our own complete
 validation. The saved-cloud rerun below closes browser execution but leaves live
-retrieval blocked. Keep the PR draft. Deployment remains unauthorized.
+retrieval blocked. PR #7 later merged. Deployment remains unauthorized. The
+instruction to keep the PR draft was the status when this live-retrieval gate
+was still blocked.
 
 ## Manual real-source review, 2026-09-30
 
@@ -248,8 +256,9 @@ independent reviewer checked the corrected UI blob
 diff checks. Earlier setup/test failures and their corrections are recorded in
 the [saved-cloud validation report](gl3-017-cloud-validation.json).
 
-The owner’s own-validation merge condition is **not met**. Keep PR #7 draft and
-unmerged until genuine live evidence-backed chains are verified. No hosted CI,
+At the time of this record, the owner’s own-validation merge condition was **not met**
+by this saved-cloud run. PR #7 subsequently merged; this file is not fresh proof
+that live retrieval succeeded. No hosted CI,
 branch protection, application retrieval security, or browser protection was
 changed. No deployment occurred. Personal assignment, purchasing authority,
 package availability, MW, timing and supply gaps remain UNKNOWN.

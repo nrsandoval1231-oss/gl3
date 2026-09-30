@@ -6,32 +6,81 @@ on:
 jobs:
   backend:
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:18.6
-        env:
-          POSTGRES_USER: gridlens
-          POSTGRES_PASSWORD: gridlens-ci-only
-          POSTGRES_DB: gridlens
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U gridlens -d gridlens"
-          --health-interval 5s --health-timeout 3s --health-retries 20
     env:
-      DATABASE_URL: postgresql+psycopg://gridlens:gridlens-ci-only@127.0.0.1:5432/gridlens
-      TEST_DATABASE_URL: postgresql+psycopg://gridlens:gridlens-ci-only@127.0.0.1:5432/gridlens_test
-      APP_PASSWORD_HASH: $2b$12$9s8D9s3m2HZphkBcSx8YxO6dECGe4rN1hZYSso3A8G4/Gyn9m0Q6K
-      SESSION_SECRET: ci-only-not-a-production-secret-32-bytes
       TRUSTED_ORIGINS: http://127.0.0.1:5173
     steps:
       - uses: actions/checkout@v4
+      # Ephemeral CI only. The database password, session secret, and password
+      # hash are created on the runner and are not deployed credentials.
+      - name: Start ephemeral Postgres
+        run: |
+          set -euo pipefail
+          postgres_password="$(openssl rand -hex 24)"
+          session_secret="$(openssl rand -hex 32)"
+          if [ -z "${postgres_password}" ] || [ -z "${session_secret}" ]; then
+            echo "Runtime CI secret generation failed" >&2
+            exit 1
+          fi
+          echo "::add-mask::${postgres_password}"
+          echo "::add-mask::${session_secret}"
+          export POSTGRES_PASSWORD="${postgres_password}"
+          {
+            echo "POSTGRES_PASSWORD<<EOF"
+            echo "${postgres_password}"
+            echo "EOF"
+            echo "DATABASE_URL<<EOF"
+            echo "postgresql+psycopg://gridlens:${postgres_password}@127.0.0.1:5432/gridlens"
+            echo "EOF"
+            echo "TEST_DATABASE_URL<<EOF"
+            echo "postgresql+psycopg://gridlens:${postgres_password}@127.0.0.1:5432/gridlens_test"
+            echo "EOF"
+            echo "SESSION_SECRET<<EOF"
+            echo "${session_secret}"
+            echo "EOF"
+          } >> "$GITHUB_ENV"
+          docker run -d --name gridlens-ci-postgres \
+            -e POSTGRES_USER=gridlens \
+            -e POSTGRES_PASSWORD \
+            -e POSTGRES_DB=gridlens \
+            -p 127.0.0.1:5432:5432 \
+            postgres:18.6
+          ready=0
+          for _ in $(seq 1 40); do
+            if docker exec gridlens-ci-postgres pg_isready -U gridlens -d gridlens; then
+              ready=1
+              break
+            fi
+            sleep 3
+          done
+          if [ "$ready" -ne 1 ]; then
+            echo "Postgres did not become ready" >&2
+            exit 1
+          fi
       - uses: astral-sh/setup-uv@v6
         with:
           python-version: "3.11"
           enable-cache: true
       - run: uv sync --locked --extra dev
         working-directory: backend
+      - name: Generate ephemeral app password hash
+        working-directory: backend
+        run: |
+          set -euo pipefail
+          app_password="$(openssl rand -base64 24)"
+          echo "::add-mask::${app_password}"
+          password_hash="$(
+            APP_PASSWORD="${app_password}" uv run python -c 'import os, bcrypt, sys; password = os.environ["APP_PASSWORD"].encode(); hashed = bcrypt.hashpw(password, bcrypt.gensalt()); sys.exit("generated hash did not verify") if not bcrypt.checkpw(password, hashed) else sys.stdout.write(hashed.decode())'
+          )"
+          echo "::add-mask::${password_hash}"
+          if [ -z "${password_hash}" ]; then
+            echo "Runtime password hash was empty" >&2
+            exit 1
+          fi
+          {
+            echo "APP_PASSWORD_HASH<<EOF"
+            echo "${password_hash}"
+            echo "EOF"
+          } >> "$GITHUB_ENV"
       - run: uv run ruff check src tests
         working-directory: backend
       - run: uv run mypy src
@@ -42,7 +91,8 @@ jobs:
         working-directory: backend
       - run: uv run alembic check
         working-directory: backend
-      - run: PGPASSWORD=gridlens-ci-only psql -h 127.0.0.1 -U gridlens -d gridlens -c 'CREATE DATABASE gridlens_test'
+      - name: Create test database
+        run: docker exec gridlens-ci-postgres psql -U gridlens -d gridlens -c 'CREATE DATABASE gridlens_test'
       - run: uv run pytest tests
         working-directory: backend
 

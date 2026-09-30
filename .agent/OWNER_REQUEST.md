@@ -1,3 +1,11 @@
+# Owner request
+
+## Status after GL3-018
+
+Main contains a runnable application through merged GL3-018 (PR #8, `7f24174`). GL3-017 is merged as PR #7 (`1f18a01`). The brief below is the original starting request and is retained. Its inspected commit did not yet contain a runnable application; that description is historical. Deployment, national coverage, Prospect/Lead gates, and milestone E remain open. Standalone planning/entitlement admission remains an owner decision.
+
+## Original request
+
 Build GridLens in https://github.com/nrsandoval1231-oss/gl3.
 
 Take ownership of implementation and validation. Deliver working software and retained evidence, not another planning-only handoff.

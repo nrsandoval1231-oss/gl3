@@ -18,18 +18,37 @@ Current local topology: PostgreSQL 127.0.0.1:55439, API 127.0.0.1:8000, React de
 
 Unbuilt/ungated capabilities remain explicit: cloud PC-off scheduling, broad launch coverage, bounded model research, Prospect/Lead evidence gates, commercial feedback workflow and seven-day reliability. See delivery/milestones.md and the Finish Contract rather than inferring those capabilities from folder names.
 
-## GL3-017 buying-chain draft
+## GL3-017 buying chain
 
-An explicit authenticated project-detail action performs one bounded enrichment
-pass in the API process. It starts with accepted evidence for the existing
-physical Project ID; Chicago can read its exact official contractor row, and a
-user can supply up to four additional public evidence URLs. Conservative
-extraction retains separate organization involvement, current person/role, and
-personal project relationship claims. No general search crawler, new queue,
-agent framework, registry source, or qualification write is introduced.
+Merged as PR #7. An explicit authenticated project-detail action performs one
+bounded enrichment pass in the API process. It starts with accepted evidence for
+the existing physical Project ID; Chicago can read its exact official contractor
+row, and a user can supply up to four additional public evidence URLs.
+Conservative extraction retains separate organization involvement, current
+person/role, and personal project relationship claims. No general search
+crawler, new queue, agent framework, registry source, or qualification write is
+introduced.
 
 Project-bound immutable evidence and claim versions preserve source quotes and
 history. A small run record reports partial/unknown outcomes. The UI separates
 DIRECT, ROLE_SUPPORTED and UNKNOWN and keeps the evidence inspectable. See the
-[contract and validation limits](../validation/gl3-017-buying-chain.md); direct
-live retrieval and browser QA are not established by captured-source tests.
+[contract and validation limits](../validation/gl3-017-buying-chain.md). Saved-cloud
+browser checks in that record passed; direct live retrieval was not proven there.
+
+## GL3-018 admission and acquisition
+
+Merged as PR #8. `domain/signal_admission.py` owns standalone admission policy
+`signal-admission-v1`. Persistence and API reads both apply it. Official permits,
+project-specific official utility filings, and explicit temporary-power
+solicitations can admit a Signal. News is supplemental to one supported physical
+project. Planning and entitlement stay research context. `power_needs.admission_basis`
+retains the policy version, origin, reason, source, and evidence hash. Migration
+`0009_signal_admission` closes unsupported active needs and keeps their prior
+active state, tier, projects, links, observations, and evidence.
+
+Source-specific acquisition stays in the existing Chicago and Georgia adapters.
+Chicago includes Express Electrical Work. Georgia reads Title V, SIP, and
+synthetic-minor narratives and drafts and keeps bounded page-cited generator
+excerpts. The registry remains 13 sources. No utility-docket, procurement, or
+RRC connector was added. See
+[admission and acquisition](../sources/gl3-018-admission-and-acquisition.md).
