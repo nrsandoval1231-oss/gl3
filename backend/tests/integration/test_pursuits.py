@@ -144,10 +144,11 @@ def runtime(monkeypatch):
     engine.dispose()
 
 
-def execute(factory, service):
+def execute(factory, service, *, source_id="austin-building-permits", force=True):
     with factory.begin() as session:
-        job_id = enqueue(session, "austin-building-permits", kind="pursuit_research")
-        session.get(Job, job_id).checkpoint = '{"force": true}'
+        job_id = enqueue(session, source_id, kind="pursuit_research")
+        if force:
+            session.get(Job, job_id).checkpoint = '{"force": true}'
         job, fence = lease_one(session, "pursuit-test", lease_seconds=600, job_ids=[job_id])
     service.process_research_job(job_id, "pursuit-test", fence)
     return job_id
@@ -256,6 +257,114 @@ def test_stale_worker_cannot_publish_research(runtime):
         service.process_research_job(job_id, "old", fence)
     with factory() as session:
         assert session.scalar(select(func.count()).select_from(Pursuit)) == 0
+
+
+def test_ordinary_refresh_reconciles_saved_dallas_title_and_preserves_history(runtime, monkeypatch):
+    factory, service, _, _, project_id = runtime
+    from gridlens.domain.pursuits import POLICY_VERSION
+    from gridlens.ingestion import adapters
+
+    group = service.candidates(None)[0]
+    group["source_id"] = "dallas-monthly-permits"
+    group["records"][0]["external_id"] = "COM-NEW-26-000129"
+    group["facts"] = [
+        {
+            **group["facts"][0],
+            "lp_business_name": "KEETER INVESTMENTS LLC",
+        }
+    ]
+    group["screen"] = service.screen(
+        group["facts"], group["source_id"], datetime.now(UTC).date()
+    )
+    group["input_hash"] = service.digest(
+        [service.POLICY_VERSION, service.PRESENTATION_POLICY_VERSION, group["records"]]
+    )
+    monkeypatch.setattr(service, "candidates", lambda _: [group])
+    monkeypatch.setattr(
+        adapters,
+        "retrieve_source",
+        lambda _source: [
+            {
+                "document_number": "COM-NEW-26-000129",
+                "abstract": (
+                    "row: COM-NEW-26-000129\naddress: 100 ORION LN\n"
+                    "description: New modular Data Center foundation\n"
+                    "lp_business_name: KEETER INVESTMENTS LLC\n"
+                    "date: 2026-09-15\nstatus: Active"
+                ),
+                "html_url": "https://example.invalid/dallas/COM-NEW-26-000129",
+                "title": "Dallas retained permit row",
+                "source_hash": "current-dallas-hash",
+                "extraction_location": "official city permit row",
+            }
+        ],
+    )
+    legacy_hash = service.digest([POLICY_VERSION, group["records"]])
+    assert legacy_hash != group["input_hash"]
+    with factory.begin() as session:
+        session.add(
+            Source(
+                id="dallas-monthly-permits",
+                publisher="Synthetic Dallas",
+                endpoint="https://example.invalid/dallas",
+                family="construction-permits",
+                geography="Dallas",
+                industries=[],
+                retrieval_method="city-permits",
+                health={},
+            )
+        )
+        row = Pursuit(
+            identity_key=group["identity_key"],
+            project_id=project_id,
+            project_ids=[str(project_id)],
+            snapshot={
+                "project": "2444 FABENS RD, DALLAS, TX · COM-NEW-26-000129",
+                "organization": "Organization unknown",
+                "action_status": "Call now",
+                "ranking_reasons": [],
+                "next_action": "Confirm the work scope.",
+                "evidence": [],
+                "_input_hash": legacy_hash,
+            },
+            last_researched_at=datetime.now(UTC),
+            last_attempt_at=datetime.now(UTC),
+            research_status="succeeded",
+        )
+        session.add(row)
+        session.flush()
+        pursuit_id = row.id
+        note = PursuitCallNote(
+            pursuit_id=row.id,
+            client_id=uuid4(),
+            note="Preserve owner-entered history through title reconciliation.",
+            outcome="Needs follow-up",
+            next_action="Reconfirm permit scope.",
+        )
+        document = PursuitDocument(
+            pursuit_id=row.id,
+            url="https://example.invalid/prior-evidence",
+            content_hash="prior-retained-claim",
+            source={"title": "Prior retained source claim"},
+        )
+        session.add_all([note, document])
+        session.flush()
+        note_id, document_id = note.id, document.id
+        assert service.select_batch(session, [group]) == [group]
+
+    execute(factory, service, source_id="dallas-monthly-permits", force=False)
+    with factory() as session:
+        refreshed = session.get(Pursuit, pursuit_id)
+        assert refreshed.snapshot["organization"] == "KEETER INVESTMENTS LLC"
+        assert refreshed.snapshot["project"].startswith(
+            "KEETER INVESTMENTS LLC · LP Business Name · role unverified"
+        )
+        assert "role unverified" in refreshed.snapshot["organization_involvement"]
+        assert refreshed.snapshot["_input_hash"] == group["input_hash"]
+        assert refreshed.research_status == "succeeded"
+        assert session.get(PursuitCallNote, note_id) is not None
+        assert session.get(PursuitDocument, document_id) is not None
+        assert refreshed.project_ids == [str(project_id)]
 
 
 def test_changed_scope_and_withdrawal_overlay_list_and_detail(runtime, monkeypatch):
@@ -411,6 +520,38 @@ def test_current_permit_candidates_use_evidence_hash_and_observation_source(runt
             "texas-rrc-drilling-permits",
         }
         assert all(g["screen"]["scope_priority"] > 0 for g in groups)
+        needs = session.scalars(select(PowerNeed).order_by(PowerNeed.activity_key)).all()
+        needs[0].required_mw = "0.2"
+        needs[1].required_mw = "0.3"
+        session.commit()
+        sized = service.candidates(session)
+        assert len(sized) == 1
+        assert sized[0]["source_id"] == "texas-rrc-drilling-permits"
+
+        needs[0].required_mw = None
+        observation = session.scalar(
+            select(Observation).where(Observation.source_id == "austin-building-permits")
+        )
+        interpretation = session.scalar(
+            select(Interpretation).where(Interpretation.observation_id == observation.id)
+        )
+        interpretation.assessment = {
+            **interpretation.assessment,
+            "action": "Generator replacement: 35 kW",
+        }
+        session.commit()
+        assert [g["source_id"] for g in service.candidates(session)] == [
+            "texas-rrc-drilling-permits"
+        ]
+
+        needs[0].required_mw = "5000"
+        needs[1].required_mw = None
+        session.commit()
+        retained = service.candidates(session)
+        assert {g["source_id"] for g in retained} == {
+            "austin-building-permits",
+            "texas-rrc-drilling-permits",
+        }
         # This workflow screens Signals; it must never relabel a future
         # qualified Prospect or Lead as a Signal workspace.
         for need in session.scalars(select(PowerNeed)):

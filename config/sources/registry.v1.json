@@ -367,6 +367,28 @@
         "max_items": 50,
         "max_response_bytes": 2000000
       }
+    },
+    {
+      "id": "ma-ccc-cultivation-applications",
+      "publisher": "Massachusetts Cannabis Control Commission",
+      "endpoint": "https://masscannabiscontrol.com/resource/l_applications_all_details.json",
+      "family": "cultivation-license-applications",
+      "geography": "Massachusetts",
+      "state": "MA",
+      "industries": ["cannabis cultivation"],
+      "retrieval_method": "ma-cultivation-applications",
+      "cadence_hours": 24,
+      "publication_cadence": "CCC open-data snapshot; the dataset update date is retained and checked for freshness",
+      "credential_reference": null,
+      "enabled": true,
+      "retention": "Whitelisted cultivation application identity, applicant organization role, establishment site, dated application event, and relevant lifecycle status only; personal contacts and EINs are excluded",
+      "query": {
+        "max_snapshot_bytes": 10000000,
+        "max_records": 2500,
+        "max_snapshot_age_days": 30,
+        "max_application_event_age_days": 120
+      },
+      "coverage_limitation": "The CCC open-data catalog states that published data is self-reported and has no completeness, accuracy, or timeliness guarantee. Snapshot and application dates are retained separately. Only dated pending/reopened records with applicant and physical Massachusetts site may enter ordinary Signals; application status does not prove construction, current work, operations, load, rental demand, a buyer, or authority."
     }
   ]
 }

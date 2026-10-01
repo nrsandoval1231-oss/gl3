@@ -19,6 +19,7 @@ from zoneinfo import ZoneInfo
 from sqlalchemy import Integer, case, func, select
 from sqlalchemy.orm import Session
 
+from gridlens.domain.commercial_presentation import commercial_size_status
 from gridlens.domain.pursuit_screening import normalized, screen, work_identity
 from gridlens.domain.pursuits import MAX_BATCH, MAX_FETCHES, MAX_MODELS, POLICY_VERSION, SOURCES
 from gridlens.ingestion.adapters.buying_chain_public import PublicDocument
@@ -45,6 +46,7 @@ from gridlens.persistence.models import (
 from gridlens.settings import settings
 
 CITY_PERMIT_SOURCES = SOURCES[2:]
+PRESENTATION_POLICY_VERSION = "pursuit-company-titles-v2"
 
 
 def digest(value: object) -> str:
@@ -97,6 +99,14 @@ def candidates(session: Session) -> list[dict]:
             session, need, project, links=[(observation, evidence, interpretation)]
         ):
             continue
+        assessment = interpretation.assessment or {}
+        if commercial_size_status(
+            need.required_mw,
+            need.activity_key,
+            assessment.get("action"),
+            assessment.get("reported_power_facts", []),
+        ) == "below_floor":
+            continue
         parsed = {
             k: v[0] for k, v in fields(observation.source_id, evidence.abstract or "").items()
         }
@@ -145,7 +155,9 @@ def candidates(session: Session) -> list[dict]:
             )
     for group in groups.values():
         group["screen"] = screen(group["facts"], group["source_id"], datetime.now(UTC).date())
-        group["input_hash"] = digest([POLICY_VERSION, group["records"]])
+        group["input_hash"] = digest(
+            [POLICY_VERSION, PRESENTATION_POLICY_VERSION, group["records"]]
+        )
     return list(groups.values())
 
 
@@ -286,6 +298,29 @@ def _tabs_match(site: str, data: dict) -> tuple[bool, str]:
     )
 
 
+def _organization_involvement(role: str | None, facts: list[dict], organization: str) -> str:
+    labels = {
+        "owner": "Permit-listed owner / occupant; legal ownership unverified",
+        "operator": "Permit-listed operator; current operating role unverified",
+        "applicant": "Permit-listed applicant; no owner or buyer role inferred",
+        "lp_business_name": "Permit-listed LP Business Name; role unverified",
+        "contractor": "Permit-listed contractor",
+    }
+    label = labels.get(role) if role else None
+    label = label or "Permit-listed organization; role unknown"
+    if role == "contractor":
+        trade = next(
+            (
+                fact.get("contractor_trade") or "contractor"
+                for fact in facts
+                if fact.get("contractor_company_name") == organization
+            ),
+            "contractor",
+        )
+        label += f" · {trade}"
+    return label + "; construction/power-package responsibility unverified"
+
+
 def _snapshot(
     group: dict, docs: list[PublicDocument], buying: dict, model_states: list[str]
 ) -> dict:
@@ -293,11 +328,43 @@ def _snapshot(
     s = group["screen"]
     records = group["records"]
     organization = next(
-        (f["contractor_company_name"] for f in facts if f.get("contractor_company_name")), None
+        (
+            f[key]
+            for key in ("owner_company_name", "operator", "applicant_org", "lp_business_name")
+            for f in facts
+            if f.get(key)
+        ),
+        None,
     )
-    organization = organization or next(
-        (f["operator"] for f in facts if f.get("operator")), "Organization unknown"
+    organization_role = next(
+        (
+            role
+            for key, role in (
+                ("owner_company_name", "owner"),
+                ("operator", "operator"),
+                ("applicant_org", "applicant"),
+                ("lp_business_name", "lp_business_name"),
+            )
+            for f in facts
+            if f.get(key) == organization
+        ),
+        None,
     )
+    if not organization:
+        organization = next(
+            (f["contractor_company_name"] for f in facts if f.get("contractor_company_name")),
+            "Organization unknown",
+        )
+        organization_role = "contractor" if organization != "Organization unknown" else None
+    display_organization = organization or "Organization unknown"
+    organization_title_role = (
+        "LP Business Name · role unverified"
+        if organization_role == "lp_business_name"
+        else organization_role
+    )
+    fallback_activity = next(
+        (f.get("description") for f in facts if f.get("description")), "Activity unknown"
+    )[:100]
     contacts, people, sources, conflicts, timing, utility, load = [], [], [], [], [], [], []
     registration_context: list[str] = []
     for fact, record in zip(facts, records, strict=True):
@@ -498,20 +565,15 @@ def _snapshot(
         ),
     ]
     return {
-        "project": f"{group['site']} · {', '.join(r['external_id'] for r in records)}",
+        "project": (
+            f"{organization} · {organization_title_role} · {group['site']}"
+            if organization_role
+            else f"{group['site']} · {fallback_activity}"
+        ),
         "site": group["site"],
         "organization": organization,
-        "organization_involvement": (
-            "Permit-listed "
-            + next(
-                (
-                    f.get("contractor_trade") or "contractor"
-                    for f in facts
-                    if f.get("contractor_company_name") == organization
-                ),
-                "asset operator",
-            )
-            + "; construction/power-package responsibility unverified"
+        "organization_involvement": _organization_involvement(
+            organization_role, facts, display_organization
         ),
         "action_status": action,
         "rank_key": [s["scope_priority"], s["timing_priority"], int(reachable), 0],
