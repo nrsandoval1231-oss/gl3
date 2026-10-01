@@ -4,6 +4,10 @@ GridLens 3 is a private, evidence-backed workspace for discovering emerging comm
 
 GL3-017, GL3-018 and GL3-019 are merged on main (verified at `a737af0207ebe5182764c06fadfb60d69ae1dc63`, PR9). See [the saved-cloud handoff](docs/operations/post-gl3-019-handoff.md) for tomorrow’s starting point, commands and remaining gaps. GL3-018 adds authoritative Signal admission, Chicago electrical permits and deeper Georgia permit documents. The accepted local Signal foundation retains 15 enabled public sources and adds bounded Jev adjudication for ambiguous evidence, persisted reproducible SHOW / REVIEW / HOLD decisions, and conservative physical-project grouping. The frozen GL3-015 corpus contained 81 Signal records displayed as 63 cards; GL3-016 preserved the evidence rather than promoting unsupported commercial facts. National coverage and deployed daily operation remain unproven.
 
+## Today’s Power Pursuits
+
+The next working slice adds persisted daily Austin/RRC pursuits, bounded official-source research, separate action statuses and owner call outcomes. Open `?view=pursuits`; see [startup and scheduler limits](docs/operations/power-pursuits.md) and [real-source validation](docs/validation/gl3-021-power-pursuits.md). Unknown rental demand, load, fuel, duration and buying authority remain unknown. This feature does not promote tiers or establish cloud operation.
+
 ## Product model
 
 GridLens follows:

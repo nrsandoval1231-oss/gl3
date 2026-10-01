@@ -30,7 +30,9 @@ POLICY_VERSION = "signal-display-v2"
 MODEL = "jev-1.13.0"
 
 
-def _jev_call(state: dict[str, str], api_key: str) -> dict[str, Any]:
+def _jev_call(
+    state: dict[str, str], api_key: str, *, on_request: Callable[[], None] | None = None
+) -> dict[str, Any]:
     payload = {
         "state": {
             "title": state["title"][:300],
@@ -96,6 +98,8 @@ def _jev_call(state: dict[str, str], api_key: str) -> dict[str, Any]:
     last_error: Exception | None = None
     for attempt in range(3):
         try:
+            if on_request:
+                on_request()
             response = httpx.post(
                 "https://api.typesafe.ai/v1/systemone",
                 headers={"Authorization": f"Bearer {api_key}"},
@@ -122,6 +126,7 @@ def adjudicate(
     api_key: str | None = None,
     caller: Callable[[dict[str, str], str], dict[str, Any]] = _jev_call,
     policy_version: str = POLICY_VERSION,
+    retry_errors: bool = False,
 ) -> SignalDecision:
     prior = session.scalar(
         select(SignalDecision)
@@ -133,7 +138,10 @@ def adjudicate(
         .order_by(SignalDecision.id.desc())
     )
     key = api_key if api_key is not None else os.getenv("TYPESAFE_API_KEY")
-    if prior is not None and not (prior.source == "jev_unavailable" and key):
+    if prior is not None and not (
+        (prior.source == "jev_unavailable" and key)
+        or (retry_errors and prior.source == "jev_error" and key)
+    ):
         return prior
     text = f"{evidence.title}\n{evidence.abstract or ''}"
     override = deterministic_override(text, observation.published_at, evidence.url)
@@ -334,9 +342,7 @@ def _evidence_state(
     return fields
 
 
-def map_dimensions(
-    dimensions: dict[str, float], *, title: str = "", abstract: str = ""
-) -> str:
+def map_dimensions(dimensions: dict[str, float], *, title: str = "", abstract: str = "") -> str:
     """Apply GL3 policy to factual probabilities and retained source context."""
     if dimensions["transient_event"] >= 0.8:
         return "HOLD"
@@ -389,30 +395,32 @@ def map_dimensions(
         and dimensions["transient_event"] <= 0.2
     ):
         if (
-            dimensions["commercial_relevance"] >= 0.7
-            or (
-                power_relevant_sector
-                and dimensions["commercial_relevance"] >= 0.3
-                and explicit_development
-            )
-        ) and not (
-            dimensions["temporary_power_relevance"] < 0.5
-            and (
-                generic_building
+            (
+                dimensions["commercial_relevance"] >= 0.7
                 or (
-                    existing_building_work
-                    and not (
-                        re.search(r"\bdata cent(?:er|re)\b", context)
-                        and explicit_development
+                    power_relevant_sector
+                    and dimensions["commercial_relevance"] >= 0.3
+                    and explicit_development
+                )
+            )
+            and not (
+                dimensions["temporary_power_relevance"] < 0.5
+                and (
+                    generic_building
+                    or (
+                        existing_building_work
+                        and not (
+                            re.search(r"\bdata cent(?:er|re)\b", context) and explicit_development
+                        )
                     )
                 )
             )
-        ) and not (
-            dimensions["commercial_relevance"] < 0.7
-            and additional_emergency_generators
-            and existing_standby_fleet
-        ) and not (
-            dimensions["commercial_relevance"] < 0.7 and unchanged_site_capacity
+            and not (
+                dimensions["commercial_relevance"] < 0.7
+                and additional_emergency_generators
+                and existing_standby_fleet
+            )
+            and not (dimensions["commercial_relevance"] < 0.7 and unchanged_site_capacity)
         ):
             return "SHOW"
     return "REVIEW"
@@ -507,9 +515,7 @@ def adjudicate_current_signals(
         if observation.id in seen:
             continue
         seen.add(observation.id)
-        signal_decision = adjudicate(
-            session, observation, evidence, policy_version=policy_version
-        )
+        signal_decision = adjudicate(session, observation, evidence, policy_version=policy_version)
         counts["processed"] += 1
         counts[signal_decision.decision.casefold()] += 1
     return counts

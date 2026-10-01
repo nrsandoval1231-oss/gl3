@@ -214,6 +214,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/pursuits": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Pursuits */
+        get: operations["pursuits_api_pursuits_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/pursuits/{pursuit_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Pursuit Detail */
+        get: operations["pursuit_detail_api_pursuits__pursuit_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/pursuits/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Refresh Pursuits */
+        post: operations["refresh_pursuits_api_pursuits_refresh_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/pursuits/{pursuit_id}/notes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Save Pursuit Note */
+        post: operations["save_pursuit_note_api_pursuits__pursuit_id__notes_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -333,6 +401,56 @@ export interface components {
             candidates_added: number;
             /** Unresolved */
             unresolved: string[];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /** CallNoteBody */
+        CallNoteBody: {
+            /**
+             * Client Id
+             * Format: uuid
+             */
+            client_id: string;
+            /** Note */
+            note: string;
+            /**
+             * Outcome
+             * @enum {string}
+             */
+            outcome: "Not reached" | "Contacted" | "Needs follow-up" | "No requirement" | "Closed";
+            /** Next Action */
+            next_action: string;
+            /** Follow Up */
+            follow_up?: string | null;
+        };
+        /** CallNoteOut */
+        CallNoteOut: {
+            /**
+             * Client Id
+             * Format: uuid
+             */
+            client_id: string;
+            /** Note */
+            note: string;
+            /**
+             * Outcome
+             * @enum {string}
+             */
+            outcome: "Not reached" | "Contacted" | "Needs follow-up" | "No requirement" | "Closed";
+            /** Next Action */
+            next_action: string;
+            /** Follow Up */
+            follow_up?: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Owner */
+            owner: string;
             /**
              * Created At
              * Format: date-time
@@ -793,6 +911,194 @@ export interface components {
              */
             observed_at: string;
         };
+        /** PursuitContactOut */
+        PursuitContactOut: {
+            /** Organization */
+            organization: string;
+            /** Kind */
+            kind: string;
+            /** Value */
+            value: string;
+            /** Source Url */
+            source_url: string;
+            /** Label */
+            label: string;
+        };
+        /** PursuitJobOut */
+        PursuitJobOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Status */
+            status: string;
+            /** Attempts */
+            attempts: number;
+            /** Error */
+            error: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Checkpoint */
+            checkpoint: string | null;
+        };
+        /** PursuitOut */
+        PursuitOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /** Project Ids */
+            project_ids: string[];
+            /** Project */
+            project: string;
+            /** Site */
+            site: string;
+            /** Organization */
+            organization: string;
+            /** Organization Involvement */
+            organization_involvement: string;
+            /**
+             * Action Status
+             * @enum {string}
+             */
+            action_status: "Call now" | "Verify first" | "Monitor" | "Drop";
+            /** Rank Key */
+            rank_key: number[];
+            /** Ranking Reasons */
+            ranking_reasons: string[];
+            /** Trigger */
+            trigger: string;
+            /** Trigger Date */
+            trigger_date: string;
+            /** Timing */
+            timing: string[];
+            /** Registration Context */
+            registration_context?: string[];
+            /** People */
+            people: components["schemas"]["PursuitPersonOut"][];
+            /** Contacts */
+            contacts: components["schemas"]["PursuitContactOut"][];
+            /** Load Facts */
+            load_facts: string[];
+            /** Fuel Facts */
+            fuel_facts: string[];
+            /** Utility Facts */
+            utility_facts: string[];
+            /** Unknowns */
+            unknowns: string[];
+            /** Conflicts */
+            conflicts: string[];
+            /** Next Action */
+            next_action: string;
+            /** Evidence */
+            evidence: components["schemas"]["PursuitSourceOut"][];
+            /** Last Researched At */
+            last_researched_at: string | null;
+            /** Last Attempt At */
+            last_attempt_at: string | null;
+            /** Research Status */
+            research_status: string;
+            /** Research Errors */
+            research_errors: string[];
+            /** Notes */
+            notes: components["schemas"]["CallNoteOut"][];
+            /**
+             * Tier
+             * @default Signal
+             */
+            tier: string;
+        };
+        /** PursuitPersonOut */
+        PursuitPersonOut: {
+            /** Name */
+            name: string;
+            /** Organization */
+            organization: string;
+            /** Corporate Role */
+            corporate_role: string;
+            /** Project Assignment */
+            project_assignment: string;
+            /**
+             * Purchasing Authority
+             * @default Unknown
+             */
+            purchasing_authority: string;
+            /** Source Url */
+            source_url: string;
+        };
+        /** PursuitSourceOut */
+        PursuitSourceOut: {
+            /** Url */
+            url: string;
+            /** Title */
+            title: string;
+            /** Excerpt */
+            excerpt: string;
+            /**
+             * Retrieved At
+             * Format: date-time
+             */
+            retrieved_at: string;
+            /** Published At */
+            published_at?: string | null;
+            /**
+             * Source Date
+             * @default Publication date unknown
+             */
+            source_date: string;
+            /** Match Reason */
+            match_reason: string;
+            /** Content Hash */
+            content_hash: string;
+        };
+        /** PursuitsOut */
+        PursuitsOut: {
+            /** Items */
+            items: components["schemas"]["PursuitOut"][];
+            /** Usage */
+            usage?: {
+                [key: string]: number;
+            };
+            /**
+             * Total
+             * @default 0
+             */
+            total: number;
+            /**
+             * Offset
+             * @default 0
+             */
+            offset: number;
+            /** Excluded Count */
+            excluded_count: number;
+            /** Jobs */
+            jobs: components["schemas"]["PursuitJobOut"][];
+            /**
+             * Policy Version
+             * @default power-pursuits-v1
+             */
+            policy_version: string;
+            /**
+             * Ranking Policy
+             * @default Lexicographic: explicit construction/commissioning power scope, then dated work timing, reachable project organization, then verified NG/propane feasibility. Stable identity breaks ties. No probability or tier promotion.
+             */
+            ranking_policy: string;
+            /**
+             * Scheduler
+             * @default Research is queued after successful Austin/RRC ingestion in the existing worker. A running worker is required; managed cloud scheduling has not been verified.
+             */
+            scheduler: string;
+        };
         /** RefreshOut */
         RefreshOut: {
             /** Queued */
@@ -1142,6 +1448,135 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BuyingChainOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    pursuits_api_pursuits_get: {
+        parameters: {
+            query?: {
+                include_dropped?: boolean;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PursuitsOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    pursuit_detail_api_pursuits__pursuit_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pursuit_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PursuitOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    refresh_pursuits_api_pursuits_refresh_post: {
+        parameters: {
+            query?: {
+                force?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PursuitJobOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_pursuit_note_api_pursuits__pursuit_id__notes_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pursuit_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CallNoteBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CallNoteOut"];
                 };
             };
             /** @description Validation Error */
