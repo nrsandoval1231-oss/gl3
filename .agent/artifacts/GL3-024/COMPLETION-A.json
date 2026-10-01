@@ -1,0 +1,75 @@
+{
+  "packet": "GL3-024-A",
+  "status": "FROZEN_FOR_SERIAL_INTEGRATION",
+  "base": {
+    "branch": "feat/gl3-023-city-permits",
+    "head_sha": "118d4197d0091ae73564a38130b4e0c20e72509d"
+  },
+  "freeze": {
+    "finished_at_utc": "2026-10-01T18:01:19Z",
+    "started_at_utc": "UNKNOWN",
+    "elapsed_seconds": "UNKNOWN",
+    "candidate_committed": false,
+    "raw_evidence_paths": []
+  },
+  "changed_files": [
+    "README.md",
+    "backend/src/gridlens/api/app.py",
+    "backend/src/gridlens/domain/collection_watch.py (deleted)",
+    "backend/src/gridlens/domain/commercial_presentation.py (added)",
+    "backend/src/gridlens/intelligence/pursuits.py",
+    "backend/tests/integration/test_collection_only_ingestion.py",
+    "backend/tests/unit/test_commercial_presentation.py (added)",
+    "backend/tests/unit/test_publisher_rss.py",
+    "backend/tests/unit/test_pursuit_public.py",
+    "docs/product/PRD.md",
+    "web/src/api/client.ts",
+    "web/src/api/generated.ts",
+    "web/src/api/openapi.json",
+    "web/src/app/App.tsx",
+    "web/src/features/opportunities/projectCards.ts",
+    "web/tests/project_cards.spec.ts"
+  ],
+  "implementation": [
+    "Removed Cannabis Watch navigation/view and dedicated watch-only API/domain matching; retained ordinary publisher and cannabis evidence in the ingestion inbox.",
+    "Added role-labeled project title presentation using current project evidence: owner/operator before contractor, applicant as applicant, Dallas LP Business Name as role-unverified, and Houston exact-project validated owner/occupant summaries. Unsupported identities fall back to activity/site. Original evidence titles remain visible.",
+    "Added company-first pursuit titles and corrected role wording so an owner is not described as a contractor.",
+    "Added an inclusive 0.3 MW floor with no maximum; confirmed below-floor opportunities are omitted from opportunity responses, unknown-size Signals remain visibly unknown, and campus/nameplate/operating totals do not determine activity size. Ambiguous quantities and invalid MW values remain unknown.",
+    "Documented the owner-authorized change in the PRD and clarified local draft-candidate status and coverage in README. Regenerated OpenAPI JSON and TypeScript client contract."
+  ],
+  "validation": [
+    {
+      "command": "python -m ruff check <assigned backend files>",
+      "result": "PASS"
+    },
+    {
+      "command": "python -m mypy backend/src/gridlens/domain/commercial_presentation.py backend/src/gridlens/api/app.py backend/src/gridlens/intelligence/pursuits.py",
+      "result": "PASS"
+    },
+    {
+      "command": "python -m pytest backend/tests/unit/test_commercial_presentation.py backend/tests/unit/test_publisher_rss.py backend/tests/unit/test_pursuit_screening.py backend/tests/unit/test_pursuit_public.py backend/tests/integration/test_collection_only_ingestion.py::test_authenticated_inbox_filters_and_paginates_retained_versions",
+      "result": "PASS; 47 tests"
+    },
+    {
+      "command": "npm run typecheck",
+      "result": "PASS"
+    },
+    {
+      "command": "npm run build",
+      "result": "PASS"
+    },
+    {
+      "command": "npm test -- --grep 'Cannabis Watch is removed|project title prefers|city permit company title'",
+      "result": "PASS; 3 fixture-backed browser tests on existing UI port; API calls were mocked"
+    },
+    {
+      "command": "git diff --check -- assigned files",
+      "result": "PASS after removing trailing blank lines"
+    }
+  ],
+  "limitations": [
+    "This receipt covers the builder surface at the stated base SHA. Cultivation source implementation and integrated runtime evidence are separate handoffs; final acceptance and exact integrated-candidate validation remain with the controller.",
+    "No live API/runtime claim is made. The existing API process was not treated as candidate evidence.",
+    "Build, validation, audit, elapsed, and token timings were not measured and remain UNKNOWN."
+  ]
+}

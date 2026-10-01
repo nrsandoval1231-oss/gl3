@@ -1,0 +1,61 @@
+{
+  "packet": "GL3-024-B",
+  "status": "READY_FOR_CONTROLLER_VALIDATION",
+  "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-024-source",
+  "branch": "feat/gl3-024-cultivation-source",
+  "base_sha": "118d4197d0091ae73564a38130b4e0c20e72509d",
+  "head_sha": "118d4197d0091ae73564a38130b4e0c20e72509d",
+  "source_id": "ma-ccc-cultivation-applications",
+  "retrieval_method": "ma-cultivation-applications",
+  "source_snapshot": {
+    "endpoint": "https://masscannabiscontrol.com/resource/l_applications_all_details.json",
+    "status": 200,
+    "bytes": 8075059,
+    "sha256": "a46b79846534783ab78121e4a2acfb6dc30c10207bfc7d7af153efa9c8d637f3",
+    "rows_total": 1989,
+    "cultivator_rows": 452,
+    "status_counts": {
+      "APPROVED": 398,
+      "PENDING": 2,
+      "REOPENED": 52
+    },
+    "snapshot_updated": "2026-09-22",
+    "two_fetch_hash_replay_equal": true,
+    "deterministically_assessed_recent_site_signals": 11,
+    "database_persisted": false
+  },
+  "validation": [
+    {
+      "command": "python -m pytest backend/tests/unit/test_ma_cultivation.py backend/tests/integration/test_ma_cultivation_ingestion.py -q",
+      "exit_code": 0,
+      "result": "15 passed"
+    },
+    {
+      "command": "python -m ruff check on the 10 changed Python files",
+      "exit_code": 0,
+      "result": "All checks passed"
+    },
+    {
+      "command": "python -m mypy --config-file backend/pyproject.toml on the six changed typed source modules",
+      "exit_code": 0,
+      "result": "Success: no issues found in 6 source files"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0,
+      "result": "clean"
+    }
+  ],
+  "mutable_state": {
+    "test_database": "gl3_024_source_test",
+    "acceptance_database_written": false,
+    "commit_push_merge_deploy": false
+  },
+  "limitations": [
+    "CCC data is self-reported and may be incomplete, inaccurate, or untimely.",
+    "Application signals establish an application event only; construction, operations, load, rental need, buyer, ownership, and authority remain unknown.",
+    "Live persistence/replay of the real 452-row source snapshot remains for controller validation after serial integration."
+  ],
+  "receipt": ".agent/artifacts/GL3-024/SOURCE-B-RECEIPT.md",
+  "frozen": true
+}

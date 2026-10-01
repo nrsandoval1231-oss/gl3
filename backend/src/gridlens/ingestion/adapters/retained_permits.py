@@ -25,6 +25,28 @@ LABELS = {
         )
     },
     "operator": "Permit-listed operator",
+    "applicant_org": "CCC-listed cultivation applicant organization",
+    "applicant_role": "Applicant role on CCC cultivation application",
+    "business_email": "CCC-listed applicant business email (source field; authority unknown)",
+    "business_phone": "CCC-listed applicant business phone (source field; authority unknown)",
+    "application_number": "CCC application number",
+    "license_number": "CCC license number",
+    "application_stage": "CCC application stage",
+    "original_submitted_date": "CCC original submitted date",
+    "application_created_date": "CCC application created date",
+    "application_approved_date": "CCC application approval date",
+    "application_denied_date": "CCC application denial date",
+    "license_status": "CCC license status",
+    "commence_operations_date": "CCC commence operations date",
+    "final_licensure_date": "CCC final licensure date",
+    "license_start_date": "CCC license start date",
+    "license_original_start_date": "CCC original license start date",
+    "license_expiration_date": "CCC license expiration date",
+    "license_revocation_date": "CCC license revocation date",
+    "license_surrendered_date": "CCC license surrender date",
+    "license_suspended_start_date": "CCC license suspension start date",
+    "license_suspended_end_date": "CCC license suspension end date",
+    "snapshot_updated": "CCC snapshot update date",
     "operator_number": "RRC operator number",
     "lease": "Lease",
     "well": "Well number",
@@ -118,6 +140,31 @@ CITY_MAPS = {
         "cost": "Reported job value",
     },
 }
+CULTIVATION_FIELDS = {
+    "applicant_org": "Applicant organization (CCC cultivation application)",
+    "applicant_role": "Applicant role on CCC cultivation application",
+    "business_email": "CCC-listed applicant business email (source field; authority unknown)",
+    "business_phone": "CCC-listed applicant business phone (source field; authority unknown)",
+    "application_number": "CCC application number",
+    "license_number": "CCC license number",
+    "license_type": "CCC license type",
+    "application_status": "CCC application status",
+    "application_stage": "CCC application stage",
+    "event_date": "CCC application event date",
+    "event_date_label": "CCC application event date type",
+    "original_submitted_date": "CCC original submitted date",
+    "application_created_date": "CCC application created date",
+    "application_updated_date": "CCC application updated date",
+    "establishment_address": "CCC establishment street address",
+    "city": "CCC establishment city",
+    "state": "CCC establishment state",
+    "zip": "CCC establishment ZIP",
+    "license_status": "CCC license status",
+    "commence_operations_date": "CCC commence operations date",
+    "license_start_date": "CCC license start date",
+    "license_expiration_date": "CCC license expiration date",
+    "snapshot_updated": "CCC snapshot update date",
+}
 
 
 def fields(source_id: str, text: str) -> dict[str, tuple[str, str]]:
@@ -125,6 +172,7 @@ def fields(source_id: str, text: str) -> dict[str, tuple[str, str]]:
         GEORGIA,
         "houston-weekly-permits",
         "texas-rrc-drilling-permits",
+        "ma-ccc-cultivation-applications",
     }:
         return {}
     allowed = (
@@ -136,6 +184,8 @@ def fields(source_id: str, text: str) -> dict[str, tuple[str, str]]:
         if source_id in {"houston-weekly-permits", "texas-rrc-drilling-permits"}
         else set(LABELS) - set(MAPS["chicago-building-permits"])
     )
+    if source_id == "ma-ccc-cultivation-applications":
+        allowed = set(CULTIVATION_FIELDS)
     result: dict[str, tuple[str, str]] = {}
     duplicates: set[str] = set()
     for line in text.splitlines():
@@ -150,9 +200,14 @@ def fields(source_id: str, text: str) -> dict[str, tuple[str, str]]:
 
 def facts(source_id: str, text: str) -> list[dict[str, str]]:
     parsed = fields(source_id, text)
+    selected_labels = (
+        CULTIVATION_FIELDS.items()
+        if source_id == "ma-ccc-cultivation-applications"
+        else LABELS.items()
+    )
     output = [
         {"label": label, "value": parsed[key][0], "quote": parsed[key][1]}
-        for key, label in LABELS.items()
+        for key, label in selected_labels
         if key in parsed
     ]
     if source_id == "houston-weekly-permits":

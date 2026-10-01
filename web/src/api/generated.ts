@@ -691,10 +691,6 @@ export interface components {
             collection_state: string;
             /** Qualification State */
             qualification_state: string;
-            /** Matched Terms */
-            matched_terms: string[];
-            /** Topic Label */
-            topic_label: string | null;
             /**
              * Assessment Current
              * @default false
@@ -799,6 +795,8 @@ export interface components {
             signal_evidence_state: string;
             /** Required Mw */
             required_mw: string | null;
+            /** Commercial Size Status */
+            commercial_size_status?: string | null;
             /** Start Window */
             start_window: string | null;
             /** Duration */
@@ -815,6 +813,10 @@ export interface components {
             supported_subject?: string | null;
             /** Supported Action */
             supported_action?: string | null;
+            /** Title Company */
+            title_company?: string | null;
+            /** Title Company Role */
+            title_company_role?: string | null;
             /** Demand Quote */
             demand_quote?: string | null;
             /** Supply Quote */
@@ -1095,7 +1097,7 @@ export interface components {
             ranking_policy: string;
             /**
              * Scheduler
-             * @default Research is queued after successful Austin/RRC ingestion in the existing worker. A running worker is required; managed cloud scheduling has not been verified.
+             * @default Research is queued after successful Austin, RRC, Dallas, El Paso, or Houston ingestion. City permit refresh rechecks the official bounded source and exact retained row; A running worker is required; managed cloud scheduling has not been verified.
              */
             scheduler: string;
         };
@@ -1240,7 +1242,6 @@ export interface operations {
             query?: {
                 source_id?: string | null;
                 vertical?: string | null;
-                watch_only?: boolean;
                 limit?: number;
                 offset?: number;
             };

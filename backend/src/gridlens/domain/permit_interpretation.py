@@ -188,6 +188,8 @@ _REPORTED_MW = re.compile(r"(?<![\w.])\d[\d,]*(?:\.\d+)?\s*MW\b", re.I)
 
 def evaluator_version(record: dict[str, Any]) -> str:
     permit = record.get("permit")
+    if isinstance(permit, dict) and permit.get("source_type") == "ma-ccc-cultivation-applications":
+        return "ma-cultivation-application-v1"
     if isinstance(permit, dict) and permit.get("source_type") in {
         "dallas-monthly-permits",
         "el-paso-new-commercial-permits",
@@ -442,6 +444,106 @@ def assess_permit(record: dict[str, Any], *, as_of: date | None = None) -> dict[
         raise ValueError("Permit fields are missing")
     description = str(permit.get("description") or "")
     as_of = as_of or date.today()
+    if permit.get("source_type") == "ma-ccc-cultivation-applications":
+        status = str(permit.get("application_status") or "").strip().upper()
+        license_status = str(permit.get("license_status") or "").strip().upper()
+        active_application = status in {"PENDING", "REOPENED"}
+        already_licensed_or_operating = bool(
+            permit.get("commence_operations_date")
+            or permit.get("license_start_date")
+            or permit.get("license_original_start_date")
+            or permit.get("license_expiration_date")
+            or permit.get("final_licensure_date")
+            or permit.get("license_revocation_date")
+            or permit.get("license_surrendered_date")
+            or permit.get("license_suspended_start_date")
+            or license_status in {"ACTIVE", "EXPIRED", "SURRENDERED", "REVOKED", "SUSPENDED"}
+        )
+        applicant = str(permit.get("applicant_org") or permit.get("business_name") or "").strip()
+        address = str(permit.get("address") or "").strip()
+        city = str(permit.get("city") or "").strip()
+        state = str(permit.get("state") or "").strip().upper()
+        location = ", ".join(part for part in (address, city, state, permit.get("zip")) if part)
+        event_date = record.get("event_date")
+        try:
+            event_day = date.fromisoformat(str(event_date)) if event_date else None
+        except ValueError:
+            event_day = None
+        site_ok = bool(address and city and state == "MA")
+        citation_ok = bool(
+            permit.get("application_number") or permit.get("license_number")
+        ) and str(record.get("html_url") or "").startswith(
+            "https://masscannabiscontrol.com/resource/"
+        )
+        accepted = bool(
+            applicant
+            and site_ok
+            and citation_ok
+            and event_day
+            and event_day <= as_of
+            and (as_of - event_day).days <= 120
+            and active_application
+            and not already_licensed_or_operating
+        )
+        if accepted:
+            reason = (
+                f"The CCC snapshot records a dated {status.lower()} cultivation-license "
+                f"application for applicant {applicant} at {location}. This is an early "
+                "investigation Signal "
+                "about an application event only; construction, operations, load, rental need, "
+                "buyer, and authority are UNKNOWN."
+            )
+        elif already_licensed_or_operating:
+            reason = (
+                "CCC lifecycle facts indicate an issued, operating, or closed license; "
+                "retain as history, not a new-facility Signal."
+            )
+        elif not active_application:
+            reason = (
+                "Only pending or explicitly reopened cultivation applications qualify "
+                "for this application-event Signal."
+            )
+        elif not site_ok:
+            reason = (
+                "CCC application does not identify a complete physical Massachusetts "
+                "establishment site."
+            )
+        elif not event_day or event_day > as_of or not citation_ok:
+            reason = "A valid dated application event and official source citation are required."
+        else:
+            reason = "CCC cultivation application lacks an identifiable applicant organization."
+        return {
+            "schema_version": 1,
+            "decision": "accepted" if accepted else "rejected",
+            "tier": "Signal" if accepted else None,
+            "reason": reason,
+            "subject": applicant if accepted else None,
+            "action": f"{status.title()} cultivation-license application" if accepted else None,
+            "location": location or None,
+            "missing_facts": [
+                "construction status",
+                "load",
+                "rental need",
+                "buyer",
+                "buying authority",
+            ],
+            "source_field_citations": permit.get("source_fields", {}),
+            "stable_row_id": permit.get("application_number") or permit.get("license_number"),
+            "permit_status": status or None,
+            "event_date": event_date,
+            "event_date_label": record.get("event_date_label"),
+            "issue_date": None,
+            "issue_date_label": None,
+            "project_hint": applicant or None,
+            "power_activity": "cultivation-license-application",
+            "rental_category": "cultivation-application-discovery",
+            "reported_claim": record.get("event_date_label") if accepted else None,
+            "reported_power_facts": [],
+            "rental_hypothesis": None,
+            "activity_end_date": None,
+            "review_after": None,
+            "as_of_date": as_of.isoformat(),
+        }
     if permit.get("source_type") == "georgia-air-draft-title-v":
         return _assess_georgia_air(record, permit, str(permit.get("current_scope") or ""), as_of)
     if permit.get("source_type") == "texas-rrc-drilling-permits":

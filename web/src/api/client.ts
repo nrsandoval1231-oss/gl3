@@ -30,8 +30,8 @@ export const client = {
   opportunities: (tier: string, search: string) => api<Opportunity[]>(`/api/opportunities?tier=${encodeURIComponent(tier)}&search=${encodeURIComponent(search)}`),
   changes: () => api<{ kind: string; title: string; url: string; published_at: string | null }[]>('/api/changes'),
   health: () => api<components['schemas']['HealthOut']>('/api/health'),
-  ingestion: (sourceId: string, vertical: string, watchOnly: boolean, limit: number, offset: number) => {
-    const params = new URLSearchParams({ limit: String(limit), offset: String(offset), watch_only: String(watchOnly) })
+  ingestion: (sourceId: string, vertical: string, limit: number, offset: number) => {
+    const params = new URLSearchParams({ limit: String(limit), offset: String(offset) })
     if (sourceId) params.set('source_id', sourceId)
     if (vertical) params.set('vertical', vertical)
     return api<IngestionPage>(`/api/ingestion?${params.toString()}`)

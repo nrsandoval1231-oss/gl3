@@ -1326,13 +1326,13 @@ def test_authenticated_inbox_filters_and_paginates_retained_versions(db, monkeyp
     second = client.get("/api/ingestion?source_id=mjbizdaily-news&limit=1&offset=1").json()
     assert second["items"][0]["content_hash"] != page["items"][0]["content_hash"]
     assert page["items"][0]["qualification_state"] == "Not assessed"
-    assert page["items"][0]["topic_label"] == "Topic match - review required"
     all_items = client.get("/api/ingestion?limit=10").json()
     assert all_items["total"] == 5
     assert (
         client.get("/api/ingestion?source_id=nc-commerce").json()["items"][0]["qualification_state"]
         == "Not assessed"
     )
-    watched = client.get("/api/ingestion?watch_only=true&limit=2&offset=2").json()
-    assert watched["total"] == 4 and len(watched["items"]) == 2
-    assert all(item["matched_terms"] for item in watched["items"])
+    assert all(
+        "topic_label" not in item and "matched_terms" not in item
+        for item in all_items["items"]
+    )

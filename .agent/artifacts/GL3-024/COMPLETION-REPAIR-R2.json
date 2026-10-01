@@ -1,0 +1,60 @@
+{
+  "packet": "GL3-024 REVIEW-r1 bounded repair",
+  "status": "FROZEN_FOR_CONTROLLER_RUNTIME_AND_REVIEW",
+  "candidate": {
+    "branch": "feat/gl3-023-city-permits",
+    "base_sha": "118d4197d0091ae73564a38130b4e0c20e72509d",
+    "candidate_committed": false,
+    "review_preserved": ".agent/artifacts/GL3-024/REVIEW-r1.json"
+  },
+  "changed_files": [
+    "backend/src/gridlens/intelligence/pursuits.py",
+    "backend/tests/integration/test_pursuits.py",
+    "web/src/app/App.tsx",
+    "web/tests/project_cards.spec.ts"
+  ],
+  "changes": [
+    "Included the sourced Dallas lp_business_name in pursuit organization/title selection, explicitly labeled LP Business Name with role unverified, and kept this source role separate from ownership or buyer authority.",
+    "Added a presentation-policy version to the existing pursuit input hash. Previously cached snapshots therefore stop qualifying as fresh and the next ordinary refresh recomputes the presentation; existing policy API defaults and saved research, documents, notes, and IDs are retained.",
+    "Changed expanded grouped opportunity member headings to use the same evidence-backed projectTitle as cards and detail while retaining record identifiers in the row identity and evidence detail.",
+    "Added an unforced saved-pursuit refresh regression proving an old title/hash is reselected, current Dallas source facts create the role-safe company-first title, and pursuit identity, call note, and retained source document IDs survive. Added a grouped permit-member browser regression for both a role-unverified LP name and an owner-labeled company."
+  ],
+  "validation": [
+    {
+      "command": "cd backend; .venv/Scripts/python.exe -m pytest tests/integration/test_pursuits.py -q",
+      "result": "PASS; 12 passed"
+    },
+    {
+      "command": "cd backend; .venv/Scripts/python.exe -m pytest tests/integration/test_pursuits.py -k ordinary_refresh_reconciles_saved_dallas_title_and_preserves_history -q",
+      "result": "PASS; 1 passed, 11 deselected after final assertions"
+    },
+    {
+      "command": "cd backend; .venv/Scripts/ruff.exe check src/gridlens/intelligence/pursuits.py tests/integration/test_pursuits.py",
+      "result": "PASS"
+    },
+    {
+      "command": "cd backend; .venv/Scripts/python.exe -m mypy src/gridlens/intelligence/pursuits.py",
+      "result": "PASS; no issues"
+    },
+    {
+      "command": "cd web; npm test -- project_cards.spec.ts --grep 'grouped permit members use company-first titles'",
+      "result": "PASS; 1 focused mocked browser test"
+    },
+    {
+      "command": "cd web; npm run typecheck",
+      "result": "PASS"
+    },
+    {
+      "command": "git diff --check -- assigned source and test files",
+      "result": "PASS"
+    }
+  ],
+  "repair_history": [
+    "The first saved-pursuit regression run exposed an internal role key in the title (`lp_business_name`). The display now maps it to `LP Business Name · role unverified`; the rerun passed."
+  ],
+  "limitations": [
+    "Controller owns actual live Dallas refresh comparison, complete exact-candidate gates, new manifest, and fresh independent review.",
+    "No PRD/README edit was needed; existing source coverage already states the Dallas LP Business Name role remains unverified.",
+    "Start/finish timestamps, elapsed time, token counts, and audit duration are UNKNOWN."
+  ]
+}

@@ -151,8 +151,31 @@ function georgiaActivityTitle(item: Opportunity) {
   return neutralTitle(item)
 }
 
+function supportedCompany(item: Opportunity) {
+  if (item.title_company?.trim() && item.title_company_role?.trim()) {
+    return { name: item.title_company.trim(), role: item.title_company_role.trim() }
+  }
+  const candidates = item.evidence.flatMap((evidence) => {
+    if (!evidence.assessment_current) return []
+    const abstract = evidence.abstract ?? ''
+    const pairs = [...abstract.matchAll(/^\s*(owner_company_name|operator_company_name|applicant_org|contractor_company_name|lp_business_name)\s*:\s*(.+?)\s*$/gim)]
+    return pairs.map((match) => ({ key: match[1].toLocaleLowerCase('en-US'), name: match[2].trim() }))
+  })
+  for (const key of ['owner_company_name', 'operator_company_name', 'applicant_org']) {
+    const found = candidates.find((candidate) => candidate.key === key && candidate.name && !/^unknown$/i.test(candidate.name))
+    if (found) return { name: found.name, role: key === 'applicant_org' ? 'applicant' : key === 'owner_company_name' ? 'owner' : 'operator' }
+  }
+  const lpBusiness = candidates.find((candidate) => candidate.key === 'lp_business_name' && candidate.name && !/^unknown$/i.test(candidate.name))
+  if (lpBusiness) return { name: lpBusiness.name, role: 'LP Business Name · role unverified' }
+  const contractor = candidates.find((candidate) => candidate.key === 'contractor_company_name' && candidate.name && !/^unknown$/i.test(candidate.name))
+  return contractor ? { name: contractor.name, role: 'contractor' } : null
+}
+
 export function projectTitle(item: Opportunity) {
+  const company = supportedCompany(item)
+  if (company) return `${company.name} · ${company.role}`
   if (source(item) === 'georgia-air-draft-title-v') return georgiaActivityTitle(item)
+  if (/^(?:houston\s+)?permit\b/i.test(item.name)) return neutralTitle(item)
   if (!permitSource.test(source(item))) return item.name
   for (const action of actionCandidates(item)) {
     if (item.activity === 'event-power' && actionWithPlaceAndDate(action)) {

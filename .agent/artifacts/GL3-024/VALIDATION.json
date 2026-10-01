@@ -1,0 +1,143 @@
+{
+  "candidate_sha256": "16710394699673efaa8d3b7efead4d103abfb9c61b92db827fd951b51a9a6b58",
+  "gates": [
+    {
+      "check": "ruff",
+      "command": [
+        "uv",
+        "run",
+        "ruff",
+        "check",
+        "src",
+        "tests",
+        "migrations",
+        "../scripts"
+      ],
+      "exit_code": 0,
+      "start": "2026-10-01T18:46:28.031443+00:00",
+      "finish": "2026-10-01T18:46:28.222283+00:00",
+      "seconds": 0.19084
+    },
+    {
+      "check": "mypy",
+      "command": [
+        "uv",
+        "run",
+        "mypy",
+        "src"
+      ],
+      "exit_code": 0,
+      "start": "2026-10-01T18:46:28.222283+00:00",
+      "finish": "2026-10-01T18:46:28.953344+00:00",
+      "seconds": 0.731061
+    },
+    {
+      "check": "pytest",
+      "command": [
+        "uv",
+        "run",
+        "pytest",
+        "tests",
+        "-q"
+      ],
+      "exit_code": 0,
+      "start": "2026-10-01T18:46:28.953344+00:00",
+      "finish": "2026-10-01T18:47:01.301964+00:00",
+      "seconds": 32.34862
+    },
+    {
+      "check": "typecheck",
+      "command": [
+        "npm.cmd",
+        "run",
+        "typecheck"
+      ],
+      "exit_code": 0,
+      "start": "2026-10-01T18:47:01.303471+00:00",
+      "finish": "2026-10-01T18:47:03.076522+00:00",
+      "seconds": 1.773051
+    },
+    {
+      "check": "build",
+      "command": [
+        "npm.cmd",
+        "run",
+        "build"
+      ],
+      "exit_code": 0,
+      "start": "2026-10-01T18:47:03.076522+00:00",
+      "finish": "2026-10-01T18:47:05.945159+00:00",
+      "seconds": 2.868637
+    },
+    {
+      "check": "migrations-clean",
+      "command": [
+        "uv",
+        "run",
+        "alembic",
+        "upgrade",
+        "head"
+      ],
+      "exit_code": 0,
+      "start": "2026-10-01T18:47:05.946159+00:00",
+      "finish": "2026-10-01T18:47:07.234050+00:00",
+      "seconds": 1.287891
+    },
+    {
+      "check": "migrations-repeat",
+      "command": [
+        "uv",
+        "run",
+        "alembic",
+        "upgrade",
+        "head"
+      ],
+      "exit_code": 0,
+      "start": "2026-10-01T18:47:07.234050+00:00",
+      "finish": "2026-10-01T18:47:08.338349+00:00",
+      "seconds": 1.104299
+    },
+    {
+      "check": "migrations-drift",
+      "command": [
+        "uv",
+        "run",
+        "alembic",
+        "check"
+      ],
+      "exit_code": 0,
+      "start": "2026-10-01T18:47:08.338349+00:00",
+      "finish": "2026-10-01T18:47:09.604399+00:00",
+      "seconds": 1.26605
+    },
+    {
+      "check": "browser",
+      "command": [
+        "npm.cmd",
+        "run",
+        "test",
+        "--",
+        "--reporter=line",
+        "--grep-invert",
+        "live air documents|live data-center permit enrichment|real pursuits retain evidence gates|real conflicts, bounded refresh"
+      ],
+      "exit_code": 0,
+      "start": "2026-10-01T18:47:09.605403+00:00",
+      "finish": "2026-10-01T18:47:13.484108+00:00",
+      "seconds": 3.878705
+    },
+    {
+      "check": "diff",
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exit_code": 0,
+      "start": "2026-10-01T18:47:13.484108+00:00",
+      "finish": "2026-10-01T18:47:13.644322+00:00",
+      "seconds": 0.160214
+    }
+  ],
+  "logs": "validation-final"
+}

@@ -43,7 +43,7 @@ test('authenticated desktop browse, detail, back, and search use a live Signal',
   })
   expect(response.status).toBe(200)
   expect(response.items.length, 'authenticated local API must contain at least one real Signal').toBeGreaterThan(0)
-  expect(response.items.every((item) => ['Official permit', 'Official utility filing', 'Temporary-power solicitation'].includes(item.signal_admission_origin ?? ''))).toBe(true)
+  expect(response.items.every((item) => ['Official permit', 'Official utility filing', 'Temporary-power solicitation', 'Official cultivation application'].includes(item.signal_admission_origin ?? ''))).toBe(true)
   const cards = projectCards(response.items)
   const signalCard = cards.find((card) => card.members.some((item) => item.evidence.length > 0))
   const signal = signalCard?.members.find((item) => item.evidence.length > 0)
@@ -61,7 +61,7 @@ test('authenticated desktop browse, detail, back, and search use a live Signal',
   await openCardMember(page, signalCard, signal.id)
   await expect(page.getByRole('heading', { level: 1, name: title })).toBeVisible()
   await expect(page.getByText(signal.evidence[0].source_id, { exact: false }).first()).toBeVisible()
-  await expect(page.getByText('Official permit', { exact: true })).toBeVisible()
+  await expect(page.getByText(signal.signal_admission_origin ?? '', { exact: true })).toBeVisible()
   await page.screenshot({ path: test.info().outputPath('live-desktop.png'), fullPage: true })
   await page.getByRole('button', { name: /Back to Signals/ }).click()
   await expect(page.getByRole('textbox', { name: 'Search projects' })).toHaveValue(title)
@@ -73,12 +73,12 @@ test('authenticated desktop browse, detail, back, and search use a live Signal',
   await expect(page.locator(`[data-opportunity-id="${signal.id}"]`).first()).toBeFocused()
 })
 
-test('mobile health, ingestion inbox, watch, and browser history show actual local data states', async ({ page }) => {
+test('mobile health, ordinary news inbox, and browser history show actual local data states', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await signIn(page)
 
   const inbox = await page.evaluate(async () => {
-    const result = await fetch('/api/ingestion?limit=1&offset=0&watch_only=false')
+    const result = await fetch('/api/ingestion?limit=1&offset=0')
     return { status: result.status, page: await result.json() as { items: { title: string }[]; total: number } }
   })
   expect(inbox.status).toBe(200)
@@ -106,20 +106,22 @@ test('mobile health, ingestion inbox, watch, and browser history show actual loc
   await expect(page.locator('.ingestion-card').first()).toContainText('City of El Paso')
   await sourceFilter.selectOption('')
 
-  await page.getByRole('button', { name: 'Cannabis watch' }).click()
-  await expect(page.getByRole('heading', { name: 'Cannabis business news watch' })).toBeVisible()
-  const watch = await page.evaluate(async () => {
-    const result = await fetch('/api/ingestion?limit=1&offset=0&watch_only=true&vertical=cannabis')
-    return { status: result.status, page: await result.json() as { items: { title: string }[]; total: number } }
-  })
-  expect(watch.status).toBe(200)
-  if (watch.page.total > 0) {
-    await expect(page.locator('.ingestion-card').first()).toContainText(watch.page.items[0].title)
-  } else {
-    await expect(page.getByRole('heading', { name: 'No topic matches in this snapshot' })).toBeVisible()
-  }
+  await expect(page.getByRole('navigation', { name: 'Workspace views' }).getByRole('button', { name: 'Cannabis watch' })).toHaveCount(0)
+  await expect(sourceFilter.locator('option')).toContainText([
+    'Data Center Dynamics',
+    'Utility Dive',
+    'Manufacturing Dive',
+    'Construction Dive',
+    'Oil & Gas Journal',
+    'MJBizDaily',
+  ])
+  await expect(page.locator('.ingestion-card').first()).toContainText(inbox.page.items[0].title)
+  await sourceFilter.selectOption('el-paso-new-commercial-permits')
+  await page.getByRole('button', { name: 'Today’s pursuits' }).click()
+  await expect(page.getByRole('heading', { name: "Today's Power Pursuits" })).toBeVisible()
   await page.goBack()
   await expect(page.getByRole('heading', { name: 'Ingestion inbox' })).toBeVisible()
+  await expect(sourceFilter).toHaveValue('el-paso-new-commercial-permits')
 
   await page.getByRole('button', { name: 'Source health' }).click()
   await expect(page.getByRole('heading', { name: 'Source health' })).toBeVisible()

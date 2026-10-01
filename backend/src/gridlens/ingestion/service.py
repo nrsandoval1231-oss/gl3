@@ -69,6 +69,7 @@ PERMIT_RETRIEVAL_METHODS = {
     "dallas-monthly-permits",
     "el-paso-new-commercial-permits",
     "rrc-drilling-permits",
+    "ma-cultivation-applications",
 }
 
 

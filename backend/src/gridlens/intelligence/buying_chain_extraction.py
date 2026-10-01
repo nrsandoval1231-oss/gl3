@@ -246,6 +246,23 @@ CHICAGO_CATEGORIES = {
 
 
 def extract_retained_permit_organizations(doc: PublicDocument, source_id: str) -> list[Extracted]:
+    if source_id == "ma-ccc-cultivation-applications":
+        applicant = permit_fields(source_id, doc.text).get("applicant_org")
+        if not applicant or _RENTAL.search(applicant[0]):
+            return []
+        return [
+            Extracted(
+                applicant[0],
+                Category.UNKNOWN.value,
+                organization_relationship="DIRECT",
+                reason=(
+                    "Organization is explicitly listed as applicant on the CCC cultivation "
+                    "application; applicant role does not establish owner/operator status, "
+                    "current construction, buyer identity, or buying authority."
+                ),
+                citations=[_citation(doc, applicant[1], "project_organization")],
+            )
+        ]
     if source_id == "texas-rrc-drilling-permits":
         operator = permit_fields(source_id, doc.text).get("operator")
         return (

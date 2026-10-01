@@ -135,16 +135,6 @@
             }
           },
           {
-            "name": "watch_only",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "boolean",
-              "default": false,
-              "title": "Watch Only"
-            }
-          },
-          {
             "name": "limit",
             "in": "query",
             "required": false,
@@ -1593,24 +1583,6 @@
             "type": "string",
             "title": "Qualification State"
           },
-          "matched_terms": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Matched Terms"
-          },
-          "topic_label": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Topic Label"
-          },
           "assessment_current": {
             "type": "boolean",
             "title": "Assessment Current",
@@ -1714,9 +1686,7 @@
           "content_hash",
           "citation_url",
           "collection_state",
-          "qualification_state",
-          "matched_terms",
-          "topic_label"
+          "qualification_state"
         ],
         "title": "IngestionItemOut"
       },
@@ -1920,6 +1890,17 @@
             ],
             "title": "Required Mw"
           },
+          "commercial_size_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commercial Size Status"
+          },
           "start_window": {
             "anyOf": [
               {
@@ -1986,6 +1967,28 @@
               }
             ],
             "title": "Supported Action"
+          },
+          "title_company": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title Company"
+          },
+          "title_company_role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title Company Role"
           },
           "demand_quote": {
             "anyOf": [
@@ -2766,7 +2769,7 @@
           "scheduler": {
             "type": "string",
             "title": "Scheduler",
-            "default": "Research is queued after successful Austin/RRC ingestion in the existing worker. A running worker is required; managed cloud scheduling has not been verified."
+            "default": "Research is queued after successful Austin, RRC, Dallas, El Paso, or Houston ingestion. City permit refresh rechecks the official bounded source and exact retained row; A running worker is required; managed cloud scheduling has not been verified."
           }
         },
         "type": "object",
