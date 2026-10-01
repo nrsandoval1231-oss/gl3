@@ -1,11 +1,8 @@
 # Saved-cloud handoff after GL3-019
 
-Canonical main is `a737af0207ebe5182764c06fadfb60d69ae1dc63`, merged PR9.
-Work remains in `/workspace/gl3`; no deployment or PC changes were performed.
-Start tomorrow by fetching main and checking `git status` before selecting a branch.
-This housekeeping PR is documentation only and remains unmerged pending approval.
-Open PR10 (`cursor/safe-cleanup-ci-secrets-2b8a`) is separate unmerged work; preserve
-it and reconcile its README/CURRENT_STATE edits when either documentation PR merges.
+Canonical main checked October 1 is `2052fd5205a0bd6f7c21981ed5c4812c4bdfe41a`. GL3-019 PR9, this handoff PR11 and CI cleanup PR10 are merged. Work remains in `/workspace/gl3`; no deployment or PC changes were performed.
+
+**October 1 runtime caveat:** the available PostgreSQL cluster contains `gridlens` and `gridlens_test`, but not the documented `gl3_019_live` acceptance database. The configured application database has 13 overdue source rows, no jobs and no observations/projects. Existing API/worker/web processes were absent at inspection; PostgreSQL was restarted for read-only inspection. The historical acceptance corpus and runtime described below must not be assumed present. Preserve existing data/credentials and reconcile the runtime before restarting collection. See [current milestone status](../delivery/milestones.md).
 
 ## Implemented coverage and next gaps
 

@@ -1,6 +1,6 @@
 # Current state
 
-Current main: `a737af0207ebe5182764c06fadfb60d69ae1dc63` (GL3-019, PR9 merged September 30, 2026). Start with [the saved-cloud handoff](../docs/operations/post-gl3-019-handoff.md). The milestone sections below preserve historical validation; GL3-019 continuation/recovery supersedes earlier source counts and network failures. Open PR10 is independent unmerged work and must be preserved.
+Current main: `2052fd5205a0bd6f7c21981ed5c4812c4bdfe41a`, freshly fetched October 1, 2026. GL3-019 (PR9), handoff PR11 and CI cleanup PR10 are merged. Start with [the saved-cloud handoff](../docs/operations/post-gl3-019-handoff.md), then the [October 1 runtime check](../docs/delivery/milestones.md#october-1-runtime-check). September 30 acceptance remains historical proof; its isolated database is absent from the PostgreSQL cluster available in this executor. Current configured database is empty apart from 13 overdue source entries. Reconcile runtime/data before claiming ingestion is currently operating.
 
 GridLens is focused on turning evidence-backed Signals into commercially useful pursuits without inventing unsupported power facts.
 
