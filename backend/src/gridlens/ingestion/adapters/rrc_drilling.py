@@ -9,11 +9,17 @@ import re
 from datetime import UTC, date, datetime, timedelta
 from email.message import Message
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from gridlens.ingestion.adapters.federal_register import SourceParseError
 
 SOURCE_ID = "texas-rrc-drilling-permits"
 PORTAL = "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc"
+
+
+def source_today(now: datetime | None = None) -> date:
+    """Select Texas monthly products by the publisher's local calendar day."""
+    return (now or datetime.now(UTC)).astimezone(ZoneInfo("America/Chicago")).date()
 
 
 def _text(row: bytes, first: int, last: int) -> str:
@@ -310,7 +316,9 @@ def _download_listing_file(
     form = soup.select_one("form#fileList")
     matches = [a for a in soup.select("#fileTable_data tr a") if a.get_text(strip=True) == filename]
     if form is None or len(matches) != 1:
-        raise SourceParseError("RRC required snapshot is absent or ambiguous in official listing")
+        raise SourceParseError(
+            f"RRC snapshot {filename} is absent or ambiguous in official listing"
+        )
     anchor = matches[0]
     row = anchor.find_parent("tr")
     label = row.get_text(" ", strip=True) if row else ""
@@ -362,7 +370,7 @@ def retrieve(source: dict[str, Any], client: Any = None) -> list[dict[str, Any]]
     if source.get("id") != SOURCE_ID or source.get("endpoint") != PORTAL:
         raise SourceParseError("RRC source is outside its reviewed endpoint")
     http = client or httpx.Client(timeout=20, follow_redirects=False)
-    today = datetime.now(UTC).date()
+    today = source_today()
     end = today.replace(day=1) - timedelta(days=1)
     filename = "daf420.dat." + end.strftime("%m-%d-%Y")
     deadline = time.monotonic() + 120
