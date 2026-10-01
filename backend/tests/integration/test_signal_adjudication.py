@@ -26,6 +26,7 @@ from gridlens.settings import settings
 @pytest.fixture
 def db(monkeypatch):
     monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)
+    monkeypatch.setattr(settings, "typesafe_api_key", None)
     target = make_url(settings.test_database_url)
     application = make_url(settings.database_url)
     assert target.database and target.database.endswith("_test")

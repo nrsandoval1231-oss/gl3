@@ -39,6 +39,7 @@ def runtime(monkeypatch):
     monkeypatch.setattr(service, "SessionLocal", factory)
     monkeypatch.setattr(api, "SessionLocal", factory)
     monkeypatch.delenv("TYPESAFE_API_KEY", raising=False)
+    monkeypatch.setattr(settings, "typesafe_api_key", None)
     with factory.begin() as session:
         session.add(
             Source(
@@ -618,7 +619,9 @@ def test_model_budget_pause_survives_adjudicator_without_false_decision(runtime,
     from gridlens.persistence.models import Evidence, Observation, SignalDecision
 
     jev = import_module("gridlens.intelligence.signal_adjudication")
-    monkeypatch.setenv("TYPESAFE_API_KEY", "synthetic-key")
+    from pydantic import SecretStr
+
+    monkeypatch.setattr(settings, "typesafe_api_key", SecretStr("synthetic-key"))
     monkeypatch.setattr(settings, "pursuits_daily_model_limit", 0)
     monkeypatch.setattr(jev, "deterministic_override", lambda *_args: None)
     group = service.candidates(None)[0]

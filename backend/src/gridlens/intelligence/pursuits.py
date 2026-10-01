@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import re
 import time
 from collections import defaultdict
@@ -100,12 +99,15 @@ def candidates(session: Session) -> list[dict]:
         ):
             continue
         assessment = interpretation.assessment or {}
-        if commercial_size_status(
-            need.required_mw,
-            need.activity_key,
-            assessment.get("action"),
-            assessment.get("reported_power_facts", []),
-        ) == "below_floor":
+        if (
+            commercial_size_status(
+                need.required_mw,
+                need.activity_key,
+                assessment.get("action"),
+                assessment.get("reported_power_facts", []),
+            )
+            == "below_floor"
+        ):
             continue
         parsed = {
             k: v[0] for k, v in fields(observation.source_id, evidence.abstract or "").items()
@@ -214,9 +216,7 @@ def select_batch(session: Session, groups: list[dict], *, force: bool = False) -
     city_permits = [
         group
         for source_id in CITY_PERMIT_SOURCES
-        for group in sorted(
-            (g for g in eligible if g["source_id"] == source_id), key=ordering
-        )[:4]
+        for group in sorted((g for g in eligible if g["source_id"] == source_id), key=ordering)[:4]
     ]
     return (austin + city_permits + diversified)[:MAX_BATCH]
 
@@ -521,7 +521,7 @@ def _snapshot(
             "authorization, well completion or production date; site "
             "construction and electrical design unverified"
         )
-    if not os.getenv("TYPESAFE_API_KEY"):
+    if not settings.typesafe_api_key:
         unknowns.append(
             "Jev unavailable: TYPESAFE_API_KEY is not configured; screening "
             "uses deterministic evidence rules"
@@ -865,9 +865,7 @@ def process_research_job(job_id: UUID, worker_id: str, fence: int) -> None:
                                 "retrieval_method": source.retrieval_method,
                             }
                         )
-                        city_records[source_id] = {
-                            item["document_number"]: item for item in rows
-                        }
+                        city_records[source_id] = {item["document_number"]: item for item in rows}
                     if source_id in city_errors:
                         raise RuntimeError(city_errors[source_id])
                     current = city_records[source_id]
@@ -1018,7 +1016,7 @@ def process_research_job(job_id: UUID, worker_id: str, fence: int) -> None:
                     "screen": screen(fresh_facts, group["source_id"], datetime.now(UTC).date()),
                 }
             model_states = []
-            if os.getenv("TYPESAFE_API_KEY") and batch_models < MAX_MODELS:
+            if settings.typesafe_api_key and batch_models < MAX_MODELS:
                 # Jev interprets only existing retained, evidence-bound input. It is
                 # not a public-source retriever, buyer verifier or promotion gate.
                 for record in group["records"][:1]:

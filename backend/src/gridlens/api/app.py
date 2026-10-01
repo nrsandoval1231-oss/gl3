@@ -13,6 +13,14 @@ from gridlens.domain.commercial_presentation import commercial_size_status
 from gridlens.domain.signal_admission import admitted_from_source, source_origin
 from gridlens.ingestion.registry import load_registry
 from gridlens.ingestion.service import _need_has_current_support
+from gridlens.intelligence.briefs import (
+    BriefUnavailable,
+    brief_fingerprint,
+    brief_input,
+    brief_preview,
+    brief_view,
+    request_brief,
+)
 from gridlens.intelligence.buying_chain import buying_chain_view, enrich_buying_chain
 from gridlens.intelligence.signal_adjudication import POLICY_VERSION, adjudicate_current_signals
 from gridlens.jobs.queue import enqueue
@@ -26,6 +34,7 @@ from gridlens.persistence.models import (
     NeedObservation,
     Observation,
     PowerNeed,
+    PowerNeedBrief,
     Project,
     ProjectLifecycle,
     SignalDecision,
@@ -118,6 +127,45 @@ class OpportunityOut(BaseModel):
     signal_display_source: str | None = None
     signal_display_reason: str | None = None
     signal_admission_origin: str | None = None
+    brief_status: str = "unavailable"
+    brief_summary: str | None = None
+    brief_generated_at: datetime | None = None
+    brief_stale: bool = False
+
+
+class BriefStatementOut(BaseModel):
+    text: str
+    evidence_id: str
+
+
+class BriefContentOut(BaseModel):
+    event_summary: list[BriefStatementOut]
+    commercial_hypothesis: BriefStatementOut
+    unknowns: list[str]
+    next_step: str
+
+
+class BriefCitationOut(BaseModel):
+    evidence_id: str
+    title: str
+    url: str
+    publisher: str
+    excerpt: str
+
+
+class BriefOut(BaseModel):
+    status: str
+    stale: bool = False
+    generated_at: datetime | None = None
+    result: BriefContentOut | None = None
+    citations: list[BriefCitationOut] = Field(default_factory=list)
+    error: str | None = None
+    input_tokens: int = 0
+    output_tokens: int = 0
+
+
+class BriefRequestOut(BriefOut):
+    job_id: UUID | None = None
 
 
 class HealthSourceOut(BaseModel):
@@ -517,6 +565,12 @@ def opportunities(tier: str | None = None, search: str | None = None):
         ):
             links_by_need[need_id].append((observation, evidence_row, interpretation))
             interpretations[observation.id] = interpretation
+        briefs_by_need = {
+            brief.need_id: brief
+            for brief in session.scalars(
+                select(PowerNeedBrief).where(PowerNeedBrief.need_id.in_(need_ids))
+            )
+        }
         lifecycles_by_project = defaultdict(list)
         lifecycle_observations = set()
         for event, evidence_row in session.execute(
@@ -907,6 +961,14 @@ def opportunities(tier: str | None = None, search: str | None = None):
                     "signal_display_source": display_source,
                     "signal_display_reason": display_reason,
                     "signal_admission_origin": (need.admission_basis or {}).get("origin"),
+                    **brief_preview(
+                        session,
+                        need,
+                        project,
+                        links,
+                        sources,
+                        briefs_by_need.get(need.id),
+                    ),
                 }
             )
         return result
@@ -988,6 +1050,39 @@ def project_buying_chain(project_id: UUID, history: bool = False):
             return buying_chain_view(session, project_id, history=history)
         except LookupError as exc:
             raise HTTPException(404, "Project not found") from exc
+
+
+@app.get(
+    "/api/power-needs/{need_id}/brief",
+    response_model=BriefOut,
+    dependencies=[Depends(require_session)],
+)
+def get_power_need_brief(need_id: UUID):
+    with SessionLocal() as session:
+        try:
+            payload, _ = brief_input(session, need_id)
+        except LookupError as exc:
+            raise HTTPException(404, "Power need not found") from exc
+        except BriefUnavailable:
+            payload = None
+        row = session.get(PowerNeedBrief, need_id)
+        return brief_view(row, brief_fingerprint(payload) if payload else None)
+
+
+@app.post(
+    "/api/power-needs/{need_id}/brief",
+    response_model=BriefRequestOut,
+    dependencies=[Depends(require_session)],
+)
+def create_power_need_brief(need_id: UUID, request: Request):
+    require_same_origin(request)
+    with SessionLocal.begin() as session:
+        try:
+            return request_brief(session, need_id)
+        except LookupError as exc:
+            raise HTTPException(404, "Power need not found") from exc
+        except BriefUnavailable as exc:
+            raise HTTPException(409, str(exc)) from exc
 
 
 @app.post(
