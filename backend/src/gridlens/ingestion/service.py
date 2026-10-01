@@ -275,6 +275,36 @@ def _need_has_current_support(
     return False
 
 
+def _need_admission_basis_is_current(session: Session, need: PowerNeed, project: Project) -> bool:
+    """Keep an existing citation when another unchanged permit supports the same need."""
+    basis = need.admission_basis or {}
+    source_id, evidence_hash = basis.get("source_id"), basis.get("evidence_hash")
+    if not isinstance(source_id, str) or not isinstance(evidence_hash, str):
+        return False
+    rows = session.execute(
+        select(Observation, Evidence, Interpretation)
+        .join(NeedObservation, NeedObservation.observation_id == Observation.id)
+        .join(Evidence, Evidence.observation_id == Observation.id)
+        .join(Interpretation, Interpretation.observation_id == Observation.id)
+        .where(
+            NeedObservation.need_id == need.id,
+            Observation.source_id == source_id,
+            Evidence.content_hash == evidence_hash,
+        )
+    ).all()
+    for observation, evidence, interpretation in rows:
+        source = session.get(Source, observation.source_id)
+        if source is not None and _need_has_current_support(
+            session, need, project, links=[(observation, evidence, interpretation)]
+        ):
+            expected = admitted_from_source(source, interpretation.assessment, evidence).as_basis(
+                source.id, evidence.content_hash
+            )
+            if basis == expected:
+                return True
+    return False
+
+
 def _current_need_claims(
     session: Session, need: PowerNeed, project: Project
 ) -> list[dict[str, Any]]:
@@ -1443,9 +1473,13 @@ def process_job(
                         and project is not None
                         and _need_has_current_support(session, need, project)
                     ):
-                        need.admission_basis = admission.as_basis(
+                        incoming_basis = admission.as_basis(
                             current_source.id, current_evidence.content_hash
                         )
+                        if need.admission_basis != incoming_basis and not (
+                            _need_admission_basis_is_current(session, need, project)
+                        ):
+                            need.admission_basis = incoming_basis
             counts[
                 "permit_accepted" if interpretation.status == "accepted" else "permit_rejected"
             ] += 1

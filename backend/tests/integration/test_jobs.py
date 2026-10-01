@@ -222,3 +222,121 @@ def test_permit_queue_priority_and_news_age_fairness(db):
     with factory.begin() as session:
         aged_news, _ = lease_one(session, "fairness-worker")
         assert aged_news.source_id == "daily-news"
+
+
+def test_scoped_worker_leaves_other_jobs_and_expired_leases_untouched(db):
+    _, factory = db
+    with factory.begin() as session:
+        selected = Job(source_id="synthetic-test-source")
+        unrelated = Job(
+            source_id="synthetic-test-source",
+            status="running",
+            attempts=5,
+            lease_owner="dead-worker",
+            lease_until=datetime.now(UTC) - timedelta(days=1),
+        )
+        session.add_all([selected, unrelated])
+        session.flush()
+        selected_id, unrelated_id = selected.id, unrelated.id
+    with factory.begin() as session:
+        assert lease_one(session, "scoped-worker", job_ids=[]) is None
+        leased, _ = lease_one(session, "scoped-worker", job_ids=[selected_id])
+        assert leased.id == selected_id
+    with factory() as session:
+        unrelated = session.get(Job, unrelated_id)
+        assert (
+            unrelated and unrelated.status == "running" and unrelated.lease_owner == "dead-worker"
+        )
+
+
+def _runtime_fixture(factory, monkeypatch):
+    import gridlens.jobs.runtime as runtime
+    import gridlens.jobs.worker as worker
+
+    definition = {
+        "id": "synthetic-test-source",
+        "publisher": "Updated Fixture",
+        "endpoint": "https://example.invalid/records",
+        "family": "synthetic",
+        "geography": "US",
+        "industries": ["mining"],
+        "retrieval_method": "test",
+        "cadence_hours": 24,
+        "enabled": True,
+    }
+    monkeypatch.setattr(runtime, "SessionLocal", factory)
+    monkeypatch.setattr(worker, "SessionLocal", factory)
+    monkeypatch.setattr(runtime, "load_registry", lambda: [definition])
+    monkeypatch.setattr(worker, "load_registry", lambda: [definition])
+    return runtime, worker, definition
+
+
+def test_runtime_status_is_read_only_and_reconcile_preserves_health_and_jobs(db, monkeypatch):
+    _, factory = db
+    runtime, _, definition = _runtime_fixture(factory, monkeypatch)
+    with factory.begin() as session:
+        job_id = enqueue(session, definition["id"])
+    before = runtime.inspect_runtime()
+    assert before["sources"][0]["registry_drift"] == ["publisher"]
+    with factory() as session:
+        source = session.get(Source, definition["id"])
+        assert source and source.publisher == "Synthetic Fixture"
+    runtime.sync_registry()
+    runtime.sync_registry()
+    after = runtime.inspect_runtime()
+    assert after["sources"][0]["registry_drift"] == []
+    assert before["jobs"] == after["jobs"] == {"queued": 1}
+    assert before["content_counts"] == after["content_counts"]
+    assert before["sources"][0]["health"] == after["sources"][0]["health"]
+    with factory() as session:
+        assert session.get(Job, job_id) is not None
+
+
+def test_runtime_recovery_honors_backoff_and_reports_failure_then_recovery(db, monkeypatch):
+    _, factory = db
+    runtime, worker, definition = _runtime_fixture(factory, monkeypatch)
+    from gridlens.ingestion.adapters.federal_register import SourceParseError
+
+    def fail(*args):
+        raise SourceParseError("synthetic incomplete snapshot")
+
+    monkeypatch.setattr(worker, "process_job", fail)
+    first = runtime.check_sources([definition["id"], definition["id"]])
+    assert len(first["checks"]) == 1
+    assert first["all_succeeded"] is False
+    assert first["checks"][0]["health"]["last_success"] == "retained"
+    assert first["checks"][0]["health"]["error"] == "synthetic incomplete snapshot"
+    deferred = runtime.check_sources([definition["id"]])
+    assert deferred["all_succeeded"] is False
+    assert deferred["checks"][0]["attempted"] is False
+    assert deferred["checks"][0]["attempts"] == 1
+    with factory.begin() as session:
+        job = session.scalar(select(Job))
+        assert job is not None
+        job.available_at = datetime.now(UTC) - timedelta(seconds=1)
+    monkeypatch.setattr(
+        worker,
+        "process_job",
+        lambda *args: {
+            "new": 0,
+            "changed": 0,
+            "unchanged": 1,
+            "latest_publication_date": None,
+        },
+    )
+    recovered = runtime.check_sources([definition["id"]])
+    assert recovered["all_succeeded"] is True
+    assert recovered["checks"][0]["job_id"] == first["checks"][0]["job_id"]
+    assert recovered["checks"][0]["health"]["error"] is None
+    assert recovered["checks"][0]["health"]["status"] == "Checked—No Change"
+
+
+def test_runtime_rejects_unknown_source_before_registry_mutation(db, monkeypatch):
+    _, factory = db
+    runtime, _, _ = _runtime_fixture(factory, monkeypatch)
+    with pytest.raises(ValueError, match="known enabled"):
+        runtime.check_sources(["unknown-source"])
+    with factory() as session:
+        source = session.get(Source, "synthetic-test-source")
+        assert source and source.publisher == "Synthetic Fixture"
+        assert session.scalar(select(func.count()).select_from(Job)) == 0

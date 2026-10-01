@@ -92,3 +92,7 @@ GL3-016: **MERGED** through PR #6. Bounded Jev adjudication and conservative phy
 GL3-017: **MERGED** through PR #7 at `1f18a01`. Project-scoped buying chain. Saved-cloud live retrieval in the validation record failed DNS; later owner-reported acceptance is not fresh proof in these files. No deployment.
 
 GL3-018: **MERGED** through PR #8 at `7f24174`. Policy `signal-admission-v1`. Registry remains 13 sources. Recorded local acceptance is 381 pytest passes and one existing skip, in `docs/validation/gl3-018-validation.md`. Standalone planning/entitlement admission, deployment, and Prospect/Lead evidence remain owner or later-milestone decisions. Parent launch remains OPEN.
+
+## GL3-020 local acceptance — October 1, 2026
+
+Runtime inspection/reconciliation/scoped checks, RRC Texas calendar repair and stable grouped-permit replay are LOCAL VALIDATED. Real first checks for all 15 sources; five primary-source replays preserve full content/morning digests. 427 backend passes/one existing skip, 11 browser passes, final code-hash Sol PASS. Runtime data: 7,413 observations, 7,452 evidence versions, 1,981 active Signals, no Prospects/Leads. See docs/validation/gl3-020-validation.md. Parent launch remains OPEN. GL3-021 matching performance is PROPOSED with retained-data parity gates; no expansion/qualification/production launch is implied.
