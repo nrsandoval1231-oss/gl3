@@ -12,6 +12,8 @@ class Settings(BaseSettings):
     session_hours: int = 12
     trusted_origins: str = ""
     worker_auto_refresh: bool = True
+    pursuits_daily_fetch_limit: int = 160
+    pursuits_daily_model_limit: int = 8
     model_config = SettingsConfigDict(
         env_file=Path(__file__).resolve().parents[3] / ".env", extra="ignore"
     )

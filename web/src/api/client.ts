@@ -1,5 +1,9 @@
 import type { components } from './generated'
 
+export type PursuitsResult = components['schemas']['PursuitsOut']
+export type Pursuit = components['schemas']['PursuitOut']
+export type CallNoteBody = components['schemas']['CallNoteBody']
+
 export type BuyingChainResult = components['schemas']['BuyingChainOut']
 export type Opportunity = components['schemas']['OpportunityOut']
 export type SourceHealth = components['schemas']['HealthSourceOut']
@@ -15,6 +19,9 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const client = {
+  pursuits: (signal?: AbortSignal, includeDropped = false, offset = 0) => api<PursuitsResult>(`/api/pursuits${includeDropped ? `?include_dropped=true&offset=${offset}` : ''}`, { signal }),
+  refreshPursuits: (force = false) => api<components['schemas']['PursuitJobOut']>(`/api/pursuits/refresh${force ? '?force=true' : ''}`, { method: 'POST' }),
+  savePursuitNote: (pursuitId: string, body: CallNoteBody) => api<components['schemas']['CallNoteOut']>(`/api/pursuits/${encodeURIComponent(pursuitId)}/notes`, { method: 'POST', body: JSON.stringify(body) }),
   buyingChain: (projectId: string, signal?: AbortSignal) => api<BuyingChainResult>(`/api/projects/${encodeURIComponent(projectId)}/buying-chain`, { signal }),
   enrichBuyingChain: (projectId: string, sourceUrls: string[]) => api<BuyingChainResult>(`/api/projects/${encodeURIComponent(projectId)}/buying-chain/enrich`, { method: 'POST', body: JSON.stringify({ source_urls: sourceUrls }) }),
   session: () => api<{ authenticated: boolean }>('/api/auth/session'),

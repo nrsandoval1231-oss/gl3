@@ -465,6 +465,188 @@
           }
         }
       }
+    },
+    "/api/pursuits": {
+      "get": {
+        "summary": "Pursuits",
+        "operationId": "pursuits_api_pursuits_get",
+        "parameters": [
+          {
+            "name": "include_dropped",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Include Dropped"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 10000,
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PursuitsOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/pursuits/{pursuit_id}": {
+      "get": {
+        "summary": "Pursuit Detail",
+        "operationId": "pursuit_detail_api_pursuits__pursuit_id__get",
+        "parameters": [
+          {
+            "name": "pursuit_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Pursuit Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PursuitOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/pursuits/refresh": {
+      "post": {
+        "summary": "Refresh Pursuits",
+        "operationId": "refresh_pursuits_api_pursuits_refresh_post",
+        "parameters": [
+          {
+            "name": "force",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Force"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PursuitJobOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/pursuits/{pursuit_id}/notes": {
+      "post": {
+        "summary": "Save Pursuit Note",
+        "operationId": "save_pursuit_note_api_pursuits__pursuit_id__notes_post",
+        "parameters": [
+          {
+            "name": "pursuit_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Pursuit Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CallNoteBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CallNoteOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -751,6 +933,123 @@
           "created_at"
         ],
         "title": "BuyingRunOut"
+      },
+      "CallNoteBody": {
+        "properties": {
+          "client_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Client Id"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 5000,
+            "title": "Note"
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "Not reached",
+              "Contacted",
+              "Needs follow-up",
+              "No requirement",
+              "Closed"
+            ],
+            "title": "Outcome"
+          },
+          "next_action": {
+            "type": "string",
+            "maxLength": 1000,
+            "title": "Next Action"
+          },
+          "follow_up": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Follow Up"
+          }
+        },
+        "type": "object",
+        "required": [
+          "client_id",
+          "note",
+          "outcome",
+          "next_action"
+        ],
+        "title": "CallNoteBody"
+      },
+      "CallNoteOut": {
+        "properties": {
+          "client_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Client Id"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 5000,
+            "title": "Note"
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "Not reached",
+              "Contacted",
+              "Needs follow-up",
+              "No requirement",
+              "Closed"
+            ],
+            "title": "Outcome"
+          },
+          "next_action": {
+            "type": "string",
+            "maxLength": 1000,
+            "title": "Next Action"
+          },
+          "follow_up": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Follow Up"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "owner": {
+            "type": "string",
+            "title": "Owner"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "client_id",
+          "note",
+          "outcome",
+          "next_action",
+          "id",
+          "owner",
+          "created_at"
+        ],
+        "title": "CallNoteOut"
       },
       "ChangeOut": {
         "properties": {
@@ -2013,6 +2312,470 @@
           "observed_at"
         ],
         "title": "PublicContactOut"
+      },
+      "PursuitContactOut": {
+        "properties": {
+          "organization": {
+            "type": "string",
+            "title": "Organization"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "value": {
+            "type": "string",
+            "title": "Value"
+          },
+          "source_url": {
+            "type": "string",
+            "title": "Source Url"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          }
+        },
+        "type": "object",
+        "required": [
+          "organization",
+          "kind",
+          "value",
+          "source_url",
+          "label"
+        ],
+        "title": "PursuitContactOut"
+      },
+      "PursuitJobOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "attempts": {
+            "type": "integer",
+            "title": "Attempts"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "checkpoint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checkpoint"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "status",
+          "attempts",
+          "error",
+          "created_at",
+          "checkpoint"
+        ],
+        "title": "PursuitJobOut"
+      },
+      "PursuitOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id"
+          },
+          "project_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Project Ids"
+          },
+          "project": {
+            "type": "string",
+            "title": "Project"
+          },
+          "site": {
+            "type": "string",
+            "title": "Site"
+          },
+          "organization": {
+            "type": "string",
+            "title": "Organization"
+          },
+          "organization_involvement": {
+            "type": "string",
+            "title": "Organization Involvement"
+          },
+          "action_status": {
+            "type": "string",
+            "enum": [
+              "Call now",
+              "Verify first",
+              "Monitor",
+              "Drop"
+            ],
+            "title": "Action Status"
+          },
+          "rank_key": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Rank Key"
+          },
+          "ranking_reasons": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Ranking Reasons"
+          },
+          "trigger": {
+            "type": "string",
+            "title": "Trigger"
+          },
+          "trigger_date": {
+            "type": "string",
+            "title": "Trigger Date"
+          },
+          "timing": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Timing"
+          },
+          "registration_context": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Registration Context"
+          },
+          "people": {
+            "items": {
+              "$ref": "#/components/schemas/PursuitPersonOut"
+            },
+            "type": "array",
+            "title": "People"
+          },
+          "contacts": {
+            "items": {
+              "$ref": "#/components/schemas/PursuitContactOut"
+            },
+            "type": "array",
+            "title": "Contacts"
+          },
+          "load_facts": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Load Facts"
+          },
+          "fuel_facts": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Fuel Facts"
+          },
+          "utility_facts": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Utility Facts"
+          },
+          "unknowns": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Unknowns"
+          },
+          "conflicts": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Conflicts"
+          },
+          "next_action": {
+            "type": "string",
+            "title": "Next Action"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/PursuitSourceOut"
+            },
+            "type": "array",
+            "title": "Evidence"
+          },
+          "last_researched_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Researched At"
+          },
+          "last_attempt_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Attempt At"
+          },
+          "research_status": {
+            "type": "string",
+            "title": "Research Status"
+          },
+          "research_errors": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Research Errors"
+          },
+          "notes": {
+            "items": {
+              "$ref": "#/components/schemas/CallNoteOut"
+            },
+            "type": "array",
+            "title": "Notes"
+          },
+          "tier": {
+            "type": "string",
+            "title": "Tier",
+            "default": "Signal"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "project_id",
+          "project_ids",
+          "project",
+          "site",
+          "organization",
+          "organization_involvement",
+          "action_status",
+          "rank_key",
+          "ranking_reasons",
+          "trigger",
+          "trigger_date",
+          "timing",
+          "people",
+          "contacts",
+          "load_facts",
+          "fuel_facts",
+          "utility_facts",
+          "unknowns",
+          "conflicts",
+          "next_action",
+          "evidence",
+          "last_researched_at",
+          "last_attempt_at",
+          "research_status",
+          "research_errors",
+          "notes"
+        ],
+        "title": "PursuitOut"
+      },
+      "PursuitPersonOut": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "organization": {
+            "type": "string",
+            "title": "Organization"
+          },
+          "corporate_role": {
+            "type": "string",
+            "title": "Corporate Role"
+          },
+          "project_assignment": {
+            "type": "string",
+            "title": "Project Assignment"
+          },
+          "purchasing_authority": {
+            "type": "string",
+            "title": "Purchasing Authority",
+            "default": "Unknown"
+          },
+          "source_url": {
+            "type": "string",
+            "title": "Source Url"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "organization",
+          "corporate_role",
+          "project_assignment",
+          "source_url"
+        ],
+        "title": "PursuitPersonOut"
+      },
+      "PursuitSourceOut": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "excerpt": {
+            "type": "string",
+            "title": "Excerpt"
+          },
+          "retrieved_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Retrieved At"
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published At"
+          },
+          "source_date": {
+            "type": "string",
+            "title": "Source Date",
+            "default": "Publication date unknown"
+          },
+          "match_reason": {
+            "type": "string",
+            "title": "Match Reason"
+          },
+          "content_hash": {
+            "type": "string",
+            "title": "Content Hash"
+          }
+        },
+        "type": "object",
+        "required": [
+          "url",
+          "title",
+          "excerpt",
+          "retrieved_at",
+          "match_reason",
+          "content_hash"
+        ],
+        "title": "PursuitSourceOut"
+      },
+      "PursuitsOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PursuitOut"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "usage": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Usage"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "default": 0
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset",
+            "default": 0
+          },
+          "excluded_count": {
+            "type": "integer",
+            "title": "Excluded Count"
+          },
+          "jobs": {
+            "items": {
+              "$ref": "#/components/schemas/PursuitJobOut"
+            },
+            "type": "array",
+            "title": "Jobs"
+          },
+          "policy_version": {
+            "type": "string",
+            "title": "Policy Version",
+            "default": "power-pursuits-v1"
+          },
+          "ranking_policy": {
+            "type": "string",
+            "title": "Ranking Policy",
+            "default": "Lexicographic: explicit construction/commissioning power scope, then dated work timing, reachable project organization, then verified NG/propane feasibility. Stable identity breaks ties. No probability or tier promotion."
+          },
+          "scheduler": {
+            "type": "string",
+            "title": "Scheduler",
+            "default": "Research is queued after successful Austin/RRC ingestion in the existing worker. A running worker is required; managed cloud scheduling has not been verified."
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "excluded_count",
+          "jobs"
+        ],
+        "title": "PursuitsOut"
       },
       "RefreshOut": {
         "properties": {
