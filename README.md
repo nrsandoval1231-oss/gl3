@@ -68,6 +68,8 @@ npm --prefix web audit --audit-level=high
 
 GL3-019 passed 418 backend tests (one existing missing-fixture skip), Ruff/mypy, frontend typecheck/build, clean/repeated migrations with no drift, live replay/provenance audits and 13 browser checks (11 repository checks plus two saved-cloud live acceptance cases). See [the validation report](docs/validation/gl3-019-acquisition-continuation.md); the additional live cases remain captured acceptance artifacts, not repository tests. Hosted GitHub Actions remain blocked before runner execution by the account payment/spending-limit condition; the workflow itself has not been weakened.
 
+Runtime status and bounded in-place source recovery are available through `python -m gridlens.jobs.runtime` with the backend environment. See [runtime recovery](docs/operations/runtime-recovery.md) for registry reconciliation, selected checks, retry behavior and operational limits.
+
 ## Containers and deployment
 
 Run `uv run --project backend python scripts/setup_compose.py`, then `docker compose --env-file .env.compose up --build` for local container operation.

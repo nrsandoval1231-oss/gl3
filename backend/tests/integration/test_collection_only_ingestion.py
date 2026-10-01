@@ -935,6 +935,39 @@ def test_phase_numbered_same_building_permits_consolidate_but_distinct_buildings
             == 3
         )
 
+    def need_snapshot():
+        with factory() as session:
+            return {
+                str(need.id): {
+                    column.name: getattr(need, column.name)
+                    for column in PowerNeed.__table__.columns
+                }
+                for need in session.scalars(select(PowerNeed))
+            }
+
+    before = need_snapshot()
+    # Three unchanged permits support one need. Replaying them must not rotate
+    # its valid admission citation or make the opportunity appear freshly updated.
+    with factory() as session:
+        assert service.process_job(session, job_id, "test", 1, definition)["unchanged"] == 4
+    assert need_snapshot() == before
+    records.reverse()
+    with factory() as session:
+        assert service.process_job(session, job_id, "test", 1, definition)["unchanged"] == 4
+    assert need_snapshot() == before
+
+    # Retaining a valid basis must still allow an outdated policy to be repaired.
+    with factory.begin() as session:
+        need = session.scalar(select(PowerNeed).where(PowerNeed.project_id == building_b.id))
+        assert need is not None
+        need.admission_basis = {**need.admission_basis, "policy_version": "retired-fixture-policy"}
+    with factory() as session:
+        service.process_job(session, job_id, "test", 1, definition)
+    with factory() as session:
+        need = session.scalar(select(PowerNeed).where(PowerNeed.project_id == building_b.id))
+        assert need is not None
+        assert need.admission_basis["policy_version"] == "signal-admission-v1"
+
 
 def test_multiple_labeled_rss_sites_keep_record_separate_with_persisted_ambiguity(db, monkeypatch):
     _, factory, _ = db

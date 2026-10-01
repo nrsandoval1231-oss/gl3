@@ -123,6 +123,48 @@ def test_public_download_rejects_stale_missing_and_foreign_redirect():
         )
 
 
+@pytest.mark.parametrize(
+    "utc,local_date",
+    [
+        ("2026-10-01T01:00:00+00:00", date(2026, 9, 30)),
+        ("2026-10-01T05:00:00+00:00", date(2026, 10, 1)),
+        ("2027-01-01T05:59:59+00:00", date(2026, 12, 31)),
+        ("2027-01-01T06:00:00+00:00", date(2027, 1, 1)),
+    ],
+)
+def test_rrc_month_selection_uses_texas_calendar(utc, local_date):
+    from datetime import datetime
+
+    from gridlens.ingestion.adapters.rrc_drilling import source_today
+
+    assert source_today(datetime.fromisoformat(utc)) == local_date
+
+
+def test_rrc_retrieval_requests_previous_texas_month_not_previous_utc_month(monkeypatch):
+    from datetime import datetime
+
+    import gridlens.ingestion.adapters.rrc_drilling as adapter
+
+    now = datetime.fromisoformat("2026-10-01T01:00:00+00:00")
+    today = adapter.source_today(now)
+    monkeypatch.setattr(adapter, "source_today", lambda: today)
+    requested = []
+
+    def download(http, portal, filename, selected_day, deadline, **kwargs):
+        requested.append((portal, filename, selected_day))
+        return snapshot(), "2026-09-30"
+
+    monkeypatch.setattr(adapter, "_download_listing_file", download)
+    records = adapter.retrieve(
+        {"id": adapter.SOURCE_ID, "endpoint": adapter.PORTAL}, client=object()
+    )
+    assert records
+    assert requested == [
+        (adapter.MONTHLY_PORTAL, "daf420.dat.08-31-2026", date(2026, 9, 30)),
+        (adapter.PORTAL, "daf420.dat", date(2026, 9, 30)),
+    ]
+
+
 @pytest.mark.parametrize("flag", ["P", "F"])
 def test_master_permit_or_filing_cancellation_prevents_admission(flag):
     body = bytearray(snapshot())

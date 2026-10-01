@@ -4,6 +4,10 @@ Canonical main checked October 1 is `2052fd5205a0bd6f7c21981ed5c4812c4bdfe41a`. 
 
 **October 1 runtime caveat:** the available PostgreSQL cluster contains `gridlens` and `gridlens_test`, but not the documented `gl3_019_live` acceptance database. The configured application database has 13 overdue source rows, no jobs and no observations/projects. Existing API/worker/web processes were absent at inspection; PostgreSQL was restarted for read-only inspection. The historical acceptance corpus and runtime described below must not be assumed present. Preserve existing data/credentials and reconcile the runtime before restarting collection. See [current milestone status](../delivery/milestones.md).
 
+## GL3-020 follow-through — October 1
+
+The initial empty-runtime caveat above is historical. The configured application database was migrated/reconciled in place and populated through real checks for all 15 sources; it now has 7,413 observations, 7,452 evidence versions and 1,981 active Signals. Read [runtime recovery](runtime-recovery.md) and [GL3-020 validation](../validation/gl3-020-validation.md) before resuming. Existing credentials and data remain intact; the old isolated acceptance database remains absent. API/web and the existing development worker are used locally; durable production scheduling and launch gates remain open. Proposed next slice: matching performance, not source expansion or tier promotion.
+
 ## Implemented coverage and next gaps
 
 The registry has 15 enabled sources. Enabled means available to the worker, not

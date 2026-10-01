@@ -29,3 +29,9 @@ outside Git. `--repo` defaults to this checkout; `--output` defaults to
 `docs/validation/gl3-017-real-acceptance.json`. The report preserves prior attempt
 summaries. Exit status is nonzero on any failed acceptance check. This verifies
 captured-source processing only, not direct live-network or browser operation.
+
+## Runtime inspection and recovery
+
+Use `PYTHONPATH=backend/src backend/.venv/bin/python -m gridlens.jobs.runtime` from the repository root. `status` reads registry drift, source health, content counts and backlog without changing the database. `reconcile` updates/inserts registry definitions while retaining existing health, jobs and content. `check --source SOURCE_ID` (repeat the flag for multiple sources) attempts each selected source once through the normal fenced worker. It reuses active jobs, honors retry backoff/live leases, and leaves unrelated jobs untouched. Exit 0 means every selected job was attempted successfully; exit 1 includes failed or deferred jobs; exit 2 reports invalid input or runtime setup failure.
+
+See [runtime recovery](../docs/operations/runtime-recovery.md) for startup and validation boundaries. These commands do not deploy a scheduler or establish daily reliability.

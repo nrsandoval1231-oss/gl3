@@ -2,6 +2,7 @@ import os
 import socket
 import time
 from datetime import UTC, datetime, timedelta
+from uuid import UUID
 
 from gridlens.ingestion.registry import load_registry
 from gridlens.ingestion.service import process_job
@@ -60,9 +61,9 @@ def refresh_due() -> int:
     return created
 
 
-def run_one(definitions: dict[str, dict]) -> bool:
+def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) -> bool:
     with SessionLocal.begin() as session:
-        leased = lease_one(session, WORKER_ID, lease_seconds=600)
+        leased = lease_one(session, WORKER_ID, lease_seconds=600, job_ids=job_ids)
         if leased is None:
             return False
         job, fence = leased

@@ -24,11 +24,18 @@ def enqueue(session: Session, source_id: str) -> UUID:
     return job.id
 
 
-def lease_one(session: Session, worker_id: str, lease_seconds: int = 90) -> tuple[Job, int] | None:
+def lease_one(
+    session: Session,
+    worker_id: str,
+    lease_seconds: int = 90,
+    *,
+    job_ids: list[UUID] | None = None,
+) -> tuple[Job, int] | None:
     now = datetime.now(UTC)
+    scope = [] if job_ids is None else [Job.id.in_(job_ids)]
     abandoned = session.scalars(
         select(Job)
-        .where(Job.status == "running", Job.lease_until < now, Job.attempts >= 5)
+        .where(Job.status == "running", Job.lease_until < now, Job.attempts >= 5, *scope)
         .with_for_update(skip_locked=True)
     ).all()
     for expired in abandoned:
@@ -48,6 +55,7 @@ def lease_one(session: Session, worker_id: str, lease_seconds: int = 90) -> tupl
     job = session.scalar(
         select(Job)
         .where(
+            *scope,
             Job.attempts < 5,
             Job.available_at <= now,
             ((Job.status == "queued") | ((Job.status == "running") & (Job.lease_until < now))),
