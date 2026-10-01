@@ -1,0 +1,36 @@
+{
+  "raw": {
+    "event_summary": [
+      {
+        "text": "Dallas City issued a commercial new construction permit numbered 2210211015_174492520-001 for a warehouse at 10851 MILLER RD, Dallas, TX, on June year twenty twenty six.",
+        "evidence_id": "cfecfcb8-cbc8-453d-85af-0a032ce8867b",
+        "excerpt": "Commercial New Construction Permit; Proposed Land Use: Warehouse; Type of Work: Commercial; address: 10851 MILLER RD, Dallas, TX; date: 2026-06-04; project: 2210211015_174492520-001"
+      }
+    ],
+    "commercial_hypothesis": {
+      "text": "Investigation hypothesis: The project involves commercial new construction of a warehouse likely requiring power infrastructure assessment to determine specific demand.",
+      "evidence_id": "cfecfcb8-cbc8-453d-85af-0a032ce8867b",
+      "excerpt": "Commercial New Construction Permit; Proposed Land Use: Warehouse; Type of Work: Commercial"
+    },
+    "unknowns": [
+      "Activity-specific power requirement remains unknown.",
+      "Suitable utility supply and any shortfall remain unknown.",
+      "Power start window remains unknown.",
+      "Power duration remains unknown.",
+      "Current status besides permit issuance is unknown.",
+      "Whether warehouse activity modifies supply needs is unknown."
+    ],
+    "next_step": "Verify detailed power requirement and scheduling information with project applicant or local utility to confirm electrical demand and timeline."
+  },
+  "evidence": {
+    "cfecfcb8-cbc8-453d-85af-0a032ce8867b": {
+      "id": "cfecfcb8-cbc8-453d-85af-0a032ce8867b",
+      "title": "Dallas issued commercial new-construction permit 2210211015_174492520-001",
+      "excerpt": "row: 2210211015_174492520-001\nproject: 2210211015_174492520-001\ndate: 2026-06-04\nevent: Issued\nstatus: Unknown\ntype: Commercial New Construction Permit\nwork: Commercial\nproposed_land_use: Warehouse\ndescription: Commercial New Construction Permit; Proposed Land Use: Warehouse; Type of Work: Commercial\naddress: 10851 MILLER RD, Dallas, TX\ncontact_type: Applicant\napplicant_full_name: Robert Akins\nlp_business_name: TRICORE BUILDERS INC\ndistrict: 10\narea: 624450\ncost: 42142106.00\nzoning: IR",
+      "published_at": null,
+      "url": "https://dallascityhall.com/departments/pnv/Documents/AH%20Memos/Com-ResNewMonthlyReport2026-June.xlsx",
+      "publisher": "City of Dallas Sustainable Development"
+    }
+  },
+  "reason": "unfaithful_excerpt"
+}

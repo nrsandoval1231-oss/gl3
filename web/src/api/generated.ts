@@ -197,6 +197,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/power-needs/{need_id}/brief": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Power Need Brief */
+        get: operations["get_power_need_brief_api_power_needs__need_id__brief_get"];
+        put?: never;
+        /** Create Power Need Brief */
+        post: operations["create_power_need_brief_api_power_needs__need_id__brief_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/projects/{project_id}/buying-chain/enrich": {
         parameters: {
             query?: never;
@@ -286,6 +304,92 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** BriefCitationOut */
+        BriefCitationOut: {
+            /** Evidence Id */
+            evidence_id: string;
+            /** Title */
+            title: string;
+            /** Url */
+            url: string;
+            /** Publisher */
+            publisher: string;
+            /** Excerpt */
+            excerpt: string;
+        };
+        /** BriefContentOut */
+        BriefContentOut: {
+            /** Event Summary */
+            event_summary: components["schemas"]["BriefStatementOut"][];
+            commercial_hypothesis: components["schemas"]["BriefStatementOut"];
+            /** Unknowns */
+            unknowns: string[];
+            /** Next Step */
+            next_step: string;
+        };
+        /** BriefOut */
+        BriefOut: {
+            /** Status */
+            status: string;
+            /**
+             * Stale
+             * @default false
+             */
+            stale: boolean;
+            /** Generated At */
+            generated_at?: string | null;
+            result?: components["schemas"]["BriefContentOut"] | null;
+            /** Citations */
+            citations?: components["schemas"]["BriefCitationOut"][];
+            /** Error */
+            error?: string | null;
+            /**
+             * Input Tokens
+             * @default 0
+             */
+            input_tokens: number;
+            /**
+             * Output Tokens
+             * @default 0
+             */
+            output_tokens: number;
+        };
+        /** BriefRequestOut */
+        BriefRequestOut: {
+            /** Status */
+            status: string;
+            /**
+             * Stale
+             * @default false
+             */
+            stale: boolean;
+            /** Generated At */
+            generated_at?: string | null;
+            result?: components["schemas"]["BriefContentOut"] | null;
+            /** Citations */
+            citations?: components["schemas"]["BriefCitationOut"][];
+            /** Error */
+            error?: string | null;
+            /**
+             * Input Tokens
+             * @default 0
+             */
+            input_tokens: number;
+            /**
+             * Output Tokens
+             * @default 0
+             */
+            output_tokens: number;
+            /** Job Id */
+            job_id?: string | null;
+        };
+        /** BriefStatementOut */
+        BriefStatementOut: {
+            /** Text */
+            text: string;
+            /** Evidence Id */
+            evidence_id: string;
+        };
         /** BuyingCandidateOut */
         BuyingCandidateOut: {
             /**
@@ -862,6 +966,20 @@ export interface components {
             signal_display_reason?: string | null;
             /** Signal Admission Origin */
             signal_admission_origin?: string | null;
+            /**
+             * Brief Status
+             * @default unavailable
+             */
+            brief_status: string;
+            /** Brief Summary */
+            brief_summary?: string | null;
+            /** Brief Generated At */
+            brief_generated_at?: string | null;
+            /**
+             * Brief Stale
+             * @default false
+             */
+            brief_stale: boolean;
         };
         /** PermitFactOut */
         PermitFactOut: {
@@ -1414,6 +1532,68 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BuyingChainOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_power_need_brief_api_power_needs__need_id__brief_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                need_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BriefOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_power_need_brief_api_power_needs__need_id__brief_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                need_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BriefRequestOut"];
                 };
             };
             /** @description Validation Error */

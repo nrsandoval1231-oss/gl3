@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -14,6 +15,10 @@ class Settings(BaseSettings):
     worker_auto_refresh: bool = True
     pursuits_daily_fetch_limit: int = 160
     pursuits_daily_model_limit: int = 8
+    typesafe_api_key: SecretStr | None = None
+    openai_api_key: SecretStr | None = None
+    openai_brief_model: str = "gpt-4.1-mini"
+    briefs_daily_request_limit: int = 8
     model_config = SettingsConfigDict(
         env_file=Path(__file__).resolve().parents[3] / ".env", extra="ignore"
     )

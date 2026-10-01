@@ -16,6 +16,7 @@ function permit(id: string, action: string | null, options: { location?: string;
     activity: options.activity ?? 'event-power',
     rationale: 'Permit reports a dated powered event activity; temporary rental power is a question to investigate.',
     signal_evidence_state: 'active_evidence',
+    brief_status: 'unavailable', brief_stale: false,
     signal_display_decision: options.decision === undefined ? 'SHOW' : options.decision,
     signal_display_decision_state: options.decision === undefined ? 'adjudicated' : options.decision ? 'adjudicated' : 'unadjudicated',
     required_mw: null,

@@ -6,6 +6,7 @@ const stamp = '2026-09-30T12:00:00Z'
 const project = (id: string): Opportunity => ({
   id, project_id: id, name: `Test facility ${id}`, location: 'Chicago, IL', tier: 'Signal',
   activity: 'construction', rationale: 'A test-only sourced construction event.',
+  brief_status: 'unavailable', brief_stale: false,
   required_mw: null, start_window: null, duration: null, supply: 'Unknown',
   next_action: 'Confirm temporary power procurement.', conflict_state: 'Not assessed',
   signal_display_decision: 'SHOW', signal_display_decision_state: 'adjudicated', signal_evidence_state: 'active_evidence', evidence: [],

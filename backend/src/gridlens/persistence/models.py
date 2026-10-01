@@ -40,6 +40,7 @@ class Job(Base):
     id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
     source_id: Mapped[str] = mapped_column(ForeignKey("sources.id"))
     kind: Mapped[str] = mapped_column(String(30), default="ingestion", server_default="ingestion")
+    target_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)
     status: Mapped[str] = mapped_column(String(20), default="queued")
     attempts: Mapped[int] = mapped_column(Integer, default=0)
     checkpoint: Mapped[str | None] = mapped_column(Text)
@@ -193,6 +194,46 @@ class PowerNeed(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+
+
+class PowerNeedBrief(Base):
+    """Latest advisory brief and explicit request state for one physical need."""
+
+    __tablename__ = "power_need_briefs"
+    need_id: Mapped[UUID] = mapped_column(ForeignKey("power_needs.id"), primary_key=True)
+    requested_fingerprint: Mapped[str | None] = mapped_column(String(64))
+    generated_fingerprint: Mapped[str | None] = mapped_column(String(64))
+    policy_version: Mapped[str] = mapped_column(String(40))
+    schema_version: Mapped[str] = mapped_column(String(40))
+    model: Mapped[str] = mapped_column(String(100))
+    status: Mapped[str] = mapped_column(String(20), default="unavailable")
+    result: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    citations: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, default=list)
+    generated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    input_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    output_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    error: Mapped[str | None] = mapped_column(String(80))
+
+
+class PowerNeedBriefVersion(Base):
+    __tablename__ = "power_need_brief_versions"
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    need_id: Mapped[UUID] = mapped_column(ForeignKey("power_needs.id"))
+    input_fingerprint: Mapped[str] = mapped_column(String(64))
+    policy_version: Mapped[str] = mapped_column(String(40))
+    schema_version: Mapped[str] = mapped_column(String(40))
+    model: Mapped[str] = mapped_column(String(100))
+    result: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    citations: Mapped[list[dict[str, Any]]] = mapped_column(JSONB)
+    generated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    input_tokens: Mapped[int] = mapped_column(Integer)
+    output_tokens: Mapped[int] = mapped_column(Integer)
+
+
+class BriefDailyBudget(Base):
+    __tablename__ = "brief_daily_budgets"
+    day: Mapped[date] = mapped_column(Date, primary_key=True)
+    reserved_requests: Mapped[int] = mapped_column(Integer, default=0)
 
 
 class NeedObservation(Base):
@@ -356,9 +397,7 @@ class PursuitResearchRun(Base):
 
 class PursuitCallNote(Base):
     __tablename__ = "pursuit_call_notes"
-    __table_args__ = (
-        UniqueConstraint("pursuit_id", "client_id", name="uq_pursuit_note_request"),
-    )
+    __table_args__ = (UniqueConstraint("pursuit_id", "client_id", name="uq_pursuit_note_request"),)
     id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
     pursuit_id: Mapped[UUID] = mapped_column(ForeignKey("pursuits.id"))
     client_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True))
