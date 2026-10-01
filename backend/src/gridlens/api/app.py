@@ -993,3 +993,85 @@ def enrich_project_buying_chain(
             raise HTTPException(404, "Project not found") from exc
         except ValueError as exc:
             raise HTTPException(422, str(exc)) from exc
+
+
+# Commercial action workflow is independent of the existing evidence tiers.
+from gridlens.domain.pursuits import (  # noqa: E402
+    CallNoteBody,
+    CallNoteOut,
+    PursuitJobOut,
+    PursuitOut,
+    PursuitsOut,
+)
+from gridlens.intelligence.pursuits import (  # noqa: E402
+    job_view,
+    list_pursuits,
+    note_view,
+    pursuit_view,
+)
+from gridlens.persistence.models import Pursuit, PursuitCallNote  # noqa: E402
+
+
+@app.get("/api/pursuits", response_model=PursuitsOut, dependencies=[Depends(require_session)])
+def pursuits(include_dropped: bool = False, offset: int = Query(default=0, ge=0, le=10000)):
+    with SessionLocal() as session:
+        return list_pursuits(session, include_dropped=include_dropped, offset=offset)
+
+
+@app.get(
+    "/api/pursuits/{pursuit_id}", response_model=PursuitOut, dependencies=[Depends(require_session)]
+)
+def pursuit_detail(pursuit_id: UUID):
+    with SessionLocal() as session:
+        row = session.get(Pursuit, pursuit_id)
+        if not row or not row.snapshot:
+            raise HTTPException(404, "Pursuit not found")
+        return pursuit_view(session, row)
+
+
+@app.post(
+    "/api/pursuits/refresh", response_model=PursuitJobOut, dependencies=[Depends(require_session)]
+)
+def refresh_pursuits(request: Request, force: bool = False):
+    require_same_origin(request)
+    with SessionLocal.begin() as session:
+        try:
+            job_id = enqueue(session, "austin-building-permits", kind="pursuit_research")
+        except ValueError as exc:
+            raise HTTPException(409, "Enable and reconcile Austin ingestion first") from exc
+        job = session.get(Job, job_id)
+        assert job
+        if job.status == "queued" and job.attempts == 0 and job.checkpoint is None:
+            import json
+
+            job.checkpoint = json.dumps({"force": force})
+        return job_view(job)
+
+
+@app.post(
+    "/api/pursuits/{pursuit_id}/notes",
+    response_model=CallNoteOut,
+    dependencies=[Depends(require_session)],
+)
+def save_pursuit_note(pursuit_id: UUID, body: CallNoteBody, request: Request):
+    require_same_origin(request)
+    with SessionLocal.begin() as session:
+        row = session.scalar(select(Pursuit).where(Pursuit.id == pursuit_id).with_for_update())
+        if row is None:
+            raise HTTPException(404, "Pursuit not found")
+        prior = session.scalar(
+            select(PursuitCallNote).where(
+                PursuitCallNote.pursuit_id == pursuit_id,
+                PursuitCallNote.client_id == body.client_id,
+            )
+        )
+        if prior:
+            if any(getattr(prior, key) != value for key, value in body.model_dump().items()):
+                raise HTTPException(
+                    409, "This note request was already saved with different content"
+                )
+            return note_view(prior)
+        note = PursuitCallNote(pursuit_id=pursuit_id, owner="Nick Sandoval", **body.model_dump())
+        session.add(note)
+        session.flush()
+        return note_view(note)

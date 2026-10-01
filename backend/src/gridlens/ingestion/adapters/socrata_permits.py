@@ -187,12 +187,17 @@ def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list
             or (backfill_end - backfill_start).days > 365
         ):
             raise SourceParseError("Permit backfill exceeds one year or includes future dates")
+        backfill_terms = ["data center", "data centre"]
+        if backfill.get("include_explicit_power") is True:
+            backfill_terms += ["construction power", "temporary service", "t-pole"]
+        backfill_predicate = " OR ".join(
+            f"lower(description) LIKE '%{term}%'" for term in backfill_terms
+        )
         backfill_where = (
             f"{date_field} >= '{backfill_start.isoformat()}T00:00:00.000' "
             f"AND {date_field} <= '{backfill_end.isoformat()}T23:59:59.999' "
             f"AND ({class_filters[source_id]}) "
-            "AND (lower(description) LIKE '%data center%' "
-            "OR lower(description) LIKE '%data centre%')"
+            f"AND ({backfill_predicate})"
         )
         where = f"({where}) OR ({backfill_where})"
     params_base: dict[str, str | int] = {
@@ -293,7 +298,7 @@ def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list
                     and backfill_start <= issue_date <= backfill_end
                     and any(
                         term in _field(row, fields["description"]).lower()
-                        for term in ("data center", "data centre")
+                        for term in backfill_terms
                     )
                 )
                 if not in_issue_window and not in_modified_window and not in_backfill:

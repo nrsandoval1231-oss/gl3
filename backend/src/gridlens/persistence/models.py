@@ -39,6 +39,7 @@ class Job(Base):
     __tablename__ = "jobs"
     id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
     source_id: Mapped[str] = mapped_column(ForeignKey("sources.id"))
+    kind: Mapped[str] = mapped_column(String(30), default="ingestion", server_default="ingestion")
     status: Mapped[str] = mapped_column(String(20), default="queued")
     attempts: Mapped[int] = mapped_column(Integer, default=0)
     checkpoint: Mapped[str | None] = mapped_column(Text)
@@ -308,4 +309,62 @@ class BuyingChainRun(Base):
     documents_checked: Mapped[int] = mapped_column(Integer)
     candidates_added: Mapped[int] = mapped_column(Integer)
     unresolved: Mapped[list[str]] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Pursuit(Base):
+    """One commercial research workspace per conservatively linked physical work scope."""
+
+    __tablename__ = "pursuits"
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    identity_key: Mapped[str] = mapped_column(String(220), unique=True)
+    project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id"))
+    project_ids: Mapped[list[str]] = mapped_column(JSONB, default=list)
+    snapshot: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
+    last_researched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_attempt_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    research_status: Mapped[str] = mapped_column(String(30), default="not_researched")
+    research_errors: Mapped[list[str]] = mapped_column(JSONB, default=list)
+
+
+class PursuitDocument(Base):
+    __tablename__ = "pursuit_documents"
+    __table_args__ = (
+        UniqueConstraint("pursuit_id", "url", "content_hash", name="uq_pursuit_document_version"),
+    )
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    pursuit_id: Mapped[UUID] = mapped_column(ForeignKey("pursuits.id"))
+    url: Mapped[str] = mapped_column(Text)
+    content_hash: Mapped[str] = mapped_column(String(64))
+    source: Mapped[dict[str, Any]] = mapped_column(JSONB)
+
+
+class PursuitResearchRun(Base):
+    __tablename__ = "pursuit_research_runs"
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    job_id: Mapped[UUID] = mapped_column(ForeignKey("jobs.id"))
+    pursuit_id: Mapped[UUID] = mapped_column(ForeignKey("pursuits.id"))
+    input_hash: Mapped[str] = mapped_column(String(64))
+    policy_version: Mapped[str] = mapped_column(String(40))
+    status: Mapped[str] = mapped_column(String(30), default="running")
+    fetch_count: Mapped[int] = mapped_column(Integer, default=0)
+    model_count: Mapped[int] = mapped_column(Integer, default=0)
+    errors: Mapped[list[str]] = mapped_column(JSONB, default=list)
+    snapshot: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class PursuitCallNote(Base):
+    __tablename__ = "pursuit_call_notes"
+    __table_args__ = (
+        UniqueConstraint("pursuit_id", "client_id", name="uq_pursuit_note_request"),
+    )
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    pursuit_id: Mapped[UUID] = mapped_column(ForeignKey("pursuits.id"))
+    client_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True))
+    owner: Mapped[str] = mapped_column(String(100), default="Nick Sandoval")
+    note: Mapped[str] = mapped_column(Text)
+    outcome: Mapped[str] = mapped_column(String(40))
+    next_action: Mapped[str] = mapped_column(Text)
+    follow_up: Mapped[date | None] = mapped_column(Date)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
