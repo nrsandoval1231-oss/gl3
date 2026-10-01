@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import re
 import time
 from collections.abc import Callable
@@ -25,6 +24,7 @@ from gridlens.persistence.models import (
     SignalDecision,
     Source,
 )
+from gridlens.settings import settings
 
 POLICY_VERSION = "signal-display-v2"
 MODEL = "jev-1.13.0"
@@ -137,7 +137,11 @@ def adjudicate(
         )
         .order_by(SignalDecision.id.desc())
     )
-    key = api_key if api_key is not None else os.getenv("TYPESAFE_API_KEY")
+    key = (
+        api_key
+        if api_key is not None
+        else (settings.typesafe_api_key.get_secret_value() if settings.typesafe_api_key else None)
+    )
     if prior is not None and not (
         (prior.source == "jev_unavailable" and key)
         or (retry_errors and prior.source == "jev_error" and key)
@@ -149,7 +153,13 @@ def adjudicate(
         decision, dims, reason = override
         source, model = "deterministic", None
     else:
-        key = api_key if api_key is not None else os.getenv("TYPESAFE_API_KEY")
+        key = (
+            api_key
+            if api_key is not None
+            else (
+                settings.typesafe_api_key.get_secret_value() if settings.typesafe_api_key else None
+            )
+        )
         if not key:
             pending = SignalDecision(
                 observation_id=observation.id,

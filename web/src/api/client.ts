@@ -10,6 +10,8 @@ export type SourceHealth = components['schemas']['HealthSourceOut']
 export type Evidence = components['schemas']['EvidenceOut']
 export type IngestionItem = components['schemas']['IngestionItemOut']
 export type IngestionPage = components['schemas']['IngestionPageOut']
+export type Brief = components['schemas']['BriefOut']
+export type BriefRequest = components['schemas']['BriefRequestOut']
 
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(path, { ...init, credentials: 'same-origin', headers: { 'content-type': 'application/json', ...init?.headers } })
@@ -24,14 +26,16 @@ export const client = {
   savePursuitNote: (pursuitId: string, body: CallNoteBody) => api<components['schemas']['CallNoteOut']>(`/api/pursuits/${encodeURIComponent(pursuitId)}/notes`, { method: 'POST', body: JSON.stringify(body) }),
   buyingChain: (projectId: string, signal?: AbortSignal) => api<BuyingChainResult>(`/api/projects/${encodeURIComponent(projectId)}/buying-chain`, { signal }),
   enrichBuyingChain: (projectId: string, sourceUrls: string[]) => api<BuyingChainResult>(`/api/projects/${encodeURIComponent(projectId)}/buying-chain/enrich`, { method: 'POST', body: JSON.stringify({ source_urls: sourceUrls }) }),
+  brief: (needId: string) => api<Brief>(`/api/power-needs/${encodeURIComponent(needId)}/brief`),
+  requestBrief: (needId: string) => api<BriefRequest>(`/api/power-needs/${encodeURIComponent(needId)}/brief`, { method: 'POST', body: '{}' }),
   session: () => api<{ authenticated: boolean }>('/api/auth/session'),
   login: (password: string) => api<{ authenticated: boolean }>('/api/auth/login', { method: 'POST', body: JSON.stringify({ password }) }),
   logout: () => api('/api/auth/logout', { method: 'POST' }),
   opportunities: (tier: string, search: string) => api<Opportunity[]>(`/api/opportunities?tier=${encodeURIComponent(tier)}&search=${encodeURIComponent(search)}`),
   changes: () => api<{ kind: string; title: string; url: string; published_at: string | null }[]>('/api/changes'),
   health: () => api<components['schemas']['HealthOut']>('/api/health'),
-  ingestion: (sourceId: string, vertical: string, watchOnly: boolean, limit: number, offset: number) => {
-    const params = new URLSearchParams({ limit: String(limit), offset: String(offset), watch_only: String(watchOnly) })
+  ingestion: (sourceId: string, vertical: string, limit: number, offset: number) => {
+    const params = new URLSearchParams({ limit: String(limit), offset: String(offset) })
     if (sourceId) params.set('source_id', sourceId)
     if (vertical) params.set('vertical', vertical)
     return api<IngestionPage>(`/api/ingestion?${params.toString()}`)

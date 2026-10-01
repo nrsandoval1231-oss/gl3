@@ -11,8 +11,12 @@ _PERMIT_METHODS = {
     "socrata-permits",
     "georgia-air-permits",
     "houston-weekly-permits",
+    "dallas-monthly-permits",
+    "el-paso-new-commercial-permits",
     "rrc-drilling-permits",
 }
+_CULTIVATION_FAMILY = "cultivation-license-applications"
+_CULTIVATION_METHOD = "ma-cultivation-applications"
 _UTILITY_FAMILIES = {"official-utility-filings"}
 _UTILITY_METHODS = {"utility-docket", "utility-filings"}
 _PROCUREMENT_FAMILIES = {"temporary-power-procurement"}
@@ -79,6 +83,8 @@ def source_origin(family: str, retrieval_method: str) -> str:
         return "Official planning context"
     if retrieval_method in _PERMIT_METHODS and family == "construction-permits":
         return "Official permit"
+    if retrieval_method == _CULTIVATION_METHOD and family == _CULTIVATION_FAMILY:
+        return "Official cultivation application"
     if family in _UTILITY_FAMILIES and retrieval_method in _UTILITY_METHODS:
         return "Official utility filing"
     if family in _PROCUREMENT_FAMILIES and retrieval_method in _PROCUREMENT_METHODS:
@@ -111,6 +117,25 @@ def admit_standalone(
         return Admission(False, origin, "The current source version has no accepted assessment.")
     if retrieval_method in _PERMIT_METHODS and family == "construction-permits":
         return Admission(True, origin, "Accepted evidence from an official permit source.")
+    if retrieval_method == _CULTIVATION_METHOD and family == _CULTIVATION_FAMILY:
+        if (
+            activity == "cultivation-license-application"
+            and dated
+            and citation_url
+            and citation_url.startswith("https://masscannabiscontrol.com/resource/")
+            and identified_project
+        ):
+            return Admission(
+                True,
+                origin,
+                "Accepted a dated, site-identified CCC cultivation application event; "
+                "construction, load, rental need, and authority remain unknown.",
+            )
+        return Admission(
+            False,
+            origin,
+            "A dated CCC cultivation application and identified physical site are required.",
+        )
     if family in _UTILITY_FAMILIES and retrieval_method in _UTILITY_METHODS:
         text = f"{title} {abstract or ''}"
         supported_action = bool(

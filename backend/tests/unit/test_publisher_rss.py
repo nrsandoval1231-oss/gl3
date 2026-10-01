@@ -3,7 +3,6 @@ from copy import deepcopy
 import httpx
 import pytest
 
-from gridlens.domain.collection_watch import matched_terms
 from gridlens.ingestion.adapters.federal_register import SourceParseError
 from gridlens.ingestion.adapters.publisher_rss import retrieve
 from gridlens.ingestion.registry import load_registry
@@ -118,12 +117,3 @@ def test_rss_rejects_utf16_doctype_before_xml_parser():
     unsafe = ("<!DOCTYPE rss [<!ENTITY x 'expanded'>]>" + feed(item())).encode("utf-16")
     with pytest.raises(SourceParseError, match="UTF-8"):
         run(unsafe)
-
-
-def test_cannabis_watch_is_a_topic_match_without_a_business_or_power_claim():
-    assert matched_terms("Cultivators discuss insurance", "") == ["cultivation-related"]
-    assert matched_terms("State licensing for cannabis facilities", "") == [
-        "licensing",
-        "facilities",
-    ]
-    assert matched_terms("Cannabis insurance outlook", "") == []

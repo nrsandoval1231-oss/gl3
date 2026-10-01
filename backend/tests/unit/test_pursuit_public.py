@@ -8,6 +8,7 @@ import pytest
 
 from gridlens.ingestion.adapters import pursuit_public as reader
 from gridlens.ingestion.adapters.bounded_http import ResponseTooLarge
+from gridlens.intelligence.pursuits import _organization_involvement
 
 NUMBER = "TABS2026000001"
 URL = reader.TABS + "/TABS/Search/Print/" + NUMBER
@@ -39,6 +40,18 @@ def test_tabs_preserves_named_relationships_and_planned_dates():
     assert "unverified" in facts["timing_basis"]
     assert doc.published_at is None
     assert "buying_authority" not in facts
+
+
+def test_pursuit_company_role_does_not_borrow_a_co_listed_contractor_role():
+    facts = [
+        {"owner_company_name": "Owner LLC"},
+        {"contractor_company_name": "Builder Inc", "contractor_trade": "electrical"},
+    ]
+    owner = _organization_involvement("owner", facts, "Owner LLC")
+    contractor = _organization_involvement("contractor", facts, "Builder Inc")
+    assert "owner / occupant" in owner
+    assert "contractor" not in owner
+    assert "electrical" in contractor
 
 
 def test_tabs_refuses_wrong_project_identity_or_missing_scope():

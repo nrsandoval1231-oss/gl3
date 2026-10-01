@@ -135,16 +135,6 @@
             }
           },
           {
-            "name": "watch_only",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "boolean",
-              "default": false,
-              "title": "Watch Only"
-            }
-          },
-          {
             "name": "limit",
             "in": "query",
             "required": false,
@@ -409,6 +399,84 @@
         }
       }
     },
+    "/api/power-needs/{need_id}/brief": {
+      "get": {
+        "summary": "Get Power Need Brief",
+        "operationId": "get_power_need_brief_api_power_needs__need_id__brief_get",
+        "parameters": [
+          {
+            "name": "need_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Need Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BriefOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create Power Need Brief",
+        "operationId": "create_power_need_brief_api_power_needs__need_id__brief_post",
+        "parameters": [
+          {
+            "name": "need_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Need Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BriefRequestOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/projects/{project_id}/buying-chain/enrich": {
       "post": {
         "summary": "Enrich Project Buying Chain",
@@ -651,6 +719,238 @@
   },
   "components": {
     "schemas": {
+      "BriefCitationOut": {
+        "properties": {
+          "evidence_id": {
+            "type": "string",
+            "title": "Evidence Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "publisher": {
+            "type": "string",
+            "title": "Publisher"
+          },
+          "excerpt": {
+            "type": "string",
+            "title": "Excerpt"
+          }
+        },
+        "type": "object",
+        "required": [
+          "evidence_id",
+          "title",
+          "url",
+          "publisher",
+          "excerpt"
+        ],
+        "title": "BriefCitationOut"
+      },
+      "BriefContentOut": {
+        "properties": {
+          "event_summary": {
+            "items": {
+              "$ref": "#/components/schemas/BriefStatementOut"
+            },
+            "type": "array",
+            "title": "Event Summary"
+          },
+          "commercial_hypothesis": {
+            "$ref": "#/components/schemas/BriefStatementOut"
+          },
+          "unknowns": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Unknowns"
+          },
+          "next_step": {
+            "type": "string",
+            "title": "Next Step"
+          }
+        },
+        "type": "object",
+        "required": [
+          "event_summary",
+          "commercial_hypothesis",
+          "unknowns",
+          "next_step"
+        ],
+        "title": "BriefContentOut"
+      },
+      "BriefOut": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "stale": {
+            "type": "boolean",
+            "title": "Stale",
+            "default": false
+          },
+          "generated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Generated At"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BriefContentOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "citations": {
+            "items": {
+              "$ref": "#/components/schemas/BriefCitationOut"
+            },
+            "type": "array",
+            "title": "Citations"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "input_tokens": {
+            "type": "integer",
+            "title": "Input Tokens",
+            "default": 0
+          },
+          "output_tokens": {
+            "type": "integer",
+            "title": "Output Tokens",
+            "default": 0
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "BriefOut"
+      },
+      "BriefRequestOut": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "stale": {
+            "type": "boolean",
+            "title": "Stale",
+            "default": false
+          },
+          "generated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Generated At"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/BriefContentOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "citations": {
+            "items": {
+              "$ref": "#/components/schemas/BriefCitationOut"
+            },
+            "type": "array",
+            "title": "Citations"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "input_tokens": {
+            "type": "integer",
+            "title": "Input Tokens",
+            "default": 0
+          },
+          "output_tokens": {
+            "type": "integer",
+            "title": "Output Tokens",
+            "default": 0
+          },
+          "job_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status"
+        ],
+        "title": "BriefRequestOut"
+      },
+      "BriefStatementOut": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text"
+          },
+          "evidence_id": {
+            "type": "string",
+            "title": "Evidence Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text",
+          "evidence_id"
+        ],
+        "title": "BriefStatementOut"
+      },
       "BuyingCandidateOut": {
         "properties": {
           "id": {
@@ -1593,24 +1893,6 @@
             "type": "string",
             "title": "Qualification State"
           },
-          "matched_terms": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array",
-            "title": "Matched Terms"
-          },
-          "topic_label": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Topic Label"
-          },
           "assessment_current": {
             "type": "boolean",
             "title": "Assessment Current",
@@ -1714,9 +1996,7 @@
           "content_hash",
           "citation_url",
           "collection_state",
-          "qualification_state",
-          "matched_terms",
-          "topic_label"
+          "qualification_state"
         ],
         "title": "IngestionItemOut"
       },
@@ -1920,6 +2200,17 @@
             ],
             "title": "Required Mw"
           },
+          "commercial_size_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commercial Size Status"
+          },
           "start_window": {
             "anyOf": [
               {
@@ -1986,6 +2277,28 @@
               }
             ],
             "title": "Supported Action"
+          },
+          "title_company": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title Company"
+          },
+          "title_company_role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title Company Role"
           },
           "demand_quote": {
             "anyOf": [
@@ -2177,6 +2490,39 @@
               }
             ],
             "title": "Signal Admission Origin"
+          },
+          "brief_status": {
+            "type": "string",
+            "title": "Brief Status",
+            "default": "unavailable"
+          },
+          "brief_summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Brief Summary"
+          },
+          "brief_generated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Brief Generated At"
+          },
+          "brief_stale": {
+            "type": "boolean",
+            "title": "Brief Stale",
+            "default": false
           }
         },
         "type": "object",
@@ -2766,7 +3112,7 @@
           "scheduler": {
             "type": "string",
             "title": "Scheduler",
-            "default": "Research is queued after successful Austin/RRC ingestion in the existing worker. A running worker is required; managed cloud scheduling has not been verified."
+            "default": "Research is queued after successful Austin, RRC, Dallas, El Paso, or Houston ingestion. City permit refresh rechecks the official bounded source and exact retained row; A running worker is required; managed cloud scheduling has not been verified."
           }
         },
         "type": "object",
