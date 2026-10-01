@@ -9,15 +9,18 @@ from pydantic import BaseModel, Field, SecretStr
 from sqlalchemy import Date, func, select
 
 from gridlens.domain.buying_chain import BuyingChainOut, BuyingEnrichBody
-from gridlens.domain.collection_watch import (
-    candidate_expression as collection_watch_expression,
-)
-from gridlens.domain.collection_watch import (
-    matched_terms as collection_watch_terms,
-)
+from gridlens.domain.commercial_presentation import commercial_size_status
 from gridlens.domain.signal_admission import admitted_from_source, source_origin
 from gridlens.ingestion.registry import load_registry
 from gridlens.ingestion.service import _need_has_current_support
+from gridlens.intelligence.briefs import (
+    BriefUnavailable,
+    brief_fingerprint,
+    brief_input,
+    brief_preview,
+    brief_view,
+    request_brief,
+)
 from gridlens.intelligence.buying_chain import buying_chain_view, enrich_buying_chain
 from gridlens.intelligence.signal_adjudication import POLICY_VERSION, adjudicate_current_signals
 from gridlens.jobs.queue import enqueue
@@ -31,6 +34,7 @@ from gridlens.persistence.models import (
     NeedObservation,
     Observation,
     PowerNeed,
+    PowerNeedBrief,
     Project,
     ProjectLifecycle,
     SignalDecision,
@@ -92,6 +96,7 @@ class OpportunityOut(BaseModel):
     rationale: str
     signal_evidence_state: str = "active_evidence"
     required_mw: str | None
+    commercial_size_status: str | None = None
     start_window: str | None
     duration: str | None
     supply: str
@@ -100,6 +105,8 @@ class OpportunityOut(BaseModel):
     assessment_reason: str | None = None
     supported_subject: str | None = None
     supported_action: str | None = None
+    title_company: str | None = None
+    title_company_role: str | None = None
     demand_quote: str | None = None
     supply_quote: str | None = None
     missing_facts: list[str] = Field(default_factory=list)
@@ -120,6 +127,45 @@ class OpportunityOut(BaseModel):
     signal_display_source: str | None = None
     signal_display_reason: str | None = None
     signal_admission_origin: str | None = None
+    brief_status: str = "unavailable"
+    brief_summary: str | None = None
+    brief_generated_at: datetime | None = None
+    brief_stale: bool = False
+
+
+class BriefStatementOut(BaseModel):
+    text: str
+    evidence_id: str
+
+
+class BriefContentOut(BaseModel):
+    event_summary: list[BriefStatementOut]
+    commercial_hypothesis: BriefStatementOut
+    unknowns: list[str]
+    next_step: str
+
+
+class BriefCitationOut(BaseModel):
+    evidence_id: str
+    title: str
+    url: str
+    publisher: str
+    excerpt: str
+
+
+class BriefOut(BaseModel):
+    status: str
+    stale: bool = False
+    generated_at: datetime | None = None
+    result: BriefContentOut | None = None
+    citations: list[BriefCitationOut] = Field(default_factory=list)
+    error: str | None = None
+    input_tokens: int = 0
+    output_tokens: int = 0
+
+
+class BriefRequestOut(BriefOut):
+    job_id: UUID | None = None
 
 
 class HealthSourceOut(BaseModel):
@@ -212,8 +258,6 @@ class IngestionItemOut(BaseModel):
     citation_url: str
     collection_state: str
     qualification_state: str
-    matched_terms: list[str]
-    topic_label: str | None
     assessment_current: bool = False
     assessment_reason: str | None = None
     supported_subject: str | None = None
@@ -364,15 +408,12 @@ def health():
         }
 
 
-def _ingestion_filters(source_id: str | None, vertical: str | None, watch_only: bool):
+def _ingestion_filters(source_id: str | None, vertical: str | None):
     predicates = []
     if source_id:
         predicates.append(Observation.source_id == source_id)
     if vertical:
         predicates.append(Source.industries.contains([vertical]))
-    if watch_only:
-        predicates.append(Observation.source_id == "mjbizdaily-news")
-        predicates.append(collection_watch_expression(Evidence.title, Evidence.abstract))
     return predicates
 
 
@@ -384,11 +425,10 @@ def _ingestion_filters(source_id: str | None, vertical: str | None, watch_only: 
 def ingestion(
     source_id: str | None = None,
     vertical: str | None = None,
-    watch_only: bool = False,
     limit: int = Query(25, ge=1, le=100),
     offset: int = Query(0, ge=0, le=100000),
 ):
-    predicates = _ingestion_filters(source_id, vertical, watch_only)
+    predicates = _ingestion_filters(source_id, vertical)
     with SessionLocal() as session:
         base = (
             select(Evidence, Observation, Source, Interpretation)
@@ -411,13 +451,6 @@ def ingestion(
         items = []
         for evidence, observation, source, interpretation in rows:
             assessment = _assessment_for_evidence(interpretation, observation, evidence)
-            terms = (
-                collection_watch_terms(evidence.title, evidence.abstract)
-                if observation.source_id == "mjbizdaily-news"
-                else []
-            )
-            if watch_only:
-                assert terms, "SQL topic filter and displayed topic matcher must agree"
             items.append(
                 {
                     "source_id": source.id,
@@ -475,8 +508,6 @@ def ingestion(
                         if interpretation and interpretation.assessment
                         else "Not assessed"
                     ),
-                    "matched_terms": terms,
-                    "topic_label": "Topic match - review required" if terms else None,
                     "assessment_current": assessment is not None,
                     "assessment_reason": assessment.get("reason") if assessment else None,
                     "supported_subject": assessment.get("subject") if assessment else None,
@@ -534,6 +565,12 @@ def opportunities(tier: str | None = None, search: str | None = None):
         ):
             links_by_need[need_id].append((observation, evidence_row, interpretation))
             interpretations[observation.id] = interpretation
+        briefs_by_need = {
+            brief.need_id: brief
+            for brief in session.scalars(
+                select(PowerNeedBrief).where(PowerNeedBrief.need_id.in_(need_ids))
+            )
+        }
         lifecycles_by_project = defaultdict(list)
         lifecycle_observations = set()
         for event, evidence_row in session.execute(
@@ -571,6 +608,7 @@ def opportunities(tier: str | None = None, search: str | None = None):
                 (decision_row.observation_id, decision_row.content_hash), decision_row
             )
         result = []
+        title_company_by_project = {}
         for need, project in rows:
             links = links_by_need[need.id]
             if not _need_has_current_support(session, need, project, links=links):
@@ -762,6 +800,38 @@ def opportunities(tier: str | None = None, search: str | None = None):
                     if not value
                 ]
             )
+            reported_power_facts = (
+                current_assessment.get("reported_power_facts", []) if current_assessment else []
+            )
+            supported_action = current_assessment.get("action") if current_assessment else None
+            size_status = commercial_size_status(
+                need.required_mw,
+                need.activity_key,
+                supported_action,
+                reported_power_facts,
+            )
+            if size_status == "below_floor":
+                continue
+            if project.id not in title_company_by_project:
+                title_company = None
+                title_company_role = None
+                if project.source_id == "houston-weekly-permits":
+                    chain = buying_chain_view(session, project.id)
+                    owner_occupant = next(
+                        (
+                            fact["value"]
+                            for summary in chain["permit_summaries"]
+                            for fact in summary["facts"]
+                            if fact["label"] == "Permit-listed owner / occupant"
+                            and fact["value"].strip()
+                        ),
+                        None,
+                    )
+                    if owner_occupant:
+                        title_company = owner_occupant
+                        title_company_role = "permit-listed owner / occupant"
+                title_company_by_project[project.id] = (title_company, title_company_role)
+            title_company, title_company_role = title_company_by_project[project.id]
             result.append(
                 {
                     "id": need.id,
@@ -790,6 +860,7 @@ def opportunities(tier: str | None = None, search: str | None = None):
                         else "active_evidence"
                     ),
                     "required_mw": need.required_mw,
+                    "commercial_size_status": size_status,
                     "start_window": need.start_window,
                     "duration": need.duration,
                     "supply": need.supply,
@@ -816,9 +887,9 @@ def opportunities(tier: str | None = None, search: str | None = None):
                     "supported_subject": current_assessment.get("subject", project.name)
                     if current_assessment
                     else project.name,
-                    "supported_action": current_assessment.get("action")
-                    if current_assessment
-                    else None,
+                    "supported_action": supported_action,
+                    "title_company": title_company,
+                    "title_company_role": title_company_role,
                     "demand_quote": current_assessment.get("demand_quote")
                     if current_assessment
                     else None,
@@ -826,9 +897,7 @@ def opportunities(tier: str | None = None, search: str | None = None):
                     if current_assessment
                     else None,
                     "missing_facts": missing_facts,
-                    "reported_power_facts": current_assessment.get("reported_power_facts", [])
-                    if current_assessment
-                    else [],
+                    "reported_power_facts": reported_power_facts,
                     "evidence": evidence,
                     "asset_type": project.asset_type,
                     "lifecycle_state": lifecycle.current_state if lifecycle else None,
@@ -892,6 +961,14 @@ def opportunities(tier: str | None = None, search: str | None = None):
                     "signal_display_source": display_source,
                     "signal_display_reason": display_reason,
                     "signal_admission_origin": (need.admission_basis or {}).get("origin"),
+                    **brief_preview(
+                        session,
+                        need,
+                        project,
+                        links,
+                        sources,
+                        briefs_by_need.get(need.id),
+                    ),
                 }
             )
         return result
@@ -973,6 +1050,39 @@ def project_buying_chain(project_id: UUID, history: bool = False):
             return buying_chain_view(session, project_id, history=history)
         except LookupError as exc:
             raise HTTPException(404, "Project not found") from exc
+
+
+@app.get(
+    "/api/power-needs/{need_id}/brief",
+    response_model=BriefOut,
+    dependencies=[Depends(require_session)],
+)
+def get_power_need_brief(need_id: UUID):
+    with SessionLocal() as session:
+        try:
+            payload, _ = brief_input(session, need_id)
+        except LookupError as exc:
+            raise HTTPException(404, "Power need not found") from exc
+        except BriefUnavailable:
+            payload = None
+        row = session.get(PowerNeedBrief, need_id)
+        return brief_view(row, brief_fingerprint(payload) if payload else None)
+
+
+@app.post(
+    "/api/power-needs/{need_id}/brief",
+    response_model=BriefRequestOut,
+    dependencies=[Depends(require_session)],
+)
+def create_power_need_brief(need_id: UUID, request: Request):
+    require_same_origin(request)
+    with SessionLocal.begin() as session:
+        try:
+            return request_brief(session, need_id)
+        except LookupError as exc:
+            raise HTTPException(404, "Power need not found") from exc
+        except BriefUnavailable as exc:
+            raise HTTPException(409, str(exc)) from exc
 
 
 @app.post(

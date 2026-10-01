@@ -8,7 +8,7 @@ from gridlens.ingestion.registry import load_registry
 from gridlens.ingestion.service import process_job
 from gridlens.jobs.queue import assert_fence, lease_one
 from gridlens.persistence.database import SessionLocal
-from gridlens.persistence.models import Job, Source
+from gridlens.persistence.models import Job, PowerNeedBrief, Source
 from gridlens.settings import settings
 
 WORKER_ID = f"{socket.gethostname()}-{os.getpid()}"
@@ -83,6 +83,38 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
 
             process_research_job(job_id, WORKER_ID, fence)
             return True
+        if kind == "power_need_brief":
+            from gridlens.intelligence.briefs import process_brief_job
+
+            try:
+                process_brief_job(job_id, WORKER_ID, fence)
+            except Exception as exc:
+                # Brief jobs may have reached a billable provider request. Any
+                # unexpected failure is terminal; retry requires an owner action.
+                with SessionLocal.begin() as session:
+                    failed = session.get(Job, job_id)
+                    valid = bool(
+                        failed
+                        and failed.status == "running"
+                        and failed.lease_owner == WORKER_ID
+                        and failed.fence == fence
+                    )
+                    if valid and failed:
+                        brief = (
+                            session.get(PowerNeedBrief, failed.target_id)
+                            if failed.target_id
+                            else None
+                        )
+                        if brief and brief.status == "pending":
+                            brief.status = "failed"
+                            brief.error = (
+                                "ambiguous_prior_request"
+                                if failed.checkpoint and '"reserved": true' in failed.checkpoint
+                                else "worker_failed"
+                            )
+                        failed.status, failed.error = "failed", type(exc).__name__
+                        failed.lease_owner, failed.lease_until = None, None
+            return True
         with SessionLocal() as session:
             counts = process_job(session, job_id, WORKER_ID, fence, definition)
             finished_job = session.get(Job, job_id)
@@ -136,7 +168,13 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
                 "pdf_skipped_not_signal": counts.get("pdf_skipped_not_signal", 0),
                 "pdf_skipped_limit": counts.get("pdf_skipped_limit", 0),
             }
-            if source_id in {"austin-building-permits", "texas-rrc-drilling-permits"}:
+            if source_id in {
+                "austin-building-permits",
+                "texas-rrc-drilling-permits",
+                "houston-weekly-permits",
+                "dallas-monthly-permits",
+                "el-paso-new-commercial-permits",
+            }:
                 from gridlens.jobs.queue import enqueue
 
                 research_anchor = session.get(Source, "austin-building-permits")

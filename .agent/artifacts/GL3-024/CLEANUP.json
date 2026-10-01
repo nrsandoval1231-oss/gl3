@@ -1,0 +1,9 @@
+{
+  "at": "2026-10-01T18:52:14.149632+00:00",
+  "removed_worktree": "C:\\Users\\nrsan\\Nucleus\\02_Projects\\GridLens\\gl3-024-source",
+  "all_source_application_changes_match_integrated_worktree": true,
+  "private_backup": ".artifacts\\GL3-024\\source-worktree-backup.zip",
+  "credentials_preserved_in_ignored_private_archive": true,
+  "databases_removed": false,
+  "original_checkout_modified": false
+}

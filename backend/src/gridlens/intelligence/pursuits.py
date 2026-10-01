@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 import re
 import time
 from collections import defaultdict
@@ -19,6 +18,7 @@ from zoneinfo import ZoneInfo
 from sqlalchemy import Integer, case, func, select
 from sqlalchemy.orm import Session
 
+from gridlens.domain.commercial_presentation import commercial_size_status
 from gridlens.domain.pursuit_screening import normalized, screen, work_identity
 from gridlens.domain.pursuits import MAX_BATCH, MAX_FETCHES, MAX_MODELS, POLICY_VERSION, SOURCES
 from gridlens.ingestion.adapters.buying_chain_public import PublicDocument
@@ -40,8 +40,12 @@ from gridlens.persistence.models import (
     PursuitCallNote,
     PursuitDocument,
     PursuitResearchRun,
+    Source,
 )
 from gridlens.settings import settings
+
+CITY_PERMIT_SOURCES = SOURCES[2:]
+PRESENTATION_POLICY_VERSION = "pursuit-company-titles-v2"
 
 
 def digest(value: object) -> str:
@@ -94,6 +98,17 @@ def candidates(session: Session) -> list[dict]:
             session, need, project, links=[(observation, evidence, interpretation)]
         ):
             continue
+        assessment = interpretation.assessment or {}
+        if (
+            commercial_size_status(
+                need.required_mw,
+                need.activity_key,
+                assessment.get("action"),
+                assessment.get("reported_power_facts", []),
+            )
+            == "below_floor"
+        ):
+            continue
         parsed = {
             k: v[0] for k, v in fields(observation.source_id, evidence.abstract or "").items()
         }
@@ -142,7 +157,9 @@ def candidates(session: Session) -> list[dict]:
             )
     for group in groups.values():
         group["screen"] = screen(group["facts"], group["source_id"], datetime.now(UTC).date())
-        group["input_hash"] = digest([POLICY_VERSION, group["records"]])
+        group["input_hash"] = digest(
+            [POLICY_VERSION, PRESENTATION_POLICY_VERSION, group["records"]]
+        )
     return list(groups.values())
 
 
@@ -196,7 +213,12 @@ def select_batch(session: Session, groups: list[dict], *, force: bool = False) -
                 del by_operator[key]
             if len(diversified) >= 4:
                 break
-    return (austin + diversified)[:MAX_BATCH]
+    city_permits = [
+        group
+        for source_id in CITY_PERMIT_SOURCES
+        for group in sorted((g for g in eligible if g["source_id"] == source_id), key=ordering)[:4]
+    ]
+    return (austin + city_permits + diversified)[:MAX_BATCH]
 
 
 def _source(doc: PublicDocument, reason: str, source_date: str) -> dict:
@@ -276,6 +298,29 @@ def _tabs_match(site: str, data: dict) -> tuple[bool, str]:
     )
 
 
+def _organization_involvement(role: str | None, facts: list[dict], organization: str) -> str:
+    labels = {
+        "owner": "Permit-listed owner / occupant; legal ownership unverified",
+        "operator": "Permit-listed operator; current operating role unverified",
+        "applicant": "Permit-listed applicant; no owner or buyer role inferred",
+        "lp_business_name": "Permit-listed LP Business Name; role unverified",
+        "contractor": "Permit-listed contractor",
+    }
+    label = labels.get(role) if role else None
+    label = label or "Permit-listed organization; role unknown"
+    if role == "contractor":
+        trade = next(
+            (
+                fact.get("contractor_trade") or "contractor"
+                for fact in facts
+                if fact.get("contractor_company_name") == organization
+            ),
+            "contractor",
+        )
+        label += f" · {trade}"
+    return label + "; construction/power-package responsibility unverified"
+
+
 def _snapshot(
     group: dict, docs: list[PublicDocument], buying: dict, model_states: list[str]
 ) -> dict:
@@ -283,11 +328,43 @@ def _snapshot(
     s = group["screen"]
     records = group["records"]
     organization = next(
-        (f["contractor_company_name"] for f in facts if f.get("contractor_company_name")), None
+        (
+            f[key]
+            for key in ("owner_company_name", "operator", "applicant_org", "lp_business_name")
+            for f in facts
+            if f.get(key)
+        ),
+        None,
     )
-    organization = organization or next(
-        (f["operator"] for f in facts if f.get("operator")), "Organization unknown"
+    organization_role = next(
+        (
+            role
+            for key, role in (
+                ("owner_company_name", "owner"),
+                ("operator", "operator"),
+                ("applicant_org", "applicant"),
+                ("lp_business_name", "lp_business_name"),
+            )
+            for f in facts
+            if f.get(key) == organization
+        ),
+        None,
     )
+    if not organization:
+        organization = next(
+            (f["contractor_company_name"] for f in facts if f.get("contractor_company_name")),
+            "Organization unknown",
+        )
+        organization_role = "contractor" if organization != "Organization unknown" else None
+    display_organization = organization or "Organization unknown"
+    organization_title_role = (
+        "LP Business Name · role unverified"
+        if organization_role == "lp_business_name"
+        else organization_role
+    )
+    fallback_activity = next(
+        (f.get("description") for f in facts if f.get("description")), "Activity unknown"
+    )[:100]
     contacts, people, sources, conflicts, timing, utility, load = [], [], [], [], [], [], []
     registration_context: list[str] = []
     for fact, record in zip(facts, records, strict=True):
@@ -444,7 +521,7 @@ def _snapshot(
             "authorization, well completion or production date; site "
             "construction and electrical design unverified"
         )
-    if not os.getenv("TYPESAFE_API_KEY"):
+    if not settings.typesafe_api_key:
         unknowns.append(
             "Jev unavailable: TYPESAFE_API_KEY is not configured; screening "
             "uses deterministic evidence rules"
@@ -488,20 +565,15 @@ def _snapshot(
         ),
     ]
     return {
-        "project": f"{group['site']} · {', '.join(r['external_id'] for r in records)}",
+        "project": (
+            f"{organization} · {organization_title_role} · {group['site']}"
+            if organization_role
+            else f"{group['site']} · {fallback_activity}"
+        ),
         "site": group["site"],
         "organization": organization,
-        "organization_involvement": (
-            "Permit-listed "
-            + next(
-                (
-                    f.get("contractor_trade") or "contractor"
-                    for f in facts
-                    if f.get("contractor_company_name") == organization
-                ),
-                "asset operator",
-            )
-            + "; construction/power-package responsibility unverified"
+        "organization_involvement": _organization_involvement(
+            organization_role, facts, display_organization
         ),
         "action_status": action,
         "rank_key": [s["scope_priority"], s["timing_priority"], int(reachable), 0],
@@ -650,6 +722,8 @@ def process_research_job(job_id: UUID, worker_id: str, fence: int) -> None:
     rrc_cache: list[dict] | None = None
     rrc_error: str | None = None
     rrc_archives: dict[str, list[dict] | None] = {}
+    city_records: dict[str, dict[str, dict]] = {}
+    city_errors: dict[str, str] = {}
     for group in selected:
         if time.monotonic() >= deadline:
             raise TimeoutError("Pursuit batch deadline exhausted")
@@ -774,6 +848,65 @@ def process_research_job(job_id: UUID, worker_id: str, fence: int) -> None:
                     )
                 except Exception as exc:
                     failure("State project-registration research", exc)
+            elif group["source_id"] in CITY_PERMIT_SOURCES:
+                source_id = group["source_id"]
+                try:
+                    if source_id not in city_records and source_id not in city_errors:
+                        debit()
+                        source = session.get(Source, source_id)
+                        if source is None:
+                            raise LookupError("Registered city permit source is unavailable")
+                        from gridlens.ingestion.adapters import retrieve_source
+
+                        rows = retrieve_source(
+                            {
+                                "id": source.id,
+                                "endpoint": source.endpoint,
+                                "retrieval_method": source.retrieval_method,
+                            }
+                        )
+                        city_records[source_id] = {item["document_number"]: item for item in rows}
+                    if source_id in city_errors:
+                        raise RuntimeError(city_errors[source_id])
+                    current = city_records[source_id]
+                    for record in group["records"]:
+                        fresh = current.get(record["external_id"])
+                        if fresh is None:
+                            errors.append(
+                                "Exact permit row is absent from the current bounded city source; "
+                                "prior evidence retains its original date."
+                            )
+                            continue
+                        parsed = {
+                            key: value[0]
+                            for key, value in fields(source_id, fresh["abstract"]).items()
+                        }
+                        if normalized(parsed.get("address", "")) != normalized(group["site"]):
+                            raise ValueError("Fresh city permit site identity changed")
+                        observed = datetime.now(UTC)
+                        doc = PublicDocument(
+                            fresh["html_url"],
+                            fresh["title"],
+                            f"{fresh['title']}\n{fresh.get('abstract') or ''}",
+                            None,
+                            observed,
+                            fresh.get("extraction_location", "official city permit row"),
+                        )
+                        docs.append(doc)
+                        fresh_facts.append(parsed)
+                        fresh_records.append(
+                            {
+                                **record,
+                                "text": doc.text,
+                                "url": doc.url,
+                                "observed_at": observed.isoformat(),
+                                "hash": fresh.get("source_hash") or digest(doc.text),
+                                "published_at": None,
+                            }
+                        )
+                except Exception as exc:
+                    city_errors.setdefault(source_id, type(exc).__name__)
+                    failure("Exact current city permit retrieval", exc)
             else:
                 if rrc_cache is None and rrc_error is None:
                     try:
@@ -883,7 +1016,7 @@ def process_research_job(job_id: UUID, worker_id: str, fence: int) -> None:
                     "screen": screen(fresh_facts, group["source_id"], datetime.now(UTC).date()),
                 }
             model_states = []
-            if os.getenv("TYPESAFE_API_KEY") and batch_models < MAX_MODELS:
+            if settings.typesafe_api_key and batch_models < MAX_MODELS:
                 # Jev interprets only existing retained, evidence-bound input. It is
                 # not a public-source retriever, buyer verifier or promotion gate.
                 for record in group["records"][:1]:

@@ -1,0 +1,8 @@
+{
+  "at": "2026-10-01T17:16:01.847116+00:00",
+  "source_database": "gl3_023_accept",
+  "acceptance_database": "gl3_024_accept",
+  "test_database": "gl3_024_test",
+  "method": "Consistent pg_dump and pg_restore into new isolated database; source unchanged",
+  "base_commit": "118d4197d0091ae73564a38130b4e0c20e72509d"
+}

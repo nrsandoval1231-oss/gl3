@@ -1,0 +1,25 @@
+{
+  "node": "GL3-025",
+  "role": "independent Sol exact-candidate re-review",
+  "verdict": "PASS",
+  "branch": "feat/gl3-023-city-permits",
+  "base_sha": "ba660ee41ee48dc45ac2dd49ccd2c9502cfb8f7f",
+  "candidate_manifest": ".agent/artifacts/GL3-025/candidate_manifest.json",
+  "candidate_sha256": "17b07879e30fa1e2d63007702f0a42ac2fb58fa9038903215ceae28d52ae74a2",
+  "manifest_file_count": 307,
+  "manifest_files_verified": true,
+  "started_at_utc": "UNKNOWN",
+  "finished_at_utc": "2026-10-01T20:43:56Z",
+  "findings": [],
+  "repair_assessment": "The two REVIEW-r1 findings are resolved in the actual candidate. briefs.py:672 uses source-neutral reported-activity UNKNOWN wording, and policy v4 makes retained v3 wording stale until an explicit refresh. The final real Massachusetts cultivation application brief and cultivation-final.png display the neutral wording and retain application status. At briefs.py:727-730, obsolete B completion preserves a current cached A result as ready when its generated fingerprint matches current input; the new A-to-B-to-A integration test verifies authenticated GET status ready and stale false, with retained result unchanged. Only briefs.py and two focused brief test files changed from the r1 product manifest.",
+  "evidence_reviewed": [
+    "REVIEW_CONTRACT.md, REVIEW-r1.json, bounded senior repair packet and COMPLETION-SENIOR.json, with prior PRD, AGENTS.md, Finish Contract and GL3-025 packet",
+    "Independent SHA-256 check of all 307 manifest file bytes: zero mismatches. Compact sorted-key manifest digest equals 17b07879e30fa1e2d63007702f0a42ac2fb58fa9038903215ceae28d52ae74a2. Git tracked and nonignored untracked product-file enumeration matches the manifest after stated exclusions.",
+    "Actual brief service and regressions, API/auth/CSRF and worker/fence paths reviewed against r1; retained failed live receipts and RECOVERY.md read. The model selects enumerated retained fact IDs; the server renders fact text and citations. Citation membership alone is not treated as proof of arbitrary prose entailment.",
+    "Final LIVE_BRIEFS.json: Dallas, Houston and Massachusetts cultivation official-source briefs ready and nonstale; each unchanged replay is cached without another request. Cultivation-final.png inspected. CORE_PARITY.json records unchanged core rows and hashes. TYPESAFE_CONNECTION.json records one connection proof without database writes.",
+    "VALIDATION.json and validation-final raw receipts: Ruff, mypy, 527 backend tests passed with one existing skip, frontend typecheck/build, clean/repeat/drift migrations, 15 browser tests and diff check all exit zero. The retained validation-senior-initial run failed one stale v3 policy assertion; its expectation was updated to v4 and the final full rerun passed."
+  ],
+  "reviewed_boundaries": "Authenticated same-origin POST explicitly queues paid work; GET and unchanged replay use cache. Current accepted need evidence and fresh public project relationships form bounded provider input without private pursuit notes or credentials. Strict fact-ID selection, server-rendered source-linked text, policy/model fingerprints, daily locked reservation, committed ambiguous-request checkpoint and job fence remain intact. Brief writes stay in advisory state, version history, jobs and budget; reviewed path does not mutate source, tier, admission or decision records. Last-good content remains visible with stale/failure status.",
+  "limitations": "PASS covers this frozen GL3-025 candidate, not parent Finish Contract or launch. It does not establish cloud scheduling, seven-cycle reliability, a real qualified Lead, buyer authority, utility shortfall, rental demand or prose entailment beyond deterministic selected facts. No reviewer provider/network request, implementation edit, commit, push, merge or deploy was performed.",
+  "direction": "CONTINUE controller integration for the exact candidate. Parent Finish Contract and launch remain OPEN. Any product-file change requires a new manifest and independent review."
+}

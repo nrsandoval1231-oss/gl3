@@ -31,6 +31,12 @@ The approved visual and interaction direction is [the frozen UI canon](../design
 
 ## Product outcomes
 
+### Owner-authorized presentation amendment — October 1, 2026
+
+- Remove the standalone Cannabis Watch view and its topic-match API behavior. Retained cannabis industry source evidence and supplemental news remain available in the ordinary ingestion inbox; only dated, site-identifiable official cultivation applications may be admitted as Signals.
+- Use a project company as the displayed title when current project-specific evidence supports its role. Prefer owner/operator roles to contractors, label applicants as applicants, and label contractors as contractors. When a company is unknown, use an activity-and-site title rather than a permit-system label. Preserve source titles and identifiers as evidence.
+- Apply an inclusive 300 kW (0.3 MW) minimum to visible opportunities, with no maximum. Retain unknown-size Signals with an explicit unknown-size label; hide confirmed below-floor work from opportunity views while preserving its raw evidence and history. Interpret only activity-specific values; ignore campus totals and nameplate or operating capacity when assessing a temporary-power work scope. A small generator replacement remains below the commercial floor without creating a rental-demand claim.
+
 | Outcome | Meaning |
 |---|---|
 | Reliable daily discovery | New information arrives without Nick manually starting collection. |

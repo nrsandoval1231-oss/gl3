@@ -36,7 +36,10 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
             },
             "rrc-drilling-permits": {"mft.rrc.texas.gov"},
             "houston-weekly-permits": {"www.houstonpermittingcenter.org"},
+            "dallas-monthly-permits": {"dallascityhall.com"},
+            "el-paso-new-commercial-permits": {"gis.elpasotexas.gov"},
             "georgia-air-permits": {"epd.georgia.gov"},
+            "ma-cultivation-applications": {"masscannabiscontrol.com"},
             "taylor-newsflash": {"taylortx.gov"},
         }
         if source["id"] in ids or urlparse(source["endpoint"]).hostname not in allowed_hosts.get(
@@ -48,9 +51,12 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
         valid_window = source["retrieval_method"] in {
             "rrc-drilling-permits",
             "houston-weekly-permits",
+            "dallas-monthly-permits",
+            "el-paso-new-commercial-permits",
             "publisher-rss",
             "georgia-air-permits",
             "taylor-newsflash",
+            "ma-cultivation-applications",
         } or (1 <= query.get("window_days", 0) <= 90)
         if source["retrieval_method"] in {"json-api", "federal-register-json"}:
             bounded = (
@@ -98,6 +104,24 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
             )
         elif source["retrieval_method"] == "houston-weekly-permits":
             bounded = source.get("cadence_hours") == 24 and query.get("max_reports") == 4
+        elif source["retrieval_method"] == "dallas-monthly-permits":
+            bounded = (
+                source.get("family") == "construction-permits"
+                and source.get("cadence_hours") == 24
+                and query.get("max_reports") == 4
+                and source.get("city") == "Dallas"
+                and source.get("state") == "TX"
+            )
+        elif source["retrieval_method"] == "el-paso-new-commercial-permits":
+            bounded = (
+                source.get("family") == "construction-permits"
+                and source.get("cadence_hours") == 24
+                and query.get("window_days") == 90
+                and query.get("max_records") == 20000
+                and query.get("page_size") == 1000
+                and source.get("city") == "El Paso"
+                and source.get("state") == "TX"
+            )
         elif source["retrieval_method"] == "georgia-air-permits":
             bounded = (
                 source.get("family") == "construction-permits"
@@ -112,6 +136,21 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
                 and query.get("max_pdf_pages") == 200
                 and query.get("max_pdf_total_pages") == 5000
                 and source.get("geography") == "Georgia"
+            )
+        elif source["retrieval_method"] == "ma-cultivation-applications":
+            bounded = (
+                source.get("id") == "ma-ccc-cultivation-applications"
+                and source.get("family") == "cultivation-license-applications"
+                and source.get("cadence_hours") == 24
+                and query.get("max_snapshot_bytes") == 10_000_000
+                and query.get("max_records") == 2500
+                and query.get("max_snapshot_age_days") == 30
+                and query.get("max_application_event_age_days") == 120
+                and source.get("geography") == "Massachusetts"
+                and urlparse(source["endpoint"]).scheme == "https"
+                and urlparse(source["endpoint"]).hostname == "masscannabiscontrol.com"
+                and urlparse(source["endpoint"]).path == "/resource/l_applications_all_details.json"
+                and not urlparse(source["endpoint"]).query
             )
         elif source["retrieval_method"] == "taylor-newsflash":
             bounded = (

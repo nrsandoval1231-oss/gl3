@@ -1,0 +1,58 @@
+........................................................................ [ 13%]
+.......................................................F................ [ 27%]
+........................................................................ [ 40%]
+........................................................................ [ 54%]
+..........s............................................................. [ 68%]
+........................................................................ [ 81%]
+........................................................................ [ 95%]
+........................                                                 [100%]
+================================== FAILURES ===================================
+__________ test_model_selects_curated_facts_and_server_renders_brief __________
+
+    def test_model_selects_curated_facts_and_server_renders_brief():
+        evidence = {
+            "evidence-a": {
+                "title": "Dallas issued commercial new-construction permit 12345",
+                "excerpt": (
+                    "event: Issued\nwork: Commercial\nproposed_land_use: Warehouse\n"
+                    "description: Commercial new construction of a warehouse"
+                ),
+                "url": "https://example.test/permit",
+                "publisher": "City",
+            }
+        }
+        facts = _fact_options(evidence)
+        selected = next(key for key in facts if key.endswith("proposed-land-use"))
+        result, citations = _validate_result(
+            {"selected_fact_ids": [selected], "hypothesis_fact_id": selected},
+            facts,
+            ["Activity-specific power requirement remains unknown."],
+        )
+        assert result["event_summary"] == [
+            {"text": "Permit-listed proposed land use: Warehouse.", "evidence_id": "evidence-a"}
+        ]
+        assert result["commercial_hypothesis"]["text"] == (
+            "Investigation hypothesis: Does warehouse construction require temporary site power?"
+        )
+        assert "power requirement remains unknown" in result["unknowns"][0]
+        assert result["next_step"].startswith("Ask the project contact")
+        assert citations[0]["excerpt"] == "proposed_land_use: Warehouse"
+>       assert (POLICY_VERSION, SCHEMA_VERSION) == (
+            "power-need-brief-v3",
+            "power-need-brief-schema-v3",
+        )
+E       AssertionError: assert ('power-need-...ef-schema-v3') == ('power-need-...ef-schema-v3')
+E         
+E         At index 0 diff: 'power-need-brief-v4' != 'power-need-brief-v3'
+E         Use -v to get more diff
+
+tests\unit\test_briefs.py:42: AssertionError
+============================== warnings summary ===============================
+.venv\Lib\site-packages\fastapi\testclient.py:1
+  C:\Users\nrsan\Nucleus\02_Projects\GridLens\gl3-023\backend\.venv\Lib\site-packages\fastapi\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/unit/test_briefs.py::test_model_selects_curated_facts_and_server_renders_brief
+1 failed, 526 passed, 1 skipped, 1 warning in 59.14s

@@ -1,0 +1,47 @@
+{
+  "packet": "GL3-024 integration repair",
+  "status": "FROZEN_FOR_CONTROLLER_VALIDATION",
+  "candidate": {
+    "branch": "feat/gl3-023-city-permits",
+    "base_sha": "118d4197d0091ae73564a38130b4e0c20e72509d",
+    "candidate_committed": false
+  },
+  "changed_files": [
+    "web/tests/first_path.spec.ts",
+    "backend/src/gridlens/intelligence/pursuits.py",
+    "backend/tests/integration/test_pursuits.py"
+  ],
+  "changes": [
+    "Allowed Official cultivation application as an authenticated Signal source origin and made the detail assertion verify the selected Signal's admitted origin.",
+    "Removed Cannabis Watch navigation and watch_only API use from the mobile first-path test; retained checks for the ordinary inbox, configured publisher-news filters, mobile source filtering, health, and browser history.",
+    "Applied the existing 0.3 MW presentation floor to current supported pursuit candidates. Confirmed below-floor scopes are excluded; pursuit detail/list history continues to mark unsupported active candidates dropped through existing behavior.",
+    "Added candidate-level regression for 200 kW exclusion, 35 kW generator-replacement exclusion, the inclusive 300 kW boundary, large-size eligibility, and unknown-size eligibility."
+  ],
+  "validation": [
+    {
+      "command": "cd web; GRIDLENS_API_PORT=8023 GRIDLENS_WEB_PORT=5193 npm test -- first_path.spec.ts --grep 'authenticated desktop browse'",
+      "result": "PASS; 1 test against existing integrated services"
+    },
+    {
+      "command": "cd web; GRIDLENS_API_PORT=8023 GRIDLENS_WEB_PORT=5193 npm test -- first_path.spec.ts --grep 'mobile health, ordinary news inbox'",
+      "result": "PASS; 1 test against existing integrated services"
+    },
+    {
+      "command": "cd backend; .venv/Scripts/python.exe -m pytest tests/integration/test_pursuits.py -k current_permit_candidates_use_evidence_hash_and_observation_source -q",
+      "result": "PASS; 1 passed, 10 deselected"
+    },
+    {
+      "command": "cd backend; .venv/Scripts/ruff.exe check src/gridlens/intelligence/pursuits.py tests/integration/test_pursuits.py",
+      "result": "PASS"
+    }
+  ],
+  "repair_history": [
+    "The initial attempt looked for populated news-feed records, but this local database has none; the repaired regression checks configured publisher-news filters alongside retained ordinary inbox evidence without inventing news items.",
+    "The cultivation-first inbox exposed a long source hash in the existing mobile overflow check. The test now selects the already-covered El Paso permit source before that layout check; no application styling or assertion was changed."
+  ],
+  "limitations": [
+    "The two focused first-path browser tests passed. Other unchanged first_path.spec.ts live tests previously failed because this test database lacked the permit/power/data-center examples those existing assertions require; they were not weakened or changed.",
+    "Parent owns frozen combined gates, final exact-candidate validation, integrated runtime verification, and governance whitespace. No claim is made for those gates here.",
+    "Start/finish timestamps, elapsed time, token counts, and audit duration are UNKNOWN."
+  ]
+}

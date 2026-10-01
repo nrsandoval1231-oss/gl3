@@ -9,7 +9,7 @@ from collections import defaultdict
 from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any
-from urllib.parse import urlencode
+from urllib.parse import parse_qs, urlencode, urlsplit
 from uuid import UUID
 
 from sqlalchemy import or_, select
@@ -27,6 +27,11 @@ from gridlens.ingestion.adapters.buying_chain_public import (
     PublicDocument,
     retrieve,
     validate_public_url,
+)
+from gridlens.ingestion.adapters.houston_permit_details import (
+    SUPPORTED_TYPES,
+    response_type_code,
+    retrieve_detail,
 )
 from gridlens.ingestion.adapters.retained_permits import GEORGIA, chicago_contacts, georgia_identity
 from gridlens.ingestion.adapters.retained_permits import facts as permit_facts
@@ -322,7 +327,13 @@ def enrich_buying_chain(
     )
     retained_permit = retained_permit or (
         project.source_id
-        in {"austin-building-permits", "houston-weekly-permits", "texas-rrc-drilling-permits"}
+        in {
+            "austin-building-permits",
+            "dallas-monthly-permits",
+            "el-paso-new-commercial-permits",
+            "houston-weekly-permits",
+            "texas-rrc-drilling-permits",
+        }
         and any(permit_facts(project.source_id, doc.text) for doc, _, _, _ in documents)
     )
     if retained_permit:
@@ -355,6 +366,10 @@ def enrich_buying_chain(
                 previous_evidence
                 and previous_evidence.retained_evidence_id is None
                 and not (
+                    project.source_id == "houston-weekly-permits"
+                    and "/ibi_apps/WFServlet.ibfs" in previous_evidence.url
+                )
+                and not (
                     retained_permit and previous_evidence.url in {d.url for d, _, _, _ in documents}
                 )
             ):
@@ -386,6 +401,55 @@ def enrich_buying_chain(
             retrieval_failed = True
             # Never include exception text, credentials, response bodies or stack traces in API.
             unresolved.append(f"Public retrieval unavailable for {url}: {type(exc).__name__}.")
+    if project.source_id == "houston-weekly-permits":
+        retained_permit_doc = next(
+            (doc for doc, _, _, retained_id in documents if retained_id is not None), None
+        )
+        parsed_permit = (
+            permit_facts(project.source_id, retained_permit_doc.text)
+            if retained_permit_doc is not None
+            else {}
+        )
+        permit_fields = {item["label"]: item["value"] for item in parsed_permit}
+        # The XLSX permit type is an official exact-project search selector only
+        # where the UI result supplied this same mapping (Building Pmt -> 13).
+        if permit_fields.get("Permit type") == "Building Pmt":
+            try:
+                detail = retrieve_detail(
+                    permit_fields.get("Source record", ""),
+                    permit_fields["Permit type"],
+                    event_date=permit_fields.get("Permit sale event date (weekly report)", ""),
+                    site_address=permit_fields.get("Site address", ""),
+                )
+                detail_values = {
+                    item["label"]: item["value"]
+                    for item in permit_facts(project.source_id, detail.text)
+                }
+                expected_type_code = SUPPORTED_TYPES[permit_fields["Permit type"]]
+                if response_type_code(detail_values.get("Permit type code", "")) != (
+                    expected_type_code
+                ):
+                    raise ValueError(
+                        "Houston exact permit detail type did not match the weekly row"
+                    )
+                expected_address = permit_fields.get("Site address", "")
+                found_address = detail_values.get("Permit job address", "")
+                if not found_address.casefold().startswith(expected_address.casefold()):
+                    raise ValueError(
+                        "Houston exact detail site did not match retained permit evidence"
+                    )
+                documents.append(
+                    (
+                        detail,
+                        True,
+                        "Exact Houston sold permit project, permit type, date and site "
+                        "match the selected project.",
+                        None,
+                    )
+                )
+            except Exception as exc:
+                retrieval_failed = True
+                unresolved.append(f"Exact Houston permit detail unavailable: {type(exc).__name__}.")
     research_incomplete = retrieval_failed or bool(urls)
     if urls:
         unresolved.append(
@@ -414,6 +478,13 @@ def enrich_buying_chain(
                     organizations.extend(
                         extract_retained_permit_organizations(doc, observation.source_id)
                     )
+            elif (
+                project.source_id == "houston-weekly-permits"
+                and "/ibi_apps/WFServlet.ibfs" in doc.url
+            ):
+                organizations.extend(
+                    extract_retained_permit_organizations(doc, project.source_id)
+                )
             organizations.extend(extract_organizations(doc, project))
     people = [item for item in organizations if item.person_name is not None]
     organizations = _deduplicate([item for item in organizations if item.person_name is None])
@@ -821,7 +892,7 @@ def _permit_summaries(session: Session, project_id: UUID) -> list[dict]:
     project = session.get(Project, project_id)
     if project is None:
         return []
-    summaries = []
+    summaries: list[dict[str, Any]] = []
     for evidence in _retained(session, project):
         observation = session.get(Observation, evidence.observation_id)
         if observation is None:
@@ -839,4 +910,54 @@ def _permit_summaries(session: Session, project_id: UUID) -> list[dict]:
                     "facts": facts,
                 }
             )
+    if project.source_id == "houston-weekly-permits":
+        primary = next(
+            (
+                item
+                for item in summaries
+                if item["source_id"] == project.source_id
+            ),
+            None,
+        )
+        if primary:
+            primary_facts = {item["label"]: item["value"] for item in primary["facts"]}
+            for detail in session.scalars(
+                select(BuyingChainEvidence)
+                .where(
+                    BuyingChainEvidence.project_id == project.id,
+                    BuyingChainEvidence.retained_evidence_id.is_(None),
+                    BuyingChainEvidence.url.like("https://cohtora.houstontx.gov/ibi_apps/WFServlet.ibfs%"),
+                )
+                .order_by(BuyingChainEvidence.last_seen_at.desc())
+            ):
+                query = parse_qs(urlsplit(detail.url).query)
+                details = permit_facts(project.source_id, detail.excerpt)
+                fields = {item["label"]: item["value"] for item in details}
+                expected_type_code = SUPPORTED_TYPES.get(primary_facts.get("Permit type", ""))
+                if (
+                    query.get("PN") != [primary_facts.get("Source record")]
+                    or not expected_type_code
+                    or query.get("PT") != [expected_type_code]
+                    or fields.get("Houston exact permit project number")
+                    != primary_facts.get("Source record")
+                    or response_type_code(fields.get("Permit type code", ""))
+                    != expected_type_code
+                    or fields.get("Houston sold permit detail date")
+                    != primary_facts.get("Permit sale event date (weekly report)")
+                    or not fields.get("Permit job address", "").casefold().startswith(
+                        primary_facts.get("Site address", "").casefold()
+                    )
+                ):
+                    continue
+                summaries.append(
+                    {
+                        "evidence_id": detail.id,
+                        "source_id": project.source_id,
+                        "url": detail.url,
+                        "title": detail.title,
+                        "observed_at": detail.last_seen_at,
+                        "extraction_location": detail.extraction_location,
+                        "facts": details,
+                    }
+                )
     return summaries

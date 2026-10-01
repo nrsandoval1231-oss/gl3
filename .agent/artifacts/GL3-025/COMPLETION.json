@@ -1,0 +1,76 @@
+{
+  "packet": "GL3-025",
+  "status": "builder_handoff",
+  "scope": "Durable per-need card briefs with cached browse summaries, explicit authenticated generation, evidence-linked output, budget and retry fencing, history retention, stale-input handling, and Settings-based provider key lookup.",
+  "validation": [
+    {
+      "repair": "Repair 2: replace model-written claims with bounded selections of curated retained facts and server-rendered questions, unknowns, and next step; add Dallas/Houston quality regressions; fix duplicate browser citation assertion",
+      "command": "uv run pytest tests/unit/test_briefs.py tests/integration/test_power_need_briefs.py -q",
+      "result": "22 passed, 1 existing Starlette/httpx deprecation warning"
+    },
+    {
+      "command": "uv run ruff check src/gridlens/intelligence/briefs.py tests/unit/test_briefs.py tests/integration/test_power_need_briefs.py && uv run mypy src/gridlens/intelligence/briefs.py",
+      "result": "Ruff and mypy passed"
+    },
+    {
+      "command": "npm run typecheck && npm run build && npm run test -- --grep \"detail explicitly requests a brief\"",
+      "result": "typecheck/build passed; focused Playwright regression passed 1/1"
+    },
+    {
+      "repair": "Repair 1: evidence-snippet enums, digit patterns, failure-code allowlist and usage retention, and browse/detail fingerprint parity for cached cards",
+      "command": "uv run pytest tests/unit/test_briefs.py tests/integration/test_power_need_briefs.py -q",
+      "result": "18 passed, 1 existing Starlette/httpx deprecation warning"
+    },
+    {
+      "command": "uv run ruff check src/gridlens/intelligence/briefs.py tests/unit/test_briefs.py tests/integration/test_power_need_briefs.py && uv run mypy src/gridlens/intelligence/briefs.py",
+      "result": "Ruff and mypy passed"
+    },
+    {
+      "command": "uv run pytest tests/unit/test_briefs.py tests/integration/test_power_need_briefs.py tests/integration/test_signal_adjudication.py tests/integration/test_pursuits.py -q",
+      "result": "32 passed, 1 existing Starlette/httpx deprecation warning"
+    },
+    {
+      "command": "uv run ruff check src/gridlens tests migrations/versions/0011_power_need_briefs.py",
+      "result": "All checks passed"
+    },
+    {
+      "command": "uv run mypy src/gridlens/intelligence/briefs.py src/gridlens/api/app.py src/gridlens/jobs/worker.py src/gridlens/persistence/models.py src/gridlens/settings.py",
+      "result": "Passed"
+    },
+    {
+      "command": "npm run generate:api && npm run typecheck && npm run build",
+      "result": "Passed"
+    },
+    {
+      "command": "git diff --check",
+      "result": "Passed; only Git LF-to-CRLF working-copy notices"
+    }
+  ],
+  "out_of_scope_validation": [
+    "Playwright browser test and runtime/migration/service validation are controller-owned and pending handoff. No service was restarted and no live OpenAI request was made."
+  ],
+  "restored_unrelated_format_only_files": [
+    "backend/src/gridlens/domain/permit_interpretation.py",
+    "backend/src/gridlens/domain/pursuits.py",
+    "backend/src/gridlens/domain/signal_admission.py",
+    "backend/src/gridlens/ingestion/adapters/__init__.py",
+    "backend/src/gridlens/ingestion/buying_chain_public.py",
+    "backend/src/gridlens/ingestion/houston_permits.py",
+    "backend/src/gridlens/ingestion/retained_permits.py",
+    "backend/src/gridlens/ingestion/registry.py",
+    "backend/src/gridlens/ingestion/service.py",
+    "backend/src/gridlens/intelligence/buying_chain.py",
+    "backend/src/gridlens/intelligence/buying_chain_extraction.py",
+    "backend/tests/integration/test_buying_chain.py",
+    "backend/tests/integration/test_collection_only_ingestion.py",
+    "backend/tests/integration/test_ingestion.py",
+    "backend/tests/unit/test_buying_chain_deadline.py",
+    "backend/tests/unit/test_buying_chain_public_dates.py",
+    "backend/tests/unit/test_commercial_presentation.py",
+    "backend/tests/unit/test_local_pipeline_check.py",
+    "backend/tests/unit/test_publisher_rss.py",
+    "backend/tests/unit/test_pursuit_public.py",
+    "backend/tests/unit/test_retained_permits.py",
+    "backend/tests/unit/test_signal_adjudication_policy.py"
+  ]
+}

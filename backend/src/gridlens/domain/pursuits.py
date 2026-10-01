@@ -7,7 +7,13 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 POLICY_VERSION = "power-pursuits-v1"
-SOURCES = ("austin-building-permits", "texas-rrc-drilling-permits")
+SOURCES = (
+    "austin-building-permits",
+    "texas-rrc-drilling-permits",
+    "houston-weekly-permits",
+    "dallas-monthly-permits",
+    "el-paso-new-commercial-permits",
+)
 MAX_BATCH = 12
 MAX_FETCHES = 48
 MAX_MODELS = 4
@@ -111,6 +117,7 @@ class PursuitsOut(BaseModel):
         "Stable identity breaks ties. No probability or tier promotion."
     )
     scheduler: str = (
-        "Research is queued after successful Austin/RRC ingestion in the existing worker. "
+        "Research is queued after successful Austin, RRC, Dallas, El Paso, or Houston ingestion. "
+        "City permit refresh rechecks the official bounded source and exact retained row; "
         "A running worker is required; managed cloud scheduling has not been verified."
     )

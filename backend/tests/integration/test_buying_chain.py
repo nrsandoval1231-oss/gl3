@@ -759,3 +759,129 @@ def test_retained_permit_enrichment_without_network_preserves_exact_fields_and_r
         before = counts(session)
         enrich_buying_chain(session, project.id, fetcher=no_network, now=NOW + timedelta(minutes=4))
         assert counts(session) == before
+
+
+def test_houston_exact_detail_uses_source_record_key_and_attaches_to_matching_project(
+    db, monkeypatch
+):
+    """Exact detail evidence is keyed to Houston's actual retained permit-row label."""
+    from gridlens.intelligence import buying_chain as service
+
+    detail_url = (
+        "https://cohtora.houstontx.gov/ibi_apps/WFServlet.ibfs"
+        "?IBIF_webapp=%2Fibi_apps&IBIC_server=EDASERVE&IBIWF_msgviewer=OFF"
+        "&IBIAPP_app=soldpermits&IBIF_ex=sold_permit_d&CLICKED_ON="
+        "&PN=26051624&PT=13"
+    )
+    calls = []
+    response_type = ["13"]
+    should_fail = [False]
+
+    def detail(project_number, permit_type, *, event_date, site_address):
+        calls.append((project_number, permit_type, event_date, site_address))
+        if should_fail[0]:
+            raise RuntimeError("simulated detail lookup failure")
+        return PublicDocument(
+            detail_url,
+            "Houston sold permit detail 26051624 — Building Pmt",
+            "detail_project: 26051624\n"
+            "detail_date: 2026-09-02\n"
+            "detail_site_address: 8930 GULF FWY A 77017\n"
+            f"detail_permit_type: {response_type[0]}\n"
+            "detail_owner_occupant: *MERICHEM TECHNOLOGIES LLC\n"
+            "detail_buyer: *ACME LLC\n"
+            "detail_buyer_address: 100 BUSINESS ST 77001\n"
+            "detail_buyer_phone: (713) 555-0100",
+            None,
+            NOW,
+            "Official Houston Online Sold Permit Search; Project Details fields",
+        )
+
+    monkeypatch.setattr(service, "retrieve_detail", detail)
+    with db.begin() as session:
+        project = seed(session)
+        source_id = "houston-weekly-permits"
+        session.add(
+            Source(
+                id=source_id,
+                publisher="Houston",
+                endpoint="https://www.houstonpermittingcenter.org/sold-permits-search",
+                family="construction-permits",
+                geography="Houston, Texas",
+                industries=["construction"],
+                retrieval_method="houston-weekly-permits",
+                health={},
+            )
+        )
+        session.flush()
+        project.source_id = source_id
+        project.external_id = "26051624:Building Pmt:2026-09-02"
+        project.location = "8930 GULF FWY A, Houston, TX"
+        observation = session.scalar(select(Observation))
+        observation.source_id = source_id
+        observation.external_id = project.external_id
+        evidence = session.scalar(select(Evidence))
+        evidence.abstract = (
+            "row: 26051624\nevent: Sold (weekly report; issued permit event)\n"
+            "date: 2026-09-02\nreport_start: 2026-08-31\nreport_end: 2026-09-07\n"
+            "status: Unknown\ntype: Building Pmt\naddress: 8930 GULF FWY A\n"
+            "description: 2,765 SQ. FT. CONVERT TO LABORATORY"
+        )
+        observation.abstract = evidence.abstract
+        result = enrich_buying_chain(session, project.id, now=NOW)
+        assert calls == [
+            ("26051624", "Building Pmt", "2026-09-02", "8930 GULF FWY A")
+        ]
+        candidate = next(
+            item for item in result["candidates"] if item["organization"] == "ACME LLC"
+        )
+        assert candidate["organization_relationship"] == "ROLE_SUPPORTED"
+        assert candidate["person_project_relationship"] == "UNKNOWN"
+        assert candidate["public_contacts"][0]["value"] == "(713) 555-0100"
+        summaries = result["permit_summaries"]
+        assert len(summaries) == 2
+        detail_summary = next(item for item in summaries if item["url"] == detail_url)
+        detail_facts = {item["label"]: item["value"] for item in detail_summary["facts"]}
+        assert detail_facts["Houston exact permit project number"] == "26051624"
+        assert detail_facts["Permit-listed owner / occupant"] == "*MERICHEM TECHNOLOGIES LLC"
+        assert detail_facts["Permit-listed Buyer (entity type unknown)"] == "*ACME LLC"
+        assert detail_facts["Permit-listed buyer phone"] == "(713) 555-0100"
+
+        retained_before = set(
+            session.scalars(
+                select(BuyingChainEvidence.id).where(
+                    BuyingChainEvidence.project_id == project.id
+                )
+            )
+        )
+        claims_before = set(
+            session.scalars(
+                select(BuyingChainClaim.id).where(BuyingChainClaim.project_id == project.id)
+            )
+        )
+        response_type[0] = "Demolition"
+        rejected = enrich_buying_chain(session, project.id, now=NOW + timedelta(minutes=1))
+        assert len(rejected["permit_summaries"]) == 2
+        assert set(
+            session.scalars(
+                select(BuyingChainEvidence.id).where(
+                    BuyingChainEvidence.project_id == project.id
+                )
+            )
+        ) == retained_before
+        assert set(
+            session.scalars(
+                select(BuyingChainClaim.id).where(BuyingChainClaim.project_id == project.id)
+            )
+        ) == claims_before
+
+        should_fail[0] = True
+        failed = enrich_buying_chain(session, project.id, now=NOW + timedelta(minutes=2))
+        assert len(failed["permit_summaries"]) == 2
+        assert set(
+            session.scalars(
+                select(BuyingChainEvidence.id).where(
+                    BuyingChainEvidence.project_id == project.id
+                )
+            )
+        ) == retained_before

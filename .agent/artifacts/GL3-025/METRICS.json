@@ -1,0 +1,22 @@
+{
+  "node": "GL3-025",
+  "lane": "full single Luna",
+  "base_sha": "ba660ee41ee48dc45ac2dd49ccd2c9502cfb8f7f",
+  "builder_model": "gpt-6-luna",
+  "review_model": "gpt-6-sol",
+  "config_identity": "named agent roles supplied by session; local config load not independently proven",
+  "tokens": "UNKNOWN",
+  "planning_duration": "UNKNOWN",
+  "build_duration": "UNKNOWN",
+  "validation_duration": "Total across attempts UNKNOWN; final run measured separately",
+  "audit_duration": "UNKNOWN",
+  "repair_count": 3,
+  "elapsed_to_accepted": "UNKNOWN",
+  "tracking_started_at_utc": "2026-10-01T19:18:07.876936+00:00",
+  "actual_work_started_at_utc": "UNKNOWN",
+  "luna_repairs": 2,
+  "senior_review_repairs": 1,
+  "accepted_at_utc": "2026-10-01T20:44:20.012018+00:00",
+  "senior_model": "gpt-5.6-terra",
+  "final_validation_duration_seconds": 82.095691
+}

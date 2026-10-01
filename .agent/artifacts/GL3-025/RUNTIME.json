@@ -1,0 +1,10 @@
+{
+  "verified_at": "2026-10-01T20:24:08.411355+00:00",
+  "api_port": 8023,
+  "web_port": 5193,
+  "accept_database": "gl3_025_accept",
+  "worker_pid": 30364,
+  "worker_auto_refresh": false,
+  "pending_jobs_before_start": 0,
+  "note": "First direct module start failed missing module; corrected working directory backend/src, then process remained alive. No source auto-refresh enabled. Three explicit source-derived brief jobs exercised ordinary run_one dispatch; cached replay consumed no jobs."
+}

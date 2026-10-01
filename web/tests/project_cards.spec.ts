@@ -16,6 +16,7 @@ function permit(id: string, action: string | null, options: { location?: string;
     activity: options.activity ?? 'event-power',
     rationale: 'Permit reports a dated powered event activity; temporary rental power is a question to investigate.',
     signal_evidence_state: 'active_evidence',
+    brief_status: 'unavailable', brief_stale: false,
     signal_display_decision: options.decision === undefined ? 'SHOW' : options.decision,
     signal_display_decision_state: options.decision === undefined ? 'adjudicated' : options.decision ? 'adjudicated' : 'unadjudicated',
     required_mw: null,
@@ -64,6 +65,108 @@ test('stable project IDs consolidate lifecycle records and decision filters defa
   expect(signalDecisionCards(cards, 'HOLD')).toHaveLength(0)
 })
 
+test('Cannabis Watch is removed and an evidence-supported applicant titles the card and detail', async ({ page }) => {
+  const record = permit('cultivation', 'Dated cultivation application at 14 Example Road', {
+    location: '14 Example Road, Boston, MA',
+    activity: 'facility-expansion',
+    abstract: 'applicant_org: Green Valley Cultivation LLC\naddress: 14 Example Road, Boston, MA',
+  })
+  record.name = 'Houston permit cultivation'
+  record.evidence[0].source_id = 'ma-cultivation-applications'
+  record.commercial_size_status = 'unknown'
+  await page.route(apiRoute, async (route) => {
+    const path = new URL(route.request().url()).pathname
+    const body = path === '/api/auth/session'
+      ? { authenticated: true }
+      : path === '/api/opportunities'
+        ? [record]
+        : path === '/api/health'
+          ? { sources: [], backlog: 0, pending_interpretations: 0 }
+          : []
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
+  })
+  await page.goto('/')
+  await expect(page.getByRole('button', { name: 'Cannabis watch' })).toHaveCount(0)
+  const card = page.getByRole('button', { name: /Green Valley Cultivation LLC · applicant/ })
+  await expect(card).toBeVisible()
+  await expect(card).toContainText('Activity size unknown · retained')
+  await card.click()
+  await expect(page.getByRole('heading', { level: 1, name: 'Green Valley Cultivation LLC · applicant' })).toBeVisible()
+  await expect(page.getByText('Activity size unknown.')).toBeVisible()
+  await page.getByRole('button', { name: /Back to Signals/ }).click()
+  await page.getByRole('textbox', { name: 'Search projects' }).fill('Green Valley Cultivation')
+  await expect(page.getByRole('button', { name: /Green Valley Cultivation LLC · applicant/ })).toBeVisible()
+})
+
+test('project title prefers a current owner over operator, applicant, and contractor claims', () => {
+  const record = permit('roles', 'Facility construction', {
+    abstract: 'owner_company_name: Owner Company\noperator_company_name: Operating Company\napplicant_org: Applicant Company\ncontractor_company_name: Builder Company',
+  })
+  expect(projectTitle(record)).toBe('Owner Company · owner')
+  record.evidence[0].assessment_current = false
+  expect(projectTitle(record)).not.toContain('Owner Company')
+})
+
+test('city permit company title shows source role and does not infer ownership', () => {
+  const dallas = permit('dallas-1', 'Warehouse construction', {
+    abstract: 'lp_business_name: TRICORE BUILDERS INC\ncontact_name: Example Person',
+  })
+  dallas.evidence[0].source_id = 'dallas-monthly-permits'
+  expect(projectTitle(dallas)).toBe('TRICORE BUILDERS INC · LP Business Name · role unverified')
+
+  const houston = permit('houston-1', 'Commercial facility construction')
+  houston.title_company = '*MERICHEM TECHNOLOGIES LLC'
+  houston.title_company_role = 'permit-listed owner / occupant'
+  expect(projectTitle(houston)).toBe('*MERICHEM TECHNOLOGIES LLC · permit-listed owner / occupant')
+})
+
+test('city permit organization labels preserve the source role and role uncertainty', () => {
+  const dallas = permit('dallas-1', 'Warehouse construction', {
+    abstract: 'lp_business_name: TRICORE BUILDERS INC\ncontact_name: Example Person',
+  })
+  dallas.evidence[0].source_id = 'dallas-monthly-permits'
+  expect(projectTitle(dallas)).toBe('TRICORE BUILDERS INC · LP Business Name · role unverified')
+
+  const houston = permit('houston-1', 'Commercial facility construction')
+  houston.title_company = '*MERICHEM TECHNOLOGIES LLC'
+  houston.title_company_role = 'permit-listed owner / occupant'
+  expect(projectTitle(houston)).toBe('*MERICHEM TECHNOLOGIES LLC · permit-listed owner / occupant')
+})
+
+test('grouped permit members use company-first titles while retaining each permit record', async ({ page }) => {
+  const keeter = permit('COM-NEW-26-000129', 'New data center construction', {
+    projectId: 'dallas-campus',
+    abstract: 'lp_business_name: KEETER INVESTMENTS LLC\naddress: 2444 FABENS RD, DALLAS, TX',
+  })
+  const merichem = permit('COM-NEW-26-000130', 'Data center electrical expansion', {
+    projectId: 'dallas-campus',
+    abstract: 'owner_company_name: MERICHEM TECHNOLOGIES LLC\naddress: 2444 FABENS RD, DALLAS, TX',
+  })
+  keeter.evidence[0].source_id = 'dallas-monthly-permits'
+  merichem.evidence[0].source_id = 'dallas-monthly-permits'
+  const records = [keeter, merichem]
+  await page.route(apiRoute, async (route) => {
+    const path = new URL(route.request().url()).pathname
+    const body = path === '/api/auth/session'
+      ? { authenticated: true }
+      : path === '/api/opportunities'
+        ? records
+        : path === '/api/health'
+          ? { sources: [], backlog: 0, pending_interpretations: 0 }
+          : []
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
+  })
+  await page.goto('/')
+  await page.getByRole('button', { name: /KEETER INVESTMENTS LLC · LP Business Name · role unverified/ }).click()
+  const keeterMember = page.locator('.project-member[data-opportunity-id="COM-NEW-26-000129"]')
+  const merichemMember = page.locator('.project-member[data-opportunity-id="COM-NEW-26-000130"]')
+  await expect(keeterMember).toContainText('KEETER INVESTMENTS LLC · LP Business Name · role unverified')
+  await expect(merichemMember).toContainText('MERICHEM TECHNOLOGIES LLC · owner')
+  await keeterMember.click()
+  await expect(page.getByRole('heading', { level: 1, name: 'KEETER INVESTMENTS LLC · LP Business Name · role unverified' })).toBeVisible()
+  await expect(page.getByText('COM-NEW-26-000129', { exact: false }).first()).toBeVisible()
+})
+
 test('Signals default to SHOW and keep REVIEW and HOLD searchable in their own tabs', async ({ page }) => {
   let records = [
     permit('hold-member', 'Routine hospital maintenance', { projectId: 'shared-project', decision: 'HOLD' }),
@@ -82,8 +185,12 @@ test('Signals default to SHOW and keep REVIEW and HOLD searchable in their own t
   const sharedProject = page.getByRole('button', { name: /New Data Center Electrical Buildout/ })
   await expect(sharedProject).toBeVisible()
   await sharedProject.click()
-  await expect(page.getByRole('button', { name: /Permit hold-member/ })).toBeVisible()
-  await expect(page.getByRole('button', { name: /Permit show-member/ })).toBeVisible()
+  const holdMember = page.locator('.project-member[data-opportunity-id="hold-member"]')
+  const showMember = page.locator('.project-member[data-opportunity-id="show-member"]')
+  await expect(holdMember).toBeVisible()
+  await expect(showMember).toBeVisible()
+  await expect(holdMember).toContainText(projectTitle(records[0]))
+  await expect(showMember).toContainText(projectTitle(records[1]))
   const groupedMemberIds = await page.locator('.project-member').evaluateAll((members) => members.map((member) => member.getAttribute('data-opportunity-id')))
   expect(groupedMemberIds.slice(0, 2)).toEqual(['hold-member', 'show-member'])
   await page.getByRole('button', { name: 'REVIEW 2' }).click()
@@ -191,16 +298,19 @@ test('only exact dated event evidence groups; titles describe permit work; all r
   await expect(project).toBeVisible()
   await project.click()
   await expect(page.getByText('2 individual permit records')).toBeVisible()
-  await page.getByRole('button', { name: /Permit 2026-126812 BP/ }).click()
+  const currentPermitMember = page.locator('.project-member[data-opportunity-id="2026-126812 BP"]')
+  await expect(currentPermitMember).toBeVisible()
+  await expect(currentPermitMember).toContainText(projectTitle(currentYear))
+  await currentPermitMember.click()
   await expect(page.getByRole('heading', { level: 1, name: /Zilker Park.*Oct 2026/ })).toBeVisible()
   await expect(page.getByText('austin-building-permits · 2026-126812 BP')).toBeVisible()
   await page.getByRole('button', { name: /Back to Signals/ }).click()
 
   await page.getByRole('textbox', { name: 'Search projects' }).fill('2026-126812 BP')
   await expect(page.getByText('1 matching SHOW project cards · 1 matching Signal records across all decisions · 3 total Signal records.')).toBeVisible()
-  const searchResult = page.getByRole('button', { name: /Zilker Park.*Oct 2026/ })
+  const searchResult = page.locator('.opportunity-row').filter({ hasText: /Zilker Park.*Oct 2026/ })
   await expect(searchResult).toBeVisible()
   if (!(await page.getByText('1 matching record · 2 related permit records').isVisible())) await searchResult.click()
   await expect(page.getByText('1 matching record · 2 related permit records')).toBeVisible()
-  await expect(page.getByRole('button', { name: /Permit 2026-126812 BP/ })).toBeVisible()
+  await expect(currentPermitMember).toBeVisible()
 })

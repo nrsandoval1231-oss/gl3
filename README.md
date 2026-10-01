@@ -1,8 +1,10 @@
 # GridLens 3
 
-GridLens 3 is a private, evidence-backed workspace for discovering emerging commercial power needs. The current local registry enables 15 public sources spanning municipal planning notices, construction permits, air permitting/regulatory records, government/economic-development publications, public documents, and industry news. Taylor planning notices have fresh isolated ordinary-worker persistence/replay and authenticated card proof; deployed daily operation remains unproven. The system preserves source observations and evidence history, groups supported records into project-oriented Signal cards, and keeps unsupported commercial facts explicitly unknown.
+GridLens 3 is a private, evidence-backed workspace for discovering emerging commercial power needs. The current local candidate registry enables 18 public sources spanning municipal planning notices, construction permits, air permitting/regulatory records, government/economic-development publications, public documents, and industry news. The system preserves source observations and evidence history, groups supported records into project-oriented Signal cards, and keeps unsupported commercial facts explicitly unknown.
 
-GL3-017, GL3-018 and GL3-019 are merged on main (verified at `a737af0207ebe5182764c06fadfb60d69ae1dc63`, PR9). See [the saved-cloud handoff](docs/operations/post-gl3-019-handoff.md) for tomorrow’s starting point, commands and remaining gaps. GL3-018 adds authoritative Signal admission, Chicago electrical permits and deeper Georgia permit documents. The accepted local Signal foundation retains 15 enabled public sources and adds bounded Jev adjudication for ambiguous evidence, persisted reproducible SHOW / REVIEW / HOLD decisions, and conservative physical-project grouping. The frozen GL3-015 corpus contained 81 Signal records displayed as 63 cards; GL3-016 preserved the evidence rather than promoting unsupported commercial facts. National coverage and deployed daily operation remain unproven.
+The latest verified main snapshot was `07c0886` (GL3-019, PR9); this checkout is the separate `feat/gl3-023-city-permits` draft PR15 candidate at base `118d419`. GL3-023 and GL3-024 changes here are local and unmerged. See [the saved-cloud handoff](docs/operations/post-gl3-019-handoff.md) for the earlier main snapshot's starting point and remaining gaps. The accepted local Signal foundation adds bounded adjudication for ambiguous evidence, persisted reproducible SHOW / REVIEW / HOLD decisions, and conservative physical-project grouping. National coverage and deployed daily operation remain unproven.
+
+The local GL3-024 candidate removes the standalone Cannabis Watch and its topic-match API behavior while retaining cannabis and publisher evidence in the ordinary inbox. Opportunity titles use project-bound company evidence with the role shown; unknown companies fall back to the activity and site. The visible commercial floor is 300 kW inclusive with no maximum: confirmed smaller activity is hidden from opportunity views, while unknown-size Signals remain marked unknown. Campus totals and nameplate or operating capacity do not establish temporary-power need. See the dated [PRD amendment](docs/product/PRD.md).
 
 ## Today’s Power Pursuits
 
@@ -22,11 +24,12 @@ Current production-like local behavior is intentionally conservative: Signals do
 
 ## Current source coverage
 
-The registry currently contains 15 enabled sources, including:
+The current local candidate registry contains 18 enabled sources, including:
 
 - Austin commercial building/electrical permits with a bounded 2026 data-center backfill; Seattle and Chicago permits.
 - Texas RRC current-month drilling file plus official prior-month EOM overlap, with amendment history and unknown production timing.
 - Houston’s four latest linked weekly permit workbooks, with reporting lag and limited fields explicitly retained.
+- Bounded Dallas monthly and El Paso new-commercial permits, plus Massachusetts Cannabis Control Commission cultivation applications; each retains its source-specific site, date, and role limits.
 - Georgia Draft Title V air-permit filings and supporting public documents.
 - Federal Register environmental-impact notices with eligible GovInfo PDF evidence.
 - North Carolina Commerce project announcements.
@@ -99,4 +102,4 @@ GL3-017 through GL3-019 are merged; this is not a deployment claim. GL3-018 live
 
 GL3-019 prioritizes **data-center construction temporary power**, then **data-center commissioning temporary power**, then **oil and gas temporary power**. Permit-derived project/site, scope, dates and organizations should be useful directly from retained evidence. Drilling permits are valid early production Signals without an already-proven power gap; production date, load and fuel suitability stay unknown unless supported. Upstream wells and fixed O&G infrastructure retain separate lifecycles. News stays supplemental.
 
-GL3-019 repairs permit enrichment using existing evidence and persistence, including Austin permit-listed organizations, names and permit-listed phone fields. Dallas and El Paso official routes currently return access errors from this cloud executor; neither is enabled. It does not claim national completeness, all historical Texas drilling permits, a commissioning connector, rental demand from generator nameplate, or a supply gap from missing energization. See [GL3-019 scope](docs/sources/gl3-019-permit-enrichment.md).
+GL3-019 repaired permit enrichment using existing evidence and persistence. GL3-023 adds bounded Dallas monthly, El Paso NewCommercial, and Houston weekly Sold Permit acquisition, with source-specific event semantics and role-attributed enrichment. Each route has limited geographic, permit-type, and date coverage; current permit activity, commissioning, rental demand, fuel fit, and buying authority remain UNKNOWN unless separately supported. See [GL3-023 city permit coverage and limits](docs/sources/gl3-023-city-permits.md). The discontinued Dallas open-data dataset remains disabled.

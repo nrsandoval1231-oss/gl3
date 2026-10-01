@@ -1,0 +1,95 @@
+{
+  "at": "2026-10-01T18:08:15.767499+00:00",
+  "visible_opportunities": 18,
+  "stored_needs": 19,
+  "small_houston_raw_retained": [
+    {
+      "id": "dcb08768-3fc0-4c87-bc11-e1b0b5d10589",
+      "external_id": "26017927:Building Pmt:2026-09-01",
+      "evidence_count": 1
+    }
+  ],
+  "small_houston_absent_from_opportunities": true,
+  "commercial_statuses": [
+    "unknown"
+  ],
+  "cultivation": [
+    {
+      "id": "e156ea97-1664-42cb-a34e-8545ffa8f7b0",
+      "project_id": "6f2a0d09-1904-4125-9d8b-ffc50c1325e2",
+      "name": "Blue Fox Brands, Inc.",
+      "location": "62 CHRISTIAN LANE, DEERFIELD, MA, 01373",
+      "required_mw": null
+    },
+    {
+      "id": "f63d4981-60d1-4ade-9061-21713e54c203",
+      "project_id": "8f47f558-2ad7-4693-8c78-b6d0a4640c69",
+      "name": "Blue Fox Brands, Inc.",
+      "location": "1 CABOT STREET, HOLYOKE, MA, 01040",
+      "required_mw": null
+    },
+    {
+      "id": "fa94309f-e8c6-4054-b3b8-57845e9d0962",
+      "project_id": "b5eab728-c9d5-4a71-b91b-597a7cee37f9",
+      "name": "BEWCO LLC",
+      "location": "1 CABOT STREET, HOLYOKE, MA, 01040",
+      "required_mw": null
+    },
+    {
+      "id": "65e687d1-f9fe-42d3-8605-8b9f5d8793bd",
+      "project_id": "9236f85d-0882-4850-8036-5557e4be2b02",
+      "name": "120 Holmes Road LLC",
+      "location": "120 HOLMES ROAD, EASTHAM, MA, 02642",
+      "required_mw": null
+    },
+    {
+      "id": "135edde1-00f8-4b2b-916e-f4a4e9d19db4",
+      "project_id": "6116868a-5caf-4eb2-b9d7-6fc2dfdb381d",
+      "name": "North Bridge Holyoke Inc",
+      "location": "7 NORTH BRIDGE STREET, HOLYOKE, MA, 01040",
+      "required_mw": null
+    },
+    {
+      "id": "c7be9ad9-6709-4256-8298-14a6bf6d8ff2",
+      "project_id": "1f87c547-d6a8-4258-96b6-a69cda95624d",
+      "name": "Telluric Energy LLC",
+      "location": "0 GREENWICH PLAINS ROAD, WARE, MA, 01082",
+      "required_mw": null
+    },
+    {
+      "id": "56429956-f2b2-4436-97fd-65fb15c5ca19",
+      "project_id": "1c3fb789-4c73-4a36-aea0-e0990ca3793a",
+      "name": "Rhythm of Life Cannabis LLC",
+      "location": "616 DOUGLAS STREET, UXBRIDGE, MA, 01569",
+      "required_mw": null
+    },
+    {
+      "id": "a8b895d0-b9a2-4799-947b-ba616b161d2f",
+      "project_id": "009fe98c-4ac5-451f-9e1e-0da13fc14d06",
+      "name": "Exceptional Grow, LLC",
+      "location": "1 CABOT STREET, HOLYOKE, MA, 01040",
+      "required_mw": null
+    },
+    {
+      "id": "077c79f6-5be1-49f9-be79-08cfbc1bcc53",
+      "project_id": "a8627259-9e8e-467c-bd5f-b202bbef99d3",
+      "name": "Responsible and compliant Southwick llc",
+      "location": "681 COLLEGE HIGHWAY, SOUTHWICK, MA, 01077",
+      "required_mw": null
+    },
+    {
+      "id": "9f216f5c-b984-4b69-adf6-b31d91af29d1",
+      "project_id": "b937a4ac-1650-4445-95db-52173573ee34",
+      "name": "Pioneer Valley Extracts LLC",
+      "location": "104 GOVERNOR DUKAKSIS DRIVE, ORANGE, MA, 01364",
+      "required_mw": null
+    },
+    {
+      "id": "958dadf7-146e-41f7-bc03-abcbb9cc668f",
+      "project_id": "37489e89-231f-4d85-9696-cec3342dc476",
+      "name": "Temescal Wellness of Massachusetts, LLC",
+      "location": "141 SOUTHWEST CUTOFF, WORCESTER, MA, 01604",
+      "required_mw": null
+    }
+  ]
+}

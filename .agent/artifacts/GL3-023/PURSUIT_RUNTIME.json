@@ -1,0 +1,296 @@
+{
+  "started_at": "2026-10-01T16:49:17.040350+00:00",
+  "normalization": {
+    "checks": [
+      {
+        "source_id": "dallas-monthly-permits",
+        "job_id": "450e3ac2-9db9-4799-8793-502ba3c5494b",
+        "attempted": true,
+        "job_status": "succeeded",
+        "attempts": 1,
+        "available_at": "2026-10-01T11:49:17.141027-05:00",
+        "health": {
+          "error": null,
+          "status": "Checked\u2014No Change",
+          "new_records": 0,
+          "last_attempt": "2026-10-01T16:49:17.158108+00:00",
+          "last_success": "2026-10-01T16:49:17.158108+00:00",
+          "pdf_eligible": 0,
+          "pdf_enriched": 0,
+          "parse_failures": 0,
+          "parsed_records": 89,
+          "pdf_candidates": 0,
+          "changed_records": 0,
+          "permit_accepted": 5,
+          "permit_rejected": 84,
+          "records_scanned": 89,
+          "collection_scope": "Up to four newest linked Com-ResNew monthly XLSX reports; only Commercial New Construction Permit rows. Repeated Record IDs retain the newest report snapshot while prior evidence versions remain stored.",
+          "pdf_skipped_limit": 0,
+          "retrieved_records": 89,
+          "unchanged_records": 89,
+          "coverage_limitation": "As retrieved 2026-10-01, linked June-August 2026 workbooks contain 95 commercial rows / 89 unique Record IDs after six repeated IDs; issue dates span 2026-06-01 through 2026-08-28. Five use descriptions indicate residential occupancy despite the source Record Type being Commercial and are rejected by admission. Monthly publication lag leaves recent coverage incomplete. Does not cover all permits, alterations, or electrical permits, or prove current work, temporary-power need, load, rental demand, or authority.",
+          "pdf_skipped_not_signal": 0,
+          "latest_publication_date": null,
+          "latest_public_comment_deadline": null
+        }
+      },
+      {
+        "source_id": "el-paso-new-commercial-permits",
+        "job_id": "2996b054-3320-4aa8-9e5c-2889f7d4a8d7",
+        "attempted": true,
+        "job_status": "succeeded",
+        "attempts": 1,
+        "available_at": "2026-10-01T11:49:17.988331-05:00",
+        "health": {
+          "error": null,
+          "status": "Checked\u2014No Change",
+          "new_records": 0,
+          "last_attempt": "2026-10-01T16:49:17.991835+00:00",
+          "last_success": "2026-10-01T16:49:17.991835+00:00",
+          "pdf_eligible": 0,
+          "pdf_enriched": 0,
+          "parse_failures": 0,
+          "parsed_records": 67,
+          "pdf_candidates": 0,
+          "changed_records": 0,
+          "permit_accepted": 0,
+          "permit_rejected": 67,
+          "records_scanned": 67,
+          "collection_scope": "NewCommercial FeatureServer/0 records issued in the previous 90 days; full layer count and exact window count reconciled across deterministic OBJECTID paging. Duplicate B1_ALT_ID rows collapse only when all semantic permit facts match.",
+          "pdf_skipped_limit": 0,
+          "retrieved_records": 67,
+          "unchanged_records": 67,
+          "coverage_limitation": "As retrieved 2026-10-01 15:44Z, layer count 11,391; 90-day issue query returned 68 features / 67 unique permit IDs, dates 2026-08-04 through 2026-09-29; all 68 raw B1_APPL_ST values were blank. NewCommercial only, not citywide electrical coverage or all alterations. B1_APPL_ST is retained verbatim; one-character Status is geocoding status, not lifecycle. 60-day freshness bound. An issue event does not prove current work, rental need, load, fuel fit, or authority.",
+          "pdf_skipped_not_signal": 0,
+          "latest_publication_date": null,
+          "latest_public_comment_deadline": null
+        }
+      },
+      {
+        "source_id": "houston-weekly-permits",
+        "job_id": "ca963cf1-bd32-40e7-ab1e-012dc82bc557",
+        "attempted": true,
+        "job_status": "succeeded",
+        "attempts": 1,
+        "available_at": "2026-10-01T11:49:18.729680-05:00",
+        "health": {
+          "error": null,
+          "status": "Checked\u2014No Change",
+          "new_records": 0,
+          "last_attempt": "2026-10-01T16:49:18.735394+00:00",
+          "last_success": "2026-10-01T16:49:18.735394+00:00",
+          "pdf_eligible": 0,
+          "pdf_enriched": 0,
+          "parse_failures": 0,
+          "parsed_records": 1543,
+          "pdf_candidates": 0,
+          "changed_records": 0,
+          "permit_accepted": 3,
+          "permit_rejected": 1540,
+          "records_scanned": 1543,
+          "collection_scope": "Four most recent weekly XLSX reports linked on official Sold Permits Search page; all rows in those workbooks. Permit Date represents a Sold (approved) event, not current lifecycle or report publication time. Exact public detail enrichment is limited to exact-project Building Pmt results (PT=13).",
+          "pdf_skipped_limit": 0,
+          "retrieved_records": 1543,
+          "unchanged_records": 1543,
+          "coverage_limitation": "As retrieved 2026-10-01, four reports contain 1,543 rows (1,422 Building Pmt, 112 Demolition, 9 OCC-BLDG PMT). Latest link Sept 7-13 is 317 rows, workbook header reads From 2026/09/07 and To 2026/09/14, observed Permit Dates are 2026-09-08..13, and core metadata created/modified is 2026-09-14T16:43:22Z. The weekly range convention treats the To date as exclusive, though the workbook does not label it exclusive. On Oct 1 the latest sale date was 18 calendar days old and the report period end 17 days old. These internal dates do not verify publication time; source publication timestamp and lag are UNKNOWN. Weekly sheets have no party fields. Exact search detail returns role-specific Buyer, combined Owner/Occupant, buyer address and phone; person/company kind, phone ownership, current work and authority remain UNKNOWN. Not complete sold-permit history, electrical or commissioning coverage. Reports older than 30 days fail visibly; earlier revisions outside four reports are not monitored.",
+          "pdf_skipped_not_signal": 0,
+          "latest_publication_date": null,
+          "latest_public_comment_deadline": null
+        }
+      }
+    ],
+    "all_succeeded": true,
+    "limitations": "One attempt per selected source; deferred retries remain queued. A successful check does not establish scheduled daily operation."
+  },
+  "job_id": "602821ca-30c1-4448-911d-7b5e3fd331c9",
+  "ran": true,
+  "job": {
+    "id": "602821ca-30c1-4448-911d-7b5e3fd331c9",
+    "source_id": "austin-building-permits",
+    "kind": "pursuit_research",
+    "status": "succeeded",
+    "attempts": 1,
+    "checkpoint": "{\"last_pursuit_id\": \"6472d9cb-1648-415c-9585-4abaee757e02\"}",
+    "lease_owner": null,
+    "fence": 1,
+    "lease_until": null,
+    "available_at": "2026-10-01 10:56:53.019379-05:00",
+    "created_at": "2026-10-01 10:56:53.019379-05:00",
+    "error": null
+  },
+  "finished_at": "2026-10-01T16:49:24.077771+00:00",
+  "pursuits": [
+    {
+      "id": "6472d9cb-1648-415c-9585-4abaee757e02",
+      "project_id": "409f2d2d-9160-429a-98ab-2176a7fa7779",
+      "source_id": "dallas-monthly-permits",
+      "project_name": "Dallas permit COM-NEW-26-000129",
+      "research_status": "succeeded",
+      "errors": [],
+      "snapshot": {
+        "site": "2444 FABENS RD, Dallas, TX 75229",
+        "tier": "Signal",
+        "people": [],
+        "timing": [
+          "Original permit issue date 2026-06-30; permit approval does not establish construction or startup."
+        ],
+        "project": "2444 FABENS RD, Dallas, TX 75229 \u00b7 COM-NEW-26-000129",
+        "trigger": "Commercial New Construction Permit; Proposed Land Use: Industrial (inside) for light manufacturing; Type of Work: Commercial",
+        "contacts": [],
+        "evidence": [
+          {
+            "url": "https://dallascityhall.com/departments/pnv/Documents/AH%20Memos/Com-ResNewMonthlyReport2026-June.xlsx",
+            "title": "Dallas issued commercial new-construction permit COM-NEW-26-000129",
+            "excerpt": "Dallas issued commercial new-construction permit COM-NEW-26-000129\nrow: COM-NEW-26-000129\nproject: COM-NEW-26-000129\ndate: 2026-06-30\nevent: Issued\nstatus: Unknown\ntype: Commercial New Construction Permit\nwork: Commercial\nproposed_land_use: Industrial (inside) for light manufacturing\ndescription: Commercial New Construction Permit; Proposed Land Use: Industrial (inside) for light manufacturing; Type of Work: Commercial\naddress: 2444 FABENS RD, Dallas, TX 75229\ncontact_type: Applicant\napplicant_full_name: Charles  Keeter\nlp_business_name: KEETER INVESTMENTS LLC\ndistrict: 6\narea: 10000\ncost: 2500000.00\nunits: 0\nzoning: IR",
+            "source_date": "Original permit issue date 2026-06-30",
+            "content_hash": "9b301ded952df2eeab979be027a86249263c79e061793f7604a8bd8045eb4b09",
+            "match_reason": "Accepted source evidence linked to this physical work scope.",
+            "published_at": null,
+            "retrieved_at": "2026-10-01T16:49:24.043720+00:00"
+          }
+        ],
+        "rank_key": [
+          1,
+          1,
+          0,
+          0
+        ],
+        "unknowns": [
+          "Actual rental-generation requirement and whether utility temporary service already covers the scope",
+          "Activity-specific MW, voltage, phase, power factor and duty cycle",
+          "NG/propane availability, pressure, quality and permitted fuel route",
+          "Confirmed work/startup window and meaningful rental duration",
+          "Power-package purchasing authority and current project assignment",
+          "Reachable relevant organization business contact route",
+          "Jev unavailable: TYPESAFE_API_KEY is not configured; screening uses deterministic evidence rules",
+          "Corporate-source discovery is not configured in this app runtime; permit-listed names and routes do not verify current employment or buyer authority"
+        ],
+        "conflicts": [],
+        "fuel_facts": [],
+        "load_facts": [],
+        "_input_hash": "27b30831b9a126a80c12ee634b3e44b6e59cc1462ce7fa2cd6078678406d1aff",
+        "next_action": "Research the current work phase and project contractor business route for 2444 FABENS RD, Dallas, TX 75229 before a power qualification call.",
+        "organization": "Organization unknown",
+        "trigger_date": "Original permit issue date 2026-06-30",
+        "action_status": "Monitor",
+        "utility_facts": [],
+        "ranking_reasons": [
+          "Specific manufacturing work; interruption or construction power still needs verification.",
+          "Permit issued within 180 days; work start is not confirmed.",
+          "No verified reachable buyer route yet.",
+          "NG/propane feasibility unknown; 310/500 kW equipment fit and scalable demand require qualification."
+        ],
+        "registration_context": [],
+        "organization_involvement": "Permit-listed asset operator; construction/power-package responsibility unverified"
+      }
+    }
+  ],
+  "research_runs": [
+    {
+      "id": "503aaf72-f801-4b88-8130-8c0ea54c08e8",
+      "job_id": "602821ca-30c1-4448-911d-7b5e3fd331c9",
+      "pursuit_id": "6472d9cb-1648-415c-9585-4abaee757e02",
+      "input_hash": "27b30831b9a126a80c12ee634b3e44b6e59cc1462ce7fa2cd6078678406d1aff",
+      "policy_version": "power-pursuits-v1",
+      "status": "succeeded",
+      "fetch_count": 1,
+      "model_count": 0,
+      "errors": [],
+      "snapshot": {
+        "site": "2444 FABENS RD, Dallas, TX 75229",
+        "tier": "Signal",
+        "_usage": {
+          "2026-10-01": {
+            "fetch": 1,
+            "model": 0
+          }
+        },
+        "people": [],
+        "timing": [
+          "Original permit issue date 2026-06-30; permit approval does not establish construction or startup."
+        ],
+        "project": "2444 FABENS RD, Dallas, TX 75229 \u00b7 COM-NEW-26-000129",
+        "trigger": "Commercial New Construction Permit; Proposed Land Use: Industrial (inside) for light manufacturing; Type of Work: Commercial",
+        "contacts": [],
+        "evidence": [
+          {
+            "url": "https://dallascityhall.com/departments/pnv/Documents/AH%20Memos/Com-ResNewMonthlyReport2026-June.xlsx",
+            "title": "Dallas issued commercial new-construction permit COM-NEW-26-000129",
+            "excerpt": "Dallas issued commercial new-construction permit COM-NEW-26-000129\nrow: COM-NEW-26-000129\nproject: COM-NEW-26-000129\ndate: 2026-06-30\nevent: Issued\nstatus: Unknown\ntype: Commercial New Construction Permit\nwork: Commercial\nproposed_land_use: Industrial (inside) for light manufacturing\ndescription: Commercial New Construction Permit; Proposed Land Use: Industrial (inside) for light manufacturing; Type of Work: Commercial\naddress: 2444 FABENS RD, Dallas, TX 75229\ncontact_type: Applicant\napplicant_full_name: Charles  Keeter\nlp_business_name: KEETER INVESTMENTS LLC\ndistrict: 6\narea: 10000\ncost: 2500000.00\nunits: 0\nzoning: IR",
+            "source_date": "Original permit issue date 2026-06-30",
+            "content_hash": "9b301ded952df2eeab979be027a86249263c79e061793f7604a8bd8045eb4b09",
+            "match_reason": "Accepted source evidence linked to this physical work scope.",
+            "published_at": null,
+            "retrieved_at": "2026-10-01T16:49:24.043720+00:00"
+          }
+        ],
+        "rank_key": [
+          1,
+          1,
+          0,
+          0
+        ],
+        "unknowns": [
+          "Actual rental-generation requirement and whether utility temporary service already covers the scope",
+          "Activity-specific MW, voltage, phase, power factor and duty cycle",
+          "NG/propane availability, pressure, quality and permitted fuel route",
+          "Confirmed work/startup window and meaningful rental duration",
+          "Power-package purchasing authority and current project assignment",
+          "Reachable relevant organization business contact route",
+          "Jev unavailable: TYPESAFE_API_KEY is not configured; screening uses deterministic evidence rules",
+          "Corporate-source discovery is not configured in this app runtime; permit-listed names and routes do not verify current employment or buyer authority"
+        ],
+        "conflicts": [],
+        "fuel_facts": [],
+        "load_facts": [],
+        "_input_hash": "27b30831b9a126a80c12ee634b3e44b6e59cc1462ce7fa2cd6078678406d1aff",
+        "next_action": "Research the current work phase and project contractor business route for 2444 FABENS RD, Dallas, TX 75229 before a power qualification call.",
+        "organization": "Organization unknown",
+        "trigger_date": "Original permit issue date 2026-06-30",
+        "action_status": "Monitor",
+        "utility_facts": [],
+        "ranking_reasons": [
+          "Specific manufacturing work; interruption or construction power still needs verification.",
+          "Permit issued within 180 days; work start is not confirmed.",
+          "No verified reachable buyer route yet.",
+          "NG/propane feasibility unknown; 310/500 kW equipment fit and scalable demand require qualification."
+        ],
+        "registration_context": [],
+        "organization_involvement": "Permit-listed asset operator; construction/power-package responsibility unverified"
+      },
+      "created_at": "2026-10-01 11:49:23.622410-05:00"
+    }
+  ],
+  "after_replay_queue_drain": {
+    "at": "2026-10-01T16:55:50.335744+00:00",
+    "job": "abb2efc2-70cb-4422-89d8-2218074ad88c",
+    "ran": true,
+    "status": "succeeded",
+    "before": {
+      "pursuits": 1,
+      "pursuit_documents": 1,
+      "pursuit_research_runs": 1
+    },
+    "after": {
+      "pursuits": 1,
+      "pursuit_documents": 1,
+      "pursuit_research_runs": 1
+    }
+  },
+  "final_candidate_queue_drain": {
+    "at": "2026-10-01T17:06:38.174929+00:00",
+    "job": "82520b38-d102-4b0b-986a-9b612d75c205",
+    "ran": true,
+    "status": "succeeded",
+    "before": {
+      "pursuits": 1,
+      "pursuit_documents": 1,
+      "pursuit_research_runs": 1
+    },
+    "after": {
+      "pursuits": 1,
+      "pursuit_documents": 1,
+      "pursuit_research_runs": 1
+    }
+  }
+}

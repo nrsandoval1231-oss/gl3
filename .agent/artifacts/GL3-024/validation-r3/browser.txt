@@ -1,0 +1,88 @@
+
+> gridlens-web@0.1.0 test
+> playwright test --reporter=line --grep-invert live air documents|live data-center permit enrichment|real pursuits retain evidence gates|real conflicts, bounded refresh
+
+
+Running 14 tests using 3 workers
+
+(node:13008) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1/14] tests\buying_chain.spec.ts:44:1 › buying chain exposes three separate relationships and retains evidence after enrichment failure
+(node:21244) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:14640) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[2/14] tests\project_cards.spec.ts:52:1 › stable project IDs consolidate lifecycle records and decision filters default uncertain records to REVIEW
+[3/14] tests\project_cards.spec.ts:67:1 › Cannabis Watch is removed and an evidence-supported applicant titles the card and detail
+[4/14] tests\first_path.spec.ts:36:1 › authenticated desktop browse, detail, back, and search use a live Signal
+[5/14] tests\buying_chain.spec.ts:67:1 › navigation ignores a late enrichment result and limits repeated requests
+[6/14] tests\project_cards.spec.ts:100:1 › project title prefers a current owner over operator, applicant, and contractor claims
+[7/14] tests\project_cards.spec.ts:109:1 › city permit company title shows source role and does not infer ownership
+[8/14] tests\project_cards.spec.ts:122:1 › city permit organization labels preserve the source role and role uncertainty
+[9/14] tests\project_cards.spec.ts:135:1 › grouped permit members use company-first titles while retaining each permit record
+[10/14] tests\buying_chain.spec.ts:93:1 › mobile buying chain keeps unknown and empty results readable
+[11/14] tests\project_cards.spec.ts:169:1 › Signals default to SHOW and keep REVIEW and HOLD searchable in their own tabs
+[12/14] tests\first_path.spec.ts:76:1 › mobile health, ordinary news inbox, and browser history show actual local data states
+[13/14] tests\buying_chain.spec.ts:107:1 › retained permit fields are useful before enrichment and preserve source roles
+  1) tests\project_cards.spec.ts:169:1 › Signals default to SHOW and keep REVIEW and HOLD searchable in their own tabs 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: getByRole('button', { name: /Permit hold-member/ })
+    Expected: visible
+    Timeout: 5000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" getByRole('button', { name: /Permit hold-member/ }) with timeout 5000ms
+      - waiting for getByRole('button', { name: /Permit hold-member/ })
+
+
+      185 |   await expect(sharedProject).toBeVisible()
+      186 |   await sharedProject.click()
+    > 187 |   await expect(page.getByRole('button', { name: /Permit hold-member/ })).toBeVisible()
+          |                                                                          ^
+      188 |   await expect(page.getByRole('button', { name: /Permit show-member/ })).toBeVisible()
+      189 |   const groupedMemberIds = await page.locator('.project-member').evaluateAll((members) => members.map((member) => member.getAttribute('data-opportunity-id')))
+      190 |   expect(groupedMemberIds.slice(0, 2)).toEqual(['hold-member', 'show-member'])
+        at C:\Users\nrsan\Nucleus\02_Projects\GridLens\gl3-023\web\tests\project_cards.spec.ts:187:74
+
+    Error Context: test-results\project_cards-Signals-defa-2c9f9-earchable-in-their-own-tabs\error-context.md
+
+
+(node:24784) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[14/14] tests\project_cards.spec.ts:204:1 › only exact dated event evidence groups; titles describe permit work; all records stay openable
+  2) tests\project_cards.spec.ts:204:1 › only exact dated event evidence groups; titles describe permit work; all records stay openable 
+
+    Test timeout of 30000ms exceeded.
+
+    Error: locator.click: Test timeout of 30000ms exceeded.
+    Call log:
+      - waiting for getByRole('button', { name: /Permit 2026-126812 BP/ })
+
+
+      294 |   await project.click()
+      295 |   await expect(page.getByText('2 individual permit records')).toBeVisible()
+    > 296 |   await page.getByRole('button', { name: /Permit 2026-126812 BP/ }).click()
+          |                                                                     ^
+      297 |   await expect(page.getByRole('heading', { level: 1, name: /Zilker Park.*Oct 2026/ })).toBeVisible()
+      298 |   await expect(page.getByText('austin-building-permits · 2026-126812 BP')).toBeVisible()
+      299 |   await page.getByRole('button', { name: /Back to Signals/ }).click()
+        at C:\Users\nrsan\Nucleus\02_Projects\GridLens\gl3-023\web\tests\project_cards.spec.ts:296:69
+
+    Error Context: test-results\project_cards-only-exact-d-7b02c-k-all-records-stay-openable\error-context.md
+
+
+  2 failed
+    tests\project_cards.spec.ts:169:1 › Signals default to SHOW and keep REVIEW and HOLD searchable in their own tabs 
+    tests\project_cards.spec.ts:204:1 › only exact dated event evidence groups; titles describe permit work; all records stay openable 
+  12 passed (37.7s)
