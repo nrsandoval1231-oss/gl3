@@ -19,6 +19,7 @@ LABELS = {
             ("contractor_full_name", "Permit-listed contractor name"),
             ("contractor_phone", "Contractor permit-listed phone (permit field)"),
             ("applicant_org", "Applicant-associated organization on permit"),
+            ("lp_business_name", "Permit-listed LP Business Name (role unverified)"),
             ("applicant_full_name", "Permit-listed applicant name"),
             ("applicant_phone", "Applicant permit-listed phone (permit field)"),
         )
@@ -34,6 +35,7 @@ LABELS = {
     "application_type": "RRC application type code",
     "row": "Source record",
     "project": "Permit / case",
+    "object_id": "ArcGIS row ID (raw provenance)",
     "address": "Site address",
     "type": "Permit type",
     "work": "Work type",
@@ -49,12 +51,77 @@ LABELS = {
     "Application received date": "Application received date",
     "Application date": "Application date",
     "Public comment deadline": "Public comment deadline",
+    "event": "Reported permit event",
+    "contact_type": "Contact type",
+    "district": "Council district",
+    "area": "Gross building area",
+    "cost": "Reported job value",
+    "units": "Proposed dwelling units",
+    "zoning": "Base zoning",
+    "application_status": "Permit application status",
+    "geocode_status": "Geocoding status (not permit lifecycle)",
+    "owner_name": "Permit-listed owner",
+    "report_start": "Weekly report period start",
+    "report_end": "Weekly report period end (exclusive)",
+    "layer_feature_count": "El Paso layer feature count (metadata)",
+    "window_feature_count": "El Paso issue-window feature count",
+    "window_unique_permit_count": "El Paso unique permit count in issue window",
+    "source_as_of": "El Paso source query date",
+    "detail_project": "Houston exact permit project number",
+    "detail_date": "Houston sold permit detail date",
+    "detail_use": "Permit use / work description",
+    "detail_owner_occupant": "Permit-listed owner / occupant",
+    "detail_site_address": "Permit job address",
+    "detail_valuation": "Permit valuation",
+    "detail_permit_type": "Permit type code",
+    "detail_fcc_group": "Houston permit FCC group",
+    "detail_buyer": "Permit-listed Buyer (entity type unknown)",
+    "detail_buyer_address": "Permit-listed buyer address",
+    "detail_buyer_phone": "Permit-listed buyer phone",
+    "zip": "Reported ZIP code",
 }
 GEORGIA = "georgia-air-draft-title-v"
+CITY_MAPS = {
+    "dallas-monthly-permits": {
+        "row": "Permit / case",
+        "project": "Permit / case",
+        "date": "Permit issue date",
+        "event": "Reported permit event",
+        "status": "Permit status",
+        "applicant_full_name": "Permit-listed applicant name",
+        "lp_business_name": "Permit-listed LP Business Name (role unverified)",
+        "contact_type": "Contact type",
+        "type": "Permit type",
+        "work": "Work type",
+        "proposed_land_use": "Proposed land use",
+        "description": "Permit scope",
+        "address": "Site address",
+        "district": "Council district",
+        "area": "Gross building area",
+        "cost": "Reported job value",
+        "units": "Proposed dwelling units",
+        "zoning": "Base zoning",
+    },
+    "el-paso-new-commercial-permits": {
+        "row": "B1_ALT_ID permit ID",
+        "object_id": "OBJECTID GIS row ID",
+        "project": "Permit / case",
+        "date": "Permit issue date",
+        "event": "Reported permit event",
+        "status": "Permit application status",
+        "geocode_status": "Geocoding status (not permit lifecycle)",
+        "owner_name": "Permit-listed owner",
+        "type": "Permit type",
+        "work": "Permit work label",
+        "description": "Permit scope",
+        "address": "Site address",
+        "cost": "Reported job value",
+    },
+}
 
 
 def fields(source_id: str, text: str) -> dict[str, tuple[str, str]]:
-    if source_id not in MAPS and source_id not in {
+    if source_id not in MAPS and source_id not in CITY_MAPS and source_id not in {
         GEORGIA,
         "houston-weekly-permits",
         "texas-rrc-drilling-permits",
@@ -63,6 +130,8 @@ def fields(source_id: str, text: str) -> dict[str, tuple[str, str]]:
     allowed = (
         set(MAPS[source_id])
         if source_id in MAPS
+        else set(CITY_MAPS[source_id])
+        if source_id in CITY_MAPS
         else set(LABELS)
         if source_id in {"houston-weekly-permits", "texas-rrc-drilling-permits"}
         else set(LABELS) - set(MAPS["chicago-building-permits"])
@@ -86,6 +155,14 @@ def facts(source_id: str, text: str) -> list[dict[str, str]]:
         for key, label in LABELS.items()
         if key in parsed
     ]
+    if source_id == "houston-weekly-permits":
+        for item in output:
+            if item["label"] == "Permit issue date":
+                item["label"] = "Permit sale event date (weekly report)"
+    if source_id == "el-paso-new-commercial-permits":
+        for item in output:
+            if item["label"] == "Permit issue date":
+                item["label"] = "ISSUEDATE (official issue-event date)"
     if source_id == "chicago-building-permits":
         if "address" in parsed and parsed["address"][0].isdigit():
             # Historical GL3-018 abstracts stored the street number separately.

@@ -1,0 +1,37 @@
+[
+  {
+    "file": "migrations-clean.txt",
+    "original_sha256": "5d48239d5103187723a6559ba6757aabfb078e9f8aac40e85bd4b9a43f9a73f4",
+    "normalization": "Only line endings, trailing spaces and trailing blank lines normalized; original tool logs retained under ignored .artifacts/controller."
+  },
+  {
+    "file": "migrations-drift.txt",
+    "original_sha256": "aeace3d136604a758f7eb2b6675fe1c0913bf9a049ef9c2e96d20d745ff1c581",
+    "normalization": "Only line endings, trailing spaces and trailing blank lines normalized; original tool logs retained under ignored .artifacts/controller."
+  },
+  {
+    "file": "migrations-repeat.txt",
+    "original_sha256": "c9dede11c80ccef6853207a302c79427d48bcdbd6fbf586b5dc306be0763cd94",
+    "normalization": "Only line endings, trailing spaces and trailing blank lines normalized; original tool logs retained under ignored .artifacts/controller."
+  },
+  {
+    "file": "mypy.txt",
+    "original_sha256": "dcb694f11778ae44041ad96d947549bf77cffe07393be2e8e5cf5e5974810786",
+    "normalization": "Only line endings, trailing spaces and trailing blank lines normalized; original tool logs retained under ignored .artifacts/controller."
+  },
+  {
+    "file": "pytest-attempt1.txt",
+    "original_sha256": "52ca0773df107fc2b196799890f93fc00c42d2cbc660a33fee6e9a60a58429c4",
+    "normalization": "Only line endings, trailing spaces and trailing blank lines normalized; original tool logs retained under ignored .artifacts/controller."
+  },
+  {
+    "file": "pytest.txt",
+    "original_sha256": "a2548a8fbedb1cd3ca19e669898fb9f71a116f354777bf89fe8e9319aa11ce12",
+    "normalization": "Only line endings, trailing spaces and trailing blank lines normalized; original tool logs retained under ignored .artifacts/controller."
+  },
+  {
+    "file": "typecheck.txt",
+    "original_sha256": "2ed7bd9429f03c4125fd3cd1b8b752d8135892f09eb7ff8609ac5c3677b941b6",
+    "normalization": "Only line endings, trailing spaces and trailing blank lines normalized; original tool logs retained under ignored .artifacts/controller."
+  }
+]

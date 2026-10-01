@@ -344,6 +344,92 @@ def extract_retained_permit_organizations(doc: PublicDocument, source_id: str) -
                     )
                 )
         return result
+    if source_id == "dallas-monthly-permits":
+        parsed = permit_fields(source_id, doc.text)
+        organization = parsed.get("lp_business_name")
+        if not organization or _RENTAL.search(organization[0]):
+            return []
+        role = parsed.get("contact_type", ("Applicant", ""))[0]
+        return [
+            Extracted(
+                organization[0],
+                Category.UNKNOWN.value,
+                organization_relationship="UNKNOWN",
+                reason=(
+                    "LP Business Name is retained exactly as published by Dallas; its role on "
+                    f"this project, including any relation to the separately listed "
+                    f"{role} person, "
+                    "current work and buying authority are UNKNOWN."
+                ),
+                citations=[_citation(doc, organization[1], "permit_listed_organization")],
+            )
+        ]
+    if source_id == "houston-weekly-permits":
+        parsed = permit_fields(source_id, doc.text)
+        buyer = parsed.get("detail_buyer")
+        if not buyer or not re.search(
+            r"\b(?:LLC|L\.L\.C\.|Inc\.?|Incorporated|Corp\.?|Corporation|Company|Ltd\.?|Limited|LLP|L\.P\.)\b",
+            buyer[0],
+            re.I,
+        ):
+            return []
+        phone = parsed.get("detail_buyer_phone")
+        contacts = []
+        citations = [_citation(doc, buyer[1], "project_organization")]
+        if phone and re.fullmatch(r"[+()0-9 .-]{10,24}", phone[0]):
+            citations.append(_citation(doc, phone[1], "permit_listed_contact"))
+            contacts.append(
+                {
+                    "kind": (
+                        "permit-listed buyer phone; ownership and business/personal type unknown"
+                    ),
+                    "value": phone[0],
+                    "source_url": doc.url,
+                    "quote": phone[1],
+                    "observed_at": doc.observed_at.isoformat(),
+                }
+            )
+        buyer_address = parsed.get("detail_buyer_address")
+        if buyer_address:
+            citations.append(_citation(doc, buyer_address[1], "permit_listed_address"))
+        return [
+            Extracted(
+                buyer[0].lstrip("* "),
+                Category.UNKNOWN.value,
+                organization_relationship="ROLE_SUPPORTED",
+                reason=(
+                    "Exact Houston Sold Permit Search detail lists this organization as Buyer. "
+                    "Owner/Occupant is retained as a separate field; project assignment, current "
+                    "involvement and buying authority beyond the listed permit role are UNKNOWN. "
+                    "Phone and address are permit-listed business-contact fields; ownership and "
+                    "business/personal status are UNKNOWN."
+                ),
+                citations=citations,
+                public_contacts=contacts,
+            )
+        ]
+    if source_id == "el-paso-new-commercial-permits":
+        parsed = permit_fields(source_id, doc.text)
+        owner = parsed.get("owner_name")
+        if not owner or _RENTAL.search(owner[0]):
+            return []
+        if not re.search(
+            r"\b(?:LLC|L\.L\.C\.|Inc\.?|Corp\.?|Corporation|Company|LP|L\.P\.)\b",
+            owner[0],
+            re.I,
+        ):
+            return []
+        return [
+            Extracted(
+                owner[0],
+                Category.OWNER.value,
+                reason=(
+                    "Organization named in the official permit owner field; current operation, "
+                    "responsibility for construction power and buying authority are UNKNOWN."
+                ),
+                citations=[_citation(doc, owner[1], "permit_listed_owner")],
+            )
+        ]
     if source_id == GEORGIA:
         proponent = georgia_proponent(doc.text)
         proponents = (

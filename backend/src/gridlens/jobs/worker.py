@@ -136,7 +136,13 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
                 "pdf_skipped_not_signal": counts.get("pdf_skipped_not_signal", 0),
                 "pdf_skipped_limit": counts.get("pdf_skipped_limit", 0),
             }
-            if source_id in {"austin-building-permits", "texas-rrc-drilling-permits"}:
+            if source_id in {
+                "austin-building-permits",
+                "texas-rrc-drilling-permits",
+                "houston-weekly-permits",
+                "dallas-monthly-permits",
+                "el-paso-new-commercial-permits",
+            }:
                 from gridlens.jobs.queue import enqueue
 
                 research_anchor = session.get(Source, "austin-building-permits")

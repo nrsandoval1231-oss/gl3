@@ -1,0 +1,101 @@
+{
+  "checked_at": "2026-10-01T16:51:27.217069+00:00",
+  "method": "Ordinary public GET; no credentials, form submission or access-control bypass",
+  "routes": [
+    {
+      "url": "https://aca-prod.accela.com/dallastx",
+      "status": 200,
+      "final_url": "https://aca-prod.accela.com/DALLASTX/Default.aspx",
+      "bytes": 70652,
+      "sha256": "4dd0f9e51a233a9a97bd1894b29f288b1ade0e01a416b6e05c4bc1583fa560e2",
+      "title": "Accela Citizen Access",
+      "relevant_links": [
+        {
+          "text": "Search for a Licensee",
+          "href": "javascript:__doPostBack('ctl00$PlaceHolderMain$TabDataList$TabsDataList$ctl00$LinksDataList$ctl01$LinkItemUrl','')"
+        },
+        {
+          "text": "Search Applications",
+          "href": "javascript:__doPostBack('ctl00$PlaceHolderMain$TabDataList$TabsDataList$ctl01$LinksDataList$ctl00$LinkItemUrl','')"
+        },
+        {
+          "text": "Search Applications",
+          "href": "javascript:__doPostBack('ctl00$PlaceHolderMain$TabDataList$TabsDataList$ctl02$LinksDataList$ctl00$LinkItemUrl','')"
+        },
+        {
+          "text": "Search Applications",
+          "href": "javascript:__doPostBack('ctl00$PlaceHolderMain$TabDataList$TabsDataList$ctl03$LinksDataList$ctl00$LinkItemUrl','')"
+        },
+        {
+          "text": "Search Applications",
+          "href": "javascript:__doPostBack('ctl00$PlaceHolderMain$TabDataList$TabsDataList$ctl04$LinksDataList$ctl00$LinkItemUrl','')"
+        },
+        {
+          "text": "Search Applications",
+          "href": "javascript:__doPostBack('ctl00$PlaceHolderMain$TabDataList$TabsDataList$ctl05$LinksDataList$ctl00$LinkItemUrl','')"
+        },
+        {
+          "text": "Search Applications",
+          "href": "javascript:__doPostBack('ctl00$PlaceHolderMain$TabDataList$TabsDataList$ctl06$LinksDataList$ctl00$LinkItemUrl','')"
+        }
+      ]
+    },
+    {
+      "url": "https://dallascityhall.com/departments/sustainabledevelopment/buildinginspection/Pages/online-records.aspx",
+      "status": 200,
+      "final_url": "https://dallascityhall.com/departments/sustainabledevelopment/buildinginspection/Pages/online-records.aspx",
+      "bytes": 47871,
+      "sha256": "8cdf74674ef254099497bc5c0143362e406b982144b91af72da4962c9f45f53f",
+      "title": "Online Records",
+      "relevant_links": [
+        {
+          "text": "Search for records by permit number or address",
+          "href": "https://developdallas.dallascityhall.com/"
+        }
+      ]
+    },
+    {
+      "url": "https://www.dallascityhall.com/departments/sustainabledevelopment/Pages/formsdept.aspx",
+      "status": 200,
+      "final_url": "https://www.dallascityhall.com/departments/sustainabledevelopment/Pages/formsdept.aspx",
+      "bytes": 64373,
+      "sha256": "2357e329fcffb593f83443327ba5b578bc0219d396d10b49520075ea1638bb20",
+      "title": "\u200b\u200b\u200b\u200b\u200b\u200b\u200b\u200b\u200b\u200b\u200b\u200b\u200b\u200b\u200b\u200b\u200b\u200bForms By Department",
+      "relevant_links": [
+        {
+          "text": "Backup Generator Permit",
+          "href": "/departments/sustainabledevelopment/buildinginspection/DCH%20documents/BACKUP%20GENERATOR%20PERMIT-A.pdf"
+        },
+        {
+          "text": "Request for Temporary Utilities Electric and/or Gas\u200b\u200b\u200b\u200b",
+          "href": "/departments/sustainabledevelopment/DCH%20documents/TEMPORARYUTILITYRELEASEFORM.pdf"
+        },
+        {
+          "text": "Electrical Permit Checklist",
+          "href": "/departments/sustainabledevelopment/buildinginspection/DCH%20documents/ELECTRICAL%20PERMIT%20APPLICATION%20CHECKLIST-Acc.pdf"
+        },
+        {
+          "text": "Electrical Permit Registration",
+          "href": "/departments/sustainabledevelopment/buildinginspection/DCH%20documents/ELE%20CONTRACTOR%20REGISTRATION%20updateJ.pdf"
+        },
+        {
+          "text": "Electrical No Work Checklist - Clean and Show",
+          "href": "/departments/sustainabledevelopment/buildinginspection/DCH%20documents/ELECTRICAL%20%20NO%20WORK%20CHECKLIST-Acc.pdf"
+        },
+        {
+          "text": "Electrical Emergency Release Policy",
+          "href": "/departments/sustainabledevelopment/DCH%20documents/Emergency%20Electrical%20Release%20Policy.pdf"
+        },
+        {
+          "text": "Wind Powered Generators - Checklist",
+          "href": "/departments/sustainabledevelopment/buildinginspection/DCH%20documents/WIND%20POWER-A.pdf"
+        }
+      ]
+    },
+    {
+      "url": "https://developdallas.dallascityhall.com/Default.aspx?PossePresentation=ByProjectNumber",
+      "error": "ConnectTimeout"
+    }
+  ],
+  "conclusion": "Forms and search entry points are readable; no reproducible bulk electrical/generator/temporary-service record acquisition verified. No claim all routes are unavailable."
+}

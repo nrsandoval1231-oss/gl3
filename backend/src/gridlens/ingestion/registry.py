@@ -36,6 +36,8 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
             },
             "rrc-drilling-permits": {"mft.rrc.texas.gov"},
             "houston-weekly-permits": {"www.houstonpermittingcenter.org"},
+            "dallas-monthly-permits": {"dallascityhall.com"},
+            "el-paso-new-commercial-permits": {"gis.elpasotexas.gov"},
             "georgia-air-permits": {"epd.georgia.gov"},
             "taylor-newsflash": {"taylortx.gov"},
         }
@@ -48,6 +50,8 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
         valid_window = source["retrieval_method"] in {
             "rrc-drilling-permits",
             "houston-weekly-permits",
+            "dallas-monthly-permits",
+            "el-paso-new-commercial-permits",
             "publisher-rss",
             "georgia-air-permits",
             "taylor-newsflash",
@@ -98,6 +102,24 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
             )
         elif source["retrieval_method"] == "houston-weekly-permits":
             bounded = source.get("cadence_hours") == 24 and query.get("max_reports") == 4
+        elif source["retrieval_method"] == "dallas-monthly-permits":
+            bounded = (
+                source.get("family") == "construction-permits"
+                and source.get("cadence_hours") == 24
+                and query.get("max_reports") == 4
+                and source.get("city") == "Dallas"
+                and source.get("state") == "TX"
+            )
+        elif source["retrieval_method"] == "el-paso-new-commercial-permits":
+            bounded = (
+                source.get("family") == "construction-permits"
+                and source.get("cadence_hours") == 24
+                and query.get("window_days") == 90
+                and query.get("max_records") == 20000
+                and query.get("page_size") == 1000
+                and source.get("city") == "El Paso"
+                and source.get("state") == "TX"
+            )
         elif source["retrieval_method"] == "georgia-air-permits":
             bounded = (
                 source.get("family") == "construction-permits"

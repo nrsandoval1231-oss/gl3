@@ -2,6 +2,8 @@ from typing import Any
 
 import httpx
 
+from gridlens.ingestion.adapters.dallas_permits import retrieve as retrieve_dallas_permits
+from gridlens.ingestion.adapters.el_paso_permits import retrieve as retrieve_el_paso_permits
 from gridlens.ingestion.adapters.federal_register import SourceParseError
 from gridlens.ingestion.adapters.georgia_air_permits import retrieve as retrieve_georgia_air_permits
 from gridlens.ingestion.adapters.houston_permits import retrieve as retrieve_houston_permits
@@ -29,6 +31,10 @@ def retrieve_source(
         return retrieve(source, client)
     if method == "houston-weekly-permits":
         return retrieve_houston_permits(source, client)
+    if method == "dallas-monthly-permits":
+        return retrieve_dallas_permits(source, client)
+    if method == "el-paso-new-commercial-permits":
+        return retrieve_el_paso_permits(source, client)
     if method == "socrata-permits":
         return retrieve_socrata_permits(source, client)
     if method == "georgia-air-permits":

@@ -1,0 +1,97 @@
+{
+  "task": "GL3-023",
+  "status": "builder_handoff",
+  "repository": "nrsandoval1231-oss/gl3",
+  "branch": "feat/gl3-023-city-permits",
+  "base_sha": "07c0886be65c90ec2ee88a30098fa4f57f925577",
+  "candidate_sha": null,
+  "candidate_sha_note": "Uncommitted working-tree candidate; parent controller owns final candidate manifest and review.",
+  "started_at_utc": "UNKNOWN (dispatch was at approximately 2026-10-01T16:23Z)",
+  "finished_at_utc": "2026-10-01T16:49:26Z",
+  "changed_files_owned": [
+    "README.md",
+    "backend/src/gridlens/domain/permit_interpretation.py",
+    "backend/src/gridlens/domain/pursuits.py",
+    "backend/src/gridlens/domain/signal_admission.py",
+    "backend/src/gridlens/ingestion/adapters/__init__.py",
+    "backend/src/gridlens/ingestion/adapters/dallas_permits.py",
+    "backend/src/gridlens/ingestion/adapters/el_paso_permits.py",
+    "backend/src/gridlens/ingestion/adapters/houston_permits.py",
+    "backend/src/gridlens/ingestion/adapters/houston_permit_details.py",
+    "backend/src/gridlens/ingestion/adapters/retained_permits.py",
+    "backend/src/gridlens/ingestion/registry.py",
+    "backend/src/gridlens/ingestion/service.py",
+    "backend/src/gridlens/intelligence/buying_chain.py",
+    "backend/src/gridlens/intelligence/buying_chain_extraction.py",
+    "backend/src/gridlens/intelligence/pursuits.py",
+    "backend/src/gridlens/jobs/worker.py",
+    "backend/tests/integration/test_buying_chain.py",
+    "backend/tests/integration/test_ingestion.py",
+    "backend/tests/unit/test_city_permits.py",
+    "backend/tests/unit/test_retained_permits.py",
+    "config/sources/registry.v1.json",
+    "docs/sources/README.md",
+    "docs/sources/coverage.md",
+    "docs/sources/gl3-023-city-permits.md",
+    "web/src/app/App.tsx",
+    "web/tests/first_path.spec.ts",
+    ".agent/packets/GL3-023.md",
+    ".agent/artifacts/GL3-023/SOURCE_RESEARCH.json",
+    ".agent/artifacts/GL3-023/COMPLETION.json"
+  ],
+  "checks": [
+    {
+      "command": "uv run --project backend pytest backend/tests/unit/test_permit_interpretation.py backend/tests/unit/test_socrata_permits.py backend/tests/unit/test_city_permits.py backend/tests/unit/test_retained_permits.py backend/tests/integration/test_buying_chain.py::test_houston_exact_detail_uses_source_record_key_and_attaches_to_matching_project backend/tests/integration/test_ingestion.py::test_houston_sold_event_correction_clears_legacy_publication_date",
+      "result": "PASS: 105 passed"
+    },
+    {
+      "command": "uv run --project backend ruff check backend/src/gridlens/domain/permit_interpretation.py backend/tests/unit/test_city_permits.py backend/tests/unit/test_permit_interpretation.py backend/tests/unit/test_socrata_permits.py backend/tests/unit/test_retained_permits.py",
+      "result": "PASS"
+    },
+    {
+      "command": "uv run --project backend mypy on permit interpretation and eight changed backend source modules",
+      "result": "PASS: no issues found in 8 source files"
+    },
+    {
+      "command": "npm run typecheck",
+      "result": "PASS"
+    },
+    {
+      "command": "$env:GRIDLENS_API_PORT='8024'; $env:GRIDLENS_WEB_PORT='5194'; $env:TRUSTED_ORIGINS='http://127.0.0.1:5194'; $env:COOKIE_SECURE='false'; npm test -- tests/first_path.spec.ts -g 'mobile health, ingestion inbox, watch, and browser history show actual local data states'",
+      "result": "PASS: 1 browser test; authenticated UI filter queried El Paso evidence. Root separately recorded final UI proof at .artifacts/controller/ui/el-paso-inbox.png."
+    },
+    {
+      "command": "Full backend pytest (controller candidate before repair)",
+      "result": "3 failed, 475 passed, 1 skipped. Failures were the three warehouse ordinary-target regressions; the focused repair set above now passes. Full suite rerun is pending with parent controller."
+    }
+  ],
+  "runtime_evidence": {
+    "database": "isolated gl3_023_accept; original databases/credentials were not modified by ingestion",
+    "ingestion_receipt": ".artifacts/GL3-023/ordinary-worker-replay.json",
+    "enrichment_replay_receipt": ".artifacts/GL3-023/buying-chain-replay.json",
+    "source_research": ".agent/artifacts/GL3-023/SOURCE_RESEARCH.json",
+    "source_results": {
+      "dallas-monthly-permits": "89 unique rows; 5 admitted Signals; stable unchanged replay",
+      "el-paso-new-commercial-permits": "67 unique permit IDs from 68 rows; 0 projects/Signals; stable unchanged replay",
+      "houston-weekly-permits": "1,543 weekly rows; 3 admitted Signals; stable unchanged replay"
+    },
+    "enrichment": "5 Dallas and 3 Houston projects had unchanged summary digests on second pass; El Paso had no admitted project to enrich.",
+    "pursuit_research_job": "NOT RUN by builder; parent may run one queued pursuit_research job through ordinary worker after source normalization."
+  },
+  "remaining_controller_steps": [
+    "Reprocess source assessments once for the corrected Houston issue_date/event_date distinction, then verify independent source replay is unchanged.",
+    "Optionally inspect one queued pursuit_research job with the existing worker.",
+    "Rerun full pytest and remaining exact-candidate gates, then independent review."
+  ],
+  "pursuit_job_command_from_backend": "$env:PYTHONPATH=(Resolve-Path src).Path; @'\nfrom sqlalchemy import select\nfrom gridlens.jobs.worker import run_one, sync_registry\nfrom gridlens.persistence.database import SessionLocal\nfrom gridlens.persistence.models import Job\ndefinitions = {item['id']: item for item in sync_registry()}\nwith SessionLocal() as session:\n    job = session.scalar(select(Job).where(Job.kind == 'pursuit_research', Job.status == 'queued').order_by(Job.created_at).limit(1))\njob_id = job.id if job else None\nprint({'queued_job': str(job_id) if job_id else None, 'ran': run_one(definitions, job_ids=[job_id]) if job_id else False})\n'@ | uv run python -",
+  "limitations": [
+    "Dallas only covers newest linked monthly Com-ResNew commercial new-construction rows; DallasNow generation was not automated and full alteration/electrical coverage is absent.",
+    "El Paso NewCommercial is not citywide electrical coverage; current selected rows do not support activity-specific projects or Signals.",
+    "Houston weekly sold records and exact-detail party fields do not establish current permit lifecycle, active construction, person/company kind where unclear, rental demand, or buying authority.",
+    "The highest-priority data-center and oil/gas temporary-power use cases were not established by the observed city permit Signals."
+  ],
+  "failed_attempts": [
+    "A first targeted browser attempt used a different local origin than the ephemeral API trusted-origin list and received HTTP 403. The test was rerun with the exact local origin and passed. Its generated Playwright error-context file was deleted; no credential was written to repository source or retained evidence.",
+    "One Ruff invocation mistakenly included a TSX file and produced parser errors; the corrected Python-only Ruff invocation passed."
+  ]
+}

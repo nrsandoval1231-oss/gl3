@@ -87,6 +87,25 @@ test('mobile health, ingestion inbox, watch, and browser history show actual loc
   await expect(page.getByRole('heading', { name: 'Ingestion inbox' })).toBeVisible()
   await expect(page.locator('.ingestion-card').first()).toContainText(inbox.page.items[0].title)
 
+  const sourceFilter = page.getByRole('combobox', { name: 'Filter by source' })
+  await sourceFilter.selectOption('el-paso-new-commercial-permits')
+  const elPaso = await page.evaluate(async () => {
+    const result = await fetch('/api/ingestion?source_id=el-paso-new-commercial-permits&limit=5&offset=0')
+    return { status: result.status, page: await result.json() as { items: { source_id: string; event_date_label: string | null; citation_url: string }[]; total: number } }
+  })
+  expect(elPaso.status).toBe(200)
+  expect(elPaso.page.total).toBeGreaterThan(0)
+  expect(elPaso.page.items.every((item) => item.source_id === 'el-paso-new-commercial-permits')).toBe(true)
+  expect(elPaso.page.items.every((item) => item.event_date_label?.startsWith('ISSUEDATE'))).toBe(true)
+  expect(elPaso.page.items.every((item) => item.citation_url.startsWith('https://gis.elpasotexas.gov/arcgis/'))).toBe(true)
+  await expect(sourceFilter.locator('option')).toContainText([
+    'Dallas Monthly Building Permits',
+    'El Paso New Commercial Permits',
+    'Houston Weekly Sold Permits',
+  ])
+  await expect(page.locator('.ingestion-card').first()).toContainText('City of El Paso')
+  await sourceFilter.selectOption('')
+
   await page.getByRole('button', { name: 'Cannabis watch' }).click()
   await expect(page.getByRole('heading', { name: 'Cannabis business news watch' })).toBeVisible()
   const watch = await page.evaluate(async () => {

@@ -1,0 +1,29 @@
+
+> gridlens-web@0.1.0 test
+> playwright test --reporter=line --grep-invert live air documents|live data-center permit enrichment|real pursuits retain evidence gates|real conflicts, bounded refresh
+
+
+Running 9 tests using 3 workers
+
+(node:25212) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:14992) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1/9] tests\buying_chain.spec.ts:44:1 › buying chain exposes three separate relationships and retains evidence after enrichment failure
+(node:34048) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[2/9] tests\project_cards.spec.ts:52:1 › stable project IDs consolidate lifecycle records and decision filters default uncertain records to REVIEW
+[3/9] tests\first_path.spec.ts:36:1 › authenticated desktop browse, detail, back, and search use a live Signal
+[4/9] tests\project_cards.spec.ts:67:1 › Signals default to SHOW and keep REVIEW and HOLD searchable in their own tabs
+[5/9] tests\buying_chain.spec.ts:67:1 › navigation ignores a late enrichment result and limits repeated requests
+[6/9] tests\project_cards.spec.ts:102:1 › only exact dated event evidence groups; titles describe permit work; all records stay openable
+[7/9] tests\buying_chain.spec.ts:93:1 › mobile buying chain keeps unknown and empty results readable
+[8/9] tests\first_path.spec.ts:76:1 › mobile health, ingestion inbox, watch, and browser history show actual local data states
+[9/9] tests\buying_chain.spec.ts:107:1 › retained permit fields are useful before enrichment and preserve source roles
+  9 passed (3.1s)
