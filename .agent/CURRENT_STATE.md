@@ -1,6 +1,6 @@
 # Current state
 
-Current main: `2052fd5205a0bd6f7c21981ed5c4812c4bdfe41a`, freshly fetched October 1, 2026. GL3-019 (PR9), handoff PR11 and CI cleanup PR10 are merged. Start with [the saved-cloud handoff](../docs/operations/post-gl3-019-handoff.md), then the [October 1 runtime check](../docs/delivery/milestones.md#october-1-runtime-check). September 30 acceptance remains historical proof; its isolated database is absent from the PostgreSQL cluster available in this executor. Current configured database is empty apart from 13 overdue source entries. Reconcile runtime/data before claiming ingestion is currently operating.
+Current build: GL3-020 locally validated on `feat/gl3-020-runtime-recovery`, based on merged main `197883bec841d59c067da59a90ccc7a7c9055e71` (PR12). [Final validation](../docs/validation/gl3-020-validation.md) and its evidence receipt supersede the initial October 1 empty-runtime observation for current local data. The available configured application database is now populated through real ingestion: 15 successful sources, 7,413 observations, 7,452 evidence versions and 1,981 active Signals. Zero Prospects/Leads; MW and supply remain UNKNOWN. No production launch gate is closed. Proposed next slice: project-matching performance, `.agent/packets/GL3-021.md`.
 
 GridLens is focused on turning evidence-backed Signals into commercially useful pursuits without inventing unsupported power facts.
 
@@ -88,3 +88,7 @@ clean/repeat/drift migrations and frontend typecheck/build. Detailed current pro
 `docs/validation/gl3-019-acquisition-continuation.md` and its evidence manifest.
 PR9 is merged; no deployment or outreach. Dallas/El Paso access and dedicated commissioning
 remain open; drilling scope is not all historical Texas permits.
+
+## GL3-020 — local runtime recovery accepted
+
+Read-only status, in-place registry reconciliation and bounded selected-source checks use the existing worker/queue and preserve data, backoff and fencing. RRC calendar selection now follows Texas local date. Strict replay caught and repaired grouped permits rotating valid admission citations/timestamps. Final gates: 427 backend passes/one existing fixture skip, 11 browser passes, types/build/lint/mypy/migrations, unchanged primary-source content/morning digests, and independent Sol PASS on final code hashes. See linked validation and runtime recovery procedure. Production scheduling, alerts/restore and full PRD launch/qualification remain open.
