@@ -17,7 +17,7 @@ MISSING = [
 ]
 _ELIGIBLE_STATUS = re.compile(r"^(active|issued|approved)$", re.I)
 _INELIGIBLE_STATUS = re.compile(
-    r"\b(?:final|void|withdrawn|completed|complete|expired|cancelled|canceled)\b", re.I
+    r"\b(?:final|void|withdrawn|completed|complete|expired|cancelled|canceled|closed)\b", re.I
 )
 _RESIDENTIAL = re.compile(
     r"\b(?:residential|residence|single[- ]family|duplex|dwelling|house|home|multi[- ]dwelling|[0-9]+\s*(?:du|d\.u\.))\b",  # noqa: E501
@@ -99,14 +99,16 @@ _ADVERTISING_ONLY = re.compile(
     r"\b(?:sign|advertis\w*)\b.{0,60}\b(?:rental generators?|generators?|temporary power)\b", re.I
 )
 _ORDINARY_TARGET = re.compile(
-    r"\b(?:to|into|for)\s+(?:an?\s+)?(?:restaurant|retail|office(?:s| space)?|tenant space|coffee shop|bar|daycare|child care|medical office|clinic|dental office|adult care|drinking establishment)\b",  # noqa: E501
+    r"\b(?:to|into|for)\s+(?:an?\s+)?(?:restaurant|retail|office(?:s| space)?|tenant space|commercial tenant|coffee shop|bar|daycare|child care|medical office|clinic|dental office|adult care|drinking establishment)\b",  # noqa: E501
     re.I,
 )
 _DATA_OR_LAB = re.compile(r"\b(?:data cent(?:er|re)|laborator(?:y|ies)|lab support)\b", re.I)
 _MANUFACTURING = re.compile(r"\b(?:manufactur\w*|factory|plant|industrial processing)\b", re.I)
 _WAREHOUSE = re.compile(r"\b(?:warehouse|distribution|cold storage)\b", re.I)
 _WAREHOUSE_CONSTRUCTION = re.compile(
-    r"\b(?:construct|build)(?:ing)?\s+(?:new\s+)?(?:warehouse|distribution|cold storage)\b", re.I
+    r"\b(?:new construction|construct(?:ing)?|build(?:ing)?)\b.{0,100}\b"
+    r"(?:warehouse|distribution|cold storage)\b",
+    re.I,
 )
 _HOSPITAL = re.compile(r"\b(?:hospital|medical center)\b", re.I)
 _HOSPITAL_CONTINUITY = re.compile(
@@ -186,6 +188,12 @@ _REPORTED_MW = re.compile(r"(?<![\w.])\d[\d,]*(?:\.\d+)?\s*MW\b", re.I)
 
 def evaluator_version(record: dict[str, Any]) -> str:
     permit = record.get("permit")
+    if isinstance(permit, dict) and permit.get("source_type") in {
+        "dallas-monthly-permits",
+        "el-paso-new-commercial-permits",
+        "houston-weekly-permits",
+    }:
+        return "city-permit-event-v1"
     if isinstance(permit, dict) and permit.get("source_type") == "texas-rrc-drilling-permits":
         return "rrc-permit-v1"
     if isinstance(permit, dict) and permit.get("source_type") == "georgia-air-draft-title-v":
@@ -495,6 +503,20 @@ def assess_permit(record: dict[str, Any], *, as_of: date | None = None) -> dict[
         }
     event_end = _explicit_event_end(description)
     status = str(permit.get("status") or "")
+    source_type = str(permit.get("source_type") or "")
+    permit_event = str(permit.get("issuance_event") or "")
+    event_supports_permit = bool(
+        source_type in {
+            "dallas-monthly-permits",
+            "el-paso-new-commercial-permits",
+            "houston-weekly-permits",
+        }
+        and permit_event in {"issued", "sold"}
+        and not _INELIGIBLE_STATUS.search(status)
+    )
+    status_supports_permit = bool(
+        _ELIGIBLE_STATUS.fullmatch(status.strip()) or event_supports_permit
+    )
     address, city, state = (str(permit.get(key) or "") for key in ("address", "city", "state"))
     location = ", ".join(part for part in (address, city, state) if part)
     activity = None
@@ -564,6 +586,8 @@ def assess_permit(record: dict[str, Any], *, as_of: date | None = None) -> dict[
         reason = "Permit reports remodel or electrical work in interruption-sensitive hospital activity; continuity power is an inferred review question, not a reported outage."  # noqa: E501
     elif (
         _facility_activity(description)
+        and not (_ORDINARY_TARGET.search(description) and not _DATA_OR_LAB.search(description))
+        and not re.search(r"\b(?:mini[- ]?warehouse|self[- ]storage)\b", description, re.I)
         and not _NEGATED.search(description)
         and not _NEGATED_FACILITY.search(description)
         and not _ROUTINE.search(description)
@@ -572,8 +596,8 @@ def assess_permit(record: dict[str, Any], *, as_of: date | None = None) -> dict[
         reason = "Official dated permit identifies concrete facility construction, conversion, or remodel; investigate construction or commissioning power. Permit issuance does not prove work start, load, or a power gap."  # noqa: E501
     else:
         category = "none"
-        if not _ELIGIBLE_STATUS.fullmatch(status.strip()) or _INELIGIBLE_STATUS.search(status):
-            reason = f"Permit status is {status or 'unknown'}; it does not establish currently issued work."  # noqa: E501
+        if not status_supports_permit or _INELIGIBLE_STATUS.search(status):
+            reason = f"Permit application/lifecycle status is {status or 'unknown'}; no supported current permit event establishes the work."  # noqa: E501
         elif not permit.get("row_id") or not record.get("event_date") or not record.get("html_url"):
             reason = "An official dated permit row and source citation are required."
         elif not address:
@@ -592,13 +616,13 @@ def assess_permit(record: dict[str, Any], *, as_of: date | None = None) -> dict[
         and record.get("event_date")
         and record.get("html_url")
         and address
-        and _ELIGIBLE_STATUS.fullmatch(status.strip())
+        and status_supports_permit
         and not _INELIGIBLE_STATUS.search(status)
         and not _RESIDENTIAL.search(description)
     )
     decision = "accepted" if activity and gates_ok else "rejected"
     if activity and not gates_ok:
-        reason = "A dated active/issued/approved commercial permit, identified site, and source citation are required."  # noqa: E501
+        reason = "A dated eligible permit state or supported source-specific sold/issued event, identified site, and source citation are required."  # noqa: E501
     return {
         "schema_version": 1,
         "decision": decision,
@@ -611,8 +635,26 @@ def assess_permit(record: dict[str, Any], *, as_of: date | None = None) -> dict[
         "source_field_citations": permit.get("source_fields", {}),
         "stable_row_id": permit.get("row_id"),
         "permit_status": status,
-        "issue_date": record.get("event_date"),
-        "issue_date_label": "Official permit issue date; source publication date unknown",
+        "permit_event": permit_event or None,
+        "permit_status_label": (
+            "Permit application status"
+            if source_type == "el-paso-new-commercial-permits"
+            else "Current permit lifecycle status"
+        ),
+        "issue_date": None
+        if source_type == "houston-weekly-permits"
+        else record.get("event_date"),
+        "issue_date_label": None
+        if source_type == "houston-weekly-permits"
+        else (
+            "Permit Issued Date (published monthly report)"
+            if source_type == "dallas-monthly-permits"
+            else "ISSUEDATE (official layer issue-event field)"
+            if source_type == "el-paso-new-commercial-permits"
+            else "Official permit issue date; source publication date unknown"
+        ),
+        "event_date": record.get("event_date"),
+        "event_date_label": record.get("event_date_label"),
         "project_hint": permit.get("project") or None,
         "power_activity": activity or "facility-expansion",
         "rental_category": category,

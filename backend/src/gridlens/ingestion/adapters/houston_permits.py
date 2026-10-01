@@ -7,7 +7,7 @@ import io
 import json
 import re
 import zipfile
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 from urllib.parse import parse_qs, urlsplit
 from xml.etree import ElementTree as ET
@@ -24,7 +24,13 @@ NS = {"x": "http://schemas.openxmlformats.org/spreadsheetml/2006/main"}
 HEADERS = ["Zip Code", "Permit Date", "Permit Type", "Project No", "Address", "Comments"]
 
 
-def parse_report(body: bytes, url: str, *, today: date) -> tuple[date, list[dict[str, Any]]]:
+def parse_report(
+    body: bytes,
+    url: str,
+    *,
+    today: date,
+    listed_week_start: date | None = None,
+) -> tuple[date, list[dict[str, Any]]]:
     try:
         with zipfile.ZipFile(io.BytesIO(body)) as archive:
             entries = archive.infolist()
@@ -60,6 +66,10 @@ def parse_report(body: bytes, url: str, *, today: date) -> tuple[date, list[dict
         end = datetime.strptime(rows[2][0].strip(), "To : %Y/%m/%d").date()
         if not 0 < (end - start).days <= 8 or end > today:
             raise SourceParseError("Houston report date interval is invalid")
+        if listed_week_start is not None and (
+            start != listed_week_start or end != listed_week_start + timedelta(days=7)
+        ):
+            raise SourceParseError("Houston listed sale week disagrees with workbook period")
         output = []
         seen: dict[str, list[str]] = {}
         footer = [
@@ -80,7 +90,7 @@ def parse_report(body: bytes, url: str, *, today: date) -> tuple[date, list[dict
                 raise SourceParseError("Houston data appears after report footer")
             zipcode, stamp, kind, project, address, description = values
             issued = datetime.strptime(stamp, "%Y/%m/%d").date()
-            if not start <= issued <= end or not all((project, address, kind, description)):
+            if not start <= issued < end or not all((project, address, kind, description)):
                 raise SourceParseError("Houston report has incomplete or out-of-window row")
             identity = f"{project}:{kind}:{issued.isoformat()}"
             if identity in seen:
@@ -88,21 +98,27 @@ def parse_report(body: bytes, url: str, *, today: date) -> tuple[date, list[dict
                     raise SourceParseError("Houston report has ambiguous duplicate identity")
                 continue  # Byte-equivalent field duplicates occur in official reports.
             seen[identity] = values
-            fields = dict(
-                row=project,
-                date=issued.isoformat(),
-                type=kind,
-                address=address,
-                description=description,
-                status="Unknown",
-            )
             output.append(
                 {
                     "document_number": identity,
-                    "title": f"Houston permit {project} — {kind}",
-                    "abstract": "\n".join(f"{k}: {v}" for k, v in fields.items()),
-                    "publication_date": issued.isoformat(),
+                    "title": f"Houston sold permit {project} — {kind}",
+                    "abstract": "\n".join(
+                        (
+                            f"row: {project}",
+                            "event: Sold (weekly report; issued permit event)",
+                            f"date: {issued.isoformat()}",
+                            f"report_start: {start.isoformat()}",
+                            f"report_end: {end.isoformat()}",
+                            "status: Unknown",
+                            f"type: {kind}",
+                            f"address: {address}",
+                            f"description: {description}",
+                            f"zip: {zipcode}",
+                        )
+                    ),
+                    "publication_date": None,
                     "event_date": issued.isoformat(),
+                    "event_date_label": "Permit sale date (weekly Sold Permits report)",
                     "html_url": url,
                     "extraction_location": (
                         f"Official weekly report {start} through {end}; sheet1 row {number}"
@@ -111,12 +127,16 @@ def parse_report(body: bytes, url: str, *, today: date) -> tuple[date, list[dict
                         json.dumps(values, ensure_ascii=False).encode()
                     ).hexdigest(),
                     "permit": {
+                        "source_type": "houston-weekly-permits",
                         "city": "Houston",
                         "state": "TX",
                         "address": address,
                         "description": description,
                         "type": kind,
                         "status": "Unknown",
+                        "issuance_event": "sold",
+                        "report_period_start": start.isoformat(),
+                        "report_period_end_exclusive": end.isoformat(),
                         "class": "Unknown",
                         "work": "",
                         "cost": "",
@@ -175,8 +195,10 @@ def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list
             ):
                 raise SourceParseError("Houston report link is outside its official path")
             _, workbook = read_bounded_response(http, links[report_date], 2_000_000)
-            end, records = parse_report(workbook, links[report_date], today=today)
-            if not 0 < (end - report_date).days <= 8:
+            end, records = parse_report(
+                workbook, links[report_date], today=today, listed_week_start=report_date
+            )
+            if (end - report_date).days != 7:
                 raise SourceParseError("Houston workbook dates disagree with listing")
             for record in records:
                 key = record["document_number"]

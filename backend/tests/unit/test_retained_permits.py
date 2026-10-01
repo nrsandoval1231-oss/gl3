@@ -103,6 +103,25 @@ def test_applicant_affiliation_is_not_direct_project_organization_or_employment(
     assert "business/personal type are UNKNOWN" in organization.reason
 
 
+def test_dallas_lp_business_and_contact_person_remain_separate_unknown_roles():
+    from gridlens.ingestion.adapters.buying_chain_public import PublicDocument
+    from gridlens.intelligence.buying_chain_extraction import extract_retained_permit_organizations
+
+    text = (
+        "lp_business_name: Example LP LLC\ncontact_type: Applicant\n"
+        "applicant_full_name: Jane Doe\nrow: COM-NEW-26-000157"
+    )
+    doc = PublicDocument("https://dallascityhall.com/official.xlsx", "Dallas permit", text)
+    rows = extract_retained_permit_organizations(doc, "dallas-monthly-permits")
+    assert len(rows) == 1
+    organization = rows[0]
+    assert organization.organization == "Example LP LLC"
+    assert organization.organization_relationship == "UNKNOWN"
+    assert organization.person_name is None
+    assert "separately listed Applicant person" in organization.reason
+    assert organization.citations[0]["quote"] in text
+
+
 def test_applicant_formatting_variant_cannot_retract_direct_contractor():
     from gridlens.ingestion.adapters.buying_chain_public import PublicDocument
     from gridlens.intelligence.buying_chain_extraction import extract_retained_permit_organizations

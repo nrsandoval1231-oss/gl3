@@ -1173,6 +1173,106 @@ def test_same_version_reclassification_deactivates_unsupported_need_idempotently
         assert session.scalar(select(PowerNeed.active)) is None
 
 
+def test_houston_sold_event_correction_clears_legacy_publication_date(db, monkeypatch):
+    """Correct the existing row projection while retaining its old evidence version."""
+    _, factory, _ = db
+    definition = next(row for row in load_registry() if row["id"] == "houston-weekly-permits")
+    with factory.begin() as session:
+        session.add(
+            Source(
+                id=definition["id"],
+                publisher=definition["publisher"],
+                endpoint=definition["endpoint"],
+                family=definition["family"],
+                geography=definition["geography"],
+                industries=definition["industries"],
+                retrieval_method=definition["retrieval_method"],
+                cadence_hours=24,
+                health={},
+            )
+        )
+        session.flush()
+        job = Job(
+            source_id=definition["id"],
+            status="running",
+            lease_owner="test",
+            fence=1,
+            lease_until=datetime.now(UTC) + timedelta(minutes=10),
+        )
+        session.add(job)
+        session.flush()
+        job_id = job.id
+
+    row = {
+        "document_number": "26051624:Building Pmt:2026-09-02",
+        "title": "Houston sold permit 26051624 — Building Pmt",
+        "abstract": (
+            "row: 26051624\nevent: Sold\ndate: 2026-09-02\nstatus: Unknown\n"
+            "type: Building Pmt\naddress: 8930 GULF FWY A\n"
+            "description: 2,765 SQ. FT. CONVERT TO LABORATORY"
+        ),
+        "publication_date": "2026-09-02",
+        "event_date": "2026-09-02",
+        "event_date_label": "Permit date",
+        "html_url": "https://www.houstonpermittingcenter.org/weekly.xlsx",
+        "extraction_location": "Old workbook parser",
+        "permit": {
+            "source_type": "houston-weekly-permits",
+            "city": "Houston",
+            "state": "TX",
+            "address": "8930 GULF FWY A",
+            "description": "2,765 SQ. FT. CONVERT TO LABORATORY",
+            "type": "Building Pmt",
+            "status": "Unknown",
+            "issuance_event": "issued",
+            "project": "26051624",
+            "row_id": "26051624:Building Pmt:2026-09-02",
+        },
+    }
+    import gridlens.ingestion.service as service
+
+    current = [row]
+    monkeypatch.setattr(service, "retrieve_source", lambda *_args: current)
+
+    def ingest():
+        with factory() as session:
+            return service.process_job(session, job_id, "test", 1, definition)
+
+    ingest()
+    corrected = {
+        **row,
+        "publication_date": None,
+        "event_date_label": "Permit sale date (weekly Sold Permits report)",
+        "abstract": row["abstract"].replace(
+            "event: Sold", "event: Sold (weekly report; issued permit event)"
+        ),
+        "permit": {**row["permit"], "issuance_event": "sold"},
+        "extraction_location": "Official weekly report 2026-09-01 through 2026-09-08; sheet1 row 6",
+    }
+    current[0] = corrected
+    assert ingest()["changed"] == 1
+    assert ingest()["unchanged"] == 1
+    with factory() as session:
+        observation = session.scalar(select(Observation))
+        assert observation is not None
+        assert observation.published_at is None
+        assert session.scalar(select(func.count()).select_from(Observation)) == 1
+        evidence = list(session.scalars(select(Evidence)))
+        assert len(evidence) == 2
+        old = next(
+            item for item in evidence if item.extraction_location == "Old workbook parser"
+        )
+        current = next(
+            item for item in evidence if item.extraction_location.startswith("Official weekly")
+        )
+        assert old.published_at.isoformat() == "2026-09-02"
+        assert old.event_date_label == "Permit date"
+        assert old.event_date.isoformat() == "2026-09-02"
+        assert current.published_at is None
+        assert current.event_date_label == "Permit sale date (weekly Sold Permits report)"
+        assert current.event_date.isoformat() == "2026-09-02"
+
+
 def test_same_version_context_reinterpretation_preserves_source_display_fields(db):
     _, factory, job_id = db
 

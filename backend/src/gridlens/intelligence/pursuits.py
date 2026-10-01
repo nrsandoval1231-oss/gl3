@@ -40,8 +40,11 @@ from gridlens.persistence.models import (
     PursuitCallNote,
     PursuitDocument,
     PursuitResearchRun,
+    Source,
 )
 from gridlens.settings import settings
+
+CITY_PERMIT_SOURCES = SOURCES[2:]
 
 
 def digest(value: object) -> str:
@@ -196,7 +199,14 @@ def select_batch(session: Session, groups: list[dict], *, force: bool = False) -
                 del by_operator[key]
             if len(diversified) >= 4:
                 break
-    return (austin + diversified)[:MAX_BATCH]
+    city_permits = [
+        group
+        for source_id in CITY_PERMIT_SOURCES
+        for group in sorted(
+            (g for g in eligible if g["source_id"] == source_id), key=ordering
+        )[:4]
+    ]
+    return (austin + city_permits + diversified)[:MAX_BATCH]
 
 
 def _source(doc: PublicDocument, reason: str, source_date: str) -> dict:
@@ -650,6 +660,8 @@ def process_research_job(job_id: UUID, worker_id: str, fence: int) -> None:
     rrc_cache: list[dict] | None = None
     rrc_error: str | None = None
     rrc_archives: dict[str, list[dict] | None] = {}
+    city_records: dict[str, dict[str, dict]] = {}
+    city_errors: dict[str, str] = {}
     for group in selected:
         if time.monotonic() >= deadline:
             raise TimeoutError("Pursuit batch deadline exhausted")
@@ -774,6 +786,67 @@ def process_research_job(job_id: UUID, worker_id: str, fence: int) -> None:
                     )
                 except Exception as exc:
                     failure("State project-registration research", exc)
+            elif group["source_id"] in CITY_PERMIT_SOURCES:
+                source_id = group["source_id"]
+                try:
+                    if source_id not in city_records and source_id not in city_errors:
+                        debit()
+                        source = session.get(Source, source_id)
+                        if source is None:
+                            raise LookupError("Registered city permit source is unavailable")
+                        from gridlens.ingestion.adapters import retrieve_source
+
+                        rows = retrieve_source(
+                            {
+                                "id": source.id,
+                                "endpoint": source.endpoint,
+                                "retrieval_method": source.retrieval_method,
+                            }
+                        )
+                        city_records[source_id] = {
+                            item["document_number"]: item for item in rows
+                        }
+                    if source_id in city_errors:
+                        raise RuntimeError(city_errors[source_id])
+                    current = city_records[source_id]
+                    for record in group["records"]:
+                        fresh = current.get(record["external_id"])
+                        if fresh is None:
+                            errors.append(
+                                "Exact permit row is absent from the current bounded city source; "
+                                "prior evidence retains its original date."
+                            )
+                            continue
+                        parsed = {
+                            key: value[0]
+                            for key, value in fields(source_id, fresh["abstract"]).items()
+                        }
+                        if normalized(parsed.get("address", "")) != normalized(group["site"]):
+                            raise ValueError("Fresh city permit site identity changed")
+                        observed = datetime.now(UTC)
+                        doc = PublicDocument(
+                            fresh["html_url"],
+                            fresh["title"],
+                            f"{fresh['title']}\n{fresh.get('abstract') or ''}",
+                            None,
+                            observed,
+                            fresh.get("extraction_location", "official city permit row"),
+                        )
+                        docs.append(doc)
+                        fresh_facts.append(parsed)
+                        fresh_records.append(
+                            {
+                                **record,
+                                "text": doc.text,
+                                "url": doc.url,
+                                "observed_at": observed.isoformat(),
+                                "hash": fresh.get("source_hash") or digest(doc.text),
+                                "published_at": None,
+                            }
+                        )
+                except Exception as exc:
+                    city_errors.setdefault(source_id, type(exc).__name__)
+                    failure("Exact current city permit retrieval", exc)
             else:
                 if rrc_cache is None and rrc_error is None:
                     try:

@@ -288,6 +288,9 @@ const sources = [
   { id: 'georgia-air-draft-title-v', name: 'Georgia EPD Draft Title V Permits' },
   { id: 'federal-register-eis', name: 'Federal Register' },
   { id: 'nc-commerce', name: 'North Carolina Department of Commerce' },
+  { id: 'dallas-monthly-permits', name: 'Dallas Monthly Building Permits' },
+  { id: 'el-paso-new-commercial-permits', name: 'El Paso New Commercial Permits' },
+  { id: 'houston-weekly-permits', name: 'Houston Weekly Sold Permits' },
   ...newsSources,
 ]
 const verticals = ['data centers', 'utilities', 'manufacturing', 'construction', 'healthcare', 'commercial facilities', 'oil and gas', 'cannabis', 'mining', 'energy', 'infrastructure']

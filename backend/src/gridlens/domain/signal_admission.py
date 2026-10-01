@@ -11,6 +11,8 @@ _PERMIT_METHODS = {
     "socrata-permits",
     "georgia-air-permits",
     "houston-weekly-permits",
+    "dallas-monthly-permits",
+    "el-paso-new-commercial-permits",
     "rrc-drilling-permits",
 }
 _UTILITY_FAMILIES = {"official-utility-filings"}

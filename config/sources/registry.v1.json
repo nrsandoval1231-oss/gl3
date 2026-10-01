@@ -26,6 +26,58 @@
   }
 },
 {
+  "id": "dallas-monthly-permits",
+  "publisher": "City of Dallas Sustainable Development",
+  "endpoint": "https://dallascityhall.com/departments/sustainabledevelopment/Pages/Reports.aspx",
+  "family": "construction-permits",
+  "geography": "Dallas, Texas",
+  "city": "Dallas",
+  "state": "TX",
+  "industries": [
+    "construction",
+    "data centers",
+    "commercial facilities"
+  ],
+  "retrieval_method": "dallas-monthly-permits",
+  "cadence_hours": 24,
+  "publication_cadence": "Monthly linked XLSX; publication lag possible",
+  "credential_reference": null,
+  "enabled": true,
+  "retention": "Commercial new-construction permit rows, stable Record ID, source month and source-version citation",
+  "query": {
+    "max_reports": 4
+  },
+  "collection_scope": "Up to four newest linked Com-ResNew monthly XLSX reports; only Commercial New Construction Permit rows. Repeated Record IDs retain the newest report snapshot while prior evidence versions remain stored.",
+  "coverage_limitation": "As retrieved 2026-10-01, linked June-August 2026 workbooks contain 95 commercial rows / 89 unique Record IDs after six repeated IDs; issue dates span 2026-06-01 through 2026-08-28. Five use descriptions indicate residential occupancy despite the source Record Type being Commercial and are rejected by admission. Monthly publication lag leaves recent coverage incomplete. Does not cover all permits, alterations, or electrical permits, or prove current work, temporary-power need, load, rental demand, or authority."
+},
+{
+  "id": "el-paso-new-commercial-permits",
+  "publisher": "City of El Paso Planning and Inspections GIS",
+  "endpoint": "https://gis.elpasotexas.gov/arcgis/rest/services/Planning/NewCommercial/FeatureServer/0",
+  "family": "construction-permits",
+  "geography": "El Paso, Texas",
+  "city": "El Paso",
+  "state": "TX",
+  "industries": [
+    "construction",
+    "data centers",
+    "commercial facilities"
+  ],
+  "retrieval_method": "el-paso-new-commercial-permits",
+  "cadence_hours": 24,
+  "publication_cadence": "ArcGIS queried daily; newest observed ISSUEDATE 2026-09-29 (2 days old on 2026-10-01)",
+  "credential_reference": null,
+  "enabled": true,
+  "retention": "NewCommercial feature fields with stable B1_ALT_ID permit ID; OBJECTID retained as raw republishable GIS-row provenance",
+  "query": {
+    "window_days": 90,
+    "max_records": 20000,
+    "page_size": 1000
+  },
+  "collection_scope": "NewCommercial FeatureServer/0 records issued in the previous 90 days; full layer count and exact window count reconciled across deterministic OBJECTID paging. Duplicate B1_ALT_ID rows collapse only when all semantic permit facts match.",
+  "coverage_limitation": "As retrieved 2026-10-01 15:44Z, layer count 11,391; 90-day issue query returned 68 features / 67 unique permit IDs, dates 2026-08-04 through 2026-09-29; all 68 raw B1_APPL_ST values were blank. NewCommercial only, not citywide electrical coverage or all alterations. B1_APPL_ST is retained verbatim; one-character Status is geocoding status, not lifecycle. 60-day freshness bound. An issue event does not prove current work, rental need, load, fuel fit, or authority."
+},
+{
   "id": "houston-weekly-permits",
   "publisher": "City of Houston Permitting Center",
   "endpoint": "https://www.houstonpermittingcenter.org/sold-permits-search",
@@ -48,8 +100,8 @@
   "query": {
     "max_reports": 4
   },
-  "collection_scope": "Four most recent weekly XLSX reports linked on official Sold Permits Search page; all rows in those workbooks. Permit date is an event, not report publication time.",
-  "coverage_limitation": "Not complete sold-permit history or electrical/commissioning coverage. No contractor/person/contact fields in these reports. Latest linked report on 2026-09-30 ends 2026-09-14 (16-day lag); latest listing over 30 days old fails visibly. Earlier revisions outside four reports are not monitored."
+  "collection_scope": "Four most recent weekly XLSX reports linked on official Sold Permits Search page; all rows in those workbooks. Permit Date represents a Sold (approved) event, not current lifecycle or report publication time. Exact public detail enrichment is limited to exact-project Building Pmt results (PT=13).",
+  "coverage_limitation": "As retrieved 2026-10-01, four reports contain 1,543 rows (1,422 Building Pmt, 112 Demolition, 9 OCC-BLDG PMT). Latest link Sept 7-13 is 317 rows, workbook header reads From 2026/09/07 and To 2026/09/14, observed Permit Dates are 2026-09-08..13, and core metadata created/modified is 2026-09-14T16:43:22Z. The weekly range convention treats the To date as exclusive, though the workbook does not label it exclusive. On Oct 1 the latest sale date was 18 calendar days old and the report period end 17 days old. These internal dates do not verify publication time; source publication timestamp and lag are UNKNOWN. Weekly sheets have no party fields. Exact search detail returns role-specific Buyer, combined Owner/Occupant, buyer address and phone; person/company kind, phone ownership, current work and authority remain UNKNOWN. Not complete sold-permit history, electrical or commissioning coverage. Reports older than 30 days fail visibly; earlier revisions outside four reports are not monitored."
 },
     {
       "id": "austin-building-permits", "publisher": "City of Austin Open Data",
