@@ -2,13 +2,15 @@ import { type FormEvent, useEffect, useRef, useState } from 'react'
 import { client, type IngestionItem, type Opportunity } from '../api/client'
 import { matchesOpportunity, projectCards, projectTitle, signalDecisionCards, signalDisplayDecision, type SignalDisplayDecision } from '../features/opportunities/projectCards'
 
+import { Pursuits } from '../features/pursuits/Pursuits'
+
 import { BuyingChain } from '../features/buyingChain/BuyingChain'
 
 const tiers = ['Signals', 'Prospects', 'Leads'] as const
 type Tier = typeof tiers[number]
 type Health = Awaited<ReturnType<typeof client.health>>
 type Change = Awaited<ReturnType<typeof client.changes>>[number]
-type View = 'opportunities' | 'ingestion' | 'watch'
+type View = 'opportunities' | 'ingestion' | 'watch' | 'pursuits'
 const pageSize = 25
 
 function tierValue(tier: Tier) { return tier.slice(0, -1) }
@@ -74,7 +76,7 @@ export function App() {
     if (tiers.includes(initialTier as Tier)) setTier(initialTier as Tier)
     setSearch(params.get('q') ?? '')
     const initialView = params.get('view')
-    if (initialView === 'ingestion' || initialView === 'watch') setView(initialView)
+    if (initialView === 'ingestion' || initialView === 'watch' || initialView === 'pursuits') setView(initialView)
     setSourceFilter(initialView === 'watch' ? '' : params.get('source') ?? '')
     setVerticalFilter(initialView === 'watch' ? 'cannabis' : params.get('vertical') ?? '')
     setOffset(initialView === 'watch' ? 0 : parseOffset(params.get('offset')))
@@ -95,6 +97,11 @@ export function App() {
           setChanges(digest)
           setHealth(sourceHealth)
           if (selected) setSelected(opportunities.find((item) => item.id === selected.id) ?? null)
+        } else if (view === 'pursuits') {
+          const sourceHealth = await client.health()
+          if (requestId !== requestSequence.current) return
+          setHealth(sourceHealth)
+          setSelected(null)
         } else {
           const [page, sourceHealth] = await Promise.all([
             client.ingestion(sourceFilter, verticalFilter, view === 'watch', pageSize, offset),
@@ -115,7 +122,7 @@ export function App() {
     })()
     const url = view === 'opportunities'
       ? routeUrl(tier, search, selected ? `#${encodeURIComponent(selected.id)}` : '')
-      : ingestionUrl(view, sourceFilter, verticalFilter, offset)
+      : view === 'pursuits' ? `${location.pathname}?view=pursuits` : ingestionUrl(view, sourceFilter, verticalFilter, offset)
     history.replaceState(
       { ...(history.state ?? {}), tier, search, view, sourceFilter, verticalFilter, offset, scrollY: window.scrollY },
       '',
@@ -129,7 +136,8 @@ export function App() {
       const params = new URLSearchParams(location.search)
       if (state?.tier && tiers.includes(state.tier)) setTier(state.tier)
       else setTier('Signals')
-      setView(state?.view === 'ingestion' || state?.view === 'watch' ? state.view : 'opportunities')
+      const restoredView = state?.view ?? params.get('view')
+      setView(restoredView === 'ingestion' || restoredView === 'watch' || restoredView === 'pursuits' ? restoredView : 'opportunities')
       setSearch(state?.search ?? '')
       setSourceFilter(state?.sourceFilter ?? params.get('source') ?? '')
       setVerticalFilter(state?.verticalFilter ?? params.get('vertical') ?? '')
@@ -187,7 +195,7 @@ export function App() {
     }
     setSelected(null)
     setOffset(0)
-    history.pushState({ tier, search, view: value, sourceFilter: value === 'watch' ? '' : sourceFilter, verticalFilter: value === 'watch' ? 'cannabis' : verticalFilter, offset: 0, scrollY: 0 }, '', value === 'opportunities' ? routeUrl(tier, search) : ingestionUrl(value, value === 'watch' ? '' : sourceFilter, value === 'watch' ? 'cannabis' : verticalFilter, 0))
+    history.pushState({ tier, search, view: value, sourceFilter: value === 'watch' ? '' : sourceFilter, verticalFilter: value === 'watch' ? 'cannabis' : verticalFilter, offset: 0, scrollY: 0 }, '', value === 'opportunities' ? routeUrl(tier, search) : value === 'pursuits' ? `${location.pathname}?view=pursuits` : ingestionUrl(value, value === 'watch' ? '' : sourceFilter, value === 'watch' ? 'cannabis' : verticalFilter, 0))
     window.scrollTo(0, 0)
   }
 
@@ -234,18 +242,18 @@ export function App() {
   const selectedGroup = selected && cards.find((card) => card.grouped && card.members.some((item) => item.id === selected.id))
   const selectedSharesProjectId = Boolean(selectedGroup && selected?.project_id && selectedGroup.members.every((member) => member.project_id === selected.project_id))
   return <div className="shell">
-    <header className="topbar"><a className="brand" href={routeUrl('Signals', '')} aria-label="GridLens home" onClick={(event) => { event.preventDefault(); chooseTier('Signals') }}><img src="/brand/lockup-horizontal-navy.svg" alt="GridLens"/></a><nav aria-label="Workspace views">{tiers.map((name) => <button key={name} className={view === 'opportunities' && tier === name ? 'nav-active' : ''} aria-current={view === 'opportunities' && tier === name ? 'page' : undefined} onClick={() => chooseTier(name)}>{name}</button>)}<button className={view === 'ingestion' ? 'nav-active' : ''} aria-current={view === 'ingestion' ? 'page' : undefined} onClick={() => chooseView('ingestion')}>Ingestion</button><button className={view === 'watch' ? 'nav-active' : ''} aria-current={view === 'watch' ? 'page' : undefined} onClick={() => chooseView('watch')}>Cannabis watch</button></nav><div className="header-actions"><button className="health-toggle" onClick={() => setShowHealth((value) => !value)} aria-expanded={showHealth}>Source health</button><button className="signout" onClick={() => void signOut()}>Sign out</button></div></header>
+    <header className="topbar"><a className="brand" href={routeUrl('Signals', '')} aria-label="GridLens home" onClick={(event) => { event.preventDefault(); chooseTier('Signals') }}><img src="/brand/lockup-horizontal-navy.svg" alt="GridLens"/></a><nav aria-label="Workspace views">{tiers.map((name) => <button key={name} className={view === 'opportunities' && tier === name ? 'nav-active' : ''} aria-current={view === 'opportunities' && tier === name ? 'page' : undefined} onClick={() => chooseTier(name)}>{name}</button>)}<button className={view === 'pursuits' ? 'nav-active' : ''} aria-current={view === 'pursuits' ? 'page' : undefined} onClick={() => chooseView('pursuits')}>Today’s pursuits</button><button className={view === 'ingestion' ? 'nav-active' : ''} aria-current={view === 'ingestion' ? 'page' : undefined} onClick={() => chooseView('ingestion')}>Ingestion</button><button className={view === 'watch' ? 'nav-active' : ''} aria-current={view === 'watch' ? 'page' : undefined} onClick={() => chooseView('watch')}>Cannabis watch</button></nav><div className="header-actions"><button className="health-toggle" onClick={() => setShowHealth((value) => !value)} aria-expanded={showHealth}>Source health</button><button className="signout" onClick={() => void signOut()}>Sign out</button></div></header>
     <main className="workspace">
       {!selected && view === 'opportunities' && <div className="overview-grid"><section className="hero"><div><p className="eyebrow">Evidence-led project discovery</p><h1>{tier}</h1><p>{tier === 'Signals' ? 'SHOW means this project or event is worth investigating. It does not mean a qualified opportunity.' : 'Projects with sourced events that may warrant a power discovery conversation.'}</p></div></section><section className="today"><div><p className="eyebrow">Today</p><strong>{changes.length} material {changes.length === 1 ? 'change' : 'changes'}</strong></div>{changes.slice(0, 3).map((change, index) => <a href={change.url} key={`${change.kind}-${index}`} target="_blank" rel="noreferrer"><span>{change.kind}</span>{change.title}</a>)}{changes.length === 0 && <span className="today-empty">No material opportunity changes today.</span>}</section></div>}
-      {!selected && view !== 'opportunities' && <section className="hero"><div><p className="eyebrow">Retained evidence · Publisher and government sources</p><h1>{view === 'watch' ? 'Cannabis business news watch' : 'Ingestion inbox'}</h1><p>{view === 'watch' ? 'MJBizDaily topic matches need human review. A mention does not establish a facility announcement, project, power need, or qualified opportunity.' : 'Permits are primary project discovery; news is supplemental. Source evidence and qualification stay visible. City permit coverage is regional and limited to a rolling issue-date window.'}</p></div></section>}
+      {!selected && (view === 'ingestion' || view === 'watch') && <section className="hero"><div><p className="eyebrow">Retained evidence · Publisher and government sources</p><h1>{view === 'watch' ? 'Cannabis business news watch' : 'Ingestion inbox'}</h1><p>{view === 'watch' ? 'MJBizDaily topic matches need human review. A mention does not establish a facility announcement, project, power need, or qualified opportunity.' : 'Permits are primary project discovery; news is supplemental. Source evidence and qualification stay visible. City permit coverage is regional and limited to a rolling issue-date window.'}</p></div></section>}
       {selected && <section className="hero detail-hero"><div><p className="eyebrow">{selected.tier} · {selected.activity.replaceAll('-', ' ')}{selected.tier === 'Signal' ? ` · ${selected.signal_display_decision ?? 'REVIEW'}` : ''}</p><h1>{projectTitle(selected)}</h1>{selected.signal_evidence_state === 'planning_application_withdrawn' && <p role="status" className="integrity"><strong>Planning application withdrawn · historical Signal.</strong> Current project viability is unknown.</p>}{selected.signal_evidence_state === 'planning_status_unknown' && <p role="status" className="integrity"><strong>Conflicting planning revision · historical Signal.</strong> Current application and project status are unknown.</p>}<p>{selected.rationale}</p>{selectedGroup && <p className="group-context">{selectedSharesProjectId ? `Part of a physical project group with ${selectedGroup.members.length} retained records. Each record and its evidence remain available.` : `Part of an exact-event permit group with ${selectedGroup.members.length} records. Each record and its evidence remain separate.`}</p>}</div><button className="back-button" onClick={returnToBrowse}>← Back to {tier}</button></section>}
       {showHealth && <HealthPanel health={health} />}
       {view === 'opportunities' && <div className="list-toolbar"><div><h2>{selected ? 'Opportunity brief' : `${tier} · ${visibleCards.length} project cards · ${items.length} opportunity records`}</h2>{!selected && <p>{tier === 'Signals' && search ? `${visibleCards.length} matching ${signalFilter} project cards · ${matchingRecordCount} matching Signal records across all decisions · ${items.length} total Signal records.` : tier === 'Signals' ? `${signalFilter} · ${visibleCards.length} project cards · ${items.length} retained Signal records. SHOW means worth investigating, not qualified.` : search ? `${visibleCards.length} matching project cards · ${matchingRecordCount} matching records · ${items.length} underlying records.` : 'Browse the evidence and open a project for its source details.'}</p>}</div><label className="search"><span className="sr-only">Search projects</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search projects, work, or permit ID"/></label></div>}
       {view === 'opportunities' && tier === 'Signals' && !selected && <div className="signal-filters" role="group" aria-label="Filter Signals by review decision">{(['SHOW', 'REVIEW', 'HOLD'] as const).map((decision) => <button key={decision} className={signalFilter === decision ? 'signal-filter-active' : ''} aria-pressed={signalFilter === decision} onClick={() => { setSignalFilter(decision); setSelected(null) }}>{decision} <span>{signalCounts[decision]}</span></button>)}</div>}
-      {view !== 'opportunities' && <div className="ingestion-tools"><label>Source<select aria-label="Filter by source" value={sourceFilter} onChange={(event) => { setSourceFilter(event.target.value); setOffset(0) }}><option value="">All sources</option>{sources.filter((source) => view !== 'watch' || source.id === 'mjbizdaily-news').map((source) => <option value={source.id} key={source.id}>{source.name}</option>)}</select></label><label>Vertical<select aria-label="Filter by vertical" value={verticalFilter} onChange={(event) => chooseVertical(event.target.value)}><option value="">All verticals</option>{verticals.map((item) => <option key={item}>{item}</option>)}</select></label><span>{ingestionTotal} retained {ingestionTotal === 1 ? 'item' : 'items'} · page {Math.floor(offset / pageSize) + 1}</span></div>}
+      {(view === 'ingestion' || view === 'watch') && <div className="ingestion-tools"><label>Source<select aria-label="Filter by source" value={sourceFilter} onChange={(event) => { setSourceFilter(event.target.value); setOffset(0) }}><option value="">All sources</option>{sources.filter((source) => view !== 'watch' || source.id === 'mjbizdaily-news').map((source) => <option value={source.id} key={source.id}>{source.name}</option>)}</select></label><label>Vertical<select aria-label="Filter by vertical" value={verticalFilter} onChange={(event) => chooseVertical(event.target.value)}><option value="">All verticals</option>{verticals.map((item) => <option key={item}>{item}</option>)}</select></label><span>{ingestionTotal} retained {ingestionTotal === 1 ? 'item' : 'items'} · page {Math.floor(offset / pageSize) + 1}</span></div>}
       {error && <p role="alert" className="error-banner">{error}</p>}
       {loading && <p className="loading-inline" role="status">Updating this view…</p>}
-      {selected ? <><OpportunityDetail item={selected}/><div className="detail-navigation"><button disabled={selectedIndex <= 0} onClick={() => moveTo(items[selectedIndex - 1])}>← Previous</button><button disabled={selectedIndex < 0 || selectedIndex >= items.length - 1} onClick={() => moveTo(items[selectedIndex + 1])}>Next →</button></div></> : view === 'opportunities' ? visibleCards.length ? <div className="opportunity-list">{visibleCards.map((card) => {
+      {view === 'pursuits' ? <Pursuits/> : selected ? <><OpportunityDetail item={selected}/><div className="detail-navigation"><button disabled={selectedIndex <= 0} onClick={() => moveTo(items[selectedIndex - 1])}>← Previous</button><button disabled={selectedIndex < 0 || selectedIndex >= items.length - 1} onClick={() => moveTo(items[selectedIndex + 1])}>Next →</button></div></> : view === 'opportunities' ? visibleCards.length ? <div className="opportunity-list">{visibleCards.map((card) => {
         const matchingMembers = card.members.filter((item) => matchesOpportunity(item, search))
         const members = card.members
         const decision = signalDisplayDecision(card.members)

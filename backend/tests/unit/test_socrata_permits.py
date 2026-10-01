@@ -337,3 +337,30 @@ def test_austin_backfill_keeps_old_dc_electrical_fields_and_excludes_unrelated_o
     definition["query"]["data_center_backfill"]["start"] = "2020-01-01"
     with pytest.raises(SourceParseError, match="one year"):
         retrieve(definition, client)
+
+
+def test_explicit_power_backfill_discovers_outside_rolling_window_without_case_seeding():
+    definition = source("austin-building-permits")
+    # Deliberately synthetic, older than the 30-day and 7-day windows but inside
+    # the same bounded 2026 acquisition query. No address/case enters discovery.
+    row = {
+        "permit_number": "2026-100001 EP",
+        "issue_date": "2026-02-01",
+        "statusdate": "2026-02-01",
+        "description": "800A construction power temporary service",
+        "permit_type_desc": "Electrical Permit",
+        "permit_class_mapped": "Commercial",
+        "status_current": "Active",
+        "original_address1": "100 ORION LN",
+    }
+    queries = []
+
+    def handler(request):
+        params = dict(request.url.params)
+        queries.append(params["$where"])
+        return httpx.Response(200, json=[{"row_count": "1"}] if "$select" in params else [row])
+
+    result = retrieve(definition, httpx.Client(transport=httpx.MockTransport(handler)))
+    assert result[0]["document_number"] == row["permit_number"]
+    assert all("%construction power%" in q and "%temporary service%" in q for q in queries)
+    assert all("ORION" not in q and "100001" not in q for q in queries)

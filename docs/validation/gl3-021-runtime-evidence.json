@@ -1,0 +1,1691 @@
+{
+  "recorded_at": "2026-10-01T04:16:15.218167+00:00",
+  "main_checked": "197883bec841d59c067da59a90ccc7a7c9055e71",
+  "prerequisite_commit": "ce81948d07c33958b88ed36185d581697d341333",
+  "policy_version": "power-pursuits-v1",
+  "counts": {
+    "observations": 7430,
+    "evidence": 7469,
+    "projects": 1984,
+    "power_needs": 1984,
+    "pursuits": 32,
+    "pursuit_documents": 41,
+    "pursuit_research_runs": 98,
+    "pursuit_call_notes": 4
+  },
+  "active_tiers": {
+    "Signal": 1984
+  },
+  "enabled_sources": 15,
+  "list_total": 32,
+  "excluded_saved_count": 0,
+  "usage": {
+    "fetch_requests_today": 203,
+    "model_requests_today": 0,
+    "daily_fetch_limit": 240,
+    "daily_model_limit": 8,
+    "batch_candidates": 12,
+    "batch_fetch_limit": 48
+  },
+  "top_ten": [
+    {
+      "id": "36cb8c09-85ec-443a-8a44-a378bca1dabc",
+      "site": "5700 1/2 LEVANDER LOOP",
+      "organization": "T. Morales Company, LLC",
+      "action_status": "Call now",
+      "tier": "Signal",
+      "rank_key": [
+        4,
+        1,
+        1,
+        0
+      ],
+      "ranking_reasons": [
+        "Explicit construction/temporary-service or commissioning power scope; rental demand remains unverified.",
+        "Permit issued within 180 days; work start is not confirmed.",
+        "Sourced project-organization business routing contact is available.",
+        "NG/propane feasibility unknown; 310/500 kW equipment fit and scalable demand require qualification."
+      ],
+      "trigger": "Temporary service for (6) fans and construction power for TXDOT project # 14-0914-04-362R.",
+      "trigger_date": "Original permit issue date 2026-06-11",
+      "timing": [
+        "Original permit issue date 2026-06-11; permit approval does not establish construction or startup."
+      ],
+      "registration_context": [],
+      "unknowns": [
+        "Actual rental-generation requirement and whether utility temporary service already covers the scope",
+        "Activity-specific MW, voltage, phase, power factor and duty cycle",
+        "NG/propane availability, pressure, quality and permitted fuel route",
+        "Confirmed work/startup window and meaningful rental duration",
+        "Power-package purchasing authority and current project assignment",
+        "Jev unavailable: TYPESAFE_API_KEY is not configured; screening uses deterministic evidence rules",
+        "Corporate-source discovery is not configured in this app runtime; permit-listed names and routes do not verify current employment or buyer authority"
+      ],
+      "conflicts": [],
+      "last_researched_at": "2026-10-01 04:07:49.183917+00:00",
+      "last_attempt_at": "2026-10-01 04:07:44.254884+00:00",
+      "research_status": "succeeded",
+      "research_errors": [],
+      "people": [
+        {
+          "name": "Randy Eldridge",
+          "source_url": "https://data.austintexas.gov/resource/3syk-w9eu.json?%24where=permit_number%3D%272026-068264+EP%27&%24limit=1",
+          "organization": "T. Morales Company, LLC",
+          "corporate_role": "Unknown; permit-listed name only, current employment/title unverified",
+          "project_assignment": "Named on this permit; power-package assignment unverified",
+          "purchasing_authority": "Unknown"
+        }
+      ],
+      "contacts": [
+        {
+          "kind": "phone",
+          "label": "Permit-listed business routing contact; not a verified direct buyer number",
+          "value": "2547934344",
+          "source_url": "https://data.austintexas.gov/resource/3syk-w9eu.json?%24where=permit_number%3D%272026-068264+EP%27&%24limit=1",
+          "organization": "T. Morales Company, LLC"
+        },
+        {
+          "kind": "permit-listed phone",
+          "label": "Public business routing contact; purchasing authority unverified",
+          "value": "2547934344",
+          "source_url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13712388",
+          "organization": "T. Morales Company, LLC"
+        }
+      ],
+      "sources": [
+        {
+          "url": "https://data.austintexas.gov/resource/3syk-w9eu.json?%24where=permit_number%3D%272026-068264+EP%27&%24limit=1",
+          "title": "Austin building permit 2026-068264 EP \u2014 Electrical Permit",
+          "retrieved_at": "2026-10-01T04:07:44.923604+00:00",
+          "published_at": null,
+          "source_date": "Original permit issue date 2026-06-11",
+          "match_reason": "Accepted source evidence linked to this physical work scope.",
+          "content_hash": "02ab0c97d2e0b1b736fb873ea635fb00cfcab4edb53b3651b4434064edc0dec5"
+        }
+      ],
+      "saved_note_count": 0
+    },
+    {
+      "id": "3ac2eb74-ff32-4094-8949-089e767596eb",
+      "site": "7335 1/2 BLUFF SPRINGS RD",
+      "organization": "IES Residential, Inc.",
+      "action_status": "Call now",
+      "tier": "Signal",
+      "rank_key": [
+        4,
+        1,
+        1,
+        0
+      ],
+      "ranking_reasons": [
+        "Explicit construction/temporary-service or commissioning power scope; rental demand remains unverified.",
+        "Permit issued within 180 days; work start is not confirmed.",
+        "Sourced project-organization business routing contact is available.",
+        "NG/propane feasibility unknown; 310/500 kW equipment fit and scalable demand require qualification."
+      ],
+      "trigger": "7335 1/2 BLUFF SPRINGS RD UNIT 1\n200a Temporary Power\n22026 099844 BP",
+      "trigger_date": "Original permit issue date 2026-09-08",
+      "timing": [
+        "Original permit issue date 2026-09-08; permit approval does not establish construction or startup."
+      ],
+      "registration_context": [],
+      "unknowns": [
+        "Actual rental-generation requirement and whether utility temporary service already covers the scope",
+        "Activity-specific MW, voltage, phase, power factor and duty cycle",
+        "NG/propane availability, pressure, quality and permitted fuel route",
+        "Confirmed work/startup window and meaningful rental duration",
+        "Power-package purchasing authority and current project assignment",
+        "Jev unavailable: TYPESAFE_API_KEY is not configured; screening uses deterministic evidence rules",
+        "Corporate-source discovery is not configured in this app runtime; permit-listed names and routes do not verify current employment or buyer authority"
+      ],
+      "conflicts": [],
+      "last_researched_at": "2026-10-01 04:07:52.444402+00:00",
+      "last_attempt_at": "2026-10-01 04:07:49.199240+00:00",
+      "research_status": "succeeded",
+      "research_errors": [],
+      "people": [
+        {
+          "name": "William B. Crist Jr.",
+          "source_url": "https://data.austintexas.gov/resource/3syk-w9eu.json?%24where=permit_number%3D%272026-115420+EP%27&%24limit=1",
+          "organization": "IES Residential, Inc.",
+          "corporate_role": "Unknown; permit-listed name only, current employment/title unverified",
+          "project_assignment": "Named on this permit; power-package assignment unverified",
+          "purchasing_authority": "Unknown"
+        }
+      ],
+      "contacts": [
+        {
+          "kind": "phone",
+          "label": "Permit-listed business routing contact; not a verified direct buyer number",
+          "value": "5122520040",
+          "source_url": "https://data.austintexas.gov/resource/3syk-w9eu.json?%24where=permit_number%3D%272026-115420+EP%27&%24limit=1",
+          "organization": "IES Residential, Inc."
+        },
+        {
+          "kind": "permit-listed phone",
+          "label": "Public business routing contact; purchasing authority unverified",
+          "value": "5122520040",
+          "source_url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13766140",
+          "organization": "IES Residential, Inc."
+        }
+      ],
+      "sources": [
+        {
+          "url": "https://data.austintexas.gov/resource/3syk-w9eu.json?%24where=permit_number%3D%272026-115420+EP%27&%24limit=1",
+          "title": "Austin building permit 2026-115420 EP \u2014 Electrical Permit",
+          "retrieved_at": "2026-10-01T04:07:49.825280+00:00",
+          "published_at": null,
+          "source_date": "Original permit issue date 2026-09-08",
+          "match_reason": "Accepted source evidence linked to this physical work scope.",
+          "content_hash": "27d79782e478111edefb8322d623ecb5a7f90f90fc615b63ac285cc32dcf3872"
+        }
+      ],
+      "saved_note_count": 0
+    },
+    {
+      "id": "3e38ec82-1a66-4dec-a37c-9d78285bb4a3",
+      "site": "4800 1/2 E RIVERSIDE DR",
+      "organization": "Facility Solutions Group",
+      "action_status": "Call now",
+      "tier": "Signal",
+      "rank_key": [
+        4,
+        1,
+        1,
+        0
+      ],
+      "ranking_reasons": [
+        "Explicit construction/temporary-service or commissioning power scope; rental demand remains unverified.",
+        "Permit issued within 180 days; work start is not confirmed.",
+        "Sourced project-organization business routing contact is available.",
+        "NG/propane feasibility unknown; 310/500 kW equipment fit and scalable demand require qualification."
+      ],
+      "trigger": "Temporary construction power for jobsite\nref: 2025 047435 BP",
+      "trigger_date": "Original permit issue date 2026-07-16",
+      "timing": [
+        "Original permit issue date 2026-07-16; permit approval does not establish construction or startup."
+      ],
+      "registration_context": [],
+      "unknowns": [
+        "Actual rental-generation requirement and whether utility temporary service already covers the scope",
+        "Activity-specific MW, voltage, phase, power factor and duty cycle",
+        "NG/propane availability, pressure, quality and permitted fuel route",
+        "Confirmed work/startup window and meaningful rental duration",
+        "Power-package purchasing authority and current project assignment",
+        "Jev unavailable: TYPESAFE_API_KEY is not configured; screening uses deterministic evidence rules",
+        "Corporate-source discovery is not configured in this app runtime; permit-listed names and routes do not verify current employment or buyer authority"
+      ],
+      "conflicts": [],
+      "last_researched_at": "2026-10-01 04:05:00.497968+00:00",
+      "last_attempt_at": "2026-10-01 04:04:50.485708+00:00",
+      "research_status": "succeeded",
+      "research_errors": [],
+      "people": [
+        {
+          "name": "Mark Mitchell",
+          "source_url": "https://data.austintexas.gov/resource/3syk-w9eu.json?%24where=permit_number%3D%272026-089197+EP%27&%24limit=1",
+          "organization": "Facility Solutions Group",
+          "corporate_role": "Unknown; permit-listed name only, current employment/title unverified",
+          "project_assignment": "Named on this permit; power-package assignment unverified",
+          "purchasing_authority": "Unknown"
+        }
+      ],
+      "contacts": [
+        {
+          "kind": "phone",
+          "label": "Permit-listed business routing contact; not a verified direct buyer number",
+          "value": "5128370022",
+          "source_url": "https://data.austintexas.gov/resource/3syk-w9eu.json?%24where=permit_number%3D%272026-089197+EP%27&%24limit=1",
+          "organization": "Facility Solutions Group"
+        },
+        {
+          "kind": "permit-listed phone",
+          "label": "Public business routing contact; purchasing authority unverified",
+          "value": "5128370022",
+          "source_url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13735989",
+          "organization": "Facility Solutions Group"
+        }
+      ],
+      "sources": [
+        {
+          "url": "https://data.austintexas.gov/resource/3syk-w9eu.json?%24where=permit_number%3D%272026-089197+EP%27&%24limit=1",
+          "title": "Austin building permit 2026-089197 EP \u2014 Electrical Permit",
+          "retrieved_at": "2026-10-01T04:04:51.107940+00:00",
+          "published_at": null,
+          "source_date": "Original permit issue date 2026-07-16",
+          "match_reason": "Accepted source evidence linked to this physical work scope.",
+          "content_hash": "a218f3c14d938aeb8de9723599c8f7ea5e847daf3f6e92a183be906a0c7959f3"
+        }
+      ],
+      "saved_note_count": 0
+    },
+    {
+      "id": "44347658-69b9-4883-a7bf-a5e946c0c45e",
+      "site": "8178 1/2 N MOPAC EXPY SVRD SB",
+      "organization": "Brandt Electrical Services, Inc.",
+      "action_status": "Call now",
+      "tier": "Signal",
+      "rank_key": [
+        4,
+        1,
+        1,
+        0
+      ],
+      "ranking_reasons": [
+        "Explicit construction/temporary-service or commissioning power scope; rental demand remains unverified.",
+        "Permit issued within 180 days; work start is not confirmed.",
+        "Sourced project-organization business routing contact is available.",
+        "NG/propane feasibility unknown; 310/500 kW equipment fit and scalable demand require qualification."
+      ],
+      "trigger": "Installation of 600amp Construction Power/Temporary Service\n\n[T-POLE] for a crane",
+      "trigger_date": "Original permit issue date 2026-07-08",
+      "timing": [
+        "Original permit issue date 2026-07-08; permit approval does not establish construction or startup."
+      ],
+      "registration_context": [],
+      "unknowns": [
+        "Actual rental-generation requirement and whether utility temporary service already covers the scope",
+        "Activity-specific MW, voltage, phase, power factor and duty cycle",
+        "NG/propane availability, pressure, quality and permitted fuel route",
+        "Confirmed work/startup window and meaningful rental duration",
+        "Power-package purchasing authority and current project assignment",
+        "Jev unavailable: TYPESAFE_API_KEY is not configured; screening uses deterministic evidence rules",
+        "Corporate-source discovery is not configured in this app runtime; permit-listed names and routes do not verify current employment or buyer authority"
+      ],
+      "conflicts": [],
+      "last_researched_at": "2026-10-01 04:04:37.707569+00:00",
+      "last_attempt_at": "2026-10-01 04:04:29.211595+00:00",
+      "research_status": "succeeded",
+      "research_errors": [],
+      "people": [
+        {
+          "name": "Paul Brandt",
+          "source_url": "https://data.austintexas.gov/resource/3syk-w9eu.json?%24where=permit_number%3D%272026-047440+EP%27&%24limit=1",
+          "organization": "Brandt Electrical Services, Inc.",
+          "corporate_role": "Unknown; permit-listed name only, current employment/title unverified",
+          "project_assignment": "Named on this permit; power-package assignment unverified",
+          "purchasing_authority": "Unknown"
+        }
+      ],
+      "contacts": [
+        {
+          "kind": "phone",
+          "label": "Permit-listed business routing contact; not a verified direct buyer number",
+          "value": "2816933383",
+          "source_url": "https://data.austintexas.gov/resource/3syk-w9eu.json?%24where=permit_number%3D%272026-047440+EP%27&%24limit=1",
+          "organization": "Brandt Electrical Services, Inc."
+        },
+        {
+          "kind": "permit-listed phone",
+          "label": "Public business routing contact; purchasing authority unverified",
+          "value": "2816933383",
+          "source_url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13688660",
+          "organization": "Brandt Electrical Services, Inc."
+        }
+      ],
+      "sources": [
+        {
+          "url": "https://data.austintexas.gov/resource/3syk-w9eu.json?%24where=permit_number%3D%272026-047440+EP%27&%24limit=1",
+          "title": "Austin building permit 2026-047440 EP \u2014 Electrical Permit",
+          "retrieved_at": "2026-10-01T04:04:29.842362+00:00",
+          "published_at": null,
+          "source_date": "Original permit issue date 2026-07-08",
+          "match_reason": "Accepted source evidence linked to this physical work scope.",
+          "content_hash": "04a286f0a55d25a899e6a428c87f60838f6b5331a3f05e1a7ebe16790534fb15"
+        }
+      ],
+      "saved_note_count": 0
+    },
+    {
+      "id": "ba39d50c-d134-47eb-9aa6-14d306a64262",
+      "site": "2631 1/2 KRAMER LN",
+      "organization": "O.C. Electric",
+      "action_status": "Call now",
+      "tier": "Signal",
+      "rank_key": [
+        4,
+        1,
+        1,
+        0
+      ],
+      "ranking_reasons": [
+        "Explicit construction/temporary-service or commissioning power scope; rental demand remains unverified.",
+        "Permit issued within 180 days; work start is not confirmed.",
+        "Sourced project-organization business routing contact is available.",
+        "NG/propane feasibility unknown; 310/500 kW equipment fit and scalable demand require qualification."
+      ],
+      "trigger": "800A Temporary Service for construction power. Including 200A Site Power 250A Crane Power and 200A Buck Hoist Elevator power.",
+      "trigger_date": "Original permit issue date 2026-08-31",
+      "timing": [
+        "Original permit issue date 2026-08-31; permit approval does not establish construction or startup."
+      ],
+      "registration_context": [
+        "Address-matched, unlinked state registration TABS2023023019: planned start 9/29/2023; planned completion 9/1/2025. Registration scope/area: Two Levels Parking deck with 350 parking spaces.  374 Rental Units. Leasing office and Resident Amenities / 501,000 ft 2 SF. These planned dates are not assigned to city work or rental duration.",
+        "Address-matched, unlinked state registration EABPRJB8806420: planned start 4/1/2018; planned completion 7/30/2021. Registration scope/area: Hotel and Amenities / Unknown SF. These planned dates are not assigned to city work or rental duration."
+      ],
+      "unknowns": [
+        "Actual rental-generation requirement and whether utility temporary service already covers the scope",
+        "Activity-specific MW, voltage, phase, power factor and duty cycle",
+        "NG/propane availability, pressure, quality and permitted fuel route",
+        "Confirmed work/startup window and meaningful rental duration",
+        "Power-package purchasing authority and current project assignment",
+        "Jev unavailable: TYPESAFE_API_KEY is not configured; screening uses deterministic evidence rules",
+        "Corporate-source discovery is not configured in this app runtime; permit-listed names and routes do not verify current employment or buyer authority"
+      ],
+      "conflicts": [],
+      "last_researched_at": "2026-10-01 04:04:29.198887+00:00",
+      "last_attempt_at": "2026-10-01 04:04:18.885842+00:00",
+      "research_status": "succeeded",
+      "research_errors": [],
+      "people": [
+        {
+          "name": "Jessie Orlando Carrillo",
+          "source_url": "https://data.austintexas.gov/resource/3syk-w9eu.json?%24where=permit_number%3D%272026-109172+EP%27&%24limit=1",
+          "organization": "O.C. Electric",
+          "corporate_role": "Unknown; permit-listed name only, current employment/title unverified",
+          "project_assignment": "Named on this permit; power-package assignment unverified",
+          "purchasing_authority": "Unknown"
+        }
+      ],
+      "contacts": [
+        {
+          "kind": "phone",
+          "label": "Permit-listed business routing contact; not a verified direct buyer number",
+          "value": "5125633944",
+          "source_url": "https://data.austintexas.gov/resource/3syk-w9eu.json?%24where=permit_number%3D%272026-109172+EP%27&%24limit=1",
+          "organization": "O.C. Electric"
+        },
+        {
+          "kind": "permit-listed phone",
+          "label": "Public business routing contact; purchasing authority unverified",
+          "value": "5125633944",
+          "source_url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13759135",
+          "organization": "O.C. Electric"
+        }
+      ],
+      "sources": [
+        {
+          "url": "https://data.austintexas.gov/resource/3syk-w9eu.json?%24where=permit_number%3D%272026-109172+EP%27&%24limit=1",
+          "title": "Austin building permit 2026-109172 EP \u2014 Electrical Permit",
+          "retrieved_at": "2026-10-01T04:04:19.445550+00:00",
+          "published_at": null,
+          "source_date": "Original permit issue date 2026-08-31",
+          "match_reason": "Accepted source evidence linked to this physical work scope.",
+          "content_hash": "37cf0206fabf1ddd12d768e18d3b3c96afeb5f9d912b7a50480dd107ce3be5bc"
+        },
+        {
+          "url": "https://www.tdlr.texas.gov/TABS/Search/Print/TABS2023023019",
+          "title": "Project Details",
+          "retrieved_at": "2026-10-01T04:04:28.370337+00:00",
+          "published_at": null,
+          "source_date": "State registration; source publication date unknown",
+          "match_reason": "Matching street address; registration scope/phase remains separate context, not a merged permit.",
+          "content_hash": "0d7e22716de871b62ecdecb3d9eba7a3421dfbb656185ad107f266d3c5287320"
+        },
+        {
+          "url": "https://www.tdlr.texas.gov/TABS/Search/Print/EABPRJB8806420",
+          "title": "Project Details",
+          "retrieved_at": "2026-10-01T04:04:29.127374+00:00",
+          "published_at": null,
+          "source_date": "State registration; source publication date unknown",
+          "match_reason": "Matching street address; registration scope/phase remains separate context, not a merged permit.",
+          "content_hash": "d38db73c2eabb7cc836a4de010954e8f2fcb7ec1a82fe8f5b9dbe60b72f631b0"
+        }
+      ],
+      "saved_note_count": 4
+    },
+    {
+      "id": "c68bfcda-f792-4d6e-b296-68d19505f2ce",
+      "site": "9313 1/2 CAMERON RD",
+      "organization": "T & T ELECTRIC LLC",
+      "action_status": "Call now",
+      "tier": "Signal",
+      "rank_key": [
+        4,
+        1,
+        1,
+        0
+      ],
+      "ranking_reasons": [
+        "Explicit construction/temporary-service or commissioning power scope; rental demand remains unverified.",
+        "Permit issued within 180 days; work start is not confirmed.",
+        "Sourced project-organization business routing contact is available.",
+        "NG/propane feasibility unknown; 310/500 kW equipment fit and scalable demand require qualification."
+      ],
+      "trigger": "Temporary Power\nREF: 2026-021581 BP",
+      "trigger_date": "Original permit issue date 2026-09-11",
+      "timing": [
+        "Original permit issue date 2026-09-11; permit approval does not establish construction or startup."
+      ],
+      "registration_context": [
+        "Address-matched, unlinked state registration TABS2026007961: planned start 4/6/2026; planned completion 10/5/2026. Registration scope/area: New Construction White Water Express Car Wash / 4,405 ft 2 SF. These planned dates are not assigned to city work or rental duration.",
+        "Address-matched, unlinked state registration TABS2021000050: planned start 5/3/2020; planned completion 1/20/2022. Registration scope/area: new shell retail building and associated site work. / 10,000 ft 2 SF. These planned dates are not assigned to city work or rental duration."
+      ],
+      "unknowns": [
+        "Actual rental-generation requirement and whether utility temporary service already covers the scope",
+        "Activity-specific MW, voltage, phase, power factor and duty cycle",
+        "NG/propane availability, pressure, quality and permitted fuel route",
+        "Confirmed work/startup window and meaningful rental duration",
+        "Power-package purchasing authority and current project assignment",
+        "Jev unavailable: TYPESAFE_API_KEY is not configured; screening uses deterministic evidence rules",
+        "Corporate-source discovery is not configured in this app runtime; permit-listed names and routes do not verify current employment or buyer authority"
+      ],
+      "conflicts": [],
+      "last_researched_at": "2026-10-01 04:04:18.868186+00:00",
+      "last_attempt_at": "2026-10-01 04:04:09.562665+00:00",
+      "research_status": "succeeded",
+      "research_errors": [],
+      "people": [
+        {
+          "name": "RICHARD TOENNIS",
+          "source_url": "https://data.austintexas.gov/resource/3syk-w9eu.json?%24where=permit_number%3D%272026-118029+EP%27&%24limit=1",
+          "organization": "T & T ELECTRIC LLC",
+          "corporate_role": "Unknown; permit-listed name only, current employment/title unverified",
+          "project_assignment": "Named on this permit; power-package assignment unverified",
+          "purchasing_authority": "Unknown"
+        }
+      ],
+      "contacts": [
+        {
+          "kind": "phone",
+          "label": "Permit-listed business routing contact; not a verified direct buyer number",
+          "value": "6025102699",
+          "source_url": "https://data.austintexas.gov/resource/3syk-w9eu.json?%24where=permit_number%3D%272026-118029+EP%27&%24limit=1",
+          "organization": "T & T ELECTRIC LLC"
+        },
+        {
+          "kind": "permit-listed phone",
+          "label": "Public business routing contact; purchasing authority unverified",
+          "value": "6025102699",
+          "source_url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13769214",
+          "organization": "T & T ELECTRIC LLC"
+        }
+      ],
+      "sources": [
+        {
+          "url": "https://data.austintexas.gov/resource/3syk-w9eu.json?%24where=permit_number%3D%272026-118029+EP%27&%24limit=1",
+          "title": "Austin building permit 2026-118029 EP \u2014 Electrical Permit",
+          "retrieved_at": "2026-10-01T04:04:10.247874+00:00",
+          "published_at": null,
+          "source_date": "Original permit issue date 2026-09-11",
+          "match_reason": "Accepted source evidence linked to this physical work scope.",
+          "content_hash": "820796937915a6345bcabf4a1662c900515e697c1ce000bb4888eae52b3566b3"
+        },
+        {
+          "url": "https://www.tdlr.texas.gov/TABS/Search/Print/TABS2026007961",
+          "title": "Project Details",
+          "retrieved_at": "2026-10-01T04:04:17.934317+00:00",
+          "published_at": null,
+          "source_date": "State registration; source publication date unknown",
+          "match_reason": "Matching street address; registration scope/phase remains separate context, not a merged permit.",
+          "content_hash": "45bd0dfcece691be38e84cbbfd34b8bfda34c5c512a9f54ccd2d90a0ee82c802"
+        },
+        {
+          "url": "https://www.tdlr.texas.gov/TABS/Search/Print/TABS2021000050",
+          "title": "Project Details",
+          "retrieved_at": "2026-10-01T04:04:18.791190+00:00",
+          "published_at": null,
+          "source_date": "State registration; source publication date unknown",
+          "match_reason": "Matching street address; registration scope/phase remains separate context, not a merged permit.",
+          "content_hash": "ddf0a5ea04a4708298a6d10a4bd0701694cc7725c97fe444619a830661b57908"
+        }
+      ],
+      "saved_note_count": 0
+    },
+    {
+      "id": "c8fe13b3-9376-4288-9285-f7425ab0236c",
+      "site": "7000 BURLESON RD BLDG B UNIT 100",
+      "organization": "Prism Electric Inc",
+      "action_status": "Call now",
+      "tier": "Signal",
+      "rank_key": [
+        3,
+        0,
+        1,
+        0
+      ],
+      "ranking_reasons": [
+        "Data-center work with utility/transformer scope; no utility delay is established.",
+        "Sourced project-organization business routing contact is available.",
+        "NG/propane feasibility unknown; 310/500 kW equipment fit and scalable demand require qualification."
+      ],
+      "trigger": "ePlan: Commercial Expedited Review - Finish out to Expand Data Center into existing Shell Areas. Scope of Work Includes 2 AE Transformers. (10000 SF)\n\nAE inspector: TNFM 1&2 is the identifier till these meters become totalized. DB - MRT \n\nAddress above is the totalized meters address. DB - MRT",
+      "trigger_date": "Original permit issue date 2026-03-19",
+      "timing": [
+        "Original permit issue date 2026-03-19; permit approval does not establish construction or startup."
+      ],
+      "registration_context": [],
+      "unknowns": [
+        "Actual rental-generation requirement and whether utility temporary service already covers the scope",
+        "Activity-specific MW, voltage, phase, power factor and duty cycle",
+        "NG/propane availability, pressure, quality and permitted fuel route",
+        "Confirmed work/startup window and meaningful rental duration",
+        "Power-package purchasing authority and current project assignment",
+        "Jev unavailable: TYPESAFE_API_KEY is not configured; screening uses deterministic evidence rules",
+        "Corporate-source discovery is not configured in this app runtime; permit-listed names and routes do not verify current employment or buyer authority"
+      ],
+      "conflicts": [],
+      "last_researched_at": "2026-10-01 04:05:21.724722+00:00",
+      "last_attempt_at": "2026-10-01 04:05:13.157492+00:00",
+      "research_status": "succeeded",
+      "research_errors": [],
+      "people": [
+        {
+          "name": "Blake Combs",
+          "source_url": "https://data.austintexas.gov/resource/3syk-w9eu.json?%24where=permit_number%3D%272025-155325+EP%27&%24limit=1",
+          "organization": "Prism Electric Inc",
+          "corporate_role": "Unknown; permit-listed name only, current employment/title unverified",
+          "project_assignment": "Named on this permit; power-package assignment unverified",
+          "purchasing_authority": "Unknown"
+        }
+      ],
+      "contacts": [
+        {
+          "kind": "phone",
+          "label": "Permit-listed business routing contact; not a verified direct buyer number",
+          "value": "5129262000",
+          "source_url": "https://data.austintexas.gov/resource/3syk-w9eu.json?%24where=permit_number%3D%272025-155325+EP%27&%24limit=1",
+          "organization": "Prism Electric Inc"
+        },
+        {
+          "kind": "permit-listed phone",
+          "label": "Public business routing contact; purchasing authority unverified",
+          "value": "5129262000",
+          "source_url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13624980",
+          "organization": "Prism Electric Inc"
+        }
+      ],
+      "sources": [
+        {
+          "url": "https://data.austintexas.gov/resource/3syk-w9eu.json?%24where=permit_number%3D%272025-155325+EP%27&%24limit=1",
+          "title": "Austin building permit 2025-155325 EP \u2014 Electrical Permit",
+          "retrieved_at": "2026-10-01T04:05:13.729489+00:00",
+          "published_at": null,
+          "source_date": "Original permit issue date 2026-03-19",
+          "match_reason": "Accepted source evidence linked to this physical work scope.",
+          "content_hash": "1baf167d06bc26388b89490ff94855272b7b53c0e433216946473d8a08c01f7f"
+        }
+      ],
+      "saved_note_count": 0
+    },
+    {
+      "id": "1c9eeccc-cc80-449d-a2a7-5ecc1909e010",
+      "site": "811 CLAYTON LN",
+      "organization": "Exceed Electrical Contracting",
+      "action_status": "Verify first",
+      "tier": "Signal",
+      "rank_key": [
+        2,
+        1,
+        1,
+        0
+      ],
+      "ranking_reasons": [
+        "Specific data-center/commissioning work warrants power qualification.",
+        "Permit issued within 180 days; work start is not confirmed.",
+        "Sourced project-organization business routing contact is available.",
+        "NG/propane feasibility unknown; 310/500 kW equipment fit and scalable demand require qualification."
+      ],
+      "trigger": "ePlan: Commercial Expedited Review - [APPROVED] New Construction of Exterior Pad for Modular Data Center Foundation.",
+      "trigger_date": "Original permit issue date 2026-05-20",
+      "timing": [
+        "Original permit issue date 2026-05-20; permit approval does not establish construction or startup.",
+        "Original permit issue date 2026-03-27; permit approval does not establish construction or startup."
+      ],
+      "registration_context": [
+        "Address-matched, unlinked state registration TABS2026004650: planned start 1/6/2026; planned completion 12/31/2026. Registration scope/area: Ev charging with canopies and a small building. / 54,014 ft 2 SF. These planned dates are not assigned to city work or rental duration."
+      ],
+      "unknowns": [
+        "Actual rental-generation requirement and whether utility temporary service already covers the scope",
+        "Activity-specific MW, voltage, phase, power factor and duty cycle",
+        "NG/propane availability, pressure, quality and permitted fuel route",
+        "Confirmed work/startup window and meaningful rental duration",
+        "Power-package purchasing authority and current project assignment",
+        "Jev unavailable: TYPESAFE_API_KEY is not configured; screening uses deterministic evidence rules",
+        "Corporate-source discovery is not configured in this app runtime; permit-listed names and routes do not verify current employment or buyer authority"
+      ],
+      "conflicts": [
+        "City describes data-center scope; state TABS2026004650 describes EV charging. Same address does not establish the same project or power scope."
+      ],
+      "last_researched_at": "2026-10-01 04:05:35.025943+00:00",
+      "last_attempt_at": "2026-10-01 04:05:21.731397+00:00",
+      "research_status": "succeeded",
+      "research_errors": [],
+      "people": [
+        {
+          "name": "Adam Stockton",
+          "source_url": "https://data.austintexas.gov/resource/3syk-w9eu.json?%24where=permit_number%3D%272026-036762+EP%27&%24limit=1",
+          "organization": "Exceed Electrical Contracting",
+          "corporate_role": "Unknown; permit-listed name only, current employment/title unverified",
+          "project_assignment": "Named on this permit; power-package assignment unverified",
+          "purchasing_authority": "Unknown"
+        },
+        {
+          "name": "Matt Mullen",
+          "source_url": "https://data.austintexas.gov/resource/3syk-w9eu.json?%24where=permit_number%3D%272026-036762+BP%27&%24limit=1",
+          "organization": "Novo Construction **Main**",
+          "corporate_role": "Unknown; permit-listed name only, current employment/title unverified",
+          "project_assignment": "Named on this permit; power-package assignment unverified",
+          "purchasing_authority": "Unknown"
+        }
+      ],
+      "contacts": [
+        {
+          "kind": "phone",
+          "label": "Permit-listed business routing contact; not a verified direct buyer number",
+          "value": "5126672564",
+          "source_url": "https://data.austintexas.gov/resource/3syk-w9eu.json?%24where=permit_number%3D%272026-036762+EP%27&%24limit=1",
+          "organization": "Exceed Electrical Contracting"
+        },
+        {
+          "kind": "phone",
+          "label": "Permit-listed business routing contact; not a verified direct buyer number",
+          "value": "7375870205",
+          "source_url": "https://data.austintexas.gov/resource/3syk-w9eu.json?%24where=permit_number%3D%272026-036762+BP%27&%24limit=1",
+          "organization": "Novo Construction **Main**"
+        },
+        {
+          "kind": "permit-listed phone",
+          "label": "Public business routing contact; purchasing authority unverified",
+          "value": "5126672564",
+          "source_url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13676771",
+          "organization": "Exceed Electrical Contracting"
+        }
+      ],
+      "sources": [
+        {
+          "url": "https://data.austintexas.gov/resource/3syk-w9eu.json?%24where=permit_number%3D%272026-036762+EP%27&%24limit=1",
+          "title": "Austin building permit 2026-036762 EP \u2014 Electrical Permit",
+          "retrieved_at": "2026-10-01T04:05:22.373837+00:00",
+          "published_at": null,
+          "source_date": "Original permit issue date 2026-05-20",
+          "match_reason": "Accepted source evidence linked to this physical work scope.",
+          "content_hash": "5d421032e46a983029614682bd5a5274d3cd70cf77d612a3461ff92201452391"
+        },
+        {
+          "url": "https://data.austintexas.gov/resource/3syk-w9eu.json?%24where=permit_number%3D%272026-036762+BP%27&%24limit=1",
+          "title": "Austin building permit 2026-036762 BP \u2014 Building Permit",
+          "retrieved_at": "2026-10-01T04:05:22.653230+00:00",
+          "published_at": null,
+          "source_date": "Original permit issue date 2026-03-27",
+          "match_reason": "Accepted source evidence linked to this physical work scope.",
+          "content_hash": "106c852e4eb33c8480fdc5fd9a4c17cda01b135ef6b5110d10525d2baa090fe5"
+        },
+        {
+          "url": "https://www.tdlr.texas.gov/TABS/Search/Print/TABS2026004650",
+          "title": "Project Details",
+          "retrieved_at": "2026-10-01T04:05:34.983275+00:00",
+          "published_at": null,
+          "source_date": "State registration; source publication date unknown",
+          "match_reason": "Matching street address; registration scope/phase remains separate context, not a merged permit.",
+          "content_hash": "ff8433352c7a225aa2a92380ec68d3709445d6f3361e09fb831b3447263815a5"
+        }
+      ],
+      "saved_note_count": 0
+    },
+    {
+      "id": "af2fc551-f181-4b50-be70-b96db1126638",
+      "site": "6301 E STASSNEY LN BLDG 8",
+      "organization": "Exceed Electrical Contracting",
+      "action_status": "Verify first",
+      "tier": "Signal",
+      "rank_key": [
+        1,
+        1,
+        1,
+        0
+      ],
+      "ranking_reasons": [
+        "Specific manufacturing work; interruption or construction power still needs verification.",
+        "Permit issued within 180 days; work start is not confirmed.",
+        "Sourced project-organization business routing contact is available.",
+        "NG/propane feasibility unknown; 310/500 kW equipment fit and scalable demand require qualification."
+      ],
+      "trigger": "ePlan: Commercial Expedited Review - Interior Remodel to Existing Light Manufacturing Areas Phase 2- (128726 SF).",
+      "trigger_date": "Original permit issue date 2026-09-15",
+      "timing": [
+        "Original permit issue date 2026-09-15; permit approval does not establish construction or startup."
+      ],
+      "registration_context": [
+        "Address-matched, unlinked state registration TABS2026026214: planned start 9/15/2026; planned completion 2/28/2027. Registration scope/area: Renovation to existing office. / 7,550 ft 2 SF. These planned dates are not assigned to city work or rental duration.",
+        "Address-matched, unlinked state registration TABS2026019281: planned start 6/1/2026; planned completion 8/31/2026. Registration scope/area: Demolition and renovation of existing office space into R&D work space. / 6,000 ft 2 SF. These planned dates are not assigned to city work or rental duration."
+      ],
+      "unknowns": [
+        "Actual rental-generation requirement and whether utility temporary service already covers the scope",
+        "Activity-specific MW, voltage, phase, power factor and duty cycle",
+        "NG/propane availability, pressure, quality and permitted fuel route",
+        "Confirmed work/startup window and meaningful rental duration",
+        "Power-package purchasing authority and current project assignment",
+        "Jev unavailable: TYPESAFE_API_KEY is not configured; screening uses deterministic evidence rules",
+        "Corporate-source discovery is not configured in this app runtime; permit-listed names and routes do not verify current employment or buyer authority"
+      ],
+      "conflicts": [
+        "City describes light manufacturing; state TABS2026026214 describes office work. Areas, phase and scope need reconciliation; do not assign state timing to city work.",
+        "City describes light manufacturing; state TABS2026019281 describes office work. Areas, phase and scope need reconciliation; do not assign state timing to city work."
+      ],
+      "last_researched_at": "2026-10-01 03:18:55.043527+00:00",
+      "last_attempt_at": "2026-10-01 03:18:51.260026+00:00",
+      "research_status": "succeeded",
+      "research_errors": [],
+      "people": [
+        {
+          "name": "Adam Stockton",
+          "source_url": "https://data.austintexas.gov/resource/3syk-w9eu.json?%24where=permit_number%3D%272026-119402+EP%27&%24limit=1",
+          "organization": "Exceed Electrical Contracting",
+          "corporate_role": "Unknown; permit-listed name only, current employment/title unverified",
+          "project_assignment": "Named on this permit; power-package assignment unverified",
+          "purchasing_authority": "Unknown"
+        },
+        {
+          "name": "Preston Flynn",
+          "source_url": "https://data.austintexas.gov/resource/3syk-w9eu.json?%24where=permit_number%3D%272026-119402+BP%27&%24limit=1",
+          "organization": "Flynn Construction***Main",
+          "corporate_role": "Unknown; permit-listed name only, current employment/title unverified",
+          "project_assignment": "Named on this permit; power-package assignment unverified",
+          "purchasing_authority": "Unknown"
+        }
+      ],
+      "contacts": [
+        {
+          "kind": "phone",
+          "label": "Permit-listed business routing contact; not a verified direct buyer number",
+          "value": "5126672564",
+          "source_url": "https://data.austintexas.gov/resource/3syk-w9eu.json?%24where=permit_number%3D%272026-119402+EP%27&%24limit=1",
+          "organization": "Exceed Electrical Contracting"
+        },
+        {
+          "kind": "phone",
+          "label": "Permit-listed business routing contact; not a verified direct buyer number",
+          "value": "5124407643",
+          "source_url": "https://data.austintexas.gov/resource/3syk-w9eu.json?%24where=permit_number%3D%272026-119402+BP%27&%24limit=1",
+          "organization": "Flynn Construction***Main"
+        },
+        {
+          "kind": "permit-listed phone",
+          "label": "Public business routing contact; purchasing authority unverified",
+          "value": "5126672564",
+          "source_url": "https://abc.austintexas.gov/web/permit/public-search-other?t_detail=1&t_selected_folderrsn=13770762",
+          "organization": "Exceed Electrical Contracting"
+        }
+      ],
+      "sources": [
+        {
+          "url": "https://data.austintexas.gov/resource/3syk-w9eu.json?%24where=permit_number%3D%272026-119402+EP%27&%24limit=1",
+          "title": "Austin building permit 2026-119402 EP \u2014 Electrical Permit",
+          "retrieved_at": "2026-10-01T03:18:51.890432+00:00",
+          "published_at": null,
+          "source_date": "Original permit issue date 2026-09-15",
+          "match_reason": "Accepted source evidence linked to this physical work scope.",
+          "content_hash": "a7ca6b7a7e3235f681b8e2caced590578910ef117dcdf06b9afe846b1fcab8bc"
+        },
+        {
+          "url": "https://data.austintexas.gov/resource/3syk-w9eu.json?%24where=permit_number%3D%272026-119402+BP%27&%24limit=1",
+          "title": "Austin building permit 2026-119402 BP \u2014 Building Permit",
+          "retrieved_at": "2026-10-01T03:18:52.570352+00:00",
+          "published_at": null,
+          "source_date": "Original permit issue date 2026-09-15",
+          "match_reason": "Accepted source evidence linked to this physical work scope.",
+          "content_hash": "2a2d3b3372addeeee4f40bf067fa5006e3895b255ec6fe396c854142542b77d7"
+        },
+        {
+          "url": "https://www.tdlr.texas.gov/TABS/Search/Print/TABS2026026214",
+          "title": "Project Details",
+          "retrieved_at": "2026-10-01T03:18:54.550477+00:00",
+          "published_at": null,
+          "source_date": "State registration; source publication date unknown",
+          "match_reason": "Matching street address; registration scope/phase remains separate context, not a merged permit.",
+          "content_hash": "21310e2ba483e49326f1c3a0a484f5c6bd7301313c7cc95eedbb6374749df4fa"
+        },
+        {
+          "url": "https://www.tdlr.texas.gov/TABS/Search/Print/TABS2026019281",
+          "title": "Project Details",
+          "retrieved_at": "2026-10-01T03:18:54.962539+00:00",
+          "published_at": null,
+          "source_date": "State registration; source publication date unknown",
+          "match_reason": "Matching street address; registration scope/phase remains separate context, not a merged permit.",
+          "content_hash": "c5d70578a411d64914b738f79b2d3cb53b1defa85b6db1ed9d275ccfb41acb8f"
+        }
+      ],
+      "saved_note_count": 0
+    },
+    {
+      "id": "0f9a511f-a7e0-46b0-9748-ac6e282c1262",
+      "site": "FPW SWD \u00b7 well 20 \u00b7 RRC county code 301, Texas",
+      "organization": "WATERBRIDGE STATELINE LLC",
+      "action_status": "Monitor",
+      "tier": "Signal",
+      "rank_key": [
+        1,
+        1,
+        0,
+        0
+      ],
+      "ranking_reasons": [
+        "Named fixed O&G asset approval; construction, startup and power demand remain unverified.",
+        "Permit issued within 180 days; work start is not confirmed.",
+        "No verified reachable buyer route yet.",
+        "NG/propane feasibility unknown; 310/500 kW equipment fit and scalable demand require qualification."
+      ],
+      "trigger": "W-1 well permit 0918184: Drill; lease FPW SWD, well 20.",
+      "trigger_date": "Original permit issue date 2026-08-26",
+      "timing": [
+        "Original permit issue date 2026-08-26; permit approval does not establish construction or startup."
+      ],
+      "registration_context": [],
+      "unknowns": [
+        "Actual rental-generation requirement and whether utility temporary service already covers the scope",
+        "Activity-specific MW, voltage, phase, power factor and duty cycle",
+        "NG/propane availability, pressure, quality and permitted fuel route",
+        "Confirmed work/startup window and meaningful rental duration",
+        "Power-package purchasing authority and current project assignment",
+        "Reachable relevant organization business contact route",
+        "W-1 drilling approval is not an injection operating authorization, well completion or production date; site construction and electrical design unverified",
+        "Jev unavailable: TYPESAFE_API_KEY is not configured; screening uses deterministic evidence rules",
+        "Corporate-source discovery is not configured in this app runtime; permit-listed names and routes do not verify current employment or buyer authority"
+      ],
+      "conflicts": [],
+      "last_researched_at": null,
+      "last_attempt_at": "2026-10-01 04:07:57.026718+00:00",
+      "research_status": "partial",
+      "research_errors": [
+        "Cited historical EOM approval was re-retrieved; asset absent from the current daily file. Current work, completion and startup remain unverified."
+      ],
+      "people": [],
+      "contacts": [],
+      "sources": [
+        {
+          "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+          "title": "W-1 well permit 0918184: Drill; lease FPW SWD, well 20.",
+          "retrieved_at": "2026-10-01T04:07:57.030373+00:00",
+          "published_at": null,
+          "source_date": "Original permit issue date 2026-08-26",
+          "match_reason": "Accepted source evidence linked to this physical work scope.",
+          "content_hash": "c274c4e5d655d9d87afcca2b5d0c4381a531780c04061cfe5ef23dad53f8b29e"
+        },
+        {
+          "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+          "title": "W-1 well permit 0918184: Drill; lease FPW SWD, well 20.",
+          "retrieved_at": "2026-10-01T03:50:14.586232+00:00",
+          "published_at": null,
+          "source_date": "Original permit issue date 2026-08-26",
+          "match_reason": "Accepted source evidence linked to this physical work scope.",
+          "content_hash": "c274c4e5d655d9d87afcca2b5d0c4381a531780c04061cfe5ef23dad53f8b29e"
+        },
+        {
+          "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+          "title": "W-1 well permit 0918184: Drill; lease FPW SWD, well 20.",
+          "retrieved_at": "2026-10-01T01:23:30.836542+00:00",
+          "published_at": "2026-08-26",
+          "source_date": "Original permit issue date 2026-08-26",
+          "match_reason": "Accepted source evidence linked to this physical work scope.",
+          "content_hash": "c274c4e5d655d9d87afcca2b5d0c4381a531780c04061cfe5ef23dad53f8b29e"
+        }
+      ],
+      "saved_note_count": 0
+    }
+  ],
+  "rrc_challenge_audit": [
+    {
+      "id": "6daa65df-a425-4a69-8421-ff99bb123449",
+      "site": "AERMOTOR SWD \u00b7 well 6 \u00b7 RRC county code 301, Texas",
+      "organization": "WATERBRIDGE STATELINE LLC",
+      "action_status": "Monitor",
+      "tier": "Signal",
+      "rank_key": [
+        1,
+        1,
+        0,
+        0
+      ],
+      "ranking_reasons": [
+        "Named fixed O&G asset approval; construction, startup and power demand remain unverified.",
+        "Permit issued within 180 days; work start is not confirmed.",
+        "No verified reachable buyer route yet.",
+        "NG/propane feasibility unknown; 310/500 kW equipment fit and scalable demand require qualification."
+      ],
+      "trigger": "W-1 well permit 0917650: Drill; lease AERMOTOR SWD, well 6.",
+      "trigger_date": "Original permit issue date 2026-08-06",
+      "timing": [
+        "Original permit issue date 2026-08-06; permit approval does not establish construction or startup."
+      ],
+      "registration_context": [],
+      "unknowns": [
+        "Actual rental-generation requirement and whether utility temporary service already covers the scope",
+        "Activity-specific MW, voltage, phase, power factor and duty cycle",
+        "NG/propane availability, pressure, quality and permitted fuel route",
+        "Confirmed work/startup window and meaningful rental duration",
+        "Power-package purchasing authority and current project assignment",
+        "Reachable relevant organization business contact route",
+        "W-1 drilling approval is not an injection operating authorization, well completion or production date; site construction and electrical design unverified",
+        "Jev unavailable: TYPESAFE_API_KEY is not configured; screening uses deterministic evidence rules",
+        "Corporate-source discovery is not configured in this app runtime; permit-listed names and routes do not verify current employment or buyer authority"
+      ],
+      "conflicts": [],
+      "last_researched_at": null,
+      "last_attempt_at": "2026-10-01 04:13:37.784397+00:00",
+      "research_status": "partial",
+      "research_errors": [
+        "Cited historical EOM approval was re-retrieved; asset absent from the current daily file. Current work, completion and startup remain unverified."
+      ],
+      "people": [],
+      "contacts": [],
+      "sources": [
+        {
+          "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+          "title": "W-1 well permit 0917650: Drill; lease AERMOTOR SWD, well 6.",
+          "retrieved_at": "2026-10-01T04:13:37.786951+00:00",
+          "published_at": null,
+          "source_date": "Original permit issue date 2026-08-06",
+          "match_reason": "Accepted source evidence linked to this physical work scope.",
+          "content_hash": "527723fe63d7722d72d9d9498a8e7a916fe2f7bd577bf646e475f5651b07df63"
+        },
+        {
+          "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+          "title": "W-1 well permit 0917650: Drill; lease AERMOTOR SWD, well 6.",
+          "retrieved_at": "2026-10-01T03:50:20.765447+00:00",
+          "published_at": null,
+          "source_date": "Original permit issue date 2026-08-06",
+          "match_reason": "Accepted source evidence linked to this physical work scope.",
+          "content_hash": "527723fe63d7722d72d9d9498a8e7a916fe2f7bd577bf646e475f5651b07df63"
+        },
+        {
+          "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+          "title": "W-1 well permit 0917650: Drill; lease AERMOTOR SWD, well 6.",
+          "retrieved_at": "2026-10-01T01:18:16.412178+00:00",
+          "published_at": "2026-08-06",
+          "source_date": "Original permit issue date 2026-08-06",
+          "match_reason": "Accepted source evidence linked to this physical work scope.",
+          "content_hash": "527723fe63d7722d72d9d9498a8e7a916fe2f7bd577bf646e475f5651b07df63"
+        }
+      ],
+      "saved_note_count": 0
+    },
+    {
+      "id": "44ec52cc-655a-46bb-baf9-6395e9b6d0b4",
+      "site": "FPW SWD \u00b7 well 14 \u00b7 RRC county code 301, Texas",
+      "organization": "WATERBRIDGE STATELINE LLC",
+      "action_status": "Monitor",
+      "tier": "Signal",
+      "rank_key": [
+        1,
+        1,
+        0,
+        0
+      ],
+      "ranking_reasons": [
+        "Named fixed O&G asset approval; construction, startup and power demand remain unverified.",
+        "Permit issued within 180 days; work start is not confirmed.",
+        "No verified reachable buyer route yet.",
+        "NG/propane feasibility unknown; 310/500 kW equipment fit and scalable demand require qualification."
+      ],
+      "trigger": "W-1 well permit 0918185: Drill; lease FPW SWD, well 14.",
+      "trigger_date": "Original permit issue date 2026-08-26",
+      "timing": [
+        "Original permit issue date 2026-08-26; permit approval does not establish construction or startup."
+      ],
+      "registration_context": [],
+      "unknowns": [
+        "Actual rental-generation requirement and whether utility temporary service already covers the scope",
+        "Activity-specific MW, voltage, phase, power factor and duty cycle",
+        "NG/propane availability, pressure, quality and permitted fuel route",
+        "Confirmed work/startup window and meaningful rental duration",
+        "Power-package purchasing authority and current project assignment",
+        "Reachable relevant organization business contact route",
+        "W-1 drilling approval is not an injection operating authorization, well completion or production date; site construction and electrical design unverified",
+        "Jev unavailable: TYPESAFE_API_KEY is not configured; screening uses deterministic evidence rules",
+        "Corporate-source discovery is not configured in this app runtime; permit-listed names and routes do not verify current employment or buyer authority"
+      ],
+      "conflicts": [],
+      "last_researched_at": null,
+      "last_attempt_at": "2026-10-01 04:01:30.321161+00:00",
+      "research_status": "partial",
+      "research_errors": [
+        "Cited historical EOM approval was re-retrieved; asset absent from the current daily file. Current work, completion and startup remain unverified."
+      ],
+      "people": [],
+      "contacts": [],
+      "sources": [
+        {
+          "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+          "title": "W-1 well permit 0918185: Drill; lease FPW SWD, well 14.",
+          "retrieved_at": "2026-10-01T04:01:30.323709+00:00",
+          "published_at": null,
+          "source_date": "Original permit issue date 2026-08-26",
+          "match_reason": "Accepted source evidence linked to this physical work scope.",
+          "content_hash": "85fe53507087eccf133510fba32211fe6aa06b83a72755faeca749d97d4780c4"
+        },
+        {
+          "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+          "title": "W-1 well permit 0918185: Drill; lease FPW SWD, well 14.",
+          "retrieved_at": "2026-10-01T03:32:19.734954+00:00",
+          "published_at": null,
+          "source_date": "Original permit issue date 2026-08-26",
+          "match_reason": "Accepted source evidence linked to this physical work scope.",
+          "content_hash": "85fe53507087eccf133510fba32211fe6aa06b83a72755faeca749d97d4780c4"
+        }
+      ],
+      "saved_note_count": 0
+    },
+    {
+      "id": "ef8f93e2-4e1c-4a2f-93b8-7f9786582afb",
+      "site": "FPW SWD \u00b7 well 4 \u00b7 RRC county code 301, Texas",
+      "organization": "WATERBRIDGE STATELINE LLC",
+      "action_status": "Monitor",
+      "tier": "Signal",
+      "rank_key": [
+        1,
+        1,
+        0,
+        0
+      ],
+      "ranking_reasons": [
+        "Named fixed O&G asset approval; construction, startup and power demand remain unverified.",
+        "Permit issued within 180 days; work start is not confirmed.",
+        "No verified reachable buyer route yet.",
+        "NG/propane feasibility unknown; 310/500 kW equipment fit and scalable demand require qualification."
+      ],
+      "trigger": "W-1 well permit 0917682: Drill; lease FPW SWD, well 4.",
+      "trigger_date": "Original permit issue date 2026-08-10",
+      "timing": [
+        "Original permit issue date 2026-08-10; permit approval does not establish construction or startup."
+      ],
+      "registration_context": [],
+      "unknowns": [
+        "Actual rental-generation requirement and whether utility temporary service already covers the scope",
+        "Activity-specific MW, voltage, phase, power factor and duty cycle",
+        "NG/propane availability, pressure, quality and permitted fuel route",
+        "Confirmed work/startup window and meaningful rental duration",
+        "Power-package purchasing authority and current project assignment",
+        "Reachable relevant organization business contact route",
+        "W-1 drilling approval is not an injection operating authorization, well completion or production date; site construction and electrical design unverified",
+        "Jev unavailable: TYPESAFE_API_KEY is not configured; screening uses deterministic evidence rules",
+        "Corporate-source discovery is not configured in this app runtime; permit-listed names and routes do not verify current employment or buyer authority"
+      ],
+      "conflicts": [],
+      "last_researched_at": null,
+      "last_attempt_at": "2026-10-01 04:02:30.905237+00:00",
+      "research_status": "failed",
+      "research_errors": [
+        "Official RRC retrieval: ConnectError; prior approval was not freshly verified."
+      ],
+      "people": [],
+      "contacts": [],
+      "sources": [
+        {
+          "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+          "title": "W-1 well permit 0917682: Drill; lease FPW SWD, well 4.",
+          "retrieved_at": "2026-10-01T03:47:10.582914+00:00",
+          "published_at": null,
+          "source_date": "Original permit issue date 2026-08-10",
+          "match_reason": "Accepted source evidence linked to this physical work scope.",
+          "content_hash": "e06065b8f244e5fcb1dc05173b4486f56745efa600ae8e4f9ff4b0775f3c3736"
+        }
+      ],
+      "saved_note_count": 0
+    },
+    {
+      "id": "0f9a511f-a7e0-46b0-9748-ac6e282c1262",
+      "site": "FPW SWD \u00b7 well 20 \u00b7 RRC county code 301, Texas",
+      "organization": "WATERBRIDGE STATELINE LLC",
+      "action_status": "Monitor",
+      "tier": "Signal",
+      "rank_key": [
+        1,
+        1,
+        0,
+        0
+      ],
+      "ranking_reasons": [
+        "Named fixed O&G asset approval; construction, startup and power demand remain unverified.",
+        "Permit issued within 180 days; work start is not confirmed.",
+        "No verified reachable buyer route yet.",
+        "NG/propane feasibility unknown; 310/500 kW equipment fit and scalable demand require qualification."
+      ],
+      "trigger": "W-1 well permit 0918184: Drill; lease FPW SWD, well 20.",
+      "trigger_date": "Original permit issue date 2026-08-26",
+      "timing": [
+        "Original permit issue date 2026-08-26; permit approval does not establish construction or startup."
+      ],
+      "registration_context": [],
+      "unknowns": [
+        "Actual rental-generation requirement and whether utility temporary service already covers the scope",
+        "Activity-specific MW, voltage, phase, power factor and duty cycle",
+        "NG/propane availability, pressure, quality and permitted fuel route",
+        "Confirmed work/startup window and meaningful rental duration",
+        "Power-package purchasing authority and current project assignment",
+        "Reachable relevant organization business contact route",
+        "W-1 drilling approval is not an injection operating authorization, well completion or production date; site construction and electrical design unverified",
+        "Jev unavailable: TYPESAFE_API_KEY is not configured; screening uses deterministic evidence rules",
+        "Corporate-source discovery is not configured in this app runtime; permit-listed names and routes do not verify current employment or buyer authority"
+      ],
+      "conflicts": [],
+      "last_researched_at": null,
+      "last_attempt_at": "2026-10-01 04:07:57.026718+00:00",
+      "research_status": "partial",
+      "research_errors": [
+        "Cited historical EOM approval was re-retrieved; asset absent from the current daily file. Current work, completion and startup remain unverified."
+      ],
+      "people": [],
+      "contacts": [],
+      "sources": [
+        {
+          "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+          "title": "W-1 well permit 0918184: Drill; lease FPW SWD, well 20.",
+          "retrieved_at": "2026-10-01T04:07:57.030373+00:00",
+          "published_at": null,
+          "source_date": "Original permit issue date 2026-08-26",
+          "match_reason": "Accepted source evidence linked to this physical work scope.",
+          "content_hash": "c274c4e5d655d9d87afcca2b5d0c4381a531780c04061cfe5ef23dad53f8b29e"
+        },
+        {
+          "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+          "title": "W-1 well permit 0918184: Drill; lease FPW SWD, well 20.",
+          "retrieved_at": "2026-10-01T03:50:14.586232+00:00",
+          "published_at": null,
+          "source_date": "Original permit issue date 2026-08-26",
+          "match_reason": "Accepted source evidence linked to this physical work scope.",
+          "content_hash": "c274c4e5d655d9d87afcca2b5d0c4381a531780c04061cfe5ef23dad53f8b29e"
+        },
+        {
+          "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+          "title": "W-1 well permit 0918184: Drill; lease FPW SWD, well 20.",
+          "retrieved_at": "2026-10-01T01:23:30.836542+00:00",
+          "published_at": "2026-08-26",
+          "source_date": "Original permit issue date 2026-08-26",
+          "match_reason": "Accepted source evidence linked to this physical work scope.",
+          "content_hash": "c274c4e5d655d9d87afcca2b5d0c4381a531780c04061cfe5ef23dad53f8b29e"
+        }
+      ],
+      "saved_note_count": 0
+    },
+    {
+      "id": "1afb9ac7-7bad-40f3-97b6-c95755b2af5a",
+      "site": "CARP SWD \u00b7 well 1 \u00b7 RRC county code 115, Texas",
+      "organization": "DEEP BLUE NORTH LLC",
+      "action_status": "Monitor",
+      "tier": "Signal",
+      "rank_key": [
+        1,
+        0,
+        0,
+        0
+      ],
+      "ranking_reasons": [
+        "Named fixed O&G asset approval; construction, startup and power demand remain unverified.",
+        "No verified reachable buyer route yet.",
+        "NG/propane feasibility unknown; 310/500 kW equipment fit and scalable demand require qualification."
+      ],
+      "trigger": "W-1 well permit 0910763: Drill; lease CARP SWD, well 1.",
+      "trigger_date": "Original permit issue date 2025-10-08 \u00b7 amendment date 2026-09-16 (not a new construction start)",
+      "timing": [
+        "Original permit issue date 2025-10-08 \u00b7 amendment date 2026-09-16 (not a new construction start); permit approval does not establish construction or startup."
+      ],
+      "registration_context": [],
+      "unknowns": [
+        "Actual rental-generation requirement and whether utility temporary service already covers the scope",
+        "Activity-specific MW, voltage, phase, power factor and duty cycle",
+        "NG/propane availability, pressure, quality and permitted fuel route",
+        "Confirmed work/startup window and meaningful rental duration",
+        "Power-package purchasing authority and current project assignment",
+        "Reachable relevant organization business contact route",
+        "W-1 drilling approval is not an injection operating authorization, well completion or production date; site construction and electrical design unverified",
+        "Jev unavailable: TYPESAFE_API_KEY is not configured; screening uses deterministic evidence rules",
+        "Corporate-source discovery is not configured in this app runtime; permit-listed names and routes do not verify current employment or buyer authority"
+      ],
+      "conflicts": [],
+      "last_researched_at": "2026-10-01 03:47:11.160445+00:00",
+      "last_attempt_at": "2026-10-01 03:47:11.038867+00:00",
+      "research_status": "succeeded",
+      "research_errors": [],
+      "people": [],
+      "contacts": [],
+      "sources": [
+        {
+          "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+          "title": "W-1 well permit 0910763: Drill; lease CARP SWD, well 1.",
+          "retrieved_at": "2026-10-01T03:47:11.040998+00:00",
+          "published_at": null,
+          "source_date": "Original permit issue date 2025-10-08 \u00b7 amendment date 2026-09-16 (not a new construction start)",
+          "match_reason": "Accepted source evidence linked to this physical work scope.",
+          "content_hash": "c76b3cc85604e4f974be34c79b94a9536c8b0a1751a5ce9031c917510ecdf3cf"
+        }
+      ],
+      "saved_note_count": 0
+    },
+    {
+      "id": "57904473-4b2b-49c9-b887-fe604a79e1c5",
+      "site": "MULLET SWD \u00b7 well 1 \u00b7 RRC county code 115, Texas",
+      "organization": "DEEP BLUE NORTH LLC",
+      "action_status": "Monitor",
+      "tier": "Signal",
+      "rank_key": [
+        1,
+        0,
+        0,
+        0
+      ],
+      "ranking_reasons": [
+        "Named fixed O&G asset approval; construction, startup and power demand remain unverified.",
+        "No verified reachable buyer route yet.",
+        "NG/propane feasibility unknown; 310/500 kW equipment fit and scalable demand require qualification."
+      ],
+      "trigger": "W-1 well permit 0911145: Drill; lease MULLET SWD, well 1.",
+      "trigger_date": "Original permit issue date 2025-10-16 \u00b7 amendment date 2026-09-25 (not a new construction start)",
+      "timing": [
+        "Original permit issue date 2025-10-16 \u00b7 amendment date 2026-09-25 (not a new construction start); permit approval does not establish construction or startup."
+      ],
+      "registration_context": [],
+      "unknowns": [
+        "Actual rental-generation requirement and whether utility temporary service already covers the scope",
+        "Activity-specific MW, voltage, phase, power factor and duty cycle",
+        "NG/propane availability, pressure, quality and permitted fuel route",
+        "Confirmed work/startup window and meaningful rental duration",
+        "Power-package purchasing authority and current project assignment",
+        "Reachable relevant organization business contact route",
+        "W-1 drilling approval is not an injection operating authorization, well completion or production date; site construction and electrical design unverified",
+        "Jev unavailable: TYPESAFE_API_KEY is not configured; screening uses deterministic evidence rules",
+        "Corporate-source discovery is not configured in this app runtime; permit-listed names and routes do not verify current employment or buyer authority"
+      ],
+      "conflicts": [],
+      "last_researched_at": "2026-10-01 03:50:07.295222+00:00",
+      "last_attempt_at": "2026-10-01 03:50:07.184116+00:00",
+      "research_status": "succeeded",
+      "research_errors": [],
+      "people": [],
+      "contacts": [],
+      "sources": [
+        {
+          "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+          "title": "W-1 well permit 0911145: Drill; lease MULLET SWD, well 1.",
+          "retrieved_at": "2026-10-01T03:50:07.187306+00:00",
+          "published_at": null,
+          "source_date": "Original permit issue date 2025-10-16 \u00b7 amendment date 2026-09-25 (not a new construction start)",
+          "match_reason": "Accepted source evidence linked to this physical work scope.",
+          "content_hash": "8d428e57f01d2a70025034ac4f86415650afe21f16bf524e921953d3477a2d76"
+        }
+      ],
+      "saved_note_count": 0
+    },
+    {
+      "id": "963b2d35-c4a8-49c0-a334-960291b47e86",
+      "site": "FPW SWD \u00b7 well 13 \u00b7 RRC county code 301, Texas",
+      "organization": "WATERBRIDGE STATELINE LLC",
+      "action_status": "Monitor",
+      "tier": "Signal",
+      "rank_key": [
+        1,
+        1,
+        0,
+        0
+      ],
+      "ranking_reasons": [
+        "Named fixed O&G asset approval; construction, startup and power demand remain unverified.",
+        "Permit issued within 180 days; work start is not confirmed.",
+        "No verified reachable buyer route yet.",
+        "NG/propane feasibility unknown; 310/500 kW equipment fit and scalable demand require qualification."
+      ],
+      "trigger": "W-1 well permit 0918186: Drill; lease FPW SWD, well 13.",
+      "trigger_date": "Original permit issue date 2026-08-26",
+      "timing": [
+        "Original permit issue date 2026-08-26; permit approval does not establish construction or startup."
+      ],
+      "registration_context": [],
+      "unknowns": [
+        "Actual rental-generation requirement and whether utility temporary service already covers the scope",
+        "Activity-specific MW, voltage, phase, power factor and duty cycle",
+        "NG/propane availability, pressure, quality and permitted fuel route",
+        "Confirmed work/startup window and meaningful rental duration",
+        "Power-package purchasing authority and current project assignment",
+        "Reachable relevant organization business contact route",
+        "W-1 drilling approval is not an injection operating authorization, well completion or production date; site construction and electrical design unverified",
+        "Jev unavailable: TYPESAFE_API_KEY is not configured; screening uses deterministic evidence rules",
+        "Corporate-source discovery is not configured in this app runtime; permit-listed names and routes do not verify current employment or buyer authority"
+      ],
+      "conflicts": [],
+      "last_researched_at": null,
+      "last_attempt_at": "2026-10-01 04:05:39.910068+00:00",
+      "research_status": "partial",
+      "research_errors": [
+        "Cited historical EOM approval was re-retrieved; asset absent from the current daily file. Current work, completion and startup remain unverified."
+      ],
+      "people": [],
+      "contacts": [],
+      "sources": [
+        {
+          "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+          "title": "W-1 well permit 0918186: Drill; lease FPW SWD, well 13.",
+          "retrieved_at": "2026-10-01T04:05:39.912280+00:00",
+          "published_at": null,
+          "source_date": "Original permit issue date 2026-08-26",
+          "match_reason": "Accepted source evidence linked to this physical work scope.",
+          "content_hash": "8bffbcc62a1319c8989857add686bb239f899c49b6528fbbc10126ec5e2726af"
+        },
+        {
+          "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+          "title": "W-1 well permit 0918186: Drill; lease FPW SWD, well 13.",
+          "retrieved_at": "2026-10-01T03:50:06.920135+00:00",
+          "published_at": null,
+          "source_date": "Original permit issue date 2026-08-26",
+          "match_reason": "Accepted source evidence linked to this physical work scope.",
+          "content_hash": "8bffbcc62a1319c8989857add686bb239f899c49b6528fbbc10126ec5e2726af"
+        }
+      ],
+      "saved_note_count": 0
+    },
+    {
+      "id": "9e29602a-cd05-4982-ad2c-6a61205830e0",
+      "site": "DAVIS 25 SWD \u00b7 well 1 \u00b7 RRC county code 317, Texas",
+      "organization": "DEEP BLUE NORTH LLC",
+      "action_status": "Monitor",
+      "tier": "Signal",
+      "rank_key": [
+        1,
+        0,
+        0,
+        0
+      ],
+      "ranking_reasons": [
+        "Named fixed O&G asset approval; construction, startup and power demand remain unverified.",
+        "No verified reachable buyer route yet.",
+        "NG/propane feasibility unknown; 310/500 kW equipment fit and scalable demand require qualification."
+      ],
+      "trigger": "W-1 well permit 0910758: Drill; lease DAVIS 25 SWD, well 1.",
+      "trigger_date": "Original permit issue date 2025-09-29 \u00b7 amendment date 2026-09-25 (not a new construction start)",
+      "timing": [
+        "Original permit issue date 2025-09-29 \u00b7 amendment date 2026-09-25 (not a new construction start); permit approval does not establish construction or startup."
+      ],
+      "registration_context": [],
+      "unknowns": [
+        "Actual rental-generation requirement and whether utility temporary service already covers the scope",
+        "Activity-specific MW, voltage, phase, power factor and duty cycle",
+        "NG/propane availability, pressure, quality and permitted fuel route",
+        "Confirmed work/startup window and meaningful rental duration",
+        "Power-package purchasing authority and current project assignment",
+        "Reachable relevant organization business contact route",
+        "W-1 drilling approval is not an injection operating authorization, well completion or production date; site construction and electrical design unverified",
+        "Jev unavailable: TYPESAFE_API_KEY is not configured; screening uses deterministic evidence rules",
+        "Corporate-source discovery is not configured in this app runtime; permit-listed names and routes do not verify current employment or buyer authority"
+      ],
+      "conflicts": [],
+      "last_researched_at": "2026-10-01 03:50:14.447528+00:00",
+      "last_attempt_at": "2026-10-01 03:50:14.335598+00:00",
+      "research_status": "succeeded",
+      "research_errors": [],
+      "people": [],
+      "contacts": [],
+      "sources": [
+        {
+          "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+          "title": "W-1 well permit 0910758: Drill; lease DAVIS 25 SWD, well 1.",
+          "retrieved_at": "2026-10-01T03:50:14.338083+00:00",
+          "published_at": null,
+          "source_date": "Original permit issue date 2025-09-29 \u00b7 amendment date 2026-09-25 (not a new construction start)",
+          "match_reason": "Accepted source evidence linked to this physical work scope.",
+          "content_hash": "75072a8380bbc14762f40a7cf4177de8871ead90efe623e5cf88edbb79b7045e"
+        }
+      ],
+      "saved_note_count": 0
+    }
+  ],
+  "research_jobs": [
+    {
+      "id": "3e5f97db-5790-40f7-b4f0-ac9d4b37d514",
+      "status": "succeeded",
+      "attempts": 1,
+      "error": null,
+      "created_at": "2026-10-01T03:07:22.252899+00:00"
+    },
+    {
+      "id": "d23a6e97-02aa-4b82-a59d-df235daf9533",
+      "status": "succeeded",
+      "attempts": 1,
+      "error": null,
+      "created_at": "2026-10-01T03:18:48.846270+00:00"
+    },
+    {
+      "id": "addfc886-0532-48af-8720-ce18eb3d6b6c",
+      "status": "succeeded",
+      "attempts": 1,
+      "error": null,
+      "created_at": "2026-10-01T03:31:38.342694+00:00"
+    },
+    {
+      "id": "1889d129-e754-40e7-9c6e-f04b04d14ac8",
+      "status": "succeeded",
+      "attempts": 1,
+      "error": null,
+      "created_at": "2026-10-01T03:47:03.465669+00:00"
+    },
+    {
+      "id": "778a76f3-19d4-432f-a01d-642ac6d5446f",
+      "status": "succeeded",
+      "attempts": 1,
+      "error": null,
+      "created_at": "2026-10-01T03:49:59.079949+00:00"
+    },
+    {
+      "id": "fb2ff87a-354f-46c0-8b78-1a51f1385b6d",
+      "status": "succeeded",
+      "attempts": 1,
+      "error": null,
+      "created_at": "2026-10-01T03:50:07.453394+00:00"
+    },
+    {
+      "id": "9ed681f5-fdfa-4128-9796-60ecbed31c23",
+      "status": "succeeded",
+      "attempts": 1,
+      "error": null,
+      "created_at": "2026-10-01T03:50:14.725671+00:00"
+    },
+    {
+      "id": "1b742ad8-ea49-4c9c-b570-1a407d647f00",
+      "status": "succeeded",
+      "attempts": 1,
+      "error": null,
+      "created_at": "2026-10-01T04:00:49.403878+00:00"
+    },
+    {
+      "id": "a95cf097-0bae-4fee-920a-a0ec7c6e58d3",
+      "status": "succeeded",
+      "attempts": 1,
+      "error": null,
+      "created_at": "2026-10-01T04:02:27.533950+00:00"
+    },
+    {
+      "id": "2c68c990-82c5-4263-b5c2-561a3a9f0978",
+      "status": "succeeded",
+      "attempts": 1,
+      "error": null,
+      "created_at": "2026-10-01T04:04:06.956710+00:00"
+    },
+    {
+      "id": "6847dd6f-312e-4815-81ea-63a33e199143",
+      "status": "succeeded",
+      "attempts": 1,
+      "error": null,
+      "created_at": "2026-10-01T04:07:40.999063+00:00"
+    },
+    {
+      "id": "d113b947-e3bf-406e-9769-517f918c1db9",
+      "status": "succeeded",
+      "attempts": 1,
+      "error": null,
+      "created_at": "2026-10-01T04:13:27.863909+00:00"
+    }
+  ],
+  "failed_retrieval_proof": {
+    "job_id": "a95cf097-0bae-4fee-920a-a0ec7c6e58d3",
+    "job_status": "succeeded",
+    "retained_pursuits": 32,
+    "saved_notes": 1,
+    "all_snapshots_and_success_times_preserved": true,
+    "ingestion_health_unchanged": true,
+    "failure_mode": "Real HTTP requests through closed localhost proxy; no mocked responses",
+    "failures": [
+      {
+        "id": "1c9eeccc-cc80-449d-a2a7-5ecc1909e010",
+        "site": "811 CLAYTON LN",
+        "status": "failed",
+        "errors": [
+          "Exact official permit retrieval: ConnectError; source was not freshly verified.",
+          "Exact official permit retrieval: ConnectError; source was not freshly verified.",
+          "State project-registration research: ConnectError; source was not freshly verified."
+        ],
+        "last_researched_at": "2026-10-01 04:01:24.669053+00:00",
+        "last_attempt_at": "2026-10-01 04:02:30.412580+00:00"
+      },
+      {
+        "id": "36cb8c09-85ec-443a-8a44-a378bca1dabc",
+        "site": "5700 1/2 LEVANDER LOOP",
+        "status": "failed",
+        "errors": [
+          "Exact official permit retrieval: ConnectError; source was not freshly verified.",
+          "State project-registration research: ConnectError; source was not freshly verified."
+        ],
+        "last_researched_at": "2026-10-01 04:01:08.448455+00:00",
+        "last_attempt_at": "2026-10-01 04:02:29.962988+00:00"
+      },
+      {
+        "id": "c68bfcda-f792-4d6e-b296-68d19505f2ce",
+        "site": "9313 1/2 CAMERON RD",
+        "status": "failed",
+        "errors": [
+          "Exact official permit retrieval: ConnectError; source was not freshly verified.",
+          "State project-registration research: ConnectError; source was not freshly verified."
+        ],
+        "last_researched_at": "2026-10-01 04:00:56.496781+00:00",
+        "last_attempt_at": "2026-10-01 04:02:29.575189+00:00"
+      },
+      {
+        "id": "3b6bc7f3-e08f-4508-8273-ea677944fb38",
+        "site": "BROKERS TIP 13 SWD \u00b7 well 9 \u00b7 RRC county code 109, Texas",
+        "status": "failed",
+        "errors": [
+          "Official RRC retrieval: ConnectError; prior approval was not freshly verified."
+        ],
+        "last_researched_at": "None",
+        "last_attempt_at": "2026-10-01 04:02:30.810778+00:00"
+      },
+      {
+        "id": "3ac2eb74-ff32-4094-8949-089e767596eb",
+        "site": "7335 1/2 BLUFF SPRINGS RD",
+        "status": "failed",
+        "errors": [
+          "Exact official permit retrieval: ConnectError; source was not freshly verified.",
+          "State project-registration research: ConnectError; source was not freshly verified."
+        ],
+        "last_researched_at": "2026-10-01 04:01:17.298811+00:00",
+        "last_attempt_at": "2026-10-01 04:02:30.176240+00:00"
+      },
+      {
+        "id": "44347658-69b9-4883-a7bf-a5e946c0c45e",
+        "site": "8178 1/2 N MOPAC EXPY SVRD SB",
+        "status": "failed",
+        "errors": [
+          "Exact official permit retrieval: ConnectError; source was not freshly verified.",
+          "State project-registration research: ConnectError; source was not freshly verified."
+        ],
+        "last_researched_at": "2026-10-01 04:01:04.804339+00:00",
+        "last_attempt_at": "2026-10-01 04:02:29.852746+00:00"
+      },
+      {
+        "id": "1f6e90ea-d42b-4e93-aecd-02c09c8ba6cc",
+        "site": "ECHO SWD \u00b7 well 2 \u00b7 RRC county code 329, Texas",
+        "status": "failed",
+        "errors": [
+          "Official RRC retrieval: ConnectError; prior approval was not freshly verified."
+        ],
+        "last_researched_at": "None",
+        "last_attempt_at": "2026-10-01 04:02:30.703393+00:00"
+      },
+      {
+        "id": "ef8f93e2-4e1c-4a2f-93b8-7f9786582afb",
+        "site": "FPW SWD \u00b7 well 4 \u00b7 RRC county code 301, Texas",
+        "status": "failed",
+        "errors": [
+          "Official RRC retrieval: ConnectError; prior approval was not freshly verified."
+        ],
+        "last_researched_at": "None",
+        "last_attempt_at": "2026-10-01 04:02:30.905237+00:00"
+      },
+      {
+        "id": "3e38ec82-1a66-4dec-a37c-9d78285bb4a3",
+        "site": "4800 1/2 E RIVERSIDE DR",
+        "status": "failed",
+        "errors": [
+          "Exact official permit retrieval: ConnectError; source was not freshly verified.",
+          "State project-registration research: ConnectError; source was not freshly verified."
+        ],
+        "last_researched_at": "2026-10-01 04:01:13.331867+00:00",
+        "last_attempt_at": "2026-10-01 04:02:30.068755+00:00"
+      },
+      {
+        "id": "c8fe13b3-9376-4288-9285-f7425ab0236c",
+        "site": "7000 BURLESON RD BLDG B UNIT 100",
+        "status": "failed",
+        "errors": [
+          "Exact official permit retrieval: ConnectError; source was not freshly verified.",
+          "State project-registration research: ConnectError; source was not freshly verified."
+        ],
+        "last_researched_at": "2026-10-01 04:01:19.872342+00:00",
+        "last_attempt_at": "2026-10-01 04:02:30.295543+00:00"
+      },
+      {
+        "id": "a99a1241-dffc-41fe-8d30-24fb5ea419a9",
+        "site": "RING WHORL SWD \u00b7 well 1 \u00b7 RRC county code 103, Texas",
+        "status": "failed",
+        "errors": [
+          "Official RRC retrieval: ConnectError; prior approval was not freshly verified."
+        ],
+        "last_researched_at": "None",
+        "last_attempt_at": "2026-10-01 04:02:30.554598+00:00"
+      },
+      {
+        "id": "ba39d50c-d134-47eb-9aa6-14d306a64262",
+        "site": "2631 1/2 KRAMER LN",
+        "status": "failed",
+        "errors": [
+          "Exact official permit retrieval: ConnectError; source was not freshly verified.",
+          "State project-registration research: ConnectError; source was not freshly verified."
+        ],
+        "last_researched_at": "2026-10-01 04:01:00.935113+00:00",
+        "last_attempt_at": "2026-10-01 04:02:29.739900+00:00"
+      }
+    ],
+    "daily_fetch_requests": 157
+  },
+  "failure_browser_proof": {
+    "real_browser": true,
+    "id": "ba39d50c-d134-47eb-9aa6-14d306a64262",
+    "research_status": "failed",
+    "last_researched_at": "2026-10-01T04:01:00.935113Z",
+    "notes_restored": 1,
+    "error_visible": true
+  },
+  "restart_proof": {
+    "digest": "701d12bcc359e548ba30108df213e198191cc0da8ea856f75ec49dedb9b1f88e",
+    "pursuit_count": 32,
+    "note_count": 2,
+    "api_and_worker_processes_restarted": true,
+    "same_database_preserved": true,
+    "restored_digest": "701d12bcc359e548ba30108df213e198191cc0da8ea856f75ec49dedb9b1f88e",
+    "tiers": {
+      "Signal": 1984
+    },
+    "counts": {
+      "observations": 7430,
+      "evidence": 7469,
+      "projects": 1984,
+      "power_needs": 1984,
+      "pursuits": 32,
+      "pursuit_call_notes": 2
+    }
+  },
+  "limits": [
+    "No configured Jev credential: deterministic screening only; no fabricated model verification",
+    "Permit people not verified current employees, assigned project buyers, or authorized purchasers",
+    "Local development executor; no deployed cloud scheduler or PC-off operation proof",
+    "Historical RRC approvals absent from current daily file remain partial; no startup or demand inferred",
+    "Call entries created for browser acceptance are explicitly validation-only; no calls were placed"
+  ]
+}

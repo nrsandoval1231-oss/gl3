@@ -67,9 +67,9 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
         if leased is None:
             return False
         job, fence = leased
-        job_id, source_id = job.id, job.source_id
+        job_id, source_id, kind = job.id, job.source_id, job.kind
         source = session.get(Source, source_id)
-        if source:
+        if source and kind == "ingestion":
             source.health = {
                 **source.health,
                 "status": "Running",
@@ -78,6 +78,11 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
     definition = definitions[source_id]
     attempted = datetime.now(UTC).isoformat()
     try:
+        if kind == "pursuit_research":
+            from gridlens.intelligence.pursuits import process_research_job
+
+            process_research_job(job_id, WORKER_ID, fence)
+            return True
         with SessionLocal() as session:
             counts = process_job(session, job_id, WORKER_ID, fence, definition)
             finished_job = session.get(Job, job_id)
@@ -131,6 +136,12 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
                 "pdf_skipped_not_signal": counts.get("pdf_skipped_not_signal", 0),
                 "pdf_skipped_limit": counts.get("pdf_skipped_limit", 0),
             }
+            if source_id in {"austin-building-permits", "texas-rrc-drilling-permits"}:
+                from gridlens.jobs.queue import enqueue
+
+                research_anchor = session.get(Source, "austin-building-permits")
+                if research_anchor and research_anchor.enabled:
+                    enqueue(session, research_anchor.id, kind="pursuit_research")
             session.commit()
     except Exception as exc:
         with SessionLocal.begin() as session:
@@ -155,7 +166,7 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
                 failed_job.error = (
                     str(exc)[:250] if isinstance(exc, SourceParseError) else type(exc).__name__
                 )
-            if source and valid_owner:
+            if source and valid_owner and kind == "ingestion":
                 from gridlens.ingestion.adapters.federal_register import SourceParseError
 
                 is_parse_error = isinstance(exc, SourceParseError)

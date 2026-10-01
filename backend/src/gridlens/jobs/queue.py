@@ -7,18 +7,18 @@ from sqlalchemy.orm import Session
 from gridlens.persistence.models import Job, Source
 
 
-def enqueue(session: Session, source_id: str) -> UUID:
+def enqueue(session: Session, source_id: str, *, kind: str = "ingestion") -> UUID:
     source = session.scalar(select(Source).where(Source.id == source_id).with_for_update())
     if source is None or not source.enabled:
         raise ValueError("Source is missing or disabled")
     active = session.scalar(
         select(Job.id)
-        .where(Job.source_id == source_id, Job.status.in_(["queued", "running"]))
+        .where(Job.source_id == source_id, Job.kind == kind, Job.status.in_(["queued", "running"]))
         .limit(1)
     )
     if active:
         return active
-    job = Job(source_id=source_id)
+    job = Job(source_id=source_id, kind=kind)
     session.add(job)
     session.flush()
     return job.id
@@ -46,7 +46,7 @@ def lease_one(
             None,
         )
         source = session.get(Source, expired.source_id)
-        if source:
+        if source and expired.kind == "ingestion":
             source.health = {
                 **source.health,
                 "status": "Failed",
