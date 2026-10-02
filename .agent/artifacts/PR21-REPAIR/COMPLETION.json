@@ -48,5 +48,22 @@
   "r4_audit_followup": "Confirmed and repaired historical retained role conflict after reassignment;23 buyingchain tests passed; controller isolated guard-removal proof fails UNKNOWN versus CURRENT. Restored lifecycle fixture retains project binding; unchanged jobs module plus lifecycle regression11passed. Source/docs frozen for fresh full gates.",
   "r5_finished_at_utc": "2026-10-02T22:09:10.645612+00:00",
   "r5_handoff": "Current retained citations evaluated individually; partial support UNKNOWN and current contacts/category aliases preserved; deterministic24rowpaging to4valid inputs. Exact37c source4newtest failures; initialR5alias2failures; finalfocused49passed,Ruff/mypy/diffpass. R5-BEFORE-AFTER.json has measured scope and file blobs. Frozen for controller gates and independent review.",
-  "r5_fixture_followup": "Two-module fixture audit complete: intended-ready new jobs explicitlydue, existingqueued/runningbackoff and productioncode/assertions unchanged; jobs+pursuits22passed,Ruff/diffpass. R9-PURSUITS-FIXTURE.json andR5-GATE-FAILURE.json preservebothclockfailures. Finalgatesserial."
+  "r5_fixture_followup": "Two-module fixture audit complete: intended-ready new jobs explicitlydue, existingqueued/runningbackoff and productioncode/assertions unchanged; jobs+pursuits22passed,Ruff/diffpass. R9-PURSUITS-FIXTURE.json andR5-GATE-FAILURE.json preservebothclockfailures. Finalgatesserial.",
+  "r6_base_sha": "6a61e84dca056b600d06e160ebea39de00a9a515",
+  "r6_handoff": "Eligible current admitted project/activity field claims now expose tier/MW/timing/duration conflicts with exact provenance before mutable PowerNeed comparison. A lone nonmatching claim leaves unsupported mutable fields UNKNOWN; wrong project/activity, invalid admission and rejected/rebound evidence remain excluded. Project change history has a typed list response; canonical OpenAPI and TypeScript regenerated. R6-BEFORE-AFTER.json records 2 exact-head failures and a passing control. After repair: focused module 23 passed, Ruff/mypy/web typecheck/generation/diff check passed. Source and tests frozen; controller owns full gates and independent review.",
+  "r6_repair_count": 1,
+  "r6_started_at_utc": "UNKNOWN",
+  "r6_finished_at_utc": "2026-10-02T22:30:07Z",
+  "r6_durations_and_tokens": "UNKNOWN",
+  "r6_files": [
+    "backend/src/gridlens/intelligence/project_state.py",
+    "backend/src/gridlens/api/app.py",
+    "backend/tests/integration/test_project_state_changes.py",
+    "web/src/api/openapi.json",
+    "web/src/api/generated.ts",
+    ".agent/packets/PR21-REPAIR.md",
+    ".agent/artifacts/PR21-REPAIR/R6-BEFORE-AFTER.json",
+    "docs/validation/PR21-CORRECTNESS-REPAIR.md",
+    ".agent/artifacts/PR21-REPAIR/COMPLETION.json"
+  ]
 }

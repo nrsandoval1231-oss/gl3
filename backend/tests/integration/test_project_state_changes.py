@@ -16,7 +16,7 @@ from gridlens.intelligence.change_detection import (
     seed_material_state,
 )
 from gridlens.intelligence.lifecycle_service import refresh_lifecycle_projection
-from gridlens.intelligence.project_state import project_state
+from gridlens.intelligence.project_state import _conflict, project_state
 from gridlens.persistence.database import Base
 from gridlens.persistence.models import (
     BuyingChainClaim,
@@ -287,12 +287,17 @@ def test_need_state_excludes_each_ineligible_dimension_without_losing_valid_supp
             "identity_key": "another-project" if variation == "identity" else None,
             "activity": "commissioning" if variation == "activity" else None,
             "official": variation != "admission",
+            "tier": "Signal",
+            "demand_mw": "58 MW",
+            "start_window": "2027 Q1",
+            "duration": "12 months",
         }
         excluded, _, _ = linked_official_need_evidence(
             session, project, need, key=f"excluded-{variation}", **kwargs
         )
         fields = project_state(session, project.id)["state"]["power_need"]["value"][0]
         for field in ("activity", "tier", "mw", "timing", "duration", "supply"):
+            assert fields[field]["status"] == "SUPPORTED"
             assert [row["id"] for row in fields[field]["evidence"]] == [str(valid.id)]
         assert str(excluded.id) not in {
             row["id"] for row in project_state(session, project.id)["evidence"]
@@ -336,21 +341,89 @@ def test_need_state_uses_exact_field_evidence_and_preserves_refresh_fallback(db)
             str(matching.id),
             str(other.id),
         }
-        for field in ("tier", "mw", "timing", "duration", "supply"):
-            assert [row["id"] for row in fields[field]["evidence"]] == [str(matching.id)]
+        for field, values in (
+            ("tier", {"Prospect", "Signal"}),
+            ("mw", {"42 MW", "58 MW"}),
+            ("timing", {"2026 Q4", "2027 Q1"}),
+            ("duration", {"6 months", "12 months"}),
+        ):
+            assert fields[field]["status"] == "CONFLICT"
+            assert {claim["value"] for claim in fields[field]["claims"]} == values
+            assert {claim["evidence"]["id"] for claim in fields[field]["claims"]} == {
+                str(matching.id),
+                str(other.id),
+            }
+        assert [row["id"] for row in fields["supply"]["evidence"]] == [str(matching.id)]
         assert {row["id"] for row in state["evidence"]} == {str(matching.id), str(other.id)}
         assert len(state["evidence"]) == 2
 
         interpretation.status = "pending"
         pending = project_state(session, project.id)["state"]["power_need"]["value"][0]
-        assert [row["id"] for row in pending["mw"]["evidence"]] == [str(matching.id)]
+        assert pending["mw"]["status"] == "CONFLICT"
 
         need.required_mw = "99 MW"
         need.start_window = "2030 Q1"
         need.duration = "24 months"
         unsupported = project_state(session, project.id)["state"]["power_need"]["value"][0]
         for field in ("mw", "timing", "duration"):
-            assert unsupported[field] == {"value": None, "status": "UNKNOWN"}
+            assert unsupported[field]["status"] == "CONFLICT"
+
+
+def test_need_state_single_nonmatching_claim_cannot_support_mutable_projection(db):
+    with db.begin() as session:
+        project, _, _ = seed(session)
+        need = PowerNeed(
+            project_id=project.id,
+            activity_key="construction",
+            tier="Prospect",
+            rationale="fixture",
+            required_mw="99 MW",
+            start_window="2030 Q1",
+            duration="24 months",
+            supply="Reported constraint",
+            active=True,
+        )
+        session.add(need)
+        session.flush()
+        linked_official_need_evidence(session, project, need, key="lone-old")
+        fields = project_state(session, project.id)["state"]["power_need"]["value"][0]
+        for field in ("mw", "timing", "duration"):
+            assert fields[field] == {"value": None, "status": "UNKNOWN"}
+        assert fields["tier"]["status"] == "SUPPORTED"
+
+
+def test_equivalent_numeric_claims_share_support_without_false_conflict(db):
+    with db.begin() as session:
+        project, _, _ = seed(session)
+        need = PowerNeed(
+            project_id=project.id,
+            activity_key="construction",
+            tier="Prospect",
+            rationale="fixture",
+            active=True,
+        )
+        session.add(need)
+        session.flush()
+        first, _, _ = linked_official_need_evidence(session, project, need, key="numeric-first")
+        second, _, _ = linked_official_need_evidence(session, project, need, key="numeric-second")
+        projected = _conflict([(42, first), (42.0, second)])
+        assert projected["status"] == "SUPPORTED"
+        assert projected["value"] == 42.0
+        assert {row["id"] for row in projected["evidence"]} == {str(first.id), str(second.id)}
+
+
+def test_project_change_history_openapi_has_typed_array_response():
+    api = import_module("gridlens.api.app")
+    response = api.app.openapi()["paths"]["/api/projects/{project_id}/changes"]["get"][
+        "responses"
+    ]["200"]["content"]["application/json"]["schema"]
+    assert response["type"] == "array"
+    item_ref = response["items"]["$ref"]
+    item = api.app.openapi()["components"]["schemas"][item_ref.rsplit("/", 1)[-1]]
+    assert set(item["required"]) == {
+        "kind", "field", "prior", "new", "evidence_id", "buying_chain_evidence_id",
+        "source_date", "detected_at",
+    }
 
 
 def test_rejected_interpretation_with_supported_withdrawal_remains_current(db):

@@ -258,3 +258,26 @@ due; their 22 tests pass, including deferred-backoff and fenced-worker assertion
 The same full run had a browser network-fetch failure before the card assertion;
 `R5-GATE-FAILURE.json` retains it. Final backend and browser gates run separately,
 with the unchanged serial browser suite and failure tracing enabled.
+
+## R6 admitted claim conflicts and project change contract
+
+Codex on exact `6a61e84` found that equality checks against the mutable
+`PowerNeed` row dropped otherwise current, admitted project/activity claims for
+different tier, MW, timing, or duration. The state projection now collects each
+eligible field claim with its own Evidence first. Distinct eligible values show
+`CONFLICT` and exact provenance, while a single claim that does not support the
+mutable value leaves that field `UNKNOWN`. Matching claims retain all supporting
+Evidence IDs. The existing current-version, project identity, activity, and
+source-admission gates still exclude rejected, reassigned, wrong-activity, and
+nonadmitted records; no unrelated utility projection was expanded.
+
+The project change history endpoint now declares a concrete list response model
+for its existing payload, including nullable prior/new states, both evidence
+IDs, source date, and detection timestamp. The canonical OpenAPI export and
+generated TypeScript client types were refreshed.
+
+`R6-BEFORE-AFTER.json` records two independent failing regressions on the exact
+base, plus a passing unsupported-field control. After repair, the full
+project-state changes module passed 23 tests; Ruff, mypy, web typecheck,
+OpenAPI/type generation, and diff check passed. Full repository gates and
+independent review remain controller-owned.
