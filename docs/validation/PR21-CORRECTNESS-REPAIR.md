@@ -28,3 +28,85 @@ Shadow reservation now uses `pg_try_advisory_xact_lock`; lock contention returns
 R1 focused command: `uv run --directory backend --extra dev pytest tests/integration/test_ingestion.py tests/integration/test_collection_only_ingestion.py tests/integration/test_taylor_ingestion.py tests/integration/test_evidence_shadow_storage.py -q` → 72 passed, 1 warning in 29.21s; raw output: `.artifacts/pr21-repair/round-r1-focused.log`. Ruff passed on changed source/tests; mypy passed on `service.py` and `evidence_shadow.py`; `git diff --check` passed. An initial concurrency-test harness draft waited for the worker while still holding the project lock itself; it was interrupted and replaced with a two-session test that releases the holder transaction before awaiting worker completion. That was a test-harness deadlock, not product-failure evidence.
 
 The reviewer FIX receipt and previous-candidate receipts remain untouched. Controller must rerun full gates and obtain fresh independent review for this repaired candidate.
+
+## R2 correctness repair
+
+The attempt-derived shadow cursor could not record traversal when every visited
+row already had an immutable attempt for its current input. A singleton
+`evidence_judge_scan_checkpoints` table now records the last classified skip or
+persisted attempt. It is the only new table: the migration does not update
+Evidence or `evidence_judge_runs`. A dedicated checked-out PostgreSQL
+connection holds a scan advisory lock across work-session commits, so concurrent
+scans cannot overwrite the checkpoint with a stale position. A deadline before
+classification leaves that boundary row unadvanced for the next call.
+
+`test_shadow_checkpoint_reaches_changed_context_after_deadline_limited_skips`
+preseeds old input keys through a cursor later than a changed-context row,
+uses a deterministic advancing clock to make successive calls consume only
+skips, and proves the changed row is eventually attempted. This fails on the
+reviewed attempt-only cursor because each invocation restarts at the same
+consumed prefix.
+
+Structured permit matching now reads candidate projects before taking project
+locks, then invokes the existing row-plus-advisory `lock_project` protocol in
+UUID order. The actual permit path regression
+`test_authoritative_permit_identity_requires_one_exact_site_candidate` records
+the emitted SQL and rejects the reviewed broad `FROM projects FOR UPDATE` form;
+it requires per-ID project locks.
+
+R2 focused validation at 2026-10-02T18:55:00Z:
+
+- `uv --directory backend run --extra dev pytest tests/integration/test_ingestion.py tests/integration/test_evidence_shadow_storage.py -q` — 37 passed, one existing deprecation warning.
+- `uv --directory backend run --extra dev pytest tests/integration/test_ingestion.py tests/integration/test_collection_only_ingestion.py -q` — 51 passed, one existing deprecation warning.
+- Ruff and mypy on affected sources/tests, plus `git diff --check` — passed.
+
+The controller still owns migration-chain, full-suite, preservation, browser,
+and exact-candidate independent review. No commit, push, merge, deployment, or
+provider call was made.
+
+R2 follow-up proof corrected the initial handoff gaps. Setup failures now issue
+`pg_advisory_unlock` before returning the dedicated scan connection to its
+pool. `test_shadow_setup_error_releases_default_scan_lease` forces checkpoint
+creation to fail, acquires the same lease from a fresh connection, and then
+proves a normal next call can attempt work. The default-scan concurrency test
+holds a provider call open after its attempt commit and proves a second default
+scan returns zero work while the lease is held.
+
+The changed-context regression now retains an old immutable target attempt,
+changes only its current project context, records multiple zero-attempt scans
+over the consumed prefix, and requires exactly one new valid target attempt.
+Explicit IDs no longer apply a 20-row SQL limit before skip evaluation;
+`test_explicit_shadow_ids_scan_past_twenty_consumed_inputs` proves a second
+call reaches the 21st ID after the first 20 immutable attempts.
+
+Retained-news preflight now takes the same all-project lock scope that it had
+before the R1 narrowing, but through sorted `lock_project` calls. This covers
+any candidate later referenced by a match-decision foreign key. The two-session
+structured ingestion regression inserts the higher UUID first, holds the lower
+UUID with the retained-news-compatible lock helper, confirms the worker block
+with `pg_blocking_pids`, and acquires the higher row with `NOWAIT` before
+release. The reviewed broad physical scan would hold the higher row first;
+the repaired UUID order passes.
+
+Final R2 focused command:
+
+- `uv --directory backend run --extra dev pytest tests/integration/test_evidence_shadow_storage.py tests/integration/test_ingestion.py tests/integration/test_collection_only_ingestion.py -q` — 65 passed, one existing deprecation warning, 29.04 seconds.
+
+Final lease follow-up: checkpoint initialization commits before any traversal so a
+zero-work caller cannot retain the singleton insert after the dedicated lease
+is released. `test_zero_work_default_scan_commits_checkpoint_before_releasing_lease`
+keeps that first caller Session open while a second default scan completes with
+zero provider calls and zero attempts. Acquisition now releases a newly opened
+connection if the advisory-lock query itself raises;
+`test_shadow_acquisition_error_closes_new_connection` verifies pool checkout
+count returns to baseline. The existing setup-error and default contention
+tests remain in the focused suite.
+
+Controller before-proof executes the exact `bfa6186` ingestion and shadow source
+against the current fixture schema (so the checkpoint model can import), in an
+isolated source copy. Both new Codex regressions fail: changed-context judging
+stays at zero calls, and structured ingestion never reaches the required per-ID
+lower-project lock marker. This is execution evidence, not a full historical
+tree test or an observed PostgreSQL deadlock. The repaired two-session test
+separately proves that the higher project remains lockable while ingestion waits
+on the lower project. See `R2-BEFORE.json` for the exact scope and assertion output.

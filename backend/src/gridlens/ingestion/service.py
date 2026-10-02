@@ -845,6 +845,11 @@ def assess_retained_news(
     # acquire old and candidate project/advisory locks in one stable order.
     candidate_project_ids = set(old_project_ids)
     candidate_projects = session.scalars(select(Project)).all()
+    # `_attach_news_supplement` may persist a match decision for any candidate
+    # selected by its full evidence/phase predicate.  Keep the prior broad
+    # retained-news lock scope, but acquire it in the shared stable order so a
+    # later FK reference cannot introduce an unsorted project lock.
+    candidate_project_ids.update(candidate.id for candidate in candidate_projects)
     target_identity = payload.get("project_identity_key")
     if target_identity:
         candidate_project_ids.update(
@@ -2143,7 +2148,12 @@ def process_job(
                     if facility_scope and isinstance(permit_data, dict)
                     else None
                 )
-                candidates = session.scalars(select(Project).with_for_update()).all()
+                # Discover candidates without locks, then acquire every touched
+                # project row and advisory lock in the shared UUID order.  The
+                # retained-news reassignment path uses that same order.
+                candidates = session.scalars(select(Project)).all()
+                for candidate_id in sorted((candidate.id for candidate in candidates), key=str):
+                    lock_project(session, candidate_id)
                 supported: list[tuple[Project, Any]] = []
                 decisions: list[tuple[Project, Any]] = []
                 permit_alias = (
