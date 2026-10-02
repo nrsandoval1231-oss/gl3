@@ -174,6 +174,7 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
                 "houston-weekly-permits",
                 "dallas-monthly-permits",
                 "el-paso-new-commercial-permits",
+                "boston-building-permits",
             }:
                 from gridlens.jobs.queue import enqueue
 

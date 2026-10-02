@@ -2,7 +2,33 @@
   "version": 1,
   "sources": [
 {
-  "id": "texas-rrc-drilling-permits",
+  "id": "boston-building-permits",
+  "publisher": "City of Boston",
+  "endpoint": "https://data.boston.gov/api/3/action/datastore_search_sql",
+  "family": "construction-permits",
+  "geography": "Boston, Massachusetts",
+  "city": "Boston",
+  "state": "MA",
+  "industries": ["data centers", "manufacturing", "commercial facilities", "construction"],
+  "retrieval_method": "boston-ckan-permits",
+  "cadence_hours": 24,
+  "publication_cadence": "Continuously updated CKAN permit table; retrieved daily for the prior 90 calendar days by issued date",
+  "credential_reference": null,
+  "enabled": true,
+  "retention": "Official permit row fields, source row identifier, applicant label, amendment reference where explicit, issue date, current status, and official CKAN citation",
+  "collection_scope": "Bounded 90-day issued-permit window, all permit types/statuses; count-checked deterministic pagination ordered by issue timestamp and row ID.",
+  "coverage_limitation": "Not the full 664,565-row history. Closed/completed records remain evidence and are not admitted as current Signals. Applicant is not a buyer role. No construction start, project owner, temporary rental need, MW, supply gap, or authority is inferred; declared valuation and area are not power need. Status changes on records outside the recent issue window are not monitored.",
+  "query": {
+    "window_days": 90,
+    "page_size": 1000,
+    "max_pages": 20,
+    "max_records": 20000,
+    "max_response_bytes": 2000000,
+    "max_run_bytes": 20000000
+  }
+},
+{
+"id": "texas-rrc-drilling-permits",
   "publisher": "Railroad Commission of Texas",
   "endpoint": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
   "family": "construction-permits",

@@ -13,6 +13,7 @@ SOURCES = (
     "houston-weekly-permits",
     "dallas-monthly-permits",
     "el-paso-new-commercial-permits",
+    "boston-building-permits",
 )
 MAX_BATCH = 12
 MAX_FETCHES = 48
