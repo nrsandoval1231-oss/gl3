@@ -1,81 +1,103 @@
-# GridLens application UI — approved focus experience
+# GridLens UI/UX — canonical interactive environment
 
-**Owner decision:** Nick Sandoval, October 1, 2026.  
-**Status:** Interaction target approved; production implementation NOT YET accepted.  
-**Scope:** The existing private GridLens application in `gl3`. No new application or repository.  
-**Product authority:** [PRD](../product/PRD.md). Its qualification gates, evidence rules, and October 1 commercial presentation amendment remain authoritative.
+**Status:** LOCKED by Nick Sandoval on October 1, 2026.  
+**Owner decision:** “This is the one! Make this the canonical UI-UX.”  
+**Scope:** GridLens application in `gl3`. This is a design-authority update, not a claim that the production application has been rebuilt.  
+**Product authority:** [PRD](../product/PRD.md). Its evidence rules, qualification gates, national scope, and commercial requirements remain authoritative.  
+**Reference identity:** [Canonical reference manifest](references/canonical-ui-reference.json).
 
-## Decision and precedence
+## 1. What is approved
 
-GridLens is one continuously transforming commercial-intelligence workspace. Selecting a pursuit changes the surrounding environment, not merely the contents of a fixed dashboard panel.
+The approved visual reference is the owner's attached **720 × 450 screenshot** of the original interactive study, headed **“A wider view. A sharper focus.”** Its companion behavior reference is **`gridlens-interactive-study.html`**. Use the exact assets identified by the manifest, not a similarly named regenerated mockup.
 
-**Nationwide → Project → Power need → Evidence → Buying chain → Action → exact return.**
+> GridLens is one continuously transforming intelligence environment. Start with the nation; select a signal; let the environment become the pursuit. Geography, project, power need, evidence, buying chain, and action retain their identity as the user moves through them.
 
-This owner-approved decision supersedes the September 24 list-first layout, light-canvas requirement, and 200–300 ms page-transition prescription. Earlier browse/detail screenshots are historical references, not the new implementation target. Their evidence discipline and commercial requirements remain in force. The approved target is the interactive GridLens study, not the earlier static national dashboard mockup and not a recreation of Nucleus branding.
+The quiet, atmospheric, full-canvas composition is the design—not just a background behind a dashboard. Preserve its hierarchy, negative space, restrained geography, type, density, and motion language. Improve usability and production reliability without redesigning it.
 
-## Exact reference
+**Superseded:** the September 24 light-canvas browse/detail layout, its always-visible tier-tab requirement, and later image-generated dashboards/storyboards with large sidebars, dense cards, neon maps, or permanent map/dossier split panes. `references/browse.webp` and `references/detail.webp` remain historical artifacts only, even where older documents still link them. The owner-provided brand system remains valid. Nucleus supplies the continuity principle, not GridLens's visual identity.
 
-The owner-approved attachment is `gridlens-interactive-study.html`, 157,948 bytes, SHA-256:
+## 2. Frozen visual direction
 
-`6274e7012a1def344dbbe2c2acda89a7b8cf0a98e359e49f9e16e0bc3a486b2e`
-
-The matching owner-supplied brand photo is `C5806D77-707A-459A-9624-96EDD2E51A92.jpeg`, SHA-256:
-
-`db3b86914a18f238474352572b322af6b78b92b55ec34bf39f2c95be74d66aec`
-
-The original HTML and brand photo are included in the accompanying `gridlens-production-handoff.zip` delivered in the approval conversation. This documentation change records their identity; it does NOT claim that their bytes are already checked into Git. Before visual implementation, import the unchanged HTML into `docs/design/references/gridlens-interactive-study.html`, verify its checksum, open it in a browser, and use it for side-by-side comparison. Do not invent a replacement when the attachment is unavailable; report that specific missing artifact.
-
-The study contains fictional scenarios, schematic site geometry, scripted commands, and session-only drafts. It is an interaction reference, NOT a source of production data or proof of integration. Preserve the original separately from the production port. Confirm map/asset provenance before promoting reference assets into shipped application assets.
-
-## Brand and visual identity
-
-Keep the geometric GridLens Aperture and wordmark together, once, at the top left. Preserve the owner-supplied mark; do not replace it with a camera-shutter icon, cube, Nucleus symbol, or repeated background logo. Use the existing approved vector assets when they match the owner reference.
-
-Use GridLens Navy `#17324A`, Deep Current `#101F2D`, Steel `#395A75`, Atmosphere `#6F879D`, Mist `#D5DEE5`, Ice `#F3F6F7`, and white. The approved environment is dark navy with restrained atmospheric depth and ice/white action surfaces. Do not import Nucleus colors or add electric signal blue as the dominant application accent.
-
-Preserve the study's spacious composition, quiet typography, anchored input, and hierarchy. Use a licensed ABC Diatype asset only when available; otherwise use a readable modern system sans. Production body text must remain readable without scaling an entire desktop screen into tiny mobile text.
-
-No generic card dashboard, permanent split-panel dossier, decorative rotating globe, particle field, fake satellite detail, or orbital solar system. Lists remain useful as an alternate representation and for records that cannot be mapped; they do not replace the approved environment.
-
-## Required transformations
-
-| State | Required behavior |
+| Element | Canonical requirement |
 | --- | --- |
-| Nationwide | Show the United States, with Alaska and Hawaii represented or reachable. Show actual accepted records and source coverage, not invented national completeness. Support the industry lens, tier controls, search, and an accessible list. Selecting a mapped signal changes the whole composition. |
-| Project | Preserve the selected project's identity while the surrounding map recedes. The project, activity-specific need, known facts, unknowns, and next useful question become the focus. Do not show a schematic as an actual site model. |
-| Power need | Expand the SAME timing/power object into an analytical view. Separate requirement, suitable supply, and remaining gap. Unknown dates or load must produce an honest unresolved view, not fictional endpoints, durations, or a calculated gap. |
-| Evidence | Keep the selected claim anchored while its supporting and conflicting sources unfold. Show claim-specific links, source dates, evidence status, and assumptions. Close evidence back into the claim rather than navigating to an unrelated document dashboard. |
-| Buying chain | Reorganize relationships around the selected organization or role. Distinguish project involvement, current company role, personal project assignment, and purchasing authority. Supported and inferred relationships are visually AND textually distinct. Unknown contacts stay unknown. |
-| Action | Let the selected buying question become an editable discovery/call workspace. Keep the project and unresolved facts visible. Save a note or outcome through the real backend; copying/exporting a draft is not saving a call or sending outreach. |
-| Back | Restore the prior arrangement, not only a URL. Preserve the selected project and need, tier, lens, search, sort, result context, map camera, evidence disclosure, selected role, scroll, and keyboard focus. Preserve unsaved drafts separately so navigation does not erase edits. |
+| Environment | One edge-to-edge deep-navy field with subtle atmospheric depth. No permanent boxed dashboard frame, hero mountain photograph, decorative particle field, or excessive bloom. |
+| Identity | Approved GridLens Aperture and wordmark together, once, at top-left. Infrastructure Intelligence is the restrained supporting descriptor. Use approved assets from `web/public/brand`; do not redraw or replace the mark. |
+| Palette | Deep Current `#101F2D`, GridLens Navy `#17324A`, Steel `#395A75`, Atmosphere `#6F879D`, Mist `#D5DEE5`, Ice `#F3F6F7`, White `#FFFFFF`. No Signal Blue `#3B82F6`, neon cyan, purple, or imported Nucleus colors. |
+| Typography | Modern sans in the approved ABC Diatype direction; use an authorized font or existing fallback. Large, light-weight editorial headings; clear project names; quiet secondary labels. Do not copy the screenshot's scaled-down text sizes into production. |
+| National composition | Left: short orientation, selected/featured pursuit, compact timing context, one useful action. Center/right: integrated U.S. map with fine state outlines and sparse, meaningful project markers. Alaska and Hawaii remain reachable. |
+| Controls | Compact context/back control at upper-left beneath the header. Compact industry Lens and Signals / Prospects / Leads selector at upper-right. A restrained, discoverable secondary menu; no permanent wide navigation rail. |
+| Selection | Restrained silver/ice marker and focus ring; surrounding content recedes. Marker prominence must have a stated purpose and cannot imply an unsupported load, confidence, or opportunity count. |
+| Input | Anchored bottom command/search bar with visible current scope. Ordinary controls remain available; the user does not have to know commands or use AI to navigate. |
+| Detail | Progressive disclosure within the same environment. Keep only information relevant to the current task prominent. A readable light writing surface may unfold for action, as in the original study. |
 
-The command/input remains anchored through these states. Initially it may support explicit commands, search, capture, and known contextual actions. Clearly distinguish those from any real language-model capability. Do not add a model dependency merely to navigate the interface.
+Brand geometry, clear-space rules, and asset licensing in [BRAND_ASSETS.md](BRAND_ASSETS.md) still apply. Never repeat the Aperture as a map pin, watermark, panel decoration, or replacement for a data object.
 
-## Motion and interaction
+## 3. State and interaction contract
 
-Use the original study as the motion reference: its principal layout transition is about 1,050 ms, with longer map transformations around 1,500 ms. Match the feel before tuning from measured performance. Do not substitute quick page fades and call that equivalent.
+The original study demonstrates six modes: nationwide/home, project, power, evidence, buyers, and action. The previously requested state lens and richer tier/filter behavior are **production extensions to this same design**, not capabilities proven by the original study.
 
-Maintain stable object identity while position, size, emphasis, and surrounding context change. Important examples are the project identity, timing window, evidence claim, selected buyer, and action question. Selecting a different role must visibly reorganize the relationships, not only replace text.
+| State | What transforms | What remains anchored |
+| --- | --- | --- |
+| Nationwide | National geography and the selected pursuit provide orientation. Selecting a marker changes the subject; entering the pursuit enlarges that same subject and recedes the map. | Brand, Lens/tier controls, command bar, selected project identity. |
+| State lens | Selecting a state smoothly reframes the same geography and reveals its matching records. No matching records produces an honest empty state, not invented markers. | Filters, tier, selected object where still applicable, national return context. |
+| Project focus | The selected project title and power-need context move forward. Other projects recede; evidence, buyer, and action entry points emerge. Any facility illustration is labeled schematic unless source-backed. | Project and power-need IDs, return path, compact timing context, command scope. |
+| Power need | The same compact timing object expands into a readable need-versus-suitable-supply view. Selecting a date or input opens the evidence for that claim. | Activity-specific facts and their IDs; unknown dates or supply remain unknown. |
+| Evidence trail | Evidence unfolds around the selected claim, with source, date, excerpt/location, label, and contradictions. Opening a document does not lose the claim or pursuit. | Project, power need, selected claim, timeline context, previous viewport. |
+| Buying chain | Relevant organizations and roles unfold as a relationship view; choosing a role reorganizes the view around it. Organization involvement, current employment, personal project assignment, and buying authority are separate claims. | Selected power need, source-backed relationship identities, next discovery question. |
+| Action workspace | The relevant next question becomes an editable research/call brief or note. Other context recedes rather than disappearing. Missing contacts lead to discovery, not invented outreach. | Project context, tier, evidence, unsent draft and actual save status. |
 
-Transitions are interruptible. Rapid clicks, repeated back/forward, resize, and delayed API responses must settle on the latest intended state without overlapping controls or losing input. Inactive surfaces must not remain clickable or keyboard-focusable. Respect `prefers-reduced-motion`, preserve focus visibility, announce meaningful state changes, and offer keyboard-equivalent actions. Continuous decorative animation is not required.
+**Back is restoration, not reset.** Restore prior state, geography, viewport/zoom/pan, Lens, tier, filters, sort, list position when applicable, selected project and need, selected claim/role, disclosure state, scroll, and keyboard focus. Preserve drafts separately from navigation snapshots. A refresh/deep link may restore only supported persisted state; do not promise session-only data survives restart.
 
-## Production data rules — unchanged
+**Filters change the environment.** Recompute visible markers, clusters, counts, featured pursuit, and empty states from the same result set. Preserve map position unless the user chooses to reframe. If the selected item stops matching, keep its context visibly marked “outside current filters” until the user returns or chooses another item; do not silently replace it. Changing a viewing Lens never silently narrows national ingestion.
 
-- Signals, Prospects, and Leads remain evidence maturity, not visual importance, animation state, or a confidence percentage. Keep all three readily accessible. Priority, lifecycle, and pursuit status remain separate.
-- A Signal requires sourced reasons to investigate. A Prospect requires an actual requirement AND supported supply insufficiency. A Lead requires the PRD's supported load, timing, duration, supply-gap, buyer-role, and next-action fields. Unknown utility status does not establish a gap.
-- Every displayed value comes from accepted data with its proper label and source. Keep Reported, User-confirmed, Inferred, Derived, Unknown, conflicting, and stale distinctions visible where applicable. No sample names, illustrative dates, or fictional opportunities in live fallback states.
-- Retain the inclusive 300 kW floor with no maximum. Retain unknown-size Signals with an unknown label. Campus total/nameplate/operating capacity is not temporary construction or commissioning load.
-- Cover the country as product scope without claiming all states or sources are operational. Unlocated records remain accessible in a clearly labeled list. Do not silently discard records or place invented precise points. Geographic aggregation or approximation must be labeled. View filters must not stop national ingestion.
-- Preserve project-bound owner/contractor role attribution. Prioritize direct users and responsible GCs, EPCs, electrical and commissioning contractors. Exclude re-renters as pursuit targets by default.
-- Today/change counts must represent genuine new or material changes, not reprocessing or failed checks. Keep source health, last-success information, partial coverage, failures, and overdue runs accessible.
-- Preserve authentication, existing ingestion review, pursuits, source inspection, evidence, and exports. Never expose private notes or source data through a public prototype or unauthenticated static endpoint. Writes use existing authorization; logout clears private client state.
+**Actions are real and bounded.** Saving a note or status requires a persisted success result. A draft is not a sent message, a saved note is not a completed call, and a task status is not an evidence-tier promotion. Automated outreach is not introduced by this design decision.
 
-## Build boundary and acceptance
+## 4. Motion rules
 
-Implement this in the existing React frontend and API. Preserve ingestion, identity resolution, qualification, evidence persistence, and existing databases. Start with a small local view-state reducer and the existing client; add dependencies only to solve a demonstrated need. No generic animation framework, new orchestration layer, separate demo application, or iframe presented as the product.
+Use the original study as the choreography reference: selected objects move, expand, recede, and return; unrelated screens do not simply crossfade behind a stationary dashboard. Preserve object identity with stable keys and a small shared scene-state model.
 
-The first production slice must be a working authenticated **real Signal → focused project → exact return**, including honest unlocated/unknown/error states. Then carry the SAME pursuit through power, evidence, buying chain, and a persisted action. Do not stop after component scaffolding, this specification, or another mockup.
+Implementation starting ranges—not separate visual approvals:
 
-Acceptance requires the approved interaction feel AND verified real-data behavior: desktop and mobile browser evidence; ordinary and reduced motion; keyboard/focus and back/forward restoration; interrupted transitions and stale-response checks; honest empty/failure/unknown states; no auth bypass; and a note/outcome proven to survive refresh where saving is offered. A real Signal is sufficient to prove the flow; never manufacture a Lead to satisfy the demo.
+- Hover/focus and small control feedback: 120–200 ms.
+- Disclosure/filter changes: 200–400 ms.
+- Major focus transformations: approximately 700–1100 ms, with a settling atmosphere/map layer up to 1500 ms where useful.
+- Primary easing follows the study: `cubic-bezier(.22, 1, .36, 1)`.
 
-Typecheck, build, appropriate browser/regression tests, and independent review must cover the exact candidate. Runtime/hosting acceptance is separate from code or design approval. Do not call the new interface shipped until Nick can open the actual authenticated application and complete that flow. Read [the execution handoff](BUILD_FOCUS_EXPERIENCE.md) before implementation.
+Do not make data or input wait for animation. Transitions must be interruptible, with no stale selection after rapid clicks or Back. Prefer transform/opacity animation; avoid continuous decorative loops. Respect reduced motion by retaining hierarchy and focus without camera movement. Keep controls usable during loading and failures.
+
+## 5. Product truth survives the visual change
+
+Tier belongs to an individual **power need**, not necessarily the entire campus. Different activities at one project may have different tiers. Tier, pursuit status, lifecycle, priority, and confidence remain separate.
+
+| Tier | Required presentation |
+| --- | --- |
+| Signal | Dated source, identifiable site/project/company, specific reason to investigate, and next question. Unknown MW, supply, start, and duration are explicit. Do not draw a definite gap from absent utility information. |
+| Prospect | Supported actual power requirement plus independent evidence that suitable supply may be late or insufficient. Show the missing facts blocking Lead qualification. |
+| Lead | Supported remaining need, activity/location, MW range, start window, duration range, explained supply gap, likely buying organization/role, and next action. All material inputs trace to evidence. |
+
+No confidence percentages, manual “Add to Leads” promotion, campus-MW substitution, generic company contacts presented as buyers, or fabricated service dates. Preserve Reported, User-confirmed, Inferred, Derived, and Unknown labels; material conflicts block unsupported conclusions.
+
+Apply the PRD's inclusive 300 kW visible commercial floor with no maximum; unknown-size Signals stay visible and labeled. Prioritize direct users and responsible GC/EPC/electrical/commissioning contractors, not rental intermediaries. Preserve the distinction between data-center construction, commissioning, and bridge needs; upstream O&G production and fixed-infrastructure lifecycles remain distinct.
+
+A national map is national **scope**, not proof of comprehensive live coverage. Source coverage, freshness, partial ingestion, failed/overdue checks, and unmapped or approximate locations must remain discoverable and honest. “Today” counts reflect actual material changes, not repeated retrievals. The study's fictional projects, dates, six-month mismatch, and sample counts must never seed production or substitute for acceptance evidence.
+
+## 6. Minimal production components and state
+
+Adapt the existing `web` application rather than starting a new app or importing another project's architecture. Keep the backend and accepted evidence intact.
+
+Logical responsibilities: `EnvironmentShell`, `ContextBar`, `LensControls`, `NationwideMap`, `PursuitSubject`, `PowerWindow`, `EvidenceTrail`, `BuyingChain`, `ActionWorkspace`, `CommandBar`, and accessible loading/empty/error/source-health surfaces. These are responsibilities, not a requirement to create a file or service for every name.
+
+Use one compact navigation reducer with a context-history stack, stable object IDs, current result set, selected claim/role, and map viewport. Keep fetched domain data and persisted drafts separate. The existing authenticated API remains authoritative for qualification and writes. Do not add a new orchestration framework, graph database, event bus, renderer, or map platform merely for this visual change.
+
+Mobile preserves the same hierarchy in a readable vertical composition; the bottom input respects the keyboard and safe area. Provide keyboard access, visible focus, meaningful map/list alternatives, adequate contrast, and reduced motion. Unmapped opportunities must remain accessible outside the map.
+
+## 7. Builder handoff and acceptance
+
+1. Obtain and checksum-match the exact reference package in the manifest. Preserve the source originals; do not substitute the later image-generated dashboards. Read the original HTML as a behavior reference, not production data or a production architecture mandate.
+2. Implement the shell and one real existing Signal through project → power/evidence → buying chain → action → Back, without replacing accepted backend behavior. Reuse current brand assets and authenticated APIs.
+3. Extend the same scene with state focus and real tier/industry filters. Add empty, partial-coverage, unmapped, loading, conflict, save-failure, and reduced-motion states. Do not invent Prospects or Leads to fill the interface.
+4. Compare the overview visually against the exact screenshot and demonstrate a short interaction recording. Check object continuity and return-context restoration, not just static colors. Run relevant repository checks and browser tests; report precisely what was and was not tested.
+
+Acceptance requires desktop and mobile use; keyboard/reduced-motion use; rapid navigation without stale content; claim-specific provenance; independent tier/status behavior; correct filtered counts; real persisted action outcomes; and no fictional project data in normal operation.
+
+**Non-negotiable builder instruction:** Build this approved experience. Do not reinterpret it as a generic dashboard, another design study, a permanent map/detail split, or a Nucleus-themed skin. Further visual redesign requires a new explicit owner decision. Accessibility, factual corrections, and production reliability improvements remain allowed within this direction.
