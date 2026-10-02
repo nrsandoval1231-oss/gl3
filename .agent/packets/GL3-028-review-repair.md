@@ -1,0 +1,11 @@
+# GL3-028 independent-review repair only
+
+Same branch/worktree/base and authority as GL3-028. Independent Sol returned FIX on manifest `ab725bebbdb1d915bffc9130604cb5488225d1b6d0927295fa3b07059753269c`. Raw verdict remains in REVIEW-v1-FIX.json and REVIEW.json. No commit/push/merge/deployment is authorized before fresh acceptance.
+
+Canonical requirement reconstructed after two provenance repair attempts: every material field transition must cite its actual supporting evidence. Material fields compare full organization/person/title/category/relationship rows. Evidence selection must compare the same semantic unit, not organization-name sets. This is a narrower corrected path through the existing PostgreSQL buying-chain model, not another architecture.
+
+Luna owns only `backend/src/gridlens/intelligence/buying_chain.py` support selection and `backend/tests/integration/test_project_state_changes.py` regression additions. Do not change migrations, API shapes, provider code, tier rules, sources, canonical PRD, or other workers' edits. Use full semantic row changes to identify affected claims/organizations, select their actual current citations or checked same-URL replacements for removals, and retain earlier fixes. Add same-organization GC-to-electrical-contractor transition and unchanged replay proof. Check both contractor and buyer events have the actual BuyingChainEvidence reference and no unrelated generic Evidence reference. No live calls.
+
+Run focused tests, Ruff and mypy. Report exact changed files, commands/results, uncertainties and UTC finish; do not grade acceptance. Parent runs frozen candidate gates, updates explanatory validation evidence, and obtains fresh independent Sol review. Retry budget two materially different repairs; no blind retry or canonical weakening.
+
+Adjacent API repair authorized after selector handoff: `/api/projects/{id}/changes` currently exposes only `evidence_id`, which is correctly null for buying-chain changes, but omits the actual new `buying_chain_evidence_id`. Add that nullable reference to the existing response and assert the external FK in the project-change API test. Only `api/app.py` and the same focused test file are additionally authorized; existing keys, morning API shape, UI, migration and provider behavior remain unchanged.

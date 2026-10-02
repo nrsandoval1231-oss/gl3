@@ -218,6 +218,12 @@ Example output contract:
 
 Exact schema/enums should be tightened during implementation. Scores are judgment metadata, not verified facts.
 
+## GL3-028 implementation boundary
+
+The GL3-028 slice implements this architecture with relational projections rather than a graph database. `GET /api/projects/{id}/state` reads only currently accepted evidence versions and exposes field-level `SUPPORTED`, `CONFLICT`, or `UNKNOWN` status with evidence provenance. `project_material_states` holds a compact accepted semantic snapshot and revision per project. Under a project lock, deterministic mutation hooks compare actual prior/new state and append material `change_events`; initial legacy seeding is not a discovery, metadata-only changes are omitted, and A→B→A remains visible.
+
+`evidence_judge_runs` stores only explicitly invoked, bounded EvidenceJudge comparisons. Its strict categorical output and deterministic result are advisory metadata, separate from the existing signal-adjudication authority. The default `JEV_ENABLED=false`, shadow-only flag, daily and batch limits, durable PENDING reservation, and explicit CLI keep provider calls out of ordinary ingestion. A pure `research_recommended` decision can be stored beside the comparison; it cannot enqueue research, retrieve sources, contact a buyer, modify accepted facts, or promote a Signal. See the [dated validation report](../validation/gl3-028-evidence-graph-jev-shadow.md) for implementation and bounded measurement evidence.
+
 ### Shadow-mode requirement
 
 Initially, EvidenceJudge must not change admission, promotion or canonical truth. Run it against existing accepted/rejected evidence and compare it with current deterministic outcomes and human-reviewed examples.

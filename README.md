@@ -10,6 +10,10 @@ The standalone Cannabis Watch is removed; cannabis and publisher evidence remain
 
 The next working slice adds persisted daily Austin/RRC pursuits, bounded official-source research, separate action statuses and owner call outcomes. Open `?view=pursuits`; see [startup and scheduler limits](docs/operations/power-pursuits.md) and [real-source validation](docs/validation/gl3-021-power-pursuits.md). Unknown rental demand, load, fuel, duration and buying authority remain unknown. This feature does not promote tiers or establish cloud operation.
 
+## GL3-028 evidence graph slice
+
+The current `feat/evidence-graph-jev-shadow` candidate adds an authenticated current-project state projection, evidence-backed material-change history, and an explicit zero-authority EvidenceJudge shadow command. Jev remains separate from signal adjudication, and normal ingestion does not call it. Migration `0012` adds project state revisions and shadow attempt records. See the [validation report](docs/validation/gl3-028-evidence-graph-jev-shadow.md) and [operator limits](docs/operations/power-pursuits.md). This branch remains subject to final exact-candidate review; it is not a merge or deployment claim.
+
 ## Product model
 
 GridLens follows:

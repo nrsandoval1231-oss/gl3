@@ -331,6 +331,96 @@
         }
       }
     },
+    "/api/projects/{project_id}/state": {
+      "get": {
+        "summary": "Project State Endpoint",
+        "operationId": "project_state_endpoint_api_projects__project_id__state_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectStateOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/projects/{project_id}/changes": {
+      "get": {
+        "summary": "Project Changes Endpoint",
+        "operationId": "project_changes_endpoint_api_projects__project_id__changes_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 250,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/refresh": {
       "post": {
         "summary": "Refresh",
@@ -2624,6 +2714,72 @@
           "extraction_location"
         ],
         "title": "PermitSummaryOut"
+      },
+      "ProjectStateOut": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id"
+          },
+          "identity_key": {
+            "type": "string",
+            "title": "Identity Key"
+          },
+          "state": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "State"
+          },
+          "organizations_and_roles": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Organizations And Roles"
+          },
+          "lifecycle_events": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Lifecycle Events"
+          },
+          "evidence": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Evidence"
+          },
+          "candidate_matches": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Candidate Matches"
+          },
+          "disclosure": {
+            "type": "string",
+            "title": "Disclosure"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "identity_key",
+          "state",
+          "organizations_and_roles",
+          "lifecycle_events",
+          "evidence",
+          "candidate_matches",
+          "disclosure"
+        ],
+        "title": "ProjectStateOut"
       },
       "PublicContactOut": {
         "properties": {

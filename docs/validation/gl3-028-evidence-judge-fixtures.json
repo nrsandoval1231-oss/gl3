@@ -1,0 +1,144 @@
+{
+  "fixture_set": "gl3-028-retained-evidence-v1",
+  "provenance": "Retained real UUIDs and source identifiers were selected from the isolated acceptance clone. Human-readable fixture descriptions are summaries, not verbatim excerpts; benchmark-live reads the retained Evidence title/abstract. Synthetic variants explicitly transform bounded retained context and are never discoveries or persisted runtime evidence.",
+  "cases": [
+    {
+      "case_id": "boston-temporary-electrical",
+      "kind": "retained_real",
+      "project_id": "98b4d264-2e86-40f9-9e67-ac92bed65f6a",
+      "evidence_id": "fab37ce4-29b6-45d8-a88d-0e19e6c56c60",
+      "source_id": "boston-building-permits",
+      "excerpt": "Electrical Temporary Service; temporary electrical modifications necessary to support phased demolition and construction.",
+      "label_source": "retained accepted interpretation plus explicit source wording; no prior accepted-state comparator in this fixture, so material change is UNKNOWN",
+      "labels": {"relevant": "YES", "same_project": "YES", "event_type": "electrical_construction", "material_change": "UNKNOWN", "power_relevance": "HIGH", "temporary_power_hint": "YES", "needs_deep_enrichment": "YES"}
+    },
+    {
+      "case_id": "chicago-data-center-conversion",
+      "kind": "retained_real",
+      "project_id": "f95cee99-822f-428d-8f5b-7a4d1ac138c2",
+      "evidence_id": "cd19ac72-48ac-44ea-ac45-6fdac75ecd9f",
+      "source_id": "chicago-building-permits",
+      "excerpt": "Phase 3 of 3: interior alterations to existing 7-story office building to convert to a data center.",
+      "label_source": "retained permit describes conversion to data center; permit alone does not prove commissioning or accepted-state change",
+      "labels": {"relevant": "YES", "same_project": "YES", "event_type": "construction", "material_change": "UNKNOWN", "power_relevance": "HIGH", "temporary_power_hint": "UNKNOWN", "needs_deep_enrichment": "YES"}
+    },
+    {
+      "case_id": "houston-below-commercial-floor",
+      "kind": "retained_real",
+      "project_id": "f9326570-79f2-48c0-8406-462527bbebaa",
+      "evidence_id": "00ed4860-fe13-4cef-a8a9-5d00e12a13af",
+      "source_id": "houston-weekly-permits",
+      "excerpt": "35 kW interior natural gas work; the reported size is below GridLens's inclusive 300 kW opportunity floor.",
+      "label_source": "retained permit fields plus published commercial floor",
+      "labels": {"relevant": "YES", "same_project": "YES", "event_type": "other", "material_change": "UNKNOWN", "power_relevance": "LOW", "temporary_power_hint": "NO", "needs_deep_enrichment": "NO"}
+    },
+    {
+      "case_id": "austin-hospital-generator-and-phased-electrical",
+      "kind": "retained_real",
+      "project_id": "33f48787-5206-4508-a2ac-c1ecb6c7fb3c",
+      "evidence_id": "57d1e773-5420-4d4b-a575-61a7d14276c7",
+      "source_id": "austin-building-permits",
+      "excerpt": "Permit describes replacement of existing generator and fuel tank; seven electrical phases maintain emergency power; contractor CM Constructors.",
+      "label_source": "retained Austin permit fields; generator replacement is not evidence of temporary-power requirement",
+      "labels": {"relevant": "YES", "same_project": "YES", "event_type": "electrical_construction", "material_change": "UNKNOWN", "power_relevance": "MEDIUM", "temporary_power_hint": "NO", "needs_deep_enrichment": "YES"}
+    },
+    {
+      "case_id": "texas-rrc-drilling-permit",
+      "kind": "retained_real",
+      "project_id": "20b5b304-3efe-4dde-8a55-cf61a0517f0b",
+      "evidence_id": "1d758841-6e07-4603-b39c-33fd53796715",
+      "source_id": "texas-rrc-drilling-permits",
+      "excerpt": "Retained Railroad Commission drilling permit record; reviewed as source evidence, not proof of a power gap.",
+      "label_source": "retained Texas RRC permit record; UNKNOWN where capacity/timing/buyer are not explicit",
+      "labels": {"relevant": "YES", "same_project": "YES", "event_type": "construction", "material_change": "UNKNOWN", "power_relevance": "MEDIUM", "temporary_power_hint": "UNKNOWN", "needs_deep_enrichment": "YES"}
+    },
+    {
+      "case_id": "synthetic-same-site-strong-match",
+      "kind": "synthetic_variant",
+      "derived_from": "boston-temporary-electrical",
+      "fixture_context": {"candidates": [{"project_id": "fixture-same-site", "name": "Same named site", "location": "same parcel and address", "decision": "matched", "reason": "Explicitly constructed same-site control", "matched_facts": ["site"]}]},
+      "label_source": "synthetic positive control grounded in the Boston temporary-service evidence; not an independently discovered project",
+      "labels": {"relevant": "YES", "same_project": "YES", "event_type": "electrical_construction", "material_change": "UNKNOWN", "power_relevance": "HIGH", "temporary_power_hint": "YES", "needs_deep_enrichment": "YES"}
+    },
+    {
+      "case_id": "synthetic-same-name-wrong-site",
+      "kind": "synthetic_variant",
+      "derived_from": "boston-temporary-electrical",
+      "fixture_context": {"candidates": [{"project_id": "fixture-wrong-site", "name": "Same project name", "location": "different county and physical site", "decision": "rejected", "reason": "Explicitly constructed wrong-site control", "matched_facts": []}]},
+      "label_source": "explicitly constructed wrong-site negative; never live project data",
+      "labels": {"relevant": "NO", "same_project": "NO", "event_type": "UNKNOWN", "material_change": "UNKNOWN", "power_relevance": "UNKNOWN", "temporary_power_hint": "UNKNOWN", "needs_deep_enrichment": "UNKNOWN"}
+    },
+    {
+      "case_id": "synthetic-backup-generator-not-temporary-power",
+      "kind": "synthetic_variant",
+      "derived_from": "austin-hospital-generator-and-phased-electrical",
+      "fixture_context": {"evidence": {"title": "Existing generator and fuel tank replacement", "abstract": "Hospital electrical work is phased to maintain emergency power. No temporary generation, capacity, or rental need is stated."}},
+      "label_source": "fixture-only paraphrase grounded in Austin permit; backup replacement does not establish temporary power",
+      "labels": {"relevant": "YES", "same_project": "YES", "event_type": "electrical_construction", "material_change": "UNKNOWN", "power_relevance": "MEDIUM", "temporary_power_hint": "NO", "needs_deep_enrichment": "YES"}
+    },
+    {
+      "case_id": "synthetic-construction-not-commissioning",
+      "kind": "synthetic_variant",
+      "derived_from": "chicago-data-center-conversion",
+      "fixture_context": {"evidence": {"title": "Phase 3 interior alterations", "abstract": "Office building conversion to data center. Construction permit only; no commissioning date or test activity stated."}},
+      "label_source": "fixture-only distinction grounded in Chicago permit; no commissioning claim is added",
+      "labels": {"relevant": "YES", "same_project": "YES", "event_type": "construction", "material_change": "UNKNOWN", "power_relevance": "HIGH", "temporary_power_hint": "UNKNOWN", "needs_deep_enrichment": "YES"}
+    },
+    {
+      "case_id": "synthetic-explicit-commissioning",
+      "kind": "synthetic_variant",
+      "derived_from": "chicago-data-center-conversion",
+      "fixture_context": {"evidence": {"title": "Commissioning load-bank test window", "abstract": "Hypothetical fixture-only supplement: commissioning load-bank testing is scheduled at the same data-center site."}},
+      "label_source": "synthetic commissioning positive control; not a retained source fact",
+      "labels": {"relevant": "YES", "same_project": "YES", "event_type": "commissioning", "material_change": "UNKNOWN", "power_relevance": "HIGH", "temporary_power_hint": "UNKNOWN", "needs_deep_enrichment": "YES"}
+    },
+    {
+      "case_id": "synthetic-utility-date-conflict",
+      "kind": "synthetic_variant",
+      "derived_from": "chicago-data-center-conversion",
+      "fixture_context": {"evidence": {"title": "Conflicting utility service timing", "abstract": "Hypothetical fixture-only statements give inconsistent utility energization timing; no single date can be selected."}},
+      "label_source": "fixture-only contradiction; exact dates omitted and no live utility claims",
+      "labels": {"relevant": "YES", "same_project": "YES", "event_type": "utility", "material_change": "UNKNOWN", "power_relevance": "HIGH", "temporary_power_hint": "UNKNOWN", "needs_deep_enrichment": "YES"}
+    },
+    {
+      "case_id": "synthetic-news-supplement-unknown",
+      "kind": "synthetic_variant",
+      "derived_from": "chicago-data-center-conversion",
+      "fixture_context": {"evidence": {"title": "Local news item", "abstract": "Hypothetical news supplement repeats the project name but lacks a primary schedule, power requirement, or buyer."}},
+      "label_source": "synthetic supplemental-source limitation control",
+      "labels": {"relevant": "UNKNOWN", "same_project": "UNKNOWN", "event_type": "UNKNOWN", "material_change": "UNKNOWN", "power_relevance": "UNKNOWN", "temporary_power_hint": "UNKNOWN", "needs_deep_enrichment": "UNKNOWN"}
+    },
+    {
+      "case_id": "synthetic-rrc-flare-event",
+      "kind": "synthetic_variant",
+      "derived_from": "texas-rrc-drilling-permit",
+      "fixture_context": {"evidence": {"title": "Routine flare maintenance record", "abstract": "Hypothetical regulatory record for routine flare maintenance; not a new drilling project or demonstrated power need."}},
+      "label_source": "synthetic negative control derived from RRC source domain; no live flare record claimed",
+      "labels": {"relevant": "NO", "same_project": "UNKNOWN", "event_type": "other", "material_change": "NO", "power_relevance": "LOW", "temporary_power_hint": "NO", "needs_deep_enrichment": "NO"}
+    },
+    {
+      "case_id": "synthetic-routine-equipment-replacement",
+      "kind": "synthetic_variant",
+      "derived_from": "austin-hospital-generator-and-phased-electrical",
+      "fixture_context": {"evidence": {"title": "Routine equipment replacement", "abstract": "Hypothetical routine facility equipment replacement with no new capacity, schedule, construction phase, or power gap."}},
+      "label_source": "synthetic irrelevant control; no claim that Austin permit says routine maintenance",
+      "labels": {"relevant": "NO", "same_project": "YES", "event_type": "other", "material_change": "NO", "power_relevance": "LOW", "temporary_power_hint": "NO", "needs_deep_enrichment": "NO"}
+    },
+    {
+      "case_id": "synthetic-unknown-size-relevant-project",
+      "kind": "synthetic_variant",
+      "derived_from": "chicago-data-center-conversion",
+      "fixture_context": {"state": {"power_need": {"value": null, "status": "UNKNOWN"}}, "evidence": {"title": "Data-center construction activity; size unavailable", "abstract": "Hypothetical fixture-only project-context record supports active construction but states no MW or kW value."}},
+      "label_source": "synthetic unknown-size control; UNKNOWN capacity is not treated as zero",
+      "labels": {"relevant": "YES", "same_project": "YES", "event_type": "construction", "material_change": "UNKNOWN", "power_relevance": "MEDIUM", "temporary_power_hint": "UNKNOWN", "needs_deep_enrichment": "YES"}
+    },
+    {
+      "case_id": "synthetic-already-resolved-utility-question",
+      "kind": "synthetic_variant",
+      "derived_from": "chicago-data-center-conversion",
+      "fixture_context": {"state": {"utility_service": {"value": "energized", "status": "SUPPORTED", "evidence": [{"id": "fixture-only"}]}}, "evidence": {"title": "Previously answered service-status question", "abstract": "Hypothetical fixture says the scoped utility-service question has already been resolved; do not recommend repeating the same research."}},
+      "label_source": "synthetic resolved-fact control; fixture citation is deliberately non-production",
+      "labels": {"relevant": "YES", "same_project": "YES", "event_type": "utility", "material_change": "NO", "power_relevance": "MEDIUM", "temporary_power_hint": "UNKNOWN", "needs_deep_enrichment": "NO"}
+    }
+  ]
+}
