@@ -41,7 +41,7 @@ GridLens specializes both patterns around power-gap detection.
 
 Every source adapter must have a defined signal purpose. Prefer primary public sources and records that reveal project state before general news.
 
-Five ingestion families:
+Five **signal-purpose categories** (these do not replace or rename the existing source registry `family` field or its accepted values):
 
 1. **Discovery** — evidence that a physical project may exist or advance: land, zoning, planning, incentives, large-load proceedings, environmental filings.
 2. **Construction** — grading, civil, building, electrical, mechanical, generator and related permits or contractor activity.
@@ -51,9 +51,9 @@ Five ingestion families:
 
 News, trade media, LinkedIn and company pages may enrich or confirm a project, but should not displace stronger primary evidence.
 
-## Evidence is the atomic ingestion output
+## Observation and evidence boundary
 
-A connector does not directly create a Lead. It creates or updates evidence.
+A connector does not directly create a Lead. It produces or updates the stable **Observation** envelope for a source/external identifier, while each retrieved content state is preserved as an immutable **Evidence version**. Claims and derived assertions point back to the evidence version that supports them. This preserves first-seen/last-seen history, corrections, unchanged replay, and provenance without mutating historical evidence.
 
 Preserve:
 - source and source type
@@ -188,10 +188,10 @@ Use a deeper model only for work that genuinely requires synthesis or open-ended
 - finding missing corroborating evidence
 - resolving contradictions
 - researching the buying chain
-- estimating a power gap from multiple sources
+- extracting and reconciling cited load, supply, timing inputs and assumptions for a power-gap scenario
 - producing a pursuit brief
 
-The LLM does not replace source evidence and must not turn unsupported inference into fact.
+The LLM does not replace source evidence and must not turn unsupported inference into fact. It may extract or reconcile cited scenario inputs and assumptions, but deterministic versioned domain code calculates remaining MW, timing gaps, duration ranges, and other power-gap arithmetic from accepted inputs.
 
 ## First Jev integration: EvidenceJudge
 
@@ -240,10 +240,10 @@ If Jev does not materially improve quality, speed or cost, remove the adapter.
 
 1. **Discover** — find new/changed source records.
 2. **Capture** — preserve original evidence.
-3. **Parse** — extract structured facts.
+3. **Parse** — extract structured facts into immutable evidence versions linked to stable observations.
 4. **Normalize** — map source-specific fields to canonical schema.
 5. **Resolve** — identify candidate projects/entities.
-6. **Link** — attach evidence with provenance.
+6. **Link** — attach observation/evidence versions and claims to canonical objects with provenance.
 7. **Diff** — compare accepted state with prior state.
 8. **Judge/Signal** — use deterministic rules first; Jev only for bounded ambiguity.
 9. **Enrich** — spend deeper research only on commercially important candidates.
@@ -272,7 +272,7 @@ The system should optimize for actionable pursuits, not raw record count.
 ## Migration path
 
 1. Keep existing source collectors and current production behavior intact.
-2. Add/clarify Evidence provenance and canonical project/entity linkage around existing records.
+2. Preserve the existing Observation -> immutable Evidence-version boundary and add/clarify canonical project/entity linkage around existing records.
 3. Add explicit graph/state diff events.
 4. Build a labeled fixture set from accepted and rejected existing evidence.
 5. Implement `EvidenceJudge` behind a feature flag in shadow mode.
