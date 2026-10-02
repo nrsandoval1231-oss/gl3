@@ -18,3 +18,12 @@ Record a date, decision, reason, alternatives considered, and affected PRD requi
 ## October 1, 2026 — Priority geographies, activities and flare permits
 
 Owner requests Dallas, Austin, Houston, El Paso and California first; data-center construction, data-center commissioning and oil and gas in that commercial order. Keep other national/industry intake wide. Add reproducible official flare-gas permits/venting-flaring exceptions to ingestion with source-specific event semantics and UNKNOWN gas-to-power fit. This changes acquisition priorities, not qualification gates or the 300 kW/no-maximum presentation amendment.
+
+
+## October 1, 2026 — Evidence graph ingestion and Jev judgment layer
+
+GridLens is a project-reconstruction and commercial timing engine, not a generic lead scraper. Canonical flow: source evidence -> immutable capture -> parse/normalize -> deterministic matching -> bounded Jev judgment where ambiguity remains -> canonical project/entity graph -> change detection -> selective enrichment -> Signal -> Prospect -> Lead -> actionable pursuit.
+
+Adopt the architecture in [Evidence Graph and Jev Judgment Architecture](architecture/evidence-graph-jev.md). Preserve current collectors, admission rules, deterministic promotion gates, and Signal/Prospect/Lead semantics during migration. Code owns facts, hard rules, math, state and writes. Jev is a fast bounded judgment layer for relevance, ambiguous entity adjudication, event classification, change significance, power relevance and enrichment escalation. Deep generative models are reserved for complex synthesis/research.
+
+First Jev slice is a feature-flagged `EvidenceJudge` in shadow mode. It has no initial authority to mutate canonical truth or promotion outcomes. Measure precision, false positives/negatives, latency, cost, invalid/timeout behavior and escalation yield on labeled existing evidence before expanding authority. Failure falls back to existing deterministic behavior. Do not add a general Jev framework or another orchestration layer.
