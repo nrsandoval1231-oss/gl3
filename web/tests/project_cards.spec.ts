@@ -167,7 +167,7 @@ test('grouped permit members use company-first titles while retaining each permi
   await expect(page.getByText('COM-NEW-26-000129', { exact: false }).first()).toBeVisible()
 })
 
-test('Signals default to SHOW and keep REVIEW and HOLD searchable in their own tabs', async ({ page }) => {
+test('Signals default to All and keep SHOW, REVIEW, and HOLD selectable', async ({ page }) => {
   let records = [
     permit('hold-member', 'Routine hospital maintenance', { projectId: 'shared-project', decision: 'HOLD' }),
     permit('show-member', 'New data center electrical buildout', { projectId: 'shared-project', decision: 'SHOW' }),
@@ -181,7 +181,10 @@ test('Signals default to SHOW and keep REVIEW and HOLD searchable in their own t
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
   })
   await page.goto('/')
-  await expect(page.getByRole('button', { name: 'SHOW 1' })).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByRole('button', { name: 'All 4' })).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByRole('button', { name: /Possible Industrial Expansion/ })).toBeVisible()
+  await expect(page.getByRole('button', { name: /Marathon Temporary Stage/ })).toBeVisible()
+  await page.getByRole('button', { name: 'SHOW 1' }).click()
   const sharedProject = page.getByRole('button', { name: /New Data Center Electrical Buildout/ })
   await expect(sharedProject).toBeVisible()
   await sharedProject.click()
@@ -202,6 +205,7 @@ test('Signals default to SHOW and keep REVIEW and HOLD searchable in their own t
   await expect(page.getByRole('button', { name: /Marathon Temporary Stage/ })).toBeVisible()
   records = [permit('only-review', 'Unadjudicated campus', { projectId: 'only-review', decision: null })]
   await page.goto('/')
+  await page.getByRole('button', { name: 'SHOW 0' }).click()
   await expect(page.getByRole('heading', { name: 'No SHOW decisions yet' })).toBeVisible()
   await expect(page.getByText('Check REVIEW (1) for uncertain or not-yet-adjudicated projects. An unavailable Jev decision stays visible there.')).toBeVisible()
 })
@@ -306,6 +310,7 @@ test('only exact dated event evidence groups; titles describe permit work; all r
   await expect(page.getByText('austin-building-permits · 2026-126812 BP')).toBeVisible()
   await page.getByRole('button', { name: /Back to Signals/ }).click()
 
+  await page.getByRole('button', { name: /^SHOW \d+$/ }).click()
   await page.getByRole('textbox', { name: 'Search projects' }).fill('2026-126812 BP')
   await expect(page.getByText('1 matching SHOW project cards · 1 matching Signal records across all decisions · 3 total Signal records.')).toBeVisible()
   const searchResult = page.locator('.opportunity-row').filter({ hasText: /Zilker Park.*Oct 2026/ })

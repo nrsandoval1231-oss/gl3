@@ -20,3 +20,5 @@ coverage/
 *.tsbuildinfo
 test-results/
 playwright-report/
+.firecrawl/
+*.egg-info/

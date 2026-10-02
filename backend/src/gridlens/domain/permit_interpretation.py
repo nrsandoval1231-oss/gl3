@@ -184,6 +184,12 @@ _AIR_POWER_CONTEXT = re.compile(
     re.I,
 )
 _REPORTED_MW = re.compile(r"(?<![\w.])\d[\d,]*(?:\.\d+)?\s*MW\b", re.I)
+_BOSTON_TEMP_GENERATOR = re.compile(
+    r"\btemporary\b.{0,180}\bgenerators?\b|\bgenerators?\b.{0,180}\btemporary\b",
+    re.I,
+)
+_BOSTON_KW_MW = re.compile(r"(?<![\w.])\d[\d,]*(?:\.\d+)?\s*(?:kW|MW)\b", re.I)
+BOSTON_PERMIT_EVALUATOR_VERSION = "boston-permit-power-facts-v1"
 
 
 def evaluator_version(record: dict[str, Any]) -> str:
@@ -200,6 +206,8 @@ def evaluator_version(record: dict[str, Any]) -> str:
         return "rrc-permit-v1"
     if isinstance(permit, dict) and permit.get("source_type") == "georgia-air-draft-title-v":
         return GEORGIA_AIR_EVALUATOR_VERSION
+    if isinstance(permit, dict) and permit.get("source_type") == "boston-building-permits":
+        return BOSTON_PERMIT_EVALUATOR_VERSION
     return EVALUATOR_VERSION
 
 
@@ -220,6 +228,16 @@ def _reported_mw_facts(text: str) -> list[str]:
         if quote and quote not in facts:
             facts.append(quote[:240])
     return facts[:12]
+
+
+def _reported_boston_generator_facts(text: str) -> list[str]:
+    """Retain exact temporary-generator rating context without deriving site load."""
+    for scope in re.split(r"(?<=[.;\n])\s+", text):
+        if _BOSTON_TEMP_GENERATOR.search(scope) and _BOSTON_KW_MW.search(scope):
+            # Keep the entire official description, including campus/nameplate and
+            # standby-scope qualifiers used downstream to avoid misreading capacity.
+            return [text]
+    return []
 
 
 def _assess_georgia_air(
@@ -608,7 +626,8 @@ def assess_permit(record: dict[str, Any], *, as_of: date | None = None) -> dict[
     source_type = str(permit.get("source_type") or "")
     permit_event = str(permit.get("issuance_event") or "")
     event_supports_permit = bool(
-        source_type in {
+        source_type
+        in {
             "dallas-monthly-permits",
             "el-paso-new-commercial-permits",
             "houston-weekly-permits",
@@ -617,7 +636,9 @@ def assess_permit(record: dict[str, Any], *, as_of: date | None = None) -> dict[
         and not _INELIGIBLE_STATUS.search(status)
     )
     status_supports_permit = bool(
-        _ELIGIBLE_STATUS.fullmatch(status.strip()) or event_supports_permit
+        _ELIGIBLE_STATUS.fullmatch(status.strip())
+        or (source_type == "boston-building-permits" and status.strip().casefold() == "open")
+        or event_supports_permit
     )
     address, city, state = (str(permit.get(key) or "") for key in ("address", "city", "state"))
     location = ", ".join(part for part in (address, city, state) if part)
@@ -735,17 +756,27 @@ def assess_permit(record: dict[str, Any], *, as_of: date | None = None) -> dict[
         "location": location or None,
         "missing_facts": MISSING,
         "source_field_citations": permit.get("source_fields", {}),
+        **(
+            {
+                "source_row_id": permit.get("raw_source_row_id"),
+                "applicant": permit.get("applicant"),
+                "applicant_role": "applicant",
+                "buyer_role": "UNKNOWN",
+            }
+            if source_type == "boston-building-permits"
+            else {}
+        ),
         "stable_row_id": permit.get("row_id"),
         "permit_status": status,
         "permit_event": permit_event or None,
         "permit_status_label": (
             "Permit application status"
             if source_type == "el-paso-new-commercial-permits"
+            else "Boston permit status"
+            if source_type == "boston-building-permits"
             else "Current permit lifecycle status"
         ),
-        "issue_date": None
-        if source_type == "houston-weekly-permits"
-        else record.get("event_date"),
+        "issue_date": None if source_type == "houston-weekly-permits" else record.get("event_date"),
         "issue_date_label": None
         if source_type == "houston-weekly-permits"
         else (
@@ -761,6 +792,11 @@ def assess_permit(record: dict[str, Any], *, as_of: date | None = None) -> dict[
         "power_activity": activity or "facility-expansion",
         "rental_category": category,
         "reported_claim": description if decision == "accepted" else None,
+        "reported_power_facts": (
+            _reported_boston_generator_facts(description)
+            if source_type == "boston-building-permits"
+            else []
+        ),
         "rental_hypothesis": "Inferred; permit text does not establish rental requirement, MW, buyer, suitable supply, start, or duration."  # noqa: E501
         if decision == "accepted"
         else None,

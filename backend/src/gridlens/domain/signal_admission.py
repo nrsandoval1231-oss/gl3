@@ -10,6 +10,7 @@ POLICY_VERSION = "signal-admission-v1"
 _PERMIT_METHODS = {
     "socrata-permits",
     "georgia-air-permits",
+    "boston-ckan-permits",
     "houston-weekly-permits",
     "dallas-monthly-permits",
     "el-paso-new-commercial-permits",

@@ -65,6 +65,7 @@ from gridlens.persistence.models import (
 PERMIT_RETRIEVAL_METHODS = {
     "socrata-permits",
     "georgia-air-permits",
+    "boston-ckan-permits",
     "houston-weekly-permits",
     "dallas-monthly-permits",
     "el-paso-new-commercial-permits",
@@ -1202,7 +1203,11 @@ def process_job(
         source = session.get(Source, source_definition["id"])
         assert source is not None
         external_id = record["document_number"]
-        digest = _hash(record)
+        digest = (
+            (record.get("source_hash") or _hash(record))
+            if source_definition.get("retrieval_method") == "boston-ckan-permits"
+            else _hash(record)
+        )
         evidence_digest = record.get("source_hash") or _source_version_hash(record)
         if record.get("publication_date"):
             counts["latest_publication_date"] = max(

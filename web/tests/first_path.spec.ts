@@ -53,7 +53,7 @@ test('authenticated desktop browse, detail, back, and search use a live Signal',
 
   const title = projectTitle(signal)
   const decision = signalDisplayDecision(signalCard.members)
-  if (decision !== 'SHOW') await page.getByRole('button', { name: new RegExp(`^${decision}\\s+\\d+$`) }).click()
+  await page.getByRole('button', { name: new RegExp(`^${decision}\\s+\\d+$`) }).click()
   const row = page.locator('.opportunity-row').filter({ hasText: title }).first()
   await expect(row).toBeVisible()
   await page.getByRole('textbox', { name: 'Search projects' }).fill(title)
@@ -87,7 +87,7 @@ test('mobile health, ordinary news inbox, and browser history show actual local 
   await expect(page.getByRole('heading', { name: 'Ingestion inbox' })).toBeVisible()
   await expect(page.locator('.ingestion-card').first()).toContainText(inbox.page.items[0].title)
 
-  const sourceFilter = page.getByRole('combobox', { name: 'Filter by source' })
+  const sourceFilter = page.getByRole('combobox', { name: 'Filter by source', exact: true })
   await sourceFilter.selectOption('el-paso-new-commercial-permits')
   const elPaso = await page.evaluate(async () => {
     const result = await fetch('/api/ingestion?source_id=el-paso-new-commercial-permits&limit=5&offset=0')
@@ -99,21 +99,21 @@ test('mobile health, ordinary news inbox, and browser history show actual local 
   expect(elPaso.page.items.every((item) => item.event_date_label?.startsWith('ISSUEDATE'))).toBe(true)
   expect(elPaso.page.items.every((item) => item.citation_url.startsWith('https://gis.elpasotexas.gov/arcgis/'))).toBe(true)
   await expect(sourceFilter.locator('option')).toContainText([
-    'Dallas Monthly Building Permits',
+    'Dallas Monthly Permits',
     'El Paso New Commercial Permits',
-    'Houston Weekly Sold Permits',
+    'Houston Weekly Permits',
   ])
   await expect(page.locator('.ingestion-card').first()).toContainText('City of El Paso')
   await sourceFilter.selectOption('')
 
   await expect(page.getByRole('navigation', { name: 'Workspace views' }).getByRole('button', { name: 'Cannabis watch' })).toHaveCount(0)
   await expect(sourceFilter.locator('option')).toContainText([
-    'Data Center Dynamics',
-    'Utility Dive',
-    'Manufacturing Dive',
-    'Construction Dive',
-    'Oil & Gas Journal',
-    'MJBizDaily',
+    'Construction Dive News',
+    'DCD News',
+    'Manufacturing Dive News',
+    'MJBizDaily News',
+    'OGJ Exploration News',
+    'Utility Dive News',
   ])
   await expect(page.locator('.ingestion-card').first()).toContainText(inbox.page.items[0].title)
   await sourceFilter.selectOption('el-paso-new-commercial-permits')
@@ -169,7 +169,7 @@ test('live air documents retain equipment context without creating rental MW', a
   const card = projectCards(items).find((candidate) => candidate.members.some((item) => item.id === air.id))
   if (!card) throw new Error('Missing live project card')
   const decision = signalDisplayDecision(card.members)
-  if (decision !== 'SHOW') await page.getByRole('button', { name: new RegExp(`^${decision}\\s+\\d+$`) }).click()
+  await page.getByRole('button', { name: new RegExp(`^${decision}\\s+\\d+$`) }).click()
   await openCardMember(page, card, air.id)
   await expect(page.getByText('Reported power figures (source claims; not rental requirements)')).toBeVisible()
   await expect(page.getByText('Power need is not established. A Signal does not imply a power gap.')).toBeVisible()
@@ -193,7 +193,7 @@ test('live data-center permit enrichment exposes attributed fields and organizat
     const card = projectCards(items).find((candidate) => candidate.members.some((item) => item.id === opportunity.id))
     if (!card) throw new Error('Missing data-center card')
     const decision = signalDisplayDecision(card.members)
-    if (decision !== 'SHOW') await page.getByRole('button', { name: new RegExp(`^${decision}\\s+\\d+$`) }).click()
+    await page.getByRole('button', { name: new RegExp(`^${decision}\\s+\\d+$`) }).click()
     await openCardMember(page, card, opportunity.id)
     const section = page.getByRole('region', { name: 'Buying chain' })
     await expect(section.getByRole('heading', { name: 'Retained permit facts' })).toBeVisible()

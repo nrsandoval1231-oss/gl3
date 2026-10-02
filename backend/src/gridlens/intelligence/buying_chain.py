@@ -333,6 +333,7 @@ def enrich_buying_chain(
             "el-paso-new-commercial-permits",
             "houston-weekly-permits",
             "texas-rrc-drilling-permits",
+            "boston-building-permits",
         }
         and any(permit_facts(project.source_id, doc.text) for doc, _, _, _ in documents)
     )

@@ -11,6 +11,7 @@ type Tier = typeof tiers[number]
 type Health = Awaited<ReturnType<typeof client.health>>
 type Change = Awaited<ReturnType<typeof client.changes>>[number]
 type View = 'opportunities' | 'ingestion' | 'pursuits'
+type SignalFilter = 'ALL' | SignalDisplayDecision
 const pageSize = 25
 
 function tierValue(tier: Tier) { return tier.slice(0, -1) }
@@ -24,6 +25,26 @@ function ingestionUrl(view: 'ingestion', source: string, vertical: string, offse
   if (vertical) query.set('vertical', vertical)
   if (offset) query.set('offset', String(offset))
   return `${location.pathname}?${query.toString()}`
+}
+const verticalGroups = [
+  { id: 'data-centers', label: 'Data centers', tags: ['data centers'] },
+  { id: 'energy-and-utilities', label: 'Energy & utilities', tags: ['utilities', 'energy'] },
+  { id: 'oil-and-gas', label: 'Oil & gas', tags: ['oil and gas'] },
+  { id: 'industrial-and-manufacturing', label: 'Industrial & manufacturing', tags: ['manufacturing', 'industrial facilities'] },
+  { id: 'construction-and-facilities', label: 'Construction & facilities', tags: ['construction', 'commercial construction', 'commercial facilities'] },
+  { id: 'healthcare', label: 'Healthcare', tags: ['healthcare'] },
+  { id: 'cannabis', label: 'Cannabis', tags: ['cannabis', 'cannabis cultivation'] },
+  { id: 'mining', label: 'Mining', tags: ['mining'] },
+  { id: 'infrastructure', label: 'Infrastructure', tags: ['infrastructure'] },
+] as const
+const verticalAliases = new Map(verticalGroups.flatMap((group) => [
+  [group.id, group.id], [group.label.toLowerCase(), group.id],
+  ...group.tags.map((tag) => [tag, group.id] as const),
+]))
+function canonicalVertical(value: string) { return verticalAliases.get(value.trim().toLowerCase()) ?? value }
+function sourceLabel(id: string) {
+  const acronyms: Record<string, string> = { ccc: 'CCC', dcd: 'DCD', eis: 'EIS', epd: 'EPD', ma: 'MA', mjbizdaily: 'MJBizDaily', nc: 'NC', ogj: 'OGJ', rrc: 'RRC' }
+  return id.split('-').map((part) => acronyms[part] ?? `${part[0]?.toUpperCase() ?? ''}${part.slice(1)}`).join(' ')
 }
 function parseOffset(value: string | null) {
   const parsed = Number(value ?? 0)
@@ -49,7 +70,7 @@ export function App() {
   const [authenticated, setAuthenticated] = useState<boolean | null>(null)
   const [password, setPassword] = useState('')
   const [tier, setTier] = useState<Tier>('Signals')
-  const [signalFilter, setSignalFilter] = useState<SignalDisplayDecision>('SHOW')
+  const [signalFilter, setSignalFilter] = useState<SignalFilter>('ALL')
   const [view, setView] = useState<View>('opportunities')
   const [search, setSearch] = useState('')
   const [items, setItems] = useState<Opportunity[]>([])
@@ -78,7 +99,7 @@ export function App() {
     const initialView = params.get('view')
     if (initialView === 'ingestion' || initialView === 'pursuits') setView(initialView)
     setSourceFilter(params.get('source') ?? '')
-    setVerticalFilter(params.get('vertical') ?? '')
+    setVerticalFilter(canonicalVertical(params.get('vertical') ?? ''))
     setOffset(parseOffset(params.get('offset')))
   }, [])
 
@@ -140,7 +161,7 @@ export function App() {
       setView(restoredView === 'ingestion' || restoredView === 'pursuits' ? restoredView : 'opportunities')
       setSearch(state?.search ?? '')
       setSourceFilter(state?.sourceFilter ?? params.get('source') ?? '')
-      setVerticalFilter(state?.verticalFilter ?? params.get('vertical') ?? '')
+      setVerticalFilter(canonicalVertical(state?.verticalFilter ?? params.get('vertical') ?? ''))
       setOffset(state?.offset ?? parseOffset(params.get('offset')))
       setSelected(state?.id ? itemsRef.current.find((item) => item.id === state.id) ?? null : null)
       requestAnimationFrame(() => {
@@ -221,12 +242,17 @@ export function App() {
   const cards = projectCards(items)
   const searchedCards = cards.filter((card) => card.members.some((item) => matchesOpportunity(item, search)))
   const visibleCards = tier === 'Signals'
-    ? signalDecisionCards(searchedCards, signalFilter)
+    ? signalFilter === 'ALL' ? searchedCards : signalDecisionCards(searchedCards, signalFilter)
     : searchedCards
   const signalCounts = Object.fromEntries((['SHOW', 'REVIEW', 'HOLD'] as const).map((decision) => [
     decision,
     signalDecisionCards(cards, decision).length,
   ])) as Record<SignalDisplayDecision, number>
+  const signalAllCount = cards.length
+  const sourceOptions = (health?.sources ?? []).map((source) => ({ id: source.id, label: sourceLabel(source.id) }))
+  if (sourceFilter && !sourceOptions.some((source) => source.id === sourceFilter)) {
+    sourceOptions.unshift({ id: sourceFilter, label: `${sourceLabel(sourceFilter)} (unavailable)` })
+  }
   const matchingRecordCount = items.filter((item) => matchesOpportunity(item, search)).length
   const selectedGroup = selected && cards.find((card) => card.grouped && card.members.some((item) => item.id === selected.id))
   const selectedSharesProjectId = Boolean(selectedGroup && selected?.project_id && selectedGroup.members.every((member) => member.project_id === selected.project_id))
@@ -237,9 +263,9 @@ export function App() {
       {!selected && view === 'ingestion' && <section className="hero"><div><p className="eyebrow">Retained evidence · Publisher and government sources</p><h1>Ingestion inbox</h1><p>Permits are primary project discovery; news is supplemental. Source evidence and qualification stay visible. City permit coverage is regional and limited to a rolling issue-date window.</p></div></section>}
       {selected && <section className="hero detail-hero"><div><p className="eyebrow">{selected.tier} · {selected.activity.replaceAll('-', ' ')}{selected.tier === 'Signal' ? ` · ${selected.signal_display_decision ?? 'REVIEW'}` : ''}</p><h1>{projectTitle(selected)}</h1>{selected.commercial_size_status === 'unknown' && selected.tier === 'Signal' && <p role="status" className="integrity"><strong>Activity size unknown.</strong> Retained for investigation; the 300 kW minimum is inclusive.</p>}{selected.signal_evidence_state === 'planning_application_withdrawn' && <p role="status" className="integrity"><strong>Planning application withdrawn · historical Signal.</strong> Current project viability is unknown.</p>}{selected.signal_evidence_state === 'planning_status_unknown' && <p role="status" className="integrity"><strong>Conflicting planning revision · historical Signal.</strong> Current application and project status are unknown.</p>}<p>{selected.rationale}</p>{selectedGroup && <p className="group-context">{selectedSharesProjectId ? `Part of a physical project group with ${selectedGroup.members.length} retained records. Each record and its evidence remain available.` : `Part of an exact-event permit group with ${selectedGroup.members.length} records. Each record and its evidence remain separate.`}</p>}</div><button className="back-button" onClick={returnToBrowse}>← Back to {tier}</button></section>}
       {showHealth && <HealthPanel health={health} />}
-      {view === 'opportunities' && <div className="list-toolbar"><div><h2>{selected ? 'Opportunity brief' : `${tier} · ${visibleCards.length} project cards · ${items.length} opportunity records`}</h2>{!selected && <p>{tier === 'Signals' && search ? `${visibleCards.length} matching ${signalFilter} project cards · ${matchingRecordCount} matching Signal records across all decisions · ${items.length} total Signal records.` : tier === 'Signals' ? `${signalFilter} · ${visibleCards.length} project cards · ${items.length} retained Signal records. SHOW means worth investigating, not qualified.` : search ? `${visibleCards.length} matching project cards · ${matchingRecordCount} matching records · ${items.length} underlying records.` : 'Browse the evidence and open a project for its source details.'}</p>}</div><label className="search"><span className="sr-only">Search projects</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search projects, work, or permit ID"/></label></div>}
-      {view === 'opportunities' && tier === 'Signals' && !selected && <div className="signal-filters" role="group" aria-label="Filter Signals by review decision">{(['SHOW', 'REVIEW', 'HOLD'] as const).map((decision) => <button key={decision} className={signalFilter === decision ? 'signal-filter-active' : ''} aria-pressed={signalFilter === decision} onClick={() => { setSignalFilter(decision); setSelected(null) }}>{decision} <span>{signalCounts[decision]}</span></button>)}</div>}
-      {view === 'ingestion' && <div className="ingestion-tools"><label>Source<select aria-label="Filter by source" value={sourceFilter} onChange={(event) => { setSourceFilter(event.target.value); setOffset(0) }}><option value="">All sources</option>{sources.map((source) => <option value={source.id} key={source.id}>{source.name}</option>)}</select></label><label>Vertical<select aria-label="Filter by vertical" value={verticalFilter} onChange={(event) => chooseVertical(event.target.value)}><option value="">All verticals</option>{verticals.map((item) => <option key={item}>{item}</option>)}</select></label><span>{ingestionTotal} retained {ingestionTotal === 1 ? 'item' : 'items'} · page {Math.floor(offset / pageSize) + 1}</span></div>}
+      {view === 'opportunities' && <div className="list-toolbar"><div><h2>{selected ? 'Opportunity brief' : `${tier} · ${visibleCards.length} project cards · ${items.length} opportunity records`}</h2>{!selected && <p>{tier === 'Signals' && search ? `${visibleCards.length} matching ${signalFilter === 'ALL' ? 'All' : signalFilter} project cards · ${matchingRecordCount} matching Signal records across all decisions · ${items.length} total Signal records.` : tier === 'Signals' ? `${signalFilter === 'ALL' ? 'All' : signalFilter} · ${visibleCards.length} project cards · ${items.length} retained Signal records. SHOW means worth investigating, not qualified.` : search ? `${visibleCards.length} matching project cards · ${matchingRecordCount} matching records · ${items.length} underlying records.` : 'Browse the evidence and open a project for its source details.'}</p>}</div><label className="search"><span className="sr-only">Search projects</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search projects, work, or permit ID"/></label></div>}
+      {view === 'opportunities' && tier === 'Signals' && !selected && <div className="signal-filters" role="group" aria-label="Filter Signals by review decision">{(['ALL', 'SHOW', 'REVIEW', 'HOLD'] as const).map((decision) => { const count = decision === 'ALL' ? signalAllCount : signalCounts[decision]; return <button key={decision} className={signalFilter === decision ? 'signal-filter-active' : ''} aria-pressed={signalFilter === decision} onClick={() => { setSignalFilter(decision); setSelected(null) }}>{decision === 'ALL' ? 'All' : decision} <span>{count}</span></button> })}</div>}
+      {view === 'ingestion' && <div className="ingestion-tools"><label>Source<select aria-label="Filter by source" value={sourceFilter} onChange={(event) => { setSourceFilter(event.target.value); setOffset(0) }}><option value="">All sources</option>{sourceOptions.map((source) => <option value={source.id} key={source.id}>{source.label}</option>)}</select></label><label>Source sector<select aria-label="Filter by source sector" value={verticalFilter} onChange={(event) => chooseVertical(event.target.value)}><option value="">All source sectors</option>{verticalGroups.map((group) => <option value={group.id} key={group.id}>{group.label}</option>)}</select></label><span>{ingestionTotal} retained {ingestionTotal === 1 ? 'item' : 'items'} · page {Math.floor(offset / pageSize) + 1}</span></div>}
       {error && <p role="alert" className="error-banner">{error}</p>}
       {loading && <p className="loading-inline" role="status">Updating this view…</p>}
       {view === 'pursuits' ? <Pursuits/> : selected ? <><OpportunityDetail item={selected}/><div className="detail-navigation"><button disabled={selectedIndex <= 0} onClick={() => moveTo(items[selectedIndex - 1])}>← Previous</button><button disabled={selectedIndex < 0 || selectedIndex >= items.length - 1} onClick={() => moveTo(items[selectedIndex + 1])}>Next →</button></div></> : view === 'opportunities' ? visibleCards.length ? <div className="opportunity-list">{visibleCards.map((card) => {
@@ -256,37 +282,18 @@ export function App() {
         const expanded = expandedCardKey === card.key
         return <div className="project-card" key={card.key}>
           <button key={first.id} data-opportunity-id={first.id} className="opportunity-row" aria-expanded={card.grouped ? expanded : undefined} onClick={() => card.grouped ? setExpandedCardKey(expanded ? null : card.key) : open(first)}>
-            <span className="row-marker"/><span className="row-main"><strong>{projectTitle(first)}</strong><span>{first.location ?? 'Location unknown'}</span>{first.brief_summary && <small className={first.brief_stale ? 'brief-stale' : 'brief-preview'}>AI-assisted{first.brief_stale ? ' · stale' : ''}: {first.brief_summary}</small>}</span><span className="row-meta"><span>{first.signal_evidence_state === 'planning_application_withdrawn' ? 'Historical Signal · application withdrawn' : first.signal_evidence_state === 'planning_status_unknown' ? 'Historical Signal · status unknown' : first.tier}</span>{first.commercial_size_status === 'unknown' && <span>Activity size unknown · retained</span>}{first.reported_power_facts?.length ? <span>{first.reported_power_facts.slice(0, 2).join(' · ')}</span> : null}{card.grouped ? <span>{card.members.length} records</span> : null}</span><span className="arrow" aria-hidden="true">{card.grouped ? expanded ? '−' : '+' : '→'}</span>
+            <span className="row-marker"/><span className="row-main"><strong>{projectTitle(first)}</strong><span>{first.location ?? 'Location unknown'}</span>{first.brief_summary && <small className={first.brief_stale ? 'brief-stale' : 'brief-preview'}>AI-assisted{first.brief_stale ? ' · stale' : ''}: {first.brief_summary}</small>}</span><span className="row-meta">{tier === 'Signals' && <span className={`tier-pill signal-decision-badge signal-decision-${decision.toLowerCase()}`} style={{ marginBottom: 0 }} data-review-decision={decision}><strong>Decision: {decision}</strong></span>}<span>{first.signal_evidence_state === 'planning_application_withdrawn' ? 'Historical Signal · application withdrawn' : first.signal_evidence_state === 'planning_status_unknown' ? 'Historical Signal · status unknown' : first.tier}</span>{first.commercial_size_status === 'unknown' && <span>Activity size unknown · retained</span>}{first.reported_power_facts?.length ? <span>{first.reported_power_facts.slice(0, 2).join(' · ')}</span> : null}{card.grouped ? <span>{card.members.length} records</span> : null}</span><span className="arrow" aria-hidden="true">{card.grouped ? (expanded ? '−' : '+') : '→'}</span>
           </button>
-          {card.grouped && expanded && <div className="project-members"><p>{matchingMembers.length < card.members.length ? `${matchingMembers.length} matching record · ${card.members.length} related ${card.members.every((member) => member.evidence.some((evidence) => evidence.source_id.endsWith('-building-permits'))) ? 'permit ' : ''}records` : `${card.members.length} individual ${card.members.every((member) => member.evidence.some((evidence) => evidence.source_id.endsWith('-building-permits'))) ? 'permit ' : ''}records`}</p>{sameProject && <p>Grouped under the same stable physical project identity. Each source observation remains available below.</p>}{lifecycleEvents.size > 0 && <p>Lifecycle evidence: {[...lifecycleEvents.values()].map((event) => <span key={`${event.event_type}:${event.date ?? ''}:${event.evidence_url}`}>{event.event_type.replaceAll('_', ' ')}{event.date ? ` · ${event.date}` : ''}; </span>)}</p>}{members.map((member) => <button key={member.id} data-opportunity-id={member.id} className="project-member" onClick={() => open(member)}><strong>{projectTitle(member)}</strong><span>{memberDate(member)} · {member.location ?? 'Location unknown'}{matchesOpportunity(member, search) && search ? ' · Matches search' : ''}</span><span>Open this record and its evidence →</span></button>)}</div>}
+          {card.grouped && expanded && <div className="project-members"><p>{matchingMembers.length < card.members.length ? `${matchingMembers.length} matching record · ${card.members.length} related ${card.members.every((member) => member.evidence.some((evidence) => evidence.source_id.endsWith('-building-permits'))) ? 'permit ' : ''}records` : `${card.members.length} individual ${card.members.every((member) => member.evidence.some((evidence) => evidence.source_id.endsWith('-building-permits'))) ? 'permit ' : ''}records`}</p>{sameProject && <p>Grouped under the same stable physical project identity. Each source observation remains available below.</p>}{lifecycleEvents.size > 0 && <p>Lifecycle evidence: {[...lifecycleEvents.values()].map((event) => <span key={`${event.event_type}:${event.date ?? ''}:${event.evidence_url}`}>{event.event_type.replaceAll('_', ' ')}{event.date ? ` · ${event.date}` : ''}; </span>)}</p>}{members.map((member) => { const memberDecision = signalDisplayDecision([member]); return <button key={member.id} data-opportunity-id={member.id} className="project-member" onClick={() => open(member)}><strong>{projectTitle(member)}</strong>{tier === 'Signals' && <span className={`tier-pill signal-decision-badge signal-decision-${memberDecision.toLowerCase()}`} style={{ marginBottom: 0 }} data-review-decision={memberDecision}><strong>Decision: {memberDecision}</strong></span>}<span>{memberDate(member)} · {member.location ?? 'Location unknown'}{matchesOpportunity(member, search) && search ? ' · Matches search' : ''}</span><span>Open this record and its evidence →</span></button> })}</div>}
         </div>
-      })}</div> : !loading ? <div className="empty"><span className="empty-mark" aria-hidden="true">◇</span><h3>{search ? 'No matching projects' : tier === 'Signals' ? signalFilter === 'SHOW' ? 'No SHOW decisions yet' : `No ${signalFilter} Signals` : `No ${tier.toLowerCase()} yet`}</h3><p>{search ? tier === 'Signals' && matchingRecordCount > 0 ? `Matching Signal records exist outside the ${signalFilter} filter. Switch decision tabs to inspect them.` : 'No retained opportunity records match this search.' : tier === 'Signals' ? signalFilter === 'SHOW' ? `Check REVIEW (${signalCounts.REVIEW}) for uncertain or not-yet-adjudicated projects. An unavailable Jev decision stays visible there.` : `No project cards currently have a ${signalFilter} decision.` : `${tier} require additional supported facts. They will appear here when the evidence meets the qualification gate.`}</p></div> : null : <><IngestionList items={ingestionItems} loading={loading}/><div className="collection-pagination"><button disabled={offset <= 0 || loading} onClick={() => setOffset(Math.max(0, offset - pageSize))}>← Previous</button><button disabled={offset + pageSize >= ingestionTotal || loading} onClick={() => setOffset(offset + pageSize)}>Next →</button></div></>}
+      })}</div> : !loading ? <div className="empty"><span className="empty-mark" aria-hidden="true">◇</span><h3>{search ? 'No matching projects' : tier === 'Signals' ? signalFilter === 'ALL' ? 'No Signals yet' : signalFilter === 'SHOW' ? 'No SHOW decisions yet' : `No ${signalFilter} Signals` : `No ${tier.toLowerCase()} yet`}</h3><p>{search ? tier === 'Signals' && signalFilter !== 'ALL' && matchingRecordCount > 0 ? `Matching Signal records exist outside the ${signalFilter} filter. Switch decision tabs to inspect them.` : 'No retained opportunity records match this search.' : tier === 'Signals' ? signalFilter === 'SHOW' ? `Check REVIEW (${signalCounts.REVIEW}) for uncertain or not-yet-adjudicated projects. An unavailable Jev decision stays visible there.` : signalFilter === 'ALL' ? 'No Signal project cards are currently available.' : `No project cards currently have a ${signalFilter} decision.` : `${tier} require additional supported facts. They will appear here when the evidence meets the qualification gate.`}</p></div> : null : <><IngestionList items={ingestionItems} loading={loading}/><div className="collection-pagination"><button disabled={offset <= 0 || loading} onClick={() => setOffset(Math.max(0, offset - pageSize))}>← Previous</button><button disabled={offset + pageSize >= ingestionTotal || loading} onClick={() => setOffset(offset + pageSize)}>Next →</button></div></>}
       </main><footer>Coverage is limited to configured and checked sources. Unknown project facts stay unknown.</footer>
   </div>
 }
 
-const newsSources = [
-  { id: 'dcd-news', name: 'Data Center Dynamics' }, { id: 'utility-dive-news', name: 'Utility Dive' },
-  { id: 'manufacturing-dive-news', name: 'Manufacturing Dive' }, { id: 'construction-dive-news', name: 'Construction Dive' },
-  { id: 'ogj-exploration-news', name: 'Oil & Gas Journal' }, { id: 'mjbizdaily-news', name: 'MJBizDaily' },
-]
-const sources = [
-  { id: 'austin-building-permits', name: 'Austin Building Permits' },
-  { id: 'seattle-building-permits', name: 'Seattle Building Permits' },
-  { id: 'chicago-building-permits', name: 'Chicago Building Permits' },
-  { id: 'georgia-air-draft-title-v', name: 'Georgia EPD Draft Title V Permits' },
-  { id: 'federal-register-eis', name: 'Federal Register' },
-  { id: 'nc-commerce', name: 'North Carolina Department of Commerce' },
-  { id: 'dallas-monthly-permits', name: 'Dallas Monthly Building Permits' },
-  { id: 'el-paso-new-commercial-permits', name: 'El Paso New Commercial Permits' },
-  { id: 'houston-weekly-permits', name: 'Houston Weekly Sold Permits' },
-  ...newsSources,
-]
-const verticals = ['data centers', 'utilities', 'manufacturing', 'construction', 'healthcare', 'commercial facilities', 'oil and gas', 'cannabis', 'mining', 'energy', 'infrastructure']
-
 function IngestionList({ items, loading }: { items: IngestionItem[]; loading: boolean }) {
   if (!items.length) return loading ? null : <div className="empty"><span className="empty-mark" aria-hidden="true">◇</span><h3>No retained source items</h3><p>Try another publisher or vertical filter.</p></div>
-  return <div className="ingestion-list">{items.map((item) => <article className="ingestion-card" key={`${item.source_id}-${item.external_id}-${item.content_hash}`}><div className="ingestion-card-heading"><span>{item.source_origin ?? 'Source evidence'} · {item.publisher} · {item.verticals.join(', ')}</span><span>{item.collection_state} · {item.qualification_state}</span></div><h2><a href={item.citation_url} target="_blank" rel="noreferrer">{item.title}</a></h2><p className="ingestion-excerpt">{item.excerpt || 'Publisher supplied no short summary.'}</p>{(item.source_id.endsWith('-building-permits') || item.source_id === 'georgia-air-draft-title-v') && <p className="ingestion-assessment">Permit status: {item.permit_status ?? 'Unknown'}</p>}{item.assessment_current && item.assessment_reason && <p className="ingestion-assessment">{item.assessment_reason}{item.supported_subject ? ` Supported subject: ${item.supported_subject}.` : ''}{item.supported_action ? ` Action: ${item.supported_action}.` : ''}</p>}{item.demand_quote && <blockquote>{item.demand_quote}</blockquote>}{item.supply_quote && <blockquote>{item.supply_quote}</blockquote>}<div className="ingestion-meta"><span>{item.event_date ? `${item.event_date_label ?? 'Source event'} ${item.event_date} · publication date unknown` : item.published_at ? `Published ${item.published_at}` : 'Publication date unknown'}</span><span>{item.extraction_location}</span><span>First seen {new Date(item.first_seen_at).toLocaleString()}</span><span>Latest evidence {new Date(item.latest_evidence_at).toLocaleString()}</span><span>Scope: {item.source_scope}</span><span>Hash {item.content_hash.slice(0, 16)}</span></div></article>)}</div>
+  return <div className="ingestion-list">{items.map((item) => <article className="ingestion-card" key={`${item.source_id}-${item.external_id}-${item.content_hash}`}><div className="ingestion-card-heading"><span>{item.source_origin ?? 'Source evidence'} · {item.publisher} · Source tags: {item.verticals.join(', ') || 'none supplied'}</span><span>{item.collection_state} · {item.qualification_state}</span></div><h2><a href={item.citation_url} target="_blank" rel="noreferrer">{item.title}</a></h2><p className="ingestion-excerpt">{item.excerpt || 'Publisher supplied no short summary.'}</p>{(item.source_id.endsWith('-building-permits') || item.source_id === 'georgia-air-draft-title-v') && <p className="ingestion-assessment">Permit status: {item.permit_status ?? 'Unknown'}</p>}{item.assessment_current && item.assessment_reason && <p className="ingestion-assessment">{item.assessment_reason}{item.supported_subject ? ` Supported subject: ${item.supported_subject}.` : ''}{item.supported_action ? ` Action: ${item.supported_action}.` : ''}</p>}{item.demand_quote && <blockquote>{item.demand_quote}</blockquote>}{item.supply_quote && <blockquote>{item.supply_quote}</blockquote>}<div className="ingestion-meta"><span>{item.event_date ? `${item.event_date_label ?? 'Source event'} ${item.event_date} · publication date unknown` : item.published_at ? `Published ${item.published_at}` : 'Publication date unknown'}</span><span>{item.extraction_location}</span><span>First seen {new Date(item.first_seen_at).toLocaleString()}</span><span>Latest evidence {new Date(item.latest_evidence_at).toLocaleString()}</span><span>Scope: {item.source_scope}</span><span>Hash {item.content_hash.slice(0, 16)}</span></div></article>)}</div>
 }
 
 function HealthPanel({ health }: { health: Health | null }) {
