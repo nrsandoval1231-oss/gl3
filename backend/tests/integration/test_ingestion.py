@@ -3,6 +3,7 @@ import json
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from threading import Event
+from time import monotonic
 from uuid import UUID
 
 import httpx
@@ -997,7 +998,10 @@ def test_lifecycle_projection_is_evidence_version_bound_and_never_uses_publicati
         # A correction may return to a retained accepted evidence version. Its event
         # must become current again, and the existing-event path restores asset type.
         interpretation.status = "accepted"
-        interpretation.assessment = {"evidence_hash": evidence.content_hash}
+        interpretation.assessment = {
+            "evidence_hash": evidence.content_hash,
+            "project_identity_key": project.identity_key,
+        }
         assert apply_lifecycle_observation(session, project, observation, evidence) is False
         projection = session.get(ProjectLifecycle, project.id)
         assert projection is not None and projection.current_state == "spud"
@@ -1775,10 +1779,23 @@ def test_structured_ingestion_locks_candidates_in_news_compatible_uuid_order(db,
                 future = executor.submit(worker)
                 assert requested_lower.wait(2)
                 assert worker_pid
-                assert holder.scalar(
-                    text("SELECT :holder = ANY(pg_blocking_pids(:worker))"),
-                    {"holder": holder_pid, "worker": worker_pid[0]},
-                )
+                # before_cursor_execute runs before PostgreSQL receives the
+                # query. Wait for PostgreSQL's own blocker view rather than
+                # treating that pre-send marker as proof of contention.
+                deadline = monotonic() + 2
+                blocked = False
+                while monotonic() < deadline:
+                    blocked = bool(
+                        holder.scalar(
+                            text("SELECT :holder = ANY(pg_blocking_pids(:worker))"),
+                            {"holder": holder_pid, "worker": worker_pid[0]},
+                        )
+                    )
+                    if blocked:
+                        break
+                    assert not worker_done.is_set()
+                    worker_done.wait(0.02)
+                assert blocked
                 assert (
                     holder.scalar(
                         select(Project.id)

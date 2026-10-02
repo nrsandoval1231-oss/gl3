@@ -1,12 +1,12 @@
 {
   "node": "PR21-REPAIR",
   "verdict": "PASS",
-  "raw_verdict": "ACCEPT",
-  "mapping": "Astra ACCEPT => PASS per owner instructions",
-  "raw_audit": "ASTRA-R3.json",
-  "raw_audit_sha256": "d4a0554973fa4e07539f51825454ad6c2760c7a2bfb3aa6c73e64dc8900298c6",
-  "candidate_manifest_sha256": "efc697e9a0e201a3bde043d43b5447960d2b9f62a82f1d7a1e5d2ce14023da09",
-  "recorded_utc": "2026-10-02T20:29:31.657806+00:00",
-  "scope": "Exact local repair candidate; remote update and hosted Codex review follow. No merge or deployment.",
+  "raw_verdict": "PASS",
+  "raw_audit": "REVIEW-R4-INDEPENDENT.json",
+  "raw_audit_sha256": "eeb17b407189609c3bf482ba96588b5a6475d46730638642682acd3a68dc0479",
+  "candidate_manifest_sha256": "a9b6deb46d33c42b7b7d03c605e16b2c876ad38c6325b8b74bd321df344693f6",
+  "recorded_utc": "2026-10-02T21:17:49.089229+00:00",
+  "scope": "Exact local repair accepted by independent architect reviewer after Astra CORRECT repair; hosted verification follows. No merge or deployment.",
+  "reviewer_model": "UNKNOWN",
   "findings": []
 }

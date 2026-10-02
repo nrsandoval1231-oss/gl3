@@ -3,7 +3,7 @@
   "branch": "fix/pr21-correctness",
   "base_sha": "da1f2bdb3c207e97e8a861392ba6df189dfe32a2",
   "candidate_commit": "UNKNOWN (uncommitted builder worktree)",
-  "scope": "Bounded PR21 correctness repairs across R1-R3: retained-news/lifecycle material diffs, shadow traversal and leasing, ordered ingestion locks, project-state field provenance, and multi-document buying-chain projection.",
+  "scope": "Bounded PR21 correctness repairs R1-R4; all original five findings plus verified adjacent hosted/local correctness findings.",
   "implementation": "R1 and R2 repairs remain preserved. R3 makes PowerNeed field support current, admitted, project/activity-specific and selects the newest buying-chain run claim set while keeping per-citation stale handling. Builder does not self-certify acceptance.",
   "focused_validation": {
     "r1_command": "uv run --directory backend --extra dev pytest tests/integration/test_ingestion.py tests/integration/test_collection_only_ingestion.py tests/integration/test_taylor_ingestion.py tests/integration/test_evidence_shadow_storage.py -q",
@@ -20,7 +20,8 @@
     "r2_regressions": "Changed-existing-context, setup-error lease release, zero-work checkpoint commit, acquisition-error connection cleanup, default-scan contention, 21 explicit IDs, and pg_blocking_pids two-session structured lock-order regressions passed; Ruff, mypy, and diff check passed.",
     "r3_before": "Exact 1b186a source overlays failed both R3 regressions; see .agent/artifacts/PR21-REPAIR/R3-BEFORE.json.",
     "r3_final": "uv --directory backend run --extra dev pytest tests/integration/test_project_state_changes.py tests/integration/test_buying_chain.py tests/integration/test_collection_only_ingestion.py -q: 58 passed, 1 existing deprecation warning in 25.34s. Ruff, mypy on project_state.py and buying_chain.py, and git diff --check passed.",
-    "r3_astra_proof": "test_project_state_changes.py: 16 passed, 1 existing deprecation warning in 10.03s. Independent identity/activity/admission exclusions, exact two-ID set plus count top-level deduplication, unsupported-field UNKNOWN, failed/pending refresh retention, and temporary blanket-support mutant failure recorded in R3-PROOF.json."
+    "r3_astra_proof": "test_project_state_changes.py: 16 passed, 1 existing deprecation warning in 10.03s. Independent identity/activity/admission exclusions, exact two-ID set plus count top-level deduplication, unsupported-field UNKNOWN, failed/pending refresh retention, and temporary blanket-support mutant failure recorded in R3-PROOF.json.",
+    "r4_ci_sync": "Targeted structured lock-order regression passed after replacing the already-set marker wait with worker_done short waits; Ruff and diff check passed."
   },
   "generation": {
     "openapi": "uv run --directory backend --extra dev python ../scripts/export_openapi.py completed",
@@ -41,5 +42,8 @@
   "r3_started_at_utc": "UNKNOWN",
   "r3_finished_at_utc": "2026-10-02T20:03:58.9325399Z",
   "r3_durations_and_tokens": "UNKNOWN",
-  "r3_astra_proof_finished_at_utc": "2026-10-02T20:22:37.1343969Z"
+  "r3_astra_proof_finished_at_utc": "2026-10-02T20:22:37.1343969Z",
+  "r4_finished_at_utc": "2026-10-02T21:12:50.280028+00:00",
+  "r4_project_binding_builder": "Strict shared lifecycle and retained citation project/admission support; real same-hash reassignment proof fails twice on89d4 and passes now;46 focused tests pass. SeeR4-BEFORE.json. Final gates and independent audit follow.",
+  "r4_audit_followup": "Confirmed and repaired historical retained role conflict after reassignment;23 buyingchain tests passed; controller isolated guard-removal proof fails UNKNOWN versus CURRENT. Restored lifecycle fixture retains project binding; unchanged jobs module plus lifecycle regression11passed. Source/docs frozen for fresh full gates."
 }

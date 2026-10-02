@@ -55,9 +55,11 @@ from gridlens.intelligence.signal_adjudication import POLICY_VERSION
 from gridlens.intelligence.signal_adjudication import adjudicate as adjudicate_signal
 from gridlens.jobs.queue import assert_fence
 from gridlens.persistence.models import (
+    BuyingChainEvidence,
     ChangeEvent,
     Evidence,
     Interpretation,
+    LifecycleEvent,
     NeedObservation,
     Observation,
     PowerNeed,
@@ -840,6 +842,22 @@ def assess_retained_news(
             .where(NeedObservation.observation_id == observation.id)
         ).all()
     )
+    # Retained lifecycle/relationship history can outlive a need link. Its
+    # support also changes when this interpretation is rebound or withdrawn.
+    old_project_ids.update(
+        session.scalars(
+            select(LifecycleEvent.project_id).where(
+                LifecycleEvent.observation_id == observation.id
+            )
+        ).all()
+    )
+    old_project_ids.update(
+        session.scalars(
+            select(BuyingChainEvidence.project_id)
+            .join(Evidence, Evidence.id == BuyingChainEvidence.retained_evidence_id)
+            .where(Evidence.observation_id == observation.id)
+        ).all()
+    )
     # Resolve every plausible existing target before locking any PowerNeed.
     # A retained version can be reassigned to a different supported project;
     # acquire old and candidate project/advisory locks in one stable order.
@@ -1171,7 +1189,14 @@ def assess_retained_news(
         if impacted_ids
         else []
     )
-    materially_changed_projects: set[Any] = set()
+    # Rebinding or rejecting retained evidence can invalidate lifecycle and
+    # relationship support even when another observation keeps the old need
+    # active. Rebuild every prior project under its existing material lock.
+    materially_changed_projects: set[Any] = set(old_project_ids)
+    for old_project_id in old_project_ids:
+        old_project = session.get(Project, old_project_id)
+        if old_project is not None:
+            refresh_lifecycle_projection(session, old_project)
     for need in impacted:
         project = session.get(Project, need.project_id)
         if project is None:

@@ -1,0 +1,13 @@
+{
+  "scope": "Read-only project-binding inspection of fresh GL3-028 retained backup clone",
+  "inference": "The retained baseline provides no evidence for a blanket missing-project-key lifecycle support exception.",
+  "recorded_utc": "2026-10-02T20:42:53.3287863Z",
+  "matching_project_identity_key": 938,
+  "accepted": 938,
+  "missing_project_identity_key": 0,
+  "current_hash_lifecycle_events": 938,
+  "database": "gl3_pr21_r7_retained_test on isolated127.0.0.1:55441",
+  "buying_chain_current_retained_citations_checked": 38,
+  "buying_chain_current_retained_citations_preserved": 38,
+  "buying_chain_check_utc": "2026-10-02T21:00:20.908268+00:00"
+}

@@ -1,0 +1,45 @@
+{
+  "raw_verdict": "CORRECT",
+  "mapped_review": "FIX",
+  "recorded_utc": "2026-10-02T21:07:40.6332367Z",
+  "repository": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-pr21-review",
+  "branch": "fix/pr21-correctness",
+  "head": "89d4bb8c9f1c43c6f8b64cbdb1daab2012c360f9",
+  "base": "da1f2bdb3c207e97e8a861392ba6df189dfe32a2",
+  "candidate_manifest_sha256": "8b9eaa666784c3d3db611ca8f9569ee33e8c2d432c5837ce3735ad70c71ff279",
+  "candidate_files_verified": 21,
+  "findings": [
+    {
+      "required_direction": "Diagnose both failures, perform bounded justified repair, freeze fresh manifest, and rerun mandatory final gates. No acceptance.",
+      "location": ".agent/artifacts/PR21-REPAIR/VALIDATION.json",
+      "behavior": "Exact frozen candidate fails full pytest: 2 failed, 615 passed, 1 skipped. Failing tests are test_lifecycle_projection_is_evidence_version_bound_and_never_uses_publication_date and test_runtime_recovery_honors_backoff_and_reports_failure_then_recovery.",
+      "severity": "blocking"
+    },
+    {
+      "required_direction": "Bounded regression using a formerly supported independent retained role citation that is rebound away, with a still-current differently titled role. Preserve legitimate independent conflicts and historical evidence. Repair only if reproduced.",
+      "location": "backend/src/gridlens/intelligence/buying_chain.py:917-953",
+      "behavior": "Independent role-conflict evaluation scans historical same-entity claims and their prior retained citations without the new current-project support predicate. A prior different-title retained claim whose project binding has been removed or reassigned can still make a supported current role UNKNOWN when the quote remains present at its old URL. Selected-claim filtering does not cover this historical conflict loop.",
+      "severity": "needs_behavior_proof",
+      "certainty": "Source-inspection concern; deterministic reproduction UNKNOWN, not a proven runtime defect."
+    }
+  ],
+  "inspected": [
+    "AGENTS.md and agent rules, packet and Finish Contract",
+    "PRD scope and evidence rules",
+    "Actual production diff from da1f2bdb and R4 delta from 89d4bb8",
+    "All 21 manifest SHA256 values and manifest file hash verified without mismatch",
+    "R4-BEFORE.json and R4-PROVENANCE-BASELINE.json",
+    "Fresh VALIDATION.json failure, BROWSER.json 22 passed, PRESERVATION.json 13 tables unchanged and 16960 Evidence rows preserved"
+  ],
+  "boundary": {
+    "parent_completion": false,
+    "finish_contract": "Local correctness repair only; parent milestone and launch remain OPEN",
+    "deployment": false,
+    "changed_candidate_requires_fresh_audit": true,
+    "provider_authority": "unchanged",
+    "acceptance": false,
+    "merge": false
+  },
+  "implementation_edits": false,
+  "tokens": "UNKNOWN"
+}

@@ -23,6 +23,7 @@ from gridlens.domain.buying_chain import (
     POLICY_VERSION,
     ROLE_MAX_AGE_DAYS,
 )
+from gridlens.domain.signal_admission import admitted_from_source
 from gridlens.ingestion.adapters.buying_chain_public import (
     PublicDocument,
     retrieve,
@@ -78,6 +79,50 @@ def _accepted_version(interpretation: Interpretation | None, evidence: Evidence)
     return accepted and assessment.get("evidence_hash") == evidence.content_hash
 
 
+def _retained_evidence_current_for_project(
+    session: Session, project: Project, evidence: Evidence
+) -> bool:
+    """Return whether a retained citation can support this project's current view.
+
+    Official admitted evidence may introduce a relationship itself.  Context
+    news may do so only after ingestion recorded it as an explicit supplemental
+    match to an already-admitted project need.  Both cases require a concrete
+    current project binding; missing keys are never a wildcard.
+    """
+    observation = session.get(Observation, evidence.observation_id)
+    interpretation = (
+        session.scalar(
+            select(Interpretation).where(Interpretation.observation_id == observation.id)
+        )
+        if observation
+        else None
+    )
+    if (
+        observation is None
+        or interpretation is None
+        or not _accepted_version(interpretation, evidence)
+    ):
+        return False
+    assessment = interpretation.assessment or {}
+    bound_project = assessment.get("project_identity_key")
+    if (
+        not isinstance(bound_project, str)
+        or not bound_project
+        or bound_project != project.identity_key
+    ):
+        return False
+    source = session.get(Source, observation.source_id)
+    if source is None:
+        return False
+    if admitted_from_source(source, assessment, evidence).admitted:
+        return True
+    # Only `_attach_news_supplement` writes this status, after attaching the
+    # observation to an admitted need and recording the matched project key.
+    # Retain that durable decision even when a later cleanup no longer has the
+    # original NeedObservation row in memory.
+    return assessment.get("admission_status") == "supplemental"
+
+
 def _retained(session: Session, project: Project) -> list[Evidence]:
     observations = (
         select(NeedObservation.observation_id)
@@ -103,7 +148,9 @@ def _retained(session: Session, project: Project) -> list[Evidence]:
     ).all()
     # Only the currently accepted evidence version can introduce relationships.
     return [
-        evidence for evidence, interpretation in rows if _accepted_version(interpretation, evidence)
+        evidence
+        for evidence, _ in rows
+        if _retained_evidence_current_for_project(session, project, evidence)
     ][:4]
 
 
@@ -753,7 +800,8 @@ def buying_chain_view(
     session: Session, project_id: UUID, *, now: datetime | None = None, history: bool = False
 ) -> dict:
     now = now or datetime.now(UTC)
-    if session.get(Project, project_id) is None:
+    project = session.get(Project, project_id)
+    if project is None:
         raise LookupError("Project not found")
     runs = session.scalars(
         select(BuyingChainRun)
@@ -801,7 +849,27 @@ def buying_chain_view(
         grouped[claim.entity_key].append(claim)
 
     current_claim_ids = set(runs[0].claim_ids) if runs else set()
-    selected = claims if history else [row for row in claims if str(row.id) in current_claim_ids]
+
+    def retained_citations_current(claim: BuyingChainClaim) -> bool:
+        for citation in claim.citations:
+            source = by_id.get(citation["evidence_id"])
+            if source and source.retained_evidence_id:
+                original = session.get(Evidence, source.retained_evidence_id)
+                if original is None or not _retained_evidence_current_for_project(
+                    session, project, original
+                ):
+                    return False
+        return True
+
+    selected = (
+        claims
+        if history
+        else [
+            row
+            for row in claims
+            if str(row.id) in current_claim_ids and retained_citations_current(row)
+        ]
+    )
     candidates: list[dict[str, Any]] = []
     for claim in selected:
         evidence = []
@@ -822,19 +890,12 @@ def buying_chain_view(
             )
             if row.retained_evidence_id:
                 original = session.get(Evidence, row.retained_evidence_id)
-                interpretation = (
-                    session.scalar(
-                        select(Interpretation).where(
-                            Interpretation.observation_id == original.observation_id,
-                        )
-                    )
-                    if original
-                    else None
-                )
                 # The accepted observation version is authoritative for retained
                 # fields. Native lines and earlier live JSON use different quote
                 # formats; a later research fetch cannot retract accepted evidence.
-                source_superseded = not (original and _accepted_version(interpretation, original))
+                source_superseded = not (
+                    original and _retained_evidence_current_for_project(session, project, original)
+                )
             if citation["supports"] in {"project_organization", "organization_category"}:
                 organization_stale = organization_stale or source_superseded
             elif citation["supports"] != "person_project_assignment":
@@ -870,7 +931,19 @@ def buying_chain_view(
                     prior_source = by_id.get(prior_citation["evidence_id"])
                     if prior_source is None:
                         continue
+                    if prior_source.retained_evidence_id:
+                        retained = session.get(Evidence, prior_source.retained_evidence_id)
+                        if retained is None or not _retained_evidence_current_for_project(
+                            session, project, retained
+                        ):
+                            continue
                     current_source = by_id[str(newest_by_url[prior_source.url])]
+                    if current_source.retained_evidence_id:
+                        retained = session.get(Evidence, current_source.retained_evidence_id)
+                        if retained is None or not _retained_evidence_current_for_project(
+                            session, project, retained
+                        ):
+                            continue
                     age = (
                         now.date() - (prior_source.published_at or prior_source.last_seen_at.date())
                     ).days
