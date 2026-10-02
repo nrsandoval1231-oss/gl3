@@ -1,0 +1,48 @@
+{
+  "packet": ".agent/packets/PR17-merge-20261001.md",
+  "scope": "PR17 docs reconciliation and receipt only",
+  "branch": "feat/gridlens-focus-experience",
+  "base_sha": "1c8be973b3d2b23e16cd0b8c92801455c587b317",
+  "merged_ref": "origin/main",
+  "merged_ref_sha": "8e2175082f15cabec873bb0e0f0134e1d98f4cb8",
+  "result": "The canonical UI canon, AGENTS.md, and reference manifest are byte-identical to origin/main. BUILD_FOCUS_EXPERIENCE now names UI_CANON as visual authority and the original HTML as behavior reference only.",
+  "changed_files": [
+    ".agent/packets/PR17-merge-20261001.md",
+    ".agent/artifacts/PR-MERGE-20261001/PR17_BUILD.json",
+    "AGENTS.md",
+    "docs/design/BUILD_FOCUS_EXPERIENCE.md",
+    "docs/design/UI_CANON.md",
+    "docs/design/references/canonical-ui-reference.json"
+  ],
+  "checks": [
+    {
+      "command": "git diff --check on the handoff reconciliation edit",
+      "result": "PASS"
+    },
+    {
+      "command": "git diff --cached --check on the integrated candidate",
+      "result": "Reports four trailing-space lines in the byte-exact origin/main UI_CANON.md (Markdown hard line breaks); retained unchanged per packet"
+    },
+    {
+      "command": "Changed-doc local Markdown-link validation",
+      "result": "PASS"
+    },
+    {
+      "command": "Compare working blobs for AGENTS.md, docs/design/UI_CANON.md, and docs/design/references/canonical-ui-reference.json against origin/main",
+      "result": "PASS: all three exact matches"
+    },
+    {
+      "command": "Confirm handoff API names against web/src/api/client.ts",
+      "result": "PASS: all named client methods exist"
+    }
+  ],
+  "limitations": [
+    "Manifest-listed canonical-overview-2026-10-01.png, gridlens-interactive-study.html, and gridlens-interactive-preview.mp4 are absent from this checkout and were not found under Downloads; no replacement asset was created.",
+    "No runtime, frontend, backend, or UI tests were in scope or run.",
+    "This local repair has not been pushed or merged on GitHub."
+  ],
+  "started_at_utc": "UNKNOWN",
+  "finished_at_utc": "2026-10-02T01:21:28Z",
+  "durations": "UNKNOWN",
+  "tokens": "UNKNOWN"
+}
