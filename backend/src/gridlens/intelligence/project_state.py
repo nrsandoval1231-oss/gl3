@@ -9,6 +9,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from gridlens.domain.signal_admission import admitted_from_source
 from gridlens.intelligence.buying_chain import _accepted_version, buying_chain_view
 from gridlens.intelligence.lifecycle_service import lifecycle_event_supported
 from gridlens.persistence.models import (
@@ -21,6 +22,7 @@ from gridlens.persistence.models import (
     Project,
     ProjectLifecycle,
     ProjectMatchDecision,
+    Source,
 )
 
 
@@ -61,32 +63,57 @@ def _conflict(values: list[tuple[Any, Evidence]]) -> dict[str, Any]:
     }
 
 
-def _accepted_need_evidence(session: Session, project_id: UUID) -> dict[UUID, list[Evidence]]:
+def _accepted_need_evidence(
+    session: Session, project: Project
+) -> dict[UUID, dict[str, list[Evidence]]]:
     rows = session.execute(
-        select(NeedObservation.need_id, Evidence, Interpretation)
+        select(NeedObservation.need_id, PowerNeed, Evidence, Interpretation, Observation, Source)
         .join(Observation, Observation.id == NeedObservation.observation_id)
         .join(Evidence, Evidence.observation_id == Observation.id)
         .join(Interpretation, Interpretation.observation_id == Observation.id)
         .join(PowerNeed, PowerNeed.id == NeedObservation.need_id)
-        .where(PowerNeed.project_id == project_id)
+        .join(Source, Source.id == Observation.source_id)
+        .where(PowerNeed.project_id == project.id)
         .order_by(Evidence.observed_at, Evidence.id)
     ).all()
-    result: dict[UUID, list[Evidence]] = defaultdict(list)
-    for need_id, evidence, interpretation in rows:
-        if _accepted_version(interpretation, evidence):
-            result[need_id].append(evidence)
+    result: dict[UUID, dict[str, list[Evidence]]] = defaultdict(lambda: defaultdict(list))
+    for need_id, need, evidence, interpretation, _observation, source in rows:
+        assessment = interpretation.assessment or {}
+        if not (
+            _accepted_version(interpretation, evidence)
+            and assessment.get("project_identity_key") == project.identity_key
+            and (assessment.get("power_activity") or assessment.get("activity_key"))
+            == need.activity_key
+            and admitted_from_source(source, assessment, evidence).admitted
+        ):
+            continue
+        result[need_id]["activity"].append(evidence)
+        if assessment.get("tier") == need.tier:
+            result[need_id]["tier"].append(evidence)
+        if assessment.get("demand_mw") == need.required_mw:
+            result[need_id]["mw"].append(evidence)
+        if need.start_window and assessment.get("start_window") == need.start_window:
+            result[need_id]["timing"].append(evidence)
+        if need.duration and assessment.get("duration") == need.duration:
+            result[need_id]["duration"].append(evidence)
+        if need.supply == "Reported constraint" and assessment.get("tier") == "Prospect":
+            result[need_id]["supply"].append(evidence)
     return result
 
 
-def _need_fields(need: PowerNeed, evidence: list[Evidence]) -> dict[str, Any]:
+def _need_fields(need: PowerNeed, evidence: dict[str, list[Evidence]]) -> dict[str, Any]:
     """Keep each commercial input independently inspectable and explicitly unknown."""
     return {
-        "activity": _supported(need.activity_key, evidence),
-        "tier": _supported(need.tier, evidence),
-        "mw": _supported(need.required_mw, evidence) if need.required_mw else _unknown(),
-        "timing": _supported(need.start_window, evidence) if need.start_window else _unknown(),
-        "duration": _supported(need.duration, evidence) if need.duration else _unknown(),
-        "supply": _supported(need.supply, evidence)
+        "activity": _supported(need.activity_key, evidence["activity"]),
+        "tier": _supported(need.tier, evidence["tier"]),
+        "mw": _supported(need.required_mw, evidence["mw"]) if need.required_mw else _unknown(),
+        "timing": _supported(need.start_window, evidence["timing"])
+        if need.start_window
+        else _unknown(),
+        "duration": _supported(need.duration, evidence["duration"])
+        if need.duration
+        else _unknown(),
+        "supply": _supported(need.supply, evidence["supply"])
         if need.supply and need.supply.casefold() != "unknown"
         else _unknown(),
     }
@@ -96,11 +123,18 @@ def project_state(session: Session, project_id: UUID) -> dict[str, Any] | None:
     project = session.get(Project, project_id)
     if project is None:
         return None
-    need_evidence = _accepted_need_evidence(session, project_id)
+    need_evidence = _accepted_need_evidence(session, project)
     needs = session.scalars(
         select(PowerNeed).where(PowerNeed.project_id == project_id).order_by(PowerNeed.activity_key)
     ).all()
-    all_evidence = [e for rows in need_evidence.values() for e in rows]
+    all_evidence = list(
+        {
+            evidence.id: evidence
+            for fields in need_evidence.values()
+            for rows in fields.values()
+            for evidence in rows
+        }.values()
+    )
     lifecycle_events = session.scalars(
         select(LifecycleEvent)
         .where(LifecycleEvent.project_id == project_id)
@@ -133,7 +167,7 @@ def project_state(session: Session, project_id: UUID) -> dict[str, Any] | None:
         for event, evidence in accepted_lifecycle
         if event.occurred_on and ("utility" in event.event_type or "energiz" in event.event_type)
     ]
-    active_needs = [n for n in needs if n.active and need_evidence.get(n.id)]
+    active_needs = [n for n in needs if n.active and need_evidence[n.id].get("activity")]
     state: dict[str, Any] = {
         "identity": _supported(project.name, all_evidence),
         "site": _supported(project.location, all_evidence) if project.location else _unknown(),
@@ -149,13 +183,13 @@ def project_state(session: Session, project_id: UUID) -> dict[str, Any] | None:
         else _unknown(),
         "activity": _supported(
             [n.activity_key for n in active_needs],
-            [e for n in active_needs for e in need_evidence[n.id]],
+            [e for n in active_needs for e in need_evidence[n.id]["activity"]],
         )
         if active_needs
         else _unknown(),
         "power_need": _supported(
             [_need_fields(n, need_evidence[n.id]) for n in active_needs],
-            [e for n in active_needs for e in need_evidence[n.id]],
+            [e for n in active_needs for e in need_evidence[n.id]["activity"]],
         )
         if active_needs
         else _unknown(),

@@ -1,28 +1,12 @@
 {
   "node": "PR21-REPAIR",
   "verdict": "PASS",
-  "base_sha": "da1f2bdb3c207e97e8a861392ba6df189dfe32a2",
-  "prior_reviewed_head": "bfa6186e74462cd222b8859f5dae45bec6974eed",
-  "candidate_manifest": ".agent/artifacts/PR21-REPAIR/CANDIDATE.json",
-  "candidate_manifest_sha256": "9048c51fe38d5d2cba815bf04ba69da78fa7628e46bbdbb639f87ee66d979748",
-  "candidate_file_hashes_verified": true,
-  "receipts": {
-    "VALIDATION.json_sha256": "972ef84f38f3f8b55a665f48ee1a0296aa298c461be219ca9963f067da894a84",
-    "BROWSER.json_sha256": "cbfb1c9062e84f6912d85f8d8604d7da8ec440a13609529d3425e67078123a42",
-    "PRESERVATION.json_sha256": "d12a3a65c583940104c561c141564c1e211377ee467fd7095b2f977a64827074"
-  },
-  "independent_review": [
-    "Inspected the frozen source, exact diff, adjacent transaction paths, original five findings, R1 lock/deadline repair, and both Codex R2 findings rather than relying on builder claims.",
-    "The first default scan commits checkpoint initialization while its dedicated scan lease is held. A second scan with the first zero-work caller Session still open now reads that singleton promptly; no provider call or duplicate row occurs.",
-    "Scan lock acquisition is inside a cleanup guard. Acquisition-query failure closes the checked-out connection; setup/body exits release the held session-level advisory lock and close the connection.",
-    "Durable scan position advances on classified skips and persisted attempts, allowing deadline-limited runs to reach an earlier changed context. Explicit IDs scan beyond a consumed 20-row prefix. The lease remains held across attempt commits, and daily reservations remain nonblocking, duplicate-checked, and PENDING before network effects.",
-    "Retained-news and structured candidate paths discover projects before acquiring sorted row/advisory locks; negative linked corrections acquire project locks before need locks. Shared lifecycle support, immutable Evidence attribution, A-B-A replay, buying-chain contact provenance, freshness-only quiet changes, and unresolved JSON/generated contract remain intact."
-  ],
-  "deterministic_evidence": "Final receipts start after 2026-10-02T19:18:00Z. Backend suite: 605 passed, 1 skipped. Ruff, 66-file mypy, frontend audit/typecheck/build, clean/repeat/downgrade/reupgrade/current-main/previous-head migration checks, and final diff check exited 0. Serial browser: 22 passed. Retained clone: 13 authoritative tables and 16960 Evidence rows unchanged, six projects replayed in two reopened sessions with zero material events and zero provider calls. Original-head R2 regressions failed against bfa6186 and passed on this candidate.",
-  "remaining_limits": [
-    "This is exact-candidate local acceptance. No push, merge, deployment, production provider call, or live data claim is covered.",
-    "Concurrent tests prove the specified interleavings; they are not exhaustive concurrency model checking."
-  ],
-  "scope": "Independent read-only review of the frozen 19-file candidate. Prior raw FIX is preserved in REVIEW-R2-FIX.json.",
-  "next_direction": "CONTINUE"
+  "raw_verdict": "ACCEPT",
+  "mapping": "Astra ACCEPT => PASS per owner instructions",
+  "raw_audit": "ASTRA-R3.json",
+  "raw_audit_sha256": "d4a0554973fa4e07539f51825454ad6c2760c7a2bfb3aa6c73e64dc8900298c6",
+  "candidate_manifest_sha256": "efc697e9a0e201a3bde043d43b5447960d2b9f62a82f1d7a1e5d2ce14023da09",
+  "recorded_utc": "2026-10-02T20:29:31.657806+00:00",
+  "scope": "Exact local repair candidate; remote update and hosted Codex review follow. No merge or deployment.",
+  "findings": []
 }

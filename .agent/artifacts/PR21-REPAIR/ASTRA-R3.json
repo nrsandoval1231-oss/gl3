@@ -1,0 +1,45 @@
+{
+  "node": "PR21-REPAIR",
+  "verdict": "ACCEPT",
+  "recorded_utc": "2026-10-02T20:28:29.6823390Z",
+  "reviewer": "Astra independent strategic auditor",
+  "reviewed_head": "1b186a49615174444eca82250466608610f03937",
+  "repair_base": "da1f2bdb3c207e97e8a861392ba6df189dfe32a2",
+  "main_base": "25cac0b1168b750277c1347fa6b4eb0f64d28fe5",
+  "candidate_manifest_sha256": "efc697e9a0e201a3bde043d43b5447960d2b9f62a82f1d7a1e5d2ce14023da09",
+  "candidate_file_count": 20,
+  "candidate_file_hashes_verified": true,
+  "production_hashes_unchanged_across_proof_corrections": true,
+  "receipts": {
+    "VALIDATION.json_sha256": "62fc2f91628776d9424332cb983ba0040871b196956a6903a7a44da1f173e932",
+    "BROWSER.json_sha256": "484bae13f227658f51b27915bfabdf587909283acc74e0460b1b21c9aea9e3fa",
+    "PRESERVATION.json_sha256": "6ca89cfbcb435cb38bc50a188c6341184ebedf98be28f0adc0f829f31d8490c4",
+    "validation_and_browser_log_hashes_verified": 20
+  },
+  "findings": [],
+  "resolved_findings": [
+    {
+      "id": "R3-FIELD-PROVENANCE-PROOF",
+      "evidence": "Independent identity, activity and source-admission cases keep valid Evidence while excluding exactly one invalid dimension. Two current eligible rows assert exact field citation IDs for tier/MW/timing/duration/supply, activity support from both, deduplicated top-level citations, failed/pending prior-assessment fallback with changed Observation hash, and UNKNOWN when stored MW/timing/duration has no matching support. The retained mutant receipt demonstrates failure under blanket tier/MW support."
+    },
+    {
+      "id": "R3-PROOF-RANDOM-ORDER",
+      "evidence": "Final test at test_project_state_changes.py:336 compares exact Evidence ID sets and separately asserts length two. It no longer assumes insertion order for equal timestamps and uuid4 IDs."
+    }
+  ],
+  "reviewed_paths": [
+    "Actual source/diff inspection covered retained-news baseline capture and Evidence attribution, same-ID supported withdrawal/shared lifecycle predicate, project-before-need and structured UUID lock order, material revision replay and buying-chain freshness suppression.",
+    "Latest buying-chain run selects its persisted claim IDs; individual citations determine staleness. Multi-document regression preserves document B after document A rejection and prevents a false contractor removal. Historical omission and A-B-A behavior remain covered by the final suite.",
+    "Durable shadow skip checkpoint, dedicated scan lease, committed singleton initialization, acquisition/setup cleanup, nonblocking daily reservation, duplicate/daily budget checks and pending-before-provider persistence remain intact. Settings remain default-disabled and shadow-only.",
+    "The unresolved API field is present in source and generated contracts. The checkpoint migration adds traversal state without rewriting immutable Evidence or judge history.",
+    "New proof-only test and report changes were inspected, all 20 final manifest files rehashed, and production hashes compared with the previously inspected R3 source. No additional concrete scoped defect found."
+  ],
+  "deterministic_evidence": "Fresh final R6 checks start 2026-10-02T20:24:32Z and finish 20:26:35Z after freeze. All 19 checks exit zero: Ruff, 66-file mypy, backend 611 passed/1 existing skipped/1 warning, frontend audit/typecheck/build, 12 migration checks and diff. Serial browser 22 passed. All 20 associated log hashes verified. Preservation at 20:24:47Z reports 13 authoritative tables and 16960 immutable Evidence rows unchanged, six projects in two reopened sessions, zero material events and zero provider calls.",
+  "remaining_limits": [
+    "Acceptance binds only this exact local 20-file candidate and final receipts. Changes require fresh identity and applicable validation/review.",
+    "This is not COMPLETE_CANDIDATE for the parent product or production finish contract. Push, remote PR status, future hosted review, merge, deployment and live provider behavior are outside this audit.",
+    "No deterministic tests were independently rerun by this auditor against controller or builder databases; retained controller gates and raw log hashes were verified."
+  ],
+  "scope": "Audit only. This artifact is the sole write; no implementation, test, documentation, database, commit, push, merge or deployment changes.",
+  "controller_direction": "CONTINUE"
+}

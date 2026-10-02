@@ -1,0 +1,46 @@
+{
+  "node": "PR21-REPAIR",
+  "verdict": "CORRECT",
+  "recorded_utc": "2026-10-02T20:13:53Z",
+  "reviewer": "Astra independent strategic auditor",
+  "reviewed_head": "1b186a49615174444eca82250466608610f03937",
+  "repair_base": "da1f2bdb3c207e97e8a861392ba6df189dfe32a2",
+  "main_base": "25cac0b1168b750277c1347fa6b4eb0f64d28fe5",
+  "candidate_manifest_sha256": "cd19970c79221071c0fb509861e52a8d339476804c518f1381431487dd7bccb0",
+  "candidate_file_count": 20,
+  "candidate_file_hashes_verified": true,
+  "receipts": {
+    "VALIDATION.json_sha256": "9d9891a7de1400fff5c3a6c190e86657b03dc1edc75a20a73f21ae6474ea167d",
+    "BROWSER.json_sha256": "e4a6b575b095823764918ac38967308a705d76dadb66295762f88f88a3633662",
+    "PRESERVATION.json_sha256": "af4983ceade81aeed9be5c5bc698d9a5e44e2a54915b61d2a800e5a0a320447b",
+    "validation_and_browser_log_hashes_verified": 20
+  },
+  "deterministic_evidence": "Fresh final receipts begin after candidate freeze at 20:06:59Z: 19 checks exited zero, backend 607 passed and 1 skipped, serial browser 22 passed. Retained clone preserves 13 authoritative tables and 16960 Evidence rows; six-project replay across two reopened sessions has zero material events and zero provider calls. All manifest file hashes and all 19 validation log hashes plus browser log hash match. These passing checks do not demonstrate the central field-isolation property below.",
+  "findings": [
+    {
+      "id": "R3-FIELD-PROVENANCE-PROOF",
+      "severity": "acceptance evidence gap",
+      "locations": [
+        "backend/tests/integration/test_project_state_changes.py:138",
+        "backend/tests/integration/test_collection_only_ingestion.py:test_supported_news_need_change_is_attributed_once_and_unrelated_evidence_stays_quiet",
+        "backend/src/gridlens/intelligence/project_state.py:82-103"
+      ],
+      "evidence": "The new exclusion fixture changes project identity and uses a non-admitted source simultaneously; it cannot distinguish project filtering from admission filtering. The positive news fixture checks only that activity, tier, MW and supply are SUPPORTED for one fully supporting assessment. Neither asserts exact per-field Evidence IDs with multiple current linked assessments supporting different fields. A repair that adds only project filtering while continuing to assign every accepted linked Evidence to every field would satisfy these R3 assertions. The original hosted finding explicitly covers independently current project/activity/admission and field-specific support, so that part of its acceptance is UNKNOWN rather than demonstrated.",
+      "bounded_correction": "Add focused test-only proof varying project identity, activity and source admission independently against an otherwise valid admitted assessment. Add multiple eligible current linked Evidence rows with deliberately different field support; assert exact Evidence IDs for supported tier, MW, timing, duration and supply, and UNKNOWN for unsupported values. Retain positive admitted support and failed/pending refresh fallback. Execute focused tests, freeze the changed candidate, rerun required gates, and obtain a fresh exact-candidate audit. Change implementation only if this bounded proof demonstrates a defect.",
+      "production_defect_claim": "No additional production defect demonstrated by this finding. The missing behavioral proof is consequential because the same provenance boundary has repeatedly escaped prior acceptance."
+    }
+  ],
+  "reviewed_positive_paths": [
+    "Latest buying-chain run selects persisted claim IDs without resurrecting omitted historical claims; retained citation freshness remains evaluated per claim. The multi-document regression demonstrates unaffected document B survives document A rejection without a false contractor removal.",
+    "Accepted permit assessment branches explicitly provide tier Signal; no implicit-tier regression was established.",
+    "Source/diff inspection covered retained-news baseline capture and material attribution, supported withdrawal/shared predicate, project-before-need locking, structured UUID locking, material revision replay and buying-chain freshness suppression.",
+    "Shadow traversal has separate durable skip progress, a dedicated scan lease, committed singleton initialization, acquisition cleanup, nonblocking daily reservation and pending-before-provider persistence. Default Jev remains disabled and shadow-only.",
+    "API unresolved field and generated contracts are included; migration 0013 adds scan checkpoint state without modifying immutable Evidence or judge history."
+  ],
+  "scope_limits": [
+    "Read-only audit except this artifact. No implementation, test, documentation, database, commit, push, merge or deployment changes performed.",
+    "Local acceptance only; parent finish contract, production, provider behavior and future hosted review remain unverified by this audit.",
+    "Prior PASS receipts are historical and do not certify this changed candidate. This CORRECT applies only to the manifest identity above."
+  ],
+  "controller_direction": "CORRECT"
+}
