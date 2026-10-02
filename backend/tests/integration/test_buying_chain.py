@@ -655,6 +655,71 @@ def test_carried_assignment_ages_independently_of_fresh_official_role(db):
         assert carried["person_organization_relationship"] == "CURRENT"
 
 
+def test_boston_retained_applicant_facts_are_cited_without_creating_buyer(db):
+    from gridlens.domain.pursuits import SOURCES
+
+    text = (
+        "Permit number: ETS1895395\nWork type: Generators\nPermit type: Electrical\n"
+        "Description: Generators Installation of (2) 375KW temporary generator\n"
+        "Applicant (buying role unknown): Acme Services\nStatus: Open\n"
+        "Occupancy: Commercial\nAddress: 1 Main Street\nCity: Boston\nState: MA"
+    )
+    url = (
+        "https://data.boston.gov/api/3/action/datastore_search?"
+        "resource_id=6ddcd912-32a0-43df-9908-63574f8c7e77&filters=%7B%22permitnumber%22%3A%22ETS1895395%22%7D&limit=1"
+    )
+    with db.begin() as session:
+        project = seed(session)
+        source_row = Source(
+            id="boston-building-permits",
+            publisher="City of Boston",
+            endpoint="https://data.boston.gov/api/3/action/datastore_search",
+            family="construction-permits",
+            geography="Boston, Massachusetts",
+            industries=["commercial-construction"],
+            retrieval_method="boston-ckan-permits",
+            health={},
+        )
+        session.add(source_row)
+        session.flush()
+        project.source_id = source_row.id
+        observation = session.scalar(select(Observation).where(Observation.external_id == "42"))
+        assert observation
+        observation.source_id = source_row.id
+        evidence = session.scalar(select(Evidence).where(Evidence.observation_id == observation.id))
+        assert evidence
+        evidence.url = url
+        evidence.title = "Boston permit ETS1895395"
+        evidence.abstract = text
+        evidence.content_hash = "boston-source-hash"
+        interpretation = session.scalar(
+            select(Interpretation).where(Interpretation.observation_id == observation.id)
+        )
+        assert interpretation
+        interpretation.content_hash = evidence.content_hash
+        interpretation.assessment = {
+            "evidence_hash": evidence.content_hash,
+            "decision": "accepted",
+        }
+        assert source_row.id in SOURCES
+
+        def no_network(_url):
+            pytest.fail("Retained Boston permit facts must not require provider research")
+
+        result = enrich_buying_chain(session, project.id, fetcher=no_network, now=NOW)
+        assert result["permit_summaries"]
+        summary = next(
+            row for row in result["permit_summaries"] if row["source_id"] == source_row.id
+        )
+        applicant = next(
+            fact for fact in summary["facts"] if fact["value"] == "Acme Services"
+        )
+        assert applicant["label"] == "Applicant (role as applicant; buyer authority unknown)"
+        assert applicant["quote"] in evidence.abstract
+        assert result["candidates"] == []
+        assert any("buyer remains UNKNOWN" in item for item in result["unresolved"])
+
+
 def test_retained_permit_enrichment_without_network_preserves_exact_fields_and_replay(db):
     """Regression: GL3-018 field pairs were inert unless a second fetch succeeded."""
     with db.begin() as session:

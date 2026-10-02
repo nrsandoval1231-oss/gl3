@@ -8,6 +8,29 @@ def test_source_boundary_duplicate_fields_and_unattributed_contacts():
     assert chicago_contacts("contact_1_type: OWNER\ncontact_1_name: DOE, JANE") == []
 
 
+def test_boston_facts_keep_native_applicant_label_and_exact_citation():
+    text = (
+        "Permit number: ETS1895395\n"
+        "Work type: Generators\n"
+        "Permit type: Electrical\n"
+        "Description: Generators Installation of (2) 375KW temporary generator\n"
+        "Applicant (buying role unknown): Acme Services\n"
+        "Status: Open\n"
+        "Address: 1 Main Street\nCity: Boston\nState: MA"
+    )
+    parsed = facts("boston-building-permits", text)
+    applicant = next(item for item in parsed if item["value"] == "Acme Services")
+    assert applicant["label"] == "Applicant (role as applicant; buyer authority unknown)"
+    assert applicant["quote"] == "Applicant (buying role unknown): Acme Services"
+    assert all(item["quote"] in text for item in parsed)
+    assert facts("publisher-rss", text) == []
+    duplicate_applicant = facts(
+        "boston-building-permits",
+        text + "\nApplicant (buying role unknown): Different Name",
+    )
+    assert not any("Applicant" in item["label"] for item in duplicate_applicant)
+
+
 def test_georgia_facility_is_not_inferred_to_be_owner_or_operator():
     output = facts(
         "georgia-air-draft-title-v",

@@ -1,0 +1,25 @@
+{
+  "node": "GL3-026",
+  "role": "independent Sol exact-candidate re-review",
+  "verdict": "PASS",
+  "branch": "feat/gl3-026-national-intake",
+  "base_sha": "ce6b8fc688085c7a43f1bdefa35eeabeddb72903",
+  "candidate_manifest": ".agent/artifacts/GL3-026/candidate_manifest.json",
+  "candidate_sha256": "1fb2e0617a52aa01628c991dd5965f57bef9fb48c2125892b683979030af0419",
+  "manifest_file_count": 313,
+  "manifest_files_verified": true,
+  "started_at_utc": "UNKNOWN",
+  "finished_at_utc": "2026-10-02T00:00:53Z",
+  "findings": [],
+  "repair_assessment": "The three REVIEW-initial-FIX findings are resolved. App.tsx displays aggregate SHOW/REVIEW/HOLD decisions on every Signal browse card and each member decision inside a mixed group; a browser regression and the final authenticated all-signals.png visibly show all three labels in All. Boston is included in the existing permit research trigger and pursuit source policy, while retained permit summaries expose exact cited status, scope, site and applicant fields. BOSTON_LIVE_FACTS.json and boston-project.png show Shaun Mellett only as applicant, with buyer authority unknown and zero manufactured buying candidates. RECONCILED_PARITY.json attributes the replay interpretation difference to Boston ETS1870169's expired review_after: exactly attempts 4 to 5 and updated_at changed; assessment, status, content hash and evaluator version did not. The six other domain tables are byte-equivalent across the new row-level replay. The original unresolved hash-only FINAL_PARITY.json remains retained.",
+  "evidence_reviewed": [
+    "REVIEW_CONTRACT.md, REVIEW-initial-FIX.json, GL3-026 repair packet, UI_REPAIR.json and BOSTON_INTEGRATION_REPAIR.json checked against actual source and test edits",
+    "Independent SHA-256 verification of all 313 manifest file bytes: zero mismatches. Compact sorted-key manifest digest equals 1fb2e0617a52aa01628c991dd5965f57bef9fb48c2125892b683979030af0419. Tracked and nonignored untracked product-file enumeration matches the manifest after stated exclusions.",
+    "Actual App.tsx card/member labels and web/tests/verticals.spec.ts; backend worker trigger, pursuit source list, retained_permits exact-field parser, buying-chain route and focused unit/integration tests",
+    "Final all-signals.png inspected after replacement: 1,149 cards, 1,167 records, All selected, visible REVIEW/HOLD/SHOW badges. boston-project.png inspected with exact applicant quote. BOSTON_LIVE_FACTS.json has one cited Boston summary, 11 facts and zero inferred buyer candidates.",
+    "RECONCILED_PARITY.json row-level before/after proof: 9,142 unchanged Boston records, zero new/changed; six domain-table exact hashes and one interpretation bookkeeping delta. LIVE_PROJECTS.json retains ETS1870169 as HOLD. Final validation-repair-final gates: Ruff, mypy, 546 backend tests passed with one existing skip, frontend typecheck/build, clean/repeat/drift migrations, 18 browser tests and diff check, all exit zero."
+  ],
+  "reviewed_boundaries": "Official Boston retrieval remains bounded to a 90-day issued-date window with count-checked ordered paging, stable permit-number identity, direct citation, retained amendment and status history, and no unsupported power or buying inference. The two repairs preserve All, decision filters, source-sector aliases and the inclusive 300 kW floor. Boston's research path uses the existing bounded job and applicant remains a source role, not a verified buyer. No reviewer provider/network call, application edit, commit, push, merge or deploy was performed.",
+  "limitations": "PASS covers the frozen GL3-026 candidate and bounded local runtime proof, not parent Finish Contract or launch. It does not certify full national coverage, one million Leads, cloud scheduling, seven daily cycles, a Nick-reviewed Lead, buyer authority, temporary rental demand or status monitoring outside Boston's rolling issue-date window. The earlier hash-only replay delta cannot be reconstructed row by row; the subsequent row-level replay supplies exact attribution for the current candidate.",
+  "direction": "CONTINUE controller integration for this exact candidate. Parent Finish Contract and launch remain OPEN. Any product-file change requires a new manifest and independent review."
+}

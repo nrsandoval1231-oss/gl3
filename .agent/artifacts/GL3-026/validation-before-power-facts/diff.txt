@@ -1,0 +1,8 @@
+warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'backend/src/gridlens/api/app.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'backend/src/gridlens/domain/permit_interpretation.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'backend/src/gridlens/ingestion/adapters/README.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'config/sources/registry.v1.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'web/src/app/App.tsx', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'web/tests/first_path.spec.ts', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'web/tests/project_cards.spec.ts', LF will be replaced by CRLF the next time Git touches it

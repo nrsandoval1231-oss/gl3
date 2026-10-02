@@ -1,0 +1,146 @@
+{
+  "checks": [
+    {
+      "check": "ruff",
+      "command": [
+        "uv",
+        "run",
+        "ruff",
+        "check",
+        "src",
+        "tests",
+        "migrations",
+        "../scripts"
+      ],
+      "exit_code": 0,
+      "start": "2026-10-01T23:55:04.656126+00:00",
+      "finish": "2026-10-01T23:55:04.725015+00:00",
+      "seconds": 0.068889
+    },
+    {
+      "check": "mypy",
+      "command": [
+        "uv",
+        "run",
+        "mypy",
+        "src"
+      ],
+      "exit_code": 0,
+      "start": "2026-10-01T23:55:04.725015+00:00",
+      "finish": "2026-10-01T23:55:05.677383+00:00",
+      "seconds": 0.952368
+    },
+    {
+      "check": "pytest",
+      "command": [
+        "uv",
+        "run",
+        "pytest",
+        "tests",
+        "-q"
+      ],
+      "exit_code": 0,
+      "start": "2026-10-01T23:55:05.677383+00:00",
+      "finish": "2026-10-01T23:55:35.673060+00:00",
+      "seconds": 29.995677
+    },
+    {
+      "check": "typecheck",
+      "command": [
+        "npm.cmd",
+        "run",
+        "typecheck"
+      ],
+      "exit_code": 0,
+      "start": "2026-10-01T23:55:35.673060+00:00",
+      "finish": "2026-10-01T23:55:37.240816+00:00",
+      "seconds": 1.567756
+    },
+    {
+      "check": "build",
+      "command": [
+        "npm.cmd",
+        "run",
+        "build"
+      ],
+      "exit_code": 0,
+      "start": "2026-10-01T23:55:37.240816+00:00",
+      "finish": "2026-10-01T23:55:39.662548+00:00",
+      "seconds": 2.421732
+    },
+    {
+      "check": "migrations-clean",
+      "command": [
+        "uv",
+        "run",
+        "alembic",
+        "upgrade",
+        "head"
+      ],
+      "exit_code": 0,
+      "start": "2026-10-01T23:55:39.663549+00:00",
+      "finish": "2026-10-01T23:55:40.677113+00:00",
+      "seconds": 1.013564
+    },
+    {
+      "check": "migrations-repeat",
+      "command": [
+        "uv",
+        "run",
+        "alembic",
+        "upgrade",
+        "head"
+      ],
+      "exit_code": 0,
+      "start": "2026-10-01T23:55:40.677113+00:00",
+      "finish": "2026-10-01T23:55:41.453779+00:00",
+      "seconds": 0.776666
+    },
+    {
+      "check": "migrations-drift",
+      "command": [
+        "uv",
+        "run",
+        "alembic",
+        "check"
+      ],
+      "exit_code": 0,
+      "start": "2026-10-01T23:55:41.454780+00:00",
+      "finish": "2026-10-01T23:55:42.390687+00:00",
+      "seconds": 0.935907
+    },
+    {
+      "check": "browser",
+      "command": [
+        "npm.cmd",
+        "run",
+        "test",
+        "--",
+        "--reporter=line",
+        "--grep-invert",
+        "live air documents|live data-center permit enrichment|real pursuits retain evidence gates|real conflicts, bounded refresh"
+      ],
+      "exit_code": 0,
+      "start": "2026-10-01T23:55:42.390687+00:00",
+      "finish": "2026-10-01T23:55:50.301333+00:00",
+      "seconds": 7.910646
+    },
+    {
+      "check": "diff",
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exit_code": 0,
+      "start": "2026-10-01T23:55:50.302333+00:00",
+      "finish": "2026-10-01T23:55:50.364681+00:00",
+      "seconds": 0.062348
+    }
+  ],
+  "pytest": "546 passed, 1 existing skip, 1 deprecation warning",
+  "browser": "18 passed; four prior historical-corpus tests excluded with unchanged scope",
+  "real_ingestion": "18 original sources checked, Boston 9142 rows/20 Signals",
+  "final_replay": "9142 unchanged, zero new/changed; RECONCILED_PARITY.json proves exact six domain tables and all interpretation semantic fields. One expired-review interpretation advances only attempts and updated_at.",
+  "no_cloud_claim": true
+}

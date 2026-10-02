@@ -1,0 +1,32 @@
+{
+  "node": "GL3-026 Boston integration repair",
+  "status": "READY_FOR_CONTROLLER_VALIDATION",
+  "files": [
+    "backend/src/gridlens/jobs/worker.py",
+    "backend/src/gridlens/domain/pursuits.py",
+    "backend/src/gridlens/ingestion/adapters/retained_permits.py",
+    "backend/src/gridlens/intelligence/buying_chain.py",
+    "backend/tests/unit/test_retained_permits.py",
+    "backend/tests/integration/test_buying_chain.py"
+  ],
+  "changes": [
+    "Boston permit ingestion completion now schedules the existing bounded pursuit_research job when the existing Austin research anchor is enabled.",
+    "Boston is included in the existing pursuit source policy.",
+    "Retained Boston permit summaries decode exact permit number, work/type/description/comments, status, occupancy and site fields. Native applicant is rendered as Applicant (role as applicant; buyer authority unknown), with exact source-line quote; no Boston applicant is synthesized into an organization/person or buying-chain candidate.",
+    "Buying-chain enrichment recognizes accepted Boston retained facts and does not require a redundant retrieval for the retained summary path."
+  ],
+  "validation": {
+    "command": "backend/.venv/Scripts/python.exe -m pytest tests/unit/test_retained_permits.py tests/integration/test_buying_chain.py -q",
+    "result": "31 passed; one Starlette httpx deprecation warning",
+    "ruff": "passed for all six owned files",
+    "mypy": "passed for four changed source modules",
+    "integration_database": "existing test fixture asserts a distinct *_test DB and not the configured application DB; no gl3_026_app access or provider/network calls were made by these tests"
+  },
+  "parity_diagnosis": ".agent/artifacts/GL3-026/PARITY_DIAGNOSIS.json",
+  "limitations": [
+    "The runtime worker queue side effect was not executed in this handoff; controller should validate using the owned paused worker/runtime protocol.",
+    "Boston permit applicant remains applicant-only; buyer, organization/person type, current project role, buying authority, load and rental need remain UNKNOWN absent independent evidence.",
+    "Pursuit research remains subject to existing bounded policy and source availability."
+  ],
+  "authority": "No migration, runtime DB mutation, provider call, commit, push, merge, deployment or worker lifecycle operation performed."
+}

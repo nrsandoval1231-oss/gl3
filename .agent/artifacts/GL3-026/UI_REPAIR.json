@@ -1,0 +1,46 @@
+{
+  "packet": "GL3-026-repair",
+  "node": "UI decision badges",
+  "status": "IMPLEMENTED",
+  "direction": "CORRECT",
+  "branch": "feat/gl3-026-national-intake",
+  "base_sha": "ce6b8fc688085c7a43f1bdefa35eeabeddb72903",
+  "review_reference": ".agent/artifacts/GL3-026/REVIEW-initial-FIX.json",
+  "review_candidate_digest": "01276076827705469b12762fa0ba4c861f57f726cb8570d54e46e4fde43f26ee",
+  "finding_addressed": "Signals cards did not show explicit SHOW/REVIEW/HOLD decisions, and grouped member rows omitted member decisions.",
+  "implementation": "Each Signal card now displays its existing aggregate decision label. Expanded grouped records display their own decision labels, including mixed-decision groups. Existing All/SHOW/REVIEW/HOLD filtering and grouping logic are preserved.",
+  "owned_files": [
+    {
+      "path": "web/src/app/App.tsx",
+      "sha256": "8A32C376EA14DCBC087390F35C3DA4B59A99702BE37C25CC677BCE30F4F55E4A"
+    },
+    {
+      "path": "web/tests/verticals.spec.ts",
+      "sha256": "35D1E82A1C4FE2B830E203A9DB9BB20E1A33B79F0263AFEA7E32685D0C8944B6"
+    }
+  ],
+  "validation": [
+    {
+      "command": "web: npm run typecheck",
+      "result": "PASS"
+    },
+    {
+      "command": "web: npm exec -- playwright test tests/verticals.spec.ts",
+      "result": "PASS; 3 tests, including mixed SHOW/HOLD grouped members and SHOW/REVIEW/HOLD filters"
+    },
+    {
+      "command": "web: npm run build",
+      "result": "PASS"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS; line-ending conversion warnings only"
+    }
+  ],
+  "timing": {
+    "started_at_utc": "UNKNOWN",
+    "finished_at_utc": "2026-10-01T23:52:58Z",
+    "elapsed": "UNKNOWN"
+  },
+  "limits": "No runtime mutation, provider call, commit, push, merge, or deploy. Other packet nodes and final candidate review remain outstanding."
+}

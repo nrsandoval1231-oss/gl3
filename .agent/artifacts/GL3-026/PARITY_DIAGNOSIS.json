@@ -1,0 +1,97 @@
+{
+  "node": "GL3-026 parity diagnosis",
+  "database": "gl3_026_app",
+  "method": "Read-only repeatable-read snapshot; source was paused by controller after snapshot, no DB mutations or worker controls by this agent.",
+  "snapshot": {
+    "file": ".artifacts/GL3-026/interpretations-runtime-current.json",
+    "rows": 16883,
+    "sha256_file_bytes": "fc9ad67a84ba0a2110e94f4296f5014fb3ba906b6a69349a6a52ac8eebec54d3",
+    "sha256_canonical_json": "6094a0744244fba1d5c64b00d5d558ee46063bf9f9216e21e3f964f8fd96947a",
+    "started_at": "2026-10-01T23:46:29.592010+00:00",
+    "finished_at": "2026-10-01T23:46:32.030798+00:00"
+  },
+  "parity_receipt": {
+    "unchanged": false,
+    "changed_table": "interpretations",
+    "interpretations_before": {
+      "count": 16883,
+      "hash": "966580e311ac996989d8f7151cf952688e3e3b778d7878758d14867f0249f888"
+    },
+    "interpretations_after": {
+      "count": 16883,
+      "hash": "b74a3d2375007153c0ade870a800f5c9b8d2f0b7f988327d58423fc5b85d79cb"
+    },
+    "other_tables_exact": {
+      "observations": true,
+      "evidence": true,
+      "projects": true,
+      "power_needs": true,
+      "need_observations": true,
+      "buying_chain_claims": true
+    }
+  },
+  "final_replay": {
+    "started_at": "2026-10-01T23:34:50.347464+00:00",
+    "finished_at": "2026-10-01T23:35:22.380637+00:00",
+    "ran": true,
+    "job_status": "succeeded",
+    "parsed_records": 9142,
+    "unchanged_records": 9142,
+    "new_records": 0,
+    "changed_records": 0
+  },
+  "current_expired_review_after_rows": [
+    {
+      "id": 8354,
+      "observation_id": "ed42e619-9af7-4260-b7d7-f2c37e13335a",
+      "source_id": "boston-building-permits",
+      "external_id": "ETS1870169",
+      "content_hash": "48a1d82ba220a50fa688063fc196715c7d5547bf0662a580ef4dc9f2780758b0",
+      "evaluator_version": "boston-permit-power-facts-v1",
+      "status": "accepted",
+      "attempts": 4,
+      "updated_at": "2026-10-01T18:34:56.994605-05:00",
+      "review_after": "2026-07-09",
+      "decision": "accepted",
+      "required_mw": null,
+      "reported_power_facts": []
+    }
+  ],
+  "recent_update_context": {
+    "as_of_date": "2026-10-01",
+    "expired_rows": 1,
+    "expired_source_counts": {
+      "boston-building-permits": 1
+    },
+    "expired_attempt_counts": {
+      "4": 1
+    },
+    "expired_evaluator_versions": {
+      "boston-permit-power-facts-v1": 1
+    },
+    "updated_at_min": "2026-10-01T18:34:56.994605-05:00",
+    "updated_at_max": "2026-10-01T18:34:56.994605-05:00",
+    "updated_within_last_hour": 1,
+    "recently_updated_rows_within_last_hour": 14732,
+    "recently_updated_by_source": {
+      "texas-rrc-drilling-permits": 1011,
+      "austin-building-permits": 2845,
+      "chicago-building-permits": 1405,
+      "georgia-air-draft-title-v": 19,
+      "federal-register-eis": 75,
+      "dcd-news": 20,
+      "utility-dive-news": 10,
+      "construction-dive-news": 10,
+      "ogj-exploration-news": 25,
+      "taylor-development-newsflash": 26,
+      "mjbizdaily-news": 30,
+      "seattle-building-permits": 87,
+      "nc-commerce": 17,
+      "manufacturing-dive-news": 10,
+      "boston-building-permits": 9142
+    }
+  },
+  "finding": "Current state contains one expired review_after interpretation: Boston ETS1870169, accepted, attempt 4, evaluator boston-permit-power-facts-v1, updated 2026-10-01T18:34:56.994605-05:00 during the final replay window (23:34:50Z–23:35:22Z). It is consistent with a scheduled re-evaluation candidate and is the only currently expired row. Six other core table hashes/counts are exact; only interpretation aggregate hash differs.",
+  "limit": "No row-level pre-replay interpretation snapshot exists in the original parity artifacts. Current snapshot cannot prove which individual fields changed, or that attempts/updated_at were the entire delta; the accepted decision, hashes, tiers or UNKNOWN values before replay are not known. The timing and expired review_after are correlation/evidence, not a complete before/after attribution.",
+  "recommendation": "Controller-provided before/after snapshots should be compared by stable semantic key (source_id + external_id), with duplicate keys failing the comparison. Compare semantic fields separately from volatile bookkeeping (attempts, updated_at); report exact per-row and per-field changes, verify accepted claims/tier/required_mw and UNKNOWN values, and bind both snapshots and hashes to the replay receipt."
+}
