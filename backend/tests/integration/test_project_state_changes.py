@@ -10,7 +10,12 @@ from sqlalchemy.orm import sessionmaker
 
 from gridlens.ingestion.adapters.buying_chain_public import PublicDocument
 from gridlens.intelligence.buying_chain import enrich_buying_chain
-from gridlens.intelligence.change_detection import record_material_diff, seed_material_state
+from gridlens.intelligence.change_detection import (
+    material_state,
+    record_material_diff,
+    seed_material_state,
+)
+from gridlens.intelligence.lifecycle_service import refresh_lifecycle_projection
 from gridlens.intelligence.project_state import project_state
 from gridlens.persistence.database import Base
 from gridlens.persistence.models import (
@@ -130,9 +135,71 @@ def test_state_keeps_unproven_fields_unknown_and_rejected_revision_is_not_curren
         assert project_state(session, project.id)["state"]["lifecycle"]["status"] == "UNKNOWN"
 
 
+def test_rejected_interpretation_with_supported_withdrawal_remains_current(db):
+    with db.begin() as session:
+        project, observation, evidence = seed(session)
+        session.add(
+            LifecycleEvent(
+                project_id=project.id,
+                observation_id=observation.id,
+                evidence_id=evidence.id,
+                event_type="planning_application_withdrawn",
+                state="planning_application_withdrawn",
+            )
+        )
+        session.add(
+            ProjectLifecycle(project_id=project.id, current_state="planning_application_withdrawn")
+        )
+        interpretation = session.scalar(select(Interpretation))
+        assert interpretation is not None
+        interpretation.status = "rejected"
+        interpretation.assessment = {
+            "decision": "rejected",
+            "evidence_hash": evidence.content_hash,
+            "withdrawal_supported": True,
+        }
+        refresh_lifecycle_projection(session, project)
+        projection = session.get(ProjectLifecycle, project.id)
+        assert projection is not None
+        assert projection.current_state == "planning_application_withdrawn"
+        assert (
+            project_state(session, project.id)["state"]["lifecycle"]["value"]["state"]
+            == "planning_application_withdrawn"
+        )
+        assert material_state(session, project.id)["phase"] == "planning_application_withdrawn"
+
+
+def test_failed_refresh_keeps_previous_accepted_lifecycle_evidence(db):
+    with db.begin() as session:
+        project, observation, evidence = seed(session)
+        project.asset_type = "data_center"
+        session.add(
+            LifecycleEvent(
+                project_id=project.id,
+                observation_id=observation.id,
+                evidence_id=evidence.id,
+                event_type="construction",
+                state="construction",
+            )
+        )
+        session.add(ProjectLifecycle(project_id=project.id, current_state="construction"))
+        interpretation = session.scalar(select(Interpretation))
+        assert interpretation is not None
+        interpretation.status = "failed"
+        refresh_lifecycle_projection(session, project)
+        assert session.get(ProjectLifecycle, project.id).current_state == "construction"
+        assert project_state(session, project.id)["state"]["lifecycle"]["status"] == "SUPPORTED"
+        assert material_state(session, project.id)["phase"] == "construction"
+
+
 def test_actual_prior_new_transitions_revert_and_authenticated_reads(db, monkeypatch):
     api = import_module("gridlens.api.app")
     monkeypatch.setattr(api, "SessionLocal", db)
+    unresolved = ["buyer remains UNKNOWN"]
+    monkeypatch.setattr(
+        "gridlens.intelligence.project_state.buying_chain_view",
+        lambda *_args: {"candidates": [], "unresolved": unresolved},
+    )
     with db.begin() as session:
         project, observation, evidence = seed(session)
         baseline = seed_material_state(session, project)
@@ -161,7 +228,9 @@ def test_actual_prior_new_transitions_revert_and_authenticated_reads(db, monkeyp
     client.cookies.set(
         "gridlens_session", token_for(int((datetime.now(UTC) + timedelta(minutes=5)).timestamp()))
     )
-    assert client.get(path).status_code == 200
+    response = client.get(path)
+    assert response.status_code == 200
+    assert response.json()["unresolved"] == unresolved
     changes = client.get(f"/api/projects/{project.id}/changes")
     assert changes.status_code == 200 and len(changes.json()) == 4
 
@@ -217,9 +286,7 @@ def test_accepted_utility_revision_replaces_current_date_but_keeps_history(db):
         assert utility_event.new_state == {"value": ["2027-07-01"]}
 
 
-def test_accepted_buying_chain_contractor_change_is_material_and_replay_is_quiet(
-    db, monkeypatch
-):
+def test_accepted_buying_chain_contractor_change_is_material_and_replay_is_quiet(db, monkeypatch):
     api = import_module("gridlens.api.app")
     monkeypatch.setattr(api, "SessionLocal", db)
     with db.begin() as session:
@@ -268,11 +335,14 @@ def test_accepted_buying_chain_contractor_change_is_material_and_replay_is_quiet
             fetcher=lambda _: contractor("electrical contractor", NOW + timedelta(minutes=1)),
             now=NOW + timedelta(minutes=1),
         )
-        assert len(
-            session.scalars(
-                select(ChangeEvent).where(ChangeEvent.field_name.in_(("contractor", "buyer")))
-            ).all()
-        ) == event_count
+        assert (
+            len(
+                session.scalars(
+                    select(ChangeEvent).where(ChangeEvent.field_name.in_(("contractor", "buyer")))
+                ).all()
+            )
+            == event_count
+        )
         expected_support = {
             event.field_name: str(event.buying_chain_evidence_id) for event in new_events
         }
@@ -372,8 +442,7 @@ def test_buying_chain_role_expiry_updates_state_without_unrelated_event(db, monk
             now=later + timedelta(minutes=1),
         )
         assert any(
-            row.get("person_name") == "Alice Smith" and row["stale"]
-            for row in replay["candidates"]
+            row.get("person_name") == "Alice Smith" and row["stale"] for row in replay["candidates"]
         )
         assert len(
             session.scalars(

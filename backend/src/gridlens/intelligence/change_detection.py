@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from gridlens.domain.buying_chain import ROLE_MAX_AGE_DAYS
 from gridlens.intelligence.buying_chain import _accepted_version, buying_chain_view
+from gridlens.intelligence.lifecycle_service import lifecycle_event_supported
 from gridlens.persistence.models import (
     BuyingChainClaim,
     BuyingChainEvidence,
@@ -30,6 +31,9 @@ MATERIAL_FIELDS = ("phase", "contractor", "utility_timing", "power_need", "buyer
 
 
 def lock_project(session: Session, project_id: UUID) -> None:
+    # Establish one lock order for state transitions: project row, then
+    # transaction advisory lock, then material-state/need rows.
+    session.scalar(select(Project.id).where(Project.id == project_id).with_for_update())
     session.execute(
         text("SELECT pg_advisory_xact_lock(hashtextextended(:project_id, 0))"),
         {"project_id": str(project_id)},
@@ -58,7 +62,7 @@ def material_state(session: Session, project_id: UUID, *, now: datetime | None =
             if evidence
             else None
         )
-        if evidence and _accepted_version(interpretation, evidence):
+        if evidence and lifecycle_event_supported(event.event_type, evidence, interpretation):
             accepted_events.append(event)
     chain = buying_chain_view(session, project_id, now=now or datetime.now(UTC))
     people = [
@@ -228,9 +232,7 @@ def record_material_diff(
             continue
         comparison_before = before
         if field in {"contractor", "buyer"} and isinstance(before, list):
-            expired = _freshness_expired_rows(
-                session, project.id, field, before, now=now
-            )
+            expired = _freshness_expired_rows(session, project.id, field, before, now=now)
             if expired:
                 comparison_before = []
                 for row in before:
@@ -256,8 +258,10 @@ def record_material_diff(
         if before == after:
             continue
         field_support = (buying_evidence or {}).get(field)
-        if buying_evidence is not None and field in {"contractor", "buyer"} and (
-            field_support is None
+        if (
+            buying_evidence is not None
+            and field in {"contractor", "buyer"}
+            and (field_support is None)
         ):
             # Enrichment can age a role out of the current projection without
             # finding new support. Persist UNKNOWN/current state quietly; the

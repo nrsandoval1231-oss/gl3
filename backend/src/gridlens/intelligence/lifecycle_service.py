@@ -17,6 +17,23 @@ from gridlens.persistence.models import (
 )
 
 
+def lifecycle_event_supported(
+    event_type: str, evidence: Evidence | None, interpretation: Interpretation | None
+) -> bool:
+    """Return whether an event retains valid evidence-bound accepted support."""
+    if evidence is None or interpretation is None or not interpretation.assessment:
+        return False
+    assessment = interpretation.assessment
+    if assessment.get("evidence_hash") != evidence.content_hash:
+        return False
+    accepted = interpretation.status == "accepted" or (
+        interpretation.status in {"failed", "pending"} and assessment.get("decision") == "accepted"
+    )
+    if event_type == "planning_application_withdrawn":
+        return accepted or assessment.get("withdrawal_supported") is True
+    return accepted
+
+
 def apply_lifecycle_observation(
     session: Session, project: Project, observation: Observation, evidence: Evidence
 ) -> bool:
@@ -164,21 +181,7 @@ def _rebuild_projection(session: Session, project: Project) -> None:
             select(Interpretation).where(Interpretation.observation_id == event.observation_id)
         )
         evidence = session.get(Evidence, event.evidence_id)
-        supported_withdrawal = (
-            evidence is not None
-            and event.event_type == "planning_application_withdrawn"
-            and interpretation is not None
-            and interpretation.assessment is not None
-            and interpretation.assessment.get("withdrawal_supported") is True
-            and interpretation.assessment.get("evidence_hash") == evidence.content_hash
-        )
-        if supported_withdrawal or (
-            evidence is not None
-            and interpretation is not None
-            and interpretation.status == "accepted"
-            and interpretation.assessment is not None
-            and interpretation.assessment.get("evidence_hash") == evidence.content_hash
-        ):
+        if lifecycle_event_supported(event.event_type, evidence, interpretation):
             accepted_events.append(event)
     # Filter to the currently bound accepted version first: an A→B→A correction
     # must reactivate retained A evidence even though B was recorded later.

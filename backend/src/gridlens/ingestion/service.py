@@ -29,7 +29,11 @@ from gridlens.domain.signal_admission import (
 from gridlens.domain.taylor_planning import interpret_taylor_planning
 from gridlens.ingestion.adapters import retrieve_source
 from gridlens.ingestion.adapters.govinfo_pdf import MAX_PDFS_PER_RUN, retrieve_companion
-from gridlens.intelligence.change_detection import record_material_diff, seed_material_state
+from gridlens.intelligence.change_detection import (
+    lock_project,
+    record_material_diff,
+    seed_material_state,
+)
 from gridlens.intelligence.lifecycle_service import (
     apply_lifecycle_observation,
     apply_planning_withdrawal,
@@ -432,6 +436,7 @@ def _attach_news_supplement(
     evidence: Evidence,
     claim: dict[str, Any],
     payload: dict[str, Any],
+    material_baselines: dict[Any, Any] | None = None,
 ) -> tuple[PowerNeed | None, dict[str, Any]]:
     """Attach news only to one already-supported same-project, same-activity need."""
     phase_marker = re.compile(r"\bphases?\b", re.I)
@@ -524,7 +529,7 @@ def _attach_news_supplement(
     incoming_site = site_claims[0] if site_claims else claim.get("location")
     matching_projects: list[Project] = []
     phase_conflict = False
-    for candidate in session.scalars(select(Project).with_for_update()).all():
+    for candidate in session.scalars(select(Project)).all():
         aliases = (candidate.identity_facts or {}).get("project_aliases", [])
         same_name = normalized_identity(candidate.name) == normalized_identity(
             claim.get("subject")
@@ -625,6 +630,8 @@ def _attach_news_supplement(
         return None, {**payload, "admission_status": status, "admission_reason": reason}
 
     project = matching_projects[0]
+    if material_baselines is not None:
+        material_baselines.setdefault(project.id, seed_material_state(session, project))
     requested_activity = payload.get("power_activity")
     if requested_activity == "construction":
         requested_activity = "facility-expansion"
@@ -826,20 +833,58 @@ def assess_retained_news(
         abstract=evidence.abstract,
     )
 
+    old_project_ids = set(
+        session.scalars(
+            select(PowerNeed.project_id)
+            .join(NeedObservation, NeedObservation.need_id == PowerNeed.id)
+            .where(NeedObservation.observation_id == observation.id)
+        ).all()
+    )
+    # Resolve every plausible existing target before locking any PowerNeed.
+    # A retained version can be reassigned to a different supported project;
+    # acquire old and candidate project/advisory locks in one stable order.
+    candidate_project_ids = set(old_project_ids)
+    candidate_projects = session.scalars(select(Project)).all()
+    target_identity = payload.get("project_identity_key")
+    if target_identity:
+        candidate_project_ids.update(
+            candidate.id
+            for candidate in candidate_projects
+            if candidate.identity_key == target_identity
+        )
+    if claim.get("decision") == "accepted" and claim.get("subject") and claim.get("location"):
+        site_claims = labeled_sites(f"{observation.title} {observation.abstract or ''}")
+        incoming_site = site_claims[0] if len(site_claims) == 1 else claim.get("location")
+        for candidate in candidate_projects:
+            aliases = (candidate.identity_facts or {}).get("project_aliases", [])
+            same_name = normalized_identity(candidate.name) == normalized_identity(
+                claim.get("subject")
+            ) or any(
+                isinstance(alias, str)
+                and normalized_identity(alias) == normalized_identity(claim.get("subject"))
+                for alias in aliases
+            )
+            candidate_site = (candidate.identity_facts or {}).get("site") or candidate.location
+            if same_name and same_physical_site(candidate_site, incoming_site):
+                candidate_project_ids.add(candidate.id)
+    for candidate_project_id in sorted(candidate_project_ids, key=str):
+        lock_project(session, candidate_project_id)
+    # Capture persisted semantic state before an accepted decision is replaced
+    # by a rejection/correction. This is deliberately before Interpretation is
+    # invalidated so negative evidence can emit a real closure transition.
+    # Lock projects before needs to match process_job's project -> advisory ->
+    # need ordering and avoid a retained-news/permit lock inversion.
+    material_baselines = {}
+    for old_project_id in sorted(old_project_ids, key=str):
+        old_project = session.get(Project, old_project_id)
+        if old_project is not None:
+            material_baselines[old_project.id] = seed_material_state(session, old_project)
     old_needs = session.scalars(
         select(PowerNeed)
         .join(NeedObservation, NeedObservation.need_id == PowerNeed.id)
         .where(NeedObservation.observation_id == observation.id)
         .with_for_update()
     ).all()
-    # Capture persisted semantic state before an accepted decision is replaced
-    # by a rejection/correction. This is deliberately before Interpretation is
-    # invalidated so negative evidence can emit a real closure transition.
-    material_baselines = {}
-    for old_need in old_needs:
-        old_project = session.get(Project, old_need.project_id)
-        if old_project is not None:
-            material_baselines[old_project.id] = seed_material_state(session, old_project)
     interpretation.content_hash = observation.content_hash
     interpretation.evaluator_version = EVALUATOR_VERSION
     interpretation.assessment = payload
@@ -851,7 +896,7 @@ def assess_retained_news(
     supplemental_only = claim["decision"] == "accepted" and not admission.admitted
     if supplemental_only:
         current_need, payload = _attach_news_supplement(
-            session, observation, evidence, claim, payload
+            session, observation, evidence, claim, payload, material_baselines
         )
         payload["admission_origin"] = admission.origin
         interpretation.assessment = {**payload}
@@ -899,7 +944,7 @@ def assess_retained_news(
                     )
                 )
         if project is None:
-            candidates = session.scalars(select(Project).with_for_update()).all()
+            candidates = session.scalars(select(Project)).all()
             matching_candidates: list[tuple[Project, Any]] = []
             identity_decisions = []
             site_claims = labeled_sites(f"{observation.title} {observation.abstract or ''}")
@@ -1150,6 +1195,9 @@ def assess_retained_news(
                 need.rationale = selected["reason"]
                 need.required_mw = _reported_mw(selected)
                 need.supply = "Reported constraint" if selected["tier"] == "Prospect" else "Unknown"
+            # A supported retained-news decision may create a need or alter its
+            # tier/load/supply without taking the rejection/closure path below.
+            materially_changed_projects.add(project.id)
     # A rejected correction is authoritative about the prior accepted state
     # becoming unsupported. It therefore records a material transition with
     # its immutable Evidence version, while unchanged replay has no diff.
@@ -1621,14 +1669,16 @@ def process_job(
             if is_taylor and article_id.isdigit()
             else f"{source.id}:{external_id}"
         )
+        project_query = select(Project).where(Project.identity_key == project_key)
+        # Negative/correction handling discovers every linked project below;
+        # defer its lock so one identity-key row cannot precede a sorted set of
+        # impacted projects. Accepted processing keeps its existing early lock.
         project = session.scalar(
-            select(Project).where(Project.identity_key == project_key).with_for_update()
+            project_query.with_for_update() if interpreted is not None else project_query
         )
-        if project is not None:
+        if project is not None and interpreted is not None:
             session.execute(
-                text(
-                    "SELECT pg_advisory_xact_lock(hashtextextended(:project_id, 0))"
-                ),
+                text("SELECT pg_advisory_xact_lock(hashtextextended(:project_id, 0))"),
                 {"project_id": str(project.id)},
             )
         taylor_revision_ambiguous = False
@@ -1718,22 +1768,25 @@ def process_job(
                 )
                 if taylor_revision_ambiguous:
                     project = None
-            impacted_needs = (
+            impacted_need_ids = list(
                 []
                 if taylor_revision_ambiguous
                 else session.scalars(
-                    select(PowerNeed)
+                    select(PowerNeed.id)
                     .join(NeedObservation, NeedObservation.need_id == PowerNeed.id)
                     .where(NeedObservation.observation_id == observation.id)
-                    .with_for_update()
                 ).all()
             )
-            if project is None and impacted_needs:
-                impacted_project_ids = {need.project_id for need in impacted_needs}
+            impacted_project_ids = set(
+                session.scalars(
+                    select(PowerNeed.project_id).where(PowerNeed.id.in_(impacted_need_ids))
+                ).all()
+            )
+            if project is None and impacted_project_ids:
                 if len(impacted_project_ids) == 1:
                     project = session.get(Project, next(iter(impacted_project_ids)))
             linked_withdrawn_need = None
-            if withdrawn_taylor and not impacted_needs:
+            if withdrawn_taylor and not impacted_need_ids:
                 prior_observations = session.scalars(
                     select(Observation).where(
                         Observation.source_id == source.id,
@@ -1785,51 +1838,66 @@ def process_job(
                     )
                 if len(candidate_needs) == 1:
                     linked_withdrawn_need = next(iter(candidate_needs.values()))
-                    if (
-                        session.scalar(
-                            select(NeedObservation.id).where(
-                                NeedObservation.need_id == linked_withdrawn_need.id,
-                                NeedObservation.observation_id == observation.id,
-                            )
-                        )
-                        is None
-                    ):
-                        session.add(
-                            NeedObservation(
-                                need_id=linked_withdrawn_need.id,
-                                observation_id=observation.id,
-                            )
-                        )
-                    if (
-                        session.scalar(
-                            select(ChangeEvent.id).where(
-                                ChangeEvent.observation_id == observation.id,
-                                ChangeEvent.content_hash == digest,
-                                ChangeEvent.kind == "withdrawn",
-                            )
-                        )
-                        is None
-                    ):
-                        session.add(
-                            ChangeEvent(
-                                observation_id=observation.id,
-                                content_hash=digest,
-                                kind="withdrawn",
-                            )
-                        )
                     project = session.get(Project, linked_withdrawn_need.project_id)
             # Capture the accepted semantic state before a replacement is
             # rejected or closes a current need. This covers legacy projects
             # that predate project_material_states as well as new projections.
             negative_baselines = {}
-            for impacted_need in impacted_needs:
-                impacted_project = session.get(Project, impacted_need.project_id)
+            if linked_withdrawn_need is not None:
+                impacted_need_ids.append(linked_withdrawn_need.id)
+                impacted_project_ids.add(linked_withdrawn_need.project_id)
+            affected_project_ids = set(impacted_project_ids)
+            if project is not None:
+                affected_project_ids.add(project.id)
+            for affected_project_id in sorted(affected_project_ids, key=str):
+                impacted_project = session.get(Project, affected_project_id)
                 if impacted_project is not None:
                     negative_baselines[impacted_project.id] = seed_material_state(
                         session, impacted_project
                     )
-            if project is not None:
-                negative_baselines.setdefault(project.id, seed_material_state(session, project))
+            impacted_needs = (
+                session.scalars(
+                    select(PowerNeed)
+                    .where(PowerNeed.id.in_(set(impacted_need_ids)))
+                    .order_by(PowerNeed.id)
+                    .with_for_update()
+                ).all()
+                if impacted_need_ids
+                else []
+            )
+            if linked_withdrawn_need is not None:
+                if (
+                    session.scalar(
+                        select(NeedObservation.id).where(
+                            NeedObservation.need_id == linked_withdrawn_need.id,
+                            NeedObservation.observation_id == observation.id,
+                        )
+                    )
+                    is None
+                ):
+                    session.add(
+                        NeedObservation(
+                            need_id=linked_withdrawn_need.id,
+                            observation_id=observation.id,
+                        )
+                    )
+                if (
+                    session.scalar(
+                        select(ChangeEvent.id).where(
+                            ChangeEvent.observation_id == observation.id,
+                            ChangeEvent.content_hash == digest,
+                            ChangeEvent.kind == "withdrawn",
+                        )
+                    )
+                    is None
+                ):
+                    session.add(
+                        ChangeEvent(
+                            observation_id=observation.id,
+                            content_hash=digest,
+                            kind="withdrawn",
+                        )
+                    )
             interpretation.status = "rejected"
             interpretation.content_hash = digest
             current_evidence = session.scalar(
@@ -2004,6 +2072,12 @@ def process_job(
                 needs.extend(project_needs)
             unique_needs = {need.id: need for need in needs}
             impacted_project_ids = set()
+            if withdrawn_taylor and not taylor_revision_ambiguous:
+                supported_need = linked_withdrawn_need or (
+                    impacted_needs[0] if len(impacted_needs) == 1 else None
+                )
+                if supported_need is not None:
+                    impacted_project_ids.add(supported_need.project_id)
             for stale_need in (
                 () if withdrawn_taylor or taylor_revision_ambiguous else unique_needs.values()
             ):

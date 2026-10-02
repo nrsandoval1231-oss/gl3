@@ -9,7 +9,7 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 import httpx
-from sqlalchemy import and_, func, select, text
+from sqlalchemy import and_, func, or_, select, text
 from sqlalchemy.orm import Session
 
 from gridlens.integrations.typesafe_evidence_judge import SCHEMA_VERSION, TypesafeEvidenceJudge
@@ -28,6 +28,53 @@ from gridlens.persistence.models import (
     ProjectMatchDecision,
 )
 from gridlens.settings import settings
+
+
+def _candidate_pages(session, statement, cursor_run, cursor_evidence, deadline, page_size=100):
+    """Walk a stable, bounded-time keyset from the durable attempt cursor and wrap once."""
+    if cursor_run is None or cursor_evidence is None:
+        queries = [statement]
+    else:
+        after = statement.where(
+            or_(
+                Evidence.observed_at > cursor_evidence.observed_at,
+                and_(
+                    Evidence.observed_at == cursor_evidence.observed_at,
+                    Evidence.id > cursor_evidence.id,
+                ),
+                and_(
+                    Evidence.observed_at == cursor_evidence.observed_at,
+                    Evidence.id == cursor_evidence.id,
+                    Project.id > cursor_run.project_id,
+                ),
+            )
+        )
+        before_or_at = statement.where(
+            or_(
+                Evidence.observed_at < cursor_evidence.observed_at,
+                and_(
+                    Evidence.observed_at == cursor_evidence.observed_at,
+                    Evidence.id < cursor_evidence.id,
+                ),
+                and_(
+                    Evidence.observed_at == cursor_evidence.observed_at,
+                    Evidence.id == cursor_evidence.id,
+                    Project.id <= cursor_run.project_id,
+                ),
+            )
+        )
+        queries = [after, before_or_at]
+
+    for query in queries:
+        offset = 0
+        while time.monotonic() < deadline:
+            page = session.execute(query.limit(page_size).offset(offset)).all()
+            if not page:
+                break
+            yield from page
+            offset += len(page)
+            if len(page) < page_size:
+                break
 
 
 def run_shadow(
@@ -65,26 +112,43 @@ def run_shadow(
             Interpretation.assessment.is_not(None),
             Interpretation.assessment["evidence_hash"].astext == Evidence.content_hash,
         )
-        .order_by(Evidence.observed_at, Evidence.id)
-        .limit(200 if not evidence_ids else min(len(evidence_ids), 20))
+        .order_by(Evidence.observed_at, Evidence.id, Project.id)
+        .distinct()
     )
     if not evidence_ids:
         # Filter deterministic exact matches before LIMIT so a large prefix of
         # ordinary accepted records cannot starve genuinely ambiguous cases.
-        statement = statement.where(
-            ~and_(
-                Project.source_id == Observation.source_id,
-                Project.external_id == Observation.external_id,
-                Interpretation.assessment["project_identity_key"].astext == Project.identity_key,
-            )
+        exact_match = and_(
+            Project.source_id == Observation.source_id,
+            Project.external_id == Observation.external_id,
+            Interpretation.assessment["project_identity_key"].astext == Project.identity_key,
         )
+        # SQL NOT(NULL) is NULL, which would silently discard candidates with
+        # missing identity keys. Exclude only a positively proven exact match.
+        statement = statement.where(~exact_match.is_(True))
     if evidence_ids:
         statement = statement.where(Evidence.id.in_([UUID(value) for value in evidence_ids]))
-    rows = session.execute(statement).all()
+    # Rotate from the latest durable attempt; page through previously attempted
+    # contexts until new work, the per-run budget, or the hard deadline.
+    cursor_run = session.scalar(
+        select(EvidenceJudgeRun)
+        .order_by(EvidenceJudgeRun.started_at.desc(), EvidenceJudgeRun.id.desc())
+        .limit(1)
+    )
+    cursor_evidence = session.get(Evidence, cursor_run.evidence_id) if cursor_run else None
+    rows = (
+        iter(session.execute(statement.limit(min(len(evidence_ids), 20))).all())
+        if evidence_ids
+        else _candidate_pages(session, statement, cursor_run, cursor_evidence, run_deadline)
+    )
     attempted = valid = failed = 0
     reserved = 0
     for project, evidence, observation, interpretation in rows:
-        if attempted >= limit or reserved >= settings.jev_shadow_daily_limit:
+        if (
+            attempted >= limit
+            or reserved >= settings.jev_shadow_daily_limit
+            or time.monotonic() >= run_deadline
+        ):
             break
         assessment = interpretation.assessment or {}
         candidate_rows = session.execute(
@@ -131,6 +195,9 @@ def run_shadow(
         )
         if exact_match:
             continue
+        remaining = run_deadline - time.monotonic()
+        if remaining <= 0:
+            break
         full_state = project_state(session, project.id) or {}
         state_values = full_state.get("state", {})
         bounded_state = {
@@ -180,8 +247,19 @@ def run_shadow(
         remaining = run_deadline - time.monotonic()
         if remaining <= 0:
             break
-        # Serialize global UTC-day reservations; persist PENDING before any network effect.
-        session.execute(text("SELECT pg_advisory_xact_lock(647809130122)"))
+        # The run deadline also bounds coordination: never wait behind another
+        # worker's daily reservation transaction beyond this call.
+        acquired = session.scalar(text("SELECT pg_try_advisory_xact_lock(647809130122)"))
+        if not acquired:
+            session.rollback()
+            break
+        # Another worker may have reserved this exact context while this worker
+        # was preparing its bounded request payload.
+        if session.scalar(
+            select(EvidenceJudgeRun.id).where(EvidenceJudgeRun.input_key == input_key)
+        ):
+            session.rollback()
+            continue
         day_start = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
         daily_count = (
             session.scalar(
@@ -192,6 +270,10 @@ def run_shadow(
             or 0
         )
         if daily_count >= settings.jev_shadow_daily_limit:
+            session.rollback()
+            break
+        remaining = run_deadline - time.monotonic()
+        if remaining <= 0:
             session.rollback()
             break
         now = datetime.now(UTC)

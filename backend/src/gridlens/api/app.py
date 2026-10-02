@@ -23,6 +23,7 @@ from gridlens.intelligence.briefs import (
     request_brief,
 )
 from gridlens.intelligence.buying_chain import buying_chain_view, enrich_buying_chain
+from gridlens.intelligence.lifecycle_service import lifecycle_event_supported
 from gridlens.intelligence.project_state import project_state as read_project_state
 from gridlens.intelligence.signal_adjudication import POLICY_VERSION, adjudicate_current_signals
 from gridlens.jobs.queue import enqueue
@@ -228,6 +229,7 @@ class ProjectStateOut(BaseModel):
     lifecycle_events: list[dict]
     evidence: list[dict]
     candidate_matches: list[dict]
+    unresolved: list[str]
     disclosure: str
 
 
@@ -634,19 +636,8 @@ def opportunities(tier: str | None = None, search: str | None = None):
             current_lifecycle_ids = set()
             for lifecycle_event, lifecycle_evidence in lifecycle_rows:
                 lifecycle_interpretation = interpretations.get(lifecycle_event.observation_id)
-                if (
-                    lifecycle_interpretation is not None
-                    and lifecycle_interpretation.assessment is not None
-                    and lifecycle_interpretation.assessment.get("evidence_hash")
-                    == lifecycle_evidence.content_hash
-                    and (
-                        lifecycle_interpretation.status == "accepted"
-                        or (
-                            lifecycle_event.event_type == "planning_application_withdrawn"
-                            and lifecycle_interpretation.assessment.get("withdrawal_supported")
-                            is True
-                        )
-                    )
+                if lifecycle_event_supported(
+                    lifecycle_event.event_type, lifecycle_evidence, lifecycle_interpretation
                 ):
                     current_lifecycle_ids.add(lifecycle_event.id)
             taylor_withdrawn = bool(

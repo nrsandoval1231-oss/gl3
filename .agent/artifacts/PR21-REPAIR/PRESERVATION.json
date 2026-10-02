@@ -1,0 +1,68 @@
+{
+  "utc": "2026-10-02T18:34:34.891088+00:00",
+  "source": "GL3-028 preserved immutable backup restored to fresh isolated PostgreSQL",
+  "migration_exit_code": 0,
+  "authoritative_tables_unchanged_after_migration": true,
+  "authoritative_tables_unchanged_after_replay": true,
+  "tables": {
+    "observations": {
+      "count": 16921,
+      "sha256": "b1ab09a003c9d30e5b33da78eb0d4fb9a8943484cb083d059b746955c5fa158e"
+    },
+    "evidence": {
+      "count": 16960,
+      "sha256": "caa0965605e2361fec71a4181113b4f954e2a9ccf720c279f4ba3602113fc8c9"
+    },
+    "projects": {
+      "count": 1168,
+      "sha256": "835a9c418fccc110e26a68a9d30d396849ed9173a0b1cea821d728360947f606"
+    },
+    "power_needs": {
+      "count": 1168,
+      "sha256": "7fe9bcf138c2ef33f69ce4b0f6131baa9a1775b5f2f34b55b7e88e678083b02c"
+    },
+    "need_observations": {
+      "count": 1170,
+      "sha256": "fb470daca1fa790d94a793cc0b141c09d43f21e22bc0d2fdf6de1897dc8cc06a"
+    },
+    "interpretations": {
+      "count": 16921,
+      "sha256": "17018c47b481c89b29087948867f5f36ce4c7c767d3b32fd81de88c24b3fb5bb"
+    },
+    "project_lifecycles": {
+      "count": 938,
+      "sha256": "725591539f95f70ed34ac61ec3edf5e2f311a69254ec840cba9563b343fcef4c"
+    },
+    "lifecycle_events": {
+      "count": 938,
+      "sha256": "3ee26fc0a4121850a039d8a71b1bf35bfdde788d009e07183b6713ed9eb0f26f"
+    },
+    "project_match_decisions": {
+      "count": 1451,
+      "sha256": "3bb584c47a387c586af14ae673304985d0801a524a90da82a992e9d0e7ae78da"
+    },
+    "buying_chain_claims": {
+      "count": 49,
+      "sha256": "2685b456ddd198323373c7e6221f6c0851306d0f9d6bce51ede515c778206204"
+    },
+    "buying_chain_evidence": {
+      "count": 41,
+      "sha256": "77df36272b729d074e7352d0f3a45be0a0454b9dd1608e2431175f2ac2c3b834"
+    },
+    "buying_chain_runs": {
+      "count": 41,
+      "sha256": "8a49129ca191acdf3b7392186f0d48b30a3a237ee1d84c7650caafe2a09197f3"
+    },
+    "signal_decisions": {
+      "count": 1170,
+      "sha256": "5cf32704aae93c695dcce9c025504d004e4fd90d84eac47758e8b1d6beb70781"
+    }
+  },
+  "evidence_count": 16960,
+  "material_events_before": 0,
+  "material_events_after": 0,
+  "reopened_sessions": 2,
+  "projects_checked": 6,
+  "provider_calls": 0,
+  "scope": "Established six-project same-state replay; no fresh acquisition; original source database untouched"
+}

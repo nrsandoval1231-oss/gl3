@@ -427,12 +427,75 @@ def test_current_page_notice_links_later_archive_withdrawal_after_window_rolls(d
 def test_same_id_supported_withdrawal_updates_stored_state_and_replays(db, monkeypatch):
     factory, job_id = db
     import gridlens.ingestion.service as service
+    from gridlens.intelligence.change_detection import record_material_diff, seed_material_state
+    from gridlens.intelligence.project_state import project_state
+    from gridlens.persistence.models import (
+        ChangeEvent,
+        LifecycleEvent,
+        NeedObservation,
+        ProjectLifecycle,
+    )
 
     source = {"id": "taylor-development-newsflash", "retrieval_method": "taylor-newsflash"}
     initial = _direct_article()
     monkeypatch.setattr(service, "retrieve_source", lambda *_args: [initial])
     with factory() as session:
         process_job(session, job_id, "test", 1, source)
+    with factory.begin() as session:
+        observation = session.scalar(select(Observation).where(Observation.external_id == "2091"))
+        assert observation is not None
+        initial_evidence = session.scalar(
+            select(Evidence).where(Evidence.observation_id == observation.id)
+        )
+        interpretation = session.scalar(
+            select(Interpretation).where(Interpretation.observation_id == observation.id)
+        )
+        assert initial_evidence is not None and interpretation is not None
+        project = Project(
+            source_id=observation.source_id,
+            external_id=observation.external_id,
+            name="Mustang Data Center",
+            location="Taylor, Texas",
+            identity_key="supported-taylor-withdrawal",
+            asset_type="data_center",
+            identity_facts={"project_aliases": ["Mustang Data Center"], "site": "Taylor, Texas"},
+        )
+        session.add(project)
+        session.flush()
+        interpretation.status = "accepted"
+        interpretation.assessment = {
+            "decision": "accepted",
+            "semantic_hash": observation.content_hash,
+            "evidence_hash": initial_evidence.content_hash,
+            "subject": project.name,
+            "location": project.location,
+            "project_identity_key": project.identity_key,
+            "power_activity": "facility-expansion",
+        }
+        need = PowerNeed(
+            project_id=project.id,
+            activity_key="facility-expansion",
+            tier="Signal",
+            rationale="Supported same-article planning signal.",
+            supply="Unknown",
+            active=True,
+        )
+        session.add_all(
+            [
+                need,
+                ProjectLifecycle(project_id=project.id, current_state="construction"),
+                LifecycleEvent(
+                    project_id=project.id,
+                    observation_id=observation.id,
+                    evidence_id=initial_evidence.id,
+                    event_type="construction",
+                    state="construction",
+                ),
+            ]
+        )
+        session.flush()
+        session.add(NeedObservation(need_id=need.id, observation_id=observation.id))
+        seed_material_state(session, project)
     withdrawn = {**initial, "title": "WITHDRAWN - " + initial["title"], "disposition": "withdrawn"}
     withdrawn["source_hash"] = hashlib.sha256(withdrawn["title"].encode()).hexdigest()
     monkeypatch.setattr(service, "retrieve_source", lambda *_args: [withdrawn])
@@ -441,6 +504,33 @@ def test_same_id_supported_withdrawal_updates_stored_state_and_replays(db, monke
         observation = session.scalar(select(Observation).where(Observation.external_id == "2091"))
         assert observation is not None
         assert session.scalar(select(func.count()).select_from(Evidence)) == 2
+        withdrawal_evidence = session.scalar(
+            select(Evidence).where(
+                Evidence.observation_id == observation.id,
+                Evidence.content_hash == withdrawn["source_hash"],
+            )
+        )
+        assert withdrawal_evidence is not None
+        withdrawal_change = session.scalar(
+            select(ChangeEvent).where(
+                ChangeEvent.field_name == "phase",
+                ChangeEvent.evidence_id == withdrawal_evidence.id,
+            )
+        )
+        assert withdrawal_change is not None, {
+            "material_events": [
+                (event.field_name, event.prior_state, event.new_state, event.evidence_id)
+                for event in session.scalars(select(ChangeEvent)).all()
+            ],
+            "assessment": session.scalar(
+                select(Interpretation).where(Interpretation.observation_id == observation.id)
+            ).assessment,
+        }
+        assert withdrawal_change.new_state == {"value": "planning_application_withdrawn"}
+        lifecycle = project_state(session, project.id)["state"]["lifecycle"]
+        assert lifecycle["status"] == "SUPPORTED"
+        assert lifecycle["value"]["state"] == "planning_application_withdrawn"
+        assert [row["id"] for row in lifecycle["evidence"]] == [str(withdrawal_evidence.id)]
         before = tuple(
             session.scalar(select(func.count()).select_from(model))
             for model in (Observation, Evidence, Project, PowerNeed, Interpretation)
@@ -451,7 +541,42 @@ def test_same_id_supported_withdrawal_updates_stored_state_and_replays(db, monke
             for model in (Observation, Evidence, Project, PowerNeed, Interpretation)
         )
         assert before == after
-    _assert_planning_context_has_no_opportunity(factory, monkeypatch)
+        unrelated_observation = Observation(
+            source_id=observation.source_id,
+            external_id="unrelated-after-withdrawal",
+            title="Unrelated Taylor project update",
+            abstract="A distinct project with no supported lifecycle transition.",
+            published_at=datetime(2026, 9, 30, tzinfo=UTC),
+            url="https://example.test/unrelated-taylor-update",
+            content_hash="unrelated-taylor-semantic-hash",
+        )
+        session.add(unrelated_observation)
+        session.flush()
+        unrelated_evidence = Evidence(
+            observation_id=unrelated_observation.id,
+            content_hash="unrelated-taylor-evidence-hash",
+            title=unrelated_observation.title,
+            abstract=unrelated_observation.abstract,
+            url=unrelated_observation.url,
+            published_at=unrelated_observation.published_at,
+        )
+        session.add(unrelated_evidence)
+        session.flush()
+        baseline = seed_material_state(session, project)
+        existing_events = session.scalar(select(func.count()).select_from(ChangeEvent))
+        assert record_material_diff(session, project, unrelated_evidence, baseline) == []
+        assert session.scalar(select(func.count()).select_from(ChangeEvent)) == existing_events
+    with factory() as session:
+        assert session.scalar(select(func.count()).select_from(Project)) == 1
+        assert session.scalar(select(func.count()).select_from(PowerNeed)) == 1
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(ChangeEvent)
+                .where(ChangeEvent.field_name == "phase")
+            )
+            == 1
+        )
 
 
 def test_conflict_after_supported_same_id_withdrawal_returns_to_unknown(db, monkeypatch):

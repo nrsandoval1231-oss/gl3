@@ -61,9 +61,7 @@ def test_typesafe_choice_contract_accepts_strict_enums_and_reports_usage():
         lambda payload: payload["answers"]["event_type"].update(choice="YES"),
         lambda payload: payload["answers"]["relevant"].update(choice="LIKELY"),
         lambda payload: payload["answers"]["relevant"].update(confidence=float("nan")),
-        lambda payload: payload["answers"]["relevant"].update(
-            probabilities={"MAYBE": 1.0}
-        ),
+        lambda payload: payload["answers"]["relevant"].update(probabilities={"MAYBE": 1.0}),
         lambda payload: payload["usage"].update(input_tokens=True),
         lambda payload: payload["usage"].update(output_tokens=-1),
     ],
@@ -242,6 +240,43 @@ def test_research_recommendation_is_deterministic_and_advisory():
     assert research_recommended(**inputs) is True
     assert research_recommended(**{**inputs, "relevant": "UNKNOWN"}) is False
     assert research_recommended(**{**inputs, "missing_facts": []}) is False
+
+
+def test_recommendation_requires_nested_timing_and_a_public_buyer_contact():
+    from gridlens.intelligence.research_recommendation import recommend_from_context
+
+    judgment = {
+        "material_change": "YES",
+        "relevant": "YES",
+        "power_relevance": "HIGH",
+    }
+    state = {
+        "state": {
+            "power_need": {
+                "status": "SUPPORTED",
+                "value": [{"timing": {"status": "UNKNOWN", "value": None}}],
+            },
+            "utility_service": {"status": "UNKNOWN", "value": None},
+            "lifecycle": {"status": "SUPPORTED"},
+            "activity": {"status": "SUPPORTED"},
+        },
+        "organizations_and_roles": [
+            {
+                "category": "owner",
+                "organization": "Atlas Owner LLC",
+                "public_contacts": [],
+            }
+        ],
+    }
+    assert recommend_from_context(judgment, state) is True
+    state["organizations_and_roles"][0]["public_contacts"] = [
+        {"kind": "email", "value": "buyer@example.test"}
+    ]
+    state["state"]["power_need"]["value"][0]["timing"] = {
+        "status": "SUPPORTED",
+        "value": "Q2 2027",
+    }
+    assert recommend_from_context(judgment, state) is False
 
 
 def test_benchmark_persists_pending_attempt_and_resume_does_not_repeat(tmp_path: Path):

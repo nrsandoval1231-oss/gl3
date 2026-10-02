@@ -1,0 +1,32 @@
+{
+  "node": "PR21-REPAIR",
+  "verdict": "FIX",
+  "base_sha": "da1f2bdb3c207e97e8a861392ba6df189dfe32a2",
+  "candidate_manifest": ".agent/artifacts/PR21-REPAIR/CANDIDATE.json",
+  "candidate_manifest_sha256": "1b68b71d27fdfc1a590e327030785a7049ecd9d7309bf33c72a37534735820ec",
+  "candidate_file_hashes_verified": true,
+  "receipts": {
+    "VALIDATION.json_sha256": "967f5d3948bd49def41d6f2cfa7033d829dfbf460c8d82274f315f14badbc5a3",
+    "BROWSER.json_sha256": "51377fd8b9c75a12c7db9ed463465c3e763747f86dcdef0356daf19f3b408bde",
+    "PRESERVATION.json_sha256": "e60d85882d93fdffa92189af3a58fd11a812f20f7fa6873e42519ea95f2ca0921"
+  },
+  "validated_evidence": "Full backend suite 595 passed, 1 skipped; Ruff, mypy, frontend typecheck/build/audit, 22 serial browser tests, migration checks and retained-clone preservation passed. Seven original-source regression assertions failed as intended. These gates do not exercise the two concurrency bounds below.",
+  "findings": [
+    {
+      "id": "R1-LOCK-ORDER",
+      "severity": "blocking",
+      "location": "backend/src/gridlens/ingestion/service.py:1734-1745,1837-1845",
+      "evidence": "When project_key has no Project row but this observation is linked to an existing need on another identity key, the negative branch obtains PowerNeed FOR UPDATE before identifying and locking its project through seed_material_state. A concurrent project transition obtains project row and advisory lock before the need. The opposing orders can deadlock; the new lock_project helper does not cover this path.",
+      "bounded_repair": "Read impacted project IDs without locking needs, obtain affected project-row and advisory locks in deterministic order, then obtain impacted need locks and capture baselines. Verify an existing linked-need correction whose project identity differs from project_key under two concurrent sessions. Preserve current Evidence and material-diff semantics. Inspect cross-project reidentity in assess_retained_news for later project locks after old need locks and address any confirmed opposing order within the same repair."
+    },
+    {
+      "id": "R1-SHADOW-DEADLINE",
+      "severity": "blocking",
+      "location": "backend/src/gridlens/intelligence/evidence_shadow.py:247-252",
+      "evidence": "The code checks run_deadline, then calls blocking pg_advisory_xact_lock for the shared daily reservation. If another transaction holds that advisory lock beyond the deadline, this call waits without a bound, violating the declared hard shadow timeout. Existing concurrent test proves duplicate suppression but does not hold the lock across the deadline.",
+      "bounded_repair": "Acquire the daily reservation lock without an unbounded wait, or with a database-enforced wait no longer than the remaining deadline. If unavailable, exit this run without provider call or reservation; preserve duplicate recheck, daily count and pending-before-network ordering. Add a two-session lock-contention regression asserting bounded return and zero duplicate/provider effects."
+    }
+  ],
+  "scope": "Independent read-only source/diff review; no source edits, commit, push, merge or deployment.",
+  "next_direction": "CORRECT"
+}

@@ -10,6 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from gridlens.intelligence.buying_chain import _accepted_version, buying_chain_view
+from gridlens.intelligence.lifecycle_service import lifecycle_event_supported
 from gridlens.persistence.models import (
     Evidence,
     Interpretation,
@@ -117,7 +118,7 @@ def project_state(session: Session, project_id: UUID) -> dict[str, Any] | None:
             if evidence
             else None
         )
-        if evidence and _accepted_version(interpretation, evidence):
+        if evidence and lifecycle_event_supported(event.event_type, evidence, interpretation):
             accepted_lifecycle.append((event, evidence))
     # ProjectLifecycle is the current projection. Earlier accepted lifecycle
     # events document progression; they are not contradictory current claims.
@@ -130,8 +131,7 @@ def project_state(session: Session, project_id: UUID) -> dict[str, Any] | None:
     utility_values = [
         (event.occurred_on, evidence)
         for event, evidence in accepted_lifecycle
-        if event.occurred_on
-        and ("utility" in event.event_type or "energiz" in event.event_type)
+        if event.occurred_on and ("utility" in event.event_type or "energiz" in event.event_type)
     ]
     active_needs = [n for n in needs if n.active and need_evidence.get(n.id)]
     state: dict[str, Any] = {
@@ -175,6 +175,7 @@ def project_state(session: Session, project_id: UUID) -> dict[str, Any] | None:
             "person_project_relationship": c["person_project_relationship"],
             "status": "SUPPORTED",
             "citations": c["evidence"],
+            "public_contacts": c["public_contacts"],
         }
         for c in chain["candidates"]
         if not c.get("stale")

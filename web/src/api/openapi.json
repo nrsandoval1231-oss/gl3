@@ -2763,6 +2763,13 @@
             "type": "array",
             "title": "Candidate Matches"
           },
+          "unresolved": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Unresolved"
+          },
           "disclosure": {
             "type": "string",
             "title": "Disclosure"
@@ -2777,6 +2784,7 @@
           "lifecycle_events",
           "evidence",
           "candidate_matches",
+          "unresolved",
           "disclosure"
         ],
         "title": "ProjectStateOut"

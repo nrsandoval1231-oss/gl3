@@ -1,0 +1,29 @@
+{
+  "node": "PR21-REPAIR",
+  "branch": "fix/pr21-correctness",
+  "base_sha": "da1f2bdb3c207e97e8a861392ba6df189dfe32a2",
+  "candidate_commit": "UNKNOWN (uncommitted builder worktree)",
+  "scope": "Bounded correctness repairs for retained-news and Taylor lifecycle material diffs, shared lifecycle evidence support, shadow pagination/reservation, project-state unresolved contract, and demonstrated recommendation predicates.",
+  "implementation": "R1 FIX repairs implemented; fresh controller validation and independent review required. Builder does not self-certify acceptance.",
+  "focused_validation": {
+    "r1_command": "uv run --directory backend --extra dev pytest tests/integration/test_ingestion.py tests/integration/test_collection_only_ingestion.py tests/integration/test_taylor_ingestion.py tests/integration/test_evidence_shadow_storage.py -q",
+    "r1_result": "72 passed, 1 warning in 29.21s",
+    "raw_r1_log": ".artifacts/pr21-repair/round-r1-focused.log",
+    "new_lock_order_tests": "test_linked_negative_correction_locks_project_before_need and test_linked_negative_correction_does_not_hold_need_while_waiting_for_project; both passed.",
+    "new_shadow_deadline_test": "test_shadow_skips_reservation_when_daily_lock_is_held passed; existing duplicate and daily-limit tests passed.",
+    "ruff": "All R1 source/test files passed.",
+    "mypy": "uv run --directory backend --extra dev mypy src/gridlens/ingestion/service.py src/gridlens/intelligence/evidence_shadow.py passed.",
+    "diff_check": "Passed."
+  },
+  "generation": {
+    "openapi": "uv run --directory backend --extra dev python ../scripts/export_openapi.py completed",
+    "frontend_contract": "npm run generate:api completed in web"
+  },
+  "limitations": [
+    "Full repository gates, browser/preservation checks, and fresh exact-candidate independent review are controller-owned.",
+    "Exact implementation start time, elapsed implementation duration, and token usage are UNKNOWN.",
+    "No commit, push, merge, deployment, live data, or external provider action was performed."
+  ],
+  "lane": "Single Luna builder",
+  "recorded_at_utc": "2026-10-02T18:35:25.6957792Z"
+}

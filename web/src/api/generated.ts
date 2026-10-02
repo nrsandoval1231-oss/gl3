@@ -1078,6 +1078,8 @@ export interface components {
             candidate_matches: {
                 [key: string]: unknown;
             }[];
+            /** Unresolved */
+            unresolved: string[];
             /** Disclosure */
             disclosure: string;
         };
