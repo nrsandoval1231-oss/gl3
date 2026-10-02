@@ -706,19 +706,13 @@ def enrich_buying_chain(
                 ]
 
             after_rows = [
-                row
-                for row in field_rows(buying_chain_view(session, project.id, now=now))
+                row for row in field_rows(buying_chain_view(session, project.id, now=now))
             ]
-            before_rows = [
-                row
-                for row in field_rows(buying_chain_baseline)
-            ]
+            before_rows = [row for row in field_rows(buying_chain_baseline)]
             removed = Counter(map(semantic_key, before_rows)) - Counter(
                 map(semantic_key, after_rows)
             )
-            added = Counter(map(semantic_key, after_rows)) - Counter(
-                map(semantic_key, before_rows)
-            )
+            added = Counter(map(semantic_key, after_rows)) - Counter(map(semantic_key, before_rows))
             if not removed and not added:
                 return None
 
@@ -784,34 +778,7 @@ def buying_chain_view(
         .order_by(BuyingChainEvidence.last_seen_at.desc(), BuyingChainEvidence.id.desc())
     ).all()
     by_id = {str(row.id): row for row in sources}
-    # A completed run is not automatically current: retained citations are tied
-    # to the accepted Evidence version, and a rejected replacement must not keep
-    # selecting its old claim set merely because it is the newest run.
-    active_run = None
-    for candidate_run in runs:
-        current = True
-        for source_id in candidate_run.evidence_ids:
-            source = by_id.get(source_id)
-            if source is None:
-                current = False
-                break
-            if source.retained_evidence_id:
-                retained = session.get(Evidence, source.retained_evidence_id)
-                interpretation = (
-                    session.scalar(
-                        select(Interpretation).where(
-                            Interpretation.observation_id == retained.observation_id
-                        )
-                    )
-                    if retained
-                    else None
-                )
-                if retained is None or not _accepted_version(interpretation, retained):
-                    current = False
-                    break
-        if current:
-            active_run = candidate_run
-            break
+    active_run = runs[0] if runs else None
     newest_by_url: dict[str, UUID] = {}
     for source_version in sorted(
         sources,
@@ -832,11 +799,9 @@ def buying_chain_view(
     grouped: dict[str, list[BuyingChainClaim]] = defaultdict(list)
     for claim in claims:
         grouped[claim.entity_key].append(claim)
-    selected = (
-        claims
-        if history
-        else [row for row in claims if active_run and str(row.id) in active_run.claim_ids]
-    )
+
+    current_claim_ids = set(runs[0].claim_ids) if runs else set()
+    selected = claims if history else [row for row in claims if str(row.id) in current_claim_ids]
     candidates: list[dict[str, Any]] = []
     for claim in selected:
         evidence = []

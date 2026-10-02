@@ -1,6 +1,6 @@
 # PR21 correctness repair
 
-This repair closes five review findings and two adjacent demonstrated errors. Retained-news processing now emits a material `power_need` event on supported creation or change, bound to the immutable Evidence version used in that ingestion. A supported same-ID Taylor withdrawal enters the material diff with its own Evidence. Lifecycle readers share a version-bound support predicate; an explicit `withdrawal_supported` assessment remains valid even when interpretation status is rejected, while a failed refresh continues to use the last accepted version. Shadow judging pages through skipped candidates until its attempt budget or deadline, rechecks reservations under the daily advisory lock, and treats nullable identity keys as non-matching unless an exact match is proven. Project-state API output and generated contracts include `unresolved`.
+This repair records the retained-news, lifecycle, shadow traversal, lock-order, project-state, and buying-chain corrections made across R1–R3. It preserves immutable Evidence and judge-run history while adding bounded traversal state, ordered project locking, current admitted field provenance, and per-document buying-chain projection. Project-state API output and generated contracts include `unresolved`.
 
 Research recommendations now require supported nested timing evidence and a buyer-role record with a retained public contact. Publisher RSS remains context-only.
 
@@ -110,3 +110,51 @@ lower-project lock marker. This is execution evidence, not a full historical
 tree test or an observed PostgreSQL deadlock. The repaired two-session test
 separately proves that the higher project remains lockable while ingestion waits
 on the lower project. See `R2-BEFORE.json` for the exact scope and assertion output.
+
+## R3 provenance and multi-document repair
+
+`project_state` now projects a need field only from an accepted assessment for
+the current project and activity that passes the existing admission predicate.
+Tier, MW, supply, timing, and duration each retain their own supporting
+Evidence; the public evidence list is deduplicated. A failed or pending refresh
+still uses the prior accepted assessment through the existing version predicate.
+
+`buying_chain_view` now selects the newest run's persisted claim IDs. Citation
+processing still marks withdrawn or stale support as `UNKNOWN`, so a rejected
+document does not suppress another current claim in the same run, and historical
+claims omitted by the newest run are not resurrected. The latest run also
+supplies the status and unresolved metadata.
+
+`R3-BEFORE.json` records exact `1b186a` source-overlay failures: reassigned,
+supplemental evidence incorrectly projected `SUPPORTED`, and a rejected
+document A made a multi-document run report `not_researched`. The repaired
+multi-document regression retains document B's contractor, emits no false
+contractor removal when recording document A, retains material state, and
+asserts complete latest-run metadata. Existing A to B to A and freshness
+regressions continue to cover no historical resurrection and quiet
+freshness-only updates.
+
+R3 focused validation at `2026-10-02T20:03:58.9325399Z`:
+
+- `uv --directory backend run --extra dev pytest tests/integration/test_project_state_changes.py tests/integration/test_buying_chain.py tests/integration/test_collection_only_ingestion.py -q` — 58 passed, one existing deprecation warning, 25.34 seconds.
+- Ruff on the changed R3 source/tests and mypy on `project_state.py` and `buying_chain.py` — passed.
+- `git diff --check` — passed (line-ending warnings only).
+
+Full repository gates, browser/preservation checks, and fresh independent review remain controller-owned. No commit, push, merge, deployment, or provider call was made.
+
+## R3 Astra proof follow-up
+
+Test-only follow-up separates each eligibility predicate around a realistic
+official permit source: wrong project identity, wrong activity, and a
+non-admitting news source each leave an otherwise valid Evidence as the sole
+support. A two-row eligible fixture then verifies exact Evidence IDs for tier,
+MW, timing, duration, and Prospect supply, asserts exactly two deduplicated
+top-level evidence rows, and returns UNKNOWN after stored MW/timing/duration no
+longer match either accepted row. It preserves the prior accepted assessment
+through both failed and pending refreshes with a changed Observation hash.
+`R3-PROOF.json` records a temporary blanket-support mutant failure; the
+production source was restored before final validation.
+
+Focused follow-up: `test_project_state_changes.py` — 16 passed, one existing
+deprecation warning, 10.03 seconds; Ruff and mypy passed. Final controller gates
+and audit remain controller-owned.

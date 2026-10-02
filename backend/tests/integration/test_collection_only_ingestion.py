@@ -503,6 +503,17 @@ def test_supported_news_need_change_is_attributed_once_and_unrelated_evidence_st
             "about 42 MW",
             "Reported constraint",
         )
+        from gridlens.intelligence.project_state import project_state
+
+        projected_need = project_state(session, project.id)["state"]["power_need"]["value"][0]
+        assert {
+            name: projected_need[name]["status"] for name in ("activity", "tier", "mw", "supply")
+        } == {
+            "activity": "SUPPORTED",
+            "tier": "SUPPORTED",
+            "mw": "SUPPORTED",
+            "supply": "SUPPORTED",
+        }
         material = session.scalar(
             select(ChangeEvent).where(
                 ChangeEvent.project_id == project.id,
