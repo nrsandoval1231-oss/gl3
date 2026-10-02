@@ -11,6 +11,9 @@ from gridlens.ingestion.adapters.houston_permits import retrieve as retrieve_hou
 from gridlens.ingestion.adapters.ma_cultivation import retrieve as retrieve_ma_cultivation
 from gridlens.ingestion.adapters.nc_commerce import retrieve as retrieve_nc_commerce
 from gridlens.ingestion.adapters.publisher_rss import retrieve as retrieve_publisher_rss
+from gridlens.ingestion.adapters.rrc_flare_exceptions import (
+    retrieve as retrieve_rrc_flare_exceptions,
+)
 from gridlens.ingestion.adapters.socrata_permits import retrieve as retrieve_socrata_permits
 from gridlens.ingestion.adapters.taylor_newsflash import retrieve as retrieve_taylor_newsflash
 
@@ -31,6 +34,8 @@ def retrieve_source(
         from gridlens.ingestion.adapters.rrc_drilling import retrieve
 
         return retrieve(source, client)
+    if method == "rrc-flare-exceptions":
+        return retrieve_rrc_flare_exceptions(source, client)
     if method == "houston-weekly-permits":
         return retrieve_houston_permits(source, client)
     if method == "dallas-monthly-permits":

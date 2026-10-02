@@ -14,3 +14,7 @@ Record a date, decision, reason, alternatives considered, and affected PRD requi
 
 | 2026-10-01 | Select RRC monthly products by America/Chicago calendar date and scope runtime recovery to explicit job IDs. | Live recovery at UTC month rollover requested an unpublished September EOM while Texas was still in September. Publisher-local dates fix selection without relaxing freshness; scoped leasing preserves unrelated backlog and normal retry backoff. | 5, 10–11, 36–37 |
 | 2026-10-01 | Preserve a currently supported admission citation during unchanged grouped-permit replay. | Live strict replay found three Austin phase permits swapping the saved basis and updating the opportunity timestamp. Validate the saved basis against current evidence/interpretation/project/activity/policy before retaining it; repair invalid bases. | 10–11, 17, 32, 37 |
+
+## October 1, 2026 — Priority geographies, activities and flare permits
+
+Owner requests Dallas, Austin, Houston, El Paso and California first; data-center construction, data-center commissioning and oil and gas in that commercial order. Keep other national/industry intake wide. Add reproducible official flare-gas permits/venting-flaring exceptions to ingestion with source-specific event semantics and UNKNOWN gas-to-power fit. This changes acquisition priorities, not qualification gates or the 300 kW/no-maximum presentation amendment.
