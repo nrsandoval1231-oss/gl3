@@ -1,0 +1,24 @@
+{
+  "verified_at": "2026-10-02T00:00:15.564105+00:00",
+  "url": "http://127.0.0.1:5193/?tier=Signals&q=",
+  "cards": 1149,
+  "records": 1167,
+  "decisions": {
+    "SHOW": 694,
+    "REVIEW": 437,
+    "HOLD": 18
+  },
+  "default": "ALL",
+  "source_sector_options": 9,
+  "source_options": 19,
+  "boston_selectable": true,
+  "boston_project": "335347bb-a9f2-44b2-b751-731b6245fe01",
+  "applicant": "Shaun Mellett",
+  "applicant_role": "applicant; buyer authority unknown",
+  "screenshots": {
+    ".agent\\artifacts\\GL3-026\\ui\\all-signals.png": "c30ba6100738ec79df041df468246ab79941bb608cea256cc3ad3a98aca12400",
+    ".agent\\artifacts\\GL3-026\\ui\\boston-project.png": "b9735f392d2b4ae552d152293aa3c038d9ced3327d8c2ea6a67fa9f49a1e9190",
+    ".agent\\artifacts\\GL3-026\\ui\\source-sectors.png": "fd69eae5cf65d77d99a5768f9f581962616a3c9ace11bd5260b988dedaea4167"
+  },
+  "earlier_screenshot_issue": "All screenshot taken during hot reload showed an error overlay despite AX content. Replaced after final frozen build and visually inspected final pixels; source-sector and Boston detail screenshots also confirmed."
+}

@@ -1,0 +1,48 @@
+{
+  "node": "GL3-026",
+  "role": "independent Sol exact-candidate review",
+  "verdict": "FIX",
+  "branch": "feat/gl3-026-national-intake",
+  "base_sha": "ce6b8fc688085c7a43f1bdefa35eeabeddb72903",
+  "candidate_manifest": ".agent/artifacts/GL3-026/candidate_manifest.json",
+  "candidate_sha256": "01276076827705469b12762fa0ba4c861f57f726cb8570d54e46e4fde43f26ee",
+  "manifest_file_count": 313,
+  "manifest_files_verified": true,
+  "started_at_utc": "UNKNOWN",
+  "finished_at_utc": "2026-10-01T23:43:28Z",
+  "findings": [
+    {
+      "severity": "material",
+      "file": "web/src/app/App.tsx",
+      "lines": [242, 269, 284],
+      "finding": "Signals now defaults to All, mixing SHOW, REVIEW and HOLD cards. The browse card row displays tier and size but no review decision. A user cannot distinguish a HOLD card from a SHOW card without opening it; grouped members also omit their individual decisions. The review contract explicitly requires All to preserve review labels. Existing decision tabs and the opened detail label do not make the mixed browse list clear.",
+      "required_repair": "Render an explicit SHOW/REVIEW/HOLD label on each visible Signal card in All and the selected decision views, and label each member within an expanded mixed-decision group. Preserve the existing group aggregation and filters. Add a browser regression with SHOW, REVIEW and HOLD records that checks visible card and member labels before opening detail."
+    },
+    {
+      "severity": "validation",
+      "file": ".agent/artifacts/GL3-026/FINAL_PARITY.json",
+      "finding": "The final Boston replay receipt reports 9,142 unchanged records and zero new or changed records, and six domain table hashes are exact before/after. Yet FINAL_PARITY.json says unchanged=false because the interpretations hash changed from 966580e311ac996989d8f7151cf952688e3e3b778d7878758d14867f0249f888 to b74a3d2375007153c0ade870a800f5c9b8d2f0b7f988327d58423fc5b85d79cb. The receipt does not identify which interpretations changed or why, so the complete replay claim is not independently established.",
+      "required_repair": "Produce a row-level interpretation delta and attribute each changed field to a documented expected re-evaluation, such as an expired review_after or evaluator transition; verify accepted claims and tiers remained correct. If any change is unintended, repair and rerun. Preserve raw receipts and produce a reconciled final replay/parity receipt for the exact candidate."
+    },
+    {
+      "severity": "material",
+      "files": [
+        "backend/src/gridlens/jobs/worker.py:172",
+        "backend/src/gridlens/domain/pursuits.py:10",
+        "backend/src/gridlens/ingestion/adapters/retained_permits.py:164",
+        "backend/src/gridlens/intelligence/buying_chain.py:328"
+      ],
+      "finding": "Boston is enabled and yields 20 retained Signals, but the new source is absent from the existing permit research trigger and pursuit source policy. The retained permit field parser also returns no Boston facts, so the buying-chain permit summary has no structured Boston applicant/status/site facts even though source evidence holds them. Intake therefore stops before the established source-backed investigation path for these Signals.",
+      "required_repair": "Wire Boston into the existing bounded permit pursuit trigger and source policy, and expose exact retained Boston fields in permit facts and buying-chain summaries. Keep applicant labeled as applicant and buyer authority UNKNOWN. Add a focused integration regression proving a Boston Signal can enter the existing research path and its permit facts remain source-cited."
+    }
+  ],
+  "verified_evidence": [
+    "Independently SHA-256 checked all 313 manifest file bytes with zero mismatches, recomputed the compact sorted-key file digest exactly, and matched the complete tracked plus nonignored untracked product-file enumeration after the stated .agent and validation-report exclusions.",
+    "Read REVIEW_CONTRACT.md, packet, AGENTS.md, PRD, Finish Contract, validation report, actual source/UI/tests and deterministic receipts. Boston official CKAN adapter pins HTTPS host/path, a 90-day window, fixed fields, count-checked ordered bounded paging, permit-number identity and direct row citation. It retains current status, explicit amendment references and applicant as applicant, with no buyer or load inference.",
+    "BOSTON_FINAL_REPLAY.json reports a succeeded 9,142-row repeat with no new or changed records. FINAL_PARITY.json confirms exact observations, evidence, projects, power needs, links and buying-chain hashes, while interpretation hash differs as stated above. BOSTON_POWER_RECHECK and tests cover quoted temporary generator ratings: a 35 kW job is below the visible floor; the official two 375 kW quote is at or above floor with required_mw still unknown.",
+    "Final validation raw receipts report Ruff, mypy, 544 backend tests passed with one existing skip, frontend typecheck/build, clean/repeated/drift migrations, 17 browser tests and diff check, all exit zero. Four prior historical-corpus browser cases remain excluded with the same command scope."
+  ],
+  "reviewed_boundaries": "The full local corpus and Boston source are durable and authenticated; 19 persisted registry sources appear in source health. Source-sector aliases cover all currently configured tags and preserve Oil & gas separately. All changes only presentation filtering, not admission or the inclusive 300 kW rule. Official-source retrieval is through the bounded direct CKAN adapter following Firecrawl discovery; discovered links alone are not counted as active feeds. No reviewer provider/network request, source edit, commit, push, merge or deploy was performed.",
+  "limitations": "This verdict covers the frozen GL3-026 candidate and bounded local runtime evidence. It does not certify full national coverage, one million Leads, cloud operation, seven daily cycles, a Nick-reviewed Lead, buyer authority, temporary rental demand or parent launch. Boston's rolling issue-date window does not monitor later status changes on older permits.",
+  "direction": "CORRECT the All browse decision labeling and missing Boston research/fact integration, and reconcile the interpretation-only replay delta; then rerun affected and mandatory final gates, freeze a new manifest and obtain a fresh independent exact-candidate review. Parent Finish Contract and launch remain OPEN."
+}

@@ -1,0 +1,25 @@
+{
+  "node": "GL3-026",
+  "lane": "two disjoint Luna surfaces, serialized runtime integration, Sol independent review",
+  "models": {
+    "builders": "gpt-6-luna low",
+    "review": "gpt-6-sol medium"
+  },
+  "config_identity": "UNKNOWN; role tool selection only, no global config load claim",
+  "started_at_utc": "UNKNOWN",
+  "accepted_at_utc": "2026-10-02T00:00:53Z",
+  "planning_seconds": "UNKNOWN",
+  "build_seconds": "UNKNOWN",
+  "validation_seconds_final": 45.705553,
+  "audit_seconds": "UNKNOWN",
+  "elapsed_to_accepted": "UNKNOWN",
+  "tokens": "UNKNOWN",
+  "repairs": [
+    "Boston sort annotation",
+    "Boston quoted generator size context",
+    "integrated UI decision labels and Boston investigation path"
+  ],
+  "lesson_candidate": "Capture full row-level before/after replay snapshots; whole-table hashes alone cannot distinguish operational counters from changed claims. Visually inspect final screenshot bytes after hot reload settles.",
+  "lesson_promoted": false,
+  "speedup": "UNKNOWN"
+}

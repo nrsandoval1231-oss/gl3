@@ -103,6 +103,19 @@ LABELS = {
     "zip": "Reported ZIP code",
 }
 GEORGIA = "georgia-air-draft-title-v"
+BOSTON_FIELDS = {
+    "Permit number": "Boston permit number",
+    "Work type": "Boston work type",
+    "Permit type": "Boston permit type",
+    "Description": "Boston permit description",
+    "Comments": "Boston permit comments",
+    "Applicant (buying role unknown)": "Applicant (role as applicant; buyer authority unknown)",
+    "Status": "Boston permit status",
+    "Occupancy": "Boston occupancy type",
+    "Address": "Boston permit site address",
+    "City": "Boston permit city",
+    "State": "Boston permit state",
+}
 CITY_MAPS = {
     "dallas-monthly-permits": {
         "row": "Permit / case",
@@ -173,6 +186,7 @@ def fields(source_id: str, text: str) -> dict[str, tuple[str, str]]:
         "houston-weekly-permits",
         "texas-rrc-drilling-permits",
         "ma-ccc-cultivation-applications",
+        "boston-building-permits",
     }:
         return {}
     allowed = (
@@ -180,6 +194,8 @@ def fields(source_id: str, text: str) -> dict[str, tuple[str, str]]:
         if source_id in MAPS
         else set(CITY_MAPS[source_id])
         if source_id in CITY_MAPS
+        else set(BOSTON_FIELDS)
+        if source_id == "boston-building-permits"
         else set(LABELS)
         if source_id in {"houston-weekly-permits", "texas-rrc-drilling-permits"}
         else set(LABELS) - set(MAPS["chicago-building-permits"])
@@ -203,6 +219,8 @@ def facts(source_id: str, text: str) -> list[dict[str, str]]:
     selected_labels = (
         CULTIVATION_FIELDS.items()
         if source_id == "ma-ccc-cultivation-applications"
+        else BOSTON_FIELDS.items()
+        if source_id == "boston-building-permits"
         else LABELS.items()
     )
     output = [

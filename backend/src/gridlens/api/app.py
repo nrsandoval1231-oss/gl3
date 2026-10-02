@@ -6,8 +6,9 @@ from zoneinfo import ZoneInfo
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
 from pydantic import BaseModel, Field, SecretStr
-from sqlalchemy import Date, func, select
+from sqlalchemy import Date, func, or_, select
 
+from gridlens.api.verticals import vertical_source_tags
 from gridlens.domain.buying_chain import BuyingChainOut, BuyingEnrichBody
 from gridlens.domain.commercial_presentation import commercial_size_status
 from gridlens.domain.signal_admission import admitted_from_source, source_origin
@@ -413,7 +414,9 @@ def _ingestion_filters(source_id: str | None, vertical: str | None):
     if source_id:
         predicates.append(Observation.source_id == source_id)
     if vertical:
-        predicates.append(Source.industries.contains([vertical]))
+        predicates.append(
+            or_(*(Source.industries.contains([tag]) for tag in vertical_source_tags(vertical)))
+        )
     return predicates
 
 

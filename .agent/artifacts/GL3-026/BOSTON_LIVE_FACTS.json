@@ -1,0 +1,88 @@
+{
+  "project_id": "912d6083-0165-419d-afd2-12769d09253d",
+  "status": "not_researched",
+  "candidates": [],
+  "unresolved": [
+    "Buying chain has not been researched for this project."
+  ],
+  "runs": [],
+  "permit_summaries": [
+    {
+      "evidence_id": "772fcdbe-5e62-483c-845e-ae481e894f91",
+      "source_id": "boston-building-permits",
+      "url": "https://data.boston.gov/api/3/action/datastore_search?resource_id=6ddcd912-32a0-43df-9908-63574f8c7e77&filters=%7B%22permitnumber%22%3A%22ETS1895395%22%7D&limit=1",
+      "title": "Generators",
+      "observed_at": "2026-10-01T18:21:48.265494-05:00",
+      "extraction_location": "Official Boston CKAN permitnumber=ETS1895395",
+      "facts": [
+        {
+          "label": "Boston permit number",
+          "value": "ETS1895395",
+          "quote": "Permit number: ETS1895395",
+          "role_quote": null
+        },
+        {
+          "label": "Boston work type",
+          "value": "GEN",
+          "quote": "Work type: GEN",
+          "role_quote": null
+        },
+        {
+          "label": "Boston permit type",
+          "value": "Electrical Temporary Service",
+          "quote": "Permit type: Electrical Temporary Service",
+          "role_quote": null
+        },
+        {
+          "label": "Boston permit description",
+          "value": "Generators",
+          "quote": "Description: Generators",
+          "role_quote": null
+        },
+        {
+          "label": "Boston permit comments",
+          "value": "Installation of (2) 375KW temporary generator to back up building while permanent generator is serviced.",
+          "quote": "Comments: Installation of (2) 375KW temporary generator to back up building while permanent generator is serviced.",
+          "role_quote": null
+        },
+        {
+          "label": "Applicant (role as applicant; buyer authority unknown)",
+          "value": "Shaun Mellett",
+          "quote": "Applicant (buying role unknown): Shaun Mellett",
+          "role_quote": null
+        },
+        {
+          "label": "Boston permit status",
+          "value": "Open",
+          "quote": "Status: Open",
+          "role_quote": null
+        },
+        {
+          "label": "Boston occupancy type",
+          "value": "Comm",
+          "quote": "Occupancy: Comm",
+          "role_quote": null
+        },
+        {
+          "label": "Boston permit site address",
+          "value": "32 Fruit ST",
+          "quote": "Address: 32 Fruit ST",
+          "role_quote": null
+        },
+        {
+          "label": "Boston permit city",
+          "value": "Boston",
+          "quote": "City: Boston",
+          "role_quote": null
+        },
+        {
+          "label": "Boston permit state",
+          "value": "MA",
+          "quote": "State: MA",
+          "role_quote": null
+        }
+      ]
+    }
+  ],
+  "policy_version": "buying-chain-v2-permits"
+}

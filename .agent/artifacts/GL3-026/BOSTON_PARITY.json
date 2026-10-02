@@ -1,0 +1,55 @@
+{
+  "unchanged": true,
+  "before": {
+    "observations": {
+      "count": 16883,
+      "hash": "3ec3f57f465adde482a045894048b21b1d3817914a7bf05d99e44d40afabfe1d"
+    },
+    "evidence": {
+      "count": 16922,
+      "hash": "45056939284a88fa1bc1651e74e355e37c92560aca47a29464c0f22efc7e60b2"
+    },
+    "projects": {
+      "count": 1168,
+      "hash": "4c186b015a5056d86c9b4b9aa4fa3bf9b70cbb5a4aa3a3535f95ac356c6def10"
+    },
+    "power_needs": {
+      "count": 1168,
+      "hash": "4e610a727b3b1fd4a4e769ca35c234069d76558226b86f6a176f2931644c3247"
+    },
+    "need_observations": {
+      "count": 1170,
+      "hash": "0ee078dc856160e1870af6969d9a91928292e5784208e2a4607078e2a1632778"
+    },
+    "buying_chain_claims": {
+      "count": 42,
+      "hash": "404b50be06cdc72311595ff038c9063736522de32b175c850dd5b97a389aeecc"
+    }
+  },
+  "after": {
+    "observations": {
+      "count": 16883,
+      "hash": "3ec3f57f465adde482a045894048b21b1d3817914a7bf05d99e44d40afabfe1d"
+    },
+    "evidence": {
+      "count": 16922,
+      "hash": "45056939284a88fa1bc1651e74e355e37c92560aca47a29464c0f22efc7e60b2"
+    },
+    "projects": {
+      "count": 1168,
+      "hash": "4c186b015a5056d86c9b4b9aa4fa3bf9b70cbb5a4aa3a3535f95ac356c6def10"
+    },
+    "power_needs": {
+      "count": 1168,
+      "hash": "4e610a727b3b1fd4a4e769ca35c234069d76558226b86f6a176f2931644c3247"
+    },
+    "need_observations": {
+      "count": 1170,
+      "hash": "0ee078dc856160e1870af6969d9a91928292e5784208e2a4607078e2a1632778"
+    },
+    "buying_chain_claims": {
+      "count": 42,
+      "hash": "404b50be06cdc72311595ff038c9063736522de32b175c850dd5b97a389aeecc"
+    }
+  }
+}

@@ -2,6 +2,7 @@ from typing import Any
 
 import httpx
 
+from gridlens.ingestion.adapters.boston_permits import retrieve as retrieve_boston_permits
 from gridlens.ingestion.adapters.dallas_permits import retrieve as retrieve_dallas_permits
 from gridlens.ingestion.adapters.el_paso_permits import retrieve as retrieve_el_paso_permits
 from gridlens.ingestion.adapters.federal_register import SourceParseError
@@ -38,6 +39,8 @@ def retrieve_source(
         return retrieve_el_paso_permits(source, client)
     if method == "socrata-permits":
         return retrieve_socrata_permits(source, client)
+    if method == "boston-ckan-permits":
+        return retrieve_boston_permits(source, client)
     if method == "georgia-air-permits":
         return retrieve_georgia_air_permits(source, client)
     if method == "ma-cultivation-applications":
