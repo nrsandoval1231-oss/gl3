@@ -1,6 +1,6 @@
 # GridLens 3
 
-GridLens 3 is a private, evidence-backed workspace for discovering emerging commercial power needs. The current local candidate registry enables 19 public sources spanning municipal planning notices, construction permits, air permitting/regulatory records, government/economic-development publications, public documents, and industry news. The system preserves source observations and evidence history, groups supported records into project-oriented Signal cards, and keeps unsupported commercial facts explicitly unknown.
+GridLens 3 is a private, evidence-backed workspace for discovering emerging commercial power needs. The current local candidate registry enables 20 public sources spanning municipal planning notices, construction permits, air permitting/regulatory records, government/economic-development publications, public documents, and industry news. The system preserves source observations and evidence history, groups supported records into project-oriented Signal cards, and keeps unsupported commercial facts explicitly unknown.
 
 Main includes PR15 at `ce6b8fc` (city permits, cultivation Signals, commercial filtering and cited OpenAI-assisted briefs). GL3-026 adds Boston permits, an All Signals view, consolidated source-sector filters and a live registry-backed source selector. Firecrawl assisted nationwide source discovery; routine Boston acquisition uses the official CKAN API. See [GL3-026 validation](docs/validation/gl3-026-national-intake.md). National completeness and deployed daily cloud operation remain unproven.
 
@@ -24,10 +24,12 @@ Current production-like local behavior is intentionally conservative: Signals do
 
 ## Current source coverage
 
-The current local candidate registry contains 18 enabled sources, including:
+The current local candidate registry contains 20 enabled sources, including:
 
 - Austin commercial building/electrical permits with a bounded 2026 data-center backfill; Seattle and Chicago permits.
 - Texas RRC current-month drilling file plus official prior-month EOM overlap, with amendment history and unknown production timing.
+- Texas RRC flare/vent exception applications from the public SWR 32 query, with a complete count-checked three-day submittal window. List records remain intake evidence; they do not prove actual flaring or a power project.
+- Boston issued building permits, retrieved through a rolling 90-day, count-checked official CKAN query.
 - Houston’s four latest linked weekly permit workbooks, with reporting lag and limited fields explicitly retained.
 - Bounded Dallas monthly and El Paso new-commercial permits, plus Massachusetts Cannabis Control Commission cultivation applications; each retains its source-specific site, date, and role limits.
 - Georgia Draft Title V air-permit filings and supporting public documents.
@@ -37,6 +39,8 @@ The current local candidate registry contains 18 enabled sources, including:
 - Data Center Dynamics, Utility Dive, Manufacturing Dive, Construction Dive, Oil & Gas Journal, and MJBizDaily publisher feeds.
 
 Permits are the primary discovery path and news is supplemental. Coverage is not yet nationally complete. See [source coverage](docs/sources/coverage.md) and the [local Signal verification](docs/delivery/local-signal-verification.md) for measured limits.
+
+Acquisition priorities are Dallas, Austin, Houston, El Paso and California; the commercial order is data-center construction, data-center commissioning, then oil and gas. Other sources remain enabled. California routes are discovered candidates, not enabled coverage. See [priority and flare intake scope](docs/sources/gl3-027-priority-flare-intake.md).
 
 ## Run locally
 

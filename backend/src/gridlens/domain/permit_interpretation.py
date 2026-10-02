@@ -204,6 +204,8 @@ def evaluator_version(record: dict[str, Any]) -> str:
         return "city-permit-event-v1"
     if isinstance(permit, dict) and permit.get("source_type") == "texas-rrc-drilling-permits":
         return "rrc-permit-v1"
+    if isinstance(permit, dict) and permit.get("source_type") == "texas-rrc-flare-vent-exceptions":
+        return "rrc-flare-application-evidence-v1"
     if isinstance(permit, dict) and permit.get("source_type") == "georgia-air-draft-title-v":
         return GEORGIA_AIR_EVALUATOR_VERSION
     if isinstance(permit, dict) and permit.get("source_type") == "boston-building-permits":
@@ -620,6 +622,41 @@ def assess_permit(record: dict[str, Any], *, as_of: date | None = None) -> dict[
             )
             if accepted
             else None,
+        }
+    if permit.get("source_type") == "texas-rrc-flare-vent-exceptions":
+        return {
+            "schema_version": 1,
+            "decision": "rejected",
+            "tier": None,
+            "reason": (
+                "Evidence only: the RRC public result row identifies an exception application, "
+                "operator and property label but provides no verified physical flare/vent or well "
+                "location and no actual flaring. The application alone does not establish a "
+                "power activity or Signal."
+            ),
+            "subject": None,
+            "action": None,
+            "location": None,
+            "missing_facts": [
+                "physical flare/vent or well location",
+                "actual flaring or venting",
+                "gas availability and composition",
+                "continuous gas flow",
+                "generator fit",
+                "MW",
+                "rental demand",
+                "buyer",
+                "buying authority",
+            ],
+            "stable_row_id": permit.get("row_id"),
+            "permit_status": permit.get("status"),
+            "application_submittal_date": permit.get("submittal_date"),
+            "authorized_effective_date": permit.get("authorized_effective_date"),
+            "authorized_expiration_date": permit.get("authorized_expiration_date"),
+            "operator": permit.get("operator"),
+            "property_label": permit.get("property"),
+            "power_activity": None,
+            "rental_hypothesis": None,
         }
     event_end = _explicit_event_end(description)
     status = str(permit.get("status") or "")
