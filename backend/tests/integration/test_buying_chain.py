@@ -1108,6 +1108,102 @@ def test_carried_assignment_ages_independently_of_fresh_official_role(db):
         assert carried["person_organization_relationship"] == "CURRENT"
 
 
+@pytest.mark.parametrize("old_invalid", ["aged", "superseded"])
+def test_fresh_independent_role_citation_survives_invalid_old_role(db, old_invalid):
+    with db.begin() as session:
+        project = seed(session)
+        org_quote = "Acme is the general contractor for Orion Data Center in Austin, TX."
+        role_quote = "Alice Smith is Project Director at Acme."
+        enrich_buying_chain(
+            session,
+            project.id,
+            fetcher=lambda _url: source(f"{org_quote}\n{role_quote}"),
+            now=NOW,
+        )
+        current = buying_chain_view(session, project.id, now=NOW)
+        person = next(row for row in current["candidates"] if row["person_name"])
+        claim = session.get(BuyingChainClaim, person["id"])
+        assert claim is not None
+        original_role = next(
+            citation for citation in claim.citations
+            if citation["supports"] == "organization_person_role"
+        )
+        old_source = session.get(BuyingChainEvidence, original_role["evidence_id"])
+        assert old_source is not None
+        later = NOW + timedelta(days=370)
+        independent = BuyingChainEvidence(
+            project_id=project.id,
+            url="https://acme.example/current-team",
+            title="Acme current team",
+            excerpt=role_quote,
+            content_hash="current-independent-role",
+            extraction_location="public team page",
+            published_at=None,
+            observed_at=later,
+            last_seen_at=later,
+            project_match_reason="Current named role.",
+        )
+        session.add(independent)
+        session.flush()
+        claim.citations = [
+            *claim.citations,
+            {
+                "evidence_id": str(independent.id),
+                "url": independent.url,
+                "quote": role_quote,
+                "supports": "organization_person_role",
+            },
+        ]
+        if old_invalid == "superseded":
+            replacement = BuyingChainEvidence(
+                project_id=project.id,
+                url=old_source.url,
+                title="Old page correction",
+                excerpt=org_quote,
+                content_hash="old-role-withdrawn",
+                extraction_location="public page revision",
+                published_at=later.date(),
+                observed_at=later,
+                last_seen_at=later,
+                project_match_reason="Same URL checked again.",
+            )
+            session.add(replacement)
+        session.flush()
+        survivor = next(
+            row for row in buying_chain_view(session, project.id, now=later)["candidates"]
+            if row["id"] == claim.id
+        )
+        assert survivor["person_organization_relationship"] == "CURRENT"
+        assert survivor["stale"] is False
+        assert {item["id"] for item in survivor["evidence"]} >= {
+            old_source.id, independent.id
+        }
+
+        # If the independent page also withdraws the role, no current role
+        # citation remains. The person relationship must become UNKNOWN.
+        session.add(
+            BuyingChainEvidence(
+                project_id=project.id,
+                url=independent.url,
+                title="Acme team correction",
+                excerpt="Current Acme team list no longer names Alice Smith.",
+                content_hash="independent-role-withdrawn",
+                extraction_location="public team page revision",
+                published_at=later.date(),
+                observed_at=later + timedelta(minutes=1),
+                last_seen_at=later + timedelta(minutes=1),
+                project_match_reason="Same URL checked again.",
+            )
+        )
+        session.flush()
+        withdrawn = next(
+            row for row in buying_chain_view(session, project.id, now=later)["candidates"]
+            if row["id"] == claim.id
+        )
+        assert withdrawn["person_organization_relationship"] == "UNKNOWN"
+        assert withdrawn["stale"] is True
+
+
 def test_boston_retained_applicant_facts_are_cited_without_creating_buyer(db):
     from gridlens.domain.pursuits import SOURCES
 

@@ -12,6 +12,7 @@ from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from gridlens.domain.buying_chain import ROLE_MAX_AGE_DAYS
+from gridlens.domain.commercial_presentation import canonical_mw_claim
 from gridlens.intelligence.buying_chain import (
     _retained_evidence_current_for_project,
     buying_chain_view,
@@ -108,8 +109,9 @@ def material_state(session: Session, project_id: UUID, *, now: datetime | None =
         for field in ("tier", "mw", "timing", "duration", "supply"):
             distinct = []
             for value, _evidence in need_claims[need.id][field]:
-                if value not in distinct:
-                    distinct.append(value)
+                semantic = canonical_mw_claim(value) if field == "mw" else value
+                if semantic not in distinct:
+                    distinct.append(semantic)
             if len(distinct) > 1:
                 conflicts[field] = sorted(
                     distinct, key=lambda value: json.dumps(value, default=str)
@@ -271,6 +273,8 @@ def record_material_diff(
         before, after = previous.state.get(field), current.get(field)
         if before == after:
             continue
+        if field == "power_need" and _semantic_need_rows(before) == _semantic_need_rows(after):
+            continue
         comparison_before = before
         if field in {"contractor", "buyer"} and isinstance(before, list):
             expired = _freshness_expired_rows(session, project.id, field, before, now=now)
@@ -352,3 +356,14 @@ def record_material_diff(
     previous.state = current
     session.flush()
     return created
+
+
+def _semantic_need_rows(rows: object) -> object:
+    if not isinstance(rows, list):
+        return rows
+    return [
+        {**row, "required_mw": canonical_mw_claim(row.get("required_mw"))}
+        if isinstance(row, dict)
+        else row
+        for row in rows
+    ]

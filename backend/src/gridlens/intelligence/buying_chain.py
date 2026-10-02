@@ -893,7 +893,7 @@ def buying_chain_view(
         organization_stale = False
         role_stale = False
         current_supports: set[str] = set()
-        invalid_retained_supports: set[str] = set()
+        invalid_supports: set[str] = set()
         current_contacts: set[tuple[str, str]] = set()
         current_organization_quotes: list[str] = []
         organization_support = False
@@ -902,9 +902,10 @@ def buying_chain_view(
             row = by_id.get(citation["evidence_id"])
             if row is None or citation["quote"] not in row.excerpt:
                 stale = True
+                invalid_supports.add(citation["supports"])
                 continue
             if not history and not retained_source_current(row):
-                invalid_retained_supports.add(citation["supports"])
+                invalid_supports.add(citation["supports"])
                 continue
             newest = by_id[str(newest_by_url[row.url])]
             source_superseded = newest.id != row.id and citation["quote"] not in newest.excerpt
@@ -927,6 +928,8 @@ def buying_chain_view(
                 role_stale = role_stale or source_superseded or role_aged
             # Assignment freshness is independent of a newly verified employment role.
             stale = stale or source_superseded or role_aged
+            if source_superseded or role_aged:
+                invalid_supports.add(citation["supports"])
             if not source_superseded and not role_aged:
                 current_supports.add(citation["supports"])
                 if citation["supports"] in {"project_organization", "organization_category"}:
@@ -948,7 +951,7 @@ def buying_chain_view(
         if not history:
             if not evidence:
                 continue
-            if invalid_retained_supports:
+            if invalid_supports:
                 organization_support = bool(
                     current_supports
                     & {
@@ -957,10 +960,9 @@ def buying_chain_view(
                     }
                 )
                 role_support = "organization_person_role" in current_supports
-                if not organization_support:
-                    organization_stale = stale = True
-                if claim.person_name and not role_support:
-                    role_stale = stale = True
+                organization_stale = not organization_support
+                role_stale = bool(claim.person_name) and not role_support
+                stale = organization_stale or role_stale
                 if not organization_support and not role_support:
                     continue
         independent_conflict = False
@@ -1012,7 +1014,7 @@ def buying_chain_view(
                     )
         category = claim.category
         project_relationship = claim.person_project_relationship
-        if invalid_retained_supports:
+        if invalid_supports and not history:
             category_supported = "organization_category" in current_supports or any(
                 category.value == claim.category
                 and re.search(rf"\b{re.escape(term)}\b", quote, re.I)
@@ -1025,7 +1027,7 @@ def buying_chain_view(
                 project_relationship = "UNKNOWN"
             elif (
                 project_relationship == "DIRECT"
-                and "person_project_assignment" in invalid_retained_supports
+                and "person_project_assignment" in invalid_supports
                 and "person_project_assignment" not in current_supports
             ):
                 project_relationship = "ROLE_SUPPORTED"
@@ -1061,11 +1063,11 @@ def buying_chain_view(
                         for contact in claim.public_contacts
                         if (contact.get("source_url"), contact.get("quote")) in current_contacts
                     ]
-                    if invalid_retained_supports
+                    if invalid_supports
                     and not history
                     and (not claim.person_name or role_support)
                     else []
-                    if invalid_retained_supports and not history
+                    if invalid_supports and not history
                     else claim.public_contacts
                 ),
                 "evidence": evidence,

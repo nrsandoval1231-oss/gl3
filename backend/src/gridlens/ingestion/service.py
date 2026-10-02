@@ -1,6 +1,7 @@
 import hashlib
 import json
 import re
+from collections.abc import Sequence
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
@@ -439,6 +440,7 @@ def _attach_news_supplement(
     claim: dict[str, Any],
     payload: dict[str, Any],
     material_baselines: dict[Any, Any] | None = None,
+    locked_project_ids: set[Any] | None = None,
 ) -> tuple[PowerNeed | None, dict[str, Any]]:
     """Attach news only to one already-supported same-project, same-activity need."""
     phase_marker = re.compile(r"\bphases?\b", re.I)
@@ -555,6 +557,8 @@ def _attach_news_supplement(
         )
         if decision.decision != "matched":
             continue
+        if locked_project_ids is not None and candidate.id not in locked_project_ids:
+            raise RuntimeError("Retained project candidate changed after ordered locks")
         retained_rows = session.execute(
             select(Evidence, Observation, Interpretation)
             .join(Observation, Observation.id == Evidence.observation_id)
@@ -715,6 +719,56 @@ def _attach_news_supplement(
     return need, payload
 
 
+def _retained_candidate_lock_ids(
+    projects: Sequence[Project], observation: Observation, claim: dict[str, Any], admitted: bool,
+    target_identity: str | None,
+) -> set[Any]:
+    """Discover every possible retained match-decision FK before ordered locks."""
+    ids = {
+        project.id for project in projects
+        if target_identity and project.identity_key == target_identity
+    }
+    if admitted and ids:
+        return ids
+    if claim.get("decision") != "accepted" or not claim.get("subject") or not claim.get("location"):
+        return ids
+    site_claims = labeled_sites(f"{observation.title} {observation.abstract or ''}")
+    incoming_site = site_claims[0] if len(site_claims) == 1 else claim.get("location")
+    ambiguous_sites = len(site_claims) > 1
+    matched = 0
+    asset_type = classify_event(observation.title, observation.abstract)
+    for project in projects:
+        aliases = (project.identity_facts or {}).get("project_aliases", [])
+        same_name = normalized_identity(project.name) == normalized_identity(
+            claim["subject"]
+        ) or any(
+            isinstance(alias, str)
+            and normalized_identity(alias) == normalized_identity(claim["subject"])
+            for alias in aliases
+        )
+        site = (project.identity_facts or {}).get("site") or project.location
+        same_site = same_physical_site(site, incoming_site)
+        if not admitted:
+            if same_name or same_site:
+                ids.add(project.id)
+            continue
+        decision = decide_project_match(
+            same_address=same_site and not ambiguous_sites,
+            same_project_name=same_name,
+            conflicting_geography=bool(conflicting_geography(project.location, claim["location"])),
+            conflicting_asset_type=_asset_type_conflicts(project.asset_type, asset_type),
+        )
+        if decision.matched_facts:
+            ids.add(project.id)
+        if decision.decision == "matched":
+            matched += 1
+    # The existing ambiguous-match branch writes a separate decision even for
+    # candidates with no matched facts. Preserve that behavior and its locks.
+    if admitted and matched > 1:
+        ids.update(project.id for project in projects)
+    return ids
+
+
 def assess_retained_news(
     session: Session,
     observation: Observation,
@@ -864,35 +918,24 @@ def assess_retained_news(
     # acquire old and candidate project/advisory locks in one stable order.
     candidate_project_ids = set(old_project_ids)
     candidate_projects = session.scalars(select(Project)).all()
-    # `_attach_news_supplement` may persist a match decision for any candidate
-    # selected by its full evidence/phase predicate.  Keep the prior broad
-    # retained-news lock scope, but acquire it in the shared stable order so a
-    # later FK reference cannot introduce an unsorted project lock.
-    candidate_project_ids.update(candidate.id for candidate in candidate_projects)
     target_identity = payload.get("project_identity_key")
-    if target_identity:
-        candidate_project_ids.update(
-            candidate.id
-            for candidate in candidate_projects
-            if candidate.identity_key == target_identity
+    candidate_project_ids.update(
+        _retained_candidate_lock_ids(
+            candidate_projects, observation, claim, admission.admitted, target_identity
         )
-    if claim.get("decision") == "accepted" and claim.get("subject") and claim.get("location"):
-        site_claims = labeled_sites(f"{observation.title} {observation.abstract or ''}")
-        incoming_site = site_claims[0] if len(site_claims) == 1 else claim.get("location")
-        for candidate in candidate_projects:
-            aliases = (candidate.identity_facts or {}).get("project_aliases", [])
-            same_name = normalized_identity(candidate.name) == normalized_identity(
-                claim.get("subject")
-            ) or any(
-                isinstance(alias, str)
-                and normalized_identity(alias) == normalized_identity(claim.get("subject"))
-                for alias in aliases
-            )
-            candidate_site = (candidate.identity_facts or {}).get("site") or candidate.location
-            if same_name and same_physical_site(candidate_site, incoming_site):
-                candidate_project_ids.add(candidate.id)
+    )
     for candidate_project_id in sorted(candidate_project_ids, key=str):
         lock_project(session, candidate_project_id)
+    # Discovery is read-only. A newly relevant FK target must not acquire a
+    # late, out-of-order project lock after this point.
+    current_candidates = session.scalars(
+        select(Project).execution_options(populate_existing=True)
+    ).all()
+    current_project_ids = set(old_project_ids) | _retained_candidate_lock_ids(
+        current_candidates, observation, claim, admission.admitted, target_identity
+    )
+    if not current_project_ids.issubset(candidate_project_ids):
+        raise RuntimeError("Retained project candidate changed after ordered locks")
     # Capture persisted semantic state before an accepted decision is replaced
     # by a rejection/correction. This is deliberately before Interpretation is
     # invalidated so negative evidence can emit a real closure transition.
@@ -920,7 +963,8 @@ def assess_retained_news(
     supplemental_only = claim["decision"] == "accepted" and not admission.admitted
     if supplemental_only:
         current_need, payload = _attach_news_supplement(
-            session, observation, evidence, claim, payload, material_baselines
+            session, observation, evidence, claim, payload, material_baselines,
+            candidate_project_ids,
         )
         payload["admission_origin"] = admission.origin
         interpretation.assessment = {**payload}
@@ -928,8 +972,12 @@ def assess_retained_news(
     elif claim["decision"] == "accepted":
         identity_key = payload["project_identity_key"]
         project = session.scalar(
-            select(Project).where(Project.identity_key == identity_key).with_for_update()
+            select(Project).where(Project.identity_key == identity_key).execution_options(
+                populate_existing=True
+            )
         )
+        if project is not None and project.id not in candidate_project_ids:
+            raise RuntimeError("Retained project candidate changed after ordered locks")
         if project is not None and project.source_id != observation.source_id:
             exact_copy = session.scalar(
                 select(ProjectMatchDecision).where(
@@ -968,7 +1016,14 @@ def assess_retained_news(
                     )
                 )
         if project is None:
-            candidates = session.scalars(select(Project)).all()
+            candidates = session.scalars(
+                select(Project).execution_options(populate_existing=True)
+            ).all()
+            current_project_ids = _retained_candidate_lock_ids(
+                candidates, observation, claim, True, identity_key
+            )
+            if not current_project_ids.issubset(candidate_project_ids):
+                raise RuntimeError("Retained project candidate changed after ordered locks")
             matching_candidates: list[tuple[Project, Any]] = []
             identity_decisions = []
             site_claims = labeled_sites(f"{observation.title} {observation.abstract or ''}")
@@ -2175,20 +2230,50 @@ def process_job(
                     if facility_scope and isinstance(permit_data, dict)
                     else None
                 )
-                # Discover candidates without locks, then acquire every touched
-                # project row and advisory lock in the shared UUID order.  The
-                # retained-news reassignment path uses that same order.
-                candidates = session.scalars(select(Project)).all()
-                for candidate_id in sorted((candidate.id for candidate in candidates), key=str):
-                    lock_project(session, candidate_id)
-                supported: list[tuple[Project, Any]] = []
-                decisions: list[tuple[Project, Any]] = []
                 permit_alias = (
                     permit_assessment.get("project_hint")
                     if permit_assessment and isinstance(permit_assessment.get("project_hint"), str)
                     else None
                 )
-                for candidate in candidates:
+                assert source is not None
+                candidate_source_id = source.id
+                event_asset_type = classify_event(observation.title, observation.abstract)
+
+                def candidate_decisions(
+                    rows: Sequence[Project],
+                ) -> tuple[list[tuple[Project, Any]], list[tuple[Project, Any]]]:
+                    decisions: list[tuple[Project, Any]] = []
+                    supported: list[tuple[Project, Any]] = []
+                    for candidate in rows:
+                        decision = candidate_decision(candidate)
+                        decisions.append((candidate, decision))
+                        if decision.decision == "matched":
+                            supported.append((candidate, decision))
+                    return decisions, supported
+
+                def candidate_decision(
+                    candidate: Project,
+                    context: tuple[Any, ...] = (
+                        project_name,
+                        permit_alias,
+                        project_location,
+                        facility_scope,
+                        candidate_source_id,
+                        facility_source_address,
+                        asset_identity,
+                        event_asset_type,
+                    ),
+                ) -> Any:
+                    (
+                        project_name,
+                        permit_alias,
+                        project_location,
+                        facility_scope,
+                        source_id,
+                        facility_source_address,
+                        asset_identity,
+                        event_asset_type,
+                    ) = context
                     candidate_aliases = (candidate.identity_facts or {}).get("project_aliases", [])
                     same_name = (
                         normalized_identity(candidate.name) == normalized_identity(project_name)
@@ -2221,7 +2306,7 @@ def process_job(
                     )
                     same_facility_scope = bool(
                         facility_scope
-                        and candidate.source_id == source.id
+                        and candidate.source_id == source_id
                         and same_site
                         and (candidate.identity_facts or {}).get("facility_scope") == facility_scope
                         and normalized_identity(
@@ -2235,7 +2320,7 @@ def process_job(
                     geographic_conflict = conflicting_geography(
                         candidate.location, project_location
                     )
-                    decision = decide_project_match(
+                    return decide_project_match(
                         same_address=same_site,
                         same_project_name=same_name,
                         same_asset_identity=same_asset,
@@ -2243,12 +2328,40 @@ def process_job(
                         conflicting_geography=geographic_conflict,
                         conflicting_asset_type=_asset_type_conflicts(
                             candidate.asset_type,
-                            classify_event(observation.title, observation.abstract),
+                            event_asset_type,
                         ),
                     )
-                    decisions.append((candidate, decision))
-                    if decision.decision == "matched":
-                        supported.append((candidate, decision))
+
+                def decision_project_ids(
+                    rows: Sequence[Project],
+                    decisions: list[tuple[Project, Any]],
+                    supported: list[tuple[Project, Any]],
+                ) -> set[Any]:
+                    if len(supported) > 1:
+                        # The established ambiguous branch writes a separate
+                        # decision for every candidate, including no-fact rows.
+                        return {candidate.id for candidate in rows}
+                    return {
+                        candidate.id
+                        for candidate, decision in decisions
+                        if decision.decision == "matched" or decision.matched_facts
+                    }
+
+                # Discover every eventual match-decision FK, then lock only
+                # those projects in the shared UUID order before need locks.
+                candidates = session.scalars(select(Project)).all()
+                decisions, supported = candidate_decisions(candidates)
+                locked_candidate_ids = decision_project_ids(candidates, decisions, supported)
+                for candidate_id in sorted(locked_candidate_ids, key=str):
+                    lock_project(session, candidate_id)
+                candidates = session.scalars(
+                    select(Project).execution_options(populate_existing=True)
+                ).all()
+                decisions, supported = candidate_decisions(candidates)
+                if not decision_project_ids(candidates, decisions, supported).issubset(
+                    locked_candidate_ids
+                ):
+                    raise RuntimeError("Structured project candidate changed after ordered locks")
                 if len(supported) == 1:
                     project = supported[0][0]
                 else:

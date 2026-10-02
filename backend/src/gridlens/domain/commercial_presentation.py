@@ -28,6 +28,21 @@ _UNCERTAIN_QUANTITY = re.compile(
 _FLOOR_MW = Decimal("0.3")
 
 
+def canonical_mw_claim(value: object) -> object:
+    """Compare exact single power quantities without collapsing bounds or estimates."""
+    if not isinstance(value, str):
+        return value
+    original = value.strip()
+    spelled_unit = re.sub(r"\bmegawatts?\b", "MW", original, flags=re.IGNORECASE)
+    match = _POWER.fullmatch(spelled_unit)
+    if match is None or match["unit"] is None or match["high"] is not None:
+        return original
+    amount = Decimal(match["low"].replace(",", ""))
+    if match["unit"].casefold() == "kw":
+        amount *= Decimal("0.001")
+    return f"{format(amount.normalize(), 'f')} MW"
+
+
 def commercial_size_status(
     required_mw: str | None,
     activity: str,

@@ -308,3 +308,42 @@ context-only and return before the affected branch. No Taylor product code or
 test was changed. The affected project-state, collection-only ingestion, and
 Taylor modules passed 65 tests; Ruff, mypy, and diff check passed. Full gates
 and independent review remain controller-owned.
+
+## R8 fresh support, MW semantics, and bounded project locks
+
+Buying-chain current state now evaluates each aged or superseded role citation
+against independent fresh support of the same type. A stale citation cannot
+make an otherwise current person role UNKNOWN; when the fresh role is later
+withdrawn, the relationship still becomes UNKNOWN. The historical citation
+remains available without granting current authority.
+
+An exact single MW quantity is compared through the domain power parser, so
+`12MW`, `12mw`, and `12 megawatts` agree. Project state retains the original
+claim text and all supporting Evidence IDs. Material snapshots compare the
+semantic MW value, including selected `PowerNeed` spelling changes, while
+ranges, estimates, and other qualifiers remain distinct claims.
+
+Retained-news and structured ingestion now discover match-decision candidate
+IDs before row/advisory locks, acquire the relevant project locks in UUID
+order, refresh candidate facts after waiting, and fail closed if a new FK
+target would need an out-of-order lock. The existing multiple-match branch
+still locks all projects because it writes separate decisions for every
+candidate. PostgreSQL concurrency tests show unrelated project row locks do
+not block either normal path, a candidate changing while the retained worker
+waits is rejected before a late lock, and two legitimate structured targets
+retain the `pg_blocking_pids`/`NOWAIT` ordering proof.
+
+`R8-BEFORE-AFTER.json` records five regression variants failing against exact
+`e485bee` source in an isolated package and 117 affected tests passing after
+repair. Ruff, mypy on 66 source files, and diff check passed. Full repository
+gates and independent review remain controller-owned.
+
+The first R8 full backend run passed 637 tests with one skip, then the brief
+cache-refresh test hit the same sub-millisecond PostgreSQL/Python queue-clock
+fixture race documented in R9/R10. The seven brief tests that request a new
+job for immediate leasing now explicitly mark only that new job due. The
+existing queued-job retry, expired-lease retry, deduplication, and backoff
+behavior retain their original availability. The brief module passed 12
+tests; Ruff and diff check passed. `R13-BRIEF-FIXTURE.json` retains the failed
+full-run count and the controller's fresh clock probe. Full gates must run
+again on the updated exact candidate.
