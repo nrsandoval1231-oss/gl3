@@ -1,6 +1,6 @@
 # PR21 correctness repair
 
-This repair records the retained-news, lifecycle, shadow traversal, lock-order, project-state, and buying-chain corrections made across R1–R3. It preserves immutable Evidence and judge-run history while adding bounded traversal state, ordered project locking, current admitted field provenance, and per-document buying-chain projection. Project-state API output and generated contracts include `unresolved`.
+This repair records the retained-news, lifecycle, shadow traversal, lock-order, project-state, and buying-chain corrections made across R1–R4. It preserves immutable Evidence and judge-run history while adding bounded traversal state, ordered project locking, current admitted field provenance, and per-document buying-chain projection. Project-state API output and generated contracts include `unresolved`.
 
 Research recommendations now require supported nested timing evidence and a buyer-role record with a retained public contact. Publisher RSS remains context-only.
 
@@ -158,3 +158,62 @@ production source was restored before final validation.
 Focused follow-up: `test_project_state_changes.py` — 16 passed, one existing
 deprecation warning, 10.03 seconds; Ruff and mypy passed. Final controller gates
 and audit remain controller-owned.
+
+## R4 CI synchronization repair
+
+The structured-ingestion lock-order regression no longer treats SQLAlchemy's
+`before_cursor_execute` callback as evidence that PostgreSQL is already
+blocking the worker. After that pre-send marker, it polls `pg_blocking_pids`
+with a two-second deadline and short event waits, then retains the original
+higher-project `NOWAIT` assertion. Four consecutive targeted runs passed;
+the full ingestion module passed 28 tests in 14.28 seconds. No production code
+changed.
+
+## R4 retained project-binding repair
+
+Current lifecycle and buying-chain projections now require the accepted
+assessment's explicit current `project_identity_key`. Retained citations are
+also checked through the source-admission policy: official admitted evidence is
+eligible, while context evidence is eligible only when ingestion recorded the
+explicit `supplemental` project match. Missing bindings and unmatched/context
+records cannot become current support; history remains inspectable. Focused
+buying-chain, project-state, and collection-only ingestion tests passed on the
+dedicated builder database.
+
+Retained reassessment discovers affected projects through need links and retained
+lifecycle/buying-chain history before changing the Interpretation. It seeds their
+material state under the existing ordered locks, rebuilds lifecycle support,
+and evaluates material changes in the same transaction. This includes former
+projects with another active need source and historical citations without a
+remaining need link. Citation freshness and historical stale status use the same
+current-project predicate. History and immutable Evidence are retained.
+
+`test_official_same_hash_reassignment_clears_former_project_support_and_keeps_history`
+uses the real deterministic assessor and ingestion function: an older accepted
+interpretation points at A, the current evaluator binds the same immutable
+Evidence to B, and both projects' projections and causal material transitions
+are checked. Replay and later unrelated Evidence remain quiet. `R4-BEFORE.json`
+records the corresponding failures on the exact reviewed `89d4bb8` source.
+`R4-PROVENANCE-BASELINE.json` records a read-only retained-clone check: all 938
+current-hash lifecycle events have explicit matching project bindings, and all
+38 current retained buying-chain citations remain supported by the repaired rule.
+
+The final frozen-candidate results are recorded in `VALIDATION.json`,
+`BROWSER.json`, `PRESERVATION.json`, and `REVIEW.json` under
+`.agent/artifacts/PR21-REPAIR/`. Earlier round results above are historical
+checkpoints, not substitutes for that final acceptance.
+
+The independent R4 audit also identified a historical role-conflict path that
+could reuse a retained citation after reassignment. The regression
+`test_reassigned_retained_role_cannot_conflict_with_current_independent_role`
+reproduces the false UNKNOWN result; the conflict loop now applies the same
+current-project citation predicate while preserving valid independent conflicts.
+`R4-CONFLICT-PROOF.json` records the failure with only those new guards removed
+in an isolated source copy. The buying-chain module passes all 23 tests.
+
+The first R4 full gate exposed an older lifecycle replay fixture that restored
+an accepted assessment without its known project binding. The fixture now
+retains that binding; all replay assertions remain. An unchanged runtime test
+also failed once and passed in isolation and with its full module; its cause was
+not proven and no runtime code or assertion was changed. `R4-GATE-FAILURE.json`
+preserves this failed checkpoint. A new frozen full run is required for acceptance.

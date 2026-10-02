@@ -18,13 +18,23 @@ from gridlens.persistence.models import (
 
 
 def lifecycle_event_supported(
-    event_type: str, evidence: Evidence | None, interpretation: Interpretation | None
+    event_type: str,
+    evidence: Evidence | None,
+    interpretation: Interpretation | None,
+    project: Project,
 ) -> bool:
     """Return whether an event retains valid evidence-bound accepted support."""
     if evidence is None or interpretation is None or not interpretation.assessment:
         return False
     assessment = interpretation.assessment
     if assessment.get("evidence_hash") != evidence.content_hash:
+        return False
+    bound_project = assessment.get("project_identity_key")
+    if (
+        not isinstance(bound_project, str)
+        or not bound_project
+        or bound_project != project.identity_key
+    ):
         return False
     accepted = interpretation.status == "accepted" or (
         interpretation.status in {"failed", "pending"} and assessment.get("decision") == "accepted"
@@ -181,7 +191,7 @@ def _rebuild_projection(session: Session, project: Project) -> None:
             select(Interpretation).where(Interpretation.observation_id == event.observation_id)
         )
         evidence = session.get(Evidence, event.evidence_id)
-        if lifecycle_event_supported(event.event_type, evidence, interpretation):
+        if lifecycle_event_supported(event.event_type, evidence, interpretation, project):
             accepted_events.append(event)
     # Filter to the currently bound accepted version first: an A→B→A correction
     # must reactivate retained A evidence even though B was recorded later.

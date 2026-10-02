@@ -12,7 +12,10 @@ from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from gridlens.domain.buying_chain import ROLE_MAX_AGE_DAYS
-from gridlens.intelligence.buying_chain import _accepted_version, buying_chain_view
+from gridlens.intelligence.buying_chain import (
+    _retained_evidence_current_for_project,
+    buying_chain_view,
+)
 from gridlens.intelligence.lifecycle_service import lifecycle_event_supported
 from gridlens.persistence.models import (
     BuyingChainClaim,
@@ -41,6 +44,7 @@ def lock_project(session: Session, project_id: UUID) -> None:
 
 
 def material_state(session: Session, project_id: UUID, *, now: datetime | None = None) -> dict:
+    project = session.get(Project, project_id)
     needs = session.scalars(
         select(PowerNeed).where(PowerNeed.project_id == project_id).order_by(PowerNeed.activity_key)
     ).all()
@@ -62,7 +66,11 @@ def material_state(session: Session, project_id: UUID, *, now: datetime | None =
             if evidence
             else None
         )
-        if evidence and lifecycle_event_supported(event.event_type, evidence, interpretation):
+        if (
+            evidence
+            and project
+            and lifecycle_event_supported(event.event_type, evidence, interpretation, project)
+        ):
             accepted_events.append(event)
     chain = buying_chain_view(session, project_id, now=now or datetime.now(UTC))
     people = [
@@ -191,16 +199,12 @@ def _freshness_expired_rows(
                 break
             if cited_source.retained_evidence_id:
                 retained = session.get(Evidence, cited_source.retained_evidence_id)
-                interpretation = (
-                    session.scalar(
-                        select(Interpretation).where(
-                            Interpretation.observation_id == retained.observation_id
-                        )
-                    )
-                    if retained
-                    else None
-                )
-                if retained is None or not _accepted_version(interpretation, retained):
+                project = session.get(Project, project_id)
+                if (
+                    retained is None
+                    or project is None
+                    or not _retained_evidence_current_for_project(session, project, retained)
+                ):
                     stale_for_another_reason = True
                     break
             age_basis = cited_source.published_at or cited_source.last_seen_at.date()

@@ -82,7 +82,12 @@ def seed(session):
             observation_id=observation.id,
             content_hash="a",
             status="accepted",
-            assessment={"evidence_hash": "a", "decision": "accepted"},
+            assessment={
+                "evidence_hash": "a",
+                "decision": "accepted",
+                "project_identity_key": "orion",
+                "admission_status": "supplemental",
+            },
         )
     )
     project = Project(
@@ -199,6 +204,125 @@ def test_independent_role_conflict_across_runs_remains_unknown(db):
         assert person["person_project_relationship"] == "UNKNOWN"
         assert person["person_organization_relationship"] == "UNKNOWN"
         assert {e["url"] for e in person["evidence"]} >= {first_url, second_url}
+
+
+def test_reassigned_retained_role_cannot_conflict_with_current_independent_role(db):
+    with db.begin() as session:
+        project = seed(session)
+        retained = session.scalar(select(Evidence))
+        interpretation = session.scalar(select(Interpretation))
+        assert retained is not None and interpretation is not None
+        old_quote = "Alice Smith is Project Director at Acme."
+        current_quote = "Alice Smith is Construction Director at Acme."
+        retained.abstract = old_quote
+        other_project = Project(
+            source_id="test",
+            external_id="reassigned",
+            name="Other project",
+            location="Dallas, TX",
+            identity_key="other-project",
+            identity_facts={},
+        )
+        session.add(other_project)
+        session.flush()
+        old_source = BuyingChainEvidence(
+            project_id=project.id,
+            retained_evidence_id=retained.id,
+            url=retained.url,
+            title=retained.title,
+            excerpt=old_quote,
+            content_hash=retained.content_hash,
+            extraction_location="retained fixture",
+            published_at=retained.published_at,
+            observed_at=NOW,
+            last_seen_at=NOW,
+            project_match_reason="Prior selected project.",
+        )
+        current_url = "https://acme.example/current-team"
+        current_source = BuyingChainEvidence(
+            project_id=project.id,
+            url=current_url,
+            title="Acme team",
+            excerpt=current_quote,
+            content_hash="current-independent-role",
+            extraction_location="public team page",
+            observed_at=NOW,
+            last_seen_at=NOW,
+            project_match_reason="Public company roster.",
+        )
+        session.add_all([old_source, current_source])
+        session.flush()
+
+        def role_claim(title, source, quote, fingerprint):
+            row = BuyingChainClaim(
+                project_id=project.id,
+                entity_key="acme-alice-smith",
+                fingerprint=fingerprint,
+                policy_version="test",
+                organization="Acme",
+                person_name="Alice Smith",
+                title=title,
+                category="general_contractor",
+                organization_relationship="DIRECT",
+                person_organization_relationship="CURRENT",
+                person_project_relationship="ROLE_SUPPORTED",
+                evidence_strength="High",
+                reason="Cited public role.",
+                citations=[{
+                    "evidence_id": str(source.id),
+                    "url": source.url,
+                    "quote": quote,
+                    "supports": "organization_person_role",
+                }],
+                public_contacts=[],
+                observed_at=NOW,
+            )
+            session.add(row)
+            session.flush()
+            return row
+
+        old_claim = role_claim("Project Director", old_source, old_quote, "old-role")
+        current_claim = role_claim(
+            "Construction Director", current_source, current_quote, "current-role"
+        )
+        session.add(
+            BuyingChainRun(
+                project_id=project.id,
+                input_hash="current-role-run",
+                evidence_ids=[str(current_source.id)],
+                claim_ids=[str(current_claim.id)],
+                policy_version="test",
+                status="complete",
+                documents_checked=1,
+                candidates_added=1,
+                unresolved=[],
+            )
+        )
+        session.flush()
+        prior = buying_chain_view(session, project.id, now=NOW)["candidates"]
+        assert len(prior) == 1
+        assert prior[0]["person_organization_relationship"] == "UNKNOWN"
+        assert prior[0]["stale"] is True
+
+        # An accepted evaluator correction rebinds the same immutable version.
+        interpretation.assessment = {
+            **interpretation.assessment,
+            "project_identity_key": other_project.identity_key,
+        }
+        session.flush()
+        view = buying_chain_view(session, project.id, now=NOW)
+        assert [row["id"] for row in view["candidates"]] == [current_claim.id]
+        assert view["candidates"][0]["person_organization_relationship"] == "CURRENT"
+        assert view["candidates"][0]["person_project_relationship"] == "ROLE_SUPPORTED"
+        assert view["candidates"][0]["stale"] is False
+        assert all(
+            quote["id"] != old_source.id for quote in view["candidates"][0]["evidence"]
+        )
+        history = buying_chain_view(session, project.id, history=True)["candidates"]
+        assert {row["id"] for row in history} == {
+            old_claim.id,
+            current_claim.id,
+        }
 
 
 def test_fetch_failure_preserves_accepted_chain_and_records_blocker(db):
@@ -700,6 +824,7 @@ def test_boston_retained_applicant_facts_are_cited_without_creating_buyer(db):
         interpretation.assessment = {
             "evidence_hash": evidence.content_hash,
             "decision": "accepted",
+            "project_identity_key": project.identity_key,
         }
         assert source_row.id in SOURCES
 
@@ -814,7 +939,11 @@ def test_retained_permit_enrichment_without_network_preserves_exact_fields_and_r
         session.add(replacement)
         observation.content_hash = "new-source-version"
         interpretation.status = "accepted"
-        interpretation.assessment = {"decision": "accepted", "evidence_hash": "new-source-version"}
+        interpretation.assessment = {
+            "decision": "accepted",
+            "evidence_hash": "new-source-version",
+            "project_identity_key": project.identity_key,
+        }
         session.flush()
         fresh = enrich_buying_chain(
             session, project.id, fetcher=no_network, now=NOW + timedelta(minutes=3)

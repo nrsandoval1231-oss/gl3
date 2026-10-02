@@ -102,7 +102,12 @@ def seed(session):
                 observation_id=observation.id,
                 content_hash="accepted-v1",
                 status="accepted",
-                assessment={"decision": "accepted", "evidence_hash": "accepted-v1"},
+                assessment={
+                    "decision": "accepted",
+                    "evidence_hash": "accepted-v1",
+                    "project_identity_key": "state-test-orion",
+                    "admission_status": "supplemental",
+                },
             ),
             project,
         ]
@@ -370,6 +375,7 @@ def test_rejected_interpretation_with_supported_withdrawal_remains_current(db):
             "decision": "rejected",
             "evidence_hash": evidence.content_hash,
             "withdrawal_supported": True,
+            "project_identity_key": project.identity_key,
         }
         refresh_lifecycle_projection(session, project)
         projection = session.get(ProjectLifecycle, project.id)
@@ -476,7 +482,11 @@ def test_accepted_utility_revision_replaces_current_date_but_keeps_history(db):
         session.add(replacement)
         interpretation = session.scalar(select(Interpretation))
         interpretation.content_hash = "accepted-v2"
-        interpretation.assessment = {"decision": "accepted", "evidence_hash": "accepted-v2"}
+        interpretation.assessment = {
+            "decision": "accepted",
+            "evidence_hash": "accepted-v2",
+            "project_identity_key": project.identity_key,
+        }
         session.add(
             LifecycleEvent(
                 project_id=project.id,
@@ -752,6 +762,92 @@ def test_accepted_retained_source_withdrawal_keeps_evidence_backed_chain_events(
         assert all(event.buying_chain_evidence_id is None for event in changes)
 
 
+@pytest.mark.parametrize(
+    ("binding", "admission", "supported"),
+    [
+        ("missing", "supplemental", False),
+        ("other", "supplemental", False),
+        ("current", "unmatched", False),
+        ("current", "supplemental", True),
+    ],
+)
+def test_retained_chain_citation_requires_current_project_and_admission(
+    db, binding, admission, supported
+):
+    """A retained claim remains historical when its source is not current support."""
+    with db.begin() as session:
+        project, observation, evidence = seed(session)
+        interpretation = session.scalar(
+            select(Interpretation).where(Interpretation.observation_id == observation.id)
+        )
+        assert interpretation is not None
+        assessment = dict(interpretation.assessment)
+        if binding == "missing":
+            assessment.pop("project_identity_key")
+        elif binding == "other":
+            assessment["project_identity_key"] = "another-project"
+        assessment["admission_status"] = admission
+        interpretation.assessment = assessment
+        quote = "Acme is the general contractor for Orion Data Center in Austin, TX."
+        source = BuyingChainEvidence(
+            project_id=project.id,
+            retained_evidence_id=evidence.id,
+            url=evidence.url,
+            title=evidence.title,
+            excerpt=quote,
+            content_hash=evidence.content_hash,
+            extraction_location="fixture",
+            published_at=evidence.published_at,
+            observed_at=evidence.observed_at,
+            last_seen_at=evidence.observed_at,
+            project_match_reason="Explicit supplemental match.",
+        )
+        session.add(source)
+        session.flush()
+        claim = BuyingChainClaim(
+            project_id=project.id,
+            entity_key="acme",
+            fingerprint="binding-admission-claim",
+            policy_version="test",
+            organization="Acme",
+            person_name=None,
+            title=None,
+            category="general_contractor",
+            organization_relationship="DIRECT",
+            person_organization_relationship="UNKNOWN",
+            person_project_relationship="UNKNOWN",
+            evidence_strength="High",
+            reason="Retained supplemental source.",
+            citations=[{
+                "evidence_id": str(source.id),
+                "url": source.url,
+                "quote": quote,
+                "supports": "organization_category",
+            }],
+            public_contacts=[],
+            observed_at=evidence.observed_at,
+        )
+        session.add(claim)
+        session.flush()
+        session.add(
+            BuyingChainRun(
+                project_id=project.id,
+                input_hash="binding-admission-run",
+                evidence_ids=[str(source.id)],
+                claim_ids=[str(claim.id)],
+                policy_version="test",
+                status="complete",
+                documents_checked=1,
+                candidates_added=1,
+                unresolved=[],
+            )
+        )
+        session.flush()
+        assert bool(buying_chain_view(session, project.id)["candidates"]) is supported
+        historical = buying_chain_view(session, project.id, history=True)["candidates"]
+        assert [row["id"] for row in historical] == [claim.id]
+
+
 def test_multidocument_run_keeps_claim_with_still_current_citation(db):
     with db.begin() as session:
         project, observation_a, evidence_a = seed(session)
@@ -782,7 +878,12 @@ def test_multidocument_run_keeps_claim_with_still_current_citation(db):
                     observation_id=observation_b.id,
                     content_hash="accepted-b",
                     status="accepted",
-                    assessment={"decision": "accepted", "evidence_hash": "accepted-b"},
+                    assessment={
+                        "decision": "accepted",
+                        "evidence_hash": "accepted-b",
+                        "project_identity_key": project.identity_key,
+                        "admission_status": "supplemental",
+                    },
                 ),
             ]
         )

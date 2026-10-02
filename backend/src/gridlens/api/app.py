@@ -637,7 +637,10 @@ def opportunities(tier: str | None = None, search: str | None = None):
             for lifecycle_event, lifecycle_evidence in lifecycle_rows:
                 lifecycle_interpretation = interpretations.get(lifecycle_event.observation_id)
                 if lifecycle_event_supported(
-                    lifecycle_event.event_type, lifecycle_evidence, lifecycle_interpretation
+                    lifecycle_event.event_type,
+                    lifecycle_evidence,
+                    lifecycle_interpretation,
+                    project,
                 ):
                     current_lifecycle_ids.add(lifecycle_event.id)
             taylor_withdrawn = bool(
