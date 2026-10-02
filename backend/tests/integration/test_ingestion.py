@@ -1,10 +1,12 @@
 import hashlib
 import json
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
+from threading import Event
 
 import httpx
 import pytest
-from sqlalchemy import create_engine, func, select
+from sqlalchemy import create_engine, event, func, select, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 
@@ -126,6 +128,173 @@ def test_replay_versions_and_withdrawal_preserve_evidence(db):
         assert session.scalar(select(Observation.published_at)) == datetime(2026, 9, 14).date()
         assert session.scalar(select(PowerNeed.active)) is None
         assert session.scalar(select(Interpretation.status)) == "rejected"
+
+
+def test_linked_negative_correction_locks_project_before_need(db):
+    engine, factory, job_id = db
+    initial = record(
+        "The proposed Mine Plan of Operations would develop the mine, with dewatering "
+        "and ventilation shafts."
+    )
+    run(factory, job_id, initial)
+    with factory.begin() as session:
+        observation = session.scalar(select(Observation))
+        assert observation is not None
+        project = Project(
+            identity_key="legacy-project-identity-differs-from-correction",
+            name="Legacy linked project",
+            location="Silver Ridge, Nevada",
+            source_id=observation.source_id,
+            external_id="legacy-project-id",
+        )
+        session.add(project)
+        session.flush()
+        identity_project = Project(
+            identity_key="federal-register-eis:TEST-0001",
+            name="Correction-key project",
+            location="Unrelated site, Nevada",
+            source_id=observation.source_id,
+            external_id=observation.external_id,
+        )
+        session.add(identity_project)
+        session.flush()
+        need = PowerNeed(
+            project_id=project.id,
+            activity_key="facility-expansion",
+            tier="Signal",
+            rationale="Previously linked supported need.",
+            active=True,
+        )
+        session.add(need)
+        session.flush()
+        session.add(NeedObservation(need_id=need.id, observation_id=observation.id))
+
+    statements = []
+
+    def capture_for_update(_conn, _cursor, statement, _parameters, _context, _many):
+        if "for update" in statement.casefold():
+            statements.append(statement.casefold())
+
+    event.listen(engine, "before_cursor_execute", capture_for_update)
+    try:
+        negative = record("The proposed development was canceled and will not proceed.")
+        run(factory, job_id, negative)
+    finally:
+        event.remove(engine, "before_cursor_execute", capture_for_update)
+    project_lock = next(i for i, sql in enumerate(statements) if "from projects" in sql)
+    need_lock = next(i for i, sql in enumerate(statements) if "from power_needs" in sql)
+    assert project_lock < need_lock, statements
+    with factory() as session:
+        need = session.scalar(select(PowerNeed))
+        assert need is not None and not need.active
+
+
+def test_linked_negative_correction_does_not_hold_need_while_waiting_for_project(db):
+    engine, factory, job_id = db
+    initial = record(
+        "The proposed Mine Plan of Operations would develop the mine, with dewatering "
+        "and ventilation shafts."
+    )
+    run(factory, job_id, initial)
+    with factory.begin() as session:
+        observation = session.scalar(select(Observation))
+        assert observation is not None
+        project = Project(
+            identity_key="legacy-project-identity-differs-from-correction",
+            name="Legacy linked project",
+            location="Silver Ridge, Nevada",
+            source_id=observation.source_id,
+            external_id="legacy-project-id",
+        )
+        session.add(project)
+        session.flush()
+        session.add(
+            Project(
+                identity_key="federal-register-eis:TEST-0001",
+                name="Correction-key project",
+                location="Unrelated site, Nevada",
+                source_id=observation.source_id,
+                external_id=observation.external_id,
+            )
+        )
+        session.flush()
+        need = PowerNeed(
+            project_id=project.id,
+            activity_key="facility-expansion",
+            tier="Signal",
+            rationale="Previously linked supported need.",
+            active=True,
+        )
+        session.add(need)
+        session.flush()
+        session.add(NeedObservation(need_id=need.id, observation_id=observation.id))
+        project_id, need_id = project.id, need.id
+
+    project_lock_attempted = Event()
+    worker_done = Event()
+
+    def observe_wait_point(conn, _cursor, statement, _parameters, _context, _many):
+        if (
+            conn.info.get("linked_negative_worker")
+            and "for update" in statement.casefold()
+            and "from projects" in statement.casefold()
+            and "projects.id" in statement.casefold()
+        ):
+            project_lock_attempted.set()
+
+    event.listen(engine, "before_cursor_execute", observe_wait_point)
+
+    def correction():
+        definition = federal_register_source()
+        client = httpx.Client(
+            transport=httpx.MockTransport(
+                lambda request: httpx.Response(
+                    200,
+                    json=response_for(
+                        record("The proposed development was canceled and will not proceed.")
+                    ),
+                )
+            )
+        )
+        with factory() as session:
+            session.connection().info["linked_negative_worker"] = True
+            try:
+                return process_job(session, job_id, "test", 1, definition, client)
+            finally:
+                worker_done.set()
+
+    try:
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            with factory.begin() as lock_holder:
+                lock_holder.execute(text("SET LOCAL lock_timeout = '1500ms'"))
+                lock_holder.scalar(
+                    select(Project.id).where(Project.id == project_id).with_for_update()
+                )
+                lock_holder.execute(
+                    text("SELECT pg_advisory_xact_lock(hashtextextended(:project_id, 0))"),
+                    {"project_id": str(project_id)},
+                )
+                future = executor.submit(correction)
+                reached_project = project_lock_attempted.wait(2)
+                # The worker is blocked on the project row. It must not already
+                # own the need row, so the lock holder can acquire it and commit.
+                need_available = False
+                if reached_project:
+                    need_available = (
+                        lock_holder.scalar(
+                            select(PowerNeed.id).where(PowerNeed.id == need_id).with_for_update()
+                        )
+                        == need_id
+                    )
+            result = future.result(6)
+            assert worker_done.is_set()
+            assert reached_project and need_available
+            assert result["changed"] == 1
+    finally:
+        event.remove(engine, "before_cursor_execute", observe_wait_point)
+    with factory() as session:
+        need = session.get(PowerNeed, need_id)
+        assert need is not None and not need.active
 
 
 def test_permit_assessment_replay_correction_and_deactivation(db):
@@ -1261,9 +1430,7 @@ def test_houston_sold_event_correction_clears_legacy_publication_date(db, monkey
         assert session.scalar(select(func.count()).select_from(Observation)) == 1
         evidence = list(session.scalars(select(Evidence)))
         assert len(evidence) == 2
-        old = next(
-            item for item in evidence if item.extraction_location == "Old workbook parser"
-        )
+        old = next(item for item in evidence if item.extraction_location == "Old workbook parser")
         current = next(
             item for item in evidence if item.extraction_location.startswith("Official weekly")
         )

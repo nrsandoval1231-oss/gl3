@@ -27,12 +27,19 @@ def recommend_from_context(judgment: dict, state: dict) -> bool:
         for key in ("power_need", "utility_service", "lifecycle", "activity")
         if fields.get(key, {}).get("status") != "SUPPORTED"
     ]
-    timing_known = any(
-        fields.get(key, {}).get("status") == "SUPPORTED"
-        for key in ("utility_service", "power_need")
+    utility = fields.get("utility_service", {})
+    utility_known = utility.get("status") == "SUPPORTED" and bool(utility.get("value"))
+    power_need = fields.get("power_need", {})
+    power_need_rows = power_need.get("value") if power_need.get("status") == "SUPPORTED" else []
+    timing_known = utility_known or any(
+        isinstance(need, dict)
+        and need.get("timing", {}).get("status") == "SUPPORTED"
+        and bool(need.get("timing", {}).get("value"))
+        for need in (power_need_rows or [])
     )
     buyer_accessible = any(
-        any(
+        bool(item.get("public_contacts"))
+        and any(
             keyword in str(item.get(field, "")).lower()
             for field in (
                 "category",
