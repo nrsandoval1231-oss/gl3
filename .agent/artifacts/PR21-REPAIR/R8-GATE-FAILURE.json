@@ -1,0 +1,32 @@
+{
+  "candidate_manifest_sha256": "d56d4329e6d37ef1d03fac15b4a344ef66468cbd3ec999b96598cffd68875413",
+  "failed_check": {
+    "check": "pytest",
+    "command": [
+      "uv",
+      "run",
+      "--extra",
+      "dev",
+      "pytest",
+      "tests",
+      "-q"
+    ],
+    "cwd": "backend",
+    "exit_code": 1,
+    "start": "2026-10-02T23:45:18.028596+00:00",
+    "finish": "2026-10-02T23:46:37.072792+00:00",
+    "seconds": 79.044196,
+    "log_sha256": "84d5af5e6e3853cfa0d8cd90516824617ad7547aa1a00c92d8b645757aa366f6",
+    "tail": [
+      ".venv\\Lib\\site-packages\\fastapi\\testclient.py:1",
+      "  C:\\Users\\nrsan\\Nucleus\\02_Projects\\GridLens\\gl3-pr21-review\\backend\\.venv\\Lib\\site-packages\\fastapi\\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.",
+      "    from starlette.testclient import TestClient as TestClient  # noqa",
+      "",
+      "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html",
+      "=========================== short test summary info ===========================",
+      "FAILED tests/integration/test_power_need_briefs.py::test_a_to_b_to_a_refresh_preserves_current_cache_status",
+      "1 failed, 637 passed, 1 skipped, 1 warning in 77.51s (0:01:17)"
+    ]
+  },
+  "context": "Existing immediate-job lease fixture; same measured Windows database/Python clock boundary as R9-PURSUITS-FIXTURE. Production queue untouched; repair pending."
+}

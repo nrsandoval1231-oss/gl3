@@ -2,12 +2,15 @@ import hashlib
 import importlib.util
 import json
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
+from threading import Event
+from time import monotonic
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, func, select
+from sqlalchemy import create_engine, event, func, select, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 
@@ -793,6 +796,225 @@ def test_second_official_need_claim_emits_conflict_without_selected_value_change
         resolved_count = session.scalar(select(func.count()).select_from(ChangeEvent))
         assert assess_retained_news(session, second_observation, revised_evidence) is False
         assert session.scalar(select(func.count()).select_from(ChangeEvent)) == resolved_count
+
+
+def test_retained_assessment_does_not_wait_on_unrelated_project_lock(db):
+    _, factory, _ = db
+    from gridlens.ingestion.registry import load_registry
+    from gridlens.ingestion.service import assess_retained_news
+    from gridlens.intelligence.change_detection import lock_project
+
+    definition = next(row for row in load_registry() if row["id"] == "austin-building-permits")
+    with factory.begin() as session:
+        session.add(
+            Source(
+                id=definition["id"],
+                publisher=definition["publisher"],
+                endpoint=definition["endpoint"],
+                family=definition["family"],
+                geography="US",
+                industries=[],
+                retrieval_method=definition["retrieval_method"],
+                health={},
+            )
+        )
+        session.flush()
+        unrelated = Project(
+            source_id=definition["id"],
+            external_id="dallas-other",
+            name="Different Dallas Facility",
+            location="Dallas, TX",
+            identity_key="different-dallas-facility",
+            identity_facts={"site": "Dallas, TX"},
+        )
+        session.add(unrelated)
+        record = _project_record(
+            "Atlas Mesa data center construction requires about 42 MW. Power supply for "
+            "Atlas Mesa data center construction is delayed. Site address: "
+            "100 Main Street, Austin, TX."
+        )
+        observation = Observation(
+            source_id=definition["id"],
+            external_id="unrelated-lock-proof",
+            title=record["title"],
+            abstract=record["abstract"],
+            published_at=date.fromisoformat(record["publication_date"]),
+            url=record["html_url"],
+            content_hash=record["source_hash"],
+        )
+        session.add(observation)
+        session.flush()
+        evidence = Evidence(
+            observation_id=observation.id,
+            content_hash=record["source_hash"],
+            title=record["title"],
+            abstract=record["abstract"],
+            url=record["html_url"],
+            published_at=observation.published_at,
+        )
+        session.add_all(
+            [
+                evidence,
+                Interpretation(
+                    observation_id=observation.id,
+                    content_hash=observation.content_hash,
+                    status="pending",
+                    attempts=0,
+                ),
+            ]
+        )
+        session.flush()
+        unrelated_id, observation_id, evidence_id = unrelated.id, observation.id, evidence.id
+
+    def assess():
+        with factory.begin() as session:
+            session.execute(text("SET LOCAL lock_timeout = '700ms'"))
+            return assess_retained_news(
+                session,
+                session.get(Observation, observation_id),
+                session.get(Evidence, evidence_id),
+            )
+
+    with factory.begin() as holder:
+        lock_project(holder, unrelated_id)
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            assert pool.submit(assess).result(timeout=3) is True
+    with factory() as session:
+        assert session.scalar(select(func.count()).select_from(Project)) == 2
+
+
+def test_retained_candidate_fact_change_fails_before_late_project_lock(db):
+    """A project becoming a candidate during a held lock requires a new attempt."""
+    from gridlens.ingestion.registry import load_registry
+    from gridlens.ingestion.service import assess_retained_news
+    from gridlens.intelligence.change_detection import lock_project
+
+    engine, factory, _ = db
+    definition = next(row for row in load_registry() if row["id"] == "austin-building-permits")
+    with factory.begin() as session:
+        session.add(
+            Source(
+                id=definition["id"],
+                publisher=definition["publisher"],
+                endpoint=definition["endpoint"],
+                family=definition["family"],
+                geography="US",
+                industries=[],
+                retrieval_method=definition["retrieval_method"],
+                health={},
+            )
+        )
+        session.flush()
+        target = Project(
+            source_id=definition["id"],
+            external_id="target",
+            name="Atlas Mesa data center",
+            location="100 Main Street, Austin, TX",
+            identity_key="existing-atlas-mesa",
+            identity_facts={"site": "100 Main Street, Austin, TX"},
+        )
+        changing = Project(
+            source_id=definition["id"],
+            external_id="changing",
+            name="Different Dallas Facility",
+            location="Dallas, TX",
+            identity_key="changing-dallas-facility",
+            identity_facts={"site": "Dallas, TX"},
+        )
+        session.add_all([target, changing])
+        record = _project_record(
+            "Atlas Mesa data center construction requires about 42 MW. Power supply for "
+            "Atlas Mesa data center construction is delayed. Site address: "
+            "100 Main Street, Austin, TX."
+        )
+        observation = Observation(
+            source_id=definition["id"],
+            external_id="candidate-fact-change",
+            title=record["title"],
+            abstract=record["abstract"],
+            published_at=date.fromisoformat(record["publication_date"]),
+            url=record["html_url"],
+            content_hash=record["source_hash"],
+        )
+        session.add(observation)
+        session.flush()
+        evidence = Evidence(
+            observation_id=observation.id,
+            content_hash=record["source_hash"],
+            title=record["title"],
+            abstract=record["abstract"],
+            url=record["html_url"],
+            published_at=observation.published_at,
+        )
+        session.add_all(
+            [
+                evidence,
+                Interpretation(
+                    observation_id=observation.id,
+                    content_hash=observation.content_hash,
+                    status="pending",
+                    attempts=0,
+                ),
+            ]
+        )
+        session.flush()
+        target_id, changing_id = target.id, changing.id
+        observation_id, evidence_id = observation.id, evidence.id
+
+    requested_lock, worker_done = Event(), Event()
+    worker_pid = []
+
+    def observe_lock(conn, _cursor, statement, parameters, _context, _many):
+        values = parameters.values() if isinstance(parameters, dict) else parameters or []
+        if (
+            conn.info.get("retained_candidate_worker")
+            and "from projects" in statement.casefold()
+            and "where projects.id" in statement.casefold()
+            and "for update" in statement.casefold()
+            and target_id in values
+        ):
+            worker_pid.append(conn.connection.driver_connection.info.backend_pid)
+            requested_lock.set()
+
+    def assess():
+        with factory.begin() as session:
+            session.connection().info["retained_candidate_worker"] = True
+            try:
+                return assess_retained_news(
+                    session,
+                    session.get(Observation, observation_id),
+                    session.get(Evidence, evidence_id),
+                )
+            finally:
+                worker_done.set()
+
+    event.listen(engine, "before_cursor_execute", observe_lock)
+    try:
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            with factory.begin() as holder:
+                lock_project(holder, target_id)
+                holder_pid = holder.scalar(text("SELECT pg_backend_pid()"))
+                future = pool.submit(assess)
+                assert requested_lock.wait(2)
+                deadline = monotonic() + 2
+                while monotonic() < deadline:
+                    if holder.scalar(
+                        text("SELECT :holder = ANY(pg_blocking_pids(:worker))"),
+                        {"holder": holder_pid, "worker": worker_pid[0]},
+                    ):
+                        break
+                    assert not worker_done.is_set()
+                    worker_done.wait(0.02)
+                else:
+                    pytest.fail("Retained assessment never blocked on its target project")
+                changing_row = holder.get(Project, changing_id)
+                changing_row.name = "Atlas Mesa data center"
+                changing_row.location = "100 Main Street, Austin, TX"
+                changing_row.identity_facts = {"site": "100 Main Street, Austin, TX"}
+            with pytest.raises(RuntimeError, match="changed after ordered locks"):
+                future.result(6)
+    finally:
+        event.remove(engine, "before_cursor_execute", observe_lock)
 
 
 @pytest.mark.parametrize("check_initial_binding", [True, False])

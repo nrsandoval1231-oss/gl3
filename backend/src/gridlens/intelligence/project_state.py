@@ -9,6 +9,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from gridlens.domain.commercial_presentation import canonical_mw_claim
 from gridlens.domain.signal_admission import admitted_from_source
 from gridlens.intelligence.buying_chain import _accepted_version, buying_chain_view
 from gridlens.intelligence.lifecycle_service import lifecycle_event_supported
@@ -49,10 +50,11 @@ def _supported(value: Any, evidence: list[Evidence]) -> dict[str, Any]:
     )
 
 
-def _conflict(values: list[tuple[Any, Evidence]]) -> dict[str, Any]:
+def _conflict(values: list[tuple[Any, Evidence]], *, mw: bool = False) -> dict[str, Any]:
     if not values:
         return _unknown()
-    if all(value == values[0][0] for value, _ in values):
+    key = canonical_mw_claim if mw else lambda value: value
+    if all(key(value) == key(values[0][0]) for value, _ in values):
         return _supported(values[-1][0], list({e.id: e for _, e in values}.values()))
     return {
         "value": None,
@@ -104,15 +106,18 @@ def _accepted_need_evidence(
     return result
 
 
-def _projected_claim(value: Any, claims: list[tuple[Any, Evidence]]) -> dict[str, Any]:
+def _projected_claim(
+    value: Any, claims: list[tuple[Any, Evidence]], *, mw: bool = False
+) -> dict[str, Any]:
     """Show eligible contradictions, but do not attest an unsupported mutable value."""
     if not claims:
         return _unknown()
-    if any(claim != claims[0][0] for claim, _ in claims):
-        return _conflict(claims)
-    if value is None or value == "" or claims[0][0] != value:
+    key = canonical_mw_claim if mw else lambda item: item
+    if any(key(claim) != key(claims[0][0]) for claim, _ in claims):
+        return _conflict(claims, mw=mw)
+    if value is None or value == "" or key(claims[0][0]) != key(value):
         return _unknown()
-    return _conflict(claims)
+    return _conflict(claims, mw=mw)
 
 
 def _need_fields(
@@ -122,7 +127,7 @@ def _need_fields(
     return {
         "activity": _projected_claim(need.activity_key, evidence["activity"]),
         "tier": _projected_claim(need.tier, evidence["tier"]),
-        "mw": _projected_claim(need.required_mw, evidence["mw"]),
+        "mw": _projected_claim(need.required_mw, evidence["mw"], mw=True),
         "timing": _projected_claim(need.start_window, evidence["timing"]),
         "duration": _projected_claim(need.duration, evidence["duration"]),
         "supply": _projected_claim(need.supply, evidence["supply"]),

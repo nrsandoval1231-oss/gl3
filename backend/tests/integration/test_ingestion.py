@@ -1703,18 +1703,18 @@ def test_structured_ingestion_locks_candidates_in_news_compatible_uuid_order(db,
             )
         )
         session.flush()
-        # Insert higher first: the reviewed broad row lock followed physical
-        # order, whereas the repaired path must block on lower first.
-        for project_id, name in ((higher_id, "Higher candidate"), (lower_id, "Lower candidate")):
+        # Both are real identity candidates for this permit. Insert higher
+        # first; the worker must still request the lower project lock first.
+        for project_id in (higher_id, lower_id):
             session.add(
                 Project(
                     id=project_id,
                     identity_key=f"synthetic:{project_id}",
-                    name=name,
+                    name="New synthetic campus",
                     source_id=definition["id"],
                     external_id=str(project_id),
-                    location="Austin, TX",
-                    identity_facts={"site": "Austin, TX"},
+                    location="123 Main Street, Austin, TX",
+                    identity_facts={"site": "123 Main Street, Austin, TX"},
                 )
             )
         session.flush()
@@ -1806,8 +1806,107 @@ def test_structured_ingestion_locks_candidates_in_news_compatible_uuid_order(db,
                 )
             result = future.result(6)
             assert worker_done.is_set() and result["signals"] == 1
+        with factory() as session:
+            candidate_ids = set(
+                session.scalars(
+                    select(ProjectMatchDecision.candidate_project_id).where(
+                        ProjectMatchDecision.candidate_project_id.in_((lower_id, higher_id))
+                    )
+                ).all()
+            )
+            assert candidate_ids == {lower_id, higher_id}
     finally:
         event.remove(engine, "before_cursor_execute", observe_lock)
+
+
+def test_structured_ingestion_does_not_wait_on_unrelated_project_lock(db, monkeypatch):
+    _, factory, _ = db
+    import gridlens.ingestion.service as service
+    from gridlens.intelligence.change_detection import lock_project
+
+    definition = next(
+        source for source in load_registry() if source["id"] == "austin-building-permits"
+    )
+    with factory.begin() as session:
+        session.add(
+            Source(
+                id=definition["id"],
+                publisher=definition["publisher"],
+                endpoint=definition["endpoint"],
+                family=definition["family"],
+                geography=definition["geography"],
+                industries=[],
+                retrieval_method=definition["retrieval_method"],
+                health={},
+            )
+        )
+        session.flush()
+        unrelated = Project(
+            identity_key="unrelated-dallas-project",
+            name="Different Dallas Facility",
+            source_id=definition["id"],
+            external_id="unrelated-dallas",
+            location="Dallas, TX",
+            identity_facts={"site": "Dallas, TX"},
+        )
+        relevant = Project(
+            identity_key="relevant-austin-project",
+            name="New synthetic campus",
+            source_id=definition["id"],
+            external_id="relevant-austin",
+            location="123 Main Street, Austin, TX",
+            identity_facts={"site": "123 Main Street, Austin, TX"},
+        )
+        session.add_all([unrelated, relevant])
+        job = Job(
+            source_id=definition["id"],
+            status="running",
+            lease_owner="test",
+            fence=1,
+            lease_until=datetime.now(UTC) + timedelta(minutes=10),
+        )
+        session.add(job)
+        session.flush()
+        unrelated_id, relevant_id, job_id = unrelated.id, relevant.id, job.id
+    permit = {
+        "document_number": "UNRELATED-LOCK-1",
+        "title": "Synthetic construction permit",
+        "abstract": "Construction of a new data center at 123 Main Street, Austin, TX.",
+        "publication_date": "2026-09-20",
+        "event_date": "2026-09-20",
+        "html_url": "https://example.test/permit/unrelated-lock-1",
+        "permit": {
+            "row_id": "UNRELATED-LOCK-1",
+            "description": "Construction of a new data center.",
+            "status": "Active",
+            "address": "123 Main Street",
+            "city": "Austin",
+            "state": "TX",
+            "project": "New synthetic campus",
+            "source_fields": {},
+        },
+    }
+    monkeypatch.setattr(service, "retrieve_source", lambda *_args: [permit])
+    actual_lock_project = service.lock_project
+    requested_project_ids = []
+
+    def only_relevant_project_locks(session, project_id):
+        requested_project_ids.append(project_id)
+        assert project_id != unrelated_id, "Unrelated project was locked during structured ingest"
+        return actual_lock_project(session, project_id)
+
+    monkeypatch.setattr(service, "lock_project", only_relevant_project_locks)
+
+    def process():
+        with factory() as session:
+            session.execute(text("SET LOCAL lock_timeout = '700ms'"))
+            return process_job(session, job_id, "test", 1, definition)
+
+    with factory.begin() as holder:
+        lock_project(holder, unrelated_id)
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            assert pool.submit(process).result(timeout=3)["signals"] == 1
+    assert relevant_id in requested_project_ids
 
 
 def test_rrc_amendment_rollover_history_no_duplicate_asset_or_inferred_production(db, monkeypatch):

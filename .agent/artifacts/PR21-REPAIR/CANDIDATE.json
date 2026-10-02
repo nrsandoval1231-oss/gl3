@@ -1,12 +1,12 @@
 {
   "base_sha": "da1f2bdb3c207e97e8a861392ba6df189dfe32a2",
-  "prior_reviewed_head": "cf0662eb7b19e9ec17c3fcc510c00f402d72fca7",
-  "recorded_utc": "2026-10-02T23:03:35.397284+00:00",
+  "prior_reviewed_head": "e485beea8f68934314cf4240394473c3797362db",
+  "recorded_utc": "2026-10-02T23:50:16.847789+00:00",
   "files": [
     {
       "path": ".agent/packets/PR21-REPAIR.md",
-      "sha256": "e6bf93e1e0802bdca35e63b75af8c3c12a09674959faafdfaa79eac69cc4ca5c",
-      "git_blob": "5e6019706f4b83473833fec04121c392efbfccc4"
+      "sha256": "fc29e361ab3d649b56e99a0337ce2e89ce6f521ea7bd4d9eb7fc3bdf13253a79",
+      "git_blob": "0d7dafd390396130e4bb689d0f3bffb9dea8f687"
     },
     {
       "path": "backend/migrations/versions/0013_evidence_judge_scan_checkpoint.py",
@@ -19,19 +19,24 @@
       "git_blob": "8c52239b89d18485c37323b02c0504529729dc11"
     },
     {
+      "path": "backend/src/gridlens/domain/commercial_presentation.py",
+      "sha256": "d98679adf4a5f748a184481971e03d6c3603a7eff1f0d4525f43f449c519bf60",
+      "git_blob": "c19b849c0103c0255b35c92b7b9f371ad9ac83f5"
+    },
+    {
       "path": "backend/src/gridlens/ingestion/service.py",
-      "sha256": "dec282cc5fd39ee69d8ecdf4ef9593c78a5aa80e651c78e39f83d3d505a21195",
-      "git_blob": "9761bc7cb4f0fa0ad73cff6175897e8a1e43a73f"
+      "sha256": "30c6abba339cfa3c3714b9a27e43962687ad65700cf688a6965cc3adfaa95b76",
+      "git_blob": "3e7442fd871f05752d44fa52d21069fc69f4e32d"
     },
     {
       "path": "backend/src/gridlens/intelligence/buying_chain.py",
-      "sha256": "17ba02529763e90acf809aecc6d9e07e8d25db4bd530e2a17ab550b2924b83d1",
-      "git_blob": "11764f606894e01d7591d2cdc68734da90286e46"
+      "sha256": "f35290c36c852620a3fa8e7f0c3ed6b6501c7b6df7634f5f7c40b510909d2be2",
+      "git_blob": "cf784a0d6f64368d0aeccd184c6ddda52d8aa208"
     },
     {
       "path": "backend/src/gridlens/intelligence/change_detection.py",
-      "sha256": "09a5908f3dbed02f1c07b1f613e56c73e61bf7a2fb291a093956c32b96a40bc9",
-      "git_blob": "6c950e5c48768756fbd9d70d50aa6f8da71236d1"
+      "sha256": "d942a2e60b8782249ad0eea19dfabcedc4bde10ff5928f5aeadf09046a86a973",
+      "git_blob": "6020ae4aaabcd36f5a968771780ddbf284dfddfa"
     },
     {
       "path": "backend/src/gridlens/intelligence/evidence_shadow.py",
@@ -45,8 +50,8 @@
     },
     {
       "path": "backend/src/gridlens/intelligence/project_state.py",
-      "sha256": "c6b4ba4db60b1e1140cedac37c98d0e392e880081d54fdd1b43656b1288cb8f8",
-      "git_blob": "97ce249e5ae133e5fae8a26104d5fbe392a04ed7"
+      "sha256": "cc5751925f79da3bf55361720ded333475ed690668cd79e242b4984714c9e226",
+      "git_blob": "cb9863deeb10618df5f02251b14ceb624c9b6b9c"
     },
     {
       "path": "backend/src/gridlens/intelligence/research_recommendation.py",
@@ -60,13 +65,13 @@
     },
     {
       "path": "backend/tests/integration/test_buying_chain.py",
-      "sha256": "b2e9cbb4ede78c81e2cbf26089b6ce71d21741f7dc1cac74addbb945897aef4b",
-      "git_blob": "a778f7e75e42a2d31257ea517663f6190f047f4f"
+      "sha256": "a63fcb44277e3c4f79f5092588378d7549217d3ad9eaa4c4db08d3164fe24a6f",
+      "git_blob": "740fb1402f0683356ee2dff53dcee5e3f9e88158"
     },
     {
       "path": "backend/tests/integration/test_collection_only_ingestion.py",
-      "sha256": "cc06bf2b7f446f4e122f9677ee3fbf059e233a6946ee0107c292e06cc127a8ba",
-      "git_blob": "9a053b519e3efba96345c4a816cb23fe5504d64b"
+      "sha256": "ff2a420cd61bf57b386650abe7425a2db5d79e99851cc6037931cd2c44c9bb39",
+      "git_blob": "1bb9ba3d4fdd750f011f743196eebf68e46eebb6"
     },
     {
       "path": "backend/tests/integration/test_evidence_shadow_storage.py",
@@ -75,8 +80,8 @@
     },
     {
       "path": "backend/tests/integration/test_ingestion.py",
-      "sha256": "926226b040acec3fb98d96dde30ebe7d0feda890c235111e9e14a4ffb2f9c15c",
-      "git_blob": "a2079e0f52e9948e8c529d32e534203540b251c8"
+      "sha256": "f3b0b030265fd7a2e5a086806125923af4c41faa1f686f544e4b11b75f67da3b",
+      "git_blob": "460f87b218c32a9826a1da6b5ca091070b61578f"
     },
     {
       "path": "backend/tests/integration/test_jobs.py",
@@ -84,9 +89,14 @@
       "git_blob": "09f55de4f9b7629427dcaf90f0326c4249a1e927"
     },
     {
+      "path": "backend/tests/integration/test_power_need_briefs.py",
+      "sha256": "f2f011788154f57a50a1dcdd19317bbb7553f33ca233e6e5ad0b92811270fed8",
+      "git_blob": "4a60e87233613488850b3b5a0fe1e97d54e6adf4"
+    },
+    {
       "path": "backend/tests/integration/test_project_state_changes.py",
-      "sha256": "1558144930111a76de2172e4e32382ac90f353606c6100488108352d6a8821f1",
-      "git_blob": "6ac451a14c3e80b5f784b6fada658ec675fa0689"
+      "sha256": "d1bbe8cd8d21ad97e9f52a28311e6f3853fad04f7909521835d4290947dda14c",
+      "git_blob": "e17d01c71f28c45a7466b47f4e04a023a2b7701c"
     },
     {
       "path": "backend/tests/integration/test_pursuits.py",
@@ -105,8 +115,8 @@
     },
     {
       "path": "docs/validation/PR21-CORRECTNESS-REPAIR.md",
-      "sha256": "05c51e854505727a97c362af2e2f79c4a3bb25a7553b8bf6f896622f9024cd67",
-      "git_blob": "2175a392cd53d0741146f63ab351e2c4268242c0"
+      "sha256": "23c7bb70ff2434aba128677a4674d722a69e1ccb1341da284ec64179ce84b973",
+      "git_blob": "d376dffcbf7ab8fe2436700427d8ba8862835ca2"
     },
     {
       "path": "web/src/api/generated.ts",

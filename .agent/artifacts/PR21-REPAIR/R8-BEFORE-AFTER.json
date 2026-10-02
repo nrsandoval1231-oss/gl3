@@ -1,0 +1,17 @@
+{
+  "node": "R8",
+  "base_sha": "e485beea8f68934314cf4240394473c3797362db",
+  "source_proof": "Exact base versions of service.py, buying_chain.py, project_state.py, change_detection.py, and commercial_presentation.py were copied by git show into an isolated temporary package. A separate pytest.ini prevented the backend pythonpath setting from replacing that package. No shared source was replaced.",
+  "before_command": "backend/.venv/Scripts/python.exe -m pytest -c <isolated-temp>/pytest.ini backend/tests/integration/test_buying_chain.py backend/tests/integration/test_project_state_changes.py backend/tests/integration/test_collection_only_ingestion.py backend/tests/integration/test_ingestion.py -q -k 'fresh_independent_role_citation_survives_invalid_old_role or equivalent_mw_spellings_are_supported_without_material_churn or retained_assessment_does_not_wait_on_unrelated_project_lock or structured_ingestion_does_not_wait_on_unrelated_project_lock'",
+  "before_result": "Exit 1: 5 failed, 112 deselected in 3.26s. Aged and superseded role variants returned UNKNOWN instead of CURRENT; the sole equivalent MW claim returned UNKNOWN instead of SUPPORTED; retained assessment timed out locking an unrelated Project; structured ingestion called lock_project on an unrelated Project.",
+  "after_command": "backend/.venv/Scripts/python.exe -m pytest backend/tests/integration/test_buying_chain.py backend/tests/integration/test_project_state_changes.py backend/tests/integration/test_collection_only_ingestion.py backend/tests/integration/test_ingestion.py -q",
+  "after_result": "Exit 0: 117 passed, 1 existing StarletteDeprecationWarning in 31.01s.",
+  "other_validation": "Ruff on nine touched source/test files: exit 0. mypy backend/src/gridlens: exit 0, 66 files. git diff --check: exit 0.",
+  "regression_controls": "Genuine aged/superseded role withdrawal stays UNKNOWN; MW ranges and qualifiers remain distinct; raw MW claim text and Evidence IDs remain visible; retained candidate fact changes while waiting on a legitimate row lock fail closed after refreshed post-lock discovery; the structured UUID-order test keeps actual pg_blocking_pids and NOWAIT proof with two decision-referenced candidates.",
+  "scope_limit": "The multiple-supported-candidate branch still locks every project because its existing behavior writes a separate match decision for every candidate. There is no migration, new queue, or expanded admission authority.",
+  "started_at_utc": "UNKNOWN",
+  "finished_at_utc": "2026-10-02T23:45:33Z",
+  "durations_and_tokens": "UNKNOWN",
+  "repair_count": 1,
+  "independent_review": "Controller-owned; this builder does not grade the candidate."
+}

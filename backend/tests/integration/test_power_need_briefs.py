@@ -303,7 +303,7 @@ def test_provider_failure_retains_last_good_brief_without_blind_retry(runtime, m
         )
         session.add(row)
     with factory.begin() as session:
-        requested = service.request_brief(session, need_id)
+        requested = _request_due_brief(session, service, need_id)
         job_id = requested["job_id"]
     from gridlens.jobs.queue import lease_one
 
@@ -328,7 +328,7 @@ def test_provider_failure_retains_last_good_brief_without_blind_retry(runtime, m
 def test_rejected_provider_output_keeps_usage_and_safe_reason(runtime, monkeypatch):
     factory, service, (need_id, _evidence_id) = runtime
     with factory.begin() as session:
-        requested = service.request_brief(session, need_id)
+        requested = _request_due_brief(session, service, need_id)
     leased = _lease(factory, UUID(requested["job_id"]))
     assert leased
     job, fence = leased
@@ -358,6 +358,15 @@ def _valid_model_result(_payload, facts):
     return {"selected_fact_ids": [fact_id], "hypothesis_fact_id": fact_id}, 120, 40
 
 
+def _request_due_brief(session, service, need_id):
+    """A new immediate-lease fixture is due despite sub-ms DB/Python clock skew."""
+    requested = service.request_brief(session, need_id)
+    job = session.get(Job, UUID(requested["job_id"]))
+    assert job is not None and job.status == "queued" and job.attempts == 0
+    job.available_at = datetime.now(UTC) - timedelta(seconds=1)
+    return requested
+
+
 def _lease(factory, job_id):
     from gridlens.jobs.queue import lease_one
 
@@ -369,7 +378,7 @@ def test_budget_reservation_and_expired_reserved_job_never_call_provider(runtime
     factory, service, (need_id, _evidence_id) = runtime
     monkeypatch.setattr(settings, "briefs_daily_request_limit", 1)
     with factory.begin() as session:
-        queued = service.request_brief(session, need_id)
+        queued = _request_due_brief(session, service, need_id)
         today = datetime.now(UTC).astimezone(ZoneInfo("America/Chicago")).date()
         session.add(BriefDailyBudget(day=today, reserved_requests=1))
     leased = _lease(factory, UUID(queued["job_id"]))
@@ -428,7 +437,7 @@ def test_input_changes_fence_worker_and_last_good_version_history(runtime, monke
         )
         session.add(row)
     with factory.begin() as session:
-        queued = service.request_brief(session, need_id)
+        queued = _request_due_brief(session, service, need_id)
     leased = _lease(factory, UUID(queued["job_id"]))
     assert leased
     job, fence = leased
@@ -453,7 +462,7 @@ def test_non_permit_application_uses_source_neutral_unknown(runtime, monkeypatch
         observation = session.scalar(select(Observation))
         observation.title = "Massachusetts cultivation application for Synthetic North Campus"
         observation.abstract = "Cultivation application at Synthetic North Campus in Test City."
-        queued = service.request_brief(session, need_id)
+        queued = _request_due_brief(session, service, need_id)
     leased = _lease(factory, UUID(queued["job_id"]))
     assert leased
     job, fence = leased
@@ -498,7 +507,7 @@ def test_a_to_b_to_a_refresh_preserves_current_cache_status(runtime, monkeypatch
         )
         session.get(PowerNeed, need_id).start_window = "Input B"
     with factory.begin() as session:
-        queued = service.request_brief(session, need_id)
+        queued = _request_due_brief(session, service, need_id)
     leased = _lease(factory, UUID(queued["job_id"]))
     assert leased
     job, fence = leased
@@ -543,7 +552,7 @@ def test_successful_replacement_archives_old_policy_model_and_schema(runtime, mo
         )
         session.add(row)
     with factory.begin() as session:
-        queued = service.request_brief(session, need_id)
+        queued = _request_due_brief(session, service, need_id)
     leased = _lease(factory, UUID(queued["job_id"]))
     assert leased
     job, fence = leased

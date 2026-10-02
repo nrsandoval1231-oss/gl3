@@ -412,6 +412,81 @@ def test_equivalent_numeric_claims_share_support_without_false_conflict(db):
         assert {row["id"] for row in projected["evidence"]} == {str(first.id), str(second.id)}
 
 
+def test_equivalent_mw_spellings_are_supported_without_material_churn(db):
+    with db.begin() as session:
+        project, _, unrelated = seed(session)
+        need = PowerNeed(
+            project_id=project.id,
+            activity_key="construction",
+            tier="Prospect",
+            rationale="fixture",
+            required_mw="12MW",
+            supply="Reported constraint",
+            active=True,
+        )
+        session.add(need)
+        session.flush()
+        first, _, _ = linked_official_need_evidence(
+            session, project, need, key="mw-first", demand_mw="12MW"
+        )
+        need.required_mw = "12 megawatts"
+        sole_mw = project_state(session, project.id)["state"]["power_need"]["value"][0]["mw"]
+        assert sole_mw["status"] == "SUPPORTED"
+        assert [row["id"] for row in sole_mw["evidence"]] == [str(first.id)]
+        need.required_mw = "12MW"
+        baseline = seed_material_state(session, project)
+        second, _, _ = linked_official_need_evidence(
+            session, project, need, key="mw-spelling", demand_mw="12 megawatts"
+        )
+        mw = project_state(session, project.id)["state"]["power_need"]["value"][0]["mw"]
+        assert mw["status"] == "SUPPORTED"
+        assert {row["id"] for row in mw["evidence"]} == {str(first.id), str(second.id)}
+        assert record_material_diff(session, project, second, baseline) == []
+        need.required_mw = "12mw"
+        assert record_material_diff(session, project, second, baseline) == []
+        assert baseline.state == material_state(session, project.id)
+
+        third, _, _ = linked_official_need_evidence(
+            session, project, need, key="mw-real-change", demand_mw="13 MW"
+        )
+        mw = project_state(session, project.id)["state"]["power_need"]["value"][0]["mw"]
+        assert mw["status"] == "CONFLICT"
+        assert {claim["value"] for claim in mw["claims"]} == {
+            "12MW", "12 megawatts", "13 MW"
+        }
+        changed = record_material_diff(session, project, third, baseline)
+        assert len(changed) == 1 and changed[0].evidence_id == third.id
+        assert changed[0].new_state["value"][0]["conflicts"]["mw"] == ["12 MW", "13 MW"]
+        assert record_material_diff(session, project, unrelated, baseline) == []
+
+
+def test_mw_range_and_qualifier_do_not_collapse_to_exact_claim(db):
+    with db.begin() as session:
+        project, _, _ = seed(session)
+        need = PowerNeed(
+            project_id=project.id,
+            activity_key="construction",
+            tier="Prospect",
+            rationale="fixture",
+            required_mw="up to 12 MW",
+            supply="Reported constraint",
+            active=True,
+        )
+        session.add(need)
+        session.flush()
+        linked_official_need_evidence(
+            session, project, need, key="mw-upper-bound", demand_mw="up to 12 MW"
+        )
+        linked_official_need_evidence(
+            session, project, need, key="mw-exact", demand_mw="12 MW"
+        )
+        fields = project_state(session, project.id)["state"]["power_need"]["value"][0]
+        assert fields["mw"]["status"] == "CONFLICT"
+        assert material_state(session, project.id)["power_need"][0]["conflicts"]["mw"] == [
+            "12 MW", "up to 12 MW"
+        ]
+
+
 @pytest.mark.parametrize("selected_changes", [False, True])
 def test_need_conflict_is_material_with_causal_evidence_and_quiet_replay(db, selected_changes):
     with db.begin() as session:

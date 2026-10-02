@@ -81,5 +81,34 @@
     ".agent/artifacts/PR21-REPAIR/R7-BEFORE-AFTER.json",
     "docs/validation/PR21-CORRECTNESS-REPAIR.md",
     ".agent/artifacts/PR21-REPAIR/COMPLETION.json"
+  ],
+  "r8_base_sha": "e485beea8f68934314cf4240394473c3797362db",
+  "r8_handoff": "Per-citation aged/superseded role support, exact MW semantic comparison, and bounded UUID-ordered retained/structured project candidate locks. Five exact-head regression variants failed in isolated source; four affected modules now pass 117 tests. Ruff, mypy (66 files), and diff check pass. Ambiguous multiple-supported candidates retain all-project locks because existing decisions reference every candidate. Full gates and independent review are controller-owned.",
+  "r8_repair_count": 1,
+  "r8_started_at_utc": "UNKNOWN",
+  "r8_finished_at_utc": "2026-10-02T23:45:33Z",
+  "r8_durations_and_tokens": "UNKNOWN",
+  "r8_files": [
+    "backend/src/gridlens/domain/commercial_presentation.py",
+    "backend/src/gridlens/intelligence/project_state.py",
+    "backend/src/gridlens/intelligence/change_detection.py",
+    "backend/src/gridlens/intelligence/buying_chain.py",
+    "backend/src/gridlens/ingestion/service.py",
+    "backend/tests/integration/test_buying_chain.py",
+    "backend/tests/integration/test_project_state_changes.py",
+    "backend/tests/integration/test_collection_only_ingestion.py",
+    "backend/tests/integration/test_ingestion.py",
+    ".agent/packets/PR21-REPAIR.md",
+    ".agent/artifacts/PR21-REPAIR/R8-BEFORE-AFTER.json",
+    "docs/validation/PR21-CORRECTNESS-REPAIR.md",
+    ".agent/artifacts/PR21-REPAIR/COMPLETION.json"
+  ],
+  "r13_brief_fixture_followup": "First R8 full pytest: 637 passed, 1 skipped, 1 failed because a newly queued brief job was not yet due across PostgreSQL/Python clocks. Seven fresh immediate-lease brief fixtures explicitly set only their new jobs due; existing queued/running retries and production queue behavior remain unchanged. Focused brief module: 12 passed; Ruff and diff check pass. See R13-BRIEF-FIXTURE.json. Controller must rerun full gates and independent review on the updated candidate.",
+  "r13_brief_fixture_finished_at_utc": "2026-10-02T23:48:53Z",
+  "r13_brief_fixture_files": [
+    "backend/tests/integration/test_power_need_briefs.py",
+    "docs/validation/PR21-CORRECTNESS-REPAIR.md",
+    ".agent/artifacts/PR21-REPAIR/R13-BRIEF-FIXTURE.json",
+    ".agent/artifacts/PR21-REPAIR/COMPLETION.json"
   ]
 }
