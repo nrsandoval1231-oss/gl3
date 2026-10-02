@@ -1,0 +1,7 @@
+src\gridlens\ingestion\adapters\rrc_flare_exceptions.py:117: error: Argument 1 to "int" has incompatible type "str | AttributeValueList | None"; expected "str | Buffer | SupportsInt | SupportsIndex | SupportsTrunc"  [arg-type]
+src\gridlens\ingestion\adapters\rrc_flare_exceptions.py:293: error: Item "None" of "Tag | None" has no attribute "get"  [union-attr]
+src\gridlens\ingestion\adapters\rrc_flare_exceptions.py:315: error: Argument 3 to "_post" has incompatible type "dict[str | AttributeValueList | None, str | AttributeValueList | None]"; expected "dict[str, str]"  [arg-type]
+src\gridlens\ingestion\adapters\rrc_flare_exceptions.py:337: error: Item "AttributeValueList" of "str | AttributeValueList | None" has no attribute "startswith"  [union-attr]
+src\gridlens\ingestion\adapters\rrc_flare_exceptions.py:337: error: Item "None" of "str | AttributeValueList | None" has no attribute "startswith"  [union-attr]
+src\gridlens\ingestion\adapters\rrc_flare_exceptions.py:358: error: Argument 3 to "_post" has incompatible type "dict[str | AttributeValueList | None, str | AttributeValueList | None]"; expected "dict[str, str]"  [arg-type]
+Found 6 errors in 1 file (checked 59 source files)

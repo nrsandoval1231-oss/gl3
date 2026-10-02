@@ -36,6 +36,7 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
             },
             "boston-ckan-permits": {"data.boston.gov"},
             "rrc-drilling-permits": {"mft.rrc.texas.gov"},
+            "rrc-flare-exceptions": {"webapps.rrc.state.tx.us"},
             "houston-weekly-permits": {"www.houstonpermittingcenter.org"},
             "dallas-monthly-permits": {"dallascityhall.com"},
             "el-paso-new-commercial-permits": {"gis.elpasotexas.gov"},
@@ -51,6 +52,7 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
         query = source.get("query", {})
         valid_window = source["retrieval_method"] in {
             "rrc-drilling-permits",
+            "rrc-flare-exceptions",
             "houston-weekly-permits",
             "dallas-monthly-permits",
             "el-paso-new-commercial-permits",
@@ -102,6 +104,23 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
                 and query.get("max_snapshot_bytes") == 10_000_000
                 and query.get("max_roots_per_snapshot") == 5000
                 and query.get("previous_month_overlap") is True
+            )
+        elif source["retrieval_method"] == "rrc-flare-exceptions":
+            bounded = (
+                source.get("id") == "texas-rrc-flare-vent-exceptions"
+                and source.get("family") == "oil-gas-regulatory-applications"
+                and source.get("geography") == "Texas"
+                and source.get("cadence_hours") == 24
+                and query.get("window_days") == 3
+                and query.get("rows_per_page") == 10
+                and query.get("max_pages") == 50
+                and query.get("max_records") == 500
+                and query.get("max_response_bytes") == 2_000_000
+                and query.get("max_run_bytes") == 20_000_000
+                and urlparse(source["endpoint"]).scheme == "https"
+                and urlparse(source["endpoint"]).hostname == "webapps.rrc.state.tx.us"
+                and urlparse(source["endpoint"]).path == "/swr32/publicquery.xhtml"
+                and not urlparse(source["endpoint"]).query
             )
         elif source["retrieval_method"] == "houston-weekly-permits":
             bounded = source.get("cadence_hours") == 24 and query.get("max_reports") == 4

@@ -1,0 +1,47 @@
+{
+  "status": "discovery only; not enabled coverage",
+  "priority": "California statewide, data-center construction then commissioning then oil and gas",
+  "routes": [
+    {
+      "url": "https://www.conservation.ca.gov/calgem/Online_Data",
+      "title": "Online Data Tools - California Department of Conservation - CA.gov"
+    },
+    {
+      "url": "https://www.conservation.ca.gov/calgem/Pages/WellFinder.aspx",
+      "title": "Well Finder - California Department of Conservation - CA.gov"
+    },
+    {
+      "url": "https://www.conservation.ca.gov/calgem",
+      "title": "Geologic Energy Management Division"
+    },
+    {
+      "url": "https://www.conservation.ca.gov/calgem/faqs",
+      "title": "Frequently Asked Questions"
+    },
+    {
+      "url": "https://lab.data.ca.gov/datasets?q=CalGEM&tag=CalGEM",
+      "title": "Datasets - Open Data - CA.gov"
+    },
+    {
+      "url": "https://www.energy.ca.gov/powerplant/backup-generating-system/northtown-backup-generating-facility",
+      "title": "NorthTown Backup Generating Facility - California Energy Commission"
+    },
+    {
+      "url": "https://www.energy.ca.gov/programs-and-topics/topics/data-centers",
+      "title": "Data Centers - California Energy Commission - CA.gov"
+    },
+    {
+      "url": "https://www.energy.ca.gov/powerplant/backup-generating-system/san-jose-data-center-04",
+      "title": "San Jos\u00c3\u00a9 Data Center 04 - California Energy Commission - CA.gov"
+    },
+    {
+      "url": "https://www.energy.ca.gov/powerplant/backup-generating-system/mclaren-backup-generating-facility",
+      "title": "McLaren Backup Generating Facility | California Energy Commission"
+    },
+    {
+      "url": "https://www.sanjoseca.gov/your-government/departments-offices/planning-building-code-enforcement/planning-division/data-center-and-other-large-energy-use-projects",
+      "title": "Data Center and other Large Energy-Use Projects | City of San ..."
+    }
+  ],
+  "limits": "CEC backup capacity is not temporary activity load. Public agency project managers are not project buyers. CalGEM well permits are not automatically flare authorizations."
+}

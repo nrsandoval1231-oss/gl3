@@ -1,0 +1,46 @@
+
+> gridlens-web@0.1.0 test
+> playwright test --reporter=line --grep-invert live air documents|live data-center permit enrichment|real pursuits retain evidence gates|real conflicts, bounded refresh
+
+
+Running 18 tests using 5 workers
+
+(node:44728) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:46524) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:6264) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:33612) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:17728) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1/18] tests\project_cards.spec.ts:53:1 › stable project IDs consolidate lifecycle records and decision filters default uncertain records to REVIEW
+[2/18] tests\first_path.spec.ts:36:1 › authenticated desktop browse, detail, back, and search use a live Signal
+[3/18] tests\briefs.spec.ts:3:1 › detail explicitly requests a brief, polls pending state, and resolves source links
+[4/18] tests\buying_chain.spec.ts:45:1 › buying chain exposes three separate relationships and retains evidence after enrichment failure
+[5/18] tests\project_cards.spec.ts:68:1 › Cannabis Watch is removed and an evidence-supported applicant titles the card and detail
+[6/18] tests\verticals.spec.ts:19:1 › source-sector groups preserve the oil and gas URL alias and send canonical filter values
+[7/18] tests\verticals.spec.ts:42:1 › source filters list authenticated health sources and send their actual source IDs
+[8/18] tests\project_cards.spec.ts:101:1 › project title prefers a current owner over operator, applicant, and contractor claims
+[9/18] tests\project_cards.spec.ts:110:1 › city permit company title shows source role and does not infer ownership
+[10/18] tests\project_cards.spec.ts:123:1 › city permit organization labels preserve the source role and role uncertainty
+[11/18] tests\project_cards.spec.ts:136:1 › grouped permit members use company-first titles while retaining each permit record
+[12/18] tests\buying_chain.spec.ts:68:1 › navigation ignores a late enrichment result and limits repeated requests
+[13/18] tests\verticals.spec.ts:69:1 › All Signals labels cards and every member of a mixed decision group
+[14/18] tests\project_cards.spec.ts:170:1 › Signals default to All and keep SHOW, REVIEW, and HOLD selectable
+[15/18] tests\buying_chain.spec.ts:94:1 › mobile buying chain keeps unknown and empty results readable
+[16/18] tests\project_cards.spec.ts:213:1 › only exact dated event evidence groups; titles describe permit work; all records stay openable
+[17/18] tests\buying_chain.spec.ts:108:1 › retained permit fields are useful before enrichment and preserve source roles
+[18/18] tests\first_path.spec.ts:76:1 › mobile health, ordinary news inbox, and browser history show actual local data states
+  18 passed (7.2s)

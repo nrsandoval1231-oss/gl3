@@ -2,7 +2,32 @@
   "version": 1,
   "sources": [
 {
-  "id": "boston-building-permits",
+  "id": "texas-rrc-flare-vent-exceptions",
+  "publisher": "Railroad Commission of Texas",
+  "endpoint": "https://webapps.rrc.state.tx.us/swr32/publicquery.xhtml",
+  "family": "oil-gas-regulatory-applications",
+  "geography": "Texas",
+  "state": "TX",
+  "industries": ["oil and gas"],
+  "retrieval_method": "rrc-flare-exceptions",
+  "cadence_hours": 24,
+  "publication_cadence": "Public SWR 32 query; electronically submitted applications since 2021-05-02; queried daily for the prior three calendar days",
+  "credential_reference": null,
+  "enabled": true,
+  "retention": "Official query row fields and stable filing/operator identity; detailed application and attachments are not fetched by this adapter",
+  "collection_scope": "Complete count-checked SWR 32 application result set for the prior three calendar days by submittal date, paged at 10 rows with a 50-page/500-record bound.",
+  "coverage_limitation": "Applications for exceptions only, not flaring/venting measurements. Rule 32 also permits some flaring without an exception application. Public query excludes pre-2021-05-02 online-system filings; older filings outside the three-day submittal window are not rechecked for status changes and no historical backfill is included. Application details and authorization documents are not fetched. Physical flare/vent site, requested volume, gas composition, continuous flow, generator fit, MW, rental demand, buyer, and buying authority remain UNKNOWN.",
+  "query": {
+    "window_days": 3,
+    "rows_per_page": 10,
+    "max_pages": 50,
+    "max_records": 500,
+    "max_response_bytes": 2000000,
+    "max_run_bytes": 20000000
+  }
+},
+{
+"id": "boston-building-permits",
   "publisher": "City of Boston",
   "endpoint": "https://data.boston.gov/api/3/action/datastore_search_sql",
   "family": "construction-permits",

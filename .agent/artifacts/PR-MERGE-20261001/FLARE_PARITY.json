@@ -1,0 +1,41 @@
+{
+  "tables": {
+    "observations": {
+      "before_count": 16921,
+      "after_count": 16921,
+      "exact_equal": true
+    },
+    "evidence": {
+      "before_count": 16960,
+      "after_count": 16960,
+      "exact_equal": true
+    },
+    "projects": {
+      "before_count": 1168,
+      "after_count": 1168,
+      "exact_equal": true
+    },
+    "power_needs": {
+      "before_count": 1168,
+      "after_count": 1168,
+      "exact_equal": true
+    },
+    "need_observations": {
+      "before_count": 1170,
+      "after_count": 1170,
+      "exact_equal": true
+    },
+    "buying_chain_claims": {
+      "before_count": 49,
+      "after_count": 49,
+      "exact_equal": true
+    },
+    "interpretations": {
+      "before_count": 16921,
+      "after_count": 16921,
+      "exact_equal": true
+    }
+  },
+  "changes": [],
+  "at": "2026-10-02T01:25:09.867711+00:00"
+}

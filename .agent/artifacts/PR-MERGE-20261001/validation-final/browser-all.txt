@@ -1,0 +1,59 @@
+
+> gridlens-web@0.1.0 test
+> playwright test --reporter=line
+
+
+[WebServer] INFO:     Started server process [27840]
+[WebServer] INFO:     Waiting for application startup.
+[WebServer] INFO:     Application startup complete.
+[WebServer] INFO:     Uvicorn running on http://127.0.0.1:8024 (Press CTRL+C to quit)
+
+
+[WebServer] (node:43812) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 22 tests using 5 workers
+
+
+(node:47920) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+(node:34936) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+
+(node:17244) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:22176) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+(node:45132) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+[1/22] tests\briefs.spec.ts:3:1 › detail explicitly requests a brief, polls pending state, and resolves source links
+[2/22] tests\pursuits.spec.ts:17:1 › real pursuits retain evidence gates and a saved owner call outcome across reload
+[3/22] tests\buying_chain.spec.ts:45:1 › buying chain exposes three separate relationships and retains evidence after enrichment failure
+[4/22] tests\first_path.spec.ts:36:1 › authenticated desktop browse, detail, back, and search use a live Signal
+[5/22] tests\project_cards.spec.ts:53:1 › stable project IDs consolidate lifecycle records and decision filters default uncertain records to REVIEW
+[6/22] tests\project_cards.spec.ts:68:1 › Cannabis Watch is removed and an evidence-supported applicant titles the card and detail
+[7/22] tests\project_cards.spec.ts:101:1 › project title prefers a current owner over operator, applicant, and contractor claims
+[8/22] tests\project_cards.spec.ts:110:1 › city permit company title shows source role and does not infer ownership
+[9/22] tests\project_cards.spec.ts:123:1 › city permit organization labels preserve the source role and role uncertainty
+[10/22] tests\project_cards.spec.ts:136:1 › grouped permit members use company-first titles while retaining each permit record
+[11/22] tests\buying_chain.spec.ts:68:1 › navigation ignores a late enrichment result and limits repeated requests
+[12/22] tests\project_cards.spec.ts:170:1 › Signals default to All and keep SHOW, REVIEW, and HOLD selectable
+[13/22] tests\buying_chain.spec.ts:94:1 › mobile buying chain keeps unknown and empty results readable
+[14/22] tests\project_cards.spec.ts:213:1 › only exact dated event evidence groups; titles describe permit work; all records stay openable
+[15/22] tests\buying_chain.spec.ts:108:1 › retained permit fields are useful before enrichment and preserve source roles
+[16/22] tests\verticals.spec.ts:19:1 › source-sector groups preserve the oil and gas URL alias and send canonical filter values
+[17/22] tests\verticals.spec.ts:42:1 › source filters list authenticated health sources and send their actual source IDs
+[18/22] tests\verticals.spec.ts:69:1 › All Signals labels cards and every member of a mixed decision group
+[19/22] tests\first_path.spec.ts:76:1 › mobile health, ordinary news inbox, and browser history show actual local data states
+[20/22] tests\pursuits.spec.ts:50:1 › real conflicts, bounded refresh and mobile pursuit history work in the app
+[21/22] tests\first_path.spec.ts:161:1 › live air documents retain equipment context without creating rental MW
+[22/22] tests\first_path.spec.ts:182:1 › live data-center permit enrichment exposes attributed fields and organizations
+  22 passed (1.6m)
