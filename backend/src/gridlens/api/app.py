@@ -23,10 +23,12 @@ from gridlens.intelligence.briefs import (
     request_brief,
 )
 from gridlens.intelligence.buying_chain import buying_chain_view, enrich_buying_chain
+from gridlens.intelligence.project_state import project_state as read_project_state
 from gridlens.intelligence.signal_adjudication import POLICY_VERSION, adjudicate_current_signals
 from gridlens.jobs.queue import enqueue
 from gridlens.persistence.database import SessionLocal
 from gridlens.persistence.models import (
+    BuyingChainEvidence,
     ChangeEvent,
     Evidence,
     Interpretation,
@@ -216,6 +218,17 @@ class ChangeOut(BaseModel):
     title: str
     url: str
     published_at: date | None
+
+
+class ProjectStateOut(BaseModel):
+    project_id: UUID
+    identity_key: str
+    state: dict
+    organizations_and_roles: list[dict]
+    lifecycle_events: list[dict]
+    evidence: list[dict]
+    candidate_matches: list[dict]
+    disclosure: str
 
 
 class LoginBody(BaseModel):
@@ -1014,20 +1027,71 @@ def changes():
     with SessionLocal() as session:
         today = chicago_today()
         rows = session.execute(
-            select(ChangeEvent, Observation)
-            .join(Observation)
-            .join(NeedObservation, NeedObservation.observation_id == Observation.id)
-            .where(func.timezone("America/Chicago", ChangeEvent.created_at).cast(Date) == today)
+            select(ChangeEvent, Evidence, BuyingChainEvidence)
+            .outerjoin(Evidence, Evidence.id == ChangeEvent.evidence_id)
+            .outerjoin(
+                BuyingChainEvidence, BuyingChainEvidence.id == ChangeEvent.buying_chain_evidence_id
+            )
+            .where(
+                ChangeEvent.material.is_(True),
+                func.timezone("America/Chicago", ChangeEvent.created_at).cast(Date) == today,
+            )
             .order_by(ChangeEvent.created_at.desc())
         ).all()
         return [
             {
                 "kind": event.kind,
-                "title": obs.title,
-                "url": obs.url,
-                "published_at": obs.published_at.isoformat() if obs.published_at else None,
+                "title": buying.title if buying else evidence.title,
+                "url": buying.url if buying else evidence.url,
+                "published_at": (
+                    (buying.published_at if buying else evidence.published_at).isoformat()
+                    if (buying.published_at if buying else evidence.published_at)
+                    else None
+                ),
             }
-            for event, obs in rows
+            for event, evidence, buying in rows
+        ]
+
+
+@app.get(
+    "/api/projects/{project_id}/state",
+    response_model=ProjectStateOut,
+    dependencies=[Depends(require_session)],
+)
+def project_state_endpoint(project_id: UUID):
+    with SessionLocal() as session:
+        state = read_project_state(session, project_id)
+        if state is None:
+            raise HTTPException(404, "Project not found")
+        return state
+
+
+@app.get("/api/projects/{project_id}/changes", dependencies=[Depends(require_session)])
+def project_changes_endpoint(project_id: UUID, limit: int = Query(default=100, ge=1, le=250)):
+    with SessionLocal() as session:
+        project = session.get(Project, project_id)
+        if project is None:
+            raise HTTPException(404, "Project not found")
+        events = session.scalars(
+            select(ChangeEvent)
+            .where(ChangeEvent.project_id == project_id, ChangeEvent.material.is_(True))
+            .order_by(ChangeEvent.created_at.desc(), ChangeEvent.id.desc())
+            .limit(limit)
+        ).all()
+        return [
+            {
+                "kind": e.kind,
+                "field": e.field_name,
+                "prior": e.prior_state,
+                "new": e.new_state,
+                "evidence_id": str(e.evidence_id) if e.evidence_id else None,
+                "buying_chain_evidence_id": (
+                    str(e.buying_chain_evidence_id) if e.buying_chain_evidence_id else None
+                ),
+                "source_date": e.source_date,
+                "detected_at": e.created_at,
+            }
+            for e in events
         ]
 
 

@@ -1,0 +1,26 @@
+{
+  "browser-missing-worker-failed.log": {
+    "raw_sha256": "b72a4b010a74e93f44e48c33f67954bb6fa6b34a0485217295229653b57d7e69",
+    "normalization": "trailing whitespace only; raw originals retained under ignored .artifacts/evidence-shadow"
+  },
+  "validation-before-provenance-repair\\typecheck.log": {
+    "raw_sha256": "2ed7bd9429f03c4125fd3cd1b8b752d8135892f09eb7ff8609ac5c3677b941b6",
+    "normalization": "trailing whitespace only; raw originals retained under ignored .artifacts/evidence-shadow"
+  },
+  "validation-before-removal-repair\\typecheck.log": {
+    "raw_sha256": "2ed7bd9429f03c4125fd3cd1b8b752d8135892f09eb7ff8609ac5c3677b941b6",
+    "normalization": "trailing whitespace only; raw originals retained under ignored .artifacts/evidence-shadow"
+  },
+  "validation-before-static-repair\\typecheck.log": {
+    "raw_sha256": "2ed7bd9429f03c4125fd3cd1b8b752d8135892f09eb7ff8609ac5c3677b941b6",
+    "normalization": "trailing whitespace only; raw originals retained under ignored .artifacts/evidence-shadow"
+  },
+  "validation-final\\typecheck.log": {
+    "raw_sha256": "2ed7bd9429f03c4125fd3cd1b8b752d8135892f09eb7ff8609ac5c3677b941b6",
+    "normalization": "trailing whitespace only; original raw logs remain under ignored .artifacts/evidence-shadow"
+  },
+  "browser-concurrent-timeout.log": {
+    "raw_sha256": "a8227acfefe560b7bba39d46a5ee4e81cf30c2b4534adce17f836d58a3d6c4cc",
+    "normalization": "trailing whitespace only; original raw logs remain under ignored .artifacts/evidence-shadow"
+  }
+}

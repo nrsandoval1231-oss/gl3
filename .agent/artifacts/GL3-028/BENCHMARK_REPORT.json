@@ -1,0 +1,220 @@
+{
+  "mode": "benchmark-offline-results",
+  "fixture_set": "gl3-028-retained-evidence-v1",
+  "results_file": ".artifacts\\evidence-shadow\\jev-benchmark-v2-results.json",
+  "fixture_comparison": {
+    "cases_with_provider_result": 16,
+    "cases_without_provider_result": 0,
+    "relevance": {
+      "precision": {
+        "value": 0.9090909090909091,
+        "denominator": 11
+      },
+      "recall": {
+        "value": 0.8333333333333334,
+        "denominator": 12
+      },
+      "true_positive": 10,
+      "false_positive": 1,
+      "false_negative": 2,
+      "unknown_predictions": 0,
+      "labeled_denominator": 15,
+      "coverage": 1.0
+    },
+    "agreement": {
+      "same_project": {
+        "matched": 12,
+        "denominator": 14,
+        "value": 0.8571428571428571
+      },
+      "material_change": {
+        "matched": 3,
+        "denominator": 3,
+        "value": 1.0
+      },
+      "power_relevance": {
+        "matched": 10,
+        "denominator": 14,
+        "value": 0.7142857142857143
+      },
+      "temporary_power_hint": {
+        "matched": 6,
+        "denominator": 7,
+        "value": 0.8571428571428571
+      },
+      "needs_deep_enrichment": {
+        "matched": 10,
+        "denominator": 14,
+        "value": 0.7142857142857143
+      }
+    },
+    "deep_enrichment_yield": {
+      "value": 0.7142857142857143,
+      "useful_yes": 10,
+      "recommended_yes": 14,
+      "labeled_cases": 14
+    },
+    "research_recommendation": {
+      "recommended_yes": 0,
+      "recommended_no": 16,
+      "evaluated_cases": 16
+    },
+    "invalid_count": 0,
+    "timeout_count": 0,
+    "latency_p50_ms": 187,
+    "latency_p95_ms": 375,
+    "usage": {
+      "input_tokens": 70207,
+      "input_tokens_known_subtotal": 70207,
+      "input_tokens_unknown_cases": 0,
+      "output_tokens": 5083,
+      "output_tokens_known_subtotal": 5083,
+      "output_tokens_unknown_cases": 0,
+      "cost": "UNKNOWN"
+    }
+  },
+  "by_kind": {
+    "retained_real": {
+      "cases_with_provider_result": 5,
+      "cases_without_provider_result": 0,
+      "relevance": {
+        "precision": {
+          "value": 1.0,
+          "denominator": 5
+        },
+        "recall": {
+          "value": 1.0,
+          "denominator": 5
+        },
+        "true_positive": 5,
+        "false_positive": 0,
+        "false_negative": 0,
+        "unknown_predictions": 0,
+        "labeled_denominator": 5,
+        "coverage": 1.0
+      },
+      "agreement": {
+        "same_project": {
+          "matched": 5,
+          "denominator": 5,
+          "value": 1.0
+        },
+        "material_change": {
+          "matched": 0,
+          "denominator": 0,
+          "value": "UNKNOWN"
+        },
+        "power_relevance": {
+          "matched": 3,
+          "denominator": 5,
+          "value": 0.6
+        },
+        "temporary_power_hint": {
+          "matched": 2,
+          "denominator": 3,
+          "value": 0.6666666666666666
+        },
+        "needs_deep_enrichment": {
+          "matched": 4,
+          "denominator": 5,
+          "value": 0.8
+        }
+      },
+      "deep_enrichment_yield": {
+        "value": 0.8,
+        "useful_yes": 4,
+        "recommended_yes": 5,
+        "labeled_cases": 5
+      },
+      "research_recommendation": {
+        "recommended_yes": 0,
+        "recommended_no": 5,
+        "evaluated_cases": 5
+      },
+      "invalid_count": 0,
+      "timeout_count": 0,
+      "latency_p50_ms": 202,
+      "latency_p95_ms": 264,
+      "usage": {
+        "input_tokens": 19574,
+        "input_tokens_known_subtotal": 19574,
+        "input_tokens_unknown_cases": 0,
+        "output_tokens": 1591,
+        "output_tokens_known_subtotal": 1591,
+        "output_tokens_unknown_cases": 0,
+        "cost": "UNKNOWN"
+      }
+    },
+    "synthetic_variant": {
+      "cases_with_provider_result": 11,
+      "cases_without_provider_result": 0,
+      "relevance": {
+        "precision": {
+          "value": 0.8333333333333334,
+          "denominator": 6
+        },
+        "recall": {
+          "value": 0.7142857142857143,
+          "denominator": 7
+        },
+        "true_positive": 5,
+        "false_positive": 1,
+        "false_negative": 2,
+        "unknown_predictions": 0,
+        "labeled_denominator": 10,
+        "coverage": 1.0
+      },
+      "agreement": {
+        "same_project": {
+          "matched": 7,
+          "denominator": 9,
+          "value": 0.7777777777777778
+        },
+        "material_change": {
+          "matched": 3,
+          "denominator": 3,
+          "value": 1.0
+        },
+        "power_relevance": {
+          "matched": 7,
+          "denominator": 9,
+          "value": 0.7777777777777778
+        },
+        "temporary_power_hint": {
+          "matched": 4,
+          "denominator": 4,
+          "value": 1.0
+        },
+        "needs_deep_enrichment": {
+          "matched": 6,
+          "denominator": 9,
+          "value": 0.6666666666666666
+        }
+      },
+      "deep_enrichment_yield": {
+        "value": 0.6666666666666666,
+        "useful_yes": 6,
+        "recommended_yes": 9,
+        "labeled_cases": 9
+      },
+      "research_recommendation": {
+        "recommended_yes": 0,
+        "recommended_no": 11,
+        "evaluated_cases": 11
+      },
+      "invalid_count": 0,
+      "timeout_count": 0,
+      "latency_p50_ms": 187,
+      "latency_p95_ms": 375,
+      "usage": {
+        "input_tokens": 50633,
+        "input_tokens_known_subtotal": 50633,
+        "input_tokens_unknown_cases": 0,
+        "output_tokens": 3492,
+        "output_tokens_known_subtotal": 3492,
+        "output_tokens_unknown_cases": 0,
+        "cost": "UNKNOWN"
+      }
+    }
+  }
+}

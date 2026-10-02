@@ -1,0 +1,166 @@
+{
+  "mode": "benchmark-live",
+  "fixture_set": "gl3-028-retained-evidence-v1",
+  "results": [
+    {
+      "case_id": "boston-temporary-electrical",
+      "evidence_id": "fab37ce4-29b6-45d8-a88d-0e19e6c56c60",
+      "status": "failed",
+      "result": null,
+      "latency_ms": 469,
+      "input_tokens": null,
+      "output_tokens": null,
+      "error_class": "TypeError"
+    },
+    {
+      "case_id": "chicago-data-center-conversion",
+      "evidence_id": "cd19ac72-48ac-44ea-ac45-6fdac75ecd9f",
+      "status": "failed",
+      "result": null,
+      "latency_ms": 46,
+      "input_tokens": null,
+      "output_tokens": null,
+      "error_class": "TypeError"
+    },
+    {
+      "case_id": "houston-below-commercial-floor",
+      "evidence_id": "00ed4860-fe13-4cef-a8a9-5d00e12a13af",
+      "status": "failed",
+      "result": null,
+      "latency_ms": 46,
+      "input_tokens": null,
+      "output_tokens": null,
+      "error_class": "TypeError"
+    },
+    {
+      "case_id": "austin-hospital-generator-and-phased-electrical",
+      "evidence_id": "57d1e773-5420-4d4b-a575-61a7d14276c7",
+      "status": "failed",
+      "result": null,
+      "latency_ms": 46,
+      "input_tokens": null,
+      "output_tokens": null,
+      "error_class": "TypeError"
+    },
+    {
+      "case_id": "texas-rrc-drilling-permit",
+      "evidence_id": "1d758841-6e07-4603-b39c-33fd53796715",
+      "status": "failed",
+      "result": null,
+      "latency_ms": 62,
+      "input_tokens": null,
+      "output_tokens": null,
+      "error_class": "TypeError"
+    },
+    {
+      "case_id": "synthetic-same-site-strong-match",
+      "evidence_id": null,
+      "status": "failed",
+      "result": null,
+      "latency_ms": 46,
+      "input_tokens": null,
+      "output_tokens": null,
+      "error_class": "TypeError"
+    },
+    {
+      "case_id": "synthetic-same-name-wrong-site",
+      "evidence_id": null,
+      "status": "failed",
+      "result": null,
+      "latency_ms": 62,
+      "input_tokens": null,
+      "output_tokens": null,
+      "error_class": "TypeError"
+    },
+    {
+      "case_id": "synthetic-backup-generator-not-temporary-power",
+      "evidence_id": null,
+      "status": "failed",
+      "result": null,
+      "latency_ms": 47,
+      "input_tokens": null,
+      "output_tokens": null,
+      "error_class": "TypeError"
+    },
+    {
+      "case_id": "synthetic-construction-not-commissioning",
+      "evidence_id": null,
+      "status": "failed",
+      "result": null,
+      "latency_ms": 62,
+      "input_tokens": null,
+      "output_tokens": null,
+      "error_class": "TypeError"
+    },
+    {
+      "case_id": "synthetic-explicit-commissioning",
+      "evidence_id": null,
+      "status": "failed",
+      "result": null,
+      "latency_ms": 62,
+      "input_tokens": null,
+      "output_tokens": null,
+      "error_class": "TypeError"
+    },
+    {
+      "case_id": "synthetic-utility-date-conflict",
+      "evidence_id": null,
+      "status": "failed",
+      "result": null,
+      "latency_ms": 46,
+      "input_tokens": null,
+      "output_tokens": null,
+      "error_class": "TypeError"
+    },
+    {
+      "case_id": "synthetic-news-supplement-unknown",
+      "evidence_id": null,
+      "status": "failed",
+      "result": null,
+      "latency_ms": 62,
+      "input_tokens": null,
+      "output_tokens": null,
+      "error_class": "TypeError"
+    },
+    {
+      "case_id": "synthetic-rrc-flare-event",
+      "evidence_id": null,
+      "status": "failed",
+      "result": null,
+      "latency_ms": 46,
+      "input_tokens": null,
+      "output_tokens": null,
+      "error_class": "TypeError"
+    },
+    {
+      "case_id": "synthetic-routine-equipment-replacement",
+      "evidence_id": null,
+      "status": "failed",
+      "result": null,
+      "latency_ms": 46,
+      "input_tokens": null,
+      "output_tokens": null,
+      "error_class": "TypeError"
+    },
+    {
+      "case_id": "synthetic-unknown-size-relevant-project",
+      "evidence_id": null,
+      "status": "failed",
+      "result": null,
+      "latency_ms": 46,
+      "input_tokens": null,
+      "output_tokens": null,
+      "error_class": "TypeError"
+    },
+    {
+      "case_id": "synthetic-already-resolved-utility-question",
+      "evidence_id": null,
+      "status": "failed",
+      "result": null,
+      "latency_ms": 62,
+      "input_tokens": null,
+      "output_tokens": null,
+      "error_class": "TypeError"
+    }
+  ]
+}

@@ -5,7 +5,7 @@ from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 import httpx
-from sqlalchemy import or_, select
+from sqlalchemy import or_, select, text
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
@@ -29,6 +29,7 @@ from gridlens.domain.signal_admission import (
 from gridlens.domain.taylor_planning import interpret_taylor_planning
 from gridlens.ingestion.adapters import retrieve_source
 from gridlens.ingestion.adapters.govinfo_pdf import MAX_PDFS_PER_RUN, retrieve_companion
+from gridlens.intelligence.change_detection import record_material_diff, seed_material_state
 from gridlens.intelligence.lifecycle_service import (
     apply_lifecycle_observation,
     apply_planning_withdrawal,
@@ -831,6 +832,14 @@ def assess_retained_news(
         .where(NeedObservation.observation_id == observation.id)
         .with_for_update()
     ).all()
+    # Capture persisted semantic state before an accepted decision is replaced
+    # by a rejection/correction. This is deliberately before Interpretation is
+    # invalidated so negative evidence can emit a real closure transition.
+    material_baselines = {}
+    for old_need in old_needs:
+        old_project = session.get(Project, old_need.project_id)
+        if old_project is not None:
+            material_baselines[old_project.id] = seed_material_state(session, old_project)
     interpretation.content_hash = observation.content_hash
     interpretation.evaluator_version = EVALUATOR_VERSION
     interpretation.assessment = payload
@@ -1017,6 +1026,7 @@ def assess_retained_news(
                             },
                         )
                     )
+        material_baselines.setdefault(project.id, seed_material_state(session, project))
         identity_key = project.identity_key
         activity_key = payload["power_activity"]
         if activity_key == "construction":
@@ -1111,6 +1121,7 @@ def assess_retained_news(
         if impacted_ids
         else []
     )
+    materially_changed_projects: set[Any] = set()
     for need in impacted:
         project = session.get(Project, need.project_id)
         if project is None:
@@ -1129,6 +1140,7 @@ def assess_retained_news(
                     kind="closed",
                 )
             )
+            materially_changed_projects.add(project.id)
         elif supported:
             claims = _current_need_claims(session, need, project)
             if claims:
@@ -1138,6 +1150,14 @@ def assess_retained_news(
                 need.rationale = selected["reason"]
                 need.required_mw = _reported_mw(selected)
                 need.supply = "Reported constraint" if selected["tier"] == "Prospect" else "Unknown"
+    # A rejected correction is authoritative about the prior accepted state
+    # becoming unsupported. It therefore records a material transition with
+    # its immutable Evidence version, while unchanged replay has no diff.
+    for project_id in materially_changed_projects:
+        baseline = material_baselines[project_id]
+        project = session.get(Project, project_id)
+        if project is not None:
+            record_material_diff(session, project, evidence, baseline)
     # Reassign after in-place edits so SQLAlchemy marks the JSON value dirty.
     interpretation.assessment = {**payload}
     flag_modified(interpretation, "assessment")
@@ -1604,6 +1624,13 @@ def process_job(
         project = session.scalar(
             select(Project).where(Project.identity_key == project_key).with_for_update()
         )
+        if project is not None:
+            session.execute(
+                text(
+                    "SELECT pg_advisory_xact_lock(hashtextextended(:project_id, 0))"
+                ),
+                {"project_id": str(project.id)},
+            )
         taylor_revision_ambiguous = False
         withdrawn_taylor = bool(
             is_taylor and record.get("disposition") == "withdrawn" and article_id.isdigit()
@@ -1791,6 +1818,18 @@ def process_job(
                             )
                         )
                     project = session.get(Project, linked_withdrawn_need.project_id)
+            # Capture the accepted semantic state before a replacement is
+            # rejected or closes a current need. This covers legacy projects
+            # that predate project_material_states as well as new projections.
+            negative_baselines = {}
+            for impacted_need in impacted_needs:
+                impacted_project = session.get(Project, impacted_need.project_id)
+                if impacted_project is not None:
+                    negative_baselines[impacted_project.id] = seed_material_state(
+                        session, impacted_project
+                    )
+            if project is not None:
+                negative_baselines.setdefault(project.id, seed_material_state(session, project))
             interpretation.status = "rejected"
             interpretation.content_hash = digest
             current_evidence = session.scalar(
@@ -2006,6 +2045,12 @@ def process_job(
                         apply_lifecycle_observation(
                             session, impacted_project, observation, current_evidence
                         )
+            if current_evidence is not None:
+                for impacted_project_id in impacted_project_ids:
+                    impacted_project = session.get(Project, impacted_project_id)
+                    baseline = negative_baselines.get(impacted_project_id)
+                    if impacted_project is not None and baseline is not None:
+                        record_material_diff(session, impacted_project, current_evidence, baseline)
         else:
             if permit_assessment:
                 counts["permit_accepted"] += 1
@@ -2237,6 +2282,7 @@ def process_job(
                 project.name = project_name
                 if project_location and project.location != project_location:
                     project.location = project_location
+            material_baseline = seed_material_state(session, project)
             if permit_assessment:
                 superseded = session.scalars(
                     select(PowerNeed)
@@ -2386,6 +2432,8 @@ def process_job(
                 apply_lifecycle_observation(session, project, observation, lifecycle_evidence)
                 if need.tier == "Signal":
                     adjudicate_signal(session, observation, lifecycle_evidence)
+                # Snapshot diff excludes retry metadata, timestamps and rationale-only churn.
+                record_material_diff(session, project, lifecycle_evidence, material_baseline)
 
         job = assert_fence(session, job_id, worker_id, fence)
         job.checkpoint = external_id

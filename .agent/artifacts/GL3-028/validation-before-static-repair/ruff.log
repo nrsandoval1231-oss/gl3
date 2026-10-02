@@ -1,0 +1,21 @@
+C:\Users\nrsan\Nucleus\02_Projects\GridLens\gl3-evidence-shadow\scripts\evidence_judge_shadow.py:234:101: E501 Line too long (102 > 100)
+    |
+232 |             valid_rows = [row for row in rows if row.status == "valid"]
+233 |             input_values = [row.input_tokens for row in valid_rows if row.input_tokens is not None]
+234 |             output_values = [row.output_tokens for row in valid_rows if row.output_tokens is not None]
+    |                                                                                                     ^^ E501
+235 |             payload = {
+236 |                 "mode": "offline",
+    |
+
+C:\Users\nrsan\Nucleus\02_Projects\GridLens\gl3-evidence-shadow\scripts\evidence_judge_shadow.py:261:101: E501 Line too long (103 > 100)
+    |
+259 |                         else "UNKNOWN"
+260 |                     ),
+261 |                     "output_tokens_known_subtotal": sum(output_values) if output_values else "UNKNOWN",
+    |                                                                                                     ^^^ E501
+262 |                     "output_tokens_unknown_cases": len(valid_rows) - len(output_values),
+263 |                     "cost": "UNKNOWN",
+    |
+
+Found 2 errors.

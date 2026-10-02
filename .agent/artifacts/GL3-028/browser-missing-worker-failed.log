@@ -1,0 +1,77 @@
+
+> gridlens-web@0.1.0 test
+> playwright test
+
+[WebServer] INFO:     Started server process [17900]
+[WebServer] INFO:     Waiting for application startup.
+[WebServer] INFO:     Application startup complete.
+[WebServer] INFO:     Uvicorn running on http://127.0.0.1:8025 (Press CTRL+C to quit)
+[WebServer] (node:44604) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 22 tests using 5 workers
+
+(node:36504) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:45288) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:32620) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:14884) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:17400) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok  5 tests\project_cards.spec.ts:53:1 › stable project IDs consolidate lifecycle records and decision filters default uncertain records to REVIEW (7ms)
+  ok  6 tests\project_cards.spec.ts:68:1 › Cannabis Watch is removed and an evidence-supported applicant titles the card and detail (4.2s)
+  ok  7 tests\project_cards.spec.ts:101:1 › project title prefers a current owner over operator, applicant, and contractor claims (1ms)
+  ok  8 tests\project_cards.spec.ts:110:1 › city permit company title shows source role and does not infer ownership (1ms)
+  ok  9 tests\project_cards.spec.ts:123:1 › city permit organization labels preserve the source role and role uncertainty (0ms)
+  ok  1 tests\buying_chain.spec.ts:45:1 › buying chain exposes three separate relationships and retains evidence after enrichment failure (4.2s)
+  ok 10 tests\project_cards.spec.ts:136:1 › grouped permit members use company-first titles while retaining each permit record (364ms)
+  ok 11 tests\buying_chain.spec.ts:68:1 › navigation ignores a late enrichment result and limits repeated requests (459ms)
+  ok 12 tests\project_cards.spec.ts:170:1 › Signals default to All and keep SHOW, REVIEW, and HOLD selectable (472ms)
+  ok 13 tests\buying_chain.spec.ts:94:1 › mobile buying chain keeps unknown and empty results readable (343ms)
+  ok 15 tests\buying_chain.spec.ts:108:1 › retained permit fields are useful before enrichment and preserve source roles (326ms)
+  ok 14 tests\project_cards.spec.ts:213:1 › only exact dated event evidence groups; titles describe permit work; all records stay openable (504ms)
+  ok 16 tests\verticals.spec.ts:19:1 › source-sector groups preserve the oil and gas URL alias and send canonical filter values (200ms)
+  ok 17 tests\verticals.spec.ts:42:1 › source filters list authenticated health sources and send their actual source IDs (199ms)
+  ok  3 tests\briefs.spec.ts:3:1 › detail explicitly requests a brief, polls pending state, and resolves source links (6.0s)
+  ok 18 tests\verticals.spec.ts:69:1 › All Signals labels cards and every member of a mixed decision group (354ms)
+  ok  2 tests\first_path.spec.ts:36:1 › authenticated desktop browse, detail, back, and search use a live Signal (9.0s)
+  ok  4 tests\pursuits.spec.ts:17:1 › real pursuits retain evidence gates and a saved owner call outcome across reload (9.8s)
+  ok 19 tests\first_path.spec.ts:76:1 › mobile health, ordinary news inbox, and browser history show actual local data states (1.4s)
+  ok 21 tests\first_path.spec.ts:161:1 › live air documents retain equipment context without creating rental MW (3.0s)
+  ok 22 tests\first_path.spec.ts:182:1 › live data-center permit enrichment exposes attributed fields and organizations (5.7s)
+  x  20 tests\pursuits.spec.ts:50:1 › real conflicts, bounded refresh and mobile pursuit history work in the app (6.1m)
+
+
+  1) tests\pursuits.spec.ts:50:1 › real conflicts, bounded refresh and mobile pursuit history work in the app
+
+    Error: expect(locator).toBeEnabled() failed
+
+    Locator: getByRole('button', { name: 'Refresh pursuits', exact: true })
+    Expected: enabled
+    Timeout: 360000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeEnabled" getByRole('button', { name: 'Refresh pursuits', exact: true }) with timeout 360000ms
+      - waiting for getByRole('button', { name: 'Refresh pursuits', exact: true })
+
+
+      70 |   await page.getByRole('button', { name: 'Refresh pursuits', exact: true }).click()
+      71 |   await expect(page.getByText(/Bounded source research is queued or running/)).toBeVisible()
+    > 72 |   await expect(page.getByRole('button', { name: 'Refresh pursuits', exact: true })).toBeEnabled({ timeout: 360_000 })
+         |                                                                                     ^
+      73 |   const after = await page.evaluate(async () => (await fetch('/api/pursuits')).json() as Promise<PursuitsResult>)
+      74 |   expect(after.items.find(item => item.id === clayton.id)?.conflicts.length).toBeGreaterThan(0)
+      75 |   await page.getByLabel('Include dropped pursuits and saved call history').check()
+        at C:\Users\nrsan\Nucleus\02_Projects\GridLens\gl3-evidence-shadow\web\tests\pursuits.spec.ts:72:85
+
+    Error Context: test-results\pursuits-real-conflicts-bo-532a5-uit-history-work-in-the-app\error-context.md
+
+  Slow test file: tests\pursuits.spec.ts (6.3m)
+  Consider running tests from slow files in parallel. See: https://playwright.dev/docs/test-parallel
+  1 failed
+    tests\pursuits.spec.ts:50:1 › real conflicts, bounded refresh and mobile pursuit history work in the app
+  21 passed (6.4m)

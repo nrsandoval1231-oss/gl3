@@ -10,11 +10,17 @@
 | projects | Conservative stable-record identity; name alone cannot merge sites. |
 | power_needs | Separate activity per project, evidence tier, rationale, unknown scope fields, active state, and `admission_basis` provenance. No campus-MW inference. |
 | need_observations | Explicit evidence relationship between needs and observations. |
-| change_events | Material opportunity state transitions, separate from raw intake or repeated checks. |
+| change_events | Immutable accepted project-state transitions with prior/new snapshots, source date, replay identity and material flag. `evidence_id` anchors source Evidence; `buying_chain_evidence_id` anchors a contractor/buyer transition to the immutable buying-chain document version that actually supports it. The two source references are kept distinct. |
+| project_material_states | Current compact material snapshot and monotonic revision per Project, used under project serialization to compare actual accepted state and recognize reversions. |
+| evidence_judge_runs | Bounded TypeSafe EvidenceJudge attempt/result metadata, deterministic comparison, status and measured usage. Input identity makes retries/replays idempotent; pending attempts remain visible after interruption. This table never drives accepted domain state. |
 
 An observation envelope can point at a newer content hash while old evidence remains. Reappearance of a previously seen version must reuse retained evidence without a uniqueness error. Alternate representations require explicit shared identity and do not create a second project or corroborating source claim.
 
 The initial implementation uses ordinary relational tables. It does not introduce a configurable ontology or import schemas from older GridLens repositories. User notes, detailed supply scenarios, and later assessments remain governed future scope. Merged GL3-017 buying-chain tables and the GL3-018 admission column are below.
+
+Migration `0012_evidence_graph_jev_shadow` adds these small relational projections. `project_material_states` contains only semantic accepted fields; retrieval metadata, updated timestamps and rationale-only churn are excluded. Project locking encloses prior-state reads, writes, diffs and revision updates. Legacy state is seeded without manufacturing a discovery event. `EvidenceJudgeRun` is separate from `signal_adjudication` and is written only by explicit shadow execution; normal ingestion remains provider-independent.
+
+Accepted contractor and buyer changes cite their supporting immutable `BuyingChainEvidence` through `change_events.buying_chain_evidence_id` and leave the generic `evidence_id` unset. Contractor/buyer removals use a checked replacement found at the prior claim's URL when one exists. The authenticated morning `/api/changes` feed resolves either source reference to the actual source title and URL while retaining its existing response shape.
 
 ## GL3-017 project-scoped enrichment
 

@@ -1,0 +1,342 @@
+{
+  "mode": "benchmark-live",
+  "fixture_set": "gl3-028-retained-evidence-v1",
+  "results": [
+    {
+      "case_id": "boston-temporary-electrical",
+      "evidence_id": "fab37ce4-29b6-45d8-a88d-0e19e6c56c60",
+      "status": "valid",
+      "result": {
+        "relevant": "YES",
+        "same_project": "YES",
+        "event_type": "electrical_construction",
+        "material_change": "NO",
+        "power_relevance": "HIGH",
+        "temporary_power_hint": "YES",
+        "needs_deep_enrichment": "YES",
+        "advisory": {
+          "research_recommended": false
+        }
+      },
+      "model": "jev-1.13.0",
+      "latency_ms": 264,
+      "input_tokens": 3452,
+      "output_tokens": 321
+    },
+    {
+      "case_id": "chicago-data-center-conversion",
+      "evidence_id": "cd19ac72-48ac-44ea-ac45-6fdac75ecd9f",
+      "status": "valid",
+      "result": {
+        "relevant": "YES",
+        "same_project": "YES",
+        "event_type": "construction",
+        "material_change": "NO",
+        "power_relevance": "HIGH",
+        "temporary_power_hint": "NO",
+        "needs_deep_enrichment": "YES",
+        "advisory": {
+          "research_recommended": false
+        }
+      },
+      "model": "jev-1.13.0",
+      "latency_ms": 297,
+      "input_tokens": 6496,
+      "output_tokens": 316
+    },
+    {
+      "case_id": "houston-below-commercial-floor",
+      "evidence_id": "00ed4860-fe13-4cef-a8a9-5d00e12a13af",
+      "status": "valid",
+      "result": {
+        "relevant": "YES",
+        "same_project": "YES",
+        "event_type": "electrical_construction",
+        "material_change": "NO",
+        "power_relevance": "HIGH",
+        "temporary_power_hint": "NO",
+        "needs_deep_enrichment": "YES",
+        "advisory": {
+          "research_recommended": false
+        }
+      },
+      "model": "jev-1.13.0",
+      "latency_ms": 202,
+      "input_tokens": 2998,
+      "output_tokens": 321
+    },
+    {
+      "case_id": "austin-hospital-generator-and-phased-electrical",
+      "evidence_id": "57d1e773-5420-4d4b-a575-61a7d14276c7",
+      "status": "valid",
+      "result": {
+        "relevant": "YES",
+        "same_project": "YES",
+        "event_type": "construction",
+        "material_change": "NO",
+        "power_relevance": "HIGH",
+        "temporary_power_hint": "YES",
+        "needs_deep_enrichment": "YES",
+        "advisory": {
+          "research_recommended": false
+        }
+      },
+      "model": "jev-1.13.0",
+      "latency_ms": 155,
+      "input_tokens": 2982,
+      "output_tokens": 316
+    },
+    {
+      "case_id": "texas-rrc-drilling-permit",
+      "evidence_id": "1d758841-6e07-4603-b39c-33fd53796715",
+      "status": "valid",
+      "result": {
+        "relevant": "YES",
+        "same_project": "YES",
+        "event_type": "other",
+        "material_change": "NO",
+        "power_relevance": "MEDIUM",
+        "temporary_power_hint": "UNKNOWN",
+        "needs_deep_enrichment": "YES",
+        "advisory": {
+          "research_recommended": false
+        }
+      },
+      "model": "jev-1.13.0",
+      "latency_ms": 202,
+      "input_tokens": 3646,
+      "output_tokens": 317
+    },
+    {
+      "case_id": "synthetic-same-site-strong-match",
+      "evidence_id": null,
+      "status": "valid",
+      "result": {
+        "relevant": "YES",
+        "same_project": "YES",
+        "event_type": "electrical_construction",
+        "material_change": "NO",
+        "power_relevance": "HIGH",
+        "temporary_power_hint": "YES",
+        "needs_deep_enrichment": "YES",
+        "advisory": {
+          "research_recommended": false
+        }
+      },
+      "model": "jev-1.13.0",
+      "latency_ms": 187,
+      "input_tokens": 3520,
+      "output_tokens": 321
+    },
+    {
+      "case_id": "synthetic-same-name-wrong-site",
+      "evidence_id": null,
+      "status": "valid",
+      "result": {
+        "relevant": "YES",
+        "same_project": "YES",
+        "event_type": "electrical_construction",
+        "material_change": "NO",
+        "power_relevance": "HIGH",
+        "temporary_power_hint": "YES",
+        "needs_deep_enrichment": "YES",
+        "advisory": {
+          "research_recommended": false
+        }
+      },
+      "model": "jev-1.13.0",
+      "latency_ms": 375,
+      "input_tokens": 3520,
+      "output_tokens": 321
+    },
+    {
+      "case_id": "synthetic-backup-generator-not-temporary-power",
+      "evidence_id": null,
+      "status": "valid",
+      "result": {
+        "relevant": "YES",
+        "same_project": "YES",
+        "event_type": "electrical_construction",
+        "material_change": "NO",
+        "power_relevance": "LOW",
+        "temporary_power_hint": "NO",
+        "needs_deep_enrichment": "YES",
+        "advisory": {
+          "research_recommended": false
+        }
+      },
+      "model": "jev-1.13.0",
+      "latency_ms": 187,
+      "input_tokens": 2638,
+      "output_tokens": 321
+    },
+    {
+      "case_id": "synthetic-construction-not-commissioning",
+      "evidence_id": null,
+      "status": "valid",
+      "result": {
+        "relevant": "YES",
+        "same_project": "YES",
+        "event_type": "construction",
+        "material_change": "NO",
+        "power_relevance": "HIGH",
+        "temporary_power_hint": "NO",
+        "needs_deep_enrichment": "YES",
+        "advisory": {
+          "research_recommended": false
+        }
+      },
+      "model": "jev-1.13.0",
+      "latency_ms": 171,
+      "input_tokens": 5998,
+      "output_tokens": 316
+    },
+    {
+      "case_id": "synthetic-explicit-commissioning",
+      "evidence_id": null,
+      "status": "valid",
+      "result": {
+        "relevant": "NO",
+        "same_project": "YES",
+        "event_type": "construction",
+        "material_change": "NO",
+        "power_relevance": "HIGH",
+        "temporary_power_hint": "NO",
+        "needs_deep_enrichment": "YES",
+        "advisory": {
+          "research_recommended": false
+        }
+      },
+      "model": "jev-1.13.0",
+      "latency_ms": 157,
+      "input_tokens": 6005,
+      "output_tokens": 316
+    },
+    {
+      "case_id": "synthetic-utility-date-conflict",
+      "evidence_id": null,
+      "status": "valid",
+      "result": {
+        "relevant": "YES",
+        "same_project": "YES",
+        "event_type": "construction",
+        "material_change": "NO",
+        "power_relevance": "HIGH",
+        "temporary_power_hint": "UNKNOWN",
+        "needs_deep_enrichment": "YES",
+        "advisory": {
+          "research_recommended": false
+        }
+      },
+      "model": "jev-1.13.0",
+      "latency_ms": 171,
+      "input_tokens": 5999,
+      "output_tokens": 316
+    },
+    {
+      "case_id": "synthetic-news-supplement-unknown",
+      "evidence_id": null,
+      "status": "valid",
+      "result": {
+        "relevant": "YES",
+        "same_project": "YES",
+        "event_type": "construction",
+        "material_change": "NO",
+        "power_relevance": "HIGH",
+        "temporary_power_hint": "UNKNOWN",
+        "needs_deep_enrichment": "YES",
+        "advisory": {
+          "research_recommended": false
+        }
+      },
+      "model": "jev-1.13.0",
+      "latency_ms": 407,
+      "input_tokens": 5996,
+      "output_tokens": 316
+    },
+    {
+      "case_id": "synthetic-rrc-flare-event",
+      "evidence_id": null,
+      "status": "valid",
+      "result": {
+        "relevant": "NO",
+        "same_project": "NO",
+        "event_type": "other",
+        "material_change": "NO",
+        "power_relevance": "LOW",
+        "temporary_power_hint": "NO",
+        "needs_deep_enrichment": "YES",
+        "advisory": {
+          "research_recommended": false
+        }
+      },
+      "model": "jev-1.13.0",
+      "latency_ms": 219,
+      "input_tokens": 2994,
+      "output_tokens": 316
+    },
+    {
+      "case_id": "synthetic-routine-equipment-replacement",
+      "evidence_id": null,
+      "status": "valid",
+      "result": {
+        "relevant": "NO",
+        "same_project": "NO",
+        "event_type": "construction",
+        "material_change": "NO",
+        "power_relevance": "LOW",
+        "temporary_power_hint": "NO",
+        "needs_deep_enrichment": "YES",
+        "advisory": {
+          "research_recommended": false
+        }
+      },
+      "model": "jev-1.13.0",
+      "latency_ms": 171,
+      "input_tokens": 2635,
+      "output_tokens": 316
+    },
+    {
+      "case_id": "synthetic-unknown-size-relevant-project",
+      "evidence_id": null,
+      "status": "valid",
+      "result": {
+        "relevant": "YES",
+        "same_project": "YES",
+        "event_type": "construction",
+        "material_change": "NO",
+        "power_relevance": "MEDIUM",
+        "temporary_power_hint": "NO",
+        "needs_deep_enrichment": "YES",
+        "advisory": {
+          "research_recommended": false
+        }
+      },
+      "model": "jev-1.13.0",
+      "latency_ms": 219,
+      "input_tokens": 5304,
+      "output_tokens": 317
+    },
+    {
+      "case_id": "synthetic-already-resolved-utility-question",
+      "evidence_id": null,
+      "status": "valid",
+      "result": {
+        "relevant": "NO",
+        "same_project": "YES",
+        "event_type": "construction",
+        "material_change": "NO",
+        "power_relevance": "HIGH",
+        "temporary_power_hint": "UNKNOWN",
+        "needs_deep_enrichment": "YES",
+        "advisory": {
+          "research_recommended": false
+        }
+      },
+      "model": "jev-1.13.0",
+      "latency_ms": 171,
+      "input_tokens": 6024,
+      "output_tokens": 316
+    }
+  ]
+}

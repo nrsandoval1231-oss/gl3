@@ -420,7 +420,8 @@ def test_permit_v5_rejected_to_v6_clause_recovery_and_replay(db):
         assert not session.scalar(
             select(PowerNeed.active).join(Project).where(Project.source_id == definition["id"])
         )
-        assert session.scalar(select(func.count()).select_from(ChangeEvent)) == event_count + 1
+        # Legacy closure plus an evidence-bound power-state material delta.
+        assert session.scalar(select(func.count()).select_from(ChangeEvent)) == event_count + 2
         assert session.scalar(select(func.count()).select_from(NeedObservation)) == link_count
 
 
@@ -556,7 +557,8 @@ def test_event_signal_closes_after_explicit_end_date_on_same_hash_replay(db, mon
             session.scalar(select(func.count()).select_from(ChangeEvent)),
             session.scalar(select(func.count()).select_from(NeedObservation)),
         )
-        assert closed_snapshot[-2] == first_snapshot[-2] + 1
+        # Legacy closure plus an evidence-bound power-state material delta.
+        assert closed_snapshot[-2] == first_snapshot[-2] + 2
     assert run()["unchanged"] == 1
     with factory() as session:
         observation = session.scalar(select(Observation))

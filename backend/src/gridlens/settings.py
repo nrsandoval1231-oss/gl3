@@ -16,6 +16,11 @@ class Settings(BaseSettings):
     pursuits_daily_fetch_limit: int = 160
     pursuits_daily_model_limit: int = 8
     typesafe_api_key: SecretStr | None = None
+    jev_enabled: bool = False
+    jev_shadow_mode: bool = True
+    jev_shadow_batch_limit: int = 20
+    jev_shadow_daily_limit: int = 20
+    jev_shadow_timeout_seconds: int = 90
     openai_api_key: SecretStr | None = None
     openai_brief_model: str = "gpt-4.1-mini"
     briefs_daily_request_limit: int = 8

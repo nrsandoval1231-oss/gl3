@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import time
-from collections import defaultdict
+from collections import Counter, defaultdict
 from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any
@@ -286,6 +286,13 @@ def enrich_buying_chain(
     project = session.scalar(select(Project).where(Project.id == project_id).with_for_update())
     if project is None:
         raise LookupError("Project not found")
+    # Capture the actual accepted current state before this pass mutates the
+    # selected claim/run projection. The diff is emitted only after a retained
+    # accepted Evidence version is available to support it.
+    from gridlens.intelligence.change_detection import seed_material_state
+
+    material_baseline = seed_material_state(session, project)
+    buying_chain_baseline = buying_chain_view(session, project.id, now=now)
     if len(source_urls or []) > MAX_SOURCE_URLS:
         raise ValueError("At most four additional public source URLs are allowed")
     supplied = [validate_public_url(url) for url in source_urls or []]
@@ -483,9 +490,7 @@ def enrich_buying_chain(
                 project.source_id == "houston-weekly-permits"
                 and "/ibi_apps/WFServlet.ibfs" in doc.url
             ):
-                organizations.extend(
-                    extract_retained_permit_organizations(doc, project.source_id)
-                )
+                organizations.extend(extract_retained_permit_organizations(doc, project.source_id))
             organizations.extend(extract_organizations(doc, project))
     people = [item for item in organizations if item.person_name is not None]
     organizations = _deduplicate([item for item in organizations if item.person_name is None])
@@ -666,6 +671,87 @@ def enrich_buying_chain(
             )
         )
     session.flush()
+    retained_after = _retained(session, project)
+    if retained_after:
+        from gridlens.intelligence.change_detection import record_material_diff
+
+        # Contractor and buyer deltas are supported by the immutable buying-chain
+        # document version, not an unrelated retained permit used to select this project.
+        semantic_fields = (
+            "organization",
+            "person_name",
+            "title",
+            "category",
+            "organization_relationship",
+            "person_project_relationship",
+        )
+
+        def semantic_key(row: dict[str, Any]) -> tuple[Any, ...]:
+            return tuple(row.get(key) for key in semantic_fields)
+
+        def support_for(field: str) -> BuyingChainEvidence | None:
+            # Match the complete semantic rows emitted by material_state.
+            # Organization-only matching can cite an unchanged role at the
+            # same organization when a different role changes.
+            def field_rows(view: dict[str, Any]) -> list[dict[str, Any]]:
+                return [
+                    row
+                    for row in view["candidates"]
+                    if not row.get("stale")
+                    and (
+                        field != "contractor"
+                        or row.get("category")
+                        in {"contractor", "electrical_contractor", "epc", "general_contractor"}
+                    )
+                ]
+
+            after_rows = [
+                row
+                for row in field_rows(buying_chain_view(session, project.id, now=now))
+            ]
+            before_rows = [
+                row
+                for row in field_rows(buying_chain_baseline)
+            ]
+            removed = Counter(map(semantic_key, before_rows)) - Counter(
+                map(semantic_key, after_rows)
+            )
+            added = Counter(map(semantic_key, after_rows)) - Counter(
+                map(semantic_key, before_rows)
+            )
+            if not removed and not added:
+                return None
+
+            source_ids = [
+                citation["id"]
+                for row in [*after_rows, *before_rows]
+                if added[semantic_key(row)] > 0 or removed[semantic_key(row)] > 0
+                for citation in row.get("evidence", [])
+                if citation.get("id")
+            ]
+            sources: list[BuyingChainEvidence] = []
+            for source_id in source_ids:
+                source = session.get(BuyingChainEvidence, source_id)
+                if source is not None:
+                    sources.append(source)
+            # A same-URL checked replacement is the source of a removal even
+            # when its new immutable content hash differs from the old claim.
+            cited_urls = {source.url for source in sources}
+            replacements = [source for source in saved.values() if source.url in cited_urls]
+            return (
+                max(replacements or sources, key=lambda row: (row.last_seen_at, row.id))
+                if (replacements or sources)
+                else None
+            )
+
+        support: dict[str, BuyingChainEvidence] = {}
+        for field in ("contractor", "buyer"):
+            field_source = support_for(field)
+            if field_source is not None:
+                support[field] = field_source
+        record_material_diff(
+            session, project, retained_after[0], material_baseline, buying_evidence=support
+        )
     return buying_chain_view(session, project.id, now=now)
 
 
@@ -698,6 +784,34 @@ def buying_chain_view(
         .order_by(BuyingChainEvidence.last_seen_at.desc(), BuyingChainEvidence.id.desc())
     ).all()
     by_id = {str(row.id): row for row in sources}
+    # A completed run is not automatically current: retained citations are tied
+    # to the accepted Evidence version, and a rejected replacement must not keep
+    # selecting its old claim set merely because it is the newest run.
+    active_run = None
+    for candidate_run in runs:
+        current = True
+        for source_id in candidate_run.evidence_ids:
+            source = by_id.get(source_id)
+            if source is None:
+                current = False
+                break
+            if source.retained_evidence_id:
+                retained = session.get(Evidence, source.retained_evidence_id)
+                interpretation = (
+                    session.scalar(
+                        select(Interpretation).where(
+                            Interpretation.observation_id == retained.observation_id
+                        )
+                    )
+                    if retained
+                    else None
+                )
+                if retained is None or not _accepted_version(interpretation, retained):
+                    current = False
+                    break
+        if current:
+            active_run = candidate_run
+            break
     newest_by_url: dict[str, UUID] = {}
     for source_version in sorted(
         sources,
@@ -705,8 +819,8 @@ def buying_chain_view(
         reverse=True,
     ):
         newest_by_url.setdefault(source_version.url, source_version.id)
-    if runs:
-        for evidence_id in runs[0].evidence_ids:
+    if active_run:
+        for evidence_id in active_run.evidence_ids:
             if evidence_id in by_id:
                 latest_run_source = by_id[evidence_id]
                 current_source = by_id[str(newest_by_url[latest_run_source.url])]
@@ -719,7 +833,9 @@ def buying_chain_view(
     for claim in claims:
         grouped[claim.entity_key].append(claim)
     selected = (
-        claims if history else [row for row in claims if runs and str(row.id) in runs[0].claim_ids]
+        claims
+        if history
+        else [row for row in claims if active_run and str(row.id) in active_run.claim_ids]
     )
     candidates: list[dict[str, Any]] = []
     for claim in selected:
@@ -862,15 +978,15 @@ def buying_chain_view(
         .limit(10)
     ).all()
     unresolved = (
-        list(runs[0].unresolved)
-        if runs
+        list(active_run.unresolved)
+        if active_run
         else ["Buying chain has not been researched for this project."]
     )
     if any(item["stale"] for item in candidates):
         unresolved.append("Some evidence is stale or superseded; verify current responsibility.")
     return {
         "project_id": project_id,
-        "status": runs[0].status if runs else "not_researched",
+        "status": active_run.status if active_run else "not_researched",
         "candidates": candidates if history else candidates[:MAX_CANDIDATES],
         "unresolved": unresolved,
         "runs": [
@@ -913,11 +1029,7 @@ def _permit_summaries(session: Session, project_id: UUID) -> list[dict]:
             )
     if project.source_id == "houston-weekly-permits":
         primary = next(
-            (
-                item
-                for item in summaries
-                if item["source_id"] == project.source_id
-            ),
+            (item for item in summaries if item["source_id"] == project.source_id),
             None,
         )
         if primary:
@@ -927,7 +1039,9 @@ def _permit_summaries(session: Session, project_id: UUID) -> list[dict]:
                 .where(
                     BuyingChainEvidence.project_id == project.id,
                     BuyingChainEvidence.retained_evidence_id.is_(None),
-                    BuyingChainEvidence.url.like("https://cohtora.houstontx.gov/ibi_apps/WFServlet.ibfs%"),
+                    BuyingChainEvidence.url.like(
+                        "https://cohtora.houstontx.gov/ibi_apps/WFServlet.ibfs%"
+                    ),
                 )
                 .order_by(BuyingChainEvidence.last_seen_at.desc())
             ):
@@ -941,13 +1055,12 @@ def _permit_summaries(session: Session, project_id: UUID) -> list[dict]:
                     or query.get("PT") != [expected_type_code]
                     or fields.get("Houston exact permit project number")
                     != primary_facts.get("Source record")
-                    or response_type_code(fields.get("Permit type code", ""))
-                    != expected_type_code
+                    or response_type_code(fields.get("Permit type code", "")) != expected_type_code
                     or fields.get("Houston sold permit detail date")
                     != primary_facts.get("Permit sale event date (weekly report)")
-                    or not fields.get("Permit job address", "").casefold().startswith(
-                        primary_facts.get("Site address", "").casefold()
-                    )
+                    or not fields.get("Permit job address", "")
+                    .casefold()
+                    .startswith(primary_facts.get("Site address", "").casefold())
                 ):
                     continue
                 summaries.append(

@@ -12,6 +12,8 @@ Authentication is server-side. The local private-workspace login uses a password
 
 Runtime health separates attempts from verified success and publication age. Unchanged retrieval updates check time without changing the source publication date or material-change digest. Jobs use PostgreSQL locking, lease ownership and fencing; final proof must cover stale workers as well as per-record persistence.
 
+GL3-028 keeps accepted project state and material transitions in the existing PostgreSQL boundary. A material event retains the source class that supports it: ordinary source `Evidence` for ingestion changes, or immutable `BuyingChainEvidence` for contractor/buyer changes. The morning changes feed resolves the stored source and keeps its response shape stable. A shadow-only EvidenceJudge remains outside ingestion authority; only explicit bounded evaluation can invoke it.
+
 Deterministic interpretation reruns on identical source content so a corrected rule can reclassify an earlier mistake without deleting evidence. A same-content correction is recorded as reclassified, not a fabricated source cancellation. Repeating unchanged rules produces no material event. Worker fence reads refresh cached ORM state under the database lock, including for a long-lived worker session.
 
 Current local topology: PostgreSQL 127.0.0.1:55439, API 127.0.0.1:8000, React development server 127.0.0.1:5173. The unrelated existing database on 5432 is untouched. Permitted source samples and runtime exports remain under ignored `.artifacts/`; this is local storage, not a managed object-store deployment.
