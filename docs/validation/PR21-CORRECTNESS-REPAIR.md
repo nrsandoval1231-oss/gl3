@@ -281,3 +281,30 @@ base, plus a passing unsupported-field control. After repair, the full
 project-state changes module passed 23 tests; Ruff, mypy, web typecheck,
 OpenAPI/type generation, and diff check passed. Full repository gates and
 independent review remain controller-owned.
+
+## R7 material need conflicts
+
+The material `power_need` snapshot now adds a `conflicts` map only when two or
+more current, admitted, project/activity-bound claims disagree. It stores
+distinct field values, without citation IDs or timestamps, and leaves the
+historical row shape intact when claims agree. An unchanged selected `PowerNeed`
+value can therefore produce a causal conflict event; a changed selection still
+shows the contradiction. Resolution, renewed conflict, identical replay, an
+agreeing citation, and later unrelated Evidence retain their expected behavior.
+
+When an existing material snapshot predates this field, `seed_material_state`
+captures pre-action claim conflicts under the project lock and quietly aligns
+only its conflict metadata. It preserves prior selected values for a genuine
+post-action diff. Retained-news assessment now avoids two eager `setdefault`
+seed calls that could otherwise overwrite an already captured baseline after
+the Interpretation changed. The same-observation revision regression proves
+that this guard preserves a causal conflict-resolution event. A temporary
+isolated mutant restoring eager seeding failed that regression.
+
+`R7-BEFORE-AFTER.json` records exact `cf0662e` source-copy failures and final
+focused evidence. A proposed Taylor identity-key adjustment was removed after
+checking the current admission policy: Taylor planning-news records are
+context-only and return before the affected branch. No Taylor product code or
+test was changed. The affected project-state, collection-only ingestion, and
+Taylor modules passed 65 tests; Ruff, mypy, and diff check passed. Full gates
+and independent review remain controller-owned.

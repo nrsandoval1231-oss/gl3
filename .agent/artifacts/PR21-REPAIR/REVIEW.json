@@ -2,11 +2,11 @@
   "node": "PR21-REPAIR",
   "verdict": "PASS",
   "raw_verdict": "PASS",
-  "raw_audit": "REVIEW-R6-INDEPENDENT.json",
-  "raw_audit_sha256": "e975520d0a2596417ad03451d399c50e140617e268423f2c49e686785e82f137",
-  "candidate_manifest_sha256": "3495568b718fcc0b27742afa3275ae4eb2d909aec6d9279cc1b93dde9c513659",
-  "recorded_utc": "2026-10-02T22:37:12.348764+00:00",
+  "raw_audit": "REVIEW-R7-INDEPENDENT.json",
+  "raw_audit_sha256": "3b0400f554062462862e8e1f45b885f7921ab34c1f442267fdcbd44d88831afc",
+  "candidate_manifest_sha256": "3daf5b28ad4bf57db248fd484b01d5f48e3c9ba7a6bd34f394e3d19952981220",
+  "recorded_utc": "2026-10-02T23:09:29.791572+00:00",
   "scope": "Exact local correctness repair accepted; hosted exact-head verification pending. No merge or deployment.",
-  "reviewer_model": "UNKNOWN",
+  "reviewer_model": "Sol role",
   "findings": []
 }

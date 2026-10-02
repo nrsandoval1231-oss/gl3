@@ -3,7 +3,7 @@
   "branch": "fix/pr21-correctness",
   "base_sha": "da1f2bdb3c207e97e8a861392ba6df189dfe32a2",
   "candidate_commit": "UNKNOWN (uncommitted builder worktree)",
-  "scope": "Bounded PR21 correctness repairs R1-R5; original five and validated adjacent findings.",
+  "scope": "Bounded PR21 correctness repairs R1-R7; original five and validated adjacent findings.",
   "implementation": "R1 and R2 repairs remain preserved. R3 makes PowerNeed field support current, admitted, project/activity-specific and selects the newest buying-chain run claim set while keeping per-citation stale handling. Builder does not self-certify acceptance.",
   "focused_validation": {
     "r1_command": "uv run --directory backend --extra dev pytest tests/integration/test_ingestion.py tests/integration/test_collection_only_ingestion.py tests/integration/test_taylor_ingestion.py tests/integration/test_evidence_shadow_storage.py -q",
@@ -63,6 +63,22 @@
     "web/src/api/generated.ts",
     ".agent/packets/PR21-REPAIR.md",
     ".agent/artifacts/PR21-REPAIR/R6-BEFORE-AFTER.json",
+    "docs/validation/PR21-CORRECTNESS-REPAIR.md",
+    ".agent/artifacts/PR21-REPAIR/COMPLETION.json"
+  ],
+  "r7_base_sha": "cf0662eb7b19e9ec17c3fcc510c00f402d72fca7",
+  "r7_handoff": "Material need snapshots now include semantic conflicting values only when current admitted claims disagree; pre-action seed quietly aligns legacy conflict metadata while preserving selected values. Both retained-news eager setdefault seeds are guarded so an already captured baseline survives Interpretation mutation. Exact-head direct and real-ingestion failure proof, plus eager-seed mutant failure, are in R7-BEFORE-AFTER.json. Real same-observation resolution and A-B-A, agreeing citation, replay and unrelated quiet assertions pass. Focused 3 modules: 65 passed; Ruff, mypy, diff check passed. Taylor identity-key path is unreachable under current context-only admission and was left unchanged. Source/docs frozen; controller owns full gates and independent review.",
+  "r7_repair_count": 1,
+  "r7_started_at_utc": "UNKNOWN",
+  "r7_finished_at_utc": "2026-10-02T23:01:39Z",
+  "r7_durations_and_tokens": "UNKNOWN",
+  "r7_files": [
+    "backend/src/gridlens/intelligence/change_detection.py",
+    "backend/src/gridlens/ingestion/service.py",
+    "backend/tests/integration/test_project_state_changes.py",
+    "backend/tests/integration/test_collection_only_ingestion.py",
+    ".agent/packets/PR21-REPAIR.md",
+    ".agent/artifacts/PR21-REPAIR/R7-BEFORE-AFTER.json",
     "docs/validation/PR21-CORRECTNESS-REPAIR.md",
     ".agent/artifacts/PR21-REPAIR/COMPLETION.json"
   ]

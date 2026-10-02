@@ -1,0 +1,9 @@
+[
+  {
+    "id": 4170426721,
+    "path": "backend/src/gridlens/intelligence/change_detection.py",
+    "line": 109,
+    "created_at": "2026-10-02T22:42:41Z",
+    "body": "**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Include claim conflicts in material snapshots**\n\nWhen a second current, admitted claim disagrees on tier, MW, timing, duration, or supply, `project_state()` now correctly reports `CONFLICT`, but this snapshot still records only the mutable `PowerNeed` values. If deterministic claim selection leaves those values unchanged, `record_material_diff()` emits no event; if selection changes, it records a replacement rather than the unresolved contradiction. Consequently `/api/changes` and project change history can omit or misrepresent the arrival of material conflicting evidence; derive the snapshot from the evidence-aware field projection so conflict transitions are persisted.\n\nAGENTS.md reference: [AGENTS.md:L6-L6](https://github.com/nrsandoval1231-oss/gl3/blob/cf0662eb7b19e9ec17c3fcc510c00f402d72fca7/AGENTS.md#L6-L6)\n\nUseful? React with \ud83d\udc4d\u00a0/ \ud83d\udc4e."
+  }
+]
