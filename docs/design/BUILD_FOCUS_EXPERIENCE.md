@@ -4,7 +4,7 @@ You are implementing an approved product experience, not designing an alternativ
 
 ## Objective
 
-Replace the current GridLens presentation with the exact interaction concept Nick approved in `gridlens-interactive-study.html`, preserving GridLens branding and connecting the experience to real application data.
+Implement the approved experience in [UI_CANON.md](UI_CANON.md), preserving GridLens branding and connecting it to real application data. The [canonical reference manifest](references/canonical-ui-reference.json) identifies the exact owner-provided assets: use the overview image as the visual authority and `gridlens-interactive-study.html` as a behavior reference only. The HTML contains fictional data and does not define a competing visual target.
 
 Done means Nick opens the authenticated GridLens app, finds a real Signal, focuses into its project, explores its actual power/evidence/buying context, records a useful outcome, refreshes successfully, and returns to the prior arrangement. The environment must transform around his intent as in the reference. A conventional dashboard with the same colors is not acceptance.
 
@@ -12,7 +12,7 @@ Done means Nick opens the authenticated GridLens app, finds a real Signal, focus
 
 Work only in `nrsandoval1231-oss/gl3`, not legacy GridLens repositories. Fetch current refs and inspect the working tree before changing it. Preserve all uncommitted work. Use one feature branch or isolated worktree; do not reset, force-push, or delete unrelated work.
 
-The handoff was prepared against `main` commit `ce6b8fc688085c7a43f1bdefa35eeabeddb72903`. This is an inspection baseline, not a command to reset an advanced main. Incorporate the owner-approved `docs/design/UI_CANON.md` and this handoff from `feat/gridlens-focus-experience`, reconciling newer work without losing it.
+The handoff was prepared against `main` commit `ce6b8fc688085c7a43f1bdefa35eeabeddb72903`. This is an inspection baseline, not a command to reset an advanced main. The October 1 locked `docs/design/UI_CANON.md` and its reference manifest govern visual and behavior references; this handoff supplies implementation sequencing and acceptance detail. Reconcile newer work without losing it.
 
 Read `AGENTS.md`, `docs/product/PRD.md`, and the amended `docs/design/UI_CANON.md`. The October 1 owner decision replaces the old static/list-first visual target, not product/data requirements.
 
