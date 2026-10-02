@@ -262,6 +262,12 @@ Minimum conceptual outputs:
 
 LLMs/search/research may classify, extract and find evidence. Deterministic code owns lifecycle validation, date arithmetic, time-to-event calculations, tier gates and persisted state transitions.
 
+# Owner acquisition priorities — October 1, 2026
+
+Prioritize Dallas, Austin, Houston, El Paso and California while continuing nationwide, cross-industry ingestion. Within that effort, prioritize data-center construction temporary power, then data-center commissioning temporary power, then oil and gas temporary power. The lifecycle discovery sequence below supports that commercial order; early formation evidence remains valuable and does not imply a power gap or commissioning activity.
+
+Official flare-gas permits and flaring/venting exceptions are in scope for oil-and-gas source onboarding. Preserve their legal/event type and dates separately from actual flaring/production measurements. Do not convert an authorized gas volume to electric output or assume gas availability, composition, suitable fuel or a buyer.
+
 # Source prioritization
 
 New source work should be evaluated by **commercial timing advantage**, not raw record volume.

@@ -1,0 +1,24 @@
+{
+  "node": "GL3-027",
+  "role": "independent Sol exact-candidate review",
+  "verdict": "PASS",
+  "branch": "feat/gl3-027-priority-flare-intake",
+  "base_sha": "94cba4e13197701bde52178e6ece6acd4c485296",
+  "candidate_manifest": ".agent/artifacts/GL3-027/candidate_manifest.json",
+  "candidate_sha256": "850efc765dbf26f42f16e060af16b36cfe5c90db2deb5e4c704a4dad74060ba1",
+  "manifest_file_count": 317,
+  "manifest_files_verified": true,
+  "started_at_utc": "UNKNOWN",
+  "finished_at_utc": "2026-10-02T00:48:35Z",
+  "findings": [],
+  "evidence_reviewed": [
+    "Independently hashed all 317 manifest file bytes with zero mismatches; compact sorted-key file-map digest matched 850efc765dbf26f42f16e060af16b36cfe5c90db2deb5e4c704a4dad74060ba1. Tracked and nonignored untracked product-file enumeration matched with the manifest's .agent and GL3-027 validation-report exclusions.",
+    "Read the bounded GL3-027 packet, dated owner PRD amendment, Finish Contract, source and validation documents, actual diff and new adapter/tests. The official HTTPS endpoint, three Texas calendar days, 10-row paging, 50-page/500-record ceiling and byte budgets are pinned. Retrieval checks advertised count, ordered row offsets, stable distinct filing IDs, page lengths, rotating JSF state and final completeness before returning records.",
+    "FLARE_RUNTIME records a real isolated ordinary-worker acquisition of 38 new filings with 38 rejected permit interpretations and no accepted Signals. FLARE_REPLAY_FINAL records a separate claimed check of 38 unchanged records. REPLAY_PARITY reports exact equality across observations, evidence, projects, power needs, need-observation links, buying-chain claims and interpretations; persisted examples retain filing, operator, status, dates, query URL and row locator.",
+    "FLARE_BACKGROUND_REPLAY was inspected separately: ran=false because the background worker completed that queued job; it is not counted as controller replay proof. The final claimed replay and seven-table parity are separate later receipts.",
+    "Visually inspected ui/flare-ingestion.png: Oil & gas RRC source selected, 38 retained items, application/status/operator fields, citation locator, unknown publication date and explicit evidence-only/no-project-Signal explanation. Final gate receipts show Ruff, mypy, 559 pytest pass with one existing skip, frontend typecheck/build, clean/repeat/drift migrations, 18 scoped browser passes and diff check all exit zero. Initial mypy failure and repair remain retained."
+  ],
+  "reviewed_boundaries": "A filing is retained as an application observation, not a physical site, actual flare event, verified gas supply, power requirement, rental opportunity, buyer or Signal. Filing number is stable identity and status/date changes alter source evidence hash. Existing sources remain enabled; the dated geographic and vertical priorities are recorded without inventing a new ranking algorithm. No reviewer provider/network call, product edit, commit, push, merge or deploy was performed.",
+  "limitations": "PASS covers this frozen local candidate and bounded runtime acceptance only. It does not establish California enabled intake, complete Texas flare authorization coverage, status monitoring after a filing leaves the three-day submittal window, detailed application/attachment ingestion, unattended daily refresh, national completeness, qualified Leads or parent Finish Contract completion. Four historical browser cases retain their existing exclusion. Parent launch remains OPEN.",
+  "direction": "CONTINUE controller integration for this exact candidate. Any product-file change requires a new manifest and independent review."
+}

@@ -31,6 +31,14 @@ The approved visual and interaction direction is [the frozen UI canon](../design
 
 ## Product outcomes
 
+### Owner-authorized acquisition priorities — October 1, 2026
+
+Priority geographies are **Dallas, Austin, Houston, El Paso, and California**. These guide source onboarding, coverage repair and investigation effort; they do not exclude other United States geographies or disable existing feeds. California is a statewide priority, with actual coverage stated separately for each city, district or state source.
+
+Commercial activity priority is **(1) data-center construction temporary power, (2) data-center commissioning temporary power, (3) oil and gas temporary power**. Early project formation evidence remains useful to those activities. Commissioning must have its own supporting evidence; construction or a generator permit alone does not establish commissioning.
+
+Include official **flare-gas permits and flaring/venting exceptions** in oil-and-gas ingestion where records can be acquired reproducibly. Preserve applications, authorizations, amendments, expiration and reported operational events distinctly. An authorization is not proof of actual flaring, recoverable gas, continuous flow, gas composition, fuel suitability, generator capacity, an open power package or purchasing authority. Broad national and cross-industry collection remains enabled. These are owner priorities, not a claim that every requested source is already implemented or that runtime ranking has changed.
+
 ### Owner-authorized presentation amendment — October 1, 2026
 
 - Remove the standalone Cannabis Watch view and its topic-match API behavior. Retained cannabis industry source evidence and supplemental news remain available in the ordinary ingestion inbox; only dated, site-identifiable official cultivation applications may be admitted as Signals.
