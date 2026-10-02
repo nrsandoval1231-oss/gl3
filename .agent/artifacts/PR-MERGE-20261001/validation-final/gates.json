@@ -1,0 +1,123 @@
+[
+  {
+    "check": "ruff",
+    "command": [
+      "uv",
+      "run",
+      "ruff",
+      "check",
+      "src",
+      "tests",
+      "migrations",
+      "../scripts"
+    ],
+    "exit_code": 0,
+    "start": "2026-10-02T01:24:07.403785+00:00",
+    "finish": "2026-10-02T01:24:07.466877+00:00",
+    "seconds": 0.063092
+  },
+  {
+    "check": "mypy",
+    "command": [
+      "uv",
+      "run",
+      "mypy",
+      "src"
+    ],
+    "exit_code": 0,
+    "start": "2026-10-02T01:24:07.467869+00:00",
+    "finish": "2026-10-02T01:24:11.985243+00:00",
+    "seconds": 4.517374
+  },
+  {
+    "check": "pytest",
+    "command": [
+      "uv",
+      "run",
+      "pytest",
+      "tests",
+      "-q"
+    ],
+    "exit_code": 0,
+    "start": "2026-10-02T01:24:11.985243+00:00",
+    "finish": "2026-10-02T01:24:41.028705+00:00",
+    "seconds": 29.043462
+  },
+  {
+    "check": "typecheck",
+    "command": [
+      "npm.cmd",
+      "run",
+      "typecheck"
+    ],
+    "exit_code": 0,
+    "start": "2026-10-02T01:24:41.029705+00:00",
+    "finish": "2026-10-02T01:24:42.540318+00:00",
+    "seconds": 1.510613
+  },
+  {
+    "check": "build",
+    "command": [
+      "npm.cmd",
+      "run",
+      "build"
+    ],
+    "exit_code": 0,
+    "start": "2026-10-02T01:24:42.541313+00:00",
+    "finish": "2026-10-02T01:24:44.894120+00:00",
+    "seconds": 2.352807
+  },
+  {
+    "check": "migrations-clean",
+    "command": [
+      "uv",
+      "run",
+      "alembic",
+      "upgrade",
+      "head"
+    ],
+    "exit_code": 0,
+    "start": "2026-10-02T01:24:44.895119+00:00",
+    "finish": "2026-10-02T01:24:45.895069+00:00",
+    "seconds": 0.99995
+  },
+  {
+    "check": "migrations-repeat",
+    "command": [
+      "uv",
+      "run",
+      "alembic",
+      "upgrade",
+      "head"
+    ],
+    "exit_code": 0,
+    "start": "2026-10-02T01:24:45.896079+00:00",
+    "finish": "2026-10-02T01:24:46.677478+00:00",
+    "seconds": 0.781399
+  },
+  {
+    "check": "migrations-drift",
+    "command": [
+      "uv",
+      "run",
+      "alembic",
+      "check"
+    ],
+    "exit_code": 0,
+    "start": "2026-10-02T01:24:46.677478+00:00",
+    "finish": "2026-10-02T01:24:47.599102+00:00",
+    "seconds": 0.921624
+  },
+  {
+    "check": "diff",
+    "command": [
+      "git",
+      "diff",
+      "--check"
+    ],
+    "exit_code": 0,
+    "start": "2026-10-02T01:24:47.600104+00:00",
+    "finish": "2026-10-02T01:24:47.649768+00:00",
+    "seconds": 0.049664
+  }
+]

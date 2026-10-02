@@ -1,0 +1,33 @@
+{
+  "source_id": "boston-building-permits",
+  "job_id": "460af69e-90c5-46a1-969a-b54f1067de29",
+  "ran": true,
+  "status": "succeeded",
+  "error": null,
+  "health": {
+    "error": null,
+    "status": "Checked\u2014No Change",
+    "new_records": 0,
+    "last_attempt": "2026-10-02T01:25:22.584407+00:00",
+    "last_success": "2026-10-02T01:25:22.584407+00:00",
+    "pdf_eligible": 0,
+    "pdf_enriched": 0,
+    "parse_failures": 0,
+    "parsed_records": 9141,
+    "pdf_candidates": 0,
+    "changed_records": 0,
+    "permit_accepted": 20,
+    "permit_rejected": 9121,
+    "records_scanned": 9141,
+    "collection_scope": "Bounded 90-day issued-permit window, all permit types/statuses; count-checked deterministic pagination ordered by issue timestamp and row ID.",
+    "pdf_skipped_limit": 0,
+    "retrieved_records": 9141,
+    "unchanged_records": 9141,
+    "coverage_limitation": "Not the full 664,565-row history. Closed/completed records remain evidence and are not admitted as current Signals. Applicant is not a buyer role. No construction start, project owner, temporary rental need, MW, supply gap, or authority is inferred; declared valuation and area are not power need. Status changes on records outside the recent issue window are not monitored.",
+    "pdf_skipped_not_signal": 0,
+    "latest_publication_date": null,
+    "latest_public_comment_deadline": null
+  },
+  "started_at": "2026-10-02T01:25:22.516083+00:00",
+  "finished_at": "2026-10-02T01:25:52.458959+00:00"
+}

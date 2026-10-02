@@ -1,0 +1,16 @@
+{
+  "source_database": "gl3_027_accept",
+  "isolated_databases": [
+    "gl3_merge_accept_20261001",
+    "gl3_merge_test_20261001"
+  ],
+  "original_preserved": true,
+  "external_model_keys": "blank in isolated environment",
+  "ports": [
+    8024,
+    5194
+  ],
+  "corrected_test_database": "gl3_merge_20261001_test",
+  "initial_test_database_preserved": true,
+  "test_setup_repair": "Required _test database suffix and expected local5173 origin restored; no tests changed"
+}
