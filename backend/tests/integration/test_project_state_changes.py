@@ -412,6 +412,121 @@ def test_equivalent_numeric_claims_share_support_without_false_conflict(db):
         assert {row["id"] for row in projected["evidence"]} == {str(first.id), str(second.id)}
 
 
+@pytest.mark.parametrize("selected_changes", [False, True])
+def test_need_conflict_is_material_with_causal_evidence_and_quiet_replay(db, selected_changes):
+    with db.begin() as session:
+        project, _, unrelated = seed(session)
+        need = PowerNeed(
+            project_id=project.id,
+            activity_key="construction",
+            tier="Prospect",
+            rationale="fixture",
+            required_mw="42 MW",
+            start_window="2026 Q4",
+            duration="6 months",
+            supply="Reported constraint",
+            active=True,
+        )
+        session.add(need)
+        session.flush()
+        linked_official_need_evidence(session, project, need, key=f"baseline-{selected_changes}")
+        baseline = seed_material_state(session, project)
+        second, _, interpretation = linked_official_need_evidence(
+            session,
+            project,
+            need,
+            key=f"conflict-{selected_changes}",
+            tier="Signal",
+            demand_mw="58 MW",
+            start_window="2027 Q1",
+            duration="12 months",
+        )
+        if selected_changes:
+            need.required_mw = "58 MW"
+            need.tier = "Signal"
+            need.start_window = "2027 Q1"
+            need.duration = "12 months"
+        current_fields = project_state(session, project.id)["state"]["power_need"]["value"][0]
+        assert all(
+            current_fields[field]["status"] == "CONFLICT"
+            for field in ("tier", "mw", "timing", "duration")
+        )
+        changes = record_material_diff(session, project, second, baseline)
+        assert len(changes) == 1 and changes[0].field_name == "power_need"
+        assert changes[0].evidence_id == second.id
+        after = changes[0].new_state["value"][0]
+        assert after["conflicts"] == {
+            "tier": ["Prospect", "Signal"],
+            "mw": ["42 MW", "58 MW"],
+            "timing": ["2026 Q4", "2027 Q1"],
+            "duration": ["12 months", "6 months"],
+        }
+        assert record_material_diff(session, project, second, baseline) == []
+        assert record_material_diff(session, project, unrelated, baseline) == []
+
+        interpretation.status = "rejected"
+        interpretation.assessment = {"decision": "rejected", "evidence_hash": second.content_hash}
+        resolved = record_material_diff(session, project, second, baseline)
+        assert len(resolved) == 1 and resolved[0].field_name == "power_need"
+        assert resolved[0].evidence_id == second.id
+        assert "conflicts" not in resolved[0].new_state["value"][0]
+        assert record_material_diff(session, project, unrelated, baseline) == []
+
+        interpretation.status = "accepted"
+        interpretation.assessment = {
+            "decision": "accepted",
+            "evidence_hash": second.content_hash,
+            "project_identity_key": project.identity_key,
+            "power_activity": need.activity_key,
+            "tier": "Signal",
+            "demand_mw": "58 MW",
+            "start_window": "2027 Q1",
+            "duration": "12 months",
+            "subject": project.name,
+            "location": project.location,
+        }
+        renewed = record_material_diff(session, project, second, baseline)
+        assert len(renewed) == 1 and renewed[0].field_name == "power_need"
+        assert renewed[0].evidence_id == second.id
+        assert renewed[0].new_state == changes[0].new_state
+
+
+def test_preaction_snapshot_normalizes_old_conflict_without_unrelated_same_need_event(db):
+    with db.begin() as session:
+        project, _, unrelated = seed(session)
+        need = PowerNeed(
+            project_id=project.id,
+            activity_key="construction",
+            tier="Prospect",
+            rationale="fixture",
+            required_mw="42 MW",
+            supply="Reported constraint",
+            active=True,
+        )
+        session.add(need)
+        session.flush()
+        linked_official_need_evidence(session, project, need, key="backfill-first")
+        baseline = seed_material_state(session, project)
+        linked_official_need_evidence(
+            session, project, need, key="backfill-second", demand_mw="58 MW"
+        )
+        assert project_state(session, project.id)["state"]["power_need"]["value"][0]["mw"][
+            "status"
+        ] == "CONFLICT"
+        # Simulate an old persisted snapshot created before conflict metadata
+        # existed, then begin a later unrelated same-need citation action.
+        assert "conflicts" not in baseline.state["power_need"][0]
+        baseline = seed_material_state(session, project)
+        assert baseline.state["power_need"][0]["conflicts"]["mw"] == ["42 MW", "58 MW"]
+        agreeing, _, _ = linked_official_need_evidence(
+            session, project, need, key="backfill-agreeing"
+        )
+        assert record_material_diff(session, project, agreeing, baseline) == []
+        assert record_material_diff(session, project, unrelated, baseline) == []
+        assert baseline.state == material_state(session, project.id)
+        assert session.scalar(select(ChangeEvent).where(ChangeEvent.material.is_(True))) is None
+
+
 def test_project_change_history_openapi_has_typed_array_response():
     api = import_module("gridlens.api.app")
     response = api.app.openapi()["paths"]["/api/projects/{project_id}/changes"]["get"][

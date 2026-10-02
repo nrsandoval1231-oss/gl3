@@ -17,6 +17,7 @@ from gridlens.intelligence.buying_chain import (
     buying_chain_view,
 )
 from gridlens.intelligence.lifecycle_service import lifecycle_event_supported
+from gridlens.intelligence.project_state import _accepted_need_evidence
 from gridlens.persistence.models import (
     BuyingChainClaim,
     BuyingChainEvidence,
@@ -45,6 +46,7 @@ def lock_project(session: Session, project_id: UUID) -> None:
 
 def material_state(session: Session, project_id: UUID, *, now: datetime | None = None) -> dict:
     project = session.get(Project, project_id)
+    need_claims = _accepted_need_evidence(session, project) if project is not None else {}
     needs = session.scalars(
         select(PowerNeed).where(PowerNeed.project_id == project_id).order_by(PowerNeed.activity_key)
     ).all()
@@ -89,6 +91,32 @@ def material_state(session: Session, project_id: UUID, *, now: datetime | None =
         if not item.get("stale")
     ]
     people.sort(key=lambda row: json.dumps(row, sort_keys=True, default=str))
+    power_rows = []
+    for need in needs:
+        if not need.active:
+            continue
+        row = {
+            "activity": need.activity_key,
+            "active": need.active,
+            "tier": need.tier,
+            "required_mw": need.required_mw,
+            "start_window": need.start_window,
+            "duration": need.duration,
+            "supply": need.supply,
+        }
+        conflicts = {}
+        for field in ("tier", "mw", "timing", "duration", "supply"):
+            distinct = []
+            for value, _evidence in need_claims[need.id][field]:
+                if value not in distinct:
+                    distinct.append(value)
+            if len(distinct) > 1:
+                conflicts[field] = sorted(
+                    distinct, key=lambda value: json.dumps(value, default=str)
+                )
+        if conflicts:
+            row["conflicts"] = conflicts
+        power_rows.append(row)
     return {
         "phase": lifecycle.current_state if lifecycle else None,
         "utility_timing": sorted(
@@ -98,19 +126,7 @@ def material_state(session: Session, project_id: UUID, *, now: datetime | None =
                 if e.occurred_on and ("utility" in e.event_type or "energiz" in e.event_type)
             }
         ),
-        "power_need": [
-            {
-                "activity": n.activity_key,
-                "active": n.active,
-                "tier": n.tier,
-                "required_mw": n.required_mw,
-                "start_window": n.start_window,
-                "duration": n.duration,
-                "supply": n.supply,
-            }
-            for n in needs
-            if n.active
-        ],
+        "power_need": power_rows,
         "contractor": [
             p
             for p in people
@@ -134,6 +150,27 @@ def seed_material_state(session: Session, project: Project) -> ProjectMaterialSt
         )
         session.add(row)
         session.flush()
+    else:
+        # A persisted pre-R7 row has no conflict metadata. Capture the actual
+        # pre-action claims under the project lock, then preserve the stored
+        # selected values so only this metadata is quietly normalized.
+        current_by_activity = {
+            item["activity"]: item
+            for item in material_state(session, project.id)["power_need"]
+        }
+        prior_needs = row.state.get("power_need", [])
+        normalized = []
+        for prior in prior_needs:
+            item = dict(prior)
+            current = current_by_activity.get(item.get("activity"), {})
+            if current.get("conflicts"):
+                item["conflicts"] = current["conflicts"]
+            else:
+                item.pop("conflicts", None)
+            normalized.append(item)
+        if normalized != prior_needs:
+            row.state = {**row.state, "power_need": normalized}
+            session.flush()
     return row
 
 

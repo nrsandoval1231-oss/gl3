@@ -633,7 +633,8 @@ def _attach_news_supplement(
 
     project = matching_projects[0]
     if material_baselines is not None:
-        material_baselines.setdefault(project.id, seed_material_state(session, project))
+        if project.id not in material_baselines:
+            material_baselines[project.id] = seed_material_state(session, project)
     requested_activity = payload.get("power_activity")
     if requested_activity == "construction":
         requested_activity = "facility-expansion"
@@ -1094,7 +1095,8 @@ def assess_retained_news(
                             },
                         )
                     )
-        material_baselines.setdefault(project.id, seed_material_state(session, project))
+        if project.id not in material_baselines:
+            material_baselines[project.id] = seed_material_state(session, project)
         identity_key = project.identity_key
         activity_key = payload["power_activity"]
         if activity_key == "construction":
