@@ -1,0 +1,91 @@
+{
+  "recorded_utc": "2026-10-02T18:34:27.3203586Z",
+  "base_sha": "da1f2bdb3c207e97e8a861392ba6df189dfe32a2",
+  "files": [
+    {
+      "git_blob": "b7252e51ac9a979f3061ee25068cc350002ccca7",
+      "path": ".agent/packets/PR21-REPAIR.md",
+      "sha256": "ee753587a168d8b5955744bafda1f5261dcdebd1301c53ccab427bb5fce43a3d"
+    },
+    {
+      "git_blob": "efc3e4e6fbc80f54e642401e870cd8e0f0f609cf",
+      "path": "backend/src/gridlens/api/app.py",
+      "sha256": "985b27316fee5b774c57a08b06e926d0db6799af656c1ee45f9b0509afed52ec"
+    },
+    {
+      "git_blob": "aadd2dc1c94a5fe535fdd92207760ecdf5bc2cbd",
+      "path": "backend/src/gridlens/ingestion/service.py",
+      "sha256": "4d6fb5df6e99f6b5dc23f188adcc30a83a1abfb14a7de21a196d83798be04cc7"
+    },
+    {
+      "git_blob": "3069222a0064b1cae8619de878f3eb00d4315595",
+      "path": "backend/src/gridlens/intelligence/change_detection.py",
+      "sha256": "5d5d2222d931ba1f3b2aa9cab20089d755454f9757bee49d4ccb54c4d9414af8"
+    },
+    {
+      "git_blob": "667ff5f96367b0eff808216656e491520b78d27c",
+      "path": "backend/src/gridlens/intelligence/evidence_shadow.py",
+      "sha256": "ea75ad2913ba3eb2e08613c42a9f7c32a4caef27c0c440bd30bb54013c7fc1f0"
+    },
+    {
+      "git_blob": "edab0210694bb5e0bd988d13bf7e9f803c319c1b",
+      "path": "backend/src/gridlens/intelligence/lifecycle_service.py",
+      "sha256": "b70d0d7f36d53940567178babd0ab2f49fcba6ed469590ed700429db1dce874c"
+    },
+    {
+      "git_blob": "6c12ee4b3aa85bf3d6bc009692eebfb25f382c50",
+      "path": "backend/src/gridlens/intelligence/project_state.py",
+      "sha256": "c7c67455b14a2b682cc84a8bdf380b0b5e8b703759272ead35c63f39e6f3aad8"
+    },
+    {
+      "git_blob": "26f80acdef8d18bed55f7757ad6b8cebe47a13d1",
+      "path": "backend/src/gridlens/intelligence/research_recommendation.py",
+      "sha256": "6d2b911e03295953530c32c2851b5b8c3be2d9a334bd0f53b5ef00266cd6227d"
+    },
+    {
+      "git_blob": "5a8a66eb9c361707eecddaecb2f29a2cf509dca5",
+      "path": "backend/tests/integration/test_collection_only_ingestion.py",
+      "sha256": "56d85f5a96d3853ae1301bfba3a7721a3a01fea2154ec786b2c7b82949c8ce5f"
+    },
+    {
+      "git_blob": "e29eb0d8b1745361bf8698ea8a4ece3c13ebb183",
+      "path": "backend/tests/integration/test_evidence_shadow_storage.py",
+      "sha256": "2a280493424c3d61b8fe1122dfc5f0e904b911a5eb4093670e0f3d61d8d3caac"
+    },
+    {
+      "git_blob": "d3dc2c6ac57dbd84a38238896401904d6c067d1c",
+      "path": "backend/tests/integration/test_ingestion.py",
+      "sha256": "13c561466b00016c444d441113c5734d5ad36423f3c1b04c4866311bce17b71c"
+    },
+    {
+      "git_blob": "3d094abe2822b82b985baa437e4d15a2c98cc912",
+      "path": "backend/tests/integration/test_project_state_changes.py",
+      "sha256": "8b1dd856fa5bd4f847e3aea33f0f732a304b28962f6834600e032dd96b213e1f"
+    },
+    {
+      "git_blob": "117c20dff248e89f4f28a7769dd83357ab9f5e88",
+      "path": "backend/tests/integration/test_taylor_ingestion.py",
+      "sha256": "bc2ce271e2904d83b9d00570f5a8def62f277d635b0b9622ccb59dd7a271827b"
+    },
+    {
+      "git_blob": "3af79f6655c97493e39dc69df5e37e17dbdc4320",
+      "path": "backend/tests/unit/test_evidence_judge.py",
+      "sha256": "2b1c5a9806d57f931cd16309e3d75cb0c7fe3d6b5a0c055c702ba6813df245ea"
+    },
+    {
+      "git_blob": "42636f95d9d4495361888c6539d93b984bcd5dd8",
+      "path": "docs/validation/PR21-CORRECTNESS-REPAIR.md",
+      "sha256": "adbf5a7fbad799727da01d616b04a0b1b614bc49ae7217bb351a191e743c5b2d"
+    },
+    {
+      "git_blob": "c9d81fe15822639565286d1a4221a5913db464fe",
+      "path": "web/src/api/generated.ts",
+      "sha256": "a736524f2e3a3e0b21662bf88b3a831c5b377193faeb9e03d598d14ff21e4961"
+    },
+    {
+      "git_blob": "39495d210c0ccb0cb97b6c80b0b890e5b6028554",
+      "path": "web/src/api/openapi.json",
+      "sha256": "8dcecb30af7c162a41ddeccbdbbc05a8d6da86af6584456071366e33a23e48a6"
+    }
+  ]
+}

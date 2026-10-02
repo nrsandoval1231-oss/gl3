@@ -1,0 +1,32 @@
+{
+  "node": "PR21-REPAIR",
+  "verdict": "FIX",
+  "base_sha": "da1f2bdb3c207e97e8a861392ba6df189dfe32a2",
+  "prior_reviewed_head": "bfa6186e74462cd222b8859f5dae45bec6974eed",
+  "candidate_manifest_sha256": "3665d1355171789fc2380e330974aa7cd864ec91eb46f1ce6cdf642ca5a0bdfc",
+  "candidate_file_hashes_verified": true,
+  "receipts": {
+    "VALIDATION.json_sha256": "ab07a67ec36e52783c9778506b9d1f245254dbd0515f88c730712294d02e0423",
+    "BROWSER.json_sha256": "5b7ec1de2645ee85c608c936b262ed0fd75f7a9d96565df31967177d72851c24",
+    "PRESERVATION.json_sha256": "b751e79e46119187dfe8cda4bcd0ee93951aff8acf6fcd19253e1c559efbad2d"
+  },
+  "validated_evidence": "Fresh gates passed: 603 backend tests, 1 skipped; Ruff, mypy, frontend audit/typecheck/build, clean/repeat/downgrade/reupgrade/current-main/previous-head migration checks and diff check exit 0; 22 serial browser tests passed. Retained clone preserved 13 authoritative tables and 16960 Evidence rows, with six-project replay and zero material events or provider calls. Two original-head Codex regressions fail against the prior implementation and pass on this candidate. These gates do not exercise the zero-candidate open-session case below.",
+  "findings": [
+    {
+      "id": "R2-SCAN-INIT-TRANSACTION",
+      "severity": "blocking",
+      "location": "backend/src/gridlens/intelligence/evidence_shadow.py:82-88,170-181,191-195,392-400",
+      "evidence": "The first default scan inserts and flushes the checkpoint singleton but does not commit it until a candidate is classified. If the scan has no eligible rows, or expires before a classified row, the function exits and unlocks the dedicated scan connection while the caller's Session retains the uncommitted INSERT. A second default run acquires the scan lease and may block on the singleton primary-key INSERT without a deadline. This violates bounded shadow execution and can starve future scans.",
+      "bounded_repair": "Commit initial checkpoint creation while the scan lease is held, or otherwise ensure every setup/empty/timeout exit resolves the work Session transaction before releasing that lease. Preserve the caller's unrelated transaction boundary if one exists; if that cannot be guaranteed, document and enforce the isolated-session contract. Add a two-session test that retains the first Session after a zero-candidate run and proves the second default run returns promptly with no provider call or duplicate checkpoint."
+    },
+    {
+      "id": "R2-SCAN-ACQUIRE-CLEANUP",
+      "severity": "bounded cleanup",
+      "location": "backend/src/gridlens/intelligence/evidence_shadow.py:159-169",
+      "evidence": "The dedicated connection's pg_try_advisory_lock query executes before either cleanup try/finally. If that query raises after checkout, the checked-out connection is not closed deterministically. This is in the new setup path.",
+      "bounded_repair": "Include lock acquisition in a cleanup scope that closes the dedicated connection on query failure, without attempting an unlock unless acquisition succeeded. Cover an injected acquisition-query exception with a narrow test if feasible."
+    }
+  ],
+  "reviewed_positive_paths": "Durable checkpoint advancement on classified skips/attempts, held lease across provider commits, explicit-ID scan beyond 20 consumed entries, and structured candidate UUID lock order were inspected and supported by direct regressions.",
+  "next_direction": "CORRECT"
+}

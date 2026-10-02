@@ -3,6 +3,7 @@ import json
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, date, datetime, timedelta
 from threading import Event
+from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
@@ -17,6 +18,7 @@ from gridlens.persistence.database import Base
 from gridlens.persistence.models import (
     Evidence,
     EvidenceJudgeRun,
+    EvidenceJudgeScanCheckpoint,
     Interpretation,
     NeedObservation,
     Observation,
@@ -53,16 +55,16 @@ def shadow_db():
     engine.dispose()
 
 
-def seed_accepted(factory, count=1):
+def seed_accepted(factory, count=1, identity_suffix=""):
     project_id = uuid4()
     with factory.begin() as session:
         project = Project(
             id=project_id,
             source_id="shadow-test",
-            external_id="ambiguous-project",
+            external_id=f"ambiguous-project{identity_suffix}",
             name="Ambiguous Data Center",
             location="Austin, TX",
-            identity_key="shadow-test-ambiguous-project",
+            identity_key=f"shadow-test-ambiguous-project{identity_suffix}",
             identity_facts={},
         )
         need = PowerNeed(
@@ -81,7 +83,7 @@ def seed_accepted(factory, count=1):
         for index in range(count):
             observation = Observation(
                 source_id="shadow-test",
-                external_id=f"permit-{index}",
+                external_id=f"permit-{identity_suffix}-{index}",
                 title=f"Permit {index}",
                 abstract="Phased construction activity; no power size stated.",
                 published_at=date(2026, 10, 1),
@@ -262,6 +264,94 @@ def test_shadow_skips_reservation_when_daily_lock_is_held(shadow_db, monkeypatch
         holder.shutdown(wait=True)
 
 
+def test_shadow_setup_error_releases_default_scan_lease(shadow_db, monkeypatch):
+    seed_accepted(shadow_db)
+    monkeypatch.setattr(settings, "jev_enabled", True)
+    monkeypatch.setattr(settings, "jev_shadow_mode", True)
+    with monkeypatch.context() as setup_error:
+        setup_error.setattr(
+            "gridlens.intelligence.evidence_shadow._checkpoint",
+            lambda *_args: (_ for _ in ()).throw(RuntimeError("fixture setup error")),
+        )
+        with shadow_db() as session, pytest.raises(RuntimeError, match="fixture setup error"):
+            run_shadow(session, limit=1, judge=FakeJudge())
+    engine = shadow_db.kw["bind"]
+    with engine.connect() as fresh_connection:
+        assert fresh_connection.scalar(text("SELECT pg_try_advisory_lock(647809130123)"))
+        fresh_connection.execute(text("SELECT pg_advisory_unlock(647809130123)"))
+    with shadow_db() as session:
+        assert run_shadow(session, limit=1, judge=FakeJudge())["attempted"] == 1
+
+
+def test_zero_work_default_scan_commits_checkpoint_before_releasing_lease(shadow_db, monkeypatch):
+    monkeypatch.setattr(settings, "jev_enabled", True)
+    monkeypatch.setattr(settings, "jev_shadow_mode", True)
+    first_judge, second_judge = FakeJudge(), FakeJudge()
+    with shadow_db() as first_session:
+        assert run_shadow(first_session, limit=1, judge=first_judge)["attempted"] == 0
+        # Keep this caller Session open.  Before the fix its uncommitted
+        # checkpoint INSERT could block a new scanner on the singleton PK.
+        with shadow_db() as second_session:
+            assert run_shadow(second_session, limit=1, judge=second_judge)["attempted"] == 0
+    assert first_judge.calls == second_judge.calls == 0
+    with shadow_db() as session:
+        assert session.scalar(select(func.count()).select_from(EvidenceJudgeRun)) == 0
+
+
+def test_shadow_acquisition_error_closes_new_connection(shadow_db, monkeypatch):
+    seed_accepted(shadow_db)
+    monkeypatch.setattr(settings, "jev_enabled", True)
+    monkeypatch.setattr(settings, "jev_shadow_mode", True)
+    engine = shadow_db.kw["bind"]
+    baseline = engine.pool.checkedout()
+    real_connect = engine.connect
+    closed = Event()
+
+    class FailingConnection:
+        def __init__(self):
+            self.inner = real_connect()
+
+        def scalar(self, *_args, **_kwargs):
+            raise RuntimeError("fixture acquisition error")
+
+        def close(self):
+            self.inner.close()
+            closed.set()
+
+    with monkeypatch.context() as acquisition_error:
+        acquisition_error.setattr(engine, "connect", FailingConnection)
+        with shadow_db() as session, pytest.raises(RuntimeError, match="fixture acquisition error"):
+            run_shadow(session, limit=1, judge=FakeJudge())
+    assert closed.is_set()
+    assert engine.pool.checkedout() == baseline
+
+
+def test_concurrent_default_shadow_scans_hold_lease_across_attempt_commits(shadow_db, monkeypatch):
+    seed_accepted(shadow_db)
+    monkeypatch.setattr(settings, "jev_enabled", True)
+    monkeypatch.setattr(settings, "jev_shadow_mode", True)
+    started, release = Event(), Event()
+
+    class BlockingJudge(FakeJudge):
+        def judge(self, state, evidence, candidates):
+            started.set()
+            assert release.wait(3)
+            return super().judge(state, evidence, candidates)
+
+    def run_default(run_judge):
+        with shadow_db() as session:
+            return run_shadow(session, limit=1, judge=run_judge)
+
+    judge = BlockingJudge()
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        first = executor.submit(run_default, judge)
+        assert started.wait(2)
+        second = executor.submit(run_default, FakeJudge())
+        assert second.result(2)["attempted"] == 0
+        release.set()
+        assert first.result(4)["attempted"] == 1
+
+
 def test_shadow_missing_key_disabled_and_daily_limit_are_fail_closed(shadow_db, monkeypatch):
     project_id = seed_accepted(shadow_db, count=2)
     monkeypatch.setattr(settings, "jev_enabled", True)
@@ -301,6 +391,23 @@ def test_shadow_rotates_through_more_than_two_hundred_candidates(shadow_db, monk
         all_ids = set(session.scalars(select(Evidence.id)).all())
         assert len(attempted_ids & all_ids) == 220
         assert judge.calls == 220
+
+
+def test_explicit_shadow_ids_scan_past_twenty_consumed_inputs(shadow_db, monkeypatch):
+    seed_accepted(shadow_db, count=21)
+    monkeypatch.setattr(settings, "jev_enabled", True)
+    monkeypatch.setattr(settings, "jev_shadow_mode", True)
+    monkeypatch.setattr(settings, "jev_shadow_daily_limit", 30)
+    with shadow_db() as session:
+        evidence_ids = [str(value) for value in session.scalars(select(Evidence.id)).all()]
+        judge = FakeJudge()
+        assert (
+            run_shadow(session, limit=20, judge=judge, evidence_ids=evidence_ids)["attempted"] == 20
+        )
+        assert (
+            run_shadow(session, limit=20, judge=judge, evidence_ids=evidence_ids)["attempted"] == 1
+        )
+        assert judge.calls == 21
 
 
 def test_shadow_wrap_scans_past_consumed_prefix_to_find_unseen_candidate(shadow_db, monkeypatch):
@@ -404,3 +511,115 @@ def test_shadow_wrap_scans_past_consumed_prefix_to_find_unseen_candidate(shadow_
             "cursor_index": 1204,
         }
         assert judge.calls == 1
+
+
+def test_shadow_checkpoint_reaches_changed_context_after_deadline_limited_skips(
+    shadow_db, monkeypatch
+):
+    """The old attempt-derived cursor restarts at this consumed prefix forever."""
+    project_ids = [seed_accepted(shadow_db, identity_suffix=f"-{index}") for index in range(8)]
+    monkeypatch.setattr(settings, "jev_enabled", True)
+    monkeypatch.setattr(settings, "jev_shadow_mode", True)
+    monkeypatch.setattr(settings, "jev_shadow_daily_limit", 20)
+    monkeypatch.setattr(settings, "jev_shadow_timeout_seconds", 1)
+    with shadow_db.begin() as session:
+        rows = session.execute(
+            select(Project, Evidence)
+            .join(PowerNeed, PowerNeed.project_id == Project.id)
+            .join(NeedObservation, NeedObservation.need_id == PowerNeed.id)
+            .join(Evidence, Evidence.observation_id == NeedObservation.observation_id)
+            .order_by(Evidence.observed_at, Evidence.id, Project.id)
+        ).all()
+        assert len(rows) == len(project_ids)
+        target_project, target_evidence = rows[6]
+
+        def state(project, changed=False):
+            return {
+                "project_id": str(project.id),
+                "state": {
+                    "identity": {"status": "KNOWN", "value": "changed" if changed else "old"},
+                    "site": None,
+                    "lifecycle": None,
+                    "activity": None,
+                    "power_need": None,
+                    "utility_service": None,
+                },
+                "organizations_and_roles": [],
+                "candidate_matches": [],
+            }
+
+        for index, (project, evidence) in enumerate(rows):
+            deterministic = {"relevant": "YES", "same_project": "UNKNOWN", "material_change": "NO"}
+            context = {
+                "project": state(project),
+                "evidence": {
+                    "id": str(evidence.id),
+                    "hash": evidence.content_hash,
+                    "title": evidence.title[:300],
+                    "abstract": evidence.abstract[:1200] if evidence.abstract else None,
+                    "url": evidence.url[:500],
+                    "published_at": evidence.published_at,
+                    "retrieved_at": evidence.observed_at,
+                    "extraction_location": evidence.extraction_location[:150],
+                },
+                "candidates": [],
+                "deterministic": deterministic,
+                "schema": SCHEMA_VERSION,
+                "model": "jev-latest",
+            }
+            session.add(
+                EvidenceJudgeRun(
+                    project_id=project.id,
+                    evidence_id=evidence.id,
+                    candidate_project_id=None,
+                    input_key=hashlib.sha256(
+                        json.dumps(context, sort_keys=True, default=str).encode()
+                    ).hexdigest(),
+                    schema_version=SCHEMA_VERSION,
+                    model="test-model",
+                    status="invalid",
+                    deterministic=deterministic,
+                    result=None,
+                    started_at=datetime(2026, 10, 1, tzinfo=UTC) + timedelta(seconds=index),
+                    finished_at=datetime(2026, 10, 1, tzinfo=UTC) + timedelta(seconds=index),
+                    latency_ms=1,
+                )
+            )
+
+    def current_state(_session, project_id):
+        project = next(project for project, _evidence in rows if project.id == project_id)
+        return state(project, changed=project.id == target_project.id)
+
+    class DeadlineClock:
+        def __init__(self):
+            self.value = 0.0
+
+        def __call__(self):
+            self.value += 0.19
+            return self.value
+
+    monkeypatch.setattr("gridlens.intelligence.evidence_shadow.project_state", current_state)
+    monkeypatch.setattr(
+        "gridlens.intelligence.evidence_shadow.recommend_from_context", lambda *_args: False
+    )
+    monkeypatch.setattr(
+        "gridlens.intelligence.evidence_shadow.time", SimpleNamespace(monotonic=DeadlineClock())
+    )
+    judge = FakeJudge()
+    results = []
+    for _ in range(8):
+        with shadow_db() as session:
+            results.append(run_shadow(session, limit=1, judge=judge))
+        if judge.calls:
+            break
+    assert judge.calls == 1
+    assert any(result["attempted"] == 0 for result in results[:-1])
+    with shadow_db() as session:
+        run = session.scalar(select(EvidenceJudgeRun).where(EvidenceJudgeRun.status == "valid"))
+        checkpoint = session.get(EvidenceJudgeScanCheckpoint, "default")
+        target_runs = session.scalars(
+            select(EvidenceJudgeRun).where(EvidenceJudgeRun.evidence_id == target_evidence.id)
+        ).all()
+        assert run and run.evidence_id == target_evidence.id
+        assert sorted(item.status for item in target_runs) == ["invalid", "valid"]
+        assert checkpoint is not None and checkpoint.evidence_id == target_evidence.id

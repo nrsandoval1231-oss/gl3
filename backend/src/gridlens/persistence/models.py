@@ -309,6 +309,19 @@ class EvidenceJudgeRun(Base):
     output_tokens: Mapped[int | None] = mapped_column(Integer)
 
 
+class EvidenceJudgeScanCheckpoint(Base):
+    """Singleton durable traversal position for bounded shadow scans."""
+
+    __tablename__ = "evidence_judge_scan_checkpoints"
+    name: Mapped[str] = mapped_column(String(40), primary_key=True)
+    evidence_id: Mapped[UUID | None] = mapped_column(ForeignKey("evidence.id"))
+    project_id: Mapped[UUID | None] = mapped_column(ForeignKey("projects.id"))
+    observed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
 class Interpretation(Base):
     __tablename__ = "interpretations"
     __table_args__ = (UniqueConstraint("observation_id", name="uq_interpretation_observation"),)

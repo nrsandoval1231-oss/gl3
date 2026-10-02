@@ -15,9 +15,9 @@
     ],
     "cwd": "backend",
     "exit_code": 0,
-    "start": "2026-10-02T18:34:28.187436+00:00",
-    "finish": "2026-10-02T18:34:28.387260+00:00",
-    "seconds": 0.199824,
+    "start": "2026-10-02T19:18:10.595848+00:00",
+    "finish": "2026-10-02T19:18:10.773049+00:00",
+    "seconds": 0.177201,
     "log_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
     "tail": [
       "All checks passed!"
@@ -35,9 +35,9 @@
     ],
     "cwd": "backend",
     "exit_code": 0,
-    "start": "2026-10-02T18:34:28.389254+00:00",
-    "finish": "2026-10-02T18:34:29.740795+00:00",
-    "seconds": 1.351541,
+    "start": "2026-10-02T19:18:10.778339+00:00",
+    "finish": "2026-10-02T19:18:11.668928+00:00",
+    "seconds": 0.890589,
     "log_sha256": "ff7fa338160fc834760e2981fabb96c5026e1c7b5fbf91dba5fe0364c0f97c94",
     "tail": [
       "Success: no issues found in 66 source files"
@@ -56,19 +56,19 @@
     ],
     "cwd": "backend",
     "exit_code": 0,
-    "start": "2026-10-02T18:34:29.746307+00:00",
-    "finish": "2026-10-02T18:35:28.874991+00:00",
-    "seconds": 59.128684,
-    "log_sha256": "7303920a37cc088455848856b41914f47cb88e47f3b76a4206691147b25afe9b",
+    "start": "2026-10-02T19:18:11.676455+00:00",
+    "finish": "2026-10-02T19:19:21.178025+00:00",
+    "seconds": 69.50157,
+    "log_sha256": "1a4b4c21c471b188561e0a613dff26cccc9cfc348e61402830bb4903b873941b",
     "tail": [
-      ".......................                                                  [100%]",
+      "..............................                                           [100%]",
       "============================== warnings summary ===============================",
       ".venv\\Lib\\site-packages\\fastapi\\testclient.py:1",
       "  C:\\Users\\nrsan\\Nucleus\\02_Projects\\GridLens\\gl3-pr21-review\\backend\\.venv\\Lib\\site-packages\\fastapi\\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.",
       "    from starlette.testclient import TestClient as TestClient  # noqa",
       "",
       "-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html",
-      "598 passed, 1 skipped, 1 warning in 57.28s"
+      "605 passed, 1 skipped, 1 warning in 67.54s (0:01:07)"
     ]
   },
   {
@@ -80,9 +80,9 @@
     ],
     "cwd": "web",
     "exit_code": 0,
-    "start": "2026-10-02T18:35:28.882000+00:00",
-    "finish": "2026-10-02T18:35:29.901625+00:00",
-    "seconds": 1.019625,
+    "start": "2026-10-02T19:19:21.186024+00:00",
+    "finish": "2026-10-02T19:19:22.234397+00:00",
+    "seconds": 1.048373,
     "log_sha256": "6d8c5c8f3d7684adb070417bd608d01ae90aa3dc26a65af03ffda4955f38d9a3",
     "tail": [
       "found 0 vulnerabilities"
@@ -97,9 +97,9 @@
     ],
     "cwd": "web",
     "exit_code": 0,
-    "start": "2026-10-02T18:35:29.908138+00:00",
-    "finish": "2026-10-02T18:35:31.780897+00:00",
-    "seconds": 1.872759,
+    "start": "2026-10-02T19:19:22.236916+00:00",
+    "finish": "2026-10-02T19:19:24.181103+00:00",
+    "seconds": 1.944187,
     "log_sha256": "2ed7bd9429f03c4125fd3cd1b8b752d8135892f09eb7ff8609ac5c3677b941b6",
     "tail": [
       "",
@@ -117,10 +117,10 @@
     ],
     "cwd": "web",
     "exit_code": 0,
-    "start": "2026-10-02T18:35:31.786417+00:00",
-    "finish": "2026-10-02T18:35:34.807093+00:00",
-    "seconds": 3.020676,
-    "log_sha256": "c52b31b5f8379256fb83884fb1af5de11e92dcd32cb970f47302deae853da645",
+    "start": "2026-10-02T19:19:24.182109+00:00",
+    "finish": "2026-10-02T19:19:27.299689+00:00",
+    "seconds": 3.11758,
+    "log_sha256": "8923a767f13b806f5e89dedfdf4c8a71a24ec569526e8118bd73f2b81a50a2d2",
     "tail": [
       "transforming...",
       "\u00e2\u0153\u201c 35 modules transformed.",
@@ -129,7 +129,7 @@
       "dist/index.html                   0.52 kB \u00e2\u201d\u201a gzip:  0.33 kB",
       "dist/assets/index-D4Vs0gNY.css   18.76 kB \u00e2\u201d\u201a gzip:  4.40 kB",
       "dist/assets/index-DCCKn49z.js   251.17 kB \u00e2\u201d\u201a gzip: 77.51 kB",
-      "\u00e2\u0153\u201c built in 590ms"
+      "\u00e2\u0153\u201c built in 579ms"
     ]
   },
   {
@@ -143,19 +143,19 @@
     ],
     "cwd": "backend",
     "exit_code": 0,
-    "start": "2026-10-02T18:35:34.814613+00:00",
-    "finish": "2026-10-02T18:35:36.184309+00:00",
-    "seconds": 1.369696,
-    "log_sha256": "e124203938a1a0eeb50a8369a82ca952989845313fcd841f9792d43013afbda5",
+    "start": "2026-10-02T19:19:27.306206+00:00",
+    "finish": "2026-10-02T19:19:28.771244+00:00",
+    "seconds": 1.465038,
+    "log_sha256": "79618c3771ae3fd7075cacacfa59a8d8ddf4655e19e80e24563c178ad38e6984",
     "tail": [
-      "INFO  [alembic.runtime.migration] Running upgrade 0008_buying_chain -> 0009_signal_admission, Persist standalone-admission provenance and close legacy context-only Signals.",
-      "INFO  [alembic.runtime.migration] Running upgrade 0008_buying_chain -> 0009_signal_admission, Persist standalone-admission provenance and close legacy context-only Signals.",
       "INFO  [alembic.runtime.migration] Running upgrade 0009_signal_admission -> 0010_power_pursuits, Persist bounded power-pursuit research and private call outcomes.",
       "INFO  [alembic.runtime.migration] Running upgrade 0009_signal_admission -> 0010_power_pursuits, Persist bounded power-pursuit research and private call outcomes.",
       "INFO  [alembic.runtime.migration] Running upgrade 0010_power_pursuits -> 0011_power_need_briefs, Persist per-need advisory brief state and bounded request budget.",
       "INFO  [alembic.runtime.migration] Running upgrade 0010_power_pursuits -> 0011_power_need_briefs, Persist per-need advisory brief state and bounded request budget.",
       "INFO  [alembic.runtime.migration] Running upgrade 0011_power_need_briefs -> 0012_evidence_graph_jev_shadow, Project scoped material changes and advisory EvidenceJudge shadow records.",
-      "INFO  [alembic.runtime.migration] Running upgrade 0011_power_need_briefs -> 0012_evidence_graph_jev_shadow, Project scoped material changes and advisory EvidenceJudge shadow records."
+      "INFO  [alembic.runtime.migration] Running upgrade 0011_power_need_briefs -> 0012_evidence_graph_jev_shadow, Project scoped material changes and advisory EvidenceJudge shadow records.",
+      "INFO  [alembic.runtime.migration] Running upgrade 0012_evidence_graph_jev_shadow -> 0013_jev_scan, Durable bounded-scan position for shadow EvidenceJudge traversal.",
+      "INFO  [alembic.runtime.migration] Running upgrade 0012_evidence_graph_jev_shadow -> 0013_jev_scan, Durable bounded-scan position for shadow EvidenceJudge traversal."
     ]
   },
   {
@@ -169,9 +169,9 @@
     ],
     "cwd": "backend",
     "exit_code": 0,
-    "start": "2026-10-02T18:35:36.191308+00:00",
-    "finish": "2026-10-02T18:35:37.315240+00:00",
-    "seconds": 1.123932,
+    "start": "2026-10-02T19:19:28.773244+00:00",
+    "finish": "2026-10-02T19:19:29.894358+00:00",
+    "seconds": 1.121114,
     "log_sha256": "c9dede11c80ccef6853207a302c79427d48bcdbd6fbf586b5dc306be0763cd94",
     "tail": [
       "INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.",
@@ -190,16 +190,16 @@
     ],
     "cwd": "backend",
     "exit_code": 0,
-    "start": "2026-10-02T18:35:37.323235+00:00",
-    "finish": "2026-10-02T18:35:38.593157+00:00",
-    "seconds": 1.269922,
-    "log_sha256": "562e8a16774d3de4beaeb10f20c099a442594a44cedca4f82b387c9188ab4843",
+    "start": "2026-10-02T19:19:29.895862+00:00",
+    "finish": "2026-10-02T19:19:31.191646+00:00",
+    "seconds": 1.295784,
+    "log_sha256": "220c3e555e0280707e60fb5dcb42de06e05cce989be9bb135adf5d04f2ce0ebe",
     "tail": [
-      "INFO  [alembic.ddl.postgresql] Detected sequence named 'need_observations_id_seq' as owned by integer column 'need_observations(id)', assuming SERIAL and omitting",
-      "INFO  [alembic.ddl.postgresql] Detected sequence named 'project_match_decisions_id_seq' as owned by integer column 'project_match_decisions(id)', assuming SERIAL and omitting",
       "INFO  [alembic.ddl.postgresql] Detected sequence named 'project_match_decisions_id_seq' as owned by integer column 'project_match_decisions(id)', assuming SERIAL and omitting",
       "INFO  [alembic.ddl.postgresql] Detected sequence named 'change_events_id_seq' as owned by integer column 'change_events(id)', assuming SERIAL and omitting",
       "INFO  [alembic.ddl.postgresql] Detected sequence named 'change_events_id_seq' as owned by integer column 'change_events(id)', assuming SERIAL and omitting",
+      "INFO  [alembic.ddl.postgresql] Detected sequence named 'signal_decisions_id_seq' as owned by integer column 'signal_decisions(id)', assuming SERIAL and omitting",
+      "INFO  [alembic.ddl.postgresql] Detected sequence named 'signal_decisions_id_seq' as owned by integer column 'signal_decisions(id)', assuming SERIAL and omitting",
       "INFO  [alembic.ddl.postgresql] Detected sequence named 'interpretations_id_seq' as owned by integer column 'interpretations(id)', assuming SERIAL and omitting",
       "INFO  [alembic.ddl.postgresql] Detected sequence named 'interpretations_id_seq' as owned by integer column 'interpretations(id)', assuming SERIAL and omitting",
       "No new upgrade operations detected."
@@ -216,15 +216,17 @@
     ],
     "cwd": "backend",
     "exit_code": 0,
-    "start": "2026-10-02T18:35:38.602173+00:00",
-    "finish": "2026-10-02T18:35:39.713471+00:00",
-    "seconds": 1.111298,
-    "log_sha256": "a5b3b10db6aa3437393a76746df1b392183dc7f531f03b192db875dfed231402",
+    "start": "2026-10-02T19:19:31.198165+00:00",
+    "finish": "2026-10-02T19:19:32.580170+00:00",
+    "seconds": 1.382005,
+    "log_sha256": "d9841e3201cbe6aa914a6e1f1b6098ef9d788359b4ab5f24fa95ffd8c91eeb42",
     "tail": [
       "INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.",
       "INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.",
       "INFO  [alembic.runtime.migration] Will assume transactional DDL.",
       "INFO  [alembic.runtime.migration] Will assume transactional DDL.",
+      "INFO  [alembic.runtime.migration] Running downgrade 0013_jev_scan -> 0012_evidence_graph_jev_shadow, Durable bounded-scan position for shadow EvidenceJudge traversal.",
+      "INFO  [alembic.runtime.migration] Running downgrade 0013_jev_scan -> 0012_evidence_graph_jev_shadow, Durable bounded-scan position for shadow EvidenceJudge traversal.",
       "INFO  [alembic.runtime.migration] Running downgrade 0012_evidence_graph_jev_shadow -> 0011_power_need_briefs, Project scoped material changes and advisory EvidenceJudge shadow records.",
       "INFO  [alembic.runtime.migration] Running downgrade 0012_evidence_graph_jev_shadow -> 0011_power_need_briefs, Project scoped material changes and advisory EvidenceJudge shadow records."
     ]
@@ -240,17 +242,19 @@
     ],
     "cwd": "backend",
     "exit_code": 0,
-    "start": "2026-10-02T18:35:39.719997+00:00",
-    "finish": "2026-10-02T18:35:40.833165+00:00",
-    "seconds": 1.113168,
-    "log_sha256": "3b80abd2d05e0bcf3bec5bd920f29316c1d274247d9c29acdf17aaa00af8f071",
+    "start": "2026-10-02T19:19:32.582169+00:00",
+    "finish": "2026-10-02T19:19:33.885920+00:00",
+    "seconds": 1.303751,
+    "log_sha256": "108a984b7258984113195c9b7219262cc6ba1485ebb025aa449109550c403b04",
     "tail": [
       "INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.",
       "INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.",
       "INFO  [alembic.runtime.migration] Will assume transactional DDL.",
       "INFO  [alembic.runtime.migration] Will assume transactional DDL.",
       "INFO  [alembic.runtime.migration] Running upgrade 0011_power_need_briefs -> 0012_evidence_graph_jev_shadow, Project scoped material changes and advisory EvidenceJudge shadow records.",
-      "INFO  [alembic.runtime.migration] Running upgrade 0011_power_need_briefs -> 0012_evidence_graph_jev_shadow, Project scoped material changes and advisory EvidenceJudge shadow records."
+      "INFO  [alembic.runtime.migration] Running upgrade 0011_power_need_briefs -> 0012_evidence_graph_jev_shadow, Project scoped material changes and advisory EvidenceJudge shadow records.",
+      "INFO  [alembic.runtime.migration] Running upgrade 0012_evidence_graph_jev_shadow -> 0013_jev_scan, Durable bounded-scan position for shadow EvidenceJudge traversal.",
+      "INFO  [alembic.runtime.migration] Running upgrade 0012_evidence_graph_jev_shadow -> 0013_jev_scan, Durable bounded-scan position for shadow EvidenceJudge traversal."
     ]
   },
   {
@@ -263,18 +267,18 @@
     ],
     "cwd": "backend",
     "exit_code": 0,
-    "start": "2026-10-02T18:35:40.840175+00:00",
-    "finish": "2026-10-02T18:35:42.164172+00:00",
-    "seconds": 1.323997,
-    "log_sha256": "8eeee874d917496cbb87e821a5789bfadc920b51ee2144a14bdc5ad26ca4496c",
+    "start": "2026-10-02T19:19:33.888397+00:00",
+    "finish": "2026-10-02T19:19:35.201342+00:00",
+    "seconds": 1.312945,
+    "log_sha256": "cc63f164cc42517a46f948e97ae75483a99410af992cd1b4a2a39dc993e3444a",
     "tail": [
-      "INFO  [alembic.ddl.postgresql] Detected sequence named 'change_events_id_seq' as owned by integer column 'change_events(id)', assuming SERIAL and omitting",
-      "INFO  [alembic.ddl.postgresql] Detected sequence named 'interpretations_id_seq' as owned by integer column 'interpretations(id)', assuming SERIAL and omitting",
       "INFO  [alembic.ddl.postgresql] Detected sequence named 'interpretations_id_seq' as owned by integer column 'interpretations(id)', assuming SERIAL and omitting",
       "INFO  [alembic.ddl.postgresql] Detected sequence named 'project_match_decisions_id_seq' as owned by integer column 'project_match_decisions(id)', assuming SERIAL and omitting",
       "INFO  [alembic.ddl.postgresql] Detected sequence named 'project_match_decisions_id_seq' as owned by integer column 'project_match_decisions(id)', assuming SERIAL and omitting",
       "INFO  [alembic.ddl.postgresql] Detected sequence named 'need_observations_id_seq' as owned by integer column 'need_observations(id)', assuming SERIAL and omitting",
       "INFO  [alembic.ddl.postgresql] Detected sequence named 'need_observations_id_seq' as owned by integer column 'need_observations(id)', assuming SERIAL and omitting",
+      "INFO  [alembic.ddl.postgresql] Detected sequence named 'signal_decisions_id_seq' as owned by integer column 'signal_decisions(id)', assuming SERIAL and omitting",
+      "INFO  [alembic.ddl.postgresql] Detected sequence named 'signal_decisions_id_seq' as owned by integer column 'signal_decisions(id)', assuming SERIAL and omitting",
       "No new upgrade operations detected."
     ]
   },
@@ -289,9 +293,9 @@
     ],
     "cwd": ".artifacts\\pr21-repair\\current-main\\backend",
     "exit_code": 0,
-    "start": "2026-10-02T18:35:42.172821+00:00",
-    "finish": "2026-10-02T18:35:43.691556+00:00",
-    "seconds": 1.518735,
+    "start": "2026-10-02T19:19:35.208851+00:00",
+    "finish": "2026-10-02T19:19:36.483313+00:00",
+    "seconds": 1.274462,
     "log_sha256": "3fc6a49e61ccb13db33779cd2071c1df28bf9b66a04cf5c416679d3cbfece59e",
     "tail": [
       "INFO  [alembic.runtime.migration] Running upgrade 0007_signal_decisions -> 0008_buying_chain, Project-scoped immutable buying-chain evidence, claims and bounded run results.",
@@ -315,17 +319,19 @@
     ],
     "cwd": "backend",
     "exit_code": 0,
-    "start": "2026-10-02T18:35:43.700069+00:00",
-    "finish": "2026-10-02T18:35:44.863702+00:00",
-    "seconds": 1.163633,
-    "log_sha256": "3b80abd2d05e0bcf3bec5bd920f29316c1d274247d9c29acdf17aaa00af8f071",
+    "start": "2026-10-02T19:19:36.485307+00:00",
+    "finish": "2026-10-02T19:19:37.676220+00:00",
+    "seconds": 1.190913,
+    "log_sha256": "108a984b7258984113195c9b7219262cc6ba1485ebb025aa449109550c403b04",
     "tail": [
       "INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.",
       "INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.",
       "INFO  [alembic.runtime.migration] Will assume transactional DDL.",
       "INFO  [alembic.runtime.migration] Will assume transactional DDL.",
       "INFO  [alembic.runtime.migration] Running upgrade 0011_power_need_briefs -> 0012_evidence_graph_jev_shadow, Project scoped material changes and advisory EvidenceJudge shadow records.",
-      "INFO  [alembic.runtime.migration] Running upgrade 0011_power_need_briefs -> 0012_evidence_graph_jev_shadow, Project scoped material changes and advisory EvidenceJudge shadow records."
+      "INFO  [alembic.runtime.migration] Running upgrade 0011_power_need_briefs -> 0012_evidence_graph_jev_shadow, Project scoped material changes and advisory EvidenceJudge shadow records.",
+      "INFO  [alembic.runtime.migration] Running upgrade 0012_evidence_graph_jev_shadow -> 0013_jev_scan, Durable bounded-scan position for shadow EvidenceJudge traversal.",
+      "INFO  [alembic.runtime.migration] Running upgrade 0012_evidence_graph_jev_shadow -> 0013_jev_scan, Durable bounded-scan position for shadow EvidenceJudge traversal."
     ]
   },
   {
@@ -338,16 +344,91 @@
     ],
     "cwd": "backend",
     "exit_code": 0,
-    "start": "2026-10-02T18:35:44.865703+00:00",
-    "finish": "2026-10-02T18:35:46.176728+00:00",
-    "seconds": 1.311025,
-    "log_sha256": "42a86380aee58b55fa717234a82dfa38f60f4732f66f695a855c5b68ec086284",
+    "start": "2026-10-02T19:19:37.677743+00:00",
+    "finish": "2026-10-02T19:19:39.023684+00:00",
+    "seconds": 1.345941,
+    "log_sha256": "7b901ffdb72dbc9a815b7b62a2482a2da8142c2e9bd32687072640926352e616",
     "tail": [
+      "INFO  [alembic.ddl.postgresql] Detected sequence named 'need_observations_id_seq' as owned by integer column 'need_observations(id)', assuming SERIAL and omitting",
+      "INFO  [alembic.ddl.postgresql] Detected sequence named 'project_match_decisions_id_seq' as owned by integer column 'project_match_decisions(id)', assuming SERIAL and omitting",
+      "INFO  [alembic.ddl.postgresql] Detected sequence named 'project_match_decisions_id_seq' as owned by integer column 'project_match_decisions(id)', assuming SERIAL and omitting",
+      "INFO  [alembic.ddl.postgresql] Detected sequence named 'signal_decisions_id_seq' as owned by integer column 'signal_decisions(id)', assuming SERIAL and omitting",
       "INFO  [alembic.ddl.postgresql] Detected sequence named 'signal_decisions_id_seq' as owned by integer column 'signal_decisions(id)', assuming SERIAL and omitting",
       "INFO  [alembic.ddl.postgresql] Detected sequence named 'change_events_id_seq' as owned by integer column 'change_events(id)', assuming SERIAL and omitting",
       "INFO  [alembic.ddl.postgresql] Detected sequence named 'change_events_id_seq' as owned by integer column 'change_events(id)', assuming SERIAL and omitting",
+      "No new upgrade operations detected."
+    ]
+  },
+  {
+    "check": "previous-head-bootstrap",
+    "command": [
+      "uv",
+      "run",
+      "alembic",
+      "upgrade",
+      "head"
+    ],
+    "cwd": ".artifacts\\pr21-repair\\previous-head\\backend",
+    "exit_code": 0,
+    "start": "2026-10-02T19:19:39.032204+00:00",
+    "finish": "2026-10-02T19:19:40.650172+00:00",
+    "seconds": 1.617968,
+    "log_sha256": "e124203938a1a0eeb50a8369a82ca952989845313fcd841f9792d43013afbda5",
+    "tail": [
+      "INFO  [alembic.runtime.migration] Running upgrade 0008_buying_chain -> 0009_signal_admission, Persist standalone-admission provenance and close legacy context-only Signals.",
+      "INFO  [alembic.runtime.migration] Running upgrade 0008_buying_chain -> 0009_signal_admission, Persist standalone-admission provenance and close legacy context-only Signals.",
+      "INFO  [alembic.runtime.migration] Running upgrade 0009_signal_admission -> 0010_power_pursuits, Persist bounded power-pursuit research and private call outcomes.",
+      "INFO  [alembic.runtime.migration] Running upgrade 0009_signal_admission -> 0010_power_pursuits, Persist bounded power-pursuit research and private call outcomes.",
+      "INFO  [alembic.runtime.migration] Running upgrade 0010_power_pursuits -> 0011_power_need_briefs, Persist per-need advisory brief state and bounded request budget.",
+      "INFO  [alembic.runtime.migration] Running upgrade 0010_power_pursuits -> 0011_power_need_briefs, Persist per-need advisory brief state and bounded request budget.",
+      "INFO  [alembic.runtime.migration] Running upgrade 0011_power_need_briefs -> 0012_evidence_graph_jev_shadow, Project scoped material changes and advisory EvidenceJudge shadow records.",
+      "INFO  [alembic.runtime.migration] Running upgrade 0011_power_need_briefs -> 0012_evidence_graph_jev_shadow, Project scoped material changes and advisory EvidenceJudge shadow records."
+    ]
+  },
+  {
+    "check": "previous-head-to-repair",
+    "command": [
+      "uv",
+      "run",
+      "alembic",
+      "upgrade",
+      "head"
+    ],
+    "cwd": "backend",
+    "exit_code": 0,
+    "start": "2026-10-02T19:19:40.657195+00:00",
+    "finish": "2026-10-02T19:19:41.790478+00:00",
+    "seconds": 1.133283,
+    "log_sha256": "985995d86f3445cd8b4136fc6f8ddff9871bf3f1163b993ee16018d0173f0ea2",
+    "tail": [
+      "INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.",
+      "INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.",
+      "INFO  [alembic.runtime.migration] Will assume transactional DDL.",
+      "INFO  [alembic.runtime.migration] Will assume transactional DDL.",
+      "INFO  [alembic.runtime.migration] Running upgrade 0012_evidence_graph_jev_shadow -> 0013_jev_scan, Durable bounded-scan position for shadow EvidenceJudge traversal.",
+      "INFO  [alembic.runtime.migration] Running upgrade 0012_evidence_graph_jev_shadow -> 0013_jev_scan, Durable bounded-scan position for shadow EvidenceJudge traversal."
+    ]
+  },
+  {
+    "check": "previous-head-drift",
+    "command": [
+      "uv",
+      "run",
+      "alembic",
+      "check"
+    ],
+    "cwd": "backend",
+    "exit_code": 0,
+    "start": "2026-10-02T19:19:41.794485+00:00",
+    "finish": "2026-10-02T19:19:43.173511+00:00",
+    "seconds": 1.379026,
+    "log_sha256": "65d5986c3e73c29baaf546b64562beceee5044555b6032dd17b7e64e67fb43d1",
+    "tail": [
       "INFO  [alembic.ddl.postgresql] Detected sequence named 'interpretations_id_seq' as owned by integer column 'interpretations(id)', assuming SERIAL and omitting",
-      "INFO  [alembic.ddl.postgresql] Detected sequence named 'interpretations_id_seq' as owned by integer column 'interpretations(id)', assuming SERIAL and omitting",
+      "INFO  [alembic.ddl.postgresql] Detected sequence named 'change_events_id_seq' as owned by integer column 'change_events(id)', assuming SERIAL and omitting",
+      "INFO  [alembic.ddl.postgresql] Detected sequence named 'change_events_id_seq' as owned by integer column 'change_events(id)', assuming SERIAL and omitting",
+      "INFO  [alembic.ddl.postgresql] Detected sequence named 'project_match_decisions_id_seq' as owned by integer column 'project_match_decisions(id)', assuming SERIAL and omitting",
+      "INFO  [alembic.ddl.postgresql] Detected sequence named 'project_match_decisions_id_seq' as owned by integer column 'project_match_decisions(id)', assuming SERIAL and omitting",
       "INFO  [alembic.ddl.postgresql] Detected sequence named 'need_observations_id_seq' as owned by integer column 'need_observations(id)', assuming SERIAL and omitting",
       "INFO  [alembic.ddl.postgresql] Detected sequence named 'need_observations_id_seq' as owned by integer column 'need_observations(id)', assuming SERIAL and omitting",
       "No new upgrade operations detected."
@@ -362,14 +443,18 @@
     ],
     "cwd": ".",
     "exit_code": 0,
-    "start": "2026-10-02T18:35:46.184313+00:00",
-    "finish": "2026-10-02T18:35:46.318869+00:00",
-    "seconds": 0.134556,
-    "log_sha256": "251826fbf1cadfd473d7f0ce09d7fdf0ef0574d3f699f9aeb45cafdfcc28a311",
+    "start": "2026-10-02T19:19:43.181028+00:00",
+    "finish": "2026-10-02T19:19:43.316013+00:00",
+    "seconds": 0.134985,
+    "log_sha256": "87b2f574e005a2578f24d33423dc51594ce9d6fd2763e288589a78c5e092c468",
     "tail": [
+      "warning: in the working copy of '.agent/artifacts/PR21-REPAIR/COMPLETION.json', LF will be replaced by CRLF the next time Git touches it",
+      "warning: in the working copy of '.agent/artifacts/PR21-REPAIR/REVIEW.json', LF will be replaced by CRLF the next time Git touches it",
+      "warning: in the working copy of '.agent/packets/PR21-REPAIR.md', LF will be replaced by CRLF the next time Git touches it",
+      "warning: in the working copy of 'backend/src/gridlens/persistence/models.py', LF will be replaced by CRLF the next time Git touches it",
       "warning: in the working copy of 'backend/tests/integration/test_evidence_shadow_storage.py', LF will be replaced by CRLF the next time Git touches it",
       "warning: in the working copy of 'backend/tests/integration/test_ingestion.py', LF will be replaced by CRLF the next time Git touches it",
-      "warning: in the working copy of 'web/src/api/generated.ts', LF will be replaced by CRLF the next time Git touches it"
+      "warning: in the working copy of 'docs/validation/PR21-CORRECTNESS-REPAIR.md', LF will be replaced by CRLF the next time Git touches it"
     ]
   }
 ]

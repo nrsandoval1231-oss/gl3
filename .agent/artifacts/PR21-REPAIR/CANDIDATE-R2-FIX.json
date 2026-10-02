@@ -1,0 +1,102 @@
+{
+  "prior_reviewed_head": "bfa6186e74462cd222b8859f5dae45bec6974eed",
+  "base_sha": "da1f2bdb3c207e97e8a861392ba6df189dfe32a2",
+  "files": [
+    {
+      "git_blob": "4931e3e27214dffbaffadce084fc955f4a462e7e",
+      "path": ".agent/packets/PR21-REPAIR.md",
+      "sha256": "76f5331ac7f7124baa5e96260a62b8ecd51d9534821545830c3ec562c0f51880"
+    },
+    {
+      "git_blob": "ae8938686f887d7f8484511ea784fd2ced85d39d",
+      "path": "backend/migrations/versions/0013_evidence_judge_scan_checkpoint.py",
+      "sha256": "dbbd13546ef923b691a804f4670866f7f8ed5eb56f4fdbd0d4667b63186bdb8f"
+    },
+    {
+      "git_blob": "efc3e4e6fbc80f54e642401e870cd8e0f0f609cf",
+      "path": "backend/src/gridlens/api/app.py",
+      "sha256": "985b27316fee5b774c57a08b06e926d0db6799af656c1ee45f9b0509afed52ec"
+    },
+    {
+      "git_blob": "f18a86dcdc30d19b2ca5017fc127866098275519",
+      "path": "backend/src/gridlens/ingestion/service.py",
+      "sha256": "27878eacc0768f8841d32deb39d078f1dfb4152436c6ffb49ece4d98e598b3e6"
+    },
+    {
+      "git_blob": "3069222a0064b1cae8619de878f3eb00d4315595",
+      "path": "backend/src/gridlens/intelligence/change_detection.py",
+      "sha256": "5d5d2222d931ba1f3b2aa9cab20089d755454f9757bee49d4ccb54c4d9414af8"
+    },
+    {
+      "git_blob": "8c94fea32011270268ce92917f937945b842d0d3",
+      "path": "backend/src/gridlens/intelligence/evidence_shadow.py",
+      "sha256": "fe3427f125df4bb64dc6a53acff8cbe3bd1e925bb43e0243e51afdda2fdf749d"
+    },
+    {
+      "git_blob": "edab0210694bb5e0bd988d13bf7e9f803c319c1b",
+      "path": "backend/src/gridlens/intelligence/lifecycle_service.py",
+      "sha256": "b70d0d7f36d53940567178babd0ab2f49fcba6ed469590ed700429db1dce874c"
+    },
+    {
+      "git_blob": "6c12ee4b3aa85bf3d6bc009692eebfb25f382c50",
+      "path": "backend/src/gridlens/intelligence/project_state.py",
+      "sha256": "c7c67455b14a2b682cc84a8bdf380b0b5e8b703759272ead35c63f39e6f3aad8"
+    },
+    {
+      "git_blob": "26f80acdef8d18bed55f7757ad6b8cebe47a13d1",
+      "path": "backend/src/gridlens/intelligence/research_recommendation.py",
+      "sha256": "6d2b911e03295953530c32c2851b5b8c3be2d9a334bd0f53b5ef00266cd6227d"
+    },
+    {
+      "git_blob": "b311a40e729b586d89fbbe4f2bfc69dbed8f39cd",
+      "path": "backend/src/gridlens/persistence/models.py",
+      "sha256": "1171432e66aeec7bd2b566ab08a16dcafbb32baa63ffc65e51e7b5e105747b23"
+    },
+    {
+      "git_blob": "5a8a66eb9c361707eecddaecb2f29a2cf509dca5",
+      "path": "backend/tests/integration/test_collection_only_ingestion.py",
+      "sha256": "56d85f5a96d3853ae1301bfba3a7721a3a01fea2154ec786b2c7b82949c8ce5f"
+    },
+    {
+      "git_blob": "4aedfe906aeea8827bfa0026e054564d8e9ab778",
+      "path": "backend/tests/integration/test_evidence_shadow_storage.py",
+      "sha256": "392c3dd6180b801c2ddfe3597c454d481630446010050b0de7852094c40c8d4f"
+    },
+    {
+      "git_blob": "631c2350e2030d64edecf4d2007da90899a24ae7",
+      "path": "backend/tests/integration/test_ingestion.py",
+      "sha256": "e5d6c210fa53598e8685389464fa39e81bb9b0aae39cfb7133303b2443f50d33"
+    },
+    {
+      "git_blob": "3d094abe2822b82b985baa437e4d15a2c98cc912",
+      "path": "backend/tests/integration/test_project_state_changes.py",
+      "sha256": "8b1dd856fa5bd4f847e3aea33f0f732a304b28962f6834600e032dd96b213e1f"
+    },
+    {
+      "git_blob": "117c20dff248e89f4f28a7769dd83357ab9f5e88",
+      "path": "backend/tests/integration/test_taylor_ingestion.py",
+      "sha256": "bc2ce271e2904d83b9d00570f5a8def62f277d635b0b9622ccb59dd7a271827b"
+    },
+    {
+      "git_blob": "3af79f6655c97493e39dc69df5e37e17dbdc4320",
+      "path": "backend/tests/unit/test_evidence_judge.py",
+      "sha256": "2b1c5a9806d57f931cd16309e3d75cb0c7fe3d6b5a0c055c702ba6813df245ea"
+    },
+    {
+      "git_blob": "495e54e7c009e6291acb4859059216b50de9a8ed",
+      "path": "docs/validation/PR21-CORRECTNESS-REPAIR.md",
+      "sha256": "feccd73f0a119abb75a98d898963ec0685541d4b59e24834dc5ec81145973880"
+    },
+    {
+      "git_blob": "c9d81fe15822639565286d1a4221a5913db464fe",
+      "path": "web/src/api/generated.ts",
+      "sha256": "a736524f2e3a3e0b21662bf88b3a831c5b377193faeb9e03d598d14ff21e4961"
+    },
+    {
+      "git_blob": "39495d210c0ccb0cb97b6c80b0b890e5b6028554",
+      "path": "web/src/api/openapi.json",
+      "sha256": "8dcecb30af7c162a41ddeccbdbbc05a8d6da86af6584456071366e33a23e48a6"
+    }
+  ],
+  "recorded_utc": "2026-10-02T19:09:04.0329156Z"
+}

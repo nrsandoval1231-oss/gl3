@@ -3,6 +3,7 @@ import json
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from threading import Event
+from uuid import UUID
 
 import httpx
 import pytest
@@ -1584,7 +1585,7 @@ def test_reclaimed_fence_blocks_stale_pdf_and_interpretation_writes(db, monkeypa
 def test_authoritative_permit_identity_requires_one_exact_site_candidate(
     db, monkeypatch, candidate_sites, matched
 ):
-    _, factory, _ = db
+    engine, factory, _ = db
     import gridlens.ingestion.service as service
 
     definition = next(s for s in load_registry() if s["id"] == "austin-building-permits")
@@ -1642,10 +1643,25 @@ def test_authoritative_permit_identity_requires_one_exact_site_candidate(
         },
     }
     monkeypatch.setattr(service, "retrieve_source", lambda *_args: [permit])
-    with factory() as session:
-        first = process_job(session, job_id, "test", 1, definition)
-        replay = process_job(session, job_id, "test", 1, definition)
+    locks = []
+
+    def capture_project_locks(_conn, _cursor, statement, _parameters, _context, _many):
+        sql = statement.casefold()
+        if "from projects" in sql and "for update" in sql:
+            locks.append(sql)
+
+    event.listen(engine, "before_cursor_execute", capture_project_locks)
+    try:
+        with factory() as session:
+            first = process_job(session, job_id, "test", 1, definition)
+            replay = process_job(session, job_id, "test", 1, definition)
+    finally:
+        event.remove(engine, "before_cursor_execute", capture_project_locks)
     assert first["signals"] == 1 and replay["unchanged"] == 1
+    # The old implementation emitted `FROM projects FOR UPDATE` here. The
+    # structured path now discovers first and locks each candidate by UUID.
+    assert locks and any("where projects.id" in statement for statement in locks), locks
+    assert not any("from projects for update" in statement for statement in locks), locks
     with factory() as session:
         assert session.scalar(select(func.count()).select_from(Project)) == (
             len(candidate_sites) + (0 if matched else 1)
@@ -1658,6 +1674,123 @@ def test_authoritative_permit_identity_requires_one_exact_site_candidate(
         assert all(d.evidence_id is not None for d in decisions)
         if len(candidate_sites) > 1:
             assert all("Multiple supported" in d.reason for d in decisions)
+
+
+def test_structured_ingestion_locks_candidates_in_news_compatible_uuid_order(db, monkeypatch):
+    engine, factory, _ = db
+    import gridlens.ingestion.service as service
+    from gridlens.intelligence.change_detection import lock_project
+
+    definition = next(
+        source for source in load_registry() if source["id"] == "austin-building-permits"
+    )
+    lower_id, higher_id = UUID(int=1), UUID(int=2)
+    with factory.begin() as session:
+        session.add(
+            Source(
+                id=definition["id"],
+                publisher=definition["publisher"],
+                endpoint=definition["endpoint"],
+                family=definition["family"],
+                geography=definition["geography"],
+                industries=[],
+                retrieval_method=definition["retrieval_method"],
+                health={},
+            )
+        )
+        session.flush()
+        # Insert higher first: the reviewed broad row lock followed physical
+        # order, whereas the repaired path must block on lower first.
+        for project_id, name in ((higher_id, "Higher candidate"), (lower_id, "Lower candidate")):
+            session.add(
+                Project(
+                    id=project_id,
+                    identity_key=f"synthetic:{project_id}",
+                    name=name,
+                    source_id=definition["id"],
+                    external_id=str(project_id),
+                    location="Austin, TX",
+                    identity_facts={"site": "Austin, TX"},
+                )
+            )
+        session.flush()
+        job = Job(
+            source_id=definition["id"],
+            status="running",
+            lease_owner="test",
+            fence=1,
+            lease_until=datetime.now(UTC) + timedelta(minutes=10),
+        )
+        session.add(job)
+        session.flush()
+        job_id = job.id
+    permit = {
+        "document_number": "ORDER-1",
+        "title": "Synthetic construction permit",
+        "abstract": "Construction of a new data center at 123 Main Street, Austin, TX.",
+        "publication_date": "2026-09-20",
+        "event_date": "2026-09-20",
+        "html_url": "https://example.test/permit/order-1",
+        "permit": {
+            "row_id": "ORDER-1",
+            "description": "Construction of a new data center.",
+            "status": "Active",
+            "address": "123 Main Street",
+            "city": "Austin",
+            "state": "TX",
+            "project": "New synthetic campus",
+            "source_fields": {},
+        },
+    }
+    monkeypatch.setattr(service, "retrieve_source", lambda *_args: [permit])
+    requested_lower, worker_done = Event(), Event()
+    worker_pid = []
+
+    def observe_lock(conn, _cursor, statement, parameters, _context, _many):
+        values = parameters.values() if isinstance(parameters, dict) else parameters or []
+        if (
+            conn.info.get("structured_order_worker")
+            and "from projects" in statement.casefold()
+            and "where projects.id" in statement.casefold()
+            and "for update" in statement.casefold()
+            and lower_id in values
+        ):
+            worker_pid.append(conn.connection.driver_connection.info.backend_pid)
+            requested_lower.set()
+
+    def worker():
+        with factory() as session:
+            session.connection().info["structured_order_worker"] = True
+            try:
+                return process_job(session, job_id, "test", 1, definition)
+            finally:
+                worker_done.set()
+
+    event.listen(engine, "before_cursor_execute", observe_lock)
+    try:
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            with factory.begin() as holder:
+                lock_project(holder, lower_id)
+                holder_pid = holder.scalar(text("SELECT pg_backend_pid()"))
+                future = executor.submit(worker)
+                assert requested_lower.wait(2)
+                assert worker_pid
+                assert holder.scalar(
+                    text("SELECT :holder = ANY(pg_blocking_pids(:worker))"),
+                    {"holder": holder_pid, "worker": worker_pid[0]},
+                )
+                assert (
+                    holder.scalar(
+                        select(Project.id)
+                        .where(Project.id == higher_id)
+                        .with_for_update(nowait=True)
+                    )
+                    == higher_id
+                )
+            result = future.result(6)
+            assert worker_done.is_set() and result["signals"] == 1
+    finally:
+        event.remove(engine, "before_cursor_execute", observe_lock)
 
 
 def test_rrc_amendment_rollover_history_no_duplicate_asset_or_inferred_production(db, monkeypatch):
