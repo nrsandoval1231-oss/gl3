@@ -227,7 +227,10 @@ def test_permit_queue_priority_and_news_age_fairness(db):
 def test_scoped_worker_leaves_other_jobs_and_expired_leases_untouched(db):
     _, factory = db
     with factory.begin() as session:
-        selected = Job(source_id="synthetic-test-source")
+        selected = Job(
+            source_id="synthetic-test-source",
+            available_at=datetime.now(UTC) - timedelta(seconds=1),
+        )
         unrelated = Job(
             source_id="synthetic-test-source",
             status="running",
@@ -301,6 +304,11 @@ def test_runtime_recovery_honors_backoff_and_reports_failure_then_recovery(db, m
         raise SourceParseError("synthetic incomplete snapshot")
 
     monkeypatch.setattr(worker, "process_job", fail)
+    with factory.begin() as session:
+        job_id = enqueue(session, definition["id"])
+        queued = session.get(Job, job_id)
+        assert queued is not None
+        queued.available_at = datetime.now(UTC) - timedelta(seconds=1)
     first = runtime.check_sources([definition["id"], definition["id"]])
     assert len(first["checks"]) == 1
     assert first["all_succeeded"] is False
