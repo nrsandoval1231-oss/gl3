@@ -3,7 +3,7 @@
   "branch": "fix/pr21-correctness",
   "base_sha": "da1f2bdb3c207e97e8a861392ba6df189dfe32a2",
   "candidate_commit": "UNKNOWN (uncommitted builder worktree)",
-  "scope": "Bounded PR21 correctness repairs R1-R4; all original five findings plus verified adjacent hosted/local correctness findings.",
+  "scope": "Bounded PR21 correctness repairs R1-R5; original five and validated adjacent findings.",
   "implementation": "R1 and R2 repairs remain preserved. R3 makes PowerNeed field support current, admitted, project/activity-specific and selects the newest buying-chain run claim set while keeping per-citation stale handling. Builder does not self-certify acceptance.",
   "focused_validation": {
     "r1_command": "uv run --directory backend --extra dev pytest tests/integration/test_ingestion.py tests/integration/test_collection_only_ingestion.py tests/integration/test_taylor_ingestion.py tests/integration/test_evidence_shadow_storage.py -q",
@@ -45,5 +45,8 @@
   "r3_astra_proof_finished_at_utc": "2026-10-02T20:22:37.1343969Z",
   "r4_finished_at_utc": "2026-10-02T21:12:50.280028+00:00",
   "r4_project_binding_builder": "Strict shared lifecycle and retained citation project/admission support; real same-hash reassignment proof fails twice on89d4 and passes now;46 focused tests pass. SeeR4-BEFORE.json. Final gates and independent audit follow.",
-  "r4_audit_followup": "Confirmed and repaired historical retained role conflict after reassignment;23 buyingchain tests passed; controller isolated guard-removal proof fails UNKNOWN versus CURRENT. Restored lifecycle fixture retains project binding; unchanged jobs module plus lifecycle regression11passed. Source/docs frozen for fresh full gates."
+  "r4_audit_followup": "Confirmed and repaired historical retained role conflict after reassignment;23 buyingchain tests passed; controller isolated guard-removal proof fails UNKNOWN versus CURRENT. Restored lifecycle fixture retains project binding; unchanged jobs module plus lifecycle regression11passed. Source/docs frozen for fresh full gates.",
+  "r5_finished_at_utc": "2026-10-02T22:09:10.645612+00:00",
+  "r5_handoff": "Current retained citations evaluated individually; partial support UNKNOWN and current contacts/category aliases preserved; deterministic24rowpaging to4valid inputs. Exact37c source4newtest failures; initialR5alias2failures; finalfocused49passed,Ruff/mypy/diffpass. R5-BEFORE-AFTER.json has measured scope and file blobs. Frozen for controller gates and independent review.",
+  "r5_fixture_followup": "Two-module fixture audit complete: intended-ready new jobs explicitlydue, existingqueued/runningbackoff and productioncode/assertions unchanged; jobs+pursuits22passed,Ruff/diffpass. R9-PURSUITS-FIXTURE.json andR5-GATE-FAILURE.json preservebothclockfailures. Finalgatesserial."
 }

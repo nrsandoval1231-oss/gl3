@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import time
 from collections import Counter, defaultdict
 from collections.abc import Callable
@@ -12,7 +13,7 @@ from typing import Any
 from urllib.parse import parse_qs, urlencode, urlsplit
 from uuid import UUID
 
-from sqlalchemy import or_, select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session
 
 from gridlens.domain.buying_chain import (
@@ -37,6 +38,7 @@ from gridlens.ingestion.adapters.houston_permit_details import (
 from gridlens.ingestion.adapters.retained_permits import GEORGIA, chicago_contacts, georgia_identity
 from gridlens.ingestion.adapters.retained_permits import facts as permit_facts
 from gridlens.intelligence.buying_chain_extraction import (
+    _ROLE_WORDS,
     Extracted,
     document_content_hash,
     document_key,
@@ -132,7 +134,7 @@ def _retained(session: Session, project: Project) -> list[Evidence]:
         )
         .where(PowerNeed.project_id == project.id)
     )
-    rows = session.execute(
+    query = (
         select(Evidence, Interpretation)
         .join(Observation, Observation.id == Evidence.observation_id)
         .outerjoin(Interpretation, Interpretation.observation_id == Observation.id)
@@ -144,14 +146,31 @@ def _retained(session: Session, project: Project) -> list[Evidence]:
             )
         )
         .order_by(Evidence.observed_at.desc(), Evidence.id)
-        .limit(24)
-    ).all()
-    # Only the currently accepted evidence version can introduce relationships.
-    return [
-        evidence
-        for evidence, _ in rows
-        if _retained_evidence_current_for_project(session, project, evidence)
-    ][:4]
+    )
+    accepted: list[Evidence] = []
+    cursor: tuple[datetime, UUID] | None = None
+    while len(accepted) < 4:
+        page = query
+        if cursor is not None:
+            observed_at, evidence_id = cursor
+            page = page.where(
+                or_(
+                    Evidence.observed_at < observed_at,
+                    and_(Evidence.observed_at == observed_at, Evidence.id > evidence_id),
+                )
+            )
+        rows = session.execute(page.limit(24)).all()
+        if not rows:
+            break
+        for evidence, _ in rows:
+            if _retained_evidence_current_for_project(session, project, evidence):
+                accepted.append(evidence)
+                if len(accepted) == 4:
+                    break
+        cursor = (rows[-1][0].observed_at, rows[-1][0].id)
+        if len(rows) < 24:
+            break
+    return accepted
 
 
 def _store_document(
@@ -850,16 +869,13 @@ def buying_chain_view(
 
     current_claim_ids = set(runs[0].claim_ids) if runs else set()
 
-    def retained_citations_current(claim: BuyingChainClaim) -> bool:
-        for citation in claim.citations:
-            source = by_id.get(citation["evidence_id"])
-            if source and source.retained_evidence_id:
-                original = session.get(Evidence, source.retained_evidence_id)
-                if original is None or not _retained_evidence_current_for_project(
-                    session, project, original
-                ):
-                    return False
-        return True
+    def retained_source_current(source: BuyingChainEvidence) -> bool:
+        if source.retained_evidence_id is None:
+            return True
+        original = session.get(Evidence, source.retained_evidence_id)
+        return bool(
+            original and _retained_evidence_current_for_project(session, project, original)
+        )
 
     selected = (
         claims
@@ -867,7 +883,7 @@ def buying_chain_view(
         else [
             row
             for row in claims
-            if str(row.id) in current_claim_ids and retained_citations_current(row)
+            if str(row.id) in current_claim_ids
         ]
     )
     candidates: list[dict[str, Any]] = []
@@ -876,10 +892,19 @@ def buying_chain_view(
         stale = False
         organization_stale = False
         role_stale = False
+        current_supports: set[str] = set()
+        invalid_retained_supports: set[str] = set()
+        current_contacts: set[tuple[str, str]] = set()
+        current_organization_quotes: list[str] = []
+        organization_support = False
+        role_support = False
         for citation in claim.citations:
             row = by_id.get(citation["evidence_id"])
             if row is None or citation["quote"] not in row.excerpt:
                 stale = True
+                continue
+            if not history and not retained_source_current(row):
+                invalid_retained_supports.add(citation["supports"])
                 continue
             newest = by_id[str(newest_by_url[row.url])]
             source_superseded = newest.id != row.id and citation["quote"] not in newest.excerpt
@@ -902,6 +927,12 @@ def buying_chain_view(
                 role_stale = role_stale or source_superseded or role_aged
             # Assignment freshness is independent of a newly verified employment role.
             stale = stale or source_superseded or role_aged
+            if not source_superseded and not role_aged:
+                current_supports.add(citation["supports"])
+                if citation["supports"] in {"project_organization", "organization_category"}:
+                    current_organization_quotes.append(citation["quote"])
+                if citation["supports"] == "public_contact":
+                    current_contacts.add((citation["url"], citation["quote"]))
             evidence.append(
                 {
                     "id": row.id,
@@ -914,10 +945,32 @@ def buying_chain_view(
                     "content_hash": row.content_hash,
                 }
             )
+        if not history:
+            if not evidence:
+                continue
+            if invalid_retained_supports:
+                organization_support = bool(
+                    current_supports
+                    & {
+                        "project_organization",
+                        "organization_category",
+                    }
+                )
+                role_support = "organization_person_role" in current_supports
+                if not organization_support:
+                    organization_stale = stale = True
+                if claim.person_name and not role_support:
+                    role_stale = stale = True
+                if not organization_support and not role_support:
+                    continue
         independent_conflict = False
         if claim.person_name and not history:
             role_urls = {
-                c["url"] for c in claim.citations if c["supports"] == "organization_person_role"
+                c["url"]
+                for c in claim.citations
+                if c["supports"] == "organization_person_role"
+                and (source := by_id.get(c["evidence_id"])) is not None
+                and retained_source_current(source)
             }
             for prior in grouped[claim.entity_key]:
                 if normalized_identity(prior.title) == normalized_identity(claim.title):
@@ -931,19 +984,11 @@ def buying_chain_view(
                     prior_source = by_id.get(prior_citation["evidence_id"])
                     if prior_source is None:
                         continue
-                    if prior_source.retained_evidence_id:
-                        retained = session.get(Evidence, prior_source.retained_evidence_id)
-                        if retained is None or not _retained_evidence_current_for_project(
-                            session, project, retained
-                        ):
-                            continue
+                    if not retained_source_current(prior_source):
+                        continue
                     current_source = by_id[str(newest_by_url[prior_source.url])]
-                    if current_source.retained_evidence_id:
-                        retained = session.get(Evidence, current_source.retained_evidence_id)
-                        if retained is None or not _retained_evidence_current_for_project(
-                            session, project, retained
-                        ):
-                            continue
+                    if not retained_source_current(current_source):
+                        continue
                     age = (
                         now.date() - (prior_source.published_at or prior_source.last_seen_at.date())
                     ).days
@@ -965,22 +1010,39 @@ def buying_chain_view(
                             "content_hash": prior_source.content_hash,
                         }
                     )
+        category = claim.category
+        project_relationship = claim.person_project_relationship
+        if invalid_retained_supports:
+            category_supported = "organization_category" in current_supports or any(
+                category.value == claim.category
+                and re.search(rf"\b{re.escape(term)}\b", quote, re.I)
+                for quote in current_organization_quotes
+                for term, category in _ROLE_WORDS.items()
+            )
+            if not category_supported:
+                category = "unknown"
+            if not organization_support or (claim.person_name and not role_support):
+                project_relationship = "UNKNOWN"
+            elif (
+                project_relationship == "DIRECT"
+                and "person_project_assignment" in invalid_retained_supports
+                and "person_project_assignment" not in current_supports
+            ):
+                project_relationship = "ROLE_SUPPORTED"
         candidates.append(
             {
                 "id": claim.id,
                 "organization": claim.organization,
                 "person_name": claim.person_name,
                 "title": claim.title,
-                "category": claim.category,
+                "category": category,
                 "organization_relationship": "UNKNOWN"
                 if organization_stale
                 else claim.organization_relationship,
                 "person_organization_relationship": "UNKNOWN"
                 if role_stale
                 else claim.person_organization_relationship,
-                "person_project_relationship": "UNKNOWN"
-                if stale
-                else claim.person_project_relationship,
+                "person_project_relationship": "UNKNOWN" if stale else project_relationship,
                 "evidence_strength": "Low" if stale else claim.evidence_strength,
                 "reason": (
                     "Conflicting independent role evidence; "
@@ -993,7 +1055,19 @@ def buying_chain_view(
                 else claim.reason,
                 "observed_at": claim.observed_at,
                 "verified_at": claim.verified_at,
-                "public_contacts": claim.public_contacts,
+                "public_contacts": (
+                    [
+                        contact
+                        for contact in claim.public_contacts
+                        if (contact.get("source_url"), contact.get("quote")) in current_contacts
+                    ]
+                    if invalid_retained_supports
+                    and not history
+                    and (not claim.person_name or role_support)
+                    else []
+                    if invalid_retained_supports and not history
+                    else claim.public_contacts
+                ),
                 "evidence": evidence,
                 "history_count": len(grouped[claim.entity_key]),
                 "stale": stale,

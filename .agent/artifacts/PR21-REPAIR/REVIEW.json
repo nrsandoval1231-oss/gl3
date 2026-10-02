@@ -2,11 +2,11 @@
   "node": "PR21-REPAIR",
   "verdict": "PASS",
   "raw_verdict": "PASS",
-  "raw_audit": "REVIEW-R4-INDEPENDENT.json",
-  "raw_audit_sha256": "eeb17b407189609c3bf482ba96588b5a6475d46730638642682acd3a68dc0479",
-  "candidate_manifest_sha256": "a9b6deb46d33c42b7b7d03c605e16b2c876ad38c6325b8b74bd321df344693f6",
-  "recorded_utc": "2026-10-02T21:17:49.089229+00:00",
-  "scope": "Exact local repair accepted by independent architect reviewer after Astra CORRECT repair; hosted verification follows. No merge or deployment.",
+  "raw_audit": "REVIEW-R5-INDEPENDENT.json",
+  "raw_audit_sha256": "dd25ea10dc1de4b9ed054283194473d9dcf659e8939ba47a83d929a1ff769511",
+  "candidate_manifest_sha256": "be48842d2f9661022b5e31c728446d4324948a985bd36fb5d29545b0a6fe165d",
+  "recorded_utc": "2026-10-02T22:16:45.822576+00:00",
+  "scope": "Exact local correctness repair accepted; hosted exact-head verification pending. No merge or deployment.",
   "reviewer_model": "UNKNOWN",
   "findings": []
 }

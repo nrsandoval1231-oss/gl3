@@ -4,26 +4,28 @@
     "npx.cmd",
     "playwright",
     "test",
-    "--workers=1"
+    "--workers=1",
+    "--trace",
+    "retain-on-failure"
   ],
   "exit_code": 0,
-  "start": "2026-10-02T21:12:52.299452+00:00",
-  "finish": "2026-10-02T21:13:32.979559+00:00",
-  "seconds": 40.680107,
-  "configuration": "Existing playwright.config.ts with fresh isolated API/web ports and worker; serial invocation retained from GL3-028 acceptance; no assertions changed",
-  "log_sha256": "f1a92e066ee669773070775f65743778c200fe4ca12fc46208277a39e720f881",
+  "start": "2026-10-02T22:11:37.175945+00:00",
+  "finish": "2026-10-02T22:12:18.269567+00:00",
+  "seconds": 41.093622,
+  "configuration": "Existing playwright.config.ts with fresh isolated API/web ports and worker; serial invocation retained from GL3-028 acceptance with failure tracing for network diagnosis; no assertions changed",
+  "log_sha256": "eca554bc20321f8ace089a32e2e9ac91b2ce5d3d0b356cab128753e87dd69411",
   "tail": [
-    "[WebServer] INFO:     Started server process [38660]",
+    "[WebServer] INFO:     Started server process [29096]",
     "[WebServer] INFO:     Waiting for application startup.",
     "[WebServer] INFO:     Application startup complete.",
     "[WebServer] INFO:     Uvicorn running on http://127.0.0.1:8041 (Press CTRL+C to quit)",
-    "[WebServer] (node:34852) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.",
+    "[WebServer] (node:26020) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.",
     "[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)",
     "",
     "Running 22 tests using 1 worker",
-    "(node:30100) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.",
+    "(node:20844) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.",
     "(Use `node --trace-warnings ...` to show where the warning was created)",
     "\u00c2\u00b7\u00c2\u00b7\u00c2\u00b7\u00c2\u00b7\u00c2\u00b7\u00c2\u00b7\u00c2\u00b7\u00c2\u00b7\u00c2\u00b7\u00c2\u00b7\u00c2\u00b7\u00c2\u00b7\u00c2\u00b7\u00c2\u00b7\u00c2\u00b7\u00c2\u00b7\u00c2\u00b7\u00c2\u00b7\u00c2\u00b7\u00c2\u00b7\u00c2\u00b7\u00c2\u00b7",
-    "  22 passed (39.4s)"
+    "  22 passed (39.9s)"
   ]
 }

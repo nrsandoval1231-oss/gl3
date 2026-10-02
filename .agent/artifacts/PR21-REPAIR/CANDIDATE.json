@@ -1,12 +1,12 @@
 {
   "base_sha": "da1f2bdb3c207e97e8a861392ba6df189dfe32a2",
-  "prior_reviewed_head": "89d4bb8c9f1c43c6f8b64cbdb1daab2012c360f9",
-  "recorded_utc": "2026-10-02T21:12:51.015082+00:00",
+  "prior_reviewed_head": "37c449148c9bd0d07c9f1b1ca45c3dd769833fca",
+  "recorded_utc": "2026-10-02T22:09:11.453354+00:00",
   "files": [
     {
       "path": ".agent/packets/PR21-REPAIR.md",
-      "sha256": "9da0f1a4f971e9fbb580e4ca3b14cf4ece1c39c53240a1604227c28a97241f3b",
-      "git_blob": "84f3bd7fd1316bf3e7355ac11c04c3bcb365e196"
+      "sha256": "1eb5c8e857b0bb38518ce6d4f7c83fdb1b3062086ddc2e9c4c6abd30a9c2e555",
+      "git_blob": "6c9df57430c2f6a9ed53b40b86cd8aaa585f6219"
     },
     {
       "path": "backend/migrations/versions/0013_evidence_judge_scan_checkpoint.py",
@@ -25,8 +25,8 @@
     },
     {
       "path": "backend/src/gridlens/intelligence/buying_chain.py",
-      "sha256": "accd1cc3cde6dd7d7a77e83f5308e67afd17c65c01343a483b144f2648c6ffcd",
-      "git_blob": "4dd39ea072ee7043acaa140fa78d50d16dca87a8"
+      "sha256": "17ba02529763e90acf809aecc6d9e07e8d25db4bd530e2a17ab550b2924b83d1",
+      "git_blob": "11764f606894e01d7591d2cdc68734da90286e46"
     },
     {
       "path": "backend/src/gridlens/intelligence/change_detection.py",
@@ -60,8 +60,8 @@
     },
     {
       "path": "backend/tests/integration/test_buying_chain.py",
-      "sha256": "48ac4bed57f98f656ec2e67f8aee736bb04672f01a8aaa9c61b95f6462605210",
-      "git_blob": "9a5f0f9d0519f383ad239e80b8d84b8bc70bfa03"
+      "sha256": "b2e9cbb4ede78c81e2cbf26089b6ce71d21741f7dc1cac74addbb945897aef4b",
+      "git_blob": "a778f7e75e42a2d31257ea517663f6190f047f4f"
     },
     {
       "path": "backend/tests/integration/test_collection_only_ingestion.py",
@@ -79,9 +79,19 @@
       "git_blob": "a2079e0f52e9948e8c529d32e534203540b251c8"
     },
     {
+      "path": "backend/tests/integration/test_jobs.py",
+      "sha256": "e890cac06aaca3cfaf85a6677a1e9d81f1621365dcd2c9f4a61a75b625eb9eba",
+      "git_blob": "09f55de4f9b7629427dcaf90f0326c4249a1e927"
+    },
+    {
       "path": "backend/tests/integration/test_project_state_changes.py",
       "sha256": "aea173bd4deb5df551274efa349c2b0d9601d4b76e84989016d75f147e3dcfb4",
       "git_blob": "76b8682c493cd73570ede057ff1821760973cca1"
+    },
+    {
+      "path": "backend/tests/integration/test_pursuits.py",
+      "sha256": "73ed539d584f9d208763a063e0e727136d325b9f9d0c84fad8dbdca02c31226a",
+      "git_blob": "feca4d8b1a511da565103ba8feabd40891d73487"
     },
     {
       "path": "backend/tests/integration/test_taylor_ingestion.py",
@@ -95,8 +105,8 @@
     },
     {
       "path": "docs/validation/PR21-CORRECTNESS-REPAIR.md",
-      "sha256": "7d9d450a3a64f5979adb88c9e3f1972b1b4d574d04fcc1767e6333b5c8102966",
-      "git_blob": "36cc32f8a79b772bfba07b912e0ce2d7c4300be9"
+      "sha256": "ccc767ea6625134967342bae43badb9d75fe7308760190e39e1fc1dc0afdf333",
+      "git_blob": "515457ca053201a682f7345c8fdb115a6900351a"
     },
     {
       "path": "web/src/api/generated.ts",

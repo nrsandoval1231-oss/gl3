@@ -1,6 +1,6 @@
 # PR21 correctness repair
 
-This repair records the retained-news, lifecycle, shadow traversal, lock-order, project-state, and buying-chain corrections made across R1–R4. It preserves immutable Evidence and judge-run history while adding bounded traversal state, ordered project locking, current admitted field provenance, and per-document buying-chain projection. Project-state API output and generated contracts include `unresolved`.
+This repair records the retained-news, lifecycle, shadow traversal, lock-order, project-state, and buying-chain corrections made across R1–R5. It preserves immutable Evidence and judge-run history while adding bounded traversal state, ordered project locking, current admitted field provenance, and per-document buying-chain projection. Project-state API output and generated contracts include `unresolved`.
 
 Research recommendations now require supported nested timing evidence and a buyer-role record with a retained public contact. Publisher RSS remains context-only.
 
@@ -217,3 +217,44 @@ retains that binding; all replay assertions remain. An unchanged runtime test
 also failed once and passed in isolation and with its full module; its cause was
 not proven and no runtime code or assertion was changed. `R4-GATE-FAILURE.json`
 preserves this failed checkpoint. A new frozen full run is required for acceptance.
+
+## R5 independent citations and retained input paging
+
+Codex on `37c4491` identified two further buying-chain correctness issues. A
+deduplicated claim could be removed when just one retained citation became
+invalid, despite independent current support. Retained input selection could
+also stop after 24 invalid historical rows and miss older valid Evidence.
+
+Current projection now evaluates retained citations individually. Independently
+supported facts survive; unsupported role, assignment, category, and contact
+facts are withheld or shown as UNKNOWN. Historical claims and citations remain
+inspectable. Category survival reuses the existing extraction role vocabulary,
+including aliases such as construction manager, rather than guessing from an
+internal category key. Retained input selection advances by a deterministic timestamp/ID
+cursor through 24-row pages until four valid inputs or exhaustion, without
+expanding external document or request budgets.
+
+`test_deduplicated_claim_keeps_independent_category_after_retained_reassignment`
+uses actual enrichment/deduplication and covers rejection and reassignment,
+exact surviving public provenance, and quiet material diffing.
+`test_partial_citation_survival_downgrades_role_and_excludes_all_invalid_claim`
+covers partial support and history. `test_retained_scan_reaches_older_current_version_after_invalid_prefix`
+checks that 25 invalid newer rows do not starve the valid retained input or
+remove its enrichment. `R5-BEFORE-AFTER.json` records exact-reviewed-head failure
+proof; final acceptance uses the frozen manifest and final gate/review receipts.
+Final focused buying-chain and project-state validation: 49 passed; Ruff, mypy,
+and diff check passed. The receipt also retains the alias regression's failure
+on the first unaccepted R5 implementation and its passing correction.
+
+The first R5 full run exposed immediate-lease timing assumptions in pursuit
+fixtures: PostgreSQL's timestamp was ahead of the Windows Python clock reading
+in 195 of 200 local samples, by up to 0.983 ms. Freshly seeded test jobs now
+explicitly start due; pre-existing queued/running jobs keep their availability,
+and production queue/backoff code and assertions are unchanged. A second full
+run exposed the same assumption in scoped-worker and pre-created research-job
+fixtures. The two affected modules now explicitly seed intended-ready jobs as
+due; their 22 tests pass, including deferred-backoff and fenced-worker assertions.
+`R9-PURSUITS-FIXTURE.json` preserves both failures and the bounded fixture audit.
+The same full run had a browser network-fetch failure before the card assertion;
+`R5-GATE-FAILURE.json` retains it. Final backend and browser gates run separately,
+with the unchanged serial browser suite and failure tracing enabled.

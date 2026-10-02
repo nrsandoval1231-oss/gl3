@@ -1,5 +1,5 @@
 {
-  "utc": "2026-10-02T21:12:56.235922+00:00",
+  "utc": "2026-10-02T22:11:35.935925+00:00",
   "source": "GL3-028 preserved immutable backup restored to fresh isolated PostgreSQL",
   "migration_exit_code": 0,
   "authoritative_tables_unchanged_after_migration": true,

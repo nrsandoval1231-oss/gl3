@@ -1,0 +1,23 @@
+{
+  "recorded_utc": "2026-10-02T22:02:27Z",
+  "scope": "R9-R10 test fixture scheduling only in backend/tests/integration/test_jobs.py and test_pursuits.py; no queue or worker production change",
+  "reported_full_gate_failure": "test_ordinary_refresh_reconciles_saved_dallas_title_and_preserves_history: lease_one returned None immediately after enqueue(force=False)",
+  "independent_module_observation": "After correcting the shared execute fixture, test_stale_worker_cannot_publish_research also failed at its direct immediate lease with TypeError: cannot unpack non-iterable NoneType object; the initial module run was 1 failed, 11 passed.",
+  "diagnosis": "New Job.available_at is assigned by PostgreSQL server_default now(), while lease_one compares it to Python datetime.now(UTC). The parent controller's 200-sample isolated clock probe observed the database clock ahead of the Python timestamp in 195 samples by up to 0.983 ms. The immediate lease can therefore run before a newly seeded test job is due.",
+  "repair": "Only newly enqueued pursuit test fixtures receive available_at = Python now minus one second before immediate lease. The shared execute helper checks for an existing queued or running job before enqueue and does not change that job's availability, preserving retry/backoff semantics. The stale-worker test explicitly marks its newly seeded direct job due before testing fence expiration.",
+  "r9_after_result": "test_pursuits.py: 12 passed, 1 existing StarletteDeprecationWarning in 3.32s",
+  "r10_reported_full_gate_failures": [
+    "test_jobs.py::test_scoped_worker_leaves_other_jobs_and_expired_leases_untouched: newly created selected Job was not yet due at immediate scoped lease",
+    "test_pursuits.py::test_kind_scoped_queue_and_durable_request_budget: a newly queued research fixture job was reused by execute and not yet due"
+  ],
+  "r10_adjacent_fixture_audit": "All immediate lease inputs in these two modules were inspected. The runtime recovery fixture now pre-queues one due job before check_sources to exercise failure, deferred backoff, and recovery deterministically; the successful ingestion worker fixture also makes its new ingestion job due. Already explicit due jobs and read-only enqueue tests were unchanged. Existing retry/backoff availability is never moved earlier.",
+  "after_command": "backend/.venv/Scripts/python.exe -m pytest backend/tests/integration/test_jobs.py backend/tests/integration/test_pursuits.py -q --tb=short",
+  "after_exit_code": 0,
+  "after_result": "22 passed, 1 existing StarletteDeprecationWarning in 5.34s",
+  "ruff_exit_code": 0,
+  "diff_check_exit_code": 0,
+  "test_jobs_blob_sha": "09f55de4f9b7629427dcaf90f0326c4249a1e927",
+  "test_pursuits_blob_sha": "feca4d8b1a511da565103ba8feabd40891d73487",
+  "r10_recorded_utc": "2026-10-02T22:08:00Z",
+  "limitation": "The exact PostgreSQL/Python submillisecond delta is from the controller's separate probe; this receipt does not claim an independent clock measurement. Local isolated PostgreSQL test evidence only."
+}
