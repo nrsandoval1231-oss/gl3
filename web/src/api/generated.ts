@@ -1049,6 +1049,32 @@ export interface components {
             /** Facts */
             facts?: components["schemas"]["PermitFactOut"][];
         };
+        /** ProjectChangeOut */
+        ProjectChangeOut: {
+            /** Kind */
+            kind: string;
+            /** Field */
+            field: string | null;
+            /** Prior */
+            prior: {
+                [key: string]: unknown;
+            } | null;
+            /** New */
+            new: {
+                [key: string]: unknown;
+            } | null;
+            /** Evidence Id */
+            evidence_id: string | null;
+            /** Buying Chain Evidence Id */
+            buying_chain_evidence_id: string | null;
+            /** Source Date */
+            source_date: string | null;
+            /**
+             * Detected At
+             * Format: date-time
+             */
+            detected_at: string;
+        };
         /** ProjectStateOut */
         ProjectStateOut: {
             /**
@@ -1610,7 +1636,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["ProjectChangeOut"][];
                 };
             };
             /** @description Validation Error */

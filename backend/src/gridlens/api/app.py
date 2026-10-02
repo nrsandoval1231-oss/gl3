@@ -221,6 +221,17 @@ class ChangeOut(BaseModel):
     published_at: date | None
 
 
+class ProjectChangeOut(BaseModel):
+    kind: str
+    field: str | None
+    prior: dict | None
+    new: dict | None
+    evidence_id: UUID | None
+    buying_chain_evidence_id: UUID | None
+    source_date: date | None
+    detected_at: datetime
+
+
 class ProjectStateOut(BaseModel):
     project_id: UUID
     identity_key: str
@@ -1060,7 +1071,11 @@ def project_state_endpoint(project_id: UUID):
         return state
 
 
-@app.get("/api/projects/{project_id}/changes", dependencies=[Depends(require_session)])
+@app.get(
+    "/api/projects/{project_id}/changes",
+    response_model=list[ProjectChangeOut],
+    dependencies=[Depends(require_session)],
+)
 def project_changes_endpoint(project_id: UUID, limit: int = Query(default=100, ge=1, le=250)):
     with SessionLocal() as session:
         project = session.get(Project, project_id)
