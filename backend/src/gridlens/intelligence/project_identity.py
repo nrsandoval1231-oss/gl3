@@ -137,7 +137,7 @@ def normalized_identity(value: str | None) -> str:
 
 
 def canonical_site_claim(value: str | None) -> str:
-    """Compare full site claims, folding only unambiguous street and terminal state forms."""
+    """Compare full site claims, folding only unambiguous street and state forms."""
     raw = (value or "").strip()
     tokens = normalized_identity(raw).split()
     street_component = raw.split(",", 1)[0]
@@ -150,8 +150,17 @@ def canonical_site_claim(value: str | None) -> str:
         if street_words and ("," in raw or suffix_count == 1):
             street_words[-1] = _STREET_SUFFIXES.get(street_words[-1], street_words[-1])
             tokens = street_words + normalized_identity(raw[street.end():]).split()
-    if len(tokens) >= 2 and tokens[-1].upper() in _STATE_CODES:
-        tokens[-1:] = _STATE_CODES[tokens[-1].upper()].split()
+    state_end = len(tokens)
+    if (
+        len(tokens) >= 3
+        and re.fullmatch(r"\d{5}", tokens[-2])
+        and re.fullmatch(r"\d{4}", tokens[-1])
+    ):
+        state_end -= 2
+    elif tokens and re.fullmatch(r"\d{5}", tokens[-1]):
+        state_end -= 1
+    if state_end >= 2 and tokens[state_end - 1].upper() in _STATE_CODES:
+        tokens[state_end - 1 : state_end] = _STATE_CODES[tokens[state_end - 1].upper()].split()
     return " ".join(tokens)
 
 

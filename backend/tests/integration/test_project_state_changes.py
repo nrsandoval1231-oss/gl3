@@ -548,6 +548,89 @@ def test_project_site_street_name_suffix_word_is_not_rewritten_as_city(db):
         assert project_state(session, project.id)["state"]["site"]["status"] == "UNKNOWN"
 
 
+@pytest.mark.parametrize(
+    ("stored", "claimed"),
+    [
+        ("100 Main Street, Austin, Texas 78701", "100 Main St, Austin, TX 78701"),
+        ("100 Main Street, Austin, Texas 78701-1234", "100 Main St, Austin, TX 78701-1234"),
+        ("100 Main Street, Austin, Texas 78701-1234", "100 Main St, Austin, TX 78701 1234"),
+    ],
+)
+@pytest.mark.parametrize("two_claims", [False, True])
+def test_project_site_zip_state_variants_preserve_current_support(
+    db, stored, claimed, two_claims
+):
+    with db.begin() as session:
+        project, _, _ = seed(session)
+        project.location = stored
+        need = PowerNeed(
+            project_id=project.id, activity_key="construction", tier="Prospect",
+            rationale="fixture", active=True,
+        )
+        session.add(need)
+        session.flush()
+        evidence_ids = []
+        if two_claims:
+            original, _, _ = linked_official_need_evidence(
+                session, project, need, key="zip-original"
+            )
+            evidence_ids.append(str(original.id))
+        variant, _, interpretation = linked_official_need_evidence(
+            session, project, need, key="zip-variant"
+        )
+        interpretation.assessment = {**interpretation.assessment, "location": claimed}
+        evidence_ids.append(str(variant.id))
+        site = project_state(session, project.id)["state"]["site"]
+        assert site["status"] == "SUPPORTED"
+        assert site["value"] == stored
+        assert {row["id"] for row in site["evidence"]} == set(evidence_ids)
+
+
+@pytest.mark.parametrize(
+    "wrong_site",
+    [
+        "100 Main St, Austin, TX 78702",
+        "100 Main St, Austin, TX 78701-1235",
+        "100 Main St, Austin, TX 78701",
+        "100 Main St, Austin, TX",
+        "100 Main St, Dallas, TX 78701-1234",
+        "100 Main St, Austin, OK 78701-1234",
+        "100 Main St Unit 2, Austin, TX 78701-1234",
+    ],
+)
+@pytest.mark.parametrize("two_claims", [False, True])
+def test_project_site_zip_key_retains_zip_city_state_and_unit(
+    db, wrong_site, two_claims
+):
+    with db.begin() as session:
+        project, _, _ = seed(session)
+        project.location = "100 Main Street, Austin, Texas 78701-1234"
+        need = PowerNeed(
+            project_id=project.id, activity_key="construction", tier="Prospect",
+            rationale="fixture", active=True,
+        )
+        session.add(need)
+        session.flush()
+        original_id = None
+        if two_claims:
+            original, _, _ = linked_official_need_evidence(
+                session, project, need, key="zip-control-original"
+            )
+            original_id = str(original.id)
+        wrong, _, interpretation = linked_official_need_evidence(
+            session, project, need, key="zip-control-wrong"
+        )
+        interpretation.assessment = {**interpretation.assessment, "location": wrong_site}
+        site = project_state(session, project.id)["state"]["site"]
+        if two_claims:
+            assert site["status"] == "CONFLICT"
+            assert {claim["evidence"]["id"] for claim in site["claims"]} == {
+                original_id, str(wrong.id)
+            }
+        else:
+            assert site == {"value": None, "status": "UNKNOWN"}
+
+
 @pytest.mark.parametrize("variation", ["identity", "activity", "admission"])
 def test_need_state_excludes_each_ineligible_dimension_without_losing_valid_support(db, variation):
     with db.begin() as session:
