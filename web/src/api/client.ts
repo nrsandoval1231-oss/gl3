@@ -12,11 +12,26 @@ export type IngestionItem = components['schemas']['IngestionItemOut']
 export type IngestionPage = components['schemas']['IngestionPageOut']
 export type Brief = components['schemas']['BriefOut']
 export type BriefRequest = components['schemas']['BriefRequestOut']
+export type CommercialTriage = components['schemas']['CommercialTriageOut']
+export type CommercialTriageCard = components['schemas']['CommercialTriageCard']
+export type CommercialTriageHistory = components['schemas']['CommercialTriageHistoryOut']
+export type CommercialTriageHistoryItem = components['schemas']['CommercialTriageHistoryItem']
+export type CommercialResearchBody = components['schemas']['CommercialResearchBody']
 
-async function api<T>(path: string, init?: RequestInit): Promise<T> {
+async function api<T>(path: string, init?: RequestInit, includeSafeDetail = false): Promise<T> {
   const response = await fetch(path, { ...init, credentials: 'same-origin', headers: { 'content-type': 'application/json', ...init?.headers } })
   if (response.status === 401) throw new Error('Your session ended. Sign in again.')
-  if (!response.ok) throw new Error(`GridLens could not complete this request (${response.status}).`)
+  if (!response.ok) {
+    if (includeSafeDetail) {
+      try {
+        const payload = await response.clone().json() as { detail?: unknown }
+        if (typeof payload.detail === 'string' && payload.detail.length <= 300) throw new Error(`GridLens could not complete this request (${response.status}): ${payload.detail}`)
+      } catch (cause) {
+        if (cause instanceof Error && cause.message.startsWith('GridLens could not complete this request')) throw cause
+      }
+    }
+    throw new Error(`GridLens could not complete this request (${response.status}).`)
+  }
   return response.json() as Promise<T>
 }
 
@@ -28,6 +43,10 @@ export const client = {
   enrichBuyingChain: (projectId: string, sourceUrls: string[]) => api<BuyingChainResult>(`/api/projects/${encodeURIComponent(projectId)}/buying-chain/enrich`, { method: 'POST', body: JSON.stringify({ source_urls: sourceUrls }) }),
   brief: (needId: string) => api<Brief>(`/api/power-needs/${encodeURIComponent(needId)}/brief`),
   requestBrief: (needId: string) => api<BriefRequest>(`/api/power-needs/${encodeURIComponent(needId)}/brief`, { method: 'POST', body: '{}' }),
+  commercialTriage: (limit = 50, signal?: AbortSignal) => api<CommercialTriage>(`/api/commercial/triage?limit=${limit}`, { signal }),
+  commercialTriageHistory: (signal?: AbortSignal) => api<CommercialTriageHistory>('/api/commercial/triage/history', { signal }),
+  evaluateCommercialTriage: () => api<CommercialTriage>('/api/commercial/triage/evaluate', { method: 'POST', body: '{}' }),
+  researchCommercialNeed: (needId: string, body: CommercialResearchBody) => api<BriefRequest>(`/api/commercial/triage/${encodeURIComponent(needId)}/research`, { method: 'POST', body: JSON.stringify(body) }, true),
   session: () => api<{ authenticated: boolean }>('/api/auth/session'),
   login: (password: string) => api<{ authenticated: boolean }>('/api/auth/login', { method: 'POST', body: JSON.stringify({ password }) }),
   logout: () => api('/api/auth/logout', { method: 'POST' }),

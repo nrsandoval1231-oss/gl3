@@ -27,7 +27,7 @@ async function openCardMember(
 }
 
 async function signIn(page: import('@playwright/test').Page) {
-  await page.goto('/')
+  await page.goto('/?tier=Signals')
   await page.getByLabel('Password').fill(requirePassword())
   await page.getByRole('button', { name: 'Continue' }).click()
   await expect(page.getByRole('heading', { name: 'Signals', exact: true })).toBeVisible()
@@ -118,6 +118,8 @@ test('mobile health, ordinary news inbox, and browser history show actual local 
   await expect(page.locator('.ingestion-card').first()).toContainText(inbox.page.items[0].title)
   await sourceFilter.selectOption('el-paso-new-commercial-permits')
   await page.getByRole('button', { name: 'Today’s pursuits' }).click()
+  await expect(page.getByRole('heading', { name: 'What should we work today?' })).toBeVisible()
+  await page.getByText('Saved research workspace and call history', { exact: true }).click()
   await expect(page.getByRole('heading', { name: "Today's Power Pursuits" })).toBeVisible()
   await page.goBack()
   await expect(page.getByRole('heading', { name: 'Ingestion inbox' })).toBeVisible()
@@ -189,7 +191,7 @@ test('live data-center permit enrichment exposes attributed fields and organizat
   for (const [index, opportunity] of examples.entries()) {
     expect(opportunity, 'live acceptance requires Chicago and Georgia data-center examples').toBeTruthy()
     if (!opportunity) throw new Error('Missing data-center acceptance example')
-    await page.goto('/')
+    await page.goto('/?tier=Signals')
     const card = projectCards(items).find((candidate) => candidate.members.some((item) => item.id === opportunity.id))
     if (!card) throw new Error('Missing data-center card')
     const decision = signalDisplayDecision(card.members)

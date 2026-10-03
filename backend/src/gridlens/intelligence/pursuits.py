@@ -660,7 +660,11 @@ def pursuit_view(session: Session, row: Pursuit, *, current: dict[str, dict] | N
 
 def list_pursuits(session: Session, *, include_dropped: bool = False, offset: int = 0) -> dict:
     current = {g["identity_key"]: g for g in candidates(session)}
-    rows = session.scalars(select(Pursuit)).all()
+    # Commercial triage uses the same durable note tables but keeps its per-need
+    # receipt snapshots out of the legacy portfolio/research view contract.
+    rows = session.scalars(
+        select(Pursuit).where(~Pursuit.identity_key.like("commercial-need:%"))
+    ).all()
     items, excluded = [], 0
     for row in rows:
         if not row.snapshot:
