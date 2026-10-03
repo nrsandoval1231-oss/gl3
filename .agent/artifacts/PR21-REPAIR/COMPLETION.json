@@ -149,5 +149,19 @@
     ".agent/artifacts/PR21-REPAIR/R10-BEFORE-AFTER.json",
     "docs/validation/PR21-CORRECTNESS-REPAIR.md",
     ".agent/artifacts/PR21-REPAIR/COMPLETION.json"
+  ],
+  "r11_base_sha": "db4568c49cc0a013472e8b3e110ae503d1b38d36bb",
+  "r11_handoff": "Projection-only site comparison now expands state code/name before optional ZIP5 or ZIP+4 while retaining ZIP digits; hyphen/space ZIP+4 variants agree, changed ZIP/city/state/unit remain distinct. Exact-head before proof: 6 failed and 14 controls passed; after repair project-state module 66 passed. Ruff, mypy 66 source files, diff check pass. R11-BEFORE-AFTER.json records evidence. Controller owns full gates and fresh independent review.",
+  "r11_repair_count": 1,
+  "r11_started_at_utc": "UNKNOWN",
+  "r11_finished_at_utc": "2026-10-03T00:46:03Z",
+  "r11_durations_and_tokens": "UNKNOWN",
+  "r11_files": [
+    "backend/src/gridlens/intelligence/project_identity.py",
+    "backend/tests/integration/test_project_state_changes.py",
+    ".agent/packets/PR21-REPAIR.md",
+    ".agent/artifacts/PR21-REPAIR/R11-BEFORE-AFTER.json",
+    "docs/validation/PR21-CORRECTNESS-REPAIR.md",
+    ".agent/artifacts/PR21-REPAIR/COMPLETION.json"
   ]
 }

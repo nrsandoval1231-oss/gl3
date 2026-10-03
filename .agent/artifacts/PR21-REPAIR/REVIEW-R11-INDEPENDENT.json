@@ -1,0 +1,33 @@
+{
+  "verdict": "PASS",
+  "recorded_utc": "2026-10-03T00:51:34Z",
+  "review_scope": "Independent local PR21 R11 review of the frozen exact candidate; no implementation edits",
+  "reviewer_role": "Sol independent reviewer",
+  "reviewer_model": "UNKNOWN",
+  "repository": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-pr21-review",
+  "branch": "fix/pr21-correctness",
+  "base_sha": "da1f2bdb3c207e97e8a861392ba6df189dfe32a2",
+  "prior_pushed_head_sha": "db4568c49cc0a013472e8b3e110ae503d1b38d36",
+  "candidate_manifest": ".agent/artifacts/PR21-REPAIR/CANDIDATE.json",
+  "candidate_manifest_sha256": "24dde092995a97d3e4034dc3e78016dbe031344ae9c1824d01ad1b0079dc560e",
+  "manifest_file_count": 26,
+  "manifest_files_verified": 26,
+  "manifest_mismatches": [],
+  "findings": [],
+  "evidence": {
+    "hosted_finding": "CODEX-R11.json reports that a ZIP5 or ZIP+4 after a state code prevented equivalent full addresses from sharing site support on exact db4568c.",
+    "source_review": "Inspected actual project_identity.py helper diff, project-state regressions, packet and validation documentation. The projection-only key recognizes only a terminal five-digit ZIP or five-plus-four ZIP token pair, then expands only the immediately preceding state code through the existing state map. All ZIP digits remain in the comparison. Malformed or extra numeric tails remain full-text and cannot silently lose context. The no-ZIP path, address parser and global project identity matcher are unchanged; raw claim display and exact Evidence provenance remain intact.",
+    "failure_discrimination": "R11-BEFORE-AFTER.json records six valid ZIP5/ZIP+4 one- and two-claim variants failing against exact db4568c while 14 wrong-component controls passed. After repair the full project-state module passed 66 tests. Controls cover changed ZIP5, changed ZIP+4 extension, missing ZIP, city, state and unit, plus earlier same-street different-city and address-context regressions.",
+    "full_validation": "Fresh VALIDATION.json records 19 checks with zero nonzero exits: Ruff, mypy, 676 backend tests with one existing skip, frontend audit/typecheck/build, clean/repeat/main/previous-head migration and drift checks, and diff check.",
+    "browser": "Fresh BROWSER.json records the unchanged serial canonical Playwright invocation: 22 passed.",
+    "retained_preservation": "Fresh PRESERVATION.json records 13 authoritative tables and all 16,960 Evidence rows unchanged after migration and reopened replay; six projects over two sessions generated zero material events and made zero provider calls.",
+    "candidate_identity": "Independently recomputed all 26 listed file SHA256 values with zero mismatches and the manifest SHA256 after final browser validation."
+  },
+  "limitations": [
+    "PASS accepts the frozen local correctness repair only. Hosted PR checks and any new Codex findings require separate verification.",
+    "Malformed or structurally ambiguous ZIP/site strings retain conservative full-text comparison; no geocoding or fuzzy identity authority was added.",
+    "Parent Finish Contract and launch remain open; this review does not authorize merge or deployment."
+  ],
+  "implementation_edits": false,
+  "tokens": "UNKNOWN"
+}

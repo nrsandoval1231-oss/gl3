@@ -1,0 +1,9 @@
+[
+  {
+    "id": 4170955775,
+    "path": "backend/src/gridlens/intelligence/project_identity.py",
+    "line": 154,
+    "created_at": "2026-10-03T00:41:53Z",
+    "body": "**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Normalize state codes that precede ZIP codes**\n\nWhen equivalent full addresses include a ZIP code, such as `100 Main Street, Austin, Texas 78701` and `100 Main St, Austin, TX 78701`, the state abbreviation is no longer the final token, so this condition leaves `TX` unexpanded and the site projection returns `UNKNOWN` or `CONFLICT`. The fresh canonicalizer therefore still loses an accepted site claim for a common address form; recognize a terminal state followed by an optional ZIP while retaining the ZIP in the comparison.\n\nAGENTS.md reference: [AGENTS.md:L6-L6](https://github.com/nrsandoval1231-oss/gl3/blob/db4568c49cc0a013472e8b3e110ae503d1b38d36/AGENTS.md#L6-L6)\n\nUseful? React with \ud83d\udc4d\u00a0/ \ud83d\udc4e."
+  }
+]

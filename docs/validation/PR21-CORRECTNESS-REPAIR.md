@@ -395,3 +395,18 @@ After repair, all 46 project-state tests passed. Wrong city, state, unit, and
 number remain UNKNOWN or CONFLICT as appropriate; original display text and
 exact Evidence IDs remain visible. Ruff, mypy, and diff check passed. Full
 repository gates and independent review remain controller-owned.
+
+## R11 ZIP-aware site state spelling
+
+The R10 comparison normalized a state name/code only at the end of the site
+string. A trailing ZIP therefore made `Texas 78701` and `TX 78701` appear
+different, including ZIP+4 addresses. The projection-only key now recognizes
+the state token immediately before an optional ZIP5 or ZIP+4 and keeps all ZIP
+digits in the comparison. Hyphenated and space-separated ZIP+4 forms compare
+equally; a changed ZIP, extension, city, state, or unit remains distinct.
+
+`R11-BEFORE-AFTER.json` records six exact `db4568c` failures and 14 passing
+distinct-address controls before the repair. The full project-state module
+then passed 66 tests; Ruff, mypy, and diff check passed. The address parser and
+global project matcher remain unchanged. Full gates and independent review
+remain controller-owned.
