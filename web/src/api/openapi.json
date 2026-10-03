@@ -331,6 +331,102 @@
         }
       }
     },
+    "/api/projects/{project_id}/state": {
+      "get": {
+        "summary": "Project State Endpoint",
+        "operationId": "project_state_endpoint_api_projects__project_id__state_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProjectStateOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/projects/{project_id}/changes": {
+      "get": {
+        "summary": "Project Changes Endpoint",
+        "operationId": "project_changes_endpoint_api_projects__project_id__changes_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 250,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProjectChangeOut"
+                  },
+                  "title": "Response Project Changes Endpoint Api Projects  Project Id  Changes Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/refresh": {
       "post": {
         "summary": "Refresh",
@@ -1376,6 +1472,13 @@
               }
             ],
             "title": "Published At"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/ChangeSourceOut"
+            },
+            "type": "array",
+            "title": "Sources"
           }
         },
         "type": "object",
@@ -1383,9 +1486,47 @@
           "kind",
           "title",
           "url",
-          "published_at"
+          "published_at",
+          "sources"
         ],
         "title": "ChangeOut"
+      },
+      "ChangeSourceOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "url",
+          "published_at"
+        ],
+        "title": "ChangeSourceOut"
       },
       "EvidenceOut": {
         "properties": {
@@ -2624,6 +2765,184 @@
           "extraction_location"
         ],
         "title": "PermitSummaryOut"
+      },
+      "ProjectChangeOut": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "field": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Field"
+          },
+          "prior": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Prior"
+          },
+          "new": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "New"
+          },
+          "evidence_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence Id"
+          },
+          "buying_chain_evidence_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Buying Chain Evidence Id"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/ChangeSourceOut"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "source_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Date"
+          },
+          "detected_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Detected At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "field",
+          "prior",
+          "new",
+          "evidence_id",
+          "buying_chain_evidence_id",
+          "sources",
+          "source_date",
+          "detected_at"
+        ],
+        "title": "ProjectChangeOut"
+      },
+      "ProjectStateOut": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id"
+          },
+          "identity_key": {
+            "type": "string",
+            "title": "Identity Key"
+          },
+          "state": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "State"
+          },
+          "organizations_and_roles": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Organizations And Roles"
+          },
+          "lifecycle_events": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Lifecycle Events"
+          },
+          "evidence": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Evidence"
+          },
+          "candidate_matches": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Candidate Matches"
+          },
+          "unresolved": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Unresolved"
+          },
+          "disclosure": {
+            "type": "string",
+            "title": "Disclosure"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "identity_key",
+          "state",
+          "organizations_and_roles",
+          "lifecycle_events",
+          "evidence",
+          "candidate_matches",
+          "unresolved",
+          "disclosure"
+        ],
+        "title": "ProjectStateOut"
       },
       "PublicContactOut": {
         "properties": {

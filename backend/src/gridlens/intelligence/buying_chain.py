@@ -4,15 +4,16 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import time
-from collections import defaultdict
-from collections.abc import Callable
+from collections import Counter, defaultdict
+from collections.abc import Callable, Sequence
 from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import parse_qs, urlencode, urlsplit
 from uuid import UUID
 
-from sqlalchemy import or_, select
+from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session
 
 from gridlens.domain.buying_chain import (
@@ -23,6 +24,7 @@ from gridlens.domain.buying_chain import (
     POLICY_VERSION,
     ROLE_MAX_AGE_DAYS,
 )
+from gridlens.domain.signal_admission import admitted_from_source
 from gridlens.ingestion.adapters.buying_chain_public import (
     PublicDocument,
     retrieve,
@@ -36,6 +38,7 @@ from gridlens.ingestion.adapters.houston_permit_details import (
 from gridlens.ingestion.adapters.retained_permits import GEORGIA, chicago_contacts, georgia_identity
 from gridlens.ingestion.adapters.retained_permits import facts as permit_facts
 from gridlens.intelligence.buying_chain_extraction import (
+    _ROLE_WORDS,
     Extracted,
     document_content_hash,
     document_key,
@@ -78,6 +81,50 @@ def _accepted_version(interpretation: Interpretation | None, evidence: Evidence)
     return accepted and assessment.get("evidence_hash") == evidence.content_hash
 
 
+def _retained_evidence_current_for_project(
+    session: Session, project: Project, evidence: Evidence
+) -> bool:
+    """Return whether a retained citation can support this project's current view.
+
+    Official admitted evidence may introduce a relationship itself.  Context
+    news may do so only after ingestion recorded it as an explicit supplemental
+    match to an already-admitted project need.  Both cases require a concrete
+    current project binding; missing keys are never a wildcard.
+    """
+    observation = session.get(Observation, evidence.observation_id)
+    interpretation = (
+        session.scalar(
+            select(Interpretation).where(Interpretation.observation_id == observation.id)
+        )
+        if observation
+        else None
+    )
+    if (
+        observation is None
+        or interpretation is None
+        or not _accepted_version(interpretation, evidence)
+    ):
+        return False
+    assessment = interpretation.assessment or {}
+    bound_project = assessment.get("project_identity_key")
+    if (
+        not isinstance(bound_project, str)
+        or not bound_project
+        or bound_project != project.identity_key
+    ):
+        return False
+    source = session.get(Source, observation.source_id)
+    if source is None:
+        return False
+    if admitted_from_source(source, assessment, evidence).admitted:
+        return True
+    # Only `_attach_news_supplement` writes this status, after attaching the
+    # observation to an admitted need and recording the matched project key.
+    # Retain that durable decision even when a later cleanup no longer has the
+    # original NeedObservation row in memory.
+    return assessment.get("admission_status") == "supplemental"
+
+
 def _retained(session: Session, project: Project) -> list[Evidence]:
     observations = (
         select(NeedObservation.observation_id)
@@ -87,7 +134,7 @@ def _retained(session: Session, project: Project) -> list[Evidence]:
         )
         .where(PowerNeed.project_id == project.id)
     )
-    rows = session.execute(
+    query = (
         select(Evidence, Interpretation)
         .join(Observation, Observation.id == Evidence.observation_id)
         .outerjoin(Interpretation, Interpretation.observation_id == Observation.id)
@@ -99,12 +146,31 @@ def _retained(session: Session, project: Project) -> list[Evidence]:
             )
         )
         .order_by(Evidence.observed_at.desc(), Evidence.id)
-        .limit(24)
-    ).all()
-    # Only the currently accepted evidence version can introduce relationships.
-    return [
-        evidence for evidence, interpretation in rows if _accepted_version(interpretation, evidence)
-    ][:4]
+    )
+    accepted: list[Evidence] = []
+    cursor: tuple[datetime, UUID] | None = None
+    while len(accepted) < 4:
+        page = query
+        if cursor is not None:
+            observed_at, evidence_id = cursor
+            page = page.where(
+                or_(
+                    Evidence.observed_at < observed_at,
+                    and_(Evidence.observed_at == observed_at, Evidence.id > evidence_id),
+                )
+            )
+        rows = session.execute(page.limit(24)).all()
+        if not rows:
+            break
+        for evidence, _ in rows:
+            if _retained_evidence_current_for_project(session, project, evidence):
+                accepted.append(evidence)
+                if len(accepted) == 4:
+                    break
+        cursor = (rows[-1][0].observed_at, rows[-1][0].id)
+        if len(rows) < 24:
+            break
+    return accepted
 
 
 def _store_document(
@@ -273,6 +339,31 @@ def _retain_unchecked_assignments(
             )
 
 
+def _newest_source_by_url(
+    sources: Sequence[BuyingChainEvidence], active_run: BuyingChainRun | None
+) -> dict[str, UUID]:
+    by_id = {str(row.id): row for row in sources}
+    newest: dict[str, UUID] = {}
+    for version in sorted(
+        sources,
+        key=lambda row: (row.last_seen_at, row.retained_evidence_id is None, row.id),
+        reverse=True,
+    ):
+        newest.setdefault(version.url, version.id)
+    if active_run:
+        for evidence_id in active_run.evidence_ids:
+            if evidence_id not in by_id:
+                continue
+            run_source = by_id[evidence_id]
+            current = by_id[str(newest[run_source.url])]
+            if (
+                run_source.last_seen_at,
+                run_source.retained_evidence_id is None,
+            ) >= (current.last_seen_at, current.retained_evidence_id is None):
+                newest[run_source.url] = run_source.id
+    return newest
+
+
 def enrich_buying_chain(
     session: Session,
     project_id: UUID,
@@ -286,6 +377,13 @@ def enrich_buying_chain(
     project = session.scalar(select(Project).where(Project.id == project_id).with_for_update())
     if project is None:
         raise LookupError("Project not found")
+    # Capture the actual accepted current state before this pass mutates the
+    # selected claim/run projection. The diff is emitted only after a retained
+    # accepted Evidence version is available to support it.
+    from gridlens.intelligence.change_detection import seed_material_state
+
+    material_baseline = seed_material_state(session, project)
+    buying_chain_baseline = buying_chain_view(session, project.id, now=now)
     if len(source_urls or []) > MAX_SOURCE_URLS:
         raise ValueError("At most four additional public source URLs are allowed")
     supplied = [validate_public_url(url) for url in source_urls or []]
@@ -295,6 +393,14 @@ def enrich_buying_chain(
             BuyingChainRun.project_id == project.id,
         )
         .order_by(BuyingChainRun.created_at.desc(), BuyingChainRun.id.desc())
+    )
+    # Snapshot the actual checked version before this pass can update last_seen_at
+    # on a reused immutable version. Partial runs can retain older IDs as history.
+    prior_versions = _newest_source_by_url(
+        session.scalars(
+            select(BuyingChainEvidence).where(BuyingChainEvidence.project_id == project.id)
+        ).all(),
+        previous_run,
     )
     started = time.monotonic()
     deadline = started + MAX_SECONDS
@@ -483,9 +589,7 @@ def enrich_buying_chain(
                 project.source_id == "houston-weekly-permits"
                 and "/ibi_apps/WFServlet.ibfs" in doc.url
             ):
-                organizations.extend(
-                    extract_retained_permit_organizations(doc, project.source_id)
-                )
+                organizations.extend(extract_retained_permit_organizations(doc, project.source_id))
             organizations.extend(extract_organizations(doc, project))
     people = [item for item in organizations if item.person_name is not None]
     organizations = _deduplicate([item for item in organizations if item.person_name is None])
@@ -666,6 +770,88 @@ def enrich_buying_chain(
             )
         )
     session.flush()
+    retained_after = _retained(session, project)
+    if retained_after:
+        from gridlens.intelligence.change_detection import record_material_diff
+
+        # Contractor and buyer deltas are supported by the immutable buying-chain
+        # document version, not an unrelated retained permit used to select this project.
+        semantic_fields = (
+            "organization",
+            "person_name",
+            "title",
+            "category",
+            "organization_relationship",
+            "person_project_relationship",
+        )
+
+        def semantic_key(row: dict[str, Any]) -> tuple[Any, ...]:
+            return tuple(row.get(key) for key in semantic_fields)
+
+        def support_for(field: str) -> list[BuyingChainEvidence]:
+            # Match the complete semantic rows emitted by material_state.
+            # Organization-only matching can cite an unchanged role at the
+            # same organization when a different role changes.
+            def field_rows(view: dict[str, Any]) -> list[dict[str, Any]]:
+                return [
+                    row
+                    for row in view["candidates"]
+                    if not row.get("stale")
+                    and (
+                        field != "contractor"
+                        or row.get("category")
+                        in {"contractor", "electrical_contractor", "epc", "general_contractor"}
+                    )
+                ]
+
+            after_rows = [
+                row for row in field_rows(buying_chain_view(session, project.id, now=now))
+            ]
+            before_rows = [row for row in field_rows(buying_chain_baseline)]
+            removed = Counter(map(semantic_key, before_rows)) - Counter(
+                map(semantic_key, after_rows)
+            )
+            added = Counter(map(semantic_key, after_rows)) - Counter(map(semantic_key, before_rows))
+            if not removed and not added:
+                return []
+
+            checked = {
+                source.url: source for source in saved.values()
+                if source.id != prior_versions.get(source.url)
+            }
+            causes: dict[UUID, BuyingChainEvidence] = {}
+            for row in after_rows:
+                if added[semantic_key(row)] <= 0:
+                    continue
+                for citation in row.get("evidence", []):
+                    if not citation.get("current_support"):
+                        continue
+                    source = session.get(BuyingChainEvidence, citation.get("id"))
+                    if source is not None and (
+                        current := checked.get(source.url)
+                    ) is not None and current.id == source.id:
+                        causes[source.id] = source
+            for row in before_rows:
+                if removed[semantic_key(row)] <= 0:
+                    continue
+                for citation in row.get("evidence", []):
+                    if not citation.get("current_support"):
+                        continue
+                    source = session.get(BuyingChainEvidence, citation.get("id"))
+                    if source is not None and (replacement := checked.get(source.url)) is not None:
+                        # A checked same-URL version, rather than the old citation,
+                        # supports a withdrawal when the source changed its claim.
+                        causes[replacement.id] = replacement
+            return sorted(causes.values(), key=lambda row: (row.url, str(row.id)))
+
+        support: dict[str, list[BuyingChainEvidence]] = {}
+        for field in ("contractor", "buyer"):
+            field_sources = support_for(field)
+            if field_sources:
+                support[field] = field_sources
+        record_material_diff(
+            session, project, retained_after[0], material_baseline, buying_evidence=support
+        )
     return buying_chain_view(session, project.id, now=now)
 
 
@@ -673,7 +859,8 @@ def buying_chain_view(
     session: Session, project_id: UUID, *, now: datetime | None = None, history: bool = False
 ) -> dict:
     now = now or datetime.now(UTC)
-    if session.get(Project, project_id) is None:
+    project = session.get(Project, project_id)
+    if project is None:
         raise LookupError("Project not found")
     runs = session.scalars(
         select(BuyingChainRun)
@@ -698,28 +885,30 @@ def buying_chain_view(
         .order_by(BuyingChainEvidence.last_seen_at.desc(), BuyingChainEvidence.id.desc())
     ).all()
     by_id = {str(row.id): row for row in sources}
-    newest_by_url: dict[str, UUID] = {}
-    for source_version in sorted(
-        sources,
-        key=lambda source: (source.last_seen_at, source.retained_evidence_id is None),
-        reverse=True,
-    ):
-        newest_by_url.setdefault(source_version.url, source_version.id)
-    if runs:
-        for evidence_id in runs[0].evidence_ids:
-            if evidence_id in by_id:
-                latest_run_source = by_id[evidence_id]
-                current_source = by_id[str(newest_by_url[latest_run_source.url])]
-                if (
-                    latest_run_source.last_seen_at,
-                    latest_run_source.retained_evidence_id is None,
-                ) >= (current_source.last_seen_at, current_source.retained_evidence_id is None):
-                    newest_by_url[latest_run_source.url] = latest_run_source.id
+    active_run = runs[0] if runs else None
+    newest_by_url = _newest_source_by_url(sources, active_run)
     grouped: dict[str, list[BuyingChainClaim]] = defaultdict(list)
     for claim in claims:
         grouped[claim.entity_key].append(claim)
+
+    current_claim_ids = set(runs[0].claim_ids) if runs else set()
+
+    def retained_source_current(source: BuyingChainEvidence) -> bool:
+        if source.retained_evidence_id is None:
+            return True
+        original = session.get(Evidence, source.retained_evidence_id)
+        return bool(
+            original and _retained_evidence_current_for_project(session, project, original)
+        )
+
     selected = (
-        claims if history else [row for row in claims if runs and str(row.id) in runs[0].claim_ids]
+        claims
+        if history
+        else [
+            row
+            for row in claims
+            if str(row.id) in current_claim_ids
+        ]
     )
     candidates: list[dict[str, Any]] = []
     for claim in selected:
@@ -727,10 +916,20 @@ def buying_chain_view(
         stale = False
         organization_stale = False
         role_stale = False
+        current_supports: set[str] = set()
+        invalid_supports: set[str] = set()
+        current_contacts: set[tuple[str, str]] = set()
+        current_organization_quotes: list[str] = []
+        organization_support = False
+        role_support = False
         for citation in claim.citations:
             row = by_id.get(citation["evidence_id"])
             if row is None or citation["quote"] not in row.excerpt:
                 stale = True
+                invalid_supports.add(citation["supports"])
+                continue
+            if not history and not retained_source_current(row):
+                invalid_supports.add(citation["supports"])
                 continue
             newest = by_id[str(newest_by_url[row.url])]
             source_superseded = newest.id != row.id and citation["quote"] not in newest.excerpt
@@ -741,25 +940,26 @@ def buying_chain_view(
             )
             if row.retained_evidence_id:
                 original = session.get(Evidence, row.retained_evidence_id)
-                interpretation = (
-                    session.scalar(
-                        select(Interpretation).where(
-                            Interpretation.observation_id == original.observation_id,
-                        )
-                    )
-                    if original
-                    else None
-                )
                 # The accepted observation version is authoritative for retained
                 # fields. Native lines and earlier live JSON use different quote
                 # formats; a later research fetch cannot retract accepted evidence.
-                source_superseded = not (original and _accepted_version(interpretation, original))
+                source_superseded = not (
+                    original and _retained_evidence_current_for_project(session, project, original)
+                )
             if citation["supports"] in {"project_organization", "organization_category"}:
                 organization_stale = organization_stale or source_superseded
             elif citation["supports"] != "person_project_assignment":
                 role_stale = role_stale or source_superseded or role_aged
             # Assignment freshness is independent of a newly verified employment role.
             stale = stale or source_superseded or role_aged
+            if source_superseded or role_aged:
+                invalid_supports.add(citation["supports"])
+            if not source_superseded and not role_aged:
+                current_supports.add(citation["supports"])
+                if citation["supports"] in {"project_organization", "organization_category"}:
+                    current_organization_quotes.append(citation["quote"])
+                if citation["supports"] == "public_contact":
+                    current_contacts.add((citation["url"], citation["quote"]))
             evidence.append(
                 {
                     "id": row.id,
@@ -770,12 +970,34 @@ def buying_chain_view(
                     "published_at": row.published_at,
                     "observed_at": row.observed_at,
                     "content_hash": row.content_hash,
+                    "current_support": not source_superseded and not role_aged,
                 }
             )
+        if not history:
+            if not evidence:
+                continue
+            if invalid_supports:
+                organization_support = bool(
+                    current_supports
+                    & {
+                        "project_organization",
+                        "organization_category",
+                    }
+                )
+                role_support = "organization_person_role" in current_supports
+                organization_stale = not organization_support
+                role_stale = bool(claim.person_name) and not role_support
+                stale = organization_stale or role_stale
+                if not organization_support and not role_support:
+                    continue
         independent_conflict = False
         if claim.person_name and not history:
             role_urls = {
-                c["url"] for c in claim.citations if c["supports"] == "organization_person_role"
+                c["url"]
+                for c in claim.citations
+                if c["supports"] == "organization_person_role"
+                and (source := by_id.get(c["evidence_id"])) is not None
+                and retained_source_current(source)
             }
             for prior in grouped[claim.entity_key]:
                 if normalized_identity(prior.title) == normalized_identity(claim.title):
@@ -789,7 +1011,11 @@ def buying_chain_view(
                     prior_source = by_id.get(prior_citation["evidence_id"])
                     if prior_source is None:
                         continue
+                    if not retained_source_current(prior_source):
+                        continue
                     current_source = by_id[str(newest_by_url[prior_source.url])]
+                    if not retained_source_current(current_source):
+                        continue
                     age = (
                         now.date() - (prior_source.published_at or prior_source.last_seen_at.date())
                     ).days
@@ -811,22 +1037,39 @@ def buying_chain_view(
                             "content_hash": prior_source.content_hash,
                         }
                     )
+        category = claim.category
+        project_relationship = claim.person_project_relationship
+        if invalid_supports and not history:
+            category_supported = "organization_category" in current_supports or any(
+                category.value == claim.category
+                and re.search(rf"\b{re.escape(term)}\b", quote, re.I)
+                for quote in current_organization_quotes
+                for term, category in _ROLE_WORDS.items()
+            )
+            if not category_supported:
+                category = "unknown"
+            if not organization_support or (claim.person_name and not role_support):
+                project_relationship = "UNKNOWN"
+            elif (
+                project_relationship == "DIRECT"
+                and "person_project_assignment" in invalid_supports
+                and "person_project_assignment" not in current_supports
+            ):
+                project_relationship = "ROLE_SUPPORTED"
         candidates.append(
             {
                 "id": claim.id,
                 "organization": claim.organization,
                 "person_name": claim.person_name,
                 "title": claim.title,
-                "category": claim.category,
+                "category": category,
                 "organization_relationship": "UNKNOWN"
                 if organization_stale
                 else claim.organization_relationship,
                 "person_organization_relationship": "UNKNOWN"
                 if role_stale
                 else claim.person_organization_relationship,
-                "person_project_relationship": "UNKNOWN"
-                if stale
-                else claim.person_project_relationship,
+                "person_project_relationship": "UNKNOWN" if stale else project_relationship,
                 "evidence_strength": "Low" if stale else claim.evidence_strength,
                 "reason": (
                     "Conflicting independent role evidence; "
@@ -839,7 +1082,19 @@ def buying_chain_view(
                 else claim.reason,
                 "observed_at": claim.observed_at,
                 "verified_at": claim.verified_at,
-                "public_contacts": claim.public_contacts,
+                "public_contacts": (
+                    [
+                        contact
+                        for contact in claim.public_contacts
+                        if (contact.get("source_url"), contact.get("quote")) in current_contacts
+                    ]
+                    if invalid_supports
+                    and not history
+                    and (not claim.person_name or role_support)
+                    else []
+                    if invalid_supports and not history
+                    else claim.public_contacts
+                ),
                 "evidence": evidence,
                 "history_count": len(grouped[claim.entity_key]),
                 "stale": stale,
@@ -862,15 +1117,15 @@ def buying_chain_view(
         .limit(10)
     ).all()
     unresolved = (
-        list(runs[0].unresolved)
-        if runs
+        list(active_run.unresolved)
+        if active_run
         else ["Buying chain has not been researched for this project."]
     )
     if any(item["stale"] for item in candidates):
         unresolved.append("Some evidence is stale or superseded; verify current responsibility.")
     return {
         "project_id": project_id,
-        "status": runs[0].status if runs else "not_researched",
+        "status": active_run.status if active_run else "not_researched",
         "candidates": candidates if history else candidates[:MAX_CANDIDATES],
         "unresolved": unresolved,
         "runs": [
@@ -913,11 +1168,7 @@ def _permit_summaries(session: Session, project_id: UUID) -> list[dict]:
             )
     if project.source_id == "houston-weekly-permits":
         primary = next(
-            (
-                item
-                for item in summaries
-                if item["source_id"] == project.source_id
-            ),
+            (item for item in summaries if item["source_id"] == project.source_id),
             None,
         )
         if primary:
@@ -927,7 +1178,9 @@ def _permit_summaries(session: Session, project_id: UUID) -> list[dict]:
                 .where(
                     BuyingChainEvidence.project_id == project.id,
                     BuyingChainEvidence.retained_evidence_id.is_(None),
-                    BuyingChainEvidence.url.like("https://cohtora.houstontx.gov/ibi_apps/WFServlet.ibfs%"),
+                    BuyingChainEvidence.url.like(
+                        "https://cohtora.houstontx.gov/ibi_apps/WFServlet.ibfs%"
+                    ),
                 )
                 .order_by(BuyingChainEvidence.last_seen_at.desc())
             ):
@@ -941,13 +1194,12 @@ def _permit_summaries(session: Session, project_id: UUID) -> list[dict]:
                     or query.get("PT") != [expected_type_code]
                     or fields.get("Houston exact permit project number")
                     != primary_facts.get("Source record")
-                    or response_type_code(fields.get("Permit type code", ""))
-                    != expected_type_code
+                    or response_type_code(fields.get("Permit type code", "")) != expected_type_code
                     or fields.get("Houston sold permit detail date")
                     != primary_facts.get("Permit sale event date (weekly report)")
-                    or not fields.get("Permit job address", "").casefold().startswith(
-                        primary_facts.get("Site address", "").casefold()
-                    )
+                    or not fields.get("Permit job address", "")
+                    .casefold()
+                    .startswith(primary_facts.get("Site address", "").casefold())
                 ):
                     continue
                 summaries.append(

@@ -23,10 +23,13 @@ from gridlens.intelligence.briefs import (
     request_brief,
 )
 from gridlens.intelligence.buying_chain import buying_chain_view, enrich_buying_chain
+from gridlens.intelligence.lifecycle_service import lifecycle_event_supported
+from gridlens.intelligence.project_state import project_state as read_project_state
 from gridlens.intelligence.signal_adjudication import POLICY_VERSION, adjudicate_current_signals
 from gridlens.jobs.queue import enqueue
 from gridlens.persistence.database import SessionLocal
 from gridlens.persistence.models import (
+    BuyingChainEvidence,
     ChangeEvent,
     Evidence,
     Interpretation,
@@ -211,11 +214,43 @@ class HealthOut(BaseModel):
     pending_interpretations: int
 
 
+class ChangeSourceOut(BaseModel):
+    id: UUID
+    title: str
+    url: str
+    published_at: date | None
+
+
 class ChangeOut(BaseModel):
     kind: str
     title: str
     url: str
     published_at: date | None
+    sources: list[ChangeSourceOut]
+
+
+class ProjectChangeOut(BaseModel):
+    kind: str
+    field: str | None
+    prior: dict | None
+    new: dict | None
+    evidence_id: UUID | None
+    buying_chain_evidence_id: UUID | None
+    sources: list[ChangeSourceOut]
+    source_date: date | None
+    detected_at: datetime
+
+
+class ProjectStateOut(BaseModel):
+    project_id: UUID
+    identity_key: str
+    state: dict
+    organizations_and_roles: list[dict]
+    lifecycle_events: list[dict]
+    evidence: list[dict]
+    candidate_matches: list[dict]
+    unresolved: list[str]
+    disclosure: str
 
 
 class LoginBody(BaseModel):
@@ -621,19 +656,11 @@ def opportunities(tier: str | None = None, search: str | None = None):
             current_lifecycle_ids = set()
             for lifecycle_event, lifecycle_evidence in lifecycle_rows:
                 lifecycle_interpretation = interpretations.get(lifecycle_event.observation_id)
-                if (
-                    lifecycle_interpretation is not None
-                    and lifecycle_interpretation.assessment is not None
-                    and lifecycle_interpretation.assessment.get("evidence_hash")
-                    == lifecycle_evidence.content_hash
-                    and (
-                        lifecycle_interpretation.status == "accepted"
-                        or (
-                            lifecycle_event.event_type == "planning_application_withdrawn"
-                            and lifecycle_interpretation.assessment.get("withdrawal_supported")
-                            is True
-                        )
-                    )
+                if lifecycle_event_supported(
+                    lifecycle_event.event_type,
+                    lifecycle_evidence,
+                    lifecycle_interpretation,
+                    project,
                 ):
                     current_lifecycle_ids.add(lifecycle_event.id)
             taylor_withdrawn = bool(
@@ -1009,25 +1036,100 @@ def adjudicate_signal_batch(
         return adjudicate_current_signals(session, limit=limit)
 
 
+def _change_sources(session, event: ChangeEvent) -> list[dict]:
+    if event.buying_chain_evidence_id is not None:
+        stored_ids = (event.new_state or {}).get("buying_chain_evidence_ids")
+        ids = stored_ids if isinstance(stored_ids, list) else [event.buying_chain_evidence_id]
+        sources = [session.get(BuyingChainEvidence, UUID(str(source_id))) for source_id in ids]
+    else:
+        sources = [session.get(Evidence, event.evidence_id)] if event.evidence_id else []
+    return [
+        {
+            "id": source.id,
+            "title": source.title,
+            "url": source.url,
+            "published_at": source.published_at,
+        }
+        for source in sources if source is not None
+    ]
+
+
 @app.get("/api/changes", response_model=list[ChangeOut], dependencies=[Depends(require_session)])
 def changes():
     with SessionLocal() as session:
         today = chicago_today()
         rows = session.execute(
-            select(ChangeEvent, Observation)
-            .join(Observation)
-            .join(NeedObservation, NeedObservation.observation_id == Observation.id)
-            .where(func.timezone("America/Chicago", ChangeEvent.created_at).cast(Date) == today)
+            select(ChangeEvent, Evidence, BuyingChainEvidence)
+            .outerjoin(Evidence, Evidence.id == ChangeEvent.evidence_id)
+            .outerjoin(
+                BuyingChainEvidence, BuyingChainEvidence.id == ChangeEvent.buying_chain_evidence_id
+            )
+            .where(
+                ChangeEvent.material.is_(True),
+                func.timezone("America/Chicago", ChangeEvent.created_at).cast(Date) == today,
+            )
             .order_by(ChangeEvent.created_at.desc())
         ).all()
         return [
             {
                 "kind": event.kind,
-                "title": obs.title,
-                "url": obs.url,
-                "published_at": obs.published_at.isoformat() if obs.published_at else None,
+                "title": buying.title if buying else evidence.title,
+                "url": buying.url if buying else evidence.url,
+                "published_at": (
+                    (buying.published_at if buying else evidence.published_at).isoformat()
+                    if (buying.published_at if buying else evidence.published_at)
+                    else None
+                ),
+                "sources": _change_sources(session, event),
             }
-            for event, obs in rows
+            for event, evidence, buying in rows
+        ]
+
+
+@app.get(
+    "/api/projects/{project_id}/state",
+    response_model=ProjectStateOut,
+    dependencies=[Depends(require_session)],
+)
+def project_state_endpoint(project_id: UUID):
+    with SessionLocal() as session:
+        state = read_project_state(session, project_id)
+        if state is None:
+            raise HTTPException(404, "Project not found")
+        return state
+
+
+@app.get(
+    "/api/projects/{project_id}/changes",
+    response_model=list[ProjectChangeOut],
+    dependencies=[Depends(require_session)],
+)
+def project_changes_endpoint(project_id: UUID, limit: int = Query(default=100, ge=1, le=250)):
+    with SessionLocal() as session:
+        project = session.get(Project, project_id)
+        if project is None:
+            raise HTTPException(404, "Project not found")
+        events = session.scalars(
+            select(ChangeEvent)
+            .where(ChangeEvent.project_id == project_id, ChangeEvent.material.is_(True))
+            .order_by(ChangeEvent.created_at.desc(), ChangeEvent.id.desc())
+            .limit(limit)
+        ).all()
+        return [
+            {
+                "kind": e.kind,
+                "field": e.field_name,
+                "prior": e.prior_state,
+                "new": e.new_state,
+                "evidence_id": str(e.evidence_id) if e.evidence_id else None,
+                "buying_chain_evidence_id": (
+                    str(e.buying_chain_evidence_id) if e.buying_chain_evidence_id else None
+                ),
+                "sources": _change_sources(session, e),
+                "source_date": e.source_date,
+                "detected_at": e.created_at,
+            }
+            for e in events
         ]
 
 

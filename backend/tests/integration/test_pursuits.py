@@ -147,10 +147,27 @@ def runtime(monkeypatch):
 
 def execute(factory, service, *, source_id="austin-building-permits", force=True):
     with factory.begin() as session:
+        existing = session.scalar(
+            select(Job)
+            .where(
+                Job.source_id == source_id,
+                Job.kind == "pursuit_research",
+                Job.status.in_(["queued", "running"]),
+            )
+            .limit(1)
+        )
         job_id = enqueue(session, source_id, kind="pursuit_research")
+        queued = session.get(Job, job_id)
+        assert queued is not None
+        if existing is None:
+            # The server default can be a fraction of a millisecond ahead of
+            # this Windows clock. Make only this newly seeded fixture due.
+            queued.available_at = datetime.now(UTC) - timedelta(seconds=1)
         if force:
-            session.get(Job, job_id).checkpoint = '{"force": true}'
-        job, fence = lease_one(session, "pursuit-test", lease_seconds=600, job_ids=[job_id])
+            queued.checkpoint = '{"force": true}'
+        leased = lease_one(session, "pursuit-test", lease_seconds=600, job_ids=[job_id])
+        assert leased is not None
+        job, fence = leased
     service.process_research_job(job_id, "pursuit-test", fence)
     return job_id
 
@@ -229,6 +246,9 @@ def test_kind_scoped_queue_and_durable_request_budget(runtime, monkeypatch):
         research = enqueue(session, "austin-building-permits", kind="pursuit_research")
         assert ingestion != research
         assert enqueue(session, "austin-building-permits", kind="pursuit_research") == research
+        queued_research = session.get(Job, research)
+        assert queued_research is not None
+        queued_research.available_at = datetime.now(UTC) - timedelta(seconds=1)
     monkeypatch.setattr(settings, "pursuits_daily_fetch_limit", 1)
     execute(factory, service)
     with factory() as session:
@@ -249,6 +269,7 @@ def test_stale_worker_cannot_publish_research(runtime):
     factory, service, _, _, _ = runtime
     with factory.begin() as session:
         job_id = enqueue(session, "austin-building-permits", kind="pursuit_research")
+        session.get(Job, job_id).available_at = datetime.now(UTC) - timedelta(seconds=1)
         job, fence = lease_one(session, "old", job_ids=[job_id])
         job.lease_until = datetime.now(UTC) - timedelta(seconds=1)
     with factory.begin() as session:
@@ -574,6 +595,9 @@ def test_successful_ingestion_queues_same_worker_research_without_source_health_
     )
     with factory.begin() as session:
         job_id = enqueue(session, "austin-building-permits")
+        queued = session.get(Job, job_id)
+        assert queued is not None
+        queued.available_at = datetime.now(UTC) - timedelta(seconds=1)
     assert worker.run_one({"austin-building-permits": {}}, job_ids=[job_id])
     with factory() as session:
         assert session.get(Job, job_id).status == "succeeded"

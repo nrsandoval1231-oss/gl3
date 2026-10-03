@@ -7,11 +7,13 @@ from sqlalchemy import (
     Date,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
     UniqueConstraint,
     func,
+    text,
     true,
 )
 from sqlalchemy.dialects.postgresql import JSONB
@@ -246,11 +248,78 @@ class NeedObservation(Base):
 
 class ChangeEvent(Base):
     __tablename__ = "change_events"
+    __table_args__ = (
+        Index(
+            "uq_change_replay_key", "replay_key", unique=True,
+            postgresql_where=text("replay_key IS NOT NULL"),
+        ),
+        Index("ix_change_project_material", "project_id", "material", "created_at"),
+        Index(
+            "uq_project_change_revision", "project_id", "field_name", "replay_key", unique=True,
+            postgresql_where=text("material IS TRUE AND replay_key IS NOT NULL"),
+        ),
+    )
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     observation_id: Mapped[UUID] = mapped_column(ForeignKey("observations.id"))
     content_hash: Mapped[str] = mapped_column(String(64))
     kind: Mapped[str] = mapped_column(String(30))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    project_id: Mapped[UUID | None] = mapped_column(ForeignKey("projects.id"), nullable=True)
+    evidence_id: Mapped[UUID | None] = mapped_column(ForeignKey("evidence.id"), nullable=True)
+    buying_chain_evidence_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("buying_chain_evidence.id"), nullable=True
+    )
+    field_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    prior_state: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    new_state: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
+    material: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
+    source_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    replay_key: Mapped[str | None] = mapped_column(String(64), nullable=True)
+
+
+class ProjectMaterialState(Base):
+    __tablename__ = "project_material_states"
+    project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id"), primary_key=True)
+    state: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
+    revision: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class EvidenceJudgeRun(Base):
+    __tablename__ = "evidence_judge_runs"
+    __table_args__ = (
+        UniqueConstraint("input_key", name="uq_evidence_judge_input"),
+        Index("ix_evidence_judge_status", "status", "started_at"),
+    )
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id"))
+    evidence_id: Mapped[UUID] = mapped_column(ForeignKey("evidence.id"))
+    candidate_project_id: Mapped[UUID | None] = mapped_column(ForeignKey("projects.id"))
+    input_key: Mapped[str] = mapped_column(String(64))
+    schema_version: Mapped[str] = mapped_column(String(40))
+    model: Mapped[str] = mapped_column(String(100))
+    provider: Mapped[str] = mapped_column(String(40), default="typesafe")
+    status: Mapped[str] = mapped_column(String(20))
+    deterministic: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    result: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    error_class: Mapped[str | None] = mapped_column(String(80))
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    latency_ms: Mapped[int | None] = mapped_column(Integer)
+    input_tokens: Mapped[int | None] = mapped_column(Integer)
+    output_tokens: Mapped[int | None] = mapped_column(Integer)
+
+
+class EvidenceJudgeScanCheckpoint(Base):
+    """Singleton durable traversal position for bounded shadow scans."""
+
+    __tablename__ = "evidence_judge_scan_checkpoints"
+    name: Mapped[str] = mapped_column(String(40), primary_key=True)
+    evidence_id: Mapped[UUID | None] = mapped_column(ForeignKey("evidence.id"))
+    project_id: Mapped[UUID | None] = mapped_column(ForeignKey("projects.id"))
+    observed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
 
 class Interpretation(Base):
