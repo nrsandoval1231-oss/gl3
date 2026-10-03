@@ -263,6 +263,181 @@ def test_need_state_excludes_reassigned_and_supplemental_evidence(db):
         }
 
 
+def test_project_identity_site_do_not_borrow_another_need_after_rejection(db):
+    with db.begin() as session:
+        project, _, _ = seed(session)
+        original_need = PowerNeed(
+            project_id=project.id, activity_key="construction", tier="Prospect",
+            rationale="original", active=True,
+        )
+        other_need = PowerNeed(
+            project_id=project.id, activity_key="facility-expansion", tier="Prospect",
+            rationale="other", active=True,
+        )
+        session.add_all([original_need, other_need])
+        session.flush()
+        original, _, original_interpretation = linked_official_need_evidence(
+            session, project, original_need, key="original-identity"
+        )
+        other, _, other_interpretation = linked_official_need_evidence(
+            session, project, other_need, key="different-identity"
+        )
+        other_interpretation.assessment = {
+            **other_interpretation.assessment,
+            "subject": "Another Campus",
+            "location": "Dallas, TX",
+        }
+        original_interpretation.status = "rejected"
+        original_interpretation.assessment = {
+            "decision": "rejected", "evidence_hash": original.content_hash
+        }
+        state = project_state(session, project.id)
+        assert state["state"]["identity"]["status"] == "UNKNOWN"
+        assert state["state"]["site"]["status"] == "UNKNOWN"
+        assert str(other.id) in {row["id"] for row in state["evidence"]}
+        assert str(original.id) not in {row["id"] for row in state["evidence"]}
+
+
+def test_project_identity_site_expose_competing_current_claims(db):
+    with db.begin() as session:
+        project, _, _ = seed(session)
+        need = PowerNeed(
+            project_id=project.id, activity_key="construction", tier="Prospect",
+            rationale="fixture", active=True,
+        )
+        session.add(need)
+        session.flush()
+        original, _, _ = linked_official_need_evidence(
+            session, project, need, key="competing-original"
+        )
+        other, _, interpretation = linked_official_need_evidence(
+            session, project, need, key="competing-other"
+        )
+        interpretation.assessment = {
+            **interpretation.assessment,
+            "subject": "Another Campus",
+            "location": "Dallas, TX",
+        }
+        state = project_state(session, project.id)["state"]
+        for field in ("identity", "site"):
+            assert state[field]["status"] == "CONFLICT"
+            assert {claim["evidence"]["id"] for claim in state[field]["claims"]} == {
+                str(original.id), str(other.id)
+            }
+
+
+def test_project_identity_site_use_only_field_claims_and_current_binding(db):
+    with db.begin() as session:
+        project, _, _ = seed(session)
+        need = PowerNeed(
+            project_id=project.id, activity_key="construction", tier="Prospect",
+            rationale="fixture", active=True,
+        )
+        session.add(need)
+        session.flush()
+        named, _, _ = linked_official_need_evidence(
+            session, project, need, key="named-site"
+        )
+        blank, _, blank_interpretation = linked_official_need_evidence(
+            session, project, need, key="blank-identity"
+        )
+        blank_interpretation.assessment = {
+            **blank_interpretation.assessment, "subject": "", "location": ""
+        }
+        wrong, _, wrong_interpretation = linked_official_need_evidence(
+            session, project, need, key="wrong-binding"
+        )
+        wrong_interpretation.assessment = {
+            **wrong_interpretation.assessment, "project_identity_key": "another-project"
+        }
+        nonadmitted, _, _ = linked_official_need_evidence(
+            session, project, need, key="nonadmitted-identity", official=False
+        )
+        state = project_state(session, project.id)["state"]
+        for field in ("identity", "site"):
+            assert state[field]["status"] == "SUPPORTED"
+            assert [row["id"] for row in state[field]["evidence"]] == [str(named.id)]
+        assert {row["id"] for row in project_state(session, project.id)["evidence"]} == {
+            str(named.id), str(blank.id)
+        }
+        assert {str(wrong.id), str(nonadmitted.id)}.isdisjoint(
+            {row["id"] for row in project_state(session, project.id)["evidence"]}
+        )
+
+
+def test_project_identity_site_accept_existing_normalization_only(db):
+    with db.begin() as session:
+        project, _, _ = seed(session)
+        project.location = "100 Main Street, Austin, TX"
+        need = PowerNeed(
+            project_id=project.id, activity_key="construction", tier="Prospect",
+            rationale="fixture", active=True,
+        )
+        session.add(need)
+        session.flush()
+        evidence, _, interpretation = linked_official_need_evidence(
+            session, project, need, key="normalized-identity-site"
+        )
+        interpretation.assessment = {
+            **interpretation.assessment,
+            "subject": "  ORION data-center  ",
+            "location": "100 Main Street Austin TX",
+        }
+        state = project_state(session, project.id)["state"]
+        for field in ("identity", "site"):
+            assert state[field]["status"] == "SUPPORTED"
+            assert [row["id"] for row in state[field]["evidence"]] == [str(evidence.id)]
+
+
+def test_project_site_same_street_different_city_cannot_attest_stored_site(db):
+    with db.begin() as session:
+        project, _, _ = seed(session)
+        project.location = "100 Main Street Austin TX"
+        need = PowerNeed(
+            project_id=project.id, activity_key="construction", tier="Prospect",
+            rationale="fixture", active=True,
+        )
+        session.add(need)
+        session.flush()
+        _, _, interpretation = linked_official_need_evidence(
+            session, project, need, key="wrong-city-site"
+        )
+        interpretation.assessment = {
+            **interpretation.assessment,
+            "location": "100 Main Street Dallas TX",
+        }
+        assert project_state(session, project.id)["state"]["site"] == {
+            "value": None, "status": "UNKNOWN"
+        }
+
+
+def test_project_site_same_street_different_cities_are_conflicting_claims(db):
+    with db.begin() as session:
+        project, _, _ = seed(session)
+        project.location = "100 Main Street Austin TX"
+        need = PowerNeed(
+            project_id=project.id, activity_key="construction", tier="Prospect",
+            rationale="fixture", active=True,
+        )
+        session.add(need)
+        session.flush()
+        austin, _, _ = linked_official_need_evidence(
+            session, project, need, key="austin-same-street"
+        )
+        dallas, _, interpretation = linked_official_need_evidence(
+            session, project, need, key="dallas-same-street"
+        )
+        interpretation.assessment = {
+            **interpretation.assessment,
+            "location": "100 Main Street Dallas TX",
+        }
+        site = project_state(session, project.id)["state"]["site"]
+        assert site["status"] == "CONFLICT"
+        assert {claim["evidence"]["id"] for claim in site["claims"]} == {
+            str(austin.id), str(dallas.id)
+        }
+
+
 @pytest.mark.parametrize("variation", ["identity", "activity", "admission"])
 def test_need_state_excludes_each_ineligible_dimension_without_losing_valid_support(db, variation):
     with db.begin() as session:
