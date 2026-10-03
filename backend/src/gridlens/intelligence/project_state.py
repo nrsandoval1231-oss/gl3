@@ -13,6 +13,7 @@ from gridlens.domain.commercial_presentation import canonical_mw_claim
 from gridlens.domain.signal_admission import admitted_from_source
 from gridlens.intelligence.buying_chain import _accepted_version, buying_chain_view
 from gridlens.intelligence.lifecycle_service import lifecycle_event_supported
+from gridlens.intelligence.project_identity import normalized_identity
 from gridlens.persistence.models import (
     Evidence,
     Interpretation,
@@ -92,6 +93,10 @@ def _accepted_need_evidence(
         ):
             continue
         result[need_id]["activity"].append((need.activity_key, evidence))
+        for field, assessment_key in (("identity", "subject"), ("site", "location")):
+            value = assessment.get(assessment_key)
+            if isinstance(value, str) and value.strip():
+                result[need_id][field].append((value, evidence))
         for field, assessment_key in (
             ("tier", "tier"),
             ("mw", "demand_mw"),
@@ -132,6 +137,31 @@ def _need_fields(
         "duration": _projected_claim(need.duration, evidence["duration"]),
         "supply": _projected_claim(need.supply, evidence["supply"]),
     }
+
+
+def _project_field_claim(value: str | None, claims: list[tuple[str, Evidence]]) -> dict[str, Any]:
+    """Attest a stored project field only from its own current claim."""
+    if not claims:
+        return _unknown()
+
+    def equivalent(left: str, right: str) -> bool:
+        # Match the complete place string. The physical-site matcher can
+        # extract the same street while discarding a different city/state.
+        return normalized_identity(left) == normalized_identity(right)
+
+    first = claims[0][0]
+    if any(not equivalent(first, claim) for claim, _ in claims):
+        return {
+            "value": None,
+            "status": "CONFLICT",
+            "claims": [
+                {"value": claim, "evidence": _provenance(evidence)}
+                for claim, evidence in claims
+            ],
+        }
+    if not value or not equivalent(value, first):
+        return _unknown()
+    return _supported(value, list({evidence.id: evidence for _, evidence in claims}.values()))
 
 
 def project_state(session: Session, project_id: UUID) -> dict[str, Any] | None:
@@ -185,9 +215,13 @@ def project_state(session: Session, project_id: UUID) -> dict[str, Any] | None:
         if event.occurred_on and ("utility" in event.event_type or "energiz" in event.event_type)
     ]
     active_needs = [n for n in needs if n.active and need_evidence[n.id].get("activity")]
+    identity_claims = [
+        claim for need in active_needs for claim in need_evidence[need.id]["identity"]
+    ]
+    site_claims = [claim for need in active_needs for claim in need_evidence[need.id]["site"]]
     state: dict[str, Any] = {
-        "identity": _supported(project.name, all_evidence),
-        "site": _supported(project.location, all_evidence) if project.location else _unknown(),
+        "identity": _project_field_claim(project.name, identity_claims),
+        "site": _project_field_claim(project.location, site_claims),
         "lifecycle": _supported(
             {
                 "state": current_projection.current_state,

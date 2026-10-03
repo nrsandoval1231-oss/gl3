@@ -1,0 +1,14 @@
+{
+  "node": "R9 independent-review correction",
+  "review_finding": "The project-state site comparator used same_physical_site, whose address extraction can equate an unpunctuated Austin and Dallas address that share a street.",
+  "before_scope": "The review candidate had project_state.py unchanged before the two new regressions were run.",
+  "before_command": "backend/.venv/Scripts/python.exe -m pytest backend/tests/integration/test_project_state_changes.py -q -k 'same_street_different_city or same_street_different_cities or project_identity_site_accept_existing_normalization_only' --tb=short",
+  "before_result": "Exit 1: two same-street different-city tests failed because site was SUPPORTED instead of UNKNOWN/CONFLICT; the punctuation/case normalization control passed. One preliminary comma-delimited fixture did not reproduce the bug and was replaced by the demonstrated unpunctuated form before production edits.",
+  "repair": "At the project-state field-provenance call site, compare the complete normalized site text. Do not use the street-only physical-site matcher to attest a mutable displayed location. The global project-identity matching helper is unchanged.",
+  "after_command": "backend/.venv/Scripts/python.exe -m pytest backend/tests/integration/test_project_state_changes.py -q",
+  "after_result": "Exit 0: 34 passed, 1 existing StarletteDeprecationWarning in 8.49s.",
+  "other_validation": "Ruff on changed source/test: exit 0. mypy backend/src/gridlens: exit 0, 66 source files. git diff --check: exit 0.",
+  "recorded_at_utc": "2026-10-03T00:14:58Z",
+  "durations_and_tokens": "UNKNOWN",
+  "authority": "No commit, push, merge, deployment, or production data action. Controller owns final gates and independent review."
+}

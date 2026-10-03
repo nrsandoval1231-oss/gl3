@@ -1,12 +1,12 @@
 {
   "base_sha": "da1f2bdb3c207e97e8a861392ba6df189dfe32a2",
-  "prior_reviewed_head": "e485beea8f68934314cf4240394473c3797362db",
-  "recorded_utc": "2026-10-02T23:50:16.847789+00:00",
+  "prior_reviewed_head": "c6ece2df1f6f0156f7e2594ec7c6636943227e6c",
+  "recorded_utc": "2026-10-03T00:16:27.534633+00:00",
   "files": [
     {
       "path": ".agent/packets/PR21-REPAIR.md",
-      "sha256": "fc29e361ab3d649b56e99a0337ce2e89ce6f521ea7bd4d9eb7fc3bdf13253a79",
-      "git_blob": "0d7dafd390396130e4bb689d0f3bffb9dea8f687"
+      "sha256": "35d956a0158c04444ba3151a6feda7fca85d62d4dc5c14043cbb7268ea22ba63",
+      "git_blob": "205348c21fe8aba1eb19714e93ea357f492553df"
     },
     {
       "path": "backend/migrations/versions/0013_evidence_judge_scan_checkpoint.py",
@@ -50,8 +50,8 @@
     },
     {
       "path": "backend/src/gridlens/intelligence/project_state.py",
-      "sha256": "cc5751925f79da3bf55361720ded333475ed690668cd79e242b4984714c9e226",
-      "git_blob": "cb9863deeb10618df5f02251b14ceb624c9b6b9c"
+      "sha256": "df1a655dcba687deab710e490cf25b34cfe94963000cdc6ff003d7864abbd5d6",
+      "git_blob": "0293e04d2a9bd63119ac04066b29cd2ddd5e0c86"
     },
     {
       "path": "backend/src/gridlens/intelligence/research_recommendation.py",
@@ -95,8 +95,8 @@
     },
     {
       "path": "backend/tests/integration/test_project_state_changes.py",
-      "sha256": "d1bbe8cd8d21ad97e9f52a28311e6f3853fad04f7909521835d4290947dda14c",
-      "git_blob": "e17d01c71f28c45a7466b47f4e04a023a2b7701c"
+      "sha256": "b2e68b74a60e7cde80a2a303265c4b51fbc084cb9398d53246518df0466cbc58",
+      "git_blob": "954c20041ee7eba7d28b237d2aa1da2b718ab708"
     },
     {
       "path": "backend/tests/integration/test_pursuits.py",
@@ -115,8 +115,8 @@
     },
     {
       "path": "docs/validation/PR21-CORRECTNESS-REPAIR.md",
-      "sha256": "23c7bb70ff2434aba128677a4674d722a69e1ccb1341da284ec64179ce84b973",
-      "git_blob": "d376dffcbf7ab8fe2436700427d8ba8862835ca2"
+      "sha256": "c1d2fc8d60f78ccbfef81c3d84c0f885105dfd97a72a05e5a878ec87cc3c9bec",
+      "git_blob": "ad25756e98588440b1f517dc4ec2f9fd30e80b24"
     },
     {
       "path": "web/src/api/generated.ts",

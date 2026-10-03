@@ -110,5 +110,29 @@
     "docs/validation/PR21-CORRECTNESS-REPAIR.md",
     ".agent/artifacts/PR21-REPAIR/R13-BRIEF-FIXTURE.json",
     ".agent/artifacts/PR21-REPAIR/COMPLETION.json"
+  ],
+  "r9_base_sha": "c6ece2df1f6f0156f7e2594ec7c6636943227e6c",
+  "r9_handoff": "Project identity/site now rely on their own current admitted project/activity-bound assessment subject/location claims, not every need Evidence. Conflicting eligible claims retain exact provenance, unsupported stored values remain UNKNOWN, and normalized direct name/site spellings remain SUPPORTED. Exact-head tests: 3 failed, 1 control passed; after repair project-state module 32 passed including API reads. Ruff, mypy 66 files, diff check passed. R9-BEFORE-AFTER.json records proof. Controller owns full gates and independent review.",
+  "r9_repair_count": 1,
+  "r9_started_at_utc": "UNKNOWN",
+  "r9_finished_at_utc": "2026-10-03T00:09:14Z",
+  "r9_durations_and_tokens": "UNKNOWN",
+  "r9_files": [
+    "backend/src/gridlens/intelligence/project_state.py",
+    "backend/tests/integration/test_project_state_changes.py",
+    ".agent/packets/PR21-REPAIR.md",
+    ".agent/artifacts/PR21-REPAIR/R9-BEFORE-AFTER.json",
+    "docs/validation/PR21-CORRECTNESS-REPAIR.md",
+    ".agent/artifacts/PR21-REPAIR/COMPLETION.json"
+  ],
+  "r9_site_review_followup": "Independent review found street-only physical matcher treated same-street Austin/Dallas unpunctuated addresses as equivalent. Two targeted regressions failed on the review candidate while punctuation/case control passed. Site provenance now compares complete normalized place text; global project matcher unchanged. Project-state module 34 passed, Ruff/mypy/diff check pass. See R9-SITE-FOLLOWUP.json. Controller owns fresh full gates and review.",
+  "r9_site_followup_finished_at_utc": "2026-10-03T00:14:58Z",
+  "r9_site_followup_files": [
+    "backend/src/gridlens/intelligence/project_state.py",
+    "backend/tests/integration/test_project_state_changes.py",
+    ".agent/packets/PR21-REPAIR.md",
+    ".agent/artifacts/PR21-REPAIR/R9-SITE-FOLLOWUP.json",
+    "docs/validation/PR21-CORRECTNESS-REPAIR.md",
+    ".agent/artifacts/PR21-REPAIR/COMPLETION.json"
   ]
 }

@@ -347,3 +347,33 @@ behavior retain their original availability. The brief module passed 12
 tests; Ruff and diff check passed. `R13-BRIEF-FIXTURE.json` retains the failed
 full-run count and the controller's fresh clock probe. Full gates must run
 again on the updated exact candidate.
+
+## R9 project identity and site provenance
+
+The project-state view previously marked mutable `Project.name` and
+`Project.location` as supported by any Evidence attached to a current need.
+That let a separate active need attest an old name and site after their
+original interpretation was rejected. Identity and site now use their own
+nonblank assessment `subject` and `location` claims under the same current
+version, project/activity binding, and source-admission gate as need fields.
+Competing eligible claims show `CONFLICT` with their exact Evidence; a sole
+claim that cannot support the stored display value leaves it `UNKNOWN`.
+Equivalent normalized names and complete place strings use the existing
+identity normalizer. Mutable aliases or a bare project match do not confer
+current proof.
+
+`R9-BEFORE-AFTER.json` records three failures and one normalization control on
+exact `c6ece2d`, followed by the full project-state changes module passing 32
+tests, including the API read cases. Ruff, mypy across 66 source files, and
+diff check passed. Full repository gates and independent review remain
+controller-owned.
+
+The independent R9 review found that the physical-site matcher could discard
+the city from unpunctuated addresses. A current Dallas claim for `100 Main
+Street` therefore falsely supported stored Austin, and Austin/Dallas claims
+failed to show a conflict. The field-provenance call site now compares the
+complete normalized place string; the global project-matching helper remains
+unchanged. `R9-SITE-FOLLOWUP.json` records both regression failures and the
+passing punctuation/case control before repair. The full project-state module
+now passes 34 tests; Ruff, mypy, and diff check pass. Full gates and fresh
+independent review remain controller-owned.
