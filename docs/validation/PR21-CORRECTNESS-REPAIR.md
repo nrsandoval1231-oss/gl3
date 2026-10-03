@@ -457,3 +457,20 @@ version per URL before this pass updates any `last_seen_at`, using the same
 selector as the buying-chain view. Both regressions and the affected backend
 suite passed (121 tests); Ruff and mypy on 66 source files passed. Full gates
 and independent review remain controller-owned.
+
+## R13 advisory research sees nested power need gaps
+
+The advisory research decision previously treated a supported active power
+need as complete even when its MW, timing, duration, tier, or supply field was
+UNKNOWN or CONFLICT. It now derives stable activity-specific missing-fact
+labels from those existing nested statuses. The original top-level required
+fields and the material-change, relevance, timing, and public-buyer gates are
+unchanged. This only changes an advisory boolean; it launches no research.
+
+`R13-BEFORE-AFTER.json` records five failures on exact `250d86c`: four real
+project-state UNKNOWN fields and one current MW CONFLICT all incorrectly
+returned false when the other gates held. Fully supported fields return false,
+and multiple needs yield the same sorted labels regardless of input order.
+Affected project-state, evidence-judge, and shadow-storage suites passed 125
+tests; Ruff and mypy on 66 source files passed. Full gates and independent
+review remain controller-owned.

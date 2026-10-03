@@ -1,12 +1,12 @@
 {
   "base_sha": "da1f2bdb3c207e97e8a861392ba6df189dfe32a2",
-  "prior_reviewed_head": "5f3cd8fd3ed9bdb33a768917436a306d1e4d3a36",
-  "recorded_utc": "2026-10-03T01:40:56.723679+00:00",
+  "prior_reviewed_head": "250d86c23b04052135041b5f9d98ae6e13f9e641",
+  "recorded_utc": "2026-10-03T02:02:13.918244+00:00",
   "files": [
     {
       "path": ".agent/packets/PR21-REPAIR.md",
-      "sha256": "eaeb2fa52fa540305c8fc6367b20893df550aa61134c01549ea27bebefbebd38",
-      "git_blob": "4442e5b37b340b7ba70eca198632fbe4105b2a13"
+      "sha256": "9ace557fa6490d80182056433ff24ad23b886ed6f604f32eefb9582d82544eb8",
+      "git_blob": "ac2b461ec890bc72452e22b28f9592624b6537d5"
     },
     {
       "path": "backend/migrations/versions/0013_evidence_judge_scan_checkpoint.py",
@@ -60,8 +60,8 @@
     },
     {
       "path": "backend/src/gridlens/intelligence/research_recommendation.py",
-      "sha256": "6d2b911e03295953530c32c2851b5b8c3be2d9a334bd0f53b5ef00266cd6227d",
-      "git_blob": "26f80acdef8d18bed55f7757ad6b8cebe47a13d1"
+      "sha256": "8582a8b74d6e673004439b32c76d437719fa3a8ccc9e31588cd74c6c1fdb045a",
+      "git_blob": "f5ec06a1ea5f702f83739a556ceb1787486b0f4b"
     },
     {
       "path": "backend/src/gridlens/persistence/models.py",
@@ -100,8 +100,8 @@
     },
     {
       "path": "backend/tests/integration/test_project_state_changes.py",
-      "sha256": "76f7a0d0e89561daa08c09b6344b58fdf0d77ed6fd4f56f2866952611e79730e",
-      "git_blob": "c27739b9bf0bd0d60a2fed8ac6d5d2fe7f7dafdf"
+      "sha256": "9f762a5a46317da6228ac9afc14366ab19273d38b34c933ce329dd2eb5a92d23",
+      "git_blob": "2d8c412df20e821caf4669c31649bf176a737d3d"
     },
     {
       "path": "backend/tests/integration/test_pursuits.py",
@@ -115,13 +115,13 @@
     },
     {
       "path": "backend/tests/unit/test_evidence_judge.py",
-      "sha256": "2b1c5a9806d57f931cd16309e3d75cb0c7fe3d6b5a0c055c702ba6813df245ea",
-      "git_blob": "3af79f6655c97493e39dc69df5e37e17dbdc4320"
+      "sha256": "2fc7331ab44619193d89e09effaea0bf35ae1aea479b3f737185ec0324405002",
+      "git_blob": "e8303f217c63cb53a4e700f43dfe860775666732"
     },
     {
       "path": "docs/validation/PR21-CORRECTNESS-REPAIR.md",
-      "sha256": "3439a55246e37998812f5f72c08dd0ce0212da74844b741d7aab12ee2e6cc54e",
-      "git_blob": "b5d1be79788291dc3fcee30b01625796ea513f96"
+      "sha256": "06ff73403a0e78609a01207244fda0f7e30e7995009df08dc968390986ad038f",
+      "git_blob": "9539972622f65a4d2d355ec67c07db82868d459d"
     },
     {
       "path": "web/src/api/generated.ts",

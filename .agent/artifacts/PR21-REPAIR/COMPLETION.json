@@ -183,5 +183,20 @@
     ".agent/artifacts/PR21-REPAIR/R12-BEFORE-AFTER.json",
     "docs/validation/PR21-CORRECTNESS-REPAIR.md",
     ".agent/artifacts/PR21-REPAIR/COMPLETION.json"
+  ],
+  "r13_base_sha": "250d86c23b04052135041b5f9d98ae6e13f9e641",
+  "r13_handoff": "Advisory research routing now recognizes UNKNOWN/CONFLICT nested activity-specific power need facts despite a SUPPORTED top-level power_need. Exact-head real project_state before proof: five failures for MW, timing, duration, supply UNKNOWN and MW CONFLICT. Fully supported negative and multiple-need deterministic labels pass. Affected project-state, evidence-judge, and shadow-storage tests: 125 passed; Ruff/mypy 66 files pass. Existing timing, public-buyer, and judgment gates preserved; no queue or research launch. R13-BEFORE-AFTER.json records proof. Controller owns full gates and independent review.",
+  "r13_repair_count": 1,
+  "r13_started_at_utc": "UNKNOWN",
+  "r13_finished_at_utc": "2026-10-03T02:01:28Z",
+  "r13_durations_and_tokens": "UNKNOWN",
+  "r13_files": [
+    "backend/src/gridlens/intelligence/research_recommendation.py",
+    "backend/tests/integration/test_project_state_changes.py",
+    "backend/tests/unit/test_evidence_judge.py",
+    ".agent/packets/PR21-REPAIR.md",
+    ".agent/artifacts/PR21-REPAIR/R13-BEFORE-AFTER.json",
+    "docs/validation/PR21-CORRECTNESS-REPAIR.md",
+    ".agent/artifacts/PR21-REPAIR/COMPLETION.json"
   ]
 }

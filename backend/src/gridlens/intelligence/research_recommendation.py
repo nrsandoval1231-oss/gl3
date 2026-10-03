@@ -1,6 +1,33 @@
 """Deterministic, advisory research routing seam; never queues work or changes tiers."""
 
 
+_NEED_FIELDS = ("activity", "tier", "mw", "timing", "duration", "supply")
+
+
+def _missing_facts(fields: dict) -> list[str]:
+    missing = [
+        key
+        for key in ("power_need", "utility_service", "lifecycle", "activity")
+        if fields.get(key, {}).get("status") != "SUPPORTED"
+    ]
+    power_need = fields.get("power_need", {})
+    if power_need.get("status") == "SUPPORTED" and isinstance(power_need.get("value"), list):
+        nested = set()
+        for need in power_need["value"]:
+            if not isinstance(need, dict):
+                nested.add("power_need[unknown]")
+                continue
+            activity = need.get("activity", {})
+            activity_value = activity.get("value") if isinstance(activity, dict) else None
+            label = activity_value.strip() if isinstance(activity_value, str) else "unknown"
+            for field in _NEED_FIELDS:
+                claim = need.get(field, {})
+                if not isinstance(claim, dict) or claim.get("status") != "SUPPORTED":
+                    nested.add(f"power_need[{label}].{field}")
+        missing.extend(sorted(nested))
+    return missing
+
+
 def research_recommended(
     *,
     material_change: bool,
@@ -22,11 +49,7 @@ def research_recommended(
 def recommend_from_context(judgment: dict, state: dict) -> bool:
     """Apply deterministic routing to a bounded state and a validated shadow judgment."""
     fields = state.get("state", {})
-    missing_facts = [
-        key
-        for key in ("power_need", "utility_service", "lifecycle", "activity")
-        if fields.get(key, {}).get("status") != "SUPPORTED"
-    ]
+    missing_facts = _missing_facts(fields)
     utility = fields.get("utility_service", {})
     utility_known = utility.get("status") == "SUPPORTED" and bool(utility.get("value"))
     power_need = fields.get("power_need", {})
