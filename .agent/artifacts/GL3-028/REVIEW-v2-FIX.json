@@ -1,0 +1,30 @@
+{
+  "node": "GL3-028",
+  "role": "independent Sol exact-candidate review",
+  "verdict": "FIX",
+  "branch": "feat/evidence-graph-jev-shadow",
+  "base_sha": "25cac0b1168b750277c1347fa6b4eb0f64d28fe5",
+  "candidate_manifest": ".agent/artifacts/GL3-028/candidate_manifest.json",
+  "candidate_sha256": "22029e0977a3950e38a0ce4d36b5ce71a8162e1ea3d0871f97a01dbca080658d",
+  "manifest_file_count": 940,
+  "manifest_files_verified": true,
+  "started_at_utc": "2026-10-02T15:24:50Z",
+  "finished_at_utc": "2026-10-02T15:26:51Z",
+  "findings": [
+    {
+      "severity": "blocking",
+      "file": "backend/src/gridlens/intelligence/buying_chain.py",
+      "line": 689,
+      "issue": "The repaired support selector compares pre/post buying_chain_view at pass time, while record_material_diff compares a persisted prior material snapshot with material_state at the current wall clock. If a previously supported person role ages past ROLE_MAX_AGE_DAYS between passes, the persisted buyer/contractor state can lose that person. Both buying-chain views already exclude the aged row, so support_for returns None and the material event falls back to unrelated retained permit Evidence.",
+      "reproduction": "Persist a project material snapshot containing a supported person role with a dated organization_person_role citation. Advance beyond its 365-day freshness window and run enrich_buying_chain on unchanged source. Both buying-chain views exclude the stale person while material_state differs from persisted state. record_material_diff emits a buyer change citing retained_after[0]. The GC-to-electrical test changes source content within one freshness window and does not exercise this path.",
+      "required_repair": "Align support comparison with the persisted semantic predecessor. For a time-only expiration without new evidence, update current UNKNOWN state without emitting a permit-cited material event, or represent it explicitly with valid policy-expiration provenance. Ensure contractor/buyer transitions never fall back to generic retained permit Evidence when buying-chain support is absent. Add freshness-boundary regression, then rerun same-organization, partial-removal and replay checks."
+    }
+  ],
+  "evidence_reviewed": [
+    "Independently hashed all 940 manifest-listed files with zero mismatches. Old/new manifest comparison shows only the review-repair packet, buying_chain.py, api/app.py, focused integration test and validation report changed. Raw v1 FIX review and manifest remain preserved.",
+    "Prior same-organization defect is repaired for source-content changes: support_for compares complete projected rows, and new GC-to-electrical test asserts external BuyingChainEvidence for contractor and buyer plus unchanged replay. Project changes API exposes that nullable source ID.",
+    "Inspected material_state and buying_chain_view freshness paths. Final gate receipt reports Ruff, mypy, 585 backend passes and one skip, frontend typecheck/build, six migration checks and diff check successful; parent reports 22 browser cases. Retained replay and preservation receipts show quiet historical replay and unchanged authoritative tables. No provider calls during this review."
+  ],
+  "reviewed_boundaries": "No product implementation, provider request, commit, push, merge or deployment was performed. Parent Finish Contract remains OPEN.",
+  "direction": "CORRECT freshness transition provenance, freeze new manifest, rerun affected gates and obtain fresh independent review before transport."
+}

@@ -163,6 +163,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/projects/{project_id}/state": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Project State Endpoint */
+        get: operations["project_state_endpoint_api_projects__project_id__state_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/projects/{project_id}/changes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Project Changes Endpoint */
+        get: operations["project_changes_endpoint_api_projects__project_id__changes_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/refresh": {
         parameters: {
             query?: never;
@@ -565,6 +599,22 @@ export interface components {
         ChangeOut: {
             /** Kind */
             kind: string;
+            /** Title */
+            title: string;
+            /** Url */
+            url: string;
+            /** Published At */
+            published_at: string | null;
+            /** Sources */
+            sources: components["schemas"]["ChangeSourceOut"][];
+        };
+        /** ChangeSourceOut */
+        ChangeSourceOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
             /** Title */
             title: string;
             /** Url */
@@ -1014,6 +1064,68 @@ export interface components {
             extraction_location: string;
             /** Facts */
             facts?: components["schemas"]["PermitFactOut"][];
+        };
+        /** ProjectChangeOut */
+        ProjectChangeOut: {
+            /** Kind */
+            kind: string;
+            /** Field */
+            field: string | null;
+            /** Prior */
+            prior: {
+                [key: string]: unknown;
+            } | null;
+            /** New */
+            new: {
+                [key: string]: unknown;
+            } | null;
+            /** Evidence Id */
+            evidence_id: string | null;
+            /** Buying Chain Evidence Id */
+            buying_chain_evidence_id: string | null;
+            /** Sources */
+            sources: components["schemas"]["ChangeSourceOut"][];
+            /** Source Date */
+            source_date: string | null;
+            /**
+             * Detected At
+             * Format: date-time
+             */
+            detected_at: string;
+        };
+        /** ProjectStateOut */
+        ProjectStateOut: {
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /** Identity Key */
+            identity_key: string;
+            /** State */
+            state: {
+                [key: string]: unknown;
+            };
+            /** Organizations And Roles */
+            organizations_and_roles: {
+                [key: string]: unknown;
+            }[];
+            /** Lifecycle Events */
+            lifecycle_events: {
+                [key: string]: unknown;
+            }[];
+            /** Evidence */
+            evidence: {
+                [key: string]: unknown;
+            }[];
+            /** Candidate Matches */
+            candidate_matches: {
+                [key: string]: unknown;
+            }[];
+            /** Unresolved */
+            unresolved: string[];
+            /** Disclosure */
+            disclosure: string;
         };
         /** PublicContactOut */
         PublicContactOut: {
@@ -1488,6 +1600,70 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ChangeOut"][];
+                };
+            };
+        };
+    };
+    project_state_endpoint_api_projects__project_id__state_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectStateOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    project_changes_endpoint_api_projects__project_id__changes_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectChangeOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

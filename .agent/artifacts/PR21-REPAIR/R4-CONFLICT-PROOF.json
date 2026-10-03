@@ -1,0 +1,19 @@
+{
+  "utc": "2026-10-02T21:12:03.254561+00:00",
+  "scope": "Isolated copy of R4 candidate with only the two new retained conflict guards removed; actual workspace source untouched",
+  "source_sha256": "42407dc6c8c7af97a9dbe66cda0b354bb91ffe422a72f52b8d7bed178da2f0b9",
+  "command": [
+    "-m",
+    "pytest",
+    "-c",
+    "NUL",
+    "-p",
+    "no:cacheprovider",
+    "backend/tests/integration/test_buying_chain.py::test_reassigned_retained_role_cannot_conflict_with_current_independent_role",
+    "-q",
+    "--tb=short"
+  ],
+  "exit_code": 1,
+  "output": "F                                                                        [100%]\n================================== FAILURES ===================================\n_ test_reassigned_retained_role_cannot_conflict_with_current_independent_role _\nbackend\\tests\\integration\\test_buying_chain.py:315: in test_reassigned_retained_role_cannot_conflict_with_current_independent_role\n    assert view[\"candidates\"][0][\"person_organization_relationship\"] == \"CURRENT\"\nE   AssertionError: assert 'UNKNOWN' == 'CURRENT'\nE     \nE     - CURRENT\nE     + UNKNOWN\n============================== warnings summary ===============================\nbackend\\.venv\\Lib\\site-packages\\fastapi\\testclient.py:1\n  C:\\Users\\nrsan\\Nucleus\\02_Projects\\GridLens\\gl3-pr21-review\\backend\\.venv\\Lib\\site-packages\\fastapi\\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.\n    from starlette.testclient import TestClient as TestClient  # noqa\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n=========================== short test summary info ===========================\nFAILED \\\\.\\NUL\\::test_reassigned_retained_role_cannot_conflict_with_current_independent_role\n1 failed, 1 warning in 1.10s\n",
+  "after_builder_result": "Full buying-chain module23passed1warning in7.12s; controller final full suite follows"
+}

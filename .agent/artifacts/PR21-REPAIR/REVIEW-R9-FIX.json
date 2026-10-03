@@ -1,0 +1,22 @@
+{
+  "verdict": "FIX",
+  "recorded_utc": "2026-10-03T00:12:36Z",
+  "review_scope": "Independent review of the first frozen R9 identity/site candidate; no implementation edits",
+  "reviewer_role": "Sol independent reviewer",
+  "prior_pushed_head_sha": "c6ece2df1f6f0156f7e2594ec7c6636943227e6c",
+  "candidate_manifest": ".agent/artifacts/PR21-REPAIR/CANDIDATE.json",
+  "candidate_manifest_sha256": "cf6f7788161fc2e245aa1a4e865edf8ba0909d9d819b5453f6a4e2cc0dbf22e5",
+  "manifest_file_count": 25,
+  "manifest_mismatches": [],
+  "finding": {
+    "severity": "P2",
+    "path": "backend/src/gridlens/intelligence/project_state.py",
+    "function": "_project_field_claim",
+    "problem": "The new site support predicate accepts same_physical_site as field-level equivalence. The existing helper's address regex can match only the street when city/state lack commas. It therefore treats '100 Main Street Austin TX' and '100 Main Street Dallas TX' as equivalent, allowing a current Dallas claim to attest a stored Austin site or suppress a site conflict.",
+    "deterministic_proof": "With backend src on PYTHONPATH, same_physical_site('100 Main Street Austin TX', '100 Main Street Dallas TX') returned True. The project-state code passes this result directly into site support and claim equivalence.",
+    "required_repair": "Keep the R9 field-specific current-admitted-claim design. Narrow site projection equivalence so same street with contradictory city/state cannot support the stored value or collapse competing claims. Add a project-state regression for distinct cities with the same street and preserve valid formatting-only equivalence. Do not broaden global matching architecture."
+  },
+  "gate_state": "The controller reported fresh 19/19 deterministic gates passed on this candidate, but they do not cover the demonstrated site counterexample. This candidate is not independently accepted.",
+  "implementation_edits": false,
+  "tokens": "UNKNOWN"
+}

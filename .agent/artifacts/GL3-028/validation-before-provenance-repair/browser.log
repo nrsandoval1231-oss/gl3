@@ -1,0 +1,47 @@
+
+> gridlens-web@0.1.0 test
+> playwright test
+
+[WebServer] INFO:     Started server process [21324]
+[WebServer] INFO:     Waiting for application startup.
+[WebServer] INFO:     Application startup complete.
+[WebServer] INFO:     Uvicorn running on http://127.0.0.1:8025 (Press CTRL+C to quit)
+[WebServer] (node:50272) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 22 tests using 5 workers
+
+(node:24372) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:35216) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok  2 tests\project_cards.spec.ts:53:1 › stable project IDs consolidate lifecycle records and decision filters default uncertain records to REVIEW (8ms)
+(node:24700) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:27328) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:48188) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok  3 tests\project_cards.spec.ts:68:1 › Cannabis Watch is removed and an evidence-supported applicant titles the card and detail (1.2s)
+  ok  7 tests\project_cards.spec.ts:101:1 › project title prefers a current owner over operator, applicant, and contractor claims (1ms)
+  ok  8 tests\project_cards.spec.ts:110:1 › city permit company title shows source role and does not infer ownership (1ms)
+  ok  9 tests\project_cards.spec.ts:123:1 › city permit organization labels preserve the source role and role uncertainty (0ms)
+  ok  5 tests\buying_chain.spec.ts:45:1 › buying chain exposes three separate relationships and retains evidence after enrichment failure (1.0s)
+  ok 10 tests\project_cards.spec.ts:136:1 › grouped permit members use company-first titles while retaining each permit record (410ms)
+  ok 11 tests\buying_chain.spec.ts:68:1 › navigation ignores a late enrichment result and limits repeated requests (537ms)
+  ok 12 tests\project_cards.spec.ts:170:1 › Signals default to All and keep SHOW, REVIEW, and HOLD selectable (579ms)
+  ok 13 tests\buying_chain.spec.ts:94:1 › mobile buying chain keeps unknown and empty results readable (502ms)
+  ok 15 tests\buying_chain.spec.ts:108:1 › retained permit fields are useful before enrichment and preserve source roles (392ms)
+  ok 14 tests\project_cards.spec.ts:213:1 › only exact dated event evidence groups; titles describe permit work; all records stay openable (566ms)
+  ok 16 tests\verticals.spec.ts:19:1 › source-sector groups preserve the oil and gas URL alias and send canonical filter values (247ms)
+  ok  4 tests\briefs.spec.ts:3:1 › detail explicitly requests a brief, polls pending state, and resolves source links (3.0s)
+  ok 17 tests\verticals.spec.ts:42:1 › source filters list authenticated health sources and send their actual source IDs (292ms)
+  ok 18 tests\verticals.spec.ts:69:1 › All Signals labels cards and every member of a mixed decision group (425ms)
+  ok  1 tests\first_path.spec.ts:36:1 › authenticated desktop browse, detail, back, and search use a live Signal (6.6s)
+  ok  6 tests\pursuits.spec.ts:17:1 › real pursuits retain evidence gates and a saved owner call outcome across reload (6.7s)
+  ok 19 tests\first_path.spec.ts:76:1 › mobile health, ordinary news inbox, and browser history show actual local data states (2.2s)
+  ok 21 tests\first_path.spec.ts:161:1 › live air documents retain equipment context without creating rental MW (3.8s)
+  ok 20 tests\pursuits.spec.ts:50:1 › real conflicts, bounded refresh and mobile pursuit history work in the app (12.0s)
+  ok 22 tests\first_path.spec.ts:182:1 › live data-center permit enrichment exposes attributed fields and organizations (7.9s)
+
+  22 passed (26.6s)

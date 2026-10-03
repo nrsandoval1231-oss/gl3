@@ -1,0 +1,20 @@
+{
+  "head": "5f3cd8fd3ed9bdb33a768917436a306d1e4d3a36",
+  "recorded_utc": "2026-10-03T01:08:39.537614+00:00",
+  "findings": [
+    {
+      "id": 4171039997,
+      "path": "backend/src/gridlens/intelligence/buying_chain.py",
+      "line": 804,
+      "body": "**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Preserve every source behind combined buying-chain changes**\n\nWhen one enrichment pass adds or removes buyer/contractor rows supported by multiple documents, this collapses all causal sources to the single `max(...)` record. `record_material_diff()` then stores one field-level event whose before/after payload can contain several changed rows but whose `buying_chain_evidence_id` identifies only that arbitrary document, so project history and `/api/changes` omit the source links for the other changes. Split the changes by supporting document or persist all causal evidence IDs.\n\nAGENTS.md reference: [AGENTS.md:L6-L6](https://github.com/nrsandoval1231-oss/gl3/blob/5f3cd8fd3ed9bdb33a768917436a306d1e4d3a36/AGENTS.md#L6-L6)\n\nUseful? React with \ud83d\udc4d\u00a0/ \ud83d\udc4e.",
+      "url": "https://github.com/nrsandoval1231-oss/gl3/pull/21#discussion_r4171039997"
+    },
+    {
+      "id": 4171040000,
+      "path": "backend/src/gridlens/intelligence/project_identity.py",
+      "line": 160,
+      "body": "**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Normalize state codes before compact ZIP+4 values**\n\nThe fresh uncovered case is an unhyphenated ZIP+4 value: for equivalent claims such as `100 Main Street, Austin, Texas 787011234` and `100 Main St, Austin, TX 787011234`, neither ZIP branch matches, so `state_end` remains at the final token and `TX` is never expanded. The state endpoint therefore reports `UNKNOWN` for one claim or `CONFLICT` for two claims even though only the state spelling differs; recognize the common nine-digit postal form while retaining the complete postal value.\n\nAGENTS.md reference: [AGENTS.md:L6-L6](https://github.com/nrsandoval1231-oss/gl3/blob/5f3cd8fd3ed9bdb33a768917436a306d1e4d3a36/AGENTS.md#L6-L6)\n\nUseful? React with \ud83d\udc4d\u00a0/ \ud83d\udc4e.",
+      "url": "https://github.com/nrsandoval1231-oss/gl3/pull/21#discussion_r4171040000"
+    }
+  ]
+}

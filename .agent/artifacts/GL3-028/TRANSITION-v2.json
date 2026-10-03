@@ -1,0 +1,12 @@
+{
+  "node": "GL3-028",
+  "candidate_sha256": "22029e0977a3950e38a0ce4d36b5ce71a8162e1ea3d0871f97a01dbca080658d",
+  "review": "REVIEW-v2-FIX.json",
+  "verdict": "FIX",
+  "direction": "CORRECT",
+  "accepted": false,
+  "next_packet": ".agent/packets/GL3-028-freshness-repair.md",
+  "reason": "Time-only expiration must not become a material event supported by an unrelated retained permit.",
+  "parent_finish_contract": "OPEN",
+  "transport_authorized_now": false
+}

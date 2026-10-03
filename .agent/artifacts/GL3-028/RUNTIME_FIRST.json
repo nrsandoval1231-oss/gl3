@@ -1,0 +1,78 @@
+{
+  "mode": "runtime-live",
+  "historical_backfill": true,
+  "fixture_set": "gl3-028-retained-evidence-v1",
+  "fixture_evidence_ids": [
+    "fab37ce4-29b6-45d8-a88d-0e19e6c56c60",
+    "cd19ac72-48ac-44ea-ac45-6fdac75ecd9f",
+    "00ed4860-fe13-4cef-a8a9-5d00e12a13af",
+    "57d1e773-5420-4d4b-a575-61a7d14276c7",
+    "1d758841-6e07-4603-b39c-33fd53796715"
+  ],
+  "status": "complete",
+  "attempted": 0,
+  "valid": 0,
+  "failed": 0,
+  "fixture_comparison": {
+    "cases_with_provider_result": 0,
+    "cases_without_provider_result": 16,
+    "relevance": {
+      "precision": {
+        "value": "UNKNOWN",
+        "denominator": 0
+      },
+      "recall": {
+        "value": "UNKNOWN",
+        "denominator": 0
+      },
+      "true_positive": 0,
+      "false_positive": 0,
+      "false_negative": 0,
+      "unknown_predictions": 0,
+      "labeled_denominator": 0,
+      "coverage": "UNKNOWN"
+    },
+    "agreement": {
+      "same_project": {
+        "matched": 0,
+        "denominator": 0,
+        "value": "UNKNOWN"
+      },
+      "material_change": {
+        "matched": 0,
+        "denominator": 0,
+        "value": "UNKNOWN"
+      },
+      "power_relevance": {
+        "matched": 0,
+        "denominator": 0,
+        "value": "UNKNOWN"
+      },
+      "temporary_power_hint": {
+        "matched": 0,
+        "denominator": 0,
+        "value": "UNKNOWN"
+      },
+      "needs_deep_enrichment": {
+        "matched": 0,
+        "denominator": 0,
+        "value": "UNKNOWN"
+      }
+    },
+    "deep_enrichment_yield": {
+      "value": "UNKNOWN",
+      "useful_yes": 0,
+      "recommended_yes": 0,
+      "labeled_cases": 14
+    },
+    "invalid_count": 0,
+    "timeout_count": 0,
+    "latency_p50_ms": "UNKNOWN",
+    "latency_p95_ms": "UNKNOWN",
+    "usage": {
+      "input_tokens": "UNKNOWN",
+      "output_tokens": "UNKNOWN",
+      "cost": "UNKNOWN"
+    }
+  }
+}

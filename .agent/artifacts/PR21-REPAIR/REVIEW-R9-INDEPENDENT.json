@@ -1,0 +1,34 @@
+{
+  "verdict": "PASS",
+  "recorded_utc": "2026-10-03T00:20:13Z",
+  "review_scope": "Independent local PR21 R9 review of the revised frozen exact candidate after REVIEW-R9-FIX; no implementation edits",
+  "reviewer_role": "Sol independent reviewer",
+  "reviewer_model": "UNKNOWN",
+  "repository": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-pr21-review",
+  "branch": "fix/pr21-correctness",
+  "base_sha": "da1f2bdb3c207e97e8a861392ba6df189dfe32a2",
+  "prior_pushed_head_sha": "c6ece2df1f6f0156f7e2594ec7c6636943227e6c",
+  "candidate_manifest": ".agent/artifacts/PR21-REPAIR/CANDIDATE.json",
+  "candidate_manifest_sha256": "88d752afe199c0b6960a5944c1be6afafeec478d93cacf7ae480731065e69a81",
+  "manifest_file_count": 25,
+  "manifest_files_verified": 25,
+  "manifest_mismatches": [],
+  "findings": [],
+  "evidence": {
+    "hosted_finding": "CODEX-R9.json reports that prior project-state identity/site values could borrow unrelated current need Evidence after the field's original observation was corrected or rejected.",
+    "source_review": "Inspected actual R9 project_state.py, focused tests, packet and validation documentation. Identity and site claims now come from nonblank assessment subject and location under the existing current Evidence-version, project identity, activity and source-admission gates. Only active needs with eligible activity claims contribute. Competing eligible values retain exact Evidence in CONFLICT; a sole claim that does not attest the mutable stored value leaves UNKNOWN. Bare project association and mutable alias lists do not grant support.",
+    "initial_review_fix": "REVIEW-R9-FIX.json rejected the first candidate because same_physical_site could equate identical streets in different unpunctuated cities. R9-SITE-FOLLOWUP.json records two discriminating failures before correction and 34 project-state tests passing after the field-level comparator changed to full normalized text. The global identity matcher was not changed. Same-street Austin and Dallas claims now produce UNKNOWN for a sole mismatching claim and CONFLICT for competing current claims; valid punctuation/case formatting remains supported.",
+    "failure_discrimination": "R9-BEFORE-AFTER.json records three hosted-finding regressions failing on exact c6ece2d plus one passing normalization control, followed by 32 module tests passing. The revised site follow-up adds two failing-before regressions and final 34 module tests passing. Tests retain wrong-binding/nonadmitted exclusion and exact field Evidence IDs.",
+    "full_validation": "Fresh VALIDATION.json records 19 checks with zero nonzero exits: Ruff, mypy, 644 backend tests with one existing skip, frontend audit/typecheck/build, clean/repeat/main/previous-head migration and drift checks, and diff check.",
+    "browser": "Fresh BROWSER.json records the unchanged serial canonical Playwright invocation: 22 passed.",
+    "retained_preservation": "Fresh PRESERVATION.json records 13 authoritative tables and all 16,960 Evidence rows unchanged after migration and reopened replay; six projects over two sessions generated zero material events and made zero provider calls.",
+    "candidate_identity": "Independently recomputed all 25 listed file SHA256 values with zero mismatches and the manifest SHA256 after final browser validation."
+  },
+  "limitations": [
+    "PASS accepts the revised frozen local correctness repair only. Hosted PR checks and any new Codex findings require separate verification.",
+    "Full-text site comparison is deliberately conservative; unsupported alternative formatting remains UNKNOWN rather than gaining inferred site authority.",
+    "Parent Finish Contract and launch remain open; this review does not authorize merge or deployment."
+  ],
+  "implementation_edits": false,
+  "tokens": "UNKNOWN"
+}

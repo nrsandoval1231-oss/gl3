@@ -1,0 +1,13 @@
+{
+  "head": "250d86c23b04052135041b5f9d98ae6e13f9e641",
+  "recorded_utc": "2026-10-03T01:54:32.458349+00:00",
+  "findings": [
+    {
+      "id": 4171225240,
+      "path": "backend/src/gridlens/intelligence/research_recommendation.py",
+      "line": 28,
+      "body": "**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Inspect nested power-need unknowns before suppressing research**\n\nWhen a Signal has accepted activity evidence, `project_state()` marks the top-level `power_need` as `SUPPORTED` even if its nested MW, duration, timing, or supply fields are `UNKNOWN`. If lifecycle, activity, and utility are also supported, this comprehension produces an empty `missing_facts` list, so `research_recommended()` returns false despite the material commercial inputs that deep enrichment is intended to resolve. Include unknown/conflicting nested power-need fields in the missing-fact calculation.\n\nUseful? React with \ud83d\udc4d\u00a0/ \ud83d\udc4e.",
+      "url": "https://github.com/nrsandoval1231-oss/gl3/pull/21#discussion_r4171225240"
+    }
+  ]
+}

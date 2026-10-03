@@ -1,0 +1,22 @@
+{
+  "node": "GL3-028",
+  "role": "independent Sol exact-candidate review",
+  "verdict": "PASS",
+  "branch": "feat/evidence-graph-jev-shadow",
+  "base_sha": "25cac0b1168b750277c1347fa6b4eb0f64d28fe5",
+  "candidate_manifest": ".agent/artifacts/GL3-028/candidate_manifest.json",
+  "candidate_sha256": "c44c7c7ccc0f50a98f6db60fada4dd38b0cebf33c4ed21d14bb6c1364ebf2495",
+  "manifest_file_count": 941,
+  "manifest_files_verified": true,
+  "started_at_utc": "2026-10-02T16:01:58Z",
+  "finished_at_utc": "2026-10-02T16:02:50Z",
+  "findings": [],
+  "evidence_reviewed": [
+    "Independently hashed all 941 manifest-listed files with zero mismatches. Compared v2 and current manifest maps: changes are confined to the freshness repair packet, change_detection.py, focused integration tests, validation report and current-state note. Earlier raw FIX reviews and manifests remain preserved.",
+    "Reviewed prior same-organization buying-chain support repair and current freshness path. Full semantic row comparison selects actual BuyingChainEvidence for external role changes; project changes API exposes its ID. Freshness-only expiry is identified from current role citations and does not emit a contextual permit-cited event. Accepted retained Evidence withdrawal remains an evidence-backed transition. Focused regressions cover same-organization role change, unchanged replay, expiry through ingestion and enrichment, and retained-source withdrawal.",
+    "Final gate receipts show Ruff, mypy, 587 backend tests passed with one existing skip, frontend typecheck/build, six migration checks and diff check exit zero. Unchanged browser suite passed 22/22 serially after a retained concurrent mocked-card timeout; the timeout cause is unproven and no assertions were changed. Retained replay reports six projects with material events 0 to 0, and preservation compares 13 authoritative tables with all 16,960 Evidence rows unchanged.",
+    "Reviewed governing evidence-graph architecture, GL3-028 packets, validation report, scoped provider/shadow and evaluation boundary from the prior exact-candidate audits. Benchmark remains 16 bounded fixture cases (five retained-real contexts and eleven synthetic variants); cost is UNKNOWN and results are not representative accuracy claims."
+  ],
+  "reviewed_boundaries": "PASS covers frozen local GL3-028 slice only. No product edit, provider call, commit, push, merge or deployment by reviewer. Parent Finish Contract and launch remain OPEN.",
+  "direction": "CONTINUE controller's authorized commit/push and one focused PR for this exact accepted candidate; any product-file change requires a new manifest and review."
+}

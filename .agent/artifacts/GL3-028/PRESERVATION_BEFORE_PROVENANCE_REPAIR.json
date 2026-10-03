@@ -1,0 +1,40 @@
+{
+  "checked_at_utc": "2026-10-02T14:29:44.056316+00:00",
+  "original_database": "gl3_027_accept",
+  "source_vs_clone_equal": {
+    "observations": true,
+    "evidence": true,
+    "projects": true,
+    "power_needs": true,
+    "need_observations": true,
+    "interpretations": true,
+    "project_lifecycles": true,
+    "lifecycle_events": true,
+    "project_match_decisions": true,
+    "buying_chain_claims": true,
+    "buying_chain_evidence": true,
+    "buying_chain_runs": true,
+    "signal_decisions": true
+  },
+  "clone_counts": {
+    "observations": 16921,
+    "evidence": 16960,
+    "projects": 1168,
+    "power_needs": 1168,
+    "need_observations": 1170,
+    "interpretations": 16921,
+    "project_lifecycles": 938,
+    "lifecycle_events": 938,
+    "project_match_decisions": 1451,
+    "buying_chain_claims": 49,
+    "buying_chain_evidence": 41,
+    "buying_chain_runs": 41,
+    "signal_decisions": 1170
+  },
+  "note": "Read-only comparison to original retained database; clone browser actions may update derived tables. Historical preservation is separately recorded in MIGRATION_RETAINED.json.",
+  "immutable_evidence": {
+    "original_rows": 16960,
+    "unchanged_rows": 16960,
+    "new_rows": 0
+  }
+}

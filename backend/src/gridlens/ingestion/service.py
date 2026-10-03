@@ -1,11 +1,12 @@
 import hashlib
 import json
 import re
+from collections.abc import Sequence
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
 
 import httpx
-from sqlalchemy import or_, select
+from sqlalchemy import or_, select, text
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
@@ -29,6 +30,11 @@ from gridlens.domain.signal_admission import (
 from gridlens.domain.taylor_planning import interpret_taylor_planning
 from gridlens.ingestion.adapters import retrieve_source
 from gridlens.ingestion.adapters.govinfo_pdf import MAX_PDFS_PER_RUN, retrieve_companion
+from gridlens.intelligence.change_detection import (
+    lock_project,
+    record_material_diff,
+    seed_material_state,
+)
 from gridlens.intelligence.lifecycle_service import (
     apply_lifecycle_observation,
     apply_planning_withdrawal,
@@ -50,9 +56,11 @@ from gridlens.intelligence.signal_adjudication import POLICY_VERSION
 from gridlens.intelligence.signal_adjudication import adjudicate as adjudicate_signal
 from gridlens.jobs.queue import assert_fence
 from gridlens.persistence.models import (
+    BuyingChainEvidence,
     ChangeEvent,
     Evidence,
     Interpretation,
+    LifecycleEvent,
     NeedObservation,
     Observation,
     PowerNeed,
@@ -431,6 +439,8 @@ def _attach_news_supplement(
     evidence: Evidence,
     claim: dict[str, Any],
     payload: dict[str, Any],
+    material_baselines: dict[Any, Any] | None = None,
+    locked_project_ids: set[Any] | None = None,
 ) -> tuple[PowerNeed | None, dict[str, Any]]:
     """Attach news only to one already-supported same-project, same-activity need."""
     phase_marker = re.compile(r"\bphases?\b", re.I)
@@ -523,7 +533,7 @@ def _attach_news_supplement(
     incoming_site = site_claims[0] if site_claims else claim.get("location")
     matching_projects: list[Project] = []
     phase_conflict = False
-    for candidate in session.scalars(select(Project).with_for_update()).all():
+    for candidate in session.scalars(select(Project)).all():
         aliases = (candidate.identity_facts or {}).get("project_aliases", [])
         same_name = normalized_identity(candidate.name) == normalized_identity(
             claim.get("subject")
@@ -547,6 +557,8 @@ def _attach_news_supplement(
         )
         if decision.decision != "matched":
             continue
+        if locked_project_ids is not None and candidate.id not in locked_project_ids:
+            raise RuntimeError("Retained project candidate changed after ordered locks")
         retained_rows = session.execute(
             select(Evidence, Observation, Interpretation)
             .join(Observation, Observation.id == Evidence.observation_id)
@@ -624,6 +636,9 @@ def _attach_news_supplement(
         return None, {**payload, "admission_status": status, "admission_reason": reason}
 
     project = matching_projects[0]
+    if material_baselines is not None:
+        if project.id not in material_baselines:
+            material_baselines[project.id] = seed_material_state(session, project)
     requested_activity = payload.get("power_activity")
     if requested_activity == "construction":
         requested_activity = "facility-expansion"
@@ -702,6 +717,56 @@ def _attach_news_supplement(
         }
     )
     return need, payload
+
+
+def _retained_candidate_lock_ids(
+    projects: Sequence[Project], observation: Observation, claim: dict[str, Any], admitted: bool,
+    target_identity: str | None,
+) -> set[Any]:
+    """Discover every possible retained match-decision FK before ordered locks."""
+    ids = {
+        project.id for project in projects
+        if target_identity and project.identity_key == target_identity
+    }
+    if admitted and ids:
+        return ids
+    if claim.get("decision") != "accepted" or not claim.get("subject") or not claim.get("location"):
+        return ids
+    site_claims = labeled_sites(f"{observation.title} {observation.abstract or ''}")
+    incoming_site = site_claims[0] if len(site_claims) == 1 else claim.get("location")
+    ambiguous_sites = len(site_claims) > 1
+    matched = 0
+    asset_type = classify_event(observation.title, observation.abstract)
+    for project in projects:
+        aliases = (project.identity_facts or {}).get("project_aliases", [])
+        same_name = normalized_identity(project.name) == normalized_identity(
+            claim["subject"]
+        ) or any(
+            isinstance(alias, str)
+            and normalized_identity(alias) == normalized_identity(claim["subject"])
+            for alias in aliases
+        )
+        site = (project.identity_facts or {}).get("site") or project.location
+        same_site = same_physical_site(site, incoming_site)
+        if not admitted:
+            if same_name or same_site:
+                ids.add(project.id)
+            continue
+        decision = decide_project_match(
+            same_address=same_site and not ambiguous_sites,
+            same_project_name=same_name,
+            conflicting_geography=bool(conflicting_geography(project.location, claim["location"])),
+            conflicting_asset_type=_asset_type_conflicts(project.asset_type, asset_type),
+        )
+        if decision.matched_facts:
+            ids.add(project.id)
+        if decision.decision == "matched":
+            matched += 1
+    # The existing ambiguous-match branch writes a separate decision even for
+    # candidates with no matched facts. Preserve that behavior and its locks.
+    if admitted and matched > 1:
+        ids.update(project.id for project in projects)
+    return ids
 
 
 def assess_retained_news(
@@ -825,6 +890,62 @@ def assess_retained_news(
         abstract=evidence.abstract,
     )
 
+    old_project_ids = set(
+        session.scalars(
+            select(PowerNeed.project_id)
+            .join(NeedObservation, NeedObservation.need_id == PowerNeed.id)
+            .where(NeedObservation.observation_id == observation.id)
+        ).all()
+    )
+    # Retained lifecycle/relationship history can outlive a need link. Its
+    # support also changes when this interpretation is rebound or withdrawn.
+    old_project_ids.update(
+        session.scalars(
+            select(LifecycleEvent.project_id).where(
+                LifecycleEvent.observation_id == observation.id
+            )
+        ).all()
+    )
+    old_project_ids.update(
+        session.scalars(
+            select(BuyingChainEvidence.project_id)
+            .join(Evidence, Evidence.id == BuyingChainEvidence.retained_evidence_id)
+            .where(Evidence.observation_id == observation.id)
+        ).all()
+    )
+    # Resolve every plausible existing target before locking any PowerNeed.
+    # A retained version can be reassigned to a different supported project;
+    # acquire old and candidate project/advisory locks in one stable order.
+    candidate_project_ids = set(old_project_ids)
+    candidate_projects = session.scalars(select(Project)).all()
+    target_identity = payload.get("project_identity_key")
+    candidate_project_ids.update(
+        _retained_candidate_lock_ids(
+            candidate_projects, observation, claim, admission.admitted, target_identity
+        )
+    )
+    for candidate_project_id in sorted(candidate_project_ids, key=str):
+        lock_project(session, candidate_project_id)
+    # Discovery is read-only. A newly relevant FK target must not acquire a
+    # late, out-of-order project lock after this point.
+    current_candidates = session.scalars(
+        select(Project).execution_options(populate_existing=True)
+    ).all()
+    current_project_ids = set(old_project_ids) | _retained_candidate_lock_ids(
+        current_candidates, observation, claim, admission.admitted, target_identity
+    )
+    if not current_project_ids.issubset(candidate_project_ids):
+        raise RuntimeError("Retained project candidate changed after ordered locks")
+    # Capture persisted semantic state before an accepted decision is replaced
+    # by a rejection/correction. This is deliberately before Interpretation is
+    # invalidated so negative evidence can emit a real closure transition.
+    # Lock projects before needs to match process_job's project -> advisory ->
+    # need ordering and avoid a retained-news/permit lock inversion.
+    material_baselines = {}
+    for old_project_id in sorted(old_project_ids, key=str):
+        old_project = session.get(Project, old_project_id)
+        if old_project is not None:
+            material_baselines[old_project.id] = seed_material_state(session, old_project)
     old_needs = session.scalars(
         select(PowerNeed)
         .join(NeedObservation, NeedObservation.need_id == PowerNeed.id)
@@ -842,7 +963,8 @@ def assess_retained_news(
     supplemental_only = claim["decision"] == "accepted" and not admission.admitted
     if supplemental_only:
         current_need, payload = _attach_news_supplement(
-            session, observation, evidence, claim, payload
+            session, observation, evidence, claim, payload, material_baselines,
+            candidate_project_ids,
         )
         payload["admission_origin"] = admission.origin
         interpretation.assessment = {**payload}
@@ -850,8 +972,12 @@ def assess_retained_news(
     elif claim["decision"] == "accepted":
         identity_key = payload["project_identity_key"]
         project = session.scalar(
-            select(Project).where(Project.identity_key == identity_key).with_for_update()
+            select(Project).where(Project.identity_key == identity_key).execution_options(
+                populate_existing=True
+            )
         )
+        if project is not None and project.id not in candidate_project_ids:
+            raise RuntimeError("Retained project candidate changed after ordered locks")
         if project is not None and project.source_id != observation.source_id:
             exact_copy = session.scalar(
                 select(ProjectMatchDecision).where(
@@ -890,7 +1016,14 @@ def assess_retained_news(
                     )
                 )
         if project is None:
-            candidates = session.scalars(select(Project).with_for_update()).all()
+            candidates = session.scalars(
+                select(Project).execution_options(populate_existing=True)
+            ).all()
+            current_project_ids = _retained_candidate_lock_ids(
+                candidates, observation, claim, True, identity_key
+            )
+            if not current_project_ids.issubset(candidate_project_ids):
+                raise RuntimeError("Retained project candidate changed after ordered locks")
             matching_candidates: list[tuple[Project, Any]] = []
             identity_decisions = []
             site_claims = labeled_sites(f"{observation.title} {observation.abstract or ''}")
@@ -1017,6 +1150,8 @@ def assess_retained_news(
                             },
                         )
                     )
+        if project.id not in material_baselines:
+            material_baselines[project.id] = seed_material_state(session, project)
         identity_key = project.identity_key
         activity_key = payload["power_activity"]
         if activity_key == "construction":
@@ -1111,6 +1246,14 @@ def assess_retained_news(
         if impacted_ids
         else []
     )
+    # Rebinding or rejecting retained evidence can invalidate lifecycle and
+    # relationship support even when another observation keeps the old need
+    # active. Rebuild every prior project under its existing material lock.
+    materially_changed_projects: set[Any] = set(old_project_ids)
+    for old_project_id in old_project_ids:
+        old_project = session.get(Project, old_project_id)
+        if old_project is not None:
+            refresh_lifecycle_projection(session, old_project)
     for need in impacted:
         project = session.get(Project, need.project_id)
         if project is None:
@@ -1129,6 +1272,7 @@ def assess_retained_news(
                     kind="closed",
                 )
             )
+            materially_changed_projects.add(project.id)
         elif supported:
             claims = _current_need_claims(session, need, project)
             if claims:
@@ -1138,6 +1282,17 @@ def assess_retained_news(
                 need.rationale = selected["reason"]
                 need.required_mw = _reported_mw(selected)
                 need.supply = "Reported constraint" if selected["tier"] == "Prospect" else "Unknown"
+            # A supported retained-news decision may create a need or alter its
+            # tier/load/supply without taking the rejection/closure path below.
+            materially_changed_projects.add(project.id)
+    # A rejected correction is authoritative about the prior accepted state
+    # becoming unsupported. It therefore records a material transition with
+    # its immutable Evidence version, while unchanged replay has no diff.
+    for project_id in materially_changed_projects:
+        baseline = material_baselines[project_id]
+        project = session.get(Project, project_id)
+        if project is not None:
+            record_material_diff(session, project, evidence, baseline)
     # Reassign after in-place edits so SQLAlchemy marks the JSON value dirty.
     interpretation.assessment = {**payload}
     flag_modified(interpretation, "assessment")
@@ -1601,9 +1756,18 @@ def process_job(
             if is_taylor and article_id.isdigit()
             else f"{source.id}:{external_id}"
         )
+        project_query = select(Project).where(Project.identity_key == project_key)
+        # Negative/correction handling discovers every linked project below;
+        # defer its lock so one identity-key row cannot precede a sorted set of
+        # impacted projects. Accepted processing keeps its existing early lock.
         project = session.scalar(
-            select(Project).where(Project.identity_key == project_key).with_for_update()
+            project_query.with_for_update() if interpreted is not None else project_query
         )
+        if project is not None and interpreted is not None:
+            session.execute(
+                text("SELECT pg_advisory_xact_lock(hashtextextended(:project_id, 0))"),
+                {"project_id": str(project.id)},
+            )
         taylor_revision_ambiguous = False
         withdrawn_taylor = bool(
             is_taylor and record.get("disposition") == "withdrawn" and article_id.isdigit()
@@ -1691,22 +1855,25 @@ def process_job(
                 )
                 if taylor_revision_ambiguous:
                     project = None
-            impacted_needs = (
+            impacted_need_ids = list(
                 []
                 if taylor_revision_ambiguous
                 else session.scalars(
-                    select(PowerNeed)
+                    select(PowerNeed.id)
                     .join(NeedObservation, NeedObservation.need_id == PowerNeed.id)
                     .where(NeedObservation.observation_id == observation.id)
-                    .with_for_update()
                 ).all()
             )
-            if project is None and impacted_needs:
-                impacted_project_ids = {need.project_id for need in impacted_needs}
+            impacted_project_ids = set(
+                session.scalars(
+                    select(PowerNeed.project_id).where(PowerNeed.id.in_(impacted_need_ids))
+                ).all()
+            )
+            if project is None and impacted_project_ids:
                 if len(impacted_project_ids) == 1:
                     project = session.get(Project, next(iter(impacted_project_ids)))
             linked_withdrawn_need = None
-            if withdrawn_taylor and not impacted_needs:
+            if withdrawn_taylor and not impacted_need_ids:
                 prior_observations = session.scalars(
                     select(Observation).where(
                         Observation.source_id == source.id,
@@ -1758,39 +1925,66 @@ def process_job(
                     )
                 if len(candidate_needs) == 1:
                     linked_withdrawn_need = next(iter(candidate_needs.values()))
-                    if (
-                        session.scalar(
-                            select(NeedObservation.id).where(
-                                NeedObservation.need_id == linked_withdrawn_need.id,
-                                NeedObservation.observation_id == observation.id,
-                            )
-                        )
-                        is None
-                    ):
-                        session.add(
-                            NeedObservation(
-                                need_id=linked_withdrawn_need.id,
-                                observation_id=observation.id,
-                            )
-                        )
-                    if (
-                        session.scalar(
-                            select(ChangeEvent.id).where(
-                                ChangeEvent.observation_id == observation.id,
-                                ChangeEvent.content_hash == digest,
-                                ChangeEvent.kind == "withdrawn",
-                            )
-                        )
-                        is None
-                    ):
-                        session.add(
-                            ChangeEvent(
-                                observation_id=observation.id,
-                                content_hash=digest,
-                                kind="withdrawn",
-                            )
-                        )
                     project = session.get(Project, linked_withdrawn_need.project_id)
+            # Capture the accepted semantic state before a replacement is
+            # rejected or closes a current need. This covers legacy projects
+            # that predate project_material_states as well as new projections.
+            negative_baselines = {}
+            if linked_withdrawn_need is not None:
+                impacted_need_ids.append(linked_withdrawn_need.id)
+                impacted_project_ids.add(linked_withdrawn_need.project_id)
+            affected_project_ids = set(impacted_project_ids)
+            if project is not None:
+                affected_project_ids.add(project.id)
+            for affected_project_id in sorted(affected_project_ids, key=str):
+                impacted_project = session.get(Project, affected_project_id)
+                if impacted_project is not None:
+                    negative_baselines[impacted_project.id] = seed_material_state(
+                        session, impacted_project
+                    )
+            impacted_needs = (
+                session.scalars(
+                    select(PowerNeed)
+                    .where(PowerNeed.id.in_(set(impacted_need_ids)))
+                    .order_by(PowerNeed.id)
+                    .with_for_update()
+                ).all()
+                if impacted_need_ids
+                else []
+            )
+            if linked_withdrawn_need is not None:
+                if (
+                    session.scalar(
+                        select(NeedObservation.id).where(
+                            NeedObservation.need_id == linked_withdrawn_need.id,
+                            NeedObservation.observation_id == observation.id,
+                        )
+                    )
+                    is None
+                ):
+                    session.add(
+                        NeedObservation(
+                            need_id=linked_withdrawn_need.id,
+                            observation_id=observation.id,
+                        )
+                    )
+                if (
+                    session.scalar(
+                        select(ChangeEvent.id).where(
+                            ChangeEvent.observation_id == observation.id,
+                            ChangeEvent.content_hash == digest,
+                            ChangeEvent.kind == "withdrawn",
+                        )
+                    )
+                    is None
+                ):
+                    session.add(
+                        ChangeEvent(
+                            observation_id=observation.id,
+                            content_hash=digest,
+                            kind="withdrawn",
+                        )
+                    )
             interpretation.status = "rejected"
             interpretation.content_hash = digest
             current_evidence = session.scalar(
@@ -1965,6 +2159,12 @@ def process_job(
                 needs.extend(project_needs)
             unique_needs = {need.id: need for need in needs}
             impacted_project_ids = set()
+            if withdrawn_taylor and not taylor_revision_ambiguous:
+                supported_need = linked_withdrawn_need or (
+                    impacted_needs[0] if len(impacted_needs) == 1 else None
+                )
+                if supported_need is not None:
+                    impacted_project_ids.add(supported_need.project_id)
             for stale_need in (
                 () if withdrawn_taylor or taylor_revision_ambiguous else unique_needs.values()
             ):
@@ -2006,6 +2206,12 @@ def process_job(
                         apply_lifecycle_observation(
                             session, impacted_project, observation, current_evidence
                         )
+            if current_evidence is not None:
+                for impacted_project_id in impacted_project_ids:
+                    impacted_project = session.get(Project, impacted_project_id)
+                    baseline = negative_baselines.get(impacted_project_id)
+                    if impacted_project is not None and baseline is not None:
+                        record_material_diff(session, impacted_project, current_evidence, baseline)
         else:
             if permit_assessment:
                 counts["permit_accepted"] += 1
@@ -2024,15 +2230,50 @@ def process_job(
                     if facility_scope and isinstance(permit_data, dict)
                     else None
                 )
-                candidates = session.scalars(select(Project).with_for_update()).all()
-                supported: list[tuple[Project, Any]] = []
-                decisions: list[tuple[Project, Any]] = []
                 permit_alias = (
                     permit_assessment.get("project_hint")
                     if permit_assessment and isinstance(permit_assessment.get("project_hint"), str)
                     else None
                 )
-                for candidate in candidates:
+                assert source is not None
+                candidate_source_id = source.id
+                event_asset_type = classify_event(observation.title, observation.abstract)
+
+                def candidate_decisions(
+                    rows: Sequence[Project],
+                ) -> tuple[list[tuple[Project, Any]], list[tuple[Project, Any]]]:
+                    decisions: list[tuple[Project, Any]] = []
+                    supported: list[tuple[Project, Any]] = []
+                    for candidate in rows:
+                        decision = candidate_decision(candidate)
+                        decisions.append((candidate, decision))
+                        if decision.decision == "matched":
+                            supported.append((candidate, decision))
+                    return decisions, supported
+
+                def candidate_decision(
+                    candidate: Project,
+                    context: tuple[Any, ...] = (
+                        project_name,
+                        permit_alias,
+                        project_location,
+                        facility_scope,
+                        candidate_source_id,
+                        facility_source_address,
+                        asset_identity,
+                        event_asset_type,
+                    ),
+                ) -> Any:
+                    (
+                        project_name,
+                        permit_alias,
+                        project_location,
+                        facility_scope,
+                        source_id,
+                        facility_source_address,
+                        asset_identity,
+                        event_asset_type,
+                    ) = context
                     candidate_aliases = (candidate.identity_facts or {}).get("project_aliases", [])
                     same_name = (
                         normalized_identity(candidate.name) == normalized_identity(project_name)
@@ -2065,7 +2306,7 @@ def process_job(
                     )
                     same_facility_scope = bool(
                         facility_scope
-                        and candidate.source_id == source.id
+                        and candidate.source_id == source_id
                         and same_site
                         and (candidate.identity_facts or {}).get("facility_scope") == facility_scope
                         and normalized_identity(
@@ -2079,7 +2320,7 @@ def process_job(
                     geographic_conflict = conflicting_geography(
                         candidate.location, project_location
                     )
-                    decision = decide_project_match(
+                    return decide_project_match(
                         same_address=same_site,
                         same_project_name=same_name,
                         same_asset_identity=same_asset,
@@ -2087,12 +2328,40 @@ def process_job(
                         conflicting_geography=geographic_conflict,
                         conflicting_asset_type=_asset_type_conflicts(
                             candidate.asset_type,
-                            classify_event(observation.title, observation.abstract),
+                            event_asset_type,
                         ),
                     )
-                    decisions.append((candidate, decision))
-                    if decision.decision == "matched":
-                        supported.append((candidate, decision))
+
+                def decision_project_ids(
+                    rows: Sequence[Project],
+                    decisions: list[tuple[Project, Any]],
+                    supported: list[tuple[Project, Any]],
+                ) -> set[Any]:
+                    if len(supported) > 1:
+                        # The established ambiguous branch writes a separate
+                        # decision for every candidate, including no-fact rows.
+                        return {candidate.id for candidate in rows}
+                    return {
+                        candidate.id
+                        for candidate, decision in decisions
+                        if decision.decision == "matched" or decision.matched_facts
+                    }
+
+                # Discover every eventual match-decision FK, then lock only
+                # those projects in the shared UUID order before need locks.
+                candidates = session.scalars(select(Project)).all()
+                decisions, supported = candidate_decisions(candidates)
+                locked_candidate_ids = decision_project_ids(candidates, decisions, supported)
+                for candidate_id in sorted(locked_candidate_ids, key=str):
+                    lock_project(session, candidate_id)
+                candidates = session.scalars(
+                    select(Project).execution_options(populate_existing=True)
+                ).all()
+                decisions, supported = candidate_decisions(candidates)
+                if not decision_project_ids(candidates, decisions, supported).issubset(
+                    locked_candidate_ids
+                ):
+                    raise RuntimeError("Structured project candidate changed after ordered locks")
                 if len(supported) == 1:
                     project = supported[0][0]
                 else:
@@ -2237,6 +2506,7 @@ def process_job(
                 project.name = project_name
                 if project_location and project.location != project_location:
                     project.location = project_location
+            material_baseline = seed_material_state(session, project)
             if permit_assessment:
                 superseded = session.scalars(
                     select(PowerNeed)
@@ -2386,6 +2656,8 @@ def process_job(
                 apply_lifecycle_observation(session, project, observation, lifecycle_evidence)
                 if need.tier == "Signal":
                     adjudicate_signal(session, observation, lifecycle_evidence)
+                # Snapshot diff excludes retry metadata, timestamps and rationale-only churn.
+                record_material_diff(session, project, lifecycle_evidence, material_baseline)
 
         job = assert_fence(session, job_id, worker_id, fence)
         job.checkpoint = external_id

@@ -1,10 +1,14 @@
 import hashlib
 import json
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
+from threading import Event
+from time import monotonic
+from uuid import UUID
 
 import httpx
 import pytest
-from sqlalchemy import create_engine, func, select
+from sqlalchemy import create_engine, event, func, select, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 
@@ -126,6 +130,173 @@ def test_replay_versions_and_withdrawal_preserve_evidence(db):
         assert session.scalar(select(Observation.published_at)) == datetime(2026, 9, 14).date()
         assert session.scalar(select(PowerNeed.active)) is None
         assert session.scalar(select(Interpretation.status)) == "rejected"
+
+
+def test_linked_negative_correction_locks_project_before_need(db):
+    engine, factory, job_id = db
+    initial = record(
+        "The proposed Mine Plan of Operations would develop the mine, with dewatering "
+        "and ventilation shafts."
+    )
+    run(factory, job_id, initial)
+    with factory.begin() as session:
+        observation = session.scalar(select(Observation))
+        assert observation is not None
+        project = Project(
+            identity_key="legacy-project-identity-differs-from-correction",
+            name="Legacy linked project",
+            location="Silver Ridge, Nevada",
+            source_id=observation.source_id,
+            external_id="legacy-project-id",
+        )
+        session.add(project)
+        session.flush()
+        identity_project = Project(
+            identity_key="federal-register-eis:TEST-0001",
+            name="Correction-key project",
+            location="Unrelated site, Nevada",
+            source_id=observation.source_id,
+            external_id=observation.external_id,
+        )
+        session.add(identity_project)
+        session.flush()
+        need = PowerNeed(
+            project_id=project.id,
+            activity_key="facility-expansion",
+            tier="Signal",
+            rationale="Previously linked supported need.",
+            active=True,
+        )
+        session.add(need)
+        session.flush()
+        session.add(NeedObservation(need_id=need.id, observation_id=observation.id))
+
+    statements = []
+
+    def capture_for_update(_conn, _cursor, statement, _parameters, _context, _many):
+        if "for update" in statement.casefold():
+            statements.append(statement.casefold())
+
+    event.listen(engine, "before_cursor_execute", capture_for_update)
+    try:
+        negative = record("The proposed development was canceled and will not proceed.")
+        run(factory, job_id, negative)
+    finally:
+        event.remove(engine, "before_cursor_execute", capture_for_update)
+    project_lock = next(i for i, sql in enumerate(statements) if "from projects" in sql)
+    need_lock = next(i for i, sql in enumerate(statements) if "from power_needs" in sql)
+    assert project_lock < need_lock, statements
+    with factory() as session:
+        need = session.scalar(select(PowerNeed))
+        assert need is not None and not need.active
+
+
+def test_linked_negative_correction_does_not_hold_need_while_waiting_for_project(db):
+    engine, factory, job_id = db
+    initial = record(
+        "The proposed Mine Plan of Operations would develop the mine, with dewatering "
+        "and ventilation shafts."
+    )
+    run(factory, job_id, initial)
+    with factory.begin() as session:
+        observation = session.scalar(select(Observation))
+        assert observation is not None
+        project = Project(
+            identity_key="legacy-project-identity-differs-from-correction",
+            name="Legacy linked project",
+            location="Silver Ridge, Nevada",
+            source_id=observation.source_id,
+            external_id="legacy-project-id",
+        )
+        session.add(project)
+        session.flush()
+        session.add(
+            Project(
+                identity_key="federal-register-eis:TEST-0001",
+                name="Correction-key project",
+                location="Unrelated site, Nevada",
+                source_id=observation.source_id,
+                external_id=observation.external_id,
+            )
+        )
+        session.flush()
+        need = PowerNeed(
+            project_id=project.id,
+            activity_key="facility-expansion",
+            tier="Signal",
+            rationale="Previously linked supported need.",
+            active=True,
+        )
+        session.add(need)
+        session.flush()
+        session.add(NeedObservation(need_id=need.id, observation_id=observation.id))
+        project_id, need_id = project.id, need.id
+
+    project_lock_attempted = Event()
+    worker_done = Event()
+
+    def observe_wait_point(conn, _cursor, statement, _parameters, _context, _many):
+        if (
+            conn.info.get("linked_negative_worker")
+            and "for update" in statement.casefold()
+            and "from projects" in statement.casefold()
+            and "projects.id" in statement.casefold()
+        ):
+            project_lock_attempted.set()
+
+    event.listen(engine, "before_cursor_execute", observe_wait_point)
+
+    def correction():
+        definition = federal_register_source()
+        client = httpx.Client(
+            transport=httpx.MockTransport(
+                lambda request: httpx.Response(
+                    200,
+                    json=response_for(
+                        record("The proposed development was canceled and will not proceed.")
+                    ),
+                )
+            )
+        )
+        with factory() as session:
+            session.connection().info["linked_negative_worker"] = True
+            try:
+                return process_job(session, job_id, "test", 1, definition, client)
+            finally:
+                worker_done.set()
+
+    try:
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            with factory.begin() as lock_holder:
+                lock_holder.execute(text("SET LOCAL lock_timeout = '1500ms'"))
+                lock_holder.scalar(
+                    select(Project.id).where(Project.id == project_id).with_for_update()
+                )
+                lock_holder.execute(
+                    text("SELECT pg_advisory_xact_lock(hashtextextended(:project_id, 0))"),
+                    {"project_id": str(project_id)},
+                )
+                future = executor.submit(correction)
+                reached_project = project_lock_attempted.wait(2)
+                # The worker is blocked on the project row. It must not already
+                # own the need row, so the lock holder can acquire it and commit.
+                need_available = False
+                if reached_project:
+                    need_available = (
+                        lock_holder.scalar(
+                            select(PowerNeed.id).where(PowerNeed.id == need_id).with_for_update()
+                        )
+                        == need_id
+                    )
+            result = future.result(6)
+            assert worker_done.is_set()
+            assert reached_project and need_available
+            assert result["changed"] == 1
+    finally:
+        event.remove(engine, "before_cursor_execute", observe_wait_point)
+    with factory() as session:
+        need = session.get(PowerNeed, need_id)
+        assert need is not None and not need.active
 
 
 def test_permit_assessment_replay_correction_and_deactivation(db):
@@ -420,7 +591,8 @@ def test_permit_v5_rejected_to_v6_clause_recovery_and_replay(db):
         assert not session.scalar(
             select(PowerNeed.active).join(Project).where(Project.source_id == definition["id"])
         )
-        assert session.scalar(select(func.count()).select_from(ChangeEvent)) == event_count + 1
+        # Legacy closure plus an evidence-bound power-state material delta.
+        assert session.scalar(select(func.count()).select_from(ChangeEvent)) == event_count + 2
         assert session.scalar(select(func.count()).select_from(NeedObservation)) == link_count
 
 
@@ -556,7 +728,8 @@ def test_event_signal_closes_after_explicit_end_date_on_same_hash_replay(db, mon
             session.scalar(select(func.count()).select_from(ChangeEvent)),
             session.scalar(select(func.count()).select_from(NeedObservation)),
         )
-        assert closed_snapshot[-2] == first_snapshot[-2] + 1
+        # Legacy closure plus an evidence-bound power-state material delta.
+        assert closed_snapshot[-2] == first_snapshot[-2] + 2
     assert run()["unchanged"] == 1
     with factory() as session:
         observation = session.scalar(select(Observation))
@@ -825,7 +998,10 @@ def test_lifecycle_projection_is_evidence_version_bound_and_never_uses_publicati
         # A correction may return to a retained accepted evidence version. Its event
         # must become current again, and the existing-event path restores asset type.
         interpretation.status = "accepted"
-        interpretation.assessment = {"evidence_hash": evidence.content_hash}
+        interpretation.assessment = {
+            "evidence_hash": evidence.content_hash,
+            "project_identity_key": project.identity_key,
+        }
         assert apply_lifecycle_observation(session, project, observation, evidence) is False
         projection = session.get(ProjectLifecycle, project.id)
         assert projection is not None and projection.current_state == "spud"
@@ -1259,9 +1435,7 @@ def test_houston_sold_event_correction_clears_legacy_publication_date(db, monkey
         assert session.scalar(select(func.count()).select_from(Observation)) == 1
         evidence = list(session.scalars(select(Evidence)))
         assert len(evidence) == 2
-        old = next(
-            item for item in evidence if item.extraction_location == "Old workbook parser"
-        )
+        old = next(item for item in evidence if item.extraction_location == "Old workbook parser")
         current = next(
             item for item in evidence if item.extraction_location.startswith("Official weekly")
         )
@@ -1415,7 +1589,7 @@ def test_reclaimed_fence_blocks_stale_pdf_and_interpretation_writes(db, monkeypa
 def test_authoritative_permit_identity_requires_one_exact_site_candidate(
     db, monkeypatch, candidate_sites, matched
 ):
-    _, factory, _ = db
+    engine, factory, _ = db
     import gridlens.ingestion.service as service
 
     definition = next(s for s in load_registry() if s["id"] == "austin-building-permits")
@@ -1473,10 +1647,25 @@ def test_authoritative_permit_identity_requires_one_exact_site_candidate(
         },
     }
     monkeypatch.setattr(service, "retrieve_source", lambda *_args: [permit])
-    with factory() as session:
-        first = process_job(session, job_id, "test", 1, definition)
-        replay = process_job(session, job_id, "test", 1, definition)
+    locks = []
+
+    def capture_project_locks(_conn, _cursor, statement, _parameters, _context, _many):
+        sql = statement.casefold()
+        if "from projects" in sql and "for update" in sql:
+            locks.append(sql)
+
+    event.listen(engine, "before_cursor_execute", capture_project_locks)
+    try:
+        with factory() as session:
+            first = process_job(session, job_id, "test", 1, definition)
+            replay = process_job(session, job_id, "test", 1, definition)
+    finally:
+        event.remove(engine, "before_cursor_execute", capture_project_locks)
     assert first["signals"] == 1 and replay["unchanged"] == 1
+    # The old implementation emitted `FROM projects FOR UPDATE` here. The
+    # structured path now discovers first and locks each candidate by UUID.
+    assert locks and any("where projects.id" in statement for statement in locks), locks
+    assert not any("from projects for update" in statement for statement in locks), locks
     with factory() as session:
         assert session.scalar(select(func.count()).select_from(Project)) == (
             len(candidate_sites) + (0 if matched else 1)
@@ -1489,6 +1678,235 @@ def test_authoritative_permit_identity_requires_one_exact_site_candidate(
         assert all(d.evidence_id is not None for d in decisions)
         if len(candidate_sites) > 1:
             assert all("Multiple supported" in d.reason for d in decisions)
+
+
+def test_structured_ingestion_locks_candidates_in_news_compatible_uuid_order(db, monkeypatch):
+    engine, factory, _ = db
+    import gridlens.ingestion.service as service
+    from gridlens.intelligence.change_detection import lock_project
+
+    definition = next(
+        source for source in load_registry() if source["id"] == "austin-building-permits"
+    )
+    lower_id, higher_id = UUID(int=1), UUID(int=2)
+    with factory.begin() as session:
+        session.add(
+            Source(
+                id=definition["id"],
+                publisher=definition["publisher"],
+                endpoint=definition["endpoint"],
+                family=definition["family"],
+                geography=definition["geography"],
+                industries=[],
+                retrieval_method=definition["retrieval_method"],
+                health={},
+            )
+        )
+        session.flush()
+        # Both are real identity candidates for this permit. Insert higher
+        # first; the worker must still request the lower project lock first.
+        for project_id in (higher_id, lower_id):
+            session.add(
+                Project(
+                    id=project_id,
+                    identity_key=f"synthetic:{project_id}",
+                    name="New synthetic campus",
+                    source_id=definition["id"],
+                    external_id=str(project_id),
+                    location="123 Main Street, Austin, TX",
+                    identity_facts={"site": "123 Main Street, Austin, TX"},
+                )
+            )
+        session.flush()
+        job = Job(
+            source_id=definition["id"],
+            status="running",
+            lease_owner="test",
+            fence=1,
+            lease_until=datetime.now(UTC) + timedelta(minutes=10),
+        )
+        session.add(job)
+        session.flush()
+        job_id = job.id
+    permit = {
+        "document_number": "ORDER-1",
+        "title": "Synthetic construction permit",
+        "abstract": "Construction of a new data center at 123 Main Street, Austin, TX.",
+        "publication_date": "2026-09-20",
+        "event_date": "2026-09-20",
+        "html_url": "https://example.test/permit/order-1",
+        "permit": {
+            "row_id": "ORDER-1",
+            "description": "Construction of a new data center.",
+            "status": "Active",
+            "address": "123 Main Street",
+            "city": "Austin",
+            "state": "TX",
+            "project": "New synthetic campus",
+            "source_fields": {},
+        },
+    }
+    monkeypatch.setattr(service, "retrieve_source", lambda *_args: [permit])
+    requested_lower, worker_done = Event(), Event()
+    worker_pid = []
+
+    def observe_lock(conn, _cursor, statement, parameters, _context, _many):
+        values = parameters.values() if isinstance(parameters, dict) else parameters or []
+        if (
+            conn.info.get("structured_order_worker")
+            and "from projects" in statement.casefold()
+            and "where projects.id" in statement.casefold()
+            and "for update" in statement.casefold()
+            and lower_id in values
+        ):
+            worker_pid.append(conn.connection.driver_connection.info.backend_pid)
+            requested_lower.set()
+
+    def worker():
+        with factory() as session:
+            session.connection().info["structured_order_worker"] = True
+            try:
+                return process_job(session, job_id, "test", 1, definition)
+            finally:
+                worker_done.set()
+
+    event.listen(engine, "before_cursor_execute", observe_lock)
+    try:
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            with factory.begin() as holder:
+                lock_project(holder, lower_id)
+                holder_pid = holder.scalar(text("SELECT pg_backend_pid()"))
+                future = executor.submit(worker)
+                assert requested_lower.wait(2)
+                assert worker_pid
+                # before_cursor_execute runs before PostgreSQL receives the
+                # query. Wait for PostgreSQL's own blocker view rather than
+                # treating that pre-send marker as proof of contention.
+                deadline = monotonic() + 2
+                blocked = False
+                while monotonic() < deadline:
+                    blocked = bool(
+                        holder.scalar(
+                            text("SELECT :holder = ANY(pg_blocking_pids(:worker))"),
+                            {"holder": holder_pid, "worker": worker_pid[0]},
+                        )
+                    )
+                    if blocked:
+                        break
+                    assert not worker_done.is_set()
+                    worker_done.wait(0.02)
+                assert blocked
+                assert (
+                    holder.scalar(
+                        select(Project.id)
+                        .where(Project.id == higher_id)
+                        .with_for_update(nowait=True)
+                    )
+                    == higher_id
+                )
+            result = future.result(6)
+            assert worker_done.is_set() and result["signals"] == 1
+        with factory() as session:
+            candidate_ids = set(
+                session.scalars(
+                    select(ProjectMatchDecision.candidate_project_id).where(
+                        ProjectMatchDecision.candidate_project_id.in_((lower_id, higher_id))
+                    )
+                ).all()
+            )
+            assert candidate_ids == {lower_id, higher_id}
+    finally:
+        event.remove(engine, "before_cursor_execute", observe_lock)
+
+
+def test_structured_ingestion_does_not_wait_on_unrelated_project_lock(db, monkeypatch):
+    _, factory, _ = db
+    import gridlens.ingestion.service as service
+    from gridlens.intelligence.change_detection import lock_project
+
+    definition = next(
+        source for source in load_registry() if source["id"] == "austin-building-permits"
+    )
+    with factory.begin() as session:
+        session.add(
+            Source(
+                id=definition["id"],
+                publisher=definition["publisher"],
+                endpoint=definition["endpoint"],
+                family=definition["family"],
+                geography=definition["geography"],
+                industries=[],
+                retrieval_method=definition["retrieval_method"],
+                health={},
+            )
+        )
+        session.flush()
+        unrelated = Project(
+            identity_key="unrelated-dallas-project",
+            name="Different Dallas Facility",
+            source_id=definition["id"],
+            external_id="unrelated-dallas",
+            location="Dallas, TX",
+            identity_facts={"site": "Dallas, TX"},
+        )
+        relevant = Project(
+            identity_key="relevant-austin-project",
+            name="New synthetic campus",
+            source_id=definition["id"],
+            external_id="relevant-austin",
+            location="123 Main Street, Austin, TX",
+            identity_facts={"site": "123 Main Street, Austin, TX"},
+        )
+        session.add_all([unrelated, relevant])
+        job = Job(
+            source_id=definition["id"],
+            status="running",
+            lease_owner="test",
+            fence=1,
+            lease_until=datetime.now(UTC) + timedelta(minutes=10),
+        )
+        session.add(job)
+        session.flush()
+        unrelated_id, relevant_id, job_id = unrelated.id, relevant.id, job.id
+    permit = {
+        "document_number": "UNRELATED-LOCK-1",
+        "title": "Synthetic construction permit",
+        "abstract": "Construction of a new data center at 123 Main Street, Austin, TX.",
+        "publication_date": "2026-09-20",
+        "event_date": "2026-09-20",
+        "html_url": "https://example.test/permit/unrelated-lock-1",
+        "permit": {
+            "row_id": "UNRELATED-LOCK-1",
+            "description": "Construction of a new data center.",
+            "status": "Active",
+            "address": "123 Main Street",
+            "city": "Austin",
+            "state": "TX",
+            "project": "New synthetic campus",
+            "source_fields": {},
+        },
+    }
+    monkeypatch.setattr(service, "retrieve_source", lambda *_args: [permit])
+    actual_lock_project = service.lock_project
+    requested_project_ids = []
+
+    def only_relevant_project_locks(session, project_id):
+        requested_project_ids.append(project_id)
+        assert project_id != unrelated_id, "Unrelated project was locked during structured ingest"
+        return actual_lock_project(session, project_id)
+
+    monkeypatch.setattr(service, "lock_project", only_relevant_project_locks)
+
+    def process():
+        with factory() as session:
+            session.execute(text("SET LOCAL lock_timeout = '700ms'"))
+            return process_job(session, job_id, "test", 1, definition)
+
+    with factory.begin() as holder:
+        lock_project(holder, unrelated_id)
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            assert pool.submit(process).result(timeout=3)["signals"] == 1
+    assert relevant_id in requested_project_ids
 
 
 def test_rrc_amendment_rollover_history_no_duplicate_asset_or_inferred_production(db, monkeypatch):

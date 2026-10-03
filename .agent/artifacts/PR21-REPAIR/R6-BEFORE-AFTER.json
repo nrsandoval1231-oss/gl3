@@ -1,0 +1,37 @@
+{
+  "node": "PR21-R6",
+  "base_sha": "6a61e84dca056b600d06e160ebea39de00a9a515",
+  "utc_finish": "2026-10-02 22:30:07 UTC",
+  "builder_database": "gl3_pr21_builder_test",
+  "before": {
+    "command": "pytest backend/tests/integration/test_project_state_changes.py -q -k 'uses_exact_field_evidence or single_nonmatching_claim or change_history_openapi'",
+    "exit_code": 1,
+    "result": "2 failed, 1 passed, 19 deselected",
+    "failures": [
+      "test_need_state_uses_exact_field_evidence_and_preserves_refresh_fallback: eligible divergent tier remained SUPPORTED rather than CONFLICT",
+      "test_project_change_history_openapi_has_typed_array_response: OpenAPI 200 schema lacked array type"
+    ],
+    "control": "test_need_state_single_nonmatching_claim_cannot_support_mutable_projection passed"
+  },
+  "repair": "Retain project/activity/current/admission gates; collect field claim values with exact Evidence, surface conflicts before mutable projection comparison, and keep one nonmatching mutable value UNKNOWN. Add concrete project change response model and regenerate OpenAPI/TypeScript.",
+  "after": {
+    "focused_pytest": "23 passed, 1 Starlette/httpx deprecation warning; exit 0",
+    "ruff": "All checks passed; exit 0",
+    "mypy": "Success: no issues found in 2 source files; exit 0",
+    "web_typecheck": "tsc --noEmit; exit 0",
+    "openapi_generation": "scripts/export_openapi.py; exit 0",
+    "typescript_generation": "npm run generate:api; exit 0",
+    "diff_check": "git diff --check; exit 0"
+  },
+  "source_hashes_sha256": {
+    "backend/src/gridlens/intelligence/project_state.py": "c6b4ba4db60b1e1140cedac37c98d0e392e880081d54fdd1b43656b1288cb8f8",
+    "backend/src/gridlens/api/app.py": "80de89f59a2fbf9a26ff93f87a7a9b09b2b6e5fb5bf17c5ec1454e75a936983f",
+    "backend/tests/integration/test_project_state_changes.py": "e7e6bb4629b6715e949617ed67e75c159ad81ac3c01930554d7f09df9ec4933d",
+    "web/src/api/openapi.json": "853721a036adf92bf2a32c5e717dab25ad139be0ab2fc46fbea6dd66d5130492",
+    "web/src/api/generated.ts": "eb9612e1de11ef9ccf9ddee7b387e1392224fc325eb953f6693df4baa6d7eb4e"
+  },
+  "boundaries": "No migration, external calls, commit, push, merge, or controller full gates. Controller-owned artifacts and concurrent edits left untouched.",
+  "usage_tokens": "UNKNOWN",
+  "durations": "UNKNOWN",
+  "independent_review": "pending controller"
+}

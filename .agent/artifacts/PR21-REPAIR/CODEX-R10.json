@@ -1,0 +1,9 @@
+[
+  {
+    "id": 4170900739,
+    "path": "backend/src/gridlens/intelligence/project_state.py",
+    "line": 150,
+    "created_at": "2026-10-03T00:26:08Z",
+    "body": "**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Normalize equivalent full addresses before declaring conflicts**\n\nWhen the stored or claimed site uses common equivalent forms such as `100 Main Street, Austin, Texas` versus `100 Main St, Austin, TX`, `normalized_identity()` produces different strings, so a single valid claim becomes `UNKNOWN` and two equivalent claims become `CONFLICT`. This loses current site support and manufactures a contradiction despite both values identifying the same complete location; canonicalize street and state forms, or compare structured address components while still rejecting explicit city/state disagreements.\n\nAGENTS.md reference: [AGENTS.md:L6-L6](https://github.com/nrsandoval1231-oss/gl3/blob/27c8cefe77e81ab65bb4e12ecac05fef47bd36bb/AGENTS.md#L6-L6)\n\nUseful? React with \ud83d\udc4d\u00a0/ \ud83d\udc4e."
+  }
+]

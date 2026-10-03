@@ -1,0 +1,7 @@
+# GL3-028 provenance repair
+
+Base/worktree/authority remain GL3-028. Parent self-diff after green deterministic gates found `enrich_buying_chain -> record_material_diff(... retained_after[0])` attaches newest permit Evidence to contractor/buyer changes supported by separate BuyingChainEvidence. That is not sufficient supporting provenance.
+
+Terra owns only core change_detection/buying_chain/project_state/API/models/0012 migration and focused integration tests. Preserve Luna provider/evaluation/docs work. Retain the actual existing BuyingChainEvidence/claim reference(s), immutable source URL/date and field-level support for buying-chain transitions. Do not create parallel evidence concepts or additional migrations. API citations must identify the actual source; primary permit context cannot masquerade as support for an external contractor fact.
+
+Acceptance: distinct original permit and external contractor document yield material contractor/buyer events with the real supporting source, immutable citation after later source changes, unchanged replay suppression, and existing provenance/reversion/negative tests still pass. Run focused integration tests, Ruff, mypy and migration checks as affected. No live provider calls, commit, push, merge, or deployment. Retry budget two materially different repairs. Parent re-runs final gates and obtains fresh exact-candidate independent Sol review afterward.

@@ -1,0 +1,9 @@
+{
+  "scope": "R3 Astra proof follow-up; test-only",
+  "baseline": "Four new project-state proof cases passed on frozen production.",
+  "mutant": "Temporarily changed only eligible tier and MW comparisons to unconditional support, then restored the exact source file.",
+  "command": "uv run --extra dev pytest tests/integration/test_project_state_changes.py -k exact_field -q",
+  "result": "FAILED as required: the nonmatching eligible Evidence appeared in a field evidence list expected to contain only the matching Evidence.",
+  "restored": true,
+  "recorded_at_utc": "2026-10-02T20:17:12.4652843Z"
+}

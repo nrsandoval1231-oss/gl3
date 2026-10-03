@@ -1,0 +1,16 @@
+{
+  "node": "R13",
+  "base_sha": "250d86c23b04052135041b5f9d98ae6e13f9e641",
+  "finding": "Advisory missing_facts examined only top-level project-state statuses, missing UNKNOWN or CONFLICT fields within an otherwise SUPPORTED active power need.",
+  "before_command": "backend/.venv/Scripts/python.exe -m pytest backend/tests/integration/test_project_state_changes.py -q -k 'research_recommendation_sees_nested' --tb=short",
+  "before_result": "Exact-head source, exit 1: 5 failed, 87 deselected in 2.00s. Real current project_state with all required top-level fields SUPPORTED returned no recommendation for nested MW, timing, duration, supply UNKNOWN and MW CONFLICT.",
+  "repair": "A private deterministic missing-facts helper retains the original top-level required fields and adds activity-specific labels for existing nested power_need activity, tier, mw, timing, duration, and supply statuses other than SUPPORTED. Labels are sorted, so multiple-need input order does not change them. The existing judgment, timing, and public-buyer predicates remain unchanged; no work is queued.",
+  "after_command": "backend/.venv/Scripts/python.exe -m pytest backend/tests/integration/test_project_state_changes.py backend/tests/unit/test_evidence_judge.py backend/tests/integration/test_evidence_shadow_storage.py -q",
+  "after_result": "Exit 0: 125 passed, 1 existing StarletteDeprecationWarning in 53.15s. The real nested cases recommend, fully supported fields do not, and multiple needs give stable UNKNOWN/CONFLICT labels.",
+  "other_validation": "Ruff changed source/tests exit 0; mypy backend/src exit 0 on 66 source files; git diff --check exit 0 and receipt JSON parses.",
+  "repair_count": 1,
+  "started_at_utc": "UNKNOWN",
+  "finished_at_utc": "2026-10-03T02:01:28Z",
+  "durations_and_tokens": "UNKNOWN",
+  "authority": "Advisory only. No queue, research launch, new authority, schema, provider action, commit, push, merge, deployment, or production-data mutation. Controller owns full gates and independent review."
+}

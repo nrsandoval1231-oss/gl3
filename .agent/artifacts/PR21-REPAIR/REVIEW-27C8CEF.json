@@ -1,0 +1,12 @@
+{
+  "node": "PR21-REPAIR",
+  "verdict": "PASS",
+  "raw_verdict": "PASS",
+  "raw_audit": "REVIEW-R9-INDEPENDENT.json",
+  "raw_audit_sha256": "4a385c76fe8e1bd91e2c9ba86e0bc228d67dbe71c5a938b3c97e1c71eca8785f",
+  "candidate_manifest_sha256": "88d752afe199c0b6960a5944c1be6afafeec478d93cacf7ae480731065e69a81",
+  "recorded_utc": "2026-10-03T00:21:35.541415+00:00",
+  "scope": "Exact local correctness repair accepted; hosted exact-head verification pending. No merge or deployment.",
+  "reviewer_model": "UNKNOWN (Sol role)",
+  "findings": []
+}

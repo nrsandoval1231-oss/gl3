@@ -1,0 +1,20 @@
+{
+  "head": "37c449148c9bd0d07c9f1b1ca45c3dd769833fca",
+  "recorded_utc": "2026-10-02T21:26:00.285260+00:00",
+  "findings": [
+    {
+      "id": 4169956111,
+      "path": "backend/src/gridlens/intelligence/buying_chain.py",
+      "line": 861,
+      "created_at": "2026-10-02T21:24:02Z",
+      "body": "**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Preserve claims with independent current citations**\n\nWhen a deduplicated claim contains citations from multiple documents, reassigning or rejecting any one retained citation makes this helper return `False` and excludes the entire claim before its remaining citations are evaluated. If another current retained or public citation independently supports the same organization or role, the buyer/contractor consequently disappears and can produce a false material-removal event despite still-valid evidence; invalidate citations individually and retain or recompute the claim from its surviving support.\n\nAGENTS.md reference: [AGENTS.md:L6-L6](https://github.com/nrsandoval1231-oss/gl3/blob/37c449148c9bd0d07c9f1b1ca45c3dd769833fca/AGENTS.md#L6-L6)\n\nUseful? React with \ud83d\udc4d\u00a0/ \ud83d\udc4e."
+    },
+    {
+      "id": 4169956116,
+      "path": "backend/src/gridlens/intelligence/buying_chain.py",
+      "line": 154,
+      "created_at": "2026-10-02T21:24:02Z",
+      "body": "**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Filter retained evidence before applying the scan limit**\n\nWhen more than 24 newer evidence rows remain historically linked to a project but now fail the new current-project predicate\u2014for example after multiple retained-evidence reassignments\u2014the SQL limit is applied before this filter, so an older still-current accepted version is never considered. A subsequent enrichment can therefore see no retained documents, write an empty buying-chain run, and silently drop retained-only claims even though valid project evidence still exists; apply the current-project predicate before limiting or page until four qualifying rows are found.\n\nAGENTS.md reference: [AGENTS.md:L6-L6](https://github.com/nrsandoval1231-oss/gl3/blob/37c449148c9bd0d07c9f1b1ca45c3dd769833fca/AGENTS.md#L6-L6)\n\nUseful? React with \ud83d\udc4d\u00a0/ \ud83d\udc4e."
+    }
+  ]
+}

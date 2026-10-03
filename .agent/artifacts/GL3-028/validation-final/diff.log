@@ -1,0 +1,4 @@
+warning: in the working copy of '.agent/artifacts/GL3-028/EPISODE.md', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of '.agent/artifacts/GL3-028/REVIEW.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'backend/src/gridlens/intelligence/change_detection.py', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'backend/tests/integration/test_project_state_changes.py', LF will be replaced by CRLF the next time Git touches it

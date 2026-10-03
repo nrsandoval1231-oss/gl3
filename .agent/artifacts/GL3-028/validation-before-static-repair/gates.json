@@ -1,0 +1,164 @@
+[
+  {
+    "check": "ruff",
+    "command": [
+      "uv",
+      "run",
+      "ruff",
+      "check",
+      "src",
+      "tests",
+      "migrations",
+      "../scripts"
+    ],
+    "exit_code": 1,
+    "start": "2026-10-02T14:28:53.894560+00:00",
+    "finish": "2026-10-02T14:28:54.080550+00:00",
+    "seconds": 0.18599
+  },
+  {
+    "check": "mypy",
+    "command": [
+      "uv",
+      "run",
+      "mypy",
+      "src"
+    ],
+    "exit_code": 1,
+    "start": "2026-10-02T14:28:54.081551+00:00",
+    "finish": "2026-10-02T14:28:57.363252+00:00",
+    "seconds": 3.281701
+  },
+  {
+    "check": "pytest",
+    "command": [
+      "uv",
+      "run",
+      "pytest",
+      "tests",
+      "-q"
+    ],
+    "exit_code": 0,
+    "start": "2026-10-02T14:28:57.363252+00:00",
+    "finish": "2026-10-02T14:29:42.923309+00:00",
+    "seconds": 45.560057
+  },
+  {
+    "check": "typecheck",
+    "command": [
+      "npm.cmd",
+      "run",
+      "typecheck"
+    ],
+    "exit_code": 0,
+    "start": "2026-10-02T14:29:42.923309+00:00",
+    "finish": "2026-10-02T14:29:45.355777+00:00",
+    "seconds": 2.432468
+  },
+  {
+    "check": "build",
+    "command": [
+      "npm.cmd",
+      "run",
+      "build"
+    ],
+    "exit_code": 0,
+    "start": "2026-10-02T14:29:45.356777+00:00",
+    "finish": "2026-10-02T14:29:48.545071+00:00",
+    "seconds": 3.188294
+  },
+  {
+    "check": "migrations-clean",
+    "command": [
+      "uv",
+      "run",
+      "alembic",
+      "upgrade",
+      "head"
+    ],
+    "exit_code": 0,
+    "start": "2026-10-02T14:29:48.545071+00:00",
+    "finish": "2026-10-02T14:29:49.981662+00:00",
+    "seconds": 1.436591
+  },
+  {
+    "check": "migrations-repeat",
+    "command": [
+      "uv",
+      "run",
+      "alembic",
+      "upgrade",
+      "head"
+    ],
+    "exit_code": 0,
+    "start": "2026-10-02T14:29:49.981662+00:00",
+    "finish": "2026-10-02T14:29:51.152621+00:00",
+    "seconds": 1.170959
+  },
+  {
+    "check": "migrations-drift",
+    "command": [
+      "uv",
+      "run",
+      "alembic",
+      "check"
+    ],
+    "exit_code": 0,
+    "start": "2026-10-02T14:29:51.152621+00:00",
+    "finish": "2026-10-02T14:29:52.471627+00:00",
+    "seconds": 1.319006
+  },
+  {
+    "check": "migrations-downgrade",
+    "command": [
+      "uv",
+      "run",
+      "alembic",
+      "downgrade",
+      "0011_power_need_briefs"
+    ],
+    "exit_code": 0,
+    "start": "2026-10-02T14:29:52.471627+00:00",
+    "finish": "2026-10-02T14:29:53.647413+00:00",
+    "seconds": 1.175786
+  },
+  {
+    "check": "migrations-from-main",
+    "command": [
+      "uv",
+      "run",
+      "alembic",
+      "upgrade",
+      "head"
+    ],
+    "exit_code": 0,
+    "start": "2026-10-02T14:29:53.648413+00:00",
+    "finish": "2026-10-02T14:29:54.915108+00:00",
+    "seconds": 1.266695
+  },
+  {
+    "check": "migrations-drift-after-upgrade",
+    "command": [
+      "uv",
+      "run",
+      "alembic",
+      "check"
+    ],
+    "exit_code": 0,
+    "start": "2026-10-02T14:29:54.916114+00:00",
+    "finish": "2026-10-02T14:29:56.253805+00:00",
+    "seconds": 1.337691
+  },
+  {
+    "check": "diff",
+    "command": [
+      "git",
+      "diff",
+      "--check"
+    ],
+    "exit_code": 0,
+    "start": "2026-10-02T14:29:56.254801+00:00",
+    "finish": "2026-10-02T14:29:56.424989+00:00",
+    "seconds": 0.170188
+  }
+]

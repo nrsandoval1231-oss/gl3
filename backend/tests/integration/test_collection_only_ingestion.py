@@ -2,12 +2,15 @@ import hashlib
 import importlib.util
 import json
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
+from threading import Event
+from time import monotonic
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, func, select
+from sqlalchemy import create_engine, event, func, select, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 
@@ -415,6 +418,872 @@ def test_news_prospect_claim_is_preserved_but_does_not_create_an_opportunity(db,
         assert interpretation and interpretation.assessment["tier"] == "Prospect"
         assert interpretation.assessment["admission_status"] == "supplement_unmatched"
         assert interpretation and interpretation.assessment["demand_mw"] == "about 42 MW"
+
+
+def test_supported_news_need_change_is_attributed_once_and_unrelated_evidence_stays_quiet(db):
+    _, factory, _ = db
+    from gridlens.domain.signal_admission import admit_standalone
+    from gridlens.ingestion.registry import load_registry
+    from gridlens.ingestion.service import assess_retained_news
+    from gridlens.intelligence.change_detection import (
+        material_state,
+        record_material_diff,
+        seed_material_state,
+    )
+
+    permit_definition = next(
+        row for row in load_registry() if row["id"] == "austin-building-permits"
+    )
+    with factory.begin() as session:
+        permit_source = Source(
+            id=permit_definition["id"],
+            publisher=permit_definition["publisher"],
+            endpoint=permit_definition["endpoint"],
+            family=permit_definition["family"],
+            geography="US",
+            industries=["industrial"],
+            retrieval_method=permit_definition["retrieval_method"],
+            health={},
+        )
+        session.add(permit_source)
+        session.flush()
+        # This exercises the supported assessment branch with an actual
+        # admitted official source; publisher-RSS itself remains context-only.
+        news_record = _project_record(
+            "Atlas Mesa data center campus capacity is 200 MW, but Atlas Mesa data center "
+            "construction requires about 42 MW. Power supply for Atlas Mesa data center "
+            "construction is delayed. Site address: 100 Main Street, Austin, TX."
+        )
+        observation = Observation(
+            source_id=permit_source.id,
+            external_id="supported-official-claim",
+            title=news_record["title"],
+            abstract=news_record["abstract"],
+            published_at=date.fromisoformat(news_record["publication_date"]),
+            url=news_record["html_url"],
+            content_hash=hashlib.sha256(
+                f"{news_record['title']}|{news_record['abstract']}".encode()
+            ).hexdigest(),
+        )
+        session.add(observation)
+        session.flush()
+        evidence = Evidence(
+            observation_id=observation.id,
+            content_hash=news_record["source_hash"],
+            title=news_record["title"],
+            abstract=news_record["abstract"],
+            url=news_record["html_url"],
+            published_at=observation.published_at,
+        )
+        session.add(
+            Interpretation(
+                observation_id=observation.id,
+                content_hash=observation.content_hash,
+                status="pending",
+                attempts=0,
+            )
+        )
+        session.add(evidence)
+        session.flush()
+        assert admit_standalone(
+            source_id=permit_source.id,
+            family=permit_source.family,
+            retrieval_method=permit_source.retrieval_method,
+            accepted=True,
+            activity="facility-expansion",
+            title=evidence.title,
+            abstract=evidence.abstract,
+            dated=True,
+            citation_url=evidence.url,
+            identified_project=True,
+        ).admitted
+        assert assess_retained_news(session, observation, evidence) is True
+        project = session.scalar(select(Project))
+        need = session.scalar(select(PowerNeed))
+        assert project is not None and need is not None
+        assert (need.tier, need.required_mw, need.supply) == (
+            "Prospect",
+            "about 42 MW",
+            "Reported constraint",
+        )
+        from gridlens.intelligence.project_state import project_state
+
+        projected_need = project_state(session, project.id)["state"]["power_need"]["value"][0]
+        assert {
+            name: projected_need[name]["status"] for name in ("activity", "tier", "mw", "supply")
+        } == {
+            "activity": "SUPPORTED",
+            "tier": "SUPPORTED",
+            "mw": "SUPPORTED",
+            "supply": "SUPPORTED",
+        }
+        material = session.scalar(
+            select(ChangeEvent).where(
+                ChangeEvent.project_id == project.id,
+                ChangeEvent.field_name == "power_need",
+                ChangeEvent.evidence_id == evidence.id,
+            )
+        )
+        assert material is not None
+        assert material.prior_state == {"value": []}
+        power_state = material.new_state["value"][0]
+        assert (power_state["tier"], power_state["required_mw"], power_state["supply"]) == (
+            "Prospect",
+            "about 42 MW",
+            "Reported constraint",
+        )
+        assert material.new_state != material.prior_state
+        event_count = session.scalar(select(func.count()).select_from(ChangeEvent))
+        assert assess_retained_news(session, observation, evidence) is False
+        assert session.scalar(select(func.count()).select_from(ChangeEvent)) == event_count
+
+        # A second immutable version of the same admitted official record must
+        # attribute an existing need's tier, load, and supply transition to
+        # that exact version.
+        revised = _project_record(
+            news_record["abstract"].replace("about 42 MW", "about 58 MW"),
+            news_record["title"],
+        )
+        observation.title = revised["title"]
+        observation.abstract = revised["abstract"]
+        observation.content_hash = revised["source_hash"]
+        observation.published_at = date.fromisoformat(revised["publication_date"])
+        revised_evidence = Evidence(
+            observation_id=observation.id,
+            content_hash=revised["source_hash"],
+            title=revised["title"],
+            abstract=revised["abstract"],
+            url=revised["html_url"],
+            published_at=observation.published_at,
+        )
+        session.add(revised_evidence)
+        session.flush()
+        assert assess_retained_news(session, observation, revised_evidence) is True
+        session.refresh(need)
+        assert (need.tier, need.required_mw, need.supply) == (
+            "Prospect",
+            "about 58 MW",
+            "Reported constraint",
+        )
+        revised_event = session.scalar(
+            select(ChangeEvent).where(
+                ChangeEvent.project_id == project.id,
+                ChangeEvent.field_name == "power_need",
+                ChangeEvent.evidence_id == revised_evidence.id,
+            )
+        )
+        assert revised_event is not None
+        prior_power = revised_event.prior_state["value"][0]
+        current_power = revised_event.new_state["value"][0]
+        assert (prior_power["tier"], prior_power["required_mw"], prior_power["supply"]) == (
+            "Prospect",
+            "about 42 MW",
+            "Reported constraint",
+        )
+        assert (current_power["tier"], current_power["required_mw"], current_power["supply"]) == (
+            "Prospect",
+            "about 58 MW",
+            "Reported constraint",
+        )
+        assert revised_event.new_state == {
+            "value": material_state(session, project.id)["power_need"]
+        }
+        revised_event_count = session.scalar(select(func.count()).select_from(ChangeEvent))
+        assert assess_retained_news(session, observation, revised_evidence) is False
+        assert session.scalar(select(func.count()).select_from(ChangeEvent)) == revised_event_count
+
+        signal = _project_record(
+            "Site address: 100 Main Street, Austin, TX. Atlas Mesa data center "
+            "construction is planned.",
+            news_record["title"],
+        )
+        observation.title = signal["title"]
+        observation.abstract = signal["abstract"]
+        observation.content_hash = signal["source_hash"]
+        observation.published_at = date.fromisoformat(signal["publication_date"])
+        signal_evidence = Evidence(
+            observation_id=observation.id,
+            content_hash=signal["source_hash"],
+            title=signal["title"],
+            abstract=signal["abstract"],
+            url=signal["html_url"],
+            published_at=observation.published_at,
+        )
+        session.add(signal_evidence)
+        session.flush()
+        assert assess_retained_news(session, observation, signal_evidence) is True
+        session.refresh(need)
+        assert (need.tier, need.required_mw, need.supply) == ("Signal", None, "Unknown")
+        signal_event = session.scalar(
+            select(ChangeEvent).where(
+                ChangeEvent.project_id == project.id,
+                ChangeEvent.field_name == "power_need",
+                ChangeEvent.evidence_id == signal_evidence.id,
+            )
+        )
+        assert signal_event is not None
+        assert signal_event.prior_state["value"][0] == {
+            **signal_event.prior_state["value"][0],
+            "tier": "Prospect",
+            "required_mw": "about 58 MW",
+            "supply": "Reported constraint",
+        }
+        assert signal_event.new_state == {
+            "value": material_state(session, project.id)["power_need"]
+        }
+        latest_event_count = session.scalar(select(func.count()).select_from(ChangeEvent))
+        assert assess_retained_news(session, observation, signal_evidence) is False
+        assert session.scalar(select(func.count()).select_from(ChangeEvent)) == latest_event_count
+
+        unrelated_observation = Observation(
+            source_id=permit_source.id,
+            external_id="unrelated-permit",
+            title="Unrelated permit",
+            abstract="A different project.",
+            published_at=date(2026, 9, 30),
+            url="https://example.test/permit/unrelated",
+            content_hash="unrelated-semantic-hash",
+        )
+        session.add(unrelated_observation)
+        session.flush()
+        unrelated_evidence = Evidence(
+            observation_id=unrelated_observation.id,
+            content_hash="unrelated-evidence-hash",
+            title=unrelated_observation.title,
+            abstract=unrelated_observation.abstract,
+            url=unrelated_observation.url,
+            published_at=unrelated_observation.published_at,
+        )
+        session.add(unrelated_evidence)
+        session.flush()
+        baseline = seed_material_state(session, project)
+        assert record_material_diff(session, project, unrelated_evidence, baseline) == []
+        assert session.scalar(select(func.count()).select_from(ChangeEvent)) == latest_event_count
+
+
+def test_second_official_need_claim_emits_conflict_without_selected_value_change(db):
+    _, factory, _ = db
+    from gridlens.ingestion.registry import load_registry
+    from gridlens.ingestion.service import assess_retained_news
+    from gridlens.intelligence.change_detection import record_material_diff, seed_material_state
+    from gridlens.intelligence.project_state import project_state
+
+    definition = next(row for row in load_registry() if row["id"] == "austin-building-permits")
+    with factory.begin() as session:
+        session.add(
+            Source(
+                id=definition["id"],
+                publisher=definition["publisher"],
+                endpoint=definition["endpoint"],
+                family=definition["family"],
+                geography="US",
+                industries=["industrial"],
+                retrieval_method=definition["retrieval_method"],
+                health={},
+            )
+        )
+        session.flush()
+        first_summary = (
+            "Atlas Mesa data center construction requires about 42 MW. Power supply for "
+            "Atlas Mesa data center construction is delayed. Site address: 100 Main Street, "
+            "Austin, TX."
+        )
+
+        def retained(summary: str, external_id: str):
+            record = _project_record(summary)
+            observation = Observation(
+                source_id=definition["id"],
+                external_id=external_id,
+                title=record["title"],
+                abstract=summary,
+                published_at=date.fromisoformat(record["publication_date"]),
+                url=record["html_url"],
+                content_hash=record["source_hash"],
+            )
+            session.add(observation)
+            session.flush()
+            evidence = Evidence(
+                observation_id=observation.id,
+                content_hash=record["source_hash"],
+                title=record["title"],
+                abstract=summary,
+                url=record["html_url"],
+                published_at=observation.published_at,
+            )
+            session.add_all(
+                [
+                    evidence,
+                    Interpretation(
+                        observation_id=observation.id,
+                        content_hash=observation.content_hash,
+                        status="pending",
+                        attempts=0,
+                    ),
+                ]
+            )
+            session.flush()
+            return observation, evidence
+
+        first_observation, first_evidence = retained(first_summary, "claim-42")
+        assert assess_retained_news(session, first_observation, first_evidence) is True
+        project = session.scalar(select(Project))
+        need = session.scalar(select(PowerNeed))
+        assert project is not None and need is not None
+        selected = (need.tier, need.required_mw, need.supply)
+        assert selected == ("Prospect", "about 42 MW", "Reported constraint")
+
+        second_observation, second_evidence = retained(
+            first_summary.replace("about 42 MW", "approximately 58 MW"), "claim-58"
+        )
+        assert assess_retained_news(session, second_observation, second_evidence) is True
+        assert session.scalar(select(func.count()).select_from(Project)) == 1
+        session.refresh(need)
+        assert (need.tier, need.required_mw, need.supply) == selected
+        fields = project_state(session, project.id)["state"]["power_need"]["value"][0]
+        assert fields["mw"]["status"] == "CONFLICT"
+        assert {claim["evidence"]["id"] for claim in fields["mw"]["claims"]} == {
+            str(first_evidence.id), str(second_evidence.id)
+        }
+        event = session.scalar(
+            select(ChangeEvent).where(
+                ChangeEvent.project_id == project.id,
+                ChangeEvent.field_name == "power_need",
+                ChangeEvent.evidence_id == second_evidence.id,
+            )
+        )
+        assert event is not None
+        assert event.new_state["value"][0]["conflicts"]["mw"] == [
+            "about 42 MW", "approximately 58 MW"
+        ]
+        event_count = session.scalar(select(func.count()).select_from(ChangeEvent))
+        agreeing_observation, agreeing_evidence = retained(first_summary, "agreeing-42")
+        assert assess_retained_news(session, agreeing_observation, agreeing_evidence) is True
+        assert session.scalar(select(func.count()).select_from(ChangeEvent)) == event_count
+        assert assess_retained_news(session, second_observation, second_evidence) is False
+        assert session.scalar(select(func.count()).select_from(ChangeEvent)) == event_count
+        baseline = seed_material_state(session, project)
+        assert record_material_diff(session, project, first_evidence, baseline) == []
+        assert session.scalar(select(func.count()).select_from(ChangeEvent)) == event_count
+
+        # A new immutable revision of the same linked observation resolves the
+        # conflict. Its pre-action baseline must survive the later target lookup.
+        revised = _project_record(first_summary)
+        second_observation.abstract = first_summary
+        second_observation.content_hash = revised["source_hash"]
+        revised_evidence = Evidence(
+            observation_id=second_observation.id,
+            content_hash=revised["source_hash"],
+            title=revised["title"],
+            abstract=first_summary,
+            url=revised["html_url"],
+            published_at=second_observation.published_at,
+        )
+        session.add(revised_evidence)
+        session.flush()
+        assert assess_retained_news(session, second_observation, revised_evidence) is True
+        resolution = session.scalar(
+            select(ChangeEvent).where(
+                ChangeEvent.project_id == project.id,
+                ChangeEvent.field_name == "power_need",
+                ChangeEvent.evidence_id == revised_evidence.id,
+            )
+        )
+        assert resolution is not None
+        assert resolution.prior_state["value"][0]["conflicts"]["mw"] == [
+            "about 42 MW", "approximately 58 MW"
+        ]
+        assert "conflicts" not in resolution.new_state["value"][0]
+        resolved_count = session.scalar(select(func.count()).select_from(ChangeEvent))
+        assert assess_retained_news(session, second_observation, revised_evidence) is False
+        assert session.scalar(select(func.count()).select_from(ChangeEvent)) == resolved_count
+
+
+def test_retained_assessment_does_not_wait_on_unrelated_project_lock(db):
+    _, factory, _ = db
+    from gridlens.ingestion.registry import load_registry
+    from gridlens.ingestion.service import assess_retained_news
+    from gridlens.intelligence.change_detection import lock_project
+
+    definition = next(row for row in load_registry() if row["id"] == "austin-building-permits")
+    with factory.begin() as session:
+        session.add(
+            Source(
+                id=definition["id"],
+                publisher=definition["publisher"],
+                endpoint=definition["endpoint"],
+                family=definition["family"],
+                geography="US",
+                industries=[],
+                retrieval_method=definition["retrieval_method"],
+                health={},
+            )
+        )
+        session.flush()
+        unrelated = Project(
+            source_id=definition["id"],
+            external_id="dallas-other",
+            name="Different Dallas Facility",
+            location="Dallas, TX",
+            identity_key="different-dallas-facility",
+            identity_facts={"site": "Dallas, TX"},
+        )
+        session.add(unrelated)
+        record = _project_record(
+            "Atlas Mesa data center construction requires about 42 MW. Power supply for "
+            "Atlas Mesa data center construction is delayed. Site address: "
+            "100 Main Street, Austin, TX."
+        )
+        observation = Observation(
+            source_id=definition["id"],
+            external_id="unrelated-lock-proof",
+            title=record["title"],
+            abstract=record["abstract"],
+            published_at=date.fromisoformat(record["publication_date"]),
+            url=record["html_url"],
+            content_hash=record["source_hash"],
+        )
+        session.add(observation)
+        session.flush()
+        evidence = Evidence(
+            observation_id=observation.id,
+            content_hash=record["source_hash"],
+            title=record["title"],
+            abstract=record["abstract"],
+            url=record["html_url"],
+            published_at=observation.published_at,
+        )
+        session.add_all(
+            [
+                evidence,
+                Interpretation(
+                    observation_id=observation.id,
+                    content_hash=observation.content_hash,
+                    status="pending",
+                    attempts=0,
+                ),
+            ]
+        )
+        session.flush()
+        unrelated_id, observation_id, evidence_id = unrelated.id, observation.id, evidence.id
+
+    def assess():
+        with factory.begin() as session:
+            session.execute(text("SET LOCAL lock_timeout = '700ms'"))
+            return assess_retained_news(
+                session,
+                session.get(Observation, observation_id),
+                session.get(Evidence, evidence_id),
+            )
+
+    with factory.begin() as holder:
+        lock_project(holder, unrelated_id)
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            assert pool.submit(assess).result(timeout=3) is True
+    with factory() as session:
+        assert session.scalar(select(func.count()).select_from(Project)) == 2
+
+
+def test_retained_candidate_fact_change_fails_before_late_project_lock(db):
+    """A project becoming a candidate during a held lock requires a new attempt."""
+    from gridlens.ingestion.registry import load_registry
+    from gridlens.ingestion.service import assess_retained_news
+    from gridlens.intelligence.change_detection import lock_project
+
+    engine, factory, _ = db
+    definition = next(row for row in load_registry() if row["id"] == "austin-building-permits")
+    with factory.begin() as session:
+        session.add(
+            Source(
+                id=definition["id"],
+                publisher=definition["publisher"],
+                endpoint=definition["endpoint"],
+                family=definition["family"],
+                geography="US",
+                industries=[],
+                retrieval_method=definition["retrieval_method"],
+                health={},
+            )
+        )
+        session.flush()
+        target = Project(
+            source_id=definition["id"],
+            external_id="target",
+            name="Atlas Mesa data center",
+            location="100 Main Street, Austin, TX",
+            identity_key="existing-atlas-mesa",
+            identity_facts={"site": "100 Main Street, Austin, TX"},
+        )
+        changing = Project(
+            source_id=definition["id"],
+            external_id="changing",
+            name="Different Dallas Facility",
+            location="Dallas, TX",
+            identity_key="changing-dallas-facility",
+            identity_facts={"site": "Dallas, TX"},
+        )
+        session.add_all([target, changing])
+        record = _project_record(
+            "Atlas Mesa data center construction requires about 42 MW. Power supply for "
+            "Atlas Mesa data center construction is delayed. Site address: "
+            "100 Main Street, Austin, TX."
+        )
+        observation = Observation(
+            source_id=definition["id"],
+            external_id="candidate-fact-change",
+            title=record["title"],
+            abstract=record["abstract"],
+            published_at=date.fromisoformat(record["publication_date"]),
+            url=record["html_url"],
+            content_hash=record["source_hash"],
+        )
+        session.add(observation)
+        session.flush()
+        evidence = Evidence(
+            observation_id=observation.id,
+            content_hash=record["source_hash"],
+            title=record["title"],
+            abstract=record["abstract"],
+            url=record["html_url"],
+            published_at=observation.published_at,
+        )
+        session.add_all(
+            [
+                evidence,
+                Interpretation(
+                    observation_id=observation.id,
+                    content_hash=observation.content_hash,
+                    status="pending",
+                    attempts=0,
+                ),
+            ]
+        )
+        session.flush()
+        target_id, changing_id = target.id, changing.id
+        observation_id, evidence_id = observation.id, evidence.id
+
+    requested_lock, worker_done = Event(), Event()
+    worker_pid = []
+
+    def observe_lock(conn, _cursor, statement, parameters, _context, _many):
+        values = parameters.values() if isinstance(parameters, dict) else parameters or []
+        if (
+            conn.info.get("retained_candidate_worker")
+            and "from projects" in statement.casefold()
+            and "where projects.id" in statement.casefold()
+            and "for update" in statement.casefold()
+            and target_id in values
+        ):
+            worker_pid.append(conn.connection.driver_connection.info.backend_pid)
+            requested_lock.set()
+
+    def assess():
+        with factory.begin() as session:
+            session.connection().info["retained_candidate_worker"] = True
+            try:
+                return assess_retained_news(
+                    session,
+                    session.get(Observation, observation_id),
+                    session.get(Evidence, evidence_id),
+                )
+            finally:
+                worker_done.set()
+
+    event.listen(engine, "before_cursor_execute", observe_lock)
+    try:
+        with ThreadPoolExecutor(max_workers=1) as pool:
+            with factory.begin() as holder:
+                lock_project(holder, target_id)
+                holder_pid = holder.scalar(text("SELECT pg_backend_pid()"))
+                future = pool.submit(assess)
+                assert requested_lock.wait(2)
+                deadline = monotonic() + 2
+                while monotonic() < deadline:
+                    if holder.scalar(
+                        text("SELECT :holder = ANY(pg_blocking_pids(:worker))"),
+                        {"holder": holder_pid, "worker": worker_pid[0]},
+                    ):
+                        break
+                    assert not worker_done.is_set()
+                    worker_done.wait(0.02)
+                else:
+                    pytest.fail("Retained assessment never blocked on its target project")
+                changing_row = holder.get(Project, changing_id)
+                changing_row.name = "Atlas Mesa data center"
+                changing_row.location = "100 Main Street, Austin, TX"
+                changing_row.identity_facts = {"site": "100 Main Street, Austin, TX"}
+            with pytest.raises(RuntimeError, match="changed after ordered locks"):
+                future.result(6)
+    finally:
+        event.remove(engine, "before_cursor_execute", observe_lock)
+
+
+@pytest.mark.parametrize("check_initial_binding", [True, False])
+def test_official_same_hash_reassignment_clears_former_project_support_and_keeps_history(
+    db, check_initial_binding
+):
+    """An evaluator correction moves one immutable official citation from A to B."""
+    from gridlens.domain.news_interpretation import assess_news
+    from gridlens.domain.signal_admission import admit_standalone
+    from gridlens.ingestion.registry import load_registry
+    from gridlens.ingestion.service import _news_identity_key, assess_retained_news
+    from gridlens.intelligence.buying_chain import buying_chain_view
+    from gridlens.intelligence.change_detection import record_material_diff, seed_material_state
+    from gridlens.intelligence.lifecycle_service import apply_lifecycle_observation
+    from gridlens.intelligence.project_state import project_state
+    from gridlens.persistence.models import (
+        BuyingChainClaim,
+        BuyingChainEvidence,
+        BuyingChainRun,
+        LifecycleEvent,
+        ProjectLifecycle,
+    )
+
+    _, factory, _ = db
+    definition = next(row for row in load_registry() if row["id"] == "austin-building-permits")
+    summary = (
+        "Atlas Mesa data center construction requires about 42 MW. Power supply for "
+        "Atlas Mesa data center construction is delayed. Site address: 100 Main Street, "
+        "Austin, TX. Acme Builders is the general contractor for Atlas Mesa data center."
+    )
+    record = _project_record(summary)
+    claim = assess_news(record["title"], record["abstract"]).as_dict()
+    assert claim["decision"] == "accepted"
+    target_key = _news_identity_key(
+        record["title"], record["abstract"], definition["id"], "same-hash-correction", claim
+    )
+    with factory.begin() as session:
+        source = Source(
+            id=definition["id"],
+            publisher=definition["publisher"],
+            endpoint=definition["endpoint"],
+            family=definition["family"],
+            geography="US",
+            industries=["industrial"],
+            retrieval_method=definition["retrieval_method"],
+            health={},
+        )
+        session.add(source)
+        session.flush()
+        former = Project(
+            identity_key="historical-atlas-binding",
+            name="Historical Atlas assignment",
+            location="Dallas, TX",
+            source_id=source.id,
+            external_id="historical-atlas",
+            identity_facts={"site": "Dallas, TX"},
+        )
+        selected = Project(
+            identity_key=target_key,
+            name=claim["subject"],
+            location=claim["location"],
+            source_id=source.id,
+            external_id="selected-atlas",
+            identity_facts={"site": claim["location"], "project_aliases": [claim["subject"]]},
+        )
+        session.add_all([former, selected])
+        session.flush()
+        observation = Observation(
+            source_id=source.id,
+            external_id="same-hash-correction",
+            title=record["title"],
+            abstract=record["abstract"],
+            published_at=date.fromisoformat(record["publication_date"]),
+            url=record["html_url"],
+            content_hash=record["source_hash"],
+        )
+        session.add(observation)
+        session.flush()
+        evidence = Evidence(
+            observation_id=observation.id,
+            content_hash=record["source_hash"],
+            title=record["title"],
+            abstract=record["abstract"],
+            url=record["html_url"],
+            published_at=observation.published_at,
+        )
+        session.add(evidence)
+        session.add(
+            Interpretation(
+                observation_id=observation.id,
+                content_hash=observation.content_hash,
+                evaluator_version="earlier-evaluator",
+                status="accepted",
+                attempts=1,
+                assessment={
+                    **claim,
+                    "subject": "Historical Atlas assignment",
+                    "location": "Dallas, TX",
+                    "project_identity_key": former.identity_key,
+                    "power_activity": "construction",
+                    "semantic_hash": observation.content_hash,
+                    "evidence_hash": evidence.content_hash,
+                    "admission_status": "admitted",
+                },
+            )
+        )
+        session.flush()
+        admission = admit_standalone(
+            source_id=source.id,
+            family=source.family,
+            retrieval_method=source.retrieval_method,
+            accepted=True,
+            activity="construction",
+            title=evidence.title,
+            abstract=evidence.abstract,
+            dated=True,
+            citation_url=evidence.url,
+            identified_project=True,
+        )
+        assert admission.admitted
+        old_need = PowerNeed(
+            project_id=former.id,
+            activity_key="construction",
+            tier="Signal",
+            rationale="Historical accepted assignment.",
+            supply="Unknown",
+            active=True,
+            admission_basis=admission.as_basis(source.id, evidence.content_hash),
+        )
+        session.add(old_need)
+        session.flush()
+        session.add(NeedObservation(need_id=old_need.id, observation_id=observation.id))
+        apply_lifecycle_observation(session, former, observation, evidence)
+        assert session.get(ProjectLifecycle, former.id) is not None
+
+        quote = "Acme Builders is the general contractor for Atlas Mesa data center."
+        chain_claim_ids = {}
+        for project in (former, selected):
+            chain_evidence = BuyingChainEvidence(
+                project_id=project.id,
+                retained_evidence_id=evidence.id,
+                url=evidence.url,
+                title=evidence.title,
+                excerpt=quote,
+                content_hash=evidence.content_hash,
+                extraction_location="official filing title and abstract",
+                published_at=evidence.published_at,
+                observed_at=evidence.observed_at,
+                last_seen_at=evidence.observed_at,
+                project_match_reason="Historical interpretation or corrected project binding.",
+            )
+            session.add(chain_evidence)
+            session.flush()
+            chain_claim = BuyingChainClaim(
+                project_id=project.id,
+                entity_key="acme-builders",
+                fingerprint=f"acme-builders-{project.id}",
+                policy_version="test",
+                organization="Acme Builders",
+                person_name=None,
+                title=None,
+                category="general_contractor",
+                organization_relationship="DIRECT",
+                person_organization_relationship="UNKNOWN",
+                person_project_relationship="UNKNOWN",
+                evidence_strength="High",
+                reason="Official retained citation.",
+                citations=[{
+                    "evidence_id": str(chain_evidence.id),
+                    "url": evidence.url,
+                    "quote": quote,
+                    "supports": "organization_category",
+                }],
+                public_contacts=[],
+                observed_at=evidence.observed_at,
+            )
+            session.add(chain_claim)
+            session.flush()
+            chain_claim_ids[project.id] = chain_claim.id
+            session.add(
+                BuyingChainRun(
+                    project_id=project.id,
+                    input_hash=f"same-hash-{project.id}",
+                    evidence_ids=[str(chain_evidence.id)],
+                    claim_ids=[str(chain_claim.id)],
+                    policy_version="test",
+                    status="complete",
+                    documents_checked=1,
+                    candidates_added=1,
+                    unresolved=[],
+                )
+            )
+        session.flush()
+        assert project_state(session, former.id)["state"]["lifecycle"]["status"] == "SUPPORTED"
+        assert buying_chain_view(session, former.id)["candidates"]
+        if check_initial_binding:
+            assert buying_chain_view(session, selected.id)["candidates"] == []
+        before_evidence = (evidence.id, evidence.content_hash, evidence.title, evidence.abstract)
+        assert assess_retained_news(session, observation, evidence) is True
+        session.flush()
+
+        assert session.scalar(select(func.count()).select_from(Evidence)) == 1
+        assert (
+            evidence.id,
+            evidence.content_hash,
+            evidence.title,
+            evidence.abstract,
+        ) == before_evidence
+        assert session.get(ProjectLifecycle, former.id) is None
+        assert project_state(session, former.id)["state"]["lifecycle"]["status"] == "UNKNOWN"
+        assert session.scalar(
+            select(func.count())
+            .select_from(LifecycleEvent)
+            .where(LifecycleEvent.project_id == former.id)
+        ) >= 1  # The historical event remains retained.
+        assert buying_chain_view(session, former.id)["candidates"] == []
+        assert any(
+            row["id"] == chain_claim_ids[former.id]
+            for row in buying_chain_view(session, former.id, history=True)["candidates"]
+        )
+        assert any(
+            row["id"] == chain_claim_ids[selected.id]
+            for row in buying_chain_view(session, selected.id)["candidates"]
+        )
+        assert project_state(session, selected.id)["state"]["lifecycle"]["status"] == "SUPPORTED"
+        assert session.scalar(
+            select(func.count()).select_from(ChangeEvent).where(
+                ChangeEvent.project_id == former.id,
+                ChangeEvent.evidence_id == evidence.id,
+                ChangeEvent.field_name.in_(["phase", "contractor", "buyer"]),
+            )
+        ) >= 3
+        selected_fields = set(
+            session.scalars(
+                select(ChangeEvent.field_name).where(
+                    ChangeEvent.project_id == selected.id,
+                    ChangeEvent.evidence_id == evidence.id,
+                )
+            ).all()
+        )
+        assert {"phase", "contractor", "buyer"} <= selected_fields
+        event_count = session.scalar(select(func.count()).select_from(ChangeEvent))
+        assert assess_retained_news(session, observation, evidence) is False
+        assert session.scalar(select(func.count()).select_from(ChangeEvent)) == event_count
+        unrelated = Observation(
+            source_id=source.id,
+            external_id="unrelated-after-reassignment",
+            title="Unrelated official record",
+            abstract="Another site.",
+            url="https://example.test/permit/unrelated-reassignment",
+            published_at=date(2026, 9, 30),
+            content_hash="unrelated-after-reassignment",
+        )
+        session.add(unrelated)
+        session.flush()
+        unrelated_evidence = Evidence(
+            observation_id=unrelated.id,
+            content_hash=unrelated.content_hash,
+            title=unrelated.title,
+            abstract=unrelated.abstract,
+            url=unrelated.url,
+            published_at=unrelated.published_at,
+        )
+        session.add(unrelated_evidence)
+        session.flush()
+        for project in (former, selected):
+            baseline = seed_material_state(session, project)
+            assert record_material_diff(session, project, unrelated_evidence, baseline) == []
+        assert session.scalar(select(func.count()).select_from(ChangeEvent)) == event_count
 
 
 @pytest.mark.parametrize("prospect_first", [True, False])
@@ -1333,6 +2202,5 @@ def test_authenticated_inbox_filters_and_paginates_retained_versions(db, monkeyp
         == "Not assessed"
     )
     assert all(
-        "topic_label" not in item and "matched_terms" not in item
-        for item in all_items["items"]
+        "topic_label" not in item and "matched_terms" not in item for item in all_items["items"]
     )

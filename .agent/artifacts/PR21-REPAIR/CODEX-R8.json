@@ -1,0 +1,23 @@
+[
+  {
+    "id": 4170595658,
+    "path": "backend/src/gridlens/intelligence/buying_chain.py",
+    "line": 929,
+    "created_at": "2026-10-02T23:15:53Z",
+    "body": "**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Keep claims backed by a fresh independent citation**\n\nWhen a deduplicated buyer or contractor claim has multiple citations, one aged role citation sets `stale` for the entire claim even when another citation remains within `ROLE_MAX_AGE_DAYS`; the candidate then disappears from current state and may generate a false removal event. Fresh evidence beyond the prior independent-citation repair is that age and public-source supersession are still ORed across all citations here, while the surviving-support logic only runs for `invalid_retained_supports`. Evaluate staleness per citation and retain the claim while equivalent current support remains.\n\nAGENTS.md reference: [AGENTS.md:L6-L6](https://github.com/nrsandoval1231-oss/gl3/blob/e485beea8f68934314cf4240394473c3797362db/AGENTS.md#L6-L6)\n\nUseful? React with \ud83d\udc4d\u00a0/ \ud83d\udc4e."
+  },
+  {
+    "id": 4170595659,
+    "path": "backend/src/gridlens/intelligence/project_state.py",
+    "line": 56,
+    "created_at": "2026-10-02T23:15:53Z",
+    "body": "**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Normalize equivalent need values before declaring conflict**\n\nFor admitted claims that express the same load using parser-supported variants such as `12 MW`, `12 mw`, or `12 megawatts`, this raw equality check reports `CONFLICT`; the same raw values also enter material snapshots and emit a spurious conflict transition. Canonicalize MW units and other structured field values in the domain layer before comparing them, while retaining each source's original display text and provenance.\n\nAGENTS.md reference: [AGENTS.md:L6-L7](https://github.com/nrsandoval1231-oss/gl3/blob/e485beea8f68934314cf4240394473c3797362db/AGENTS.md#L6-L7)\n\nUseful? React with \ud83d\udc4d\u00a0/ \ud83d\udc4e."
+  },
+  {
+    "id": 4170595666,
+    "path": "backend/src/gridlens/ingestion/service.py",
+    "line": 871,
+    "created_at": "2026-10-02T23:15:53Z",
+    "body": "**<sub><sub>![P2 Badge](https://img.shields.io/badge/P2-yellow?style=flat)</sub></sub>  Lock only projects that can be affected**\n\nEvery retained-news assessment adds every project in the database to `candidate_project_ids` and then takes a row lock plus advisory lock for each one. Consequently concurrent source jobs block on the first project even when they concern unrelated records, and processing becomes O(all projects) per observation; the structured-ingestion path repeats the same global locking pattern. Discover the actual old and supported candidate IDs first, then acquire only that bounded set in UUID order.\n\nUseful? React with \ud83d\udc4d\u00a0/ \ud83d\udc4e."
+  }
+]
