@@ -254,7 +254,14 @@ def test_recommendation_requires_nested_timing_and_a_public_buyer_contact():
         "state": {
             "power_need": {
                 "status": "SUPPORTED",
-                "value": [{"timing": {"status": "UNKNOWN", "value": None}}],
+                "value": [{
+                    "activity": {"status": "SUPPORTED", "value": "construction"},
+                    "tier": {"status": "SUPPORTED", "value": "Prospect"},
+                    "mw": {"status": "SUPPORTED", "value": "42 MW"},
+                    "timing": {"status": "UNKNOWN", "value": None},
+                    "duration": {"status": "SUPPORTED", "value": "6 months"},
+                    "supply": {"status": "SUPPORTED", "value": "Reported constraint"},
+                }],
             },
             "utility_service": {"status": "UNKNOWN", "value": None},
             "lifecycle": {"status": "SUPPORTED"},
@@ -277,6 +284,42 @@ def test_recommendation_requires_nested_timing_and_a_public_buyer_contact():
         "value": "Q2 2027",
     }
     assert recommend_from_context(judgment, state) is False
+
+
+def test_research_missing_fact_labels_are_stable_across_multiple_needs():
+    from gridlens.intelligence.research_recommendation import _missing_facts
+
+    supported = {"status": "SUPPORTED", "value": "known"}
+    construction = {
+        "activity": {"status": "SUPPORTED", "value": "construction"},
+        "tier": supported,
+        "mw": {"status": "CONFLICT", "value": None},
+        "timing": supported,
+        "duration": supported,
+        "supply": supported,
+    }
+    temporary = {
+        "activity": {"status": "SUPPORTED", "value": "temporary-power"},
+        "tier": supported,
+        "mw": supported,
+        "timing": {"status": "UNKNOWN", "value": None},
+        "duration": {"status": "UNKNOWN", "value": None},
+        "supply": supported,
+    }
+    fields = {
+        "power_need": {"status": "SUPPORTED", "value": [temporary, construction]},
+        "utility_service": supported,
+        "lifecycle": supported,
+        "activity": supported,
+    }
+    expected = [
+        "power_need[construction].mw",
+        "power_need[temporary-power].duration",
+        "power_need[temporary-power].timing",
+    ]
+    assert _missing_facts(fields) == expected
+    fields["power_need"]["value"] = [construction, temporary]
+    assert _missing_facts(fields) == expected
 
 
 def test_benchmark_persists_pending_attempt_and_resume_does_not_repeat(tmp_path: Path):

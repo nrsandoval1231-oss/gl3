@@ -17,6 +17,7 @@ from gridlens.intelligence.change_detection import (
 )
 from gridlens.intelligence.lifecycle_service import refresh_lifecycle_projection
 from gridlens.intelligence.project_state import _conflict, project_state
+from gridlens.intelligence.research_recommendation import recommend_from_context
 from gridlens.persistence.database import Base
 from gridlens.persistence.models import (
     BuyingChainClaim,
@@ -1186,6 +1187,96 @@ def test_accepted_utility_revision_replaces_current_date_but_keeps_history(db):
         )
         assert utility_event.prior_state == {"value": ["2027-01-01"]}
         assert utility_event.new_state == {"value": ["2027-07-01"]}
+
+
+@pytest.mark.parametrize(
+    ("removed_assessment_key", "nested_field"),
+    [
+        ("demand_mw", "mw"),
+        ("start_window", "timing"),
+        ("duration", "duration"),
+        ("tier", "supply"),
+    ],
+)
+def test_research_recommendation_sees_nested_missing_current_need_fact(
+    db, removed_assessment_key, nested_field
+):
+    judgment = {"material_change": "YES", "relevant": "YES", "power_relevance": "HIGH"}
+    with db.begin() as session:
+        project, observation, lifecycle_evidence = seed(session)
+        session.add(ProjectLifecycle(project_id=project.id, current_state="permitted"))
+        session.add(
+            LifecycleEvent(
+                project_id=project.id,
+                observation_id=observation.id,
+                evidence_id=lifecycle_evidence.id,
+                event_type="utility_energization",
+                state="permitted",
+                occurred_on=date(2027, 1, 1),
+            )
+        )
+        need = PowerNeed(
+            project_id=project.id, activity_key="construction", tier="Prospect",
+            required_mw="42 MW", start_window="2026 Q4", duration="6 months",
+            supply="Reported constraint", rationale="fixture", active=True,
+        )
+        session.add(need)
+        session.flush()
+        _, _, interpretation = linked_official_need_evidence(
+            session, project, need, key=f"advisory-{nested_field}"
+        )
+        complete_assessment = dict(interpretation.assessment)
+        interpretation.assessment = {
+            key: value for key, value in complete_assessment.items()
+            if key != removed_assessment_key
+        }
+        state = project_state(session, project.id)
+        assert all(
+            state["state"][field]["status"] == "SUPPORTED"
+            for field in ("power_need", "utility_service", "lifecycle", "activity")
+        )
+        assert state["state"]["power_need"]["value"][0][nested_field]["status"] == "UNKNOWN"
+        assert recommend_from_context(judgment, state) is True
+
+        interpretation.assessment = complete_assessment
+        complete = project_state(session, project.id)
+        assert all(
+            item["status"] == "SUPPORTED"
+            for item in complete["state"]["power_need"]["value"][0].values()
+        )
+        assert recommend_from_context(judgment, complete) is False
+
+
+def test_research_recommendation_sees_nested_current_need_conflict(db):
+    judgment = {"material_change": "YES", "relevant": "YES", "power_relevance": "HIGH"}
+    with db.begin() as session:
+        project, observation, lifecycle_evidence = seed(session)
+        session.add(ProjectLifecycle(project_id=project.id, current_state="permitted"))
+        session.add(
+            LifecycleEvent(
+                project_id=project.id,
+                observation_id=observation.id,
+                evidence_id=lifecycle_evidence.id,
+                event_type="utility_energization",
+                state="permitted",
+                occurred_on=date(2027, 1, 1),
+            )
+        )
+        need = PowerNeed(
+            project_id=project.id, activity_key="construction", tier="Prospect",
+            required_mw="42 MW", start_window="2026 Q4", duration="6 months",
+            supply="Reported constraint", rationale="fixture", active=True,
+        )
+        session.add(need)
+        session.flush()
+        linked_official_need_evidence(session, project, need, key="advisory-conflict-a")
+        linked_official_need_evidence(
+            session, project, need, key="advisory-conflict-b", demand_mw="43 MW"
+        )
+        state = project_state(session, project.id)
+        assert state["state"]["power_need"]["status"] == "SUPPORTED"
+        assert state["state"]["power_need"]["value"][0]["mw"]["status"] == "CONFLICT"
+        assert recommend_from_context(judgment, state) is True
 
 
 def test_accepted_buying_chain_contractor_change_is_material_and_replay_is_quiet(db, monkeypatch):
