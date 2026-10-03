@@ -3,9 +3,9 @@
   "verdict": "PASS",
   "raw_verdict": "PASS",
   "raw_audit": "REVIEW-R11-INDEPENDENT.json",
-  "raw_audit_sha256": "2dec1bd7d9dc36a62a34638338d9233a2ef25ce0a138c8d3e3ce641743bbd65f",
-  "candidate_manifest_sha256": "24dde092995a97d3e4034dc3e78016dbe031344ae9c1824d01ad1b0079dc560e",
-  "recorded_utc": "2026-10-03T00:53:20.105904+00:00",
+  "raw_audit_sha256": "36fb90fe0640c738cd52410330ac0df4b917b8ad7f029748fedd9306613a8832",
+  "candidate_manifest_sha256": "cd8fe90d88d5aad1fc958212f918c6161ae504fe2a85538258aba5be10ced3cc",
+  "recorded_utc": "2026-10-03T01:00:06.987853+00:00",
   "scope": "Exact local correctness repair accepted; hosted exact-head verification pending. No merge or deployment.",
   "reviewer_model": "UNKNOWN (Sol role)",
   "findings": []

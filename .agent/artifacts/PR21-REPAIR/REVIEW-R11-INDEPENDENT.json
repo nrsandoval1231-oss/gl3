@@ -9,10 +9,18 @@
   "base_sha": "da1f2bdb3c207e97e8a861392ba6df189dfe32a2",
   "prior_pushed_head_sha": "db4568c49cc0a013472e8b3e110ae503d1b38d36",
   "candidate_manifest": ".agent/artifacts/PR21-REPAIR/CANDIDATE.json",
-  "candidate_manifest_sha256": "24dde092995a97d3e4034dc3e78016dbe031344ae9c1824d01ad1b0079dc560e",
+  "candidate_manifest_sha256": "cd8fe90d88d5aad1fc958212f918c6161ae504fe2a85538258aba5be10ced3cc",
   "manifest_file_count": 26,
   "manifest_files_verified": 26,
   "manifest_mismatches": [],
+  "metadata_rebind": {
+    "recorded_utc": "2026-10-03T00:55:05Z",
+    "archived_manifest": ".agent/artifacts/PR21-REPAIR/CANDIDATE-R11-METADATA.json",
+    "original_manifest_sha256": "24dde092995a97d3e4034dc3e78016dbe031344ae9c1824d01ad1b0079dc560e",
+    "changed_manifest_file": ".agent/packets/PR21-REPAIR.md",
+    "reason": "Three historical R11 base SHA fields were corrected to the exact 40-character db4568c49cc0a013472e8b3e110ae503d1b38d36. The proof receipt also gained an identity-correction note with before/after source blob pointers; it and the completion receipt are outside the 26-file candidate manifest. The packet changed only in its SHA field. The other 25 manifest file hashes, including all product source, tests and generated contracts, are unchanged.",
+    "verification": "Compared archived and current manifest entries; exactly one listed file hash changed, the packet. Recomputed all 26 current file SHA256 values with zero mismatches, resolved the corrected Git SHA, and verified the prior and current project_identity.py Git blobs against the proof pointers. Existing deterministic gate, browser and preservation receipts remain bound to identical product source and tests; no new product audit or gate run is claimed."
+  },
   "findings": [],
   "evidence": {
     "hosted_finding": "CODEX-R11.json reports that a ZIP5 or ZIP+4 after a state code prevented equivalent full addresses from sharing site support on exact db4568c.",
