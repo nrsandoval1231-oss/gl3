@@ -438,6 +438,116 @@ def test_project_site_same_street_different_cities_are_conflicting_claims(db):
         }
 
 
+@pytest.mark.parametrize("two_claims", [False, True])
+def test_project_site_equivalent_full_address_spellings_retain_support(db, two_claims):
+    with db.begin() as session:
+        project, _, _ = seed(session)
+        project.location = "100 Main Street, Austin, Texas"
+        need = PowerNeed(
+            project_id=project.id, activity_key="construction", tier="Prospect",
+            rationale="fixture", active=True,
+        )
+        session.add(need)
+        session.flush()
+        evidence_ids = []
+        if two_claims:
+            full, _, _ = linked_official_need_evidence(
+                session, project, need, key="full-address-spelling"
+            )
+            evidence_ids.append(str(full.id))
+        short, _, interpretation = linked_official_need_evidence(
+            session, project, need, key="short-address-spelling"
+        )
+        interpretation.assessment = {
+            **interpretation.assessment,
+            "location": "100 Main St, Austin, TX",
+        }
+        evidence_ids.append(str(short.id))
+        site = project_state(session, project.id)["state"]["site"]
+        assert site["status"] == "SUPPORTED"
+        assert site["value"] == "100 Main Street, Austin, Texas"
+        assert {row["id"] for row in site["evidence"]} == set(evidence_ids)
+
+
+@pytest.mark.parametrize(
+    "wrong_site",
+    [
+        "100 Main St, Dallas, TX",
+        "100 Main St, Austin, Oklahoma",
+        "100 Main St Unit 2, Austin, TX",
+        "101 Main St, Austin, TX",
+        "100 Main St, Court, TX",
+    ],
+)
+def test_project_site_address_key_keeps_city_state_unit_and_number(db, wrong_site):
+    with db.begin() as session:
+        project, _, _ = seed(session)
+        project.location = "100 Main Street, Austin, Texas"
+        need = PowerNeed(
+            project_id=project.id, activity_key="construction", tier="Prospect",
+            rationale="fixture", active=True,
+        )
+        session.add(need)
+        session.flush()
+        _, _, interpretation = linked_official_need_evidence(
+            session, project, need, key="wrong-address-component"
+        )
+        interpretation.assessment = {**interpretation.assessment, "location": wrong_site}
+        assert project_state(session, project.id)["state"]["site"]["status"] == "UNKNOWN"
+
+
+@pytest.mark.parametrize(
+    "wrong_site",
+    [
+        "100 Main St, Dallas, TX",
+        "100 Main St, Austin, Oklahoma",
+        "100 Main St Unit 2, Austin, TX",
+        "101 Main St, Austin, TX",
+    ],
+)
+def test_project_site_different_full_address_claims_remain_conflict(db, wrong_site):
+    with db.begin() as session:
+        project, _, _ = seed(session)
+        project.location = "100 Main Street, Austin, Texas"
+        need = PowerNeed(
+            project_id=project.id, activity_key="construction", tier="Prospect",
+            rationale="fixture", active=True,
+        )
+        session.add(need)
+        session.flush()
+        valid, _, _ = linked_official_need_evidence(
+            session, project, need, key="valid-full-address"
+        )
+        wrong, _, interpretation = linked_official_need_evidence(
+            session, project, need, key="different-full-address"
+        )
+        interpretation.assessment = {**interpretation.assessment, "location": wrong_site}
+        site = project_state(session, project.id)["state"]["site"]
+        assert site["status"] == "CONFLICT"
+        assert {claim["evidence"]["id"] for claim in site["claims"]} == {
+            str(valid.id), str(wrong.id)
+        }
+
+
+def test_project_site_street_name_suffix_word_is_not_rewritten_as_city(db):
+    with db.begin() as session:
+        project, _, _ = seed(session)
+        project.location = "100 Main Street Court TX"
+        need = PowerNeed(
+            project_id=project.id, activity_key="construction", tier="Prospect",
+            rationale="fixture", active=True,
+        )
+        session.add(need)
+        session.flush()
+        _, _, interpretation = linked_official_need_evidence(
+            session, project, need, key="city-suffix-word"
+        )
+        interpretation.assessment = {
+            **interpretation.assessment, "location": "100 Main St Ct TX"
+        }
+        assert project_state(session, project.id)["state"]["site"]["status"] == "UNKNOWN"
+
+
 @pytest.mark.parametrize("variation", ["identity", "activity", "admission"])
 def test_need_state_excludes_each_ineligible_dimension_without_losing_valid_support(db, variation):
     with db.begin() as session:
