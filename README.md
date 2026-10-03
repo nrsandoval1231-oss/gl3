@@ -12,7 +12,7 @@ The next working slice adds persisted daily Austin/RRC pursuits, bounded officia
 
 ## GL3-028 evidence graph slice
 
-The current `feat/evidence-graph-jev-shadow` candidate adds an authenticated current-project state projection, evidence-backed material-change history, and an explicit zero-authority EvidenceJudge shadow command. Jev remains separate from signal adjudication, and normal ingestion does not call it. Migration `0012` adds project state revisions and shadow attempt records. See the [validation report](docs/validation/gl3-028-evidence-graph-jev-shadow.md) and [operator limits](docs/operations/power-pursuits.md). This branch remains subject to final exact-candidate review; it is not a merge or deployment claim.
+GL3-028 is merged to `main` via PR #21 at merge commit `43424be`. It adds authenticated current-project state projection, evidence-backed material-change history, and an explicit zero-authority EvidenceJudge shadow command. Jev remains separate from signal adjudication, and normal ingestion does not call it. Migration `0012` adds project state revisions and shadow attempt records. See the [validation report](docs/validation/gl3-028-evidence-graph-jev-shadow.md) and [operator limits](docs/operations/power-pursuits.md). This is a merged implementation claim only; cloud deployment and unattended production operation remain separate open milestones.
 
 ## Product model
 
