@@ -377,3 +377,21 @@ unchanged. `R9-SITE-FOLLOWUP.json` records both regression failures and the
 passing punctuation/case control before repair. The full project-state module
 now passes 34 tests; Ruff, mypy, and diff check pass. Full gates and fresh
 independent review remain controller-owned.
+
+## R10 full-address equivalence without losing place context
+
+The conservative R9 full-string comparison kept different cities separate,
+but treated common forms such as `100 Main Street, Austin, Texas` and `100
+Main St, Austin, TX` as different site claims. The site projection now uses a
+narrow canonical key: it folds the suffix of the leading street component and
+a terminal US state name/code, while keeping the house number, unit, city,
+and other address words. An unpunctuated address with multiple suffix-like
+words retains full-text comparison because its street/city boundary is
+ambiguous. The global project identity matcher is unchanged.
+
+`R10-BEFORE-AFTER.json` records the sole-claim UNKNOWN and two-claim CONFLICT
+failures on exact `27c8cef`, along with passing wrong-component controls.
+After repair, all 46 project-state tests passed. Wrong city, state, unit, and
+number remain UNKNOWN or CONFLICT as appropriate; original display text and
+exact Evidence IDs remain visible. Ruff, mypy, and diff check passed. Full
+repository gates and independent review remain controller-owned.

@@ -1,12 +1,12 @@
 {
   "base_sha": "da1f2bdb3c207e97e8a861392ba6df189dfe32a2",
-  "prior_reviewed_head": "c6ece2df1f6f0156f7e2594ec7c6636943227e6c",
-  "recorded_utc": "2026-10-03T00:16:27.534633+00:00",
+  "prior_reviewed_head": "27c8cefe77e81ab65bb4e12ecac05fef47bd36bb",
+  "recorded_utc": "2026-10-03T00:33:55.081872+00:00",
   "files": [
     {
       "path": ".agent/packets/PR21-REPAIR.md",
-      "sha256": "35d956a0158c04444ba3151a6feda7fca85d62d4dc5c14043cbb7268ea22ba63",
-      "git_blob": "205348c21fe8aba1eb19714e93ea357f492553df"
+      "sha256": "bc6ca8b4967c84d188c2a4006db2ede4b4344e3e63a53bcb8856473de6edd622",
+      "git_blob": "2cdb1a96c6c3c26efce9e95ad51fef707451647d"
     },
     {
       "path": "backend/migrations/versions/0013_evidence_judge_scan_checkpoint.py",
@@ -49,9 +49,14 @@
       "git_blob": "f1c27208097b4ac777a62f0291bd89a61a83ea87"
     },
     {
+      "path": "backend/src/gridlens/intelligence/project_identity.py",
+      "sha256": "d7e867a328d9076cb891c63fab35c2323f6f881e9705950ca6855b0855ebcab1",
+      "git_blob": "f92f466e354ab7b12bd6aa8bfabfd985ab5e3bd9"
+    },
+    {
       "path": "backend/src/gridlens/intelligence/project_state.py",
-      "sha256": "df1a655dcba687deab710e490cf25b34cfe94963000cdc6ff003d7864abbd5d6",
-      "git_blob": "0293e04d2a9bd63119ac04066b29cd2ddd5e0c86"
+      "sha256": "9ce67e2c9ff6b65321085bf71713ed142bf60c9342eb91705e72679dc644a2b0",
+      "git_blob": "c216ece403d817f6eb894bcf8aa4de78080f2dd2"
     },
     {
       "path": "backend/src/gridlens/intelligence/research_recommendation.py",
@@ -95,8 +100,8 @@
     },
     {
       "path": "backend/tests/integration/test_project_state_changes.py",
-      "sha256": "b2e68b74a60e7cde80a2a303265c4b51fbc084cb9398d53246518df0466cbc58",
-      "git_blob": "954c20041ee7eba7d28b237d2aa1da2b718ab708"
+      "sha256": "acd399d82de208cc8833c1b9d907d9ad17cefa710f7258465e3166a92b405639",
+      "git_blob": "1e65486c88596d320ab7e51bc819974069cff147"
     },
     {
       "path": "backend/tests/integration/test_pursuits.py",
@@ -115,8 +120,8 @@
     },
     {
       "path": "docs/validation/PR21-CORRECTNESS-REPAIR.md",
-      "sha256": "c1d2fc8d60f78ccbfef81c3d84c0f885105dfd97a72a05e5a878ec87cc3c9bec",
-      "git_blob": "ad25756e98588440b1f517dc4ec2f9fd30e80b24"
+      "sha256": "db61f6e31665fbe469f1c146e5a6060abd9ecda020fe17b0a177729d39ce707a",
+      "git_blob": "e8cb8e4cbcf100d3f30df655498cad533dacc39e"
     },
     {
       "path": "web/src/api/generated.ts",

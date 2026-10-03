@@ -134,5 +134,20 @@
     ".agent/artifacts/PR21-REPAIR/R9-SITE-FOLLOWUP.json",
     "docs/validation/PR21-CORRECTNESS-REPAIR.md",
     ".agent/artifacts/PR21-REPAIR/COMPLETION.json"
+  ],
+  "r10_base_sha": "27c8cefe77e81ab65bb4e12ecac05fef47bd36bb",
+  "r10_handoff": "Projection-only site canonical key folds unambiguous leading street suffix and terminal state code/name while preserving all other full-address tokens. Exact-head sole/two-claim equivalent address tests failed; after repair project-state module 46 passed, wrong city/state/unit/number controls preserved, Ruff/mypy 66 files/diff check passed. Global project matching unchanged. R10-BEFORE-AFTER.json records proof. Controller owns full gates and fresh independent review.",
+  "r10_repair_count": 1,
+  "r10_started_at_utc": "UNKNOWN",
+  "r10_finished_at_utc": "2026-10-03T00:32:09Z",
+  "r10_durations_and_tokens": "UNKNOWN",
+  "r10_files": [
+    "backend/src/gridlens/intelligence/project_identity.py",
+    "backend/src/gridlens/intelligence/project_state.py",
+    "backend/tests/integration/test_project_state_changes.py",
+    ".agent/packets/PR21-REPAIR.md",
+    ".agent/artifacts/PR21-REPAIR/R10-BEFORE-AFTER.json",
+    "docs/validation/PR21-CORRECTNESS-REPAIR.md",
+    ".agent/artifacts/PR21-REPAIR/COMPLETION.json"
   ]
 }

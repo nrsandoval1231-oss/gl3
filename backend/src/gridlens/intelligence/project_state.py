@@ -13,7 +13,7 @@ from gridlens.domain.commercial_presentation import canonical_mw_claim
 from gridlens.domain.signal_admission import admitted_from_source
 from gridlens.intelligence.buying_chain import _accepted_version, buying_chain_view
 from gridlens.intelligence.lifecycle_service import lifecycle_event_supported
-from gridlens.intelligence.project_identity import normalized_identity
+from gridlens.intelligence.project_identity import canonical_site_claim, normalized_identity
 from gridlens.persistence.models import (
     Evidence,
     Interpretation,
@@ -139,15 +139,17 @@ def _need_fields(
     }
 
 
-def _project_field_claim(value: str | None, claims: list[tuple[str, Evidence]]) -> dict[str, Any]:
+def _project_field_claim(
+    value: str | None, claims: list[tuple[str, Evidence]], *, site: bool = False
+) -> dict[str, Any]:
     """Attest a stored project field only from its own current claim."""
     if not claims:
         return _unknown()
 
+    key = canonical_site_claim if site else normalized_identity
+
     def equivalent(left: str, right: str) -> bool:
-        # Match the complete place string. The physical-site matcher can
-        # extract the same street while discarding a different city/state.
-        return normalized_identity(left) == normalized_identity(right)
+        return key(left) == key(right)
 
     first = claims[0][0]
     if any(not equivalent(first, claim) for claim, _ in claims):
@@ -221,7 +223,7 @@ def project_state(session: Session, project_id: UUID) -> dict[str, Any] | None:
     site_claims = [claim for need in active_needs for claim in need_evidence[need.id]["site"]]
     state: dict[str, Any] = {
         "identity": _project_field_claim(project.name, identity_claims),
-        "site": _project_field_claim(project.location, site_claims),
+        "site": _project_field_claim(project.location, site_claims, site=True),
         "lifecycle": _supported(
             {
                 "state": current_projection.current_state,

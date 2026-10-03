@@ -1,0 +1,16 @@
+{
+  "node": "R10",
+  "base_sha": "27c8cefe77e81ab65bb4e12ecac05fef47bd36bb",
+  "before_scope": "The new full-address equivalence tests were run on the exact base source before production edits.",
+  "before_command": "backend/.venv/Scripts/python.exe -m pytest backend/tests/integration/test_project_state_changes.py -q -k 'equivalent_full_address_spellings_retain_support or address_key_keeps_city_state_unit_and_number or street_name_suffix_word_is_not_rewritten_as_city' --tb=short",
+  "before_result": "Exit 1: 2 failed, 6 passed, 34 deselected in 2.56s. A sole current `100 Main St, Austin, TX` claim left stored `100 Main Street, Austin, Texas` UNKNOWN; adding an equivalent long-form claim produced CONFLICT. Wrong-component and city-word controls passed.",
+  "repair": "A projection-only canonical_site_claim helper locates the leading street with the existing address regex, folds its unambiguous final suffix, and folds only a terminal US state code/name. The remaining full-address tokens preserve house number, unit, city and street-name context. Without a comma, multiple suffix-like tokens make street folding ineligible. Global same_physical_site matching is unchanged.",
+  "after_command": "backend/.venv/Scripts/python.exe -m pytest backend/tests/integration/test_project_state_changes.py -q",
+  "after_result": "Exit 0: 46 passed, 1 existing StarletteDeprecationWarning in 10.94s. Equivalent single/two-claim variants are SUPPORTED with raw display and exact Evidence IDs; different city/state/unit/number remain UNKNOWN for a lone claim and CONFLICT for competing claims.",
+  "other_validation": "Ruff on changed source/test: exit 0. mypy backend/src/gridlens: exit 0, 66 source files. git diff --check: exit 0.",
+  "limitations": "Non-address or structurally ambiguous strings use conservative full-text normalization. No geocoding, fuzzy site match, or new authority was added. Controller owns full gates and fresh independent review.",
+  "repair_count": 1,
+  "started_at_utc": "UNKNOWN",
+  "finished_at_utc": "2026-10-03T00:32:09Z",
+  "durations_and_tokens": "UNKNOWN"
+}
