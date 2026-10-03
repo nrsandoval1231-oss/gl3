@@ -1,0 +1,23 @@
+{
+  "verdict": "FIX",
+  "recorded_utc": "2026-10-03T01:33:09Z",
+  "review_scope": "Independent review of the first frozen R12 candidate; no implementation edits",
+  "reviewer_role": "Sol independent reviewer",
+  "reviewer_model": "UNKNOWN",
+  "prior_pushed_head_sha": "5f3cd8fd3ed9bdb33a768917436a306d1e4d3a36",
+  "candidate_manifest": ".agent/artifacts/PR21-REPAIR/CANDIDATE.json",
+  "candidate_manifest_sha256": "5f6f488b6d9484429898c724a18ce46fc38cdb57ab5c554c86da500ef11d98f5",
+  "manifest_file_count": 26,
+  "manifest_mismatches": [],
+  "finding": {
+    "severity": "P2",
+    "path": "backend/src/gridlens/intelligence/buying_chain.py",
+    "function": "enrich_buying_chain.support_for",
+    "problem": "For an added semantic row, the new source-list code includes every checked citation shown in buying_chain_view's `evidence`. That view deliberately retains aged role citations as history when a fresh independent citation sustains the current role. Rechecking the old page unchanged alongside the fresh page therefore labels the aged page as a causal source of the restoration, although its role support is no longer current.",
+    "deterministic_proof": "The builder reproduced the edge case against this frozen candidate: `test_rechecked_aged_role_citation_is_not_causal_to_fresh_restoration` fails at +370 days because the persisted buying_chain_evidence_ids list includes the old role Evidence ID. Source inspection independently confirms that support_for tests checked URL and ID but does not test the citation's current support status before adding it to causes.",
+    "required_repair": "Use the buying-chain projection's per-citation current-support determination when collecting causal IDs for added and removed rows. Exclude aged, superseded or otherwise invalid citations from additions while retaining checked withdrawal versions as causes of removals. Preserve complete independent fresh sources, unrelated-source exclusion, legacy API fallback, replay and A-B-A behavior. Add the reproducing regression and rerun exact-candidate validation."
+  },
+  "gate_state": "The controller reported fresh 19/19 deterministic gates, retained preservation and 22 browser checks passing on this candidate, but the new regression demonstrates a causal-provenance defect they did not cover. This candidate is not independently accepted.",
+  "implementation_edits": false,
+  "tokens": "UNKNOWN"
+}

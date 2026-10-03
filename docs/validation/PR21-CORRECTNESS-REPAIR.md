@@ -410,3 +410,50 @@ distinct-address controls before the repair. The full project-state module
 then passed 66 tests; Ruff, mypy, and diff check passed. The address parser and
 global project matcher remain unchanged. Full gates and independent review
 remain controller-owned.
+
+## R12 complete causal sources and compact ZIP+4
+
+A single buyer or contractor material change can contain several changed
+organizations. The prior code selected one latest buying-chain document, so
+the event hid other causal documents. The repair collects the checked sources
+for each added semantic row and the checked same-URL replacements for each
+withdrawn row. One event per field remains, with its existing primary evidence
+FK; its immutable event payload also retains every causal buying-chain ID.
+Both the daily change feed and project history expose typed, inspectable
+`sources` links. Older events with only the primary FK retain a one-source
+fallback. Unchanged and unrelated documents are excluded, and freshness-only
+changes remain quiet. No persistence migration was needed.
+
+The project-state site comparison also recognizes a state name/code before a
+compact nine-digit ZIP+4, and equates compact, hyphenated, and space-separated
+forms with the same nine digits. Every postal digit remains in the key; wrong
+ZIP, extension, city, state, unit, and house number stay distinct. The global
+project matcher remains unchanged.
+
+`R12-BEFORE-AFTER.json` records three exact `5f3cd8f` failures (multi-document
+attribution and one/two-claim compact ZIP equivalence), with six existing ZIP
+controls passing. Four mixed-format ZIP cases separately failed on the
+intermediate candidate before normalization. The expanded regression covers
+mixed replacement and independent addition, two-source withdrawal,
+unrelated-source exclusion,
+buyer and contractor events, replay, A-B-A, daily/history links, and legacy
+singular fallback. Affected backend tests: 115 passed. Ruff, mypy on 66 source
+files, frontend typecheck/build, canonical OpenAPI generation, and diff check
+passed. Full gates and independent review remain controller-owned.
+
+The R12 independent review identified one remaining causal boundary: a
+rechecked aged role citation can remain visible in a current claim after a
+fresh independent page restores the role. A real enrichment regression failed
+on the first R12 candidate because the buyer event listed that aged citation.
+The source selection now uses the view's existing per-citation
+freshness/supersession result and only document versions changed since the
+prior run. The regression now attributes the restoration solely to the fresh
+role page; the unchanged organization page and aged role page remain inspectable
+but are not labeled causes. A first novelty filter based on all IDs in the
+prior run was too broad: a partial run retained historical A while B was
+current, so restoring A went quiet. A second real A-B-A regression failed on
+that intermediate source. The final filter snapshots the actual current
+version per URL before this pass updates any `last_seen_at`, using the same
+selector as the buying-chain view. Both regressions and the affected backend
+suite passed (121 tests); Ruff and mypy on 66 source files passed. Full gates
+and independent review remain controller-owned.

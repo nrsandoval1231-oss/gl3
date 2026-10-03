@@ -1,12 +1,12 @@
 {
   "base_sha": "da1f2bdb3c207e97e8a861392ba6df189dfe32a2",
-  "prior_reviewed_head": "db4568c49cc0a013472e8b3e110ae503d1b38d36",
-  "recorded_utc": "2026-10-03T00:54:19.127070+00:00",
+  "prior_reviewed_head": "5f3cd8fd3ed9bdb33a768917436a306d1e4d3a36",
+  "recorded_utc": "2026-10-03T01:40:56.723679+00:00",
   "files": [
     {
       "path": ".agent/packets/PR21-REPAIR.md",
-      "sha256": "13e27be40f4a006cca34f736ddf533331060a425f811c2513f2d8d3cf8a523c0",
-      "git_blob": "6ac3f7b8aef5185908fd8c3a246f6fb663138ab4"
+      "sha256": "eaeb2fa52fa540305c8fc6367b20893df550aa61134c01549ea27bebefbebd38",
+      "git_blob": "4442e5b37b340b7ba70eca198632fbe4105b2a13"
     },
     {
       "path": "backend/migrations/versions/0013_evidence_judge_scan_checkpoint.py",
@@ -15,8 +15,8 @@
     },
     {
       "path": "backend/src/gridlens/api/app.py",
-      "sha256": "80de89f59a2fbf9a26ff93f87a7a9b09b2b6e5fb5bf17c5ec1454e75a936983f",
-      "git_blob": "8c52239b89d18485c37323b02c0504529729dc11"
+      "sha256": "a8614c1d68374fe3f7b0141e4b76d8b26e4b2383d7e529069683dcebcc77a20d",
+      "git_blob": "44bd610810281a3f5e660e7f242769e7531689d1"
     },
     {
       "path": "backend/src/gridlens/domain/commercial_presentation.py",
@@ -30,13 +30,13 @@
     },
     {
       "path": "backend/src/gridlens/intelligence/buying_chain.py",
-      "sha256": "f35290c36c852620a3fa8e7f0c3ed6b6501c7b6df7634f5f7c40b510909d2be2",
-      "git_blob": "cf784a0d6f64368d0aeccd184c6ddda52d8aa208"
+      "sha256": "4124e1d51106805e5e2feecfaf35e0ce63714ccb25b992b33213b649751f0aa7",
+      "git_blob": "2d9dd612fa16c0e894386a92cd010e5d888a3b8a"
     },
     {
       "path": "backend/src/gridlens/intelligence/change_detection.py",
-      "sha256": "d942a2e60b8782249ad0eea19dfabcedc4bde10ff5928f5aeadf09046a86a973",
-      "git_blob": "6020ae4aaabcd36f5a968771780ddbf284dfddfa"
+      "sha256": "dd8a91a3f93b3c8df13df04c360e58f120b4d43c0df79e40bef0772713dddbb1",
+      "git_blob": "527d31e1a7550901609fb6eda4542f7f054bba62"
     },
     {
       "path": "backend/src/gridlens/intelligence/evidence_shadow.py",
@@ -50,8 +50,8 @@
     },
     {
       "path": "backend/src/gridlens/intelligence/project_identity.py",
-      "sha256": "2234d51f616b2960031b150b399f038f6fb700f4862c7cc95a212b87b9b6e812",
-      "git_blob": "d4ce6671b6f0bb182d4daddffe52fee84f0649c2"
+      "sha256": "045299e91597429e22050b404d908584b1f6ec188082793833bca848e954da55",
+      "git_blob": "e7df43a1cfe195118246fe115ced93c2fd95ca45"
     },
     {
       "path": "backend/src/gridlens/intelligence/project_state.py",
@@ -100,8 +100,8 @@
     },
     {
       "path": "backend/tests/integration/test_project_state_changes.py",
-      "sha256": "412a836089ba8413171af7a7055d2e9e92a0c90d4e8c78f19c0ea69a9fce223a",
-      "git_blob": "1316e6bb315a93c961120ce973f921edc8f46796"
+      "sha256": "76f7a0d0e89561daa08c09b6344b58fdf0d77ed6fd4f56f2866952611e79730e",
+      "git_blob": "c27739b9bf0bd0d60a2fed8ac6d5d2fe7f7dafdf"
     },
     {
       "path": "backend/tests/integration/test_pursuits.py",
@@ -120,18 +120,18 @@
     },
     {
       "path": "docs/validation/PR21-CORRECTNESS-REPAIR.md",
-      "sha256": "cf32255f4c52234c631a58f5f44a8a0da0cf653c39968ad932021faafbb07ba7",
-      "git_blob": "474249a5bdb7903c80ac2d6ca5bb4567861e4c47"
+      "sha256": "3439a55246e37998812f5f72c08dd0ce0212da74844b741d7aab12ee2e6cc54e",
+      "git_blob": "b5d1be79788291dc3fcee30b01625796ea513f96"
     },
     {
       "path": "web/src/api/generated.ts",
-      "sha256": "eb9612e1de11ef9ccf9ddee7b387e1392224fc325eb953f6693df4baa6d7eb4e",
-      "git_blob": "c977027f5511ce7b89717e40fac4659106ffe7c7"
+      "sha256": "dfa6e748325bc329bcda52a0d62e95b76e98ea83125be3d4c28df65f16622d18",
+      "git_blob": "11546058011f796e5922512cc26d3513702948cb"
     },
     {
       "path": "web/src/api/openapi.json",
-      "sha256": "853721a036adf92bf2a32c5e717dab25ad139be0ab2fc46fbea6dd66d5130492",
-      "git_blob": "d45220fe9a8232e9b2eb48c6b54c2e22d85f2255"
+      "sha256": "09a30e324b8d2a2d1e74d116651a3c8278f5cd7c0c602751ce7cecb00a02ff57",
+      "git_blob": "1bf31bf485353be606cf2f4c694efe8e0b084bc3"
     }
   ]
 }

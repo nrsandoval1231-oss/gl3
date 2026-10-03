@@ -554,6 +554,9 @@ def test_project_site_street_name_suffix_word_is_not_rewritten_as_city(db):
         ("100 Main Street, Austin, Texas 78701", "100 Main St, Austin, TX 78701"),
         ("100 Main Street, Austin, Texas 78701-1234", "100 Main St, Austin, TX 78701-1234"),
         ("100 Main Street, Austin, Texas 78701-1234", "100 Main St, Austin, TX 78701 1234"),
+        ("100 Main Street, Austin, Texas 787011234", "100 Main St, Austin, TX 787011234"),
+        ("100 Main Street, Austin, Texas 787011234", "100 Main St, Austin, TX 78701-1234"),
+        ("100 Main Street, Austin, Texas 78701-1234", "100 Main St, Austin, TX 787011234"),
     ],
 )
 @pytest.mark.parametrize("two_claims", [False, True])
@@ -619,6 +622,50 @@ def test_project_site_zip_key_retains_zip_city_state_and_unit(
             original_id = str(original.id)
         wrong, _, interpretation = linked_official_need_evidence(
             session, project, need, key="zip-control-wrong"
+        )
+        interpretation.assessment = {**interpretation.assessment, "location": wrong_site}
+        site = project_state(session, project.id)["state"]["site"]
+        if two_claims:
+            assert site["status"] == "CONFLICT"
+            assert {claim["evidence"]["id"] for claim in site["claims"]} == {
+                original_id, str(wrong.id)
+            }
+        else:
+            assert site == {"value": None, "status": "UNKNOWN"}
+
+
+@pytest.mark.parametrize(
+    "wrong_site",
+    [
+        "100 Main St, Austin, TX 787011235",
+        "100 Main St, Austin, TX 787021234",
+        "100 Main St, Dallas, TX 787011234",
+        "100 Main St, Austin, OK 787011234",
+        "100 Main St Unit 2, Austin, TX 787011234",
+        "101 Main St, Austin, TX 787011234",
+    ],
+)
+@pytest.mark.parametrize("two_claims", [False, True])
+def test_project_site_compact_zip_retains_all_place_and_postal_digits(
+    db, wrong_site, two_claims
+):
+    with db.begin() as session:
+        project, _, _ = seed(session)
+        project.location = "100 Main Street, Austin, Texas 787011234"
+        need = PowerNeed(
+            project_id=project.id, activity_key="construction", tier="Prospect",
+            rationale="fixture", active=True,
+        )
+        session.add(need)
+        session.flush()
+        original_id = None
+        if two_claims:
+            original, _, _ = linked_official_need_evidence(
+                session, project, need, key="compact-zip-original"
+            )
+            original_id = str(original.id)
+        wrong, _, interpretation = linked_official_need_evidence(
+            session, project, need, key="compact-zip-wrong"
         )
         interpretation.assessment = {**interpretation.assessment, "location": wrong_site}
         site = project_state(session, project.id)["state"]["site"]
@@ -980,6 +1027,7 @@ def test_project_change_history_openapi_has_typed_array_response():
     item = api.app.openapi()["components"]["schemas"][item_ref.rsplit("/", 1)[-1]]
     assert set(item["required"]) == {
         "kind", "field", "prior", "new", "evidence_id", "buying_chain_evidence_id",
+        "sources",
         "source_date", "detected_at",
     }
 
@@ -1212,6 +1260,305 @@ def test_accepted_buying_chain_contractor_change_is_material_and_replay_is_quiet
         latest = next(row for row in api_rows if row["field"] == field)
         assert latest["evidence_id"] is None
         assert latest["buying_chain_evidence_id"] == support_id
+
+
+def test_buying_chain_multidocument_delta_retains_all_causal_sources(db, monkeypatch):
+    api = import_module("gridlens.api.app")
+    monkeypatch.setattr(api, "SessionLocal", db)
+    urls = (
+        "https://external.example/acme",
+        "https://external.example/buildco",
+        "https://external.example/wireco",
+    )
+    unrelated_url = "https://external.example/unrelated"
+    texts = {
+        urls[0]: "Acme is the general contractor for Orion Data Center in Austin, TX.",
+        urls[1]: "BuildCo is the electrical contractor for Orion Data Center in Austin, TX.",
+        urls[2]: "Orion Data Center construction in Austin, TX.",
+    }
+
+    def fetch(url: str) -> PublicDocument:
+        return PublicDocument(
+            url,
+            "Orion Data Center",
+            texts.get(url, "Orion Data Center construction in Austin, TX."),
+            date(2026, 9, 20),
+            NOW,
+        )
+
+    with db.begin() as session:
+        project, _, _ = seed(session)
+        enrich_buying_chain(
+            session, project.id, source_urls=[*urls[:2], unrelated_url], fetcher=fetch, now=NOW
+        )
+        additions = session.scalars(
+            select(ChangeEvent).where(ChangeEvent.field_name == "contractor")
+        ).all()
+        assert len(additions) == 1
+        added_sources = session.scalars(
+            select(BuyingChainEvidence).where(
+                BuyingChainEvidence.project_id == project.id,
+                BuyingChainEvidence.url.in_(urls[:2]),
+            )
+        ).all()
+        assert {str(row.id) for row in added_sources} == set(
+            additions[0].new_state["buying_chain_evidence_ids"]
+        )
+        assert len(added_sources) == 2
+        assert additions[0].evidence_id is None
+
+        # In one pass Acme withdraws, WireCo is independently added, and
+        # unchanged BuildCo must not be mislabeled as a cause.
+        texts[urls[0]] = "Orion Data Center construction in Austin, TX."
+        texts[urls[2]] = (
+            "WireCo is the general contractor for Orion Data Center in Austin, TX."
+        )
+        enrich_buying_chain(
+            session, project.id, source_urls=[urls[2]], fetcher=fetch,
+            now=NOW + timedelta(minutes=1),
+        )
+        mixed_events = session.scalars(
+            select(ChangeEvent).where(ChangeEvent.field_name == "contractor")
+        ).all()
+        assert len(mixed_events) == 2
+        mixed = next(event for event in mixed_events if event.id != additions[0].id)
+        mixed_sources = session.scalars(
+            select(BuyingChainEvidence).where(
+                BuyingChainEvidence.project_id == project.id,
+                BuyingChainEvidence.url.in_((urls[0], urls[2])),
+                BuyingChainEvidence.id.not_in([row.id for row in added_sources]),
+            )
+        ).all()
+        assert {str(row.id) for row in mixed_sources} == set(
+            mixed.new_state["buying_chain_evidence_ids"]
+        )
+        assert len(mixed_sources) == 2
+        assert mixed.evidence_id is None
+
+        # Two further checked withdrawals must cite both fresh versions.
+        texts[urls[1]] = "Orion Data Center construction in Austin, TX."
+        texts[urls[2]] = "Orion Data Center construction in Austin, TX."
+        enrich_buying_chain(
+            session, project.id, fetcher=fetch, now=NOW + timedelta(minutes=2)
+        )
+        removals = session.scalars(
+            select(ChangeEvent).where(ChangeEvent.field_name == "contractor")
+        ).all()
+        assert len(removals) == 3
+        removal = next(
+            event for event in removals
+            if event.id not in {additions[0].id, mixed.id}
+        )
+        replacement_sources = session.scalars(
+            select(BuyingChainEvidence).where(
+                BuyingChainEvidence.project_id == project.id,
+                BuyingChainEvidence.url.in_((urls[1], urls[2])),
+                BuyingChainEvidence.id.not_in(
+                    [row.id for row in [*added_sources, *mixed_sources]]
+                ),
+            )
+        ).all()
+        assert {str(row.id) for row in replacement_sources} == set(
+            removal.new_state["buying_chain_evidence_ids"]
+        )
+        assert len(replacement_sources) == 2
+        assert removal.evidence_id is None
+        count = len(removals)
+        enrich_buying_chain(
+            session, project.id, fetcher=fetch, now=NOW + timedelta(minutes=2)
+        )
+        assert len(
+            session.scalars(
+                select(ChangeEvent).where(ChangeEvent.field_name == "contractor")
+            ).all()
+        ) == count
+
+        # A -> B -> A may reuse old immutable versions but must emit a new
+        # revision only for the actual restored documents.
+        texts[urls[0]] = "Acme is the general contractor for Orion Data Center in Austin, TX."
+        texts[urls[1]] = (
+            "BuildCo is the electrical contractor for Orion Data Center in Austin, TX."
+        )
+        enrich_buying_chain(
+            session, project.id, fetcher=fetch, now=NOW + timedelta(minutes=3)
+        )
+        restored = session.scalars(
+            select(ChangeEvent).where(ChangeEvent.field_name == "contractor")
+        ).all()
+        assert len(restored) == count + 1
+        restored_event = next(event for event in restored if event.id not in {
+            additions[0].id, mixed.id, removal.id
+        })
+        assert set(restored_event.new_state["buying_chain_evidence_ids"]) == {
+            str(row.id) for row in added_sources
+        }
+        buyer_events = session.scalars(
+            select(ChangeEvent).where(ChangeEvent.field_name == "buyer")
+        ).all()
+        assert len(buyer_events) == 4
+        assert {
+            frozenset(event.new_state["buying_chain_evidence_ids"])
+            for event in buyer_events
+        } == {
+            frozenset(event.new_state["buying_chain_evidence_ids"])
+            for event in restored
+        }
+        assert all(event.evidence_id is None for event in buyer_events)
+
+    client = TestClient(api.app)
+    client.cookies.set(
+        "gridlens_session", token_for(int((datetime.now(UTC) + timedelta(minutes=5)).timestamp()))
+    )
+    history = client.get(f"/api/projects/{project.id}/changes")
+    assert history.status_code == 200
+    latest = next(
+        row for row in history.json()
+        if row["field"] == "contractor" and row["new"]["value"] == []
+    )
+    assert {row["url"] for row in latest["sources"]} == set(urls[1:])
+    assert {row["id"] for row in latest["sources"]} == {
+        str(row.id) for row in replacement_sources
+    }
+    assert unrelated_url not in {row["url"] for row in latest["sources"]}
+    mixed_history = next(
+        row for row in history.json()
+        if row["field"] == "contractor"
+        and set(row["new"].get("buying_chain_evidence_ids", []))
+        == {str(source.id) for source in mixed_sources}
+    )
+    assert {row["url"] for row in mixed_history["sources"]} == {urls[0], urls[2]}
+    morning = client.get("/api/changes")
+    assert morning.status_code == 200
+    assert any(
+        {source["url"] for source in row["sources"]} == {urls[0], urls[2]}
+        for row in morning.json() if row["kind"] == "contractor_changed"
+    )
+
+    # Events written before the additive list retain their singular citation.
+    with db.begin() as session:
+        legacy = session.get(ChangeEvent, additions[0].id)
+        assert legacy is not None
+        legacy.new_state = {"value": legacy.new_state["value"]}
+    legacy_history = client.get(f"/api/projects/{project.id}/changes")
+    assert legacy_history.status_code == 200
+    legacy_row = next(
+        row for row in legacy_history.json()
+        if row["field"] == "contractor"
+        and row["buying_chain_evidence_id"] == str(additions[0].buying_chain_evidence_id)
+        and "buying_chain_evidence_ids" not in row["new"]
+        and row["new"]["value"] == additions[0].new_state["value"]
+    )
+    assert [row["id"] for row in legacy_row["sources"]] == [
+        str(additions[0].buying_chain_evidence_id)
+    ]
+
+
+def test_rechecked_aged_role_citation_is_not_causal_to_fresh_restoration(db):
+    org_url = "https://external.example/orion-org"
+    old_role_url = "https://acme.example/old-team"
+    fresh_role_url = "https://acme.example/current-team"
+    later = NOW + timedelta(days=370)
+    pages = {
+        org_url: (
+            "Acme is the general contractor for Orion Data Center in Austin, TX.",
+            NOW.date(),
+        ),
+        old_role_url: ("Alice Smith is Project Director at Acme.", NOW.date()),
+        fresh_role_url: ("Alice Smith is Project Director at Acme.", later.date()),
+    }
+
+    def fetch(url: str) -> PublicDocument:
+        text, published = pages.get(
+            url, ("Orion Data Center construction in Austin, TX.", NOW.date())
+        )
+        return PublicDocument(url, "Orion Data Center", text, published, later)
+
+    with db.begin() as session:
+        project, _, _ = seed(session)
+        enrich_buying_chain(
+            session, project.id, source_urls=[org_url, old_role_url], fetcher=fetch,
+            now=NOW,
+        )
+        previous_ids = {
+            event.id for event in session.scalars(select(ChangeEvent)).all()
+        }
+        old_role = session.scalar(
+            select(BuyingChainEvidence).where(BuyingChainEvidence.url == old_role_url)
+        )
+        assert old_role is not None
+        current = enrich_buying_chain(
+            session, project.id, source_urls=[fresh_role_url], fetcher=fetch,
+            now=later,
+        )
+        person = next(row for row in current["candidates"] if row["person_name"])
+        assert person["stale"] is False
+        assert old_role.id in {citation["id"] for citation in person["evidence"]}
+        fresh_role = session.scalar(
+            select(BuyingChainEvidence).where(BuyingChainEvidence.url == fresh_role_url)
+        )
+        assert fresh_role is not None
+        new_buyer_events = [
+            event for event in session.scalars(
+                select(ChangeEvent).where(ChangeEvent.field_name == "buyer")
+            ).all() if event.id not in previous_ids
+        ]
+        assert len(new_buyer_events) == 1
+        assert new_buyer_events[0].new_state["buying_chain_evidence_ids"] == [
+            str(fresh_role.id)
+        ]
+
+
+def test_partial_run_keeps_historical_id_without_silencing_a_b_a_change(db):
+    url = "https://external.example/acme"
+    failure_url = "https://external.example/unavailable"
+    role = "general contractor"
+
+    def fetch(request_url: str) -> PublicDocument:
+        if request_url == failure_url:
+            raise RuntimeError("fixture retrieval unavailable")
+        return PublicDocument(
+            url, "Orion Data Center",
+            f"Acme is the {role} for Orion Data Center in Austin, TX.",
+            date(2026, 9, 20), NOW,
+        )
+
+    with db.begin() as session:
+        project, _, _ = seed(session)
+        enrich_buying_chain(session, project.id, fetcher=fetch, now=NOW)
+        original = session.scalar(
+            select(BuyingChainEvidence).where(
+                BuyingChainEvidence.project_id == project.id,
+                BuyingChainEvidence.url == url,
+            )
+        )
+        assert original is not None
+        role = "electrical contractor"
+        enrich_buying_chain(
+            session, project.id, source_urls=[failure_url], fetcher=fetch,
+            now=NOW + timedelta(minutes=1),
+        )
+        latest_run = session.scalar(
+            select(BuyingChainRun).where(BuyingChainRun.project_id == project.id)
+            .order_by(BuyingChainRun.created_at.desc(), BuyingChainRun.id.desc())
+        )
+        assert latest_run is not None
+        assert str(original.id) in latest_run.evidence_ids
+        assert len(latest_run.evidence_ids) >= 2
+        before = session.scalars(
+            select(ChangeEvent).where(ChangeEvent.field_name == "contractor")
+        ).all()
+        assert len(before) == 2
+
+        role = "general contractor"
+        enrich_buying_chain(
+            session, project.id, fetcher=fetch, now=NOW + timedelta(minutes=2)
+        )
+        after = session.scalars(
+            select(ChangeEvent).where(ChangeEvent.field_name == "contractor")
+        ).all()
+        assert len(after) == 3
+        restored = next(event for event in after if event.id not in {row.id for row in before})
+        assert restored.new_state["buying_chain_evidence_ids"] == [str(original.id)]
 
 
 def test_buying_chain_role_expiry_updates_state_without_unrelated_event(db, monkeypatch):
@@ -1718,4 +2065,12 @@ def test_morning_changes_are_unique_and_use_immutable_evidence(db, monkeypatch):
         "title": "Orion Data Center",
         "url": "https://example.test/source",
         "published_at": "2026-09-20",
+        "sources": [
+            {
+                "id": str(evidence.id),
+                "title": "Orion Data Center",
+                "url": "https://example.test/source",
+                "published_at": "2026-09-20",
+            }
+        ],
     }

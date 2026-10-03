@@ -263,7 +263,7 @@ def record_material_diff(
     project: Project,
     evidence: Evidence,
     previous: ProjectMaterialState,
-    buying_evidence: dict[str, BuyingChainEvidence] | None = None,
+    buying_evidence: dict[str, list[BuyingChainEvidence]] | None = None,
 ) -> list[ChangeEvent]:
     """Compare the actual persisted old state with current state; metadata is excluded."""
     now = datetime.now(UTC)
@@ -302,7 +302,10 @@ def record_material_diff(
         before = comparison_before
         if before == after:
             continue
-        field_support = (buying_evidence or {}).get(field)
+        field_sources = (buying_evidence or {}).get(field, [])
+        field_support = max(
+            field_sources, key=lambda row: (row.last_seen_at, row.id), default=None
+        )
         if (
             buying_evidence is not None
             and field in {"contractor", "buyer"}
@@ -342,7 +345,13 @@ def record_material_diff(
             buying_chain_evidence_id=field_support.id if field_support else None,
             field_name=field,
             prior_state={"value": before},
-            new_state={"value": after},
+            new_state={
+                "value": after,
+                **(
+                    {"buying_chain_evidence_ids": [str(row.id) for row in field_sources]}
+                    if field_sources else {}
+                ),
+            },
             material=True,
             source_date=(
                 field_support.published_at

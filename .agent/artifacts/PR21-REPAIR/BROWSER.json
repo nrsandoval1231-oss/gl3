@@ -9,23 +9,23 @@
     "retain-on-failure"
   ],
   "exit_code": 0,
-  "start": "2026-10-03T00:49:57.003635+00:00",
-  "finish": "2026-10-03T00:51:15.274238+00:00",
-  "seconds": 78.270603,
+  "start": "2026-10-03T01:43:25.270052+00:00",
+  "finish": "2026-10-03T01:44:40.475322+00:00",
+  "seconds": 75.20527,
   "configuration": "Existing playwright.config.ts with fresh isolated API/web ports and worker; serial invocation retained from GL3-028 acceptance with failure tracing for network diagnosis; no assertions changed",
-  "log_sha256": "311eb0ada84fd5612c3ed88eead58946d41e9b9bbfaf6a8705223a8e52328a40",
+  "log_sha256": "83894e0ddececd6f44889131d98a1175124af47eda36af7f4c486909cfd35cd6",
   "tail": [
-    "[WebServer] INFO:     Started server process [37648]",
+    "[WebServer] INFO:     Started server process [49704]",
     "[WebServer] INFO:     Waiting for application startup.",
     "[WebServer] INFO:     Application startup complete.",
     "[WebServer] INFO:     Uvicorn running on http://127.0.0.1:8041 (Press CTRL+C to quit)",
-    "[WebServer] (node:35692) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.",
+    "[WebServer] (node:43324) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.",
     "[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)",
     "",
     "Running 22 tests using 1 worker",
-    "(node:38044) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.",
+    "(node:6884) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.",
     "(Use `node --trace-warnings ...` to show where the warning was created)",
     "\u00c2\u00b7\u00c2\u00b7\u00c2\u00b7\u00c2\u00b7\u00c2\u00b7\u00c2\u00b7\u00c2\u00b7\u00c2\u00b7\u00c2\u00b7\u00c2\u00b7\u00c2\u00b7\u00c2\u00b7\u00c2\u00b7\u00c2\u00b7\u00c2\u00b7\u00c2\u00b7\u00c2\u00b7\u00c2\u00b7\u00c2\u00b7\u00c2\u00b7\u00c2\u00b7\u00c2\u00b7",
-    "  22 passed (1.3m)"
+    "  22 passed (1.2m)"
   ]
 }

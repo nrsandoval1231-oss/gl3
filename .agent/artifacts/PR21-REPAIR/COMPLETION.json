@@ -163,5 +163,25 @@
     ".agent/artifacts/PR21-REPAIR/R11-BEFORE-AFTER.json",
     "docs/validation/PR21-CORRECTNESS-REPAIR.md",
     ".agent/artifacts/PR21-REPAIR/COMPLETION.json"
+  ],
+  "r12_base_sha": "5f3cd8fd3ed9bdb33a768917436a306d1e4d3a36",
+  "r12_handoff": "Buyer/contractor material events retain every changed-version, currently supporting buying-chain document with typed daily/history links and legacy singular-FK fallback. Mixed add/remove, dual withdrawal, aged-role exclusion, unchanged/unrelated exclusion, partial-run A-B-A, replay, and standard A-B-A pass. Projection-only compact ZIP+4 comparison equates same nine digits across compact/hyphen/space forms while retaining distinct place/postal components. Exact-head before proof: 3 failed, 6 controls passed; intermediate mixed-format before: 4 failed, 8 passed; reviewer follow-up aged-role and partial-run A-B-A each failed before their respective repairs. Final affected backend tests: 121 passed; Ruff/mypy and frontend typecheck/build pass. R12-BEFORE-AFTER.json records scope. Controller owns full gates and independent review.",
+  "r12_repair_count": 1,
+  "r12_review_followup_repair_attempts": 2,
+  "r12_started_at_utc": "UNKNOWN",
+  "r12_finished_at_utc": "2026-10-03T01:40:27Z",
+  "r12_durations_and_tokens": "UNKNOWN",
+  "r12_files": [
+    "backend/src/gridlens/api/app.py",
+    "backend/src/gridlens/intelligence/buying_chain.py",
+    "backend/src/gridlens/intelligence/change_detection.py",
+    "backend/src/gridlens/intelligence/project_identity.py",
+    "backend/tests/integration/test_project_state_changes.py",
+    "web/src/api/openapi.json",
+    "web/src/api/generated.ts",
+    ".agent/packets/PR21-REPAIR.md",
+    ".agent/artifacts/PR21-REPAIR/R12-BEFORE-AFTER.json",
+    "docs/validation/PR21-CORRECTNESS-REPAIR.md",
+    ".agent/artifacts/PR21-REPAIR/COMPLETION.json"
   ]
 }

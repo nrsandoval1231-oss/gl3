@@ -1472,6 +1472,13 @@
               }
             ],
             "title": "Published At"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/ChangeSourceOut"
+            },
+            "type": "array",
+            "title": "Sources"
           }
         },
         "type": "object",
@@ -1479,9 +1486,47 @@
           "kind",
           "title",
           "url",
-          "published_at"
+          "published_at",
+          "sources"
         ],
         "title": "ChangeOut"
+      },
+      "ChangeSourceOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "url",
+          "published_at"
+        ],
+        "title": "ChangeSourceOut"
       },
       "EvidenceOut": {
         "properties": {
@@ -2786,6 +2831,13 @@
             ],
             "title": "Buying Chain Evidence Id"
           },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/ChangeSourceOut"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
           "source_date": {
             "anyOf": [
               {
@@ -2812,6 +2864,7 @@
           "new",
           "evidence_id",
           "buying_chain_evidence_id",
+          "sources",
           "source_date",
           "detected_at"
         ],
