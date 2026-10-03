@@ -32,6 +32,7 @@ function permit(id: string, action: string | null, options: { location?: string;
     supply_quote: null,
     missing_facts: ['activity-specific power requirement'],
     evidence: [{
+      id: `evidence-${id}`,
       title: `Austin building permit ${id}`,
       abstract: options.abstract ?? action,
       url: `https://example.invalid/${id}`,
@@ -85,7 +86,7 @@ test('Cannabis Watch is removed and an evidence-supported applicant titles the c
           : []
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
   })
-  await page.goto('/')
+  await page.goto('/?tier=Signals')
   await expect(page.getByRole('button', { name: 'Cannabis watch' })).toHaveCount(0)
   const card = page.getByRole('button', { name: /Green Valley Cultivation LLC · applicant/ })
   await expect(card).toBeVisible()
@@ -156,7 +157,7 @@ test('grouped permit members use company-first titles while retaining each permi
           : []
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
   })
-  await page.goto('/')
+  await page.goto('/?tier=Signals')
   await page.getByRole('button', { name: /KEETER INVESTMENTS LLC · LP Business Name · role unverified/ }).click()
   const keeterMember = page.locator('.project-member[data-opportunity-id="COM-NEW-26-000129"]')
   const merichemMember = page.locator('.project-member[data-opportunity-id="COM-NEW-26-000130"]')
@@ -180,7 +181,7 @@ test('Signals default to All and keep SHOW, REVIEW, and HOLD selectable', async 
     const body = path === '/api/auth/session' ? { authenticated: true } : path === '/api/opportunities' ? records : path === '/api/health' ? { sources: [], backlog: 0, pending_interpretations: 0 } : []
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
   })
-  await page.goto('/')
+  await page.goto('/?tier=Signals')
   await expect(page.getByRole('button', { name: 'All 4' })).toHaveAttribute('aria-pressed', 'true')
   await expect(page.getByRole('button', { name: /Possible Industrial Expansion/ })).toBeVisible()
   await expect(page.getByRole('button', { name: /Marathon Temporary Stage/ })).toBeVisible()
@@ -204,7 +205,7 @@ test('Signals default to All and keep SHOW, REVIEW, and HOLD selectable', async 
   await page.getByRole('textbox', { name: 'Search projects' }).fill('Marathon')
   await expect(page.getByRole('button', { name: /Marathon Temporary Stage/ })).toBeVisible()
   records = [permit('only-review', 'Unadjudicated campus', { projectId: 'only-review', decision: null })]
-  await page.goto('/')
+  await page.goto('/?tier=Signals')
   await page.getByRole('button', { name: 'SHOW 0' }).click()
   await expect(page.getByRole('heading', { name: 'No SHOW decisions yet' })).toBeVisible()
   await expect(page.getByText('Check REVIEW (1) for uncertain or not-yet-adjudicated projects. An unavailable Jev decision stays visible there.')).toBeVisible()
@@ -276,7 +277,7 @@ test('only exact dated event evidence groups; titles describe permit work; all r
     const body = path === '/api/auth/session' ? { authenticated: true } : path === '/api/opportunities' ? browseRecords : path === '/api/health' ? { sources: [], backlog: 0, pending_interpretations: 0 } : []
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
   })
-  await page.goto('/')
+  await page.goto('/?tier=Signals')
   const summaryCard = page.getByRole('button', { name: /New data center construction/ }).first()
   await expect(summaryCard).toContainText('Hampton, Georgia')
   await expect(page.getByRole('button', { name: /New Data Center Campus Construction/ })).toContainText('100 MW campus capacity · 20 MW utility service')
@@ -296,7 +297,7 @@ test('only exact dated event evidence groups; titles describe permit work; all r
           : []
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
   })
-  await page.goto('/')
+  await page.goto('/?tier=Signals')
   await expect(page.getByRole('heading', { name: /2 project cards · 3 opportunity records/ })).toBeVisible()
   const project = page.getByRole('button', { name: /Zilker Park.*Oct 2026/ })
   await expect(project).toBeVisible()

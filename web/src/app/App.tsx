@@ -2,7 +2,7 @@ import { type FormEvent, useEffect, useRef, useState } from 'react'
 import { client, type Brief, type IngestionItem, type Opportunity } from '../api/client'
 import { matchesOpportunity, projectCards, projectTitle, signalDecisionCards, signalDisplayDecision, type SignalDisplayDecision } from '../features/opportunities/projectCards'
 
-import { Pursuits } from '../features/pursuits/Pursuits'
+import { CommercialPursuits } from '../features/pursuits/CommercialPursuits'
 
 import { BuyingChain } from '../features/buyingChain/BuyingChain'
 
@@ -13,6 +13,11 @@ type Change = Awaited<ReturnType<typeof client.changes>>[number]
 type View = 'opportunities' | 'ingestion' | 'pursuits'
 type SignalFilter = 'ALL' | SignalDisplayDecision
 const pageSize = 25
+
+function initialView(): View {
+  const params = new URLSearchParams(location.search)
+  return params.has('tier') || params.get('view') === 'opportunities' ? 'opportunities' : params.get('view') === 'ingestion' ? 'ingestion' : 'pursuits'
+}
 
 function tierValue(tier: Tier) { return tier.slice(0, -1) }
 function routeUrl(tier: Tier, search: string, hash = '') {
@@ -71,7 +76,8 @@ export function App() {
   const [password, setPassword] = useState('')
   const [tier, setTier] = useState<Tier>('Signals')
   const [signalFilter, setSignalFilter] = useState<SignalFilter>('ALL')
-  const [view, setView] = useState<View>('opportunities')
+  const [view, setView] = useState<View>(initialView)
+  const [commercialMounted, setCommercialMounted] = useState(() => initialView() === 'pursuits')
   const [search, setSearch] = useState('')
   const [items, setItems] = useState<Opportunity[]>([])
   const [selected, setSelected] = useState<Opportunity | null>(null)
@@ -98,6 +104,7 @@ export function App() {
     setSearch(params.get('q') ?? '')
     const initialView = params.get('view')
     if (initialView === 'ingestion' || initialView === 'pursuits') setView(initialView)
+    else setView(params.has('tier') || initialView === 'opportunities' ? 'opportunities' : 'pursuits')
     setSourceFilter(params.get('source') ?? '')
     setVerticalFilter(canonicalVertical(params.get('vertical') ?? ''))
     setOffset(parseOffset(params.get('offset')))
@@ -153,17 +160,21 @@ export function App() {
 
   useEffect(() => {
     function onPopState(event: PopStateEvent) {
-      const state = event.state as { tier?: Tier; search?: string; id?: string; view?: View; sourceFilter?: string; verticalFilter?: string; offset?: number; scrollY?: number; focusedId?: string } | null
+      const state = event.state as { tier?: Tier; search?: string; id?: string; view?: View; sourceFilter?: string; verticalFilter?: string; offset?: number; scrollY?: number; focusedId?: string; expandedCardKey?: string | null; signalFilter?: SignalFilter } | null
       const params = new URLSearchParams(location.search)
       if (state?.tier && tiers.includes(state.tier)) setTier(state.tier)
       else setTier('Signals')
       const restoredView = state?.view ?? params.get('view')
-      setView(restoredView === 'ingestion' || restoredView === 'pursuits' ? restoredView : 'opportunities')
+      const nextView = restoredView === 'ingestion' || restoredView === 'pursuits' ? restoredView : 'opportunities'
+      setView(nextView)
+      if (nextView === 'pursuits') setCommercialMounted(true)
       setSearch(state?.search ?? '')
       setSourceFilter(state?.sourceFilter ?? params.get('source') ?? '')
       setVerticalFilter(canonicalVertical(state?.verticalFilter ?? params.get('vertical') ?? ''))
       setOffset(state?.offset ?? parseOffset(params.get('offset')))
       setSelected(state?.id ? itemsRef.current.find((item) => item.id === state.id) ?? null : null)
+      setExpandedCardKey(state?.expandedCardKey ?? null)
+      if (state?.signalFilter && ['ALL', 'SHOW', 'REVIEW', 'HOLD'].includes(state.signalFilter)) setSignalFilter(state.signalFilter)
       requestAnimationFrame(() => {
         window.scrollTo(0, state?.scrollY ?? 0)
         if (state?.focusedId) document.querySelector<HTMLButtonElement>(`[data-opportunity-id="${CSS.escape(state.focusedId)}"]`)?.focus()
@@ -201,18 +212,21 @@ export function App() {
   }
 
   function chooseTier(value: Tier) {
+    history.pushState({ tier, search, id: selected?.id, view, sourceFilter, verticalFilter, offset, scrollY: window.scrollY, expandedCardKey, signalFilter }, '', location.href)
     setView('opportunities')
     setTier(value)
     setSelected(null)
-    history.replaceState({ tier: value, search, scrollY: 0 }, '', routeUrl(value, search))
+    history.replaceState({ tier: value, search, view: 'opportunities', sourceFilter, verticalFilter, offset: 0, scrollY: 0 }, '', routeUrl(value, search))
     window.scrollTo(0, 0)
   }
 
   function chooseView(value: View) {
+    if (value === 'pursuits') setCommercialMounted(true)
     setView(value)
     setSelected(null)
     setOffset(0)
-    history.pushState({ tier, search, view: value, sourceFilter, verticalFilter, offset: 0, scrollY: 0 }, '', value === 'opportunities' ? routeUrl(tier, search) : value === 'pursuits' ? `${location.pathname}?view=pursuits` : ingestionUrl('ingestion', sourceFilter, verticalFilter, 0))
+    history.pushState({ tier, search, id: selected?.id, view, sourceFilter, verticalFilter, offset, scrollY: window.scrollY, expandedCardKey, signalFilter }, '', location.href)
+    history.replaceState({ tier, search, view: value, sourceFilter, verticalFilter, offset: 0, scrollY: 0 }, '', value === 'opportunities' ? routeUrl(tier, search) : value === 'pursuits' ? `${location.pathname}?view=pursuits` : ingestionUrl('ingestion', sourceFilter, verticalFilter, 0))
     window.scrollTo(0, 0)
   }
 
@@ -256,9 +270,10 @@ export function App() {
   const matchingRecordCount = items.filter((item) => matchesOpportunity(item, search)).length
   const selectedGroup = selected && cards.find((card) => card.grouped && card.members.some((item) => item.id === selected.id))
   const selectedSharesProjectId = Boolean(selectedGroup && selected?.project_id && selectedGroup.members.every((member) => member.project_id === selected.project_id))
-  return <div className="shell">
-    <header className="topbar"><a className="brand" href={routeUrl('Signals', '')} aria-label="GridLens home" onClick={(event) => { event.preventDefault(); chooseTier('Signals') }}><img src="/brand/lockup-horizontal-navy.svg" alt="GridLens"/></a><nav aria-label="Workspace views">{tiers.map((name) => <button key={name} className={view === 'opportunities' && tier === name ? 'nav-active' : ''} aria-current={view === 'opportunities' && tier === name ? 'page' : undefined} onClick={() => chooseTier(name)}>{name}</button>)}<button className={view === 'pursuits' ? 'nav-active' : ''} aria-current={view === 'pursuits' ? 'page' : undefined} onClick={() => chooseView('pursuits')}>Today’s pursuits</button><button className={view === 'ingestion' ? 'nav-active' : ''} aria-current={view === 'ingestion' ? 'page' : undefined} onClick={() => chooseView('ingestion')}>Ingestion</button></nav><div className="header-actions"><button className="health-toggle" onClick={() => setShowHealth((value) => !value)} aria-expanded={showHealth}>Source health</button><button className="signout" onClick={() => void signOut()}>Sign out</button></div></header>
-    <main className="workspace">
+  return <div className={`shell${view === 'pursuits' ? ' shell-commercial' : ''}`}>
+    <header className="topbar"><a className="brand" href={routeUrl('Signals', '')} aria-label="GridLens home" onClick={(event) => { event.preventDefault(); chooseTier('Signals') }}><img src={view === 'pursuits' ? '/brand/lockup-horizontal-white.svg' : '/brand/lockup-horizontal-navy.svg'} alt="GridLens"/></a><nav aria-label="Workspace views">{tiers.map((name) => <button key={name} className={view === 'opportunities' && tier === name ? 'nav-active' : ''} aria-current={view === 'opportunities' && tier === name ? 'page' : undefined} onClick={() => chooseTier(name)}>{name}</button>)}<button className={view === 'pursuits' ? 'nav-active' : ''} aria-current={view === 'pursuits' ? 'page' : undefined} onClick={() => chooseView('pursuits')}>Today’s pursuits</button><button className={view === 'ingestion' ? 'nav-active' : ''} aria-current={view === 'ingestion' ? 'page' : undefined} onClick={() => chooseView('ingestion')}>Ingestion</button></nav><div className="header-actions"><button className="health-toggle" onClick={() => setShowHealth((value) => !value)} aria-expanded={showHealth}>Source health</button><button className="signout" onClick={() => void signOut()}>Sign out</button></div></header>
+    <main className={`workspace${view === 'pursuits' ? ' workspace-commercial' : ''}`}>
+      {authenticated && commercialMounted && <div className="commercial-host" hidden={view !== 'pursuits'}><CommercialPursuits/></div>}
       {!selected && view === 'opportunities' && <div className="overview-grid"><section className="hero"><div><p className="eyebrow">Evidence-led project discovery</p><h1>{tier}</h1><p>{tier === 'Signals' ? 'SHOW means this project or event is worth investigating. It does not mean a qualified opportunity.' : 'Projects with sourced events that may warrant a power discovery conversation.'}</p></div></section><section className="today"><div><p className="eyebrow">Today</p><strong>{changes.length} material {changes.length === 1 ? 'change' : 'changes'}</strong></div>{changes.slice(0, 3).map((change, index) => <a href={change.url} key={`${change.kind}-${index}`} target="_blank" rel="noreferrer"><span>{change.kind}</span>{change.title}</a>)}{changes.length === 0 && <span className="today-empty">No material opportunity changes today.</span>}</section></div>}
       {!selected && view === 'ingestion' && <section className="hero"><div><p className="eyebrow">Retained evidence · Publisher and government sources</p><h1>Ingestion inbox</h1><p>Permits are primary project discovery; news is supplemental. Source evidence and qualification stay visible. City permit coverage is regional and limited to a rolling issue-date window.</p></div></section>}
       {selected && <section className="hero detail-hero"><div><p className="eyebrow">{selected.tier} · {selected.activity.replaceAll('-', ' ')}{selected.tier === 'Signal' ? ` · ${selected.signal_display_decision ?? 'REVIEW'}` : ''}</p><h1>{projectTitle(selected)}</h1>{selected.commercial_size_status === 'unknown' && selected.tier === 'Signal' && <p role="status" className="integrity"><strong>Activity size unknown.</strong> Retained for investigation; the 300 kW minimum is inclusive.</p>}{selected.signal_evidence_state === 'planning_application_withdrawn' && <p role="status" className="integrity"><strong>Planning application withdrawn · historical Signal.</strong> Current project viability is unknown.</p>}{selected.signal_evidence_state === 'planning_status_unknown' && <p role="status" className="integrity"><strong>Conflicting planning revision · historical Signal.</strong> Current application and project status are unknown.</p>}<p>{selected.rationale}</p>{selectedGroup && <p className="group-context">{selectedSharesProjectId ? `Part of a physical project group with ${selectedGroup.members.length} retained records. Each record and its evidence remain available.` : `Part of an exact-event permit group with ${selectedGroup.members.length} records. Each record and its evidence remain separate.`}</p>}</div><button className="back-button" onClick={returnToBrowse}>← Back to {tier}</button></section>}
@@ -268,7 +283,7 @@ export function App() {
       {view === 'ingestion' && <div className="ingestion-tools"><label>Source<select aria-label="Filter by source" value={sourceFilter} onChange={(event) => { setSourceFilter(event.target.value); setOffset(0) }}><option value="">All sources</option>{sourceOptions.map((source) => <option value={source.id} key={source.id}>{source.label}</option>)}</select></label><label>Source sector<select aria-label="Filter by source sector" value={verticalFilter} onChange={(event) => chooseVertical(event.target.value)}><option value="">All source sectors</option>{verticalGroups.map((group) => <option value={group.id} key={group.id}>{group.label}</option>)}</select></label><span>{ingestionTotal} retained {ingestionTotal === 1 ? 'item' : 'items'} · page {Math.floor(offset / pageSize) + 1}</span></div>}
       {error && <p role="alert" className="error-banner">{error}</p>}
       {loading && <p className="loading-inline" role="status">Updating this view…</p>}
-      {view === 'pursuits' ? <Pursuits/> : selected ? <><OpportunityDetail item={selected}/><div className="detail-navigation"><button disabled={selectedIndex <= 0} onClick={() => moveTo(items[selectedIndex - 1])}>← Previous</button><button disabled={selectedIndex < 0 || selectedIndex >= items.length - 1} onClick={() => moveTo(items[selectedIndex + 1])}>Next →</button></div></> : view === 'opportunities' ? visibleCards.length ? <div className="opportunity-list">{visibleCards.map((card) => {
+      {view === 'pursuits' ? null : selected ? <><OpportunityDetail item={selected}/><div className="detail-navigation"><button disabled={selectedIndex <= 0} onClick={() => moveTo(items[selectedIndex - 1])}>← Previous</button><button disabled={selectedIndex < 0 || selectedIndex >= items.length - 1} onClick={() => moveTo(items[selectedIndex + 1])}>Next →</button></div></> : view === 'opportunities' ? visibleCards.length ? <div className="opportunity-list">{visibleCards.map((card) => {
         const matchingMembers = card.members.filter((item) => matchesOpportunity(item, search))
         const members = card.members
         const decision = signalDisplayDecision(card.members)

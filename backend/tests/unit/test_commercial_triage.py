@@ -1,0 +1,502 @@
+from datetime import date
+from uuid import uuid4
+
+from gridlens.domain.commercial_triage import build_card, cards, surfaced_on
+
+
+def _item(**overrides):
+    item = {
+        "id": uuid4(),
+        "project_id": uuid4(),
+        "name": "Ellenwood data center",
+        "location": "Ellenwood, Georgia",
+        "tier": "Signal",
+        "activity": "electrical-construction",
+        "asset_type": "data_center",
+        "lifecycle_state": "electrical_buildout",
+        "lifecycle_timeline": [],
+        "required_mw": None,
+        "start_window": None,
+        "duration": None,
+        "supply": "Unknown",
+        "conflict_state": "Not assessed",
+        "missing_facts": ["activity-specific power requirement", "buyer or responsible operator"],
+        "supported_action": (
+            "Install new substation transformers for data center electrical construction"
+        ),
+        "signal_display_decision": "REVIEW",
+        "evidence": [
+            {
+                "id": uuid4(),
+                "title": "Current EPD substation permit",
+                "abstract": (
+                    "Install new substation transformers for data center electrical construction."
+                ),
+                "url": "https://example.test/permit",
+                "content_hash": "a" * 64,
+                "event_date": "2026-10-01",
+                "source_id": "georgia-air-draft-title-v",
+                "document_number": "30104",
+            }
+        ],
+    }
+    item.update(overrides)
+    return item
+
+
+def test_permit_contact_is_action_now_with_unknown_need_and_no_inferred_company():
+    item = _item()
+    evidence_id = str(uuid4())
+    chain = {
+        "candidates": [],
+        "permit_summaries": [
+            {
+                "evidence_id": evidence_id,
+                "url": "https://example.test/permit",
+                "facts": [
+                    {"label": "Permit contractor trade", "value": "Electrician"},
+                    {"label": "Permit-listed contractor name", "value": "Blake Combs"},
+                    {"label": "Contractor phone", "value": "555-0100"},
+                ],
+            }
+        ],
+    }
+    card = build_card(item, chain, date(2026, 10, 3))
+    assert card["disposition"] == "ACTION NOW"
+    assert card["required_mw"] is None
+    assert card["contacts"][0]["organization"] is None
+    assert card["contacts"][0]["person"] == "Blake Combs"
+    assert "unverified" in card["contacts"][0]["role"]
+    assert "construction not established" in card["stage"]["stage"]
+    assert "campus" not in card["hypothesis"].casefold()
+
+
+def test_contractor_is_not_rejected_as_rental_intermediary_and_hold_routes_to_research():
+    item = _item(signal_display_decision="HOLD", signal_display_reason="Need scope is unclear")
+    chain = {
+        "candidates": [
+            {
+                "organization": "Electrical Builder LLC",
+                "category": "electrical_contractor",
+                "organization_relationship": "UNKNOWN",
+                "reason": "Permit-listed electrical contractor",
+                "stale": False,
+                "evidence": [],
+                "public_contacts": [],
+            }
+        ],
+        "permit_summaries": [],
+    }
+    card = build_card(item, chain, date(2026, 10, 3))
+    assert card["disposition"] == "RESEARCH"
+    assert "intermediaries only" not in card["reason"]
+
+
+def test_rental_intermediary_is_excluded_even_when_relationship_is_direct():
+    item = _item()
+    intermediary = {
+        "organization": "Metro Equipment Rentals",
+        "category": "owner_developer",
+        "organization_relationship": "DIRECT",
+        "reason": "Permit-listed organization",
+        "stale": False,
+        "evidence": [],
+        "public_contacts": [{"kind": "phone", "value": "555-0104"}],
+    }
+    rental_summary = {
+        "evidence_id": str(uuid4()),
+        "url": "https://example.test/rental",
+        "facts": [
+            {"label": "Permit contractor organization", "value": "Metro Equipment Rentals"},
+            {"label": "Contractor phone", "value": "555-0104"},
+        ],
+    }
+    rejected = build_card(
+        item,
+        {"candidates": [intermediary], "permit_summaries": [rental_summary]},
+        date(2026, 10, 3),
+    )
+    assert rejected["disposition"] == "REJECT"
+    assert all("Rentals" not in str(contact["organization"]) for contact in rejected["contacts"])
+
+    owner = {
+        **intermediary,
+        "organization": "Campus Owner LLC",
+        "public_contacts": [{"kind": "phone", "value": "555-0105"}],
+    }
+    mixed = build_card(
+        item,
+        {"candidates": [intermediary, owner], "permit_summaries": [rental_summary]},
+        date(2026, 10, 3),
+    )
+    assert mixed["disposition"] == "ACTION NOW"
+    assert all("Rentals" not in str(contact["organization"]) for contact in mixed["contacts"])
+
+
+def test_superseded_temporary_scope_does_not_make_current_routine_permit_actionable():
+    item = _item(
+        evidence=[
+            {
+                "id": uuid4(),
+                "title": "Old temporary service permit",
+                "abstract": "Temporary generator service for construction power.",
+                "url": "https://example.test/old",
+                "content_hash": "f" * 64,
+                "event_date": date(2025, 1, 1),
+                "source_id": "austin-building-permits",
+                "document_number": "2025-111111 EP",
+                "assessment_current": False,
+            },
+            {
+                "id": uuid4(),
+                "title": "Current routine tenant permit",
+                "abstract": "Ordinary interior tenant finish work.",
+                "url": "https://example.test/current",
+                "content_hash": "e" * 64,
+                "event_date": date(2026, 9, 1),
+                "source_id": "austin-building-permits",
+                "document_number": "2026-111111 EP",
+                "assessment_current": True,
+            },
+        ]
+    )
+    card = build_card(item, None, date(2026, 10, 3))
+    assert card["disposition"] != "ACTION NOW"
+    assert all(fact["url"] != "https://example.test/old" for fact in card["facts"])
+
+
+def test_campus_nameplate_does_not_fill_need_mw_and_question_is_specific():
+    item = _item(
+        supported_action="The campus has 100 MW of nameplate capacity.",
+        evidence=[
+            {
+                "id": uuid4(),
+                "title": "Campus capacity filing",
+                "abstract": "The campus has 100 MW of nameplate capacity.",
+                "url": "https://example.test/campus",
+                "content_hash": "b" * 64,
+                "event_date": "2026-10-01",
+                "source_id": "georgia-air-draft-title-v",
+                "document_number": "30104",
+            }
+        ],
+    )
+    card = build_card(item, None, date(2026, 10, 3))
+    assert card["required_mw"] is None
+    assert "energization" in card["next_question"]
+    assert "100 MW" not in card["hypothesis"]
+
+
+def test_conflict_is_research_and_watch_has_cited_concrete_source_event():
+    conflicted = build_card(_item(conflict_state="unresolved conflict"), None, date(2026, 10, 3))
+    assert conflicted["disposition"] == "RESEARCH"
+    watch_item = _item(
+        name="Unknown equipment permit",
+        asset_type="unknown",
+        lifecycle_state="permitting",
+        missing_facts=[],
+        supported_action=None,
+    )
+    watched = build_card(watch_item, None, date(2026, 10, 3))
+    assert watched["disposition"] == "WATCH"
+    assert watched["watch"]["source_url"] == "https://example.test/permit"
+    assert "Observe a dated EPC award" in watched["watch"]["event"]
+    assert watched["watch"]["date"] is None
+
+
+def test_explicit_closed_permanent_supply_and_backup_only_scope_reject_but_unknown_stays_open():
+    closed = _item()
+    card = build_card(
+        closed,
+        {
+            "candidates": [],
+            "permit_summaries": [
+                {
+                    "evidence_id": str(uuid4()),
+                    "url": "https://example.test/closed",
+                    "facts": [{"label": "Permit status", "value": "Withdrawn"}],
+                }
+            ],
+        },
+        date(2026, 10, 3),
+    )
+    assert card["disposition"] == "REJECT"
+    assert "status says" in card["reason"]
+
+    permanent = _item(
+        supported_action="Permanent utility service is adequate for the facility.",
+        evidence=[
+            {
+                "id": uuid4(),
+                "title": "Utility service review",
+                "abstract": "Permanent utility supply is adequate for the facility.",
+                "url": "https://example.test/utility",
+                "content_hash": "9" * 64,
+                "event_date": "2026-10-01",
+            }
+        ],
+    )
+    assert build_card(permanent, None, date(2026, 10, 3))["disposition"] == "REJECT"
+
+    backup_only = _item(
+        supported_action="Replace backup generator as routine maintenance.",
+        evidence=[
+            {
+                "id": uuid4(),
+                "title": "Backup generator replacement",
+                "abstract": "Routine backup generator replacement; no temporary service.",
+                "url": "https://example.test/backup",
+                "content_hash": "8" * 64,
+                "event_date": "2026-10-01",
+            }
+        ],
+    )
+    assert build_card(backup_only, None, date(2026, 10, 3))["disposition"] == "REJECT"
+
+    unknown = _item(
+        signal_display_decision="HOLD",
+        signal_display_reason="No need-specific demand evidence.",
+        evidence=[
+            {
+                "id": uuid4(),
+                "title": "Unresolved project scope",
+                "abstract": "The current filing does not report project power requirements.",
+                "url": "https://example.test/unknown",
+                "content_hash": "7" * 64,
+                "event_date": "2026-10-01",
+            }
+        ],
+    )
+    assert build_card(unknown, None, date(2026, 10, 3))["disposition"] == "RESEARCH"
+
+
+def test_exact_austin_permit_case_grouping_preserves_need_ids_and_sibling_evidence_hash():
+    project_id = uuid4()
+    first = _item(
+        project_id=project_id, asset_type="unknown", name="Same work", activity="temporary-power"
+    )
+    second = _item(
+        project_id=uuid4(), asset_type="unknown", name="Same work", activity="temporary-power"
+    )
+    for item, suffix, digest in ((first, "BP", "c"), (second, "EP", "d")):
+        item["evidence"][0].update(
+            source_id="austin-building-permits",
+            document_number=f"2019-123456 {suffix}",
+            content_hash=digest * 64,
+            title="Temporary power permit",
+            abstract="Temporary service construction power.",
+        )
+    result = cards([first, second], {}, date(2026, 10, 3), 50)
+    assert len(result) == 1
+    assert set(result[0]["related_need_ids"]) == {str(first["id"]), str(second["id"])}
+    assert set(result[0]["related_project_ids"]) == {
+        str(project_id),
+        str(second["project_id"]),
+    }
+    assert len(result[0]["facts"]) == 2
+    assert len(result[0]["input_hash"]) == 64
+    original_hash = result[0]["input_hash"]
+    second["evidence"][0]["content_hash"] = "e" * 64
+    changed = cards([first, second], {}, date(2026, 10, 3), 50)
+    assert changed[0]["input_hash"] != original_hash
+
+
+def test_dc_construction_ranks_before_generic_permit_and_role_only_is_not_action_now():
+    generic = _item(
+        name="Austin temp permit",
+        location="Austin, TX",
+        asset_type="unknown",
+        activity="temporary-power",
+        supported_action="Temporary service for construction power.",
+        evidence=[
+            {
+                "id": uuid4(),
+                "title": "Austin permit temporary service",
+                "abstract": "Temporary service for construction power.",
+                "url": "https://example.test/temp",
+                "content_hash": "1" * 64,
+                "source_id": "austin-building-permits",
+                "document_number": "2026-123456 EP",
+            }
+        ],
+    )
+    data_center = _item(
+        name="Data center construction",
+        location="Chicago, IL",
+        supported_action="New data center construction includes transformer installation.",
+        evidence=[
+            {
+                "id": uuid4(),
+                "title": "Electrical Permit",
+                "abstract": "New data center construction includes transformer installation.",
+                "url": "https://example.test/dc",
+                "content_hash": "2" * 64,
+                "source_id": "chicago-building-permits",
+                "document_number": "3451848",
+            }
+        ],
+    )
+    order = cards([generic, data_center], {}, date(2026, 10, 3), 50)
+    assert order[0]["id"] == str(data_center["id"])
+
+    role_only = build_card(
+        data_center,
+        {
+            "candidates": [],
+            "permit_summaries": [
+                {
+                    "evidence_id": str(uuid4()),
+                    "url": "https://example.test/dc",
+                    "facts": [
+                        {"label": "Permit contractor trade", "value": "Electrical Contractor"}
+                    ],
+                }
+            ],
+        },
+        date(2026, 10, 3),
+    )
+    assert role_only["disposition"] == "RESEARCH"
+    assert "temporary construction or commissioning power" in role_only["next_question"]
+    assert "may need temporary service or staged load" in role_only["hypothesis"]
+
+
+def test_regulatory_dc_boilerplate_and_drilling_permit_do_not_out_rank_temporary_scope():
+    generic_temporary = _item(
+        name="Austin temporary service permit",
+        location="Austin, TX",
+        asset_type="unknown",
+        activity="temporary-power",
+        supported_action="Temporary service for construction power.",
+        evidence=[
+            {
+                "id": uuid4(),
+                "title": "Austin electrical permit",
+                "abstract": "Temporary service for construction power.",
+                "url": "https://example.test/temp",
+                "content_hash": "3" * 64,
+                "source_id": "austin-building-permits",
+                "document_number": "2026-123456 EP",
+            }
+        ],
+    )
+    formation = _item(
+        name="QTS ATL3",
+        location="Augusta, GA",
+        asset_type="data_center",
+        activity="backup-power",
+        lifecycle_state="project_formation",
+        supported_action="QTS ATL3",
+        evidence=[
+            {
+                "id": uuid4(),
+                "title": "Draft stationary source permit",
+                "abstract": (
+                    "Operation of a data center with emergency generators. General "
+                    "conditions discuss construction, startup and commissioning."
+                ),
+                "url": "https://example.test/ga-permit",
+                "content_hash": "4" * 64,
+                "source_id": "georgia-air-draft-title-v",
+                "document_number": "30169",
+            }
+        ],
+    )
+    well_permit = _item(
+        name="Texas W-1 well permit 0918935",
+        location="Texas",
+        asset_type="upstream_well",
+        activity="well-permit",
+        lifecycle_state="permitting",
+        supported_action="W-1 permit: Recompletion.",
+        evidence=[
+            {
+                "id": uuid4(),
+                "title": "W-1 well permit",
+                "abstract": "Drilling permit; compliance text references production operations.",
+                "url": "https://example.test/w1",
+                "content_hash": "5" * 64,
+                "source_id": "texas-rrc-drilling-permits",
+                "document_number": "0918935",
+            }
+        ],
+    )
+    ranked = cards([well_permit, formation, generic_temporary], {}, date(2026, 10, 3), 50)
+    assert [card["id"] for card in ranked] == [
+        str(generic_temporary["id"]),
+        str(formation["id"]),
+        str(well_permit["id"]),
+    ]
+    formed = build_card(formation, None, date(2026, 10, 3))
+    assert formed["disposition"] == "WATCH"
+    assert "mobilization" in formed["watch"]["event"]
+    assert "actual construction stage" in formed["hypothesis"].casefold()
+    assert build_card(well_permit, None, date(2026, 10, 3))["disposition"] == "WATCH"
+
+
+def test_supported_production_transition_with_direct_contact_qualifies_discovery_question():
+    item = _item(
+        name="Cedar Draw gas facility",
+        activity="production-startup",
+        asset_type="upstream_well",
+        lifecycle_state="producing",
+        supported_action="Production started at Cedar Draw facility.",
+        lifecycle_timeline=[
+            {
+                "event_type": "production_start",
+                "state": "Producing",
+                "date": "2026-10-01",
+                "current": True,
+            }
+        ],
+        evidence=[
+            {
+                "id": uuid4(),
+                "title": "Current production transition",
+                "abstract": "Production started at Cedar Draw facility.",
+                "url": "https://example.test/production",
+                "content_hash": "6" * 64,
+                "event_date": "2026-10-01",
+                "assessment_current": True,
+            }
+        ],
+    )
+    chain = {
+        "candidates": [
+            {
+                "organization": "Cedar Draw Operating LLC",
+                "organization_relationship": "DIRECT",
+                "category": "operator",
+                "stale": False,
+                "public_contacts": [
+                    {
+                        "kind": "phone",
+                        "value": "555-0103",
+                        "source_url": "https://example.test/operator",
+                    }
+                ],
+                "evidence": [],
+            }
+        ],
+        "permit_summaries": [],
+    }
+    card = build_card(item, chain, date(2026, 10, 3))
+    assert card["disposition"] == "ACTION NOW"
+    assert "startup timing" in card["next_question"]
+    assert "Gas fuel" in card["hypothesis"]
+
+
+def test_surfaced_daily_counts_only_new_action_now_card():
+    today = "2026-10-03"
+    prior = {"input_hash": "old", "disposition": "RESEARCH", "surfaced_on": None}
+    research = {"input_hash": "same", "disposition": "RESEARCH"}
+    assert surfaced_on(prior, research, today) is None
+    action = {"input_hash": "action", "disposition": "ACTION NOW"}
+    assert surfaced_on(prior, action, today) == today
+    assert (
+        surfaced_on(
+            {"input_hash": "action", "disposition": "ACTION NOW", "surfaced_on": today},
+            action,
+            today,
+        )
+        == today
+    )

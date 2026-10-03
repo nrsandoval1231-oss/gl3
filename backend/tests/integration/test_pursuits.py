@@ -1,4 +1,4 @@
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from importlib import import_module
 from uuid import UUID, uuid4
 
@@ -13,6 +13,7 @@ from gridlens.jobs.queue import enqueue, lease_one
 from gridlens.persistence.database import Base
 from gridlens.persistence.models import (
     Job,
+    PowerNeed,
     Project,
     Pursuit,
     PursuitCallNote,
@@ -295,9 +296,7 @@ def test_ordinary_refresh_reconciles_saved_dallas_title_and_preserves_history(ru
             "lp_business_name": "KEETER INVESTMENTS LLC",
         }
     ]
-    group["screen"] = service.screen(
-        group["facts"], group["source_id"], datetime.now(UTC).date()
-    )
+    group["screen"] = service.screen(group["facts"], group["source_id"], datetime.now(UTC).date())
     group["input_hash"] = service.digest(
         [service.POLICY_VERSION, service.PRESENTATION_POLICY_VERSION, group["records"]]
     )
@@ -771,3 +770,225 @@ def test_third_historical_archive_is_explicitly_deferred_and_not_fresh(
             deferred[0].snapshot["evidence"][0]["retrieved_at"]
             == original["records"][0]["observed_at"]
         )
+
+
+def test_commercial_triage_get_serializes_native_dates_and_persisted_evidence_ids(
+    runtime, monkeypatch
+):
+    factory, _service, _public, api, project_id = runtime
+    need_id, evidence_id = uuid4(), uuid4()
+    item = {
+        "id": need_id,
+        "project_id": project_id,
+        "name": "Synthetic Austin data center",
+        "location": "Dallas, TX",
+        "tier": "Signal",
+        "activity": "temporary-power",
+        "asset_type": "data_center",
+        "lifecycle_state": "permitting",
+        "lifecycle_timeline": [
+            {
+                "state": "electrical permit",
+                "event_type": "permit_issued",
+                "date": "2026-09-30",
+                "value_kind": "observed",
+                "evidence_url": "https://example.test/current-permit",
+                "current": True,
+                "published_at": date(2026, 9, 30),
+                "event_date_label": "Permit issue date",
+            }
+        ],
+        "required_mw": None,
+        "start_window": None,
+        "duration": None,
+        "supply": "Unknown",
+        "conflict_state": "Not assessed",
+        "missing_facts": ["buyer or responsible operator"],
+        "supported_action": "Temporary service for data center construction",
+        "signal_display_decision": "REVIEW",
+        "evidence": [
+            {
+                "id": evidence_id,
+                "title": "Current permit evidence",
+                "abstract": "Temporary service for data center construction",
+                "url": "https://example.test/current-permit",
+                "content_hash": "a" * 64,
+                "event_date": date(2026, 9, 30),
+                "source_id": "austin-building-permits",
+                "document_number": "2026-123456 EP",
+                "assessment_current": True,
+            }
+        ],
+    }
+    monkeypatch.setattr(api, "opportunities", lambda **_kwargs: [item])
+    monkeypatch.setattr(
+        api,
+        "buying_chain_view",
+        lambda *_args, **_kwargs: {"candidates": [], "permit_summaries": []},
+    )
+    client = TestClient(api.app, base_url="https://testserver")
+    assert client.get("/api/commercial/triage").status_code == 401
+    client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
+    response = client.get("/api/commercial/triage")
+    assert response.status_code == 200, response.text
+    card = response.json()["items"][0]
+    assert card["facts"][0]["evidence_id"] == str(evidence_id)
+    assert card["facts"][0]["date"] == "2026-09-30"
+    assert card["sources"][0]["evidence_id"] != "None"
+    assert card["lifecycle_timeline"][0]["current"] is True
+    assert card["lifecycle_timeline"][0]["evidence_url"] == "https://example.test/current-permit"
+    with factory() as session:
+        assert session.scalar(select(func.count()).select_from(Pursuit)) == 0
+
+
+def test_commercial_evaluate_replay_and_operator_note_are_durable_without_tier_writes(
+    runtime, monkeypatch
+):
+    factory, _service, _public, api, project_id = runtime
+    need_id = uuid4()
+    item = {
+        "id": need_id,
+        "project_id": project_id,
+        "name": "Synthetic Austin data center",
+        "location": "Austin, TX",
+        "tier": "Signal",
+        "activity": "electrical-construction",
+        "asset_type": "data_center",
+        "lifecycle_state": "electrical_buildout",
+        "lifecycle_timeline": [
+            {
+                "state": "electrical permit",
+                "event_type": "permit_issued",
+                "date": "2026-09-30",
+                "value_kind": "observed",
+                "evidence_url": "https://example.test/current-permit",
+                "current": True,
+                "published_at": date(2026, 9, 30),
+                "event_date_label": "Permit issue date",
+            }
+        ],
+        "required_mw": None,
+        "start_window": None,
+        "duration": None,
+        "supply": "Unknown",
+        "conflict_state": "Not assessed",
+        "missing_facts": ["buyer or responsible operator"],
+        "supported_action": "Data center electrical construction includes new transformers.",
+        "signal_display_decision": "REVIEW",
+        "evidence": [
+            {
+                "id": uuid4(),
+                "title": "Current construction permit",
+                "abstract": "Data center electrical construction includes new transformers.",
+                "url": "https://example.test/current-permit",
+                "content_hash": "b" * 64,
+                "event_date": date(2026, 9, 30),
+                "source_id": "austin-building-permits",
+                "document_number": "2026-123456 EP",
+                "assessment_current": True,
+            }
+        ],
+    }
+    monkeypatch.setattr(api, "opportunities", lambda **_kwargs: [item])
+    monkeypatch.setattr(
+        api,
+        "buying_chain_view",
+        lambda *_args, **_kwargs: {
+            "candidates": [],
+            "permit_summaries": [
+                {
+                    "evidence_id": str(item["evidence"][0]["id"]),
+                    "url": "https://example.test/current-permit",
+                    "facts": [
+                        {"label": "Permit contractor trade", "value": "Electrical Contractor"},
+                        {"label": "Contractor phone", "value": "5550102"},
+                    ],
+                }
+            ],
+        },
+    )
+    client = TestClient(api.app, base_url="https://testserver")
+    assert client.get("/api/commercial/triage/history").status_code == 401
+    client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
+    headers = {"origin": "https://testserver"}
+    first = client.post("/api/commercial/triage/evaluate", headers=headers)
+    assert first.status_code == 200, first.text
+    card = first.json()["items"][0]
+    assert card["disposition"] == "ACTION NOW"
+    assert first.json()["daily"]["evaluated"] == 1
+    assert first.json()["daily"]["surfaced"] == 1
+
+    replay = client.post("/api/commercial/triage/evaluate", headers=headers)
+    assert replay.status_code == 200, replay.text
+    assert replay.json()["daily"]["evaluated"] == 1
+    assert replay.json()["daily"]["surfaced"] == 1
+
+    note = {
+        "client_id": str(uuid4()),
+        "note": "Permit-listed contact reached; buying role not yet confirmed.",
+        "outcome": "Reached buying organization",
+        "next_action": "Confirm project assignment and purchasing role.",
+        "follow_up": None,
+    }
+    saved = client.post(f"/api/pursuits/{card['pursuit_id']}/notes", headers=headers, json=note)
+    assert saved.status_code == 200, saved.text
+    readback = client.get("/api/commercial/triage")
+    assert readback.status_code == 200, readback.text
+    assert readback.json()["items"][0]["notes"][0]["note"] == note["note"]
+    assert readback.json()["daily"]["reached_buyer"] == 1
+    assert readback.json()["daily"]["contacted"] == 1
+    assert readback.json()["daily"]["qualified"] == 0
+    with factory() as session:
+        assert session.scalar(select(func.count()).select_from(PowerNeed)) == 0
+
+    closed_note = {
+        **note,
+        "client_id": str(uuid4()),
+        "note": "Operator closed this workspace pending a future source update.",
+        "outcome": "Closed",
+        "next_action": "Reopen only if new project evidence arrives.",
+    }
+    closed_response = client.post(
+        f"/api/pursuits/{card['pursuit_id']}/notes", headers=headers, json=closed_note
+    )
+    assert closed_response.status_code == 200, closed_response.text
+    monkeypatch.setattr(api, "opportunities", lambda **_kwargs: [])
+
+    old_need_id = uuid4()
+    with factory.begin() as session:
+        session.add(
+            Pursuit(
+                identity_key=f"commercial-need:{old_need_id}",
+                project_id=project_id,
+                project_ids=[str(project_id)],
+                snapshot={
+                    "commercial_triage": {
+                        "need_id": str(old_need_id),
+                        "disposition": "REJECT",
+                        "evaluated_on": "2026-10-02",
+                        "input_hash": "legacy-receipt-hash",
+                    }
+                },
+            )
+        )
+
+    current = client.get("/api/commercial/triage")
+    assert current.status_code == 200, current.text
+    assert current.json()["items"] == []
+    history = client.get("/api/commercial/triage/history")
+    assert history.status_code == 200, history.text
+    records = {item["need_id"]: item for item in history.json()["items"]}
+    saved = records[str(need_id)]
+    assert saved["snapshot_status"] == "saved_as_of"
+    assert saved["live_status"] == "not_rechecked"
+    assert saved["disposition"] == "ACTION NOW"
+    assert saved["saved_card"]["name"] == "Synthetic Austin data center"
+    assert saved["saved_card"]["lifecycle_timeline"][0]["published_at"] == "2026-09-30"
+    assert {item["outcome"] for item in saved["notes"]} == {
+        "Reached buying organization",
+        "Closed",
+    }
+    metadata_only = records[str(old_need_id)]
+    assert metadata_only["snapshot_status"] == "metadata_only"
+    assert metadata_only["saved_card"] is None
+    assert metadata_only["disposition"] == "REJECT"
