@@ -7,7 +7,7 @@ import json
 import re
 import time
 from collections import Counter, defaultdict
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import parse_qs, urlencode, urlsplit
@@ -339,6 +339,31 @@ def _retain_unchecked_assignments(
             )
 
 
+def _newest_source_by_url(
+    sources: Sequence[BuyingChainEvidence], active_run: BuyingChainRun | None
+) -> dict[str, UUID]:
+    by_id = {str(row.id): row for row in sources}
+    newest: dict[str, UUID] = {}
+    for version in sorted(
+        sources,
+        key=lambda row: (row.last_seen_at, row.retained_evidence_id is None, row.id),
+        reverse=True,
+    ):
+        newest.setdefault(version.url, version.id)
+    if active_run:
+        for evidence_id in active_run.evidence_ids:
+            if evidence_id not in by_id:
+                continue
+            run_source = by_id[evidence_id]
+            current = by_id[str(newest[run_source.url])]
+            if (
+                run_source.last_seen_at,
+                run_source.retained_evidence_id is None,
+            ) >= (current.last_seen_at, current.retained_evidence_id is None):
+                newest[run_source.url] = run_source.id
+    return newest
+
+
 def enrich_buying_chain(
     session: Session,
     project_id: UUID,
@@ -368,6 +393,14 @@ def enrich_buying_chain(
             BuyingChainRun.project_id == project.id,
         )
         .order_by(BuyingChainRun.created_at.desc(), BuyingChainRun.id.desc())
+    )
+    # Snapshot the actual checked version before this pass can update last_seen_at
+    # on a reused immutable version. Partial runs can retain older IDs as history.
+    prior_versions = _newest_source_by_url(
+        session.scalars(
+            select(BuyingChainEvidence).where(BuyingChainEvidence.project_id == project.id)
+        ).all(),
+        previous_run,
     )
     started = time.monotonic()
     deadline = started + MAX_SECONDS
@@ -755,7 +788,7 @@ def enrich_buying_chain(
         def semantic_key(row: dict[str, Any]) -> tuple[Any, ...]:
             return tuple(row.get(key) for key in semantic_fields)
 
-        def support_for(field: str) -> BuyingChainEvidence | None:
+        def support_for(field: str) -> list[BuyingChainEvidence]:
             # Match the complete semantic rows emitted by material_state.
             # Organization-only matching can cite an unchanged role at the
             # same organization when a different role changes.
@@ -780,35 +813,42 @@ def enrich_buying_chain(
             )
             added = Counter(map(semantic_key, after_rows)) - Counter(map(semantic_key, before_rows))
             if not removed and not added:
-                return None
+                return []
 
-            source_ids = [
-                citation["id"]
-                for row in [*after_rows, *before_rows]
-                if added[semantic_key(row)] > 0 or removed[semantic_key(row)] > 0
-                for citation in row.get("evidence", [])
-                if citation.get("id")
-            ]
-            sources: list[BuyingChainEvidence] = []
-            for source_id in source_ids:
-                source = session.get(BuyingChainEvidence, source_id)
-                if source is not None:
-                    sources.append(source)
-            # A same-URL checked replacement is the source of a removal even
-            # when its new immutable content hash differs from the old claim.
-            cited_urls = {source.url for source in sources}
-            replacements = [source for source in saved.values() if source.url in cited_urls]
-            return (
-                max(replacements or sources, key=lambda row: (row.last_seen_at, row.id))
-                if (replacements or sources)
-                else None
-            )
+            checked = {
+                source.url: source for source in saved.values()
+                if source.id != prior_versions.get(source.url)
+            }
+            causes: dict[UUID, BuyingChainEvidence] = {}
+            for row in after_rows:
+                if added[semantic_key(row)] <= 0:
+                    continue
+                for citation in row.get("evidence", []):
+                    if not citation.get("current_support"):
+                        continue
+                    source = session.get(BuyingChainEvidence, citation.get("id"))
+                    if source is not None and (
+                        current := checked.get(source.url)
+                    ) is not None and current.id == source.id:
+                        causes[source.id] = source
+            for row in before_rows:
+                if removed[semantic_key(row)] <= 0:
+                    continue
+                for citation in row.get("evidence", []):
+                    if not citation.get("current_support"):
+                        continue
+                    source = session.get(BuyingChainEvidence, citation.get("id"))
+                    if source is not None and (replacement := checked.get(source.url)) is not None:
+                        # A checked same-URL version, rather than the old citation,
+                        # supports a withdrawal when the source changed its claim.
+                        causes[replacement.id] = replacement
+            return sorted(causes.values(), key=lambda row: (row.url, str(row.id)))
 
-        support: dict[str, BuyingChainEvidence] = {}
+        support: dict[str, list[BuyingChainEvidence]] = {}
         for field in ("contractor", "buyer"):
-            field_source = support_for(field)
-            if field_source is not None:
-                support[field] = field_source
+            field_sources = support_for(field)
+            if field_sources:
+                support[field] = field_sources
         record_material_diff(
             session, project, retained_after[0], material_baseline, buying_evidence=support
         )
@@ -846,23 +886,7 @@ def buying_chain_view(
     ).all()
     by_id = {str(row.id): row for row in sources}
     active_run = runs[0] if runs else None
-    newest_by_url: dict[str, UUID] = {}
-    for source_version in sorted(
-        sources,
-        key=lambda source: (source.last_seen_at, source.retained_evidence_id is None),
-        reverse=True,
-    ):
-        newest_by_url.setdefault(source_version.url, source_version.id)
-    if active_run:
-        for evidence_id in active_run.evidence_ids:
-            if evidence_id in by_id:
-                latest_run_source = by_id[evidence_id]
-                current_source = by_id[str(newest_by_url[latest_run_source.url])]
-                if (
-                    latest_run_source.last_seen_at,
-                    latest_run_source.retained_evidence_id is None,
-                ) >= (current_source.last_seen_at, current_source.retained_evidence_id is None):
-                    newest_by_url[latest_run_source.url] = latest_run_source.id
+    newest_by_url = _newest_source_by_url(sources, active_run)
     grouped: dict[str, list[BuyingChainClaim]] = defaultdict(list)
     for claim in claims:
         grouped[claim.entity_key].append(claim)
@@ -946,6 +970,7 @@ def buying_chain_view(
                     "published_at": row.published_at,
                     "observed_at": row.observed_at,
                     "content_hash": row.content_hash,
+                    "current_support": not source_superseded and not role_aged,
                 }
             )
         if not history:

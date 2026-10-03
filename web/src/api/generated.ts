@@ -605,6 +605,22 @@ export interface components {
             url: string;
             /** Published At */
             published_at: string | null;
+            /** Sources */
+            sources: components["schemas"]["ChangeSourceOut"][];
+        };
+        /** ChangeSourceOut */
+        ChangeSourceOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Title */
+            title: string;
+            /** Url */
+            url: string;
+            /** Published At */
+            published_at: string | null;
         };
         /** EvidenceOut */
         EvidenceOut: {
@@ -1067,6 +1083,8 @@ export interface components {
             evidence_id: string | null;
             /** Buying Chain Evidence Id */
             buying_chain_evidence_id: string | null;
+            /** Sources */
+            sources: components["schemas"]["ChangeSourceOut"][];
             /** Source Date */
             source_date: string | null;
             /**

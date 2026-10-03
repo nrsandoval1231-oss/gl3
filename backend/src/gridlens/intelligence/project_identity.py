@@ -150,6 +150,10 @@ def canonical_site_claim(value: str | None) -> str:
         if street_words and ("," in raw or suffix_count == 1):
             street_words[-1] = _STREET_SUFFIXES.get(street_words[-1], street_words[-1])
             tokens = street_words + normalized_identity(raw[street.end():]).split()
+    # Compact ZIP+4 and its hyphen/space forms carry the same nine digits.
+    # Split only the terminal postal token; retain both components verbatim.
+    if tokens and re.fullmatch(r"\d{9}", tokens[-1]):
+        tokens[-1:] = [tokens[-1][:5], tokens[-1][5:]]
     state_end = len(tokens)
     if (
         len(tokens) >= 3

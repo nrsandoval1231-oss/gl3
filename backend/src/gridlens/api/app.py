@@ -214,11 +214,19 @@ class HealthOut(BaseModel):
     pending_interpretations: int
 
 
+class ChangeSourceOut(BaseModel):
+    id: UUID
+    title: str
+    url: str
+    published_at: date | None
+
+
 class ChangeOut(BaseModel):
     kind: str
     title: str
     url: str
     published_at: date | None
+    sources: list[ChangeSourceOut]
 
 
 class ProjectChangeOut(BaseModel):
@@ -228,6 +236,7 @@ class ProjectChangeOut(BaseModel):
     new: dict | None
     evidence_id: UUID | None
     buying_chain_evidence_id: UUID | None
+    sources: list[ChangeSourceOut]
     source_date: date | None
     detected_at: datetime
 
@@ -1027,6 +1036,24 @@ def adjudicate_signal_batch(
         return adjudicate_current_signals(session, limit=limit)
 
 
+def _change_sources(session, event: ChangeEvent) -> list[dict]:
+    if event.buying_chain_evidence_id is not None:
+        stored_ids = (event.new_state or {}).get("buying_chain_evidence_ids")
+        ids = stored_ids if isinstance(stored_ids, list) else [event.buying_chain_evidence_id]
+        sources = [session.get(BuyingChainEvidence, UUID(str(source_id))) for source_id in ids]
+    else:
+        sources = [session.get(Evidence, event.evidence_id)] if event.evidence_id else []
+    return [
+        {
+            "id": source.id,
+            "title": source.title,
+            "url": source.url,
+            "published_at": source.published_at,
+        }
+        for source in sources if source is not None
+    ]
+
+
 @app.get("/api/changes", response_model=list[ChangeOut], dependencies=[Depends(require_session)])
 def changes():
     with SessionLocal() as session:
@@ -1053,6 +1080,7 @@ def changes():
                     if (buying.published_at if buying else evidence.published_at)
                     else None
                 ),
+                "sources": _change_sources(session, event),
             }
             for event, evidence, buying in rows
         ]
@@ -1097,6 +1125,7 @@ def project_changes_endpoint(project_id: UUID, limit: int = Query(default=100, g
                 "buying_chain_evidence_id": (
                     str(e.buying_chain_evidence_id) if e.buying_chain_evidence_id else None
                 ),
+                "sources": _change_sources(session, e),
                 "source_date": e.source_date,
                 "detected_at": e.created_at,
             }
