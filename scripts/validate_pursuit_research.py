@@ -18,6 +18,7 @@ import time
 from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
+from typing import Any
 from uuid import UUID
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -355,6 +356,29 @@ def investigation_completed(question: dict) -> bool:
     return bool(retrieved or searched)
 
 
+def drain_cohort_jobs(
+    queued_job_ids,
+    run_job,
+    *,
+    jobs_executed: int,
+    max_jobs: int,
+    deadline: float,
+    per_question_timeout: int,
+    monotonic=time.monotonic,
+) -> tuple[int, str | None]:
+    """Drain only eligible cohort work within the remaining job and time limits."""
+    while jobs_executed < max_jobs:
+        if monotonic() + per_question_timeout > deadline:
+            return jobs_executed, "wall_clock"
+        job_ids = queued_job_ids()
+        if not job_ids:
+            return jobs_executed, None
+        if not run_job(job_ids):
+            return jobs_executed, "runner_unavailable"
+        jobs_executed += 1
+    return jobs_executed, "max_jobs"
+
+
 def execute_cases(manifest: dict, baseline: dict) -> dict:
     from sqlalchemy import select
 
@@ -378,9 +402,10 @@ def execute_cases(manifest: dict, baseline: dict) -> dict:
             raise ValueError("Database changed after baseline; refuse stale validation")
         if digest(replay_state(session)) != digest(baseline["replay_state"]):
             raise ValueError("Research/evaluations changed after baseline")
-        cards = [evaluate_target(session, identity) for identity in identifiers]
-        if any(card is None for card in cards):
+        evaluated_cards = [evaluate_target(session, identity) for identity in identifiers]
+        if any(card is None for card in evaluated_cards):
             raise ValueError("Selected target no longer has an evaluation")
+        cards = [card for card in evaluated_cards if card is not None]
         if digest(selected_cases(session, manifest)) != digest(baseline["cases"]):
             raise ValueError("Canonical case projection changed after baseline")
         schedule_questions(session, cards, origin="validation")
@@ -390,12 +415,11 @@ def execute_cases(manifest: dict, baseline: dict) -> dict:
     max_jobs = limits["max_jobs"]
     jobs_executed = 0
     wall_clock_limited = False
-    for _ in range(max_jobs):
-        if time.monotonic() + limits["per_question_timeout_seconds"] > deadline:
-            wall_clock_limited = True
-            break
+    settlement_rounds: list[dict[str, Any]] = []
+
+    def queued_job_ids() -> list[UUID]:
         with SessionLocal() as session:
-            job_ids = list(
+            return list(
                 session.scalars(
                     select(Job.id)
                     .join(PursuitResearchQuestion, PursuitResearchQuestion.id == Job.target_id)
@@ -407,9 +431,117 @@ def execute_cases(manifest: dict, baseline: dict) -> dict:
                     )
                 )
             )
-        if not job_ids or not run_one(definitions, job_ids=job_ids):
+
+    def run_cohort_job(job_ids: list[UUID]) -> bool:
+        return run_one(definitions, job_ids=job_ids)
+
+    jobs_executed, drain_stop = drain_cohort_jobs(
+        queued_job_ids,
+        run_cohort_job,
+        jobs_executed=jobs_executed,
+        max_jobs=max_jobs,
+        deadline=deadline,
+        per_question_timeout=limits["per_question_timeout_seconds"],
+    )
+    settlement_stop = drain_stop
+    if drain_stop == "wall_clock":
+        wall_clock_limited = True
+    elif drain_stop == "max_jobs" and not queued_job_ids():
+        settlement_stop = None
+
+    # New facts can invalidate siblings that were already queued. Once that
+    # queue is empty, plan only within the remaining execution budget and drain
+    # those replacements before the strict no-new-question replay.
+    while settlement_stop is None and jobs_executed < max_jobs:
+        if time.monotonic() + limits["per_question_timeout_seconds"] > deadline:
+            wall_clock_limited = True
+            settlement_stop = "wall_clock"
             break
-        jobs_executed += 1
+        with SessionLocal() as session:
+            evaluated_cards = [evaluate_target(session, identity) for identity in identifiers]
+        if any(card is None for card in evaluated_cards):
+            raise ValueError("Selected target lost its current evaluation while settling")
+        current_cards = [card for card in evaluated_cards if card is not None]
+        before_inputs = digest(
+            [(str(card["id"]), card["input_hash"]) for card in current_cards]
+        )
+        scheduled = 0
+        planning_budget_limited = False
+        remaining_jobs = max_jobs - jobs_executed
+        round_number = len(settlement_rounds)
+        round_question_ids: list[str] = []
+        # Per-need transactions let us refuse a multi-question plan that would
+        # exceed the remaining job cap without persisting any unauthorized job.
+        for card in current_cards:
+            if time.monotonic() + limits["per_question_timeout_seconds"] > deadline:
+                wall_clock_limited = True
+                settlement_stop = "wall_clock"
+                break
+            if scheduled >= remaining_jobs:
+                break
+            with SessionLocal.begin() as session:
+                created = schedule_questions(session, [card], origin="validation")
+                if len(created) > remaining_jobs - scheduled:
+                    session.rollback()
+                    planning_budget_limited = True
+                else:
+                    scheduled += len(created)
+                    round_question_ids.extend(str(row.id) for row in created)
+        if settlement_stop == "wall_clock":
+            break
+        if scheduled == 0:
+            if planning_budget_limited:
+                settlement_stop = "max_jobs"
+            else:
+                settlement_stop = "no_pending_replacements"
+            break
+
+        round_receipt = {
+            "round": round_number + 1,
+            "input_sha256_before": before_inputs,
+            "input_sha256_after": None,
+            "new_question_ids": round_question_ids,
+            "stop_reason": None,
+        }
+        settlement_rounds.append(round_receipt)
+
+        jobs_executed, drain_stop = drain_cohort_jobs(
+            queued_job_ids,
+            run_cohort_job,
+            jobs_executed=jobs_executed,
+            max_jobs=max_jobs,
+            deadline=deadline,
+            per_question_timeout=limits["per_question_timeout_seconds"],
+        )
+        if drain_stop == "wall_clock":
+            wall_clock_limited = True
+            settlement_stop = drain_stop
+            round_receipt["stop_reason"] = drain_stop
+            break
+        if drain_stop is not None:
+            settlement_stop = drain_stop if queued_job_ids() else None
+            if settlement_stop is not None:
+                round_receipt["stop_reason"] = settlement_stop
+                break
+
+        with SessionLocal() as session:
+            evaluated_cards = [evaluate_target(session, identity) for identity in identifiers]
+        if any(card is None for card in evaluated_cards):
+            raise ValueError("Selected target lost its current evaluation while settling")
+        settled_cards = [card for card in evaluated_cards if card is not None]
+        after_inputs = digest(
+            [(str(card["id"]), card["input_hash"]) for card in settled_cards]
+        )
+        round_receipt["input_sha256_after"] = after_inputs
+        if planning_budget_limited:
+            settlement_stop = "max_jobs"
+            round_receipt["stop_reason"] = settlement_stop
+            break
+        if before_inputs == after_inputs:
+            settlement_stop = "no_input_change"
+            round_receipt["stop_reason"] = settlement_stop
+            break
+
     with SessionLocal() as session:
         rows = list(
             session.scalars(
@@ -441,7 +573,10 @@ def execute_cases(manifest: dict, baseline: dict) -> dict:
     # Replay is planning-only: any newly queued work is an explicit failed proof,
     # never executed to disguise a duplicate. Existing freshness must prevent it.
     with SessionLocal.begin() as session:
-        replay_cards = [evaluate_target(session, identity) for identity in identifiers]
+        evaluated_cards = [evaluate_target(session, identity) for identity in identifiers]
+        if any(card is None for card in evaluated_cards):
+            raise ValueError("Selected target lost its current evaluation during replay")
+        replay_cards = [card for card in evaluated_cards if card is not None]
         replay_created = schedule_questions(session, replay_cards, origin="validation")
         created_ids = [str(row.id) for row in replay_created]
         session.flush()
@@ -474,6 +609,7 @@ def execute_cases(manifest: dict, baseline: dict) -> dict:
     passed = (
         invariant["passed"]
         and not wall_clock_limited
+        and settlement_stop not in {"runner_unavailable", "max_jobs"}
         and replay_passed
         and all(case["bounded_investigation_completed"] for case in cases)
     )
@@ -487,6 +623,11 @@ def execute_cases(manifest: dict, baseline: dict) -> dict:
         "execution_limits": limits,
         "jobs_executed": jobs_executed,
         "wall_clock_limited": wall_clock_limited,
+        "settlement": {
+            "stop_reason": settlement_stop,
+            "remaining_queued_jobs": len(queued_job_ids()),
+            "rounds": settlement_rounds,
+        },
         "baseline_sha256": digest(baseline),
         "manifest_sha256": digest(manifest),
         "cases": cases,

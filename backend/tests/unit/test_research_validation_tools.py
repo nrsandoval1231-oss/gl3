@@ -98,9 +98,51 @@ def test_preservation_allows_additions_but_detects_historical_mutation_or_missin
     assert not harness.preservation(before, after)["passed"]
 
 
+@pytest.mark.parametrize(
+    (
+        "max_jobs",
+        "deadline",
+        "clock",
+        "runner",
+        "expected_stop",
+        "expected_jobs",
+        "expected_calls",
+    ),
+    [
+        (2, 100, [0, 0, 0, 0], True, "max_jobs", 2, 2),
+        (5, 100, [0], False, "runner_unavailable", 0, 1),
+        (5, 1, [0], True, "wall_clock", 0, 0),
+        (3, 100, [0] * 6, True, "max_jobs", 3, 3),
+    ],
+)
+def test_cohort_drain_stops_at_job_time_runner_and_no_progress_bounds(
+    max_jobs, deadline, clock, runner, expected_stop, expected_jobs, expected_calls
+):
+    pending = ["same-job"]
+    calls = []
+
+    def run_job(job_ids):
+        calls.append(list(job_ids))
+        return runner
+
+    jobs, stop = harness.drain_cohort_jobs(
+        lambda: pending,
+        run_job,
+        jobs_executed=0,
+        max_jobs=max_jobs,
+        deadline=deadline,
+        per_question_timeout=2,
+        monotonic=lambda: clock.pop(0),
+    )
+    assert jobs == expected_jobs
+    assert stop == expected_stop
+    assert len(calls) == expected_calls
+
+
 @pytest.mark.parametrize("bad_replay", [False, True])
+@pytest.mark.parametrize("changed_input", [False, True])
 def test_full_harness_offline_fixture_receipts_and_duplicate_replay_failure(
-    monkeypatch, bad_replay
+    monkeypatch, bad_replay, changed_input
 ):
     from gridlens.ingestion import registry
     from gridlens.intelligence import commercial_evaluation, pursuit_questions
@@ -122,7 +164,9 @@ def test_full_harness_offline_fixture_receipts_and_duplicate_replay_failure(
         for case in value["cases"]
     ]
     store = {"questions": [], "jobs": []}
-    planned = 0
+    plan_count_by_need = {}
+    changed_need_id = cases[0]["need_id"]
+    changed_once = False
 
     class Session:
         def __enter__(self):
@@ -155,34 +199,62 @@ def test_full_harness_offline_fixture_receipts_and_duplicate_replay_failure(
             return Session()
 
     def schedule(_session, cards, **kwargs):
-        nonlocal planned
+        nonlocal changed_once
         assert kwargs["origin"] == "validation"
-        planned += 1
-        if planned > 1 and not bad_replay:
-            return []
         rows = []
         for card in cards:
+            need_id = card["id"]
+            plan_count_by_need[need_id] = plan_count_by_need.get(need_id, 0) + 1
+            plan_count = plan_count_by_need[need_id]
+            initial = plan_count == 1
+            replacement = (
+                changed_input
+                and need_id == changed_need_id
+                and plan_count == 2
+                and card["input_hash"] == "changed"
+            )
+            duplicate = bad_replay and plan_count >= 3
+            if not (initial or replacement or duplicate):
+                continue
             qid = uuid4()
             row = SimpleNamespace(
                 id=qid,
-                need_id=card["id"],
+                need_id=need_id,
                 pursuit_id=uuid4(),
                 created_at=datetime.now(UTC),
                 completed_at=None,
                 attempt_count=0,
                 status="QUEUED",
-                context={"origin": "validation"},
+                category="activity",
+                evidence_fingerprint=card["input_hash"],
+                context={
+                    "origin": "validation",
+                    "before": {"input_hash": card["input_hash"]},
+                },
                 receipt={},
             )
             rows.append(row)
             store["questions"].append(row)
-            store["jobs"].append(SimpleNamespace(id=uuid4(), status="queued"))
+            store["jobs"].append(
+                SimpleNamespace(id=uuid4(), target_id=qid, status="queued")
+            )
         return rows
 
     def run(_definitions, *, job_ids):
+        nonlocal changed_once
         assert set(job_ids) <= {job.id for job in store["jobs"]}
-        for row in store["questions"]:
-            row.status, row.attempt_count, row.completed_at = "UNRESOLVED", 1, datetime.now(UTC)
+        job = next(item for item in store["jobs"] if item.id in job_ids and item.status == "queued")
+        row = next(item for item in store["questions"] if item.id == job.target_id)
+        row.attempt_count, row.completed_at = 1, datetime.now(UTC)
+        if changed_input and row.need_id == changed_need_id and not changed_once:
+            row.status = "FAILED"
+            row.receipt = {"error": "input_changed_before_research", "source_checks": []}
+            next(case for case in cases if case["need_id"] == changed_need_id)["card"][
+                "input_hash"
+            ] = "changed"
+            changed_once = True
+        else:
+            row.status = "UNRESOLVED"
             row.receipt = {
                 "cost_usd": "0",
                 "runtime_seconds": 0.1,
@@ -194,8 +266,7 @@ def test_full_harness_offline_fixture_receipts_and_duplicate_replay_failure(
                     }
                 ],
             }
-        for job in store["jobs"]:
-            job.status = "succeeded"
+        job.status = "succeeded"
         return True
 
     def replay(_session):
@@ -210,6 +281,9 @@ def test_full_harness_offline_fixture_receipts_and_duplicate_replay_failure(
         lambda row: {
             "id": str(row.id),
             "need_id": row.need_id,
+            "category": row.category,
+            "evidence_fingerprint": row.evidence_fingerprint,
+            "context": row.context,
             "status": row.status,
             "receipt": row.receipt,
         },
@@ -232,11 +306,25 @@ def test_full_harness_offline_fixture_receipts_and_duplicate_replay_failure(
         "provenance": {"retained_provenance_verified": False},
     }
     report = harness.execute_cases(value, baseline)
-    assert report["mechanical_gates_passed"] is not bad_replay
+    assert report["mechanical_gates_passed"] is not (bad_replay or changed_input)
     assert report["retained_corpus_proof"] is False
     assert len(report["cases"]) == 5
-    assert len(store["questions"]) == 5  # Failed dry replay rolls back its new jobs/questions.
-    assert report["metrics"]["attempted_question_origins"] == {"validation": 5}
+    if changed_input:
+        attempts = report["cases"][0]["questions"]
+        assert len(attempts) == 2
+        assert attempts[0]["status"] == "FAILED"
+        assert attempts[0]["receipt"]["error"] == "input_changed_before_research"
+        assert attempts[1]["status"] == "UNRESOLVED"
+        assert report["cases"][0]["bounded_investigation_completed"] is False
+        assert report["replay"]["passed"] is not bad_replay
+    elif bad_replay:
+        assert len(store["questions"]) == 5  # Strict dry replay rolled back its duplicates.
+        assert not report["replay"]["passed"]
+    else:
+        assert len(store["questions"]) == 5
+    assert report["metrics"]["attempted_question_origins"] == {
+        "validation": len(store["questions"])
+    }
     assert report["preservation"]["passed"]
 
 

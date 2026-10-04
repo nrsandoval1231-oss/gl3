@@ -174,9 +174,23 @@ def test_worker_scrape_fallback_only_for_explicit_javascript_shell(monkeypatch, 
 
     events = []
     receipts = []
-    question = SimpleNamespace(project_id="p", need_id="n", status="SEARCHING")
-    session = SimpleNamespace(get=lambda *_: SimpleNamespace(id="p"))
-    monkeypatch.setattr(worker, "SessionLocal", SimpleNamespace(begin=lambda: nullcontext(session)))
+    question = SimpleNamespace(project_id="p", need_id="n", status="SEARCHING", receipt={})
+
+    def get_record(model, *_):
+        if model.__name__ == "PursuitResearchQuestion":
+            return question
+        return SimpleNamespace(id="p" if model.__name__ == "Project" else "n")
+
+    session = SimpleNamespace(get=get_record)
+
+    class SessionFactory:
+        def begin(self):
+            return nullcontext(session)
+
+        def __call__(self):
+            return nullcontext(session)
+
+    monkeypatch.setattr(worker, "SessionLocal", SessionFactory())
     monkeypatch.setattr(worker, "_lock_acquisition", lambda *_: None)
     monkeypatch.setattr(worker, "enrich_buying_chain", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(
@@ -199,6 +213,7 @@ def test_worker_scrape_fallback_only_for_explicit_javascript_shell(monkeypatch, 
     monkeypatch.setattr(worker, "retrieve", retrieve)
     monkeypatch.setattr(worker, "extract_public_document", extract)
     run = SimpleNamespace(
+        question_id="q",
         deadline=time.monotonic() + 5,
         budget={"document_bytes": 750000},
         cached=lambda _: None,
@@ -216,6 +231,7 @@ def test_worker_scrape_fallback_only_for_explicit_javascript_shell(monkeypatch, 
     assert receipts[0]["disposition"] == ("ACCEPTED" if eligible else "FAILED")
     if not eligible:
         assert receipts[0]["failure_code"] == "access_restricted"
+        assert receipts[0]["effect_status"] == "NOT_SENT"
 
 
 @pytest.mark.parametrize("exhausted", [None, "documents", "cost", "deadline"])
