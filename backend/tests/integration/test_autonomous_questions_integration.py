@@ -180,6 +180,137 @@ def test_fresh_cache_reused_until_force_material_change_or_expiry(runtime, chang
         )
 
 
+@pytest.mark.parametrize(
+    "retained_checks",
+    [[], [{"acquisition": "retained", "disposition": "UNRESOLVED"}]],
+)
+def test_legacy_retained_only_check_does_not_suppress_same_input_retry(runtime, retained_checks):
+    factory, _, _, card = runtime
+    original_ids = schedule(factory, card)
+    finish_questions(factory, original_ids)
+    stale_id = original_ids[0]
+    with factory.begin() as session:
+        stale = session.get(PursuitResearchQuestion, stale_id)
+        stale.retry_after = datetime.now(UTC) + timedelta(days=2)
+        stale.receipt = {
+            **stale.receipt,
+            "retry_class": None,
+            "source_checks": retained_checks,
+            "route_results": [{"kind": "retained", "status": "CHECKED"}],
+        }
+        stale.receipt.pop("retry_class")
+
+    replacements = schedule(factory, card)
+    assert len(replacements) == 1
+    with factory() as session:
+        stale = session.get(PursuitResearchQuestion, stale_id)
+        replacement = session.get(PursuitResearchQuestion, replacements[0])
+        assert replacement.category == stale.category
+        assert replacement.query_fingerprint == stale.query_fingerprint
+        assert replacement.evidence_fingerprint == stale.evidence_fingerprint
+        assert stale.receipt["source_checks"] == retained_checks
+        assert stale.receipt["route_results"] == [{"kind": "retained", "status": "CHECKED"}]
+
+
+def test_legacy_external_negative_check_still_honors_freshness(runtime):
+    factory, _, _, card = runtime
+    original_ids = schedule(factory, card)
+    finish_questions(factory, original_ids)
+    with factory.begin() as session:
+        for question_id in original_ids:
+            row = session.get(PursuitResearchQuestion, question_id)
+            row.receipt.pop("retry_class", None)
+            row.receipt["source_checks"] = []
+            row.receipt["route_results"] = [{"kind": "registered", "status": "CHECKED"}]
+    assert schedule(factory, card) == []
+
+
+def test_free_get_and_unconfigured_extraction_recover_same_evidence(runtime, monkeypatch):
+    import time
+    from decimal import Decimal
+
+    from pydantic import SecretStr
+
+    from gridlens.ingestion.adapters.buying_chain_public import (
+        PublicDocument,
+        PublicExtractionUnavailable,
+    )
+
+    factory, worker, _, card = runtime
+    question_id = schedule(factory, card)[0]
+    job_id, fence = lease_question(factory, question_id)
+    with factory() as session:
+        budget = session.get(PursuitResearchQuestion, question_id).budget
+
+    monkeypatch.setattr(settings, "firecrawl_api_key", None)
+    monkeypatch.setattr(settings, "firecrawl_scrape_cost_usd", None)
+    run = worker.QuestionRun(job_id, "question-test", fence, question_id, time.monotonic(), budget)
+
+    def free_get_fails(*_args, **_kwargs):
+        raise PublicExtractionUnavailable("JavaScript shell")
+
+    monkeypatch.setattr(worker, "retrieve", free_get_fails)
+    monkeypatch.setattr(
+        worker,
+        "extract_public_document",
+        lambda *_args, **_kwargs: pytest.fail("Unavailable extraction must not dispatch"),
+    )
+    url = "https://public.example/project"
+    worker._research_public_url(run, url)
+    worker._finish(job_id, "question-test", fence, question_id, "FAILED", time.monotonic())
+    with factory() as session:
+        failed = session.get(PursuitResearchQuestion, question_id)
+        assert failed.receipt["source_checks"][-1]["effect_status"] == "NOT_SENT"
+        assert failed.receipt["retry_class"] == "BOUNDED_TRANSIENT"
+        assert not failed.receipt.get("inflight_url")
+        assert not failed.receipt.get("ambiguous_effects")
+        assert failed.receipt.get("inflight_acquisition_url") is None
+
+    recovery_ids = schedule(factory, card, now=datetime.now(UTC) + timedelta(hours=2))
+    assert len(recovery_ids) == 1
+    recovery_id = recovery_ids[0]
+    recovery_job, recovery_fence = lease_question(factory, recovery_id)
+    monkeypatch.setattr(settings, "autonomous_research_max_cost_usd", Decimal("1"))
+    monkeypatch.setattr(settings, "firecrawl_api_key", SecretStr("test"))
+    monkeypatch.setattr(settings, "firecrawl_scrape_cost_usd", Decimal("0.01"))
+    with factory.begin() as session:
+        row = session.get(PursuitResearchQuestion, recovery_id)
+        row.budget = {**row.budget, "max_cost_usd": "1"}
+        recovery_budget = row.budget
+    recovery_run = worker.QuestionRun(
+        recovery_job,
+        "question-test",
+        recovery_fence,
+        recovery_id,
+        time.monotonic(),
+        recovery_budget,
+    )
+
+    def successful_mocked_extraction(_url, **kwargs):
+        kwargs["before_request"]("https://api.firecrawl.dev/v2/scrape")
+        return PublicDocument(url, "Project update", "Bounded public project content")
+
+    monkeypatch.setattr(worker, "retrieve", free_get_fails)
+    monkeypatch.setattr(worker, "extract_public_document", successful_mocked_extraction)
+    monkeypatch.setattr(
+        worker,
+        "retain_research_document",
+        lambda *_args, **_kwargs: {"disposition": "ACCEPTED", "evidence_id": str(uuid4())},
+    )
+    monkeypatch.setattr(worker, "enrich_buying_chain", lambda *_args, **_kwargs: None)
+    worker._research_public_url(recovery_run, url)
+    worker._finish(
+        recovery_job, "question-test", recovery_fence, recovery_id, "UNRESOLVED", time.monotonic()
+    )
+    with factory() as session:
+        recovered = session.get(PursuitResearchQuestion, recovery_id)
+        assert recovered.receipt["retry_class"] == "FRESH_CHECK"
+        assert recovered.receipt["source_checks"][-1]["disposition"] == "ACCEPTED"
+        assert not recovered.receipt.get("inflight_url")
+        assert recovered.receipt.get("inflight_acquisition_url") is None
+    assert schedule(factory, card) == []
+
+
 def test_single_followup_and_no_recursive_branch(runtime):
     factory, _, _, card = runtime
     first = schedule(factory, card)
@@ -524,12 +655,28 @@ def test_failed_route_is_not_a_fresh_checked_negative(runtime):
     question_id = schedule(factory, card)[0]
     with factory.begin() as session:
         row = session.get(PursuitResearchQuestion, question_id)
-        row.status = "FAILED"
+        row.status = "UNRESOLVED"
         row.retry_after = datetime.now(UTC) + timedelta(hours=24)
         row.receipt = {
             **row.receipt,
             "route_results": [{"kind": "registered", "status": "CHECKED"}],
             "source_checks": [{"disposition": "FAILED"}],
+        }
+        assert not _fresh_checked_result(row)
+        row.receipt = {
+            **row.receipt,
+            "retry_class": None,
+            "source_checks": [
+                {"acquisition": "public", "disposition": "ACCEPTED"},
+                {"acquisition": "public", "disposition": "FAILED"},
+            ],
+        }
+        assert not _fresh_checked_result(row)
+        row.receipt = {
+            **row.receipt,
+            "retry_class": "RETRIES_EXHAUSTED",
+            "source_checks": [{"acquisition": "public", "disposition": "UNRESOLVED"}],
+            "queries_searched": ["already completed search"],
         }
         assert not _fresh_checked_result(row)
 
@@ -612,18 +759,16 @@ def test_retrieval_reservation_survives_worker_restart_and_enforces_document_bud
     with factory() as session:
         receipt = session.get(PursuitResearchQuestion, question_id).receipt
         assert receipt["retrieval_attempts"] == 1
-        assert receipt["inflight_url"] == "https://example.invalid/exact-record"
+        assert receipt["inflight_acquisition_url"] == "https://example.invalid/exact-record"
+        assert not receipt.get("inflight_url")
     restarted = worker.QuestionRun(
         job_id, "question-test", fence, question_id, time.monotonic(), budget
     )
     with pytest.raises(worker.BudgetExceeded):
         restarted.reserve("https://example.invalid/second-record")
-    worker.process_question_job(job_id, "question-test", fence)
-    with factory() as session:
-        row = session.get(PursuitResearchQuestion, question_id)
-        assert row.status == "FAILED"
-        assert row.receipt["error"] == "ambiguous_prior_retrieval"
-        assert row.receipt["retrieval_attempts"] == 1
+    # A process interruption during a free GET is idempotent and must not be
+    # promoted to an ambiguous paid effect. Its reservation still survives and
+    # enforces the persisted document budget after a worker restart.
 
 
 @pytest.mark.parametrize("invalidation", ["changed_content", "rejected", "force"])
