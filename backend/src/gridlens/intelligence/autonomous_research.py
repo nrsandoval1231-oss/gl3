@@ -485,7 +485,14 @@ class QuestionRun:
             if query and query in receipt.get("queries_attempted", []):
                 raise BudgetExceeded("Identical query already attempted")
             receipt[count_key] = receipt.get(count_key, 0) + 1
-            receipt["inflight_url"], receipt["reserved_cost_usd"] = url, str(next_cost)
+            if query:
+                # This callback runs at paid-provider dispatch. An interrupted
+                # request remains ambiguous and blocks blind retries.
+                receipt["inflight_url"] = url
+            else:
+                # A free public/source GET is idempotent and is not a paid side effect.
+                receipt["inflight_acquisition_url"] = url
+            receipt["reserved_cost_usd"] = str(next_cost)
             if query:
                 # Reservation is an upper bound, not a provider billing receipt.
                 receipt["cost_usd"] = None
@@ -581,6 +588,7 @@ class QuestionRun:
                     and result.get("effect_status") == "UNKNOWN"
                     else None
                 ),
+                "inflight_acquisition_url": None,
                 "ambiguous_effects": (
                     [
                         *row.receipt.get("ambiguous_effects", []),
@@ -780,7 +788,11 @@ def _finish(
         checked_route = any(
             route.get("status") == "CHECKED" and route.get("kind") != "retained"
             for route in row.receipt.get("route_results", [])
-        )
+        ) or any(
+            check.get("acquisition") != "retained"
+            and check.get("disposition") in {"ACCEPTED", "REJECTED", "UNRESOLVED"}
+            for check in row.receipt.get("source_checks", [])
+        ) or bool(row.receipt.get("queries_searched"))
         retryable = status in {"FAILED", "BUDGET_EXCEEDED"} or (
             status == "UNRESOLVED" and not checked_route
         )

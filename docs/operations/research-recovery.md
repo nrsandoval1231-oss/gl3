@@ -13,12 +13,15 @@ question. A forced manual refresh can start another bounded attempt when there
 is no unresolved external effect.
 
 Before a paid Firecrawl request, the worker persists its source and cost
-reservation. If the request may have been sent but its outcome cannot be
-confirmed, the receipt retains `inflight_url` and records an `UNKNOWN` effect.
-Force refreshes, new questions, and changed evidence do not authorize another
-paid attempt while that marker remains. Reconcile the provider request and
-update the receipt through an explicit recovery procedure before retrying; the
-system does not infer that a timeout means no request occurred.
+reservation in `inflight_url` at the dispatch callback. A free source or public
+GET uses `inflight_acquisition_url` for its bounded retrieval reservation; that
+marker does not represent a paid provider effect. If a paid request may have
+been sent but its outcome cannot be confirmed, the receipt retains
+`inflight_url` and records an `UNKNOWN` effect. Force refreshes, new questions,
+and changed evidence do not authorize another paid attempt while that marker
+remains. Reconcile the provider request and update the receipt through an
+explicit recovery procedure before retrying; the system does not infer that a
+timeout means no request occurred.
 
 Evidence collected before a provider failure remains available. A retry does
 not promote a pursuit by itself; accepted evidence still passes through normal

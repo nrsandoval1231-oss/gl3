@@ -281,8 +281,25 @@ def _fresh_checked_result(row: PursuitResearchQuestion) -> bool:
         return False
     if row.receipt.get("inflight_url") or row.receipt.get("ambiguous_effects"):
         return False
+    if row.receipt.get("retry_class") in {
+        "BOUNDED_TRANSIENT",
+        "RETRIES_EXHAUSTED",
+        "UNKNOWN_EFFECT",
+    }:
+        return False
     checks = row.receipt.get("source_checks", [])
     routes = row.receipt.get("route_results", [])
-    return any(
-        check.get("disposition") in {"ACCEPTED", "REJECTED", "UNRESOLVED"} for check in checks
-    ) or any(route.get("status") == "CHECKED" for route in routes)
+    external_checks = [check for check in checks if check.get("acquisition") != "retained"]
+    if any(check.get("disposition") == "FAILED" for check in external_checks):
+        return False
+    checked_source = any(
+        check.get("acquisition") != "retained"
+        and check.get("disposition") in {"ACCEPTED", "REJECTED", "UNRESOLVED"}
+        for check in checks
+    )
+    checked_external_route = not (checks and not checked_source) and any(
+        route.get("kind") in {"registered", "discovery", "public"}
+        and route.get("status") == "CHECKED"
+        for route in routes
+    )
+    return bool(checked_source or checked_external_route or row.receipt.get("queries_searched"))
