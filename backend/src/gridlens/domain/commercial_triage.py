@@ -690,8 +690,7 @@ def cards(
     prepared.sort(key=lambda card: (_priority(by_id[card["id"]]), card["id"]))
     from gridlens.domain.pursuit_screening import work_identity
 
-    unique: list[dict[str, Any]] = []
-    grouped: dict[str, dict[str, Any]] = {}
+    grouped: dict[str, list[dict[str, Any]]] = {}
     for card in prepared:
         item = by_id[card["id"]]
         supporting = _supporting_evidence(item)
@@ -701,38 +700,118 @@ def cards(
             str(first.get("document_number") or first.get("id") or ""),
             str(item.get("location") or ""),
         )
-        existing = grouped.get(identity)
-        if existing:
-            existing["related_need_ids"].append(card["id"])
-            if card["project_id"] not in existing["related_project_ids"]:
-                existing["related_project_ids"].append(card["project_id"])
-            existing["contacts"] = list(
+        grouped.setdefault(identity, []).append(card)
+
+    def state_for(card: dict[str, Any]) -> dict[str, Any]:
+        item = by_id[card["id"]]
+        raw_conflict = str(item.get("conflict_state") or "")
+        conflict_state = raw_conflict if "conflict" in raw_conflict.casefold() else None
+        return {
+            "need_id": card["id"],
+            "project_id": card["project_id"],
+            "disposition": card["disposition"],
+            "reason": card["reason"],
+            "held": item.get("signal_display_decision") == "HOLD",
+            "conflict_state": conflict_state,
+            "closed": card["disposition"] == "REJECT"
+            and "permit status says" in card["reason"].casefold(),
+        }
+
+    unique: list[dict[str, Any]] = []
+    for group in grouped.values():
+        # This order is independent of input iteration and UUID priority sorting.
+        group = sorted(group, key=lambda card: card["id"])
+        merged = group[0]
+        states = [state_for(card) for card in group]
+        merged["related_need_ids"] = sorted({state["need_id"] for state in states})
+        merged["related_project_ids"] = sorted({state["project_id"] for state in states})
+        merged["related_need_states"] = states
+        if len(group) > 1:
+            merged["contacts"] = sorted(
                 {
                     json.dumps(contact, sort_keys=True): contact
-                    for contact in existing["contacts"] + card["contacts"]
-                }.values()
+                    for card in group
+                    for contact in card["contacts"]
+                }.values(),
+                key=lambda value: json.dumps(value, sort_keys=True),
             )
-            existing["lifecycle_timeline"] = list(
+            merged["lifecycle_timeline"] = sorted(
                 {
                     json.dumps(event, sort_keys=True, default=str): event
-                    for event in existing["lifecycle_timeline"] + card["lifecycle_timeline"]
-                }.values()
+                    for card in group
+                    for event in card["lifecycle_timeline"]
+                }.values(),
+                key=lambda value: json.dumps(value, sort_keys=True, default=str),
             )
-            existing["facts"] = list(
-                {f["evidence_id"]: f for f in existing["facts"] + card["facts"]}.values()
+            merged["facts"] = sorted(
+                {
+                    fact["evidence_id"]: fact
+                    for card in group
+                    for fact in card["facts"]
+                }.values(),
+                key=lambda value: value["evidence_id"],
             )
-            existing["sources"] = list(
-                {f["evidence_id"]: f for f in existing["sources"] + card["sources"]}.values()
+            merged["sources"] = sorted(
+                {
+                    source["evidence_id"]: source
+                    for card in group
+                    for source in card["sources"]
+                }.values(),
+                key=lambda value: value["evidence_id"],
             )
-            existing["input_hash"] = hashlib.sha256(
-                json.dumps(
-                    [POLICY_VERSION, {k: v for k, v in existing.items() if k != "input_hash"}],
-                    sort_keys=True,
-                    default=str,
-                ).encode()
-            ).hexdigest()
-            continue
-        card["related_need_ids"] = [card["id"]]
-        grouped[identity] = card
-        unique.append(card)
+
+            state_signatures = {
+                (
+                    state["disposition"],
+                    state["held"],
+                    str(state["conflict_state"] or "").casefold(),
+                    state["closed"],
+                )
+                for state in states
+            }
+            dispositions = {state["disposition"] for state in states}
+            if len(state_signatures) > 1:
+                state_summary = "; ".join(
+                    f"{state['need_id']}: {state['disposition']}"
+                    + (" (held)" if state["held"] else "")
+                    + (f" (conflict: {state['conflict_state']})" if state["conflict_state"] else "")
+                    + (" (closed/withdrawn)" if state["closed"] else "")
+                    for state in sorted(states, key=lambda value: value["need_id"])
+                )
+                merged["reason"] = (
+                    "Related need records for this exact work scope have different states: "
+                    f"{state_summary}. Reconcile the cited sources before acting."
+                )
+                merged["unknowns"] = sorted(
+                    set(merged["unknowns"])
+                    | {"Current status is contradictory across related needs; reconcile sources."}
+                )
+                if len(dispositions) > 1:
+                    merged["disposition"] = "RESEARCH"
+                    merged["blockers"] = list(
+                        dict.fromkeys(
+                            merged["blockers"]
+                            + ["Resolve conflicting same-work need states before action."]
+                        )
+                    )[:2]
+                    merged["next_question"] = (
+                        "Which cited source confirms whether this exact work scope is open, "
+                        "and what stage does that source establish?"
+                    )
+                    merged["next_action"] = (
+                        "Reconcile contradictory same-work need states and source status before "
+                        "any commercial action."
+                    )
+                    merged["conflict_state"] = "contradictory same-work need states"
+        merged["input_hash"] = hashlib.sha256(
+            json.dumps(
+                [
+                    POLICY_VERSION,
+                    {key: value for key, value in merged.items() if key != "input_hash"},
+                ],
+                sort_keys=True,
+                default=str,
+            ).encode()
+        ).hexdigest()
+        unique.append(merged)
     return unique[: max(1, min(limit, MAX_CARDS))]

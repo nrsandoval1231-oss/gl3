@@ -173,6 +173,16 @@ class CommercialTriageLifecycleEvent(BaseModel):
     event_date_label: str | None = None
 
 
+class CommercialTriageNeedState(BaseModel):
+    need_id: UUID
+    project_id: UUID
+    disposition: str
+    reason: str
+    held: bool = False
+    conflict_state: str | None = None
+    closed: bool = False
+
+
 class CommercialTriageCard(BaseModel):
     id: UUID
     project_id: UUID
@@ -184,6 +194,7 @@ class CommercialTriageCard(BaseModel):
     activity: str
     industry: str
     related_need_ids: list[UUID] = Field(default_factory=list)
+    related_need_states: list[CommercialTriageNeedState] = Field(default_factory=list)
     disposition: str
     reason: str
     required_mw: str | None
@@ -237,6 +248,17 @@ class CommercialTriageOut(BaseModel):
     items: list[CommercialTriageCard]
 
 
+class CommercialTriageHistoryVersion(BaseModel):
+    version: int
+    disposition: str
+    evaluated_at: datetime | None = None
+    evaluated_on: Date | None = None
+    input_hash: str | None = None
+    snapshot_status: Literal["saved_as_of", "metadata_only"]
+    live_status: Literal["not_rechecked"] = "not_rechecked"
+    saved_card: CommercialTriageCard | None = None
+
+
 class CommercialTriageHistoryItem(BaseModel):
     pursuit_id: UUID
     need_id: UUID
@@ -250,6 +272,17 @@ class CommercialTriageHistoryItem(BaseModel):
     live_status: Literal["not_rechecked"] = "not_rechecked"
     saved_card: CommercialTriageCard | None = None
     notes: list[CallNoteOut] = Field(default_factory=list)
+    versions: list[CommercialTriageHistoryVersion] = Field(default_factory=list)
+
+
+class CommercialResearchStatusOut(BaseModel):
+    status: Literal["pending", "ready", "failed", "superseded", "not_requested"]
+    job_id: UUID | None = None
+    input_hash: str
+    generated_at: datetime | None = None
+    result: dict | None = None
+    citations: list[dict] = Field(default_factory=list)
+    error: str | None = None
 
 
 class CommercialTriageHistoryOut(BaseModel):

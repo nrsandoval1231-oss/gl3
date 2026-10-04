@@ -395,7 +395,8 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /** Commercial Research Status */
+        get: operations["commercial_research_status_api_commercial_triage__need_id__research_get"];
         put?: never;
         /** Research Commercial Need */
         post: operations["research_commercial_need_api_commercial_triage__need_id__research_post"];
@@ -698,6 +699,30 @@ export interface components {
             /** Question */
             question: string;
         };
+        /** CommercialResearchStatusOut */
+        CommercialResearchStatusOut: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "ready" | "failed" | "superseded" | "not_requested";
+            /** Job Id */
+            job_id?: string | null;
+            /** Input Hash */
+            input_hash: string;
+            /** Generated At */
+            generated_at?: string | null;
+            /** Result */
+            result?: {
+                [key: string]: unknown;
+            } | null;
+            /** Citations */
+            citations?: {
+                [key: string]: unknown;
+            }[];
+            /** Error */
+            error?: string | null;
+        };
         /** CommercialTriageCard */
         CommercialTriageCard: {
             /**
@@ -726,6 +751,8 @@ export interface components {
             industry: string;
             /** Related Need Ids */
             related_need_ids?: string[];
+            /** Related Need States */
+            related_need_states?: components["schemas"]["CommercialTriageNeedState"][];
             /** Disposition */
             disposition: string;
             /** Reason */
@@ -877,11 +904,38 @@ export interface components {
             saved_card?: components["schemas"]["CommercialTriageCard"] | null;
             /** Notes */
             notes?: components["schemas"]["CallNoteOut"][];
+            /** Versions */
+            versions?: components["schemas"]["CommercialTriageHistoryVersion"][];
         };
         /** CommercialTriageHistoryOut */
         CommercialTriageHistoryOut: {
             /** Items */
             items: components["schemas"]["CommercialTriageHistoryItem"][];
+        };
+        /** CommercialTriageHistoryVersion */
+        CommercialTriageHistoryVersion: {
+            /** Version */
+            version: number;
+            /** Disposition */
+            disposition: string;
+            /** Evaluated At */
+            evaluated_at?: string | null;
+            /** Evaluated On */
+            evaluated_on?: string | null;
+            /** Input Hash */
+            input_hash?: string | null;
+            /**
+             * Snapshot Status
+             * @enum {string}
+             */
+            snapshot_status: "saved_as_of" | "metadata_only";
+            /**
+             * Live Status
+             * @default not_rechecked
+             * @constant
+             */
+            live_status: "not_rechecked";
+            saved_card?: components["schemas"]["CommercialTriageCard"] | null;
         };
         /** CommercialTriageLifecycleEvent */
         CommercialTriageLifecycleEvent: {
@@ -904,6 +958,35 @@ export interface components {
             published_at?: string | null;
             /** Event Date Label */
             event_date_label?: string | null;
+        };
+        /** CommercialTriageNeedState */
+        CommercialTriageNeedState: {
+            /**
+             * Need Id
+             * Format: uuid
+             */
+            need_id: string;
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /** Disposition */
+            disposition: string;
+            /** Reason */
+            reason: string;
+            /**
+             * Held
+             * @default false
+             */
+            held: boolean;
+            /** Conflict State */
+            conflict_state?: string | null;
+            /**
+             * Closed
+             * @default false
+             */
+            closed: boolean;
         };
         /** CommercialTriageOut */
         CommercialTriageOut: {
@@ -2331,6 +2414,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CommercialTriageOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    commercial_research_status_api_commercial_triage__need_id__research_get: {
+        parameters: {
+            query: {
+                question: string;
+            };
+            header?: never;
+            path: {
+                need_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommercialResearchStatusOut"];
                 };
             };
             /** @description Validation Error */

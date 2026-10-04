@@ -1,6 +1,8 @@
 from datetime import date
 from uuid import uuid4
 
+import pytest
+
 from gridlens.domain.commercial_triage import build_card, cards, surfaced_on
 
 
@@ -299,6 +301,59 @@ def test_exact_austin_permit_case_grouping_preserves_need_ids_and_sibling_eviden
     second["evidence"][0]["content_hash"] = "e" * 64
     changed = cards([first, second], {}, date(2026, 10, 3), 50)
     assert changed[0]["input_hash"] != original_hash
+
+
+@pytest.mark.parametrize("sibling_state", ["closed", "held", "conflict"])
+def test_same_work_contradiction_is_research_and_order_independent(sibling_state):
+    action = _item()
+    sibling = _item(project_id=uuid4())
+    for item, suffix in ((action, "BP"), (sibling, "EP")):
+        item["evidence"][0].update(
+            source_id="austin-building-permits",
+            document_number=f"2019-123456 {suffix}",
+            content_hash=("a" if suffix == "BP" else "b") * 64,
+            title="Temporary data-center construction service",
+            abstract="Temporary service for data-center construction work.",
+        )
+    if sibling_state == "closed":
+        sibling["evidence"][0]["permit_status"] = "Closed"
+    elif sibling_state == "held":
+        sibling["signal_display_decision"] = "HOLD"
+        sibling["signal_display_reason"] = "Resolve the project scope."
+    else:
+        sibling["conflict_state"] = "Unresolved conflict"
+
+    chains = {
+        str(item["project_id"]): {
+            "candidates": [],
+            "permit_summaries": [
+                {
+                    "evidence_id": str(item["evidence"][0]["id"]),
+                    "url": item["evidence"][0]["url"],
+                    "facts": [
+                        {"label": "Contractor organization", "value": "Orion Electric"},
+                        {"label": "Contractor phone", "value": "555-0100"},
+                    ],
+                }
+            ],
+        }
+        for item in (action, sibling)
+    }
+    forward = cards([action, sibling], chains, date(2026, 10, 3), 50)
+    reverse = cards([sibling, action], chains, date(2026, 10, 3), 50)
+    assert forward == reverse
+    assert len(forward) == 1
+    card = forward[0]
+    assert card["disposition"] == "RESEARCH"
+    assert (
+        "contradictory" in card["reason"].casefold()
+        or "different states" in card["reason"].casefold()
+    )
+    assert {state["disposition"] for state in card["related_need_states"]} == {
+        "ACTION NOW",
+        "REJECT" if sibling_state == "closed" else "RESEARCH",
+    }
+    assert set(card["related_need_ids"]) == {str(action["id"]), str(sibling["id"])}
 
 
 def test_dc_construction_ranks_before_generic_permit_and_role_only_is_not_action_now():

@@ -16,7 +16,7 @@ const pageSize = 25
 
 function initialView(): View {
   const params = new URLSearchParams(location.search)
-  return params.has('tier') || params.get('view') === 'opportunities' ? 'opportunities' : params.get('view') === 'ingestion' ? 'ingestion' : 'pursuits'
+  return params.get('view') === 'pursuits' ? 'pursuits' : params.get('view') === 'ingestion' ? 'ingestion' : 'opportunities'
 }
 
 function tierValue(tier: Tier) { return tier.slice(0, -1) }
@@ -71,6 +71,39 @@ function sourceDateLabel(evidence: Opportunity['evidence'][number], showPublicat
   return evidence.published_at ? `Published ${evidence.published_at}` : 'Publication date unknown'
 }
 
+function CommercialTodayEntry({ onOpen }: { onOpen: () => void }) {
+  const [triage, setTriage] = useState<Awaited<ReturnType<typeof client.commercialTriage>> | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [attempt, setAttempt] = useState(0)
+  useEffect(() => {
+    const controller = new AbortController()
+    setLoading(true)
+    void client.commercialTriage(50, controller.signal).then((value) => {
+      const counts = value?.cohort_counts as Record<string, unknown> | undefined
+      if (!value || !counts || !value.daily || !Array.isArray(value.items) || typeof value.total !== 'number'
+        || !['action_now', 'research', 'watch', 'reject'].every((state) => typeof counts[state] === 'number')
+        || !value.items.every((card) => card && typeof card.name === 'string' && typeof card.disposition === 'string' && typeof card.reason === 'string' && typeof card.next_action === 'string')) throw new Error('Commercial work returned incomplete data.')
+      setTriage(value); setError('')
+    }).catch((cause: unknown) => { if (!controller.signal.aborted) { setTriage(null); setError(cause instanceof Error ? cause.message : 'Commercial work is unavailable.') } })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false) })
+    return () => controller.abort()
+  }, [attempt])
+  const item = triage?.items.find((candidate) => candidate.disposition === 'ACTION NOW') ?? triage?.items.find((candidate) => candidate.disposition === 'RESEARCH')
+  const watchItem = triage?.items.find((candidate) => candidate.disposition === 'WATCH')
+  const watchEvent = watchItem?.watch && typeof watchItem.watch.event === 'string' ? watchItem.watch.event : null
+  return <section className="commercial-today-entry" aria-label="Today’s commercial work">
+    <div className="commercial-today-copy"><p className="eyebrow">Evidence-backed · next commercial action</p><h2>What should we work today?</h2>
+      {loading && <p role="status">Checking retained commercial work…</p>}
+      {error && <div role="alert"><p>Today’s commercial work is unavailable: {error}</p><button type="button" onClick={() => setAttempt((value) => value + 1)}>Retry</button></div>}
+      {!loading && !error && triage && !item && triage.total === 0 && <p>No candidates are currently retained in the commercial queue. Unknown project facts remain unknown.</p>}
+      {!loading && !error && triage && !item && triage.total > 0 && <><p>No ACTION NOW or RESEARCH action is currently available. {triage.cohort_counts.watch} WATCH · {triage.cohort_counts.reject} REJECT held in the current cohort.</p>{watchItem && <p><strong>WATCH trigger:</strong> {watchEvent ?? 'Specific trigger unknown'}{watchItem.watch && typeof watchItem.watch.date === 'string' ? ` · ${watchItem.watch.date}` : ''}</p>}</>}
+      {!loading && !error && triage && !item && triage.total > 0 && triage.items.length === 0 && <p>The queue summary reports retained candidates, but no card details were returned.</p>}
+      {!loading && !error && triage && item && <><h3>{item.name} <span>· {item.disposition}</span></h3><p className="commercial-today-meta">{item.location ?? 'Location unknown'} · {item.industry.replaceAll('_', ' ')} · {item.activity.replaceAll('_', ' ').replaceAll('-', ' ')}</p><p>{item.reason}</p><p><strong>Next action:</strong> {item.next_action}</p><p><strong>Critical unknown:</strong> {item.blockers?.[0] ?? item.unknowns?.[0] ?? (item.required_mw ? 'Activity-specific power basis remains to be verified.' : 'Required power is unknown.')}</p><p><strong>Buying path:</strong> {item.organization ?? 'Organization unknown'} · {item.organization_role ?? 'Role unknown'}</p>{item.facts?.[0]?.url && <a href={item.facts[0].url} target="_blank" rel="noreferrer">Supporting retained evidence ↗</a>}<p className="commercial-today-meta">{triage.cohort_counts.action_now} action now · {triage.cohort_counts.research} research · {triage.cohort_counts.watch} watch · Required power {item.required_mw && !/^unknown$/i.test(item.required_mw) ? (/\bmw\b/i.test(item.required_mw) ? item.required_mw : `${item.required_mw} MW`) : 'Unknown'}</p></>}
+    </div><button type="button" className="commercial-today-open" onClick={onOpen}>Open full pursuit queue →</button>
+  </section>
+}
+
 export function App() {
   const [authenticated, setAuthenticated] = useState<boolean | null>(null)
   const [password, setPassword] = useState('')
@@ -78,6 +111,7 @@ export function App() {
   const [signalFilter, setSignalFilter] = useState<SignalFilter>('ALL')
   const [view, setView] = useState<View>(initialView)
   const [commercialMounted, setCommercialMounted] = useState(() => initialView() === 'pursuits')
+  const [defaultTodayEntry] = useState(() => !new URLSearchParams(location.search).has('tier') && !new URLSearchParams(location.search).has('view'))
   const [search, setSearch] = useState('')
   const [items, setItems] = useState<Opportunity[]>([])
   const [selected, setSelected] = useState<Opportunity | null>(null)
@@ -104,7 +138,7 @@ export function App() {
     setSearch(params.get('q') ?? '')
     const initialView = params.get('view')
     if (initialView === 'ingestion' || initialView === 'pursuits') setView(initialView)
-    else setView(params.has('tier') || initialView === 'opportunities' ? 'opportunities' : 'pursuits')
+    else setView('opportunities')
     setSourceFilter(params.get('source') ?? '')
     setVerticalFilter(canonicalVertical(params.get('vertical') ?? ''))
     setOffset(parseOffset(params.get('offset')))
@@ -165,7 +199,7 @@ export function App() {
       if (state?.tier && tiers.includes(state.tier)) setTier(state.tier)
       else setTier('Signals')
       const restoredView = state?.view ?? params.get('view')
-      const nextView = restoredView === 'ingestion' || restoredView === 'pursuits' ? restoredView : 'opportunities'
+    const nextView = restoredView === 'ingestion' || restoredView === 'pursuits' ? restoredView : 'opportunities'
       setView(nextView)
       if (nextView === 'pursuits') setCommercialMounted(true)
       setSearch(state?.search ?? '')
@@ -274,6 +308,7 @@ export function App() {
     <header className="topbar"><a className="brand" href={routeUrl('Signals', '')} aria-label="GridLens home" onClick={(event) => { event.preventDefault(); chooseTier('Signals') }}><img src={view === 'pursuits' ? '/brand/lockup-horizontal-white.svg' : '/brand/lockup-horizontal-navy.svg'} alt="GridLens"/></a><nav aria-label="Workspace views">{tiers.map((name) => <button key={name} className={view === 'opportunities' && tier === name ? 'nav-active' : ''} aria-current={view === 'opportunities' && tier === name ? 'page' : undefined} onClick={() => chooseTier(name)}>{name}</button>)}<button className={view === 'pursuits' ? 'nav-active' : ''} aria-current={view === 'pursuits' ? 'page' : undefined} onClick={() => chooseView('pursuits')}>Today’s pursuits</button><button className={view === 'ingestion' ? 'nav-active' : ''} aria-current={view === 'ingestion' ? 'page' : undefined} onClick={() => chooseView('ingestion')}>Ingestion</button></nav><div className="header-actions"><button className="health-toggle" onClick={() => setShowHealth((value) => !value)} aria-expanded={showHealth}>Source health</button><button className="signout" onClick={() => void signOut()}>Sign out</button></div></header>
     <main className={`workspace${view === 'pursuits' ? ' workspace-commercial' : ''}`}>
       {authenticated && commercialMounted && <div className="commercial-host" hidden={view !== 'pursuits'}><CommercialPursuits/></div>}
+      {!selected && view === 'opportunities' && tier === 'Signals' && defaultTodayEntry && <CommercialTodayEntry onOpen={() => chooseView('pursuits')}/>}
       {!selected && view === 'opportunities' && <div className="overview-grid"><section className="hero"><div><p className="eyebrow">Evidence-led project discovery</p><h1>{tier}</h1><p>{tier === 'Signals' ? 'SHOW means this project or event is worth investigating. It does not mean a qualified opportunity.' : 'Projects with sourced events that may warrant a power discovery conversation.'}</p></div></section><section className="today"><div><p className="eyebrow">Today</p><strong>{changes.length} material {changes.length === 1 ? 'change' : 'changes'}</strong></div>{changes.slice(0, 3).map((change, index) => <a href={change.url} key={`${change.kind}-${index}`} target="_blank" rel="noreferrer"><span>{change.kind}</span>{change.title}</a>)}{changes.length === 0 && <span className="today-empty">No material opportunity changes today.</span>}</section></div>}
       {!selected && view === 'ingestion' && <section className="hero"><div><p className="eyebrow">Retained evidence · Publisher and government sources</p><h1>Ingestion inbox</h1><p>Permits are primary project discovery; news is supplemental. Source evidence and qualification stay visible. City permit coverage is regional and limited to a rolling issue-date window.</p></div></section>}
       {selected && <section className="hero detail-hero"><div><p className="eyebrow">{selected.tier} · {selected.activity.replaceAll('-', ' ')}{selected.tier === 'Signal' ? ` · ${selected.signal_display_decision ?? 'REVIEW'}` : ''}</p><h1>{projectTitle(selected)}</h1>{selected.commercial_size_status === 'unknown' && selected.tier === 'Signal' && <p role="status" className="integrity"><strong>Activity size unknown.</strong> Retained for investigation; the 300 kW minimum is inclusive.</p>}{selected.signal_evidence_state === 'planning_application_withdrawn' && <p role="status" className="integrity"><strong>Planning application withdrawn · historical Signal.</strong> Current project viability is unknown.</p>}{selected.signal_evidence_state === 'planning_status_unknown' && <p role="status" className="integrity"><strong>Conflicting planning revision · historical Signal.</strong> Current application and project status are unknown.</p>}<p>{selected.rationale}</p>{selectedGroup && <p className="group-context">{selectedSharesProjectId ? `Part of a physical project group with ${selectedGroup.members.length} retained records. Each record and its evidence remain available.` : `Part of an exact-event permit group with ${selectedGroup.members.length} records. Each record and its evidence remain separate.`}</p>}</div><button className="back-button" onClick={returnToBrowse}>← Back to {tier}</button></section>}

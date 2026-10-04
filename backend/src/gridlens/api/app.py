@@ -16,6 +16,7 @@ from gridlens.domain.commercial_triage import cards as make_commercial_cards
 from gridlens.domain.commercial_triage import surfaced_on as commercial_surfaced_on
 from gridlens.domain.pursuits import (
     CommercialResearchBody,
+    CommercialResearchStatusOut,
     CommercialTriageCard,
     CommercialTriageHistoryOut,
     CommercialTriageOut,
@@ -48,6 +49,7 @@ from gridlens.persistence.models import (
     Observation,
     PowerNeed,
     PowerNeedBrief,
+    PowerNeedBriefVersion,
     Project,
     ProjectLifecycle,
     SignalDecision,
@@ -1467,6 +1469,41 @@ def commercial_triage_history():
                 }
             else:
                 saved_card = None
+            stored_versions = receipt.get("versions")
+            if isinstance(stored_versions, list) and stored_versions:
+                versions = stored_versions
+            else:
+                versions = [
+                    {
+                        "version": 1,
+                        "disposition": receipt.get("disposition")
+                        or (saved_card or {}).get("disposition")
+                        or "UNKNOWN",
+                        "evaluated_at": receipt.get("saved_at"),
+                        "evaluated_on": receipt.get("evaluated_on"),
+                        "input_hash": receipt.get("input_hash")
+                        or (saved_card or {}).get("input_hash"),
+                        "snapshot_status": "saved_as_of" if saved_card else "metadata_only",
+                        "live_status": "not_rechecked",
+                        "saved_card": saved_card,
+                    }
+                ]
+            normalized_versions = []
+            for index, version in enumerate(versions, start=1):
+                version_card = version.get("saved_card")
+                if isinstance(version_card, dict):
+                    version_card = {**version_card, "pursuit_id": str(row.id), "notes": []}
+                else:
+                    version_card = None
+                normalized_versions.append(
+                    {
+                        **version,
+                        "version": version.get("version") or index,
+                        "snapshot_status": "saved_as_of" if version_card else "metadata_only",
+                        "live_status": "not_rechecked",
+                        "saved_card": version_card,
+                    }
+                )
             history.append(
                 {
                     "pursuit_id": row.id,
@@ -1484,6 +1521,7 @@ def commercial_triage_history():
                     "live_status": "not_rechecked",
                     "saved_card": saved_card,
                     "notes": notes_by_pursuit[row.id],
+                    "versions": normalized_versions,
                 }
             )
         return {"items": history}
@@ -1521,15 +1559,75 @@ def evaluate_commercial_triage(request: Request, limit: int = Query(default=50, 
             saved_card["notes"] = []
             snapshot = dict(row.snapshot or {})
             prior = snapshot.get("commercial_triage", {})
-            snapshot["commercial_triage"] = {
-                "need_id": card["id"],
-                "input_hash": card["input_hash"],
-                "disposition": card["disposition"],
-                "evaluated_on": today,
-                "saved_at": saved_at,
-                "saved_card": saved_card,
-                "surfaced_on": commercial_surfaced_on(prior, card, today),
-            }
+            versions = (
+                list(prior.get("versions", []))
+                if isinstance(prior.get("versions"), list)
+                else []
+            )
+            if not versions and any(
+                prior.get(key) is not None
+                for key in ("input_hash", "disposition", "saved_at", "saved_card")
+            ):
+                prior_card = prior.get("saved_card")
+                if isinstance(prior_card, dict):
+                    prior_card = {**prior_card, "pursuit_id": str(row.id), "notes": []}
+                versions.append(
+                    {
+                        "version": 1,
+                        "disposition": prior.get("disposition")
+                        or (prior_card or {}).get("disposition")
+                        or "UNKNOWN",
+                        "evaluated_on": prior.get("evaluated_on"),
+                        "evaluated_at": prior.get("saved_at"),
+                        "input_hash": prior.get("input_hash")
+                        or (prior_card or {}).get("input_hash"),
+                        "snapshot_status": "saved_as_of" if prior_card else "metadata_only",
+                        "live_status": "not_rechecked",
+                        "saved_card": prior_card,
+                    }
+                )
+            changed = (
+                prior.get("input_hash") != card["input_hash"]
+                or prior.get("disposition") != card["disposition"]
+            )
+            if changed:
+                versions.append(
+                    {
+                        "version": len(versions) + 1,
+                        "disposition": card["disposition"],
+                        "evaluated_on": today,
+                        "evaluated_at": saved_at,
+                        "input_hash": card["input_hash"],
+                        "snapshot_status": "saved_as_of",
+                        "live_status": "not_rechecked",
+                        "saved_card": saved_card,
+                    }
+                )
+            elif not versions:
+                # Defensive: a malformed legacy receipt should not create duplicate versions.
+                versions.append(
+                    {
+                        "version": 1,
+                        "disposition": prior.get("disposition") or "UNKNOWN",
+                        "evaluated_on": prior.get("evaluated_on"),
+                        "evaluated_at": prior.get("saved_at"),
+                        "input_hash": prior.get("input_hash"),
+                        "snapshot_status": "metadata_only",
+                        "live_status": "not_rechecked",
+                        "saved_card": None,
+                    }
+                )
+            if changed:
+                snapshot["commercial_triage"] = {
+                    "need_id": card["id"],
+                    "input_hash": card["input_hash"],
+                    "disposition": card["disposition"],
+                    "evaluated_on": today,
+                    "saved_at": saved_at,
+                    "saved_card": saved_card,
+                    "surfaced_on": commercial_surfaced_on(prior, card, today),
+                    "versions": versions,
+                }
             row.snapshot = snapshot
         receipts = list(
             session.scalars(select(Pursuit).where(Pursuit.identity_key.like("commercial-need:%")))
@@ -1567,3 +1665,93 @@ def research_commercial_need(need_id: UUID, body: CommercialResearchBody, reques
             raise HTTPException(404, "Power need not found") from exc
         except BriefUnavailable as exc:
             raise HTTPException(409, str(exc)) from exc
+
+
+@app.get(
+    "/api/commercial/triage/{need_id}/research",
+    response_model=CommercialResearchStatusOut,
+    dependencies=[Depends(require_session)],
+)
+def commercial_research_status(need_id: UUID, question: str = Query(..., min_length=12)):
+    question = question.strip()
+    if len(question) < 12:
+        raise HTTPException(422, "Question must contain at least 12 non-space characters")
+    with SessionLocal() as session:
+        try:
+            payload, _ = brief_input(session, need_id, question)
+        except LookupError as exc:
+            raise HTTPException(404, "Power need not found") from exc
+        except BriefUnavailable as exc:
+            raise HTTPException(409, str(exc)) from exc
+        fingerprint = brief_fingerprint(payload)
+        row = session.get(PowerNeedBrief, need_id)
+        if row and row.generated_fingerprint == fingerprint and row.result:
+            return {
+                "status": "ready",
+                "job_id": None,
+                "input_hash": fingerprint,
+                "generated_at": row.generated_at,
+                "result": row.result,
+                "citations": row.citations,
+                "error": None,
+            }
+        version = session.scalar(
+            select(PowerNeedBriefVersion)
+            .where(
+                PowerNeedBriefVersion.need_id == need_id,
+                PowerNeedBriefVersion.input_fingerprint == fingerprint,
+            )
+            .order_by(PowerNeedBriefVersion.generated_at.desc(), PowerNeedBriefVersion.id.desc())
+            .limit(1)
+        )
+        if version:
+            return {
+                "status": "ready",
+                "job_id": None,
+                "input_hash": fingerprint,
+                "generated_at": version.generated_at,
+                "result": version.result,
+                "citations": version.citations,
+                "error": None,
+            }
+        if row and row.requested_fingerprint == fingerprint:
+            active_job = session.scalar(
+                select(Job)
+                .where(
+                    Job.kind == "power_need_brief",
+                    Job.target_id == need_id,
+                    Job.status.in_(["queued", "running"]),
+                )
+                .order_by(Job.created_at.desc(), Job.id.desc())
+                .limit(1)
+            )
+            if active_job or row.status in {"pending", "running"}:
+                return {
+                    "status": "pending",
+                    "job_id": active_job.id if active_job else None,
+                    "input_hash": fingerprint,
+                    "generated_at": None,
+                    "result": None,
+                    "citations": [],
+                    "error": None,
+                }
+            if row.status == "failed":
+                return {
+                    "status": "failed",
+                    "job_id": None,
+                    "input_hash": fingerprint,
+                    "generated_at": None,
+                    "result": None,
+                    "citations": [],
+                    "error": row.error,
+                }
+        status = "superseded" if row and row.requested_fingerprint else "not_requested"
+        return {
+            "status": status,
+            "job_id": None,
+            "input_hash": fingerprint,
+            "generated_at": None,
+            "result": None,
+            "citations": [],
+            "error": None,
+        }

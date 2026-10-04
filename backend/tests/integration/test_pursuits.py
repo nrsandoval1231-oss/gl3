@@ -14,6 +14,8 @@ from gridlens.persistence.database import Base
 from gridlens.persistence.models import (
     Job,
     PowerNeed,
+    PowerNeedBrief,
+    PowerNeedBriefVersion,
     Project,
     Pursuit,
     PursuitCallNote,
@@ -922,6 +924,12 @@ def test_commercial_evaluate_replay_and_operator_note_are_durable_without_tier_w
     assert replay.status_code == 200, replay.text
     assert replay.json()["daily"]["evaluated"] == 1
     assert replay.json()["daily"]["surfaced"] == 1
+    first_history = client.get("/api/commercial/triage/history").json()["items"][0]
+    assert len(first_history["versions"]) == 1
+    first_version = first_history["versions"][0]
+    first_timestamp = first_version["evaluated_at"]
+    first_hash = first_version["input_hash"]
+    assert first_version["saved_card"]["sources"][0]["hash"] == "b" * 64
 
     note = {
         "client_id": str(uuid4()),
@@ -940,6 +948,28 @@ def test_commercial_evaluate_replay_and_operator_note_are_durable_without_tier_w
     assert readback.json()["daily"]["qualified"] == 0
     with factory() as session:
         assert session.scalar(select(func.count()).select_from(PowerNeed)) == 0
+
+    item["evidence"][0]["content_hash"] = "c" * 64
+    item["evidence"][0]["abstract"] += " Source revision retained for the next evaluation."
+    changed = client.post("/api/commercial/triage/evaluate", headers=headers)
+    assert changed.status_code == 200, changed.text
+    assert changed.json()["daily"]["evaluated"] == 1
+    assert changed.json()["daily"]["surfaced"] == 1
+    changed_history = client.get("/api/commercial/triage/history").json()["items"][0]
+    assert len(changed_history["versions"]) == 2
+    old_version, new_version = changed_history["versions"]
+    assert old_version["evaluated_at"] == first_timestamp
+    assert old_version["input_hash"] == first_hash
+    assert old_version["saved_card"]["sources"][0]["hash"] == "b" * 64
+    assert new_version["input_hash"] != first_hash
+    assert new_version["saved_card"]["sources"][0]["hash"] == "c" * 64
+
+    unchanged = client.post("/api/commercial/triage/evaluate", headers=headers)
+    assert unchanged.status_code == 200, unchanged.text
+    assert unchanged.json()["daily"]["evaluated"] == 1
+    assert unchanged.json()["daily"]["surfaced"] == 1
+    unchanged_history = client.get("/api/commercial/triage/history").json()["items"][0]
+    assert unchanged_history["versions"] == changed_history["versions"]
 
     closed_note = {
         **note,
@@ -992,3 +1022,104 @@ def test_commercial_evaluate_replay_and_operator_note_are_durable_without_tier_w
     assert metadata_only["snapshot_status"] == "metadata_only"
     assert metadata_only["saved_card"] is None
     assert metadata_only["disposition"] == "REJECT"
+
+
+def test_commercial_research_status_is_bound_to_exact_question_fingerprint(runtime, monkeypatch):
+    factory, _service, _public, api, project_id = runtime
+    need_id = uuid4()
+    questions = {
+        "current": "Which source confirms construction stage?",
+        "different": "When will permanent service be energized?",
+        "archived": "Who owns commissioning power?",
+        "pending": "What source confirms exact start timing?",
+    }
+    monkeypatch.setattr(
+        api,
+        "brief_input",
+        lambda _session, _need_id, question=None: ({"commercial_question": question}, []),
+    )
+    fingerprints = {
+        key: api.brief_fingerprint({"commercial_question": question})
+        for key, question in questions.items()
+    }
+    current_result = {"marker": "current question result"}
+    archived_result = {"marker": "archived exact question result"}
+    pending_job_id = uuid4()
+    with factory.begin() as session:
+        session.add(
+            PowerNeed(
+                id=need_id,
+                project_id=project_id,
+                activity_key="construction",
+                tier="Signal",
+                rationale="Synthetic test need",
+                supply="Unknown",
+            )
+        )
+        session.flush()
+        session.add(
+            PowerNeedBrief(
+                need_id=need_id,
+                requested_fingerprint=fingerprints["current"],
+                generated_fingerprint=fingerprints["current"],
+                policy_version="brief-policy-test",
+                schema_version="brief-schema-test",
+                model="test-model",
+                status="ready",
+                result=current_result,
+                citations=[],
+                generated_at=datetime.now(UTC),
+            )
+        )
+        session.add(
+            PowerNeedBriefVersion(
+                need_id=need_id,
+                input_fingerprint=fingerprints["archived"],
+                policy_version="brief-policy-test",
+                schema_version="brief-schema-test",
+                model="test-model",
+                result=archived_result,
+                citations=[],
+                generated_at=datetime.now(UTC) - timedelta(days=1),
+                input_tokens=10,
+                output_tokens=10,
+            )
+        )
+
+    client = TestClient(api.app, base_url="https://testserver")
+    url = f"/api/commercial/triage/{need_id}/research"
+    assert client.get(url, params={"question": questions["current"]}).status_code == 401
+    client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
+    current = client.get(url, params={"question": questions["current"]})
+    assert current.status_code == 200, current.text
+    assert current.json()["status"] == "ready"
+    assert current.json()["result"] == current_result
+
+    different = client.get(url, params={"question": questions["different"]})
+    assert different.status_code == 200, different.text
+    assert different.json()["status"] == "superseded"
+    assert different.json()["result"] is None
+
+    archived = client.get(url, params={"question": questions["archived"]})
+    assert archived.status_code == 200, archived.text
+    assert archived.json()["status"] == "ready"
+    assert archived.json()["result"] == archived_result
+
+    with factory.begin() as session:
+        brief = session.get(PowerNeedBrief, need_id)
+        assert brief
+        brief.requested_fingerprint = fingerprints["pending"]
+        brief.status = "pending"
+        session.add(
+            Job(
+                id=pending_job_id,
+                source_id="austin-building-permits",
+                kind="power_need_brief",
+                target_id=need_id,
+                status="queued",
+            )
+        )
+    pending = client.get(url, params={"question": questions["pending"]})
+    assert pending.status_code == 200, pending.text
+    assert pending.json()["status"] == "pending"
+    assert pending.json()["job_id"] == str(pending_job_id)
