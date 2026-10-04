@@ -1,5 +1,20 @@
 # Work Graph
 
+## October 4 audit-repair frontier
+
+Remote main `6c8bdf3e3163adde078f8543d43c0256bc11eb82` includes merged PR23. Clean detached `../gl3-main-truth-20261004` is the exact-main reference; the active repair is this separate checkout. Open draft PR24 head `d8b0e99897c600f32a0e00bb6770b841f2c6f907` has successful GitHub Actions backend/web jobs but independent audit verdict FIX. Prior graph entries below are historical checkpoints; their pending PR23 review/merge text is superseded by this verified merge.
+
+| Node | Dependency | State | Direction / gate |
+|---|---|---|---|
+| GL3-029R1 | PR24 exact head and October 4 FIX findings | BUILD → VALIDATE PREP | One Luna's backend repair is stable for freeze; controller focused rerun 33 passed. Full exact-candidate gates and independent review pending under [packet](packets/GL3-029R1.md). |
+| GL3-029R1-TYPE | Windows static typing defect | FAILED ATTEMPT, preserved | Dynamic `resource` import restored unrestricted mypy but left Windows functional acquisition unavailable. Raw failed-attempt completion/logs retained under ignored `.artifacts/audit-repair/type-*`. |
+| GL3-029R1-TYPE-WINDOWS | TYPE attempt failed functional boundary | BUILD → VALIDATE PREP | [Native Job Object guard](packets/GL3-029R1-TYPE-WINDOWS.md); controller integrated focused 59 passed, including 22 isolation tests with queried 512 MiB limit. Full exact-candidate gates and Linux runtime proof pending. |
+| GL3-029R2 | Frozen R1 repair | BLOCKED | Controller original retained-corpus replay, full exact-candidate gates and independent review under [packet](packets/GL3-029R2.md). |
+| GL3-030 | PR23 merged; select integration base after PR24 disposition | READY, unselected | Attributed call-confirmed fact → Evidence/PowerNeed reevaluation under [packet](packets/GL3-030.md). Separate product slice. |
+| A-cloud / B / C / D / E | PRD milestone prerequisites | OPEN | PC-off scheduling, source quality/breadth, real Prospect/Lead, seven-cycle reliability, restore/alert and Nick review remain unproved. |
+
+Selected graph direction: VALIDATE integrated R1 plus Windows guard on one frozen candidate, then R2 retained corpus and independent review. Do not treat successful CI, focused tests, synthetic browser tests or restored data alone as launch acceptance. Ordinary `gl3`, `gl3-015` and `gl3-017` checkouts remain untouched; ignored preservation hashes are in `.artifacts/audit-repair/preservation.json`.
+
 Current main includes merged GL3-015 (PR #5), GL3-016 (PR #6), GL3-017 (PR #7, `1f18a01`), and GL3-018 (PR #8, `7f24174`). The paragraphs below are retained history, including the point when GL3-017 and GL3-018 were still excluded. GL3-018 authoritative admission and the Chicago/Georgia acquisition changes are on main. Deployment, national coverage, and parent launch remain OPEN. Standalone planning/entitlement admission remains an owner decision.
 
 GL3-016-A READY -> BUILD (2026-09-29): owner authorized production Jev Signal adjudication and conservative physical-project consolidation after PR #5 merged. Fresh branch `feat/gl3-016` from `c9a0e5d8887a6e8207a98d41a08ab7f952017d45`; backend packet `packets/GL3-016-backend.md`. Frontend depends on frozen backend contract. Exact human review baseline: 63 cards, 11 SHOW, 29 REVIEW, 23 HOLD; no source evidence deletion. `TYPESAFE_API_KEY` currently absent, so live model/corpus proof remains pending. GL3-017 enrichment and GL3-018 acquisition are excluded.

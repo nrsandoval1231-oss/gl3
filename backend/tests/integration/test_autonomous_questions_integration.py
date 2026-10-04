@@ -123,6 +123,10 @@ def finish_questions(factory, ids):
             row.status = "UNRESOLVED"
             row.completed_at = datetime.now(UTC)
             row.retry_after = datetime.now(UTC) + timedelta(hours=24)
+            row.receipt = {
+                **row.receipt,
+                "route_results": [{"kind": "registered", "status": "CHECKED"}],
+            }
 
 
 def test_two_distinct_target_jobs_active_cap_and_evaluation_replay(runtime):
@@ -137,6 +141,18 @@ def test_two_distinct_target_jobs_active_cap_and_evaluation_replay(runtime):
         pursuit = session.scalar(select(Pursuit))
         assert len(pursuit.snapshot["commercial_triage"]["versions"]) == 1
         assert session.get(PowerNeed, card["id"]).tier == "Signal"
+
+
+def test_daily_question_cap_holds_then_reopens_next_day(runtime, monkeypatch):
+    factory, _, _, card = runtime
+    monkeypatch.setattr(settings, "autonomous_research_daily_questions", 1)
+    now = datetime.now(UTC)
+    first = schedule(factory, card, now=now)
+    assert len(first) == 1
+    finish_questions(factory, first)
+    assert schedule(factory, card, now=now + timedelta(hours=2)) == []
+    next_day = schedule(factory, card, now=now + timedelta(days=1))
+    assert len(next_day) == 1
 
 
 @pytest.mark.parametrize("change", ["force", "evidence", "expired"])
@@ -366,10 +382,197 @@ def test_worker_empty_bounded_search_is_explicit_unresolved_without_network(runt
         assert row.receipt["searches"] == row.receipt["model_calls"] == 0
         assert row.receipt["cost_usd"] == "0"
         assert row.receipt["acquisition_limitations"]
+        assert row.retry_after <= row.completed_at + timedelta(hours=2)
         assert row.receipt["before"] == row.receipt["after"] == "RESEARCH"
         assert session.get(PowerNeed, card["id"]).tier == "Signal"
         pursuit = session.get(Pursuit, row.pursuit_id)
         assert len(pursuit.snapshot["commercial_triage"]["versions"]) == 1
+
+
+def test_unconfigured_route_is_retryable_after_provider_recovery(runtime, monkeypatch):
+    from decimal import Decimal
+
+    from pydantic import SecretStr
+
+    factory, worker, _, card = runtime
+    question_id = schedule(factory, card)[0]
+    job_id, fence = lease_question(factory, question_id)
+    for name in ("retrieve", "discover_urls", "acquire_registered_record"):
+        monkeypatch.setattr(
+            worker,
+            name,
+            lambda *_args, **_kwargs: pytest.fail("Unconfigured provider must not be called"),
+        )
+    worker.process_question_job(job_id, "question-test", fence)
+    with factory() as session:
+        row = session.get(PursuitResearchQuestion, question_id)
+        assert row.status == "UNRESOLVED"
+        assert row.retry_after <= row.completed_at + timedelta(hours=2)
+        assert not row.receipt.get("ambiguous_effects")
+    recovered = schedule(
+        factory,
+        card,
+        now=datetime.now(UTC) + timedelta(hours=2),
+    )
+    assert recovered
+    monkeypatch.setattr(settings, "autonomous_research_max_cost_usd", Decimal("1"))
+    with factory.begin() as session:
+        row = session.get(PursuitResearchQuestion, recovered[0])
+        row.budget = {**row.budget, "max_cost_usd": "1"}
+    monkeypatch.setattr(settings, "firecrawl_api_key", SecretStr("test"))
+    monkeypatch.setattr(settings, "firecrawl_search_cost_usd", Decimal("0.001"))
+    recovery_id = recovered[0]
+    recovery_job, recovery_fence = lease_question(factory, recovery_id)
+
+    def successful_empty_search(_query, **kwargs):
+        kwargs["before_request"]("https://api.firecrawl.dev/v2/search")
+        return []
+
+    monkeypatch.setattr(worker, "discover_urls", successful_empty_search)
+    worker.process_question_job(recovery_job, "question-test", recovery_fence)
+    with factory() as session:
+        checked = session.get(PursuitResearchQuestion, recovery_id)
+        assert checked.status == "UNRESOLVED"
+        assert checked.receipt["retry_class"] == "FRESH_CHECK"
+        assert any(route["status"] == "CHECKED" for route in checked.receipt["route_results"])
+    assert schedule(factory, card) == []
+
+
+def test_search_timeout_keeps_unknown_effect_across_force(runtime, monkeypatch):
+    from decimal import Decimal
+
+    from pydantic import SecretStr
+
+    factory, worker, _, card = runtime
+    monkeypatch.setattr(settings, "autonomous_research_max_cost_usd", Decimal("1"))
+    question_id = schedule(factory, card)[0]
+    job_id, fence = lease_question(factory, question_id)
+    monkeypatch.setattr(settings, "firecrawl_api_key", SecretStr("test"))
+    monkeypatch.setattr(settings, "firecrawl_search_cost_usd", Decimal("0.001"))
+
+    def timed_out(_query, **kwargs):
+        kwargs["before_request"]("https://api.firecrawl.dev/v2/search")
+        raise TimeoutError("simulated response timeout after request dispatch")
+
+    monkeypatch.setattr(worker, "discover_urls", timed_out)
+    worker.process_question_job(job_id, "question-test", fence)
+    with factory() as session:
+        row = session.get(PursuitResearchQuestion, question_id)
+        assert row.status == "FAILED"
+        assert row.receipt["inflight_url"] == "https://api.firecrawl.dev/v2/search"
+        assert row.receipt["ambiguous_effects"][-1]["status"] == "UNKNOWN"
+    card["input_hash"] = "new-evidence-after-ambiguous-search"
+    assert schedule(factory, card, force=True) == []
+
+
+def test_extraction_timeout_preserves_unknown_paid_effect(runtime, monkeypatch):
+    import time
+    from decimal import Decimal
+
+    from pydantic import SecretStr
+
+    from gridlens.ingestion.adapters.buying_chain_public import PublicExtractionUnavailable
+
+    factory, worker, _, card = runtime
+    question_id = schedule(factory, card)[0]
+    job_id, fence = lease_question(factory, question_id)
+    with factory() as session:
+        budget = {**session.get(PursuitResearchQuestion, question_id).budget, "max_cost_usd": "1"}
+    monkeypatch.setattr(settings, "firecrawl_api_key", SecretStr("test"))
+    monkeypatch.setattr(settings, "firecrawl_scrape_cost_usd", Decimal("0.01"))
+    run = worker.QuestionRun(job_id, "question-test", fence, question_id, time.monotonic(), budget)
+
+    def direct_fails(*_args, **_kwargs):
+        raise PublicExtractionUnavailable("direct page needs extraction")
+
+    def extract_times_out(url, **kwargs):
+        kwargs["before_request"](url)
+        raise TimeoutError("simulated extraction timeout after dispatch")
+
+    monkeypatch.setattr(worker, "retrieve", direct_fails)
+    monkeypatch.setattr(worker, "extract_public_document", extract_times_out)
+    worker._research_public_url(run, "https://publisher.example/document")
+    with factory() as session:
+        row = session.get(PursuitResearchQuestion, question_id)
+        assert row.receipt["inflight_url"] == "https://publisher.example/document"
+        assert row.receipt["ambiguous_effects"][-1]["status"] == "UNKNOWN"
+        assert row.receipt["firecrawl_extractions"] == 1
+    card["input_hash"] = "new-evidence-after-ambiguous-extraction"
+    assert schedule(factory, card, force=True) == []
+
+
+def test_ambiguous_effect_blocks_new_question_category(runtime):
+    factory, _, _, card = runtime
+    question_id = schedule(factory, card)[0]
+    with factory.begin() as session:
+        row = session.get(PursuitResearchQuestion, question_id)
+        row.status = "FAILED"
+        row.receipt = {**row.receipt, "ambiguous_effects": [{"status": "UNKNOWN"}]}
+        for other in session.scalars(
+            select(PursuitResearchQuestion).where(PursuitResearchQuestion.id != question_id)
+        ):
+            other.status = "FAILED"
+    card["input_hash"] = "changed-evidence-and-category-context"
+    card["missing_facts"] = ["load", "start date", "buying responsibility"]
+    assert schedule(factory, card, force=True) == []
+
+
+def test_failed_route_is_not_a_fresh_checked_negative(runtime):
+    from gridlens.intelligence.pursuit_questions import _fresh_checked_result
+
+    factory, _, _, card = runtime
+    question_id = schedule(factory, card)[0]
+    with factory.begin() as session:
+        row = session.get(PursuitResearchQuestion, question_id)
+        row.status = "FAILED"
+        row.retry_after = datetime.now(UTC) + timedelta(hours=24)
+        row.receipt = {
+            **row.receipt,
+            "route_results": [{"kind": "registered", "status": "CHECKED"}],
+            "source_checks": [{"disposition": "FAILED"}],
+        }
+        assert not _fresh_checked_result(row)
+
+
+def test_transient_retry_uses_bounded_backoff_and_exhausts_across_rows(runtime):
+    factory, _, _, card = runtime
+    current = schedule(factory, card)
+    for retry_index, delay in enumerate((1, 6, 24)):
+        now = datetime.now(UTC)
+        with factory.begin() as session:
+            for question_id in current:
+                row = session.get(PursuitResearchQuestion, question_id)
+                row.status = "FAILED"
+                row.completed_at = now
+                row.retry_after = now + timedelta(hours=delay)
+                row.context = {**row.context, "retry_index": retry_index}
+                row.receipt = {**row.receipt, "retry_class": "BOUNDED_TRANSIENT"}
+        assert schedule(factory, card) == []
+        current = schedule(factory, card, now=now + timedelta(hours=delay + 1))
+        assert current, f"retry index {retry_index} did not schedule after {delay}h"
+        with factory() as session:
+            assert all(
+                session.get(PursuitResearchQuestion, question_id).context["retry_index"]
+                == retry_index + 1
+                for question_id in current
+            )
+    now = datetime.now(UTC) + timedelta(days=2)
+    with factory.begin() as session:
+        for question_id in current:
+            row = session.get(PursuitResearchQuestion, question_id)
+            row.status = "FAILED"
+            row.completed_at = now
+            row.retry_after = now + timedelta(hours=24)
+            row.context = {**row.context, "retry_index": 3}
+            row.receipt = {**row.receipt, "retry_class": "RETRIES_EXHAUSTED"}
+    assert schedule(factory, card, now=now + timedelta(days=2)) == []
+    forced = schedule(factory, card, force=True, now=now + timedelta(days=2))
+    assert forced
+    with factory() as session:
+        assert all(
+            session.get(PursuitResearchQuestion, question_id).context["retry_index"] == 3
+            for question_id in forced
+        )
 
 
 def test_worker_changed_input_fails_before_acquisition_and_preserves_original_context(
@@ -746,6 +949,10 @@ def test_scheduler_reaches_saved_targets_outside_current_shortlist(runtime, monk
             row = session.get(PursuitResearchQuestion, question_id)
             row.status, row.completed_at = "UNRESOLVED", now
             row.retry_after = now + timedelta(hours=24)
+            row.receipt = {
+                **row.receipt,
+                "route_results": [{"kind": "registered", "status": "CHECKED"}],
+            }
             if reason == "retry":
                 row.retry_after = now - timedelta(seconds=1)
         if reason == "changed":
@@ -758,6 +965,13 @@ def test_scheduler_reaches_saved_targets_outside_current_shortlist(runtime, monk
     # Read-only planning may recheck all saved semantic inputs; scheduling reuses
     # unchanged fresh answers and creates no new external work.
     if reason == "fresh":
+        from gridlens.intelligence.pursuit_questions import _fresh_checked_result
+
+        with factory() as session:
+            assert all(
+                _fresh_checked_result(session.get(PursuitResearchQuestion, question_id))
+                for question_id in ids
+            )
         assert schedule(factory, card) == []
 
 

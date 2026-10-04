@@ -1,0 +1,46 @@
+{
+  "task_id": "GL3-029R1",
+  "record_type": "pre-freeze controller preparation; not final acceptance",
+  "started_utc": "2026-10-04T19:47:56Z",
+  "finished_utc": "2026-10-04T20:08:20Z",
+  "time_basis": "First durable packet creation through this pre-freeze record; earlier audit time and later full validation/review are excluded",
+  "lane": "full",
+  "model": "UNKNOWN",
+  "config_identity": "UNKNOWN",
+  "planning_seconds": null,
+  "build_seconds": null,
+  "validation_seconds": 9.25,
+  "audit_seconds": null,
+  "elapsed_to_accepted_seconds": null,
+  "repair_count": 1,
+  "scope_risk_match": "UNKNOWN",
+  "audit_findings_count": 2,
+  "regressions_found": null,
+  "roles": {
+    "controller": "Sol",
+    "builder": "Luna",
+    "independent_final_reviewer": "PENDING"
+  },
+  "tokens": {
+    "input_measured": null,
+    "output_measured": null,
+    "input_unknown": true,
+    "output_unknown": true
+  },
+  "attempts": [
+    {
+      "identity": "PR24 original d8b0e99897c600f32a0e00bb6770b841f2c6f907",
+      "result": "independent FIX; hosted backend/web CI success did not resolve findings"
+    },
+    {
+      "identity": "R1 pre-freeze working tree",
+      "result": "controller focused 33 passed in 9.25 seconds; full gates and review pending"
+    }
+  ],
+  "acceptance": {
+    "status": "OPEN",
+    "accepted_at_utc": null,
+    "independent_review": null
+  },
+  "notes": "Measured focused test duration comes from external controller-focused.log. Phase totals, worker model/config and token usage are UNKNOWN. No speedup claim. Final metrics/receipts must identify the frozen commit and remain outside tracked candidate."
+}

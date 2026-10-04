@@ -1,59 +1,11 @@
-# Current state
+# Current state — October 4, 2026 audit repair
 
-## GL3-029 working candidate — 2026-10-04
+Canonical intent is [the PRD](../docs/product/PRD.md); exit gates are [.agent/FINISH_CONTRACT.md](FINISH_CONTRACT.md) and [milestones](../docs/delivery/milestones.md). The prior state is archived byte-for-byte in [the audit archive](archive/2026-10-04-pr24-repair/CURRENT_STATE.md).
 
-Remote main verified at `6c8bdf3e3163adde078f8543d43c0256bc11eb82` (PR #23).
-Branch `feat/gl3-029-autonomous-pursuit-research` contains the locally implemented
-candidate. See [candidate validation](../docs/validation/gl3-029-autonomous-pursuit-research.md).
-Final repaired-candidate local gates: 1112 backend tests passed / one existing optional-fixture skip;
-Ruff and mypy (77 modules) passed; frontend typecheck/build/audit passed (zero
-vulnerabilities); 38 browser tests passed on isolated synthetic data; eight migration
-checks passed with eight fixture rows across seven tables preserved. Independent
-adversarial findings were repaired and regression-tested. The final independent
-review reported no remaining material findings; the 242-file code manifest pins
-the fully rerun candidate. Original retained-corpus acceptance remains blocked.
+GitHub main is `6c8bdf3e3163adde078f8543d43c0256bc11eb82` after merged PR23. Clean detached `../gl3-main-truth-20261004` is the local exact-main reference; this repair checkout is separate from it. Main's tree exactly matches the independent Sol [PR23 PASS receipt](artifacts/GL3-029-PR23/REVIEW.json) and [manifest](artifacts/GL3-029-PR23/SOURCE-MANIFEST.json); [provenance](artifacts/GL3-029-PR23/PROVENANCE.md) distinguishes that local review from GitHub's earlier COMMENTED bot review. PR24 remains an open **draft** at `d8b0e99897c600f32a0e00bb6770b841f2c6f907`; its base is main. GitHub Actions runs `37164959427` (main) and `37222313567` (PR24) each completed successfully with backend and web jobs. Checks API access is denied to the current PAT; Actions run/job API supplies the cited CI result. The independent October 4 PR24 audit returns **FIX** for transient failure reuse and paid-request uncertainty. A green CI run does not override that verdict.
 
-Current repairs add six exact native GET routes (Austin/Chicago/Seattle/Boston/
-El Paso/Federal Register), killable acquisition/parser isolation under the existing
-job deadline and 512 MiB cap, whole-input PDF/text bounds, narrowly eligible public
-JavaScript-shell extraction, exact-question partial progress, complete retained-input
-replay preserving identity, registry-host supplemental admission without native
-qualification authority, and conservative nonzero suitable-supply residuals.
-The Lead commercial floor uses remaining need. See architecture/operations docs for
-intentional unsupported cases. These changes remain on the same draft PR #24.
+This isolated checkout is `repair/gl3-pr24-20261004`, created from PR24 head. [GL3-029R1](packets/GL3-029R1.md) includes the dependent [native Windows guard](packets/GL3-029R1-TYPE-WINDOWS.md). Controller integrated focused rerun passed **59 tests in 10.85 seconds**; the Windows child queried a 536,870,912-byte Job Object limit and unrestricted mypy passed 77 modules. Linux runtime, full exact-candidate gates and independent review remain pending. [GL3-029R2](packets/GL3-029R2.md) depends on that frozen repair. The original retained backup was independently restored; its 0011→0014 upgrade preserved 22/24 full table digests and original `change_events` columns. The retained projection reproduces 50 Signal scopes and 9/19/22 dispositions. These are setup results, not research acceptance. Strong Austin construction/temporary scopes are ACTION NOW and legitimately yield no question; five-case investigation remains OPEN. `GL3-030` attributed call-fact qualification remains separate READY work. See [repair report](../docs/validation/gl3-029-pr24-audit-repair.md) and [graph](WORK_GRAPH.md).
 
-The original retained PR23 corpus gate remains blocked; synthetic/reingested work is
-not its substitute. Nick explicitly authorized publishing one draft PR before that
-gate on October 4, 2026. The draft must remain NOT MERGE-READY and clearly disclose
-corpus/provider/source limitations. No merge, deployment or production-proof claim
-is made. The prior headings below are historical checkpoints, not current main.
+The ordinary `gl3` checkout is a recovery branch with two unique commits and two untracked files. `gl3-015` and `gl3-017` are dirty. Their untouched status and file hashes are in ignored `.artifacts/audit-repair/preservation.json`. No reset or consolidation was performed.
 
-The saved runtime database is at `0007_signal_decisions` with zero canonical evidence
-and projects; it was preserved. Migration tests use isolated synthetic databases.
-Original PR23 retained backup and configured discovery-provider access are absent.
-Canonical source acquisition is direct HTTP where a bounded exact route is supported.
-Models do not run in this new research path or assign facts, tiers or pursuit states.
-
-## Main after GL3-028 merge — 2026-10-02
-
-PR #21 (`feat/evidence-graph-jev-shadow`) is merged to `main` at merge commit `43424be49d1a6f60edf91931218d37c61ba33d52`. At this historical PR #21 merge checkpoint, there were no open pull requests.
-
-Merged GL3-028 capabilities include current-project state projection, evidence-backed material-change history, migration `0012`, field-specific buying-chain provenance, conflict-aware need state, generated OpenAPI/frontend contracts, and bounded zero-authority EvidenceJudge shadow evaluation. Jev remains advisory and isolated from authoritative Signal admission, tiering, power math, persistence decisions, and normal ingestion.
-
-The accepted PR #21 validation reports 703 backend tests passed with one existing environment-dependent skip, Ruff and mypy passed, frontend typecheck/build/audit passed, 22 browser tests passed, and 12 migration checks passed. Preservation validation retained all 13 checked historical table digests and all 16,960 Evidence rows. The small Jev benchmark used 16 cases and is retained as bounded behavioral evidence only, not representative production accuracy.
-
-The documentation state is now synchronized to the merge. Prior references describing GL3-028 as an unmerged candidate are historical only. Cloud deployment, durable PC-off scheduling, California coverage, broader pre-permit discovery, commissioning-specific acquisition, and demonstrated Signal-to-Prospect-to-Lead commercial conversion remain open product milestones.
-
-Current product priority is commercial conversion: use the existing evidence/project foundation to turn the strongest retained Signals into specific actionable pursuits with supported project stage, power-need hypothesis, timing, likely gap, buying organization/role, missing facts, and next action. Avoid new architecture unless it directly improves actionable pursuit yield.
-
-## Historical snapshot — open-PR integration, 2026-10-01
-
-The following preserved paragraphs describe an older integration checkpoint and runtime. Their main SHA, test counts, and local app status are historical; runtime status was not reverified by this documentation sync.
-
-Open-PR integration LOCAL ACCEPTED: current main `8e21750` plus PR16, repaired PR17 (`5df22d1`) and PR19. Owner explicitly authorized validation, fixes and merge of all open PRs. Independent Sol PASS on 320-file manifest `7be279eb7d38d4d6738ad0667aac18debc058aa3edaa9e3fff338eba9219cbdb`. Packet: `packets/PR-MERGE-20261001.md`; evidence: `artifacts/PR-MERGE-20261001/REVIEW.json` and `docs/validation/open-pr-merge-2026-10-01.md`.
-
-Fresh isolated gates passed: Ruff, mypy, 559 backend tests/one existing skip, frontend typecheck/build, clean/repeat/drift migrations and all22 browser tests with no exclusions. Official replay returned38 unchanged flare applications and9,141 unchanged Boston permits. Six tables exactly equal; one Boston interpretation changed only retry metadata. The full corpus and prior accepted GL3-026/027 evidence remain preserved.
-
-PR17's older visual instructions were reconciled while preserving main's newer AGENTS, UI_CANON and reference manifest exactly. Its handoff is documentation, not a UI implementation. Exact reference assets remain a prerequisite for visual implementation. Parent launch, California coverage and historical/detail flare expansion remain OPEN.
-
-Existing local app remains on `gl3_027_accept`, API8023/web5193; original runtime/databases/credentials and dirty recovery checkouts are untouched. Integration used separate worktree/database/ports and blank model keys. No deployment is included. Serialized merge authorization is16,17,19 with expected-head checks and final remote-tree parity; merged/deployed status must come from verified GitHub/runtime evidence, not this local receipt.
+No GL3 API or web listener was present on the documented local ports at this check; worker identity was not established. PostgreSQL service port 5432 and isolated evidence port 55465 do not establish GL3 application runtime. Remote deployment and seven-cycle operation remain unproved. A–E and parent launch gates remain **OPEN**. Provider availability, old CI credential reuse, and real Lead proof are **UNKNOWN**. Next direction: `VALIDATE` the frozen R1 candidate and original retained corpus under R2, then independent review. No push, merge or deployment is authorized by this state record.

@@ -1,5 +1,7 @@
 # GL3-029 commercial pursuits: retained-data acceptance
 
+**Post-merge status (October 4):** PR23 merged to main at `6c8bdf3e3163adde078f8543d43c0256bc11eb82`; its tree matches the independent Sol [PASS review](../../.agent/artifacts/GL3-029-PR23/REVIEW.json) and [source manifest](../../.agent/artifacts/GL3-029-PR23/SOURCE-MANIFEST.json). Main Actions run `37164959427` completed backend/web successfully. The review and merge-pending statements below document the earlier candidate checkpoint. The retained-corpus 50-scope result is historical local validation, not present runtime or Lead proof.
+
 Base: `ffb1da2c7d683aa7dac89baa3964b636a1b8a2aa` (merged PR22). Branch: `feat/commercial-pursuits`. Product launch remains OPEN. PR23 was delivered for independent review. The owner subsequently authorized validation and merge only after the candidate passes and review findings are resolved. No outreach or deployment is included.
 
 ## Retained corpus

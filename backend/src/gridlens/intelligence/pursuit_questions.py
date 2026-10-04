@@ -40,6 +40,10 @@ BUDGET = {
     "max_cost_usd": "0",
 }
 
+# Retry unavailable/transient routes on a short bounded schedule. Successful
+# checked negatives retain their category freshness window instead.
+RETRY_BACKOFF_HOURS = (1, 6, 24)
+
 
 def question_view(row: PursuitResearchQuestion) -> dict[str, Any]:
     return {
@@ -183,7 +187,42 @@ def schedule_questions(
                 in {row.evidence_fingerprint, row.receipt.get("post_evidence_fingerprint")}
                 and row.retry_after
                 and row.retry_after > now
+                and _fresh_checked_result(row)
             ]
+            unresolved_effect = any(
+                row.receipt.get("inflight_url") or row.receipt.get("ambiguous_effects")
+                for row in prior
+            )
+            if unresolved_effect:
+                continue
+            pending_retry = any(
+                row.query_fingerprint == query_hash
+                and row.evidence_fingerprint == evidence_hash
+                and row.receipt.get("retry_class") == "BOUNDED_TRANSIENT"
+                and row.retry_after
+                and row.retry_after > now
+                for row in prior
+            )
+            if pending_retry and not force:
+                continue
+            retry_index = max(
+                (
+                    int(row.context.get("retry_index", 0)) + 1
+                    for row in prior
+                    if row.query_fingerprint == query_hash
+                    and row.evidence_fingerprint == evidence_hash
+                    and row.receipt.get("retry_class") == "BOUNDED_TRANSIENT"
+                ),
+                default=0,
+            )
+            retry_exhausted = any(
+                row.query_fingerprint == query_hash
+                and row.evidence_fingerprint == evidence_hash
+                and row.receipt.get("retry_class") == "RETRIES_EXHAUSTED"
+                for row in prior
+            )
+            if (retry_index > len(RETRY_BACKOFF_HOURS) or retry_exhausted) and not force:
+                continue
             if reusable and not force:
                 continue
             # WATCH must first show a material change after its baseline receipt.
@@ -203,6 +242,7 @@ def schedule_questions(
                     "queries": queries,
                     "query_routes": targeted_query_plan(context, category),
                     "force": force,
+                    "retry_index": retry_index,
                     **routing,
                 },
                 budget={
@@ -233,3 +273,16 @@ def schedule_questions(
             if parent_id:
                 break
     return created
+
+
+def _fresh_checked_result(row: PursuitResearchQuestion) -> bool:
+    """Only a completed provider/source check suppresses unchanged research."""
+    if row.status not in {"RESOLVED", "UNRESOLVED", "PARTIALLY_RESOLVED"}:
+        return False
+    if row.receipt.get("inflight_url") or row.receipt.get("ambiguous_effects"):
+        return False
+    checks = row.receipt.get("source_checks", [])
+    routes = row.receipt.get("route_results", [])
+    return any(
+        check.get("disposition") in {"ACCEPTED", "REJECTED", "UNRESOLVED"} for check in checks
+    ) or any(route.get("status") == "CHECKED" for route in routes)
