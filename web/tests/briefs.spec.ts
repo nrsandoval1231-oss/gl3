@@ -42,7 +42,7 @@ test('detail explicitly requests a brief, polls pending state, and resolves sour
     return route.fulfill({ json: posted && getCount > 1 ? ready : { status: 'unavailable', stale: false, result: null, citations: [] } })
   })
 
-  await page.goto('/')
+  await page.goto('/?tier=Signals')
   await expect(page.getByRole('heading', { name: 'Signals', exact: true })).toBeVisible()
   await page.locator(`[data-opportunity-id="${id}"]`).click()
   await expect(page.getByRole('heading', { name: 'Concise evidence brief' })).toBeVisible()

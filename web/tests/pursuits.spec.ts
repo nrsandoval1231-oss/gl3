@@ -11,12 +11,18 @@ async function signIn(page: import('@playwright/test').Page) {
   await page.goto('/?view=pursuits')
   await page.getByLabel('Password').fill(password)
   await page.getByRole('button', { name: 'Continue' }).click()
+  await expect(page.getByRole('heading', { name: 'What should we work today?' })).toBeVisible()
+}
+
+async function openSavedResearch(page: import('@playwright/test').Page) {
+  await page.getByText('Saved research workspace and call history').click()
   await expect(page.getByRole('heading', { name: "Today's Power Pursuits" })).toBeVisible()
 }
 
 test('real pursuits retain evidence gates and a saved owner call outcome across reload', async ({ page }) => {
   await expect((await page.request.get('/api/pursuits')).status()).toBe(401)
   await signIn(page)
+  await openSavedResearch(page)
   const data = await page.evaluate(async () => (await fetch('/api/pursuits')).json() as Promise<PursuitsResult>)
   expect(data.items.length).toBeGreaterThan(0)
   expect(data.items.length).toBeLessThanOrEqual(10)
@@ -39,6 +45,7 @@ test('real pursuits retain evidence gates and a saved owner call outcome across 
   await card.getByRole('button', { name: 'Save call outcome' }).click()
   await expect(card.getByText('Call outcome saved. Evidence tier unchanged.')).toBeVisible()
   await page.reload()
+  await openSavedResearch(page)
   const restored = page.locator(`[data-pursuit-id="${kramer.id}"]`)
   await restored.locator('.pursuit-heading').click()
   await expect(restored.getByText(note, { exact: true })).toBeVisible()
@@ -51,6 +58,7 @@ test('real conflicts, bounded refresh and mobile pursuit history work in the app
   test.setTimeout(420_000) // Existing worker bounds one real-source batch to 350 seconds.
   await page.setViewportSize({ width: 390, height: 844 })
   await signIn(page)
+  await openSavedResearch(page)
   const data = await page.evaluate(async () => (await fetch('/api/pursuits')).json() as Promise<PursuitsResult>)
   const clayton = data.items.find(item => item.site.includes('CLAYTON'))
   const stassney = data.items.find(item => item.site.includes('STASSNEY'))

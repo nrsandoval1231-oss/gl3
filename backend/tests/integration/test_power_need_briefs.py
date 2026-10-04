@@ -158,6 +158,24 @@ def test_explicit_request_is_durable_deduplicated_and_cached(runtime):
         assert session.scalar(select(func.count()).select_from(Job)) == 1
 
 
+def test_question_bound_request_reuses_exact_pending_job_and_rejects_changed_question(runtime):
+    import json
+
+    factory, service, (need_id, _evidence_id) = runtime
+    question = "Who owns the next construction power decision?"
+    with factory.begin() as session:
+        payload, _ = service.brief_input(session, need_id, question)
+        first = service.request_brief(session, need_id, question)
+        second = service.request_brief(session, need_id, question)
+        job = session.scalar(select(Job))
+        assert payload["commercial_question"] == question
+        assert first["job_id"] == second["job_id"] == str(job.id)
+        assert json.loads(job.checkpoint)["commercial_question"] == question
+        with pytest.raises(service.BriefUnavailable, match="another_question_or_evidence_version"):
+            service.request_brief(session, need_id, "What is the project's MW requirement?")
+        assert session.scalar(select(func.count()).select_from(Job)) == 1
+
+
 def test_browse_cache_fingerprint_matches_detail_relationship_evidence(runtime, monkeypatch):
     factory, service, (need_id, _evidence_id) = runtime
     relationship = {

@@ -99,7 +99,7 @@ def _safe_fact_text(value: str) -> bool:
     )
 
 
-def _fact_options(evidence: dict[str, dict]) -> dict[str, dict]:
+def _fact_options(evidence: dict[str, dict], question: str | None = None) -> dict[str, dict]:
     facts: dict[str, dict] = {}
     for evidence_id, source in evidence.items():
         fields, lines = _record_fields(source)
@@ -189,9 +189,8 @@ def _fact_options(evidence: dict[str, dict]) -> dict[str, dict]:
                 "evidence_id": evidence_id,
                 "text": text,
                 "excerpt": excerpt,
-                "question": (
-                    f"Investigation hypothesis: Does {activity} require temporary site power?"
-                ),
+                "question": question
+                or (f"Investigation hypothesis: Does {activity} require temporary site power?"),
                 "title": source["title"],
                 "url": source["url"],
                 "publisher": source["publisher"],
@@ -357,7 +356,9 @@ def brief_payload_from_links(
     return payload, {item["id"]: item for item in evidence_items}
 
 
-def brief_input(session: Session, need_id: UUID) -> tuple[dict, dict[str, dict]]:
+def brief_input(
+    session: Session, need_id: UUID, question: str | None = None
+) -> tuple[dict, dict[str, dict]]:
     need = session.get(PowerNeed, need_id)
     project = session.get(Project, need.project_id) if need else None
     if not need or not project or not need.active:
@@ -371,7 +372,12 @@ def brief_input(session: Session, need_id: UUID) -> tuple[dict, dict[str, dict]]
         .order_by(Evidence.observed_at.desc(), Evidence.content_hash.desc())
     ).all()
     links = [(row[0], row[1], row[2]) for row in raw_links]
-    return brief_payload_from_links(session, need, project, links)
+    payload, evidence = brief_payload_from_links(session, need, project, links)
+    if question:
+        payload["commercial_question"] = question
+        if len(json.dumps(payload, ensure_ascii=False).encode()) > MAX_INPUT_BYTES:
+            raise BriefUnavailable("evidence_exceeds_input_bound")
+    return payload, evidence
 
 
 def brief_preview(
@@ -431,8 +437,8 @@ def brief_view(row: PowerNeedBrief | None, fingerprint: str | None = None) -> di
     }
 
 
-def request_brief(session: Session, need_id: UUID) -> dict:
-    payload, _ = brief_input(session, need_id)
+def request_brief(session: Session, need_id: UUID, question: str | None = None) -> dict:
+    payload, _ = brief_input(session, need_id, question)
     fingerprint = _digest(payload)
     need = session.scalar(select(PowerNeed).where(PowerNeed.id == need_id).with_for_update())
     assert need
@@ -450,9 +456,8 @@ def request_brief(session: Session, need_id: UUID) -> dict:
         .limit(1)
     )
     if active:
-        if row:
-            row.requested_fingerprint = fingerprint
-            row.status = "pending"
+        if row and row.requested_fingerprint != fingerprint:
+            raise BriefUnavailable("another_question_or_evidence_version_is_pending")
         return {"job_id": str(active.id), **brief_view(row, fingerprint)}
     if not settings.openai_api_key:
         raise BriefUnavailable("provider_not_configured")
@@ -473,7 +478,12 @@ def request_brief(session: Session, need_id: UUID) -> dict:
     )
     if anchor is None:
         raise BriefUnavailable("no_worker_anchor")
-    job = Job(source_id=anchor.id, kind="power_need_brief", target_id=need_id)
+    job = Job(
+        source_id=anchor.id,
+        kind="power_need_brief",
+        target_id=need_id,
+        checkpoint=json.dumps({"commercial_question": question}) if question else None,
+    )
     session.add(job)
     session.flush()
     return {"job_id": str(job.id), **brief_view(row, fingerprint)}
@@ -634,8 +644,10 @@ def process_brief_job(job_id: UUID, worker_id: str, fence: int) -> None:
         if need_id is None:
             job.status, job.error = "failed", "missing_target"
             return
-        payload, evidence = brief_input(session, need_id)
-        facts = _fact_options(evidence)
+        checkpoint = json.loads(job.checkpoint) if job.checkpoint else {}
+        question = checkpoint.get("commercial_question")
+        payload, evidence = brief_input(session, need_id, question)
+        facts = _fact_options(evidence, question=payload.get("commercial_question"))
         fingerprint = _digest(payload)
         brief = session.get(PowerNeedBrief, need_id)
         if brief is None or brief.requested_fingerprint != fingerprint:
@@ -643,7 +655,6 @@ def process_brief_job(job_id: UUID, worker_id: str, fence: int) -> None:
                 brief.status, brief.error = "failed", "input_changed_before_generation"
             job.status, job.error = "failed", "input_changed"
             return
-        checkpoint = json.loads(job.checkpoint) if job.checkpoint else {}
         if checkpoint.get("reserved"):
             brief.status, brief.error = "failed", "ambiguous_prior_request"
             job.status, job.error = "failed", "ambiguous_prior_request"
@@ -688,7 +699,7 @@ def process_brief_job(job_id: UUID, worker_id: str, fence: int) -> None:
         return
     with SessionLocal.begin() as session:
         job = assert_fence(session, job_id, worker_id, fence)
-        current, _ = brief_input(session, need_id)
+        current, _ = brief_input(session, need_id, question)
         current_fingerprint = _digest(current)
         brief = session.get(PowerNeedBrief, need_id)
         if (

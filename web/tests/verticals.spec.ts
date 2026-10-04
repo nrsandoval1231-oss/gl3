@@ -78,7 +78,7 @@ test('All Signals labels cards and every member of a mixed decision group', asyn
   await page.route('**/api/changes', (route) => route.fulfill({ json: [] }))
   await page.route('**/api/opportunities**', (route) => route.fulfill({ json: records }))
 
-  await page.goto('/')
+  await page.goto('/?tier=Signals')
   await expect(page.getByRole('button', { name: 'All 3' })).toHaveAttribute('aria-pressed', 'true')
   const cardBadges = page.locator('.opportunity-row [data-review-decision]')
   await expect(cardBadges).toHaveCount(3)

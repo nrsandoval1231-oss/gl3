@@ -11,6 +11,16 @@ from sqlalchemy import Date, func, or_, select
 from gridlens.api.verticals import vertical_source_tags
 from gridlens.domain.buying_chain import BuyingChainOut, BuyingEnrichBody
 from gridlens.domain.commercial_presentation import commercial_size_status
+from gridlens.domain.commercial_triage import POLICY_VERSION as COMMERCIAL_TRIAGE_POLICY
+from gridlens.domain.commercial_triage import cards as make_commercial_cards
+from gridlens.domain.commercial_triage import surfaced_on as commercial_surfaced_on
+from gridlens.domain.pursuits import (
+    CommercialResearchBody,
+    CommercialResearchStatusOut,
+    CommercialTriageCard,
+    CommercialTriageHistoryOut,
+    CommercialTriageOut,
+)
 from gridlens.domain.signal_admission import admitted_from_source, source_origin
 from gridlens.ingestion.registry import load_registry
 from gridlens.ingestion.service import _need_has_current_support
@@ -39,6 +49,7 @@ from gridlens.persistence.models import (
     Observation,
     PowerNeed,
     PowerNeedBrief,
+    PowerNeedBriefVersion,
     Project,
     ProjectLifecycle,
     SignalDecision,
@@ -63,6 +74,7 @@ def chicago_today(now: datetime | None = None) -> date:
 
 
 class EvidenceOut(BaseModel):
+    id: UUID
     title: str
     abstract: str | None
     url: str
@@ -700,6 +712,7 @@ def opportunities(tier: str | None = None, search: str | None = None):
                     current_assessments.append(current_assessment)
                 evidence.append(
                     {
+                        "id": ev.id,
                         "title": ev.title,
                         "abstract": ev.abstract,
                         "url": ev.url,
@@ -1050,7 +1063,8 @@ def _change_sources(session, event: ChangeEvent) -> list[dict]:
             "url": source.url,
             "published_at": source.published_at,
         }
-        for source in sources if source is not None
+        for source in sources
+        if source is not None
     ]
 
 
@@ -1241,6 +1255,11 @@ def pursuit_detail(pursuit_id: UUID):
         row = session.get(Pursuit, pursuit_id)
         if not row or not row.snapshot:
             raise HTTPException(404, "Pursuit not found")
+        if row.identity_key.startswith("commercial-need:"):
+            raise HTTPException(
+                404,
+                "Commercial triage workspaces are available through /api/commercial/triage",
+            )
         return pursuit_view(session, row)
 
 
@@ -1290,3 +1309,449 @@ def save_pursuit_note(pursuit_id: UUID, body: CallNoteBody, request: Request):
         session.add(note)
         session.flush()
         return note_view(note)
+
+
+def _commercial_triage_cards(session, limit: int) -> list[dict]:
+    items = opportunities(tier="Signal")
+    shortlist = make_commercial_cards(items, {}, chicago_today(), limit)
+    selected_ids = {need_id for card in shortlist for need_id in card["related_need_ids"]}
+    selected = [item for item in items if str(item["id"]) in selected_ids]
+    project_ids = {item["project_id"] for item in selected}
+    chains = {str(project_id): buying_chain_view(session, project_id) for project_id in project_ids}
+    return make_commercial_cards(selected, chains, chicago_today(), limit)
+
+
+def _commercial_triage_payload(session, limit: int) -> dict:
+    cards = _commercial_triage_cards(session, limit)
+    today = chicago_today().isoformat()
+    identities = ["commercial-need:" + item["id"] for item in cards]
+    workspaces = (
+        {
+            row.identity_key.removeprefix("commercial-need:"): row
+            for row in session.scalars(select(Pursuit).where(Pursuit.identity_key.in_(identities)))
+        }
+        if identities
+        else {}
+    )
+    for card in cards:
+        row = workspaces.get(card["id"])
+        card["pursuit_id"] = row.id if row else None
+        card["notes"] = (
+            [
+                note_view(note)
+                for note in session.scalars(
+                    select(PursuitCallNote)
+                    .where(PursuitCallNote.pursuit_id == row.id)
+                    .order_by(PursuitCallNote.created_at.desc(), PursuitCallNote.id)
+                )
+            ]
+            if row
+            else []
+        )
+    cohort = {
+        key: sum(card["disposition"] == label for card in cards)
+        for key, label in (
+            ("action_now", "ACTION NOW"),
+            ("research", "RESEARCH"),
+            ("watch", "WATCH"),
+            ("reject", "REJECT"),
+        )
+    }
+    receipts = list(
+        session.scalars(select(Pursuit).where(Pursuit.identity_key.like("commercial-need:%")))
+    )
+    evaluated = sum(
+        (row.snapshot or {}).get("commercial_triage", {}).get("evaluated_on") == today
+        for row in receipts
+    )
+    surfaced = sum(
+        (row.snapshot or {}).get("commercial_triage", {}).get("surfaced_on") == today
+        for row in receipts
+    )
+    midnight = (
+        datetime.now(UTC)
+        .astimezone(ZoneInfo("America/Chicago"))
+        .replace(hour=0, minute=0, second=0, microsecond=0)
+        .astimezone(UTC)
+    )
+
+    def outcome_count(outcomes: list[str]) -> int:
+        return int(
+            session.scalar(
+                select(func.count(func.distinct(PursuitCallNote.pursuit_id)))
+                .join(Pursuit)
+                .where(
+                    Pursuit.identity_key.like("commercial-need:%"),
+                    PursuitCallNote.created_at >= midnight,
+                    PursuitCallNote.outcome.in_(outcomes),
+                )
+            )
+            or 0
+        )
+
+    return {
+        "evaluated_at": datetime.now(UTC),
+        "policy_version": COMMERCIAL_TRIAGE_POLICY,
+        "total": len(cards),
+        "cohort_counts": cohort,
+        "daily": {
+            "evaluated": evaluated,
+            "surfaced": surfaced,
+            "contacted": outcome_count(
+                ["Contacted", "Needs follow-up", "Reached buying organization", "Qualified"]
+            ),
+            "reached_buyer": outcome_count(["Reached buying organization"]),
+            "qualified": outcome_count(["Qualified"]),
+            "promoted_prospects": None,
+            "promoted_leads": None,
+            "supported_mw": None,
+            "metric_scope": [
+                "Daily outcomes count explicit operator notes. Triage never writes tier "
+                "promotions or MW totals."
+            ],
+            "unavailable_metrics": [
+                "Prospect/Lead promotion history is unavailable in retained change events.",
+                "A corpus MW total is unavailable because work identities are grouped; "
+                "use cited need-level values on cards.",
+                "Reached/qualified counts are operator-reported and do not change evidence tiers.",
+            ],
+        },
+        "items": cards,
+    }
+
+
+@app.get(
+    "/api/commercial/triage",
+    response_model=CommercialTriageOut,
+    dependencies=[Depends(require_session)],
+)
+def commercial_triage(limit: int = Query(default=50, ge=1, le=50)):
+    with SessionLocal() as session:
+        return _commercial_triage_payload(session, limit)
+
+
+@app.get(
+    "/api/commercial/triage/history",
+    response_model=CommercialTriageHistoryOut,
+    dependencies=[Depends(require_session)],
+)
+def commercial_triage_history():
+    """Read evaluated Pursuit snapshots; never refreshes live facts or dispositions."""
+    with SessionLocal() as session:
+        rows = list(
+            session.scalars(select(Pursuit).where(Pursuit.identity_key.like("commercial-need:%")))
+        )
+        rows.sort(
+            key=lambda row: (
+                str((row.snapshot or {}).get("commercial_triage", {}).get("saved_at") or ""),
+                str(row.id),
+            ),
+            reverse=True,
+        )
+        notes_by_pursuit: dict[UUID, list[dict]] = {row.id: [] for row in rows}
+        if rows:
+            notes = session.scalars(
+                select(PursuitCallNote)
+                .where(PursuitCallNote.pursuit_id.in_(list(notes_by_pursuit)))
+                .order_by(PursuitCallNote.created_at.desc(), PursuitCallNote.id)
+            )
+            for note in notes:
+                notes_by_pursuit[note.pursuit_id].append(note_view(note))
+        history = []
+        for row in rows:
+            receipt = (row.snapshot or {}).get("commercial_triage", {})
+            saved_card = receipt.get("saved_card")
+            if isinstance(saved_card, dict):
+                saved_card = {
+                    **saved_card,
+                    "pursuit_id": str(row.id),
+                    "notes": [],
+                }
+            else:
+                saved_card = None
+            stored_versions = receipt.get("versions")
+            if isinstance(stored_versions, list) and stored_versions:
+                versions = stored_versions
+            else:
+                versions = [
+                    {
+                        "version": 1,
+                        "disposition": receipt.get("disposition")
+                        or (saved_card or {}).get("disposition")
+                        or "UNKNOWN",
+                        "evaluated_at": receipt.get("saved_at"),
+                        "evaluated_on": receipt.get("evaluated_on"),
+                        "input_hash": receipt.get("input_hash")
+                        or (saved_card or {}).get("input_hash"),
+                        "snapshot_status": "saved_as_of" if saved_card else "metadata_only",
+                        "live_status": "not_rechecked",
+                        "saved_card": saved_card,
+                    }
+                ]
+            normalized_versions = []
+            for index, version in enumerate(versions, start=1):
+                version_card = version.get("saved_card")
+                if isinstance(version_card, dict):
+                    version_card = {**version_card, "pursuit_id": str(row.id), "notes": []}
+                else:
+                    version_card = None
+                normalized_versions.append(
+                    {
+                        **version,
+                        "version": version.get("version") or index,
+                        "snapshot_status": "saved_as_of" if version_card else "metadata_only",
+                        "live_status": "not_rechecked",
+                        "saved_card": version_card,
+                    }
+                )
+            history.append(
+                {
+                    "pursuit_id": row.id,
+                    "need_id": receipt.get("need_id")
+                    or row.identity_key.removeprefix("commercial-need:"),
+                    "project_id": row.project_id,
+                    "related_project_ids": row.project_ids or [str(row.project_id)],
+                    "disposition": receipt.get("disposition")
+                    or (saved_card or {}).get("disposition")
+                    or "UNKNOWN",
+                    "evaluated_at": receipt.get("saved_at"),
+                    "evaluated_on": receipt.get("evaluated_on"),
+                    "input_hash": receipt.get("input_hash") or (saved_card or {}).get("input_hash"),
+                    "snapshot_status": "saved_as_of" if saved_card else "metadata_only",
+                    "live_status": "not_rechecked",
+                    "saved_card": saved_card,
+                    "notes": notes_by_pursuit[row.id],
+                    "versions": normalized_versions,
+                }
+            )
+        return {"items": history}
+
+
+@app.post(
+    "/api/commercial/triage/evaluate",
+    response_model=CommercialTriageOut,
+    dependencies=[Depends(require_session)],
+)
+def evaluate_commercial_triage(request: Request, limit: int = Query(default=50, ge=1, le=50)):
+    require_same_origin(request)
+    with SessionLocal.begin() as session:
+        payload = _commercial_triage_payload(session, limit)
+        today = chicago_today().isoformat()
+        saved_at = datetime.now(UTC).isoformat()
+        payload["evaluated_at"] = saved_at
+        for card in payload["items"]:
+            identity = "commercial-need:" + card["id"]
+            row = session.scalar(
+                select(Pursuit).where(Pursuit.identity_key == identity).with_for_update()
+            )
+            if row is None:
+                row = Pursuit(
+                    identity_key=identity,
+                    project_id=card["project_id"],
+                    project_ids=[card["project_id"]],
+                    snapshot={},
+                )
+                session.add(row)
+                session.flush()
+            row.project_ids = card["related_project_ids"]
+            card["pursuit_id"] = row.id
+            saved_card = CommercialTriageCard.model_validate(card).model_dump(mode="json")
+            saved_card["notes"] = []
+            snapshot = dict(row.snapshot or {})
+            prior = snapshot.get("commercial_triage", {})
+            versions = (
+                list(prior.get("versions", []))
+                if isinstance(prior.get("versions"), list)
+                else []
+            )
+            if not versions and any(
+                prior.get(key) is not None
+                for key in ("input_hash", "disposition", "saved_at", "saved_card")
+            ):
+                prior_card = prior.get("saved_card")
+                if isinstance(prior_card, dict):
+                    prior_card = {**prior_card, "pursuit_id": str(row.id), "notes": []}
+                versions.append(
+                    {
+                        "version": 1,
+                        "disposition": prior.get("disposition")
+                        or (prior_card or {}).get("disposition")
+                        or "UNKNOWN",
+                        "evaluated_on": prior.get("evaluated_on"),
+                        "evaluated_at": prior.get("saved_at"),
+                        "input_hash": prior.get("input_hash")
+                        or (prior_card or {}).get("input_hash"),
+                        "snapshot_status": "saved_as_of" if prior_card else "metadata_only",
+                        "live_status": "not_rechecked",
+                        "saved_card": prior_card,
+                    }
+                )
+            changed = (
+                prior.get("input_hash") != card["input_hash"]
+                or prior.get("disposition") != card["disposition"]
+            )
+            if changed:
+                versions.append(
+                    {
+                        "version": len(versions) + 1,
+                        "disposition": card["disposition"],
+                        "evaluated_on": today,
+                        "evaluated_at": saved_at,
+                        "input_hash": card["input_hash"],
+                        "snapshot_status": "saved_as_of",
+                        "live_status": "not_rechecked",
+                        "saved_card": saved_card,
+                    }
+                )
+            elif not versions:
+                # Defensive: a malformed legacy receipt should not create duplicate versions.
+                versions.append(
+                    {
+                        "version": 1,
+                        "disposition": prior.get("disposition") or "UNKNOWN",
+                        "evaluated_on": prior.get("evaluated_on"),
+                        "evaluated_at": prior.get("saved_at"),
+                        "input_hash": prior.get("input_hash"),
+                        "snapshot_status": "metadata_only",
+                        "live_status": "not_rechecked",
+                        "saved_card": None,
+                    }
+                )
+            if changed:
+                snapshot["commercial_triage"] = {
+                    "need_id": card["id"],
+                    "input_hash": card["input_hash"],
+                    "disposition": card["disposition"],
+                    "evaluated_on": today,
+                    "saved_at": saved_at,
+                    "saved_card": saved_card,
+                    "surfaced_on": commercial_surfaced_on(prior, card, today),
+                    "versions": versions,
+                }
+            row.snapshot = snapshot
+        receipts = list(
+            session.scalars(select(Pursuit).where(Pursuit.identity_key.like("commercial-need:%")))
+        )
+        payload["daily"]["evaluated"] = sum(
+            (row.snapshot or {}).get("commercial_triage", {}).get("evaluated_on") == today
+            for row in receipts
+        )
+        payload["daily"]["surfaced"] = sum(
+            (row.snapshot or {}).get("commercial_triage", {}).get("surfaced_on") == today
+            for row in receipts
+        )
+        return payload
+
+
+@app.post(
+    "/api/commercial/triage/{need_id}/research",
+    response_model=BriefRequestOut,
+    dependencies=[Depends(require_session)],
+)
+def research_commercial_need(need_id: UUID, body: CommercialResearchBody, request: Request):
+    require_same_origin(request)
+    question = body.question.strip()
+    if len(question) < 12:
+        raise HTTPException(422, "Question must contain at least 12 non-space characters")
+    with SessionLocal.begin() as session:
+        try:
+            payload, _ = brief_input(session, need_id, question)
+            fingerprint = brief_fingerprint(payload)
+            row = session.get(PowerNeedBrief, need_id)
+            if row and row.generated_fingerprint == fingerprint and row.result:
+                return {"job_id": None, **brief_view(row, fingerprint)}
+            return request_brief(session, need_id, question)
+        except LookupError as exc:
+            raise HTTPException(404, "Power need not found") from exc
+        except BriefUnavailable as exc:
+            raise HTTPException(409, str(exc)) from exc
+
+
+@app.get(
+    "/api/commercial/triage/{need_id}/research",
+    response_model=CommercialResearchStatusOut,
+    dependencies=[Depends(require_session)],
+)
+def commercial_research_status(need_id: UUID, question: str = Query(..., min_length=12)):
+    question = question.strip()
+    if len(question) < 12:
+        raise HTTPException(422, "Question must contain at least 12 non-space characters")
+    with SessionLocal() as session:
+        try:
+            payload, _ = brief_input(session, need_id, question)
+        except LookupError as exc:
+            raise HTTPException(404, "Power need not found") from exc
+        except BriefUnavailable as exc:
+            raise HTTPException(409, str(exc)) from exc
+        fingerprint = brief_fingerprint(payload)
+        row = session.get(PowerNeedBrief, need_id)
+        if row and row.generated_fingerprint == fingerprint and row.result:
+            return {
+                "status": "ready",
+                "job_id": None,
+                "input_hash": fingerprint,
+                "generated_at": row.generated_at,
+                "result": row.result,
+                "citations": row.citations,
+                "error": None,
+            }
+        version = session.scalar(
+            select(PowerNeedBriefVersion)
+            .where(
+                PowerNeedBriefVersion.need_id == need_id,
+                PowerNeedBriefVersion.input_fingerprint == fingerprint,
+            )
+            .order_by(PowerNeedBriefVersion.generated_at.desc(), PowerNeedBriefVersion.id.desc())
+            .limit(1)
+        )
+        if version:
+            return {
+                "status": "ready",
+                "job_id": None,
+                "input_hash": fingerprint,
+                "generated_at": version.generated_at,
+                "result": version.result,
+                "citations": version.citations,
+                "error": None,
+            }
+        if row and row.requested_fingerprint == fingerprint:
+            active_job = session.scalar(
+                select(Job)
+                .where(
+                    Job.kind == "power_need_brief",
+                    Job.target_id == need_id,
+                    Job.status.in_(["queued", "running"]),
+                )
+                .order_by(Job.created_at.desc(), Job.id.desc())
+                .limit(1)
+            )
+            if active_job or row.status in {"pending", "running"}:
+                return {
+                    "status": "pending",
+                    "job_id": active_job.id if active_job else None,
+                    "input_hash": fingerprint,
+                    "generated_at": None,
+                    "result": None,
+                    "citations": [],
+                    "error": None,
+                }
+            if row.status == "failed":
+                return {
+                    "status": "failed",
+                    "job_id": None,
+                    "input_hash": fingerprint,
+                    "generated_at": None,
+                    "result": None,
+                    "citations": [],
+                    "error": row.error,
+                }
+        status = "superseded" if row and row.requested_fingerprint else "not_requested"
+        return {
+            "status": status,
+            "job_id": None,
+            "input_hash": fingerprint,
+            "generated_at": None,
+            "result": None,
+            "citations": [],
+            "error": None,
+        }

@@ -811,6 +811,207 @@
           }
         }
       }
+    },
+    "/api/commercial/triage": {
+      "get": {
+        "summary": "Commercial Triage",
+        "operationId": "commercial_triage_api_commercial_triage_get",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommercialTriageOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/commercial/triage/history": {
+      "get": {
+        "summary": "Commercial Triage History",
+        "description": "Read evaluated Pursuit snapshots; never refreshes live facts or dispositions.",
+        "operationId": "commercial_triage_history_api_commercial_triage_history_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommercialTriageHistoryOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/commercial/triage/evaluate": {
+      "post": {
+        "summary": "Evaluate Commercial Triage",
+        "operationId": "evaluate_commercial_triage_api_commercial_triage_evaluate_post",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommercialTriageOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/commercial/triage/{need_id}/research": {
+      "post": {
+        "summary": "Research Commercial Need",
+        "operationId": "research_commercial_need_api_commercial_triage__need_id__research_post",
+        "parameters": [
+          {
+            "name": "need_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Need Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommercialResearchBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BriefRequestOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "summary": "Commercial Research Status",
+        "operationId": "commercial_research_status_api_commercial_triage__need_id__research_get",
+        "parameters": [
+          {
+            "name": "need_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Need Id"
+            }
+          },
+          {
+            "name": "question",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 12,
+              "title": "Question"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommercialResearchStatusOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -1348,6 +1549,8 @@
               "Not reached",
               "Contacted",
               "Needs follow-up",
+              "Reached buying organization",
+              "Qualified",
               "No requirement",
               "Closed"
             ],
@@ -1398,6 +1601,8 @@
               "Not reached",
               "Contacted",
               "Needs follow-up",
+              "Reached buying organization",
+              "Qualified",
               "No requirement",
               "Closed"
             ],
@@ -1528,8 +1733,1064 @@
         ],
         "title": "ChangeSourceOut"
       },
+      "CommercialResearchBody": {
+        "properties": {
+          "question": {
+            "type": "string",
+            "maxLength": 300,
+            "minLength": 12,
+            "title": "Question"
+          }
+        },
+        "type": "object",
+        "required": [
+          "question"
+        ],
+        "title": "CommercialResearchBody"
+      },
+      "CommercialResearchStatusOut": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "ready",
+              "failed",
+              "superseded",
+              "not_requested"
+            ],
+            "title": "Status"
+          },
+          "job_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Job Id"
+          },
+          "input_hash": {
+            "type": "string",
+            "title": "Input Hash"
+          },
+          "generated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Generated At"
+          },
+          "result": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result"
+          },
+          "citations": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Citations"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "status",
+          "input_hash"
+        ],
+        "title": "CommercialResearchStatusOut"
+      },
+      "CommercialTriageCard": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id"
+          },
+          "related_project_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Related Project Ids"
+          },
+          "pursuit_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pursuit Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
+          },
+          "tier": {
+            "type": "string",
+            "title": "Tier"
+          },
+          "activity": {
+            "type": "string",
+            "title": "Activity"
+          },
+          "industry": {
+            "type": "string",
+            "title": "Industry"
+          },
+          "related_need_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Related Need Ids"
+          },
+          "related_need_states": {
+            "items": {
+              "$ref": "#/components/schemas/CommercialTriageNeedState"
+            },
+            "type": "array",
+            "title": "Related Need States"
+          },
+          "disposition": {
+            "type": "string",
+            "title": "Disposition"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "required_mw": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Required Mw"
+          },
+          "start_window": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Window"
+          },
+          "duration": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration"
+          },
+          "supply": {
+            "type": "string",
+            "title": "Supply"
+          },
+          "stage": {
+            "$ref": "#/components/schemas/CommercialTriageStage"
+          },
+          "lifecycle_timeline": {
+            "items": {
+              "$ref": "#/components/schemas/CommercialTriageLifecycleEvent"
+            },
+            "type": "array",
+            "title": "Lifecycle Timeline"
+          },
+          "organization": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Organization"
+          },
+          "organization_role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Organization Role"
+          },
+          "contacts": {
+            "items": {
+              "$ref": "#/components/schemas/CommercialTriageContact"
+            },
+            "type": "array",
+            "title": "Contacts"
+          },
+          "facts": {
+            "items": {
+              "$ref": "#/components/schemas/CommercialTriageFact"
+            },
+            "type": "array",
+            "title": "Facts"
+          },
+          "hypothesis": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hypothesis"
+          },
+          "unknowns": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Unknowns"
+          },
+          "blockers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Blockers"
+          },
+          "next_question": {
+            "type": "string",
+            "title": "Next Question"
+          },
+          "next_action": {
+            "type": "string",
+            "title": "Next Action"
+          },
+          "watch": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Watch"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/CommercialTriageFact"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "conflict_state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conflict State"
+          },
+          "input_hash": {
+            "type": "string",
+            "title": "Input Hash"
+          },
+          "notes": {
+            "items": {
+              "$ref": "#/components/schemas/CallNoteOut"
+            },
+            "type": "array",
+            "title": "Notes"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "project_id",
+          "name",
+          "location",
+          "tier",
+          "activity",
+          "industry",
+          "disposition",
+          "reason",
+          "required_mw",
+          "start_window",
+          "duration",
+          "supply",
+          "stage",
+          "organization",
+          "organization_role",
+          "hypothesis",
+          "next_question",
+          "next_action",
+          "conflict_state",
+          "input_hash"
+        ],
+        "title": "CommercialTriageCard"
+      },
+      "CommercialTriageContact": {
+        "properties": {
+          "organization": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Organization"
+          },
+          "person": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Person"
+          },
+          "role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Role"
+          },
+          "kind": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Kind"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "source_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Url"
+          },
+          "evidence_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Evidence Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "organization",
+          "person",
+          "role",
+          "kind",
+          "value",
+          "source_url"
+        ],
+        "title": "CommercialTriageContact"
+      },
+      "CommercialTriageCounts": {
+        "properties": {
+          "action_now": {
+            "type": "integer",
+            "title": "Action Now"
+          },
+          "research": {
+            "type": "integer",
+            "title": "Research"
+          },
+          "watch": {
+            "type": "integer",
+            "title": "Watch"
+          },
+          "reject": {
+            "type": "integer",
+            "title": "Reject"
+          }
+        },
+        "type": "object",
+        "required": [
+          "action_now",
+          "research",
+          "watch",
+          "reject"
+        ],
+        "title": "CommercialTriageCounts"
+      },
+      "CommercialTriageDaily": {
+        "properties": {
+          "evaluated": {
+            "type": "integer",
+            "title": "Evaluated"
+          },
+          "surfaced": {
+            "type": "integer",
+            "title": "Surfaced"
+          },
+          "contacted": {
+            "type": "integer",
+            "title": "Contacted"
+          },
+          "reached_buyer": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reached Buyer"
+          },
+          "qualified": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Qualified"
+          },
+          "promoted_prospects": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Promoted Prospects"
+          },
+          "promoted_leads": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Promoted Leads"
+          },
+          "supported_mw": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supported Mw"
+          },
+          "metric_scope": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Metric Scope"
+          },
+          "unavailable_metrics": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Unavailable Metrics"
+          }
+        },
+        "type": "object",
+        "required": [
+          "evaluated",
+          "surfaced",
+          "contacted"
+        ],
+        "title": "CommercialTriageDaily"
+      },
+      "CommercialTriageFact": {
+        "properties": {
+          "text": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Text"
+          },
+          "evidence_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence Id"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          },
+          "hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hash"
+          },
+          "date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text",
+          "evidence_id",
+          "url",
+          "hash",
+          "date"
+        ],
+        "title": "CommercialTriageFact"
+      },
+      "CommercialTriageHistoryItem": {
+        "properties": {
+          "pursuit_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Pursuit Id"
+          },
+          "need_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Need Id"
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id"
+          },
+          "related_project_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Related Project Ids"
+          },
+          "disposition": {
+            "type": "string",
+            "title": "Disposition"
+          },
+          "evaluated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evaluated At"
+          },
+          "evaluated_on": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evaluated On"
+          },
+          "input_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input Hash"
+          },
+          "snapshot_status": {
+            "type": "string",
+            "enum": [
+              "saved_as_of",
+              "metadata_only"
+            ],
+            "title": "Snapshot Status"
+          },
+          "live_status": {
+            "type": "string",
+            "const": "not_rechecked",
+            "title": "Live Status",
+            "default": "not_rechecked"
+          },
+          "saved_card": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CommercialTriageCard"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "notes": {
+            "items": {
+              "$ref": "#/components/schemas/CallNoteOut"
+            },
+            "type": "array",
+            "title": "Notes"
+          },
+          "versions": {
+            "items": {
+              "$ref": "#/components/schemas/CommercialTriageHistoryVersion"
+            },
+            "type": "array",
+            "title": "Versions"
+          }
+        },
+        "type": "object",
+        "required": [
+          "pursuit_id",
+          "need_id",
+          "project_id",
+          "disposition",
+          "snapshot_status"
+        ],
+        "title": "CommercialTriageHistoryItem"
+      },
+      "CommercialTriageHistoryOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CommercialTriageHistoryItem"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "CommercialTriageHistoryOut"
+      },
+      "CommercialTriageHistoryVersion": {
+        "properties": {
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "disposition": {
+            "type": "string",
+            "title": "Disposition"
+          },
+          "evaluated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evaluated At"
+          },
+          "evaluated_on": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evaluated On"
+          },
+          "input_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input Hash"
+          },
+          "snapshot_status": {
+            "type": "string",
+            "enum": [
+              "saved_as_of",
+              "metadata_only"
+            ],
+            "title": "Snapshot Status"
+          },
+          "live_status": {
+            "type": "string",
+            "const": "not_rechecked",
+            "title": "Live Status",
+            "default": "not_rechecked"
+          },
+          "saved_card": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CommercialTriageCard"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "type": "object",
+        "required": [
+          "version",
+          "disposition",
+          "snapshot_status"
+        ],
+        "title": "CommercialTriageHistoryVersion"
+      },
+      "CommercialTriageLifecycleEvent": {
+        "properties": {
+          "state": {
+            "type": "string",
+            "title": "State"
+          },
+          "event_type": {
+            "type": "string",
+            "title": "Event Type"
+          },
+          "date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date"
+          },
+          "value_kind": {
+            "type": "string",
+            "title": "Value Kind"
+          },
+          "evidence_url": {
+            "type": "string",
+            "title": "Evidence Url"
+          },
+          "current": {
+            "type": "boolean",
+            "title": "Current",
+            "default": true
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published At"
+          },
+          "event_date_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Event Date Label"
+          }
+        },
+        "type": "object",
+        "required": [
+          "state",
+          "event_type",
+          "date",
+          "value_kind",
+          "evidence_url"
+        ],
+        "title": "CommercialTriageLifecycleEvent"
+      },
+      "CommercialTriageNeedState": {
+        "properties": {
+          "need_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Need Id"
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id"
+          },
+          "disposition": {
+            "type": "string",
+            "title": "Disposition"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "held": {
+            "type": "boolean",
+            "title": "Held",
+            "default": false
+          },
+          "conflict_state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conflict State"
+          },
+          "closed": {
+            "type": "boolean",
+            "title": "Closed",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "need_id",
+          "project_id",
+          "disposition",
+          "reason"
+        ],
+        "title": "CommercialTriageNeedState"
+      },
+      "CommercialTriageOut": {
+        "properties": {
+          "evaluated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Evaluated At"
+          },
+          "policy_version": {
+            "type": "string",
+            "title": "Policy Version"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "cohort_counts": {
+            "$ref": "#/components/schemas/CommercialTriageCounts"
+          },
+          "daily": {
+            "$ref": "#/components/schemas/CommercialTriageDaily"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CommercialTriageCard"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "evaluated_at",
+          "policy_version",
+          "total",
+          "cohort_counts",
+          "daily",
+          "items"
+        ],
+        "title": "CommercialTriageOut"
+      },
+      "CommercialTriageStage": {
+        "properties": {
+          "stage": {
+            "type": "string",
+            "title": "Stage"
+          },
+          "date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date"
+          },
+          "source_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Url"
+          },
+          "evidence_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "stage",
+          "date",
+          "source_url",
+          "evidence_id"
+        ],
+        "title": "CommercialTriageStage"
+      },
       "EvidenceOut": {
         "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
           "title": {
             "type": "string",
             "title": "Title"
@@ -1622,6 +2883,7 @@
         },
         "type": "object",
         "required": [
+          "id",
           "title",
           "abstract",
           "url",
