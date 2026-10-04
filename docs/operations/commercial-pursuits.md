@@ -38,3 +38,5 @@ qualification, customer intent, construction start, utility delay, or rental
 demand unless a cited retained source explicitly establishes that fact.
 
 Saved history uses authenticated `GET /api/commercial/triage/history`. The workspace exposes evaluated pursuits outside today's cohort, including closed/dropped records and operator notes. Cards are saved-as-of snapshots, explicitly not rechecked against current evidence. Older metadata-only receipts preserve disposition and notes without reconstructing missing facts.
+
+The root URL shows a compact commercial next-action entry over existing Signals browse; use `?view=pursuits` for the full queue. Mixed-state exact-event siblings retain per-need states and a group RESEARCH question. Meaningful evaluation changes append immutable versions inside the existing snapshot; unchanged replay preserves versions/timestamps. Read exact-question progress with `GET /api/commercial/triage/{need_id}/research?question=...`; this read never queues another model request.

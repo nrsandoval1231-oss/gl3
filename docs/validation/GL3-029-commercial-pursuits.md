@@ -1,20 +1,20 @@
 # GL3-029 commercial pursuits: retained-data acceptance
 
-Base: `ffb1da2c7d683aa7dac89baa3964b636a1b8a2aa` (merged PR22). Branch: `feat/commercial-pursuits`. Product launch remains OPEN. This slice is for independent PR review; no merge, outreach or deployment.
+Base: `ffb1da2c7d683aa7dac89baa3964b636a1b8a2aa` (merged PR22). Branch: `feat/commercial-pursuits`. Product launch remains OPEN. PR23 was delivered for independent review. The owner subsequently authorized validation and merge only after the candidate passes and review findings are resolved. No outreach or deployment is included.
 
 ## Retained corpus
 
 The immutable GL3-028 retained backup contains 16,960 evidence rows and 1,168 active Signal needs; the existing authoritative projection admits 1,167. A fresh isolated PostgreSQL clone was upgraded from 0011 to 0013. Eleven authoritative tables retained identical row counts and SHA-256 digests across upgrade and commercial evaluation. The strongest 50 distinct work scopes reference 53 existing Signal needs. Exact Austin BP/EP case and full unit/building address can share a work scope; underlying Project and PowerNeed identities remain separate.
 
-Final conversion: **9 ACTION NOW / 19 RESEARCH / 22 WATCH / 0 REJECT**. Unchanged evaluation replay preserved classification, input hash and daily counters. Daily receipts: 50 evaluated, 9 newly surfaced; no contacted, reached-buyer or qualified outcomes were recorded. Promotion history and a reliable grouped MW total are explicitly UNKNOWN. Provider calls: 0. The initial cohort request took 9.594 seconds; the final repair replay request took 3.469 seconds. These are local timings, not a performance guarantee.
+Final conversion: **9 ACTION NOW / 19 RESEARCH / 22 WATCH / 0 REJECT**. Unchanged evaluation replay preserved classification, input hash, daily counters and saved history versions/timestamps. Daily receipts: 50 evaluated, 9 newly surfaced; no contacted, reached-buyer or qualified outcomes were recorded. Promotion history and a reliable grouped MW total are explicitly UNKNOWN. Provider calls: 0. The initial cohort request took 9.594 seconds; the final merge-repair replay request took 3.500 seconds. These are local timings, not a performance guarantee.
 
 ## Conversion logic
 
 Use existing active Signal admission and current evidence. Prioritize specific data-center construction, then commissioning, source-supported O&G production/fixed-asset phase, then explicit temporary-service activity. Unproven drilling approvals and formation/standby-generator filings do not gain phase priority from regulatory boilerplate. Within relevance classes, prefer DFW, Austin, Houston, El Paso, California, then other regions; source dates and stable IDs break ties. MW/nameplate is not a ranking factor.
 
-Supported closure/routine backup replacement/adequate permanent supply or an evidenced intermediary-only path produces REJECT. Current holds/conflicts require RESEARCH. A cited reachable project contact plus a specific power activity supports an ACTION NOW discovery call even with unknown MW. Formation/standby-only data centers and early projects get WATCH with a named future event. Other credible scopes get up to two missing-fact blockers and a focused research question. Facts, hypotheses, unknowns, commercial state and evidence tier remain separate.
+Exact-case sibling groups expose each need's disposition, closure, hold and conflict state; incompatible sibling states produce RESEARCH with a concrete conflict question, independent of input order. Supported closure/routine backup replacement/adequate permanent supply or an evidenced intermediary-only path produces REJECT. Current holds/conflicts require RESEARCH. A cited reachable project contact plus a specific power activity supports an ACTION NOW discovery call even with unknown MW. Formation/standby-only data centers and early projects get WATCH with a named future event. Other credible scopes get up to two missing-fact blockers and a focused research question. Facts, hypotheses, unknowns, commercial state and evidence tier remain separate.
 
-Evaluation receipts and operator notes reuse Pursuit records. A separate searchable saved-history view keeps previously evaluated records and notes accessible after they leave today's cohort; snapshots are dated and explicitly not rechecked, and older metadata-only receipts do not reconstruct facts. Targeted questions reuse the existing bounded PowerNeed brief worker and question/evidence fingerprint; unchanged cached or pending work is reused. This action interprets retained evidence; it does not acquire missing external facts. The existing buying-chain source review remains available in card detail.
+Evaluation receipts and operator notes reuse Pursuit records. Meaningfully changed input hashes or dispositions append immutable as-of versions in existing Pursuit JSON; unchanged replay does not append or rewrite version timestamps. A separate searchable saved-history view keeps previously evaluated records and notes accessible after they leave today's cohort; snapshots are dated and explicitly not rechecked, and older metadata-only receipts do not reconstruct facts. Targeted questions reuse the existing bounded PowerNeed brief worker and question/evidence fingerprint; unchanged cached or pending work is reused. The UI polls an authenticated exact-question status route through pending to ready/failed without resubmitting the model request. This action interprets retained evidence; it does not acquire missing external facts. The existing buying-chain source review remains available in card detail.
 
 ## Ten leading candidates manually inspected
 
@@ -35,6 +35,8 @@ Each row was checked against retained source excerpts, exact need/project member
 
 The 200A Bluff Springs record and six-fan Levander record are weak rental-fit candidates. Their source facts cannot establish a 300 kW activity-specific requirement. Confirm total site demand before pursuing a 2G package; reject if the retained facts subsequently prove below the existing floor. Amperage was not converted into fabricated MW. No recommended organization was identified by retained evidence as a re-renter. No fuel suitability, utility delay or individual buyer authority was inferred.
 
+The ordinary root URL retains the existing Signals browse with a compact, source-backed commercial next action and UNKNOWNs. The complete queue uses `?view=pursuits`. The existing nationwide-map/anchored-command design milestone remains open; this slice does not claim that implementation.
+
 ## Limits
 
 - The cohort is permit-heavy. Only two data-center scopes currently combine phase evidence with a reachable electrical-contractor path. Chicago has useful named organizations but no retained public contact path.
@@ -48,15 +50,16 @@ The 200A Bluff Springs record and six-fan Levander record are weak rental-fit ca
 
 All local final gates passed:
 
-- Backend: `uv run ruff check src tests migrations ../scripts`; `uv run mypy src`; `uv run pytest` — **718 passed, one unchanged environment-dependent skip**.
+- Backend: `uv run ruff check src tests migrations ../scripts`; `uv run mypy src`; `uv run pytest` — **722 passed, one unchanged environment-dependent skip**.
 - Migrations: clean upgrade, repeat upgrade, drift check, downgrade to 0011/re-upgrade; retained-schema upgrade, repeat and drift check. Eleven authoritative tables retained identical counts and hashes.
 - Frontend: `npm run typecheck`, `npm run build`, `npm audit --audit-level=high` passed.
-- Browser: `npx playwright test --workers=1 --trace retain-on-failure` — **28 passed**, including existing workflows and new commercial/error-isolation tests.
+- Browser: `npx playwright test --workers=1 --trace retain-on-failure` — **32 passed**, including existing workflows and new commercial/error-isolation tests.
 - Real corpus: 50 work scopes / 53 Signal needs; replay stable; no evidence-tier writes or provider calls. Top ten source/contact records manually inspected.
 - Runtime: authenticated retained-corpus desktop/detail/mobile capture; no page errors or mobile document overflow. `git diff --check` passed.
 
-Source manifest SHA-256: `cf6ac4e3c53734451088137539ef85770fdd30d06b7b933bb887708304754672`. The final integrated repair was frozen before the full final gates. Original retained backup SHA-256: `828beace65cd2b06182f30e4713857656a993d3969c8cbecb02e6ee40ff8a886`. Private local validation logs and raw corpus receipts remain under `.artifacts/commercial/`; they are not published as customer data.
+Source manifest SHA-256: `82f82cc2b20b518a9e598b93f1e4fc418a7b2bc3ae1beeb1965706a71f9f339a`. The final integrated repair was frozen before the full final gates. Original retained backup SHA-256: `828beace65cd2b06182f30e4713857656a993d3969c8cbecb02e6ee40ff8a886`. Private local validation logs and raw corpus receipts remain under `.artifacts/commercial/`; they are not published as customer data.
 
+![Root commercial next action](assets/GL3-029/pursuit-home.png)
 ![Retained-corpus pursuit queue](assets/GL3-029/pursuit-queue.png)
 ![Evidence and next-action detail](assets/GL3-029/pursuit-detail.png)
 ![Mobile pursuit workflow](assets/GL3-029/pursuit-mobile.png)

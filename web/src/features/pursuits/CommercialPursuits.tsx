@@ -1,11 +1,12 @@
 import { type FormEvent, useEffect, useMemo, useState } from 'react'
-import { client, type BriefRequest, type CallNoteBody, type CommercialTriage, type CommercialTriageCard, type CommercialTriageHistory, type CommercialTriageHistoryItem } from '../../api/client'
+import { client, type BriefRequest, type CallNoteBody, type CommercialResearchStatus, type CommercialTriage, type CommercialTriageCard, type CommercialTriageHistory, type CommercialTriageHistoryItem } from '../../api/client'
 import { BuyingChain } from '../buyingChain/BuyingChain'
 import { Pursuits } from './Pursuits'
 import '../../styles/pursuits.css'
 
 type Disposition = 'ACTION NOW' | 'RESEARCH' | 'WATCH' | 'REJECT'
-type CommercialDraft = { question: string; note: string; outcome: CallNoteBody['outcome']; nextAction: string; clientId?: string }
+type ResearchProgress = { question: string; brief: BriefRequest; message: string; failed: boolean }
+type CommercialDraft = { question: string; note: string; outcome: CallNoteBody['outcome']; nextAction: string; clientId?: string; research?: ResearchProgress }
 const dispositions: Disposition[] = ['ACTION NOW', 'RESEARCH', 'WATCH', 'REJECT']
 const unknown = (value: unknown) => typeof value === 'string' || typeof value === 'number' ? String(value) || 'Unknown' : 'Unknown'
 function enumLabel(value: unknown) {
@@ -53,6 +54,11 @@ function checkedCommercialHistory(value: unknown): CommercialTriageHistory {
         if (item.saved_card[key] !== undefined && !Array.isArray(item.saved_card[key])) throw new Error('A saved card snapshot is incomplete. Retry the history view.')
       }
     }
+    const versions = (item as Record<string, unknown>).versions
+    if (versions !== undefined && (!Array.isArray(versions) || versions.some((version) => !isRecord(version)
+      || typeof version.version !== 'number' || typeof version.disposition !== 'string'
+      || !['saved_as_of', 'metadata_only'].includes(String(version.snapshot_status)) || version.live_status !== 'not_rechecked'
+      || (version.saved_card !== null && version.saved_card !== undefined && !isRecord(version.saved_card))))) throw new Error('Saved commercial history versions are incomplete. Retry the history view.')
   }
   return value as unknown as CommercialTriageHistory
 }
@@ -125,9 +131,14 @@ function CommercialHistory({ currentNeedIds }: { currentNeedIds: string[] }) {
   }
   const current = new Set(currentNeedIds)
   const normalizedQuery = query.trim().toLowerCase()
-  const rows = (history?.items ?? []).filter((item) => !current.has(item.need_id)).filter((item) => {
-    const card = item.saved_card
-    const haystack = [card?.name, card?.location, card?.industry, card?.activity, item.disposition, item.need_id, item.project_id, item.pursuit_id, ...(item.notes ?? []).map((note) => `${note.note} ${note.outcome} ${note.next_action ?? ''}`)].join(' ').toLowerCase()
+  const rows = (history?.items ?? []).flatMap((item) => {
+    const versions = (item as CommercialTriageHistoryItem & { versions?: CommercialHistoryVersion[] }).versions
+    const entries = versions?.length ? versions : [legacyHistoryVersion(item)]
+    const latest = Math.max(...entries.map((entry) => entry.version))
+    return entries.map((version) => ({ item, version, latest })).filter(({ version, latest: latestVersion }) => !current.has(item.need_id) || version.version < latestVersion)
+  }).filter(({ item, version }) => {
+    const card = version.saved_card
+    const haystack = [card?.name, card?.location, card?.industry, card?.activity, version.disposition, version.version, version.evaluated_at, version.evaluated_on, version.input_hash, item.need_id, item.project_id, item.pursuit_id, ...(item.notes ?? []).map((note) => `${note.note} ${note.outcome} ${note.next_action ?? ''}`)].join(' ').toLowerCase()
     return haystack.includes(normalizedQuery)
   })
   return <details className="commercial-history" onToggle={(event) => { if (event.currentTarget.open && !history && !loading) void load() }}>
@@ -135,27 +146,30 @@ function CommercialHistory({ currentNeedIds }: { currentNeedIds: string[] }) {
     <p>Saved evaluations stay available after they leave the current 50. Every entry is an as-of snapshot; live status has not been rechecked.</p>
     <div className="commercial-history-tools"><label><span className="sr-only">Search saved evaluations</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search saved project, site, note or ID"/></label><button type="button" onClick={() => void load()} disabled={loading}>{loading ? 'Loading…' : history ? 'Refresh history' : 'Load saved history'}</button></div>
     {loading && <p role="status">Loading saved evaluations…</p>}{error && <p role="alert">{error}</p>}
-    {history && !error && !rows.length && <p>{normalizedQuery ? 'No saved evaluations match this search.' : 'No saved evaluations outside the current cohort.'}</p>}
-    <div className="commercial-history-list">{rows.map((item) => {
-      const card = item.saved_card
-      const key = `${item.pursuit_id}:${item.evaluated_at ?? item.evaluated_on ?? 'date-unknown'}:${item.input_hash ?? 'hash-unknown'}`
+    {history && !error && !rows.length && <p>{normalizedQuery ? 'No saved evaluations match this search.' : 'No saved versions outside the current cohort or earlier versions for current work.'}</p>}
+    <div className="commercial-history-list">{rows.map(({ item, version }) => {
+      const card = version.saved_card
+      const key = `${item.pursuit_id}:${version.version}:${version.input_hash ?? version.evaluated_at ?? version.evaluated_on ?? 'date-unknown'}`
       const title = card?.name ?? `Saved work · ${item.need_id.slice(0, 8)}`
-      const date = item.evaluated_at ? new Date(item.evaluated_at).toLocaleString() : item.evaluated_on ?? 'Saved date unknown'
+      const date = version.evaluated_at ? new Date(version.evaluated_at).toLocaleString() : version.evaluated_on ?? 'Saved date unknown'
       return <article className="commercial-history-card" key={key}>
-        <button type="button" className="commercial-history-heading" aria-expanded={expanded === key} onClick={() => setExpanded(expanded === key ? null : key)}><span><strong>{title}</strong><small>{unknown(card?.location)} · {enumLabel(card?.industry)} · {enumLabel(card?.activity)}</small></span><span>{item.disposition} · {item.snapshot_status === 'saved_as_of' ? 'saved card' : 'metadata only'}<small>As of {date}</small></span></button>
-        {expanded === key && <HistoricalDetail item={item}/>}
+        <button type="button" className="commercial-history-heading" aria-expanded={expanded === key} onClick={() => setExpanded(expanded === key ? null : key)}><span><strong>{title}</strong><small>{unknown(card?.location)} · {enumLabel(card?.industry)} · {enumLabel(card?.activity)}</small></span><span>Version {version.version} · {version.disposition} · {version.snapshot_status === 'saved_as_of' ? 'saved card' : 'metadata only'}<small>As of {date}</small></span></button>
+        {expanded === key && <HistoricalDetail item={item} version={version}/>}
       </article>
     })}</div>
   </details>
 }
 
-function HistoricalDetail({ item }: { item: CommercialTriageHistoryItem }) {
-  const card = item.saved_card
-  const savedAt = item.evaluated_at ? new Date(item.evaluated_at).toLocaleString() : item.evaluated_on ?? 'date unknown'
+type CommercialHistoryVersion = { version: number; disposition: string; evaluated_at?: string | null; evaluated_on?: string | null; input_hash?: string | null; snapshot_status: 'saved_as_of' | 'metadata_only'; live_status: 'not_rechecked'; saved_card?: CommercialTriageCard | null }
+function legacyHistoryVersion(item: CommercialTriageHistoryItem): CommercialHistoryVersion { return { version: 1, disposition: item.disposition, evaluated_at: item.evaluated_at ?? null, evaluated_on: item.evaluated_on ?? null, input_hash: item.input_hash ?? null, snapshot_status: item.snapshot_status, live_status: item.live_status, saved_card: item.saved_card ?? null } }
+
+function HistoricalDetail({ item, version }: { item: CommercialTriageHistoryItem; version: CommercialHistoryVersion }) {
+  const card = version.saved_card
+  const savedAt = version.evaluated_at ? new Date(version.evaluated_at).toLocaleString() : version.evaluated_on ?? 'date unknown'
   return <div className="commercial-history-detail">
-    <p className="commercial-history-asof">Saved evaluation: {item.disposition} · as of {savedAt} · current status not rechecked{item.input_hash ? ` · input ${item.input_hash.slice(0, 12)}` : ''}</p>
+    <p className="commercial-history-asof">Saved version {version.version}: {version.disposition} · as of {savedAt} · current status not rechecked{version.input_hash ? ` · input ${version.input_hash.slice(0, 12)}` : ''}</p>
     {card ? <>
-      <section><h4>Saved project and power context</h4><p>{unknown(card.location)} · {enumLabel(card.industry)} · {enumLabel(card.activity)} · Stage {enumLabel(card.stage.stage)} ({unknown(card.stage.date)})</p><p>Required power: {power(card.required_mw)} · Start: {unknown(card.start_window)} · Duration: {unknown(card.duration)} · Supply: {unknown(card.supply)}</p><p>Buying organization: {unknown(card.organization)} · role: {enumLabel(card.organization_role)}</p></section>
+      <section><h4>Saved project and power context</h4><p>{unknown(card.location)} · {enumLabel(card.industry)} · {enumLabel(card.activity)} · Stage {enumLabel(card.stage.stage)} ({unknown(card.stage.date)})</p><p>Required power: {power(card.required_mw)} · Start: {unknown(card.start_window)} · Duration: {unknown(card.duration)} · Supply: {unknown(card.supply)}</p><p>Buying organization: {unknown(card.organization)} · role: {enumLabel(card.organization_role)}</p><p><b>Why this saved state:</b> {card.reason}</p></section>
       <div className="commercial-evidence-grid"><section><h4>Saved supported facts</h4>{card.facts?.length ? <ul>{card.facts.map((fact, index) => <li key={`${fact.evidence_id}-${index}`}>{fact.text ?? 'Fact text unavailable.'} <Citation fact={fact}/></li>)}</ul> : <p>Unknown · this snapshot contains no supported facts.</p>}</section><section><h4>Saved hypothesis and unknowns</h4><p>{unknown(card.hypothesis)}</p>{card.unknowns?.length ? <ul>{card.unknowns.map((fact) => <li key={fact}>{fact}</li>)}</ul> : <p>No additional unknowns recorded in this snapshot.</p>}</section></div>
       <section><h4>Saved next step and blockers</h4><p>{card.next_action}</p>{card.blockers?.length ? <ul>{card.blockers.map((blocker) => <li key={blocker}>{blocker}</li>)}</ul> : <p>No blockers recorded in this snapshot.</p>}</section>
       <section><h4>Saved buying-path evidence</h4>{card.contacts?.length ? card.contacts.map((contact, index) => <p key={`${contact.organization}-${contact.person}-${index}`}>{enumLabel(contact.role)} · {unknown(contact.organization)} · {unknown(contact.person)} · {unknown(contact.kind)}: {unknown(contact.value)}{contact.source_url && <> · <a href={contact.source_url} target="_blank" rel="noreferrer">Source ↗</a></>}</p>) : <p>Buying role and direct or intermediary path unknown in this snapshot.</p>}<p>Roles and contact routes do not establish personal purchasing authority.</p></section>
@@ -181,7 +195,8 @@ function CommercialDetail({ item, draft, onDraftChange, onSaved }: { item: Comme
   return <div className="commercial-detail">
     <div className="commercial-evidence-grid"><section><h3>Supported facts</h3>{item.facts?.length ? <ul>{item.facts.map((fact, index) => <li key={`${fact.evidence_id}-${index}`}>{fact.text} <Citation fact={fact}/></li>)}</ul> : <p>Unknown · no supported facts recorded.</p>}</section>
       <section><h3>Commercial hypothesis</h3><p>{unknown(item.hypothesis)}</p><h3>Unknown</h3>{item.unknowns?.length ? <ul>{item.unknowns.map((fact) => <li key={fact}>{fact}</li>)}</ul> : <p>No additional unknowns recorded.</p>}</section></div>
-      <section><h3>Why this state</h3><p>{item.reason}</p>{item.watch && <p><b>Watch trigger:</b> {unknown(item.watch.event)}{unknown(item.watch.date) !== 'Unknown' ? ` · ${unknown(item.watch.date)}` : ' · date unknown'}{typeof item.watch.source_url === 'string' && <> · <a href={item.watch.source_url} target="_blank" rel="noreferrer">Source ↗</a></>}</p>}{item.next_action && <p><b>Next action:</b> {item.next_action}</p>}{item.conflict_state && item.conflict_state !== 'clear' && <p className="integrity">Evidence conflict: {item.conflict_state}</p>}</section>
+    <section><h3>Why this state</h3><p>{item.reason}</p>{item.watch && <p><b>Watch trigger:</b> {unknown(item.watch.event)}{unknown(item.watch.date) !== 'Unknown' ? ` · ${unknown(item.watch.date)}` : ' · date unknown'}{typeof item.watch.source_url === 'string' && <> · <a href={item.watch.source_url} target="_blank" rel="noreferrer">Source ↗</a></>}</p>}{item.next_action && <p><b>Next action:</b> {item.next_action}</p>}{item.conflict_state && item.conflict_state !== 'clear' && <p className="integrity">Evidence conflict: {item.conflict_state}</p>}</section>
+    {item.related_need_states?.length ? <section><h3>Related need states · identities retained separately</h3><p><b>Group review question:</b> {item.next_question}</p><ul className="commercial-related-needs">{item.related_need_states.map((need) => <li key={need.need_id}><b>{enumLabel(need.disposition)}</b> · {need.need_id}{need.held && ' · held'}{need.closed && ' · closed'}{need.conflict_state && need.conflict_state !== 'clear' ? ` · conflict: ${enumLabel(need.conflict_state)}` : ''}<p>{need.reason}</p></li>)}</ul></section> : null}
     <section><h3>Buying path evidence</h3>{item.contacts?.length ? item.contacts.map((contact, index) => <div className="commercial-role" key={`${contact.organization}-${contact.person}-${index}`}><b>{unknown(contact.role)}</b> · {unknown(contact.organization)} · {unknown(contact.person)}<p>{unknown(contact.kind)}: {unknown(contact.value)}</p>{contact.source_url && <a href={contact.source_url} target="_blank" rel="noreferrer">Relationship evidence ↗</a>}</div>) : <p>Buying role and direct or intermediary path unknown.</p>}<ProjectBuyingChains item={item}/></section>
     <section><h3>Project history</h3><p className="commercial-history-note">Source-backed project milestones; these dates do not establish a verified power start window.</p>{item.lifecycle_timeline?.length ? <ol className="commercial-timeline">{item.lifecycle_timeline.map((event, index) => <li key={`${event.event_type}-${event.date}-${index}`}><b>{event.state}</b> · {event.event_date_label ?? event.date ?? 'Date unknown'} · {event.event_type.replaceAll('_', ' ')}{event.value_kind && event.value_kind !== 'UNKNOWN' ? ` · ${event.value_kind.replaceAll('_', ' ')}` : ' · milestone type unknown'}{!event.current && <small> · superseded source state</small>}{event.published_at && <small> · published {event.published_at}</small>} · <a href={event.evidence_url} target="_blank" rel="noreferrer">Milestone source ↗</a></li>)}</ol> : <p>Project milestone history unknown · no lifecycle events retained for this project.</p>}</section>
     <section><h3>Source history</h3>{item.stage.source_url && <p>Stage source: <a href={item.stage.source_url} target="_blank" rel="noreferrer">{item.stage.stage} evidence ↗</a> · {unknown(item.stage.evidence_id)}</p>}{item.sources?.length ? <ul className="commercial-source-list">{item.sources.map((source, index) => <li key={`${source.evidence_id}-${index}`}>{source.text} <Citation fact={source}/>{source.date && <small> · {source.date}</small>}</li>)}</ul> : <p>Source citations unavailable.</p>}</section>
@@ -204,23 +219,69 @@ function Citation({ fact }: { fact: NonNullable<CommercialTriageCard['facts']>[n
 
 function ResearchQuestion({ item, draft, onDraftChange }: { item: CommercialTriageCard; draft: CommercialDraft; onDraftChange: (changes: Partial<CommercialDraft>) => void }) {
   const [busy, setBusy] = useState(false)
-  const [message, setMessage] = useState('')
-  const [failed, setFailed] = useState(false)
-  const [result, setResult] = useState<BriefRequest | null>(null)
-  useEffect(() => { setMessage(''); setFailed(false); setResult(null) }, [draft.question])
+  const progress = draft.research?.question === draft.question ? draft.research : undefined
+  useEffect(() => {
+    if (!progress || progress.brief.status !== 'pending' || !progress.brief.job_id) return
+    const controller = new AbortController()
+    let timer: number | undefined
+    let cancelled = false
+    const schedule = (delay: number) => { timer = window.setTimeout(() => void poll(), delay) }
+    const poll = async () => {
+      try {
+        const status = await client.commercialResearchStatus(item.id, progress.question, controller.signal)
+        if (cancelled) return
+        if (status.status === 'pending') {
+          if (status.job_id && status.job_id !== progress.brief.job_id) {
+            onDraftChange({ research: { ...progress, brief: researchBrief(status), message: 'This exact-question job was replaced before completion.', failed: true } })
+            return
+          }
+          onDraftChange({ research: { ...progress, message: 'Research is queued or running; checking for the exact-question result.', failed: false } })
+          schedule(1600)
+          return
+        }
+        const brief = researchBrief(status)
+        onDraftChange({ research: { ...progress, brief, message: researchStatusMessage(status), failed: status.status === 'failed' || status.status === 'superseded' || status.status === 'not_requested' } })
+      } catch (cause) {
+        if (!cancelled && !controller.signal.aborted) {
+          onDraftChange({ research: { ...progress, message: `Research status is temporarily unavailable; retrying. ${cause instanceof Error ? cause.message : ''}`.trim(), failed: false } })
+          schedule(3000)
+        }
+      }
+    }
+    schedule(1200)
+    return () => { cancelled = true; controller.abort(); if (timer !== undefined) window.clearTimeout(timer) }
+  }, [item.id, progress?.question, progress?.brief.job_id, progress?.brief.status])
   async function submit(event: FormEvent) {
     event.preventDefault()
-    setBusy(true); setMessage('')
+    setBusy(true)
     try {
       const brief = await client.researchCommercialNeed(item.id, { question: draft.question })
-      const unchanged = brief.job_id === null && brief.status === 'ready'
-      setMessage(brief.error ? `Research unavailable: ${brief.error}` : unchanged ? 'Existing brief unchanged; showing the saved result.' : brief.stale ? 'Existing brief is stale; no current result was produced.' : brief.status === 'ready' ? 'Research result' : `Research ${brief.status}`)
-      setFailed(Boolean(brief.error) || brief.status === 'failed')
-      setResult(brief)
-    } catch (cause) { setFailed(true); setMessage(cause instanceof Error ? cause.message : 'Targeted research unavailable.') }
+      const message = brief.job_id && brief.status === 'pending' ? 'Research is queued; checking for the exact-question result.' : brief.job_id === null && brief.status === 'ready' ? 'Existing brief unchanged; showing the saved result.' : brief.error ? `Research unavailable: ${brief.error}` : brief.stale ? 'Existing brief is stale; no current result was produced.' : brief.status === 'ready' ? 'Research result' : `Research ${brief.status}`
+      onDraftChange({ research: { question: draft.question, brief, message, failed: Boolean(brief.error) || brief.status === 'failed' || brief.stale } })
+    } catch (cause) { onDraftChange({ research: { question: draft.question, brief: { status: 'failed', stale: false, generated_at: null, result: null, citations: [], error: cause instanceof Error ? cause.message : 'Targeted research unavailable.', input_tokens: 0, output_tokens: 0, job_id: null }, message: cause instanceof Error ? cause.message : 'Targeted research unavailable.', failed: true } }) }
     finally { setBusy(false) }
   }
-  return <section className="commercial-action"><h3>Targeted research</h3><form onSubmit={(event) => void submit(event)}><label>Exact missing-fact question<textarea required minLength={12} maxLength={300} value={draft.question} onChange={(event) => onDraftChange({ question: event.target.value })} disabled={busy}/></label><button className="primary" disabled={busy || draft.question.trim().length < 12}>{busy ? 'Queueing…' : 'Research this question'}</button></form>{message && <p role={failed ? 'alert' : 'status'}>{message}</p>}{result && <ResearchResult brief={result}/>}</section>
+  const pending = progress?.brief.status === 'pending' && Boolean(progress.brief.job_id)
+  return <section className="commercial-action"><h3>Targeted research</h3><form onSubmit={(event) => void submit(event)}><label>Exact missing-fact question<textarea required minLength={12} maxLength={300} value={draft.question} onChange={(event) => onDraftChange({ question: event.target.value, research: undefined })} disabled={busy || pending}/></label><button className="primary" disabled={busy || pending || draft.question.trim().length < 12}>{busy ? 'Queueing…' : pending ? 'Research in progress…' : 'Research this question'}</button></form>{progress?.message && <p role={progress.failed ? 'alert' : 'status'}>{progress.message}</p>}{progress?.brief.status === 'ready' && progress.brief.result && <ResearchResult brief={progress.brief}/>}</section>
+}
+
+function researchBrief(status: CommercialResearchStatus): BriefRequest {
+  const result = checkedResearchContent(status.result)
+  const citations = (status.citations ?? []).filter((citation): citation is NonNullable<BriefRequest['citations']>[number] => isRecord(citation) && typeof citation.evidence_id === 'string' && typeof citation.url === 'string' && typeof citation.title === 'string')
+  return { status: status.status, stale: status.status === 'superseded', generated_at: status.generated_at ?? null, result, citations, error: status.error ?? null, input_tokens: 0, output_tokens: 0, job_id: status.job_id ?? null }
+}
+function checkedResearchContent(value: unknown): BriefRequest['result'] {
+  if (value === null || value === undefined) return null
+  if (!isRecord(value) || !Array.isArray(value.event_summary) || !value.event_summary.every((entry) => isRecord(entry) && typeof entry.text === 'string' && typeof entry.evidence_id === 'string')
+    || !isRecord(value.commercial_hypothesis) || typeof value.commercial_hypothesis.text !== 'string' || typeof value.commercial_hypothesis.evidence_id !== 'string'
+    || !Array.isArray(value.unknowns) || !value.unknowns.every((entry) => typeof entry === 'string') || typeof value.next_step !== 'string') return null
+  return value as unknown as NonNullable<BriefRequest['result']>
+}
+function researchStatusMessage(status: CommercialResearchStatus) {
+  if (status.status === 'ready') return 'Research result'
+  if (status.status === 'failed') return `Research failed: ${status.error ?? 'No result was produced.'}`
+  if (status.status === 'superseded') return 'This research request was superseded by a different question or evidence version; no result is attributed to this request.'
+  return 'No targeted research result is available for this question.'
 }
 
 function ResearchResult({ brief }: { brief: BriefRequest }) {

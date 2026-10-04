@@ -17,6 +17,7 @@ export type CommercialTriageCard = components['schemas']['CommercialTriageCard']
 export type CommercialTriageHistory = components['schemas']['CommercialTriageHistoryOut']
 export type CommercialTriageHistoryItem = components['schemas']['CommercialTriageHistoryItem']
 export type CommercialResearchBody = components['schemas']['CommercialResearchBody']
+export type CommercialResearchStatus = components['schemas']['CommercialResearchStatusOut']
 
 async function api<T>(path: string, init?: RequestInit, includeSafeDetail = false): Promise<T> {
   const response = await fetch(path, { ...init, credentials: 'same-origin', headers: { 'content-type': 'application/json', ...init?.headers } })
@@ -47,6 +48,7 @@ export const client = {
   commercialTriageHistory: (signal?: AbortSignal) => api<CommercialTriageHistory>('/api/commercial/triage/history', { signal }),
   evaluateCommercialTriage: () => api<CommercialTriage>('/api/commercial/triage/evaluate', { method: 'POST', body: '{}' }),
   researchCommercialNeed: (needId: string, body: CommercialResearchBody) => api<BriefRequest>(`/api/commercial/triage/${encodeURIComponent(needId)}/research`, { method: 'POST', body: JSON.stringify(body) }, true),
+  commercialResearchStatus: (needId: string, question: string, signal?: AbortSignal) => api<CommercialResearchStatus>(`/api/commercial/triage/${encodeURIComponent(needId)}/research?${new URLSearchParams({ question }).toString()}`, { signal }, true),
   session: () => api<{ authenticated: boolean }>('/api/auth/session'),
   login: (password: string) => api<{ authenticated: boolean }>('/api/auth/login', { method: 'POST', body: JSON.stringify({ password }) }),
   logout: () => api('/api/auth/logout', { method: 'POST' }),

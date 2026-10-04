@@ -13,3 +13,5 @@ Finish: stable strongest ~50 retained Signals categorized ACTION NOW/RESEARCH/WA
 Gates: Ruff, mypy, full pytest, clean/retained/repeat/drift migrations, frontend typecheck/build, existing and new browser tests, actual retained corpus conversion/replay and evidence-tier/table preservation. Screenshots and concise real-results report. Exact-candidate independent review, then one PR titled `GL3: convert Signals into actionable commercial pursuits` with requested logic/results/top ten/limits/validation/screenshots.
 
 Two materially distinct repairs per failure before canonical reconstruction. Unknown tokens/config/timing stay UNKNOWN. No outreach, deployment, production mutation or merge.
+
+PR23 merge-repair frontier: owner now authorizes merge only after validation and resolved review. Backend owns conservative sibling dispositions and append-only meaningful evaluation versions; UI owns queued-research polling and canon-aligned default environment. No schema/ingestion/tier/canon change. Preserve unchanged replay and prior evidence. Full frozen gates, corpus replay, fresh independent Sol review and exact-head CI precede expected-head merge.
