@@ -143,3 +143,69 @@ def test_unbounded_numeric_source_text_does_not_overflow_or_promote():
     assert assess(" ".join(CLAUSES).replace("requires 1 MW", f"requires {oversized} MW")) == {}
     claim = assess(" ".join(CLAUSES).replace("lasts 30 to 60", f"lasts 30 to {oversized}"))
     assert claim["tier"] == "Prospect"
+
+
+@pytest.mark.parametrize(
+    ("required", "available", "tier", "remaining"),
+    [
+        ("1 to 2", "0.2 to 0.4", "Lead", ("0.6", "1.8")),
+        ("1", "0.25", "Lead", ("0.75", "0.75")),
+        ("1", "0", "Lead", ("1", "1")),
+        ("1 to 2", "1.5", "Prospect", None),
+        ("1", "1", "Signal", None),
+        ("1", "2", "Signal", None),
+        ("1", "0.5 to 0.2", "Prospect", None),
+    ],
+)
+def test_exact_aggregate_interval_supply_arithmetic(required, available, tier, remaining):
+    supply = (
+        f"Total suitable power supply available for {SITE} construction is {available} MW "
+        "throughout this start window and duration."
+    )
+    text = " ".join(CLAUSES).replace("requires 1 MW", f"requires {required} MW")
+    text = text.replace("is unavailable", "is insufficient").replace(GAP, supply)
+    claim = assess(text)
+    assert claim["tier"] == tier
+    if remaining:
+        gap = claim["qualified_remaining_gap"]
+        assert (gap["remaining_mw_min"], gap["remaining_mw_max"]) == remaining
+        assert gap["basis_quote"] == supply
+    elif tier == "Signal":
+        assert claim["qualification_conflict"] is True
+
+
+@pytest.mark.parametrize(
+    "replacement",
+    [
+        "Total proposed power supply available",
+        "Generator nameplate power supply available",
+        "Total suitable power supply available for Other Site construction is 0.2 MW",
+        "Total suitable power supply available for 811 Clayton Ln commissioning is 0.2 MW",
+    ],
+)
+def test_nonzero_supply_cannot_borrow_authority_or_activity(replacement):
+    supply = (
+        f"Total suitable power supply available for {SITE} construction is 0.2 MW "
+        "throughout this start window and duration."
+    )
+    changed = supply.replace(
+        f"Total suitable power supply available for {SITE} construction is 0.2 MW", replacement
+    )
+    claim = assess(
+        " ".join(CLAUSES).replace("is unavailable", "is insufficient").replace(GAP, changed)
+    )
+    assert claim.get("tier") != "Lead"
+
+
+def test_partial_supply_interval_and_multiple_supply_options_cannot_qualify_lead():
+    supply = (
+        f"Total suitable power supply available for {SITE} construction is 0.2 MW "
+        "throughout this start window and duration."
+    )
+    text = " ".join(CLAUSES).replace("is unavailable", "is insufficient").replace(GAP, supply)
+    for changed in [
+        text.replace("throughout this start window and duration", "during the first week"),
+        text + " " + supply,
+        text + " " + GAP,
+    ]:
+        assert assess(changed)["tier"] == "Prospect"

@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from gridlens.domain.commercial_presentation import canonical_mw_claim
 from gridlens.domain.project_research import VERSION, project_claim_state
 from gridlens.domain.signal_admission import admitted_from_source
+from gridlens.ingestion.adapters.buying_chain_public import CAPTURE_VERSION
 from gridlens.intelligence.buying_chain import _accepted_version, buying_chain_view
 from gridlens.intelligence.lifecycle_service import lifecycle_event_supported
 from gridlens.intelligence.project_identity import canonical_site_claim, normalized_identity
@@ -95,6 +96,7 @@ def current_research_state(
         if not (
             interpretation.status == "accepted"
             and interpretation.evaluator_version == VERSION
+            and assessment.get("acquisition_capture_version") == CAPTURE_VERSION
             and assessment.get("admission_status") == "project_research_supplement"
             and assessment.get("project_identity_key") == project.identity_key
             and assessment.get("target_need_id") == str(need.id)

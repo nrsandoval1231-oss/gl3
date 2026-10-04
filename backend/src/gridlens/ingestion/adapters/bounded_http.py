@@ -2,14 +2,95 @@
 
 from __future__ import annotations
 
+import importlib
+import multiprocessing
 import time
 from collections.abc import Iterator
+from typing import Any
 
 import httpx
 
 
 class ResponseTooLarge(ValueError):
     pass
+
+
+def _isolated_entry(connection, function_path: str, args: tuple, kwargs: dict) -> None:
+    """Only acquisition code runs here; no database sessions or callbacks cross."""
+    try:
+        import resource
+
+        # Public PDFs can contain compressed streams much larger than their wire
+        # representation. Bound parser memory as well as time and input bytes.
+        resource.setrlimit(resource.RLIMIT_AS, (512 * 1024**2, 512 * 1024**2))
+        module, name = function_path.split(":", 1)
+        result = getattr(importlib.import_module(module), name)(*args, **kwargs)
+        connection.send((True, result))
+    except BaseException as exc:
+        # Exceptions contain no HTTP authorization headers in retained receipts.
+        # Transport exceptions can reference unpicklable streams; use a safe
+        # class/code representation instead of serializing the request object.
+        import httpx
+
+        error: BaseException
+        if isinstance(exc, httpx.HTTPStatusError):
+            error = AcquisitionFailure(f"http_status_{exc.response.status_code}")
+        elif isinstance(exc, httpx.TimeoutException):
+            error = TimeoutError("Acquisition transport timeout")
+        elif isinstance(exc, httpx.RequestError):
+            error = AcquisitionFailure("network_error")
+        else:
+            error = exc
+        try:
+            connection.send((False, error))
+        except Exception:
+            connection.send((False, AcquisitionFailure(type(exc).__name__)))
+    finally:
+        connection.close()
+
+
+class AcquisitionFailure(ValueError):
+    """Safe acquisition error code; never includes a credential-bearing request."""
+
+
+def run_isolated(
+    function_path: str, args: tuple, kwargs: dict, *, deadline: float
+) -> Any:
+    """Killable, single-operation boundary for synchronous DNS/HTTP and parsing.
+
+    The caller persists its budget reservation before entering. Spawn avoids
+    inheriting database connections; only a bounded result returns to the parent,
+    where all canonical writes and lease checks occur. This is not a job runner.
+    """
+    remaining_seconds(deadline)
+    context = multiprocessing.get_context("spawn")
+    receiver, sender = context.Pipe(duplex=False)
+    process = context.Process(
+        target=_isolated_entry, args=(sender, function_path, args, kwargs), daemon=True
+    )
+    try:
+        process.start()
+        sender.close()
+        remaining = remaining_seconds(deadline)
+        if not receiver.poll(remaining):
+            raise TimeoutError("Acquisition wall-clock deadline exhausted")
+        try:
+            success, result = receiver.recv()
+        except EOFError as exc:
+            raise AcquisitionFailure("acquisition_process_failed") from exc
+        remaining_seconds(deadline)
+        if not success:
+            raise result
+        return result
+    finally:
+        receiver.close()
+        sender.close()
+        if process.pid is not None:
+            if process.is_alive():
+                process.kill()
+            process.join(timeout=0.2)
+            if not process.is_alive():
+                process.close()
 
 
 def remaining_seconds(deadline: float | None) -> float | None:

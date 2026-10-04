@@ -151,126 +151,7 @@ def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list
                 seen.add(row_id)
                 seen_permit_numbers.add(permit_number)
                 previous = sort_key
-                clean = {
-                    key: " ".join(str(row.get(key) or "").split())
-                    for key in (
-                        "worktype",
-                        "permittypedescr",
-                        "description",
-                        "comments",
-                        "applicant",
-                        "status",
-                        "occupancytype",
-                        "address",
-                        "city",
-                        "state",
-                        "declared_valuation",
-                        "sq_feet",
-                        "property_id",
-                        "parcel_id",
-                        "expiration_date",
-                    )
-                }
-                amend_match = _AMENDS.search(clean["comments"])
-                amendment_of = amend_match.group(1) if amend_match else None
-                semantic = {
-                    "permit_number": permit_number,
-                    "issued_date": issued.isoformat(),
-                    **clean,
-                    "amendment_of": amendment_of,
-                }
-                digest = hashlib.sha256(
-                    json.dumps(
-                        semantic, sort_keys=True, ensure_ascii=False, separators=(",", ":")
-                    ).encode()
-                ).hexdigest()
-                abstract = "\n".join(
-                    f"{label}: {value}"
-                    for label, value in (
-                        ("Permit number", permit_number),
-                        ("Work type", clean["worktype"]),
-                        ("Permit type", clean["permittypedescr"]),
-                        ("Description", clean["description"]),
-                        ("Comments", clean["comments"]),
-                        ("Applicant (buying role unknown)", clean["applicant"]),
-                        ("Status", clean["status"]),
-                        ("Occupancy", clean["occupancytype"]),
-                        ("Address", clean["address"]),
-                        ("City", clean["city"]),
-                        ("State", clean["state"]),
-                    )
-                    if value
-                )
-                if amendment_of:
-                    abstract += f"\nExplicitly referenced amended permit: {amendment_of}"
-                citation_url = "https://data.boston.gov/api/3/action/datastore_search?" + urlencode(
-                    {
-                        "resource_id": RESOURCE_ID,
-                        "filters": json.dumps(
-                            {"permitnumber": permit_number}, separators=(",", ":")
-                        ),
-                        "limit": 1,
-                    }
-                )
-                output.append(
-                    {
-                        "document_number": permit_number,
-                        "title": clean["description"] or clean["permittypedescr"] or permit_number,
-                        "abstract": abstract,
-                        "publication_date": None,
-                        "html_url": citation_url,
-                        "extraction_location": f"Official Boston CKAN permitnumber={permit_number}",
-                        "event_date": issued.date().isoformat(),
-                        "event_date_label": "Boston permit issued date",
-                        "source_hash": digest,
-                        "permit": {
-                            "source_type": "boston-building-permits",
-                            "city": clean["city"],
-                            "state": clean["state"],
-                            "address": clean["address"],
-                            "class": clean["occupancytype"],
-                            "work": clean["worktype"],
-                            "type": clean["permittypedescr"],
-                            "status": clean["status"] or "Unknown",
-                            "description": " ".join(
-                                filter(None, [clean["description"], clean["comments"]])
-                            ),
-                            "applicant": clean["applicant"],
-                            "applicant_role": "applicant",
-                            "buyer_role": "UNKNOWN",
-                            "declared_valuation": clean["declared_valuation"],
-                            "area": clean["sq_feet"],
-                            "expiration_date": clean["expiration_date"],
-                            "row_id": permit_number,
-                            "permit_number": permit_number,
-                            "raw_source_row_id": row_id,
-                            "amendment_of": amendment_of,
-                            "source_fields": {
-                                key: key
-                                for key in (
-                                    "permitnumber",
-                                    "worktype",
-                                    "permittypedescr",
-                                    "description",
-                                    "comments",
-                                    "applicant",
-                                    "issued_date",
-                                    "expiration_date",
-                                    "status",
-                                    "occupancytype",
-                                    "address",
-                                    "city",
-                                    "state",
-                                    "declared_valuation",
-                                    "sq_feet",
-                                    "property_id",
-                                    "parcel_id",
-                                    "_id",
-                                )
-                            },
-                        },
-                    }
-                )
+                output.append(render_record(row))
             if len(output) > expected:
                 raise SourceParseError("Boston permit pages exceeded the declared result count")
         if len(output) != expected:
@@ -287,3 +168,133 @@ def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list
     finally:
         if client is None:
             http.close()
+
+
+def render_record(row: dict[str, Any]) -> dict[str, Any]:
+    """Canonical Boston row rendering shared by ingestion and exact research."""
+    required = ("_id", "permitnumber", "issued_date", "status", "address", "city", "state")
+    if any(key not in row for key in required):
+        raise SourceParseError("Boston permit row lacks stable identity or site fields")
+    row_id = str(row["_id"])
+    permit_number = " ".join(str(row.get("permitnumber") or "").split())
+    try:
+        if isinstance(row["_id"], bool):
+            raise ValueError("Boolean row identity")
+        int(row_id)
+        issued = datetime.fromisoformat(str(row["issued_date"]).replace("Z", "+00:00"))
+    except (ValueError, TypeError) as exc:
+        raise SourceParseError("Boston permit row has malformed ID or issue date") from exc
+    if not permit_number or issued.date() > datetime.now(UTC).date():
+        raise SourceParseError("Boston permit identity is empty or issue date is future")
+    clean = {
+        key: " ".join(str(row.get(key) or "").split())
+        for key in (
+            "worktype",
+            "permittypedescr",
+            "description",
+            "comments",
+            "applicant",
+            "status",
+            "occupancytype",
+            "address",
+            "city",
+            "state",
+            "declared_valuation",
+            "sq_feet",
+            "property_id",
+            "parcel_id",
+            "expiration_date",
+        )
+    }
+    amend_match = _AMENDS.search(clean["comments"])
+    amendment_of = amend_match.group(1) if amend_match else None
+    semantic = {
+        "permit_number": permit_number,
+        "issued_date": issued.isoformat(),
+        **clean,
+        "amendment_of": amendment_of,
+    }
+    digest = hashlib.sha256(
+        json.dumps(semantic, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode()
+    ).hexdigest()
+    abstract = "\n".join(
+        f"{label}: {value}"
+        for label, value in (
+            ("Permit number", permit_number),
+            ("Work type", clean["worktype"]),
+            ("Permit type", clean["permittypedescr"]),
+            ("Description", clean["description"]),
+            ("Comments", clean["comments"]),
+            ("Applicant (buying role unknown)", clean["applicant"]),
+            ("Status", clean["status"]),
+            ("Occupancy", clean["occupancytype"]),
+            ("Address", clean["address"]),
+            ("City", clean["city"]),
+            ("State", clean["state"]),
+        )
+        if value
+    )
+    if amendment_of:
+        abstract += f"\nExplicitly referenced amended permit: {amendment_of}"
+    citation_url = "https://data.boston.gov/api/3/action/datastore_search?" + urlencode(
+        {
+            "resource_id": RESOURCE_ID,
+            "filters": json.dumps({"permitnumber": permit_number}, separators=(",", ":")),
+            "limit": 1,
+        }
+    )
+    return {
+        "document_number": permit_number,
+        "title": clean["description"] or clean["permittypedescr"] or permit_number,
+        "abstract": abstract,
+        "publication_date": None,
+        "html_url": citation_url,
+        "extraction_location": f"Official Boston CKAN permitnumber={permit_number}",
+        "event_date": issued.date().isoformat(),
+        "event_date_label": "Boston permit issued date",
+        "source_hash": digest,
+        "permit": {
+            "source_type": "boston-building-permits",
+            "city": clean["city"],
+            "state": clean["state"],
+            "address": clean["address"],
+            "class": clean["occupancytype"],
+            "work": clean["worktype"],
+            "type": clean["permittypedescr"],
+            "status": clean["status"] or "Unknown",
+            "description": " ".join(filter(None, [clean["description"], clean["comments"]])),
+            "applicant": clean["applicant"],
+            "applicant_role": "applicant",
+            "buyer_role": "UNKNOWN",
+            "declared_valuation": clean["declared_valuation"],
+            "area": clean["sq_feet"],
+            "expiration_date": clean["expiration_date"],
+            "row_id": permit_number,
+            "permit_number": permit_number,
+            "raw_source_row_id": row_id,
+            "amendment_of": amendment_of,
+            "source_fields": {
+                key: key
+                for key in (
+                    "permitnumber",
+                    "worktype",
+                    "permittypedescr",
+                    "description",
+                    "comments",
+                    "applicant",
+                    "issued_date",
+                    "expiration_date",
+                    "status",
+                    "occupancytype",
+                    "address",
+                    "city",
+                    "state",
+                    "declared_valuation",
+                    "sq_feet",
+                    "property_id",
+                    "parcel_id",
+                    "_id",
+                )
+            },
+        },
+    }

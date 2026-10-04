@@ -48,8 +48,23 @@ def commercial_size_status(
     activity: str,
     supported_action: str | None,
     reported_power_facts: list[str],
+    *,
+    remaining_gap: dict | None = None,
 ) -> str:
     """Return below_floor, at_or_above_floor, or unknown from in-scope evidence only."""
+    if remaining_gap is not None:
+        # Caller supplies only the replayed effective Lead gap. Gross demand stays
+        # visible, but the open commercial opportunity is the remaining interval.
+        try:
+            low = Decimal(str(remaining_gap["remaining_mw_min"]))
+            high = Decimal(str(remaining_gap["remaining_mw_max"]))
+            if not low.is_finite() or not high.is_finite() or low < 0 or high < low:
+                return "unknown"
+        except (KeyError, TypeError, ValueError, ArithmeticError):
+            return "unknown"
+        if high < _FLOOR_MW:
+            return "below_floor"
+        return "at_or_above_floor" if low >= _FLOOR_MW else "unknown"
     if required_mw is not None:
         # required_mw is already an admitted activity quantity. Preserve its units
         # and interval; qualifiers and arbitrary prose never become exact loads.

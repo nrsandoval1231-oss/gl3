@@ -26,6 +26,7 @@ from gridlens.domain.buying_chain import (
 )
 from gridlens.domain.signal_admission import admitted_from_source
 from gridlens.ingestion.adapters.buying_chain_public import (
+    CAPTURE_VERSION,
     PublicDocument,
     retrieve,
     validate_public_url,
@@ -115,6 +116,12 @@ def _retained_evidence_current_for_project(
         return False
     source = session.get(Source, observation.source_id)
     if source is None:
+        return False
+    if source.id.startswith("research-public-") and assessment.get(
+        "acquisition_capture_version"
+    ) != CAPTURE_VERSION:
+        # Older public captures selected only a main container. Preserve their
+        # history, but require a complete bounded capture before current use.
         return False
     if assessment.get("admission_status") == "relationship_supplement":
         # Relationship documents do not support power/activity projection. Recheck

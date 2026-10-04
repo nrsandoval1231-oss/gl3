@@ -3,14 +3,14 @@
   "publication_authorized_at": "2026-10-04T17:17:42Z",
   "baseline_main": "6c8bdf3e3163adde078f8543d43c0256bc11eb82",
   "branch": "feat/gl3-029-autonomous-pursuit-research",
-  "code_manifest_sha256": "6df8caa02aa730354c6215df241ef415164bbfe0ac7802af6c1d8bd57b982cd2",
-  "code_manifest_files": 237,
+  "code_manifest_sha256": "974c0c6d086e3f07c1a7be219d7c5bfc01086d34344d22ec96f78fda9c29e5c9",
+  "code_manifest_files": 242,
   "backend": {
-    "passed": 995,
+    "passed": 1112,
     "skipped": 1,
     "skip_reason": "Existing optional NC local-access-probe artifact absent",
     "warnings": 1,
-    "seconds": 129.6,
+    "seconds": 132.57,
     "ruff": "PASS",
     "mypy": "PASS",
     "source_modules": 77
@@ -25,9 +25,9 @@
   "browser": {
     "passed": 38,
     "failed": 0,
-    "seconds": 46.0,
+    "seconds": 46.160528,
     "data_kind": "synthetic",
-    "database": "gl3_synthetic_browser_11e476561701",
+    "database": "gl3_synthetic_browser_43acdf8a567e",
     "retained_corpus_proof": false
   },
   "migrations": {
@@ -36,7 +36,7 @@
     "fixture_rows_preserved": 8,
     "retained_corpus_preservation_proven": false
   },
-  "independent_review": "Material findings repaired and independently reprobed; not overall acceptance",
+  "independent_review": "Final repaired candidate: no remaining material findings identified; root independently reviewed reviewer-owned admission/replay changes",
   "retained_corpus_cases_run": 0,
   "live_source_smoke": {
     "public_queries": 3,
@@ -48,14 +48,33 @@
     "retained_corpus_proof": false
   },
   "remaining_gaps": [
-    "Original PR23 corpus unavailable; five required retained cases and real yield/cost/replay measurements not executed",
-    "Firecrawl/OpenAI/TypeSafe access not configured; no paid/model calls",
-    "Bounded exact adapters Austin/Chicago; other unsupported families explicitly unavailable",
-    "Generic PDF extraction and RRC form-based retrieval unsupported; strict typed grammars deliberately leave other wording unknown",
-    "Existing synchronous DNS reader has soft wall-clock limitation"
+    "Original PR23 corpus unavailable; five required retained cases and real yield/cost/runtime/replay measurements not executed",
+    "Firecrawl provider access absent; discovery/extraction live billing and results unproven; optional models unused",
+    "Intentional bounded UNKNOWN: unsupported exact bulk/form routes, scanned/image/form/vector-painted/encrypted/oversized PDFs, unsupported text grammar or incomplete activity/supply intervals"
   ],
-  "pr_url": null,
+  "pr_url": "https://github.com/nrsandoval1231-oss/gl3/pull/24",
   "deployed": false,
   "production_proven": false,
-  "external_commercial_outreach": false
+  "external_commercial_outreach": false,
+  "acquisition": {
+    "exact_get_sources": [
+      "Austin",
+      "Chicago",
+      "Seattle",
+      "Boston",
+      "El Paso",
+      "Federal Register"
+    ],
+    "hard_isolated_deadline": true,
+    "max_child_memory_mib": 512,
+    "max_extracted_characters": 30000,
+    "max_pdf_pages": 20,
+    "capture_version": "public-document-v3",
+    "model_calls": 0
+  },
+  "receipt_paths": {
+    "backend": ".artifacts/autonomous-research/review-backend-final.log",
+    "browser": ".artifacts/synthetic-browser/gl3_synthetic_browser_43acdf8a567e",
+    "migrations": ".artifacts/autonomous-research/resumed-migrations-final.json"
+  }
 }

@@ -47,3 +47,22 @@ narrow official-permit implementation of existing PRD criteria rather than inven
 a research-worker promotion path. Keep conflicts and dated corrections explicit.
 Hourly saved-target projection avoids shortlist starvation; immutable evaluation
 versions drive morning metrics. No new model or orchestration framework is added.
+
+### Same-candidate review repairs
+
+Keep blocking DNS, HTTP and parsing inside killable acquisition-only child processes
+under the existing question deadline and 512 MiB address-space cap. Budget reservation,
+lease ownership and all database writes remain in the parent worker; this is a bounded
+I/O boundary, not another orchestration system. Reject whole oversized/incomplete
+public inputs rather than extracting a prefix that might omit contradictory text.
+Allow separately budgeted rendering only for successful explicit public JavaScript
+shells; access restrictions never justify a fallback.
+
+Reuse six stable native GET routes and proven-complete retained public inputs with
+original evidence identity. Exact validated registry hosts can support supplements,
+not inherit native-source qualification authority. Record partial progress only for
+the question actually asked. Accept explicitly supported aggregate nonzero suitable
+supply over the full activity interval, calculate conservative residual bounds, and
+apply the Lead commercial floor to remaining need. No suitability, component totals,
+project assignments or buying authority are inferred. Final repaired-candidate gates
+and original retained-corpus proof remain distinct from these implementation decisions.

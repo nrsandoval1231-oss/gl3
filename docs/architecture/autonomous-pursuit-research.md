@@ -104,8 +104,9 @@ are not exposed. No separate model override was selected.
 The implementation now has `PursuitResearchQuestion`, migration `0014`,
 `pursuit_question` target jobs, startup/hourly planning, authenticated scheduling,
 budget reservations, source caches, retained-only buying-chain projection, exact
-Austin/Chicago record refresh through canonical ingestion, eligible retained public
-URL retrieval, optional URL-only Firecrawl discovery, and shared commercial
+Austin/Chicago/Seattle/Boston/El Paso/Federal Register exact-record GET refresh
+through canonical ingestion, eligible retained public URL retrieval, optional
+URL-only Firecrawl discovery and bounded public-page extraction, and shared commercial
 reevaluation. UI preserves question context, source receipts and before/after state.
 Read-only `scripts/pursuit_research_metrics.py` summarizes receipt outcomes and
 unknown costs without generating work.
@@ -117,10 +118,39 @@ support. Explicit refresh bypasses this cache. Acquisition uses nonblocking advi
 locks: a competing retrieval yields an explicit unresolved limitation rather than
 waiting outside the question deadline or duplicating requests. Pre-request receipts
 retain uncertain interrupted requests; exhausted leases terminalize visible failures.
-Follow-up questions cannot themselves create children.
+Follow-up questions cannot themselves create children. PARTIALLY_RESOLVED requires
+new canonical answers to components of the exact question; accepting unrelated
+project evidence does not count as progress on that blocker.
+
+Retained-first replay precedes external acquisition. Existing canonical facts remain
+usable without fetching. Reinterpretation of a retained public document additionally
+requires its original accepted Source/Observation/Interpretation/Evidence identity,
+matching current hashes, exactly one target need, and a hash proving that the retained
+text is the complete previously captured input. Replay preserves evidence IDs and
+retrieval times. Abbreviated, native-record or RSS contexts without that proof are
+not silently reconstructed as complete public pages; the limitation is explicit.
+
+Acquisition remains inside the same PostgreSQL question job. Each owned DNS/HTTP/
+parse operation runs in a killable child process under the question's hard deadline
+and a 512 MiB address-space cap. Only bounded network/parser results cross this
+boundary: reservations, lease checks and canonical writes remain in the parent.
+This introduces no new scheduler, job framework or persistence layer.
+
+Direct public HTML/text and text-extractable PDFs must fit the whole-input limits:
+750,000 wire bytes, 30,000 extracted characters and, for PDF, 20 pages. Oversized,
+encrypted or partly unextractable/scanned PDFs are rejected, not truncated; no OCR
+or PDF metadata-derived publication date is claimed. A successful public page that
+explicitly requires JavaScript rendering may use configured Firecrawl extraction,
+with a separate request/document debit and cost reservation. An HTTP error, login,
+CAPTCHA, access denial, redirect or restriction does not authorize that fallback.
+Search snippets remain discovery hints; extracted text still faces normal admission.
 
 Structured authoritative records retain source-specific interpretation. Public news
-uses the normal supplemental path. A narrowly admitted relationship-only page must
+uses the normal supplemental path. A public page hosted on an exact hostname
+already present in the validated source registry can be considered for supplemental
+admission; a government-like hostname or `.gov` suffix alone grants no authority.
+It remains supplemental and cannot impersonate a native adapter record or positively
+qualify a need. A narrowly admitted relationship-only page must
 match the exact project, the explicitly extracted organization's hostname and title,
 and a contact-only rejection from normal activity parsing. Mixed adverse/supply
 pages cannot use that exception. Relationship assessments omit activity and power
@@ -149,8 +179,14 @@ conflicts conservatively constrain commercial action and existing qualification.
 The existing PRD Prospect/Lead criteria now have a narrow deterministic official-permit
 implementation. It replays accepted native address/description evidence, requires
 separate exact-site/activity demand and unsuitable supply for Prospect, and requires
-MW/start/duration ranges, explicitly zero suitable supply throughout that interval,
-and a supported buying role for Lead. Hypothetical, historical, conditional, quoted,
+MW/start/duration ranges, one explicit aggregate suitable-supply interval covering
+the full start window and duration, and a supported buying role for Lead. The supply
+can be zero or nonzero; component supplies are not summed or assumed suitable.
+For required range [Dmin, Dmax] and suitable supply [Smin, Smax], the conservative
+remaining range is [max(0, Dmin − Smax), max(0, Dmax − Smin)]. Effective Lead visibility
+uses that remaining range against the inclusive 300 kW floor, while retaining the
+gross required load separately. A range crossing the floor remains uncertain.
+Hypothetical, historical, conditional, quoted,
 ambiguous or conflicting statements cannot qualify. Read-only API replay caps aged-out
 Lead fields without rewriting historical evidence; canonical updates clear obsolete
 qualification fields. This adds implementation of the existing gates, not model
@@ -171,11 +207,13 @@ next action and read-only history. Concurrent operator contributions are not fal
 attributed solely to research. The shared metrics/validation tools preserve this
 same distinction and require explicit corpus provenance and immutable baselines.
 
-Known bounds: exact adapter refresh currently supports Austin and Chicago; other
-families use eligible direct public pages and configured discovery, or explicit
-unavailable/unresolved receipts. RRC's registered download requires a form submission,
-which this research slice does not perform. Generic PDF extraction is unsupported.
-The strict public and official grammars intentionally leave unsupported wording
-unknown. The original PR23 corpus and provider configuration remain unavailable here;
+Known bounds: exact native GET routes cover Austin, Chicago, Seattle, Boston,
+El Paso and Federal Register stable identifiers. Other registered families can use
+retained facts and eligible public supplements, but do not acquire unimplemented
+native adapters by inference. RRC's form-based download is excluded; Houston/Dallas
+bulk workbooks and Georgia/NC/Taylor/MA sources have no exact native research route
+in this slice. Public PDF support does not change that native-source distinction.
+Strict subject/activity/date/relationship and qualification grammars intentionally
+leave unsupported wording, complex supply schedules and incomplete inputs unknown. The original PR23 corpus and provider configuration remain unavailable here;
 local fixture proof is not retained-corpus or production proof. See the
 [validation report](../validation/gl3-029-autonomous-pursuit-research.md).

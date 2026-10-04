@@ -382,6 +382,12 @@ def _assessment_for_evidence(
     if interpretation is None or not interpretation.assessment:
         return None
     assessment = interpretation.assessment
+    from gridlens.ingestion.adapters.buying_chain_public import CAPTURE_VERSION
+
+    if observation.source_id.startswith("research-public-") and assessment.get(
+        "acquisition_capture_version"
+    ) != CAPTURE_VERSION:
+        return None
     if (
         assessment.get("semantic_hash") != observation.content_hash
         or assessment.get("evidence_hash") != evidence.content_hash
@@ -880,6 +886,11 @@ def opportunity_projection(
             need.activity_key,
             supported_action,
             reported_power_facts,
+            remaining_gap=(
+                effective.get("qualified_remaining_gap")
+                if effective["tier"] == "Lead" and effective.get("qualification_version")
+                else None
+            ),
         )
         if size_status == "below_floor" and not include_below_floor:
             continue

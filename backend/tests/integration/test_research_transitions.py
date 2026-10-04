@@ -248,10 +248,11 @@ def test_grouped_primary_switch_does_not_redirect_exact_target_receipt(
 
 
 @pytest.mark.parametrize(
-    ("initial_tier", "target_tier"), [("Signal", "Prospect"), ("Prospect", "Lead")]
+    ("initial_tier", "target_tier", "nonzero_supply"),
+    [("Signal", "Prospect", False), ("Prospect", "Lead", False), ("Prospect", "Lead", True)],
 )
 def test_research_promotes_only_complete_official_qualification_gates(
-    canonical_runtime, monkeypatch, initial_tier, target_tier
+    canonical_runtime, monkeypatch, initial_tier, target_tier, nonzero_supply
 ):
     from gridlens.persistence.models import Interpretation
 
@@ -271,6 +272,13 @@ def test_research_promotes_only_complete_official_qualification_gates(
     )
     first = base if initial_tier == "Signal" else base + prospect
     updated = base + prospect + (lead if target_tier == "Lead" else "")
+    if nonzero_supply:
+        updated = updated.replace("is unavailable", "is insufficient").replace(
+            f"No suitable power supply is available for {site} construction "
+            "throughout this start window and duration.",
+            f"Total suitable power supply available for {site} construction is 0.2 to 0.4 MW "
+            "throughout this start window and duration.",
+        )
     with factory.begin() as session:
         process_records(
             session,
@@ -325,13 +333,19 @@ def test_research_promotes_only_complete_official_qualification_gates(
         if target_tier == "Lead":
             assert need.start_window == "2026-11-01 to 2026-11-05"
             assert need.duration == "30 to 60 days"
-            assert assessment["qualified_remaining_gap"]["remaining_mw_min"] == "1"
-            assert assessment["qualified_remaining_gap"]["remaining_mw_max"] == "2"
+            assert assessment["qualified_remaining_gap"]["remaining_mw_min"] == (
+                "0.6" if nonzero_supply else "1"
+            )
+            assert assessment["qualified_remaining_gap"]["remaining_mw_max"] == (
+                "1.8" if nonzero_supply else "2"
+            )
         else:
             assert need.start_window is None and need.duration is None
 
 
-@pytest.mark.parametrize("correction", ["remove_duration", "remove_supply", "closed"])
+@pytest.mark.parametrize(
+    "correction", ["remove_duration", "remove_supply", "closed", "sufficient_conflict"]
+)
 def test_official_correction_demotes_lead_and_clears_obsolete_fields(canonical_runtime, correction):
     from gridlens.persistence.models import Interpretation
 
@@ -370,6 +384,12 @@ def test_official_correction_demotes_lead_and_clears_obsolete_fields(canonical_r
         if correction == "remove_duration"
         else (complete.replace(supply, "") if correction == "remove_supply" else complete)
     )
+    if correction == "sufficient_conflict":
+        corrected = complete.replace("is unavailable", "is insufficient").replace(
+            gap,
+            "Total suitable power supply available for 811 Clayton Ln construction is 1 MW "
+            "throughout this start window and duration. ",
+        )
     extra = {"status_current": "Completed"} if correction == "closed" else {}
     with factory.begin() as session:
         process_records(
@@ -387,6 +407,10 @@ def test_official_correction_demotes_lead_and_clears_obsolete_fields(canonical_r
         assert need.start_window is None and need.duration is None
         if correction != "remove_duration":
             assert need.required_mw is None and need.supply == "Unknown"
+        if correction == "sufficient_conflict":
+            assert "conflict" in need.rationale.lower()
+            latest = session.scalar(select(Interpretation)).assessment
+            assert latest["qualification_conflict"] is True
         if correction == "closed":
             assert not need.active
         assert evidence_ids.issubset({e.id for e in session.scalars(select(Evidence))})
@@ -654,15 +678,21 @@ def test_worker_public_adverse_report_vetoes_only_supported_exact_activity(
         assert need.tier == tier, str(question.receipt)
         assert question.receipt["tier"] == tier
         assert question.receipt["after"] == disposition
+        assert question.category == "power_need"
+        assert question.status == "UNRESOLVED"  # Accepted other facts do not answer this question.
+        assert any(c["disposition"] == "ACCEPTED" for c in question.receipt["source_checks"])
         if tier == "Signal":
             assert need.required_mw is None and need.start_window is None and need.duration is None
         else:
             assert need.required_mw == "1 MW" and need.start_window is not None
 
 
-@pytest.mark.parametrize(("corroborating_mw", "expected"), [("1", "Lead"), ("2", "Signal")])
+@pytest.mark.parametrize(
+    ("corroborating_mw", "expected", "changed_supply"),
+    [("1", "Lead", False), ("2", "Signal", False), ("1", "Signal", True)],
+)
 def test_corroborating_missing_lead_fields_are_not_conflicting_but_different_load_is(
-    canonical_runtime, corroborating_mw, expected
+    canonical_runtime, corroborating_mw, expected, changed_supply
 ):
     from gridlens.ingestion.service import effective_need_qualification
     from gridlens.persistence.models import Project
@@ -682,6 +712,13 @@ def test_corroborating_missing_lead_fields_are_not_conflicting_but_different_loa
         f"Construct new data center. 811 Clayton Ln construction requires {corroborating_mw} MW. "
         "Power supply for 811 Clayton Ln construction is unavailable."
     )
+    if changed_supply:
+        corroborating = lead.replace("is unavailable", "is insufficient").replace(
+            "No suitable power supply is available for 811 Clayton Ln construction "
+            "throughout this start window and duration.",
+            "Total suitable power supply available for 811 Clayton Ln construction is 0.2 MW "
+            "throughout this start window and duration.",
+        )
     with factory.begin() as session:
         process_records(
             session,
@@ -758,3 +795,43 @@ def test_batch_evaluation_reuses_projection_for_multiple_targets_outside_shortli
         assert {card["disposition"] for card in actual.values()} == {"RESEARCH", "REJECT"}
         assert len(calls) == 1
         assert calls[0]["include_below_floor"] is True
+
+
+@pytest.mark.parametrize(
+    ("supply", "expected"),
+    [("0.8", "below_floor"), ("0.7", "at_or_above_floor"), ("0.6 to 0.8", "unknown")],
+)
+def test_effective_lead_remaining_gap_controls_visibility_without_changing_gross_load(
+    canonical_runtime, supply, expected
+):
+    factory, source, _, seed_job = canonical_runtime
+    description = (
+        "Construct new data center. 811 Clayton Ln construction requires 1 MW. "
+        "Power supply for 811 Clayton Ln construction is insufficient. "
+        "811 Clayton Ln construction starts between 2026-11-01 and 2026-11-05. "
+        "811 Clayton Ln construction lasts 30 to 60 days. "
+        f"Total suitable power supply available for 811 Clayton Ln construction is {supply} MW "
+        "throughout this start window and duration. "
+        "The electrical contractor is responsible for power procurement "
+        "for 811 Clayton Ln construction."
+    )
+    with factory.begin() as session:
+        process_records(
+            session,
+            seed_job,
+            "seed-test",
+            1,
+            source,
+            [record(source, description)],
+            commit=False,
+            allow_model=False,
+        )
+        need = session.scalar(select(PowerNeed))
+        assert need.tier == "Lead"
+        api = import_module("gridlens.api.app")
+        items = api.opportunity_projection(session, include_below_floor=True)
+        assert len(items) == 1
+        assert items[0]["commercial_size_status"] == expected
+        assert items[0]["required_mw"] == need.required_mw == "1 MW"
+        visible = api.opportunity_projection(session)
+        assert len(visible) == (0 if expected == "below_floor" else 1)
