@@ -132,9 +132,14 @@ not silently reconstructed as complete public pages; the limitation is explicit.
 
 Acquisition remains inside the same PostgreSQL question job. Each owned DNS/HTTP/
 parse operation runs in a killable child process under the question's hard deadline
-and a 512 MiB address-space cap. Only bounded network/parser results cross this
-boundary: reservations, lease checks and canonical writes remain in the parent.
-This introduces no new scheduler, job framework or persistence layer.
+and a 512 MiB memory bound. Linux enforces this with `RLIMIT_AS`; Windows assigns
+the child to a Job Object with `JOB_OBJECT_LIMIT_PROCESS_MEMORY` before importing
+the acquisition target. Windows process commit accounting is not byte-for-byte
+equivalent to Linux virtual-address-space accounting. Job creation, limit setup,
+or assignment failures stop acquisition with an explicit error; no unbounded
+fallback is permitted. Only bounded network/parser results cross this boundary:
+reservations, lease checks and canonical writes remain in the parent. This
+introduces no new scheduler, job framework or persistence layer.
 
 Direct public HTML/text and text-extractable PDFs must fit the whole-input limits:
 750,000 wire bytes, 30,000 extracted characters and, for PDF, 20 pages. Oversized,

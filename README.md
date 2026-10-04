@@ -1,5 +1,7 @@
 # GridLens 3
 
+**October 4 audit status:** Main includes merged PR23 at `6c8bdf3`; clean detached `../gl3-main-truth-20261004` is the exact-main reference. PR24 is an open draft at `d8b0e99` with independent FIX findings under repair in this isolated checkout. GitHub Actions backend and web jobs passed for both original heads, but PR24's original retained-corpus gate and repaired exact-candidate review remain open. The retained backup has since been found and restored to an isolated copy for validation. Documented local API/web ports had no GL3 listener at audit; no accepted running GL3 application was established. Cloud deployment and launch gates remain open. See [current state](.agent/CURRENT_STATE.md), [repair report](docs/validation/gl3-029-pr24-audit-repair.md), and [graph](.agent/WORK_GRAPH.md). Historical validation sections below retain their original candidate context.
+
 GridLens 3 is a private, evidence-backed workspace for discovering emerging commercial power needs. The current local candidate registry enables 20 public sources spanning municipal planning notices, construction permits, air permitting/regulatory records, government/economic-development publications, public documents, and industry news. The system preserves source observations and evidence history, groups supported records into project-oriented Signal cards, and keeps unsupported commercial facts explicitly unknown.
 
 Main includes PR15 at `ce6b8fc` (city permits, cultivation Signals, commercial filtering and cited OpenAI-assisted briefs). GL3-026 adds Boston permits, an All Signals view, consolidated source-sector filters and a live registry-backed source selector. Firecrawl assisted nationwide source discovery; routine Boston acquisition uses the official CKAN API. See [GL3-026 validation](docs/validation/gl3-026-national-intake.md). National completeness and deployed daily cloud operation remain unproven.
@@ -27,8 +29,7 @@ preserve admission boundaries; unavailable adapters and unsupported claims stay 
 Retained complete-input replay preserves evidence identity. Supported nonzero suitable
 supply is subtracted conservatively when assessing a Lead's remaining need.
 
-This is a **locally implemented candidate, not accepted or deployed**. The original PR #23 retained database
-is absent from this executor and the searched GitHub artifacts. Synthetic integration
+This is a **locally implemented candidate, not accepted or deployed**. Its original validation executor lacked the PR23 retained database; the original backup is now located and an isolated copy restored for the pending repaired-candidate gate. Synthetic integration
 checks do not establish retained-corpus success. See the [architecture and limits](docs/architecture/autonomous-pursuit-research.md),
 [operator behavior](docs/operations/power-pursuits.md#autonomous-pursuit-research-candidate),
 and [candidate validation](docs/validation/gl3-029-autonomous-pursuit-research.md).
@@ -101,7 +102,7 @@ npm --prefix web run build
 npm --prefix web audit --audit-level=high
 ```
 
-GL3-019 passed 418 backend tests (one existing missing-fixture skip), Ruff/mypy, frontend typecheck/build, clean/repeated migrations with no drift, live replay/provenance audits and 13 browser checks (11 repository checks plus two saved-cloud live acceptance cases). See [the validation report](docs/validation/gl3-019-acquisition-continuation.md); the additional live cases remain captured acceptance artifacts, not repository tests. Hosted GitHub Actions remain blocked before runner execution by the account payment/spending-limit condition; the workflow itself has not been weakened.
+GL3-019 passed 418 backend tests (one existing missing-fixture skip), Ruff/mypy, frontend typecheck/build, clean/repeated migrations with no drift, live replay/provenance audits and 13 browser checks (11 repository checks plus two saved-cloud live acceptance cases). See [the validation report](docs/validation/gl3-019-acquisition-continuation.md); the additional live cases remain captured acceptance artifacts, not repository tests. The prior GitHub billing block is historical: main run `37164959427` and PR24 run `37222313567` both completed successfully with backend and web jobs on October 4. This does not establish browser, retained-corpus or deployment acceptance.
 
 Runtime status and bounded in-place source recovery are available through `python -m gridlens.jobs.runtime` with the backend environment. See [runtime recovery](docs/operations/runtime-recovery.md) for registry reconciliation, selected checks, retry behavior and operational limits.
 

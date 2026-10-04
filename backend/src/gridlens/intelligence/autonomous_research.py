@@ -26,6 +26,7 @@ from gridlens.intelligence.commercial_evaluation import (
     evaluate_targets,
     save_evaluations,
 )
+from gridlens.intelligence.pursuit_questions import RETRY_BACKOFF_HOURS
 from gridlens.intelligence.research_evidence import (
     replay_retained_research,
     retain_registered_record,
@@ -131,6 +132,16 @@ def process_question_job(job_id: UUID, worker_id: str, fence: int) -> None:
         ]
 
     if ambiguous:
+        with SessionLocal.begin() as session:
+            row = session.get(PursuitResearchQuestion, question_id)
+            assert row is not None
+            row.receipt = {
+                **row.receipt,
+                "ambiguous_effects": [
+                    *row.receipt.get("ambiguous_effects", []),
+                    {"url": row.receipt["inflight_url"], "status": "UNKNOWN"},
+                ],
+            }
         _finish(
             job_id,
             worker_id,
@@ -256,10 +267,16 @@ def process_question_job(job_id: UUID, worker_id: str, fence: int) -> None:
                     except BudgetExceeded:
                         raise
                     except Exception as exc:
+                        with SessionLocal() as session:
+                            pending = session.get(PursuitResearchQuestion, question_id)
+                            assert pending is not None
+                            receipt = pending.receipt
+                            dispatched = bool(receipt.get("inflight_url"))
                         run.record(
                             {
                                 "url": url,
                                 "disposition": "FAILED",
+                                "effect_status": "UNKNOWN" if dispatched else "NOT_SENT",
                                 **retrieval_failure(exc),
                                 "acquisition_key": key,
                             }
@@ -327,10 +344,16 @@ def process_question_job(job_id: UUID, worker_id: str, fence: int) -> None:
     except Exception as exc:
         failure = retrieval_failure(exc)
         run.limitation(f"Discovery failed: {failure['failure_code']}.")
+        with SessionLocal() as session:
+            pending = session.get(PursuitResearchQuestion, question_id)
+            assert pending is not None
+            receipt = pending.receipt
+            dispatched = bool(receipt.get("inflight_url"))
         run.record(
             {
                 "url": "https://api.firecrawl.dev/v2/search",
                 "disposition": "FAILED",
+                "effect_status": "UNKNOWN" if dispatched else "NOT_SENT",
                 "acquisition_method": "firecrawl_discovery",
                 **failure,
             }
@@ -391,10 +414,16 @@ def _research_public_url(run: QuestionRun, url: str) -> None:
         except BudgetExceeded:
             raise
         except Exception as exc:
+            with SessionLocal() as session:
+                pending = session.get(PursuitResearchQuestion, run.question_id)
+                assert pending is not None
+                receipt = pending.receipt
+                dispatched = bool(receipt.get("inflight_url"))
             run.record(
                 {
                     "url": url,
                     "disposition": "FAILED",
+                    "effect_status": "UNKNOWN" if dispatched else "NOT_SENT",
                     **retrieval_failure(exc),
                     "direct_failure": direct_failure,
                     "acquisition_key": key,
@@ -543,7 +572,29 @@ class QuestionRun:
                 accepted.append(result["evidence_id"])
             row.receipt = {
                 **row.receipt,
-                "inflight_url": None,
+                # An exception after reservation may have followed a sent
+                # request. Preserve it as UNKNOWN; only successful completion
+                # or a confirmed pre-send failure can clear the reservation.
+                "inflight_url": (
+                    row.receipt.get("inflight_url")
+                    if result.get("disposition") == "FAILED"
+                    and result.get("effect_status") == "UNKNOWN"
+                    else None
+                ),
+                "ambiguous_effects": (
+                    [
+                        *row.receipt.get("ambiguous_effects", []),
+                        {
+                            "url": row.receipt.get("inflight_url"),
+                            "status": "UNKNOWN",
+                            "acquisition_key": result.get("acquisition_key"),
+                        },
+                    ]
+                    if result.get("disposition") == "FAILED"
+                    and result.get("effect_status") == "UNKNOWN"
+                    and row.receipt.get("inflight_url")
+                    else row.receipt.get("ambiguous_effects", [])
+                ),
                 "source_checks": checks,
                 "resulting_evidence_ids": sorted(set(accepted)),
                 "duplicate_work_avoided": row.receipt.get("duplicate_work_avoided", 0)
@@ -726,7 +777,27 @@ def _finish(
             save_evaluations(session, [card])
         now = datetime.now(UTC)
         row.status, row.completed_at = status, now
-        row.retry_after = now + timedelta(hours=row.context["freshness_hours"])
+        checked_route = any(
+            route.get("status") == "CHECKED" and route.get("kind") != "retained"
+            for route in row.receipt.get("route_results", [])
+        )
+        retryable = status in {"FAILED", "BUDGET_EXCEEDED"} or (
+            status == "UNRESOLVED" and not checked_route
+        )
+        retryable = retryable and not (
+            row.receipt.get("inflight_url") or row.receipt.get("ambiguous_effects")
+        )
+        retry_after = _retry_deadline(row, now) if retryable else None
+        row.retry_after = retry_after or now + timedelta(hours=row.context["freshness_hours"])
+        retry_class = (
+            "UNKNOWN_EFFECT"
+            if row.receipt.get("inflight_url") or row.receipt.get("ambiguous_effects")
+            else "BOUNDED_TRANSIENT"
+            if retry_after is not None
+            else "RETRIES_EXHAUSTED"
+            if retryable
+            else "FRESH_CHECK"
+        )
         project = session.get(Project, row.project_id)
         assert project is not None
         row.receipt = {
@@ -745,6 +816,7 @@ def _finish(
                 for route in row.receipt.get("route_results", [])
             ],
             "result_disposition": status,
+            "retry_class": retry_class,
             "runtime_seconds": round(time.monotonic() - started, 3),
             "reevaluation_status": "COMPLETED" if card else "NO_CURRENT_SUPPORT",
             "before": row.context["before"]["disposition"],
@@ -766,3 +838,13 @@ def _finish(
 
         with SessionLocal.begin() as session:
             schedule_questions(session, [card], parent_id=parent_id)
+
+
+def _retry_deadline(row: PursuitResearchQuestion, now: datetime) -> datetime | None:
+    """Return a finite retry time; an UNKNOWN paid effect blocks retries."""
+    if row.receipt.get("inflight_url") or row.receipt.get("ambiguous_effects"):
+        return None
+    attempt = int(row.context.get("retry_index", 0)) + 1
+    if attempt > len(RETRY_BACKOFF_HOURS):
+        return None
+    return now + timedelta(hours=RETRY_BACKOFF_HOURS[attempt - 1])

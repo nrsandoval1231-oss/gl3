@@ -1,5 +1,7 @@
 # GL3-029 autonomous pursuit research — candidate validation
 
+**Audit update (October 4):** The original PR24 draft head `d8b0e99897c600f32a0e00bb6770b841f2c6f907` passed hosted backend/web CI, then independent static review returned FIX for transient failure cache reuse and uncertain paid-request effects. The original retained PR23 backup was later found at `gl3-evidence-shadow/.artifacts/evidence-shadow/preserved-base.dump` (SHA-256 `828beace65cd2b06182f30e4713857656a993d3969c8cbecb02e6ee40ff8a886`) and restored to an isolated copy. Its 0011→0014 migration setup preserved 22/24 original full-table digests; migration revision changed as intended and original `change_events` columns match despite added columns. Receipts are in `gl3-repair-evidence-20261004` outside this checkout. The strongest retained Austin construction and explicit temporary scopes are already ACTION NOW and legitimately yield no research question. The five-case meaningful-investigation gate remains OPEN; the blocked-corpus wording and local figures below describe the earlier executor/candidate. Repaired-candidate final validation and independent review are pending. Draft remains not merge-ready.
+
 **DRAFT / NOT MERGE-READY.** The final repaired candidate passed local fixture gates and independent review. Required
 original retained PR #23 corpus validation is blocked. Nick explicitly authorized
 publishing a draft on October 4, 2026 despite that remaining gate. No acceptance,
@@ -136,7 +138,7 @@ nonpolling public-source refresh exception without relaxing admission. The final
 material findings, followed by the full local gates above. This is not original-corpus
 or production acceptance.
 
-## Real retained corpus: blocked
+## Real retained corpus: historical blocked state
 
 The preserved `gridlens` runtime remains `0007_signal_decisions`, with 13 Sources
 and zero Observations, Evidence, Projects and PowerNeeds. Authorized searches of the
@@ -209,7 +211,7 @@ It does not assert that every scenario in the 30-section specification is proven
 | 2–7, 9–13, 15–21: bounded questions, routing, admission, reevaluation, UI and authority | Local implementation present; exact-question progress, historical context, source decisions and independent commercial/tier state remain inspectable. Final local gates above passed. |
 | 8, 14, 19–20: budgets, one follow-up, duplication and model bounds | Implemented caps/cache/replay and one-child limit; hard acquisition termination and parser bounds added. No model authority or open research trees. Provider-backed execution is not live-proven here. |
 | 22, 27–29: tests, migration discipline and separate adversarial review | Final results retained above. Current repaired candidate must rerun full required gates and close independent findings; those results are pending. |
-| 23–24: five retained cases and corpus baseline/yield/cost/runtime | **External blocker:** original PR23 archive is unavailable. Historical counts, synthetic fixtures and fresh reingestion cannot establish this gate. |
+| 23–24: five retained cases and corpus baseline/yield/cost/runtime | **OPEN:** the original PR23 archive has since been located and restored in isolation. The original PR24 candidate still lacks accepted five-case corpus evidence; see the October 4 audit update above. Historical counts, synthetic fixtures and fresh reingestion cannot establish this gate. |
 | 26, 30: canonical docs and focused deliverable | Same draft PR #24; documentation distinguishes implementation/local validation/deployment/production proof. Definition of done remains unmet until required retained-corpus acceptance is completed. |
 
 Intentional bounded UNKNOWN/unavailable outcomes include unimplemented exact native
