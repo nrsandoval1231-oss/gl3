@@ -8,7 +8,7 @@ import re
 from datetime import date
 from typing import Any
 
-POLICY_VERSION = "commercial-triage-v1"
+POLICY_VERSION = "commercial-triage-v2"
 MAX_CARDS = 50
 
 
@@ -163,6 +163,22 @@ def _priority(item: dict[str, Any]) -> tuple[int, int, int, str, str]:
 
 
 def _current_stage(item: dict[str, Any]) -> dict[str, Any]:
+    phase = item.get("research_state", {}).get("phase", {})
+    if phase.get("status") == "CONFLICT":
+        return {
+            "stage": "conflicting phase evidence",
+            "date": None,
+            "source_url": None,
+            "evidence_id": None,
+        }
+    if phase.get("status") == "SUPPORTED" and phase.get("claims"):
+        claim = phase["claims"][0]
+        return {
+            "stage": phase["value"],
+            "date": claim["as_of"],
+            "source_url": claim.get("evidence", {}).get("url"),
+            "evidence_id": claim["evidence_id"],
+        }
     active = [event for event in item.get("lifecycle_timeline", []) if event.get("current")]
     latest = max(active, key=lambda event: event.get("date") or "", default=None)
     if latest:
@@ -222,6 +238,19 @@ def build_card(item: dict[str, Any], chain: dict[str, Any] | None, today: date) 
         }
         for e in evidence
     ]
+    research_state = item.get("research_state", {})
+    research_conflict = any(field.get("status") == "CONFLICT" for field in research_state.values())
+    for field in research_state.values():
+        for claim in field.get("claims", []):
+            facts.append(
+                {
+                    "text": claim["quote"],
+                    "evidence_id": claim["evidence_id"],
+                    "url": claim.get("evidence", {}).get("url"),
+                    "hash": claim["evidence_hash"],
+                    "date": claim["as_of"],
+                }
+            )
     action = item.get("supported_action")
     action_source = next(
         (
@@ -351,6 +380,16 @@ def build_card(item: dict[str, Any], chain: dict[str, Any] | None, today: date) 
         )
     )
     stage = _current_stage(item)
+    if stage["stage"] in {
+        "construction_active",
+        "electrical_buildout",
+        "commissioning",
+        "drilling_completed",
+        "production_infrastructure_under_construction",
+        "production_started",
+    }:
+        # Actual dated activity changes the commercial window; it does not prove demand.
+        project_formation_or_backup = False
     unknowns = list(dict.fromkeys(item.get("missing_facts", [])))
     if not item.get("required_mw"):
         unknowns.append("Need-specific MW remains unknown.")
@@ -442,7 +481,42 @@ def build_card(item: dict[str, Any], chain: dict[str, Any] | None, today: date) 
         if contact.get("value")
         and re.search(r"phone|telephone|email", str(contact.get("kind") or ""), re.I)
     ]
-    if negative_reason:
+    if item.get("canonical_inactive"):
+        disposition, reason = (
+            "REJECT",
+            "The canonical power need is inactive; no active supported scope remains.",
+        )
+    elif research_conflict:
+        disposition, reason = (
+            "RESEARCH",
+            "Resolve the cited conflicting current project/activity reports "
+            "before commercial action.",
+        )
+    elif stage["stage"] in {"completed", "cancelled"}:
+        disposition, reason = (
+            "REJECT",
+            "Current dated project evidence reports the project completed or cancelled.",
+        )
+    elif (
+        research_state.get("supply_adequacy", {}).get("status") == "SUPPORTED"
+        and research_state["supply_adequacy"]["value"] == "adequate"
+    ):
+        disposition, reason = (
+            "REJECT",
+            "Current exact-activity evidence reports sufficient suitable supply; "
+            "no remaining gap is supported.",
+        )
+    elif stage["stage"] == "paused":
+        disposition, reason = (
+            "WATCH",
+            "Current dated project evidence reports work paused; wait for a supported restart.",
+        )
+    elif item.get("commercial_size_status") == "below_floor":
+        disposition, reason = (
+            "REJECT",
+            "Current activity-specific evidence places this need below 300 kW.",
+        )
+    elif negative_reason:
         disposition, reason = "REJECT", negative_reason
     elif item.get("signal_display_decision") == "HOLD":
         disposition, reason = (
@@ -671,7 +745,8 @@ def build_card(item: dict[str, Any], chain: dict[str, Any] | None, today: date) 
         "next_action": next_action,
         "watch": watch,
         "sources": sources,
-        "conflict_state": item.get("conflict_state"),
+        "conflict_state": "CONFLICT" if research_conflict else item.get("conflict_state"),
+        "research_state": research_state,
     }
     card["input_hash"] = hashlib.sha256(
         json.dumps([POLICY_VERSION, card], sort_keys=True, default=str).encode()
@@ -744,18 +819,12 @@ def cards(
                 key=lambda value: json.dumps(value, sort_keys=True, default=str),
             )
             merged["facts"] = sorted(
-                {
-                    fact["evidence_id"]: fact
-                    for card in group
-                    for fact in card["facts"]
-                }.values(),
+                {fact["evidence_id"]: fact for card in group for fact in card["facts"]}.values(),
                 key=lambda value: value["evidence_id"],
             )
             merged["sources"] = sorted(
                 {
-                    source["evidence_id"]: source
-                    for card in group
-                    for source in card["sources"]
+                    source["evidence_id"]: source for card in group for source in card["sources"]
                 }.values(),
                 key=lambda value: value["evidence_id"],
             )

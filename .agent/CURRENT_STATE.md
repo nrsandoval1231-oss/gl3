@@ -1,5 +1,28 @@
 # Current state
 
+## GL3-029 working candidate — 2026-10-04
+
+Remote main verified at `6c8bdf3e3163adde078f8543d43c0256bc11eb82` (PR #23).
+Branch `feat/gl3-029-autonomous-pursuit-research` contains the locally implemented
+candidate. See [candidate validation](../docs/validation/gl3-029-autonomous-pursuit-research.md).
+Final local gates: 995 backend tests passed / one existing optional-fixture skip;
+Ruff and mypy (77 modules) passed; frontend typecheck/build/audit passed (zero
+vulnerabilities); 38 browser tests passed on isolated synthetic data; eight migration
+checks passed with eight fixture rows across seven tables preserved. Independent
+adversarial findings were repaired and regression-tested.
+
+The original retained PR23 corpus gate remains blocked; synthetic/reingested work is
+not its substitute. Nick explicitly authorized publishing one draft PR before that
+gate on October 4, 2026. The draft must remain NOT MERGE-READY and clearly disclose
+corpus/provider/source limitations. No merge, deployment or production-proof claim
+is made. The prior headings below are historical checkpoints, not current main.
+
+The saved runtime database is at `0007_signal_decisions` with zero canonical evidence
+and projects; it was preserved. Migration tests use isolated synthetic databases.
+Original PR23 retained backup and configured discovery-provider access are absent.
+Canonical source acquisition is direct HTTP where a bounded exact route is supported.
+Models do not run in this new research path or assign facts, tiers or pursuit states.
+
 ## Main after GL3-028 merge — 2026-10-02
 
 PR #21 (`feat/evidence-graph-jev-shadow`) is merged to `main` at merge commit `43424be49d1a6f60edf91931218d37c61ba33d52`. At this historical PR #21 merge checkpoint, there were no open pull requests.

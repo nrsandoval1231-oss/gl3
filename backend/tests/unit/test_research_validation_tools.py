@@ -1,0 +1,289 @@
+"""Offline fixture mechanics; these tests never claim retained-corpus validation."""
+
+import copy
+import importlib.util
+from datetime import UTC, datetime
+from pathlib import Path
+from types import SimpleNamespace
+from uuid import uuid4
+
+import pytest
+
+ROOT = Path(__file__).resolve().parents[3]
+SPEC = importlib.util.spec_from_file_location(
+    "validate_pursuit_research", ROOT / "scripts" / "validate_pursuit_research.py"
+)
+assert SPEC and SPEC.loader
+harness = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(harness)
+
+
+def manifest():
+    return {
+        "schema_version": 1,
+        "kind": "fixture",
+        "corpus_id": "offline-mechanics-only",
+        "database_name": "gl3_isolated_harness_fixture",
+        "isolated_database": True,
+        "cases": [
+            {
+                "category": category,
+                "need_id": str(uuid4()),
+                "selection_reason": "Explicit controlled fixture",
+            }
+            for category in sorted(harness.CATEGORIES)
+        ],
+    }
+
+
+def snapshot():
+    return {
+        "database_name": "gl3_isolated_harness_fixture",
+        "alembic_revision": "0014",
+        "immutable_tables": {
+            "evidence": {"count": 1, "sha256": "baseline", "rows": {"old": "unchanged-hash"}},
+            "pursuit_call_notes": {"count": 0, "sha256": "empty", "rows": {}},
+        },
+        "identities": {"projects": ["project"], "power_needs": ["need"]},
+    }
+
+
+def test_manifest_requires_all_five_categories_and_explicit_distinct_ids(tmp_path):
+    value = manifest()
+    assert harness.validate_manifest(value, tmp_path)["retained_provenance_verified"] is False
+    value["cases"][1]["need_id"] = value["cases"][0]["need_id"]
+    with pytest.raises(ValueError, match="distinct"):
+        harness.validate_manifest(value, tmp_path)
+    value = manifest()
+    value["cases"][0]["category"] = "synthetic_substitute"
+    with pytest.raises(ValueError, match="five required"):
+        harness.validate_manifest(value, tmp_path)
+
+
+@pytest.mark.parametrize("database", ["gridlens", "gridlens_test", "postgres"])
+def test_runtime_and_shared_test_databases_cannot_be_validation_targets(tmp_path, database):
+    value = manifest()
+    value["database_name"] = database
+    with pytest.raises(ValueError, match="isolated"):
+        harness.validate_manifest(value, tmp_path)
+
+
+def test_retained_label_requires_actual_original_backup_hash(tmp_path):
+    backup = tmp_path / "substitute.dump"
+    backup.write_bytes(b"fixture is not the original retained database")
+    value = manifest()
+    value["kind"] = "retained_pr23"
+    value["provenance"] = {"backup_path": backup.name, "backup_sha256": harness.PR23_BACKUP}
+    with pytest.raises(ValueError, match="backup hash"):
+        harness.validate_manifest(value, tmp_path)
+
+
+def test_baseline_files_cannot_be_silently_replaced(tmp_path):
+    path = tmp_path / "baseline.json"
+    harness.write_once(path, {"immutable": "baseline"})
+    with pytest.raises(FileExistsError):
+        harness.write_once(path, {"immutable": "overwritten"})
+    assert "baseline" in path.read_text()
+
+
+def test_preservation_allows_additions_but_detects_historical_mutation_or_missing_identity():
+    before = snapshot()
+    after = copy.deepcopy(before)
+    after["immutable_tables"]["evidence"]["rows"]["new"] = "new-hash"
+    assert harness.preservation(before, after)["passed"]
+    after["immutable_tables"]["evidence"]["rows"]["old"] = "mutated"
+    assert not harness.preservation(before, after)["passed"]
+    after = copy.deepcopy(before)
+    after["identities"]["projects"] = []
+    assert not harness.preservation(before, after)["passed"]
+
+
+@pytest.mark.parametrize("bad_replay", [False, True])
+def test_full_harness_offline_fixture_receipts_and_duplicate_replay_failure(
+    monkeypatch, bad_replay
+):
+    from gridlens.ingestion import registry
+    from gridlens.intelligence import commercial_evaluation, pursuit_questions
+    from gridlens.jobs import worker
+    from gridlens.persistence import database
+    from gridlens.persistence.models import Job, Pursuit, PursuitResearchQuestion
+
+    value = manifest()
+    cases = [
+        {
+            **case,
+            "card": {
+                "id": case["need_id"],
+                "disposition": "RESEARCH",
+                "tier": "Signal",
+                "input_hash": "same",
+            },
+        }
+        for case in value["cases"]
+    ]
+    store = {"questions": [], "jobs": []}
+    planned = 0
+
+    class Session:
+        def __enter__(self):
+            self.saved = copy.deepcopy(store)
+            return self
+
+        def __exit__(self, *_):
+            return False
+
+        def flush(self):
+            pass
+
+        def rollback(self):
+            store.update(copy.deepcopy(self.saved))
+
+        def scalars(self, statement):
+            entity = statement.column_descriptions[0]["entity"]
+            if entity is Job:
+                return [job.id for job in store["jobs"] if job.status == "queued"]
+            if entity is PursuitResearchQuestion:
+                return store["questions"]
+            assert entity is Pursuit
+            return []
+
+    class Sessions:
+        def __call__(self):
+            return Session()
+
+        def begin(self):
+            return Session()
+
+    def schedule(_session, cards, **kwargs):
+        nonlocal planned
+        assert kwargs["origin"] == "validation"
+        planned += 1
+        if planned > 1 and not bad_replay:
+            return []
+        rows = []
+        for card in cards:
+            qid = uuid4()
+            row = SimpleNamespace(
+                id=qid,
+                need_id=card["id"],
+                pursuit_id=uuid4(),
+                created_at=datetime.now(UTC),
+                completed_at=None,
+                attempt_count=0,
+                status="QUEUED",
+                context={"origin": "validation"},
+                receipt={},
+            )
+            rows.append(row)
+            store["questions"].append(row)
+            store["jobs"].append(SimpleNamespace(id=uuid4(), status="queued"))
+        return rows
+
+    def run(_definitions, *, job_ids):
+        assert set(job_ids) <= {job.id for job in store["jobs"]}
+        for row in store["questions"]:
+            row.status, row.attempt_count, row.completed_at = "UNRESOLVED", 1, datetime.now(UTC)
+            row.receipt = {
+                "cost_usd": "0",
+                "runtime_seconds": 0.1,
+                "source_checks": [
+                    {
+                        "url": "https://fixture.invalid/document",
+                        "disposition": "UNRESOLVED",
+                        "retrieved_at": datetime.now(UTC).isoformat(),
+                    }
+                ],
+            }
+        for job in store["jobs"]:
+            job.status = "succeeded"
+        return True
+
+    def replay(_session):
+        return {"questions": sorted(str(row.id) for row in store["questions"])}
+
+    monkeypatch.setattr(database, "SessionLocal", Sessions())
+    monkeypatch.setattr(registry, "load_registry", lambda: [])
+    monkeypatch.setattr(pursuit_questions, "schedule_questions", schedule)
+    monkeypatch.setattr(
+        pursuit_questions,
+        "question_view",
+        lambda row: {
+            "id": str(row.id),
+            "need_id": row.need_id,
+            "status": row.status,
+            "receipt": row.receipt,
+        },
+    )
+    monkeypatch.setattr(
+        commercial_evaluation,
+        "evaluate_target",
+        lambda _s, need: next(case["card"] for case in cases if case["need_id"] == str(need)),
+    )
+    monkeypatch.setattr(worker, "run_one", run)
+    monkeypatch.setattr(harness, "database_snapshot", lambda _session: snapshot())
+    monkeypatch.setattr(harness, "selected_cases", lambda *_, **__: cases)
+    monkeypatch.setattr(harness, "replay_state", replay)
+    monkeypatch.setattr(harness, "candidate_identity", lambda: {"commit": "fixture"})
+    baseline = {
+        "snapshot": snapshot(),
+        "execution_limits": harness.execution_limits(value),
+        "replay_state": replay(None),
+        "cases": cases,
+        "provenance": {"retained_provenance_verified": False},
+    }
+    report = harness.execute_cases(value, baseline)
+    assert report["mechanical_gates_passed"] is not bad_replay
+    assert report["retained_corpus_proof"] is False
+    assert len(report["cases"]) == 5
+    assert len(store["questions"]) == 5  # Failed dry replay rolls back its new jobs/questions.
+    assert report["metrics"]["attempted_question_origins"] == {"validation": 5}
+    assert report["preservation"]["passed"]
+
+
+def test_old_evaluation_versions_must_survive_research_unchanged():
+    before = {"evaluations": {"pursuit": {"versions": [{"version": 1, "input_hash": "old"}]}}}
+    after = copy.deepcopy(before)
+    after["evaluations"]["pursuit"]["versions"].append({"version": 2, "input_hash": "new"})
+    assert harness.evaluation_history_preserved(before, after)
+    after["evaluations"]["pursuit"]["versions"][0]["input_hash"] = "rewritten"
+    assert not harness.evaluation_history_preserved(before, after)
+
+
+@pytest.mark.parametrize("disposition", ["FAILED", "SKIPPED", "UNAVAILABLE", "UNRESOLVED"])
+def test_route_selection_or_failure_without_retrieval_cannot_pass_investigation(disposition):
+    assert not harness.investigation_completed(
+        {
+            "status": "UNRESOLVED",
+            "receipt": {
+                "source_checks": [
+                    {"url": "https://fixture.invalid/doc", "disposition": disposition}
+                ]
+            },
+        }
+    )
+
+
+def test_completed_zero_result_discovery_is_bounded_unresolved_proof():
+    assert harness.investigation_completed(
+        {"status": "UNRESOLVED", "receipt": {"queries_searched": ['"Exact project" contractor']}}
+    )
+    assert not harness.investigation_completed(
+        {"status": "UNRESOLVED", "receipt": {"queries_attempted": ['"Exact project" contractor']}}
+    )
+
+
+def test_aggregate_budget_requires_explicit_paid_cohort_ceiling(monkeypatch):
+    from decimal import Decimal
+
+    from gridlens.settings import settings
+
+    value = manifest()
+    monkeypatch.setattr(settings, "autonomous_research_max_cost_usd", Decimal("0.10"))
+    with pytest.raises(ValueError, match="cost bound"):
+        harness.execution_limits(value)
+    value["run_budget"] = {"max_total_cost_usd": "2", "max_wall_clock_seconds": 3600}
+    limits = harness.execution_limits(value)
+    assert limits["configured_reserved_cost_bound_usd"] == "2.00"
+    value["run_budget"]["max_total_cost_usd"] = "NaN"
+    with pytest.raises(ValueError, match="Run budget"):
+        harness.execution_limits(value)

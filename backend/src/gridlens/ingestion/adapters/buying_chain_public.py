@@ -107,9 +107,7 @@ def parse_document(url: str, body: bytes, content_type: str) -> PublicDocument:
     published = None
     # Calendars, conference listings and generic page dates are not publication
     # evidence and must not refresh an archived person's employment claim.
-    for node in soup.select(
-        'meta[property="article:published_time"],[itemprop~="datePublished"]'
-    ):
+    for node in soup.select('meta[property="article:published_time"],[itemprop~="datePublished"]'):
         published = _date(node.get("content") or node.get("datetime"))
         if published:
             break
@@ -151,7 +149,9 @@ def parse_document(url: str, body: bytes, content_type: str) -> PublicDocument:
     )
 
 
-def retrieve(url: str, *, deadline: float | None = None) -> PublicDocument:
+def retrieve(
+    url: str, *, deadline: float | None = None, max_bytes: int = MAX_BYTES
+) -> PublicDocument:
     remaining_seconds(deadline)
     url = validate_public_url(url)
     host = urlsplit(url).hostname
@@ -169,7 +169,7 @@ def retrieve(url: str, *, deadline: float | None = None) -> PublicDocument:
         headers, body = read_bounded_response(
             client,
             str(pinned),
-            MAX_BYTES,
+            min(max_bytes, MAX_BYTES),
             extensions={"sni_hostname": host},
             deadline=deadline,
         )

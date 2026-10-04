@@ -449,6 +449,29 @@ class PursuitDocument(Base):
     source: Mapped[dict[str, Any]] = mapped_column(JSONB)
 
 
+class PursuitResearchQuestion(Base):
+    """One bounded attempt with immutable input context and an inspectable receipt."""
+
+    __tablename__ = "pursuit_research_questions"
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    pursuit_id: Mapped[UUID] = mapped_column(ForeignKey("pursuits.id"), index=True)
+    project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id"))
+    need_id: Mapped[UUID] = mapped_column(ForeignKey("power_needs.id"), index=True)
+    parent_id: Mapped[UUID | None] = mapped_column(ForeignKey("pursuit_research_questions.id"))
+    category: Mapped[str] = mapped_column(String(30))
+    question: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(30), default="QUEUED")
+    attempt_count: Mapped[int] = mapped_column(Integer, default=0)
+    query_fingerprint: Mapped[str] = mapped_column(String(64))
+    evidence_fingerprint: Mapped[str] = mapped_column(String(64))
+    context: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    budget: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    receipt: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    retry_after: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
 class PursuitResearchRun(Base):
     __tablename__ = "pursuit_research_runs"
     id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)

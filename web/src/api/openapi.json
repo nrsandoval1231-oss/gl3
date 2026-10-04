@@ -854,6 +854,94 @@
         }
       }
     },
+    "/api/commercial/triage/{need_id}/autonomous-research": {
+      "get": {
+        "summary": "Autonomous Research Status",
+        "operationId": "autonomous_research_status_api_commercial_triage__need_id__autonomous_research_get",
+        "parameters": [
+          {
+            "name": "need_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Need Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutonomousResearchOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Request Autonomous Research",
+        "operationId": "request_autonomous_research_api_commercial_triage__need_id__autonomous_research_post",
+        "parameters": [
+          {
+            "name": "need_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Need Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AutonomousResearchBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AutonomousResearchOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/commercial/triage/history": {
       "get": {
         "summary": "Commercial Triage History",
@@ -1016,6 +1104,33 @@
   },
   "components": {
     "schemas": {
+      "AutonomousResearchBody": {
+        "properties": {
+          "force": {
+            "type": "boolean",
+            "title": "Force",
+            "default": false
+          }
+        },
+        "type": "object",
+        "title": "AutonomousResearchBody"
+      },
+      "AutonomousResearchOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ResearchQuestionOut"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items"
+        ],
+        "title": "AutonomousResearchOut"
+      },
       "BriefCitationOut": {
         "properties": {
           "evidence_id": {
@@ -1830,6 +1945,11 @@
       },
       "CommercialTriageCard": {
         "properties": {
+          "research_state": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Research State"
+          },
           "id": {
             "type": "string",
             "format": "uuid",
@@ -2697,6 +2817,16 @@
       },
       "CommercialTriageOut": {
         "properties": {
+          "research_overview": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ResearchOverviewOut"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "evaluated_at": {
             "type": "string",
             "format": "date-time",
@@ -4719,6 +4849,742 @@
           "queued"
         ],
         "title": "RefreshOut"
+      },
+      "ResearchChangeOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "pursuit_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Pursuit Id"
+          },
+          "need_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Need Id"
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id"
+          },
+          "version": {
+            "type": "integer",
+            "title": "Version"
+          },
+          "evaluated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evaluated At"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "before": {
+            "type": "string",
+            "title": "Before"
+          },
+          "after": {
+            "type": "string",
+            "title": "After"
+          },
+          "before_tier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Before Tier"
+          },
+          "after_tier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "After Tier"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "next_action": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Action"
+          },
+          "new_evidence": {
+            "items": {
+              "$ref": "#/components/schemas/CommercialTriageFact"
+            },
+            "type": "array",
+            "title": "New Evidence"
+          },
+          "question_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Question Ids"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "pursuit_id",
+          "need_id",
+          "project_id",
+          "version",
+          "name",
+          "before",
+          "after"
+        ],
+        "title": "ResearchChangeOut"
+      },
+      "ResearchContextOut": {
+        "properties": {
+          "route_plan": {
+            "items": {
+              "$ref": "#/components/schemas/ResearchRouteOut"
+            },
+            "type": "array",
+            "title": "Route Plan"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "ResearchContextOut"
+      },
+      "ResearchMetricsOut": {
+        "properties": {
+          "blockers_attempted": {
+            "type": "integer",
+            "title": "Blockers Attempted",
+            "default": 0
+          },
+          "blocker_statuses": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Blocker Statuses"
+          },
+          "commercial_transitions": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Commercial Transitions"
+          },
+          "evidence_tier_transitions": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Evidence Tier Transitions"
+          }
+        },
+        "additionalProperties": true,
+        "type": "object",
+        "title": "ResearchMetricsOut"
+      },
+      "ResearchOverviewOut": {
+        "properties": {
+          "since": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Since"
+          },
+          "summary": {
+            "$ref": "#/components/schemas/ResearchMetricsOut"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ResearchChangeOut"
+            },
+            "type": "array",
+            "title": "Items"
+          }
+        },
+        "type": "object",
+        "required": [
+          "summary"
+        ],
+        "title": "ResearchOverviewOut"
+      },
+      "ResearchQuestionOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id"
+          },
+          "need_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Need Id"
+          },
+          "pursuit_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Pursuit Id"
+          },
+          "category": {
+            "type": "string",
+            "title": "Category"
+          },
+          "question": {
+            "type": "string",
+            "title": "Question"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "attempt_count": {
+            "type": "integer",
+            "title": "Attempt Count"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "completed_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Completed At"
+          },
+          "retry_after": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retry After"
+          },
+          "query_fingerprint": {
+            "type": "string",
+            "title": "Query Fingerprint"
+          },
+          "evidence_fingerprint": {
+            "type": "string",
+            "title": "Evidence Fingerprint"
+          },
+          "context": {
+            "$ref": "#/components/schemas/ResearchContextOut"
+          },
+          "budget": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Budget"
+          },
+          "receipt": {
+            "$ref": "#/components/schemas/ResearchReceiptOut"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "project_id",
+          "need_id",
+          "pursuit_id",
+          "category",
+          "question",
+          "status",
+          "attempt_count",
+          "created_at",
+          "completed_at",
+          "retry_after",
+          "query_fingerprint",
+          "evidence_fingerprint",
+          "context",
+          "budget",
+          "receipt"
+        ],
+        "title": "ResearchQuestionOut"
+      },
+      "ResearchReceiptOut": {
+        "properties": {
+          "route_results": {
+            "items": {
+              "$ref": "#/components/schemas/ResearchRouteOut"
+            },
+            "type": "array",
+            "title": "Route Results"
+          },
+          "source_checks": {
+            "items": {
+              "$ref": "#/components/schemas/ResearchSourceCheckOut"
+            },
+            "type": "array",
+            "title": "Source Checks"
+          },
+          "resulting_evidence_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Resulting Evidence Ids"
+          },
+          "queries_generated": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Queries Generated"
+          },
+          "queries_attempted": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Queries Attempted"
+          },
+          "queries_searched": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Queries Searched"
+          },
+          "acquisition_limitations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Acquisition Limitations"
+          },
+          "reevaluation_status": {
+            "type": "string",
+            "title": "Reevaluation Status",
+            "default": "NOT_STARTED"
+          },
+          "next_action": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Action"
+          },
+          "before": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Before"
+          },
+          "after": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "After"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "tier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tier"
+          },
+          "remaining_blockers": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Remaining Blockers"
+          },
+          "runtime_seconds": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Runtime Seconds"
+          },
+          "searches": {
+            "type": "integer",
+            "title": "Searches",
+            "default": 0
+          },
+          "retrieval_attempts": {
+            "type": "integer",
+            "title": "Retrieval Attempts",
+            "default": 0
+          },
+          "model_calls": {
+            "type": "integer",
+            "title": "Model Calls",
+            "default": 0
+          },
+          "cost_usd": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Usd"
+          },
+          "reserved_cost_usd": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reserved Cost Usd"
+          }
+        },
+        "type": "object",
+        "title": "ResearchReceiptOut"
+      },
+      "ResearchRouteOut": {
+        "properties": {
+          "query": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Query"
+          },
+          "kind": {
+            "type": "string",
+            "title": "Kind"
+          },
+          "family": {
+            "type": "string",
+            "title": "Family"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "source_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Id"
+          },
+          "external_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "External Id"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "family",
+          "status"
+        ],
+        "title": "ResearchRouteOut"
+      },
+      "ResearchSourceCheckOut": {
+        "properties": {
+          "event_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Event Date"
+          },
+          "match_basis": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Match Basis"
+          },
+          "evidence_url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence Url"
+          },
+          "claim_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Claim Type"
+          },
+          "publisher": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Publisher"
+          },
+          "extraction_location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Extraction Location"
+          },
+          "checked_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Checked At"
+          },
+          "cache_reused": {
+            "type": "boolean",
+            "title": "Cache Reused",
+            "default": false
+          },
+          "duplicate": {
+            "type": "boolean",
+            "title": "Duplicate",
+            "default": false
+          },
+          "url": {
+            "type": "string",
+            "title": "Url"
+          },
+          "disposition": {
+            "type": "string",
+            "title": "Disposition"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "evidence_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence Id"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "excerpt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Excerpt"
+          },
+          "published_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Published At"
+          },
+          "retrieved_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retrieved At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "url",
+          "disposition",
+          "reason"
+        ],
+        "title": "ResearchSourceCheckOut"
       },
       "SessionOut": {
         "properties": {

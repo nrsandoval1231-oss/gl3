@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import re
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
 
 _POWER = re.compile(
     r"(?P<low>\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?)\s*(?P<unit>kW|MW)?"
@@ -51,13 +51,22 @@ def commercial_size_status(
 ) -> str:
     """Return below_floor, at_or_above_floor, or unknown from in-scope evidence only."""
     if required_mw is not None:
-        try:
-            value = Decimal(required_mw)
-            if value.is_finite() and value >= 0:
-                return "below_floor" if value < _FLOOR_MW else "at_or_above_floor"
-        except (InvalidOperation, ValueError):
+        # required_mw is already an admitted activity quantity. Preserve its units
+        # and interval; qualifiers and arbitrary prose never become exact loads.
+        match = _POWER.fullmatch(required_mw.strip())
+        if match is None:
             return "unknown"
-        return "unknown"
+        low_unit = (match["unit"] or match["highunit"] or "mw").casefold()
+        high_unit = (match["highunit"] or match["unit"] or "mw").casefold()
+        low = Decimal(match["low"].replace(",", "")) * (Decimal("0.001") if low_unit == "kw" else 1)
+        high = Decimal((match["high"] or match["low"]).replace(",", "")) * (
+            Decimal("0.001") if high_unit == "kw" else 1
+        )
+        if high < low:
+            return "unknown"
+        if high < _FLOOR_MW:
+            return "below_floor"
+        return "at_or_above_floor" if low >= _FLOOR_MW else "unknown"
 
     facts = list(reported_power_facts)
     if supported_action and re.search(r"\bgenerator\s+replacement\b", supported_action, re.I):

@@ -116,6 +116,29 @@ def _retained_evidence_current_for_project(
     source = session.get(Source, observation.source_id)
     if source is None:
         return False
+    if assessment.get("admission_status") == "relationship_supplement":
+        # Relationship documents do not support power/activity projection. Recheck
+        # their exact project binding and explicit organization role on retained
+        # text before using them for the buying chain.
+        document = PublicDocument(
+            evidence.url,
+            evidence.title,
+            evidence.abstract or "",
+            evidence.published_at,
+            evidence.observed_at,
+            evidence.extraction_location,
+        )
+        return (
+            interpretation.status == "accepted"
+            and interpretation.evaluator_version == "research-relationship-v2"
+            and "power_activity" not in assessment
+            and "activity_key" not in assessment
+            and project_document_match(project, document)[0]
+            and any(
+                item.organization_relationship == "DIRECT"
+                for item in extract_organizations(document, project)
+            )
+        )
     if admitted_from_source(source, assessment, evidence).admitted:
         return True
     # Only `_attach_news_supplement` writes this status, after attaching the
@@ -371,6 +394,7 @@ def enrich_buying_chain(
     source_urls: list[str] | None = None,
     fetcher: Callable[[str], PublicDocument] = retrieve,
     now: datetime | None = None,
+    retained_only: bool = False,
 ) -> dict:
     now = now or datetime.now(UTC)
     # Lock one project during this bounded pass to serialize replay without another queue.
@@ -485,6 +509,8 @@ def enrich_buying_chain(
     checked_urls: set[str] = set()
     retrieval_failed = False
     # Network budget is independent of retained-document count.
+    if retained_only:
+        urls = []
     while urls and len(checked_urls) < MAX_DOCUMENTS and len(documents) < MAX_DOCUMENTS:
         if time.monotonic() - started >= MAX_SECONDS:
             retrieval_failed = True
@@ -508,7 +534,7 @@ def enrich_buying_chain(
             retrieval_failed = True
             # Never include exception text, credentials, response bodies or stack traces in API.
             unresolved.append(f"Public retrieval unavailable for {url}: {type(exc).__name__}.")
-    if project.source_id == "houston-weekly-permits":
+    if project.source_id == "houston-weekly-permits" and not retained_only:
         retained_permit_doc = next(
             (doc for doc, _, _, retained_id in documents if retained_id is not None), None
         )
@@ -557,12 +583,14 @@ def enrich_buying_chain(
             except Exception as exc:
                 retrieval_failed = True
                 unresolved.append(f"Exact Houston permit detail unavailable: {type(exc).__name__}.")
-    research_incomplete = retrieval_failed or bool(urls)
+    research_incomplete = retained_only or retrieval_failed or bool(urls)
     if urls:
         unresolved.append(
             "Public research reached its time or document bound; some sources remain unchecked."
         )
-    retrieved_by_url = {doc.url: doc for doc, _, _, retained_id in documents if retained_id is None}
+    retrieved_by_url = {
+        doc.url: doc for doc, _, _, retained_id in documents if retained_id is None or retained_only
+    }
     organizations: list[Extracted] = []
     saved: dict[str, BuyingChainEvidence] = {}
     for doc, matched, reason, retained_id in documents:
@@ -816,7 +844,8 @@ def enrich_buying_chain(
                 return []
 
             checked = {
-                source.url: source for source in saved.values()
+                source.url: source
+                for source in saved.values()
                 if source.id != prior_versions.get(source.url)
             }
             causes: dict[UUID, BuyingChainEvidence] = {}
@@ -827,9 +856,11 @@ def enrich_buying_chain(
                     if not citation.get("current_support"):
                         continue
                     source = session.get(BuyingChainEvidence, citation.get("id"))
-                    if source is not None and (
-                        current := checked.get(source.url)
-                    ) is not None and current.id == source.id:
+                    if (
+                        source is not None
+                        and (current := checked.get(source.url)) is not None
+                        and current.id == source.id
+                    ):
                         causes[source.id] = source
             for row in before_rows:
                 if removed[semantic_key(row)] <= 0:
@@ -897,19 +928,9 @@ def buying_chain_view(
         if source.retained_evidence_id is None:
             return True
         original = session.get(Evidence, source.retained_evidence_id)
-        return bool(
-            original and _retained_evidence_current_for_project(session, project, original)
-        )
+        return bool(original and _retained_evidence_current_for_project(session, project, original))
 
-    selected = (
-        claims
-        if history
-        else [
-            row
-            for row in claims
-            if str(row.id) in current_claim_ids
-        ]
-    )
+    selected = claims if history else [row for row in claims if str(row.id) in current_claim_ids]
     candidates: list[dict[str, Any]] = []
     for claim in selected:
         evidence = []
@@ -1088,9 +1109,7 @@ def buying_chain_view(
                         for contact in claim.public_contacts
                         if (contact.get("source_url"), contact.get("quote")) in current_contacts
                     ]
-                    if invalid_supports
-                    and not history
-                    and (not claim.person_name or role_support)
+                    if invalid_supports and not history and (not claim.person_name or role_support)
                     else []
                     if invalid_supports and not history
                     else claim.public_contacts

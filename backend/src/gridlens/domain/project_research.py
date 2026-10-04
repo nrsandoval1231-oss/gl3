@@ -1,0 +1,314 @@
+"""Explicit project research claims; no qualification, lifecycle inference or I/O."""
+
+from __future__ import annotations
+
+import re
+from datetime import date, timedelta
+from decimal import Decimal
+from typing import Any
+
+VERSION = "project-research-claims-v2"
+FIELDS = (
+    "phase",
+    "permanent_service",
+    "supply_adequacy",
+    "temporary_supply",
+    "activity_load_mw",
+    "activity_start",
+)
+_PHASES = (
+    ("cancelled", r"(?:project|development|facility) (?:is |was |has been )?cancel(?:led|ed)"),
+    ("completed", r"(?:project|development|facility) (?:is |was |has been )?completed"),
+    (
+        "paused",
+        r"(?:project|construction|development) (?:is |was |has been )?(?:paused|suspended|on hold)",
+    ),
+    ("commissioning", r"commissioning (?:is (?:currently )?underway|has (?:begun|started)|began)"),
+    (
+        "electrical_buildout",
+        r"electrical (?:rough[ -]in|buildout|installation) "
+        r"(?:is (?:currently )?underway|has begun)",
+    ),
+    (
+        "production_infrastructure_under_construction",
+        r"production infrastructure (?:is (?:currently )?under construction|is being built)",
+    ),
+    ("drilling_completed", r"drilling (?:is complete|has been completed|was completed)"),
+    (
+        "production_started",
+        r"production (?:has (?:begun|started)|is (?:currently )?underway|began)",
+    ),
+    (
+        "construction_active",
+        r"(?:construction|site work) (?:is (?:currently )?underway|has (?:begun|started)|began)|"
+        r"(?:began|started) construction",
+    ),
+)
+_AMBIGUOUS = re.compile(
+    r"\b(?:may|might|could|possibly|reportedly|rumou?red|expected|proposed|not|never)\b", re.I
+)
+_CONTEXTUAL = re.compile(
+    r"\b(?:hypothetical|illustrative|example|historical|historically|previously|formerly|"
+    r"conditional|superseded|quotation|quoted|template|sample|fictional|synthetic|"
+    r"if|unless|assuming|assume|would|prior|previous|archived|draft)\b",
+    re.I,
+)
+_SCOPES = {
+    "facility-expansion": ("construction",),
+    "electrical-construction": ("construction", "electrical construction"),
+    "construction": ("construction",),
+    "construction-power": ("construction",),
+    "temporary-power": ("temporary power", "construction power"),
+    "commissioning-power": ("commissioning",),
+    "commissioning": ("commissioning",),
+    "production-power": ("production",),
+    "production-electrification": ("production",),
+}
+
+
+def _normal(value: str) -> str:
+    return re.sub(r"[^a-z0-9]+", " ", value.casefold()).strip()
+
+
+def _subject_predicate(clause: str, references: list[str]) -> str | None:
+    """Require the retained project itself to be the grammatical subject.
+
+    A project mentioned in a comparison, quotation, contractor report or another
+    project's sentence cannot lend its identity to that sentence's predicate.
+    Only an optional second exact retained reference (the site address) can sit
+    between the named subject and the supported predicate.
+    """
+    refs = sorted(
+        {ref.strip() for ref in references if len(_normal(ref).split()) >= 2},
+        key=len,
+        reverse=True,
+    )
+    reference = "(?:" + "|".join(re.escape(ref) for ref in refs) + ")"
+    if not refs:
+        return None
+    match = re.fullmatch(rf"{reference}(?: at {reference})?\s+(.+?)[.!?]?", clause.strip(), re.I)
+    if not match:
+        return None
+    predicate = match[1].strip()
+    predicate = re.sub(r"\s+as of \d{4}-\d{2}-\d{2}$", "", predicate, flags=re.I)
+    return predicate
+
+
+def extract_project_claims(
+    text: str,
+    *,
+    references: list[str],
+    activity_key: str,
+    published_at: date | None,
+    today: date,
+) -> list[dict[str, Any]]:
+    """Recognize affirmative exact-project clauses with explicit temporal provenance.
+
+    Public claims are source reports only. In particular, MW values here do not
+    mutate PowerNeed.required_mw and cannot meet official qualification gates.
+    """
+    # A current publication date cannot make a historical/example section current.
+    # Unsupported document-level framing stays unknown instead of borrowing dates.
+    if _CONTEXTUAL.search(text):
+        return []
+    result: list[dict[str, Any]] = []
+    for match in re.finditer(r"[^\n]+?(?:[.!?](?=\s|$)|$)", text):
+        quote = match.group().strip()
+        if not quote or len(quote) > 1200:
+            continue
+        predicate = _subject_predicate(quote, references)
+        if predicate is None:
+            continue
+        stamp = re.search(r"\bas of (\d{4}-\d{2}-\d{2})\b", quote, re.I)
+        try:
+            as_of = date.fromisoformat(stamp[1]) if stamp else published_at
+        except ValueError:
+            continue
+        if as_of is None or as_of > today:
+            continue
+
+        metadata = {
+            "activity_key": activity_key,
+            "as_of": as_of.isoformat(),
+            "date_basis": "explicit_as_of" if stamp else "publication_date",
+            "quote": quote,
+            "extraction_location": f"retrieved text chars {match.start()}:{match.end()}",
+            "value_kind": "Reported",
+        }
+
+        def add(field: str, value: str, *, metadata: dict = metadata, **extra: Any) -> None:
+            claim = {"field": field, "value": value, **metadata, **extra}
+            if claim not in result:
+                result.append(claim)
+
+        ambiguous = bool(_AMBIGUOUS.search(quote))
+        if not ambiguous and not re.search(
+            r"\b(?:will|planned|scheduled|permit|approval)\b", quote, re.I
+        ):
+            for phase, pattern in _PHASES:
+                if re.fullmatch(pattern, predicate, re.I):
+                    add("phase", phase)
+        service = r"(?:permanent (?:utility )?(?:power|service)|utility service)"
+        if not ambiguous:
+            if re.fullmatch(service + r"\s+(?:is |has been )energized", predicate, re.I):
+                add("permanent_service", "energized")
+            if re.fullmatch(
+                service + r"\s+(?:is |remains )(?:pending|delayed|unavailable)", predicate, re.I
+            ):
+                add("permanent_service", "pending")
+        scopes = _SCOPES.get(activity_key, (activity_key.replace("-", " "),))
+        scope = next(
+            (scope for scope in scopes if re.search(r"\b" + re.escape(scope) + r"\b", quote, re.I)),
+            None,
+        )
+        if not scope:
+            continue
+        # Multiple activity subjects in a single clause are ambiguous: do not
+        # transfer one activity's load or supply to another activity.
+        activity_words = {"construction", "commissioning", "production"}
+        if any(
+            re.search(r"\b" + word + r"\b", quote, re.I)
+            for word in activity_words
+            if word not in scope
+        ):
+            continue
+        # Negation is interpreted only in the exact supported supply expression;
+        # it never makes an ambiguous load or future stage affirmative.
+        if not _AMBIGUOUS.search(re.sub(r"\bnot adequate\b", "inadequate", quote, flags=re.I)):
+            supply_predicate = re.fullmatch(
+                re.escape(scope) + r" (?:power|service|supply) (?:is |remains )"
+                r"(insufficient|inadequate|not adequate|adequate|sufficient)"
+                r"(?: but (?:power|service|supply) (?:is |remains )"
+                r"(insufficient|inadequate|not adequate|adequate|sufficient))?",
+                predicate,
+                re.I,
+            )
+            if supply_predicate:
+                for supplied in supply_predicate.groups():
+                    if supplied:
+                        value = (
+                            "adequate"
+                            if supplied.lower() in {"adequate", "sufficient"}
+                            else "insufficient"
+                        )
+                        add("supply_adequacy", value, reported_activity=scope)
+        if not ambiguous:
+            for value, pattern in (
+                ("utility", r"temporary (?:power|service) is utility[- ]fed"),
+                ("generator", r"temporary (?:power|service) is generator[- ]fed"),
+            ):
+                if re.fullmatch(re.escape(scope) + " " + pattern, predicate, re.I):
+                    add("temporary_supply", value, reported_activity=scope)
+            if not re.search(
+                r"\b(?:campus|nameplate|eventual|total site|capacity|"
+                r"generator rating|backup rating)\b",
+                quote,
+                re.I,
+            ):
+                load = re.fullmatch(
+                    re.escape(scope)
+                    + r" (?:requires|needs|electrical load is)\s+(\d+(?:\.\d+)?)\s*(kW|MW)",
+                    predicate,
+                    re.I,
+                )
+                if load and Decimal(load[1]) > 0:
+                    mw = Decimal(load[1]) / (1000 if load[2].casefold() == "kw" else 1)
+                    add("activity_load_mw", format(mw.normalize(), "f"), reported_activity=scope)
+            start = re.fullmatch(
+                re.escape(scope)
+                + r" (?:starts|begins|is scheduled to (?:start|begin)) on (\d{4}-\d{2}-\d{2})",
+                predicate,
+                re.I,
+            )
+            if start:
+                try:
+                    planned = date.fromisoformat(start[1])
+                except ValueError:
+                    continue
+                add("activity_start", planned.isoformat(), reported_activity=scope, scheduled=True)
+    framing = text
+    # Only a supported sentence can own its terminal as-of date. A standalone
+    # dated heading must not lend the publication date to an undated assertion.
+    for quote in {claim["quote"] for claim in result}:
+        without_stamp = re.sub(
+            r"\s+as of \d{4}-\d{2}-\d{2}[.!?]?$", "", quote, flags=re.I
+        )
+        framing = framing.replace(quote, without_stamp)
+    if re.search(r"\bas of \d{4}-\d{2}-\d{2}\b", framing, re.I):
+        return []
+    for reference in references:
+        if reference:
+            framing = re.sub(re.escape(reference), "", framing, flags=re.I)
+    if any(int(year) < today.year for year in re.findall(r"\b(?:19|20)\d{2}\b", framing)):
+        return []
+    return result if len(result) <= 16 else []
+
+
+def unparsed_adverse_text(text: str, claims: list[dict]) -> str:
+    """Remove only recognized adverse phrases, never the surrounding clause.
+
+    A clause can contain both a supported positive and an unparsed negative;
+    retaining one does not authorize ignoring the other.
+    """
+    for quote in dict.fromkeys(claim["quote"] for claim in claims):
+        remainder = quote
+        for claim in (item for item in claims if item["quote"] == quote):
+            patterns: list[str] = []
+            if claim["field"] == "phase":
+                patterns = [pattern for value, pattern in _PHASES if value == claim["value"]]
+            elif claim["field"] == "permanent_service" and claim["value"] == "energized":
+                patterns = [
+                    r"(?:permanent (?:utility )?(?:power|service)|utility service)"
+                    r"\s+(?:is |has been )energized\b"
+                ]
+            elif claim["field"] == "supply_adequacy":
+                patterns = [
+                    r"(?:power|service|supply)\s+(?:is |remains )"
+                    r"(?:insufficient|inadequate|not adequate|adequate|sufficient)\b"
+                ]
+            for pattern in patterns:
+                remainder = re.sub(pattern, "", remainder, flags=re.I)
+        text = text.replace(quote, remainder)
+    return text
+
+
+def project_claim_state(claims: list[dict], *, today: date) -> dict[str, dict]:
+    """Conflicting current source versions remain conflicts; never latest-URL wins."""
+    grouped: dict[str, list[dict]] = {field: [] for field in FIELDS}
+    for claim in claims:
+        field = claim.get("field")
+        if field not in grouped:
+            continue
+        try:
+            dated = date.fromisoformat(claim["as_of"])
+        except (KeyError, ValueError, TypeError):
+            continue
+        persistent = claim.get("value") in {"completed", "cancelled", "adequate"}
+        if dated > today or (dated < today - timedelta(days=90) and not persistent):
+            continue
+        grouped[field].append(claim)
+    result = {}
+    for field, rows in grouped.items():
+        values = {row["value"] for row in rows}
+        result[field] = {
+            "status": "UNKNOWN" if not values else "SUPPORTED" if len(values) == 1 else "CONFLICT",
+            "value": next(iter(values)) if len(values) == 1 else None,
+            "claims": rows,
+        }
+    return result
+
+
+def qualification_veto(fields: dict[str, dict]) -> str | None:
+    if any(value.get("status") == "CONFLICT" for value in fields.values()):
+        return "Current exact-activity public evidence has unresolved conflicting claims"
+    phase = fields.get("phase", {})
+    if phase.get("status") == "SUPPORTED" and phase.get("value") in {
+        "paused",
+        "completed",
+        "cancelled",
+    }:
+        return "Current reported project phase does not support active qualification"
+    supply = fields.get("supply_adequacy", {})
+    if supply.get("status") == "SUPPORTED" and supply.get("value") == "adequate":
+        return "Current reported suitable supply is adequate for this exact activity"
+    return None

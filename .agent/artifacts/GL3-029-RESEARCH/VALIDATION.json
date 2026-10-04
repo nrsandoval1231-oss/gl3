@@ -1,0 +1,61 @@
+{
+  "status": "DRAFT_NOT_MERGE_READY_RETAINED_CORPUS_BLOCKED",
+  "publication_authorized_at": "2026-10-04T17:17:42Z",
+  "baseline_main": "6c8bdf3e3163adde078f8543d43c0256bc11eb82",
+  "branch": "feat/gl3-029-autonomous-pursuit-research",
+  "code_manifest_sha256": "6df8caa02aa730354c6215df241ef415164bbfe0ac7802af6c1d8bd57b982cd2",
+  "code_manifest_files": 237,
+  "backend": {
+    "passed": 995,
+    "skipped": 1,
+    "skip_reason": "Existing optional NC local-access-probe artifact absent",
+    "warnings": 1,
+    "seconds": 129.6,
+    "ruff": "PASS",
+    "mypy": "PASS",
+    "source_modules": 77
+  },
+  "frontend": {
+    "typecheck": "PASS",
+    "build": "PASS",
+    "audit_high": "PASS",
+    "vulnerabilities": 0,
+    "openapi_contract": "EXACT_MATCH"
+  },
+  "browser": {
+    "passed": 38,
+    "failed": 0,
+    "seconds": 46.0,
+    "data_kind": "synthetic",
+    "database": "gl3_synthetic_browser_11e476561701",
+    "retained_corpus_proof": false
+  },
+  "migrations": {
+    "checks_passed": 8,
+    "fixture_tables_preserved": 7,
+    "fixture_rows_preserved": 8,
+    "retained_corpus_preservation_proven": false
+  },
+  "independent_review": "Material findings repaired and independently reprobed; not overall acceptance",
+  "retained_corpus_cases_run": 0,
+  "live_source_smoke": {
+    "public_queries": 3,
+    "exact_adapter_documents": 2,
+    "cost_usd": 0,
+    "model_calls": 0,
+    "canonical_admissions": 0,
+    "database_writes": 0,
+    "retained_corpus_proof": false
+  },
+  "remaining_gaps": [
+    "Original PR23 corpus unavailable; five required retained cases and real yield/cost/replay measurements not executed",
+    "Firecrawl/OpenAI/TypeSafe access not configured; no paid/model calls",
+    "Bounded exact adapters Austin/Chicago; other unsupported families explicitly unavailable",
+    "Generic PDF extraction and RRC form-based retrieval unsupported; strict typed grammars deliberately leave other wording unknown",
+    "Existing synchronous DNS reader has soft wall-clock limitation"
+  ],
+  "pr_url": null,
+  "deployed": false,
+  "production_proven": false,
+  "external_commercial_outreach": false
+}
