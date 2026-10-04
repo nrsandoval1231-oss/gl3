@@ -334,6 +334,78 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/commercial/triage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Commercial Triage */
+        get: operations["commercial_triage_api_commercial_triage_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/commercial/triage/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Commercial Triage History
+         * @description Read evaluated Pursuit snapshots; never refreshes live facts or dispositions.
+         */
+        get: operations["commercial_triage_history_api_commercial_triage_history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/commercial/triage/evaluate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Evaluate Commercial Triage */
+        post: operations["evaluate_commercial_triage_api_commercial_triage_evaluate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/commercial/triage/{need_id}/research": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Commercial Research Status */
+        get: operations["commercial_research_status_api_commercial_triage__need_id__research_get"];
+        put?: never;
+        /** Research Commercial Need */
+        post: operations["research_commercial_need_api_commercial_triage__need_id__research_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -558,7 +630,7 @@ export interface components {
              * Outcome
              * @enum {string}
              */
-            outcome: "Not reached" | "Contacted" | "Needs follow-up" | "No requirement" | "Closed";
+            outcome: "Not reached" | "Contacted" | "Needs follow-up" | "Reached buying organization" | "Qualified" | "No requirement" | "Closed";
             /** Next Action */
             next_action: string;
             /** Follow Up */
@@ -577,7 +649,7 @@ export interface components {
              * Outcome
              * @enum {string}
              */
-            outcome: "Not reached" | "Contacted" | "Needs follow-up" | "No requirement" | "Closed";
+            outcome: "Not reached" | "Contacted" | "Needs follow-up" | "Reached buying organization" | "Qualified" | "No requirement" | "Closed";
             /** Next Action */
             next_action: string;
             /** Follow Up */
@@ -622,8 +694,334 @@ export interface components {
             /** Published At */
             published_at: string | null;
         };
+        /** CommercialResearchBody */
+        CommercialResearchBody: {
+            /** Question */
+            question: string;
+        };
+        /** CommercialResearchStatusOut */
+        CommercialResearchStatusOut: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "pending" | "ready" | "failed" | "superseded" | "not_requested";
+            /** Job Id */
+            job_id?: string | null;
+            /** Input Hash */
+            input_hash: string;
+            /** Generated At */
+            generated_at?: string | null;
+            /** Result */
+            result?: {
+                [key: string]: unknown;
+            } | null;
+            /** Citations */
+            citations?: {
+                [key: string]: unknown;
+            }[];
+            /** Error */
+            error?: string | null;
+        };
+        /** CommercialTriageCard */
+        CommercialTriageCard: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /** Related Project Ids */
+            related_project_ids?: string[];
+            /** Pursuit Id */
+            pursuit_id?: string | null;
+            /** Name */
+            name: string;
+            /** Location */
+            location: string | null;
+            /** Tier */
+            tier: string;
+            /** Activity */
+            activity: string;
+            /** Industry */
+            industry: string;
+            /** Related Need Ids */
+            related_need_ids?: string[];
+            /** Related Need States */
+            related_need_states?: components["schemas"]["CommercialTriageNeedState"][];
+            /** Disposition */
+            disposition: string;
+            /** Reason */
+            reason: string;
+            /** Required Mw */
+            required_mw: string | null;
+            /** Start Window */
+            start_window: string | null;
+            /** Duration */
+            duration: string | null;
+            /** Supply */
+            supply: string;
+            stage: components["schemas"]["CommercialTriageStage"];
+            /** Lifecycle Timeline */
+            lifecycle_timeline?: components["schemas"]["CommercialTriageLifecycleEvent"][];
+            /** Organization */
+            organization: string | null;
+            /** Organization Role */
+            organization_role: string | null;
+            /** Contacts */
+            contacts?: components["schemas"]["CommercialTriageContact"][];
+            /** Facts */
+            facts?: components["schemas"]["CommercialTriageFact"][];
+            /** Hypothesis */
+            hypothesis: string | null;
+            /** Unknowns */
+            unknowns?: string[];
+            /** Blockers */
+            blockers?: string[];
+            /** Next Question */
+            next_question: string;
+            /** Next Action */
+            next_action: string;
+            /** Watch */
+            watch?: {
+                [key: string]: unknown;
+            } | null;
+            /** Sources */
+            sources?: components["schemas"]["CommercialTriageFact"][];
+            /** Conflict State */
+            conflict_state: string | null;
+            /** Input Hash */
+            input_hash: string;
+            /** Notes */
+            notes?: components["schemas"]["CallNoteOut"][];
+        };
+        /** CommercialTriageContact */
+        CommercialTriageContact: {
+            /** Organization */
+            organization: string | null;
+            /** Person */
+            person: string | null;
+            /** Role */
+            role: string | null;
+            /** Kind */
+            kind: string | null;
+            /** Value */
+            value: string | null;
+            /** Source Url */
+            source_url: string | null;
+            /** Evidence Ids */
+            evidence_ids?: string[];
+        };
+        /** CommercialTriageCounts */
+        CommercialTriageCounts: {
+            /** Action Now */
+            action_now: number;
+            /** Research */
+            research: number;
+            /** Watch */
+            watch: number;
+            /** Reject */
+            reject: number;
+        };
+        /** CommercialTriageDaily */
+        CommercialTriageDaily: {
+            /** Evaluated */
+            evaluated: number;
+            /** Surfaced */
+            surfaced: number;
+            /** Contacted */
+            contacted: number;
+            /** Reached Buyer */
+            reached_buyer?: number | null;
+            /** Qualified */
+            qualified?: number | null;
+            /** Promoted Prospects */
+            promoted_prospects?: number | null;
+            /** Promoted Leads */
+            promoted_leads?: number | null;
+            /** Supported Mw */
+            supported_mw?: string | null;
+            /** Metric Scope */
+            metric_scope?: string[];
+            /** Unavailable Metrics */
+            unavailable_metrics?: string[];
+        };
+        /** CommercialTriageFact */
+        CommercialTriageFact: {
+            /** Text */
+            text: string | null;
+            /** Evidence Id */
+            evidence_id: string | null;
+            /** Url */
+            url: string | null;
+            /** Hash */
+            hash: string | null;
+            /** Date */
+            date: string | null;
+        };
+        /** CommercialTriageHistoryItem */
+        CommercialTriageHistoryItem: {
+            /**
+             * Pursuit Id
+             * Format: uuid
+             */
+            pursuit_id: string;
+            /**
+             * Need Id
+             * Format: uuid
+             */
+            need_id: string;
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /** Related Project Ids */
+            related_project_ids?: string[];
+            /** Disposition */
+            disposition: string;
+            /** Evaluated At */
+            evaluated_at?: string | null;
+            /** Evaluated On */
+            evaluated_on?: string | null;
+            /** Input Hash */
+            input_hash?: string | null;
+            /**
+             * Snapshot Status
+             * @enum {string}
+             */
+            snapshot_status: "saved_as_of" | "metadata_only";
+            /**
+             * Live Status
+             * @default not_rechecked
+             * @constant
+             */
+            live_status: "not_rechecked";
+            saved_card?: components["schemas"]["CommercialTriageCard"] | null;
+            /** Notes */
+            notes?: components["schemas"]["CallNoteOut"][];
+            /** Versions */
+            versions?: components["schemas"]["CommercialTriageHistoryVersion"][];
+        };
+        /** CommercialTriageHistoryOut */
+        CommercialTriageHistoryOut: {
+            /** Items */
+            items: components["schemas"]["CommercialTriageHistoryItem"][];
+        };
+        /** CommercialTriageHistoryVersion */
+        CommercialTriageHistoryVersion: {
+            /** Version */
+            version: number;
+            /** Disposition */
+            disposition: string;
+            /** Evaluated At */
+            evaluated_at?: string | null;
+            /** Evaluated On */
+            evaluated_on?: string | null;
+            /** Input Hash */
+            input_hash?: string | null;
+            /**
+             * Snapshot Status
+             * @enum {string}
+             */
+            snapshot_status: "saved_as_of" | "metadata_only";
+            /**
+             * Live Status
+             * @default not_rechecked
+             * @constant
+             */
+            live_status: "not_rechecked";
+            saved_card?: components["schemas"]["CommercialTriageCard"] | null;
+        };
+        /** CommercialTriageLifecycleEvent */
+        CommercialTriageLifecycleEvent: {
+            /** State */
+            state: string;
+            /** Event Type */
+            event_type: string;
+            /** Date */
+            date: string | null;
+            /** Value Kind */
+            value_kind: string;
+            /** Evidence Url */
+            evidence_url: string;
+            /**
+             * Current
+             * @default true
+             */
+            current: boolean;
+            /** Published At */
+            published_at?: string | null;
+            /** Event Date Label */
+            event_date_label?: string | null;
+        };
+        /** CommercialTriageNeedState */
+        CommercialTriageNeedState: {
+            /**
+             * Need Id
+             * Format: uuid
+             */
+            need_id: string;
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /** Disposition */
+            disposition: string;
+            /** Reason */
+            reason: string;
+            /**
+             * Held
+             * @default false
+             */
+            held: boolean;
+            /** Conflict State */
+            conflict_state?: string | null;
+            /**
+             * Closed
+             * @default false
+             */
+            closed: boolean;
+        };
+        /** CommercialTriageOut */
+        CommercialTriageOut: {
+            /**
+             * Evaluated At
+             * Format: date-time
+             */
+            evaluated_at: string;
+            /** Policy Version */
+            policy_version: string;
+            /** Total */
+            total: number;
+            cohort_counts: components["schemas"]["CommercialTriageCounts"];
+            daily: components["schemas"]["CommercialTriageDaily"];
+            /** Items */
+            items: components["schemas"]["CommercialTriageCard"][];
+        };
+        /** CommercialTriageStage */
+        CommercialTriageStage: {
+            /** Stage */
+            stage: string;
+            /** Date */
+            date: string | null;
+            /** Source Url */
+            source_url: string | null;
+            /** Evidence Id */
+            evidence_id: string | null;
+        };
         /** EvidenceOut */
         EvidenceOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
             /** Title */
             title: string;
             /** Abstract */
@@ -1934,6 +2332,156 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CallNoteOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    commercial_triage_api_commercial_triage_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommercialTriageOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    commercial_triage_history_api_commercial_triage_history_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommercialTriageHistoryOut"];
+                };
+            };
+        };
+    };
+    evaluate_commercial_triage_api_commercial_triage_evaluate_post: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommercialTriageOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    commercial_research_status_api_commercial_triage__need_id__research_get: {
+        parameters: {
+            query: {
+                question: string;
+            };
+            header?: never;
+            path: {
+                need_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommercialResearchStatusOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    research_commercial_need_api_commercial_triage__need_id__research_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                need_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommercialResearchBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BriefRequestOut"];
                 };
             };
             /** @description Validation Error */

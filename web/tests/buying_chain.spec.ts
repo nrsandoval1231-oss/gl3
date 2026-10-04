@@ -38,7 +38,7 @@ async function shell(page: import('@playwright/test').Page, buying: (route: impo
       : path === '/api/health' ? { sources: [], backlog: 0, pending_interpretations: 0 } : []
     await route.fulfill({ contentType: 'application/json', body: JSON.stringify(body) })
   })
-  await page.goto('/')
+  await page.goto('/?tier=Signals')
   await page.getByRole('button', { name: /Test facility one/ }).click()
 }
 
