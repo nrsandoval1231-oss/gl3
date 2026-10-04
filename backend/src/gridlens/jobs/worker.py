@@ -75,9 +75,27 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
                 "status": "Running",
                 "last_attempt": datetime.now(UTC).isoformat(),
             }
-    definition = definitions[source_id]
     attempted = datetime.now(UTC).isoformat()
     try:
+        if kind == "pursuit_question":
+            from gridlens.intelligence.autonomous_research import process_question_job
+            from gridlens.persistence.models import PursuitResearchQuestion
+
+            try:
+                process_question_job(job_id, WORKER_ID, fence)
+            except Exception as exc:
+                with SessionLocal.begin() as session:
+                    question_job = assert_fence(session, job_id, WORKER_ID, fence)
+                    question = session.get(PursuitResearchQuestion, question_job.target_id)
+                    if question:
+                        question.status = "FAILED"
+                        question.completed_at = datetime.now(UTC)
+                        question.retry_after = question.completed_at + timedelta(hours=24)
+                        question.receipt = {**question.receipt, "error": type(exc).__name__,
+                                            "reevaluation_status": "FAILED"}
+                    question_job.status, question_job.error = "failed", type(exc).__name__
+                    question_job.lease_owner, question_job.lease_until = None, None
+            return True
         if kind == "pursuit_research":
             from gridlens.intelligence.pursuits import process_research_job
 
@@ -116,6 +134,7 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
                         failed.lease_owner, failed.lease_until = None, None
             return True
         with SessionLocal() as session:
+            definition = definitions[source_id]
             counts = process_job(session, job_id, WORKER_ID, fence, definition)
             finished_job = session.get(Job, job_id)
             source = session.get(Source, source_id)
@@ -223,14 +242,27 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
 def main() -> None:
     if settings.worker_auto_refresh:
         refresh_due()
+        plan_pursuit_questions()
     definitions = {row["id"]: row for row in load_registry()}
     next_planning = time.monotonic() + 3600
     while True:
         if settings.worker_auto_refresh and time.monotonic() >= next_planning:
             refresh_due()
+            plan_pursuit_questions()
             next_planning = time.monotonic() + 3600
         if not run_one(definitions):
             time.sleep(2)
+
+
+def plan_pursuit_questions() -> int:
+    if not settings.autonomous_research_enabled:
+        return 0
+    from gridlens.intelligence.autonomous_research import planning_cards
+    from gridlens.intelligence.pursuit_questions import schedule_questions
+
+    cards = planning_cards()
+    with SessionLocal.begin() as session:
+        return len(schedule_questions(session, cards))
 
 
 if __name__ == "__main__":

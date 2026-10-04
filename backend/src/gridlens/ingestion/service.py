@@ -19,6 +19,7 @@ from gridlens.domain.news_interpretation import (
 )
 from gridlens.domain.permit_interpretation import assess_permit
 from gridlens.domain.permit_interpretation import evaluator_version as permit_evaluator_version
+from gridlens.domain.power_qualification import qualify_retained_official
 from gridlens.domain.qualification import assess_signal
 from gridlens.domain.signal_admission import (
     POLICY_VERSION as ADMISSION_POLICY_VERSION,
@@ -361,9 +362,19 @@ def _current_need_claims(
         ):
             continue
 
-        tier = assessment.get("tier")
-        reason = assessment.get("reason") or assessment.get("rationale")
-        if tier == "Prospect":
+        qualified = qualify_retained_official(
+            evidence.abstract or "", need.activity_key, project.location
+        )
+        tier = qualified.get("tier") or (
+            "Signal" if assessment.get("qualification_version") else assessment.get("tier")
+        )
+        reason = qualified.get("reason") or assessment.get("reason") or assessment.get("rationale")
+        if qualified:
+            claim = {**assessment, **qualified}
+        elif tier == "Lead":
+            # A stored tier is not authority; the quoted Lead gate must replay.
+            continue
+        elif tier == "Prospect":
             if (
                 not all(
                     isinstance(assessment.get(key), str) and assessment[key].strip()
@@ -387,7 +398,7 @@ def _current_need_claims(
         claims.append(
             {
                 "claim": claim,
-                "priority": 0 if claim["tier"] == "Prospect" else 1,
+                "priority": {"Lead": 0, "Prospect": 1, "Signal": 2}[claim["tier"]],
                 "content_hash": observation.content_hash,
                 "source_id": observation.source_id,
                 "external_id": observation.external_id,
@@ -401,7 +412,74 @@ def _current_need_claims(
             row["external_id"],
         )
     )
+    qualified_claims = [
+        row["claim"] for row in claims if row["claim"]["tier"] in {"Prospect", "Lead"}
+    ]
+    conflicts = any(
+        len({claim[key] for claim in qualified_claims if claim.get(key) is not None}) > 1
+        for key in ("demand_mw", "start_window", "duration")
+    )
+    if conflicts and any(claim.get("qualification_version") for claim in qualified_claims):
+        return [
+            {
+                "tier": "Signal",
+                "demand_mw": None,
+                "reason": "Current official power claims conflict; qualification is unresolved.",
+            }
+        ]
+    # New typed public reports may conservatively veto qualification, but
+    # never supply its positive prerequisites or award a tier themselves.
+    from gridlens.domain.project_research import qualification_veto
+    from gridlens.intelligence.project_state import current_research_state
+
+    veto = qualification_veto(
+        current_research_state(session, project.id, need.id).get(str(need.id), {})
+    )
+    if claims and veto:
+        return [{"tier": "Signal", "demand_mw": None, "reason": veto}]
     return [row["claim"] for row in claims]
+
+
+def effective_need_qualification(
+    session: Session, need: PowerNeed, project: Project
+) -> dict[str, Any] | None:
+    """Read-only replay of current admitted tier fields for API and persistence.
+
+    None means there is no current authoritative claim. This does not modify
+    the stored need/interpretation, and never gives supplemental evidence
+    positive qualification authority. Stored historical Lead fields are omitted
+    when their current gate or interval no longer supports that tier.
+    """
+    claims = _current_need_claims(session, need, project)
+    if not claims:
+        return None
+    selected = claims[0]
+    tier = selected["tier"]
+    return {
+        "tier": tier,
+        "rationale": selected["reason"],
+        "required_mw": _reported_mw(selected),
+        "start_window": selected.get("start_window") if tier == "Lead" else None,
+        "duration": selected.get("duration") if tier == "Lead" else None,
+        "supply": "Reported constraint" if tier in {"Prospect", "Lead"} else "Unknown",
+        "qualified_remaining_gap": selected.get("qualified_remaining_gap")
+        if tier == "Lead"
+        else None,
+        "buying_role": selected.get("buying_role") if tier == "Lead" else None,
+        "qualification_next_action": selected.get("qualification_next_action")
+        if tier == "Lead"
+        else None,
+        "qualification_version": selected.get("qualification_version"),
+    }
+
+
+def _apply_current_qualification(session: Session, need: PowerNeed, project: Project) -> None:
+    """Replay gates and clear obsolete Lead fields on every authoritative update."""
+    effective = effective_need_qualification(session, need, project)
+    if effective is None:
+        return
+    for key in ("tier", "rationale", "required_mw", "start_window", "duration", "supply"):
+        setattr(need, key, effective[key])
 
 
 def _assessment_payload(
@@ -720,12 +798,16 @@ def _attach_news_supplement(
 
 
 def _retained_candidate_lock_ids(
-    projects: Sequence[Project], observation: Observation, claim: dict[str, Any], admitted: bool,
+    projects: Sequence[Project],
+    observation: Observation,
+    claim: dict[str, Any],
+    admitted: bool,
     target_identity: str | None,
 ) -> set[Any]:
     """Discover every possible retained match-decision FK before ordered locks."""
     ids = {
-        project.id for project in projects
+        project.id
+        for project in projects
         if target_identity and project.identity_key == target_identity
     }
     if admitted and ids:
@@ -777,6 +859,7 @@ def assess_retained_news(
     job_id: Any | None = None,
     worker_id: str | None = None,
     fence: int | None = None,
+    rejection_reason: str | None = None,
 ) -> bool:
     """Evaluate one durable RSS version; return True when a new decision was stored."""
     interpretation = session.scalar(
@@ -794,7 +877,8 @@ def assess_retained_news(
         session.add(interpretation)
         session.flush()
     if (
-        interpretation.status in {"accepted", "rejected"}
+        rejection_reason is None
+        and interpretation.status in {"accepted", "rejected"}
         and interpretation.content_hash == observation.content_hash
         and interpretation.evaluator_version == EVALUATOR_VERSION
         and interpretation.assessment is not None
@@ -819,9 +903,17 @@ def assess_retained_news(
         session.flush()
         return False
     try:
-        claim = assess_news(observation.title, observation.abstract).as_dict()
+        if rejection_reason is not None:
+            # An acquisition/admission policy rejection is not a source fact.
+            # Reuse the canonical correction path to retract prior support.
+            claim = assess_news("", None).as_dict()
+            claim["reason"] = rejection_reason
+        else:
+            claim = assess_news(observation.title, observation.abstract).as_dict()
         payload = _assessment_payload(observation, evidence, claim)
         payload["admission_policy_version"] = ADMISSION_POLICY_VERSION
+        if rejection_reason is not None:
+            payload["admission_status"] = "research_quarantine"
         activity_key = news_power_activity(claim)
         if claim.get("decision") == "accepted" and activity_key is None:
             raise ValueError(
@@ -901,9 +993,7 @@ def assess_retained_news(
     # support also changes when this interpretation is rebound or withdrawn.
     old_project_ids.update(
         session.scalars(
-            select(LifecycleEvent.project_id).where(
-                LifecycleEvent.observation_id == observation.id
-            )
+            select(LifecycleEvent.project_id).where(LifecycleEvent.observation_id == observation.id)
         ).all()
     )
     old_project_ids.update(
@@ -963,7 +1053,12 @@ def assess_retained_news(
     supplemental_only = claim["decision"] == "accepted" and not admission.admitted
     if supplemental_only:
         current_need, payload = _attach_news_supplement(
-            session, observation, evidence, claim, payload, material_baselines,
+            session,
+            observation,
+            evidence,
+            claim,
+            payload,
+            material_baselines,
             candidate_project_ids,
         )
         payload["admission_origin"] = admission.origin
@@ -972,9 +1067,9 @@ def assess_retained_news(
     elif claim["decision"] == "accepted":
         identity_key = payload["project_identity_key"]
         project = session.scalar(
-            select(Project).where(Project.identity_key == identity_key).execution_options(
-                populate_existing=True
-            )
+            select(Project)
+            .where(Project.identity_key == identity_key)
+            .execution_options(populate_existing=True)
         )
         if project is not None and project.id not in candidate_project_ids:
             raise RuntimeError("Retained project candidate changed after ordered locks")
@@ -1263,6 +1358,7 @@ def assess_retained_news(
             need.active = False
             need.tier = "Signal"
             need.required_mw = None
+            need.start_window = need.duration = None
             need.supply = "Unknown"
             need.rationale = "No current accepted evidence supports this activity."
             session.add(
@@ -1274,14 +1370,7 @@ def assess_retained_news(
             )
             materially_changed_projects.add(project.id)
         elif supported:
-            claims = _current_need_claims(session, need, project)
-            if claims:
-                selected = claims[0]
-                need.active = True
-                need.tier = selected["tier"]
-                need.rationale = selected["reason"]
-                need.required_mw = _reported_mw(selected)
-                need.supply = "Reported constraint" if selected["tier"] == "Prospect" else "Unknown"
+            _apply_current_qualification(session, need, project)
             # A supported retained-news decision may create a need or alter its
             # tier/load/supply without taking the rejection/closure path below.
             materially_changed_projects.add(project.id)
@@ -1318,6 +1407,24 @@ def process_job(
         return _process_collection_only(
             session, job_id, worker_id, fence, source_definition, records
         )
+    return process_records(
+        session, job_id, worker_id, fence, source_definition, records, client=client
+    )
+
+
+def process_records(
+    session: Session,
+    job_id: Any,
+    worker_id: str,
+    fence: int,
+    source_definition: dict[str, Any],
+    records: list[dict[str, Any]],
+    client: httpx.Client | None = None,
+    *,
+    commit: bool = True,
+    allow_model: bool = True,
+) -> dict[str, Any]:
+    """Apply canonical source records; targeted research owns its enclosing transaction."""
     counts: dict[str, Any] = {
         "new": 0,
         "changed": 0,
@@ -1421,9 +1528,10 @@ def process_job(
                 counts["older_amendments_retained"] = counts.get("older_amendments_retained", 0) + 1
                 counts["unchanged"] += 1
                 job = assert_fence(session, job_id, worker_id, fence)
-                job.checkpoint = external_id
-                job.lease_until = datetime.now(UTC) + timedelta(seconds=90)
-                session.commit()
+                if commit:
+                    job.checkpoint = external_id
+                    job.lease_until = datetime.now(UTC) + timedelta(seconds=90)
+                session.commit() if commit else session.flush()
                 continue
         is_new = observation is None
         same_material_fields = bool(
@@ -1492,7 +1600,8 @@ def process_job(
                     ),
                 )
             )
-        session.commit()  # Keep retrieved source evidence durable if PDF enrichment fails.
+        # Ordinary ingestion keeps evidence durable across enrichment failure.
+        session.commit() if commit else session.flush()
         companions = record.get("companions", [])
         if not isinstance(companions, list):
             raise ValueError("Source companions must be a list")
@@ -1525,7 +1634,7 @@ def process_job(
                     )
                 )
         if companions:
-            session.commit()
+            session.commit() if commit else session.flush()
         # The PDF is an alternate representation of the FR record. Attach its
         # content hash and page citation to this observation only.
         if record.get("pdf_url"):
@@ -1572,7 +1681,7 @@ def process_job(
                             event_date=None,
                         )
                     )
-                    session.commit()
+                    session.commit() if commit else session.flush()
         # PDF evidence has its own commit boundary. Reacquire the current fence
         # before creating or updating the durable interpretation backlog.
         assert_fence(session, job_id, worker_id, fence)
@@ -1648,9 +1757,10 @@ def process_job(
                 "permit_accepted" if interpretation.status == "accepted" else "permit_rejected"
             ] += 1
             job = assert_fence(session, job_id, worker_id, fence)
-            job.checkpoint = external_id
-            job.lease_until = datetime.now(UTC) + timedelta(seconds=90)
-            session.commit()
+            if commit:
+                job.checkpoint = external_id
+                job.lease_until = datetime.now(UTC) + timedelta(seconds=90)
+            session.commit() if commit else session.flush()
             continue
         if interpretation is None:
             interpretation = Interpretation(
@@ -1662,7 +1772,8 @@ def process_job(
             interpretation.status, interpretation.error = "pending", None
             interpretation.attempts += 1
         session.flush()
-        session.commit()  # Raw evidence and the interpretation backlog survive a crash.
+        # Research admission instead owns the enclosing savepoint.
+        session.commit() if commit else session.flush()
 
         try:
             permit_assessment = assess_permit(record) if is_permit_source else None
@@ -1683,7 +1794,7 @@ def process_job(
         except Exception as exc:
             assert_fence(session, job_id, worker_id, fence)
             interpretation.status, interpretation.error = "failed", type(exc).__name__
-            session.commit()
+            session.commit() if commit else session.flush()
             continue
         assert_fence(session, job_id, worker_id, fence)
 
@@ -1743,9 +1854,10 @@ def process_job(
                     ),
                 }
                 job = assert_fence(session, job_id, worker_id, fence)
-                job.checkpoint = external_id
-                job.lease_until = datetime.now(UTC) + timedelta(seconds=90)
-                session.commit()
+                if commit:
+                    job.checkpoint = external_id
+                    job.lease_until = datetime.now(UTC) + timedelta(seconds=90)
+                session.commit() if commit else session.flush()
                 counts["context_only"] = counts.get("context_only", 0) + 1
                 continue
 
@@ -2188,6 +2300,9 @@ def process_job(
                 )
                 if stale_need.active and not has_support:
                     stale_need.active = False
+                    stale_need.tier = "Signal"
+                    stale_need.required_mw = stale_need.start_window = stale_need.duration = None
+                    stale_need.supply = "Unknown"
                     session.add(
                         ChangeEvent(
                             observation_id=observation.id,
@@ -2530,6 +2645,9 @@ def process_job(
                 ).all()
                 for old_need in superseded:
                     old_need.active = False
+                    old_need.tier = "Signal"
+                    old_need.required_mw = old_need.start_window = old_need.duration = None
+                    old_need.supply = "Unknown"
                     if (
                         session.scalar(
                             select(NeedObservation.id).where(
@@ -2653,16 +2771,34 @@ def process_job(
                     },
                 }
             if lifecycle_evidence is not None:
+                # Source authority and existing identity/activity admission precede
+                # qualification. Public/news supplements cannot take this path.
+                if admitted_from_source(
+                    source, interpretation.assessment, lifecycle_evidence
+                ).admitted:
+                    qualified = qualify_retained_official(
+                        lifecycle_evidence.abstract or "", need.activity_key, project.location
+                    )
+                    if qualified:
+                        interpretation.assessment = {**interpretation.assessment, **qualified}
+                    session.flush()
+                    _apply_current_qualification(session, need, project)
                 apply_lifecycle_observation(session, project, observation, lifecycle_evidence)
                 if need.tier == "Signal":
-                    adjudicate_signal(session, observation, lifecycle_evidence)
+                    adjudicate_signal(
+                        session,
+                        observation,
+                        lifecycle_evidence,
+                        api_key=None if allow_model else "",
+                    )
                 # Snapshot diff excludes retry metadata, timestamps and rationale-only churn.
                 record_material_diff(session, project, lifecycle_evidence, material_baseline)
 
         job = assert_fence(session, job_id, worker_id, fence)
-        job.checkpoint = external_id
-        job.lease_until = datetime.now(UTC) + timedelta(seconds=90)
-        session.commit()
+        if commit:
+            job.checkpoint = external_id
+            job.lease_until = datetime.now(UTC) + timedelta(seconds=90)
+        session.commit() if commit else session.flush()
     return counts
 
 

@@ -14,6 +14,21 @@ The next working slice adds persisted daily Austin/RRC pursuits, bounded officia
 
 GL3-028 is merged to `main` via PR #21 at merge commit `43424be`. It adds authenticated current-project state projection, evidence-backed material-change history, and an explicit zero-authority EvidenceJudge shadow command. Jev remains separate from signal adjudication, and normal ingestion does not call it. Migrations `0012` and `0013` add project state revisions, shadow attempt records, and durable bounded-scan position. See the [final PR #21 correctness report](docs/validation/PR21-CORRECTNESS-REPAIR.md), [accepted validation evidence](.agent/artifacts/PR21-REPAIR/VALIDATION.json), [retained review](.agent/artifacts/PR21-REPAIR/REVIEW.json), [browser evidence](.agent/artifacts/PR21-REPAIR/BROWSER.json), [preservation evidence](.agent/artifacts/PR21-REPAIR/PRESERVATION.json), and [operator limits](docs/operations/power-pursuits.md). Final local gates recorded 703 backend tests passed with one existing environment-dependent skip and 12 migration checks passed. This is a merged implementation claim only; cloud deployment and unattended production operation remain separate open milestones.
 
+## GL3-029 autonomous pursuit research candidate
+
+Current main was verified at PR #23 merge `6c8bdf3`. This working candidate adds durable
+bounded research questions, retained-first acquisition, canonical evidence admission,
+automatic deterministic commercial reevaluation, and inspectable question receipts in
+existing pursuit cards and a research-related changes summary. It reuses PostgreSQL jobs, the worker, source registry, evidence
+and buying-chain models; it makes no external commercial outreach.
+
+This is a **locally implemented candidate, not accepted or deployed**. The original PR #23 retained database
+is absent from this executor and the searched GitHub artifacts. Synthetic integration
+checks do not establish retained-corpus success. See the [architecture and limits](docs/architecture/autonomous-pursuit-research.md),
+[operator behavior](docs/operations/power-pursuits.md#autonomous-pursuit-research-candidate),
+and [candidate validation](docs/validation/gl3-029-autonomous-pursuit-research.md).
+Cloud deployment and production proof remain separate milestones.
+
 ## Product model
 
 GridLens follows:

@@ -27,3 +27,23 @@ GridLens is a project-reconstruction and commercial timing engine, not a generic
 Adopt the architecture in [Evidence Graph and Jev Judgment Architecture](architecture/evidence-graph-jev.md). Preserve current collectors, admission rules, deterministic promotion gates, and Signal/Prospect/Lead semantics during migration. Code owns facts, hard rules, math, state and writes. Jev is a fast bounded judgment layer for relevance, ambiguous entity adjudication, event classification, change significance, power relevance and enrichment escalation. Deep generative models are reserved for complex synthesis/research.
 
 First Jev slice is a feature-flagged `EvidenceJudge` in shadow mode. It has no initial authority to mutate canonical truth or promotion outcomes. Measure precision, false positives/negatives, latency, cost, invalid/timeout behavior and escalation yield on labeled existing evidence before expanding authority. Failure falls back to existing deterministic behavior. Do not add a general Jev framework or another orchestration layer.
+
+
+## October 4, 2026 — Bounded autonomous pursuit questions (candidate)
+
+Reuse PostgreSQL Job targets and fencing, canonical ingestion, conservative exact
+project matching, buying-chain provenance, and the commercial evaluator. Add one
+question table because existing brief caching cannot represent two separately
+bounded blockers with histories and retry windows. Keep acquisition and evidence
+admission separate; a search result is never canonical evidence. Reserve request
+budgets before I/O and persist uncertain completion instead of retrying paid requests
+blindly. Reevaluate through the shared deterministic service, never worker-assigned
+pursuit states. Reject a general orchestration framework and new persistence layer.
+This implements the GL3-029 objective without changing Signal/Prospect/Lead gates.
+Local fixtures now cover commercial transitions and positive Prospect/Lead gates;
+required original retained-corpus proof remains blocked. Typed public reports are
+independent source-attributed facts, never positive qualification authority. Add a
+narrow official-permit implementation of existing PRD criteria rather than inventing
+a research-worker promotion path. Keep conflicts and dated corrections explicit.
+Hourly saved-target projection avoids shortlist starvation; immutable evaluation
+versions drive morning metrics. No new model or orchestration framework is added.

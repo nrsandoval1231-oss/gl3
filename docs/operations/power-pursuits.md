@@ -50,3 +50,76 @@ Project state and accepted material changes are available through the authentica
 Use the dedicated `*_test` database for deterministic tests; use only the controller-designated retained acceptance clone for real-data shadow runs. `scripts/evidence_judge_shadow.py --mode offline` reads existing records only. `--mode runtime-live` is an explicit bounded shadow run over retained accepted evidence; `--mode benchmark-live --limit 16 --results <path>` evaluates the versioned real/synthetic fixture set and saves each attempt before requesting. `--mode benchmark-offline-results --results <path>` scores saved outcomes without provider calls. Live modes require both flags and `TYPESAFE_API_KEY` in the process environment. Do not put the key in the command line, fixture, report or committed environment file. The fixture descriptions are summaries, not verbatim excerpts; synthetic cases remain fixture-only and are not persisted as evidence or discoveries.
 
 The TypeSafe request/response contract was checked against the official [OpenAPI document](https://api.typesafe.ai/openapi.json), snapshot SHA-256 `A191F8A7DF6BD6FEDCED8120DD0FD106F88575D1D1C8360D08900A6C7C0360D5`. Provider judgments and deterministic `research_recommended` are advisory and stored separately from accepted domain state. Missing facts and contradictions remain UNKNOWN; no outreach, task enqueue, source retrieval or tier change follows the recommendation.
+
+
+## Autonomous pursuit research candidate
+
+GL3-029 adds `pursuit_question` jobs and migration `0014_pursuit_research_questions`.
+It is an unaccepted candidate; use an isolated acceptance database until validation
+is complete. Existing historical research receipts are preserved.
+
+The current worker plans questions at startup and on its hourly refresh when
+`worker_auto_refresh` and `autonomous_research_enabled` are enabled. It considers
+the current 50-card shortlist plus every saved target in a shared read-only projection,
+including closures and promotions outside the shortlist. It caps active questions at
+two per pursuit.
+Authenticated **Research missing facts** schedules the selected card; explicit refresh
+bypasses freshness reuse. Unchanged completed questions wait for their category retry
+window (24 hours for phase/supply/commissioning/conflicts, 72 for timing, 168 for
+buyer/load/power scope). The shorter source-family window also applies (news 24
+hours, permits 72). Changed semantic project/evidence, registry configuration or
+policy input permits new attempts.
+An initial WATCH may be investigated once. A resolved root question permits one child,
+with no further child branching.
+
+Defaults: eight questions per UTC day, three searches, ten candidate URLs, five
+retrieved documents, 750,000 bytes per document, 180 seconds and zero model calls
+per question. `autonomous_research_daily_questions`, `autonomous_research_max_searches`,
+`autonomous_research_max_urls`, `autonomous_research_max_document_bytes`,
+`autonomous_research_max_documents`,
+`autonomous_research_timeout_seconds` and `autonomous_research_max_cost_usd` bound
+execution. Direct retrieval is free of provider search fees. Optional Firecrawl
+requires an already configured `firecrawl_api_key`, explicit
+`firecrawl_search_cost_usd` reservation ceiling and sufficient per-question cost budget.
+Default cost budget is zero. Reserved cost is not actual billing; actual search cost
+is marked unavailable without a provider billing receipt. No provider or credentials
+are provisioned by this slice.
+
+Questions first use retained canonical evidence and retained-only buying-chain
+projection, then exact registered Austin/Chicago records and eligible existing
+public pages. Discovery returns candidate URLs only; snippets are not evidence.
+Unsupported source routes and provider absence are explicit receipt limitations.
+The DNS-pinned public reader rejects private destinations and redirects, caps bytes,
+and supports HTML/text. PDF-specific extraction and bounded RRC downloads remain
+unsupported here. Synchronous DNS resolution retains the existing reader's soft
+wall-clock limitation.
+
+Receipts retain original context, generated/attempted/completed queries, checked
+sources, planned/checked/unavailable/skipped routes, accepted/rejected evidence
+citations, before/after disposition, reason,
+remaining blockers, recommended action, counts, runtime and cost reservations.
+Partial evidence does not imply a resolved blocker. Missing results are UNRESOLVED,
+not evidence of absence. Exhausted leases and failures remain visible. Interrupted
+requests with uncertain completion are not automatically repeated. Question status
+never assigns a qualification tier; accepted canonical changes go through the same
+deterministic evaluator and immutable evaluation receipts.
+
+Read-only metrics: `PYTHONPATH=backend/src uv run --project backend python scripts/pursuit_research_metrics.py`.
+Run against the intended database with its existing environment. Counts are receipt
+measurements, not a claim that an empty or synthetic database is the retained corpus.
+No email, calls, forms, CRM writes, account login or other commercial outreach occurs.
+Cloud deployment and production unattended operation remain separate milestones.
+
+The pursuit overview includes research-related changes since local Chicago midnight,
+with unique evaluation versions rather than duplicate question transitions. Original
+and resulting tiers remain separate from commercial disposition. Exact dated public
+reports can answer phase/supply/timing/load questions; they do not independently
+qualify a need. Only current admitted official evidence meeting every existing gate
+can promote Prospect/Lead, and canonical corrections can demote obsolete support.
+
+For isolated acceptance, see [corpus manifest and validation commands](../../scripts/README-pursuit-research-validation.md).
+The runner refuses the original runtime and shared test database, pins its baseline,
+checks preserved history, caps aggregate runtime/cost, and never calls fixtures an
+original retained corpus. `scripts/seeded_browser_acceptance.py --full-suite` creates a
+separate explicitly synthetic browser database through canonical ingestion. Keep
+its receipts distinct from real-corpus receipts.

@@ -4,7 +4,8 @@ from uuid import UUID
 from sqlalchemy import case, select
 from sqlalchemy.orm import Session
 
-from gridlens.persistence.models import Job, Source
+from gridlens.domain.pursuit_research import ACTIVE
+from gridlens.persistence.models import Job, PursuitResearchQuestion, Source
 
 
 def enqueue(session: Session, source_id: str, *, kind: str = "ingestion") -> UUID:
@@ -45,6 +46,24 @@ def lease_one(
             None,
             None,
         )
+        if expired.kind == "pursuit_question" and expired.target_id:
+            question = session.scalar(
+                select(PursuitResearchQuestion)
+                .where(PursuitResearchQuestion.id == expired.target_id)
+                .with_for_update()
+            )
+            if question and question.status in ACTIVE:
+                # The job lock fences the expired worker before its question is
+                # terminalized in this same transaction. Preserve partial work.
+                question.status = "FAILED"
+                question.completed_at = now
+                question.retry_after = now + timedelta(hours=24)
+                question.receipt = {
+                    **question.receipt,
+                    "error": "lease_expired_after_maximum_attempts",
+                    "result_disposition": "FAILED",
+                    "reevaluation_status": "NOT_COMPLETED",
+                }
         source = session.get(Source, expired.source_id)
         if source and expired.kind == "ingestion":
             source.health = {

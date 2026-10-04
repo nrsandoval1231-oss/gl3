@@ -1,0 +1,936 @@
+"""Transactional research admission against an isolated PostgreSQL test schema."""
+
+from datetime import UTC, datetime, timedelta
+from uuid import uuid4
+
+import pytest
+from sqlalchemy import create_engine, func, select, text
+from sqlalchemy.engine import make_url
+from sqlalchemy.orm import sessionmaker
+
+from gridlens.domain.pursuit_research import fingerprint
+from gridlens.ingestion.adapters.buying_chain_public import PublicDocument
+from gridlens.ingestion.adapters.socrata_permits import render_record
+from gridlens.ingestion.registry import load_registry
+from gridlens.ingestion.service import process_records
+from gridlens.intelligence.research_evidence import (
+    retain_registered_record,
+    retain_research_document,
+)
+from gridlens.persistence.database import Base
+from gridlens.persistence.models import (
+    Evidence,
+    Job,
+    NeedObservation,
+    Observation,
+    PowerNeed,
+    Project,
+    Source,
+)
+from gridlens.settings import settings
+
+
+@pytest.fixture
+def research_db():
+    target = make_url(settings.test_database_url)
+    app = make_url(settings.database_url)
+    assert target.database and (target.database == "test" or target.database.endswith("_test"))
+    assert (target.host, target.port, target.database) != (app.host, app.port, app.database)
+    schema = "research_test_" + uuid4().hex
+    admin = create_engine(settings.test_database_url)
+    with admin.begin() as connection:
+        connection.execute(text(f'CREATE SCHEMA "{schema}"'))
+    engine = create_engine(
+        settings.test_database_url, connect_args={"options": f"-csearch_path={schema}"}
+    )
+    Base.metadata.create_all(engine)
+    factory = sessionmaker(engine, expire_on_commit=False)
+    source = next(s for s in load_registry() if s["id"] == "austin-building-permits")
+    try:
+        with factory.begin() as session:
+            session.add(
+                Source(**{k: v for k, v in source.items() if k in Source.__table__.columns})
+            )
+            session.flush()
+            job = Job(
+                source_id=source["id"],
+                status="running",
+                lease_owner="research-test",
+                fence=1,
+                lease_until=datetime.now(UTC) + timedelta(minutes=10),
+            )
+            session.add(job)
+            session.flush()
+            job_id = job.id
+        yield factory, source, job_id
+    finally:
+        engine.dispose()
+        with admin.begin() as connection:
+            connection.execute(text(f'DROP SCHEMA "{schema}" CASCADE'))
+        admin.dispose()
+
+
+def official_record(source, status="Active"):
+    return render_record(
+        source,
+        {
+            "permit_number": "RESEARCH-TEST-1",
+            "issue_date": "2026-01-01",
+            "description": "Construct new data center.",
+            "permit_type_desc": "Building Permit",
+            "permit_class_mapped": "Commercial",
+            "status_current": status,
+            "original_address1": "811 Clayton Ln",
+            "original_city": "Austin",
+            "original_state": "TX",
+            "project_id": "123",
+            "link": {"url": "https://abc.austintexas.gov/permit/123"},
+        },
+    )
+
+
+def seed(factory, source, job_id):
+    with factory.begin() as session:
+        process_records(
+            session,
+            job_id,
+            "research-test",
+            1,
+            source,
+            [official_record(source)],
+            commit=False,
+            allow_model=False,
+        )
+        need = session.scalar(select(PowerNeed))
+        assert need is not None
+        return need.id
+
+
+@pytest.mark.parametrize("replay", [False, True])
+def test_transactional_ingestion_preserves_caller_lease_and_checkpoint(research_db, replay):
+    factory, source, job_id = research_db
+    if replay:
+        seed(factory, source, job_id)
+    caller_lease = datetime.now(UTC) + timedelta(seconds=600)
+    with factory.begin() as session:
+        job = session.get(Job, job_id)
+        job.lease_until = caller_lease
+        job.checkpoint = "caller-question-checkpoint"
+        session.flush()
+        result = process_records(
+            session,
+            job_id,
+            "research-test",
+            1,
+            source,
+            [official_record(source)],
+            commit=False,
+            allow_model=False,
+        )
+        assert result["unchanged"] == int(replay)
+        assert job.lease_until == caller_lease
+        assert job.checkpoint == "caller-question-checkpoint"
+    with factory.begin() as session:
+        job = session.get(Job, job_id)
+        assert job.lease_until == caller_lease
+        assert job.checkpoint == "caller-question-checkpoint"
+
+
+def test_official_update_uses_original_observation_preserves_history_and_replays(research_db):
+    factory, source, job_id = research_db
+    need_id = seed(factory, source, job_id)
+    with factory.begin() as session:
+        original = session.scalar(select(Evidence))
+        assert original is not None
+        original_id, original_text = original.id, original.abstract
+        need = session.get(PowerNeed, need_id)
+        project = session.get(Project, need.project_id)
+        updated = official_record(source, "Completed")
+        result = retain_registered_record(
+            session,
+            project,
+            need,
+            source,
+            updated,
+            job_id=job_id,
+            worker_id="research-test",
+            fence=1,
+        )
+        assert result["disposition"] == "ACCEPTED"
+        assert result["canonical_support_withdrawn"] is True
+        assert result["duplicate"] is False
+    with factory.begin() as session:
+        need = session.get(PowerNeed, need_id)
+        project = session.get(Project, need.project_id)
+        result = retain_registered_record(
+            session,
+            project,
+            need,
+            source,
+            updated,
+            job_id=job_id,
+            worker_id="research-test",
+            fence=1,
+        )
+        assert result["duplicate"] is True
+        assert session.scalar(select(func.count()).select_from(Observation)) == 1
+        assert session.scalar(select(func.count()).select_from(Evidence)) == 2
+        assert session.get(Evidence, original_id).abstract == original_text
+        assert need.tier == "Signal"
+        assert not need.active
+
+
+def test_wrong_target_quarantine_rolls_back_observation_evidence_and_projection(
+    research_db, monkeypatch
+):
+    factory, source, job_id = research_db
+    need_id = seed(factory, source, job_id)
+    url = "https://contractor.example/project"
+    public_source_id = "research-public-" + fingerprint("contractor.example")[:32]
+    with factory.begin() as session:
+        session.add(
+            Source(
+                id=public_source_id,
+                publisher="contractor.example",
+                endpoint="https://contractor.example/",
+                family="news",
+                geography="test",
+                industries=[],
+                retrieval_method="publisher-rss",
+                enabled=False,
+                health={},
+            )
+        )
+        session.flush()
+        observation = Observation(
+            source_id=public_source_id,
+            external_id=fingerprint(url),
+            title="old",
+            abstract="old claims",
+            url=url,
+            content_hash="old",
+        )
+        session.add(observation)
+        session.flush()
+        observation_id = observation.id
+        other = Project(
+            identity_key="other",
+            name="Other project",
+            location="Chicago, IL",
+            source_id=source["id"],
+            external_id="other",
+        )
+        session.add(other)
+        session.flush()
+        other_need = PowerNeed(
+            project_id=other.id, activity_key="facility-expansion", rationale="test"
+        )
+        session.add(other_need)
+        session.flush()
+        other_need_id, other_id = other_need.id, other.id
+    monkeypatch.setattr(
+        "gridlens.intelligence.research_evidence.project_document_match",
+        lambda *_: (True, "test exact identity"),
+    )
+    monkeypatch.setattr(
+        "gridlens.intelligence.research_evidence._publisher_eligible",
+        lambda *_: True,
+    )
+
+    def wrong_admission(session, observation, evidence):
+        session.add(NeedObservation(observation_id=observation.id, need_id=other_need_id))
+        session.get(Project, other_id).name = "must roll back"
+        session.flush()
+
+    monkeypatch.setattr(
+        "gridlens.intelligence.research_evidence.assess_retained_news", wrong_admission
+    )
+    with factory.begin() as session:
+        need = session.get(PowerNeed, need_id)
+        project = session.get(Project, need.project_id)
+        result = retain_research_document(
+            session, project, need, PublicDocument(url, "new", "new claims")
+        )
+        assert result["disposition"] == "QUARANTINED"
+        assert result["evidence_id"] is None
+    with factory.begin() as session:
+        observation = session.get(Observation, observation_id)
+        assert observation.title == "old"
+        assert observation.abstract == "old claims"
+        assert observation.content_hash == "old"
+        assert session.get(Project, other_id).name == "Other project"
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(Evidence)
+                .where(Evidence.observation_id == observation_id)
+            )
+            == 0
+        )
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(NeedObservation)
+                .where(NeedObservation.observation_id == observation_id)
+            )
+            == 0
+        )
+
+
+@pytest.mark.parametrize("assigned", [False, True])
+def test_contact_page_admits_only_relationship_and_retained_enrichment_has_no_tier_writes(
+    research_db, assigned
+):
+    from gridlens.intelligence.buying_chain import enrich_buying_chain
+    from gridlens.persistence.models import BuyingChainClaim, Interpretation
+
+    factory, source, job_id = research_db
+    need_id = seed(factory, source, job_id)
+    suffix = " for Orion Data Center at 811 Clayton Ln, Austin, TX" if assigned else ""
+    document = PublicDocument(
+        "https://acme.com/projects/orion",
+        "Acme Orion Data Center project team",
+        "Acme is the electrical contractor for Orion Data Center at 811 Clayton Ln, Austin, TX.\n"
+        f"Alice Smith is Project Manager at Acme{suffix}.\n"
+        "Alice Smith can be reached at +1 (312) 555-0123.",
+        datetime.now(UTC).date(),
+    )
+    with factory.begin() as session:
+        need = session.get(PowerNeed, need_id)
+        project = session.get(Project, need.project_id)
+        project.name = "Orion Data Center"
+        session.flush()
+        before = (need.tier, need.required_mw, need.supply, need.active, dict(need.admission_basis))
+        result = retain_research_document(session, project, need, document)
+        assert result["disposition"] == "ACCEPTED"
+        evidence = session.get(Evidence, result["evidence_id"])
+        interpretation = session.scalar(
+            select(Interpretation).where(Interpretation.observation_id == evidence.observation_id)
+        )
+        assert interpretation.assessment["admission_status"] == "relationship_supplement"
+        assert "power_activity" not in interpretation.assessment
+        assert "activity_key" not in interpretation.assessment
+        assert "required_mw" not in interpretation.assessment
+        attempts = interpretation.attempts
+        repeat = retain_research_document(session, project, need, document)
+        assert repeat["duplicate"] is True
+        assert interpretation.attempts == attempts
+        enrich_buying_chain(session, project.id, retained_only=True)
+        claims = list(
+            session.scalars(
+                select(BuyingChainClaim).where(BuyingChainClaim.project_id == project.id)
+            )
+        )
+        people = [claim for claim in claims if claim.person_name == "Alice Smith"]
+        assert len(people) == 1
+        assert people[0].organization == "Acme"
+        assert people[0].organization_relationship == "DIRECT"
+        assert people[0].person_project_relationship == ("DIRECT" if assigned else "ROLE_SUPPORTED")
+        assert people[0].public_contacts[0]["value"] == "+1 (312) 555-0123"
+        assert "authority" in people[0].reason.casefold()
+        assert (
+            need.tier,
+            need.required_mw,
+            need.supply,
+            need.active,
+            dict(need.admission_basis),
+        ) == before
+        assert session.scalar(select(func.count()).select_from(PowerNeed)) == 1
+
+
+def test_generic_company_contact_page_is_not_project_evidence(research_db):
+    factory, source, job_id = research_db
+    need_id = seed(factory, source, job_id)
+    with factory.begin() as session:
+        need = session.get(PowerNeed, need_id)
+        project = session.get(Project, need.project_id)
+        result = retain_research_document(
+            session,
+            project,
+            need,
+            PublicDocument(
+                "https://acme.com/team",
+                "Acme team",
+                "Acme is an electrical contractor in Austin, TX. "
+                "Alice Smith is Project Manager at Acme.",
+            ),
+        )
+        assert result["disposition"] == "QUARANTINED"
+        assert result["evidence_id"] is None
+        assert session.scalar(select(func.count()).select_from(Observation)) == 1
+        assert need.tier == "Signal"
+
+
+@pytest.mark.parametrize(
+    ("url", "extra"),
+    [
+        ("https://acme.com/projects/orion", "The project was cancelled."),
+        ("https://acme.com/projects/orion", "Construction now has adequate supply."),
+        ("https://acme.com/projects/orion", "Permanent utility service is energized."),
+        ("https://acme.com/projects/orion", "Project notes. " * 80 + "The project was cancelled."),
+        ("https://directory.example/orion", "Business directory listing."),
+        ("https://directory.example/orion", ""),
+        ("https://acme.com/projects/orion", "AI-generated summary of the project."),
+    ],
+)
+def test_relationship_fallback_cannot_admit_adverse_or_untrusted_pages(research_db, url, extra):
+    from gridlens.intelligence.buying_chain import enrich_buying_chain
+    from gridlens.persistence.models import BuyingChainClaim, Interpretation
+
+    factory, source, job_id = research_db
+    need_id = seed(factory, source, job_id)
+    with factory.begin() as session:
+        need = session.get(PowerNeed, need_id)
+        project = session.get(Project, need.project_id)
+        project.name = "Orion Data Center"
+        session.flush()
+        doc = PublicDocument(
+            url,
+            "Acme Orion Data Center project team",
+            "Acme is the electrical contractor for Orion Data Center "
+            "at 811 Clayton Ln, Austin, TX.\n"
+            "Alice Smith is Project Manager at Acme for Orion Data Center "
+            "at 811 Clayton Ln, Austin, TX.\n"
+            "Alice Smith can be reached at +1 (312) 555-0123.\n" + extra,
+            datetime.now(UTC).date(),
+        )
+        result = retain_research_document(session, project, need, doc)
+        assert result["disposition"] == "QUARANTINED"
+        if result["evidence_id"] is None:
+            assert session.scalar(select(func.count()).select_from(Observation)) == 1
+            assert need.tier == "Signal"
+            return
+        evidence = session.get(Evidence, result["evidence_id"])
+        interpretation = session.scalar(
+            select(Interpretation).where(Interpretation.observation_id == evidence.observation_id)
+        )
+        assert interpretation.status == "rejected"
+        assert interpretation.assessment.get("admission_status") != "relationship_supplement"
+        enrich_buying_chain(session, project.id, retained_only=True)
+        claims = list(
+            session.scalars(
+                select(BuyingChainClaim).where(BuyingChainClaim.project_id == project.id)
+            )
+        )
+        assert not any(claim.public_contacts for claim in claims)
+        assert need.tier == "Signal"
+
+
+def test_adverse_update_retracts_prior_relationship_instead_of_reusing_contacts(research_db):
+    from dataclasses import replace
+
+    from gridlens.intelligence.buying_chain import enrich_buying_chain
+
+    factory, source, job_id = research_db
+    need_id = seed(factory, source, job_id)
+    document = PublicDocument(
+        "https://acme.com/projects/orion",
+        "Acme Orion Data Center project team",
+        "Acme is the electrical contractor for Orion Data Center at 811 Clayton Ln, Austin, TX.\n"
+        "Alice Smith is Project Manager at Acme for Orion Data Center "
+        "at 811 Clayton Ln, Austin, TX.\n"
+        "Alice Smith can be reached at +1 (312) 555-0123.",
+        datetime.now(UTC).date(),
+    )
+    with factory.begin() as session:
+        need = session.get(PowerNeed, need_id)
+        project = session.get(Project, need.project_id)
+        project.name = "Orion Data Center"
+        session.flush()
+        assert (
+            retain_research_document(session, project, need, document)["disposition"] == "ACCEPTED"
+        )
+        first = enrich_buying_chain(session, project.id, retained_only=True)
+        assert first["candidates"]
+    with factory.begin() as session:
+        need = session.get(PowerNeed, need_id)
+        project = session.get(Project, need.project_id)
+        result = retain_research_document(
+            session,
+            project,
+            need,
+            replace(document, text=document.text + "\nThe project has been cancelled."),
+        )
+        assert result["disposition"] == "QUARANTINED"
+        current = enrich_buying_chain(session, project.id, retained_only=True)
+        assert not current["candidates"]
+        assert need.tier == "Signal"
+
+
+@pytest.mark.parametrize("label", ["AI-generated summary", "SEO directory", "Business directory"])
+def test_explicit_weak_source_cannot_bypass_quarantine_with_qualifying_power_claims(
+    research_db, monkeypatch, label
+):
+    from gridlens.domain.news_interpretation import assess_news
+
+    factory, source, job_id = research_db
+    need_id = seed(factory, source, job_id)
+    title = "Northstar begins construction at the Northstar Mesa data center in Texas"
+    summary = (
+        "Northstar Mesa data center construction requires 42 MW. "
+        "Power supply for Northstar Mesa data center construction is delayed. " + label
+    )
+    assert assess_news(title, summary).tier == "Prospect"
+    monkeypatch.setattr(
+        "gridlens.intelligence.research_evidence.assess_retained_news",
+        lambda *_: pytest.fail("Weak source must be quarantined before news interpretation"),
+    )
+    with factory.begin() as session:
+        need = session.get(PowerNeed, need_id)
+        project = session.get(Project, need.project_id)
+        result = retain_research_document(
+            session,
+            project,
+            need,
+            PublicDocument("https://northstar.com/project", title, summary),
+        )
+        assert result["disposition"] == "QUARANTINED"
+        assert result["evidence_id"] is None
+        assert session.scalar(select(func.count()).select_from(Observation)) == 1
+        assert need.tier == "Signal"
+
+
+@pytest.mark.parametrize("correction", ["The project was cancelled.", "AI-generated summary."])
+def test_full_document_correction_invalidates_prior_same_url_without_rewriting_history(
+    research_db, correction
+):
+    from dataclasses import replace
+
+    from gridlens.intelligence.buying_chain import enrich_buying_chain
+    from gridlens.persistence.models import Interpretation
+
+    factory, source, job_id = research_db
+    need_id = seed(factory, source, job_id)
+    document = PublicDocument(
+        "https://acme.com/projects/orion",
+        "Acme Orion Data Center project team",
+        "Acme is the electrical contractor for Orion Data Center at 811 Clayton Ln, Austin, TX.\n"
+        "Alice Smith is Project Manager at Acme for Orion Data Center "
+        "at 811 Clayton Ln, Austin, TX.\n"
+        "Alice Smith can be reached at +1 (312) 555-0123.\n" + "Project detail. " * 400,
+        datetime.now(UTC).date(),
+    )
+    with factory.begin() as session:
+        need = session.get(PowerNeed, need_id)
+        project = session.get(Project, need.project_id)
+        project.name = "Orion Data Center"
+        session.flush()
+        initial = retain_research_document(session, project, need, document)
+        assert initial["disposition"] == "ACCEPTED"
+        old_evidence = session.get(Evidence, initial["evidence_id"])
+        old_id, old_hash, old_text = (
+            old_evidence.id,
+            old_evidence.content_hash,
+            old_evidence.abstract,
+        )
+        assert enrich_buying_chain(session, project.id, retained_only=True)["candidates"]
+    with factory.begin() as session:
+        need = session.get(PowerNeed, need_id)
+        project = session.get(Project, need.project_id)
+        changed = replace(document, text=document.text + "\n" + correction)
+        result = retain_research_document(session, project, need, changed)
+        assert result["disposition"] == "QUARANTINED"
+        fresh = session.get(Evidence, result["evidence_id"])
+        assert fresh.id != old_id
+        assert fresh.content_hash != old_hash
+        assert correction in fresh.abstract
+        assert len(fresh.abstract) <= 4000
+        prior = session.get(Evidence, old_id)
+        assert prior.abstract == old_text
+        assert prior.content_hash == old_hash
+        interpretation = session.scalar(
+            select(Interpretation).where(Interpretation.observation_id == fresh.observation_id)
+        )
+        assert interpretation.status == "rejected"
+        assert interpretation.content_hash == fresh.content_hash
+        assert interpretation.assessment["evidence_hash"] == fresh.content_hash
+        assert any(
+            item.get("admission_status") == "relationship_supplement"
+            for item in interpretation.assessment["previous_decisions"]
+        )
+        assert not enrich_buying_chain(session, project.id, retained_only=True)["candidates"]
+        repeated = retain_research_document(session, project, need, changed)
+        assert repeated["disposition"] == "QUARANTINED"
+        assert repeated["evidence_id"] == result["evidence_id"]
+        assert need.tier == "Signal"
+
+
+def test_unlabelled_unknown_publisher_cannot_admit_concrete_power_event(research_db, monkeypatch):
+    from gridlens.domain.news_interpretation import assess_news
+
+    factory, source, job_id = research_db
+    need_id = seed(factory, source, job_id)
+    title = "Northstar begins construction at the Northstar Mesa data center in Texas"
+    summary = (
+        "Northstar Mesa data center construction requires 42 MW. "
+        "Power supply for Northstar Mesa data center construction is delayed. "
+        "Northstar Mesa data center is at 811 Clayton Ln, Austin, TX."
+    )
+    assert assess_news(title, summary).tier == "Prospect"
+    monkeypatch.setattr(
+        "gridlens.intelligence.research_evidence.assess_retained_news",
+        lambda *_: pytest.fail("Unreviewed publisher must be gated before canonical admission"),
+    )
+    with factory.begin() as session:
+        need = session.get(PowerNeed, need_id)
+        project = session.get(Project, need.project_id)
+        project.name = "Northstar Mesa data center"
+        session.flush()
+        result = retain_research_document(
+            session,
+            project,
+            need,
+            PublicDocument("https://unknown-aggregator.example/event", title, summary),
+        )
+        assert result["disposition"] == "QUARANTINED"
+        assert "publisher" in result["reason"]
+        assert result["evidence_id"] is None
+        assert session.scalar(select(func.count()).select_from(Evidence)) == 1
+        assert need.tier == "Signal"
+
+
+def _contact_page():
+    return PublicDocument(
+        "https://acme.com/projects/orion",
+        "Acme Orion Data Center project team",
+        "Acme is the electrical contractor for Orion Data Center at 811 Clayton Ln, Austin, TX.\n"
+        "Alice Smith is Project Manager at Acme for Orion Data Center "
+        "at 811 Clayton Ln, Austin, TX.\n"
+        "Alice Smith can be reached at +1 (312) 555-0123.",
+        datetime.now(UTC).date(),
+    )
+
+
+@pytest.mark.parametrize("state", ["current", "stale", "rejected", "other_need"])
+def test_identical_document_across_urls_reuses_only_current_exact_need_evidence(research_db, state):
+    from dataclasses import replace
+
+    from gridlens.persistence.models import Interpretation
+
+    factory, source, job_id = research_db
+    need_id = seed(factory, source, job_id)
+    document = _contact_page()
+    with factory.begin() as session:
+        need = session.get(PowerNeed, need_id)
+        project = session.get(Project, need.project_id)
+        project.name = "Orion Data Center"
+        session.flush()
+        initial = retain_research_document(session, project, need, document)
+        assert initial["disposition"] == "ACCEPTED"
+        evidence = session.get(Evidence, initial["evidence_id"])
+        if state == "stale":
+            session.get(Observation, evidence.observation_id).content_hash = "changed"
+        elif state == "rejected":
+            session.scalar(
+                select(Interpretation).where(
+                    Interpretation.observation_id == evidence.observation_id
+                )
+            ).status = "rejected"
+        elif state == "other_need":
+            need = PowerNeed(
+                project_id=project.id, activity_key="different-activity", rationale="test"
+            )
+            session.add(need)
+            session.flush()
+        other_url = "https://acme.com/projects/orion-copy"
+        result = retain_research_document(session, project, need, replace(document, url=other_url))
+        assert result["url"] == other_url
+        if state == "current":
+            assert result["duplicate"] is True
+            assert result["evidence_id"] == initial["evidence_id"]
+            assert result["evidence_url"] == document.url
+            assert result["claim_type"] == "project_organization_relationship"
+            assert session.scalar(select(func.count()).select_from(Evidence)) == 2
+            assert session.scalar(select(func.count()).select_from(Observation)) == 2
+        else:
+            assert result["duplicate"] is False
+            assert result["evidence_id"] != initial["evidence_id"]
+        assert session.get(Evidence, initial["evidence_id"]).url == document.url
+
+
+def test_document_admission_contention_returns_without_waiting_or_duplicate_write(research_db):
+    import time
+
+    factory, source, job_id = research_db
+    need_id = seed(factory, source, job_id)
+    document = _contact_page()
+    digest = fingerprint([document.title, document.text, document.published_at])
+    with factory.begin() as holder:
+        holder.execute(
+            text("SELECT pg_advisory_xact_lock(hashtextextended(:key, 30))"),
+            {"key": fingerprint([need_id, digest])},
+        )
+        with factory.begin() as session:
+            need = session.get(PowerNeed, need_id)
+            project = session.get(Project, need.project_id)
+            project.name = "Orion Data Center"
+            session.flush()
+            started = time.monotonic()
+            result = retain_research_document(session, project, need, document)
+            assert time.monotonic() - started < 2
+            assert result["disposition"] == "UNRESOLVED"
+            assert "in progress" in result["reason"]
+            assert session.scalar(select(func.count()).select_from(Evidence)) == 1
+
+
+def test_early_utility_phrase_cannot_hide_late_cancellation_from_normal_admission(research_db):
+    from dataclasses import replace
+
+    from gridlens.intelligence.buying_chain import enrich_buying_chain
+    from gridlens.persistence.models import Interpretation
+
+    factory, source, job_id = research_db
+    need_id = seed(factory, source, job_id)
+    document = _contact_page()
+    with factory.begin() as session:
+        need = session.get(PowerNeed, need_id)
+        project = session.get(Project, need.project_id)
+        project.name = "Orion Data Center"
+        session.flush()
+        assert (
+            retain_research_document(session, project, need, document)["disposition"] == "ACCEPTED"
+        )
+        assert enrich_buying_chain(session, project.id, retained_only=True)["candidates"]
+    changed = replace(
+        document,
+        text=(
+            "Utility service plans reviewed. "
+            "Acme begins construction at Orion Data Center in Texas.\n"
+            + document.text
+            + "\n"
+            + "Project details. " * 400
+            + "The project was cancelled."
+        ),
+    )
+    with factory.begin() as session:
+        need = session.get(PowerNeed, need_id)
+        project = session.get(Project, need.project_id)
+        result = retain_research_document(session, project, need, changed)
+        assert result["disposition"] == "QUARANTINED"
+        evidence = session.get(Evidence, result["evidence_id"])
+        assert "The project was cancelled." in evidence.abstract
+        assert len(evidence.abstract) <= 4000
+        interpretation = session.scalar(
+            select(Interpretation).where(Interpretation.observation_id == evidence.observation_id)
+        )
+        assert interpretation.status == "rejected"
+        assert interpretation.assessment["admission_status"] == "research_quarantine"
+        assert not enrich_buying_chain(session, project.id, retained_only=True)["candidates"]
+        assert need.tier == "Signal"
+
+
+def test_existing_url_correction_is_not_skipped_when_another_url_has_same_content(research_db):
+    from dataclasses import replace
+
+    from gridlens.intelligence.buying_chain import enrich_buying_chain
+    from gridlens.persistence.models import Interpretation
+
+    factory, source, job_id = research_db
+    need_id = seed(factory, source, job_id)
+    first = _contact_page()
+    second = replace(
+        first,
+        url="https://acme.com/projects/orion-update",
+        text=first.text.replace("Alice Smith", "Bob Jones").replace("555-0123", "555-0199"),
+    )
+    with factory.begin() as session:
+        need = session.get(PowerNeed, need_id)
+        project = session.get(Project, need.project_id)
+        project.name = "Orion Data Center"
+        session.flush()
+        original = retain_research_document(session, project, need, first)
+        other = retain_research_document(session, project, need, second)
+        assert original["disposition"] == other["disposition"] == "ACCEPTED"
+        original_evidence = session.get(Evidence, original["evidence_id"])
+        original_id, original_text = original_evidence.id, original_evidence.abstract
+        original_observation_id = original_evidence.observation_id
+        assert enrich_buying_chain(session, project.id, retained_only=True)["candidates"]
+    with factory.begin() as session:
+        need = session.get(PowerNeed, need_id)
+        project = session.get(Project, need.project_id)
+        correction = retain_research_document(
+            session, project, need, replace(second, url=first.url)
+        )
+        assert correction["disposition"] == "ACCEPTED"
+        assert correction["duplicate"] is False
+        assert correction["evidence_id"] not in {original["evidence_id"], other["evidence_id"]}
+        corrected = session.get(Evidence, correction["evidence_id"])
+        assert corrected.observation_id == original_observation_id
+        assert corrected.content_hash == session.get(Evidence, other["evidence_id"]).content_hash
+        assert corrected.url == first.url
+        assert session.get(Evidence, original_id).abstract == original_text
+        interpretation = session.scalar(
+            select(Interpretation).where(Interpretation.observation_id == original_observation_id)
+        )
+        assert interpretation.assessment["evidence_hash"] == corrected.content_hash
+        assert "Bob Jones" in session.get(Observation, original_observation_id).abstract
+        current = enrich_buying_chain(session, project.id, retained_only=True)
+        people = [item for item in current["candidates"] if item.get("person_name")]
+        assert people
+        assert all(item["person_name"] == "Bob Jones" for item in people)
+        assert session.scalar(select(func.count()).select_from(Evidence)) == 4
+        assert need.tier == "Signal"
+
+
+@pytest.mark.parametrize("change", ["removed", "moved", "outside_excerpt", "structured"])
+def test_known_reviewed_public_url_identity_corrections_retract_old_contacts(
+    research_db, monkeypatch, change
+):
+    from dataclasses import replace
+
+    from gridlens.intelligence.buying_chain import enrich_buying_chain
+    from gridlens.persistence.models import Interpretation
+
+    factory, source, job_id = research_db
+    need_id = seed(factory, source, job_id)
+    # A test-only reviewed publisher keeps publisher eligibility constant so
+    # this exercises identity/format rejection, not the unknown-host guard.
+    reviewed = [
+        *load_registry(),
+        {
+            "endpoint": "https://acme.com/feed",
+            "retrieval_method": "publisher-rss",
+            "family": "news",
+        },
+    ]
+    monkeypatch.setattr("gridlens.intelligence.research_evidence.load_registry", lambda: reviewed)
+    document = _contact_page()
+    with factory.begin() as session:
+        need = session.get(PowerNeed, need_id)
+        project = session.get(Project, need.project_id)
+        project.name = "Orion Data Center"
+        session.flush()
+        initial = retain_research_document(session, project, need, document)
+        assert initial["disposition"] == "ACCEPTED"
+        previous = session.get(Evidence, initial["evidence_id"])
+        previous_text = previous.abstract
+        assert enrich_buying_chain(session, project.id, retained_only=True)["candidates"]
+    if change == "removed":
+        updated = replace(document, title="Acme projects", text="Our project portfolio page.")
+    elif change == "moved":
+        updated = replace(
+            document,
+            title="Acme Delta Data Center",
+            text=(
+                "Acme is the electrical contractor for Delta Data Center "
+                "at 500 Delta Rd, Dallas, TX."
+            ),
+        )
+    elif change == "outside_excerpt":
+        updated = replace(
+            document, title="Acme projects", text="Project context. " * 400 + document.text
+        )
+    else:
+        updated = replace(document, text='{"id": "different"}', structured=({"id": "different"},))
+    with factory.begin() as session:
+        need = session.get(PowerNeed, need_id)
+        project = session.get(Project, need.project_id)
+        result = retain_research_document(session, project, need, updated)
+        assert result["disposition"] == "QUARANTINED"
+        assert result["current_support_invalidated"] is True
+        fresh = session.get(Evidence, result["evidence_id"])
+        assert fresh.content_hash == fingerprint(
+            [updated.title, updated.text, updated.published_at]
+        )
+        interpretation = session.scalar(
+            select(Interpretation).where(Interpretation.observation_id == fresh.observation_id)
+        )
+        assert interpretation.status == "rejected"
+        assert interpretation.assessment["admission_status"] == "research_quarantine"
+        assert session.get(Evidence, initial["evidence_id"]).abstract == previous_text
+        assert not enrich_buying_chain(session, project.id, retained_only=True)["candidates"]
+        assert need.tier == "Signal"
+
+
+def test_new_unrelated_reviewed_page_has_receipt_only_and_no_database_writes(research_db):
+    from gridlens.persistence.models import Interpretation
+
+    factory, source, job_id = research_db
+    need_id = seed(factory, source, job_id)
+    with factory.begin() as session:
+        need = session.get(PowerNeed, need_id)
+        project = session.get(Project, need.project_id)
+        tables = [
+            Source,
+            Observation,
+            Evidence,
+            Interpretation,
+            Project,
+            PowerNeed,
+            NeedObservation,
+        ]
+        before = [session.scalar(select(func.count()).select_from(table)) for table in tables]
+        result = retain_research_document(
+            session,
+            project,
+            need,
+            PublicDocument(
+                "https://www.datacenterdynamics.com/en/news/unrelated/",
+                "Other project",
+                "An unrelated public project in Dallas, Texas.",
+            ),
+        )
+        assert result["disposition"] == "QUARANTINED"
+        assert result["evidence_id"] is None
+        assert [
+            session.scalar(select(func.count()).select_from(table)) for table in tables
+        ] == before
+
+
+def test_public_typed_reports_preserve_tier_and_versioned_conflicts(research_db):
+    from dataclasses import replace
+
+    from gridlens.intelligence.project_state import current_research_state
+
+    factory, source, job_id = research_db
+    need_id = seed(factory, source, job_id)
+    with factory.begin() as session:
+        need = session.get(PowerNeed, need_id)
+        project = session.get(Project, need.project_id)
+        project.name = "Orion Data Center"
+        session.flush()
+        document = PublicDocument(
+            "https://www.datacenterdynamics.com/en/news/orion-project/",
+            "Orion Data Center update",
+            "Orion Data Center at 811 Clayton Ln, Austin, TX construction is underway. "
+            "Orion Data Center permanent service remains pending.",
+            datetime.now(UTC).date(),
+            datetime.now(UTC),
+            "public project update",
+        )
+        receipt = retain_research_document(session, project, need, document)
+        assert receipt["disposition"] == "ACCEPTED", receipt["reason"]
+        assert receipt["claim_type"] == "project_research_report"
+        assert need.tier == "Signal" and need.required_mw is None
+        state = current_research_state(session, project.id, need.id)[str(need.id)]
+        assert state["phase"]["value"] == "construction_active"
+        assert state["permanent_service"]["value"] == "pending"
+        replay = retain_research_document(session, project, need, document)
+        assert replay["duplicate"] and replay["evidence_id"] == receipt["evidence_id"]
+        alias = retain_research_document(
+            session, project, need, replace(document, url=document.url + "-alias")
+        )
+        assert alias["duplicate"] and alias["evidence_id"] == receipt["evidence_id"]
+        assert alias["claim_type"] == "project_research_report"
+        second = replace(
+            document,
+            url=document.url + "-second",
+            text="Orion Data Center at 811 Clayton Ln, Austin, TX permanent service is energized.",
+        )
+        assert retain_research_document(session, project, need, second)["disposition"] == "ACCEPTED"
+        assert (
+            current_research_state(session, project.id)[str(need.id)]["permanent_service"]["status"]
+            == "CONFLICT"
+        )
+        corrected = replace(
+            document,
+            title="Orion Data Center cancelled",
+            text="Orion Data Center at 811 Clayton Ln, Austin, TX project was cancelled.",
+        )
+        negative = retain_research_document(session, project, need, corrected)
+        assert negative["disposition"] == "ACCEPTED", negative
+        assert (
+            current_research_state(session, project.id)[str(need.id)]["phase"]["value"]
+            == "cancelled"
+        )
+        assert session.get(Evidence, receipt["evidence_id"]).abstract == document.text.strip()

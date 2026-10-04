@@ -13,11 +13,11 @@ from gridlens.domain.buying_chain import BuyingChainOut, BuyingEnrichBody
 from gridlens.domain.commercial_presentation import commercial_size_status
 from gridlens.domain.commercial_triage import POLICY_VERSION as COMMERCIAL_TRIAGE_POLICY
 from gridlens.domain.commercial_triage import cards as make_commercial_cards
-from gridlens.domain.commercial_triage import surfaced_on as commercial_surfaced_on
 from gridlens.domain.pursuits import (
+    AutonomousResearchBody,
+    AutonomousResearchOut,
     CommercialResearchBody,
     CommercialResearchStatusOut,
-    CommercialTriageCard,
     CommercialTriageHistoryOut,
     CommercialTriageOut,
 )
@@ -581,440 +581,466 @@ def ingestion(
 )
 def opportunities(tier: str | None = None, search: str | None = None):
     with SessionLocal() as session:
-        query = (
-            select(PowerNeed, Project)
-            .join(Project, PowerNeed.project_id == Project.id)
-            .where(PowerNeed.active.is_(True))
-            .order_by(PowerNeed.updated_at.desc())
+        return opportunity_projection(session, tier=tier, search=search)
+
+
+def opportunity_projection(
+    session,
+    *,
+    tier: str | None = None,
+    search: str | None = None,
+    include_below_floor: bool = False,
+):
+    query = (
+        select(PowerNeed, Project)
+        .join(Project, PowerNeed.project_id == Project.id)
+        .where(PowerNeed.active.is_(True))
+        .order_by(PowerNeed.updated_at.desc())
+    )
+    if search:
+        query = query.where(Project.name.ilike(f"%{search[:100]}%"))
+    rows = session.execute(query).all()
+    # One set of evidence/lifecycle reads for the list, preserving the same
+    # version-bound admission checks used by ingestion and detail rendering.
+    need_ids = [need.id for need, _ in rows]
+    project_ids = [project.id for _, project in rows]
+    sources = {source.id: source for source in session.scalars(select(Source))}
+    lifecycle_by_project = {
+        life.project_id: life
+        for life in session.scalars(
+            select(ProjectLifecycle).where(ProjectLifecycle.project_id.in_(project_ids))
         )
-        if tier in {"Signal", "Prospect", "Lead"}:
-            query = query.where(PowerNeed.tier == tier)
-        if search:
-            query = query.where(Project.name.ilike(f"%{search[:100]}%"))
-        rows = session.execute(query).all()
-        # One set of evidence/lifecycle reads for the list, preserving the same
-        # version-bound admission checks used by ingestion and detail rendering.
-        need_ids = [need.id for need, _ in rows]
-        project_ids = [project.id for _, project in rows]
-        sources = {source.id: source for source in session.scalars(select(Source))}
-        lifecycle_by_project = {
-            life.project_id: life
-            for life in session.scalars(
-                select(ProjectLifecycle).where(ProjectLifecycle.project_id.in_(project_ids))
-            )
-        }
-        links_by_need = defaultdict(list)
-        interpretations = {}
-        for need_id, observation, evidence_row, interpretation in session.execute(
-            select(NeedObservation.need_id, Observation, Evidence, Interpretation)
-            .join(Observation, NeedObservation.observation_id == Observation.id)
-            .join(Evidence, Evidence.observation_id == Observation.id)
-            .outerjoin(Interpretation, Interpretation.observation_id == Observation.id)
-            .where(NeedObservation.need_id.in_(need_ids))
-            .order_by(Evidence.observed_at.desc(), Evidence.content_hash.desc())
-        ):
-            links_by_need[need_id].append((observation, evidence_row, interpretation))
-            interpretations[observation.id] = interpretation
-        briefs_by_need = {
-            brief.need_id: brief
-            for brief in session.scalars(
-                select(PowerNeedBrief).where(PowerNeedBrief.need_id.in_(need_ids))
-            )
-        }
-        lifecycles_by_project = defaultdict(list)
-        lifecycle_observations = set()
-        for event, evidence_row in session.execute(
-            select(LifecycleEvent, Evidence)
-            .join(Evidence, LifecycleEvent.evidence_id == Evidence.id)
-            .where(LifecycleEvent.project_id.in_(project_ids))
-            .order_by(
-                Evidence.published_at.asc().nullslast(),
-                Evidence.observed_at,
-                LifecycleEvent.recorded_at,
-            )
-        ):
-            lifecycles_by_project[event.project_id].append((event, evidence_row))
-            lifecycle_observations.add(event.observation_id)
-        interpretations.update(
-            {
-                item.observation_id: item
-                for item in session.scalars(
-                    select(Interpretation).where(
-                        Interpretation.observation_id.in_(lifecycle_observations)
-                    )
+    }
+    links_by_need = defaultdict(list)
+    interpretations = {}
+    for need_id, observation, evidence_row, interpretation in session.execute(
+        select(NeedObservation.need_id, Observation, Evidence, Interpretation)
+        .join(Observation, NeedObservation.observation_id == Observation.id)
+        .join(Evidence, Evidence.observation_id == Observation.id)
+        .outerjoin(Interpretation, Interpretation.observation_id == Observation.id)
+        .where(NeedObservation.need_id.in_(need_ids))
+        .order_by(Evidence.observed_at.desc(), Evidence.content_hash.desc())
+    ):
+        links_by_need[need_id].append((observation, evidence_row, interpretation))
+        interpretations[observation.id] = interpretation
+    briefs_by_need = {
+        brief.need_id: brief
+        for brief in session.scalars(
+            select(PowerNeedBrief).where(PowerNeedBrief.need_id.in_(need_ids))
+        )
+    }
+    lifecycles_by_project = defaultdict(list)
+    lifecycle_observations = set()
+    for event, evidence_row in session.execute(
+        select(LifecycleEvent, Evidence)
+        .join(Evidence, LifecycleEvent.evidence_id == Evidence.id)
+        .where(LifecycleEvent.project_id.in_(project_ids))
+        .order_by(
+            Evidence.published_at.asc().nullslast(),
+            Evidence.observed_at,
+            LifecycleEvent.recorded_at,
+        )
+    ):
+        lifecycles_by_project[event.project_id].append((event, evidence_row))
+        lifecycle_observations.add(event.observation_id)
+    interpretations.update(
+        {
+            item.observation_id: item
+            for item in session.scalars(
+                select(Interpretation).where(
+                    Interpretation.observation_id.in_(lifecycle_observations)
                 )
-            }
+            )
+        }
+    )
+    decisions_by_version: dict[tuple[UUID, str], SignalDecision] = {}
+    for decision_row in session.scalars(
+        select(SignalDecision)
+        .where(
+            SignalDecision.observation_id.in_(list(interpretations)),
+            SignalDecision.policy_version == POLICY_VERSION,
         )
-        decisions_by_version: dict[tuple[UUID, str], SignalDecision] = {}
-        for decision_row in session.scalars(
-            select(SignalDecision)
-            .where(
-                SignalDecision.observation_id.in_(list(interpretations)),
-                SignalDecision.policy_version == POLICY_VERSION,
-            )
-            .order_by(SignalDecision.id.desc())
-        ):
-            decisions_by_version.setdefault(
-                (decision_row.observation_id, decision_row.content_hash), decision_row
-            )
-        result = []
-        title_company_by_project = {}
-        for need, project in rows:
-            links = links_by_need[need.id]
-            if not _need_has_current_support(session, need, project, links=links):
-                continue
-            lifecycle = lifecycle_by_project.get(project.id)
-            lifecycle_rows = lifecycles_by_project[project.id]
-            current_lifecycle_ids = set()
-            for lifecycle_event, lifecycle_evidence in lifecycle_rows:
-                lifecycle_interpretation = interpretations.get(lifecycle_event.observation_id)
-                if lifecycle_event_supported(
-                    lifecycle_event.event_type,
-                    lifecycle_evidence,
-                    lifecycle_interpretation,
-                    project,
-                ):
-                    current_lifecycle_ids.add(lifecycle_event.id)
-            taylor_withdrawn = bool(
-                lifecycle and lifecycle.current_state == "planning_application_withdrawn"
-            )
-            taylor_identity_conflict = any(
-                obs.source_id == "taylor-development-newsflash"
-                and interpretation is not None
-                and "conflicting project or site facts"
-                in str((interpretation.assessment or {}).get("reason") or "")
-                for obs, _, interpretation in links
-            )
-            evidence = []
-            current_assessments = []
-            for obs, ev, interpretation in links:
-                evidence_source = sources.get(obs.source_id)
-                current_assessment = _assessment_for_evidence(interpretation, obs, ev)
-                if current_assessment is not None:
-                    assessment_project = current_assessment.get("project_identity_key")
-                    assessment_activity = current_assessment.get(
-                        "power_activity"
-                    ) or current_assessment.get("activity_key")
-                    if (
-                        assessment_project != project.identity_key
-                        or assessment_activity != need.activity_key
-                    ):
-                        current_assessment = None
+        .order_by(SignalDecision.id.desc())
+    ):
+        decisions_by_version.setdefault(
+            (decision_row.observation_id, decision_row.content_hash), decision_row
+        )
+    from gridlens.ingestion.service import effective_need_qualification
+    from gridlens.intelligence.project_state import current_research_state
+
+    research_by_project = {
+        project_id: current_research_state(session, project_id) for project_id in set(project_ids)
+    }
+    result = []
+    title_company_by_project = {}
+    for need, project in rows:
+        research_state = research_by_project.get(project.id, {}).get(str(need.id), {})
+        links = links_by_need[need.id]
+        if not _need_has_current_support(session, need, project, links=links):
+            continue
+        qualified = effective_need_qualification(session, need, project)
+        effective = qualified or {
+            "tier": "Signal",
+            "rationale": need.rationale,
+            "required_mw": None,
+            "start_window": None,
+            "duration": None,
+            "supply": "Unknown",
+        }
+        if tier in {"Signal", "Prospect", "Lead"} and effective["tier"] != tier:
+            continue
+        lifecycle = lifecycle_by_project.get(project.id)
+        lifecycle_rows = lifecycles_by_project[project.id]
+        current_lifecycle_ids = set()
+        for lifecycle_event, lifecycle_evidence in lifecycle_rows:
+            lifecycle_interpretation = interpretations.get(lifecycle_event.observation_id)
+            if lifecycle_event_supported(
+                lifecycle_event.event_type,
+                lifecycle_evidence,
+                lifecycle_interpretation,
+                project,
+            ):
+                current_lifecycle_ids.add(lifecycle_event.id)
+        taylor_withdrawn = bool(
+            lifecycle and lifecycle.current_state == "planning_application_withdrawn"
+        )
+        taylor_identity_conflict = any(
+            obs.source_id == "taylor-development-newsflash"
+            and interpretation is not None
+            and "conflicting project or site facts"
+            in str((interpretation.assessment or {}).get("reason") or "")
+            for obs, _, interpretation in links
+        )
+        evidence = []
+        current_assessments = []
+        for obs, ev, interpretation in links:
+            evidence_source = sources.get(obs.source_id)
+            current_assessment = _assessment_for_evidence(interpretation, obs, ev)
+            if current_assessment is not None:
+                assessment_project = current_assessment.get("project_identity_key")
+                assessment_activity = current_assessment.get(
+                    "power_activity"
+                ) or current_assessment.get("activity_key")
                 if (
-                    taylor_withdrawn or taylor_identity_conflict
-                ) and obs.source_id == "taylor-development-newsflash":
+                    assessment_project != project.identity_key
+                    or assessment_activity != need.activity_key
+                ):
                     current_assessment = None
-                if (
-                    current_assessment
-                    and evidence_source is not None
-                    and admitted_from_source(evidence_source, current_assessment, ev).admitted
-                ):
-                    current_assessments.append(current_assessment)
-                evidence.append(
-                    {
-                        "id": ev.id,
-                        "title": ev.title,
-                        "abstract": ev.abstract,
-                        "url": ev.url,
-                        "published_at": ev.published_at,
-                        "retrieved_at": ev.observed_at,
-                        "extraction_location": ev.extraction_location,
-                        "content_hash": ev.content_hash,
-                        "event_date": ev.event_date,
-                        "event_date_label": ev.event_date_label
-                        or (
-                            "Permit issue date (source publication date unknown)"
-                            if ev.event_date and obs.source_id.endswith("-building-permits")
-                            else "Source event date"
-                            if ev.event_date
-                            else "Unknown"
-                        ),
-                        "source_id": obs.source_id,
-                        "source_origin": source_origin(
-                            evidence_source.family, evidence_source.retrieval_method
-                        )
-                        if evidence_source is not None
-                        else "Source evidence",
-                        "document_number": obs.external_id,
-                        "assessment_current": current_assessment is not None,
-                        "permit_status": current_assessment.get("permit_status")
-                        if current_assessment
-                        else None,
-                    }
-                )
-            current_assessment = current_assessments[0] if current_assessments else None
-            display_decisions: list[SignalDecision] = []
-            has_unadjudicated_current_signal = False
-            for obs, ev, interpretation in links:
-                if need.tier != "Signal" or not _assessment_for_evidence(interpretation, obs, ev):
-                    continue
-                source = sources.get(obs.source_id)
-                assessment = _assessment_for_evidence(interpretation, obs, ev)
-                if assessment is not None:
-                    assessment_project = assessment.get("project_identity_key")
-                    assessment_activity = assessment.get("power_activity") or assessment.get(
-                        "activity_key"
-                    )
-                    if (
-                        assessment_project != project.identity_key
-                        or assessment_activity != need.activity_key
-                    ):
-                        assessment = None
-                if (
-                    source is None
-                    or assessment is None
-                    or not admitted_from_source(source, assessment, ev).admitted
-                ):
-                    continue
-                decision = decisions_by_version.get((obs.id, ev.content_hash))
-                if decision is not None:
-                    display_decisions.append(decision)
-                else:
-                    has_unadjudicated_current_signal = True
-            precedence = {"SHOW": 0, "REVIEW": 1, "HOLD": 2}
-            selected_decision = min(
-                display_decisions,
-                key=lambda item: precedence.get(item.decision, 1),
-                default=None,
-            )
-            display_decision = (
-                "SHOW"
-                if any(item.decision == "SHOW" for item in display_decisions)
-                else "REVIEW"
-                if has_unadjudicated_current_signal
-                else selected_decision.decision
-                if selected_decision
-                else None
-            )
-            display_source = (
-                selected_decision.source
-                if selected_decision
-                and not (has_unadjudicated_current_signal and selected_decision.decision == "HOLD")
-                else None
-            )
-            display_reason = (
-                "One or more linked current Signal evidence versions have no decision."
-                if has_unadjudicated_current_signal
-                and (selected_decision is None or selected_decision.decision == "HOLD")
-                else selected_decision.reason
-                if selected_decision
-                else None
-            )
-            display_state = (
-                "adjudicated"
-                if display_decisions and not has_unadjudicated_current_signal
-                else "partially_adjudicated"
-                if display_decisions
-                else "unadjudicated"
-            )
-            if need.tier == "Signal" and taylor_withdrawn:
-                display_decision = "HOLD"
-                display_source = "deterministic"
-                display_reason = (
-                    "The current official planning application is withdrawn; earlier "
-                    "positive evidence remains historical and project viability is UNKNOWN."
-                )
-                display_state = "adjudicated"
-            elif need.tier == "Signal" and taylor_identity_conflict:
-                display_decision = "REVIEW"
-                display_source = "deterministic"
-                display_reason = (
-                    "The latest Taylor revision conflicts with retained project or site facts; "
-                    "current application and project status are UNKNOWN."
-                )
-                display_state = "adjudicated"
-            time_to_power_window = None
-            if lifecycle and lifecycle.time_to_power_start and lifecycle.time_to_power_end:
-                time_to_power_window = (
-                    f"{lifecycle.time_to_power_start.isoformat()} to "
-                    f"{lifecycle.time_to_power_end.isoformat()} (estimated)"
-                )
-            missing_facts = (
-                current_assessment.get("missing_facts", [])
-                if current_assessment
-                else [
-                    label
-                    for value, label in (
-                        (need.required_mw, "activity-specific power requirement"),
-                        (need.supply != "Unknown", "suitable supply"),
-                        (need.start_window, "start window"),
-                        (need.duration, "duration"),
-                    )
-                    if not value
-                ]
-            )
-            reported_power_facts = (
-                current_assessment.get("reported_power_facts", []) if current_assessment else []
-            )
-            supported_action = current_assessment.get("action") if current_assessment else None
-            size_status = commercial_size_status(
-                need.required_mw,
-                need.activity_key,
-                supported_action,
-                reported_power_facts,
-            )
-            if size_status == "below_floor":
-                continue
-            if project.id not in title_company_by_project:
-                title_company = None
-                title_company_role = None
-                if project.source_id == "houston-weekly-permits":
-                    chain = buying_chain_view(session, project.id)
-                    owner_occupant = next(
-                        (
-                            fact["value"]
-                            for summary in chain["permit_summaries"]
-                            for fact in summary["facts"]
-                            if fact["label"] == "Permit-listed owner / occupant"
-                            and fact["value"].strip()
-                        ),
-                        None,
-                    )
-                    if owner_occupant:
-                        title_company = owner_occupant
-                        title_company_role = "permit-listed owner / occupant"
-                title_company_by_project[project.id] = (title_company, title_company_role)
-            title_company, title_company_role = title_company_by_project[project.id]
-            result.append(
+            if (
+                taylor_withdrawn or taylor_identity_conflict
+            ) and obs.source_id == "taylor-development-newsflash":
+                current_assessment = None
+            if (
+                current_assessment
+                and evidence_source is not None
+                and admitted_from_source(evidence_source, current_assessment, ev).admitted
+            ):
+                current_assessments.append(current_assessment)
+            evidence.append(
                 {
-                    "id": need.id,
-                    "project_id": project.id,
-                    "name": project.name,
-                    "location": project.location,
-                    "tier": need.tier,
-                    "activity": need.activity_key,
-                    "rationale": (
-                        "The latest linked Taylor revision withdraws this planning application. "
-                        "Earlier project evidence remains historical; current project viability "
-                        "and power need are UNKNOWN."
-                        if taylor_withdrawn
-                        else "A later Taylor revision conflicts with retained project or "
-                        "site facts. "
-                        "The earlier planning evidence remains historical; current application "
-                        "and project status are UNKNOWN."
-                        if taylor_identity_conflict
-                        else need.rationale
+                    "id": ev.id,
+                    "title": ev.title,
+                    "abstract": ev.abstract,
+                    "url": ev.url,
+                    "published_at": ev.published_at,
+                    "retrieved_at": ev.observed_at,
+                    "extraction_location": ev.extraction_location,
+                    "content_hash": ev.content_hash,
+                    "event_date": ev.event_date,
+                    "event_date_label": ev.event_date_label
+                    or (
+                        "Permit issue date (source publication date unknown)"
+                        if ev.event_date and obs.source_id.endswith("-building-permits")
+                        else "Source event date"
+                        if ev.event_date
+                        else "Unknown"
                     ),
-                    "signal_evidence_state": (
-                        "planning_application_withdrawn"
-                        if taylor_withdrawn
-                        else "planning_status_unknown"
-                        if taylor_identity_conflict
-                        else "active_evidence"
-                    ),
-                    "required_mw": need.required_mw,
-                    "commercial_size_status": size_status,
-                    "start_window": need.start_window,
-                    "duration": need.duration,
-                    "supply": need.supply,
-                    "next_action": (
-                        "Confirm timing, duration, and remaining suitable supply for this activity."
-                        if need.tier == "Prospect"
-                        else "Confirm activity power needs, timing, duration, and service plan."
-                    ),
-                    "conflict_state": "Not assessed",
-                    "assessment_reason": (
-                        "The latest linked Taylor revision withdraws this planning application. "
-                        "Earlier project evidence remains historical; current project viability "
-                        "and power need are UNKNOWN."
-                        if taylor_withdrawn
-                        else "A later Taylor revision conflicts with retained project or "
-                        "site facts. "
-                        "The earlier planning evidence remains historical; current application "
-                        "and project status are UNKNOWN."
-                        if taylor_identity_conflict
-                        else current_assessment.get("reason", need.rationale)
-                        if current_assessment
-                        else need.rationale
-                    ),
-                    "supported_subject": current_assessment.get("subject", project.name)
-                    if current_assessment
-                    else project.name,
-                    "supported_action": supported_action,
-                    "title_company": title_company,
-                    "title_company_role": title_company_role,
-                    "demand_quote": current_assessment.get("demand_quote")
+                    "source_id": obs.source_id,
+                    "source_origin": source_origin(
+                        evidence_source.family, evidence_source.retrieval_method
+                    )
+                    if evidence_source is not None
+                    else "Source evidence",
+                    "document_number": obs.external_id,
+                    "assessment_current": current_assessment is not None,
+                    "permit_status": current_assessment.get("permit_status")
                     if current_assessment
                     else None,
-                    "supply_quote": current_assessment.get("supply_quote")
-                    if current_assessment
-                    else None,
-                    "missing_facts": missing_facts,
-                    "reported_power_facts": reported_power_facts,
-                    "evidence": evidence,
-                    "asset_type": project.asset_type,
-                    "lifecycle_state": lifecycle.current_state if lifecycle else None,
-                    "lifecycle_timeline": [
-                        {
-                            "state": event.state,
-                            "event_type": event.event_type,
-                            "date": event.occurred_on.isoformat() if event.occurred_on else None,
-                            "value_kind": event.value_kind,
-                            "evidence_url": lifecycle_evidence.url,
-                            "current": event.id in current_lifecycle_ids
-                            and (
-                                not taylor_withdrawn
-                                or event.event_type == "planning_application_withdrawn"
-                            )
-                            and not taylor_identity_conflict,
-                            "published_at": lifecycle_evidence.published_at,
-                            "event_date_label": lifecycle_evidence.event_date_label,
-                        }
-                        for event, lifecycle_evidence in lifecycle_rows
-                    ],
-                    "expected_next_milestone": (
-                        None
-                        if taylor_withdrawn or taylor_identity_conflict
-                        else lifecycle.expected_next_milestone
-                        if lifecycle
-                        else None
-                    ),
-                    "expected_power_event": (
-                        None
-                        if taylor_withdrawn or taylor_identity_conflict
-                        else lifecycle.expected_power_event
-                        if lifecycle
-                        else None
-                    ),
-                    "time_to_power_window": (
-                        None
-                        if taylor_withdrawn or taylor_identity_conflict
-                        else time_to_power_window
-                    ),
-                    "estimate_basis": (
-                        None
-                        if taylor_withdrawn or taylor_identity_conflict
-                        else lifecycle.estimate_basis
-                        if lifecycle
-                        else None
-                    ),
-                    "estimate_version": (
-                        None
-                        if taylor_withdrawn
-                        else lifecycle.estimate_version
-                        if lifecycle
-                        else None
-                    ),
-                    "lifecycle_open_questions": lifecycle.open_questions if lifecycle else [],
-                    "monitoring_requirements": lifecycle.monitoring_requirements
-                    if lifecycle
-                    else [],
-                    "signal_display_decision": display_decision,
-                    "signal_display_decision_state": display_state,
-                    "signal_display_source": display_source,
-                    "signal_display_reason": display_reason,
-                    "signal_admission_origin": (need.admission_basis or {}).get("origin"),
-                    **brief_preview(
-                        session,
-                        need,
-                        project,
-                        links,
-                        sources,
-                        briefs_by_need.get(need.id),
-                    ),
                 }
             )
-        return result
+        current_assessment = current_assessments[0] if current_assessments else None
+        display_decisions: list[SignalDecision] = []
+        has_unadjudicated_current_signal = False
+        for obs, ev, interpretation in links:
+            if effective["tier"] != "Signal" or not _assessment_for_evidence(
+                interpretation, obs, ev
+            ):
+                continue
+            source = sources.get(obs.source_id)
+            assessment = _assessment_for_evidence(interpretation, obs, ev)
+            if assessment is not None:
+                assessment_project = assessment.get("project_identity_key")
+                assessment_activity = assessment.get("power_activity") or assessment.get(
+                    "activity_key"
+                )
+                if (
+                    assessment_project != project.identity_key
+                    or assessment_activity != need.activity_key
+                ):
+                    assessment = None
+            if (
+                source is None
+                or assessment is None
+                or not admitted_from_source(source, assessment, ev).admitted
+            ):
+                continue
+            decision = decisions_by_version.get((obs.id, ev.content_hash))
+            if decision is not None:
+                display_decisions.append(decision)
+            else:
+                has_unadjudicated_current_signal = True
+        precedence = {"SHOW": 0, "REVIEW": 1, "HOLD": 2}
+        selected_decision = min(
+            display_decisions,
+            key=lambda item: precedence.get(item.decision, 1),
+            default=None,
+        )
+        display_decision = (
+            "SHOW"
+            if any(item.decision == "SHOW" for item in display_decisions)
+            else "REVIEW"
+            if has_unadjudicated_current_signal
+            else selected_decision.decision
+            if selected_decision
+            else None
+        )
+        display_source = (
+            selected_decision.source
+            if selected_decision
+            and not (has_unadjudicated_current_signal and selected_decision.decision == "HOLD")
+            else None
+        )
+        display_reason = (
+            "One or more linked current Signal evidence versions have no decision."
+            if has_unadjudicated_current_signal
+            and (selected_decision is None or selected_decision.decision == "HOLD")
+            else selected_decision.reason
+            if selected_decision
+            else None
+        )
+        display_state = (
+            "adjudicated"
+            if display_decisions and not has_unadjudicated_current_signal
+            else "partially_adjudicated"
+            if display_decisions
+            else "unadjudicated"
+        )
+        if effective["tier"] == "Signal" and taylor_withdrawn:
+            display_decision = "HOLD"
+            display_source = "deterministic"
+            display_reason = (
+                "The current official planning application is withdrawn; earlier "
+                "positive evidence remains historical and project viability is UNKNOWN."
+            )
+            display_state = "adjudicated"
+        elif effective["tier"] == "Signal" and taylor_identity_conflict:
+            display_decision = "REVIEW"
+            display_source = "deterministic"
+            display_reason = (
+                "The latest Taylor revision conflicts with retained project or site facts; "
+                "current application and project status are UNKNOWN."
+            )
+            display_state = "adjudicated"
+        time_to_power_window = None
+        if lifecycle and lifecycle.time_to_power_start and lifecycle.time_to_power_end:
+            time_to_power_window = (
+                f"{lifecycle.time_to_power_start.isoformat()} to "
+                f"{lifecycle.time_to_power_end.isoformat()} (estimated)"
+            )
+        missing_facts = (
+            current_assessment.get("missing_facts", [])
+            if current_assessment
+            else [
+                label
+                for value, label in (
+                    (effective["required_mw"], "activity-specific power requirement"),
+                    (effective["supply"] != "Unknown", "suitable supply"),
+                    (effective["start_window"], "start window"),
+                    (effective["duration"], "duration"),
+                )
+                if not value
+            ]
+        )
+        reported_power_facts = (
+            current_assessment.get("reported_power_facts", []) if current_assessment else []
+        )
+        supported_action = current_assessment.get("action") if current_assessment else None
+        size_status = commercial_size_status(
+            effective["required_mw"],
+            need.activity_key,
+            supported_action,
+            reported_power_facts,
+        )
+        if size_status == "below_floor" and not include_below_floor:
+            continue
+        if project.id not in title_company_by_project:
+            title_company = None
+            title_company_role = None
+            if project.source_id == "houston-weekly-permits":
+                chain = buying_chain_view(session, project.id)
+                owner_occupant = next(
+                    (
+                        fact["value"]
+                        for summary in chain["permit_summaries"]
+                        for fact in summary["facts"]
+                        if fact["label"] == "Permit-listed owner / occupant"
+                        and fact["value"].strip()
+                    ),
+                    None,
+                )
+                if owner_occupant:
+                    title_company = owner_occupant
+                    title_company_role = "permit-listed owner / occupant"
+            title_company_by_project[project.id] = (title_company, title_company_role)
+        title_company, title_company_role = title_company_by_project[project.id]
+        result.append(
+            {
+                "id": need.id,
+                "project_id": project.id,
+                "name": project.name,
+                "location": project.location,
+                "tier": effective["tier"],
+                "activity": need.activity_key,
+                "rationale": (
+                    "The latest linked Taylor revision withdraws this planning application. "
+                    "Earlier project evidence remains historical; current project viability "
+                    "and power need are UNKNOWN."
+                    if taylor_withdrawn
+                    else "A later Taylor revision conflicts with retained project or "
+                    "site facts. "
+                    "The earlier planning evidence remains historical; current application "
+                    "and project status are UNKNOWN."
+                    if taylor_identity_conflict
+                    else need.rationale
+                ),
+                "signal_evidence_state": (
+                    "planning_application_withdrawn"
+                    if taylor_withdrawn
+                    else "planning_status_unknown"
+                    if taylor_identity_conflict
+                    else "active_evidence"
+                ),
+                "required_mw": effective["required_mw"],
+                "commercial_size_status": size_status,
+                "start_window": effective["start_window"],
+                "duration": effective["duration"],
+                "supply": effective["supply"],
+                "next_action": effective.get("qualification_next_action")
+                or (
+                    "Confirm timing, duration, and remaining suitable supply for this activity."
+                    if effective["tier"] == "Prospect"
+                    else "Confirm activity power needs, timing, duration, and service plan."
+                ),
+                "research_state": research_state,
+                "conflict_state": "CONFLICT"
+                if any(field.get("status") == "CONFLICT" for field in research_state.values())
+                else "Not assessed",
+                "assessment_reason": (
+                    "The latest linked Taylor revision withdraws this planning application. "
+                    "Earlier project evidence remains historical; current project viability "
+                    "and power need are UNKNOWN."
+                    if taylor_withdrawn
+                    else "A later Taylor revision conflicts with retained project or "
+                    "site facts. "
+                    "The earlier planning evidence remains historical; current application "
+                    "and project status are UNKNOWN."
+                    if taylor_identity_conflict
+                    else effective["rationale"]
+                    if effective.get("qualification_version")
+                    else current_assessment.get("reason", need.rationale)
+                    if current_assessment
+                    else need.rationale
+                ),
+                "supported_subject": current_assessment.get("subject", project.name)
+                if current_assessment
+                else project.name,
+                "supported_action": supported_action,
+                "title_company": title_company,
+                "title_company_role": title_company_role,
+                "demand_quote": current_assessment.get("demand_quote")
+                if current_assessment
+                else None,
+                "supply_quote": current_assessment.get("supply_quote")
+                if current_assessment
+                else None,
+                "missing_facts": missing_facts,
+                "reported_power_facts": reported_power_facts,
+                "evidence": evidence,
+                "asset_type": project.asset_type,
+                "lifecycle_state": lifecycle.current_state if lifecycle else None,
+                "lifecycle_timeline": [
+                    {
+                        "state": event.state,
+                        "event_type": event.event_type,
+                        "date": event.occurred_on.isoformat() if event.occurred_on else None,
+                        "value_kind": event.value_kind,
+                        "evidence_url": lifecycle_evidence.url,
+                        "current": event.id in current_lifecycle_ids
+                        and (
+                            not taylor_withdrawn
+                            or event.event_type == "planning_application_withdrawn"
+                        )
+                        and not taylor_identity_conflict,
+                        "published_at": lifecycle_evidence.published_at,
+                        "event_date_label": lifecycle_evidence.event_date_label,
+                    }
+                    for event, lifecycle_evidence in lifecycle_rows
+                ],
+                "expected_next_milestone": (
+                    None
+                    if taylor_withdrawn or taylor_identity_conflict
+                    else lifecycle.expected_next_milestone
+                    if lifecycle
+                    else None
+                ),
+                "expected_power_event": (
+                    None
+                    if taylor_withdrawn or taylor_identity_conflict
+                    else lifecycle.expected_power_event
+                    if lifecycle
+                    else None
+                ),
+                "time_to_power_window": (
+                    None if taylor_withdrawn or taylor_identity_conflict else time_to_power_window
+                ),
+                "estimate_basis": (
+                    None
+                    if taylor_withdrawn or taylor_identity_conflict
+                    else lifecycle.estimate_basis
+                    if lifecycle
+                    else None
+                ),
+                "estimate_version": (
+                    None if taylor_withdrawn else lifecycle.estimate_version if lifecycle else None
+                ),
+                "lifecycle_open_questions": lifecycle.open_questions if lifecycle else [],
+                "monitoring_requirements": lifecycle.monitoring_requirements if lifecycle else [],
+                "signal_display_decision": display_decision,
+                "signal_display_decision_state": display_state,
+                "signal_display_source": display_source,
+                "signal_display_reason": display_reason,
+                "signal_admission_origin": (need.admission_basis or {}).get("origin"),
+                **brief_preview(
+                    session,
+                    need,
+                    project,
+                    links,
+                    sources,
+                    briefs_by_need.get(need.id),
+                ),
+            }
+        )
+    return result
 
 
 class SignalDecisionCountsOut(BaseModel):
@@ -1312,7 +1338,7 @@ def save_pursuit_note(pursuit_id: UUID, body: CallNoteBody, request: Request):
 
 
 def _commercial_triage_cards(session, limit: int) -> list[dict]:
-    items = opportunities(tier="Signal")
+    items = opportunity_projection(session, tier="Signal")
     shortlist = make_commercial_cards(items, {}, chicago_today(), limit)
     selected_ids = {need_id for card in shortlist for need_id in card["related_need_ids"]}
     selected = [item for item in items if str(item["id"]) in selected_ids]
@@ -1389,7 +1415,12 @@ def _commercial_triage_payload(session, limit: int) -> dict:
             or 0
         )
 
+    from gridlens.intelligence.research_metrics import research_overview
+    from gridlens.persistence.models import PursuitResearchQuestion
+
+    questions = list(session.scalars(select(PursuitResearchQuestion)))
     return {
+        "research_overview": research_overview(cards, questions, receipts, midnight),
         "evaluated_at": datetime.now(UTC),
         "policy_version": COMMERCIAL_TRIAGE_POLICY,
         "total": len(cards),
@@ -1428,6 +1459,45 @@ def _commercial_triage_payload(session, limit: int) -> dict:
 def commercial_triage(limit: int = Query(default=50, ge=1, le=50)):
     with SessionLocal() as session:
         return _commercial_triage_payload(session, limit)
+
+
+@app.get(
+    "/api/commercial/triage/{need_id}/autonomous-research",
+    response_model=AutonomousResearchOut,
+    dependencies=[Depends(require_session)],
+)
+def autonomous_research_status(need_id: UUID):
+    from gridlens.intelligence.pursuit_questions import question_view
+    from gridlens.persistence.models import PursuitResearchQuestion
+
+    with SessionLocal() as session:
+        if session.get(PowerNeed, need_id) is None:
+            raise HTTPException(404, "Power need not found")
+        rows = session.scalars(
+            select(PursuitResearchQuestion)
+            .where(PursuitResearchQuestion.need_id == need_id)
+            .order_by(PursuitResearchQuestion.created_at.desc(), PursuitResearchQuestion.id)
+            .limit(30)
+        )
+        return {"items": [question_view(row) for row in rows]}
+
+
+@app.post(
+    "/api/commercial/triage/{need_id}/autonomous-research",
+    response_model=AutonomousResearchOut,
+    dependencies=[Depends(require_session)],
+)
+def request_autonomous_research(need_id: UUID, body: AutonomousResearchBody, request: Request):
+    require_same_origin(request)
+    from gridlens.intelligence.pursuit_questions import question_view, schedule_questions
+
+    with SessionLocal.begin() as session:
+        cards = _commercial_triage_cards(session, 50)
+        card = next((card for card in cards if str(card["id"]) == str(need_id)), None)
+        if card is None:
+            raise HTTPException(409, "Power need is not in the current commercial cohort")
+        rows = schedule_questions(session, [card], force=body.force, origin="manual")
+        return {"items": [question_view(row) for row in rows]}
 
 
 @app.get(
@@ -1539,96 +1609,9 @@ def evaluate_commercial_triage(request: Request, limit: int = Query(default=50, 
         today = chicago_today().isoformat()
         saved_at = datetime.now(UTC).isoformat()
         payload["evaluated_at"] = saved_at
-        for card in payload["items"]:
-            identity = "commercial-need:" + card["id"]
-            row = session.scalar(
-                select(Pursuit).where(Pursuit.identity_key == identity).with_for_update()
-            )
-            if row is None:
-                row = Pursuit(
-                    identity_key=identity,
-                    project_id=card["project_id"],
-                    project_ids=[card["project_id"]],
-                    snapshot={},
-                )
-                session.add(row)
-                session.flush()
-            row.project_ids = card["related_project_ids"]
-            card["pursuit_id"] = row.id
-            saved_card = CommercialTriageCard.model_validate(card).model_dump(mode="json")
-            saved_card["notes"] = []
-            snapshot = dict(row.snapshot or {})
-            prior = snapshot.get("commercial_triage", {})
-            versions = (
-                list(prior.get("versions", []))
-                if isinstance(prior.get("versions"), list)
-                else []
-            )
-            if not versions and any(
-                prior.get(key) is not None
-                for key in ("input_hash", "disposition", "saved_at", "saved_card")
-            ):
-                prior_card = prior.get("saved_card")
-                if isinstance(prior_card, dict):
-                    prior_card = {**prior_card, "pursuit_id": str(row.id), "notes": []}
-                versions.append(
-                    {
-                        "version": 1,
-                        "disposition": prior.get("disposition")
-                        or (prior_card or {}).get("disposition")
-                        or "UNKNOWN",
-                        "evaluated_on": prior.get("evaluated_on"),
-                        "evaluated_at": prior.get("saved_at"),
-                        "input_hash": prior.get("input_hash")
-                        or (prior_card or {}).get("input_hash"),
-                        "snapshot_status": "saved_as_of" if prior_card else "metadata_only",
-                        "live_status": "not_rechecked",
-                        "saved_card": prior_card,
-                    }
-                )
-            changed = (
-                prior.get("input_hash") != card["input_hash"]
-                or prior.get("disposition") != card["disposition"]
-            )
-            if changed:
-                versions.append(
-                    {
-                        "version": len(versions) + 1,
-                        "disposition": card["disposition"],
-                        "evaluated_on": today,
-                        "evaluated_at": saved_at,
-                        "input_hash": card["input_hash"],
-                        "snapshot_status": "saved_as_of",
-                        "live_status": "not_rechecked",
-                        "saved_card": saved_card,
-                    }
-                )
-            elif not versions:
-                # Defensive: a malformed legacy receipt should not create duplicate versions.
-                versions.append(
-                    {
-                        "version": 1,
-                        "disposition": prior.get("disposition") or "UNKNOWN",
-                        "evaluated_on": prior.get("evaluated_on"),
-                        "evaluated_at": prior.get("saved_at"),
-                        "input_hash": prior.get("input_hash"),
-                        "snapshot_status": "metadata_only",
-                        "live_status": "not_rechecked",
-                        "saved_card": None,
-                    }
-                )
-            if changed:
-                snapshot["commercial_triage"] = {
-                    "need_id": card["id"],
-                    "input_hash": card["input_hash"],
-                    "disposition": card["disposition"],
-                    "evaluated_on": today,
-                    "saved_at": saved_at,
-                    "saved_card": saved_card,
-                    "surfaced_on": commercial_surfaced_on(prior, card, today),
-                    "versions": versions,
-                }
-            row.snapshot = snapshot
+        from gridlens.intelligence.commercial_evaluation import save_evaluations
+
+        save_evaluations(session, payload["items"])
         receipts = list(
             session.scalars(select(Pursuit).where(Pursuit.identity_key.like("commercial-need:%")))
         )
