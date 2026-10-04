@@ -146,10 +146,22 @@ def test_two_distinct_target_jobs_active_cap_and_evaluation_replay(runtime):
 def test_daily_question_cap_holds_then_reopens_next_day(runtime, monkeypatch):
     factory, _, _, card = runtime
     monkeypatch.setattr(settings, "autonomous_research_daily_questions", 1)
-    now = datetime.now(UTC)
+    # Keep the scheduler's supplied clock and persisted creation timestamps on
+    # one stable UTC day, independent of the wall-clock hour running this test.
+    now = datetime(2026, 10, 4, 12, tzinfo=UTC)
     first = schedule(factory, card, now=now)
     assert len(first) == 1
-    finish_questions(factory, first)
+    with factory.begin() as session:
+        for question_id in first:
+            row = session.get(PursuitResearchQuestion, question_id)
+            row.created_at = now
+            row.status = "UNRESOLVED"
+            row.completed_at = now
+            row.retry_after = now + timedelta(days=1)
+            row.receipt = {
+                **row.receipt,
+                "route_results": [{"kind": "registered", "status": "CHECKED"}],
+            }
     assert schedule(factory, card, now=now + timedelta(hours=2)) == []
     next_day = schedule(factory, card, now=now + timedelta(days=1))
     assert len(next_day) == 1
@@ -309,6 +321,199 @@ def test_free_get_and_unconfigured_extraction_recover_same_evidence(runtime, mon
         assert not recovered.receipt.get("inflight_url")
         assert recovered.receipt.get("inflight_acquisition_url") is None
     assert schedule(factory, card) == []
+
+
+def test_mixed_completed_and_failed_checks_use_bounded_retry_chain(runtime):
+    import time
+
+    factory, worker, _, card = runtime
+    initial_ids = schedule(factory, card)
+    assert len(initial_ids) == 2
+    first_id, sibling_id = initial_ids
+    with factory.begin() as session:
+        sibling = session.get(PursuitResearchQuestion, sibling_id)
+        sibling.status = "FAILED"
+        sibling.completed_at = datetime.now(UTC)
+        sibling.retry_after = sibling.completed_at + timedelta(days=1)
+        sibling.receipt = {**sibling.receipt, "retry_class": "RETRIES_EXHAUSTED"}
+
+    retry_id = first_id
+    expected_delays = (1, 6, 24, None)
+    statuses = ("PARTIALLY_RESOLVED", "UNRESOLVED", "PARTIALLY_RESOLVED", "UNRESOLVED")
+    accepted_evidence_ids = []
+    for retry_index, (delay_hours, terminal_status) in enumerate(
+        zip(expected_delays, statuses, strict=True)
+    ):
+        job_id, fence = lease_question(factory, retry_id)
+        with factory() as session:
+            row = session.get(PursuitResearchQuestion, retry_id)
+            budget = row.budget
+        started = time.monotonic()
+        run = worker.QuestionRun(
+            job_id, "question-test", fence, retry_id, started, budget
+        )
+        accepted_evidence_id = str(uuid4())
+        accepted_evidence_ids.append(accepted_evidence_id)
+        run.record(
+            {
+                "url": f"https://public.example/supported-{retry_index}",
+                "acquisition": "public",
+                "disposition": "ACCEPTED",
+                "evidence_id": accepted_evidence_id,
+            }
+        )
+        run.record(
+            {
+                "url": f"https://public.example/failed-{retry_index}",
+                "acquisition": "public",
+                "disposition": "FAILED",
+                "effect_status": "NOT_SENT",
+                "error": "source temporarily unavailable",
+            }
+        )
+        with factory.begin() as session:
+            row = session.get(PursuitResearchQuestion, retry_id)
+            row.receipt = {
+                **row.receipt,
+                "route_results": [{"kind": "registered", "status": "CHECKED"}],
+            }
+        worker._finish(
+            job_id,
+            "question-test",
+            fence,
+            retry_id,
+            terminal_status,
+            started,
+        )
+        with factory() as session:
+            completed = session.get(PursuitResearchQuestion, retry_id)
+            assert completed.receipt["resulting_evidence_ids"] == [accepted_evidence_id]
+            assert completed.receipt["source_checks"][-2]["acquisition"] == "public"
+            assert completed.receipt["source_checks"][-2]["disposition"] == "ACCEPTED"
+            assert completed.receipt["source_checks"][-1]["disposition"] == "FAILED"
+            assert completed.status == terminal_status
+            if delay_hours is None:
+                assert completed.receipt["retry_class"] == "RETRIES_EXHAUSTED"
+                exhausted_at = completed.retry_after + timedelta(seconds=1)
+            else:
+                assert completed.receipt["retry_class"] == "BOUNDED_TRANSIENT"
+                assert completed.retry_after == completed.completed_at + timedelta(
+                    hours=delay_hours
+                )
+                retry_after = completed.retry_after
+
+        if delay_hours is None:
+            assert schedule(factory, card, now=exhausted_at + timedelta(days=2)) == []
+            break
+
+        assert schedule(factory, card, now=retry_after - timedelta(seconds=1)) == []
+        next_ids = schedule(factory, card, now=retry_after + timedelta(seconds=1))
+        assert len(next_ids) == 1
+        retry_id = next_ids[0]
+        with factory() as session:
+            replacement = session.get(PursuitResearchQuestion, retry_id)
+            assert replacement.context["retry_index"] == retry_index + 1
+
+    with factory() as session:
+        first = session.get(PursuitResearchQuestion, first_id)
+        assert first.receipt["resulting_evidence_ids"] == [accepted_evidence_ids[0]]
+        assert first.receipt["source_checks"][-2]["url"] == "https://public.example/supported-0"
+        assert first.receipt["source_checks"][-1]["effect_status"] == "NOT_SENT"
+
+
+def test_resolved_question_is_not_reopened_for_unused_failed_route(runtime):
+    import time
+
+    factory, worker, _, card = runtime
+    initial_ids = schedule(factory, card)
+    question_id, sibling_id = initial_ids
+    with factory.begin() as session:
+        sibling = session.get(PursuitResearchQuestion, sibling_id)
+        sibling.status = "FAILED"
+        sibling.completed_at = datetime.now(UTC)
+        sibling.retry_after = sibling.completed_at + timedelta(days=1)
+        sibling.receipt = {**sibling.receipt, "retry_class": "RETRIES_EXHAUSTED"}
+        row = session.get(PursuitResearchQuestion, question_id)
+        budget = row.budget
+    job_id, fence = lease_question(factory, question_id)
+    started = time.monotonic()
+    run = worker.QuestionRun(job_id, "question-test", fence, question_id, started, budget)
+    run.record(
+        {
+            "url": "https://public.example/completed",
+            "acquisition": "public",
+            "disposition": "UNRESOLVED",
+        }
+    )
+    run.record(
+        {
+            "url": "https://public.example/unused-route",
+            "acquisition": "public",
+            "disposition": "FAILED",
+            "effect_status": "NOT_SENT",
+        }
+    )
+    with factory.begin() as session:
+        row = session.get(PursuitResearchQuestion, question_id)
+        row.receipt = {
+            **row.receipt,
+            "route_results": [{"kind": "registered", "status": "CHECKED"}],
+        }
+    worker._finish(job_id, "question-test", fence, question_id, "RESOLVED", started)
+    with factory() as session:
+        completed = session.get(PursuitResearchQuestion, question_id)
+        assert completed.receipt["retry_class"] == "FRESH_CHECK"
+        assert completed.receipt["source_checks"][-1]["disposition"] == "FAILED"
+    assert schedule(factory, card) == []
+
+
+def test_mixed_paid_unknown_remains_blocking_across_force_and_changed_input(runtime):
+    import time
+
+    factory, worker, _, card = runtime
+    question_id, sibling_id = schedule(factory, card)
+    with factory.begin() as session:
+        sibling = session.get(PursuitResearchQuestion, sibling_id)
+        sibling.status = "FAILED"
+        sibling.completed_at = datetime.now(UTC)
+        sibling.retry_after = sibling.completed_at + timedelta(days=1)
+        sibling.receipt = {**sibling.receipt, "retry_class": "RETRIES_EXHAUSTED"}
+        row = session.get(PursuitResearchQuestion, question_id)
+        budget = row.budget
+    job_id, fence = lease_question(factory, question_id)
+    started = time.monotonic()
+    run = worker.QuestionRun(job_id, "question-test", fence, question_id, started, budget)
+    run.record(
+        {
+            "url": "https://public.example/completed-before-unknown",
+            "acquisition": "public",
+            "disposition": "ACCEPTED",
+            "evidence_id": str(uuid4()),
+        }
+    )
+    run.reserve("https://api.firecrawl.dev/v2/search", query="bounded test search")
+    run.record(
+        {
+            "url": "https://api.firecrawl.dev/v2/search",
+            "acquisition": "firecrawl_discovery",
+            "disposition": "FAILED",
+            "effect_status": "UNKNOWN",
+            "error": "simulated ambiguous post-dispatch outcome",
+        }
+    )
+    worker._finish(job_id, "question-test", fence, question_id, "PARTIALLY_RESOLVED", started)
+    with factory() as session:
+        completed = session.get(PursuitResearchQuestion, question_id)
+        assert completed.receipt["retry_class"] == "UNKNOWN_EFFECT"
+        assert completed.receipt["source_checks"][-2]["disposition"] == "ACCEPTED"
+        assert completed.receipt["source_checks"][-1]["disposition"] == "FAILED"
+        assert completed.receipt["inflight_url"] == "https://api.firecrawl.dev/v2/search"
+        assert completed.receipt["ambiguous_effects"][-1]["status"] == "UNKNOWN"
+
+    assert schedule(factory, card, force=True) == []
+    card["input_hash"] = "changed-evidence-after-mixed-paid-unknown"
+    card["missing_facts"] = ["buyer", "supply adequacy", "start date"]
+    assert schedule(factory, card, force=True) == []
 
 
 def test_single_followup_and_no_recursive_branch(runtime):

@@ -793,8 +793,13 @@ def _finish(
             and check.get("disposition") in {"ACCEPTED", "REJECTED", "UNRESOLVED"}
             for check in row.receipt.get("source_checks", [])
         ) or bool(row.receipt.get("queries_searched"))
+        failed_external_check = any(
+            check.get("acquisition") != "retained" and check.get("disposition") == "FAILED"
+            for check in row.receipt.get("source_checks", [])
+        )
         retryable = status in {"FAILED", "BUDGET_EXCEEDED"} or (
-            status == "UNRESOLVED" and not checked_route
+            status in {"UNRESOLVED", "PARTIALLY_RESOLVED"}
+            and (not checked_route or failed_external_check)
         )
         retryable = retryable and not (
             row.receipt.get("inflight_url") or row.receipt.get("ambiguous_effects")
