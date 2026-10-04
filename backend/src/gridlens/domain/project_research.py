@@ -7,7 +7,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 from typing import Any
 
-VERSION = "project-research-claims-v2"
+VERSION = "project-research-claims-v3"
 FIELDS = (
     "phase",
     "permanent_service",

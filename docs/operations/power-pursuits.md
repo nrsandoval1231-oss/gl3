@@ -81,24 +81,40 @@ per question. `autonomous_research_daily_questions`, `autonomous_research_max_se
 execution. Direct retrieval is free of provider search fees. Optional Firecrawl
 requires an already configured `firecrawl_api_key`, explicit
 `firecrawl_search_cost_usd` reservation ceiling and sufficient per-question cost budget.
+Public JavaScript-shell extraction separately requires `firecrawl_scrape_cost_usd`
+and an additional document/request reservation; it is not an access-control fallback.
 Default cost budget is zero. Reserved cost is not actual billing; actual search cost
 is marked unavailable without a provider billing receipt. No provider or credentials
 are provisioned by this slice.
 
 Questions first use retained canonical evidence and retained-only buying-chain
-projection, then exact registered Austin/Chicago records and eligible existing
-public pages. Discovery returns candidate URLs only; snippets are not evidence.
+projection, then exact registered Austin/Chicago/Seattle/Boston/El Paso/Federal
+Register records and eligible existing public pages. Discovery returns candidate URLs only; snippets are not evidence.
 Unsupported source routes and provider absence are explicit receipt limitations.
-The DNS-pinned public reader rejects private destinations and redirects, caps bytes,
-and supports HTML/text. PDF-specific extraction and bounded RRC downloads remain
-unsupported here. Synchronous DNS resolution retains the existing reader's soft
-wall-clock limitation.
+The DNS-pinned public reader rejects private destinations and redirects. Owned
+network/parser operations run in a killable child under the same question deadline
+and a 512 MiB address-space cap; reservations and all database work remain in the
+existing worker. The reader supports HTML/text and PDFs up to 20 pages and 30,000
+extracted characters within the wire-byte budget. It rejects the whole input on
+excess size, encryption or a page without extractable text; there is no OCR.
+Firecrawl extraction is eligible only for a successful explicit public JavaScript
+shell, not login/CAPTCHA/denial/error pages or private access. Unsupported native
+routes, including form-based RRC downloads and bulk-source research routes, remain
+visible as unavailable; they do not become evidence that a fact is false.
+
+Retained canonical facts are checked before acquisition. Complete captured public
+inputs may be reinterpreted only with verified original source/observation/evidence
+identity, current hashes and one target need. The whole-input hash must match;
+partial historical excerpts are not expanded into invented complete documents.
+Replay preserves the original evidence identity and retrieval time. Exact registered
+hostnames can support public supplements; they do not confer native permit authority.
 
 Receipts retain original context, generated/attempted/completed queries, checked
 sources, planned/checked/unavailable/skipped routes, accepted/rejected evidence
 citations, before/after disposition, reason,
 remaining blockers, recommended action, counts, runtime and cost reservations.
-Partial evidence does not imply a resolved blocker. Missing results are UNRESOLVED,
+Partial evidence does not imply a resolved blocker. PARTIALLY_RESOLVED requires
+progress on a component of that exact question, not an unrelated accepted fact. Missing results are UNRESOLVED,
 not evidence of absence. Exhausted leases and failures remain visible. Interrupted
 requests with uncertain completion are not automatically repeated. Question status
 never assigns a qualification tier; accepted canonical changes go through the same
@@ -116,6 +132,11 @@ and resulting tiers remain separate from commercial disposition. Exact dated pub
 reports can answer phase/supply/timing/load questions; they do not independently
 qualify a need. Only current admitted official evidence meeting every existing gate
 can promote Prospect/Lead, and canonical corrections can demote obsolete support.
+A Lead may have explicit nonzero aggregate suitable supply throughout its evidenced
+interval. The deterministic residual subtracts maximum supply from minimum demand
+(and minimum supply from maximum demand); component totals and suitability are never
+invented. The visible Lead floor applies to the remaining need, not campus/nameplate
+or gross activity load. Crossing-floor ranges remain uncertain.
 
 For isolated acceptance, see [corpus manifest and validation commands](../../scripts/README-pursuit-research-validation.md).
 The runner refuses the original runtime and shared test database, pins its baseline,

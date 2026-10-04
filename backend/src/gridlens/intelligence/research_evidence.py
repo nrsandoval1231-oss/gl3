@@ -17,7 +17,11 @@ from sqlalchemy.orm import Session
 
 from gridlens.domain.project_research import VERSION, extract_project_claims, unparsed_adverse_text
 from gridlens.domain.pursuit_research import fingerprint
-from gridlens.ingestion.adapters.buying_chain_public import PublicDocument, validate_public_url
+from gridlens.ingestion.adapters.buying_chain_public import (
+    CAPTURE_VERSION,
+    PublicDocument,
+    validate_public_url,
+)
 from gridlens.ingestion.adapters.pursuit_acquisition import SUPPORTED_SOURCES
 from gridlens.ingestion.registry import load_registry
 from gridlens.ingestion.service import (
@@ -93,10 +97,11 @@ def _relationship_publisher_matches(document: PublicDocument, organizations: lis
 
 def _publisher_eligible(document: PublicDocument, project: Project) -> bool:
     host = (urlsplit(document.url).hostname or "").removeprefix("www.")
+    # Registry hosts are reviewed publishers, not a wildcard for government domains.
+    # This admits supplemental context only; native source authority is unchanged.
     reviewed = {
         (urlsplit(source["endpoint"]).hostname or "").removeprefix("www.")
         for source in load_registry()
-        if source.get("retrieval_method") == "publisher-rss" and source.get("family") == "news"
     }
     return host in reviewed or _relationship_publisher_matches(
         document,
@@ -239,6 +244,7 @@ def _receipt(document: PublicDocument, publisher: str) -> dict:
         "url": document.url,
         "publisher": publisher,
         "retrieved_at": document.observed_at.isoformat(),
+        "acquisition_capture_version": document.capture_version,
         "published_at": document.published_at.isoformat() if document.published_at else None,
         "excerpt": _retained_excerpt(document).text,
         "extraction_location": document.extraction_location,
@@ -273,10 +279,16 @@ def retain_registered_record(
         url=validate_public_url(record["html_url"]),
         title=record["title"],
         text=record.get("abstract") or "",
-        published_at=date.fromisoformat(record["publication_date"]),
-        extraction_location=record["extraction_location"],
+        published_at=date.fromisoformat(record["publication_date"])
+        if record.get("publication_date")
+        else None,
+        extraction_location=record.get("extraction_location", "title and abstract"),
     )
-    receipt = _receipt(document, source_definition["publisher"])
+    receipt = {
+        **_receipt(document, source_definition["publisher"]),
+        "event_date": record.get("event_date"),
+        "event_date_label": record.get("event_date_label"),
+    }
     observation = session.scalar(
         select(Observation)
         .where(
@@ -636,6 +648,8 @@ def retain_research_document(
                 and (previous.assessment or {}).get("evidence_hash") == evidence.content_hash
                 and (previous.assessment or {}).get("admission_status") == "relationship_supplement"
                 and previous.evaluator_version == "research-relationship-v2"
+                and (previous.assessment or {}).get("acquisition_capture_version")
+                == document.capture_version
             )
             semantic_replay = bool(
                 semantic_claims
@@ -643,6 +657,8 @@ def retain_research_document(
                 and previous.status == "accepted"
                 and previous.content_hash == digest
                 and previous.evaluator_version == VERSION
+                and (previous.assessment or {}).get("acquisition_capture_version")
+                == document.capture_version
                 and (previous.assessment or {}).get("evidence_hash") == digest
                 and (previous.assessment or {}).get("target_need_id") == str(need.id)
             )
@@ -689,6 +705,7 @@ def retain_research_document(
                 interpretation.assessment = {
                     "decision": "accepted",
                     "admission_status": "project_research_supplement",
+                    "acquisition_capture_version": document.capture_version,
                     "project_identity_key": project.identity_key,
                     "target_need_id": str(need.id),
                     "semantic_hash": digest,
@@ -746,6 +763,7 @@ def retain_research_document(
                     interpretation.assessment = {
                         "decision": "accepted",
                         "admission_status": "relationship_supplement",
+                        "acquisition_capture_version": document.capture_version,
                         "project_identity_key": project.identity_key,
                         "semantic_hash": digest,
                         "evidence_hash": evidence.content_hash,
@@ -785,6 +803,19 @@ def retain_research_document(
         and assessment.get("project_identity_key") == project.identity_key
         and need.id in targets
     )
+    if accepted:
+        assert interpretation is not None
+        if (assessment or {}).get("acquisition_capture_version") != document.capture_version:
+            prior = assessment or {}
+            interpretation.assessment = {
+                **prior,
+                "acquisition_capture_version": document.capture_version,
+                "previous_decisions": [
+                    *prior.get("previous_decisions", []),
+                    {key: value for key, value in prior.items() if key != "previous_decisions"},
+                ],
+            }
+        session.flush()
     return {
         **receipt,
         "evidence_id": str(evidence.id),
@@ -809,3 +840,90 @@ def retain_research_document(
         if (assessment or {}).get("admission_status") == "relationship_supplement"
         else "project_activity",
     }
+
+
+def replay_retained_research(
+    session: Session, project: Project, need: PowerNeed, *, limit: int = 20
+) -> list[dict]:
+    """Replay complete previously captured input without inventing a retrieval.
+
+    An RSS abstract/native excerpt is not proof of a complete public document.
+    Only this acquisition path's full-input hash can prove the retained text is
+    complete. Original evidence IDs, source identity and observation dates remain
+    unchanged; normal admission owns every reinterpretation and correction.
+    """
+    if need.project_id != project.id or not 1 <= limit <= 50:
+        raise ValueError("Invalid retained research target or limit")
+    rows = session.execute(
+        select(Evidence, Observation, Source, Interpretation)
+        .join(Observation, Observation.id == Evidence.observation_id)
+        .join(Source, Source.id == Observation.source_id)
+        .join(NeedObservation, NeedObservation.observation_id == Observation.id)
+        .join(Interpretation, Interpretation.observation_id == Observation.id)
+        .where(
+            NeedObservation.need_id == need.id,
+            Evidence.content_hash == Observation.content_hash,
+        )
+        .order_by(Evidence.observed_at.desc(), Evidence.id)
+        .limit(limit + 1)
+    ).all()
+    receipts = []
+    for evidence, observation, source, interpretation in rows[:limit]:
+        receipt = {
+            "acquisition": "retained",
+            "url": evidence.url,
+            "evidence_id": str(evidence.id),
+            "evidence_ids": [str(evidence.id)],
+            "observed_at": evidence.observed_at.isoformat(),
+            "disposition": "UNRESOLVED",
+            "reason": "Retained context is not a proven complete public input; "
+            "canonical facts remain available, but no whole-document replay is claimed.",
+        }
+        assessment = interpretation.assessment or {}
+        host = urlsplit(evidence.url or "").hostname
+        full_hash = fingerprint([evidence.title, evidence.abstract or "", evidence.published_at])
+        if not (
+            host
+            and source.id == "research-public-" + fingerprint(host)[:32]
+            and source.family == "news"
+            and source.retrieval_method == "publisher-rss"
+            and observation.external_id == fingerprint(evidence.url)
+            and interpretation.status == "accepted"
+            and interpretation.content_hash == evidence.content_hash
+            and assessment.get("evidence_hash") == evidence.content_hash
+            and assessment.get("project_identity_key") == project.identity_key
+            and assessment.get("acquisition_capture_version") == CAPTURE_VERSION
+            and full_hash == evidence.content_hash
+        ):
+            receipts.append(receipt)
+            continue
+        linked = set(
+            session.scalars(
+                select(NeedObservation.need_id).where(
+                    NeedObservation.observation_id == observation.id
+                )
+            )
+        )
+        if linked != {need.id}:
+            receipts.append({**receipt, "reason": "Retained input has multiple target bindings."})
+            continue
+        document = PublicDocument(
+            url=evidence.url,
+            title=evidence.title,
+            text=evidence.abstract or "",
+            published_at=evidence.published_at,
+            observed_at=evidence.observed_at,
+            extraction_location=evidence.extraction_location or "retained public input",
+            capture_version=assessment["acquisition_capture_version"],
+        )
+        result = retain_research_document(session, project, need, document)
+        receipts.append({**result, "acquisition": "retained", "retained_replay": True})
+    if len(rows) > limit:
+        receipts.append(
+            {
+                "acquisition": "retained",
+                "disposition": "UNRESOLVED",
+                "reason": "Retained input scan reached its explicit candidate bound.",
+            }
+        )
+    return receipts

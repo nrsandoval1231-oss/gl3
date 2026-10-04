@@ -934,3 +934,133 @@ def test_public_typed_reports_preserve_tier_and_versioned_conflicts(research_db)
             == "cancelled"
         )
         assert session.get(Evidence, receipt["evidence_id"]).abstract == document.text.strip()
+
+
+@pytest.mark.parametrize(
+    "native_source",
+    [
+        "seattle-building-permits",
+        "boston-building-permits",
+        "el-paso-new-commercial-permits",
+    ],
+)
+def test_native_research_refresh_uses_original_canonical_observation(research_db, native_source):
+    from gridlens.ingestion.adapters import boston_permits, el_paso_permits
+
+    factory, _, job_id = research_db
+    definition = next(s for s in load_registry() if s["id"] == native_source)
+    if native_source == "seattle-building-permits":
+        raw = {
+            "permitnum": "EXACT-1",
+            "issueddate": "2026-01-01",
+            "description": "Construct new data center.",
+            "statuscurrent": "Issued",
+            "originaladdress1": "100 Example Avenue",
+            "permitclassmapped": "Commercial",
+            "permittypemapped": "New Construction",
+            "permittypedesc": "Building",
+        }
+        record = render_record(definition, raw)
+    elif native_source == "boston-building-permits":
+        record = boston_permits.render_record(
+            {
+                "_id": 123,
+                "permitnumber": "EXACT-1",
+                "issued_date": "2026-01-01",
+                "description": "Construct new data center.",
+                "status": "Open",
+                "address": "100 Example Avenue",
+                "city": "Boston",
+                "state": "MA",
+                "worktype": "New Construction",
+                "occupancytype": "Commercial",
+                "permittypedescr": "Long Form Permit",
+            }
+        )
+    else:
+        record = el_paso_permits._row(
+            {
+                "OBJECTID": 123,
+                "B1_ALT_ID": "EXACT-1",
+                "ISSUEDATE": 1767225600000,
+                "B1_APPL_ST": "Issued",
+                "SITEADDR_S": "100 Example Avenue",
+                "Descriptio": "Construct new data center.",
+                "Record_Typ": "New Construction",
+            },
+            datetime.now(UTC).date(),
+        )
+    with factory.begin() as session:
+        session.add(
+            Source(**{k: v for k, v in definition.items() if k in Source.__table__.columns})
+        )
+        session.flush()
+        session.get(Job, job_id).source_id = native_source
+        process_records(
+            session,
+            job_id,
+            "research-test",
+            1,
+            definition,
+            [record],
+            commit=False,
+            allow_model=False,
+        )
+        need = session.scalar(select(PowerNeed))
+        assert need is not None
+        project = session.get(Project, need.project_id)
+        initial_observation = session.scalar(select(Observation))
+        initial_ids = set(session.scalars(select(Evidence.id)))
+        receipt = retain_registered_record(
+            session,
+            project,
+            need,
+            definition,
+            record,
+            job_id=job_id,
+            worker_id="research-test",
+            fence=1,
+        )
+        assert receipt["disposition"] == "ACCEPTED", receipt
+        assert session.scalar(select(Observation)).id == initial_observation.id
+        assert set(session.scalars(select(Evidence.id))) == initial_ids
+        assert need.tier == "Signal" and need.required_mw is None
+        if native_source in {"boston-building-permits", "el-paso-new-commercial-permits"}:
+            assert receipt["published_at"] is None
+            assert receipt["event_date"] == "2026-01-01"
+
+
+def test_fr_record_without_custom_extraction_location_is_quarantined_when_unbound(research_db):
+    from gridlens.ingestion.adapters.federal_register import render_record as render_fr
+
+    factory, source, job_id = research_db
+    need_id = seed(factory, source, job_id)
+    definition = next(s for s in load_registry() if s["id"] == "federal-register-eis")
+    record = render_fr(
+        {
+            "document_number": "2026-0001",
+            "title": "Environmental Impact Statement",
+            "abstract": "Unbound official source context",
+            "publication_date": "2026-01-01",
+            "html_url": "https://www.federalregister.gov/documents/2026/01/01/2026-0001/notice",
+        }
+    )
+    with factory.begin() as session:
+        need = session.get(PowerNeed, need_id)
+        project = session.get(Project, need.project_id)
+        initial_ids = set(session.scalars(select(Evidence.id)))
+        receipt = retain_registered_record(
+            session,
+            project,
+            need,
+            definition,
+            record,
+            job_id=job_id,
+            worker_id="research-test",
+            fence=1,
+        )
+        assert receipt["disposition"] == "QUARANTINED"
+        assert receipt["reason"] == "unbound_stable_record"
+        assert receipt["extraction_location"] == "title and abstract"
+        assert receipt["published_at"] == "2026-01-01"
+        assert set(session.scalars(select(Evidence.id))) == initial_ids

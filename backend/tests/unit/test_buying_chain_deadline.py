@@ -171,7 +171,7 @@ def test_deadline_does_not_weaken_decoded_byte_bound(clock):
     assert stream.closed
 
 
-def test_retrieve_checks_expiry_after_soft_bound_dns_before_connecting(clock, monkeypatch):
+def test_direct_reader_checks_expiry_after_dns_before_connecting(clock, monkeypatch):
     def resolve(*args, **kwargs):
         clock.advance(6.0)
         return [(2, 1, 6, "", ("8.8.8.8", 443))]
@@ -182,7 +182,7 @@ def test_retrieve_checks_expiry_after_soft_bound_dns_before_connecting(clock, mo
     monkeypatch.setattr(buying_chain_public.socket, "getaddrinfo", resolve)
     monkeypatch.setattr(buying_chain_public.httpx, "Client", unexpected_client)
     with pytest.raises(TimeoutError, match="deadline exhausted"):
-        buying_chain_public.retrieve("https://public.example", deadline=105.0)
+        buying_chain_public._retrieve_direct("https://public.example", deadline=105.0)
 
 
 @pytest.mark.parametrize("deadline", [None, 105.0])
@@ -207,7 +207,9 @@ def test_retrieve_preserves_ip_pinning_sni_and_security_settings(clock, monkeypa
 
     monkeypatch.setattr(buying_chain_public, "_public_ip", lambda host: "8.8.8.8")
     monkeypatch.setattr(buying_chain_public.httpx, "Client", create_client)
-    document = buying_chain_public.retrieve("https://public.example/project", deadline=deadline)
+    document = buying_chain_public._retrieve_direct(
+        "https://public.example/project", deadline=deadline
+    )
 
     request = observed["request"]
     assert str(request.url) == "https://8.8.8.8/project"
@@ -240,4 +242,4 @@ def test_retrieve_does_not_accept_document_if_parsing_expires_budget(clock, monk
     monkeypatch.setattr(buying_chain_public.httpx, "Client", create_client)
     monkeypatch.setattr(buying_chain_public, "parse_document", parse)
     with pytest.raises(TimeoutError, match="deadline exhausted"):
-        buying_chain_public.retrieve("https://public.example", deadline=105.0)
+        buying_chain_public._retrieve_direct("https://public.example", deadline=105.0)

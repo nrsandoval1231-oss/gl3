@@ -419,7 +419,17 @@ def _current_need_claims(
         len({claim[key] for claim in qualified_claims if claim.get(key) is not None}) > 1
         for key in ("demand_mw", "start_window", "duration")
     )
-    if conflicts and any(claim.get("qualification_version") for claim in qualified_claims):
+    gap_inputs = {
+        (gap.get("available_mw_min"), gap.get("available_mw_max"))
+        for claim in qualified_claims
+        if isinstance(gap := claim.get("qualified_remaining_gap"), dict)
+    }
+    conflicts = (
+        conflicts
+        or len(gap_inputs) > 1
+        or any(row["claim"].get("qualification_conflict") for row in claims)
+    )
+    if conflicts and any(row["claim"].get("qualification_version") for row in claims):
         return [
             {
                 "tier": "Signal",

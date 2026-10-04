@@ -14,7 +14,7 @@ from typing import Any
 
 from gridlens.domain.news_interpretation import prospect_power_activity, validated_demand_mw
 
-VERSION = "official-power-qualification-v1"
+VERSION = "official-power-qualification-v2"
 _PHASES = {
     "facility-expansion": "construction",
     "construction": "construction",
@@ -44,7 +44,7 @@ def qualify_official_power(
 ) -> dict[str, Any]:
     """Return source-quoted Prospect/Lead fields, or no qualification.
 
-    The Lead subset handles an explicitly zero-supply interval. It never treats
+    The Lead subset handles explicitly scoped aggregate supply intervals. It never treats
     pending permanent service alone as proof that temporary supply is absent.
     """
     phase = _PHASES.get(activity_key)
@@ -128,11 +128,54 @@ def qualify_official_power(
         rf"No suitable power supply is available for {scope} throughout this start window "
         r"and duration[.]?"
     )
+    available_quote, available = only(
+        rf"Total suitable power supply available for {scope} is "
+        rf"(0|{_NUMBER})(?: to (0|{_NUMBER}))? MW throughout this start window and duration[.]?"
+    )
+    # One aggregate explicitly suitable supply statement, never component sums.
+    # Two alternatives or zero/nonzero statements cannot resolve one interval.
+    candidates = [
+        clause
+        for clause in clauses
+        if re.search(
+            r"(?:No suitable power supply|Total suitable power supply available)", clause, re.I
+        )
+    ]
+    if len(candidates) != 1:
+        return result
+
+    def supply_conflict() -> dict[str, Any]:
+        return {
+            "tier": "Signal",
+            "demand_mw": None,
+            "qualified_remaining_gap": None,
+            "start_window": None,
+            "duration": None,
+            "qualification_version": VERSION,
+            "qualification_conflict": True,
+            "reason": "Conflicting official suitable-supply statements "
+            "for the same activity interval",
+        }
+
+    available_low = available_high = Decimal(0)
+    if available:
+        available_low = Decimal(available[1])
+        available_high = Decimal(available[2] or available[1])
+        if available_high < available_low:
+            return result
+        if available_high > 0 and "unavailable" in supplies[0].lower():
+            return supply_conflict()
+        gap_quote = available_quote
+    remaining_low = max(Decimal(0), low - available_high)
+    remaining_high = max(Decimal(0), high - available_low)
+    if available and remaining_high == 0:
+        # The numeric supply contradicts the separate reported open constraint.
+        return supply_conflict()
     buyer_quote, buyer = only(
         rf"The (electrical contractor|general contractor|project owner) is responsible for "
         rf"power procurement for {scope}[.]?"
     )
-    if not (start and duration and gap and buyer):
+    if not (start and duration and (gap or available) and buyer) or remaining_low == 0:
         return result
     try:
         first, last = date.fromisoformat(start[1]), date.fromisoformat(start[2])
@@ -162,19 +205,20 @@ def qualify_official_power(
         qualified_remaining_gap={
             "required_mw_min": str(low),
             "required_mw_max": str(high),
-            "available_mw_min": "0",
-            "available_mw_max": "0",
-            "remaining_mw_min": str(low),
-            "remaining_mw_max": str(high),
+            "available_mw_min": str(available_low),
+            "available_mw_max": str(available_high),
+            "remaining_mw_min": str(remaining_low),
+            "remaining_mw_max": str(remaining_high),
             "start_window": start_window,
             "duration": duration_range,
             "basis_quote": gap_quote,
             "value_kind": "Derived",
-            "calculation": "max(0, required MW minus explicitly zero suitable available MW)",
+            "calculation": "[max(0, required_min - available_max), "
+            "max(0, required_max - available_min)]",
             "version": VERSION,
         },
         reason="Current official scope supports the exact activity/site, MW range, start window, "
-        "duration range, zero suitable supply throughout that interval, and buying role.",
+        "duration range, aggregate suitable supply throughout that interval, and buying role.",
     )
     return result
 

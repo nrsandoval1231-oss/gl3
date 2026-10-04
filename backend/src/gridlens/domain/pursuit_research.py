@@ -7,7 +7,7 @@ import json
 import re
 from typing import Any
 
-POLICY_VERSION = "autonomous-pursuit-research-v2"
+POLICY_VERSION = "autonomous-pursuit-research-v3"
 ACTIVE = ("QUEUED", "SEARCHING", "REVIEWING_EVIDENCE")
 ROUTES = {
     "power_need": (

@@ -11,11 +11,14 @@ from uuid import UUID
 from sqlalchemy import select, text
 
 from gridlens.domain.pursuit_research import ACTIVE, blocker_resolved, fingerprint
-from gridlens.ingestion.adapters.buying_chain_public import retrieve
+from gridlens.ingestion.adapters.buying_chain_public import PublicExtractionUnavailable, retrieve
 from gridlens.ingestion.adapters.pursuit_acquisition import (
     SUPPORTED_SOURCES,
+    ExtractionUnavailable,
     acquire_registered_record,
     discover_urls,
+    extract_public_document,
+    retrieval_failure,
 )
 from gridlens.intelligence.buying_chain import enrich_buying_chain
 from gridlens.intelligence.commercial_evaluation import (
@@ -24,6 +27,7 @@ from gridlens.intelligence.commercial_evaluation import (
     save_evaluations,
 )
 from gridlens.intelligence.research_evidence import (
+    replay_retained_research,
     retain_registered_record,
     retain_research_document,
 )
@@ -168,7 +172,13 @@ def process_question_job(job_id: UUID, worker_id: str, fence: int) -> None:
         assert_fence(session, job_id, worker_id, fence)
         row = session.get(PursuitResearchQuestion, question_id)
         assert row is not None
+        project = session.get(Project, row.project_id)
+        need = session.get(PowerNeed, row.need_id)
+        assert project is not None and need is not None
+        retained_results = replay_retained_research(session, project, need)
         enrich_buying_chain(session, row.project_id, retained_only=True)
+    for retained_result in retained_results:
+        run.record(retained_result)
     resolved = blocker_resolved(context["category"], current_card(need_id) or card, context)
     run.route(
         "retained",
@@ -250,7 +260,7 @@ def process_question_job(job_id: UUID, worker_id: str, fence: int) -> None:
                             {
                                 "url": url,
                                 "disposition": "FAILED",
-                                "reason": type(exc).__name__,
+                                **retrieval_failure(exc),
                                 "acquisition_key": key,
                             }
                         )
@@ -315,7 +325,16 @@ def process_question_job(job_id: UUID, worker_id: str, fence: int) -> None:
     except BudgetExceeded:
         status = "BUDGET_EXCEEDED"
     except Exception as exc:
-        run.limitation(f"Discovery failed: {type(exc).__name__}.")
+        failure = retrieval_failure(exc)
+        run.limitation(f"Discovery failed: {failure['failure_code']}.")
+        run.record(
+            {
+                "url": "https://api.firecrawl.dev/v2/search",
+                "disposition": "FAILED",
+                "acquisition_method": "firecrawl_discovery",
+                **failure,
+            }
+        )
         status = "FAILED"
     _finish(job_id, worker_id, fence, question_id, status, started)
 
@@ -329,9 +348,28 @@ def _research_public_url(run: QuestionRun, url: str) -> None:
         if cached:
             run.record({**cached, "cache_reused": True})
             return
+        direct_failure = None
         try:
             run.reserve(url)
-            document = retrieve(url, deadline=run.deadline, max_bytes=run.budget["document_bytes"])
+            acquisition_method = "direct_http"
+            try:
+                document = retrieve(
+                    url, deadline=run.deadline, max_bytes=run.budget["document_bytes"]
+                )
+            except PublicExtractionUnavailable as exc:
+                direct_failure = retrieval_failure(exc)
+                if not settings.firecrawl_api_key or settings.firecrawl_scrape_cost_usd is None:
+                    raise ExtractionUnavailable(
+                        "Firecrawl extraction or unit cost is not configured"
+                    ) from None
+                document = extract_public_document(
+                    url,
+                    api_key=settings.firecrawl_api_key.get_secret_value(),
+                    deadline=run.deadline,
+                    max_bytes=run.budget["document_bytes"],
+                    before_request=run.reserve_extraction,
+                )
+                acquisition_method = "firecrawl_html_extraction"
             with SessionLocal.begin() as session:
                 row = run.row(session)
                 row.status = "REVIEWING_EVIDENCE"
@@ -346,6 +384,8 @@ def _research_public_url(run: QuestionRun, url: str) -> None:
                     **result,
                     "acquisition_key": key,
                     "document_hash": fingerprint(document.text),
+                    "acquisition_method": acquisition_method,
+                    "direct_failure": direct_failure,
                 }
             )
         except BudgetExceeded:
@@ -355,7 +395,8 @@ def _research_public_url(run: QuestionRun, url: str) -> None:
                 {
                     "url": url,
                     "disposition": "FAILED",
-                    "reason": type(exc).__name__,
+                    **retrieval_failure(exc),
+                    "direct_failure": direct_failure,
                     "acquisition_key": key,
                 }
             )
@@ -421,6 +462,28 @@ class QuestionRun:
                 receipt["cost_usd"] = None
             if query:
                 receipt["queries_attempted"] = [*receipt.get("queries_attempted", []), query]
+            row.receipt = receipt
+
+    def reserve_extraction(self, url: str) -> None:
+        """A second acquisition is separately bounded and charged before I/O."""
+        unit_cost = settings.firecrawl_scrape_cost_usd
+        if unit_cost is None:
+            raise ExtractionUnavailable("Firecrawl extraction unit cost is not configured")
+        with SessionLocal.begin() as session:
+            row = self.row(session)
+            receipt = dict(row.receipt)
+            next_cost = Decimal(receipt.get("reserved_cost_usd", "0")) + unit_cost
+            if (
+                time.monotonic() >= self.deadline
+                or receipt.get("retrieval_attempts", 0) >= self.budget["documents"]
+                or next_cost > Decimal(self.budget["max_cost_usd"])
+            ):
+                raise BudgetExceeded("Extraction exceeds persisted time/document/cost budget")
+            receipt["retrieval_attempts"] = receipt.get("retrieval_attempts", 0) + 1
+            receipt["firecrawl_extractions"] = receipt.get("firecrawl_extractions", 0) + 1
+            receipt["inflight_url"] = url
+            receipt["reserved_cost_usd"] = str(next_cost)
+            receipt["cost_usd"] = None  # Reservation is not a provider billing receipt.
             row.receipt = receipt
 
     def complete_search(self, query: str) -> None:
@@ -548,21 +611,45 @@ class QuestionRun:
             row = session.get(PursuitResearchQuestion, self.question_id)
             assert row is not None
             checks = row.receipt.get("source_checks", [])
-            if any(
-                check["disposition"] == "ACCEPTED"
-                and not check.get("duplicate")
-                and not check.get("cache_reused")
-                for check in checks
-            ):
-                return "PARTIALLY_RESOLVED"
-            if checks and all(c["disposition"] == "FAILED" for c in checks):
-                return "FAILED"
-            return "UNRESOLVED"
+            category, context, need_id = row.category, row.context, row.need_id
+        after = current_card(need_id)
+        if after and _question_partial_progress(
+            category, context.get("before", {}), after, context
+        ):
+            return "PARTIALLY_RESOLVED"
+        external = [c for c in checks if c.get("acquisition") != "retained"]
+        if external and all(c["disposition"] == "FAILED" for c in external):
+            return "FAILED"
+        return "UNRESOLVED"
+
+
+def _question_partial_progress(category: str, before: dict, after: dict, context: dict) -> bool:
+    """Measure answered components of this question, never unrelated admission volume."""
+    if category == "supply":
+        fields = {"permanent_service", "supply_adequacy"}
+    elif category == "conflict":
+        fields = set(context.get("conflict_fields", []))
+    else:
+        return False  # Single-fact questions are resolved or still unanswered.
+    if not fields:
+        return False
+
+    def answered(card: dict) -> set[str]:
+        state = card.get("research_state", {})
+        return {
+            field
+            for field in fields
+            if state.get(field, {}).get("status") == "SUPPORTED" and state[field].get("claims")
+        }
+
+    prior, current = answered(before), answered(after)
+    return prior < current < fields
 
 
 def _current_support(session, question, evidence, observation, result) -> bool:
     """Content equality alone is not current accepted canonical support."""
     from gridlens.domain.signal_admission import admitted_from_source
+    from gridlens.ingestion.adapters.buying_chain_public import CAPTURE_VERSION
 
     if observation is None:
         return False
@@ -573,6 +660,10 @@ def _current_support(session, question, evidence, observation, result) -> bool:
     need = session.get(PowerNeed, question.need_id)
     source = session.get(Source, observation.source_id)
     assessment = interpretation.assessment if interpretation else None
+    if observation.source_id.startswith("research-public-") and (assessment or {}).get(
+        "acquisition_capture_version"
+    ) != CAPTURE_VERSION:
+        return False
     if not (
         interpretation
         and project

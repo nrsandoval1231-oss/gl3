@@ -20,7 +20,12 @@ Current main was verified at PR #23 merge `6c8bdf3`. This working candidate adds
 bounded research questions, retained-first acquisition, canonical evidence admission,
 automatic deterministic commercial reevaluation, and inspectable question receipts in
 existing pursuit cards and a research-related changes summary. It reuses PostgreSQL jobs, the worker, source registry, evidence
-and buying-chain models; it makes no external commercial outreach.
+and buying-chain models; it makes no external commercial outreach. Exact native GET
+research supports Austin, Chicago, Seattle, Boston, El Paso and Federal Register.
+Bounded public HTML/text/PDF retrieval and optional public JavaScript-shell extraction
+preserve admission boundaries; unavailable adapters and unsupported claims stay explicit.
+Retained complete-input replay preserves evidence identity. Supported nonzero suitable
+supply is subtracted conservatively when assessing a Lead's remaining need.
 
 This is a **locally implemented candidate, not accepted or deployed**. The original PR #23 retained database
 is absent from this executor and the searched GitHub artifacts. Synthetic integration

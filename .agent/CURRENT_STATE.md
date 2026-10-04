@@ -5,11 +5,22 @@
 Remote main verified at `6c8bdf3e3163adde078f8543d43c0256bc11eb82` (PR #23).
 Branch `feat/gl3-029-autonomous-pursuit-research` contains the locally implemented
 candidate. See [candidate validation](../docs/validation/gl3-029-autonomous-pursuit-research.md).
-Final local gates: 995 backend tests passed / one existing optional-fixture skip;
+Final repaired-candidate local gates: 1112 backend tests passed / one existing optional-fixture skip;
 Ruff and mypy (77 modules) passed; frontend typecheck/build/audit passed (zero
 vulnerabilities); 38 browser tests passed on isolated synthetic data; eight migration
 checks passed with eight fixture rows across seven tables preserved. Independent
-adversarial findings were repaired and regression-tested.
+adversarial findings were repaired and regression-tested. The final independent
+review reported no remaining material findings; the 242-file code manifest pins
+the fully rerun candidate. Original retained-corpus acceptance remains blocked.
+
+Current repairs add six exact native GET routes (Austin/Chicago/Seattle/Boston/
+El Paso/Federal Register), killable acquisition/parser isolation under the existing
+job deadline and 512 MiB cap, whole-input PDF/text bounds, narrowly eligible public
+JavaScript-shell extraction, exact-question partial progress, complete retained-input
+replay preserving identity, registry-host supplemental admission without native
+qualification authority, and conservative nonzero suitable-supply residuals.
+The Lead commercial floor uses remaining need. See architecture/operations docs for
+intentional unsupported cases. These changes remain on the same draft PR #24.
 
 The original retained PR23 corpus gate remains blocked; synthetic/reingested work is
 not its substitute. Nick explicitly authorized publishing one draft PR before that

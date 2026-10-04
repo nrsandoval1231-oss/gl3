@@ -35,6 +35,7 @@ class Settings(BaseSettings):
     firecrawl_api_key: SecretStr | None = None
     autonomous_research_max_cost_usd: Decimal = Field(default=Decimal("0"), ge=0, le=2)
     firecrawl_search_cost_usd: Decimal | None = Field(default=None, gt=0, le=2)
+    firecrawl_scrape_cost_usd: Decimal | None = Field(default=None, gt=0, le=2)
     model_config = SettingsConfigDict(
         env_file=Path(__file__).resolve().parents[3] / ".env", extra="ignore"
     )

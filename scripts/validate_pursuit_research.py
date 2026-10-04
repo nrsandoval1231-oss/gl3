@@ -327,6 +327,9 @@ def execution_limits(manifest: dict) -> dict:
         "per_document_bytes": settings.autonomous_research_max_document_bytes,
         "daily_question_limit": settings.autonomous_research_daily_questions,
         "discovery_configured": settings.firecrawl_api_key is not None,
+        "scrape_unit_cost_usd": str(settings.firecrawl_scrape_cost_usd)
+        if settings.firecrawl_scrape_cost_usd is not None
+        else None,
         "search_unit_cost_usd": str(settings.firecrawl_search_cost_usd)
         if settings.firecrawl_search_cost_usd is not None
         else None,

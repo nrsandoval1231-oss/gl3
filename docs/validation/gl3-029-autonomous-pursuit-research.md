@@ -1,6 +1,6 @@
 # GL3-029 autonomous pursuit research — candidate validation
 
-**DRAFT / NOT MERGE-READY.** Local implementation and fixture gates pass. Required
+**DRAFT / NOT MERGE-READY.** The final repaired candidate passed local fixture gates and independent review. Required
 original retained PR #23 corpus validation is blocked. Nick explicitly authorized
 publishing a draft on October 4, 2026 despite that remaining gate. No acceptance,
 cloud deployment or production-proof claim is made.
@@ -26,13 +26,18 @@ commissioning; permanent energization alone does not establish sufficient supply
 
 A narrow official-permit parser implements existing PRD Prospect/Lead criteria.
 Separate exact-activity demand and unsuitable supply support Prospect. Lead additionally
-requires MW/start/duration ranges, explicitly zero suitable supply throughout that
-interval, and supported buying role. Canonical corrections and read-only API gate
+requires MW/start/duration ranges, one explicit aggregate suitable-supply interval
+(zero or nonzero) throughout that interval, and supported buying role. Remaining
+need is calculated conservatively as demand minus suitable supply; effective Lead
+visibility applies the inclusive 300 kW floor to that residual, not gross load. Canonical corrections and read-only API gate
 replay remove obsolete qualification. Hypothetical, historical, conditional, quoted,
 conflicting, campus/nameplate and wrong-activity claims cannot qualify.
 
 Routing prefers retained evidence, registered exact-record adapters, eligible public
-pages, then configured URL-only Firecrawl discovery. Each question records planned,
+pages, then configured URL-only Firecrawl discovery. Exact native GET adapters cover
+Austin, Chicago, Seattle, Boston, El Paso and Federal Register. Successful explicit
+public JavaScript shells can use separately reserved Firecrawl extraction; access
+restrictions and failed requests cannot trigger that fallback. Each question records planned,
 checked, unavailable and skipped routes, generated/attempted/completed queries,
 source checks and accepted/rejected citations. Default caps are three searches, ten
 URLs, five documents, 750,000 bytes per document, 180 seconds, zero model calls and
@@ -40,26 +45,31 @@ zero paid-search budget. Searches cannot spend after the document budget is exha
 Reservations are not billing receipts; actual provider cost stays unknown without
 billing evidence. Question, policy, registry/source selection, semantic evidence and
 content/version fingerprints prevent unchanged work. Current canonical support is
-rechecked before cache reuse. Saved targets outside the shortlist are reprojected in
+rechecked before cache reuse. Reinterpretation of retained public inputs additionally
+requires proof of completeness and original source/observation/evidence identity;
+retrieval times and historical evidence IDs are preserved. Unrelated new facts do
+not count as partial progress on the exact question. Saved targets outside the shortlist are reprojected in
 one bulk pass; unchanged fresh results do not schedule more acquisition.
 
 Morning changes count unique saved evaluation versions correlated with completed
 research; concurrent operator contributions are not falsely attributed solely to
 research. Commercial state and evidence tier remain separate.
 
-## Exact local validation
+## Final repaired candidate validation
+
+All results below were rerun in this saved executor after the final code repairs.
 
 | Gate | Final result |
 |---|---|
 | Backend `ruff check src tests` | PASS |
 | Ruff migrations/scripts | PASS |
 | Backend `mypy src` | PASS, 77 source modules |
-| Backend `pytest tests` | **995 passed, 1 skipped, 1 warning; 129.60 seconds** |
+| Backend `pytest tests` | **1112 passed, 1 skipped, 1 warning; 132.57 seconds** |
 | Frontend typecheck | PASS |
 | Frontend production build | PASS |
 | Frontend audit, high threshold | PASS, **0 vulnerabilities** |
 | Current OpenAPI versus checked-in contract | Exact match |
-| Full browser suite | **38 passed, 0 failed; 46.0 seconds** |
+| Full browser suite | **38 passed, 0 failed; 46.160528 seconds** |
 | Migration checks | **8 passed** |
 | Existing fixture preservation | **8 rows across 7 tables**, identical digests |
 
@@ -69,15 +79,15 @@ failing tests were waived or disabled. Diagnostic failures were repaired and the
 full suite rerun. An initial browser launch used an unwritable uv cache; the final
 run used the workspace cache and passed.
 
-The 237-file code/test manifest is
+The 242-file code/test manifest is
 `.agent/artifacts/GL3-029-RESEARCH/CODE-MANIFEST.json`, SHA256
-`6df8caa02aa730354c6215df241ef415164bbfe0ac7802af6c1d8bd57b982cd2`.
-The final code bytes match this manifest. Tests ran on the working candidate before
-its publication commit; receipt HEAD fields still name the earlier local checkpoint,
+`974c0c6d086e3f07c1a7be219d7c5bfc01086d34344d22ec96f78fda9c29e5c9`.
+This manifest identifies the final tested code bytes. Tests ran on the working
+candidate before its publication commit; receipt HEAD fields name the earlier local checkpoint,
 so use this content manifest, not those older HEAD labels, to identify tested code.
 
-Full backend logs: ignored `.artifacts/autonomous-research/resumed-backend-final.log`.
-Browser receipt: ignored `.artifacts/synthetic-browser/gl3_synthetic_browser_11e476561701/`
+Full backend logs: ignored `.artifacts/autonomous-research/review-backend-final.log`.
+Browser receipt: ignored `.artifacts/synthetic-browser/gl3_synthetic_browser_43acdf8a567e/`
 (JSON, logs and screenshots). The runner creates a distinct synthetic database and
 uses canonical ingestion, the existing worker and unchanged existing browser
 assertions. It fixes missing fixture setup; it is **not original retained-corpus or
@@ -105,7 +115,7 @@ Examples are synthetic, not the real named projects:
 | WATCH / Signal | Exact permit adds relevant electrical construction activity | RESEARCH / Signal |
 | RESEARCH / Lead | Dated exact-project completion or adequate activity supply | REJECT / Signal |
 | RESEARCH / Signal | Official exact activity demand plus unsuitable supply | Prospect; pursuit reevaluated separately |
-| Prospect | Official interval, duration, zero suitable supply and buying role | Lead; no worker-assigned promotion |
+| Prospect | Official interval, duration, aggregate suitable supply and buying role | Lead only with a supported residual; no worker-assigned promotion |
 | RESEARCH | Bounded checks without a supported answer | UNRESOLVED; no invented fact |
 
 Tests cover immutable old evidence, same-URL correction, cross-URL content reuse,
@@ -122,8 +132,9 @@ qualification, dated-heading freshness leakage, optional/investigative temporary
 scope, source/policy reuse gaps, shortlist starvation, unit/range floor handling,
 and false corpus/harness success or duplicate metrics. Repairs have regressions and
 were independently reprobed. A final narrow review confirmed the intentional
-nonpolling public-source refresh exception without relaxing admission. No remaining
-material finding was reported in those reviewed areas; this is not overall acceptance.
+nonpolling public-source refresh exception without relaxing admission. The final repaired candidate received a separate read-only review with no remaining
+material findings, followed by the full local gates above. This is not original-corpus
+or production acceptance.
 
 ## Real retained corpus: blocked
 
@@ -158,19 +169,62 @@ See [validation tools](../../scripts/README-pursuit-research-validation.md).
 
 No OpenAI, TypeSafe or Firecrawl key is configured here; no credentials were created
 or changed, no paid/model calls were made. Runtime Jev architecture is unchanged and
-non-authoritative. Exact adapter refresh currently supports Austin/Chicago. Other
-families need eligible direct public pages or configured discovery; unavailable routes
-are explicit. RRC form-based downloads and generic PDF extraction are not performed.
-Strict grammars leave unsupported wording unknown; the Lead subset handles explicit
-zero suitable supply, not arbitrary complex supply schedules. Existing synchronous
-DNS resolution has a soft wall-clock limit. These are visible limits, not proof that
-missing facts are false.
+non-authoritative. Exact native GET routes cover Austin/Chicago/Seattle/Boston/
+El Paso/Federal Register. Other families need retained facts, eligible direct public
+supplements or configured discovery; unavailable native routes stay explicit.
+RRC form submissions and unimplemented bulk-source research adapters remain excluded.
+Owned network/parser operations run in a killable subprocess with the question's
+hard deadline and a 512 MiB address-space cap; no database writes run in that child.
+Direct text/PDF inputs are admitted only after whole-input validation within 750,000
+bytes, 30,000 extracted characters and 20 PDF pages. No OCR, encrypted-page access
+or truncated-prefix admission is supported. Explicit public JavaScript shells alone
+are eligible for configured bounded Firecrawl extraction. Exact registry hostnames
+can support public supplements, never native-source or positive tier authority.
+Strict grammars leave unsupported wording and complex/segmented supply schedules
+unknown; nonzero aggregate supply requires explicit suitability throughout the exact
+activity interval. These are visible limits, not proof that missing facts are false.
 
 A separate fresh direct-source smoke made three bounded public GET queries and two
 exact Austin retrievals: $0, zero models, 6.628 seconds active request time, 62.060173
 seconds elapsed. It made zero canonical admissions/database writes. Chicago's exact
 address filter returned no rows; Clayton's capped sample was a retaining-wall permit,
 not data-center power proof. This is source-access smoke only.
+
+The final separate review found no remaining material findings after repairs to
+whole-body extraction, body-level access controls, non-text PDF content, title
+bounds and capture provenance. Acquisition inputs reject oversized titles rather
+than omitting their suffix. `public-document-v3` captures and versioned policy
+checks exclude older main-container-only captures from current projection,
+buying-chain support, retained replay and cache reuse until safe refresh. Evidence
+rows remain immutable; reinterpretation history preserves prior decisions.
+
+## Specification gap audit — current repair scope
+
+This checklist distinguishes implementation boundaries from unfulfilled acceptance.
+It does not assert that every scenario in the 30-section specification is proven.
+
+| Specification area | Current disposition |
+|---|---|
+| 1, 25: reconstruction and architecture reuse | Documented; existing jobs, worker, evidence, sources, matching and evaluator retained. Acquisition child processes contain no DB or new orchestration system. |
+| 2–7, 9–13, 15–21: bounded questions, routing, admission, reevaluation, UI and authority | Local implementation present; exact-question progress, historical context, source decisions and independent commercial/tier state remain inspectable. Final local gates above passed. |
+| 8, 14, 19–20: budgets, one follow-up, duplication and model bounds | Implemented caps/cache/replay and one-child limit; hard acquisition termination and parser bounds added. No model authority or open research trees. Provider-backed execution is not live-proven here. |
+| 22, 27–29: tests, migration discipline and separate adversarial review | Final results retained above. Current repaired candidate must rerun full required gates and close independent findings; those results are pending. |
+| 23–24: five retained cases and corpus baseline/yield/cost/runtime | **External blocker:** original PR23 archive is unavailable. Historical counts, synthetic fixtures and fresh reingestion cannot establish this gate. |
+| 26, 30: canonical docs and focused deliverable | Same draft PR #24; documentation distinguishes implementation/local validation/deployment/production proof. Definition of done remains unmet until required retained-corpus acceptance is completed. |
+
+Intentional bounded UNKNOWN/unavailable outcomes include unimplemented exact native
+routes (RRC form flow; Houston/Dallas bulk files; Georgia/NC/Taylor/MA research
+refresh), scanned, image/form/vector-painted, encrypted or oversized PDFs, non-JavaScript unsupported page formats,
+missing project/date/activity bindings, ambiguous personal assignment/authority,
+and complex supply schedules that lack one explicit suitable aggregate interval.
+Existing admitted facts remain available even where whole-document replay cannot
+prove completeness. No fallback bypasses login, CAPTCHA, denial or access controls.
+
+Separate external blockers are the missing retained PR23 database and unconfigured
+Firecrawl/other provider access. Buying or configuring services is not authorized
+by these docs. Model use is optional and absent here; zero model calls are a design
+choice, not a fabricated substitute for provider validation. Cloud deployment and
+production unattended proof remain explicitly separate milestones.
 
 **No external commercial outreach occurs.** No emails, calls, commercial forms,
 external CRM records, purchases, account login or access-control bypass.
