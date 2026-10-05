@@ -2,12 +2,21 @@ from datetime import date
 
 import pytest
 
-from gridlens.domain.permit_interpretation import EVALUATOR_VERSION, assess_permit
+from gridlens.domain.permit_interpretation import EVALUATOR_VERSION
+from gridlens.domain.permit_interpretation import assess_permit as _assess_permit
+
+# Fixture descriptions name fixed 2026 activity windows, so evaluate them against
+# a pinned date instead of the wall clock.
+AS_OF = date(2026, 9, 27)
+
+
+def assess_permit(record: dict, *, as_of: date = AS_OF) -> dict:
+    return _assess_permit(record, as_of=as_of)
 
 
 def permit(description: str, status: str = "Issued") -> dict:
     return {
-        "event_date": date.today().isoformat(),
+        "event_date": AS_OF.isoformat(),
         "html_url": "https://data.example/row/1",
         "permit": {
             "row_id": "1",
@@ -81,7 +90,7 @@ def test_assess_permit_rejects_incidental_or_unsupported_work(description, statu
 def test_assessment_preserves_official_date_and_unknowns():
     assessment = assess_permit(permit("New construction of manufacturing plant."))
     assert EVALUATOR_VERSION == "permit-project-v8"
-    assert assessment["issue_date"] == date.today().isoformat()
+    assert assessment["issue_date"] == AS_OF.isoformat()
     assert (
         assessment["issue_date_label"]
         == "Official permit issue date; source publication date unknown"
