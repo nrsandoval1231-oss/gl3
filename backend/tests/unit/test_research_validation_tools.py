@@ -60,6 +60,103 @@ def test_manifest_requires_all_five_categories_and_explicit_distinct_ids(tmp_pat
         harness.validate_manifest(value, tmp_path)
 
 
+def no_question_case(category="austin_data_center"):
+    from uuid import uuid4
+
+    quote = (
+        "New construction of modular data center foundation."
+        if category == "austin_data_center"
+        else "Temporary service for construction power."
+    )
+    card = {
+        "input_hash": "same-evaluation",
+        "disposition": "ACTION NOW",
+        "tier": "Signal",
+        "sources": [
+            {
+                "evidence_id": "11111111-1111-4111-8111-111111111111",
+                "url": "https://abc.austintexas.gov/web/permit/public-search-other?id=1",
+                "hash": "source-content-hash",
+                "text": quote,
+            }
+        ],
+    }
+    return {
+        "category": category,
+        "need_id": str(uuid4()),
+        "project_id": str(uuid4()),
+        "source_id": "austin-building-permits",
+        "card": copy.deepcopy(card),
+        "category_source_evidence": harness.category_source_evidence(
+            card, category, "austin-building-permits"
+        ),
+        "planned_questions": [],
+    }
+
+
+@pytest.mark.parametrize(
+    "category", ["austin_data_center", "austin_temporary_power"]
+)
+def test_owner_no_question_exception_requires_unchanged_source_linked_austin_case(category):
+    before = no_question_case(category)
+    after = copy.deepcopy(before)
+    assert before["category_source_evidence"]
+    assert harness.owner_accepted_no_question_case(before, after, [])
+
+
+@pytest.mark.parametrize(
+    "category",
+    ["chicago_conversion", "oil_and_gas", "low_quality"],
+)
+def test_owner_no_question_exception_never_bypasses_other_categories(category):
+    before = no_question_case(category)
+    after = copy.deepcopy(before)
+    after["category_source_evidence"] = [{"evidence_id": "other-category"}]
+    assert not harness.owner_accepted_no_question_case(before, after, [])
+
+
+@pytest.mark.parametrize(
+    "failure",
+    [
+        "no_citation",
+        "wrong_source",
+        "changed_identity",
+        "questions_planned",
+        "attempt",
+        "evaluation",
+        "disposition",
+        "before_not_action_now",
+        "tier",
+        "evidence",
+    ],
+)
+def test_owner_no_question_exception_fails_closed_on_missing_proof_or_change(failure):
+    before = no_question_case()
+    after = copy.deepcopy(before)
+    attempts = []
+    if failure == "no_citation":
+        before["category_source_evidence"] = []
+    elif failure == "wrong_source":
+        after["source_id"] = "unrelated-source"
+    elif failure == "changed_identity":
+        after["project_id"] = "different-project"
+    elif failure == "questions_planned":
+        after["planned_questions"] = [{"category": "power_need"}]
+    elif failure == "attempt":
+        attempts = [{"status": "FAILED"}]
+    elif failure == "evaluation":
+        after["card"]["input_hash"] = "changed-evaluation"
+    elif failure == "disposition":
+        after["card"]["disposition"] = "RESEARCH"
+    elif failure == "before_not_action_now":
+        before["card"]["disposition"] = "WATCH"
+    elif failure == "tier":
+        after["card"]["tier"] = "Prospect"
+    elif failure == "evidence":
+        after["card"]["sources"][0]["hash"] = "changed-source-hash"
+    assert not harness.owner_accepted_no_question_case(before, after, attempts)
+
+
 @pytest.mark.parametrize("database", ["gridlens", "gridlens_test", "postgres"])
 def test_runtime_and_shared_test_databases_cannot_be_validation_targets(tmp_path, database):
     value = manifest()
@@ -154,6 +251,10 @@ def test_full_harness_offline_fixture_receipts_and_duplicate_replay_failure(
     cases = [
         {
             **case,
+            "source_id": "fixture-source",
+            "project_id": "fixture-project",
+            "category_source_evidence": [],
+            "planned_questions": [],
             "card": {
                 "id": case["need_id"],
                 "disposition": "RESEARCH",

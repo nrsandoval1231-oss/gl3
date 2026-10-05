@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 import subprocess
 import sys
 import time
@@ -32,6 +33,10 @@ CATEGORIES = {
     "chicago_conversion",
     "oil_and_gas",
     "low_quality",
+}
+OWNER_ACCEPTED_NO_QUESTION_CATEGORIES = {
+    "austin_data_center",
+    "austin_temporary_power",
 }
 IMMUTABLE_TABLES = ("evidence", "pursuit_call_notes")
 IDENTITY_TABLES = ("projects", "power_needs")
@@ -202,6 +207,7 @@ def evaluation_history_preserved(before: dict, after: dict) -> bool:
 
 
 def selected_cases(session, manifest: dict, *, check_categories: bool = True) -> list[dict]:
+    from gridlens.domain.pursuit_research import plan_questions
     from gridlens.intelligence.commercial_evaluation import evaluate_target
     from gridlens.persistence.models import PowerNeed, Project
 
@@ -231,6 +237,7 @@ def selected_cases(session, manifest: dict, *, check_categories: bool = True) ->
             and not any(term in text for term in ("oil", "gas", "drilling", "well"))
         ):
             raise ValueError(f"Case category does not match selected canonical record: {need_id}")
+        category_sources = category_source_evidence(card, category, source)
         result.append(
             {
                 **item,
@@ -238,9 +245,94 @@ def selected_cases(session, manifest: dict, *, check_categories: bool = True) ->
                 "source_id": source,
                 "stable_project_id": project.external_id,
                 "card": card,
+                "category_source_evidence": category_sources,
+                "planned_questions": plan_questions(card),
             }
         )
     return result
+
+
+def category_source_evidence(card: dict, category: str, source_id: str) -> list[dict]:
+    """Return source-linked Austin evidence that directly supports the category."""
+    if source_id != "austin-building-permits":
+        return []
+    patterns = {
+        "austin_data_center": r"\bdata[ -]?cent(?:er|re)\b|\bcolocation\b",
+        "austin_temporary_power": r"\btemporary (?:power|service)\b|\bconstruction power\b",
+    }
+    pattern = patterns.get(category)
+    if pattern is None:
+        return []
+    matches = {}
+    for evidence in card.get("sources", []):
+        evidence_id = evidence.get("evidence_id")
+        url = evidence.get("url")
+        content_hash = evidence.get("hash")
+        quote = str(evidence.get("text") or "")
+        try:
+            UUID(str(evidence_id))
+        except (TypeError, ValueError):
+            continue
+        if (
+            not evidence_id
+            or not isinstance(url, str)
+            or not url.startswith("https://abc.austintexas.gov/")
+            or not content_hash
+            or not re.search(pattern, quote, re.IGNORECASE)
+        ):
+            continue
+        matches[str(evidence_id)] = {
+            "evidence_id": str(evidence_id),
+            "url": url,
+            "content_hash": str(content_hash),
+            "date": evidence.get("date"),
+            "quote": quote,
+        }
+    return [matches[key] for key in sorted(matches)]
+
+
+def evidence_signature(card: dict) -> list[tuple[str, str, str]]:
+    """Stable identities and content hashes for all cited retained evidence."""
+    rows = set()
+    for evidence in card.get("sources", []):
+        evidence_id = evidence.get("evidence_id")
+        url = evidence.get("url")
+        content_hash = evidence.get("hash")
+        if evidence_id and url and content_hash:
+            rows.add((str(evidence_id), str(url), str(content_hash)))
+    return sorted(rows)
+
+
+def owner_accepted_no_question_case(initial: dict, final: dict, attempts: list[dict]) -> bool:
+    """Apply the October 5 owner exception only to the two named Austin cases."""
+    category = final.get("category")
+    if (
+        category not in OWNER_ACCEPTED_NO_QUESTION_CATEGORIES
+        or initial.get("category") != category
+        or initial.get("source_id") != "austin-building-permits"
+        or final.get("source_id") != "austin-building-permits"
+        or initial.get("need_id") != final.get("need_id")
+        or initial.get("project_id") != final.get("project_id")
+        or attempts
+    ):
+        return False
+    before = initial.get("card", {})
+    after = final.get("card", {})
+    before_sources = initial.get("category_source_evidence", [])
+    after_sources = final.get("category_source_evidence", [])
+    return bool(
+        initial.get("planned_questions") == []
+        and final.get("planned_questions") == []
+        and before_sources
+        and before_sources == after_sources
+        and before.get("input_hash")
+        and before.get("input_hash") == after.get("input_hash")
+        and before.get("disposition") == "ACTION NOW"
+        and after.get("disposition") == "ACTION NOW"
+        and before.get("tier") == after.get("tier")
+        and evidence_signature(before)
+        and evidence_signature(before) == evidence_signature(after)
+    )
 
 
 def replay_state(session) -> dict:
@@ -593,6 +685,8 @@ def execute_cases(manifest: dict, baseline: dict) -> dict:
         attempts = [q for q in questions if q["need_id"] == final["need_id"]]
         inspected = bool(attempts) and all(q["status"] in TERMINAL for q in attempts)
         meaningful = inspected and all(investigation_completed(q) for q in attempts)
+        no_question_accepted = owner_accepted_no_question_case(initial, final, attempts)
+        case_accepted = meaningful or no_question_accepted
         cases.append(
             {
                 "category": final["category"],
@@ -600,8 +694,20 @@ def execute_cases(manifest: dict, baseline: dict) -> dict:
                 "selection_reason": final["selection_reason"],
                 "before": initial["card"],
                 "after": final["card"],
+                "category_source_evidence": final["category_source_evidence"],
+                "planned_questions_before": initial["planned_questions"],
+                "planned_questions_after": final["planned_questions"],
                 "questions": attempts,
                 "bounded_investigation_completed": meaningful,
+                "owner_accepted_no_question_no_change": no_question_accepted,
+                "case_acceptance_mode": (
+                    "MEANINGFUL_INVESTIGATION"
+                    if meaningful
+                    else "OWNER_ACCEPTED_NO_QUESTION_NO_CHANGE"
+                    if no_question_accepted
+                    else "NOT_ACCEPTED"
+                ),
+                "case_accepted": case_accepted,
             }
         )
     replay_passed = not created_ids and digest(state_before_replay) == digest(state_after_replay)
@@ -611,7 +717,7 @@ def execute_cases(manifest: dict, baseline: dict) -> dict:
         and not wall_clock_limited
         and settlement_stop not in {"runner_unavailable", "max_jobs"}
         and replay_passed
-        and all(case["bounded_investigation_completed"] for case in cases)
+        and all(case["case_accepted"] for case in cases)
     )
     return {
         "schema_version": 1,

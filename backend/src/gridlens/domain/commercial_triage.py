@@ -8,7 +8,7 @@ import re
 from datetime import date
 from typing import Any
 
-POLICY_VERSION = "commercial-triage-v2"
+POLICY_VERSION = "commercial-triage-v2.1"
 MAX_CARDS = 50
 
 
@@ -438,7 +438,17 @@ def build_card(item: dict[str, Any], chain: dict[str, Any] | None, today: date) 
     )
     permit_statuses = permit_statuses.casefold()
     negative_evidence = current_text + " " + permit_statuses
-    scope_text = re.sub(r"\bno (?:separate )?temporary (?:power|service)\b", "", negative_evidence)
+    temporary_scope = r"(?:temporary (?:power|service)|construction power|bridge power)"
+    no_need_pattern = (
+        rf"\bno (?:separate )?{temporary_scope}(?: is| will be)? "
+        r"(?:required|needed|necessary)\b|"
+        rf"\b{temporary_scope}(?: is| will be)? not (?:required|needed|necessary)\b|"
+        rf"\bdoes not (?:require|need) {temporary_scope}\b"
+    )
+    no_temporary_need = bool(re.search(no_need_pattern, negative_evidence))
+    # Remove the complete negative claim before checking affirmative scope.
+    scope_text = re.sub(no_need_pattern, "", negative_evidence)
+    scope_text = re.sub(r"\bno (?:separate )?temporary (?:power|service)\b", "", scope_text)
     explicit_temporary = bool(
         re.search(
             r"temporary (?:power|service)|construction power|bridge power|"
@@ -453,6 +463,10 @@ def build_card(item: dict[str, Any], chain: dict[str, Any] | None, today: date) 
     ):
         negative_reason = (
             "Current permit status says the work is closed, withdrawn, denied, or complete."
+        )
+    elif no_temporary_need and not explicit_temporary:
+        negative_reason = (
+            "Current source explicitly states temporary power is not required for this activity."
         )
     elif not explicit_temporary and re.search(
         r"\b(?:backup|standby) generator replacement\b|"
@@ -537,6 +551,12 @@ def build_card(item: dict[str, Any], chain: dict[str, Any] | None, today: date) 
             "REJECT",
             "Retained project relationships identify a source-supported rental intermediary; "
             "no direct owner or operator is established.",
+        )
+    elif no_temporary_need and explicit_temporary:
+        disposition, reason = (
+            "RESEARCH",
+            "Resolve the cited affirmative and negative temporary-power scope "
+            "before commercial action.",
         )
     elif reachable_contacts and credible_scope:
         disposition, reason = (
