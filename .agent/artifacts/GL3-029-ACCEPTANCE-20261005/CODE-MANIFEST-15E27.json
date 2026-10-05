@@ -1,0 +1,896 @@
+{
+  "candidate": "15e27bcbbc0163a8af3c22761e2963df3479f73a",
+  "tree": "2ccdc2686a351b9f35888b3b7cb09d35b6d73e03",
+  "manifest_scope": "Tracked backend/src, backend/tests, scripts, web/src, web/tests, and root web config/package files",
+  "file_count": 222,
+  "files": [
+    {
+      "path": "backend/src/gridlens/README.md",
+      "sha256": "ecbcc510dfd48e85f2c31aa72d07f28ff7e56e20b37a2cc3726c0855231563a9"
+    },
+    {
+      "path": "backend/src/gridlens/__init__.py",
+      "sha256": "7eb70257593da06f682a3ddda54a9d260d4fc514f645237f5ca74b08f8da61a6"
+    },
+    {
+      "path": "backend/src/gridlens/api/README.md",
+      "sha256": "036fbfdcb7a81a79a5d9fcf6aaed158439b168273e4168b62521b93d32d66d2e"
+    },
+    {
+      "path": "backend/src/gridlens/api/__init__.py",
+      "sha256": "7eb70257593da06f682a3ddda54a9d260d4fc514f645237f5ca74b08f8da61a6"
+    },
+    {
+      "path": "backend/src/gridlens/api/app.py",
+      "sha256": "cb750cfad9afbfc4b6bf8084d28809932694557a292a2caff8591308140940a7"
+    },
+    {
+      "path": "backend/src/gridlens/api/routes/README.md",
+      "sha256": "6de80767b84d57397b90378a8939f05ac60d30d94681b23ade161cefa678a157"
+    },
+    {
+      "path": "backend/src/gridlens/api/verticals.py",
+      "sha256": "158b6a99cb8bf42c583d29120f08ca95ecdd47d4b21de6a4d0d97d087b317a8b"
+    },
+    {
+      "path": "backend/src/gridlens/domain/README.md",
+      "sha256": "a43e198c985015c4cd735828e71b374fb298a1cf57d3943776c9c16202abe3ac"
+    },
+    {
+      "path": "backend/src/gridlens/domain/__init__.py",
+      "sha256": "7eb70257593da06f682a3ddda54a9d260d4fc514f645237f5ca74b08f8da61a6"
+    },
+    {
+      "path": "backend/src/gridlens/domain/buying_chain.py",
+      "sha256": "4fa95b2dd78eff18778d48b203f994f64bb99d5fe32d9e25d636beefcda92f5e"
+    },
+    {
+      "path": "backend/src/gridlens/domain/commercial_presentation.py",
+      "sha256": "dd2edcedb01e1375120fad449ee67f26676e409afd1feed57f7aaa2a57fcb2da"
+    },
+    {
+      "path": "backend/src/gridlens/domain/commercial_triage.py",
+      "sha256": "7dec16caa960e94b8601970c35b1ceb0ddbf342058840ed8cbf4266dc85d4f55"
+    },
+    {
+      "path": "backend/src/gridlens/domain/lifecycle.py",
+      "sha256": "dc4af4f96831332f9abc045e6e882e16154dffede4a1b0692ded3a9007daf53e"
+    },
+    {
+      "path": "backend/src/gridlens/domain/news_interpretation.py",
+      "sha256": "57a1e451623231ec46408f12e58681bce3430e37e644f9479c5b913ad31a4432"
+    },
+    {
+      "path": "backend/src/gridlens/domain/permit_interpretation.py",
+      "sha256": "9a3ba3cadbc32b8c0eb1b2c36a5ec339506cb6fd6e54e18ad5b4c8be11c9e69f"
+    },
+    {
+      "path": "backend/src/gridlens/domain/power_qualification.py",
+      "sha256": "f34f5691bdad196d1c37946c2e45fe146989204ec72eea473603171d27b5f885"
+    },
+    {
+      "path": "backend/src/gridlens/domain/project_research.py",
+      "sha256": "f8bf6e922a2be8a1d856a22a7b356f014e42ee1b4fe38414ce0b12b046ceb640"
+    },
+    {
+      "path": "backend/src/gridlens/domain/pursuit_research.py",
+      "sha256": "69be86ee0a84d09da83ceb36c24d08ca1d4dff72a752bbdb11fc864fcbc1b74d"
+    },
+    {
+      "path": "backend/src/gridlens/domain/pursuit_screening.py",
+      "sha256": "d6c2ed43ea577ef1c3513964603a031964ee760441e4ead0535019dab12a366b"
+    },
+    {
+      "path": "backend/src/gridlens/domain/pursuits.py",
+      "sha256": "9efde141ce5b74ac888fa9c889ad8102a7d69939342597cb020dd850399ca578"
+    },
+    {
+      "path": "backend/src/gridlens/domain/qualification.py",
+      "sha256": "90bb0fba179f079719786da12d2b6e3dddd7668e3cf13b7921ba40e7e3c0788e"
+    },
+    {
+      "path": "backend/src/gridlens/domain/signal_admission.py",
+      "sha256": "94919ffce60de733b8068188e078c0422bc8291f87bbd33e1c3f49ec4bc633e5"
+    },
+    {
+      "path": "backend/src/gridlens/domain/taylor_planning.py",
+      "sha256": "66b68ca92e152677837cd6b3c5c8b36a5c954f1cb7229ffac77afd12eaeb506a"
+    },
+    {
+      "path": "backend/src/gridlens/ingestion/README.md",
+      "sha256": "76c62bd79ff3266670f84e9dbf3ceaf2396d78f2d732f8f02427ceeee7b7a41a"
+    },
+    {
+      "path": "backend/src/gridlens/ingestion/__init__.py",
+      "sha256": "7eb70257593da06f682a3ddda54a9d260d4fc514f645237f5ca74b08f8da61a6"
+    },
+    {
+      "path": "backend/src/gridlens/ingestion/adapters/README.md",
+      "sha256": "f4709d3a2c8ca9d8fc887c88163392e910315552ac7cd896ae8e19fefd9b58e5"
+    },
+    {
+      "path": "backend/src/gridlens/ingestion/adapters/__init__.py",
+      "sha256": "0f53c4066afaca232914b79e5961623df634bac8e10cfa8c129978de0be81d06"
+    },
+    {
+      "path": "backend/src/gridlens/ingestion/adapters/boston_permits.py",
+      "sha256": "664d788c87cfda4920817ff84c9f1b228f1675d41941cca078371e4e828bb093"
+    },
+    {
+      "path": "backend/src/gridlens/ingestion/adapters/bounded_http.py",
+      "sha256": "08fe45602240aff116198250367635751ba1d5d57ea624f27f918bcfffcc9475"
+    },
+    {
+      "path": "backend/src/gridlens/ingestion/adapters/buying_chain_public.py",
+      "sha256": "7e083adbd353b2e1fc1b905616f83aed196152e96fb86fa869d6fa8fc3685068"
+    },
+    {
+      "path": "backend/src/gridlens/ingestion/adapters/dallas_permits.py",
+      "sha256": "8b54aa0f732179bbf28fee07c449afaecabca6aa50cdc872bc71754070ff8c55"
+    },
+    {
+      "path": "backend/src/gridlens/ingestion/adapters/el_paso_permits.py",
+      "sha256": "72077321e601a9e3919b32b86bbb46697175ab1355ffc81b080e15417dca554b"
+    },
+    {
+      "path": "backend/src/gridlens/ingestion/adapters/federal_register.py",
+      "sha256": "49690f616d9698f38c7a71c974050d84115f94b2d425b6d8e3fea38594b06851"
+    },
+    {
+      "path": "backend/src/gridlens/ingestion/adapters/georgia_air_permits.py",
+      "sha256": "647539c5d54b086e27a8f311e1ed93ad17fc1b6b810af2e11f78e490cab6ca9c"
+    },
+    {
+      "path": "backend/src/gridlens/ingestion/adapters/govinfo_pdf.py",
+      "sha256": "3959647ac44d2070831f0e0e2d8a9f7749c92c6f087db7b579f3d62cfca100a5"
+    },
+    {
+      "path": "backend/src/gridlens/ingestion/adapters/houston_permit_details.py",
+      "sha256": "9fe226a70440dee9715aab1e184d3a30fb1863a0e3283b8d88d8f4d4f8ce8dab"
+    },
+    {
+      "path": "backend/src/gridlens/ingestion/adapters/houston_permits.py",
+      "sha256": "c4809f8ce77ee9c492e54b642f7cc8bca859ea8d177173d1592d140fd8c0473a"
+    },
+    {
+      "path": "backend/src/gridlens/ingestion/adapters/ma_cultivation.py",
+      "sha256": "0533a419fe433ac1d9d693991c81098553aacb77c078c77cb28a8af693a846e5"
+    },
+    {
+      "path": "backend/src/gridlens/ingestion/adapters/nc_commerce.py",
+      "sha256": "7bd68c39025c65c3a19eb4a6771974a95fc1e8c390f9b48c976a047a863a1693"
+    },
+    {
+      "path": "backend/src/gridlens/ingestion/adapters/publisher_rss.py",
+      "sha256": "e50d91ceb3ccd7f918174d00e38b37161c9cbccbd46b59c1f9b0a2752303ec92"
+    },
+    {
+      "path": "backend/src/gridlens/ingestion/adapters/pursuit_acquisition.py",
+      "sha256": "6d2cfd00dcc19bec0a1acd5a74b7603526829eeb948ac8c56a88a70c395cd6db"
+    },
+    {
+      "path": "backend/src/gridlens/ingestion/adapters/pursuit_public.py",
+      "sha256": "2336acc35ea656c8a9249db49ce440d13cf495c223de3428397fd062c4f3030d"
+    },
+    {
+      "path": "backend/src/gridlens/ingestion/adapters/retained_permits.py",
+      "sha256": "5e59dca63e6ffb90e3f0434331a5576f20309073bd7ff877964a3aa886882d8e"
+    },
+    {
+      "path": "backend/src/gridlens/ingestion/adapters/rrc_drilling.py",
+      "sha256": "88c3afb755e8beaca43d5be21146e4e0596e97edc970f2e71549ca652558fbd3"
+    },
+    {
+      "path": "backend/src/gridlens/ingestion/adapters/rrc_flare_exceptions.py",
+      "sha256": "b7e24595275b2d03526713a7ce28776156002d885ce3dc8ca1d01917814a3b5f"
+    },
+    {
+      "path": "backend/src/gridlens/ingestion/adapters/socrata_permits.py",
+      "sha256": "6b7d9269918654306b07c5d90ecf7a37e5f61fb247ebf82ce05d4653a2855286"
+    },
+    {
+      "path": "backend/src/gridlens/ingestion/adapters/taylor_newsflash.py",
+      "sha256": "4906480addff5c8ef1c9de9d8d90867e2570f58037c8e7cc68c4d1adfcafdccb"
+    },
+    {
+      "path": "backend/src/gridlens/ingestion/parsers/README.md",
+      "sha256": "9db74335305201c605199abc279bad9503a803e8c5daa62c4b287515ebfab1c8"
+    },
+    {
+      "path": "backend/src/gridlens/ingestion/parsers/generator_schedule.py",
+      "sha256": "b2522e9c25ca2fe987798a90a6fd220b36d2f3b4c419909b5b57102e22656ed5"
+    },
+    {
+      "path": "backend/src/gridlens/ingestion/registry.py",
+      "sha256": "1fcd4bb69dda9b4bfd47523f825a06566a19a2c6ec3362236b64e4e0783d6229"
+    },
+    {
+      "path": "backend/src/gridlens/ingestion/service.py",
+      "sha256": "e650451c387e3a5b4a891a7e7b2c1fa722367297e0d1e2c07cd9149156ad8ce9"
+    },
+    {
+      "path": "backend/src/gridlens/integrations/README.md",
+      "sha256": "44d1d581701b17322b305058b201ef9144807b734bf53f35d77d58a914afe56b"
+    },
+    {
+      "path": "backend/src/gridlens/integrations/typesafe_evidence_judge.py",
+      "sha256": "0c92ad8685c872ddc1693144c696d00fb10f0bd41c9d8dd49ba051ed24d84847"
+    },
+    {
+      "path": "backend/src/gridlens/intelligence/README.md",
+      "sha256": "8ab414bfb4f5d322939eb794ac9ea335790426d8a8bfad022f9b49faa46d82dc"
+    },
+    {
+      "path": "backend/src/gridlens/intelligence/__init__.py",
+      "sha256": "7eb70257593da06f682a3ddda54a9d260d4fc514f645237f5ca74b08f8da61a6"
+    },
+    {
+      "path": "backend/src/gridlens/intelligence/autonomous_research.py",
+      "sha256": "fa5481e4e81ca967be0bf65fa82209ccd2c3b10c02d697697f98647add5d67c8"
+    },
+    {
+      "path": "backend/src/gridlens/intelligence/briefs.py",
+      "sha256": "02e3d8a5acc32d82d1428cf01ade616b24ba719a36f79751522a2cc4ff4795e6"
+    },
+    {
+      "path": "backend/src/gridlens/intelligence/buying_chain.py",
+      "sha256": "839f4249cc7df005027b32ac27d3e1a5aa6d00d130ce3320e6f72b3aece0fcec"
+    },
+    {
+      "path": "backend/src/gridlens/intelligence/buying_chain_extraction.py",
+      "sha256": "ec2ee3ecc79e553b3b7c764f16b6ed52a3f3a1eab3f1b357b1a1a7bf42f36a3c"
+    },
+    {
+      "path": "backend/src/gridlens/intelligence/change_detection.py",
+      "sha256": "da202276c6a0e7cd961aae928f0edb86c7bf6fb77ef4c3aa41343ef1b62ef3b7"
+    },
+    {
+      "path": "backend/src/gridlens/intelligence/commercial_evaluation.py",
+      "sha256": "dc463ace2e48e88acecd49c0dd3996a1a3ea8c9d6d40be11664460df79d57f10"
+    },
+    {
+      "path": "backend/src/gridlens/intelligence/evidence_evaluation.py",
+      "sha256": "3442fe24e7afcaab98c0fa76872fb8fac4743b504fa37d447618d0a6ef863f9b"
+    },
+    {
+      "path": "backend/src/gridlens/intelligence/evidence_judge.py",
+      "sha256": "9df7c78cc64076b1fc7c889bc820c98030506f47983373249b99af11d58b2990"
+    },
+    {
+      "path": "backend/src/gridlens/intelligence/evidence_shadow.py",
+      "sha256": "3cf4ea018f407441f31275a912d3cfec36d685606356360fc6137123045b2f39"
+    },
+    {
+      "path": "backend/src/gridlens/intelligence/lifecycle_replay.py",
+      "sha256": "206b1490031e6951f01e80403a973f251f5586b58c97900f6db21780781a27e0"
+    },
+    {
+      "path": "backend/src/gridlens/intelligence/lifecycle_service.py",
+      "sha256": "0ce954c2a0af72ce17d0c5ef3440b862df6d4b1ceb2e497106d8177ad82f0dad"
+    },
+    {
+      "path": "backend/src/gridlens/intelligence/matching.py",
+      "sha256": "a109076f4a0edbb5b6ac571157027d58f79beff05cb67092650e6114b065e292"
+    },
+    {
+      "path": "backend/src/gridlens/intelligence/project_identity.py",
+      "sha256": "a4a81fc9e06d8e5c7ec010dc289ec02c2416cc3ee75de237f0b3ac443ebe59fe"
+    },
+    {
+      "path": "backend/src/gridlens/intelligence/project_state.py",
+      "sha256": "0580023774bc0d4486240231f3cb9a1674e19f473085ff6c02f610cb75225dca"
+    },
+    {
+      "path": "backend/src/gridlens/intelligence/pursuit_questions.py",
+      "sha256": "4b6c31ce7b165ec3d2630a0dfd1a510d746f28a955bbfbf252e3978f940f4176"
+    },
+    {
+      "path": "backend/src/gridlens/intelligence/pursuits.py",
+      "sha256": "e7784bf673c90c0c30e33b5e97387809f8a4c88d25bc7bd36aef5069710228dc"
+    },
+    {
+      "path": "backend/src/gridlens/intelligence/research_evidence.py",
+      "sha256": "81b723f64bf46f4e0c1b9749b09891474046e7eb477be2a7f3f9e5f832059a31"
+    },
+    {
+      "path": "backend/src/gridlens/intelligence/research_metrics.py",
+      "sha256": "a9ddbfd3a7f9f12111295dca7bff5adb5550167ed6a9a1ed78284d41f73eeed9"
+    },
+    {
+      "path": "backend/src/gridlens/intelligence/research_recommendation.py",
+      "sha256": "591d8a90826122f2a19afaef035600adc4ceb9c8e340d59649ce489b65f47766"
+    },
+    {
+      "path": "backend/src/gridlens/intelligence/research_routing.py",
+      "sha256": "e07ef50212fdce69525bbfcab6cf4b0b8e67869edc09a4e055ae1a073d7655bc"
+    },
+    {
+      "path": "backend/src/gridlens/intelligence/signal_adjudication.py",
+      "sha256": "2bfcfe1b0a3f5a1ed41ea526ea46da07077a37f69f1ded99b9c1d60fe7ba5920"
+    },
+    {
+      "path": "backend/src/gridlens/jobs/README.md",
+      "sha256": "5c7ea2cbe803fb20c145dc7054620be7ed4507820b48bea5fa3b780f570a6108"
+    },
+    {
+      "path": "backend/src/gridlens/jobs/__init__.py",
+      "sha256": "7eb70257593da06f682a3ddda54a9d260d4fc514f645237f5ca74b08f8da61a6"
+    },
+    {
+      "path": "backend/src/gridlens/jobs/queue.py",
+      "sha256": "a540ceca22b5ec71dafe32271b1567339aa077468f84391a28d91ab55a53721e"
+    },
+    {
+      "path": "backend/src/gridlens/jobs/refresh_sources.py",
+      "sha256": "977a2eb3f1f8498f6c9a82f6d4b445b8082e226666402753da578f32cb8272e2"
+    },
+    {
+      "path": "backend/src/gridlens/jobs/runtime.py",
+      "sha256": "48a3a976488da76b4e2318d2ce6b4cf7d2bda190a6882e47502e1711f3f77d46"
+    },
+    {
+      "path": "backend/src/gridlens/jobs/worker.py",
+      "sha256": "e537197cf21343bef4743816a1f9a93e7901958cecd1bdbc0f2c9732292bd0d4"
+    },
+    {
+      "path": "backend/src/gridlens/persistence/README.md",
+      "sha256": "abb0f42882e56c76101de9b1f073de415ef0418ed8020a9a8a0435597949a35d"
+    },
+    {
+      "path": "backend/src/gridlens/persistence/__init__.py",
+      "sha256": "7eb70257593da06f682a3ddda54a9d260d4fc514f645237f5ca74b08f8da61a6"
+    },
+    {
+      "path": "backend/src/gridlens/persistence/database.py",
+      "sha256": "f2ec0b6b4ea0a9596d5d0962c19ced16423234ddb3f07f3b0f7b8a54a464d44e"
+    },
+    {
+      "path": "backend/src/gridlens/persistence/models.py",
+      "sha256": "373828e6fb5ee10b82872dacfe56412d32f0614b455f2a1bcc3d873606eef74e"
+    },
+    {
+      "path": "backend/src/gridlens/prompts/README.md",
+      "sha256": "e2b2aecc6bf80afd144cd5f93289fd12296057824cb4e998673fdbb45c36228a"
+    },
+    {
+      "path": "backend/src/gridlens/security.py",
+      "sha256": "6a4ebfa47a0da46cdca8dc88b9ca94a0473d06ce841be5a6c89db80c3ab6e1a5"
+    },
+    {
+      "path": "backend/src/gridlens/settings.py",
+      "sha256": "231c4c959b0d02789b879114cd77c2a643b98d74a8c87422129bd1b614b57a57"
+    },
+    {
+      "path": "backend/tests/README.md",
+      "sha256": "8ab2076c043fcfb686be17e115273821ae42dd274ed92c808ef124ee39f9a422"
+    },
+    {
+      "path": "backend/tests/acceptance/README.md",
+      "sha256": "af14335c2ebe633ae6bc7688dba8ab8bb9cbf81e7367fba966b863909500a494"
+    },
+    {
+      "path": "backend/tests/conftest.py",
+      "sha256": "5aa7ac582fad79922d5e903550b66a8066adc8a7db7d4b43b32a1008e045b272"
+    },
+    {
+      "path": "backend/tests/fixtures/README.md",
+      "sha256": "886e7110df73e31c38199461cfc48daee962e7fb197ae449d97c3ab65734f004"
+    },
+    {
+      "path": "backend/tests/fixtures/georgia_air_current_scopes.json",
+      "sha256": "a558ad7bc18192e32b1393d6668eee4be6a3f2f29d35348364ab420a293e55aa"
+    },
+    {
+      "path": "backend/tests/fixtures/taylor-newsflash-1839-3427.html",
+      "sha256": "571856630ef70b1fef038a07f6ea9671e8f0782611bc3cc2203609eaac00594c"
+    },
+    {
+      "path": "backend/tests/fixtures/taylor-newsflash-2032.html",
+      "sha256": "2803515b3d53f43e5f677f04e8ac7321b771d5b9e289e11eb91daa00178885ff"
+    },
+    {
+      "path": "backend/tests/fixtures/taylor-newsflash-2079-3434.html",
+      "sha256": "d1e73325df079590f80cb999cf9684bad0a31c22d44956246263587699fbaea7"
+    },
+    {
+      "path": "backend/tests/fixtures/taylor-newsflash-2079-3442.html",
+      "sha256": "59ff6e1f0574d16a1fbe5a73b036afe902d5bef5dab47dcba70277398255fe40"
+    },
+    {
+      "path": "backend/tests/integration/README.md",
+      "sha256": "1f239260a27264a2217a30c3636946f95f1358bbbcaad96cbd707d1317b27ed5"
+    },
+    {
+      "path": "backend/tests/integration/test_autonomous_questions_integration.py",
+      "sha256": "f6f0a82eebf51a244c6e7d98157cc40b48701c201294bd6984b3a84719d1376c"
+    },
+    {
+      "path": "backend/tests/integration/test_buying_chain.py",
+      "sha256": "9f68f8d72fe4601a75619ee680f07c3b184a95a0021d2385273a4314bb58b595"
+    },
+    {
+      "path": "backend/tests/integration/test_collection_only_ingestion.py",
+      "sha256": "f7a697c12c10fa1cc9e90cc53b74b241b04ebd958fc9194c25e1c6278e6169ea"
+    },
+    {
+      "path": "backend/tests/integration/test_evidence_shadow_storage.py",
+      "sha256": "afbd05efd3f8f5f2d5ee25317ecdce993b02029a6ff7e0225ee206812549db4f"
+    },
+    {
+      "path": "backend/tests/integration/test_ingestion.py",
+      "sha256": "27b34d59f632c3efe4b656dac66a5f935a22e0d05e9ea7ecdcd9b252f7aa46b9"
+    },
+    {
+      "path": "backend/tests/integration/test_jobs.py",
+      "sha256": "3079ebc685c5b7b7d9c269429de0626a328644c092248b68641054f401c189ac"
+    },
+    {
+      "path": "backend/tests/integration/test_ma_cultivation_ingestion.py",
+      "sha256": "efcb39d31f3e4efd649023acad84aa4e4a3966234b4b9e22068f5270c0edcd42"
+    },
+    {
+      "path": "backend/tests/integration/test_power_need_briefs.py",
+      "sha256": "410e52983485f5dfaf25f11c2089763c2ed56dc027325ee860be62509b22a2d4"
+    },
+    {
+      "path": "backend/tests/integration/test_project_state_changes.py",
+      "sha256": "2e250a3a2b5d5fe53d01a74141360bd197ea11b0361aeb56fddd104b2980e58a"
+    },
+    {
+      "path": "backend/tests/integration/test_pursuit_evidence.py",
+      "sha256": "978b973eb55750d28962441915696c80b259b80e5fc07191f063cd941c679f47"
+    },
+    {
+      "path": "backend/tests/integration/test_pursuits.py",
+      "sha256": "82acd17ec5309a2aac5e732b0507b87da4a94a061baf0d0780bcdd6996f511dc"
+    },
+    {
+      "path": "backend/tests/integration/test_research_transitions.py",
+      "sha256": "4ed8311b612a1092f0530ac4da508d1c496aad53998f108106e2e7e0510fb845"
+    },
+    {
+      "path": "backend/tests/integration/test_retained_research_replay.py",
+      "sha256": "466ff49688213d0e4a0de7ae676b8a0937d5615d80d244a2c5f6969597a2739d"
+    },
+    {
+      "path": "backend/tests/integration/test_signal_adjudication.py",
+      "sha256": "71da5982585b8edd9e944f1eddfbcfc7d1324ae7e809ec1393393ebd832981be"
+    },
+    {
+      "path": "backend/tests/integration/test_signal_admission_migration.py",
+      "sha256": "8c48ab4deb071cac71473dad2c11927b49f103c4372203826283253f2f580f68"
+    },
+    {
+      "path": "backend/tests/integration/test_taylor_ingestion.py",
+      "sha256": "bc2ce271e2904d83b9d00570f5a8def62f277d635b0b9622ccb59dd7a271827b"
+    },
+    {
+      "path": "backend/tests/unit/README.md",
+      "sha256": "c6c44999e01aa378a31123d557979d877a2c6efa21061ed3bd22d94aee68964d"
+    },
+    {
+      "path": "backend/tests/unit/test_api_auth.py",
+      "sha256": "b930de340ac14b73f8cac5cb467b6a6eb9862b0cc4b822c8f9e4d4c707331239"
+    },
+    {
+      "path": "backend/tests/unit/test_autonomous_questions.py",
+      "sha256": "cee8d54b8e35eaa4dee852db75a2c4f40cc4dbe575c8a32e5a41b6ba525fd36f"
+    },
+    {
+      "path": "backend/tests/unit/test_autonomous_resolution.py",
+      "sha256": "893f37dc893b2425988fdc3869c7b7c3e6bb141d783ce2465036838992ad566f"
+    },
+    {
+      "path": "backend/tests/unit/test_boston_permits.py",
+      "sha256": "67879df34932e0fb30c96fc5479fedd96180d61a278d3cfefbe467df43403add"
+    },
+    {
+      "path": "backend/tests/unit/test_briefs.py",
+      "sha256": "7b35e1f7b922beab4fbe0979056ab0ce6f21d6b30c81ca3ce4bddd7ea697bb2d"
+    },
+    {
+      "path": "backend/tests/unit/test_buying_chain_deadline.py",
+      "sha256": "765b0f22eb49c67cba3915846d1aedb1a8837ca789f68d60044bc8783f0fc403"
+    },
+    {
+      "path": "backend/tests/unit/test_buying_chain_policy.py",
+      "sha256": "0c48f0ad6fdfa55aab41250cbdde93347c12004f67f5817f18ca785109913a41"
+    },
+    {
+      "path": "backend/tests/unit/test_buying_chain_public_dates.py",
+      "sha256": "a1387bae7101e72f375f4d63926cd6790b488642cd72111eaaa830e693230511"
+    },
+    {
+      "path": "backend/tests/unit/test_city_permits.py",
+      "sha256": "5eb0a1869dfd318fd989cc4b5d42738ac1087a91fbdb63e9f04aa7d9ce6c7675"
+    },
+    {
+      "path": "backend/tests/unit/test_commercial_presentation.py",
+      "sha256": "649765a95ced7f9add875fb093643a1835d1ba573fa72b882bf0ee85f336baf1"
+    },
+    {
+      "path": "backend/tests/unit/test_commercial_triage.py",
+      "sha256": "0dac5bfa43f0965f84ea46917568e5e94c72cdf8525e0f39da97854d4e25324b"
+    },
+    {
+      "path": "backend/tests/unit/test_evidence_judge.py",
+      "sha256": "5c88979eaf1cdaa58c6f91bae40c56ddc137aae9d9e22ed5b12a9bb63c1d6081"
+    },
+    {
+      "path": "backend/tests/unit/test_exact_research_routes.py",
+      "sha256": "45e5f5e252cb662b261a8b3f25ca5d22ad65137221bdb663f2306f9ad5e509ee"
+    },
+    {
+      "path": "backend/tests/unit/test_federal_register.py",
+      "sha256": "b4020ba7fc2a1921b2a397747f82acb282fe94028b4bafac8b585b4fb89b0d24"
+    },
+    {
+      "path": "backend/tests/unit/test_firecrawl_extraction.py",
+      "sha256": "58398c099bdbd5bc9992e945b7785f68c9ddb37b739a6c43b6aff5deda8cb9e5"
+    },
+    {
+      "path": "backend/tests/unit/test_generator_schedule.py",
+      "sha256": "96540119d0441b4754c271d9af932977b5c21ef0974caa4a986bdc2e9201228a"
+    },
+    {
+      "path": "backend/tests/unit/test_georgia_air_permits.py",
+      "sha256": "d8b74ca2d98be8d3511fbb84044298b98e40f33c6b3d109b8fd69daf9e6a4188"
+    },
+    {
+      "path": "backend/tests/unit/test_govinfo_pdf.py",
+      "sha256": "1823ca7b962e41ca8cf9ffe79682e9fa58c8fc4afa0ffc3be76e529b494b3242"
+    },
+    {
+      "path": "backend/tests/unit/test_houston_permits.py",
+      "sha256": "726aa136f3a1524f1e6b4f9edbdbfd5cb7731aae8c5dd79c71495b82065acb99"
+    },
+    {
+      "path": "backend/tests/unit/test_lifecycle.py",
+      "sha256": "e346485200a2a70392ae26e57998fc28de0170b30e8f757736cf2f157ab3fb81"
+    },
+    {
+      "path": "backend/tests/unit/test_local_pipeline_check.py",
+      "sha256": "58f7af3d16c2a4219c567de0342c6753b569dd0818d0a2b81dec7eb8341d16bd"
+    },
+    {
+      "path": "backend/tests/unit/test_ma_cultivation.py",
+      "sha256": "d1f0bb4e92f5310ccb0ee6dda81a4430c0d82cdd7677e3a35ab8513b5b066f24"
+    },
+    {
+      "path": "backend/tests/unit/test_nc_commerce.py",
+      "sha256": "d6a0dc1a8b7b0ebdf598fccbfb215ea1605969deaf4f4691c38fee72cb4b8cc6"
+    },
+    {
+      "path": "backend/tests/unit/test_news_interpretation.py",
+      "sha256": "ed94d3e6140f275749fcbca67e3a14c7eb4e75257af5e3ee6a1cb4f7adce8e8b"
+    },
+    {
+      "path": "backend/tests/unit/test_origin.py",
+      "sha256": "b1ee29be32c819c1c57f089d6c0a9595568a78c447a1e6deb6a8915b8cec20a3"
+    },
+    {
+      "path": "backend/tests/unit/test_permit_interpretation.py",
+      "sha256": "6d5cfe92abb224107336590da44b5af8f448da3ffc02f7c28e29cc431232f185"
+    },
+    {
+      "path": "backend/tests/unit/test_power_qualification.py",
+      "sha256": "ee7b0d4f1f8ed94900c28ef4552d41538e65d64c800ec35a5b76fb47d08e8ed8"
+    },
+    {
+      "path": "backend/tests/unit/test_project_research.py",
+      "sha256": "aad9dc6fd016c8e7ca1432451d7d5c971415e50cd6c34360bba70da63d0baff9"
+    },
+    {
+      "path": "backend/tests/unit/test_publisher_rss.py",
+      "sha256": "0aaeb5a1ab1331d787c382a9ebb967b9cdc0169bd65a8b618b8a398dcc3f438e"
+    },
+    {
+      "path": "backend/tests/unit/test_pursuit_acquisition.py",
+      "sha256": "5cbffbe7f39351edf3c33032301b3a5bfc5ce63f94e6ec289cd8e2a525bd304a"
+    },
+    {
+      "path": "backend/tests/unit/test_pursuit_public.py",
+      "sha256": "a3810a244cd14fa550a42b19435591182825d05283ddaf5c395969fb1db3dc96"
+    },
+    {
+      "path": "backend/tests/unit/test_pursuit_screening.py",
+      "sha256": "f59064992660f64837ff7f81482926fea26b809edc696eb05e4f1ec2aa169f68"
+    },
+    {
+      "path": "backend/tests/unit/test_qualification.py",
+      "sha256": "f4e399a2b469dba57eaca094b13736a37793186cf4f16a87b56fa0c67d1e1701"
+    },
+    {
+      "path": "backend/tests/unit/test_question_partial_progress.py",
+      "sha256": "e9f118c8f4bf897ab78527852401952cd35b848698ac6116288e9c49ae6e22fe"
+    },
+    {
+      "path": "backend/tests/unit/test_registry.py",
+      "sha256": "cd10e6bb48a36bb39d5228e97e2145d01d2c5e662ed0aa3f72839b113b0164ed"
+    },
+    {
+      "path": "backend/tests/unit/test_research_acquisition_boundary.py",
+      "sha256": "474ee5c168da9764607c646017a792fe50eac1521a715c7ba2f30145b41b43db"
+    },
+    {
+      "path": "backend/tests/unit/test_research_metrics.py",
+      "sha256": "b55f71448e9de7689c3927c8005ae744f0e7e66b9fe66e0ecb9ce0110302ecbe"
+    },
+    {
+      "path": "backend/tests/unit/test_research_validation_tools.py",
+      "sha256": "77091115c727922050790cfbf62ab3add144b4c213bc756daed90d9bfd658c76"
+    },
+    {
+      "path": "backend/tests/unit/test_retained_permits.py",
+      "sha256": "19c509ec2f5e25e8965408cef6aa815b7f72968e8cac34b2de831be32b07add3"
+    },
+    {
+      "path": "backend/tests/unit/test_review_export.py",
+      "sha256": "a1f26aa961d635a4e3545f9c640bcb153df9777707ee0bded3d9911b6ddfd7a6"
+    },
+    {
+      "path": "backend/tests/unit/test_rrc_drilling.py",
+      "sha256": "cc53cfe2dba709ae5f5d1e8bc64ff4cea1b9fdd876563a154806ef84a3435f0d"
+    },
+    {
+      "path": "backend/tests/unit/test_rrc_flare_exceptions.py",
+      "sha256": "d63b83ff7498c2ec989b8659edc84fc17f041f07ffcad366e2cf3c2b147caea7"
+    },
+    {
+      "path": "backend/tests/unit/test_security.py",
+      "sha256": "5bccc9ea2ee9928c565f1c95dd6d30cefa05ae9a3e106e1c58f484e14b37d14e"
+    },
+    {
+      "path": "backend/tests/unit/test_signal_adjudication_policy.py",
+      "sha256": "3bab71116dfb35afbda4e8fc9e75210905d8dbcda6ee98091c2cba921ecbc24d"
+    },
+    {
+      "path": "backend/tests/unit/test_signal_admission.py",
+      "sha256": "cb47c5e53c913a62d7e3cc4c34cfa59ace3d15e9c4f8a18c8013dfe85ebe6e1d"
+    },
+    {
+      "path": "backend/tests/unit/test_socrata_permits.py",
+      "sha256": "860a1f575db4f4f1fca4c4acb7da0c30287e996497d7c783e46ad6cee368ea4b"
+    },
+    {
+      "path": "backend/tests/unit/test_taylor_newsflash.py",
+      "sha256": "968a44f369d414edd128e585616faa64fd0679472f539eb0372149019eee93d0"
+    },
+    {
+      "path": "backend/tests/unit/test_taylor_planning.py",
+      "sha256": "4e160a2b7a6513e86cd94cba7d9bed62889117a6c5eedd30ec4df5cf1911a5f2"
+    },
+    {
+      "path": "backend/tests/unit/test_verticals.py",
+      "sha256": "7ea35d57547c18db59f1070b83c4a0d9afe63f3a0a424026bb86eafbf59cd809"
+    },
+    {
+      "path": "scripts/README-pursuit-research-validation.md",
+      "sha256": "5f9286add3ebdf813cb9720f8df163ef5136ec2ef0f6dcb1b0117321ba0530e9"
+    },
+    {
+      "path": "scripts/README.md",
+      "sha256": "289449d016876dc8bd2ff56f064fe1d4a2483177198a76c1a084cae4a2680de5"
+    },
+    {
+      "path": "scripts/commercial_triage.py",
+      "sha256": "7899c9e7bf6a898effeb1af296ddd3b721a710d419a89eb79490e401db1d40cc"
+    },
+    {
+      "path": "scripts/evidence_judge_shadow.py",
+      "sha256": "35dc5ef1c8342e9738abace92c2566eb1686ebbe73e9dcf759929daaa88bad11"
+    },
+    {
+      "path": "scripts/export_openapi.py",
+      "sha256": "f99852894bcdd5501051d5ed4a126cef3210df677e569bc5021486fda4ea31de"
+    },
+    {
+      "path": "scripts/export_review_sample.py",
+      "sha256": "4ac10ed4b6b1e8c2c5ddfc9de1f6be53f57974ca161f19a2284c06e87f35c761"
+    },
+    {
+      "path": "scripts/local_pipeline_check.py",
+      "sha256": "32a0e25036df398066f26379ae029fee4f3e92ec954927e90e474f6bb64585a0"
+    },
+    {
+      "path": "scripts/pursuit-research-manifest.example.json",
+      "sha256": "122cd648230c1eecf78fce863b620515d1bb47e80e29e6fad1e59493b46cccdf"
+    },
+    {
+      "path": "scripts/pursuit_research_metrics.py",
+      "sha256": "7ec6295378746560ea291a1063f35d2ad45d901cd9354c23fe89e4b0f43f4f26"
+    },
+    {
+      "path": "scripts/reinterpret_news.py",
+      "sha256": "7609b7915225e96f279fcd53f9254105c7fe6340ce67677a283596f146e8ab76"
+    },
+    {
+      "path": "scripts/replay_lifecycle_history.py",
+      "sha256": "54f27c915ca189e182aabd9db86e207ab505c2807f44984f6a2744ca789728ec"
+    },
+    {
+      "path": "scripts/seeded_browser_acceptance.py",
+      "sha256": "8344d0a0da210a710e65848a2d28ea63451e486c52d430ec216665e8460da02f"
+    },
+    {
+      "path": "scripts/setup_compose.py",
+      "sha256": "8710f5c0021cccd60b22b7b505c2ae27b5d70022a1ce2f3c5aa89c3a70b62aa7"
+    },
+    {
+      "path": "scripts/setup_local.py",
+      "sha256": "c821ef10b1da035e4f733e9a163009e488b786f7afc8ea12bc05f620806fe276"
+    },
+    {
+      "path": "scripts/validate_buying_chain_captures.py",
+      "sha256": "836bc8c0dde5d29da430b8d3834a7b355a993dab7d8635b68e7379a78ae271b4"
+    },
+    {
+      "path": "scripts/validate_pursuit_research.py",
+      "sha256": "70d51b39d108ec02a9d53a5753188115798e1f63bad62ec418547866acab4573"
+    },
+    {
+      "path": "web/package-lock.json",
+      "sha256": "6e6ec9ba1d4eb7bcb8f9d24572ece77d82164b2bd64e69c93881059dd33f1aa4"
+    },
+    {
+      "path": "web/package.json",
+      "sha256": "e8c69b3cd88a3457f811e2d9ec29670147c1a5ba0b480e9c7e9df0f3d1abb126"
+    },
+    {
+      "path": "web/playwright.config.ts",
+      "sha256": "b9f67aae99b4db0ccc3e656a364cb6204628f28e547869c964a116b7aafac7d8"
+    },
+    {
+      "path": "web/src/README.md",
+      "sha256": "b00925d2030c19bb8380f689f0ebf31ecf429acf1e66009922667459cc0c5aa7"
+    },
+    {
+      "path": "web/src/api/README.md",
+      "sha256": "cd36dee600172438cca70a94740e4c35ce33ffb2f20a37f92c07e2902123ae0a"
+    },
+    {
+      "path": "web/src/api/client.ts",
+      "sha256": "7dd6fac872710364c433b86d07474778facc1db899ff01ce9974aa97a095a8ba"
+    },
+    {
+      "path": "web/src/api/generated.ts",
+      "sha256": "020ad988149e35dbb557227764d998bbbfe40029c8c2762ad321b9dc5418c6f6"
+    },
+    {
+      "path": "web/src/api/openapi.json",
+      "sha256": "2fa93fef5ef6eb9816f005d1bd802d6ffec238adb4409c762e8147d2e48fbcf9"
+    },
+    {
+      "path": "web/src/app/App.tsx",
+      "sha256": "98245169227140d106c19aa9abf251b7d557e448c7c12a3e86f6ad50b0989800"
+    },
+    {
+      "path": "web/src/app/README.md",
+      "sha256": "51d63bf8504bdc4cdf2c01dfea617763dd3dd9e5cbf4a563a5f0a2ae3306d4d2"
+    },
+    {
+      "path": "web/src/components/README.md",
+      "sha256": "39b3255f63dddbcd2a5d306f88ca02d3952dc14f1716f4093889ace401391283"
+    },
+    {
+      "path": "web/src/features/README.md",
+      "sha256": "b4be4cab667d20446ca9cbb7ad6b6cae22864f7d9b1c742b149e9531e323232f"
+    },
+    {
+      "path": "web/src/features/buyingChain/BuyingChain.tsx",
+      "sha256": "b7f4e83d98ba3454cb98f6b45aeb56e59582af7f268e6037848c4f96100152d1"
+    },
+    {
+      "path": "web/src/features/buyingChain/README.md",
+      "sha256": "3cce91113a08b29e4127d2d420d5d91b4f753c9ad7ffbed1dc40cef02aa4dacf"
+    },
+    {
+      "path": "web/src/features/morning/README.md",
+      "sha256": "456dfd402de0cc226b47dd5100d57fe84cd7f3b0fc6a14fedb900c509bc8f043"
+    },
+    {
+      "path": "web/src/features/opportunities/README.md",
+      "sha256": "59bb8ae40ef45d0019f0eb42f358f83b6161575f4348bc736f6b8698c8bce22b"
+    },
+    {
+      "path": "web/src/features/opportunities/projectCards.ts",
+      "sha256": "b12068899642b178014a40176e4af07fb6bceb7e3145dbe5d82d664b637c85fb"
+    },
+    {
+      "path": "web/src/features/pursuits/AutonomousResearch.tsx",
+      "sha256": "667b4280334fc2e5aa9e56d424ddf8dc8e5dd0bbc48a55c7b2d03d725ea42a8c"
+    },
+    {
+      "path": "web/src/features/pursuits/CommercialPursuits.tsx",
+      "sha256": "3851f36e26ae721489ba274979ead3982bba9dfc374133acbc6472c4c81829ab"
+    },
+    {
+      "path": "web/src/features/pursuits/Pursuits.tsx",
+      "sha256": "58b35e2a06910d88b044484d52a991e1c3f4db1303c0be7a9203754f759f3938"
+    },
+    {
+      "path": "web/src/features/pursuits/README.md",
+      "sha256": "adcbd5c1afbf972ba035755bfb44364c3662c918f8a49b46f6c9785e7cfbb989"
+    },
+    {
+      "path": "web/src/features/pursuits/ResearchChanges.css",
+      "sha256": "6be36b13d1732b00823442a648bb1300287738b3e003219c32b69419226de89e"
+    },
+    {
+      "path": "web/src/features/pursuits/ResearchChanges.tsx",
+      "sha256": "c79b2697acfe75c0c79a6203579fa66fb5b1ac44ebd6cb2da8d6f8f10e632afe"
+    },
+    {
+      "path": "web/src/features/sources/README.md",
+      "sha256": "27ac1eefdcabce261997d498f4e1e8fdb63b3ddd987f04a8599da7b688124076"
+    },
+    {
+      "path": "web/src/main.tsx",
+      "sha256": "b643c69a9cfba1d9f3849c1c34e7ba1c05777d9923a6bb8e513f6f77d7a3f4fb"
+    },
+    {
+      "path": "web/src/styles/README.md",
+      "sha256": "34d1d721503b183cb9586dd2ea4bc6cc83312331bb3e653465fcddcccd4dcf99"
+    },
+    {
+      "path": "web/src/styles/app.css",
+      "sha256": "6897988e2abfe69b15a2923fcdabb15cff79c5ebcaec7d84462dc275adab894a"
+    },
+    {
+      "path": "web/src/styles/brand-tokens.css",
+      "sha256": "dabdfcee799b5ba204fdc4fa630a93765cdb4473624ee4ceb314dc5525d35923"
+    },
+    {
+      "path": "web/src/styles/layout.css",
+      "sha256": "2e2b609f4c9d84aef0b247cd8b1510e7817de08f474c062c251efcf88d703cf8"
+    },
+    {
+      "path": "web/src/styles/pursuits.css",
+      "sha256": "d711b48cb9bd53b44b7231a69243e6a3a11fc256b7f08b0408b3a03b897f787b"
+    },
+    {
+      "path": "web/tests/README.md",
+      "sha256": "664201a291aad23621d6d74a14889c1207f637c01258be64f094ff2d9cd4e3b4"
+    },
+    {
+      "path": "web/tests/autonomous-research.spec.ts",
+      "sha256": "0d08c544815b148d57985d8f6c33ef9498f1ea5f6585a3f8fa7c4077066c0b54"
+    },
+    {
+      "path": "web/tests/briefs.spec.ts",
+      "sha256": "825dfcf132728c3109f1bb67bd89c887929b35cd709e3221699831105d483ceb"
+    },
+    {
+      "path": "web/tests/buying_chain.spec.ts",
+      "sha256": "505a8cc0eed1f2c9a49f8946f25d4caaf3f9a4ed8f4e1a5ea63fe712f2728627"
+    },
+    {
+      "path": "web/tests/commercial-pursuits.spec.ts",
+      "sha256": "0901a9f1b3e33cf6e604d0b503b3eab773791d11a3a70c0a2baf38247cdc5e6a"
+    },
+    {
+      "path": "web/tests/first_path.spec.ts",
+      "sha256": "d0f5fc48dbde7556befd4dca694ffc4e5d8d5ace44f0d3319942a1c6fc2b4018"
+    },
+    {
+      "path": "web/tests/project_cards.spec.ts",
+      "sha256": "6cf6145854ea1aa84abdb96de1f79eba0f4468e9fb682da80fc28978213e2735"
+    },
+    {
+      "path": "web/tests/pursuits.spec.ts",
+      "sha256": "fac039df002821d5b80ba19b00bea22292accf39f2477dc9d01015e3745d354d"
+    },
+    {
+      "path": "web/tests/verticals.spec.ts",
+      "sha256": "1d298512b166009acab57a850ba270a5f94c2f938015d7f6f989cc3d99ad3eaf"
+    },
+    {
+      "path": "web/tsconfig.json",
+      "sha256": "8e040fb54505f870a21c315f6aab974e0382259069a5e63aefd8f5fe8dfa11e6"
+    },
+    {
+      "path": "web/vite.config.ts",
+      "sha256": "cd49a9cdfdfac323b5e89d01e1f778da67616ccfc757a13ff8549f255eb36304"
+    }
+  ]
+}

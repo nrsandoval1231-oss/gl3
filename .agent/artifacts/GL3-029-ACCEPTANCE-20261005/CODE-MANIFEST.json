@@ -1,6 +1,7 @@
 {
-  "candidate": "15e27bcbbc0163a8af3c22761e2963df3479f73a",
-  "tree": "2ccdc2686a351b9f35888b3b7cb09d35b6d73e03",
+  "candidate": "7768f2a6e3ec19f29f657c23c2120a392d1c31bf",
+  "tree": "4118cdf83f21e0fa3519b9ca956eae4bf8c9ae8f",
+  "corpus_candidate_source_sha256": "e4b7a41b35deb2b1d2ae4c5da0540d4988877d7bf3ebb90e216d1f7e9d68618e",
   "manifest_scope": "Tracked backend/src, backend/tests, scripts, web/src, web/tests, and root web config/package files",
   "file_count": 222,
   "files": [
@@ -618,7 +619,7 @@
     },
     {
       "path": "backend/tests/unit/test_research_validation_tools.py",
-      "sha256": "77091115c727922050790cfbf62ab3add144b4c213bc756daed90d9bfd658c76"
+      "sha256": "7180f2c947c6925360d6335937d6d22e9fb80284fd26da87431512dfa384e513"
     },
     {
       "path": "backend/tests/unit/test_retained_permits.py",
@@ -726,7 +727,7 @@
     },
     {
       "path": "scripts/validate_pursuit_research.py",
-      "sha256": "70d51b39d108ec02a9d53a5753188115798e1f63bad62ec418547866acab4573"
+      "sha256": "1ae24b999945c0089e6c5b748423c236b806526200066702ec6265d3f5ed619f"
     },
     {
       "path": "web/package-lock.json",

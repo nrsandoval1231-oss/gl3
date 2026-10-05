@@ -2,16 +2,16 @@
 
 ## October 5 GL3-029 acceptance frontier
 
-Current main `9a4669e592a64d0513f0bbb70e9a29197b8d2e0d`; PR24 remains an OPEN draft at remote head `d8b0e99897c600f32a0e00bb6770b841f2c6f907`. Isolated branch `repair/gl3-029-current-main-20261005` froze code `15e27bcbbc0163a8af3c22761e2963df3479f73a` (tree `2ccdc2686a351b9f35888b3b7cb09d35b6d73e03`) with upstream PR25/26 corrections. Mandatory deterministic gates pass (1,157 backend, one skip, one warning; Ruff/mypy/migrations/frontend/audit/diff pass). Original-corpus acceptance is 3/5: owner-amended source-linked/no-change Austin cases and meaningful Chicago pass; O&G and low-quality/unresolvable fail. Fresh original-corpus browser suite 41/41 passes; migration preservation and replay pass. Provider config exists, but maximum cost is $0 and provider reservations are unset, so no provider calls were made.
+Current main `9a4669e592a64d0513f0bbb70e9a29197b8d2e0d`; PR24 remains an OPEN draft at `d8b0e99897c600f32a0e00bb6770b841f2c6f907`. Isolated branch `repair/gl3-029-current-main-20261005` freezes code `7768f2a6e3ec19f29f657c23c2120a392d1c31bf` (tree `4118cdf83f21e0fa3519b9ca956eae4bf8c9ae8f`). The prior docs candidate received Sol FIX for database-backed category proof falling back to card text on missing/mismatched canonical rows; the repair and regressions now require exact Evidence ID/URL/hash and quote row abstract only. All controller gates pass (1,161 backend, one skip, one warning; Ruff/mypy/migrations/frontend/audit/diff pass); focused validator 44 pass. Original-corpus acceptance remains 3/5: canonical-row owner-amended Austin cases and meaningful Chicago pass; O&G and low-quality/unresolvable fail. Preservation/replay pass. Browser 41/41 is prior evidence for unchanged product/UI code from `15e27bc`, not a fresh R4 run. Provider config exists, but maximum cost is $0 and reservations are unset.
 
 | Node | State | Next gate |
 |---|---|---|
-| GL3-029 code candidate | VALIDATED locally | Verify docs-only descendant retains exact source/test manifest; independent Sol review pending. |
-| GL3-029 retained corpus | OPEN, 3/5 | Resolve remaining meaningful O&G and low-quality cases with valid evidence; do not waive or invent blockers. |
-| PR24 delivery | OPEN draft, no remote update by builder | Controller coordinates reviewed PR body update after exact-candidate review. No merge/deploy. |
+| GL3-029 code candidate | R4 technical gates pass | Verify docs-only descendant retains exact source/test manifest; fresh independent Sol review pending. |
+| GL3-029 retained corpus | OPEN, 3/5 | Resolve meaningful O&G and low-quality cases with valid evidence; do not waive or invent blockers. |
+| PR24 delivery | OPEN draft, no remote update by builder | Controller coordinates reviewed PR body update after final review receipt. No merge/deploy. |
 | GL3-030 | Separate READY work | Preserve; do not integrate into GL3-029. |
 
-Next direction: VALIDATE the docs-only descendant against the frozen code/test manifest and obtain independent Sol review. The detailed historical graph below is retained for provenance; its prior pending states are superseded by this checkpoint.
+Next direction: VALIDATE docs descendant against exact R4 source/test manifest, obtain independent Sol review, then controller-coordinated draft update. Historical graph below is retained for provenance; prior pending statuses are superseded by this checkpoint.
 
 ---
 Current main includes merged GL3-015 (PR #5), GL3-016 (PR #6), GL3-017 (PR #7, `1f18a01`), and GL3-018 (PR #8, `7f24174`). The paragraphs below are retained history, including the point when GL3-017 and GL3-018 were still excluded. GL3-018 authoritative admission and the Chicago/Georgia acquisition changes are on main. Deployment, national coverage, and parent launch remain OPEN. Standalone planning/entitlement admission remains an owner decision.
