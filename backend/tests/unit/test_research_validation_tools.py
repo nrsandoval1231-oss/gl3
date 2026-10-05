@@ -115,6 +115,50 @@ def test_owner_no_question_exception_never_bypasses_other_categories(category):
     assert not harness.owner_accepted_no_question_case(before, after, [])
 
 
+def test_category_citation_uses_exact_linked_austin_evidence_abstract():
+    card = {
+        "sources": [
+            {
+                "evidence_id": "11111111-1111-4111-8111-111111111111",
+                "url": "https://abc.austintexas.gov/web/permit/public-search-other?id=1",
+                "hash": "source-content-hash",
+                "text": "Austin building permit 2026-036762 BP — Building Permit",
+            }
+        ]
+    }
+    row = SimpleNamespace(
+        id="11111111-1111-4111-8111-111111111111",
+        url=card["sources"][0]["url"],
+        content_hash="source-content-hash",
+        abstract=(
+            "description: New Construction of Exterior Pad for Modular Data Center Foundation."
+        ),
+    )
+
+    class EvidenceSession:
+        def scalars(self, statement):
+            return [row]
+
+    citations = harness.category_source_evidence(
+        card,
+        "austin_data_center",
+        "austin-building-permits",
+        session=EvidenceSession(),
+    )
+    assert len(citations) == 1
+    assert citations[0]["evidence_id"] == row.id
+    assert citations[0]["content_hash"] == row.content_hash
+    assert "Modular Data Center Foundation" in citations[0]["quote"]
+
+    row.content_hash = "different-version"
+    assert not harness.category_source_evidence(
+        card,
+        "austin_data_center",
+        "austin-building-permits",
+        session=EvidenceSession(),
+    )
+
+
 @pytest.mark.parametrize(
     "failure",
     [
