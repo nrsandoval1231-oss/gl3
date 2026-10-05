@@ -16,6 +16,12 @@ SPEC = importlib.util.spec_from_file_location(
 assert SPEC and SPEC.loader
 harness = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(harness)
+BROWSER_SPEC = importlib.util.spec_from_file_location(
+    "seeded_browser_acceptance", ROOT / "scripts" / "seeded_browser_acceptance.py"
+)
+assert BROWSER_SPEC and BROWSER_SPEC.loader
+browser_harness = importlib.util.module_from_spec(BROWSER_SPEC)
+BROWSER_SPEC.loader.exec_module(browser_harness)
 
 
 def manifest():
@@ -58,6 +64,26 @@ def test_manifest_requires_all_five_categories_and_explicit_distinct_ids(tmp_pat
     value["cases"][0]["category"] = "synthetic_substitute"
     with pytest.raises(ValueError, match="five required"):
         harness.validate_manifest(value, tmp_path)
+
+
+@pytest.mark.parametrize(
+    ("windows", "expected"), [(True, "npm.cmd"), (False, "npm")]
+)
+def test_browser_runner_resolves_platform_npm_executable(monkeypatch, windows, expected):
+    requested = []
+
+    def resolve(name):
+        requested.append(name)
+        return f"C:/tools/{name}"
+
+    monkeypatch.setattr(browser_harness.shutil, "which", resolve)
+    assert browser_harness.npm_command(["--prefix", "web", "test"], windows=windows) == [
+        f"C:/tools/{expected}",
+        "--prefix",
+        "web",
+        "test",
+    ]
+    assert requested == [expected]
 
 
 def no_question_case(category="austin_data_center"):
