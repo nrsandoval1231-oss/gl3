@@ -555,3 +555,72 @@ def test_surfaced_daily_counts_only_new_action_now_card():
         )
         == today
     )
+
+
+@pytest.mark.parametrize(
+    "scope",
+    [
+        "No temporary power is required for this project; utility service serves all loads.",
+        "Temporary power is not needed for this construction activity.",
+        "This project does not require temporary power.",
+    ],
+)
+def test_explicit_no_temporary_need_suppresses_contact_action(scope):
+    item = _item(
+        asset_type="manufacturing",
+        name="Factory construction",
+        supported_action="Factory construction",
+        lifecycle_state="construction",
+        evidence=[
+            {
+                "id": uuid4(),
+                "title": "Factory construction permit",
+                "abstract": scope,
+                "url": "https://example.test/permit",
+            }
+        ],
+    )
+    chain = {
+        "candidates": [
+            {
+                "organization": "Factory Inc",
+                "category": "owner_operator",
+                "organization_relationship": "DIRECT",
+                "public_contacts": [{"kind": "phone", "value": "555-0100"}],
+            }
+        ]
+    }
+    card = build_card(item, chain, date(2026, 10, 5))
+    assert card["disposition"] == "REJECT"
+    assert card["tier"] == "Signal"
+
+
+def test_negated_need_and_affirmative_scope_require_conflict_research():
+    item = _item(
+        asset_type="manufacturing",
+        name="Factory construction",
+        supported_action="Factory construction",
+        lifecycle_state="construction",
+        evidence=[
+            {
+                "id": uuid4(),
+                "title": "Factory construction permit",
+                "abstract": (
+                    "Temporary power is not required. "
+                    "Construction power is required for phase two."
+                ),
+                "url": "https://example.test/permit",
+            }
+        ],
+    )
+    chain = {
+        "candidates": [
+            {
+                "organization": "Factory Inc",
+                "category": "owner_operator",
+                "organization_relationship": "DIRECT",
+                "public_contacts": [{"kind": "phone", "value": "555-0100"}],
+            }
+        ]
+    }
+    assert build_card(item, chain, date(2026, 10, 5))["disposition"] == "RESEARCH"
