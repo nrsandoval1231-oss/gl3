@@ -1,6 +1,6 @@
 # GridLens 3
 
-**October 5, 2026 status:** The isolated GL3-029 candidate is `15e27bc` on branch `repair/gl3-029-current-main-20261005`, reconciled with main `9a4669e`. The draft PR24 remote head remains `d8b0e998`; candidate technical gates and the 41-case original-corpus browser suite pass, while retained-corpus acceptance is 3/5 and independent Sol review is pending. No merge/deployment. See [current state](.agent/CURRENT_STATE.md), [acceptance report](docs/validation/gl3-029-autonomous-pursuit-research.md), and [work graph](.agent/WORK_GRAPH.md). Historical validation sections retain their original candidate context.
+**October 5, 2026 status:** The isolated GL3-029 candidate is `7768f2a` on branch `repair/gl3-029-current-main-20261005`, reconciled with main `9a4669e`. PR24 remains an open draft at `d8b0e998`. Candidate technical gates pass; original-corpus acceptance is 3/5 and independent Sol review is pending after repair of a citation fallback FIX. No merge/deployment. See [current state](.agent/CURRENT_STATE.md), [acceptance report](docs/validation/gl3-029-autonomous-pursuit-research.md), and [work graph](.agent/WORK_GRAPH.md). Historical validation sections retain their original candidate context.
 
 GridLens 3 is a private, evidence-backed workspace for discovering emerging commercial power needs. The current local candidate registry enables 20 public sources spanning municipal planning notices, construction permits, air permitting/regulatory records, government/economic-development publications, public documents, and industry news. The system preserves source observations and evidence history, groups supported records into project-oriented Signal cards, and keeps unsupported commercial facts explicitly unknown.
 
@@ -18,9 +18,9 @@ GL3-028 is merged to `main` via PR #21 at merge commit `43424be`. It adds authen
 
 ## GL3-029 autonomous pursuit research candidate
 
-The isolated current-main candidate adds durable bounded research questions, retained-first acquisition, canonical evidence admission, deterministic reevaluation, and inspectable receipts. It preserves evidence/tier authority, explicit UNKNOWN, budget/replay controls, and no-outreach boundaries.
+The isolated current-main candidate adds durable bounded research questions, retained-first acquisition, canonical evidence admission, deterministic reevaluation, and inspectable receipts. It preserves evidence/tier authority, explicit UNKNOWN, budget/replay controls, canonical category evidence proof, and no-outreach boundaries.
 
-Candidate `15e27bc` passes mandatory backend/static/frontend/migration gates and a fresh-original-corpus authenticated browser suite (41/41). The retained-corpus cohort is **3/5**: two Austin no-question cases pass under the owner's narrow source-linked/no-change amendment and Chicago passes meaningful investigation; O&G and low-quality/unresolvable remain open. Independent Sol review is pending; PR24 remains draft and nothing is merged or deployed. See [candidate acceptance](docs/validation/gl3-029-autonomous-pursuit-research.md).
+Candidate `7768f2a` passes mandatory backend/static/frontend/migration gates and a fresh R4 original-corpus validator run. The retained-corpus cohort is **3/5**: the two Austin cases pass only under the owner-approved source-linked/no-question/no-change amendment, now verified against canonical Evidence rows; Chicago passes meaningful investigation. O&G and low-quality/unresolvable remain open. The previous docs candidate received a Sol FIX; final independent review is pending. PR24 remains draft and nothing is merged or deployed. See [candidate acceptance](docs/validation/gl3-029-autonomous-pursuit-research.md).
 
 ## Product model
 
