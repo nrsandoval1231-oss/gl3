@@ -12,6 +12,7 @@ import argparse
 import hashlib
 import json
 import os
+import shutil
 import socket
 import subprocess
 import sys
@@ -22,6 +23,15 @@ from uuid import uuid4
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "backend" / "src"))
+
+
+def npm_command(arguments: list[str], *, windows: bool | None = None) -> list[str]:
+    """Resolve npm's platform executable for subprocess-based browser runs."""
+    is_windows = os.name == "nt" if windows is None else windows
+    executable = shutil.which("npm.cmd" if is_windows else "npm")
+    if executable is None:
+        raise FileNotFoundError("npm executable is not available on PATH")
+    return [executable, *arguments]
 
 
 def fixtures(definitions):
@@ -390,8 +400,8 @@ def main():
         )
         try:
             result = subprocess.run(
-                [
-                    "npm",
+                npm_command(
+                    [
                     "--prefix",
                     "web",
                     "run",
@@ -401,7 +411,8 @@ def main():
                     "--workers=1",
                     "--reporter=list,json",
                     f"--output={output / 'browser-results'}",
-                ],
+                    ]
+                ),
                 cwd=ROOT,
                 env=env,
                 stdout=browser,
