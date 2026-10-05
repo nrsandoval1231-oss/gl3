@@ -237,7 +237,9 @@ def selected_cases(session, manifest: dict, *, check_categories: bool = True) ->
             and not any(term in text for term in ("oil", "gas", "drilling", "well"))
         ):
             raise ValueError(f"Case category does not match selected canonical record: {need_id}")
-        category_sources = category_source_evidence(card, category, source)
+        category_sources = category_source_evidence(
+            card, category, source, session=session
+        )
         result.append(
             {
                 **item,
@@ -252,8 +254,10 @@ def selected_cases(session, manifest: dict, *, check_categories: bool = True) ->
     return result
 
 
-def category_source_evidence(card: dict, category: str, source_id: str) -> list[dict]:
-    """Return source-linked Austin evidence that directly supports the category."""
+def category_source_evidence(
+    card: dict, category: str, source_id: str, *, session=None
+) -> list[dict]:
+    """Return directly linked Austin evidence whose stored content supports the category."""
     if source_id != "austin-building-permits":
         return []
     patterns = {
@@ -263,12 +267,39 @@ def category_source_evidence(card: dict, category: str, source_id: str) -> list[
     pattern = patterns.get(category)
     if pattern is None:
         return []
+    linked_sources = {
+        str(evidence.get("evidence_id")): evidence
+        for evidence in card.get("sources", [])
+        if evidence.get("evidence_id")
+    }
+    stored_content = {}
+    if session is not None and linked_sources:
+        from sqlalchemy import select
+
+        from gridlens.persistence.models import Evidence
+
+        try:
+            evidence_ids = [UUID(identity) for identity in linked_sources]
+        except ValueError:
+            evidence_ids = []
+        rows = session.scalars(
+            select(Evidence).where(Evidence.id.in_(evidence_ids))
+        ) if evidence_ids else []
+        for row in rows:
+            linked = linked_sources.get(str(row.id))
+            if (
+                linked
+                and row.url == linked.get("url")
+                and row.content_hash == linked.get("hash")
+            ):
+                stored_content[str(row.id)] = row.abstract or ""
+
     matches = {}
-    for evidence in card.get("sources", []):
+    for evidence in linked_sources.values():
         evidence_id = evidence.get("evidence_id")
         url = evidence.get("url")
         content_hash = evidence.get("hash")
-        quote = str(evidence.get("text") or "")
+        quote = str(stored_content.get(str(evidence_id)) or evidence.get("text") or "")
         try:
             UUID(str(evidence_id))
         except (TypeError, ValueError):
