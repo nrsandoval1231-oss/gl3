@@ -185,6 +185,52 @@ def test_category_citation_uses_exact_linked_austin_evidence_abstract():
     )
 
 
+@pytest.mark.parametrize("mismatch", ["missing", "hash", "url"])
+def test_runtime_category_citation_never_falls_back_to_card_text(mismatch):
+    card = {
+        "sources": [
+            {
+                "evidence_id": "11111111-1111-4111-8111-111111111111",
+                "url": "https://abc.austintexas.gov/web/permit/public-search-other?id=1",
+                "hash": "source-content-hash",
+                "text": "New construction of modular data center foundation.",
+            }
+        ]
+    }
+    row = SimpleNamespace(
+        id="11111111-1111-4111-8111-111111111111",
+        url=card["sources"][0]["url"],
+        content_hash=card["sources"][0]["hash"],
+        abstract="An unrelated permit summary.",
+    )
+    if mismatch == "missing":
+        rows = []
+    else:
+        if mismatch == "hash":
+            row.content_hash = "different-version"
+        else:
+            row.url = "https://abc.austintexas.gov/web/permit/different?id=1"
+        rows = [row]
+
+    class EvidenceSession:
+        def scalars(self, statement):
+            return rows
+
+    assert not harness.category_source_evidence(
+        card,
+        "austin_data_center",
+        "austin-building-permits",
+        session=EvidenceSession(),
+    )
+
+
+def test_sessionless_fixture_category_citation_uses_card_text():
+    category = "austin_data_center"
+    before = no_question_case(category)
+    assert before["category_source_evidence"]
+    assert "data center" in before["category_source_evidence"][0]["quote"].lower()
+
+
 @pytest.mark.parametrize(
     "failure",
     [

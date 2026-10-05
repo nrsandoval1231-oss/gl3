@@ -299,7 +299,15 @@ def category_source_evidence(
         evidence_id = evidence.get("evidence_id")
         url = evidence.get("url")
         content_hash = evidence.get("hash")
-        quote = str(stored_content.get(str(evidence_id)) or evidence.get("text") or "")
+        if session is not None:
+            # Runtime acceptance must prove against the canonical row linked by
+            # the card's exact evidence ID, URL, and content hash. Card summaries
+            # are useful only for the explicit sessionless fixture path.
+            if str(evidence_id) not in stored_content:
+                continue
+            quote = str(stored_content[str(evidence_id)] or "")
+        else:
+            quote = str(evidence.get("text") or "")
         try:
             UUID(str(evidence_id))
         except (TypeError, ValueError):

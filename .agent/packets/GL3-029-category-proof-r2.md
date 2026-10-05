@@ -1,0 +1,9 @@
+# GL3-029 category evidence proof repair packet — R4
+
+- **Finding:** Independent Sol review of docs descendant `b3f1121` found fail-open fallback in `category_source_evidence`: when a database session was provided but canonical Evidence was missing or failed URL/hash linking, the validator could accept `card.sources[].text` as category proof.
+- **Scope:** Change only `scripts/validate_pursuit_research.py` and its validator unit tests. Preserve the owner-approved Austin no-question exception and all other case gates. Do not change product/runtime code, schema, corpus criteria, or GL3-030.
+- **Required behavior:** With a session, accept category proof only when a canonical Evidence row matches the linked ID, URL, and content hash; derive quote only from that row's abstract. Missing/mismatched rows produce no citation. The sessionless card-text route remains an explicit test-fixture path.
+- **Regression cases:** Convincing category card text with missing row, URL mismatch, or hash mismatch must fail; matched canonical row must pass; sessionless fixture proof remains supported.
+- **Focused checks:** `backend/tests/unit/test_research_validation_tools.py` and targeted Ruff. All runtime commands require sanitized environment wrapper and stripped provider vars.
+- **R4 acceptance:** Restore the exact hash-verified PR23 archive in a fresh isolated database; rerun identical five selected cases with a new source hash and baseline. Preserve raw outcomes, costs/attempts/replay and timestamp provenance. Controller owns mandatory full suite on separate DB. Browser 41/41 may be referenced only as prior code/UI evidence; no new UI/runtime changes.
+- **Handoff:** Freeze exact code candidate, bind source/test manifest and corpus report to its source hash, update acceptance docs only after results. Independent Sol reviews final docs descendant. No PR publication, merge, deployment, or provider budget change.
