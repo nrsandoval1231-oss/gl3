@@ -8,6 +8,8 @@
     "build": "tsc -b && vite build",
     "typecheck": "tsc --noEmit",
     "test": "playwright test",
+    "test:ci": "playwright test --project=regression",
+    "test:live": "playwright test --project=live-acceptance",
     "generate:api": "openapi-typescript src/api/openapi.json -o src/api/generated.ts"
   },
   "dependencies": {
