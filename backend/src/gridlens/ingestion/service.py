@@ -435,6 +435,7 @@ def _current_need_claims(
                 "tier": "Signal",
                 "demand_mw": None,
                 "reason": "Current official power claims conflict; qualification is unresolved.",
+                "qualification_conflict": True,
             }
         ]
     # New typed public reports may conservatively veto qualification, but
@@ -480,6 +481,7 @@ def effective_need_qualification(
         if tier == "Lead"
         else None,
         "qualification_version": selected.get("qualification_version"),
+        "qualification_conflict": bool(selected.get("qualification_conflict")),
     }
 
 

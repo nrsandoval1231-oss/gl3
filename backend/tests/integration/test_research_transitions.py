@@ -474,6 +474,8 @@ def test_effective_qualification_ages_out_lead_without_mutating_retained_history
         projected = api.opportunity_projection(session, tier="Prospect")
         assert len(projected) == 1 and projected[0]["id"] == need_id
         assert projected[0]["start_window"] is None and projected[0]["duration"] is None
+        assert projected[0]["rationale"] == effective["rationale"]
+        assert projected[0]["assessment_reason"] == effective["rationale"]
         assert session.get(PowerNeed, need_id).tier == "Lead"
 
 
@@ -727,7 +729,13 @@ def test_corroborating_missing_lead_fields_are_not_conflicting_but_different_loa
             1,
             source,
             [
-                record(source, lead),
+                record(
+                    source,
+                    lead,
+                    contractor_company_name="Synthetic Electric",
+                    contractor_full_name="Pat Example",
+                    contractor_phone="5125550100",
+                ),
                 record(source, corroborating, permit_number="TRANSITION-TEST-2"),
             ],
             commit=False,
@@ -739,6 +747,20 @@ def test_corroborating_missing_lead_fields_are_not_conflicting_but_different_loa
         project = session.get(Project, need.project_id)
         effective = effective_need_qualification(session, need, project)
         assert effective["tier"] == expected
+        api = import_module("gridlens.api.app")
+        projected = api.opportunity_projection(session, tier=expected)
+        assert len(projected) == 1
+        enrich_buying_chain(session, project.id, retained_only=True)
+        card = evaluate_target(session, need.id)
+        assert card is not None
+        if expected == "Signal":
+            assert projected[0]["conflict_state"] == "CONFLICT"
+            assert card["disposition"] == "RESEARCH"
+        else:
+            assert projected[0]["conflict_state"] == "Not assessed"
+            assert card["disposition"] == "ACTION NOW"
+        assert projected[0]["rationale"] == effective["rationale"]
+        assert projected[0]["assessment_reason"] == effective["rationale"]
         if expected == "Lead":
             assert effective["qualified_remaining_gap"]["remaining_mw_min"] == "1"
         else:
