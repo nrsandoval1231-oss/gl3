@@ -694,12 +694,12 @@ def test_worker_public_adverse_report_vetoes_only_supported_exact_activity(
     [("1", "Lead", False), ("2", "Signal", False), ("1", "Signal", True)],
 )
 def test_corroborating_missing_lead_fields_are_not_conflicting_but_different_load_is(
-    canonical_runtime, corroborating_mw, expected, changed_supply
+    canonical_runtime, monkeypatch, corroborating_mw, expected, changed_supply
 ):
     from gridlens.ingestion.service import effective_need_qualification
     from gridlens.persistence.models import Project
 
-    factory, source, _, seed_job = canonical_runtime
+    factory, source, worker, seed_job = canonical_runtime
     lead = (
         "Construct new data center. 811 Clayton Ln construction requires 1 MW. "
         "Power supply for 811 Clayton Ln construction is unavailable. "
@@ -736,7 +736,10 @@ def test_corroborating_missing_lead_fields_are_not_conflicting_but_different_loa
                     contractor_full_name="Pat Example",
                     contractor_phone="5125550100",
                 ),
-                record(source, corroborating, permit_number="TRANSITION-TEST-2"),
+                record(
+                    source, corroborating, permit_number="TRANSITION-TEST-2",
+                    link={"url": "https://abc.austintexas.gov/permit/124"},
+                ),
             ],
             commit=False,
             allow_model=False,
@@ -766,6 +769,35 @@ def test_corroborating_missing_lead_fields_are_not_conflicting_but_different_loa
         else:
             assert effective["qualified_remaining_gap"] is None
             assert effective["required_mw"] is None
+            questions = schedule_questions(session, [card])
+            question = next(row for row in questions if row.category == "conflict")
+            assert question.context["native_qualification_conflict"] is True
+            question_id = question.id
+            job = session.scalar(select(Job).where(Job.target_id == question_id))
+            job.available_at = datetime.now(UTC) - timedelta(seconds=1)
+            leased = lease_one(session, "native-correction", lease_seconds=600, job_ids=[job.id])
+            assert leased
+            job, fence = leased
+            job_id = job.id
+    if expected == "Signal":
+        def acquire(source_id, external_id, *, before_request, **_kwargs):
+            before_request("https://abc.austintexas.gov/permit/123")
+            return source, record(
+                source, lead, permit_number=external_id,
+                contractor_company_name="Synthetic Electric",
+                contractor_full_name="Pat Example", contractor_phone="5125550100",
+                link={"url": "https://abc.austintexas.gov/permit/"
+                      + ("123" if external_id == "TRANSITION-TEST-1" else "124")},
+            )
+
+        monkeypatch.setattr(worker, "acquire_registered_record", acquire)
+        worker.process_question_job(job_id, "native-correction", fence)
+        with factory() as session:
+            question = session.get(PursuitResearchQuestion, question_id)
+            assert question.status == "RESOLVED", question.receipt
+            assert question.receipt["after"] == "ACTION NOW"
+            assert question.receipt["searches"] == 0
+            assert not question.receipt.get("inflight_url")
 
 
 def test_batch_evaluation_reuses_projection_for_multiple_targets_outside_shortlist(

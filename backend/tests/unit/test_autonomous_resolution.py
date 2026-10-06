@@ -181,3 +181,28 @@ def test_rrc_form_download_is_explicitly_unavailable_without_form_submission():
 )
 def test_offerings_and_unconfirmed_scope_do_not_resolve_project_requirement(text):
     assert not blocker_resolved("power_need", {"facts": [{"text": text, "evidence_id": "cited"}]})
+
+
+@pytest.mark.parametrize("current_marker", [None, True, False])
+def test_native_conflict_resolution_requires_current_canonical_clearance(current_marker):
+    before = {
+        "disposition": "RESEARCH",
+        "conflict_state": "CONFLICT",
+        "qualification_conflict": True,
+    }
+    planned = plan_questions(before)[0]
+    assert planned["category"] == "conflict"
+    assert planned["native_qualification_conflict"] is True
+    current = {"qualification_conflict": current_marker, "conflict_state": "Not assessed"}
+    assert blocker_resolved("conflict", current, planned) is (current_marker is False)
+    current["conflict_state"] = "CONFLICT"
+    assert not blocker_resolved("conflict", current, planned)
+
+
+def test_native_clearance_does_not_replace_original_typed_conflict_answers():
+    context = {"native_qualification_conflict": True, "conflict_fields": ["phase"]}
+    current = {"qualification_conflict": False, "conflict_state": "Not assessed"}
+    assert not blocker_resolved("conflict", current, context)
+    current["research_state"] = {"phase": field("construction_active")}
+    assert blocker_resolved("conflict", current, context)
+    assert not blocker_resolved("conflict", current, {"conflict_fields": []})

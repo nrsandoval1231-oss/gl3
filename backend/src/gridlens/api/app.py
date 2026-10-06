@@ -953,6 +953,9 @@ def opportunity_projection(
                     else "Confirm activity power needs, timing, duration, and service plan."
                 ),
                 "research_state": research_state,
+                # Internal raw-card proof; absence of current authority is not clearance.
+                "qualification_conflict": effective.get("qualification_conflict", False)
+                if qualified is not None else None,
                 "conflict_state": "CONFLICT"
                 if effective.get("qualification_conflict")
                 or any(field.get("status") == "CONFLICT" for field in research_state.values())
