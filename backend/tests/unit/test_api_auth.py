@@ -14,6 +14,13 @@ def test_private_api_routes_reject_missing_session():
     assert response.status_code == 401
 
 
+def test_private_api_routes_reject_oversized_session_expiry_without_server_error():
+    client = TestClient(app)
+    client.cookies.set("gridlens_session", "9" * 4500 + ".x")
+    response = client.get("/api/health")
+    assert response.status_code == 401
+
+
 def test_change_day_boundary_uses_chicago_calendar_date():
     # 02:00 UTC is still 21:00 on the prior date in Chicago during daylight time.
     instant = datetime(2026, 9, 26, 2, 0, tzinfo=UTC)

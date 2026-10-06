@@ -41,9 +41,18 @@ def valid_token(token: str | None) -> bool:
     if not token or "." not in token:
         return False
     expires_raw, signature = token.split(".", 1)
-    if not expires_raw.isdigit() or int(expires_raw) <= int(time.time()):
+    if (
+        not 1 <= len(expires_raw) <= 10
+        or not expires_raw.isascii()
+        or not expires_raw.isdigit()
+        or len(signature) != 64
+        or any(char not in "0123456789abcdef" for char in signature)
+    ):
         return False
-    expected = token_for(int(expires_raw)).split(".", 1)[1]
+    expires = int(expires_raw)
+    if expires <= int(time.time()):
+        return False
+    expected = token_for(expires).split(".", 1)[1]
     return hmac.compare_digest(expected, signature)
 
 
