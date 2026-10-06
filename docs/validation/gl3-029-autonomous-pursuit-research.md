@@ -1,4 +1,6 @@
-# GL3-029 autonomous pursuit research — acceptance result (October 5, 2026)
+# GL3-029 autonomous pursuit research — historical acceptance (October 5, 2026)
+
+> Historical R4 record. Candidate identities and pending-review statements below describe that checkpoint, not current GitHub state. See [October 6 closure record](gl3-029-closure-20261006.md) for current blockers and validation boundaries.
 
 **State: implementation and technical gates pass; retained-corpus acceptance remains OPEN (3/5).** Code candidate `7768f2a6e3ec19f29f657c23c2120a392d1c31bf` (tree `4118cdf83f21e0fa3519b9ca956eae4bf8c9ae8f`) includes current main `9a4669e592a64d0513f0bbb70e9a29197b8d2e0d`. The corrected category-proof predicate now requires a canonical Evidence row matching the card citation's ID, URL, and content hash whenever a database session is supplied. It uses only that row's abstract. Sessionless card text remains a distinct fixture path. The regression covers missing row and URL/hash mismatches despite convincing category text; a valid linked row still passes. This repairs the independent Sol FIX against docs candidate `b3f1121`.
 
