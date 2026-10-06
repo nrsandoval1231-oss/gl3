@@ -932,7 +932,7 @@ def opportunity_projection(
                     "The earlier planning evidence remains historical; current application "
                     "and project status are UNKNOWN."
                     if taylor_identity_conflict
-                    else need.rationale
+                    else effective["rationale"]
                 ),
                 "signal_evidence_state": (
                     "planning_application_withdrawn"
@@ -954,7 +954,8 @@ def opportunity_projection(
                 ),
                 "research_state": research_state,
                 "conflict_state": "CONFLICT"
-                if any(field.get("status") == "CONFLICT" for field in research_state.values())
+                if effective.get("qualification_conflict")
+                or any(field.get("status") == "CONFLICT" for field in research_state.values())
                 else "Not assessed",
                 "assessment_reason": (
                     "The latest linked Taylor revision withdraws this planning application. "
@@ -967,7 +968,7 @@ def opportunity_projection(
                     "and project status are UNKNOWN."
                     if taylor_identity_conflict
                     else effective["rationale"]
-                    if effective.get("qualification_version")
+                    if qualified is not None
                     else current_assessment.get("reason", need.rationale)
                     if current_assessment
                     else need.rationale
