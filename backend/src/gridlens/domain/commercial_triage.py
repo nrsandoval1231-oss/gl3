@@ -766,6 +766,7 @@ def build_card(item: dict[str, Any], chain: dict[str, Any] | None, today: date) 
         "watch": watch,
         "sources": sources,
         "conflict_state": "CONFLICT" if research_conflict else item.get("conflict_state"),
+        "qualification_conflict": item.get("qualification_conflict"),
         "research_state": research_state,
     }
     card["input_hash"] = hashlib.sha256(

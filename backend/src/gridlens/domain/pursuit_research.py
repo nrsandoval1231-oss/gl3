@@ -164,7 +164,14 @@ def blocker_resolved(category: str, card: dict, context: dict | None = None) -> 
 
     if category == "conflict":
         fields = (context or {}).get("conflict_fields", [])
-        return bool(fields) and all(supported(field) for field in fields)
+        native = (context or {}).get("native_qualification_conflict") is True
+        if card.get("conflict_state") in {"CONFLICT", "conflict", "unresolved conflict"}:
+            return False
+        return (
+            bool(fields or native)
+            and all(supported(field) for field in fields)
+            and (not native or card.get("qualification_conflict") is False)
+        )
     if category == "buyer":
         return any(
             c.get("value") and re.search(r"phone|telephone|email", str(c.get("kind", "")), re.I)
@@ -242,6 +249,8 @@ def plan_questions(
     return [
         {
             "category": category,
+            "native_qualification_conflict": category == "conflict"
+            and card.get("qualification_conflict") is True,
             "conflict_fields": sorted(
                 field
                 for field, value in card.get("research_state", {}).items()
