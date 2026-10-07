@@ -72,6 +72,7 @@ def schedule_questions(
     *,
     force: bool = False,
     origin: str = "automatic",
+    grouped: bool = False,
     parent_id: UUID | None = None,
     now: datetime | None = None,
 ) -> list[PursuitResearchQuestion]:
@@ -103,7 +104,7 @@ def schedule_questions(
     refresh = set(eligible)
     if refresh:
         session.flush()
-        current = evaluate_targets(session, refresh)
+        current = evaluate_targets(session, refresh, grouped=grouped)
         cards = [
             current[str(card["id"])] if str(card["id"]) in refresh else card
             for card in cards
