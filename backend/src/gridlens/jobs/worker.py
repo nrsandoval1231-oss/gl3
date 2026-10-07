@@ -1,24 +1,306 @@
+import hashlib
+import json
 import os
 import socket
 import time
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
+from datetime import time as day_time
 from uuid import UUID
+from zoneinfo import ZoneInfo
+
+from sqlalchemy import select, text
 
 from gridlens.ingestion.registry import load_registry
 from gridlens.ingestion.service import process_job
 from gridlens.jobs.queue import assert_fence, lease_one
 from gridlens.persistence.database import SessionLocal
-from gridlens.persistence.models import Job, PowerNeedBrief, Source
+from gridlens.persistence.models import (
+    Job,
+    PlannerState,
+    PowerNeedBrief,
+    Source,
+    SourceCheckReceipt,
+    SourceDueCheck,
+    SourceScheduleEpoch,
+    WorkerHeartbeat,
+)
 from gridlens.settings import settings
 
 WORKER_ID = f"{socket.gethostname()}-{os.getpid()}"
+SCHEDULE_ZONE = "America/Chicago"
+DAILY_ANCHOR = day_time(3, 0)
+_PLANNER_RETRY_MONOTONIC: dict[str, float] = {}
+_PLANNER_FAILURES: dict[str, int] = {}
+
+
+def _effective_enabled(source: Source) -> bool:
+    return source.enabled and source.registry_enabled
+
+
+def _source_configuration(item: dict) -> dict:
+    configuration = {
+        key: item[key]
+        for key in (
+            "publisher",
+            "endpoint",
+            "family",
+            "geography",
+            "industries",
+            "retrieval_method",
+            "cadence_hours",
+            "schedule_mode",
+            "timezone",
+            "schedule_anchor_time",
+        )
+        if key in item
+    }
+    configuration["schedule_mode"] = item.get(
+        "schedule_mode", "utc_hourly" if item.get("cadence_hours", 24) < 24 else "local_daily"
+    )
+    configuration["timezone"] = item.get("timezone", SCHEDULE_ZONE)
+    configuration["schedule_anchor_time"] = item.get(
+        "schedule_anchor_time", DAILY_ANCHOR.isoformat()
+    )
+    return configuration
+
+
+def _append_epoch(
+    session, source: Source, item: dict, now: datetime, *, transition_known: bool = False
+) -> None:
+    current = session.scalar(
+        select(SourceScheduleEpoch)
+        .where(
+            SourceScheduleEpoch.source_id == source.id,
+            SourceScheduleEpoch.effective_until.is_(None),
+        )
+        .with_for_update()
+        .order_by(SourceScheduleEpoch.effective_from.desc())
+        .limit(1)
+    )
+    registry_enabled = bool(item["enabled"])
+    config = _source_configuration(item)
+    mode = item.get("schedule_mode", "utc_hourly" if source.cadence_hours < 24 else "local_daily")
+    timezone = item.get("timezone", SCHEDULE_ZONE)
+    if mode == "utc_hourly":
+        anchor = {"utc": now.isoformat()}
+    else:
+        anchor = {
+            "local_date": now.astimezone(ZoneInfo(timezone)).date().isoformat(),
+            "local_time": item.get("schedule_anchor_time", DAILY_ANCHOR.isoformat()),
+        }
+    signature = (
+        registry_enabled,
+        source.enabled,
+        source.cadence_hours,
+        mode,
+        timezone,
+        anchor if not current else None,
+        config,
+    )
+    if current:
+        old_signature = (
+            current.registry_enabled,
+            current.operator_enabled,
+            current.cadence_hours,
+            current.schedule_mode,
+            current.timezone,
+            None,
+            current.configuration,
+        )
+        # The anchor is immutable within an epoch; ignore its generated value
+        # while deciding whether the source's declared scheduling config changed.
+        signature = signature[:5] + (None, signature[-1])
+        if signature == old_signature:
+            return
+        if not transition_known:
+            current.history_known = False
+        current.effective_until = now
+    session.add(
+        SourceScheduleEpoch(
+            source_id=source.id,
+            registry_enabled=registry_enabled,
+            operator_enabled=source.enabled,
+            effective_from=now,
+            cadence_hours=source.cadence_hours,
+            schedule_mode=mode,
+            timezone=timezone,
+            anchor=anchor,
+            configuration=config,
+            history_known=True,
+        )
+    )
+
+
+def _scheduled_instants(epoch: SourceScheduleEpoch, now: datetime):
+    start = epoch.effective_from
+    end = min(epoch.effective_until, now) if epoch.effective_until else now
+    if end <= start:
+        return
+    if epoch.schedule_mode == "utc_hourly":
+        anchor = datetime.fromisoformat(epoch.anchor["utc"])
+        interval = timedelta(hours=epoch.cadence_hours)
+        elapsed = max(0, int((start - anchor).total_seconds() // interval.total_seconds()))
+        due = anchor + interval * elapsed
+        while due < start:
+            due += interval
+        while due < end:
+            yield due
+            due += interval
+        return
+    zone = ZoneInfo(epoch.timezone)
+    first_day = date.fromisoformat(epoch.anchor["local_date"])
+    cursor = max(first_day, start.astimezone(zone).date())
+    day_step = max(1, epoch.cadence_hours // 24)
+    while True:
+        local_due = datetime.combine(
+            cursor, day_time.fromisoformat(epoch.anchor["local_time"]), tzinfo=zone
+        )
+        round_trip = local_due.astimezone(UTC).astimezone(zone)
+        if round_trip.replace(tzinfo=None) != local_due.replace(tzinfo=None):
+            # Nonexistent spring-forward wall times resolve to the first valid
+            # local time after the gap. Ambiguous fall-back times use fold=0.
+            local_due = round_trip
+        due = local_due.astimezone(UTC)
+        if due >= end:
+            break
+        if due >= start:
+            yield due
+        cursor += timedelta(days=day_step)
+
+
+def _reconcile_due(session, now: datetime) -> int:
+    created = 0
+    epochs = session.scalars(
+        select(SourceScheduleEpoch)
+        .order_by(SourceScheduleEpoch.source_id, SourceScheduleEpoch.effective_from)
+        .with_for_update(skip_locked=True)
+    ).all()
+    for epoch in epochs:
+        if not (epoch.history_known and epoch.registry_enabled and epoch.operator_enabled):
+            continue
+        for scheduled_for in _scheduled_instants(epoch, now):
+            key_material = f"{epoch.source_id}|{epoch.id}|{scheduled_for.isoformat()}"
+            due_key = hashlib.sha256(key_material.encode()).hexdigest()
+            if session.get(SourceDueCheck, due_key):
+                continue
+            session.add(
+                SourceDueCheck(
+                    due_key=due_key,
+                    source_id=epoch.source_id,
+                    epoch_id=epoch.id,
+                    scheduled_for=scheduled_for,
+                    local_day=scheduled_for.astimezone(ZoneInfo(SCHEDULE_ZONE)).date(),
+                    configuration=epoch.configuration,
+                )
+            )
+            created += 1
+    session.flush()
+    return created
+
+
+def _assign_due_jobs(session) -> int:
+    from gridlens.jobs.queue import enqueue
+
+    assigned = 0
+    rows = session.scalars(
+        select(SourceDueCheck)
+        .where(SourceDueCheck.job_id.is_(None))
+        .order_by(SourceDueCheck.scheduled_for, SourceDueCheck.source_id)
+        .with_for_update(skip_locked=True)
+    ).all()
+    for due in rows:
+        source = session.scalar(select(Source).where(Source.id == due.source_id).with_for_update())
+        if source is None or not _effective_enabled(source):
+            continue
+        job_id = enqueue(session, due.source_id)
+        already_linked = session.scalar(
+            select(SourceDueCheck.due_key).where(SourceDueCheck.job_id == job_id)
+        )
+        if already_linked is None:
+            due.job_id = job_id
+            assigned += 1
+    return assigned
+
+
+def _park_if_disabled(session, job: Job, source: Source, definition: dict | None) -> bool:
+    if job.kind != "ingestion":
+        return False
+    if source.enabled and source.registry_enabled and definition and definition.get("enabled"):
+        return False
+    job.status = "queued"
+    job.attempts = max(0, job.attempts - 1)
+    job.available_at = datetime.now(UTC) + timedelta(minutes=5)
+    job.error = "Source disabled before acquisition; no provider request was made"
+    job.lease_owner, job.lease_until = None, None
+    source.health = {**source.health, "status": "Disabled", "error": job.error}
+    return True
+
+
+def _defer_registry_unavailable(job: Job, source: Source, error: Exception) -> None:
+    job.status = "queued"
+    job.attempts = max(0, job.attempts - 1)
+    job.available_at = datetime.now(UTC) + timedelta(minutes=5)
+    job.error = (
+        "Source registry unavailable; no provider request was made ("
+        f"{type(error).__name__})"
+    )
+    job.lease_owner, job.lease_until = None, None
+    source.health = {
+        **source.health,
+        "status": "RegistryUnavailable",
+        "error": job.error,
+    }
+
+
+def _append_attempt_receipt(session, job: Job, fence: int, disposition: str, counts: dict) -> None:
+    due = session.scalar(select(SourceDueCheck).where(SourceDueCheck.job_id == job.id))
+    if due is None:
+        return
+    canonical = json.dumps(counts, sort_keys=True, separators=(",", ":"), default=str)
+    session.add(
+        SourceCheckReceipt(
+            due_key=due.due_key,
+            job_id=job.id,
+            fence=fence,
+            disposition=disposition,
+            check_counts=counts,
+            digest=hashlib.sha256(canonical.encode()).hexdigest(),
+        )
+    )
+
+
+def _acquire_dispatch_lock(source_id: str):
+    """Hold a PostgreSQL session lock across provider work and internal commits."""
+    connection = SessionLocal.kw["bind"].connect()
+    connection.execute(
+        text("SELECT pg_advisory_lock(hashtextextended(:source_id, 0))"),
+        {"source_id": source_id},
+    )
+    connection.commit()
+    return connection
+
+
+def _release_dispatch_lock(connection, source_id: str) -> None:
+    connection.execute(
+        text("SELECT pg_advisory_unlock(hashtextextended(:source_id, 0))"),
+        {"source_id": source_id},
+    )
+    connection.commit()
+    connection.close()
 
 
 def sync_registry() -> list[dict]:
     definitions = load_registry()
+    now = datetime.now(UTC)
     with SessionLocal.begin() as session:
         for item in definitions:
-            row = session.get(Source, item["id"])
+            session.execute(
+                text("SELECT pg_advisory_xact_lock(hashtextextended(:source_id, 0))"),
+                {"source_id": item["id"]},
+            )
+            row = session.scalar(
+                select(Source).where(Source.id == item["id"]).with_for_update()
+            )
             values = {
                 key: item[key]
                 for key in (
@@ -29,39 +311,54 @@ def sync_registry() -> list[dict]:
                     "industries",
                     "retrieval_method",
                     "cadence_hours",
-                    "enabled",
                 )
             }
             if row is None:
-                row = Source(id=item["id"], **values, health={"status": "Overdue"})
+                row = Source(
+                    id=item["id"],
+                    **values,
+                    enabled=True,
+                    registry_enabled=bool(item["enabled"]),
+                    health={"status": "Overdue"},
+                )
                 session.add(row)
             else:
                 for key, value in values.items():
                     setattr(row, key, value)
+                row.registry_enabled = bool(item["enabled"])
+            session.flush()
+            _append_epoch(session, row, item, now)
     return definitions
 
 
 def refresh_due() -> int:
-    definitions = sync_registry()
-    created = 0
+    sync_registry()
+    now = datetime.now(UTC)
     with SessionLocal.begin() as session:
-        now = datetime.now(UTC)
-        from gridlens.jobs.queue import enqueue
+        _reconcile_due(session, now)
+        return _assign_due_jobs(session)
 
-        for item in definitions:
-            source = session.get(Source, item["id"])
-            assert source is not None
-            last = source.health.get("last_attempt")
-            due = not last or datetime.fromisoformat(last) <= now - timedelta(
-                hours=item["cadence_hours"]
-            )
-            if item["enabled"] and due:
-                enqueue(session, item["id"])
-                created += 1
-    return created
+
+def set_source_enabled(source_id: str, enabled: bool) -> None:
+    """Perform an explicit operator enable/disable transition with its epoch."""
+    definitions = {item["id"]: item for item in load_registry()}
+    if source_id not in definitions:
+        raise ValueError("Source is not present in the registry")
+    now = datetime.now(UTC)
+    with SessionLocal.begin() as session:
+        session.execute(
+            text("SELECT pg_advisory_xact_lock(hashtextextended(:source_id, 0))"),
+            {"source_id": source_id},
+        )
+        source = session.scalar(select(Source).where(Source.id == source_id).with_for_update())
+        if source is None:
+            raise ValueError("Source must be reconciled before an operator transition")
+        source.enabled = enabled
+        _append_epoch(session, source, definitions[source_id], now, transition_known=True)
 
 
 def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) -> bool:
+    dispatch_connection = None
     with SessionLocal.begin() as session:
         leased = lease_one(session, WORKER_ID, lease_seconds=600, job_ids=job_ids)
         if leased is None:
@@ -69,6 +366,14 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
         job, fence = leased
         job_id, source_id, kind = job.id, job.source_id, job.kind
         source = session.get(Source, source_id)
+        if source and kind == "ingestion":
+            try:
+                current_definitions = {item["id"]: item for item in load_registry()}
+            except Exception as exc:
+                _defer_registry_unavailable(job, source, exc)
+                return True
+            if _park_if_disabled(session, job, source, current_definitions.get(source_id)):
+                return True
         if source and kind == "ingestion":
             source.health = {
                 **source.health,
@@ -150,10 +455,33 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
                         failed.lease_owner, failed.lease_until = None, None
             return True
         with SessionLocal() as session:
-            definition = definitions[source_id]
-            counts = process_job(session, job_id, WORKER_ID, fence, definition)
+            dispatch_connection = _acquire_dispatch_lock(source_id)
+            source = session.scalar(select(Source).where(Source.id == source_id).with_for_update())
             finished_job = session.get(Job, job_id)
-            source = session.get(Source, source_id)
+            if source is None or finished_job is None:
+                raise RuntimeError("Leased ingestion source disappeared")
+            try:
+                definition = next(
+                    (item for item in load_registry() if item["id"] == source_id), None
+                )
+            except Exception as exc:
+                _defer_registry_unavailable(finished_job, source, exc)
+                session.commit()
+                _release_dispatch_lock(dispatch_connection, source_id)
+                dispatch_connection = None
+                return True
+            if definition is None:
+                _park_if_disabled(session, finished_job, source, None)
+                session.commit()
+                _release_dispatch_lock(dispatch_connection, source_id)
+                dispatch_connection = None
+                return True
+            if _park_if_disabled(session, finished_job, source, definition):
+                session.commit()
+                _release_dispatch_lock(dispatch_connection, source_id)
+                dispatch_connection = None
+                return True
+            counts = process_job(session, job_id, WORKER_ID, fence, definition)
             assert finished_job and source
             assert_fence(session, job_id, WORKER_ID, fence)
             (
@@ -203,6 +531,10 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
                 "pdf_skipped_not_signal": counts.get("pdf_skipped_not_signal", 0),
                 "pdf_skipped_limit": counts.get("pdf_skipped_limit", 0),
             }
+            disposition = (
+                "partial" if counts.get("parse_failures") or counts.get("partial") else "succeeded"
+            )
+            _append_attempt_receipt(session, finished_job, fence, disposition, counts)
             if source_id in {
                 "austin-building-permits",
                 "texas-rrc-drilling-permits",
@@ -217,6 +549,8 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
                 if research_anchor and research_anchor.enabled:
                     enqueue(session, research_anchor.id, kind="pursuit_research")
             session.commit()
+            _release_dispatch_lock(dispatch_connection, source_id)
+            dispatch_connection = None
     except Exception as exc:
         with SessionLocal.begin() as session:
             failed_job = session.get(Job, job_id)
@@ -240,6 +574,16 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
                 failed_job.error = (
                     str(exc)[:250] if isinstance(exc, SourceParseError) else type(exc).__name__
                 )
+                if kind == "ingestion":
+                    from gridlens.ingestion.adapters.federal_register import SourceParseError
+
+                    _append_attempt_receipt(
+                        session,
+                        failed_job,
+                        fence,
+                        "failed" if isinstance(exc, SourceParseError) else "unknown",
+                        {"error_class": type(exc).__name__},
+                    )
             if source and valid_owner and kind == "ingestion":
                 from gridlens.ingestion.adapters.federal_register import SourceParseError
 
@@ -252,22 +596,87 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
                     + int(is_parse_error),
                     "error": str(exc)[:250] if is_parse_error else type(exc).__name__,
                 }
+    finally:
+        if dispatch_connection is not None:
+            try:
+                _release_dispatch_lock(dispatch_connection, source_id)
+            except Exception:
+                dispatch_connection.close()
     return True
 
 
 def main() -> None:
-    if settings.worker_auto_refresh:
-        refresh_due()
-        plan_pursuit_questions()
+    next_heartbeat = 0.0
     definitions = {row["id"]: row for row in load_registry()}
-    next_planning = time.monotonic() + 3600
     while True:
-        if settings.worker_auto_refresh and time.monotonic() >= next_planning:
-            refresh_due()
-            plan_pursuit_questions()
-            next_planning = time.monotonic() + 3600
-        if not run_one(definitions):
+        if settings.worker_auto_refresh:
+            _run_planner("sources", refresh_due)
+            _run_planner("pursuit_questions", plan_pursuit_questions)
+        if time.monotonic() >= next_heartbeat:
+            try:
+                with SessionLocal.begin() as session:
+                    heartbeat = session.get(WorkerHeartbeat, WORKER_ID)
+                    if heartbeat is None:
+                        session.add(
+                            WorkerHeartbeat(worker_id=WORKER_ID, last_seen_at=datetime.now(UTC))
+                        )
+                    else:
+                        heartbeat.last_seen_at = datetime.now(UTC)
+            except Exception:
+                # API readiness reports database unavailability separately.
+                pass
+            next_heartbeat = time.monotonic() + 10
+        try:
+            did_work = run_one(definitions)
+        except Exception:
+            did_work = False
+        if not did_work:
             time.sleep(2)
+
+
+def _run_planner(planner_key: str, action) -> bool:
+    now = datetime.now(UTC)
+    if time.monotonic() < _PLANNER_RETRY_MONOTONIC.get(planner_key, 0):
+        return False
+    try:
+        with SessionLocal() as session:
+            state = session.get(PlannerState, planner_key)
+            if state and state.next_retry_at and state.next_retry_at > now:
+                return False
+        action()
+        with SessionLocal.begin() as session:
+            state = session.get(PlannerState, planner_key)
+            if state is None:
+                state = PlannerState(planner_key=planner_key, consecutive_failures=0)
+                session.add(state)
+            state.last_attempt_at = now
+            state.last_success_at = now
+            state.consecutive_failures = 0
+            state.next_retry_at = now + timedelta(hours=1)
+            state.error_class = None
+        _PLANNER_RETRY_MONOTONIC.pop(planner_key, None)
+        _PLANNER_FAILURES.pop(planner_key, None)
+    except Exception as exc:
+        failures = _PLANNER_FAILURES.get(planner_key, 0) + 1
+        _PLANNER_FAILURES[planner_key] = failures
+        delay = min(3600, 30 * (2 ** min(failures - 1, 7)))
+        _PLANNER_RETRY_MONOTONIC[planner_key] = time.monotonic() + delay
+        try:
+            with SessionLocal.begin() as session:
+                state = session.get(PlannerState, planner_key)
+                if state is None:
+                    state = PlannerState(planner_key=planner_key, consecutive_failures=failures - 1)
+                    session.add(state)
+                state.last_attempt_at = now
+                state.consecutive_failures += 1
+                state.error_class = type(exc).__name__
+                delay = min(3600, 30 * (2 ** min(state.consecutive_failures - 1, 7)))
+                state.next_retry_at = now + timedelta(seconds=delay)
+                _PLANNER_FAILURES[planner_key] = state.consecutive_failures
+        except Exception:
+            pass
+        return False
+    return True
 
 
 def plan_pursuit_questions() -> int:
