@@ -1,5 +1,9 @@
 # Work Graph
 
+## October 7 final local acceptance
+
+GL3-029 local gates pass: 1,232 backend/one optional skip, all 42 browser tests, five research-browser groups, fresh five-category acceptance 5/5, migrations/preservation/replay and independent review. Owner authorized conditional merge and narrow public TDLR search; deployment/provider spending remain excluded. See [final acceptance](../docs/validation/gl3-029-final-acceptance-20261007.md). GitHub PR24 records the merge state. Earlier checkpoints below are historical and their former blockers/permission limits are superseded where explicitly documented.
+
 ## October 7 final five-category checkpoint
 
 PR24 remains draft; tested code `92f7689` passes the unchanged fresh five-category mechanical gate, final full suite (1,229 passed/one skip), 36 browser regressions, five real-database browser groups, migrations/preservation/replay and independent review. Six blockers remain explicitly unresolved; no promotions. Owner-authorized RRC download and one canonical drilling Signal close the missing fresh O&G category; retained native inspection does not imply live RRC research refresh. Original archive recovery is superseded, historical corpus/browser proof remains distinct, and cloud/outreach/merge remain excluded. See [final report](../docs/validation/gl3-029-five-category-20261007.md). Earlier checkpoints below are history.

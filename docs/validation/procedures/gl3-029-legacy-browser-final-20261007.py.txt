@@ -1,0 +1,29 @@
+import os,subprocess,json,threading,time
+from pathlib import Path
+from sqlalchemy import select
+from gridlens.persistence.database import SessionLocal
+from gridlens.persistence.models import Job
+from gridlens.ingestion.registry import load_registry
+from gridlens.jobs.worker import run_one
+from regenerate_pursuit_corpus import configured_url,snapshot,write_once
+assert configured_url().database=='gl3_regen_20261007_legacy_run'
+root=Path('.artifacts/regeneration');write_once(root/'legacy-browser-before.json',snapshot())
+os.environ['GRIDLENS_TEST_PASSWORD']=Path('/workspace/gl3/.artifacts/local-auth.txt').read_text().splitlines()[1]
+os.environ.update(COOKIE_SECURE='false',TRUSTED_ORIGINS='http://127.0.0.1:5519',CI='true',GRIDLENS_API_PORT='8519',GRIDLENS_WEB_PORT='5519',PLAYWRIGHT_JSON_OUTPUT_NAME=str((root/'browser-legacy-final.json').resolve()))
+stop=threading.Event();runs=[];errors=[];defs={d['id']:d for d in load_registry()}
+def worker():
+ try:
+  end=time.monotonic()+430
+  while not stop.is_set() and time.monotonic()<end:
+   with SessionLocal() as s:ids=list(s.scalars(select(Job.id).where(Job.kind=='pursuit_research',Job.status=='queued')))
+   for j in ids:
+    if len(runs)>=2:raise RuntimeError('Browser refresh job bound exceeded')
+    runs.append(str(j));run_one(defs,job_ids=[j])
+   stop.wait(.25)
+ except Exception as e:errors.append(type(e).__name__)
+t=threading.Thread(target=worker);t.start()
+try:
+ with (root/'browser-legacy-final.log').open('w') as f:
+  r=subprocess.run(['npm','--prefix','web','run','test','--','--reporter=line,json'],stdout=f,stderr=subprocess.STDOUT,timeout=430)
+finally:stop.set();t.join(timeout=360)
+result={'exit_code':r.returncode,'worker_jobs':runs,'worker_errors':errors,'worker_stopped':not t.is_alive()};write_once(root/'browser-legacy-final-exit.json',result);write_once(root/'legacy-browser-after.json',snapshot());print(json.dumps(result));raise SystemExit(r.returncode or bool(errors) or t.is_alive())

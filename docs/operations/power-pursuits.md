@@ -163,3 +163,7 @@ POST for corpus regeneration; it did not add an autonomous RRC network research 
 or authorize other forms. Missing discovery remains visible, with existing finite
 transient retries. Do not present repeated retained inspection as new acquisition.
 The live five-category run ended with six UNRESOLVED blockers and no promotions.
+
+### October 7 final local acceptance and public-search permission
+
+All 42 browser workflows and the final fresh five-category gate pass; see [exact counts and limits](../validation/gl3-029-final-acceptance-20261007.md). At 04:30:46 UTC the owner separately approved the existing anonymous TDLR search POST solely for public-record retrieval and conditional merge. This supersedes the earlier RRC-only validation exception for that narrow route, not the prohibition on outreach, login, purchases or arbitrary forms. Browser call notes are explicitly validation-only; no call occurred. Provider configuration/spending and cloud deployment remain separate.
