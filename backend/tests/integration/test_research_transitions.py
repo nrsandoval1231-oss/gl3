@@ -985,3 +985,175 @@ def test_retained_relationships_precede_sibling_question_fingerprints(
         assert current is not None
         assert schedule_questions(session, [current]) == []
         assert set(session.scalars(select(BuyingChainClaim.id))) == claim_ids
+
+
+@pytest.fixture
+def retained_rrc(canonical_runtime):
+    from gridlens.ingestion.adapters.rrc_drilling import (
+        parse_snapshot,
+        records_from_snapshots,
+        source_today,
+    )
+
+    factory, _, worker, seed_job = canonical_runtime
+    source = next(s for s in load_registry() if s["id"] == "texas-rrc-drilling-permits")
+    root, master = bytearray(b" " * 212), bytearray(b" " * 510)
+    today = source_today().strftime("%Y%m%d")
+    for row, values in [
+        (
+            root,
+            [
+                (1, "01"),
+                (3, "0999999"),
+                (10, "99"),
+                (15, "SYNTHETIC LEASE"),
+                (49, "123456"),
+                (59, today),
+                (67, "SYNTHETIC OPERATOR LLC"),
+                (101, "A"),
+                (113, "0999999"),
+                (120, today),
+                (157, "1H"),
+            ],
+        ),
+        (
+            master,
+            [(1, "02"), (3, "099999999"), (12, "001"), (66, "01"), (130, today), (138, "00000000")],
+        ),
+    ]:
+        for position, value in values:
+            row[position - 1 : position - 1 + len(value)] = value.encode()
+    native = records_from_snapshots(
+        [
+            parse_snapshot(
+                bytes(root) + b"\r\n" + bytes(master) + b"\r\n08opaque child\r\n",
+                filename="daf420.dat",
+                today=datetime.now(UTC).date(),
+            )
+        ]
+    )[0]
+    with factory.begin() as session:
+        session.add(Source(**{k: v for k, v in source.items() if k in Source.__table__.columns}))
+        session.get(Job, seed_job).source_id = source["id"]
+        process_records(
+            session, seed_job, "seed-test", 1, source, [native], commit=False, allow_model=False
+        )
+        need = session.scalar(select(PowerNeed))
+        assert need is not None
+        need_id = need.id
+    return factory, worker, need_id
+
+
+def test_retained_native_rrc_inspection_preserves_truth_and_replay(retained_rrc, monkeypatch):
+    from gridlens.intelligence.research_evidence import replay_retained_research
+    from gridlens.persistence.models import Project
+
+    factory, worker, need_id = retained_rrc
+
+    def forbidden(*_args, **_kwargs):
+        pytest.fail("Retained RRC inspection must not perform network acquisition")
+
+    for name in ("acquire_registered_record", "retrieve", "discover_urls"):
+        monkeypatch.setattr(worker, name, forbidden)
+    with factory.begin() as session:
+        need = session.get(PowerNeed, need_id)
+        project = session.get(Project, need.project_id)
+        evidence = session.scalar(select(Evidence))
+        before = {e.id: e.content_hash for e in session.scalars(select(Evidence))}
+        results = replay_retained_research(session, project, need)
+        assert len(results) == 1
+        result = results[0]
+        assert result["retained_native_replay"] is True
+        assert result["network_refresh"] is False
+        assert result["retrieved_at"] == evidence.observed_at.isoformat()
+        assert result["disposition"] == "UNRESOLVED"
+        assert result["evidence_id"] == str(evidence.id)
+        assert "Opaque" in result["reason"]
+        assert replay_retained_research(session, project, need) == results
+        card = evaluate_target(session, need_id)
+        assert card["disposition"] == "WATCH"
+        questions = schedule_questions(session, [card])
+        assert 1 <= len(questions) <= 2
+        identifiers = [q.id for q in questions]
+    for question_id in identifiers:
+        with factory.begin() as session:
+            job = session.scalar(select(Job).where(Job.target_id == question_id))
+            leased = lease_one(session, "rrc-test", lease_seconds=600, job_ids=[job.id])
+            assert leased
+            job, fence = leased
+            job_id = job.id
+        worker.process_question_job(job_id, "rrc-test", fence)
+    with factory.begin() as session:
+        for question_id in identifiers:
+            row = session.get(PursuitResearchQuestion, question_id)
+            assert row.status == "UNRESOLVED"
+            assert row.receipt["reevaluation_status"] == "COMPLETED"
+            assert any(c.get("retained_native_replay") for c in row.receipt["source_checks"])
+            assert not row.receipt["resulting_evidence_ids"]
+            assert row.receipt["model_calls"] == 0
+        need = session.get(PowerNeed, need_id)
+        assert need.tier == "Signal"
+        assert need.required_mw is None and need.supply == "Unknown"
+        card = evaluate_target(session, need_id)
+        assert card["disposition"] == "WATCH"
+        assert schedule_questions(session, [card]) == []
+        assert {e.id: e.content_hash for e in session.scalars(select(Evidence))} == before
+
+
+@pytest.mark.parametrize(
+    "corruption",
+    [
+        "interpretation_status",
+        "interpretation_hash",
+        "assessment_identity",
+        "project_identity",
+        "abstract",
+        "event_date",
+        "extraction_location",
+        "ambiguous_binding",
+    ],
+)
+def test_retained_native_rrc_invalid_context_never_claims_retrieval(retained_rrc, corruption):
+    from gridlens.intelligence.research_evidence import replay_retained_research
+    from gridlens.persistence.models import Interpretation, NeedObservation, Observation, Project
+
+    factory, _, need_id = retained_rrc
+    with factory.begin() as session:
+        need = session.get(PowerNeed, need_id)
+        project = session.get(Project, need.project_id)
+        evidence = session.scalar(select(Evidence))
+        interpretation = session.scalar(select(Interpretation))
+        if corruption == "interpretation_status":
+            interpretation.status = "rejected"
+        elif corruption == "interpretation_hash":
+            interpretation.content_hash = "0" * 64
+        elif corruption == "assessment_identity":
+            interpretation.assessment = {
+                **interpretation.assessment,
+                "project_identity_key": "other",
+            }
+        elif corruption == "project_identity":
+            project.identity_key = "other"
+        elif corruption == "abstract":
+            evidence.abstract = "truncated native evidence"
+            session.get(Observation, evidence.observation_id).abstract = evidence.abstract
+        elif corruption == "event_date":
+            evidence.event_date = None
+        elif corruption == "extraction_location":
+            evidence.extraction_location = "unverified location"
+        else:
+            extra = PowerNeed(
+                project_id=project.id,
+                activity_key="other",
+                tier="Signal",
+                rationale="ambiguous binding fixture",
+                supply="Unknown",
+            )
+            session.add(extra)
+            session.flush()
+            session.add(NeedObservation(need_id=extra.id, observation_id=evidence.observation_id))
+        session.flush()
+        results = replay_retained_research(session, project, need)
+        assert results
+        assert all(not row.get("retrieved_at") for row in results)
+        assert all(not row.get("retained_native_replay") for row in results)

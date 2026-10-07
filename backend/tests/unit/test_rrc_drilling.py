@@ -193,3 +193,153 @@ def test_undocumented_cancellation_flag_fails_closed():
     body[214 + 479] = ord("Y")
     with pytest.raises(SourceParseError, match="cancellation flag"):
         parse(bytes(body))
+
+
+def retained_record(*bodies):
+    from gridlens.ingestion.adapters.rrc_drilling import PORTAL
+
+    groups = [
+        parse_snapshot(body, filename="daf420.dat", today=date(2026, 10, 7), source_url=PORTAL)
+        for body in bodies or (snapshot(),)
+    ]
+    return records_from_snapshots(groups)[0]
+
+
+def reconstruct(abstract, **kwargs):
+    from datetime import UTC, datetime
+
+    from gridlens.ingestion.adapters.rrc_drilling import reconstruct_retained_record
+
+    return reconstruct_retained_record(
+        abstract,
+        permit_number=kwargs.get("permit_number", "0999999"),
+        observed_at=kwargs.get("observed_at", datetime(2026, 10, 7, tzinfo=UTC)),
+    )
+
+
+def mutate_retained(abstract, mutation):
+    import json
+
+    prefix, suffix = abstract.split("\nSource segment provenance: ")
+    p, r = suffix.split("\nOpaque source bytes (base64; not interpreted): ")
+    provenance, raw = json.loads(p), json.loads(r)
+    mutation(provenance, raw)
+    return (
+        prefix
+        + "\nSource segment provenance: "
+        + json.dumps(provenance, sort_keys=True)
+        + "\nOpaque source bytes (base64; not interpreted): "
+        + json.dumps(raw, sort_keys=True)
+    )
+
+
+def test_retained_reconstruction_preserves_exact_opaque_children_and_amendments():
+    record = retained_record(snapshot(), snapshot(98, amended="20260912"))
+    assert reconstruct(record["abstract"]) == record
+    assert base64.b64encode(snapshot()).decode() in reconstruct(record["abstract"])["abstract"]
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        lambda p, r: p[0].update(source_url="https://untrusted.example/file"),
+        lambda p, r: p[0].update(source_url="https://mft.rrc.texas.gov/other"),
+        lambda p, r: p[0].update(filename="../daf420.dat"),
+        lambda p, r: p[0].update(filename="daf420.dat.09-30-2026"),
+        lambda p, r: p[0].update(ordinal=True),
+        lambda p, r: p[0].update(ordinal=0),
+        lambda p, r: p[0].update(ordinal=5001),
+        lambda p, r: p[0].update(sequence="99"),
+        lambda p, r: p[0].update(sequence=98),
+        lambda p, r: p[0].update(extra="unsupported"),
+        lambda p, r: p.append(dict(p[0])),
+        lambda p, r: p.extend(dict(p[0], ordinal=n) for n in range(2, 22)),
+        lambda p, r: r.update({next(iter(r)): "%%%"}),
+        lambda p, r: r.update({next(iter(r)): base64.b64encode(b"corrupted").decode()}),
+        lambda p, r: r.clear(),
+        lambda p, r: p[0].update(raw_sha256="0" * 64),
+    ],
+)
+def test_retained_reconstruction_rejects_provenance_corruption(mutation):
+    abstract = mutate_retained(retained_record()["abstract"], mutation)
+    with pytest.raises(SourceParseError):
+        reconstruct(abstract)
+
+
+def test_retained_reconstruction_rejects_field_tampering_and_wrong_identity():
+    record = retained_record()
+    with pytest.raises(SourceParseError, match="exactly reconstruct"):
+        reconstruct(record["abstract"].replace("operator: EXAMPLE", "operator: TAMPERED"))
+    with pytest.raises(SourceParseError, match="permit or sequence"):
+        reconstruct(record["abstract"], permit_number="0888888")
+    with pytest.raises(SourceParseError):
+        reconstruct(record["abstract"], permit_number="bad")
+
+
+def test_retained_reconstruction_rejects_conflicting_same_sequence():
+    record = retained_record(snapshot(), snapshot(operator="OTHER OPERATOR LLC"))
+    with pytest.raises(SourceParseError, match="conflicting same-sequence"):
+        reconstruct(record["abstract"])
+
+
+def test_retained_reconstruction_rejects_bounds_dates_and_duplicate_json_keys():
+    from datetime import datetime
+
+    record = retained_record()
+    with pytest.raises(SourceParseError):
+        reconstruct("x" * 750001)
+    with pytest.raises(SourceParseError):
+        reconstruct(record["abstract"], observed_at=datetime(2026, 10, 7))
+    with pytest.raises(SourceParseError, match="future permit date"):
+        from datetime import UTC
+
+        reconstruct(record["abstract"], observed_at=datetime(2026, 9, 1, tzinfo=UTC))
+    with pytest.raises(SourceParseError, match="duplicate key"):
+        reconstruct(record["abstract"].replace('"ordinal": 1', '"ordinal": 1, "ordinal": 1'))
+
+
+def test_retained_reconstruction_rejects_unreferenced_bytes():
+    import hashlib
+
+    raw = snapshot(98)
+    abstract = mutate_retained(
+        retained_record()["abstract"],
+        lambda p, r: r.update({hashlib.sha256(raw).hexdigest(): base64.b64encode(raw).decode()}),
+    )
+    with pytest.raises(SourceParseError, match="unreferenced"):
+        reconstruct(abstract)
+
+
+def test_retained_monthly_provenance_and_nondefault_ordinal_are_not_independent_proof():
+    from gridlens.ingestion.adapters.rrc_drilling import MONTHLY_PORTAL
+
+    rows = parse_snapshot(
+        snapshot(),
+        filename="daf420.dat.09-30-2026",
+        today=date(2026, 10, 7),
+        source_url=MONTHLY_PORTAL,
+    )
+    rows[0]["ordinal"] = 4999
+    record = records_from_snapshots([rows])[0]
+    assert reconstruct(record["abstract"]) == record
+    for filename in ("daf420.dat.09-29-2026", "daf420.dat.02-30-2026", "daf420.dat.10-31-2026"):
+        abstract = mutate_retained(
+            record["abstract"], lambda p, r, filename=filename: p[0].update(filename=filename)
+        )
+        with pytest.raises(SourceParseError):
+            reconstruct(abstract)
+
+
+def test_retained_reconstruction_rejects_deeply_nested_json_as_source_parse_error():
+    abstract = retained_record()["abstract"]
+    prefix, _ = abstract.split("\nSource segment provenance: ")
+    malformed = (
+        prefix
+        + "\nSource segment provenance: "
+        + "[" * 2000
+        + "0"
+        + "]" * 2000
+        + "\nOpaque source bytes (base64; not interpreted): {}"
+    )
+    with pytest.raises(SourceParseError, match="retained content is malformed"):
+        reconstruct(malformed)
