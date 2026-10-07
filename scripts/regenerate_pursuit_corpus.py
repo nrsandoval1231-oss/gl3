@@ -19,9 +19,9 @@ from validate_pursuit_research import (  # noqa: E402
     CATEGORIES,
     candidate_identity,
     capture_baseline,
-    execute_cases,
     database_snapshot,
     digest,
+    execute_cases,
     file_hash,
     preservation,
     replay_state,
@@ -112,7 +112,7 @@ def collect(selection, output):
             "requests": [],
         }
 
-        def before_request(url):
+        def before_request(url, *, attempt=attempt, index=index):
             request = {"url": url, "requested_at": now(), "method": "GET"}
             attempt["requests"].append(request)
             write_once(out / f"request-{index:02d}.json", request)
