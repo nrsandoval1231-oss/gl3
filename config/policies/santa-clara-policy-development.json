@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "as_of_date": "2026-10-07",
+  "policy_id": "santa-clara-policy-development",
+  "jurisdiction": "Santa Clara, CA",
+  "kind": "policy_development",
+  "scope": "City standards, approval processes and community-benefit policy work for future data-center development.",
+  "reported_start": "2026-08-12 (interdepartmental working group)",
+  "anticipated_completion": "toward the end of 2027 (staff expectation, not an effective date)",
+  "evidence": [
+    {
+      "id": "staff",
+      "url": "https://santaclara.legistar.com/LegislationDetail.aspx?GUID=2791DE9D-56B5-49B5-9998-BC1264149D06&ID=8260886",
+      "kind": "staff_report",
+      "location": "File 26-1037, Background, comprehensive approach",
+      "summary": "Working group began August 12, 2026; improvements expected toward end of 2027.",
+      "observed_on": "2026-10-07"
+    }
+  ],
+  "observations": [
+    {
+      "source_id": "staff",
+      "status": "policy_work_in_progress",
+      "event_date": "2026-10-06"
+    }
+  ],
+  "limitations": [
+    "Staff report describes policy development, not an enacted land-use moratorium.",
+    "Completion expectation is not a binding deadline or application-intake reopening date."
+  ]
+}
