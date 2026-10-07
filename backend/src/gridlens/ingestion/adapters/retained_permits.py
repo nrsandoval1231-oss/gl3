@@ -103,6 +103,13 @@ LABELS = {
     "zip": "Reported ZIP code",
 }
 GEORGIA = "georgia-air-draft-title-v"
+
+
+def requires_achieved_lifecycle_milestone(source_id: str) -> bool:
+    """Whether this adapter's retained evidence requires an achieved event cue."""
+    return source_id == GEORGIA
+
+
 BOSTON_FIELDS = {
     "Permit number": "Boston permit number",
     "Work type": "Boston work type",

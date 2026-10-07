@@ -7,6 +7,7 @@ from gridlens.domain.lifecycle import (
     estimate_first_production,
     lifecycle_rank,
 )
+from gridlens.ingestion.adapters.retained_permits import requires_achieved_lifecycle_milestone
 from gridlens.persistence.models import (
     Evidence,
     Interpretation,
@@ -22,6 +23,7 @@ def lifecycle_event_supported(
     evidence: Evidence | None,
     interpretation: Interpretation | None,
     project: Project,
+    event_state: str | None = None,
 ) -> bool:
     """Return whether an event retains valid evidence-bound accepted support."""
     if evidence is None or interpretation is None or not interpretation.assessment:
@@ -36,6 +38,26 @@ def lifecycle_event_supported(
         or bound_project != project.identity_key
     ):
         return False
+    if event_type == "planning_application_withdrawn":
+        if event_state is not None and event_state != event_type:
+            return False
+    else:
+        observation = evidence.observation
+        is_rrc = observation.source_id == "texas-rrc-drilling-permits"
+        classification = classify_event(
+            "Drilling permit" if is_rrc else evidence.title,
+            None if is_rrc else evidence.abstract,
+            project_name=project.name,
+            project_identity_key=project.identity_key,
+            require_achieved_milestone=requires_achieved_lifecycle_milestone(observation.source_id),
+        )
+        if (
+            classification is None
+            or classification.event_type != event_type
+            or (event_state is not None and classification.state != event_state)
+            or project.asset_type not in {"unknown", classification.asset_type.value}
+        ):
+            return False
     accepted = interpretation.status == "accepted" or (
         interpretation.status in {"failed", "pending"} and assessment.get("decision") == "accepted"
     )
@@ -76,6 +98,9 @@ def apply_lifecycle_observation(
         if observation.source_id == "texas-rrc-drilling-permits"
         else evidence.title,
         None if observation.source_id == "texas-rrc-drilling-permits" else evidence.abstract,
+        project_name=project.name,
+        project_identity_key=project.identity_key,
+        require_achieved_milestone=requires_achieved_lifecycle_milestone(observation.source_id),
     )
     if classification is None:
         _rebuild_projection(session, project)
@@ -191,7 +216,9 @@ def _rebuild_projection(session: Session, project: Project) -> None:
             select(Interpretation).where(Interpretation.observation_id == event.observation_id)
         )
         evidence = session.get(Evidence, event.evidence_id)
-        if lifecycle_event_supported(event.event_type, evidence, interpretation, project):
+        if lifecycle_event_supported(
+            event.event_type, evidence, interpretation, project, event.state
+        ):
             accepted_events.append(event)
     # Filter to the currently bound accepted version first: an A→B→A correction
     # must reactivate retained A evidence even though B was recorded later.
@@ -254,7 +281,14 @@ def _rebuild_projection(session: Session, project: Project) -> None:
         source_observation and source_observation.source_id == "texas-rrc-drilling-permits"
     )
     classification = classify_event(
-        "Drilling permit" if is_rrc else evidence.title, None if is_rrc else evidence.abstract
+        "Drilling permit" if is_rrc else evidence.title,
+        None if is_rrc else evidence.abstract,
+        project_name=project.name,
+        project_identity_key=project.identity_key,
+        require_achieved_milestone=bool(
+            source_observation
+            and requires_achieved_lifecycle_milestone(source_observation.source_id)
+        ),
     )
     assert classification is not None
     if projection is None:
