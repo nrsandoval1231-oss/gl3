@@ -7,10 +7,10 @@ monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001F49BEA3390>
 
     def test_real_projection_groups_outside_shortlist_before_research_planning(runtime, monkeypatch):
         import hashlib
-    
+
         factory, worker, api, _ = runtime
         monkeypatch.setattr(api, "_commercial_triage_cards", api._unpatched_commercial_triage_cards)
-    
+
         def add_supported_need(
             session,
             *,
@@ -108,7 +108,7 @@ monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001F49BEA3390>
                     )
                 )
             return project, need
-    
+
         with factory.begin() as session:
             distractor_ids = []
             for index in range(1, 51):
@@ -121,7 +121,7 @@ monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001F49BEA3390>
                     location=f"{1000 + index} DISTRACTOR LN",
                 )
                 distractor_ids.append(str(need.id))
-    
+
             site = "811 CLAYTON LN"
             shared_case = "2026-900001"
             _, bp_need = add_supported_need(
@@ -164,14 +164,14 @@ monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001F49BEA3390>
             )
             pair_ids = {str(bp_need.id), str(ep_need.id)}
             nearby_id, saved_id = str(nearby_need.id), str(saved_need.id)
-    
+
         with factory() as session:
             before = api._commercial_triage_cards(session, 50)
             assert len(before) == 50
             assert {need_id for card in before for need_id in card["related_need_ids"]} == set(
                 distractor_ids
             )
-    
+
         planned = worker.planning_cards()
         pair_cards = [card for card in planned if pair_ids.intersection(card["related_need_ids"])]
 >       assert len(pair_cards) == 1, [
