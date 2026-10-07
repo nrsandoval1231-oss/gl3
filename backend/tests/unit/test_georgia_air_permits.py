@@ -667,3 +667,56 @@ def test_georgia_job_retains_null_publication_and_replays_with_pdf_evidence(
         assert observation.abstract == latest_abstract
         assert session.scalar(select(func.count()).select_from(Evidence)) == 7
         assert session.scalar(select(func.count()).select_from(PowerNeed)) == 1
+
+
+@pytest.mark.parametrize(
+    ("facility", "location", "accepted"),
+    [
+        ("Southern Natural Gas - Ellerslie Compressor Station", "Ellerslie", True),
+        ("Southern Natural Gas - Other Compressor Station", "Ellerslie", False),
+        ("Southern Natural Gas - Ellerslie Compressor Station", "Savannah", False),
+    ],
+)
+def test_pdf_identity_company_legal_style_preserves_station_and_site(
+    monkeypatch, facility, location, accepted
+):
+    class Page:
+        def extract_text(self):
+            return (
+                "Facility Name: Southern Natural Gas Company, LLC - Ellerslie "
+                "Compressor Station. City: Ellerslie. Application #s: 926258/997888. "
+                "Proposed equipment modification."
+            )
+
+    class Reader:
+        pages = [Page()]
+        is_encrypted = False
+
+        def __init__(self, stream, strict):
+            assert strict
+
+    monkeypatch.setattr(georgia_air_permits, "PdfReader", Reader)
+    transport = httpx.MockTransport(
+        lambda request: httpx.Response(
+            200, content=b"%PDF-1.7 company-style", headers={"content-type": "application/pdf"}
+        )
+    )
+    with httpx.Client(transport=transport) as client:
+        def extract():
+            return georgia_air_permits._extract_document(
+                client,
+                "https://epd.georgia.gov/document/document/926258-nar/download",
+                "narrative",
+                {"bytes": 0, "pdf_count": 0, "pdf_pages": 0},
+                facility,
+                "926258",
+                location,
+            )
+
+        if accepted:
+            document = extract()
+            assert document is not None
+            assert "Ellerslie Compressor Station" in document["abstract"]
+        else:
+            with pytest.raises(georgia_air_permits.SourceParseError, match="bind the listed"):
+                extract()
