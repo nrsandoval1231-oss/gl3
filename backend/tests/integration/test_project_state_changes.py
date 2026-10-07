@@ -67,13 +67,17 @@ def db():
     engine.dispose()
 
 
-def seed(session):
+def seed(
+    session,
+    *,
+    lifecycle_abstract: str = "Orion Data Center construction has started in Austin, TX",
+):
     observation = Observation(
         source_id="state-test",
         external_id="orion",
         title="Orion Data Center",
         url="https://example.test/source",
-        abstract="Orion Data Center construction in Austin, TX",
+        abstract=lifecycle_abstract,
         published_at=date(2026, 9, 20),
         content_hash="accepted-v1",
     )
@@ -1136,15 +1140,20 @@ def test_actual_prior_new_transitions_revert_and_authenticated_reads(db, monkeyp
 
 def test_accepted_utility_revision_replaces_current_date_but_keeps_history(db):
     with db.begin() as session:
-        project, observation, evidence = seed(session)
-        session.add(ProjectLifecycle(project_id=project.id, current_state="permitted"))
+        project, observation, evidence = seed(
+            session,
+            lifecycle_abstract=(
+                "Orion Data Center utility service was energized in Austin, TX"
+            ),
+        )
+        session.add(ProjectLifecycle(project_id=project.id, current_state="energization"))
         session.add(
             LifecycleEvent(
                 project_id=project.id,
                 observation_id=observation.id,
                 evidence_id=evidence.id,
-                event_type="utility_energization",
-                state="permitted",
+                event_type="utility_service",
+                state="energization",
                 occurred_on=date(2027, 1, 1),
             )
         )
@@ -1153,13 +1162,14 @@ def test_accepted_utility_revision_replaces_current_date_but_keeps_history(db):
         replacement = Evidence(
             observation_id=observation.id,
             title="Orion revision",
-            abstract="Revised utility date",
+            abstract="Orion Data Center utility service was energized in Austin, TX",
             url=observation.url,
             content_hash="accepted-v2",
             published_at=date(2026, 9, 21),
             observed_at=NOW + timedelta(minutes=1),
         )
         session.add(replacement)
+        observation.content_hash = "accepted-v2"
         interpretation = session.scalar(select(Interpretation))
         interpretation.content_hash = "accepted-v2"
         interpretation.assessment = {
@@ -1172,8 +1182,8 @@ def test_accepted_utility_revision_replaces_current_date_but_keeps_history(db):
                 project_id=project.id,
                 observation_id=observation.id,
                 evidence_id=replacement.id,
-                event_type="utility_energization",
-                state="permitted",
+                event_type="utility_service",
+                state="energization",
                 occurred_on=date(2027, 7, 1),
             )
         )
@@ -1203,15 +1213,20 @@ def test_research_recommendation_sees_nested_missing_current_need_fact(
 ):
     judgment = {"material_change": "YES", "relevant": "YES", "power_relevance": "HIGH"}
     with db.begin() as session:
-        project, observation, lifecycle_evidence = seed(session)
-        session.add(ProjectLifecycle(project_id=project.id, current_state="permitted"))
+        project, observation, lifecycle_evidence = seed(
+            session,
+            lifecycle_abstract=(
+                "Orion Data Center utility service was energized in Austin, TX"
+            ),
+        )
+        session.add(ProjectLifecycle(project_id=project.id, current_state="energization"))
         session.add(
             LifecycleEvent(
                 project_id=project.id,
                 observation_id=observation.id,
                 evidence_id=lifecycle_evidence.id,
-                event_type="utility_energization",
-                state="permitted",
+                event_type="utility_service",
+                state="energization",
                 occurred_on=date(2027, 1, 1),
             )
         )
@@ -1250,15 +1265,20 @@ def test_research_recommendation_sees_nested_missing_current_need_fact(
 def test_research_recommendation_sees_nested_current_need_conflict(db):
     judgment = {"material_change": "YES", "relevant": "YES", "power_relevance": "HIGH"}
     with db.begin() as session:
-        project, observation, lifecycle_evidence = seed(session)
-        session.add(ProjectLifecycle(project_id=project.id, current_state="permitted"))
+        project, observation, lifecycle_evidence = seed(
+            session,
+            lifecycle_abstract=(
+                "Orion Data Center utility service was energized in Austin, TX"
+            ),
+        )
+        session.add(ProjectLifecycle(project_id=project.id, current_state="energization"))
         session.add(
             LifecycleEvent(
                 project_id=project.id,
                 observation_id=observation.id,
                 evidence_id=lifecycle_evidence.id,
-                event_type="utility_energization",
-                state="permitted",
+                event_type="utility_service",
+                state="energization",
                 occurred_on=date(2027, 1, 1),
             )
         )

@@ -916,7 +916,11 @@ def test_prior_candidate_hash_replays_without_a_migration_or_duplicate_evidence(
 
 def test_lifecycle_projection_is_evidence_version_bound_and_never_uses_publication_date(db):
     _, factory, _ = db
-    from gridlens.intelligence.lifecycle_service import apply_lifecycle_observation
+    from gridlens.intelligence.lifecycle_service import (
+        apply_lifecycle_observation,
+        lifecycle_event_supported,
+        refresh_lifecycle_projection,
+    )
 
     with factory.begin() as session:
         project = Project(
@@ -934,13 +938,13 @@ def test_lifecycle_projection_is_evidence_version_bound_and_never_uses_publicati
             abstract=None,
             published_at=datetime(2026, 9, 20).date(),
             url="https://example.test/well",
-            content_hash="a" * 64,
+            content_hash="b" * 64,
         )
         session.add_all([project, observation])
         session.flush()
         evidence = Evidence(
             observation_id=observation.id,
-            content_hash="b" * 64,
+            content_hash=observation.content_hash,
             title="Spud reported at Test well",
             abstract=None,
             url=observation.url,
@@ -954,7 +958,7 @@ def test_lifecycle_projection_is_evidence_version_bound_and_never_uses_publicati
         session.add(
             Interpretation(
                 observation_id=observation.id,
-                content_hash=observation.content_hash,
+                content_hash=evidence.content_hash,
                 status="accepted",
                 evaluator_version="test",
                 assessment={
@@ -973,9 +977,10 @@ def test_lifecycle_projection_is_evidence_version_bound_and_never_uses_publicati
 
         assert replay_accepted_lifecycle(session)["events_added"] == 0
         assert replay_accepted_lifecycle(session)["events_added"] == 0
+        hash_a, hash_b = evidence.content_hash, "c" * 64
         corrected = Evidence(
             observation_id=observation.id,
-            content_hash="c" * 64,
+            content_hash=hash_b,
             title="Routine regional operations update",
             abstract=None,
             url=observation.url,
@@ -988,8 +993,13 @@ def test_lifecycle_projection_is_evidence_version_bound_and_never_uses_publicati
             select(Interpretation).where(Interpretation.observation_id == observation.id)
         )
         assert interpretation is not None
-        interpretation.status = "rejected"
-        interpretation.assessment = {"evidence_hash": corrected.content_hash}
+        interpretation.content_hash = hash_b
+        interpretation.assessment = {
+            "evidence_hash": corrected.content_hash,
+            "project_identity_key": project.identity_key,
+        }
+        observation.content_hash = hash_b
+        interpretation.status = "accepted"
         apply_lifecycle_observation(session, project, observation, corrected)
         assert session.scalar(select(func.count()).select_from(LifecycleEvent)) == 1
         assert session.get(ProjectLifecycle, project.id) is None
@@ -997,15 +1007,38 @@ def test_lifecycle_projection_is_evidence_version_bound_and_never_uses_publicati
 
         # A correction may return to a retained accepted evidence version. Its event
         # must become current again, and the existing-event path restores asset type.
+        observation.content_hash = hash_a
+        interpretation.content_hash = hash_a
         interpretation.status = "accepted"
         interpretation.assessment = {
-            "evidence_hash": evidence.content_hash,
+            "evidence_hash": hash_a,
             "project_identity_key": project.identity_key,
         }
         assert apply_lifecycle_observation(session, project, observation, evidence) is False
         projection = session.get(ProjectLifecycle, project.id)
         assert projection is not None and projection.current_state == "spud"
         assert project.asset_type == "upstream_well"
+
+        observation.content_hash = hash_b
+        assert not lifecycle_event_supported(
+            "spud", evidence, interpretation, project, "spud"
+        )
+        refresh_lifecycle_projection(session, project)
+        session.flush()
+        assert session.get(ProjectLifecycle, project.id) is None
+        observation.content_hash = hash_a
+        interpretation.content_hash = hash_b
+        assert not lifecycle_event_supported(
+            "spud", evidence, interpretation, project, "spud"
+        )
+        interpretation.content_hash = hash_a
+        interpretation.assessment["evidence_hash"] = hash_b
+        assert not lifecycle_event_supported(
+            "spud", evidence, interpretation, project, "spud"
+        )
+        interpretation.assessment["evidence_hash"] = hash_a
+        assert apply_lifecycle_observation(session, project, observation, evidence) is False
+        assert session.get(ProjectLifecycle, project.id).current_state == "spud"
 
 
 def test_identity_match_requires_corroborated_site_and_keeps_ambiguous_candidates_separate(

@@ -124,10 +124,16 @@ def classify_event(
     *,
     project_name: str | None = None,
     project_identity_key: str | None = None,
+    project_asset_type: str | None = None,
+    reported_permit_event: str | None = None,
     require_achieved_milestone: bool = False,
 ) -> Classification | None:
     text = f"{title} {abstract or ''}".casefold()
-    if not requires_scoped_lifecycle_evidence(title, abstract):
+    has_data_center_context = bool(re.search(_ASSETS[0][1], text)) or (
+        project_asset_type == "data_center"
+    )
+    target_scoped = bool(project_name or project_identity_key) and has_data_center_context
+    if not requires_scoped_lifecycle_evidence(title, abstract) and not target_scoped:
         return _classify_scope(
             text,
             allow_formation_fallback=not require_achieved_milestone,
@@ -137,7 +143,18 @@ def classify_event(
     # In mixed reports, classify each separated clause on its own. A facility
     # or procedural clause cannot lend its milestone to the campus, while a
     # separately stated campus event remains usable.
-    title_has_data_center = bool(re.search(_ASSETS[0][1], title, re.IGNORECASE))
+    title_has_data_center = (
+        bool(re.search(_ASSETS[0][1], title, re.IGNORECASE))
+        or project_asset_type == "data_center"
+    )
+    permit_patterns = {
+        "building_permit_issued": (r"\bbuilding permit\b", "building permit was issued"),
+        "electrical_permit_issued": (r"\belectrical permit\b", "electrical permit was issued"),
+    }
+    permit_pattern: str | None = None
+    permit_marker: str | None = None
+    if reported_permit_event is not None and reported_permit_event in permit_patterns:
+        permit_pattern, permit_marker = permit_patterns[reported_permit_event]
     candidates = []
     for part in _split_lifecycle_clauses(title, abstract):
         if (project_name or project_identity_key) and not _mentions_project(
@@ -151,6 +168,13 @@ def classify_event(
             candidates.append(part)
         elif title_has_data_center and campus_reference and not adjacent_facility:
             candidates.append(f"data center {part}")
+        elif (
+            permit_pattern
+            and permit_marker
+            and re.search(permit_pattern, part)
+            and not adjacent_facility
+        ):
+            candidates.append(f"data center {part}; {permit_marker}")
     classifications = [
         event
         for part in candidates
@@ -162,6 +186,8 @@ def classify_event(
             )
         )
     ]
+    if reported_permit_event and not classifications:
+        return None
     return classifications[-1] if classifications else None
 
 
@@ -239,30 +265,42 @@ def _classify_scope(
                 "utility energization",
             ),
             (
-                r"substation|transformer|switchgear|electrical permit",
+                r"substation|transformer|switchgear",
                 "electrical_buildout",
                 DataCenterState.ELECTRICAL,
                 "commissioning",
             ),
             (
-                (
-                    r"grading (?:has )?(?:begun|started)|(?:began|started) grading|"
-                    r"building permit(?: was)? (?:issued|approved|received)|"
-                    r"received (?:its )?building permit|groundbreak|site work (?:has )?begun|"
-                    r"construction (?:has )?(?:begun|started)|(?:began|started) construction|"
-                    r"under construction|mobiliz"
-                    if require_achieved_milestone
-                    else r"grading|building permit|construct|groundbreak|site work|mobiliz"
-                ),
+                r"grading (?:has )?(?:begun|started)|(?:began|started) grading|groundbreak|"
+                r"site work (?:has )?(?:begun|started)|(?:began|started) site work|"
+                r"construction (?:has )?(?:begun|started|commenced)|"
+                r"(?:began|started|commenced) construction|under construction|"
+                r"construction (?:is )?underway|mobiliz",
                 "construction",
                 DataCenterState.CONSTRUCTION,
                 "electrical buildout",
             ),
             (
+                r"building permit(?: was)? (?:issued|approved)|"
+                r"building permit has been (?:issued|approved)|"
+                r"issued (?:a|the) building permit|received (?:its )?building permit",
+                "building_permit_issued",
+                DataCenterState.PERMITTING,
+                "physical construction",
+            ),
+            (
+                r"electrical permit(?: was)? (?:issued|approved)|"
+                r"electrical permit has been (?:issued|approved)|"
+                r"issued (?:a|the) electrical permit|received (?:its )?electrical permit",
+                "electrical_permit_issued",
+                DataCenterState.PERMITTING,
+                "electrical work",
+            ),
+            (
                 (
                     r"rezon|planning application|development agreement|land acqui|tax incentive|"
                     r"economic development"
-                    if allow_formation_fallback
+                    if not require_achieved_milestone
                     else r"(?!)"
                 ),
                 "project_formation",
@@ -347,6 +385,12 @@ def _classify_scope(
     )
     if match is None and not allow_formation_fallback:
         return None
+    if match is None and asset == AssetType.DATA_CENTER and re.search(
+        r"building permit|electrical permit|construction|energiz|commission|"
+        r"transformer|substation|switchgear",
+        text,
+    ):
+        return None
     if match is None:
         initial_state = (
             DataCenterState.FORMATION
@@ -363,7 +407,9 @@ def _classify_scope(
             "drilling": r"drilling|drilled",
             "completion": r"complet",
             "first_production": r"production|producing",
-            "construction": r"construction|grading|building permit",
+            "construction": r"construction|grading|groundbreak|site work|mobiliz",
+            "building_permit_issued": r"building permit|permit",
+            "electrical_permit_issued": r"electrical permit|permit",
             "electrical_buildout": r"substation|transformer|switchgear|electrical permit",
             "commissioning": r"commission|load bank|testing",
             "utility_service": r"energiz\w*|utility service",
