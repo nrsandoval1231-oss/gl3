@@ -6,6 +6,7 @@ from gridlens.domain.lifecycle import (
     classify_event,
     estimate_first_production,
     lifecycle_rank,
+    requires_scoped_lifecycle_evidence,
 )
 from gridlens.persistence.models import (
     Evidence,
@@ -25,6 +26,8 @@ def lifecycle_event_supported(
 ) -> bool:
     """Return whether an event retains valid evidence-bound accepted support."""
     if evidence is None or interpretation is None or not interpretation.assessment:
+        return False
+    if requires_scoped_lifecycle_evidence(evidence.title, evidence.abstract):
         return False
     assessment = interpretation.assessment
     if assessment.get("evidence_hash") != evidence.content_hash:
