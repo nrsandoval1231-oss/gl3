@@ -5,7 +5,7 @@ from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 POLICY_VERSION = "power-pursuits-v1"
 SOURCES = (
@@ -137,6 +137,93 @@ class CommercialResearchBody(BaseModel):
     question: str = Field(min_length=12, max_length=300)
 
 
+class ResearchRouteOut(BaseModel):
+    query: str | None = None
+    kind: str
+    family: str
+    status: str
+    source_id: str | None = None
+    external_id: str | None = None
+    url: str | None = None
+    reason: str | None = None
+
+
+class ResearchContextOut(BaseModel):
+    model_config = ConfigDict(extra="allow")
+    route_plan: list[ResearchRouteOut] = Field(default_factory=list)
+
+
+class ResearchSourceCheckOut(BaseModel):
+    event_date: Date | None = None
+    match_basis: str | None = None
+    evidence_url: str | None = None
+    claim_type: str | None = None
+    publisher: str | None = None
+    extraction_location: str | None = None
+    checked_at: datetime | None = None
+    cache_reused: bool = False
+    duplicate: bool = False
+    url: str
+    disposition: str
+    reason: str
+    evidence_id: str | None = None
+    label: str | None = None
+    excerpt: str | None = None
+    published_at: Date | None = None
+    retrieved_at: datetime | None = None
+
+
+class ResearchReceiptOut(BaseModel):
+    route_results: list[ResearchRouteOut] = Field(default_factory=list)
+    source_checks: list[ResearchSourceCheckOut] = Field(default_factory=list)
+    resulting_evidence_ids: list[str] = Field(default_factory=list)
+    queries_generated: list[str] = Field(default_factory=list)
+    queries_attempted: list[str] = Field(default_factory=list)
+    queries_searched: list[str] = Field(default_factory=list)
+    acquisition_limitations: list[str] = Field(default_factory=list)
+    reevaluation_status: str = "NOT_STARTED"
+    next_action: str | None = None
+    before: str | None = None
+    after: str | None = None
+    reason: str | None = None
+    error: str | None = None
+    tier: str | None = None
+    remaining_blockers: list[str] = Field(default_factory=list)
+    runtime_seconds: float | None = None
+    searches: int = 0
+    retrieval_attempts: int = 0
+    model_calls: int = 0
+    cost_usd: str | None = None
+    reserved_cost_usd: str | None = None
+
+
+class ResearchQuestionOut(BaseModel):
+    id: UUID
+    project_id: UUID
+    need_id: UUID
+    pursuit_id: UUID
+    category: str
+    question: str
+    status: str
+    attempt_count: int
+    created_at: datetime
+    completed_at: datetime | None
+    retry_after: datetime | None
+    query_fingerprint: str
+    evidence_fingerprint: str
+    context: ResearchContextOut
+    budget: dict
+    receipt: ResearchReceiptOut
+
+
+class AutonomousResearchOut(BaseModel):
+    items: list[ResearchQuestionOut]
+
+
+class AutonomousResearchBody(BaseModel):
+    force: bool = False
+
+
 class CommercialTriageFact(BaseModel):
     text: str | None
     evidence_id: str | None
@@ -184,6 +271,7 @@ class CommercialTriageNeedState(BaseModel):
 
 
 class CommercialTriageCard(BaseModel):
+    research_state: dict = Field(default_factory=dict)
     id: UUID
     project_id: UUID
     related_project_ids: list[UUID] = Field(default_factory=list)
@@ -239,7 +327,40 @@ class CommercialTriageDaily(BaseModel):
     unavailable_metrics: list[str] = Field(default_factory=list)
 
 
+class ResearchMetricsOut(BaseModel):
+    model_config = ConfigDict(extra="allow")
+    blockers_attempted: int = 0
+    blocker_statuses: dict[str, int] = Field(default_factory=dict)
+    commercial_transitions: dict[str, int] = Field(default_factory=dict)
+    evidence_tier_transitions: dict[str, int] = Field(default_factory=dict)
+
+
+class ResearchChangeOut(BaseModel):
+    id: str
+    pursuit_id: UUID
+    need_id: UUID
+    project_id: UUID
+    version: int
+    evaluated_at: datetime | None = None
+    name: str
+    before: str
+    after: str
+    before_tier: str | None = None
+    after_tier: str | None = None
+    reason: str | None = None
+    next_action: str | None = None
+    new_evidence: list[CommercialTriageFact] = Field(default_factory=list)
+    question_ids: list[UUID] = Field(default_factory=list)
+
+
+class ResearchOverviewOut(BaseModel):
+    since: datetime | None = None
+    summary: ResearchMetricsOut
+    items: list[ResearchChangeOut] = Field(default_factory=list)
+
+
 class CommercialTriageOut(BaseModel):
+    research_overview: ResearchOverviewOut | None = None
     evaluated_at: datetime
     policy_version: str
     total: int

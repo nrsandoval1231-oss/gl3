@@ -2,6 +2,11 @@ import { type FormEvent, useEffect, useRef, useState } from 'react'
 import { client, type CallNoteBody, type Pursuit, type PursuitsResult } from '../../api/client'
 import '../../styles/pursuits.css'
 
+type RefreshReceipt = {
+  job: PursuitsResult['jobs'][number]
+  observation: 'waiting' | 'observed' | 'unknown'
+}
+
 function time(value: string | null) { return value ? new Date(value).toLocaleString() : 'No successful research yet' }
 function Facts({ title, values }: { title: string; values: string[] }) {
   return <section className="pursuit-facts"><h3>{title}</h3>{values.length ? <ul>{values.map((value, index) => <li key={index}>{value}</li>)}</ul> : <p>Unknown</p>}</section>
@@ -11,6 +16,7 @@ export function Pursuits() {
   const [data, setData] = useState<PursuitsResult | null>(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
+  const [fetching, setFetching] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [recheckUnchanged, setRecheckUnchanged] = useState(false)
   const [query, setQuery] = useState('')
@@ -18,23 +24,44 @@ export function Pursuits() {
   const [offset, setOffset] = useState(0)
   const [expanded, setExpanded] = useState<string | null>(null)
   const [poll, setPoll] = useState(0)
-  const active = data?.jobs.some((job) => ['queued', 'running', 'leased'].includes(job.status)) ?? false
+  const [refreshReceipt, setRefreshReceipt] = useState<RefreshReceipt | null>(null)
+  const active = Boolean(refreshReceipt) || (data?.jobs.some((job) => ['queued', 'running', 'leased'].includes(job.status)) ?? false)
   useEffect(() => {
     const controller = new AbortController()
-    void client.pursuits(controller.signal, includeDropped, offset).then((result) => { setData(result); setError('') }).catch((cause: unknown) => {
-      if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : 'Could not load pursuits.')
-    }).finally(() => { if (!controller.signal.aborted) setLoading(false) })
+    setFetching(true)
+    void client.pursuits(controller.signal, includeDropped, offset).then((result) => {
+      setData(result)
+      setError('')
+      setRefreshReceipt((current) => {
+        if (!current) return null
+        const observed = result.jobs.find((job) => job.id === current.job.id)
+        if (!observed) return { ...current, observation: 'unknown' }
+        if (observed.status === 'succeeded' || observed.status === 'failed') return null
+        return { job: observed, observation: 'observed' }
+      })
+    }).catch((cause: unknown) => {
+      if (!controller.signal.aborted) {
+        setError(cause instanceof Error ? cause.message : 'Could not load pursuits.')
+        setRefreshReceipt((current) => current ? { ...current, observation: 'unknown' } : current)
+      }
+    }).finally(() => {
+      if (!controller.signal.aborted) {
+        setLoading(false)
+        setFetching(false)
+      }
+    })
     return () => controller.abort()
   }, [poll, includeDropped, offset])
   useEffect(() => {
-    if (!active) return
+    if (!active || fetching) return
     const timer = window.setTimeout(() => setPoll((value) => value + 1), 3000)
     return () => window.clearTimeout(timer)
-  }, [active, poll, data])
+  }, [active, poll, data, fetching])
   async function refresh() {
     setRefreshing(true)
     try {
-      await client.refreshPursuits(recheckUnchanged)
+      const job = await client.refreshPursuits(recheckUnchanged)
+      setRefreshReceipt({ job, observation: 'waiting' })
       setPoll((value) => value + 1)
       setError('')
     } catch (cause) { setError(cause instanceof Error ? cause.message : 'Research could not be queued.') }
@@ -48,7 +75,10 @@ export function Pursuits() {
     <details className="pursuit-policy"><summary>How pursuits are ranked and refreshed</summary><p>{data?.ranking_policy ?? 'Ranking policy loading…'}</p><p>{data?.scheduler ?? 'Research requires a running worker.'}</p><p>Research requests today: {data?.usage?.fetch_requests_today ?? 0}/{data?.usage?.daily_fetch_limit ?? 0} retrievals · {data?.usage?.model_requests_today ?? 0}/{data?.usage?.daily_model_limit ?? 0} model requests. No model cost is inferred from these counts.</p><p>Refresh normally reuses fully successful research for unchanged candidates for 24 hours, keeping the original retrieval times. New, failed or deferred candidates are researched. Select “Recheck unchanged sources” to retrieve unchanged candidates again within the same daily request limits.</p><p>Call notes are owner-entered information and do not change Signal, Prospect or Lead tiers.</p></details>
     {error && <p className="error-banner" role="alert">{error} Previously saved findings remain available.</p>}
     {loading && <p role="status">Loading saved pursuits…</p>}
-    {active && <p role="status" className="loading-inline">Bounded source research is queued or running. Saved findings stay visible until results arrive.</p>}
+    {refreshReceipt?.observation === 'unknown' && <p role="status" className="loading-inline">Refresh was accepted, but research status is UNKNOWN or temporarily unavailable. Saved findings stay visible; refresh remains disabled until completion is confirmed.</p>}
+    {refreshReceipt?.observation === 'waiting' && <p role="status" className="loading-inline">Bounded source research is queued or running. Refresh was accepted; status confirmation is pending. Saved findings stay visible until results arrive.</p>}
+    {refreshReceipt?.observation === 'observed' && <p role="status" className="loading-inline">Bounded source research is queued or running. Refresh is accepted and research is still running. Saved findings stay visible until results arrive.</p>}
+    {active && !refreshReceipt && <p role="status" className="loading-inline">Bounded source research is queued or running. Saved findings stay visible until results arrive.</p>}
     {data?.jobs.filter((job) => job.status === 'failed').slice(0, 3).map((job) => <p className="error-banner" role="alert" key={job.id}>Research job failed: {job.error ?? 'No error detail available'}. Previous findings retain their original research time.</p>)}
     {!loading && !items.length && <div className="empty"><h3>{query ? 'No matching pursuits' : 'No defensible pursuits saved yet'}</h3><p>{query ? 'Try a project, site or organization name.' : 'Refresh to screen existing Austin and RRC Signals and retrieve public project evidence. A running worker is required.'}</p></div>}
     <div className="pursuit-list">{items.map((item, index) => <article className="pursuit-card" key={item.id} data-pursuit-id={item.id}>

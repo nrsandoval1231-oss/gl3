@@ -1,0 +1,23 @@
+import json
+from pathlib import Path
+from datetime import datetime,UTC,timedelta
+from uuid import UUID
+from sqlalchemy import select
+from gridlens.persistence.database import SessionLocal
+from gridlens.persistence.models import PursuitResearchQuestion
+from gridlens.intelligence.commercial_evaluation import evaluate_target
+from gridlens.intelligence.pursuit_questions import schedule_questions
+from gridlens.api.app import app
+from validate_pursuit_research import replay_state,digest,candidate_identity
+manifest=json.loads(Path('.artifacts/regeneration/five-manifest.json').read_text());ids=[UUID(c['need_id']) for c in manifest['cases']]
+with SessionLocal() as s:
+ old=list(s.scalars(select(PursuitResearchQuestion)));fresh=min(q.retry_after for q in old if q.retry_after)-timedelta(seconds=1)
+ prior=[{'id':str(q.id),'need_id':str(q.need_id),'category':q.category,'status':q.status,'retry_after':q.retry_after.isoformat() if q.retry_after else None,'retry_class':q.receipt.get('retry_class')} for q in old]
+result={'candidate':candidate_identity(),'prior_questions':prior,'windows':{},'openapi_exact':json.loads(Path('web/src/api/openapi.json').read_text())==app.openapi()}
+for label,now in [('within_freshness',fresh),('current_time',datetime.now(UTC))]:
+ with SessionLocal() as s:
+  before=replay_state(s);cards=[evaluate_target(s,n) for n in ids];would=schedule_questions(s,cards,origin='validation',now=now);after=replay_state(s)
+  result['windows'][label]={'scheduler_now':now.isoformat(),'before_sha256':digest(before),'after_sha256':digest(after),'created':[{'need_id':str(q.need_id),'category':q.category,'retry_index':q.context.get('retry_index')} for q in would]};s.rollback()
+with SessionLocal() as s:result['persisted_state_sha256']=digest(replay_state(s))
+result['passed']=not result['windows']['within_freshness']['created'] and result['windows']['within_freshness']['before_sha256']==result['windows']['within_freshness']['after_sha256']==result['persisted_state_sha256'] and result['openapi_exact']
+Path('.artifacts/regeneration/geofix-replay-windows.json').write_text(json.dumps(result,indent=2));print(json.dumps(result));assert result['passed']

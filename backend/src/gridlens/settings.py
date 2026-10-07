@@ -1,6 +1,7 @@
+from decimal import Decimal
 from pathlib import Path
 
-from pydantic import SecretStr
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -24,6 +25,17 @@ class Settings(BaseSettings):
     openai_api_key: SecretStr | None = None
     openai_brief_model: str = "gpt-4.1-mini"
     briefs_daily_request_limit: int = 8
+    autonomous_research_enabled: bool = True
+    autonomous_research_daily_questions: int = Field(default=8, ge=0, le=100)
+    autonomous_research_max_searches: int = Field(default=3, ge=0, le=5)
+    autonomous_research_max_urls: int = Field(default=10, ge=1, le=15)
+    autonomous_research_max_document_bytes: int = Field(default=750_000, ge=1_000, le=750_000)
+    autonomous_research_max_documents: int = Field(default=5, ge=1, le=8)
+    autonomous_research_timeout_seconds: int = Field(default=180, ge=10, le=350)
+    firecrawl_api_key: SecretStr | None = None
+    autonomous_research_max_cost_usd: Decimal = Field(default=Decimal("0"), ge=0, le=2)
+    firecrawl_search_cost_usd: Decimal | None = Field(default=None, gt=0, le=2)
+    firecrawl_scrape_cost_usd: Decimal | None = Field(default=None, gt=0, le=2)
     model_config = SettingsConfigDict(
         env_file=Path(__file__).resolve().parents[3] / ".env", extra="ignore"
     )

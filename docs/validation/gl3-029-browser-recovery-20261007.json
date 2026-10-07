@@ -1,0 +1,54 @@
+{
+  "candidate": "398b61f30a9975dbcea63553c3d06bf22794465e",
+  "product_changed": false,
+  "merge_ready": false,
+  "browser": {
+    "startTime": "2026-10-07T04:12:32.614Z",
+    "duration": 35269.189999999995,
+    "expected": 38,
+    "skipped": 0,
+    "unexpected": 4,
+    "flaky": 0
+  },
+  "el_paso": {
+    "retained_body_sha256": "54763521b587553c57ecad4727ff9edb8b93be32cbe729d426d8662253250b34",
+    "new_network_requests": 0,
+    "observations_added": 1,
+    "signals_added": 0,
+    "canonical_disposition": "rejected"
+  },
+  "georgia": {
+    "started_at": "2026-10-07T04:11:21.474516+00:00",
+    "provider_cost_usd": 0,
+    "model_calls": 0,
+    "max_seconds": 180,
+    "max_requests": 55,
+    "status": "failed",
+    "error_type": "SourceParseError",
+    "error": "Georgia PDF does not bind the listed facility/application to its site location",
+    "finished_at": "2026-10-07T04:11:59.611316+00:00",
+    "elapsed_seconds": 38.13733396699536,
+    "request_count": 29
+  },
+  "artifact_sha256": {
+    ".artifacts/regeneration/browser-prereq-elpaso/receipt.json": "43516c844c5589851c8cb72ae84eec42f7fa7662c89e47809fd369a78d7a960b",
+    ".artifacts/regeneration/georgia-browser-collection/receipt.json": "a34ba50ae2d299195a3f20b454b6784bc517057c338fcc84b8a173bfbdcb2f32",
+    ".artifacts/regeneration/georgia-browser-collection/requests.json": "76c274cbb83b02e6c0022fc6e7c732a39208171460c03f379706431e2b6efa70",
+    ".artifacts/regeneration/browser-recovered-elpaso.json": "14062975b79c9e44a2a040efe535ace9235a76646508f1f5e7d5a007ac6ac613",
+    ".artifacts/regeneration/browser-recovered-elpaso.log": "c8c88e42440badefc5adb58e7893c369d7ce4712881b993ef9cda72fb9474f3a",
+    ".artifacts/regeneration/browser-recovered-elpaso-exit.json": "2618b95f1f6be6bfde8537756f85b83845d039001563135b9d59d817446733eb",
+    ".artifacts/regeneration/browser-austin-collection/collection.json": "77c7c6ae2bc684fc00dd64e598e8b4a61ef3a84ea482dd28ea301c40af958452",
+    ".artifacts/regeneration/browser-prereq-austin/receipt.json": "4be0be164c5312bbefd59fcc11f29c51b1e1c9b5bd6fc696e868e8d34958972e"
+  },
+  "subsequent_austin_preparation": {
+    "after_browser_run": true,
+    "records": [
+      "2026-109172 EP",
+      "2026-119402 EP",
+      "2026-119402 BP"
+    ],
+    "new_observations": 3,
+    "signals": 3,
+    "legacy_research_run": false
+  }
+}

@@ -1,0 +1,85 @@
+{
+  "tested_candidate": "ecbcf03cdbde884a9f9c8d9506539753e09a1cb1",
+  "product_commit": "92f7689544c6e72929615e3cad1a012fa38e5caf",
+  "merge_ready": false,
+  "backend": {
+    "passed": 1229,
+    "skipped": 1,
+    "warnings": 1,
+    "seconds": 147.09
+  },
+  "validator_subset": {
+    "passed": 71,
+    "overlaps_full_suite": true
+  },
+  "browser": {
+    "passed": 37,
+    "failed": 5,
+    "skipped": 0,
+    "flaky": 0,
+    "seconds": 36.560196,
+    "failures": [
+      {
+        "test": "mobile health, ordinary news inbox, and browser history show actual local data states",
+        "requirement": "El Paso records absent; total zero"
+      },
+      {
+        "test": "live air documents retain equipment context without creating rental MW",
+        "requirement": "Georgia air example with reported power facts absent"
+      },
+      {
+        "test": "live data-center permit enrichment exposes attributed fields and organizations",
+        "requirement": "Georgia QTS ATL3 example absent"
+      },
+      {
+        "test": "real pursuits retain evidence gates and a saved owner call outcome across reload",
+        "requirement": "Legacy saved pursuits empty; Kramer scope required"
+      },
+      {
+        "test": "real conflicts, bounded refresh and mobile pursuit history work in the app",
+        "requirement": "Clayton/Stassney conflict examples absent"
+      }
+    ]
+  },
+  "migration": {
+    "checks": {
+      "clean": 0,
+      "clean-drift": 0,
+      "clean-repeat": 0,
+      "drift": 0,
+      "existing": 0,
+      "prepare": 0,
+      "repeat": 0
+    },
+    "exact_full_inventory_match": true,
+    "head": "0014_pursuit_research_questions",
+    "passed": true,
+    "tables_checked": 28
+  },
+  "replay": {
+    "candidate": {
+      "commit": "ecbcf03cdbde884a9f9c8d9506539753e09a1cb1",
+      "source_sha256": "2f79ad311a5d9edd585237ff205b61f9a09731fa909159f4293c98f3a178778f"
+    },
+    "five_category_source_fingerprint_unchanged": true,
+    "openapi_exact": true,
+    "replay_after_sha256": "39d69cdc8a92acec303346f08445766c6308258dfa2b9d97aba0492fddcee44a",
+    "replay_before_sha256": "39d69cdc8a92acec303346f08445766c6308258dfa2b9d97aba0492fddcee44a",
+    "replay_passed": true,
+    "would_create_questions": []
+  },
+  "artifact_sha256": {
+    ".artifacts/regeneration/backend-tests-merge.log": "624dcd00aaf49f5e63e1935c2cbcef6ff0873bbbea84efe7f30628e04ae7a065",
+    ".artifacts/regeneration/validator-tests-merge.log": "f2e39810040bc46f3ac3d492fe278c34cb2e4ebad1b9631bef158aa077856218",
+    ".artifacts/regeneration/ruff-merge.log": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+    ".artifacts/regeneration/mypy-merge.log": "4083cc36ce0af014fd97919ec50ce462d15ed538eb9ce7e05c7828d300f7c67b",
+    ".artifacts/regeneration/typecheck-merge.log": "2ed7bd9429f03c4125fd3cd1b8b752d8135892f09eb7ff8609ac5c3677b941b6",
+    ".artifacts/regeneration/build-merge.log": "e089b442ce1756ae4e0f5cf13ee0c78d97596153c38f64b5da659dd8476cec49",
+    ".artifacts/regeneration/audit-merge.log": "6d8c5c8f3d7684adb070417bd608d01ae90aa3dc26a65af03ffda4955f38d9a3",
+    ".artifacts/regeneration/browser-full-merge.log": "33a916e548dd6ee1a6c78f2065bf877c7b0c6eb2fa8583ea5a6bf9016d994d81",
+    ".artifacts/regeneration/browser-full-merge.json": "5bf73912697d704f2c2922d6143c5632a3556fe3547031ea4e29208b098f2562",
+    ".artifacts/regeneration/browser-full-merge-exit.json": "2618b95f1f6be6bfde8537756f85b83845d039001563135b9d59d817446733eb",
+    ".artifacts/regeneration/migration-preservation-merge.json": "a22ea8424385767285c9ad6d73206967da64056fdb50607882cf0f485e830a0a",
+    ".artifacts/regeneration/merge-replay-openapi.json": "3cb2a35cacdaa234ea1a2b9c451f560d8c489e290c28668f4b0a7783963d4dc2"
+  }
+}

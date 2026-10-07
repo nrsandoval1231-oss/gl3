@@ -256,6 +256,133 @@ def records_from_snapshots(snapshots: list[list[dict[str, Any]]]) -> list[dict[s
     return output
 
 
+def reconstruct_retained_record(
+    abstract: str, *, permit_number: str, observed_at: datetime
+) -> dict[str, Any]:
+    """Validate retained native bytes, without claiming a new retrieval.
+
+    Filename and ordinal are ingestion provenance, not independently authenticated
+    publisher facts. Raw root/master/opaque children must recreate the whole stored
+    abstract exactly; callers must also bind the result to canonical row fields.
+    """
+    provenance_marker = "\nSource segment provenance: "
+    raw_marker = "\nOpaque source bytes (base64; not interpreted): "
+    try:
+        if (
+            not isinstance(abstract, str)
+            or len(abstract.encode("utf-8")) > 750_000
+            or not re.fullmatch(r"[0-9]{7}", permit_number)
+            or not isinstance(observed_at, datetime)
+            or observed_at.tzinfo is None
+            or observed_at.utcoffset() is None
+            or abstract.count(provenance_marker) != 1
+            or abstract.count(raw_marker) != 1
+        ):
+            raise SourceParseError("RRC retained input shape or byte bound invalid")
+
+        def unique_object(pairs):
+            result = {}
+            for key, value in pairs:
+                if key in result:
+                    raise SourceParseError("RRC retained JSON duplicate key")
+                result[key] = value
+            return result
+
+        _, sections = abstract.split(provenance_marker)
+        provenance_text, raw_text = sections.split(raw_marker)
+        provenance = json.loads(provenance_text, object_pairs_hook=unique_object)
+        raw_versions = json.loads(raw_text, object_pairs_hook=unique_object)
+        if (
+            not isinstance(provenance, list)
+            or not 1 <= len(provenance) <= 20
+            or not isinstance(raw_versions, dict)
+            or not 1 <= len(raw_versions) <= 20
+        ):
+            raise SourceParseError("RRC retained segment count invalid")
+        decoded = {}
+        total = 0
+        for raw_hash, encoded in raw_versions.items():
+            if not re.fullmatch(r"[a-f0-9]{64}", raw_hash) or not isinstance(encoded, str):
+                raise SourceParseError("RRC retained raw identity invalid")
+            raw = base64.b64decode(encoded, validate=True)
+            total += len(raw)
+            if total > 750_000 or base64.b64encode(raw).decode("ascii") != encoded:
+                raise SourceParseError(
+                    "RRC retained decoded bytes exceed bounds or encoding invalid"
+                )
+            if hashlib.sha256(raw).hexdigest() != raw_hash:
+                raise SourceParseError("RRC retained raw hash mismatch")
+            decoded[raw_hash] = raw
+        expected_keys = {"filename", "source_url", "ordinal", "sequence", "raw_sha256"}
+        seen_provenance = set()
+        sequence_hashes: dict[int, str] = {}
+        used_hashes = set()
+        snapshots = []
+        today = source_today(observed_at)
+        for item in provenance:
+            if not isinstance(item, dict) or set(item) != expected_keys:
+                raise SourceParseError("RRC retained provenance fields invalid")
+            if (
+                type(item["ordinal"]) is not int
+                or not 1 <= item["ordinal"] <= 5000
+                or type(item["sequence"]) is not int
+                or not 1 <= item["sequence"] <= 99
+                or not isinstance(item["filename"], str)
+                or not isinstance(item["source_url"], str)
+                or not isinstance(item["raw_sha256"], str)
+            ):
+                raise SourceParseError("RRC retained provenance values invalid")
+            filename = item["filename"]
+            if item["source_url"] == PORTAL:
+                valid_file = filename == "daf420.dat"
+            elif item["source_url"] == MONTHLY_PORTAL:
+                valid_file = bool(
+                    re.fullmatch(r"daf420\.dat\.[0-9]{2}-[0-9]{2}-[0-9]{4}", filename)
+                )
+                if valid_file:
+                    month_end = datetime.strptime(
+                        filename.removeprefix("daf420.dat."), "%m-%d-%Y"
+                    ).date()
+                    valid_file = (month_end + timedelta(days=1)).day == 1 and month_end <= today
+            else:
+                valid_file = False
+            if not valid_file:
+                raise SourceParseError("RRC retained source URL or filename invalid")
+            identity = json.dumps(item, sort_keys=True)
+            if identity in seen_provenance:
+                raise SourceParseError("RRC retained duplicate provenance")
+            seen_provenance.add(identity)
+            raw_hash = item["raw_sha256"]
+            if raw_hash not in decoded:
+                raise SourceParseError("RRC retained provenance lacks bytes")
+            previous_hash = sequence_hashes.setdefault(item["sequence"], raw_hash)
+            if previous_hash != raw_hash:
+                raise SourceParseError("RRC retained conflicting same-sequence bytes")
+            rows = parse_snapshot(
+                decoded[raw_hash], filename=filename, today=today, source_url=item["source_url"]
+            )
+            if (
+                len(rows) != 1
+                or rows[0]["number"] != permit_number
+                or rows[0]["sequence"] != item["sequence"]
+            ):
+                raise SourceParseError("RRC retained permit or sequence mismatch")
+            # The source ordinal cannot be recovered from a retained single permit block.
+            rows[0]["ordinal"] = item["ordinal"]
+            snapshots.append(rows)
+            used_hashes.add(raw_hash)
+        if used_hashes != set(decoded):
+            raise SourceParseError("RRC retained unreferenced bytes")
+        records = records_from_snapshots(snapshots)
+        if len(records) != 1 or records[0]["abstract"] != abstract:
+            raise SourceParseError("RRC retained abstract does not exactly reconstruct")
+        return records[0]
+    except SourceParseError:
+        raise
+    except (ValueError, TypeError, KeyError, OverflowError, UnicodeError, RecursionError) as exc:
+        raise SourceParseError("RRC retained content is malformed") from exc
+
+
 def amendment_sequence(abstract: str | None) -> int | None:
     values = re.findall(r"^amendment_sequence: (\d{1,2})$", abstract or "", re.M)
     return int(values[0]) if len(values) == 1 else None

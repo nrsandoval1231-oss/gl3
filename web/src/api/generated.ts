@@ -351,6 +351,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/commercial/triage/{need_id}/autonomous-research": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Autonomous Research Status */
+        get: operations["autonomous_research_status_api_commercial_triage__need_id__autonomous_research_get"];
+        put?: never;
+        /** Request Autonomous Research */
+        post: operations["request_autonomous_research_api_commercial_triage__need_id__autonomous_research_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/commercial/triage/history": {
         parameters: {
             query?: never;
@@ -410,6 +428,19 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** AutonomousResearchBody */
+        AutonomousResearchBody: {
+            /**
+             * Force
+             * @default false
+             */
+            force: boolean;
+        };
+        /** AutonomousResearchOut */
+        AutonomousResearchOut: {
+            /** Items */
+            items: components["schemas"]["ResearchQuestionOut"][];
+        };
         /** BriefCitationOut */
         BriefCitationOut: {
             /** Evidence Id */
@@ -725,6 +756,10 @@ export interface components {
         };
         /** CommercialTriageCard */
         CommercialTriageCard: {
+            /** Research State */
+            research_state?: {
+                [key: string]: unknown;
+            };
             /**
              * Id
              * Format: uuid
@@ -990,6 +1025,7 @@ export interface components {
         };
         /** CommercialTriageOut */
         CommercialTriageOut: {
+            research_overview?: components["schemas"]["ResearchOverviewOut"] | null;
             /**
              * Evaluated At
              * Format: date-time
@@ -1734,6 +1770,254 @@ export interface components {
             /** Queued */
             queued: string[];
         };
+        /** ResearchChangeOut */
+        ResearchChangeOut: {
+            /** Id */
+            id: string;
+            /**
+             * Pursuit Id
+             * Format: uuid
+             */
+            pursuit_id: string;
+            /**
+             * Need Id
+             * Format: uuid
+             */
+            need_id: string;
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /** Version */
+            version: number;
+            /** Evaluated At */
+            evaluated_at?: string | null;
+            /** Name */
+            name: string;
+            /** Before */
+            before: string;
+            /** After */
+            after: string;
+            /** Before Tier */
+            before_tier?: string | null;
+            /** After Tier */
+            after_tier?: string | null;
+            /** Reason */
+            reason?: string | null;
+            /** Next Action */
+            next_action?: string | null;
+            /** New Evidence */
+            new_evidence?: components["schemas"]["CommercialTriageFact"][];
+            /** Question Ids */
+            question_ids?: string[];
+        };
+        /** ResearchContextOut */
+        ResearchContextOut: {
+            /** Route Plan */
+            route_plan?: components["schemas"]["ResearchRouteOut"][];
+        } & {
+            [key: string]: unknown;
+        };
+        /** ResearchMetricsOut */
+        ResearchMetricsOut: {
+            /**
+             * Blockers Attempted
+             * @default 0
+             */
+            blockers_attempted: number;
+            /** Blocker Statuses */
+            blocker_statuses?: {
+                [key: string]: number;
+            };
+            /** Commercial Transitions */
+            commercial_transitions?: {
+                [key: string]: number;
+            };
+            /** Evidence Tier Transitions */
+            evidence_tier_transitions?: {
+                [key: string]: number;
+            };
+        } & {
+            [key: string]: unknown;
+        };
+        /** ResearchOverviewOut */
+        ResearchOverviewOut: {
+            /** Since */
+            since?: string | null;
+            summary: components["schemas"]["ResearchMetricsOut"];
+            /** Items */
+            items?: components["schemas"]["ResearchChangeOut"][];
+        };
+        /** ResearchQuestionOut */
+        ResearchQuestionOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /**
+             * Need Id
+             * Format: uuid
+             */
+            need_id: string;
+            /**
+             * Pursuit Id
+             * Format: uuid
+             */
+            pursuit_id: string;
+            /** Category */
+            category: string;
+            /** Question */
+            question: string;
+            /** Status */
+            status: string;
+            /** Attempt Count */
+            attempt_count: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Completed At */
+            completed_at: string | null;
+            /** Retry After */
+            retry_after: string | null;
+            /** Query Fingerprint */
+            query_fingerprint: string;
+            /** Evidence Fingerprint */
+            evidence_fingerprint: string;
+            context: components["schemas"]["ResearchContextOut"];
+            /** Budget */
+            budget: {
+                [key: string]: unknown;
+            };
+            receipt: components["schemas"]["ResearchReceiptOut"];
+        };
+        /** ResearchReceiptOut */
+        ResearchReceiptOut: {
+            /** Route Results */
+            route_results?: components["schemas"]["ResearchRouteOut"][];
+            /** Source Checks */
+            source_checks?: components["schemas"]["ResearchSourceCheckOut"][];
+            /** Resulting Evidence Ids */
+            resulting_evidence_ids?: string[];
+            /** Queries Generated */
+            queries_generated?: string[];
+            /** Queries Attempted */
+            queries_attempted?: string[];
+            /** Queries Searched */
+            queries_searched?: string[];
+            /** Acquisition Limitations */
+            acquisition_limitations?: string[];
+            /**
+             * Reevaluation Status
+             * @default NOT_STARTED
+             */
+            reevaluation_status: string;
+            /** Next Action */
+            next_action?: string | null;
+            /** Before */
+            before?: string | null;
+            /** After */
+            after?: string | null;
+            /** Reason */
+            reason?: string | null;
+            /** Error */
+            error?: string | null;
+            /** Tier */
+            tier?: string | null;
+            /** Remaining Blockers */
+            remaining_blockers?: string[];
+            /** Runtime Seconds */
+            runtime_seconds?: number | null;
+            /**
+             * Searches
+             * @default 0
+             */
+            searches: number;
+            /**
+             * Retrieval Attempts
+             * @default 0
+             */
+            retrieval_attempts: number;
+            /**
+             * Model Calls
+             * @default 0
+             */
+            model_calls: number;
+            /** Cost Usd */
+            cost_usd?: string | null;
+            /** Reserved Cost Usd */
+            reserved_cost_usd?: string | null;
+        };
+        /** ResearchRouteOut */
+        ResearchRouteOut: {
+            /** Query */
+            query?: string | null;
+            /** Kind */
+            kind: string;
+            /** Family */
+            family: string;
+            /** Status */
+            status: string;
+            /** Source Id */
+            source_id?: string | null;
+            /** External Id */
+            external_id?: string | null;
+            /** Url */
+            url?: string | null;
+            /** Reason */
+            reason?: string | null;
+        };
+        /** ResearchSourceCheckOut */
+        ResearchSourceCheckOut: {
+            /** Event Date */
+            event_date?: string | null;
+            /** Match Basis */
+            match_basis?: string | null;
+            /** Evidence Url */
+            evidence_url?: string | null;
+            /** Claim Type */
+            claim_type?: string | null;
+            /** Publisher */
+            publisher?: string | null;
+            /** Extraction Location */
+            extraction_location?: string | null;
+            /** Checked At */
+            checked_at?: string | null;
+            /**
+             * Cache Reused
+             * @default false
+             */
+            cache_reused: boolean;
+            /**
+             * Duplicate
+             * @default false
+             */
+            duplicate: boolean;
+            /** Url */
+            url: string;
+            /** Disposition */
+            disposition: string;
+            /** Reason */
+            reason: string;
+            /** Evidence Id */
+            evidence_id?: string | null;
+            /** Label */
+            label?: string | null;
+            /** Excerpt */
+            excerpt?: string | null;
+            /** Published At */
+            published_at?: string | null;
+            /** Retrieved At */
+            retrieved_at?: string | null;
+        };
         /** SessionOut */
         SessionOut: {
             /** Authenticated */
@@ -2363,6 +2647,72 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CommercialTriageOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    autonomous_research_status_api_commercial_triage__need_id__autonomous_research_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                need_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutonomousResearchOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    request_autonomous_research_api_commercial_triage__need_id__autonomous_research_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                need_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AutonomousResearchBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AutonomousResearchOut"];
                 };
             };
             /** @description Validation Error */

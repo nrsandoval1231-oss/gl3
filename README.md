@@ -1,5 +1,9 @@
 # GridLens 3
 
+**October 7, 2026:** GL3-029 is implemented and locally validated: **1,232 backend tests passed / one optional skip; all 42 browser tests passed**. The unchanged five-category fresh-corpus gate passes 5/5, with six honest UNRESOLVED blockers and no promotions. Migrations, preservation, replay and independent review pass. [Final acceptance](docs/validation/gl3-029-final-acceptance-20261007.md) · [current state](.agent/CURRENT_STATE.md) · [PR24](https://github.com/nrsandoval1231-oss/gl3/pull/24).
+
+Positive autonomous new-fact resolution remains unproven; discovery credentials/spending were not configured. Meaningful bounded unresolved outcomes are permitted. Fresh regenerated validation is not original retained PR23 proof. No outreach or cloud deployment occurred.
+
 GridLens 3 is a private, evidence-backed workspace for discovering emerging commercial power needs. The current local candidate registry enables 20 public sources spanning municipal planning notices, construction permits, air permitting/regulatory records, government/economic-development publications, public documents, and industry news. The system preserves source observations and evidence history, groups supported records into project-oriented Signal cards, and keeps unsupported commercial facts explicitly unknown.
 
 Main includes PR15 at `ce6b8fc` (city permits, cultivation Signals, commercial filtering and cited OpenAI-assisted briefs). GL3-026 adds Boston permits, an All Signals view, consolidated source-sector filters and a live registry-backed source selector. Firecrawl assisted nationwide source discovery; routine Boston acquisition uses the official CKAN API. See [GL3-026 validation](docs/validation/gl3-026-national-intake.md). National completeness and deployed daily cloud operation remain unproven.
@@ -13,6 +17,12 @@ The next working slice adds persisted daily Austin/RRC pursuits, bounded officia
 ## GL3-028 evidence graph slice
 
 GL3-028 is merged to `main` via PR #21 at merge commit `43424be`. It adds authenticated current-project state projection, evidence-backed material-change history, and an explicit zero-authority EvidenceJudge shadow command. Jev remains separate from signal adjudication, and normal ingestion does not call it. Migrations `0012` and `0013` add project state revisions, shadow attempt records, and durable bounded-scan position. See the [final PR #21 correctness report](docs/validation/PR21-CORRECTNESS-REPAIR.md), [accepted validation evidence](.agent/artifacts/PR21-REPAIR/VALIDATION.json), [retained review](.agent/artifacts/PR21-REPAIR/REVIEW.json), [browser evidence](.agent/artifacts/PR21-REPAIR/BROWSER.json), [preservation evidence](.agent/artifacts/PR21-REPAIR/PRESERVATION.json), and [operator limits](docs/operations/power-pursuits.md). Final local gates recorded 703 backend tests passed with one existing environment-dependent skip and 12 migration checks passed. This is a merged implementation claim only; cloud deployment and unattended production operation remain separate open milestones.
+
+## GL3-029 autonomous pursuit research
+
+The isolated current-main candidate adds durable bounded research questions, retained-first acquisition, canonical evidence admission, deterministic reevaluation, and inspectable receipts. It preserves evidence/tier authority, explicit UNKNOWN, budget/replay controls, canonical category evidence proof, and no-outreach boundaries.
+
+The final candidate passes the original browser workflows after genuine source recovery, a narrow Georgia legal-name normalization correction, and owner-authorized bounded TDLR research. Qualification, facility/site matching and buyer authority remain deterministic. Current results and earlier preserved failure receipts are linked in the [final report](docs/validation/gl3-029-final-acceptance-20261007.md). The [delivery inventory](docs/validation/gl3-029-delivery-checkpoint-20261007.md) explains locally retained artifacts and the unconfigured Firecrawl next step.
 
 ## Product model
 
@@ -81,7 +91,7 @@ npm --prefix web run build
 npm --prefix web audit --audit-level=high
 ```
 
-GL3-019 passed 418 backend tests (one existing missing-fixture skip), Ruff/mypy, frontend typecheck/build, clean/repeated migrations with no drift, live replay/provenance audits and 13 browser checks (11 repository checks plus two saved-cloud live acceptance cases). See [the validation report](docs/validation/gl3-019-acquisition-continuation.md); the additional live cases remain captured acceptance artifacts, not repository tests. The earlier hosted GitHub Actions payment/spending-limit blocker is historical. Main-head [run 37164959427](https://github.com/nrsandoval1231-oss/gl3/actions/runs/37164959427) at `6c8bdf3e3163adde078f8543d43c0256bc11eb82` completed its backend and web checks successfully on October 4, 2026; this does not establish deployment or unattended daily operation.
+GL3-019 passed 418 backend tests (one existing missing-fixture skip), Ruff/mypy, frontend typecheck/build, clean/repeated migrations with no drift, live replay/provenance audits and 13 browser checks (11 repository checks plus two saved-cloud live acceptance cases). See [the validation report](docs/validation/gl3-019-acquisition-continuation.md); the additional live cases remain captured acceptance artifacts, not repository tests. The prior GitHub billing block is historical: main run `37164959427` and PR24 run `37222313567` both completed successfully with backend and web jobs on October 4. This does not establish browser, retained-corpus or deployment acceptance.
 
 Runtime status and bounded in-place source recovery are available through `python -m gridlens.jobs.runtime` with the backend environment. See [runtime recovery](docs/operations/runtime-recovery.md) for registry reconciliation, selected checks, retry behavior and operational limits.
 
@@ -111,4 +121,3 @@ GL3-017 through GL3-019 are merged; this is not a deployment claim. GL3-018 live
 GL3-019 prioritizes **data-center construction temporary power**, then **data-center commissioning temporary power**, then **oil and gas temporary power**. Permit-derived project/site, scope, dates and organizations should be useful directly from retained evidence. Drilling permits are valid early production Signals without an already-proven power gap; production date, load and fuel suitability stay unknown unless supported. Upstream wells and fixed O&G infrastructure retain separate lifecycles. News stays supplemental.
 
 GL3-019 repaired permit enrichment using existing evidence and persistence. GL3-023 adds bounded Dallas monthly, El Paso NewCommercial, and Houston weekly Sold Permit acquisition, with source-specific event semantics and role-attributed enrichment. Each route has limited geographic, permit-type, and date coverage; current permit activity, commissioning, rental demand, fuel fit, and buying authority remain UNKNOWN unless separately supported. See [GL3-023 city permit coverage and limits](docs/sources/gl3-023-city-permits.md). The discontinued Dallas open-data dataset remains disabled.
-

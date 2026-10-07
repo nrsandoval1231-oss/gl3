@@ -27,3 +27,84 @@ GridLens is a project-reconstruction and commercial timing engine, not a generic
 Adopt the architecture in [Evidence Graph and Jev Judgment Architecture](architecture/evidence-graph-jev.md). Preserve current collectors, admission rules, deterministic promotion gates, and Signal/Prospect/Lead semantics during migration. Code owns facts, hard rules, math, state and writes. Jev is a fast bounded judgment layer for relevance, ambiguous entity adjudication, event classification, change significance, power relevance and enrichment escalation. Deep generative models are reserved for complex synthesis/research.
 
 First Jev slice is a feature-flagged `EvidenceJudge` in shadow mode. It has no initial authority to mutate canonical truth or promotion outcomes. Measure precision, false positives/negatives, latency, cost, invalid/timeout behavior and escalation yield on labeled existing evidence before expanding authority. Failure falls back to existing deterministic behavior. Do not add a general Jev framework or another orchestration layer.
+
+
+## October 4, 2026 — Bounded autonomous pursuit questions (candidate)
+
+Reuse PostgreSQL Job targets and fencing, canonical ingestion, conservative exact
+project matching, buying-chain provenance, and the commercial evaluator. Add one
+question table because existing brief caching cannot represent two separately
+bounded blockers with histories and retry windows. Keep acquisition and evidence
+admission separate; a search result is never canonical evidence. Reserve request
+budgets before I/O and persist uncertain completion instead of retrying paid requests
+blindly. Reevaluate through the shared deterministic service, never worker-assigned
+pursuit states. Reject a general orchestration framework and new persistence layer.
+This implements the GL3-029 objective without changing Signal/Prospect/Lead gates.
+Local fixtures now cover commercial transitions and positive Prospect/Lead gates;
+required original retained-corpus proof remains blocked. Typed public reports are
+independent source-attributed facts, never positive qualification authority. Add a
+narrow official-permit implementation of existing PRD criteria rather than inventing
+a research-worker promotion path. Keep conflicts and dated corrections explicit.
+Hourly saved-target projection avoids shortlist starvation; immutable evaluation
+versions drive morning metrics. No new model or orchestration framework is added.
+
+### Same-candidate review repairs
+
+Keep blocking DNS, HTTP and parsing inside killable acquisition-only child processes
+under the existing question deadline and 512 MiB address-space cap. Budget reservation,
+lease ownership and all database writes remain in the parent worker; this is a bounded
+I/O boundary, not another orchestration system. Reject whole oversized/incomplete
+public inputs rather than extracting a prefix that might omit contradictory text.
+Allow separately budgeted rendering only for successful explicit public JavaScript
+shells; access restrictions never justify a fallback.
+
+Reuse six stable native GET routes and proven-complete retained public inputs with
+original evidence identity. Exact validated registry hosts can support supplements,
+not inherit native-source qualification authority. Record partial progress only for
+the question actually asked. Accept explicitly supported aggregate nonzero suitable
+supply over the full activity interval, calculate conservative residual bounds, and
+apply the Lead commercial floor to remaining need. No suitability, component totals,
+project assignments or buying authority are inferred. Final repaired-candidate gates
+and original retained-corpus proof remain distinct from these implementation decisions.
+
+## October 7, 2026 — fresh corpus regeneration authorization
+
+The owner directed recreation of missing corpus/R4 artifacts, superseding original archive recovery. Preserve historical results; label all new records and receipts `reingested` with acquisition UTC, source identity, hashes, candidate and database provenance. Do not alter the original retained-proof branch or five-cohort predicate. An explicitly partial diagnostic reuses existing canonical case checks, bounded execution, preservation and replay while forcing full and retained acceptance false. Unsupported O&G candidates remain ineligible.
+
+The regeneration wrapper uses existing native permit adapters and PostgreSQL jobs/admission. Federal Register is excluded from this wrapper because its ingestion can implicitly retrieve companion PDFs outside the collection budget. Full-table row inventories verify isolated backup/restore. No general orchestration, source authority expansion, paid provider enablement, outreach or deployment is introduced.
+
+### October 7 — prevent avoidable stale siblings at planning
+
+The first regenerated run demonstrated two obsolete queued siblings after retained
+buying-chain derivation. Preserve those failed receipts and the worker freshness
+check. Derive already-retained relationships before freezing new question contexts,
+then use the existing deterministic evaluator. Exclude active projects and serialize
+project locks in stable order. New corpus validation must prove both siblings finish
+on unchanged native evidence and real post-queue changes still stop before I/O.
+Drilling remains eligible for early O&G Signals under the existing RRC admission
+policy; the initial fixed-infrastructure-only scout was too narrow and is not proof
+that the existing drilling route lacks eligible records.
+
+### October 7 — bounded inspection of complete retained RRC records
+
+After explicit owner authorization, the existing anonymous RRC public-download form
+retrieved real daily/monthly files for fresh corpus regeneration. Exactly one selected
+approved drilling record entered the existing canonical pipeline. Autonomous research
+may inspect its complete retained native bytes through the existing parser/renderer,
+strict bounded reconstruction and accepted exact identity checks. This is Tier A
+inspection with original acquisition timestamps, not a new network adapter or a
+claim of exhaustive public research. Opaque child records remain uninterpreted and
+permit approval does not establish current drilling, temporary demand or buying power.
+
+Keep the existing validator and finite provider-unavailable retry behavior unchanged.
+All five regenerated categories now pass mechanical investigation/preservation/replay;
+six blockers remain unresolved, with no promotion. Historical original-corpus proof
+and unavailable historical browser prerequisites are not substituted. Canonical docs
+link the final exact-candidate report; older failure/authorization receipts remain
+immutable history. No new architecture, migration, outreach or deployment follows.
+
+## October 7, 2026 — complete local acceptance and bounded TDLR retrieval
+
+The owner authorized the existing public TDLR search form solely for retrieval after the original no-forms boundary was explained (message Sentinel_e58b307f03488191abf3194a12196ad4, 04:30:46 UTC). This permits rebuilding real legacy pursuit/conflict history and conditional merge; it does not authorize outreach, login, purchases, credentials or deployment.
+
+Keep canonical admission unchanged. A proven Georgia false negative was corrected by normalizing the legal term Company, retaining exact station/city checks. Rejected corpus candidates stayed rejected; genuine additional manufacturing permits supplied history pagination, with same-address phases retaining separate stable identities. All 42 browser tests and 1,232 backend tests pass (one optional skip); final fresh five-category acceptance is 5/5 with honest unresolved results. Positive autonomous new-fact resolution is not claimed. See [final evidence](validation/gl3-029-final-acceptance-20261007.md).

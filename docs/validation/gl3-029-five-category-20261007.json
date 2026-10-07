@@ -1,0 +1,1997 @@
+{
+  "schema_version": 1,
+  "kind": "reingested",
+  "candidate": {
+    "commit": "92f7689544c6e72929615e3cad1a012fa38e5caf",
+    "source_sha256": "2f79ad311a5d9edd585237ff205b61f9a09731fa909159f4293c98f3a178778f"
+  },
+  "scope": "full_five_category_mechanical_validation",
+  "full_five_cohort_acceptance": true,
+  "historical_recovery": "superseded by owner; not passed",
+  "retained_corpus_proof": false,
+  "operator_attested_retained_corpus_validation": false,
+  "started_at": "2026-10-07T03:11:33.509467+00:00",
+  "finished_at": "2026-10-07T03:11:50.906189+00:00",
+  "baseline_sha256": "b7c08b3d58de84a13471efad38b77da5aeb250bd845e67c8da422952f1d60243",
+  "baseline_metrics": {
+    "attempted_question_origins": {},
+    "attempts_with_unknown_actual_cost": 0,
+    "automatically_investigated_pursuits": 0,
+    "average_actual_cost_per_pursuit_usd": null,
+    "average_retrieval_attempts_per_blocker": null,
+    "average_searches_per_attempted_blocker": null,
+    "average_unique_checked_urls_per_blocker": null,
+    "blocker_statuses": {},
+    "blockers_attempted": 0,
+    "commercial_transitions": {},
+    "current_pursuits": {
+      "ACTION NOW": 6,
+      "RESEARCH": 3,
+      "WATCH": 1
+    },
+    "duplicate_work_avoided": 0,
+    "evidence_tier_transitions": {},
+    "failure_rate": null,
+    "investigated_pursuits": 0,
+    "known_actual_cost_usd": "0",
+    "median_research_latency_seconds": null,
+    "model_calls": 0,
+    "question_time_basis": "Latest creation, recorded attempt, or completion time; counters are cumulative for those selected questions, not provider billing in the time window.",
+    "reserved_cost_usd": "0",
+    "scope": "Configured database; current cohort capped at 50; not retained-corpus proof.",
+    "since": null,
+    "transition_receipts": []
+  },
+  "metrics": {
+    "attempted_question_origins": {
+      "validation": 6
+    },
+    "attempts_with_unknown_actual_cost": 0,
+    "automatically_investigated_pursuits": 0,
+    "average_actual_cost_per_pursuit_usd": "0",
+    "average_retrieval_attempts_per_blocker": 0.3333333333333333,
+    "average_searches_per_attempted_blocker": 0.0,
+    "average_unique_checked_urls_per_blocker": 1.0,
+    "blocker_statuses": {
+      "UNRESOLVED": 6
+    },
+    "blockers_attempted": 6,
+    "commercial_transitions": {},
+    "current_pursuits": {
+      "ACTION NOW": 2,
+      "RESEARCH": 2,
+      "WATCH": 1
+    },
+    "duplicate_work_avoided": 4,
+    "evidence_tier_transitions": {},
+    "failure_rate": 0.0,
+    "investigated_pursuits": 3,
+    "known_actual_cost_usd": "0",
+    "median_research_latency_seconds": 1.2725,
+    "model_calls": 0,
+    "question_time_basis": "Latest creation, recorded attempt, or completion time; counters are cumulative for those selected questions, not provider billing in the time window.",
+    "reserved_cost_usd": "0",
+    "scope": "Configured database; current cohort capped at 50; not retained-corpus proof.",
+    "since": "2026-10-07T03:11:33.509467+00:00",
+    "transition_receipts": []
+  },
+  "preservation": {
+    "evaluation_history_preserved": true,
+    "immutable_tables": {
+      "evidence": {
+        "after_count": 15,
+        "before_count": 15,
+        "changed_or_missing_ids": [],
+        "preserved": true
+      },
+      "pursuit_call_notes": {
+        "after_count": 0,
+        "before_count": 0,
+        "changed_or_missing_ids": [],
+        "preserved": true
+      }
+    },
+    "passed": true,
+    "removed_project_or_need_ids": {
+      "power_needs": [],
+      "projects": []
+    }
+  },
+  "replay": {
+    "after_sha256": "39d69cdc8a92acec303346f08445766c6308258dfa2b9d97aba0492fddcee44a",
+    "before_sha256": "39d69cdc8a92acec303346f08445766c6308258dfa2b9d97aba0492fddcee44a",
+    "passed": true,
+    "would_create_questions": []
+  },
+  "pre_research_restore": {
+    "backup_sha256": "2dd076348e03a5b0415b668d11befadc9b5bb7382a05cd7187d845557c6b7f5b",
+    "candidate": {
+      "commit": "5f3933bce3554537a8cbf1b3d37d9cc8b4f09d87",
+      "source_sha256": "76c818fc2515161df434f1238fe10fd6558013e6a2acc3b198df5f3ef987af7f"
+    },
+    "commands": [
+      {
+        "exit_code": 0,
+        "finished_at": "2026-10-07T03:10:26.677890+00:00",
+        "program": "pg_dump",
+        "started_at": "2026-10-07T03:10:26.618282+00:00"
+      },
+      {
+        "exit_code": 0,
+        "finished_at": "2026-10-07T03:10:26.707958+00:00",
+        "program": "createdb",
+        "started_at": "2026-10-07T03:10:26.678295+00:00"
+      },
+      {
+        "exit_code": 0,
+        "finished_at": "2026-10-07T03:10:26.839099+00:00",
+        "program": "pg_restore",
+        "started_at": "2026-10-07T03:10:26.708192+00:00"
+      }
+    ],
+    "database_name": "gl3_regen_20261007_five_run",
+    "evidence_inventory_sha256": "29b7a7b1d9d7b2640a4844372709dfe44097b3fdefc4af6ab87cb4b7c9a28645",
+    "exact_inventory_match": true,
+    "finished_at": "2026-10-07T03:10:26.907843+00:00",
+    "kind": "reingested",
+    "passed": true,
+    "preservation": {
+      "immutable_tables": {
+        "evidence": {
+          "after_count": 15,
+          "before_count": 15,
+          "changed_or_missing_ids": [],
+          "preserved": true
+        },
+        "observations": {
+          "after_count": 15,
+          "before_count": 15,
+          "changed_or_missing_ids": [],
+          "preserved": true
+        },
+        "pursuit_call_notes": {
+          "after_count": 0,
+          "before_count": 0,
+          "changed_or_missing_ids": [],
+          "preserved": true
+        },
+        "sources": {
+          "after_count": 20,
+          "before_count": 20,
+          "changed_or_missing_ids": [],
+          "preserved": true
+        }
+      },
+      "passed": true,
+      "removed_project_or_need_ids": {
+        "power_needs": [],
+        "projects": []
+      }
+    },
+    "retained_corpus_proof": false,
+    "source_database": "gl3_regen_20261007_five_source",
+    "started_at": "2026-10-07T03:10:26.609358+00:00"
+  },
+  "post_research_restore": {
+    "backup_sha256": "0d01f941071c35dbd9f6ce3bac903cc53ab1388f092e5e53a7c23337973a5975",
+    "candidate": {
+      "commit": "92f7689544c6e72929615e3cad1a012fa38e5caf",
+      "source_sha256": "2f79ad311a5d9edd585237ff205b61f9a09731fa909159f4293c98f3a178778f"
+    },
+    "commands": [
+      {
+        "exit_code": 0,
+        "finished_at": "2026-10-07T03:12:03.039330+00:00",
+        "program": "pg_dump",
+        "started_at": "2026-10-07T03:12:02.972121+00:00"
+      },
+      {
+        "exit_code": 0,
+        "finished_at": "2026-10-07T03:12:03.114540+00:00",
+        "program": "createdb",
+        "started_at": "2026-10-07T03:12:03.039706+00:00"
+      },
+      {
+        "exit_code": 0,
+        "finished_at": "2026-10-07T03:12:03.250744+00:00",
+        "program": "pg_restore",
+        "started_at": "2026-10-07T03:12:03.114772+00:00"
+      }
+    ],
+    "database_name": "gl3_regen_20261007_five_live",
+    "evidence_inventory_sha256": "29b7a7b1d9d7b2640a4844372709dfe44097b3fdefc4af6ab87cb4b7c9a28645",
+    "exact_inventory_match": true,
+    "finished_at": "2026-10-07T03:12:03.348837+00:00",
+    "kind": "reingested",
+    "passed": true,
+    "preservation": {
+      "immutable_tables": {
+        "evidence": {
+          "after_count": 15,
+          "before_count": 15,
+          "changed_or_missing_ids": [],
+          "preserved": true
+        },
+        "observations": {
+          "after_count": 15,
+          "before_count": 15,
+          "changed_or_missing_ids": [],
+          "preserved": true
+        },
+        "pursuit_call_notes": {
+          "after_count": 0,
+          "before_count": 0,
+          "changed_or_missing_ids": [],
+          "preserved": true
+        },
+        "sources": {
+          "after_count": 20,
+          "before_count": 20,
+          "changed_or_missing_ids": [],
+          "preserved": true
+        }
+      },
+      "passed": true,
+      "removed_project_or_need_ids": {
+        "power_needs": [],
+        "projects": []
+      }
+    },
+    "retained_corpus_proof": false,
+    "source_database": "gl3_regen_20261007_five_run",
+    "started_at": "2026-10-07T03:12:02.963438+00:00"
+  },
+  "migration": {
+    "checks": {
+      "clean": 0,
+      "clean-drift": 0,
+      "clean-repeat": 0,
+      "drift": 0,
+      "existing": 0,
+      "prepare": 0,
+      "repeat": 0
+    },
+    "exact_full_inventory_match": true,
+    "head": "0014_pursuit_research_questions",
+    "passed": true,
+    "tables_checked": 28
+  },
+  "clean_migration": {
+    "checks": {
+      "clean": 0,
+      "clean-drift": 0,
+      "clean-repeat": 0
+    },
+    "database": "gl3_regen_20261007_five_clean_final",
+    "initially_empty": true,
+    "passed": true
+  },
+  "cases": [
+    {
+      "category": "austin_data_center",
+      "need_id": "afafdd8d-7aad-4e31-a937-53f40db8bdce",
+      "selection_reason": "811 Clayton Ln: native active modular data center electrical permit with cited public project contact.",
+      "case_accepted": true,
+      "acceptance_mode": "OWNER_ACCEPTED_NO_QUESTION_NO_CHANGE",
+      "before": {
+        "name": "AUSTIN permit 2026-036762 EP",
+        "disposition": "ACTION NOW",
+        "tier": "Signal",
+        "blockers": [
+          "buyer or responsible operator",
+          "activity-specific power requirement"
+        ],
+        "unknowns": [
+          "buyer or responsible operator",
+          "activity-specific power requirement",
+          "start window",
+          "duration",
+          "suitable supply",
+          "Need-specific MW remains unknown.",
+          "Need-specific suitable supply and any shortfall remain unknown."
+        ],
+        "input_hash": "e8896b74580dd30afd88f06edef35a610018683cc1a23da34b2035f09fac334b",
+        "next_action": "Call the cited public project contact to confirm stage, need-specific MW, timing, duration, and purchasing role."
+      },
+      "after": {
+        "name": "AUSTIN permit 2026-036762 EP",
+        "disposition": "ACTION NOW",
+        "tier": "Signal",
+        "blockers": [
+          "buyer or responsible operator",
+          "activity-specific power requirement"
+        ],
+        "unknowns": [
+          "buyer or responsible operator",
+          "activity-specific power requirement",
+          "start window",
+          "duration",
+          "suitable supply",
+          "Need-specific MW remains unknown.",
+          "Need-specific suitable supply and any shortfall remain unknown."
+        ],
+        "input_hash": "e8896b74580dd30afd88f06edef35a610018683cc1a23da34b2035f09fac334b",
+        "next_action": "Call the cited public project contact to confirm stage, need-specific MW, timing, duration, and purchasing role."
+      },
+      "questions": []
+    },
+    {
+      "category": "austin_temporary_power",
+      "need_id": "c7205b3b-1273-4c9a-aaff-959b1061f231",
+      "selection_reason": "833 1/2 E Braker Ln: native active permit explicitly requests temporary power.",
+      "case_accepted": true,
+      "acceptance_mode": "OWNER_ACCEPTED_NO_QUESTION_NO_CHANGE",
+      "before": {
+        "name": "Austin permit 2026-127192 EP",
+        "disposition": "ACTION NOW",
+        "tier": "Signal",
+        "blockers": [
+          "buyer or responsible operator",
+          "activity-specific power requirement"
+        ],
+        "unknowns": [
+          "buyer or responsible operator",
+          "activity-specific power requirement",
+          "start window",
+          "duration",
+          "suitable supply",
+          "Need-specific MW remains unknown.",
+          "Need-specific suitable supply and any shortfall remain unknown."
+        ],
+        "input_hash": "46180f90bab06ebff5e260c102cd4ca48085c9b8434a4a82ad9fab3314d8fb53",
+        "next_action": "Call the cited public project contact to confirm stage, need-specific MW, timing, duration, and purchasing role."
+      },
+      "after": {
+        "name": "Austin permit 2026-127192 EP",
+        "disposition": "ACTION NOW",
+        "tier": "Signal",
+        "blockers": [
+          "buyer or responsible operator",
+          "activity-specific power requirement"
+        ],
+        "unknowns": [
+          "buyer or responsible operator",
+          "activity-specific power requirement",
+          "start window",
+          "duration",
+          "suitable supply",
+          "Need-specific MW remains unknown.",
+          "Need-specific suitable supply and any shortfall remain unknown."
+        ],
+        "input_hash": "46180f90bab06ebff5e260c102cd4ca48085c9b8434a4a82ad9fab3314d8fb53",
+        "next_action": "Call the cited public project contact to confirm stage, need-specific MW, timing, duration, and purchasing role."
+      },
+      "questions": []
+    },
+    {
+      "category": "chicago_conversion",
+      "need_id": "f7a89b46-6875-4be0-bfb5-748305657f8f",
+      "selection_reason": "400 S La Salle St: phase 3 office-to-data-center conversion; temporary generation and permanent energization remain unsupported.",
+      "case_accepted": true,
+      "acceptance_mode": "MEANINGFUL_INVESTIGATION",
+      "before": {
+        "name": "Chicago permit 3451848",
+        "disposition": "RESEARCH",
+        "tier": "Signal",
+        "blockers": [
+          "buyer or responsible operator",
+          "activity-specific power requirement"
+        ],
+        "unknowns": [
+          "buyer or responsible operator",
+          "activity-specific power requirement",
+          "start window",
+          "duration",
+          "suitable supply",
+          "Need-specific MW remains unknown.",
+          "Need-specific suitable supply and any shortfall remain unknown."
+        ],
+        "input_hash": "b0fb60a547b135a4214a5354a0ac5249030752695859f4f7999dc4f3c750ffed",
+        "next_action": "Research this exact question: Who is supplying temporary construction or commissioning power, and what dated source states when permanent utility energization is expected?"
+      },
+      "after": {
+        "name": "Chicago permit 3451848",
+        "disposition": "RESEARCH",
+        "tier": "Signal",
+        "blockers": [
+          "buyer or responsible operator",
+          "activity-specific power requirement"
+        ],
+        "unknowns": [
+          "buyer or responsible operator",
+          "activity-specific power requirement",
+          "start window",
+          "duration",
+          "suitable supply",
+          "Need-specific MW remains unknown.",
+          "Need-specific suitable supply and any shortfall remain unknown."
+        ],
+        "input_hash": "a9f7a48f574cc4e4ac9803e007dd6d92fe9765a8b4de37da8d10bb65b6534d92",
+        "next_action": "Research this exact question: Who is supplying temporary construction or commissioning power, and what dated source states when permanent utility energization is expected?"
+      },
+      "questions": [
+        {
+          "id": "4e914459-e5e7-4140-9622-81eeef1a2133",
+          "category": "power_need",
+          "question": "Is a temporary-power requirement documented for this exact activity, separately from its supply adequacy?",
+          "status": "UNRESOLVED",
+          "attempt_count": 1,
+          "created_at": "2026-10-07 03:11:33.517478+00:00",
+          "completed_at": "2026-10-07 03:11:45.797109+00:00",
+          "retry_after": "2026-10-10 03:11:45.797109+00:00",
+          "query_fingerprint": "da7e5c0cc574475f117821884b4d4849cd7179c29ea7f558bdc75e00528057d2",
+          "evidence_fingerprint": "71a875bc64f99f02195609ec57d780094f58cf1fdd5619d7165d6f785909b4e0",
+          "known_facts_before": [
+            {
+              "date": "2026-09-16",
+              "evidence_id": "0c0b8de0-8153-4449-9650-b5a2b65614d7",
+              "hash": "19fc794caae63e8b3b1a4aca011a9b373ae6eb7f9cbcc751f41b2376f1d62bfe",
+              "text": "PHASE 3 OF 3: INTERIOR ALTERATIONS TO EXISTING 7-STORY OFFICE BUILDING TO CONVERT TO A DATA CENTER. WORK TO INCLUDE NEW EQUIPMENT WITH ASSOCIATED MEP UPGRADES. PHASE 1 DEMOLITION ONLY WORK PERMITTED UNDER 101083036. PHASE 2 INFRASTRUCTURE WORK PERMITTED UNDER 101081181. IA CONSTRUCTION; B-BUSINESS",
+              "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273451848%27&%24limit=1"
+            },
+            {
+              "date": "2026-09-16",
+              "evidence_id": "0c0b8de0-8153-4449-9650-b5a2b65614d7",
+              "hash": "19fc794caae63e8b3b1a4aca011a9b373ae6eb7f9cbcc751f41b2376f1d62bfe",
+              "text": "Chicago building permit 3451848 \u2014 PERMIT - RENOVATION/ALTERATION",
+              "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273451848%27&%24limit=1"
+            }
+          ],
+          "unknowns_before": [
+            "buyer or responsible operator",
+            "activity-specific power requirement",
+            "start window",
+            "duration",
+            "suitable supply",
+            "Need-specific MW remains unknown.",
+            "Need-specific suitable supply and any shortfall remain unknown."
+          ],
+          "budget": {
+            "document_bytes": 750000,
+            "documents": 5,
+            "max_cost_usd": "0",
+            "model_calls": 0,
+            "searches": 3,
+            "timeout_seconds": 180,
+            "urls": 10
+          },
+          "receipt": {
+            "acquisition_limitations": [
+              "Firecrawl discovery is not configured; broader public search was not performed."
+            ],
+            "after": "RESEARCH",
+            "after_input_hash": "a9f7a48f574cc4e4ac9803e007dd6d92fe9765a8b4de37da8d10bb65b6534d92",
+            "ambiguous_effects": [],
+            "before": "RESEARCH",
+            "cost_usd": "0",
+            "duplicate_work_avoided": 1,
+            "error": null,
+            "inflight_acquisition_url": null,
+            "inflight_url": null,
+            "latest_attempt_at": "2026-10-07T03:11:44.576864+00:00",
+            "model_calls": 0,
+            "next_action": "Research this exact question: Who is supplying temporary construction or commissioning power, and what dated source states when permanent utility energization is expected?",
+            "post_evidence_fingerprint": "71a875bc64f99f02195609ec57d780094f58cf1fdd5619d7165d6f785909b4e0",
+            "queries_generated": [
+              "\"400 S LA SALLE ST, Chicago, IL\" temporary power",
+              "\"400 S LA SALLE ST, Chicago, IL\" construction power package",
+              "\"3451848\" temporary power"
+            ],
+            "reason": "A bounded evidence question can address the highest-priority missing commercial fact.",
+            "reevaluation_status": "COMPLETED",
+            "remaining_blockers": [
+              "buyer or responsible operator",
+              "activity-specific power requirement"
+            ],
+            "result_disposition": "UNRESOLVED",
+            "resulting_evidence_ids": [
+              "0c0b8de0-8153-4449-9650-b5a2b65614d7"
+            ],
+            "retry_class": "FRESH_CHECK",
+            "route_results": [
+              {
+                "family": "canonical-evidence",
+                "kind": "retained",
+                "reason": "Checked current canonical evidence and retained buying-chain relationships.",
+                "status": "CHECKED"
+              },
+              {
+                "external_id": "3451848",
+                "family": "construction-permits",
+                "kind": "registered",
+                "reason": null,
+                "source_id": "chicago-building-permits",
+                "status": "CHECKED",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273451848%27&%24limit=1"
+              },
+              {
+                "family": "temporary-service-permits",
+                "kind": "discovery",
+                "reason": "Firecrawl discovery is not configured.",
+                "status": "UNAVAILABLE"
+              },
+              {
+                "family": "public-bids",
+                "kind": "discovery",
+                "reason": "Firecrawl discovery is not configured.",
+                "status": "UNAVAILABLE"
+              },
+              {
+                "family": "contractor-projects",
+                "kind": "discovery",
+                "reason": "Firecrawl discovery is not configured.",
+                "status": "UNAVAILABLE"
+              },
+              {
+                "family": "owner-projects",
+                "kind": "discovery",
+                "reason": "Firecrawl discovery is not configured.",
+                "status": "UNAVAILABLE"
+              },
+              {
+                "family": "public-web",
+                "kind": "discovery",
+                "reason": "Firecrawl discovery is not configured.",
+                "status": "UNAVAILABLE"
+              }
+            ],
+            "runtime_seconds": 1.224,
+            "searches": 0,
+            "source_checks": [
+              {
+                "acquisition": "retained",
+                "checked_at": "2026-10-07T03:11:45.016598+00:00",
+                "disposition": "UNRESOLVED",
+                "evidence_id": "0c0b8de0-8153-4449-9650-b5a2b65614d7",
+                "evidence_ids": [
+                  "0c0b8de0-8153-4449-9650-b5a2b65614d7"
+                ],
+                "observed_at": "2026-10-07T02:25:45.759505+00:00",
+                "reason": "Retained context is not a proven complete public input; canonical facts remain available, but no whole-document replay is claimed.",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273451848%27&%24limit=1"
+              },
+              {
+                "acquisition_capture_version": "public-document-v3",
+                "acquisition_key": "9e2c1bc18448adcadea4623ea39d43a81c331573684cb6b632469e2d290c6015",
+                "cache_reused": true,
+                "canonical_support_withdrawn": false,
+                "checked_at": "2026-10-07T03:11:43.855973+00:00",
+                "claim_type": "project_activity",
+                "disposition": "ACCEPTED",
+                "duplicate": true,
+                "event_date": "2026-09-16",
+                "event_date_label": null,
+                "evidence_id": "0c0b8de0-8153-4449-9650-b5a2b65614d7",
+                "evidence_ids": [
+                  "0c0b8de0-8153-4449-9650-b5a2b65614d7"
+                ],
+                "excerpt": "row: 3451848\ndate: 2026-09-16T00:00:00.000\nmodified_date: 2026-09-17T12:19:34.269Z\ndescription: PHASE 3 OF 3: INTERIOR ALTERATIONS TO EXISTING 7-STORY OFFICE BUILDING TO CONVERT TO A DATA CENTER. WORK TO INCLUDE NEW EQUIPMENT WITH ASSOCIATED MEP UPGRADES. PHASE 1 DEMOLITION ONLY WORK PERMITTED UNDER",
+                "extraction_location": "Official Chicago permit fields; dated issue and row ID",
+                "ingestion_counts": {
+                  "changed": 0,
+                  "latest_permit_issue_date": "2026-09-16",
+                  "latest_public_comment_deadline": null,
+                  "latest_publication_date": "2026-09-16",
+                  "new": 0,
+                  "parsed_records": 1,
+                  "pdf_candidates": 0,
+                  "pdf_eligible": 0,
+                  "pdf_enriched": 0,
+                  "pdf_skipped_limit": 0,
+                  "pdf_skipped_not_signal": 0,
+                  "permit_accepted": 1,
+                  "permit_rejected": 0,
+                  "records_scanned": 1,
+                  "retrieved_records": 1,
+                  "signals": 0,
+                  "unchanged": 1
+                },
+                "label": "Verified",
+                "match_basis": "Existing canonical source and stable record identity",
+                "published_at": "2026-09-16",
+                "publisher": "City of Chicago Data Portal",
+                "reason": "Official dated permit identifies concrete facility construction, conversion, or remodel; investigate construction or commissioning power. Permit issuance does not prove work start, load, or a power gap.",
+                "retrieved_at": "2026-10-07T03:11:43.610733+00:00",
+                "source_version": "19fc794caae63e8b3b1a4aca011a9b373ae6eb7f9cbcc751f41b2376f1d62bfe",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273451848%27&%24limit=1"
+              }
+            ],
+            "started_at": "2026-10-07T03:11:44.576852+00:00",
+            "tier": "Signal"
+          }
+        },
+        {
+          "id": "83ce190b-991b-4188-900d-d20c65a184dc",
+          "category": "phase",
+          "question": "Is this project currently under construction, delayed, paused, completed, or cancelled?",
+          "status": "UNRESOLVED",
+          "attempt_count": 1,
+          "created_at": "2026-10-07 03:11:33.517478+00:00",
+          "completed_at": "2026-10-07 03:11:44.550391+00:00",
+          "retry_after": "2026-10-08 03:11:44.550391+00:00",
+          "query_fingerprint": "fba69b042764de5ee878be3f362fb7c5442ad5671f2f7eba71fd684ee49fb96b",
+          "evidence_fingerprint": "71a875bc64f99f02195609ec57d780094f58cf1fdd5619d7165d6f785909b4e0",
+          "known_facts_before": [
+            {
+              "date": "2026-09-16",
+              "evidence_id": "0c0b8de0-8153-4449-9650-b5a2b65614d7",
+              "hash": "19fc794caae63e8b3b1a4aca011a9b373ae6eb7f9cbcc751f41b2376f1d62bfe",
+              "text": "PHASE 3 OF 3: INTERIOR ALTERATIONS TO EXISTING 7-STORY OFFICE BUILDING TO CONVERT TO A DATA CENTER. WORK TO INCLUDE NEW EQUIPMENT WITH ASSOCIATED MEP UPGRADES. PHASE 1 DEMOLITION ONLY WORK PERMITTED UNDER 101083036. PHASE 2 INFRASTRUCTURE WORK PERMITTED UNDER 101081181. IA CONSTRUCTION; B-BUSINESS",
+              "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273451848%27&%24limit=1"
+            },
+            {
+              "date": "2026-09-16",
+              "evidence_id": "0c0b8de0-8153-4449-9650-b5a2b65614d7",
+              "hash": "19fc794caae63e8b3b1a4aca011a9b373ae6eb7f9cbcc751f41b2376f1d62bfe",
+              "text": "Chicago building permit 3451848 \u2014 PERMIT - RENOVATION/ALTERATION",
+              "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273451848%27&%24limit=1"
+            }
+          ],
+          "unknowns_before": [
+            "buyer or responsible operator",
+            "activity-specific power requirement",
+            "start window",
+            "duration",
+            "suitable supply",
+            "Need-specific MW remains unknown.",
+            "Need-specific suitable supply and any shortfall remain unknown."
+          ],
+          "budget": {
+            "document_bytes": 750000,
+            "documents": 5,
+            "max_cost_usd": "0",
+            "model_calls": 0,
+            "searches": 3,
+            "timeout_seconds": 180,
+            "urls": 10
+          },
+          "receipt": {
+            "acquisition_limitations": [
+              "Firecrawl discovery is not configured; broader public search was not performed."
+            ],
+            "after": "RESEARCH",
+            "after_input_hash": "a9f7a48f574cc4e4ac9803e007dd6d92fe9765a8b4de37da8d10bb65b6534d92",
+            "ambiguous_effects": [],
+            "before": "RESEARCH",
+            "cost_usd": "0",
+            "duplicate_work_avoided": 1,
+            "error": null,
+            "inflight_acquisition_url": null,
+            "inflight_url": null,
+            "latest_attempt_at": "2026-10-07T03:11:42.201401+00:00",
+            "model_calls": 0,
+            "next_action": "Research this exact question: Who is supplying temporary construction or commissioning power, and what dated source states when permanent utility energization is expected?",
+            "post_evidence_fingerprint": "71a875bc64f99f02195609ec57d780094f58cf1fdd5619d7165d6f785909b4e0",
+            "queries_generated": [
+              "\"400 S LA SALLE ST, Chicago, IL\" site:gov inspection",
+              "\"400 S LA SALLE ST, Chicago, IL\" contractor construction update",
+              "\"3451848\" site:gov inspection"
+            ],
+            "reason": "A bounded evidence question can address the highest-priority missing commercial fact.",
+            "reevaluation_status": "COMPLETED",
+            "remaining_blockers": [
+              "buyer or responsible operator",
+              "activity-specific power requirement"
+            ],
+            "reserved_cost_usd": "0",
+            "result_disposition": "UNRESOLVED",
+            "resulting_evidence_ids": [
+              "0c0b8de0-8153-4449-9650-b5a2b65614d7"
+            ],
+            "retrieval_attempts": 1,
+            "retry_class": "FRESH_CHECK",
+            "route_results": [
+              {
+                "family": "canonical-evidence",
+                "kind": "retained",
+                "reason": "Checked current canonical evidence and retained buying-chain relationships.",
+                "status": "CHECKED"
+              },
+              {
+                "external_id": "3451848",
+                "family": "construction-permits",
+                "kind": "registered",
+                "reason": null,
+                "source_id": "chicago-building-permits",
+                "status": "CHECKED",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273451848%27&%24limit=1"
+              },
+              {
+                "family": "inspections",
+                "kind": "discovery",
+                "reason": "Firecrawl discovery is not configured.",
+                "status": "UNAVAILABLE"
+              },
+              {
+                "family": "active-permits",
+                "kind": "discovery",
+                "reason": "Firecrawl discovery is not configured.",
+                "status": "UNAVAILABLE"
+              },
+              {
+                "family": "contractor-updates",
+                "kind": "discovery",
+                "reason": "Firecrawl discovery is not configured.",
+                "status": "UNAVAILABLE"
+              },
+              {
+                "family": "owner-updates",
+                "kind": "discovery",
+                "reason": "Firecrawl discovery is not configured.",
+                "status": "UNAVAILABLE"
+              },
+              {
+                "family": "municipal-records",
+                "kind": "discovery",
+                "reason": "Firecrawl discovery is not configured.",
+                "status": "UNAVAILABLE"
+              },
+              {
+                "family": "bid-notices",
+                "kind": "discovery",
+                "reason": "Firecrawl discovery is not configured.",
+                "status": "UNAVAILABLE"
+              },
+              {
+                "family": "recent-reporting",
+                "kind": "discovery",
+                "reason": "Firecrawl discovery is not configured.",
+                "status": "UNAVAILABLE"
+              }
+            ],
+            "runtime_seconds": 2.353,
+            "searches": 0,
+            "source_checks": [
+              {
+                "acquisition": "retained",
+                "checked_at": "2026-10-07T03:11:42.614073+00:00",
+                "disposition": "UNRESOLVED",
+                "evidence_id": "0c0b8de0-8153-4449-9650-b5a2b65614d7",
+                "evidence_ids": [
+                  "0c0b8de0-8153-4449-9650-b5a2b65614d7"
+                ],
+                "observed_at": "2026-10-07T02:25:45.759505+00:00",
+                "reason": "Retained context is not a proven complete public input; canonical facts remain available, but no whole-document replay is claimed.",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273451848%27&%24limit=1"
+              },
+              {
+                "acquisition_capture_version": "public-document-v3",
+                "acquisition_key": "9e2c1bc18448adcadea4623ea39d43a81c331573684cb6b632469e2d290c6015",
+                "canonical_support_withdrawn": false,
+                "checked_at": "2026-10-07T03:11:43.855973+00:00",
+                "claim_type": "project_activity",
+                "disposition": "ACCEPTED",
+                "duplicate": true,
+                "event_date": "2026-09-16",
+                "event_date_label": null,
+                "evidence_id": "0c0b8de0-8153-4449-9650-b5a2b65614d7",
+                "evidence_ids": [
+                  "0c0b8de0-8153-4449-9650-b5a2b65614d7"
+                ],
+                "excerpt": "row: 3451848\ndate: 2026-09-16T00:00:00.000\nmodified_date: 2026-09-17T12:19:34.269Z\ndescription: PHASE 3 OF 3: INTERIOR ALTERATIONS TO EXISTING 7-STORY OFFICE BUILDING TO CONVERT TO A DATA CENTER. WORK TO INCLUDE NEW EQUIPMENT WITH ASSOCIATED MEP UPGRADES. PHASE 1 DEMOLITION ONLY WORK PERMITTED UNDER",
+                "extraction_location": "Official Chicago permit fields; dated issue and row ID",
+                "ingestion_counts": {
+                  "changed": 0,
+                  "latest_permit_issue_date": "2026-09-16",
+                  "latest_public_comment_deadline": null,
+                  "latest_publication_date": "2026-09-16",
+                  "new": 0,
+                  "parsed_records": 1,
+                  "pdf_candidates": 0,
+                  "pdf_eligible": 0,
+                  "pdf_enriched": 0,
+                  "pdf_skipped_limit": 0,
+                  "pdf_skipped_not_signal": 0,
+                  "permit_accepted": 1,
+                  "permit_rejected": 0,
+                  "records_scanned": 1,
+                  "retrieved_records": 1,
+                  "signals": 0,
+                  "unchanged": 1
+                },
+                "label": "Verified",
+                "match_basis": "Existing canonical source and stable record identity",
+                "published_at": "2026-09-16",
+                "publisher": "City of Chicago Data Portal",
+                "reason": "Official dated permit identifies concrete facility construction, conversion, or remodel; investigate construction or commissioning power. Permit issuance does not prove work start, load, or a power gap.",
+                "retrieved_at": "2026-10-07T03:11:43.610733+00:00",
+                "source_version": "19fc794caae63e8b3b1a4aca011a9b373ae6eb7f9cbcc751f41b2376f1d62bfe",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273451848%27&%24limit=1"
+              }
+            ],
+            "started_at": "2026-10-07T03:11:42.201397+00:00",
+            "tier": "Signal"
+          }
+        }
+      ]
+    },
+    {
+      "category": "oil_and_gas",
+      "need_id": "7f81417f-2213-4de9-8e92-74034870fca1",
+      "selection_reason": "RRC approved drilling permit 0919039, Sage Natural Resources LLC, Pedro West EF well 1H; real early production Signal, with power requirement, timing, supply and buyer unknown.",
+      "case_accepted": true,
+      "acceptance_mode": "MEANINGFUL_INVESTIGATION",
+      "before": {
+        "name": "Texas W-1 permit 0919039",
+        "disposition": "WATCH",
+        "tier": "Signal",
+        "blockers": [
+          "suitable supply",
+          "buyer"
+        ],
+        "unknowns": [
+          "production date",
+          "load",
+          "fuel suitability",
+          "suitable supply",
+          "buyer",
+          "Need-specific MW remains unknown.",
+          "Need-specific suitable supply and any shortfall remain unknown."
+        ],
+        "input_hash": "2d97f0f1eed73f8916dbc212a2a66bb03b3e093bdac86bc728442cd88ea18913",
+        "next_action": "Retain this source-backed project for a dated lifecycle event before spending research effort."
+      },
+      "after": {
+        "name": "Texas W-1 permit 0919039",
+        "disposition": "WATCH",
+        "tier": "Signal",
+        "blockers": [
+          "suitable supply",
+          "buyer"
+        ],
+        "unknowns": [
+          "production date",
+          "load",
+          "fuel suitability",
+          "suitable supply",
+          "buyer",
+          "Need-specific MW remains unknown.",
+          "Need-specific suitable supply and any shortfall remain unknown."
+        ],
+        "input_hash": "bc54800aec596c5dc3ccd96b4dbc18ada35323118003cd0f523705b8076c9fb3",
+        "next_action": "Retain this source-backed project for a dated lifecycle event before spending research effort."
+      },
+      "questions": [
+        {
+          "id": "9a152f9e-7cb1-48c4-972b-ef6ad1686f90",
+          "category": "power_need",
+          "question": "Is a temporary-power requirement documented for this exact activity, separately from its supply adequacy?",
+          "status": "UNRESOLVED",
+          "attempt_count": 1,
+          "created_at": "2026-10-07 03:11:33.517478+00:00",
+          "completed_at": "2026-10-07 03:11:38.776762+00:00",
+          "retry_after": "2026-10-07 04:11:38.776762+00:00",
+          "query_fingerprint": "d4c50989893d3d4dcc1ffbd743f00ea54b910ce85ed2d6bfad74fd6f77109f22",
+          "evidence_fingerprint": "34acdfcb271f33fb227b6dc4bb1f73d2596419bd8f30a7a19f4a00c340d79a03",
+          "known_facts_before": [
+            {
+              "date": "2026-10-05",
+              "evidence_id": "f6a25d71-fd55-4276-b3b5-66d97df1be1a",
+              "hash": "1dbaa446d9fa0e8ac037a497c4bd726f65f9e3e60f7cc1d96f9c8805d6573f96",
+              "text": "W-1 well permit 0919039: Drill; lease PEDRO WEST EF, well 1H.",
+              "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc"
+            },
+            {
+              "date": "2026-10-05",
+              "evidence_id": "f6a25d71-fd55-4276-b3b5-66d97df1be1a",
+              "hash": "1dbaa446d9fa0e8ac037a497c4bd726f65f9e3e60f7cc1d96f9c8805d6573f96",
+              "text": "W-1 well permit 0919039: Drill; lease PEDRO WEST EF, well 1H.",
+              "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc"
+            }
+          ],
+          "unknowns_before": [
+            "production date",
+            "load",
+            "fuel suitability",
+            "suitable supply",
+            "buyer",
+            "Need-specific MW remains unknown.",
+            "Need-specific suitable supply and any shortfall remain unknown."
+          ],
+          "budget": {
+            "document_bytes": 750000,
+            "documents": 5,
+            "max_cost_usd": "0",
+            "model_calls": 0,
+            "searches": 3,
+            "timeout_seconds": 180,
+            "urls": 10
+          },
+          "receipt": {
+            "acquisition_limitations": [
+              "No bounded exact-record research adapter for texas-rrc-drilling-permits.",
+              "Firecrawl discovery is not configured; broader public search was not performed."
+            ],
+            "after": "WATCH",
+            "after_input_hash": "bc54800aec596c5dc3ccd96b4dbc18ada35323118003cd0f523705b8076c9fb3",
+            "ambiguous_effects": [],
+            "before": "WATCH",
+            "cost_usd": "0",
+            "duplicate_work_avoided": 0,
+            "error": null,
+            "inflight_acquisition_url": null,
+            "inflight_url": null,
+            "latest_attempt_at": "2026-10-07T03:11:37.598157+00:00",
+            "model_calls": 0,
+            "next_action": "Retain this source-backed project for a dated lifecycle event before spending research effort.",
+            "post_evidence_fingerprint": "34acdfcb271f33fb227b6dc4bb1f73d2596419bd8f30a7a19f4a00c340d79a03",
+            "queries_generated": [
+              "\"RRC county code 287, Texas\" temporary power",
+              "\"RRC county code 287, Texas\" construction power package",
+              "\"0919039\" temporary power"
+            ],
+            "reason": "Retain this source-backed project for a dated lifecycle event before spending research effort.",
+            "reevaluation_status": "COMPLETED",
+            "remaining_blockers": [
+              "suitable supply",
+              "buyer"
+            ],
+            "result_disposition": "UNRESOLVED",
+            "resulting_evidence_ids": [],
+            "retry_class": "BOUNDED_TRANSIENT",
+            "route_results": [
+              {
+                "family": "canonical-evidence",
+                "kind": "retained",
+                "reason": "Checked current canonical evidence and retained buying-chain relationships.",
+                "status": "CHECKED"
+              },
+              {
+                "external_id": "0919039",
+                "family": "construction-permits",
+                "kind": "registered",
+                "reason": "Registered RRC download requires a form submission; research prohibits forms.",
+                "source_id": "texas-rrc-drilling-permits",
+                "status": "UNAVAILABLE",
+                "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc"
+              },
+              {
+                "family": "temporary-service-permits",
+                "kind": "discovery",
+                "reason": "Firecrawl discovery is not configured.",
+                "status": "UNAVAILABLE"
+              },
+              {
+                "family": "public-bids",
+                "kind": "discovery",
+                "reason": "Firecrawl discovery is not configured.",
+                "status": "UNAVAILABLE"
+              },
+              {
+                "family": "contractor-projects",
+                "kind": "discovery",
+                "reason": "Firecrawl discovery is not configured.",
+                "status": "UNAVAILABLE"
+              },
+              {
+                "family": "owner-projects",
+                "kind": "discovery",
+                "reason": "Firecrawl discovery is not configured.",
+                "status": "UNAVAILABLE"
+              },
+              {
+                "family": "public-web",
+                "kind": "discovery",
+                "reason": "Firecrawl discovery is not configured.",
+                "status": "UNAVAILABLE"
+              }
+            ],
+            "runtime_seconds": 1.181,
+            "searches": 0,
+            "source_checks": [
+              {
+                "acquisition": "retained",
+                "checked_at": "2026-10-07T03:11:38.186028+00:00",
+                "disposition": "UNRESOLVED",
+                "document_hash": "1dbaa446d9fa0e8ac037a497c4bd726f65f9e3e60f7cc1d96f9c8805d6573f96",
+                "evidence_id": "f6a25d71-fd55-4276-b3b5-66d97df1be1a",
+                "evidence_ids": [
+                  "f6a25d71-fd55-4276-b3b5-66d97df1be1a"
+                ],
+                "excerpt": "W-1 well permit 0919039: Drill; lease PEDRO WEST EF, well 1H.",
+                "extraction_location": "OGA049M root/master; permit 0919039; sequence 99",
+                "label": "Reported",
+                "network_refresh": false,
+                "observed_at": "2026-10-07T03:01:23.799806+00:00",
+                "publication_date": "2026-10-05",
+                "reason": "Inspected retained RRC root/master fields and verified internal byte consistency. These fields do not answer the commercial blocker. Permit approval does not establish drilling underway, power demand, supply or a buyer. Opaque children were not interpreted; filename/ordinal remain ingestion provenance. No live source refresh or exhaustive public search is claimed.",
+                "retained_native_replay": true,
+                "retrieved_at": "2026-10-07T03:01:23.799806+00:00",
+                "source_id": "texas-rrc-drilling-permits",
+                "source_publisher": "Railroad Commission of Texas",
+                "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc"
+              }
+            ],
+            "started_at": "2026-10-07T03:11:37.598153+00:00",
+            "tier": "Signal"
+          }
+        },
+        {
+          "id": "e8ea3124-37b0-4bd9-9bfa-70cab008472b",
+          "category": "phase",
+          "question": "Is this project currently under construction, delayed, paused, completed, or cancelled?",
+          "status": "UNRESOLVED",
+          "attempt_count": 1,
+          "created_at": "2026-10-07 03:11:33.517478+00:00",
+          "completed_at": "2026-10-07 03:11:37.503658+00:00",
+          "retry_after": "2026-10-07 04:11:37.503658+00:00",
+          "query_fingerprint": "92733baaf706c1465d87e1c03f5e435c53b95a7ce12bf46c4391f07aa7a7de31",
+          "evidence_fingerprint": "34acdfcb271f33fb227b6dc4bb1f73d2596419bd8f30a7a19f4a00c340d79a03",
+          "known_facts_before": [
+            {
+              "date": "2026-10-05",
+              "evidence_id": "f6a25d71-fd55-4276-b3b5-66d97df1be1a",
+              "hash": "1dbaa446d9fa0e8ac037a497c4bd726f65f9e3e60f7cc1d96f9c8805d6573f96",
+              "text": "W-1 well permit 0919039: Drill; lease PEDRO WEST EF, well 1H.",
+              "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc"
+            },
+            {
+              "date": "2026-10-05",
+              "evidence_id": "f6a25d71-fd55-4276-b3b5-66d97df1be1a",
+              "hash": "1dbaa446d9fa0e8ac037a497c4bd726f65f9e3e60f7cc1d96f9c8805d6573f96",
+              "text": "W-1 well permit 0919039: Drill; lease PEDRO WEST EF, well 1H.",
+              "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc"
+            }
+          ],
+          "unknowns_before": [
+            "production date",
+            "load",
+            "fuel suitability",
+            "suitable supply",
+            "buyer",
+            "Need-specific MW remains unknown.",
+            "Need-specific suitable supply and any shortfall remain unknown."
+          ],
+          "budget": {
+            "document_bytes": 750000,
+            "documents": 5,
+            "max_cost_usd": "0",
+            "model_calls": 0,
+            "searches": 3,
+            "timeout_seconds": 180,
+            "urls": 10
+          },
+          "receipt": {
+            "acquisition_limitations": [
+              "No bounded exact-record research adapter for texas-rrc-drilling-permits.",
+              "Firecrawl discovery is not configured; broader public search was not performed."
+            ],
+            "after": "WATCH",
+            "after_input_hash": "bc54800aec596c5dc3ccd96b4dbc18ada35323118003cd0f523705b8076c9fb3",
+            "ambiguous_effects": [],
+            "before": "WATCH",
+            "cost_usd": "0",
+            "duplicate_work_avoided": 0,
+            "error": null,
+            "inflight_acquisition_url": null,
+            "inflight_url": null,
+            "latest_attempt_at": "2026-10-07T03:11:36.188642+00:00",
+            "model_calls": 0,
+            "next_action": "Retain this source-backed project for a dated lifecycle event before spending research effort.",
+            "post_evidence_fingerprint": "34acdfcb271f33fb227b6dc4bb1f73d2596419bd8f30a7a19f4a00c340d79a03",
+            "queries_generated": [
+              "\"RRC county code 287, Texas\" site:gov inspection",
+              "\"RRC county code 287, Texas\" contractor construction update",
+              "\"0919039\" site:gov inspection"
+            ],
+            "reason": "Retain this source-backed project for a dated lifecycle event before spending research effort.",
+            "reevaluation_status": "COMPLETED",
+            "remaining_blockers": [
+              "suitable supply",
+              "buyer"
+            ],
+            "result_disposition": "UNRESOLVED",
+            "resulting_evidence_ids": [],
+            "retry_class": "BOUNDED_TRANSIENT",
+            "route_results": [
+              {
+                "family": "canonical-evidence",
+                "kind": "retained",
+                "reason": "Checked current canonical evidence and retained buying-chain relationships.",
+                "status": "CHECKED"
+              },
+              {
+                "external_id": "0919039",
+                "family": "construction-permits",
+                "kind": "registered",
+                "reason": "Registered RRC download requires a form submission; research prohibits forms.",
+                "source_id": "texas-rrc-drilling-permits",
+                "status": "UNAVAILABLE",
+                "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc"
+              },
+              {
+                "family": "inspections",
+                "kind": "discovery",
+                "reason": "Firecrawl discovery is not configured.",
+                "status": "UNAVAILABLE"
+              },
+              {
+                "family": "active-permits",
+                "kind": "discovery",
+                "reason": "Firecrawl discovery is not configured.",
+                "status": "UNAVAILABLE"
+              },
+              {
+                "family": "contractor-updates",
+                "kind": "discovery",
+                "reason": "Firecrawl discovery is not configured.",
+                "status": "UNAVAILABLE"
+              },
+              {
+                "family": "owner-updates",
+                "kind": "discovery",
+                "reason": "Firecrawl discovery is not configured.",
+                "status": "UNAVAILABLE"
+              },
+              {
+                "family": "municipal-records",
+                "kind": "discovery",
+                "reason": "Firecrawl discovery is not configured.",
+                "status": "UNAVAILABLE"
+              },
+              {
+                "family": "bid-notices",
+                "kind": "discovery",
+                "reason": "Firecrawl discovery is not configured.",
+                "status": "UNAVAILABLE"
+              },
+              {
+                "family": "recent-reporting",
+                "kind": "discovery",
+                "reason": "Firecrawl discovery is not configured.",
+                "status": "UNAVAILABLE"
+              }
+            ],
+            "runtime_seconds": 1.321,
+            "searches": 0,
+            "source_checks": [
+              {
+                "acquisition": "retained",
+                "checked_at": "2026-10-07T03:11:36.930647+00:00",
+                "disposition": "UNRESOLVED",
+                "document_hash": "1dbaa446d9fa0e8ac037a497c4bd726f65f9e3e60f7cc1d96f9c8805d6573f96",
+                "evidence_id": "f6a25d71-fd55-4276-b3b5-66d97df1be1a",
+                "evidence_ids": [
+                  "f6a25d71-fd55-4276-b3b5-66d97df1be1a"
+                ],
+                "excerpt": "W-1 well permit 0919039: Drill; lease PEDRO WEST EF, well 1H.",
+                "extraction_location": "OGA049M root/master; permit 0919039; sequence 99",
+                "label": "Reported",
+                "network_refresh": false,
+                "observed_at": "2026-10-07T03:01:23.799806+00:00",
+                "publication_date": "2026-10-05",
+                "reason": "Inspected retained RRC root/master fields and verified internal byte consistency. These fields do not answer the commercial blocker. Permit approval does not establish drilling underway, power demand, supply or a buyer. Opaque children were not interpreted; filename/ordinal remain ingestion provenance. No live source refresh or exhaustive public search is claimed.",
+                "retained_native_replay": true,
+                "retrieved_at": "2026-10-07T03:01:23.799806+00:00",
+                "source_id": "texas-rrc-drilling-permits",
+                "source_publisher": "Railroad Commission of Texas",
+                "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc"
+              }
+            ],
+            "started_at": "2026-10-07T03:11:36.188637+00:00",
+            "tier": "Signal"
+          }
+        }
+      ]
+    },
+    {
+      "category": "low_quality",
+      "need_id": "47265ecc-29a0-4d65-9ba9-7b69e1a7fb3c",
+      "selection_reason": "2800 S Ashland Ave: older cooling/MEP scope gives weak activity-specific temporary-power support and no reachable project contact.",
+      "case_accepted": true,
+      "acceptance_mode": "MEANINGFUL_INVESTIGATION",
+      "before": {
+        "name": "Chicago permit 3428005",
+        "disposition": "RESEARCH",
+        "tier": "Signal",
+        "blockers": [
+          "buyer or responsible operator",
+          "activity-specific power requirement"
+        ],
+        "unknowns": [
+          "buyer or responsible operator",
+          "activity-specific power requirement",
+          "start window",
+          "duration",
+          "suitable supply",
+          "Need-specific MW remains unknown.",
+          "Need-specific suitable supply and any shortfall remain unknown."
+        ],
+        "input_hash": "e1f7f92db51df08f7e9715b27eb818ecb036d183280dea4f8845b645b0f22c42",
+        "next_action": "Research this exact question: Who is supplying temporary construction or commissioning power, and what dated source states when permanent utility energization is expected?"
+      },
+      "after": {
+        "name": "Chicago permit 3428005",
+        "disposition": "RESEARCH",
+        "tier": "Signal",
+        "blockers": [
+          "buyer or responsible operator",
+          "activity-specific power requirement"
+        ],
+        "unknowns": [
+          "buyer or responsible operator",
+          "activity-specific power requirement",
+          "start window",
+          "duration",
+          "suitable supply",
+          "Need-specific MW remains unknown.",
+          "Need-specific suitable supply and any shortfall remain unknown."
+        ],
+        "input_hash": "8d6ba520adf00b7da627267a7190127e28b19b457315b2eecafe5c1cc474f0d0",
+        "next_action": "Research this exact question: Who is supplying temporary construction or commissioning power, and what dated source states when permanent utility energization is expected?"
+      },
+      "questions": [
+        {
+          "id": "4e54f686-ed80-43e5-af5d-8af215b1c96f",
+          "category": "phase",
+          "question": "Is this project currently under construction, delayed, paused, completed, or cancelled?",
+          "status": "UNRESOLVED",
+          "attempt_count": 1,
+          "created_at": "2026-10-07 03:11:33.517478+00:00",
+          "completed_at": "2026-10-07 03:11:41.075118+00:00",
+          "retry_after": "2026-10-08 03:11:41.075118+00:00",
+          "query_fingerprint": "18049947b9d2f72bbee066d6b977219593cbc51e34f91f0869de0e1971b8774d",
+          "evidence_fingerprint": "483067edc4fd64d49207f1c0a0082978b20a325f5068c229f8a5bed0785bb127",
+          "known_facts_before": [
+            {
+              "date": "2025-12-11",
+              "evidence_id": "a2b95fc1-00e0-42ba-9802-372796f03291",
+              "hash": "baac9d3e8337b6f96239ddacf92cd785010339da57e9b7805daae30d9eb31fcd",
+              "text": "SPR 2019 CBRC: 1ST FLOOR INTERIOR AND EXTERIOR ALTERATIONS IN EXISTING 2-STORY DATA CENTER BUILDING ON THE 1ST FLOOR FOR ADDITIONAL COOLING IN PH1. SELECT DEMOLITION INTERIOR PARTION RENOVATION, STRUCTURAL, MECHANICAL AND ELECTRICAL WORK AS PER PLANS. (OCCUPANCY GROUP B; TYPE IIA CONSTRUCTION) (STRUCTURAL PEER REVIEW) **CERTIFIED PLANS CORRECTIONS: CONDITIONAL PERMIT SUBJECT TO FIELD INSPECTIONS **",
+              "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273428005%27&%24limit=1"
+            },
+            {
+              "date": "2025-12-11",
+              "evidence_id": "a2b95fc1-00e0-42ba-9802-372796f03291",
+              "hash": "baac9d3e8337b6f96239ddacf92cd785010339da57e9b7805daae30d9eb31fcd",
+              "text": "Chicago building permit 3428005 \u2014 PERMIT - RENOVATION/ALTERATION",
+              "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273428005%27&%24limit=1"
+            }
+          ],
+          "unknowns_before": [
+            "buyer or responsible operator",
+            "activity-specific power requirement",
+            "start window",
+            "duration",
+            "suitable supply",
+            "Need-specific MW remains unknown.",
+            "Need-specific suitable supply and any shortfall remain unknown."
+          ],
+          "budget": {
+            "document_bytes": 750000,
+            "documents": 5,
+            "max_cost_usd": "0",
+            "model_calls": 0,
+            "searches": 3,
+            "timeout_seconds": 180,
+            "urls": 10
+          },
+          "receipt": {
+            "acquisition_limitations": [
+              "Firecrawl discovery is not configured; broader public search was not performed."
+            ],
+            "after": "RESEARCH",
+            "after_input_hash": "8d6ba520adf00b7da627267a7190127e28b19b457315b2eecafe5c1cc474f0d0",
+            "ambiguous_effects": [],
+            "before": "RESEARCH",
+            "cost_usd": "0",
+            "duplicate_work_avoided": 1,
+            "error": null,
+            "inflight_acquisition_url": null,
+            "inflight_url": null,
+            "latest_attempt_at": "2026-10-07T03:11:38.787360+00:00",
+            "model_calls": 0,
+            "next_action": "Research this exact question: Who is supplying temporary construction or commissioning power, and what dated source states when permanent utility energization is expected?",
+            "post_evidence_fingerprint": "483067edc4fd64d49207f1c0a0082978b20a325f5068c229f8a5bed0785bb127",
+            "queries_generated": [
+              "\"2800 S ASHLAND AVE, Chicago, IL\" site:gov inspection",
+              "\"2800 S ASHLAND AVE, Chicago, IL\" contractor construction update",
+              "\"3428005\" site:gov inspection"
+            ],
+            "reason": "A bounded evidence question can address the highest-priority missing commercial fact.",
+            "reevaluation_status": "COMPLETED",
+            "remaining_blockers": [
+              "buyer or responsible operator",
+              "activity-specific power requirement"
+            ],
+            "reserved_cost_usd": "0",
+            "result_disposition": "UNRESOLVED",
+            "resulting_evidence_ids": [
+              "a2b95fc1-00e0-42ba-9802-372796f03291"
+            ],
+            "retrieval_attempts": 1,
+            "retry_class": "FRESH_CHECK",
+            "route_results": [
+              {
+                "family": "canonical-evidence",
+                "kind": "retained",
+                "reason": "Checked current canonical evidence and retained buying-chain relationships.",
+                "status": "CHECKED"
+              },
+              {
+                "external_id": "3428005",
+                "family": "construction-permits",
+                "kind": "registered",
+                "reason": null,
+                "source_id": "chicago-building-permits",
+                "status": "CHECKED",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273428005%27&%24limit=1"
+              },
+              {
+                "family": "inspections",
+                "kind": "discovery",
+                "reason": "Firecrawl discovery is not configured.",
+                "status": "UNAVAILABLE"
+              },
+              {
+                "family": "active-permits",
+                "kind": "discovery",
+                "reason": "Firecrawl discovery is not configured.",
+                "status": "UNAVAILABLE"
+              },
+              {
+                "family": "contractor-updates",
+                "kind": "discovery",
+                "reason": "Firecrawl discovery is not configured.",
+                "status": "UNAVAILABLE"
+              },
+              {
+                "family": "owner-updates",
+                "kind": "discovery",
+                "reason": "Firecrawl discovery is not configured.",
+                "status": "UNAVAILABLE"
+              },
+              {
+                "family": "municipal-records",
+                "kind": "discovery",
+                "reason": "Firecrawl discovery is not configured.",
+                "status": "UNAVAILABLE"
+              },
+              {
+                "family": "bid-notices",
+                "kind": "discovery",
+                "reason": "Firecrawl discovery is not configured.",
+                "status": "UNAVAILABLE"
+              },
+              {
+                "family": "recent-reporting",
+                "kind": "discovery",
+                "reason": "Firecrawl discovery is not configured.",
+                "status": "UNAVAILABLE"
+              }
+            ],
+            "runtime_seconds": 2.291,
+            "searches": 0,
+            "source_checks": [
+              {
+                "acquisition": "retained",
+                "checked_at": "2026-10-07T03:11:39.159283+00:00",
+                "disposition": "UNRESOLVED",
+                "evidence_id": "a2b95fc1-00e0-42ba-9802-372796f03291",
+                "evidence_ids": [
+                  "a2b95fc1-00e0-42ba-9802-372796f03291"
+                ],
+                "observed_at": "2026-10-07T02:25:45.846339+00:00",
+                "reason": "Retained context is not a proven complete public input; canonical facts remain available, but no whole-document replay is claimed.",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273428005%27&%24limit=1"
+              },
+              {
+                "acquisition_capture_version": "public-document-v3",
+                "acquisition_key": "4d0a7b09aeeabb881b1c9ffc3a5e63849bbe8f6b0092b72b4269593a263ef5dd",
+                "canonical_support_withdrawn": false,
+                "checked_at": "2026-10-07T03:11:40.496817+00:00",
+                "claim_type": "project_activity",
+                "disposition": "ACCEPTED",
+                "duplicate": true,
+                "event_date": "2025-12-11",
+                "event_date_label": null,
+                "evidence_id": "a2b95fc1-00e0-42ba-9802-372796f03291",
+                "evidence_ids": [
+                  "a2b95fc1-00e0-42ba-9802-372796f03291"
+                ],
+                "excerpt": "row: 3428005\ndate: 2025-12-11T00:00:00.000\nmodified_date: 2025-12-15T13:15:24.454Z\ndescription: SPR 2019 CBRC: 1ST FLOOR INTERIOR AND EXTERIOR ALTERATIONS IN EXISTING 2-STORY DATA CENTER BUILDING ON THE 1ST FLOOR FOR ADDITIONAL COOLING IN PH1. SELECT DEMOLITION INTERIOR PARTION RENOVATION, STRUCTURA",
+                "extraction_location": "Official Chicago permit fields; dated issue and row ID",
+                "ingestion_counts": {
+                  "changed": 0,
+                  "latest_permit_issue_date": "2025-12-11",
+                  "latest_public_comment_deadline": null,
+                  "latest_publication_date": "2025-12-11",
+                  "new": 0,
+                  "parsed_records": 1,
+                  "pdf_candidates": 0,
+                  "pdf_eligible": 0,
+                  "pdf_enriched": 0,
+                  "pdf_skipped_limit": 0,
+                  "pdf_skipped_not_signal": 0,
+                  "permit_accepted": 1,
+                  "permit_rejected": 0,
+                  "records_scanned": 1,
+                  "retrieved_records": 1,
+                  "signals": 0,
+                  "unchanged": 1
+                },
+                "label": "Verified",
+                "match_basis": "Existing canonical source and stable record identity",
+                "published_at": "2025-12-11",
+                "publisher": "City of Chicago Data Portal",
+                "reason": "Official dated permit identifies concrete facility construction, conversion, or remodel; investigate construction or commissioning power. Permit issuance does not prove work start, load, or a power gap.",
+                "retrieved_at": "2026-10-07T03:11:40.291727+00:00",
+                "source_version": "baac9d3e8337b6f96239ddacf92cd785010339da57e9b7805daae30d9eb31fcd",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273428005%27&%24limit=1"
+              }
+            ],
+            "started_at": "2026-10-07T03:11:38.787356+00:00",
+            "tier": "Signal"
+          }
+        },
+        {
+          "id": "d471fbf1-9bb4-44cc-b7ba-d540c0cee508",
+          "category": "power_need",
+          "question": "Is a temporary-power requirement documented for this exact activity, separately from its supply adequacy?",
+          "status": "UNRESOLVED",
+          "attempt_count": 1,
+          "created_at": "2026-10-07 03:11:33.517478+00:00",
+          "completed_at": "2026-10-07 03:11:42.190895+00:00",
+          "retry_after": "2026-10-10 03:11:42.190895+00:00",
+          "query_fingerprint": "41ac6af6ba5456fcf85b5af1a062c23fb88474c18a0ee3b644adceb1e1342092",
+          "evidence_fingerprint": "483067edc4fd64d49207f1c0a0082978b20a325f5068c229f8a5bed0785bb127",
+          "known_facts_before": [
+            {
+              "date": "2025-12-11",
+              "evidence_id": "a2b95fc1-00e0-42ba-9802-372796f03291",
+              "hash": "baac9d3e8337b6f96239ddacf92cd785010339da57e9b7805daae30d9eb31fcd",
+              "text": "SPR 2019 CBRC: 1ST FLOOR INTERIOR AND EXTERIOR ALTERATIONS IN EXISTING 2-STORY DATA CENTER BUILDING ON THE 1ST FLOOR FOR ADDITIONAL COOLING IN PH1. SELECT DEMOLITION INTERIOR PARTION RENOVATION, STRUCTURAL, MECHANICAL AND ELECTRICAL WORK AS PER PLANS. (OCCUPANCY GROUP B; TYPE IIA CONSTRUCTION) (STRUCTURAL PEER REVIEW) **CERTIFIED PLANS CORRECTIONS: CONDITIONAL PERMIT SUBJECT TO FIELD INSPECTIONS **",
+              "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273428005%27&%24limit=1"
+            },
+            {
+              "date": "2025-12-11",
+              "evidence_id": "a2b95fc1-00e0-42ba-9802-372796f03291",
+              "hash": "baac9d3e8337b6f96239ddacf92cd785010339da57e9b7805daae30d9eb31fcd",
+              "text": "Chicago building permit 3428005 \u2014 PERMIT - RENOVATION/ALTERATION",
+              "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273428005%27&%24limit=1"
+            }
+          ],
+          "unknowns_before": [
+            "buyer or responsible operator",
+            "activity-specific power requirement",
+            "start window",
+            "duration",
+            "suitable supply",
+            "Need-specific MW remains unknown.",
+            "Need-specific suitable supply and any shortfall remain unknown."
+          ],
+          "budget": {
+            "document_bytes": 750000,
+            "documents": 5,
+            "max_cost_usd": "0",
+            "model_calls": 0,
+            "searches": 3,
+            "timeout_seconds": 180,
+            "urls": 10
+          },
+          "receipt": {
+            "acquisition_limitations": [
+              "Firecrawl discovery is not configured; broader public search was not performed."
+            ],
+            "after": "RESEARCH",
+            "after_input_hash": "8d6ba520adf00b7da627267a7190127e28b19b457315b2eecafe5c1cc474f0d0",
+            "ambiguous_effects": [],
+            "before": "RESEARCH",
+            "cost_usd": "0",
+            "duplicate_work_avoided": 1,
+            "error": null,
+            "inflight_acquisition_url": null,
+            "inflight_url": null,
+            "latest_attempt_at": "2026-10-07T03:11:41.086580+00:00",
+            "model_calls": 0,
+            "next_action": "Research this exact question: Who is supplying temporary construction or commissioning power, and what dated source states when permanent utility energization is expected?",
+            "post_evidence_fingerprint": "483067edc4fd64d49207f1c0a0082978b20a325f5068c229f8a5bed0785bb127",
+            "queries_generated": [
+              "\"2800 S ASHLAND AVE, Chicago, IL\" temporary power",
+              "\"2800 S ASHLAND AVE, Chicago, IL\" construction power package",
+              "\"3428005\" temporary power"
+            ],
+            "reason": "A bounded evidence question can address the highest-priority missing commercial fact.",
+            "reevaluation_status": "COMPLETED",
+            "remaining_blockers": [
+              "buyer or responsible operator",
+              "activity-specific power requirement"
+            ],
+            "result_disposition": "UNRESOLVED",
+            "resulting_evidence_ids": [
+              "a2b95fc1-00e0-42ba-9802-372796f03291"
+            ],
+            "retry_class": "FRESH_CHECK",
+            "route_results": [
+              {
+                "family": "canonical-evidence",
+                "kind": "retained",
+                "reason": "Checked current canonical evidence and retained buying-chain relationships.",
+                "status": "CHECKED"
+              },
+              {
+                "external_id": "3428005",
+                "family": "construction-permits",
+                "kind": "registered",
+                "reason": null,
+                "source_id": "chicago-building-permits",
+                "status": "CHECKED",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273428005%27&%24limit=1"
+              },
+              {
+                "family": "temporary-service-permits",
+                "kind": "discovery",
+                "reason": "Firecrawl discovery is not configured.",
+                "status": "UNAVAILABLE"
+              },
+              {
+                "family": "public-bids",
+                "kind": "discovery",
+                "reason": "Firecrawl discovery is not configured.",
+                "status": "UNAVAILABLE"
+              },
+              {
+                "family": "contractor-projects",
+                "kind": "discovery",
+                "reason": "Firecrawl discovery is not configured.",
+                "status": "UNAVAILABLE"
+              },
+              {
+                "family": "owner-projects",
+                "kind": "discovery",
+                "reason": "Firecrawl discovery is not configured.",
+                "status": "UNAVAILABLE"
+              },
+              {
+                "family": "public-web",
+                "kind": "discovery",
+                "reason": "Firecrawl discovery is not configured.",
+                "status": "UNAVAILABLE"
+              }
+            ],
+            "runtime_seconds": 1.107,
+            "searches": 0,
+            "source_checks": [
+              {
+                "acquisition": "retained",
+                "checked_at": "2026-10-07T03:11:41.433369+00:00",
+                "disposition": "UNRESOLVED",
+                "evidence_id": "a2b95fc1-00e0-42ba-9802-372796f03291",
+                "evidence_ids": [
+                  "a2b95fc1-00e0-42ba-9802-372796f03291"
+                ],
+                "observed_at": "2026-10-07T02:25:45.846339+00:00",
+                "reason": "Retained context is not a proven complete public input; canonical facts remain available, but no whole-document replay is claimed.",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273428005%27&%24limit=1"
+              },
+              {
+                "acquisition_capture_version": "public-document-v3",
+                "acquisition_key": "4d0a7b09aeeabb881b1c9ffc3a5e63849bbe8f6b0092b72b4269593a263ef5dd",
+                "cache_reused": true,
+                "canonical_support_withdrawn": false,
+                "checked_at": "2026-10-07T03:11:40.496817+00:00",
+                "claim_type": "project_activity",
+                "disposition": "ACCEPTED",
+                "duplicate": true,
+                "event_date": "2025-12-11",
+                "event_date_label": null,
+                "evidence_id": "a2b95fc1-00e0-42ba-9802-372796f03291",
+                "evidence_ids": [
+                  "a2b95fc1-00e0-42ba-9802-372796f03291"
+                ],
+                "excerpt": "row: 3428005\ndate: 2025-12-11T00:00:00.000\nmodified_date: 2025-12-15T13:15:24.454Z\ndescription: SPR 2019 CBRC: 1ST FLOOR INTERIOR AND EXTERIOR ALTERATIONS IN EXISTING 2-STORY DATA CENTER BUILDING ON THE 1ST FLOOR FOR ADDITIONAL COOLING IN PH1. SELECT DEMOLITION INTERIOR PARTION RENOVATION, STRUCTURA",
+                "extraction_location": "Official Chicago permit fields; dated issue and row ID",
+                "ingestion_counts": {
+                  "changed": 0,
+                  "latest_permit_issue_date": "2025-12-11",
+                  "latest_public_comment_deadline": null,
+                  "latest_publication_date": "2025-12-11",
+                  "new": 0,
+                  "parsed_records": 1,
+                  "pdf_candidates": 0,
+                  "pdf_eligible": 0,
+                  "pdf_enriched": 0,
+                  "pdf_skipped_limit": 0,
+                  "pdf_skipped_not_signal": 0,
+                  "permit_accepted": 1,
+                  "permit_rejected": 0,
+                  "records_scanned": 1,
+                  "retrieved_records": 1,
+                  "signals": 0,
+                  "unchanged": 1
+                },
+                "label": "Verified",
+                "match_basis": "Existing canonical source and stable record identity",
+                "published_at": "2025-12-11",
+                "publisher": "City of Chicago Data Portal",
+                "reason": "Official dated permit identifies concrete facility construction, conversion, or remodel; investigate construction or commissioning power. Permit issuance does not prove work start, load, or a power gap.",
+                "retrieved_at": "2026-10-07T03:11:40.291727+00:00",
+                "source_version": "baac9d3e8337b6f96239ddacf92cd785010339da57e9b7805daae30d9eb31fcd",
+                "url": "https://data.cityofchicago.org/resource/ydr8-5enu.json?%24where=id%3D%273428005%27&%24limit=1"
+              }
+            ],
+            "started_at": "2026-10-07T03:11:41.086573+00:00",
+            "tier": "Signal"
+          }
+        }
+      ]
+    }
+  ],
+  "rrc_download": {
+    "accepted_count": 1101,
+    "approved_drilling_count": 1010,
+    "canonical_records_sha256": "65437a8ef972ce17db701220f79cf9dd1b9f199c9c3939e7bb63ed6f75ec935e",
+    "database_writes": false,
+    "finished_at": "2026-10-07T02:58:33.290336+00:00",
+    "passed": true,
+    "record_count": 1107,
+    "rejected_count": 6,
+    "requests": [
+      {
+        "bytes": 142858,
+        "content_type": "text/html;charset=UTF-8",
+        "finished_at": "2026-10-07T02:58:31.070111+00:00",
+        "method": "GET",
+        "sha256": "de2e58997f85d2d5fd0d31a5b74ab132fd0675c41b363394d0fc2cb676c6c453",
+        "started_at": "2026-10-07T02:58:29.725715+00:00",
+        "status": 200,
+        "url": "https://mft.rrc.texas.gov/link/f5dfea9c-bb39-4a5e-a44e-fb522e088cba",
+        "url_sha256": "c237340e436fb713c46e9dccb15818c9bc1ec242ad6d4ab76e6228cd6e46c9dc"
+      },
+      {
+        "bytes": 0,
+        "content_type": null,
+        "finished_at": "2026-10-07T02:58:31.381738+00:00",
+        "method": "POST",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "started_at": "2026-10-07T02:58:31.118343+00:00",
+        "status": 302,
+        "url": "https://mft.rrc.texas.gov/[session-download-path-redacted]",
+        "url_sha256": "109a1596b0284c5727a35a37658bff8f75d5cf96a3894b5f9ff5107ed5007d35"
+      },
+      {
+        "bytes": 2797663,
+        "content_type": "application/force-download",
+        "finished_at": "2026-10-07T02:58:31.553361+00:00",
+        "method": "GET",
+        "sha256": "7c6a2604f1abb94c6ac73ee2c86a45aa5f024cdee52fe65d87ace76de39a6f78",
+        "snapshot_path": "2-daf420.dat.09-30-2026",
+        "started_at": "2026-10-07T02:58:31.382100+00:00",
+        "status": 200,
+        "url": "https://mft.rrc.texas.gov/[session-download-path-redacted]",
+        "url_sha256": "6e38d52da434493b0cc69200f1eec0626c985206f7a159e654858076d6e3708b"
+      },
+      {
+        "bytes": 298701,
+        "content_type": "text/html;charset=UTF-8",
+        "finished_at": "2026-10-07T02:58:32.519290+00:00",
+        "method": "GET",
+        "sha256": "78e524837b295debe7bed086b26b492becba69a99435aff11e6f557e48f7c642",
+        "started_at": "2026-10-07T02:58:31.553777+00:00",
+        "status": 200,
+        "url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc",
+        "url_sha256": "a95b8d195b0f0cb336fd84a7739ce14f973fbb19e830e168c387030c7794d27e"
+      },
+      {
+        "bytes": 0,
+        "content_type": null,
+        "finished_at": "2026-10-07T02:58:32.793746+00:00",
+        "method": "POST",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "started_at": "2026-10-07T02:58:32.628462+00:00",
+        "status": 302,
+        "url": "https://mft.rrc.texas.gov/[session-download-path-redacted]",
+        "url_sha256": "109a1596b0284c5727a35a37658bff8f75d5cf96a3894b5f9ff5107ed5007d35"
+      },
+      {
+        "bytes": 313035,
+        "content_type": "application/force-download",
+        "finished_at": "2026-10-07T02:58:33.078179+00:00",
+        "method": "GET",
+        "sha256": "3dd78f7e65921c1e4ce8ba3af43ce15335c377cce1ae53dd3d40018e7e5ea8b5",
+        "snapshot_path": "5-daf420.dat",
+        "started_at": "2026-10-07T02:58:32.794162+00:00",
+        "status": 200,
+        "url": "https://mft.rrc.texas.gov/[session-download-path-redacted]",
+        "url_sha256": "6e38d52da434493b0cc69200f1eec0626c985206f7a159e654858076d6e3708b"
+      }
+    ],
+    "source_id": "texas-rrc-drilling-permits",
+    "started_at": "2026-10-07T02:58:29.677998+00:00"
+  },
+  "rrc_records_ingested": 1,
+  "rrc_offline_reconstruction": {
+    "canonical_records_sha256": "65437a8ef972ce17db701220f79cf9dd1b9f199c9c3939e7bb63ed6f75ec935e",
+    "claim": "Internal retained native reconstruction only; not research of every record.",
+    "database_writes": 0,
+    "network_requests": 0,
+    "passed": true,
+    "records_checked": 1107
+  },
+  "canonical_counts": {
+    "evidence": 15,
+    "observations": 15,
+    "power_needs": 14,
+    "projects": 14
+  },
+  "tests": {
+    "backend_passed": 1229,
+    "backend_skipped": 1,
+    "backend_warning_count": 1,
+    "backend_seconds": 161.04,
+    "focused_validator_passed": 71,
+    "rrc_unit_passed": 52,
+    "rrc_integration_passed": 9,
+    "focused_counts_overlap_full_suite": true,
+    "browser_regression_passed": 36,
+    "browser_seconds": 38.8,
+    "fresh_browser": {
+      "passed": true,
+      "checks": [
+        "real authenticated pursuit workspace",
+        "chicago_conversion: actual questions/status/before-state/source-links/budgets",
+        "oil_and_gas: actual questions/status/before-state/source-links/budgets",
+        "low_quality: actual questions/status/before-state/source-links/budgets",
+        "mobile reload preserves authenticated real corpus"
+      ],
+      "legacy_six_case_acceptance": false,
+      "source": "real regenerated database, no API mocks"
+    },
+    "ruff": "passed",
+    "mypy_source_files": 77,
+    "frontend_typecheck": "passed",
+    "frontend_build": "passed",
+    "audit_vulnerabilities": 0,
+    "openapi_exact": true,
+    "legacy_live_six": "Not run: named historical prerequisites absent; fresh checks are distinct."
+  },
+  "adversarial_review": {
+    "candidate": "92f7689544c6e72929615e3cad1a012fa38e5caf",
+    "reviewer": "separate design_review agent",
+    "material_findings": 0,
+    "minor_finding": "Malformed deeply nested JSON could raise RecursionError; fixed and regression tested before candidate freeze.",
+    "code_and_receipts_reviewed": true,
+    "reviewer_independently_executed_tests": false
+  },
+  "limitations": [
+    "RRC inspection reads retained native bytes; no live RRC autonomous research refresh.",
+    "Broader public discovery unavailable; no searches/model calls executed.",
+    "Six unresolved blockers do not demonstrate uncertainty resolution or promotion.",
+    "Two Austin cases use existing owner-accepted no-question/no-change exception.",
+    "Historical PR23 corpus proof and six historical live-browser checks not established.",
+    "Unattended production/cloud operation not deployed or proven."
+  ],
+  "mechanical_gates_passed": true,
+  "artifacts": [
+    {
+      "path": ".artifacts/regeneration/five-manifest.json",
+      "sha256": "db87075612292157167221fc0d06ba0c22ab188bf8ac001491eaa8ed2008edde",
+      "bytes": 1580
+    },
+    {
+      "path": ".artifacts/regeneration/five-validation/baseline.json",
+      "sha256": "0d4dabf33c56361fcaacdb40a20ded29d562b54142b0741e9dd2e2849335d559",
+      "bytes": 41556
+    },
+    {
+      "path": ".artifacts/regeneration/five-validation/report.json",
+      "sha256": "922c64992b1ebf8363631a7707c9a459a29c4deec4def0db73477a73d830b50b",
+      "bytes": 230780
+    },
+    {
+      "path": ".artifacts/regeneration/five-run-restore/fresh-corpus.dump",
+      "sha256": "2dd076348e03a5b0415b668d11befadc9b5bb7382a05cd7187d845557c6b7f5b",
+      "bytes": 103204
+    },
+    {
+      "path": ".artifacts/regeneration/five-run-restore/restore.json",
+      "sha256": "b0f127ca755e8112cc8e68de01677e7b304a27b4c92620ff68ea915d98dcca6e",
+      "bytes": 1994
+    },
+    {
+      "path": ".artifacts/regeneration/five-run-restore/before.json",
+      "sha256": "8854ea7c2948e2d3485b9f69f53d953178652c5f07f9571ef77100761aa3cbee",
+      "bytes": 30344
+    },
+    {
+      "path": ".artifacts/regeneration/five-run-restore/restored.json",
+      "sha256": "fc23f97d7fb321c472fd087736dd90d14e1378fc97093ab81912c5df32d8edb0",
+      "bytes": 30341
+    },
+    {
+      "path": ".artifacts/regeneration/five-post-restore/fresh-corpus.dump",
+      "sha256": "0d01f941071c35dbd9f6ce3bac903cc53ab1388f092e5e53a7c23337973a5975",
+      "bytes": 128710
+    },
+    {
+      "path": ".artifacts/regeneration/five-post-restore/restore.json",
+      "sha256": "40b9892618544ed41e97ff8223315c61af04ceb9679c5ed26326ba9935a6c2a1",
+      "bytes": 1992
+    },
+    {
+      "path": ".artifacts/regeneration/rrc-ingestion/receipt.json",
+      "sha256": "d35fc08066d3845768aef26df1d6b63625edf9b70402b0e7428f0cc1ad48efc3",
+      "bytes": 38280
+    },
+    {
+      "path": ".artifacts/regeneration/rrc-offline-reconstruction-five.json",
+      "sha256": "237276a529494c8eb89c9eb5e4878b31004bc054b186b0584619452560e22d9d",
+      "bytes": 285
+    },
+    {
+      "path": ".artifacts/regeneration/migration-before-five.json",
+      "sha256": "8bf389e7eac024970df54ea9c9adf34f8b1b64e487b1c0d183cd4b2f0af26619",
+      "bytes": 30347
+    },
+    {
+      "path": ".artifacts/regeneration/migration-after-five.json",
+      "sha256": "8bf389e7eac024970df54ea9c9adf34f8b1b64e487b1c0d183cd4b2f0af26619",
+      "bytes": 30347
+    },
+    {
+      "path": ".artifacts/regeneration/migration-preservation-five.json",
+      "sha256": "a22ea8424385767285c9ad6d73206967da64056fdb50607882cf0f485e830a0a",
+      "bytes": 277
+    },
+    {
+      "path": ".artifacts/regeneration/migration-clean-five-final.json",
+      "sha256": "5f52e33dce9046cff2f2ac96f19316ec093a119de846ec8a4b4a7f68e69fc965",
+      "bytes": 180
+    },
+    {
+      "path": ".artifacts/regeneration/test-exits-five.json",
+      "sha256": "ca8d5721c72208eaef8d28cec17a55df5d05ebe1fcf09df13ead9884e5f38d51",
+      "bytes": 42
+    },
+    {
+      "path": ".artifacts/regeneration/fresh-browser-five.cjs",
+      "sha256": "763887b8ccba8ceb98c46ce21ca049c11c898df1dea69c97cd1d91623ccecfdd",
+      "bytes": 3548
+    },
+    {
+      "path": ".artifacts/regeneration/fresh-browser-result-five.json",
+      "sha256": "6c5a3196b7d11164f84c7c2a3871b14e90576e64dc26ff5a009655f764e6279a",
+      "bytes": 474
+    },
+    {
+      "path": ".artifacts/regeneration/openapi-parity-five.json",
+      "sha256": "748eda8085f7e3c82149775d9542083427f0f8a955173c4a0ed18c85c69c5c09",
+      "bytes": 16
+    },
+    {
+      "path": ".artifacts/regeneration/migration-clean-repeat-five.log",
+      "sha256": "e1e114a8d727fffb3893991776f75c1242568bef625705ec3bc44f26ba38040d",
+      "bytes": 256
+    },
+    {
+      "path": ".artifacts/regeneration/migration-repeat-five.log",
+      "sha256": "e1e114a8d727fffb3893991776f75c1242568bef625705ec3bc44f26ba38040d",
+      "bytes": 256
+    },
+    {
+      "path": ".artifacts/regeneration/migration-drift-five.log",
+      "sha256": "87b45d2006d83d9b2228c5183212b3feaffc61a479f65dd07f2754df22210756",
+      "bytes": 1918
+    },
+    {
+      "path": ".artifacts/regeneration/build-five.log",
+      "sha256": "12cd55e38045c9d0fe550383f83e0d3603443dd9fed9833dd524bcd635d8c467",
+      "bytes": 380
+    },
+    {
+      "path": ".artifacts/regeneration/backend-tests-five.log",
+      "sha256": "414256cebbdcc076426303c25e3848d90d7dfdbaff776956965bdaad5701a1a7",
+      "bytes": 7233
+    },
+    {
+      "path": ".artifacts/regeneration/migration-clean-five.log",
+      "sha256": "e1e114a8d727fffb3893991776f75c1242568bef625705ec3bc44f26ba38040d",
+      "bytes": 256
+    },
+    {
+      "path": ".artifacts/regeneration/validator-tests-five.log",
+      "sha256": "39f381ee8ae8f87a69b887038136b5f0c785173a90288e2423d7944a23022c6e",
+      "bytes": 99
+    },
+    {
+      "path": ".artifacts/regeneration/migration-prepare-five.log",
+      "sha256": "b6b3cd6c7e3a131ca921cfa495f2473e6a82841602fad486f16f43454b4ead42",
+      "bytes": 622
+    },
+    {
+      "path": ".artifacts/regeneration/migration-clean-drift-five.log",
+      "sha256": "07fe5ad2c2d823834f9adf4ed3c350ece27e4f40ff06c561f2a2edac8e3ae070",
+      "bytes": 1918
+    },
+    {
+      "path": ".artifacts/regeneration/typecheck-five.log",
+      "sha256": "2ed7bd9429f03c4125fd3cd1b8b752d8135892f09eb7ff8609ac5c3677b941b6",
+      "bytes": 48
+    },
+    {
+      "path": ".artifacts/regeneration/mypy-five.log",
+      "sha256": "4083cc36ce0af014fd97919ec50ce462d15ed538eb9ce7e05c7828d300f7c67b",
+      "bytes": 200
+    },
+    {
+      "path": ".artifacts/regeneration/ruff-five.log",
+      "sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "bytes": 19
+    },
+    {
+      "path": ".artifacts/regeneration/migration-existing-five.log",
+      "sha256": "23a39887a711c185659bf6a448e9cfaf3a5d22a7cfb954b68ef24618ae8adb9b",
+      "bytes": 618
+    },
+    {
+      "path": ".artifacts/regeneration/audit-five.log",
+      "sha256": "6d8c5c8f3d7684adb070417bd608d01ae90aa3dc26a65af03ffda4955f38d9a3",
+      "bytes": 24
+    },
+    {
+      "path": ".artifacts/regeneration/browser-regression-five.log",
+      "sha256": "638be176ad3a9d5e778fce6e505a41f537150c76657344b8b9c56366eec17359",
+      "bytes": 6106
+    },
+    {
+      "path": ".artifacts/regeneration/migration-clean-drift-five-final.log",
+      "sha256": "748865e5aa5e717c31274dea6293becd98f1ebd1874f59669bb4e2cbdcd5fc06",
+      "bytes": 1918
+    },
+    {
+      "path": ".artifacts/regeneration/migration-clean-repeat-five-final.log",
+      "sha256": "e1e114a8d727fffb3893991776f75c1242568bef625705ec3bc44f26ba38040d",
+      "bytes": 256
+    },
+    {
+      "path": ".artifacts/regeneration/migration-clean-five-final.log",
+      "sha256": "4ff9b1586f05efe63bf737086fdbecf66e5e3cd1c7a8d8db8d934adfbfb2a0e5",
+      "bytes": 4804
+    },
+    {
+      "path": ".artifacts/regeneration/chicago_conversion-desktop-five.png",
+      "sha256": "a44e645004b9fdc254baf5e0e59a89dd48f3d4153f02a6ec54b12b6f066c3341",
+      "bytes": 1896457
+    },
+    {
+      "path": ".artifacts/regeneration/fresh-mobile-five.png",
+      "sha256": "1ac898e41036bdf7bb588379afacecc2510eb323d391601f9f0883bcd14d6bc2",
+      "bytes": 82569
+    },
+    {
+      "path": ".artifacts/regeneration/low_quality-desktop-five.png",
+      "sha256": "80ee1e57b326d45e8ccd05623bd6c0045e83de2eb00b7d31e291d04ac3e962fb",
+      "bytes": 1777833
+    },
+    {
+      "path": ".artifacts/regeneration/oil_and_gas-desktop-five.png",
+      "sha256": "95bead4f50c949f23f452a56c7b3d395022b191254da752e12161f1f0ae9ee14",
+      "bytes": 1147091
+    },
+    {
+      "path": ".artifacts/rrc-drilling-download-20261007/receipt.json",
+      "sha256": "38c43cdd527c4a7a8f5465f98c57452018ae4a03fb8281730f2313cc66874e69",
+      "bytes": 22936
+    },
+    {
+      "path": ".artifacts/rrc-drilling-download-20261007/canonical-records.json",
+      "sha256": "65437a8ef972ce17db701220f79cf9dd1b9f199c9c3939e7bb63ed6f75ec935e",
+      "bytes": 6239562
+    },
+    {
+      "path": ".artifacts/rrc-drilling-download-20261007/selected-records.json",
+      "sha256": "77c9bac5f2760bdaa527dce3e5e769190d9e6e1e120bcd3183adb72d884edd24",
+      "bytes": 11405
+    },
+    {
+      "path": ".artifacts/rrc-drilling-download-20261007/2-daf420.dat.09-30-2026",
+      "sha256": "7c6a2604f1abb94c6ac73ee2c86a45aa5f024cdee52fe65d87ace76de39a6f78",
+      "bytes": 2797663
+    },
+    {
+      "path": ".artifacts/rrc-drilling-download-20261007/5-daf420.dat",
+      "sha256": "3dd78f7e65921c1e4ce8ba3af43ce15335c377cce1ae53dd3d40018e7e5ea8b5",
+      "bytes": 313035
+    }
+  ]
+}

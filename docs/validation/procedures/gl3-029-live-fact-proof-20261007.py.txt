@@ -1,0 +1,50 @@
+import json,time
+from pathlib import Path
+from datetime import UTC,datetime
+from uuid import UUID
+from sqlalchemy import select
+from gridlens.domain.pursuit_research import blocker_resolved,plan_questions
+from gridlens.ingestion.registry import load_registry
+from gridlens.intelligence.commercial_evaluation import evaluate_target
+from gridlens.intelligence.pursuit_questions import schedule_questions,question_view
+from gridlens.jobs.worker import run_one
+from gridlens.persistence.database import SessionLocal
+from gridlens.persistence.models import Job,PursuitResearchQuestion
+from gridlens.settings import settings
+from validate_pursuit_research import candidate_identity,database_snapshot,digest,preservation,replay_state,evaluation_history_preserved,write_once
+from regenerate_pursuit_corpus import configured_url
+def main():
+    out=Path('.artifacts/regeneration/live-fact-proof-retry');out.mkdir(exist_ok=False)
+    assert configured_url().database=='gl3_regen_20261007_fact_proof_retry'
+    need=UUID('f7a89b46-6875-4be0-bfb5-748305657f8f');start=datetime.now(UTC);frozen=candidate_identity()
+    with SessionLocal() as s:
+     assert not s.scalar(select(Job.id).where(Job.status.in_(['queued','running'])).limit(1))
+     before=evaluate_target(s,need);assert before and before['disposition']=='RESEARCH'
+     assert not blocker_resolved('phase',before)
+     baseline={'candidate':frozen,'started_at':start.isoformat(),'need_id':str(need),'selected_project':'400 S La Salle, Chicago permit 3451848','primary_question':'Is this project currently under construction, delayed, paused, completed, or cancelled?','selection_basis':'Actual current phase blocker; permit approval does not confirm work underway. No previously retained fact is removed or masked.','before':before,'planned_questions':plan_questions(before),'snapshot':database_snapshot(s),'replay_state':replay_state(s),'provider_configuration':{'firecrawl_key_present':bool(settings.firecrawl_api_key),'search_cost_reservation_configured':settings.firecrawl_search_cost_usd is not None,'question_budget_usd':str(settings.autonomous_research_max_cost_usd)},'execution':'Existing scheduler force-refresh and actual worker; no injected records, document text, search results or acquisition functions.','bounds':{'max_jobs':2,'max_wall_clock_seconds':420,'max_models':0,'max_cost_usd':'0'}}
+    write_once(out/'baseline.json',baseline)
+    with SessionLocal.begin() as s:
+     qs=schedule_questions(s,[evaluate_target(s,need)],force=True,origin='manual')
+     assert len(qs)==2 and {q.category for q in qs}=={'phase','power_need'}
+     question_ids=[q.id for q in qs];jobs=list(s.scalars(select(Job.id).where(Job.target_id.in_(question_ids))))
+     assert len(jobs)==2
+     write_once(out/'queued.json',{'questions':[question_view(q) for q in qs],'jobs':[str(j) for j in jobs]})
+    definitions={d['id']:d for d in load_registry()};deadline=time.monotonic()+420
+    for j in jobs:
+     assert time.monotonic()+settings.autonomous_research_timeout_seconds<deadline
+     assert run_one(definitions,job_ids=[j])
+    with SessionLocal() as s:
+     after=evaluate_target(s,need);snapshot=database_snapshot(s);state=replay_state(s)
+     questions=[question_view(s.get(PursuitResearchQuestion,q)) for q in question_ids]
+     queue_empty=not s.scalar(select(Job.id).where(Job.status.in_(['queued','running'])).limit(1))
+    with SessionLocal() as s:
+     replay_before=replay_state(s);would=schedule_questions(s,[evaluate_target(s,need)],origin='validation');replay_after=replay_state(s);s.rollback()
+    checks=[c for q in questions for c in q['receipt'].get('source_checks',[])]
+    new_evidence=sorted(set(snapshot['immutable_tables']['evidence']['rows'])-set(baseline['snapshot']['immutable_tables']['evidence']['rows']))
+    resolved=[q for q in questions if q['status']=='RESOLVED']
+    report={'candidate':frozen,'candidate_unchanged':candidate_identity()==frozen,'started_at':start.isoformat(),'finished_at':datetime.now(UTC).isoformat(),'before':before,'after':after,'questions':questions,'new_evidence_ids':new_evidence,'new_admissible_fact_and_resolved_question_proven':bool(new_evidence and resolved),'preservation':preservation(baseline['snapshot'],snapshot),'evaluation_history_preserved':evaluation_history_preserved(baseline['replay_state'],state),'replay':{'before_sha256':digest(replay_before),'after_sha256':digest(replay_after),'would_create_questions':[str(q.id) for q in would],'passed':not would and digest(replay_before)==digest(replay_after)},'queue_empty':queue_empty,'counts':{'questions':len(questions),'resolved':len(resolved),'unresolved':sum(q['status']=='UNRESOLVED' for q in questions),'failed':sum(q['status']=='FAILED' for q in questions),'retrieval_attempts':sum(q['receipt'].get('retrieval_attempts',0) for q in questions),'searches':sum(q['receipt'].get('searches',0) for q in questions),'model_calls':sum(q['receipt'].get('model_calls',0) for q in questions),'new_evidence':len(new_evidence)},'mechanism_gap':'The configured application can refresh the exact linked Chicago permit, whose content remains unchanged. It cannot discover a new project page without its configured Firecrawl discovery credential and explicit cost reservation; neither is present. No new fact is established and no positive proof is claimed.','required_next_step':'Provide access to the existing application Firecrawl discovery integration with an explicit bounded reservation/budget, or separately authorize a reviewed project-specific public-source route. Do not inject a preselected answer or bypass admission.'}
+    write_once(out/'after-snapshot.json',snapshot);write_once(out/'report.json',report)
+    print(json.dumps({'proof_met':report['new_admissible_fact_and_resolved_question_proven'],'counts':report['counts'],'preserved':report['preservation']['passed'],'replay':report['replay']['passed'],'queue_empty':queue_empty}))
+
+if __name__ == "__main__":
+    main()

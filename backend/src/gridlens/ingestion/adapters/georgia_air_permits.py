@@ -65,7 +65,9 @@ _RELEVANT = re.compile(
     r"equipment|proposed|facility description|source code)\b",
     re.IGNORECASE,
 )
-_LEGAL_SUFFIXES = {"llc", "inc", "incorporated", "corp", "corporation", "ltd", "limited", "co"}
+_LEGAL_SUFFIXES = {
+    "llc", "inc", "incorporated", "corp", "corporation", "ltd", "limited", "co", "company"
+}
 
 
 def _identity_tokens(value: str) -> list[str]:

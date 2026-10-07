@@ -1,5 +1,7 @@
 # Delivery milestones
 
+**Current checkpoint, October 4:** PR23 merged to main at `6c8bdf3e3163adde078f8543d43c0256bc11eb82`; PR24 remains an open draft at `d8b0e99897c600f32a0e00bb6770b841f2c6f907`. Hosted backend/web CI passes for both original heads. An independent PR24 review returns FIX; its repaired-candidate original-corpus gate is pending. The original backup has been located and isolated restoration proved. No documented local GL3 API/web listener, established worker identity, cloud deployment, seven daily cycles or real Lead was established by the October 4 audit. All A–E exits below remain OPEN. Earlier paragraphs are dated historical checkpoints.
+
 Merged application slices through GL3-019 (PR #9, `a737af0`) are on main; documentation PR #11 and CI cleanup PR #10 are also merged at current main `2052fd5`. The PRD exit gates below stay open. Local proof is not deployment, national coverage, or a working release.
 
 | Milestone | State | Evidence / unmet gate |
@@ -7,8 +9,8 @@ Merged application slices through GL3-019 (PR #9, `a737af0`) are on main; docume
 | First ingestion-backed slice | LOCAL CHECKPOINT | Real structured/HTML/PDF retrieval, replay and browser/restore proof retained. Exact-candidate gates and independent verdict: [validation receipt](validation.md). Later slices through GL3-019 are merged; this row is the original checkpoint. |
 | A Foundation | OPEN | Local API/worker/auth/database and merged ingestion through GL3-019. No authorized deployment; real scheduled cloud check with owner PC off not proven. |
 | B Daily Signals | OPEN | Retained GL3-019 acceptance proves bounded city permits, Texas RRC current/prior-month files, air documents and supplemental feeds; Houston rows remain observations without Signal admission. Deployed daily discovery and the launch feed minimum are not proven. |
-| C Prospects | OPEN | Missing-fact research, independent supply evidence and qualification unimplemented. |
-| D Leads | OPEN | Supported MW/time/supply scenarios and real Lead proof absent. |
+| C Prospects | OPEN | Bounded missing-fact research exists in draft PR24, but independent supply evidence and accepted real Prospect conversion are unproved. Call-confirmed facts do not yet flow into attributed tier recalculation. |
+| D Leads | OPEN | Deterministic gates exist in the candidate; a Nick-reviewed real Lead with supported MW/time/supply remains unproved. |
 | E Daily working release | OPEN | 12 feeds/five families/two national structured/three industries, 30-record review, seven cycles/reliability/alerts/managed recovery/Nick commercial review outstanding. Local snapshot restore is proven only. `launch-review.md` is not in the repository. |
 
 PR #3 through PR #11 are merged history. Cloud deployment, purchases, paid services, new accounts, and outbound communication remain unauthorized. Local scheduler tests cannot close A. No source count, test count, or screenshot closes the parent PRD.
