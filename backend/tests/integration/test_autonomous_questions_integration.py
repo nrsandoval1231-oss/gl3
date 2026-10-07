@@ -1142,7 +1142,10 @@ def test_retained_only_pass_preserves_previously_supported_external_buying_conta
 
 
 @pytest.mark.parametrize("status", ["QUEUED", "SEARCHING", "REVIEWING_EVIDENCE"])
-def test_exhausted_job_terminalizes_active_question_without_losing_receipt(runtime, status):
+@pytest.mark.parametrize("ambiguous", [False, True])
+def test_exhausted_job_terminalizes_active_question_without_losing_receipt(
+    runtime, status, ambiguous
+):
     from gridlens.jobs.queue import assert_fence
 
     factory, _, _, card = runtime
@@ -1150,11 +1153,9 @@ def test_exhausted_job_terminalizes_active_question_without_losing_receipt(runti
     with factory.begin() as session:
         question = session.get(PursuitResearchQuestion, question_id)
         question.status = status
-        question.receipt = {
-            **question.receipt,
-            "source_checks": [{"reason": "retained partial"}],
-            "inflight_url": "https://example.invalid/interrupted",
-        }
+        question.receipt = {**question.receipt, "source_checks": [{"reason": "retained partial"}]}
+        if ambiguous:
+            question.receipt["inflight_url"] = "https://example.invalid/interrupted"
         job = session.scalar(select(Job).where(Job.target_id == question_id))
         job.status, job.attempts, job.lease_owner, job.fence = "running", 5, "dead-worker", 5
         job.lease_until = datetime.now(UTC) - timedelta(seconds=1)
@@ -1168,13 +1169,19 @@ def test_exhausted_job_terminalizes_active_question_without_losing_receipt(runti
         assert question.receipt["result_disposition"] == "FAILED"
         assert question.receipt["reevaluation_status"] == "NOT_COMPLETED"
         assert question.receipt["source_checks"] == [{"reason": "retained partial"}]
-        assert question.receipt["inflight_url"] == "https://example.invalid/interrupted"
+        assert question.receipt.get("inflight_url") == (
+            "https://example.invalid/interrupted" if ambiguous else None
+        )
+        assert question.receipt["retry_class"] == (
+            "UNKNOWN_EFFECT" if ambiguous else "RETRIES_EXHAUSTED"
+        )
         assert question.retry_after > question.completed_at
         job = session.get(Job, job_id)
         assert job.status == "failed" and job.lease_owner is None and job.lease_until is None
         with pytest.raises(RuntimeError, match="fence lost"):
             assert_fence(session, job_id, "dead-worker", 5)
         assert session.get(PowerNeed, card["id"]).tier == "Signal"
+    assert schedule(factory, card) == []
 
 
 def test_expiry_cleanup_is_atomic_and_preserves_already_terminal_question(runtime):
@@ -1342,3 +1349,124 @@ def test_paid_search_cannot_spend_after_document_budget_exhaustion(runtime):
         receipt = session.get(PursuitResearchQuestion, question_id).receipt
         assert receipt.get("searches", 0) == 0
         assert not receipt.get("queries_attempted")
+
+
+def test_planning_discovers_supported_need_beyond_shortlist_without_splitting_group(
+    runtime, monkeypatch
+):
+    factory, worker, api, card = runtime
+    with factory.begin() as session:
+        needs = [
+            PowerNeed(
+                project_id=card["project_id"],
+                activity_key=f"shortlist-{index}",
+                tier="Signal",
+                rationale="Synthetic shortlist need",
+                supply="Unknown",
+            )
+            for index in range(50)
+        ]
+        grouped = PowerNeed(
+            project_id=card["project_id"],
+            activity_key="grouped-need",
+            tier="Signal",
+            rationale="Already represented by a grouped card",
+            supply="Unknown",
+        )
+        session.add_all([*needs, grouped])
+        session.flush()
+        shortlist = [
+            {**card, "id": str(need.id), "related_need_ids": [str(need.id)]}
+            for need in needs
+        ]
+        shortlist[0]["related_need_ids"].append(str(grouped.id))
+    monkeypatch.setattr(api, "_commercial_triage_cards", lambda *_: shortlist)
+    monkeypatch.setattr(worker, "evaluate_targets", lambda _s, ids, **_kw: {card["id"]: card})
+    questions = import_module("gridlens.intelligence.pursuit_questions")
+    monkeypatch.setattr(
+        questions,
+        "evaluate_targets",
+        lambda _s, _ids, **_kw: {str(card["id"]): card},
+    )
+    planned = worker.planning_cards()
+    assert len(planned) == 51
+    assert planned[-1]["id"] == card["id"]
+    monkeypatch.setattr(settings, "autonomous_research_daily_questions", 1)
+    with factory.begin() as session:
+        scheduled = schedule_questions(session, [planned[-1]])
+        assert len(scheduled) == 1
+    with factory.begin() as session:
+        assert schedule_questions(session, planned) == []
+
+
+@pytest.mark.parametrize("retry_index,delay", [(0, 1), (1, 6), (2, 24), (3, None)])
+def test_unexpected_question_worker_failure_uses_bounded_retry_and_keeps_receipt(
+    runtime, monkeypatch, retry_index, delay
+):
+    factory, research, _, card = runtime
+    job_worker = import_module("gridlens.jobs.worker")
+    monkeypatch.setattr(job_worker, "SessionLocal", factory)
+    question_id = schedule(factory, card)[0]
+    with factory.begin() as session:
+        question = session.get(PursuitResearchQuestion, question_id)
+        question.context = {**question.context, "retry_index": retry_index}
+        question.receipt = {**question.receipt, "partial_receipt": {"retained": True}}
+        job_id = session.scalar(select(Job.id).where(Job.target_id == question_id))
+
+    def fail_before_or_after_dispatch(*_args):
+        raise RuntimeError("synthetic worker failure")
+
+    monkeypatch.setattr(research, "process_question_job", fail_before_or_after_dispatch)
+    assert job_worker.run_one({}, job_ids=[job_id])
+    with factory() as session:
+        question = session.get(PursuitResearchQuestion, question_id)
+        job = session.get(Job, job_id)
+        assert question.status == "FAILED"
+        assert question.receipt["partial_receipt"] == {"retained": True}
+        assert question.receipt["result_disposition"] == "FAILED"
+        assert question.receipt["retry_class"] == (
+            "BOUNDED_TRANSIENT" if delay else "RETRIES_EXHAUSTED"
+        )
+        assert job.status == "failed"
+        completed_at = question.completed_at
+        if delay:
+            assert question.retry_after == completed_at + timedelta(hours=delay)
+    next_attempts = schedule(
+        factory,
+        card,
+        now=completed_at + timedelta(hours=(delay or 48), seconds=1),
+    )
+    assert bool(next_attempts) is (delay is not None)
+    if next_attempts:
+        with factory() as session:
+            retried = session.get(PursuitResearchQuestion, next_attempts[0])
+            assert retried.context["retry_index"] == retry_index + 1
+
+
+@pytest.mark.parametrize("marker", ["inflight_url", "ambiguous_effects"])
+def test_unexpected_failure_with_paid_effect_blocks_changed_forced_refresh(
+    runtime, monkeypatch, marker
+):
+    factory, research, _, card = runtime
+    job_worker = import_module("gridlens.jobs.worker")
+    monkeypatch.setattr(job_worker, "SessionLocal", factory)
+    question_id = schedule(factory, card)[0]
+    with factory.begin() as session:
+        question = session.get(PursuitResearchQuestion, question_id)
+        value = "https://example.invalid/paid-reservation"
+        question.receipt = {**question.receipt, marker: value}
+        job_id = session.scalar(select(Job.id).where(Job.target_id == question_id))
+    monkeypatch.setattr(
+        research,
+        "process_question_job",
+        lambda *_: (_ for _ in ()).throw(RuntimeError("synthetic interrupted call")),
+    )
+    assert job_worker.run_one({}, job_ids=[job_id])
+    changed = {**card, "input_hash": "changed-after-ambiguous-effect"}
+    assert schedule(
+        factory, changed, force=True, now=datetime.now(UTC) + timedelta(days=2)
+    ) == []
+    with factory() as session:
+        question = session.get(PursuitResearchQuestion, question_id)
+        assert question.receipt["retry_class"] == "UNKNOWN_EFFECT"
+        assert question.receipt[marker] == value

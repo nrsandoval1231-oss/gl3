@@ -63,6 +63,10 @@ def lease_one(
                     "error": "lease_expired_after_maximum_attempts",
                     "result_disposition": "FAILED",
                     "reevaluation_status": "NOT_COMPLETED",
+                    "retry_class": "UNKNOWN_EFFECT"
+                    if question.receipt.get("inflight_url")
+                    or question.receipt.get("ambiguous_effects")
+                    else "RETRIES_EXHAUSTED",
                 }
         source = session.get(Source, expired.source_id)
         if source and expired.kind == "ingestion":
