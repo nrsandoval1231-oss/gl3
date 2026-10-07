@@ -55,8 +55,7 @@ The TypeSafe request/response contract was checked against the official [OpenAPI
 ## Autonomous pursuit research candidate
 
 GL3-029 adds `pursuit_question` jobs and migration `0014_pursuit_research_questions`.
-It is an unaccepted candidate; use an isolated acceptance database until validation
-is complete. Existing historical research receipts are preserved.
+It remains a draft candidate. The [five-category regenerated-corpus gates](../validation/gl3-029-five-category-20261007.md) pass locally; historical retained-browser proof and production deployment remain separate. Use isolated validation databases and preserve historical research receipts.
 
 The current worker plans questions at startup and on its hourly refresh when
 `worker_auto_refresh` and `autonomous_research_enabled` are enabled. It considers
@@ -148,3 +147,19 @@ its receipts distinct from real-corpus receipts.
 ### Fresh regeneration (owner-authorized October 7)
 
 Use `scripts/regenerate_pursuit_corpus.py` and its validation README for bounded native-permit collection, canonical ingestion and isolated backup/restore. Preserve new acquisition dates and hashes; never relabel a new archive as original PR23 evidence. The original recovery requirement is superseded, not passed. Unsupported cohorts remain explicit gaps. Partial diagnostic execution records the full manifest gate rejection and cannot claim five-cohort or retained-corpus acceptance. Keep full source records, credentials and database archives ignored; publish only safe review receipts and source-backed findings.
+
+### RRC retained-native inspection
+
+The autonomous worker can inspect complete native RRC permit bytes already retained
+in canonical Evidence. It verifies the accepted interpretation and unique project/need
+binding, strict raw hashes/provenance, bounded reconstruction and exact canonical
+fields. Receipts retain the original observation timestamp and record inspection time
+separately with `retained_native_replay:true` and `network_refresh:false`. No new
+Evidence or commercial facts are created. Opaque children remain uninterpreted;
+approval alone does not establish drilling underway or a power requirement.
+
+The October 7 owner authorization permitted the existing anonymous public download
+POST for corpus regeneration; it did not add an autonomous RRC network research route
+or authorize other forms. Missing discovery remains visible, with existing finite
+transient retries. Do not present repeated retained inspection as new acquisition.
+The live five-category run ended with six UNRESOLVED blockers and no promotions.

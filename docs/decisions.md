@@ -84,3 +84,21 @@ on unchanged native evidence and real post-queue changes still stop before I/O.
 Drilling remains eligible for early O&G Signals under the existing RRC admission
 policy; the initial fixed-infrastructure-only scout was too narrow and is not proof
 that the existing drilling route lacks eligible records.
+
+### October 7 — bounded inspection of complete retained RRC records
+
+After explicit owner authorization, the existing anonymous RRC public-download form
+retrieved real daily/monthly files for fresh corpus regeneration. Exactly one selected
+approved drilling record entered the existing canonical pipeline. Autonomous research
+may inspect its complete retained native bytes through the existing parser/renderer,
+strict bounded reconstruction and accepted exact identity checks. This is Tier A
+inspection with original acquisition timestamps, not a new network adapter or a
+claim of exhaustive public research. Opaque child records remain uninterpreted and
+permit approval does not establish current drilling, temporary demand or buying power.
+
+Keep the existing validator and finite provider-unavailable retry behavior unchanged.
+All five regenerated categories now pass mechanical investigation/preservation/replay;
+six blockers remain unresolved, with no promotion. Historical original-corpus proof
+and unavailable historical browser prerequisites are not substituted. Canonical docs
+link the final exact-candidate report; older failure/authorization receipts remain
+immutable history. No new architecture, migration, outreach or deployment follows.
