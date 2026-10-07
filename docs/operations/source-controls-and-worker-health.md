@@ -1,0 +1,68 @@
+# Source controls and worker health
+
+Registry enablement and the database operator switch are separate controls.
+Effective collection requires both to be enabled. Routine registry reconciliation
+updates the registry flag and source definition but never resets the operator
+switch. An operator can explicitly change that switch with the authenticated,
+same-origin endpoint:
+
+```http
+POST /api/sources/{source_id}/enabled
+Content-Type: application/json
+
+{"enabled": false}
+```
+
+Use `{"enabled": true}` to explicitly re-enable a source that is still enabled
+in the registry. An explicit operator transition closes the current schedule
+epoch and records its known effective UTC time in the same transaction. A
+registry/configuration change starts a new epoch when observed; if the prior
+effective time cannot be proven, its earlier history is marked unknown and is
+not backfilled as if the observed time were the original change time. Seven-day
+freshness remains `UNKNOWN` until the uncertain interval leaves the window. If
+the registry disables a source, the operator endpoint cannot override it.
+
+### Disable behavior
+
+Before disable, a queued or expired-retry ingestion job can be leased and may
+make a provider request. After disable, ingestion jobs remain queued/running for
+inspection but are not leased. A worker also reloads the source definition and
+checks the effective database state immediately before acquisition; if disabled,
+it returns the job to the queue without consuming a provider attempt and records
+the reason on the job and source health. A PostgreSQL dispatch lock spans
+acquisition and the fenced result, so an operator disable waits for a request
+already dispatched to finish or fail. That in-flight attempt is retained with
+its outcome; the worker does not interrupt a possibly completed external
+request and blindly replay it.
+
+### Scheduling and freshness
+
+Each enabled schedule epoch records its source configuration, cadence, mode,
+timezone, anchor and effective interval. Cadences below 24 hours use elapsed UTC
+intervals. Daily schedules use a local wall-clock anchor (default 03:00 in
+America/Chicago); nonexistent spring-forward times resolve to the first valid
+wall time after the gap, and ambiguous fall-back times use the first occurrence.
+The worker reconciles missed occurrences into a unique source/epoch/UTC due
+ledger. Each due occurrence can link to one ingestion job; retries keep that
+link and add fenced attempt receipts instead of creating another denominator
+unit. Receipts distinguish successful, partial, failed and unknown outcomes.
+The ledger begins when the schedule epoch is persisted, so the seven-day view
+reports `UNKNOWN` until it has a complete, known seven-day schedule history;
+unprovable legacy or drift intervals cannot be treated as successful coverage.
+
+Health signals answer different questions:
+
+- `GET /health/live` reports that the API process can answer without querying
+  PostgreSQL.
+- `GET /health/ready` verifies the database and queue can be queried.
+- Authenticated `GET /api/health` reports the worker heartbeat (`LIVE`, `STALE`
+  or `UNKNOWN`), planner attempt/success/backoff state, and per-source seven-day
+  ledger freshness. An HTTP 200 response alone does not establish collection
+  freshness.
+
+For example, after a source is disabled, its pending ingestion stays visible but
+`lease_one()` leaves it untouched; explicitly enabling it again makes it
+eligible under ordinary queue limits. If source planning raises an exception,
+the planner row records its error class and bounded next retry while the worker
+continues to lease unrelated ready jobs and runs the independent pursuit
+question planner when eligible.
