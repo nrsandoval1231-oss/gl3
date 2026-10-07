@@ -1,0 +1,137 @@
+{
+  "schema_version": "1.0",
+  "task": "GL3-AUDIT-A3 revocable sessions and trusted login identity",
+  "status": "builder_complete_pending_controller_review",
+  "repository": "GridLens GL3",
+  "branch": "repair/gl3-auth-20261007",
+  "base_sha": "94c3acb7b36c6d5d04a77a0ec445e793e05120a4",
+  "frozen_source_commit": "53a141da0cbbb4ee296b0eb5fc69652b0d0af06e",
+  "commit_message": "Harden GL3 auth sessions and login limits",
+  "changed_files": [
+    ".env.example",
+    "backend/migrations/versions/0015_revocable_auth.py",
+    "backend/src/gridlens/api/app.py",
+    "backend/src/gridlens/persistence/models.py",
+    "backend/src/gridlens/security.py",
+    "backend/src/gridlens/settings.py",
+    "backend/tests/unit/test_auth_persistence.py",
+    "backend/tests/unit/test_security.py",
+    "compose.yaml",
+    "deploy/Dockerfile.backend",
+    "docs/operations/authentication-and-proxy.md"
+  ],
+  "implementation": {
+    "sessions": "256-bit random opaque cookie; PostgreSQL stores only SHA-256 token digest, timestamps, revocation, and SHA-256 credential fingerprint over current password hash plus session secret. Each request validates server state. Logout revokes before clearing the cookie. Expired rows older than seven days are pruned during auth reads and session issue.",
+    "login_limits": "One PostgreSQL transaction advisory lock serializes global and per-client fixed-window buckets. Defaults: 60 seconds, 5 per client, 500 global, 10000 distinct client buckets plus one shared overflow bucket. Successful and failed password attempts both consume capacity. Client keys are HMAC-SHA256 digests of canonical IPs using the session secret.",
+    "proxy_identity": "Forwarded headers are ignored unless the socket peer matches TRUSTED_PROXY_CIDRS. A bounded X-Forwarded-For chain is parsed right-to-left across trusted hops; malformed, oversized, or excessive chains fall back to the peer. Forwarded is ignored. IPv4-mapped IPv6 is normalized.",
+    "proxy_launch": "Compose and image launchers explicitly pass --no-proxy-headers to Uvicorn.",
+    "migration_rollback": "Downgrade 0015 drops sessions and limiter buckets; it logs out all users and resets active login windows. This consequence is documented."
+  },
+  "behavior_evidence": {
+    "session_replay": {
+      "before": "The prior stateless token had no server revocation state; deleting the browser cookie alone could not revoke a copied token.",
+      "after": "A copied cookie replayed after logout receives 401 on /api/health; covered by test_session_revocation_rotation_expiry_and_digest.",
+      "result": "PASS"
+    },
+    "credential_rotation": {
+      "password_hash_change": "Existing session immediately invalidated in test without waiting for expiry.",
+      "session_secret_change": "Existing session immediately invalidated in test without waiting for expiry.",
+      "result": "PASS"
+    },
+    "storage_and_cookie": "Test confirms cookie is at least 256-bit token_urlsafe output, database key is SHA-256 digest and differs from raw token, and Secure/HttpOnly/SameSite=Strict/path flags are present.",
+    "proxy_spoof_example": "Socket peer 198.51.100.2 with X-Forwarded-For and Forwarded claiming 203.0.113.8 resolves to 198.51.100.2.",
+    "trusted_proxy_examples": "Trusted one-hop and two-hop X-Forwarded-For chains resolve to 203.0.113.8; two clients behind the same trusted proxy resolve to distinct client identities.",
+    "limiter": "Concurrent requests across PostgreSQL sessions admit exactly 3 of 8 same-client attempts and exactly 5 of 8 distinct-client attempts under configured limits. A new session factory still observes exhausted capacity. Expired windows recover and client rows remain capped at configured ordinary capacity plus one overflow row.",
+    "origin": "Configured public HTTPS Origin succeeds behind the test client's HTTP transport; an untrusted Origin returns 403."
+  },
+  "validation": [
+    {
+      "command": "uv sync --locked --extra dev",
+      "exit_code": 0,
+      "evidence": "Dependencies installed with CPython 3.11.16; command output is in the task transcript."
+    },
+    {
+      "command": "uv run ruff check src/gridlens/security.py src/gridlens/settings.py src/gridlens/api/app.py src/gridlens/persistence/models.py migrations/versions/0015_revocable_auth.py tests/unit/test_auth_persistence.py tests/unit/test_security.py",
+      "exit_code": 0,
+      "evidence": "ruff.log"
+    },
+    {
+      "command": "uv run mypy src/gridlens/security.py src/gridlens/settings.py src/gridlens/api/app.py src/gridlens/persistence/models.py",
+      "exit_code": 0,
+      "evidence": "mypy.log"
+    },
+    {
+      "command": "uv run pytest tests/unit/test_auth_persistence.py tests/unit/test_api_auth.py tests/unit/test_security.py -q",
+      "exit_code": 0,
+      "result": "13 passed, 1 existing Starlette/httpx deprecation warning",
+      "evidence": "auth-tests.log"
+    },
+    {
+      "command": "uv run pytest tests/integration/test_jobs.py::test_parser_failure_preserves_accepted_health_and_is_visible -q",
+      "exit_code": 0,
+      "result": "1 passed, 1 existing Starlette/httpx deprecation warning",
+      "evidence": "integration-test.log"
+    },
+    {
+      "command": "uv run alembic upgrade head (initial fresh isolated migration database)",
+      "exit_code": 0,
+      "result": "Applied history from base through 0015_revocable_auth on gl3audit_auth_migration; initial command output remains in task transcript."
+    },
+    {
+      "command": "uv run alembic upgrade head (repeat)",
+      "exit_code": 0,
+      "evidence": "alembic-upgrade-repeat.log"
+    },
+    {
+      "command": "uv run alembic check",
+      "exit_code": 0,
+      "result": "No new upgrade operations detected.",
+      "evidence": "alembic-check.log"
+    },
+    {
+      "command": "uv run alembic downgrade 0014_pursuit_research_questions",
+      "exit_code": 0,
+      "evidence": "alembic-downgrade.log"
+    },
+    {
+      "command": "uv run alembic upgrade head (after downgrade)",
+      "exit_code": 0,
+      "evidence": "alembic-upgrade-after-downgrade.log"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0,
+      "evidence": "Final check produced no whitespace errors; see task transcript."
+    }
+  ],
+  "isolated_databases": {
+    "test": "gl3audit_auth_test on loopback port 55437 as gl3audit",
+    "migration": "gl3audit_auth_migration on loopback port 55437 as gl3audit",
+    "other_database_access": "None"
+  },
+  "attempt_history": "attempt-history.md",
+  "scope_and_authority": {
+    "full_backend_suite": "Not run; controller-owned final gates remain pending.",
+    "independent_review": "Pending controller review; builder does not self-certify.",
+    "runtime_or_deployment": "No live deployment, external login, push, or merge performed.",
+    "external_side_effects": "None"
+  },
+  "limitations": [
+    "Concurrency regressions used parallel client threads and separate PostgreSQL connections in one OS process, not separate operating-system processes. The transaction advisory lock is PostgreSQL-wide and is intended to serialize across processes.",
+    "No external HTTPS reverse proxy was exercised; trusted-hop parsing, HTTPS Origin behavior, and cookie flags were tested locally.",
+    "The entire backend suite and parent finish contract have not been evaluated by this builder."
+  ],
+  "metrics": {
+    "utc_start": "UNKNOWN; start timestamp was not captured",
+    "utc_finish": "2026-10-07T20:09:46Z",
+    "planning_duration": "UNKNOWN",
+    "build_duration": "UNKNOWN",
+    "validation_duration": "UNKNOWN",
+    "audit_duration": "UNKNOWN",
+    "model": "GPT-6; exact deployment variant UNKNOWN",
+    "config_identity": "UNKNOWN",
+    "token_usage": "UNKNOWN",
+    "product_repair_count": 1,
+    "elapsed_to_independent_acceptance": "NOT APPLICABLE; review pending"
+  }
+}
