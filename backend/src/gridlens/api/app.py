@@ -57,11 +57,12 @@ from gridlens.persistence.models import (
 )
 from gridlens.security import (
     check_password,
-    login_allowed,
-    record_login_failure,
+    client_ip,
+    consume_login_attempt,
+    create_session,
     require_same_origin,
     require_session,
-    token_for,
+    revoke_token,
 )
 from gridlens.settings import settings
 
@@ -333,16 +334,15 @@ def private_openapi(request: Request):
 @app.post("/api/auth/login", response_model=LoginOut)
 def login(body: LoginBody, request: Request, response: Response):
     require_same_origin(request)
-    remote = request.client.host if request.client else "unknown"
-    if not login_allowed(remote):
+    remote = client_ip(request)
+    if not consume_login_attempt(remote):
         raise HTTPException(429, "Too many login attempts")
     if not check_password(body.password.get_secret_value()):
-        record_login_failure(remote)
         raise HTTPException(401, "Invalid credentials")
-    expires = int(datetime.now(UTC).timestamp()) + settings.session_hours * 3600
+    token, expires = create_session()
     response.set_cookie(
         "gridlens_session",
-        token_for(expires),
+        token,
         httponly=True,
         secure=settings.cookie_secure,
         samesite="strict",
@@ -355,6 +355,7 @@ def login(body: LoginBody, request: Request, response: Response):
 @app.post("/api/auth/logout", response_model=LogoutOut)
 def logout(request: Request, response: Response):
     require_same_origin(request)
+    revoke_token(request.cookies.get("gridlens_session"))
     response.delete_cookie(
         "gridlens_session",
         path="/",

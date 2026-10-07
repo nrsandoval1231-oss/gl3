@@ -37,6 +37,27 @@ class Source(Base):
     health: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
 
 
+class AuthSession(Base):
+    __tablename__ = "auth_sessions"
+    token_digest: Mapped[str] = mapped_column(String(64), primary_key=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, index=True
+    )
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    credential_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+
+
+class AuthLoginBucket(Base):
+    __tablename__ = "auth_login_buckets"
+    id: Mapped[str] = mapped_column(String(72), primary_key=True)
+    scope: Mapped[str] = mapped_column(String(10), nullable=False, index=True)
+    window_started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, index=True
+    )
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False)
+
+
 class Job(Base):
     __tablename__ = "jobs"
     id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
@@ -250,12 +271,18 @@ class ChangeEvent(Base):
     __tablename__ = "change_events"
     __table_args__ = (
         Index(
-            "uq_change_replay_key", "replay_key", unique=True,
+            "uq_change_replay_key",
+            "replay_key",
+            unique=True,
             postgresql_where=text("replay_key IS NOT NULL"),
         ),
         Index("ix_change_project_material", "project_id", "material", "created_at"),
         Index(
-            "uq_project_change_revision", "project_id", "field_name", "replay_key", unique=True,
+            "uq_project_change_revision",
+            "project_id",
+            "field_name",
+            "replay_key",
+            unique=True,
             postgresql_where=text("material IS TRUE AND replay_key IS NOT NULL"),
         ),
     )
