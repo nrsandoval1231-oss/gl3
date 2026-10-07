@@ -317,75 +317,7 @@ def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list
                 )
                 if prior_sort_key is not None and sort_key < prior_sort_key:
                     raise SourceParseError("Permit rows are not in requested date and ID order")
-                address = _field(row, fields["address"])
-                if source_id == "chicago-building-permits":
-                    address = " ".join(
-                        filter(
-                            None,
-                            [address, _field(row, "street_direction"), _field(row, "street_name")],
-                        )
-                    )
-                city = _field(row, fields["city"]) or source["city"]
-                state = _field(row, fields["state"]) or source["state"]
-                link = _field(row, fields["link"])
-                link_host = urlparse(link).hostname if link else None
-                if link and link_host not in {expected_host, source.get("record_link_host")}:
-                    link = ""
-                citation = link or source["endpoint"]
-                if source_id == "chicago-building-permits":
-                    citation = (
-                        source["endpoint"]
-                        + "?"
-                        + urlencode(
-                            {"$where": "id='" + row_id.replace("'", "''") + "'", "$limit": 1}
-                        )
-                    )
-                semantic = {key: _field(row, name) for key, name in fields.items() if name}
-                retained_fields = {
-                    label: _field(row, field_name)
-                    for label, field_name in fields.items()
-                    if field_name and _field(row, field_name)
-                }
-                retained_fields["address"] = address
-                abstract = "\n".join(
-                    f"{label}: {value}" for label, value in retained_fields.items()
-                )
-                permit_type = _field(row, fields["type"]) or _field(row, fields["work"]) or "permit"
-                title = f"{source['city']} building permit {row_id} — {permit_type[:120]}"
-                output.append(
-                    {
-                        "document_number": row_id,
-                        "title": title,
-                        "abstract": abstract,
-                        "publication_date": issue_date.isoformat(),
-                        "html_url": citation,
-                        "extraction_location": (
-                            f"Official {source['city']} permit fields; dated issue and row ID"
-                        ),
-                        "event_date": issue_date.isoformat(),
-                        "permit": {
-                            "city": city,
-                            "state": state,
-                            "address": address,
-                            "class": _field(row, fields["class"]),
-                            "work": _field(row, fields["work"]),
-                            "type": _field(row, fields["type"]),
-                            "status": _field(row, fields["status"]) or "Unknown",
-                            "source_modified_at": _field(row, modified_field) or None,
-                            "description": _field(row, fields["description"]),
-                            "cost": _field(row, fields["cost"]),
-                            "area": _field(row, fields["area"]),
-                            "project": _field(row, fields["project"]),
-                            "row_id": row_id,
-                            "source_fields": {key: name for key, name in fields.items() if name},
-                        },
-                        "source_hash": hashlib.sha256(
-                            json.dumps(
-                                semantic, sort_keys=True, ensure_ascii=False, separators=(",", ":")
-                            ).encode()
-                        ).hexdigest(),
-                    }
-                )
+                output.append(render_record(source, row))
             if len(output) == expected_count:
                 if read_count() != expected_count:
                     raise SourceParseError("Permit count changed during pagination")
@@ -396,3 +328,76 @@ def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list
     finally:
         if client is None:
             http.close()
+
+
+def render_record(source: dict[str, Any], row: dict[str, Any]) -> dict[str, Any]:
+    """Render a validated official row identically for ingestion and exact research."""
+    source_id = source["id"]
+    fields = MAPS[source_id]
+    expected_host = HOSTS[source_id]
+    modified_field = fields.get("modified_date")
+    if any(fields[k] not in row for k in ("row", "date", "description")):
+        raise SourceParseError("Permit response schema changed")
+    row_id = _field(row, fields["row"])
+    issue_date = _date(_field(row, fields["date"]))
+    if not row_id or issue_date > datetime.now(UTC).date():
+        raise SourceParseError("Permit identity or issue date is invalid")
+    address = _field(row, fields["address"])
+    if source_id == "chicago-building-permits":
+        address = " ".join(
+            filter(
+                None,
+                [address, _field(row, "street_direction"), _field(row, "street_name")],
+            )
+        )
+    city = _field(row, fields["city"]) or source["city"]
+    state = _field(row, fields["state"]) or source["state"]
+    link = _field(row, fields["link"])
+    link_host = urlparse(link).hostname if link else None
+    if link and link_host not in {expected_host, source.get("record_link_host")}:
+        link = ""
+    citation = link or source["endpoint"]
+    if source_id == "chicago-building-permits":
+        citation = (
+            source["endpoint"]
+            + "?"
+            + urlencode({"$where": "id='" + row_id.replace("'", "''") + "'", "$limit": 1})
+        )
+    semantic = {key: _field(row, name) for key, name in fields.items() if name}
+    retained_fields = {
+        label: _field(row, field_name)
+        for label, field_name in fields.items()
+        if field_name and _field(row, field_name)
+    }
+    retained_fields["address"] = address
+    abstract = "\n".join(f"{label}: {value}" for label, value in retained_fields.items())
+    permit_type = _field(row, fields["type"]) or _field(row, fields["work"]) or "permit"
+    title = f"{source['city']} building permit {row_id} — {permit_type[:120]}"
+    return {
+        "document_number": row_id,
+        "title": title,
+        "abstract": abstract,
+        "publication_date": issue_date.isoformat(),
+        "html_url": citation,
+        "extraction_location": (f"Official {source['city']} permit fields; dated issue and row ID"),
+        "event_date": issue_date.isoformat(),
+        "permit": {
+            "city": city,
+            "state": state,
+            "address": address,
+            "class": _field(row, fields["class"]),
+            "work": _field(row, fields["work"]),
+            "type": _field(row, fields["type"]),
+            "status": _field(row, fields["status"]) or "Unknown",
+            "source_modified_at": _field(row, modified_field) or None,
+            "description": _field(row, fields["description"]),
+            "cost": _field(row, fields["cost"]),
+            "area": _field(row, fields["area"]),
+            "project": _field(row, fields["project"]),
+            "row_id": row_id,
+            "source_fields": {key: name for key, name in fields.items() if name},
+        },
+        "source_hash": hashlib.sha256(
+            json.dumps(semantic, sort_keys=True, ensure_ascii=False, separators=(",", ":")).encode()
+        ).hexdigest(),
+    }

@@ -1,0 +1,17 @@
+import json,hashlib,io,re
+from pathlib import Path
+from datetime import datetime,UTC
+import httpx
+from pypdf import PdfReader
+from gridlens.ingestion.adapters import georgia_air_permits as g
+root=Path('.artifacts/regeneration/georgia-identity-diagnosis');root.mkdir(exist_ok=False)
+receipts=[]
+def get(client,url,limit,params=None,headers=None,name='body'):
+ started=datetime.now(UTC).isoformat();h,b=g._bounded_get(client,url,limit,params=params,headers=headers);(root/name).write_bytes(b);receipts.append({'url':url,'params':params,'method':'GET','retrieved_at':started,'body_file':name,'sha256':hashlib.sha256(b).hexdigest(),'bytes':len(b),'content_type':h.get('content-type')});(root/'requests.json').write_text(json.dumps(receipts,indent=2));return b
+with httpx.Client(timeout=15,follow_redirects=False) as c:
+ body=get(c,g.RECORDS_URL,g.MAX_RESPONSE_BYTES,params={'rows_per_page':100,'page':1},headers={'X-Knack-Application-Id':g.APP_ID,'X-Knack-REST-API-Key':'knack','Accept':'application/json'},name='listing.json')
+ rows=json.loads(body)['records'];matches=[r for r in rows if '926258-nar/download' in str(r)];assert len(matches)==1;r=matches[0];(root/'selected-row.json').write_text(json.dumps(r,indent=2))
+ url='https://epd.georgia.gov/document/document/926258-nar/download';pdf=get(c,url,g.MAX_PDF_BYTES,name='narrative.pdf');reader=PdfReader(io.BytesIO(pdf));assert len(reader.pages)<=200
+ texts=[' '.join((p.extract_text() or '').split()) for p in reader.pages];(root/'pages.json').write_text(json.dumps(texts,indent=2))
+ facility=g._record_value(r,'field_1');location=g._record_value(r,'field_2');application=g._record_value(r,'field_8');combined=' '.join(texts).casefold();normal=' '.join(g._identity_tokens(combined));site=' '.join(g._identity_tokens(location.split(',')[0].strip()));fac=' '.join(g._identity_tokens(facility));digits=''.join(re.findall(r'\d',application));app=bool(digits and re.search(rf'\b(?:application|permit)(?:\s+(?:number|no\.?|#))?\s*[:#-]?\s*(?:[a-z]{{1,8}}[- ]?)?{re.escape(digits)}\b|\bsip[- ]?{re.escape(digits)}\b',combined,re.I))
+ result={'facility':facility,'location':location,'application':application,'site_key':site,'facility_key':fac,'site_matches':len(site)>=3 and f' {site} ' in f' {normal} ','facility_matches':len(fac)>=5 and f' {fac} ' in f' {normal} ','application_matches':app,'page_count':len(texts),'opening_excerpt':texts[0][:1400],'qts_rows':[{'facility':g._record_value(x,'field_1'),'location':g._record_value(x,'field_2'),'application':g._record_value(x,'field_8')} for x in rows if 'QTS ATL3' in str(x)]};(root/'diagnosis.json').write_text(json.dumps(result,indent=2));print(json.dumps(result,indent=2))

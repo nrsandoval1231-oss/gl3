@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "kind": "fixture",
+  "corpus_id": "EXAMPLE_ONLY_REPLACE_WITH_EXPLICIT_VALIDATION_ID",
+  "database_name": "gridlens_research_validation_fixture",
+  "isolated_database": true,
+  "cases": [
+    {
+      "category": "austin_data_center",
+      "need_id": "00000000-0000-0000-0000-000000000001",
+      "selection_reason": "REPLACE: cite current Austin construction evidence"
+    },
+    {
+      "category": "austin_temporary_power",
+      "need_id": "00000000-0000-0000-0000-000000000002",
+      "selection_reason": "REPLACE: cite explicit temporary-power permit"
+    },
+    {
+      "category": "chicago_conversion",
+      "need_id": "00000000-0000-0000-0000-000000000003",
+      "selection_reason": "REPLACE: cite Chicago conversion permit"
+    },
+    {
+      "category": "oil_and_gas",
+      "need_id": "00000000-0000-0000-0000-000000000004",
+      "selection_reason": "REPLACE: cite O&G activity"
+    },
+    {
+      "category": "low_quality",
+      "need_id": "00000000-0000-0000-0000-000000000005",
+      "selection_reason": "REPLACE: explain weak or likely unresolvable blocker"
+    }
+  ],
+  "run_budget": {
+    "max_total_cost_usd": "0",
+    "max_wall_clock_seconds": 3600
+  }
+}

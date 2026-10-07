@@ -437,3 +437,24 @@ These references informed product patterns. They are not dependencies, complete 
 | [Shared research summary](https://chatgpt.com/share/6ab53816-17c4-83ea-ae48-12f636035d8e) | Evidence-driven power-gap reasoning, negative evidence, and keeping the first build focused. |
 
 **Product promise:** Broad discovery every day. Useful opportunities at every tier. Power gaps with evidence you can inspect.
+
+## October 4, 2026 amendment — bounded autonomous pursuit research
+
+Commercial RESEARCH may schedule at most two specific missing-fact questions per
+pursuit using existing Project/PowerNeed/evidence context. Research searches retained
+evidence first, then bounded public sources, admits findings through canonical
+evidence rules and invokes the existing deterministic commercial evaluator. It may
+produce a changed pursuit or an explicit unresolved outcome. Fact, inference,
+hypothesis, unknown, commercial status, evidence tier and project lifecycle remain
+separate. ACTION NOW never substitutes for Prospect/Lead qualification.
+
+Users must inspect prior context, the exact question, searched sources, accepted
+and rejected evidence, remaining unknowns, before/after status and next action.
+Request budgets, caching, freshness and at most one follow-up prevent unlimited
+research. Models remain advisory; research performs no external commercial outreach.
+This amendment preserves the existing qualification criteria: typed public reports
+may resolve uncertainty but cannot independently promote a need. Current admitted
+official evidence must satisfy the Prospect/Lead gates, and contradictions or
+corrections can remove obsolete support. The candidate's local validation and unmet
+original retained-corpus gate are recorded in the autonomous-research report;
+it does not claim cloud deployment or production proof.

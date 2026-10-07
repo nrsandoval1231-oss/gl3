@@ -88,26 +88,29 @@ def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list
             if not isinstance(results, list) or not results:
                 raise SourceParseError(f"Unexpected empty or malformed page {page}")
             for row in results:
-                required = ("document_number", "title", "publication_date", "html_url")
-                if not isinstance(row, dict) or any(not row.get(key) for key in required):
-                    raise SourceParseError("Federal Register record missing required fields")
-                date.fromisoformat(row["publication_date"])
-                records.append(
-                    {
-                        key: row.get(key)
-                        for key in (
-                            "document_number",
-                            "title",
-                            "abstract",
-                            "publication_date",
-                            "html_url",
-                            "pdf_url",
-                        )
-                    }
-                )
+                records.append(render_record(row))
         if len(records) < payload.get("count", len(records)):
             raise SourceParseError("Federal Register pagination was incomplete")
         return records
     finally:
         if own_client:
             client.close()
+
+
+def render_record(row: dict[str, Any]) -> dict[str, Any]:
+    """The same retained fields for paged ingestion and one-document refresh."""
+    required = ("document_number", "title", "publication_date", "html_url")
+    if not isinstance(row, dict) or any(not row.get(key) for key in required):
+        raise SourceParseError("Federal Register record missing required fields")
+    date.fromisoformat(row["publication_date"])
+    return {
+        key: row.get(key)
+        for key in (
+            "document_number",
+            "title",
+            "abstract",
+            "publication_date",
+            "html_url",
+            "pdf_url",
+        )
+    }

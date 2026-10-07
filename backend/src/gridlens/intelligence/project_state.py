@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from datetime import date
 from typing import Any
 from uuid import UUID
 
@@ -10,7 +11,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from gridlens.domain.commercial_presentation import canonical_mw_claim
+from gridlens.domain.project_research import VERSION, project_claim_state
 from gridlens.domain.signal_admission import admitted_from_source
+from gridlens.ingestion.adapters.buying_chain_public import CAPTURE_VERSION
 from gridlens.intelligence.buying_chain import _accepted_version, buying_chain_view
 from gridlens.intelligence.lifecycle_service import lifecycle_event_supported
 from gridlens.intelligence.project_identity import canonical_site_claim, normalized_identity
@@ -66,6 +69,56 @@ def _conflict(values: list[tuple[Any, Evidence]], *, mw: bool = False) -> dict[s
     }
 
 
+def current_research_state(
+    session: Session, project_id: UUID, need_id: UUID | None = None
+) -> dict[str, dict]:
+    """Current exact-bound typed source reports, independent of qualification.
+
+    Immutable historical evidence is intentionally excluded when its observation
+    or interpretation now represents a different version or a rejection.
+    """
+    project = session.get(Project, project_id)
+    if project is None:
+        return {}
+    query = (
+        select(PowerNeed, Observation, Evidence, Interpretation)
+        .join(NeedObservation, NeedObservation.need_id == PowerNeed.id)
+        .join(Observation, Observation.id == NeedObservation.observation_id)
+        .join(Evidence, Evidence.observation_id == Observation.id)
+        .join(Interpretation, Interpretation.observation_id == Observation.id)
+        .where(PowerNeed.project_id == project_id)
+    )
+    if need_id is not None:
+        query = query.where(PowerNeed.id == need_id)
+    claims: dict[str, list[dict]] = defaultdict(list)
+    for need, observation, evidence, interpretation in session.execute(query):
+        assessment = interpretation.assessment or {}
+        if not (
+            interpretation.status == "accepted"
+            and interpretation.evaluator_version == VERSION
+            and assessment.get("acquisition_capture_version") == CAPTURE_VERSION
+            and assessment.get("admission_status") == "project_research_supplement"
+            and assessment.get("project_identity_key") == project.identity_key
+            and assessment.get("target_need_id") == str(need.id)
+            and observation.content_hash == evidence.content_hash == interpretation.content_hash
+            and assessment.get("evidence_hash") == evidence.content_hash
+        ):
+            continue
+        for claim in assessment.get("research_claims", []):
+            if not (
+                claim.get("project_id") == str(project.id)
+                and claim.get("need_id") == str(need.id)
+                and claim.get("activity_key") == need.activity_key
+                and claim.get("evidence_id") == str(evidence.id)
+                and claim.get("evidence_hash") == evidence.content_hash
+                and claim.get("quote")
+                and claim["quote"] in (evidence.abstract or "")
+            ):
+                continue
+            claims[str(need.id)].append({**claim, "evidence": _provenance(evidence)})
+    return {key: project_claim_state(rows, today=date.today()) for key, rows in claims.items()}
+
+
 def _accepted_need_evidence(
     session: Session, project: Project
 ) -> dict[UUID, dict[str, list[tuple[Any, Evidence]]]]:
@@ -102,11 +155,12 @@ def _accepted_need_evidence(
             ("mw", "demand_mw"),
             ("timing", "start_window"),
             ("duration", "duration"),
+            ("qualified_remaining_gap", "qualified_remaining_gap"),
         ):
             value = assessment.get(assessment_key)
             if value is not None and value != "":
                 result[need_id][field].append((value, evidence))
-        if assessment.get("tier") == "Prospect":
+        if assessment.get("tier") in {"Prospect", "Lead"}:
             result[need_id]["supply"].append(("Reported constraint", evidence))
     return result
 
@@ -136,6 +190,11 @@ def _need_fields(
         "timing": _projected_claim(need.start_window, evidence["timing"]),
         "duration": _projected_claim(need.duration, evidence["duration"]),
         "supply": _projected_claim(need.supply, evidence["supply"]),
+        **(
+            {"qualified_remaining_gap": _conflict(evidence["qualified_remaining_gap"])}
+            if need.tier == "Lead"
+            else {}
+        ),
     }
 
 
@@ -157,8 +216,7 @@ def _project_field_claim(
             "value": None,
             "status": "CONFLICT",
             "claims": [
-                {"value": claim, "evidence": _provenance(evidence)}
-                for claim, evidence in claims
+                {"value": claim, "evidence": _provenance(evidence)} for claim, evidence in claims
             ],
         }
     if not value or not equivalent(value, first):
@@ -276,6 +334,7 @@ def project_state(session: Session, project_id: UUID) -> dict[str, Any] | None:
         "project_id": str(project.id),
         "identity_key": project.identity_key,
         "state": state,
+        "research_state": current_research_state(session, project_id),
         "organizations_and_roles": parties,
         "lifecycle_events": [
             {

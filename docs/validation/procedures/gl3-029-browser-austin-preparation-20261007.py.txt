@@ -1,0 +1,18 @@
+from pathlib import Path
+import json
+from gridlens.ingestion.service import process_records
+from gridlens.persistence.database import SessionLocal
+from gridlens.jobs.queue import enqueue,lease_one,assert_fence
+from regenerate_pursuit_corpus import configured_url,snapshot,write_once,now,checked_collection
+assert configured_url().database=='gl3_regen_20261007_merge_browser'
+root=Path('.artifacts/regeneration');out=root/'browser-prereq-austin';out.mkdir(exist_ok=False)
+records=checked_collection(root/'browser-austin-collection/collection.json');assert len(records)==3
+write_once(out/'before.json',snapshot());results=[]
+for source,record in records:
+ with SessionLocal.begin() as session:
+  job_id=enqueue(session,source['id']);leased=lease_one(session,'browser-prereq',lease_seconds=600,job_ids=[job_id]);assert leased;_,fence=leased
+ with SessionLocal.begin() as session:
+  counts=process_records(session,job_id,'browser-prereq',fence,source,[record],commit=False,allow_model=False)
+  job=assert_fence(session,job_id,'browser-prereq',fence);job.status='succeeded';job.lease_owner=None;job.lease_until=None
+ results.append({'source':source['id'],'external_id':record['document_number'],'counts':counts})
+write_once(out/'receipt.json',{'canonical_imported_at':now(),'results':results,'after':snapshot()});print(json.dumps(results))

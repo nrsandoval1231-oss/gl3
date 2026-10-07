@@ -1,0 +1,38 @@
+import json,hashlib
+from pathlib import Path
+from datetime import datetime,UTC
+from sqlalchemy import select
+from gridlens.persistence.database import SessionLocal
+from gridlens.persistence.models import Job,PursuitResearchRun
+from gridlens.jobs.queue import enqueue
+from gridlens.jobs.worker import run_one
+from gridlens.ingestion.registry import load_registry
+from gridlens.ingestion.adapters import pursuit_public as public
+from gridlens.intelligence.pursuits import candidates,select_batch,list_pursuits
+from regenerate_pursuit_corpus import configured_url,snapshot,write_once
+from validate_pursuit_research import candidate_identity
+root=Path('.artifacts/regeneration/legacy-manufacturing-research');root.mkdir(exist_ok=False)
+
+def main():
+ assert configured_url().database=='gl3_regen_20261007_legacy_run'
+ write_once(root/'before.json',snapshot())
+ with SessionLocal() as s:
+  groups=candidates(s);chosen=select_batch(s,groups)
+  write_once(root/'selection.json',{'candidates':[{'identity_key':g['identity_key'],'site':g['site'],'screen':g['screen']} for g in groups],'selected_sites':[g['site'] for g in chosen]})
+  print(json.dumps({'groups':len(groups),'selected':[g['site'] for g in chosen]}),flush=True)
+ original=public._read;requests=[]
+ def observed(method,url,deadline,on_request,**kwargs):
+  row={'method':method,'url':url,'started_at':datetime.now(UTC).isoformat()}
+  if kwargs.get('data'):row['search_address']=kwargs['data'].get('LocationAddress')
+  requests.append(row)
+  try:
+   kind,body=original(method,url,deadline,on_request,**kwargs);name=f'response-{len(requests):02d}.bin';(root/name).write_bytes(body);row.update(status='retrieved',sha256=hashlib.sha256(body).hexdigest(),bytes=len(body),body_file=name);return kind,body
+  except Exception as e:row.update(status='failed',error_type=type(e).__name__);raise
+  finally:row['finished_at']=datetime.now(UTC).isoformat();(root/'requests.json').write_text(json.dumps(requests,indent=2))
+ public._read=observed
+ with SessionLocal.begin() as s:job_id=enqueue(s,'austin-building-permits',kind='pursuit_research')
+ start=datetime.now(UTC);assert run_one({d['id']:d for d in load_registry()},job_ids=[job_id])
+ with SessionLocal() as s:
+  job=s.get(Job,job_id);runs=list(s.scalars(select(PursuitResearchRun).where(PursuitResearchRun.job_id==job_id)));result={'candidate':candidate_identity(),'started_at':start.isoformat(),'finished_at':datetime.now(UTC).isoformat(),'job_id':str(job_id),'status':job.status,'error':job.error,'runs':[{'id':str(r.id),'status':r.status,'fetch_count':r.fetch_count,'model_count':r.model_count} for r in runs],'pursuits':list_pursuits(s,include_dropped=True)}
+ write_once(root/'report.json',result);write_once(root/'after.json',snapshot());print(json.dumps({'status':result['status'],'runs':result['runs'],'saved_total':result['pursuits']['total']}),flush=True)
+if __name__=='__main__':main()

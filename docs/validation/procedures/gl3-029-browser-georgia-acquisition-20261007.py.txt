@@ -1,0 +1,25 @@
+import json,time,hashlib
+from pathlib import Path
+from datetime import datetime,UTC
+import httpx
+from gridlens.ingestion.registry import load_registry
+from gridlens.ingestion.adapters.georgia_air_permits import retrieve
+root=Path('.artifacts/regeneration/georgia-browser-collection');root.mkdir(exist_ok=False)
+start=time.monotonic();calls=[]
+def before(request):
+ if request.method!='GET':raise RuntimeError('Only public GET acquisition is authorized')
+ if len(calls)>=55 or time.monotonic()-start>180:raise RuntimeError('collection_budget_exceeded')
+ calls.append({'url':str(request.url),'method':request.method,'started_at':datetime.now(UTC).isoformat()})
+ (root/'requests.json').write_text(json.dumps(calls,indent=2))
+def after(response):
+ calls[-1]['status']=response.status_code
+ (root/'requests.json').write_text(json.dumps(calls,indent=2))
+source=next(s for s in load_registry() if s['id']=='georgia-air-draft-title-v')
+result={'started_at':datetime.now(UTC).isoformat(),'provider_cost_usd':0,'model_calls':0,'max_seconds':180,'max_requests':55}
+try:
+ with httpx.Client(timeout=15,follow_redirects=False,event_hooks={'request':[before],'response':[after]}) as client: records=retrieve(source,client)
+ payload=json.dumps({'source':source,'records':records},indent=2).encode();(root/'records.json').write_bytes(payload)
+ result.update(status='collected',count=len(records),sha256=hashlib.sha256(payload).hexdigest(),qts_matches=[r['document_number'] for r in records if 'QTS ATL3' in r.get('title','')])
+except Exception as e:
+ result.update(status='failed',error_type=type(e).__name__,error=str(e)[:240])
+result.update(finished_at=datetime.now(UTC).isoformat(),elapsed_seconds=time.monotonic()-start,request_count=len(calls));(root/'receipt.json').write_text(json.dumps(result,indent=2));print(json.dumps(result))

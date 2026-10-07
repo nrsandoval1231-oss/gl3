@@ -822,7 +822,7 @@ def test_commercial_triage_get_serializes_native_dates_and_persisted_evidence_id
             }
         ],
     }
-    monkeypatch.setattr(api, "opportunities", lambda **_kwargs: [item])
+    monkeypatch.setattr(api, "opportunity_projection", lambda *_args, **_kwargs: [item])
     monkeypatch.setattr(
         api,
         "buying_chain_view",
@@ -891,7 +891,7 @@ def test_commercial_evaluate_replay_and_operator_note_are_durable_without_tier_w
             }
         ],
     }
-    monkeypatch.setattr(api, "opportunities", lambda **_kwargs: [item])
+    monkeypatch.setattr(api, "opportunity_projection", lambda *_args, **_kwargs: [item])
     monkeypatch.setattr(
         api,
         "buying_chain_view",
@@ -982,7 +982,7 @@ def test_commercial_evaluate_replay_and_operator_note_are_durable_without_tier_w
         f"/api/pursuits/{card['pursuit_id']}/notes", headers=headers, json=closed_note
     )
     assert closed_response.status_code == 200, closed_response.text
-    monkeypatch.setattr(api, "opportunities", lambda **_kwargs: [])
+    monkeypatch.setattr(api, "opportunity_projection", lambda *_args, **_kwargs: [])
 
     old_need_id = uuid4()
     with factory.begin() as session:

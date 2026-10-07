@@ -1,5 +1,27 @@
 # Work Graph
 
+## October 7 final local acceptance
+
+GL3-029 local gates pass: 1,232 backend/one optional skip, all 42 browser tests, five research-browser groups, fresh five-category acceptance 5/5, migrations/preservation/replay and independent review. Owner authorized conditional merge and narrow public TDLR search; deployment/provider spending remain excluded. See [final acceptance](../docs/validation/gl3-029-final-acceptance-20261007.md). GitHub PR24 records the merge state. Earlier checkpoints below are historical and their former blockers/permission limits are superseded where explicitly documented.
+
+## October 7 final five-category checkpoint
+
+PR24 remains draft; tested code `92f7689` passes the unchanged fresh five-category mechanical gate, final full suite (1,229 passed/one skip), 36 browser regressions, five real-database browser groups, migrations/preservation/replay and independent review. Six blockers remain explicitly unresolved; no promotions. Owner-authorized RRC download and one canonical drilling Signal close the missing fresh O&G category; retained native inspection does not imply live RRC research refresh. Original archive recovery is superseded, historical corpus/browser proof remains distinct, and cloud/outreach/merge remain excluded. See [final report](../docs/validation/gl3-029-five-category-20261007.md). Earlier checkpoints below are history.
+
+## October 5 GL3-029 acceptance frontier
+
+Current main `9a4669e592a64d0513f0bbb70e9a29197b8d2e0d`; PR24 remains an OPEN draft at `d8b0e99897c600f32a0e00bb6770b841f2c6f907`. Isolated branch `repair/gl3-029-current-main-20261005` freezes code `7768f2a6e3ec19f29f657c23c2120a392d1c31bf` (tree `4118cdf83f21e0fa3519b9ca956eae4bf8c9ae8f`). The prior docs candidate received Sol FIX for database-backed category proof falling back to card text on missing/mismatched canonical rows; the repair and regressions now require exact Evidence ID/URL/hash and quote row abstract only. All controller gates pass (1,161 backend, one skip, one warning; Ruff/mypy/migrations/frontend/audit/diff pass); focused validator 44 pass. Original-corpus acceptance remains 3/5: canonical-row owner-amended Austin cases and meaningful Chicago pass; O&G and low-quality/unresolvable fail. Preservation/replay pass. Browser 41/41 is prior evidence for unchanged product/UI code from `15e27bc`, not a fresh R4 run. Provider config exists, but maximum cost is $0 and reservations are unset.
+
+| Node | State | Next gate |
+|---|---|---|
+| GL3-029 code candidate | R4 technical gates pass | Verify docs-only descendant retains exact source/test manifest; fresh independent Sol review pending. |
+| GL3-029 retained corpus | OPEN, 3/5 | Resolve meaningful O&G and low-quality cases with valid evidence; do not waive or invent blockers. |
+| PR24 delivery | OPEN draft, no remote update by builder | Controller coordinates reviewed PR body update after final review receipt. No merge/deploy. |
+| GL3-030 | Separate READY work | Preserve; do not integrate into GL3-029. |
+
+Next direction: VALIDATE docs descendant against exact R4 source/test manifest, obtain independent Sol review, then controller-coordinated draft update. Historical graph below is retained for provenance; prior pending statuses are superseded by this checkpoint.
+
+---
 Current main includes merged GL3-015 (PR #5), GL3-016 (PR #6), GL3-017 (PR #7, `1f18a01`), and GL3-018 (PR #8, `7f24174`). The paragraphs below are retained history, including the point when GL3-017 and GL3-018 were still excluded. GL3-018 authoritative admission and the Chicago/Georgia acquisition changes are on main. Deployment, national coverage, and parent launch remain OPEN. Standalone planning/entitlement admission remains an owner decision.
 
 GL3-016-A READY -> BUILD (2026-09-29): owner authorized production Jev Signal adjudication and conservative physical-project consolidation after PR #5 merged. Fresh branch `feat/gl3-016` from `c9a0e5d8887a6e8207a98d41a08ab7f952017d45`; backend packet `packets/GL3-016-backend.md`. Frontend depends on frozen backend contract. Exact human review baseline: 63 cards, 11 SHOW, 29 REVIEW, 23 HOLD; no source evidence deletion. `TYPESAFE_API_KEY` currently absent, so live model/corpus proof remains pending. GL3-017 enrichment and GL3-018 acquisition are excluded.
@@ -131,3 +153,11 @@ GL3-029 READY_FOR_REVIEW -> CORRECT -> VALIDATE: independent Sol FIX retained; s
 GL3-029 PR23 -> CORRECT: live GitHub review identified sibling-state reconciliation, research polling, overwritten evaluation history and default-environment mismatch. Conditional merge authorized; four bounded repairs selected, then exact-candidate validation/review/CI. Parent launch OPEN.
 
 GL3-029 PR23 CORRECT -> VALIDATE: four live review findings repaired. Frozen full gates pass722 backend/one unchanged skip and32 browser plus static/build/migrations. Real50/53 cohort remains9/19/22; history replay and eleven authoritative table digests stable. Source manifest 82f82cc2b20b518a9e598b93f1e4fc418a7b2bc3ae1beeb1965706a71f9f339a. Fresh independent review pending; conditional merge only after accepted exact head, resolved threads and green CI. Parent launch/design deployment milestones OPEN.
+
+GL3-029 2026-10-06 -> BLOCKED RETAINED ACCEPTANCE: PR24 integrates main ec72912 (PR23/25/26/27 merged). Three mocked pursuit-refresh tests moved into CI regression selection; six live cases remain distinct. Historical R4 is 3/5; current corpus acceptance not rerun because original archive and adjacent raw artifacts are unavailable. No substituted corpus, merge, deployment or GL3-030. Exact-head technical/review receipts are tracked in the current closure record and PR.
+
+GL3-029 2026-10-07 OWNER AMENDMENT -> REGENERATE -> VALIDATE: owner superseded missing-original recovery with fresh traceable public-data corpus/artifacts. Historical R4 remains unchanged and not proven by new data. Existing canonical pipeline, isolated databases and unchanged research predicates; partial diagnostic must report absent cohorts and false full/retained acceptance. Candidate starts ba959bdf; no merge/deploy.
+
+GL3-029 2026-10-07 VALIDATE -> BLOCKED COMMERCIAL ACCEPTANCE: frozen f63eb62, fresh14Evidence/13Signals, 28-table restore/migration parity and research replay pass. Full backend1196pass/1skip, focused71, regression36, supplemental real-browser4checkgroups. Diagnostic2accepted/4selected with O&G absent; two stale-input failures remain in history. No predicate relaxed; draft24 remains unmerged/undeployed.
+
+GL3-029 2026-10-07 CORRECT -> VALIDATE: frozen15f4910 derives retained relationships before question fingerprints, excluding active projects; guards unchanged. Fresh isolated replay oforiginalnewcorpus passes4/4selected cases,4UNRESOLVED/0FAILED, no transitions, exactpreservation/replay.1197backend/1skip,71focused,36browser; independentreview no materialfindings. ExistingRRCdrilling scopeconfirmed valid, listingsHTTP200; anonymousdownloadPOST clarification pending. Fivecohorts andhistoricalsixlivecases notpassed.

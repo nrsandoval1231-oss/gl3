@@ -1,0 +1,5 @@
+# PR23 exact-candidate acceptance provenance
+
+These three JSON receipts are byte-identical copies of `gl3-commercial/.artifacts/commercial/{REVIEW-merge-r1.json,VALIDATED-SOURCE-MANIFEST.json,VALIDATION.json}` from the accepted local PR23 repair. Source SHA-256 values are respectively `a9c1a44ff198cb7768e21eacb0e2c66425ed21c86e7f8e236e2e111ed2ad7ba6`, `82f82cc2b20b518a9e598b93f1e4fc418a7b2bc3ae1beeb1965706a71f9f339a`, and `14ae55c833fb8c6b2436eca5600315afb93a59f5fda4a7814b8202e8f7ea31d1`; copied-file hashes match.
+
+The independent Sol receipt reports PASS on staged tree `783264348186272c61ad533fc77b5af118fe08ad`. Final PR23 commit `64dec2d2c833f5e743b314a580e03f6ecd2660ce` and GitHub main merge commit `6c8bdf3e3163adde078f8543d43c0256bc11eb82` both have that exact tree. GitHub Actions main run `37164959427` completed backend/web successfully. GitHub's PR review API shows one `COMMENTED` bot review on earlier `ebc2168`, so this local independent PASS and exact tree parity are the accepted bounded review evidence; no GitHub approval review is claimed. This acceptance does not close launch, live runtime, Prospect/Lead, or PR24 gates.
