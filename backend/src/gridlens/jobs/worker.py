@@ -131,13 +131,39 @@ def _append_epoch(
     )
 
 
-def _scheduled_instants(epoch: SourceScheduleEpoch, now: datetime):
-    start = epoch.effective_from
+def _due_key(epoch: SourceScheduleEpoch, scheduled_for: datetime) -> str:
+    key_material = f"{epoch.source_id}|{epoch.id}|{scheduled_for.isoformat()}"
+    return hashlib.sha256(key_material.encode()).hexdigest()
+
+
+def _scheduled_instants(
+    epoch: SourceScheduleEpoch, now: datetime, *, not_before: datetime | None = None
+):
+    if type(epoch.cadence_hours) is not int or epoch.cadence_hours <= 0:
+        raise ValueError("Schedule cadence must be a positive integer")
+    if epoch.schedule_mode not in {"utc_hourly", "local_daily"}:
+        raise ValueError("Schedule mode is invalid")
+    if epoch.effective_from.tzinfo is None or now.tzinfo is None:
+        raise ValueError("Schedule interval timestamps must be timezone-aware")
+    if not_before is not None and not_before.tzinfo is None:
+        raise ValueError("Schedule lower bound must be timezone-aware")
+    if epoch.effective_until is not None and epoch.effective_until.tzinfo is None:
+        raise ValueError("Schedule interval timestamps must be timezone-aware")
+    if epoch.effective_until is not None and epoch.effective_until < epoch.effective_from:
+        raise ValueError("Schedule interval end precedes its start")
+    start = max(epoch.effective_from, not_before) if not_before else epoch.effective_from
     end = min(epoch.effective_until, now) if epoch.effective_until else now
     if end <= start:
         return
     if epoch.schedule_mode == "utc_hourly":
-        anchor = datetime.fromisoformat(epoch.anchor["utc"])
+        if epoch.cadence_hours >= 24:
+            raise ValueError("UTC-hourly schedule cadence must be less than one day")
+        anchor_value = epoch.anchor["utc"]
+        if not isinstance(anchor_value, str):
+            raise ValueError("UTC-hourly schedule anchor must be an ISO timestamp")
+        anchor = datetime.fromisoformat(anchor_value)
+        if anchor.tzinfo is None:
+            raise ValueError("UTC-hourly schedule anchor must be timezone-aware")
         interval = timedelta(hours=epoch.cadence_hours)
         elapsed = max(0, int((start - anchor).total_seconds() // interval.total_seconds()))
         due = anchor + interval * elapsed
@@ -147,14 +173,24 @@ def _scheduled_instants(epoch: SourceScheduleEpoch, now: datetime):
             yield due
             due += interval
         return
+    if epoch.cadence_hours < 24:
+        raise ValueError("Local-daily schedule cadence must be at least one day")
     zone = ZoneInfo(epoch.timezone)
-    first_day = date.fromisoformat(epoch.anchor["local_date"])
-    cursor = max(first_day, start.astimezone(zone).date())
+    local_date = epoch.anchor["local_date"]
+    local_time = epoch.anchor["local_time"]
+    if not isinstance(local_date, str) or not isinstance(local_time, str):
+        raise ValueError("Local-daily schedule anchor must contain an ISO date and time")
+    first_day = date.fromisoformat(local_date)
+    anchor_time = day_time.fromisoformat(local_time)
+    if anchor_time.tzinfo is not None:
+        raise ValueError("Local-daily schedule anchor must not carry a timezone")
     day_step = max(1, epoch.cadence_hours // 24)
+    candidate_day = max(first_day, start.astimezone(zone).date())
+    days_since_anchor = (candidate_day - first_day).days
+    step_count = (days_since_anchor + day_step - 1) // day_step
+    cursor = first_day + timedelta(days=step_count * day_step)
     while True:
-        local_due = datetime.combine(
-            cursor, day_time.fromisoformat(epoch.anchor["local_time"]), tzinfo=zone
-        )
+        local_due = datetime.combine(cursor, anchor_time, tzinfo=zone)
         round_trip = local_due.astimezone(UTC).astimezone(zone)
         if round_trip.replace(tzinfo=None) != local_due.replace(tzinfo=None):
             # Nonexistent spring-forward wall times resolve to the first valid
@@ -179,8 +215,7 @@ def _reconcile_due(session, now: datetime) -> int:
         if not (epoch.history_known and epoch.registry_enabled and epoch.operator_enabled):
             continue
         for scheduled_for in _scheduled_instants(epoch, now):
-            key_material = f"{epoch.source_id}|{epoch.id}|{scheduled_for.isoformat()}"
-            due_key = hashlib.sha256(key_material.encode()).hexdigest()
+            due_key = _due_key(epoch, scheduled_for)
             if session.get(SourceDueCheck, due_key):
                 continue
             session.add(

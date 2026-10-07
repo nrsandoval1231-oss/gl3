@@ -1,3 +1,5 @@
+import hashlib
+import json
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from threading import Barrier, Event
@@ -17,6 +19,7 @@ from gridlens.persistence.models import (
     SourceCheckReceipt,
     SourceDueCheck,
     SourceScheduleEpoch,
+    WorkerHeartbeat,
 )
 from gridlens.settings import settings
 
@@ -70,6 +73,52 @@ def definition(*, enabled=True, endpoint="https://example.invalid/current"):
         "cadence_hours": 24,
         "enabled": enabled,
     }
+
+
+def _window_start_utc(now: datetime) -> datetime:
+    local_today = now.astimezone(ZoneInfo("America/Chicago")).date()
+    local_start = datetime.combine(
+        local_today - timedelta(days=6), datetime.min.time(), tzinfo=ZoneInfo("America/Chicago")
+    )
+    return local_start.astimezone(UTC)
+
+
+def _record_receipt(session, epoch, scheduled_for, *, disposition="succeeded") -> str:
+    import gridlens.jobs.worker as worker
+
+    counts = (
+        {"new": 0, "changed": 0, "unchanged": 1}
+        if disposition in {"succeeded", "partial"}
+        else {"error_class": "FixtureFailure"}
+    )
+    job_status = "failed" if disposition == "failed" else "succeeded"
+    job = Job(source_id=epoch.source_id, status=job_status, fence=1)
+    session.add(job)
+    session.flush()
+    due_key = worker._due_key(epoch, scheduled_for)
+    due = SourceDueCheck(
+        due_key=due_key,
+        source_id=epoch.source_id,
+        epoch_id=epoch.id,
+        scheduled_for=scheduled_for,
+        local_day=scheduled_for.astimezone(ZoneInfo("America/Chicago")).date(),
+        configuration=epoch.configuration,
+        job_id=job.id,
+    )
+    session.add(due)
+    session.flush()
+    canonical = json.dumps(counts, sort_keys=True, separators=(",", ":"), default=str)
+    session.add(
+        SourceCheckReceipt(
+            due_key=due_key,
+            job_id=job.id,
+            fence=1,
+            disposition=disposition,
+            check_counts=counts,
+            digest=hashlib.sha256(canonical.encode()).hexdigest(),
+        )
+    )
+    return due_key
 
 
 def test_disabled_ingestion_jobs_remain_inspectable_and_unleased(source_db):
@@ -142,6 +191,224 @@ def test_registry_sync_keeps_operator_disable_and_explicit_reenable_is_effective
         assert current.history_known
 
 
+def test_stopped_worker_cannot_look_fresh_with_unreconciled_due_slots(source_db, monkeypatch):
+    import gridlens.api.app as api
+    import gridlens.jobs.worker as worker
+
+    factory = source_db
+    now = datetime.now(UTC)
+    monkeypatch.setattr(api, "SessionLocal", factory)
+    monkeypatch.setattr(api, "load_registry", lambda: [definition()])
+    with factory.begin() as session:
+        source = session.get(Source, "synthetic-scheduled-source")
+        assert source
+        source.health = {"status": "Updated", "last_attempt": now.isoformat()}
+        epoch_start = now - timedelta(days=10)
+        epoch = SourceScheduleEpoch(
+            source_id=source.id,
+            registry_enabled=True,
+            operator_enabled=True,
+            effective_from=epoch_start,
+            cadence_hours=24,
+            schedule_mode="local_daily",
+            timezone="America/Chicago",
+            anchor={
+                "local_date": epoch_start.astimezone(ZoneInfo("America/Chicago"))
+                .date()
+                .isoformat(),
+                "local_time": "03:00",
+            },
+            configuration=definition(),
+            history_known=True,
+        )
+        session.add(epoch)
+        session.flush()
+        expected_slots = list(
+            worker._scheduled_instants(epoch, now, not_before=_window_start_utc(now))
+        )
+        assert len(expected_slots) >= 6
+        _record_receipt(session, epoch, expected_slots[0])
+        session.add(
+            WorkerHeartbeat(
+                worker_id="stopped-source-worker",
+                last_seen_at=now - timedelta(minutes=10),
+            )
+        )
+
+    status = api.health()
+    source_status = status["sources"][0]
+    assert source_status["freshness"] == "OVERDUE"
+    assert source_status["due_checks_7d"] == len(expected_slots)
+    assert source_status["verified_successes_7d"] == 1
+    assert status["worker_liveness"] == "STALE"
+    assert status["collection_freshness"] == "OVERDUE"
+    with factory() as session:
+        assert session.scalar(select(func.count()).select_from(SourceDueCheck)) == 1
+        assert session.scalar(select(func.count()).select_from(Job)) == 1
+        assert session.scalar(select(func.count()).select_from(SourceCheckReceipt)) == 1
+
+
+def test_expected_schedule_enumeration_is_bounded_to_health_window():
+    import gridlens.jobs.worker as worker
+
+    now = datetime.now(UTC)
+    epoch_start = now - timedelta(days=3650)
+    epoch = SourceScheduleEpoch(
+        source_id="old-hourly-source",
+        effective_from=epoch_start,
+        effective_until=None,
+        cadence_hours=1,
+        schedule_mode="utc_hourly",
+        timezone="America/Chicago",
+        anchor={"utc": epoch_start.isoformat()},
+    )
+    slots = list(worker._scheduled_instants(epoch, now, not_before=_window_start_utc(now)))
+
+    assert len(slots) <= 168
+    assert slots
+    assert slots[0] >= _window_start_utc(now)
+
+
+def test_bounded_local_daily_enumeration_preserves_anchor_phase():
+    import gridlens.jobs.worker as worker
+
+    now = datetime(2026, 10, 12, 12, tzinfo=UTC)
+    epoch = SourceScheduleEpoch(
+        source_id="every-other-day-source",
+        effective_from=datetime(2026, 10, 1, 8, tzinfo=UTC),
+        effective_until=None,
+        cadence_hours=48,
+        schedule_mode="local_daily",
+        timezone="America/Chicago",
+        anchor={"local_date": "2026-10-01", "local_time": "03:00"},
+    )
+    slots = list(worker._scheduled_instants(epoch, now, not_before=_window_start_utc(now)))
+    local_days = [slot.astimezone(ZoneInfo("America/Chicago")).date().isoformat() for slot in slots]
+
+    assert local_days == ["2026-10-07", "2026-10-09", "2026-10-11"]
+
+
+def test_missing_schedule_history_never_claims_fresh(source_db, monkeypatch):
+    import gridlens.api.app as api
+
+    monkeypatch.setattr(api, "SessionLocal", source_db)
+    monkeypatch.setattr(api, "load_registry", lambda: [definition()])
+    with source_db.begin() as session:
+        source = session.get(Source, "synthetic-scheduled-source")
+        assert source
+        now = datetime.now(UTC)
+        source.health = {"status": "Updated", "last_attempt": now.isoformat()}
+
+    status = api.health()
+
+    assert status["sources"][0]["freshness"] == "UNKNOWN"
+    assert status["sources"][0]["due_checks_7d"] == 0
+    assert status["collection_freshness"] == "UNKNOWN"
+
+
+@pytest.mark.parametrize("tamper", ["receipt_digest", "job_fence"])
+def test_freshness_requires_matching_fenced_complete_receipt(
+    source_db, monkeypatch, tamper
+):
+    import gridlens.api.app as api
+    import gridlens.jobs.worker as worker
+
+    factory = source_db
+    now = datetime.now(UTC)
+    monkeypatch.setattr(api, "SessionLocal", factory)
+    monkeypatch.setattr(api, "load_registry", lambda: [definition()])
+    with factory.begin() as session:
+        source = session.get(Source, "synthetic-scheduled-source")
+        assert source
+        source.health = {"status": "Updated", "last_attempt": now.isoformat()}
+        epoch_start = now - timedelta(days=10)
+        epoch = SourceScheduleEpoch(
+            source_id=source.id,
+            registry_enabled=True,
+            operator_enabled=True,
+            effective_from=epoch_start,
+            cadence_hours=24,
+            schedule_mode="local_daily",
+            timezone="America/Chicago",
+            anchor={
+                "local_date": epoch_start.astimezone(ZoneInfo("America/Chicago"))
+                .date()
+                .isoformat(),
+                "local_time": "03:00",
+            },
+            configuration=definition(),
+            history_known=True,
+        )
+        session.add(epoch)
+        session.flush()
+        scheduled_slots = list(
+            worker._scheduled_instants(epoch, now, not_before=_window_start_utc(now))
+        )
+        due_key = _record_receipt(session, epoch, scheduled_slots[0])
+
+    with factory.begin() as session:
+        receipt = session.scalar(
+            select(SourceCheckReceipt).where(SourceCheckReceipt.due_key == due_key)
+        )
+        assert receipt
+        if tamper == "receipt_digest":
+            receipt.digest = "0" * 64
+        else:
+            job = session.get(Job, receipt.job_id)
+            assert job
+            job.fence += 1
+
+    status = api.health()
+
+    assert status["sources"][0]["freshness"] == "UNKNOWN"
+    assert status["sources"][0]["verified_successes_7d"] == 0
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("cadence_hours", 0),
+        ("timezone", "Invalid/Zone"),
+        ("anchor", {"local_date": "2026-10-01", "local_time": "not-a-time"}),
+    ],
+)
+def test_invalid_schedule_parameters_keep_health_unknown(source_db, monkeypatch, field, value):
+    import gridlens.api.app as api
+
+    factory = source_db
+    now = datetime.now(UTC)
+    monkeypatch.setattr(api, "SessionLocal", factory)
+    monkeypatch.setattr(api, "load_registry", lambda: [definition()])
+    with factory.begin() as session:
+        source = session.get(Source, "synthetic-scheduled-source")
+        assert source
+        source.health = {"status": "Updated", "last_attempt": now.isoformat()}
+        epoch_start = now - timedelta(days=10)
+        epoch = SourceScheduleEpoch(
+            source_id=source.id,
+            registry_enabled=True,
+            operator_enabled=True,
+            effective_from=epoch_start,
+            cadence_hours=24,
+            schedule_mode="local_daily",
+            timezone="America/Chicago",
+            anchor={
+                "local_date": epoch_start.astimezone(ZoneInfo("America/Chicago"))
+                .date()
+                .isoformat(),
+                "local_time": "03:00",
+            },
+            configuration=definition(),
+            history_known=True,
+        )
+        setattr(epoch, field, value)
+        session.add(epoch)
+
+    status = api.health()
+    assert status["sources"][0]["freshness"] == "UNKNOWN"
+    assert status["collection_freshness"] == "UNKNOWN"
+
+
 def test_unobserved_registry_drift_keeps_seven_day_freshness_unknown(source_db, monkeypatch):
     import gridlens.api.app as api
     import gridlens.jobs.worker as worker
@@ -167,34 +434,20 @@ def test_unobserved_registry_drift_keeps_seven_day_freshness_unknown(source_db, 
             "local_time": "03:00",
         }
         source.health = {"status": "Updated", "last_attempt": now.isoformat()}
-        job = Job(source_id=source.id, status="succeeded")
-        session.add(job)
-        session.flush()
-        due = SourceDueCheck(
-            due_key="a" * 64,
-            source_id=source.id,
-            epoch_id=epoch.id,
-            scheduled_for=now - timedelta(days=1),
-            local_day=(now - timedelta(days=1))
-            .astimezone(ZoneInfo("America/Chicago"))
-            .date(),
-            configuration=epoch.configuration,
-            job_id=job.id,
+        completed_slots = list(
+            worker._scheduled_instants(epoch, now, not_before=_window_start_utc(now))
         )
-        session.add(due)
-        session.flush()
-        session.add(
-            SourceCheckReceipt(
-                due_key=due.due_key,
-                job_id=job.id,
-                fence=1,
-                disposition="succeeded",
-                check_counts={"checked": 1},
-                digest="b" * 64,
-            )
-        )
+        assert len(completed_slots) >= 6
+        for scheduled_for in completed_slots:
+            _record_receipt(session, epoch, scheduled_for)
 
-    assert api.health()["sources"][0]["freshness"] == "FRESH"
+    complete_status = api.health()
+    assert complete_status["sources"][0]["freshness"] == "FRESH"
+    assert complete_status["sources"][0]["due_checks_7d"] >= 6
+    assert (
+        complete_status["sources"][0]["verified_successes_7d"]
+        == complete_status["sources"][0]["due_checks_7d"]
+    )
     registry = [{**definition(), "endpoint": "https://example.invalid/revised"}]
     worker.sync_registry()
     with factory() as session:
@@ -212,7 +465,7 @@ def test_unobserved_registry_drift_keeps_seven_day_freshness_unknown(source_db, 
                     SourceDueCheck.epoch_id == epochs[0].id
                 )
             )
-            == 1
+            == len(completed_slots)
         )
         assert session.scalar(
             select(func.count()).select_from(SourceDueCheck).where(
@@ -255,32 +508,12 @@ def test_non_success_receipt_never_counts_as_fresh(source_db, monkeypatch, dispo
         )
         session.add(epoch)
         session.flush()
-        job = Job(source_id=source.id, status="failed")
-        session.add(job)
-        session.flush()
-        due = SourceDueCheck(
-            due_key=("d" if disposition == "failed" else "e") * 64,
-            source_id=source.id,
-            epoch_id=epoch.id,
-            scheduled_for=now - timedelta(days=1),
-            local_day=(now - timedelta(days=1))
-            .astimezone(ZoneInfo("America/Chicago"))
-            .date(),
-            configuration=epoch.configuration,
-            job_id=job.id,
+        import gridlens.jobs.worker as worker
+
+        scheduled_for = next(
+            worker._scheduled_instants(epoch, now, not_before=_window_start_utc(now))
         )
-        session.add(due)
-        session.flush()
-        session.add(
-            SourceCheckReceipt(
-                due_key=due.due_key,
-                job_id=job.id,
-                fence=1,
-                disposition=disposition,
-                check_counts={"observed": 1},
-                digest="f" * 64,
-            )
-        )
+        _record_receipt(session, epoch, scheduled_for, disposition=disposition)
 
     assert api.health()["sources"][0]["freshness"] == expected
 

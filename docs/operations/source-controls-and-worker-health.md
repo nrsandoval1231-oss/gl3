@@ -46,9 +46,15 @@ The worker reconciles missed occurrences into a unique source/epoch/UTC due
 ledger. Each due occurrence can link to one ingestion job; retries keep that
 link and add fenced attempt receipts instead of creating another denominator
 unit. Receipts distinguish successful, partial, failed and unknown outcomes.
-The ledger begins when the schedule epoch is persisted, so the seven-day view
-reports `UNKNOWN` until it has a complete, known seven-day schedule history;
-unprovable legacy or drift intervals cannot be treated as successful coverage.
+The seven-day health view independently derives expected due identities from
+known enabled epochs over the Chicago-local window. Every expected slot must
+have a persisted due row and a matching fenced, complete success receipt to
+count as fresh. A worker stopped before due-ledger reconciliation therefore
+leaves missing slots `OVERDUE`; the health request never reconciles or enqueues
+work itself. Unprovable legacy or drift intervals, invalid schedule parameters,
+and unverifiable receipts remain `UNKNOWN` rather than being treated as
+successful coverage. Old schedule anchors are evaluated from the seven-day
+window boundary, not replayed from enrollment.
 
 Health signals answer different questions:
 
