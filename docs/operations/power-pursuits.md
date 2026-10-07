@@ -144,3 +144,7 @@ checks preserved history, caps aggregate runtime/cost, and never calls fixtures 
 original retained corpus. `scripts/seeded_browser_acceptance.py --full-suite` creates a
 separate explicitly synthetic browser database through canonical ingestion. Keep
 its receipts distinct from real-corpus receipts.
+
+### Fresh regeneration (owner-authorized October 7)
+
+Use `scripts/regenerate_pursuit_corpus.py` and its validation README for bounded native-permit collection, canonical ingestion and isolated backup/restore. Preserve new acquisition dates and hashes; never relabel a new archive as original PR23 evidence. The original recovery requirement is superseded, not passed. Unsupported cohorts remain explicit gaps. Partial diagnostic execution records the full manifest gate rejection and cannot claim five-cohort or retained-corpus acceptance. Keep full source records, credentials and database archives ignored; publish only safe review receipts and source-backed findings.

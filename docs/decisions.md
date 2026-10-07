@@ -66,3 +66,9 @@ supply over the full activity interval, calculate conservative residual bounds, 
 apply the Lead commercial floor to remaining need. No suitability, component totals,
 project assignments or buying authority are inferred. Final repaired-candidate gates
 and original retained-corpus proof remain distinct from these implementation decisions.
+
+## October 7, 2026 — fresh corpus regeneration authorization
+
+The owner directed recreation of missing corpus/R4 artifacts, superseding original archive recovery. Preserve historical results; label all new records and receipts `reingested` with acquisition UTC, source identity, hashes, candidate and database provenance. Do not alter the original retained-proof branch or five-cohort predicate. An explicitly partial diagnostic reuses existing canonical case checks, bounded execution, preservation and replay while forcing full and retained acceptance false. Unsupported O&G candidates remain ineligible.
+
+The regeneration wrapper uses existing native permit adapters and PostgreSQL jobs/admission. Federal Register is excluded from this wrapper because its ingestion can implicitly retrieve companion PDFs outside the collection budget. Full-table row inventories verify isolated backup/restore. No general orchestration, source authority expansion, paid provider enablement, outreach or deployment is introduced.

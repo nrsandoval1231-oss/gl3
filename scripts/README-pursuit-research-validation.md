@@ -118,3 +118,87 @@ retrieval receipt or a completed discovery query (including a genuine zero-hit s
 Unavailable, skipped, failed, or merely selected routes cannot manufacture this proof.
 Run transition metrics include only selected pursuits; retries are selected through
 newly created job IDs even when the durable question predates the validation baseline.
+
+## Fresh corpus regeneration (October 7 authorization)
+
+`regenerate_pursuit_corpus.py` creates a **new** `reingested` corpus; its receipts
+never establish original PR23/R4 archive preservation. Use a new output directory
+under ignored `.artifacts/` for each command. Each file is written exclusively.
+Freeze the script and candidate before validator baseline capture.
+
+```bash
+python scripts/regenerate_pursuit_corpus.py collect --selection selection.json --output .artifacts/new-collection
+python scripts/regenerate_pursuit_corpus.py ingest --collection .artifacts/new-collection/collection.json --output .artifacts/new-ingestion
+python scripts/regenerate_pursuit_corpus.py snapshot --output .artifacts/new-snapshot
+python scripts/regenerate_pursuit_corpus.py backup-restore --target-db gl3_regen_restored --pg-bin /usr/bin --output .artifacts/new-restore
+```
+
+Run with the existing backend environment and `DATABASE_URL` pointing to a migrated,
+quiescent, isolated `gl3_regen_*` database. Selection is a JSON list (or an object
+with `records`) of at most 40 unique `{source_id, external_id}` pairs supported by
+existing exact native acquisition. Each request is bounded to 30 seconds and
+750,000 bytes. The collection preserves request URLs/times, typed failures, and
+hashes of **adapter-rendered canonical records, not raw HTTP response bodies**.
+Ingestion verifies artifact hashes, native identities and current registry bindings,
+requires an initially empty Observation table, and uses canonical `process_records`
+with models disabled and exact queued/leased jobs. Rejected native records remain
+visible in counts/observations; they are not fabricated into accepted needs. No
+unrelated jobs are drained. Ingestion receipts expose all canonical observations,
+evidence, projects, needs, current cards and outstanding jobs for operator review.
+
+Backup/restore uses the authorized connection with passwords only in subprocess
+environment, creates a fresh target (never drops one), and records command exit
+codes, dump hash and source/restored inventories. Sources and Observations join the
+validator's evidence, call-note, identity and saved-evaluation checks. Source changes
+during backup or any inventory mismatch fail the receipt. No credentials or raw
+subprocess error text are persisted. A failed target is left for inspection.
+
+Point `DATABASE_URL` at the restored clone before preparing a `kind: reingested`
+five-category manifest and running the existing baseline/run commands above.
+Keep collection/ingestion/restore receipt hashes alongside baseline/report hashes.
+The meaningful-investigation, Austin exception, preservation and replay gates are
+unchanged; unsupported O&G discovery or failed routes remain explicit gaps.
+
+### Partial execution diagnostics
+
+When only one to four real canonical cases are available, use the explicitly scoped
+`diagnostic` command with a `kind: reingested` subset manifest. This preserves the
+full validator's rejection in `full-gate.json`; it does **not** redefine that gate.
+
+```bash
+python scripts/regenerate_pursuit_corpus.py diagnostic --manifest partial.json --output .artifacts/partial-diagnostic --execute --allow-public-research
+```
+
+The database must match the manifest and use `gl3_regen_*`. The original canonical
+category checks, research budgets, baseline, execution, preservation and replay
+helpers run unchanged. Baseline/report files retain detailed attempts and evidence.
+Every report declares `scope: partial_diagnostic`, explicit `missing_categories`,
+`full_five_cohort_acceptance: false`, and both retained-proof flags false, even when
+subset mechanics pass. Candidate changes fail diagnostic mechanics. A successful
+exit means only the subset diagnostic completed successfully, never five-cohort
+acceptance. Use the existing validator for a full five-category manifest.
+
+Collection and ingestion now set `passed: false` and exit nonzero for any failed
+attempt (including upstream collection failures), while preserving partial successes.
+An empty successful collection cannot start ingestion. Native rejection is recorded
+in canonical ingestion counts and does not itself imply an acquisition error.
+Acquisition failures retain only the exception class and, when available, the adapter's
+safe enum code. Ingestion terminal writes recheck the worker fence; lost ownership
+leaves the newer worker's lease untouched.
+
+Restore snapshots additionally hash every row of every actual public table,
+including mutable Project/PowerNeed fields and job/question receipts. These full
+inventories are for backup parity only; they do not expand the research validator's
+immutable-table rules. Canonical row hashes are sorted with duplicates preserved,
+and table names are obtained from SQLAlchemy inspection and dialect-quoted.
+
+This wrapper excludes `federal-register-eis` from both collection and imported
+collection ingestion: its canonical ingestion can implicitly fetch companion PDFs
+outside this wrapper's exact-request bound. Native permit adapters remain supported.
+PDF links are never silently stripped to force records through this restriction.
+
+Connection URLs must use `postgresql` or `postgresql+psycopg` with an explicit
+host, port and username. Passwords may be omitted. Only scalar `sslmode`,
+`sslrootcert`, `sslcert` and `sslkey` query options are accepted; host overrides,
+service aliases and other query options are refused so SQLAlchemy snapshots and
+PostgreSQL command-line tools cannot silently select different servers.
