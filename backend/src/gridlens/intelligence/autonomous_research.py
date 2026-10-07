@@ -92,7 +92,7 @@ def planning_cards() -> list[dict]:
             if value not in present:
                 targets.add(value)
         ordered_targets = sorted(targets)
-        projected = evaluate_targets(session, ordered_targets, cohort=cards)
+        projected = evaluate_targets(session, ordered_targets, cohort=cards, grouped=True)
         additional: dict[str, dict] = {}
         for target in ordered_targets:
             card = projected.get(target)

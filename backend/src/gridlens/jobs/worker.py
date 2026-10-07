@@ -278,7 +278,7 @@ def plan_pursuit_questions() -> int:
 
     cards = planning_cards()
     with SessionLocal.begin() as session:
-        return len(schedule_questions(session, cards))
+        return len(schedule_questions(session, cards, grouped=True))
 
 
 if __name__ == "__main__":

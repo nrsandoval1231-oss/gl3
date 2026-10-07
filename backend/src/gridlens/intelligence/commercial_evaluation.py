@@ -11,8 +11,14 @@ from gridlens.domain.pursuits import CommercialTriageCard
 from gridlens.persistence.models import Pursuit
 
 
-def evaluate_targets(session: Session, need_ids, *, cohort: list[dict] | None = None) -> dict:
-    """Use one shared projection for saved targets, including outside the shortlist."""
+def evaluate_targets(
+    session: Session,
+    need_ids,
+    *,
+    cohort: list[dict] | None = None,
+    grouped: bool = False,
+) -> dict:
+    """Evaluate exact saved targets by default; group only for planner discovery."""
     from uuid import UUID
 
     from gridlens.api.app import _commercial_triage_cards, opportunity_projection
@@ -21,43 +27,63 @@ def evaluate_targets(session: Session, need_ids, *, cohort: list[dict] | None = 
     from gridlens.persistence.models import PowerNeed, Project
 
     wanted = {str(need_id) for need_id in need_ids}
-    cohort = _commercial_triage_cards(session, 50) if cohort is None else cohort
-    found = {}
-    for card in cohort:
-        for related_id in card.get("related_need_ids", [card["id"]]):
-            if related_id in wanted:
-                found[related_id] = card
-    missing = wanted - found.keys()
-    if not missing:
-        return found
-    items = opportunity_projection(session, include_below_floor=True)
     today = datetime.now(UTC).astimezone(ZoneInfo("America/Chicago")).date()
-    # Resolve exact work groups across the full projection before doing the more
-    # expensive buying-chain reads. Group identity depends on source/document/site
-    # evidence; final cards are rebuilt with current chain data for selected groups.
-    identity_groups = group_cards(items, {}, today)
-    requested_groups = [
-        card
-        for card in identity_groups
-        if missing.intersection(card["related_need_ids"])
-    ]
-    requested_ids = {
-        need_id for card in requested_groups for need_id in card["related_need_ids"]
-    }
-    selected_items = [item for item in items if str(item["id"]) in requested_ids]
-    selected_projects = sorted({item["project_id"] for item in selected_items}, key=str)
-    chains = {
-        str(project_id): buying_chain_view(session, project_id)
-        for project_id in selected_projects
-    }
-    grouped = group_cards(selected_items, chains, today)
-    for card in grouped:
-        for related_id in card["related_need_ids"]:
-            if related_id in missing:
-                found[related_id] = card
-    missing = wanted - found.keys()
-    if not missing:
-        return found
+    found = {}
+    if grouped:
+        cohort = _commercial_triage_cards(session, 50) if cohort is None else cohort
+        for card in cohort:
+            for related_id in card.get("related_need_ids", [card["id"]]):
+                if related_id in wanted:
+                    found[related_id] = card
+        missing = wanted - found.keys()
+        if not missing:
+            return found
+    else:
+        items = opportunity_projection(session, include_below_floor=True)
+        exact_items = {str(item["id"]): item for item in items if str(item["id"]) in wanted}
+        chains = {
+            str(project_id): buying_chain_view(session, project_id)
+            for project_id in sorted(
+                {item["project_id"] for item in exact_items.values()}, key=str
+            )
+        }
+        for need_id, item in exact_items.items():
+            card = build_card(item, chains.get(str(item["project_id"])), today)
+            card["related_need_ids"] = [need_id]
+            card["related_need_states"] = []
+            found[need_id] = card
+        missing = wanted - found.keys()
+        if not missing:
+            return found
+
+    if grouped:
+        items = opportunity_projection(session, include_below_floor=True)
+        # Resolve exact work groups across the full projection before doing the more
+        # expensive buying-chain reads. Group identity depends on source/document/site
+        # evidence; final cards are rebuilt with current chain data for selected groups.
+        identity_groups = group_cards(items, {}, today)
+        requested_groups = [
+            card
+            for card in identity_groups
+            if missing.intersection(card["related_need_ids"])
+        ]
+        requested_ids = {
+            need_id for card in requested_groups for need_id in card["related_need_ids"]
+        }
+        selected_items = [item for item in items if str(item["id"]) in requested_ids]
+        selected_projects = sorted({item["project_id"] for item in selected_items}, key=str)
+        chains = {
+            str(project_id): buying_chain_view(session, project_id)
+            for project_id in selected_projects
+        }
+        grouped_cards = group_cards(selected_items, chains, today)
+        for card in grouped_cards:
+            for related_id in card["related_need_ids"]:
+                if related_id in missing:
+                    found[related_id] = card
+        missing = wanted - found.keys()
+        if not missing:
+            return found
 
     # Preserve saved inactive targets, but never turn an unsupported active need
     # into a planning card merely because its ID appeared in a saved workspace.

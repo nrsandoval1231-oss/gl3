@@ -39,12 +39,20 @@ def runtime(monkeypatch):
     Base.metadata.create_all(engine)
     factory = sessionmaker(engine, expire_on_commit=False)
     worker = import_module("gridlens.intelligence.autonomous_research")
+    question_scheduler = import_module("gridlens.intelligence.pursuit_questions")
     api = import_module("gridlens.api.app")
     monkeypatch.setattr(
         api, "_unpatched_commercial_triage_cards", api._commercial_triage_cards, raising=False
     )
     monkeypatch.setattr(worker, "SessionLocal", factory)
     monkeypatch.setattr(api, "SessionLocal", factory)
+    monkeypatch.setattr(
+        question_scheduler,
+        "evaluate_targets",
+        lambda session, need_ids, **_kwargs: {
+            str(need_id): worker.evaluate_target(session, need_id) for need_id in need_ids
+        },
+    )
     monkeypatch.setattr(settings, "autonomous_research_daily_questions", 100)
     with factory.begin() as session:
         session.add(
@@ -1411,7 +1419,10 @@ def test_real_projection_groups_outside_shortlist_before_research_planning(runti
     import hashlib
 
     factory, worker, api, _ = runtime
+    questions = import_module("gridlens.intelligence.pursuit_questions")
+    evaluator = import_module("gridlens.intelligence.commercial_evaluation")
     monkeypatch.setattr(api, "_commercial_triage_cards", api._unpatched_commercial_triage_cards)
+    monkeypatch.setattr(questions, "evaluate_targets", evaluator.evaluate_targets)
 
     def add_supported_need(
         session,
@@ -1595,7 +1606,7 @@ def test_real_projection_groups_outside_shortlist_before_research_planning(runti
     monkeypatch.setattr(settings, "autonomous_research_daily_questions", 1)
     first_day = datetime(2026, 10, 7, 16, tzinfo=UTC)
     with factory.begin() as session:
-        created_pair = schedule_questions(session, [pair_card], now=first_day)
+        created_pair = schedule_questions(session, [pair_card], grouped=True, now=first_day)
         assert len(created_pair) == 1
         created_pair[0].created_at = first_day
         pair_pursuit = session.scalar(
@@ -1611,20 +1622,25 @@ def test_real_projection_groups_outside_shortlist_before_research_planning(runti
         )
         assert len(pair_questions) == 1
         assert pair_questions[0].need_id == UUID(pair_card["id"])
+        assert set(pair_questions[0].context["before"]["related_need_ids"]) == pair_ids
+        pair_states = pair_questions[0].context["before"]["related_need_states"]
+        assert {state["held"] for state in pair_states} == {False, True}
         assert len(pair_card["related_need_ids"]) == 2
-        assert schedule_questions(session, [pair_card, nearby_cards[0]], now=first_day) == []
+        assert schedule_questions(
+            session, [pair_card, nearby_cards[0]], grouped=True, now=first_day
+        ) == []
 
     monkeypatch.setattr(settings, "autonomous_research_daily_questions", 1)
     second_day = first_day + timedelta(days=1)
     with factory.begin() as session:
-        created_nearby = schedule_questions(session, nearby_cards, now=second_day)
+        created_nearby = schedule_questions(session, nearby_cards, grouped=True, now=second_day)
         assert len(created_nearby) == 1
         created_nearby[0].created_at = second_day
         nearby_pursuit = session.scalar(
             select(Pursuit).where(Pursuit.identity_key == f"commercial-need:{nearby_id}")
         )
         assert nearby_pursuit is not None and nearby_pursuit.id != pair_pursuit.id
-        assert schedule_questions(session, nearby_cards, now=second_day) == []
+        assert schedule_questions(session, nearby_cards, grouped=True, now=second_day) == []
 
 
 @pytest.mark.parametrize("retry_index,delay", [(0, 1), (1, 6), (2, 24), (3, None)])
