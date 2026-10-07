@@ -18,8 +18,8 @@ from gridlens.domain.pursuit_research import (
     targeted_queries,
     targeted_query_plan,
 )
-from gridlens.intelligence.buying_chain import buying_chain_view
-from gridlens.intelligence.commercial_evaluation import save_evaluations
+from gridlens.intelligence.buying_chain import buying_chain_view, enrich_buying_chain
+from gridlens.intelligence.commercial_evaluation import evaluate_targets, save_evaluations
 from gridlens.intelligence.research_routing import routing_context, selected_sources
 from gridlens.persistence.models import (
     Job,
@@ -80,6 +80,35 @@ def schedule_questions(
         raise ValueError("Unknown research scheduling origin")
     now = now or datetime.now(UTC)
     session.execute(text("SELECT pg_advisory_xact_lock(290029)"))
+    # Derive relationships already supported by retained evidence before freezing
+    # sibling question inputs. Doing this first inside a worker invalidates its
+    # queued sibling even when no source evidence has changed. Active attempts
+    # keep their original context and the worker's freshness/fence checks.
+    active_projects = set(
+        session.scalars(
+            select(PursuitResearchQuestion.project_id).where(
+                PursuitResearchQuestion.status.in_(ACTIVE)
+            )
+        )
+    )
+    eligible = {}
+    for card in cards:
+        if card.get("disposition") not in {"RESEARCH", "WATCH"}:
+            continue
+        need = session.get(PowerNeed, UUID(str(card["id"])))
+        if need is not None and need.project_id not in active_projects:
+            eligible[str(need.id)] = need.project_id
+    for project_id in sorted(set(eligible.values()), key=str):
+        enrich_buying_chain(session, project_id, retained_only=True, now=now)
+    refresh = set(eligible)
+    if refresh:
+        session.flush()
+        current = evaluate_targets(session, refresh)
+        cards = [
+            current[str(card["id"])] if str(card["id"]) in refresh else card
+            for card in cards
+            if str(card["id"]) not in refresh or str(card["id"]) in current
+        ]
     save_evaluations(session, cards, now=now)
     rows = list(session.scalars(select(PursuitResearchQuestion)))
     today_count = sum(row.created_at.date() == now.date() for row in rows)
