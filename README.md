@@ -1,6 +1,6 @@
 # GridLens 3
 
-**Latest merge gate:** full browser suite **37 passed / 5 failed**; backend **1,229 passed / 1 optional skip**. Required browser prerequisites remain missing. No merge. [Exact final validation](docs/validation/gl3-029-merge-validation-20261007.md).
+**Latest merge gate:** full browser suite **38 passed / 4 failed** after genuine retained El Paso recovery; backend **1,229 passed / 1 optional skip**. Georgia identity admission and legacy pursuit prerequisites remain blocked. No merge. [Latest recovery](docs/validation/gl3-029-browser-recovery-20261007.md). [Exact final validation](docs/validation/gl3-029-merge-validation-20261007.md).
 
 **October 7, 2026 status:** PR24 remains draft on main `ec72912`. The unchanged five-category gate passes all five freshly regenerated real cases on tested code `92f7689`: six explicit UNRESOLVED blockers, zero failures/promotions, 15 Evidence rows preserved, exact replay. The authorized RRC download supplied one canonical early drilling Signal; its research inspected retained native bytes without claiming a live refresh. Final gates: 1,229 backend tests passed/one optional skip, 36 browser regressions and five actual-database browser groups passed. Original PR23 proof and six historical live-browser prerequisites remain distinct and unavailable. No merge or deployment. See [latest results](docs/validation/gl3-029-five-category-20261007.md) and [current state](.agent/CURRENT_STATE.md).
 
