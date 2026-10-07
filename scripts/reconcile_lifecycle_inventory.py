@@ -19,6 +19,7 @@ sys.path.insert(0, str(ROOT / "backend" / "src"))
 
 from gridlens.domain.lifecycle import classify_event  # noqa: E402
 from gridlens.ingestion.adapters.retained_permits import (  # noqa: E402
+    reported_permit_event_type,
     requires_achieved_lifecycle_milestone,
 )
 from gridlens.intelligence.lifecycle_service import lifecycle_event_supported  # noqa: E402
@@ -75,9 +76,13 @@ def _inventory(connection) -> list[dict[str, Any]]:
                 e.title AS evidence_title,
                 e.abstract AS evidence_abstract,
                 e.content_hash AS evidence_hash,
+                e.event_date,
+                e.event_date_label,
+                o.content_hash AS observation_hash,
                 le.event_type AS retained_event_type,
                 le.state AS retained_state,
                 i.status AS interpretation_status,
+                i.content_hash AS interpretation_hash,
                 i.assessment AS interpretation_assessment,
                 pl.current_state AS projected_state
             FROM lifecycle_events AS le
@@ -99,6 +104,14 @@ def _inventory(connection) -> list[dict[str, Any]]:
             None if is_rrc else row["evidence_abstract"],
             project_name=row["project_name"],
             project_identity_key=row["project_identity_key"],
+            project_asset_type=row["project_asset_type"],
+            reported_permit_event=reported_permit_event_type(
+                source_id,
+                row["evidence_title"],
+                row["evidence_abstract"],
+                row["event_date"],
+                row["event_date_label"],
+            ),
             require_achieved_milestone=requires_achieved_lifecycle_milestone(source_id),
         )
         assessment = row["interpretation_assessment"] or {}
@@ -106,9 +119,18 @@ def _inventory(connection) -> list[dict[str, Any]]:
             content_hash=row["evidence_hash"],
             title=row["evidence_title"],
             abstract=row["evidence_abstract"],
-            observation=SimpleNamespace(source_id=source_id),
+            event_date=row["event_date"],
+            event_date_label=row["event_date_label"],
+            observation=SimpleNamespace(
+                source_id=source_id,
+                content_hash=row["observation_hash"],
+            ),
         )
-        interpretation = SimpleNamespace(status=row["interpretation_status"], assessment=assessment)
+        interpretation = SimpleNamespace(
+            status=row["interpretation_status"],
+            content_hash=row["interpretation_hash"],
+            assessment=assessment,
+        )
         project = SimpleNamespace(
             name=row["project_name"],
             identity_key=row["project_identity_key"],
@@ -126,6 +148,10 @@ def _inventory(connection) -> list[dict[str, Any]]:
 
         if not assessment:
             reason = "no retained interpretation assessment"
+        elif row["observation_hash"] != row["evidence_hash"]:
+            reason = "observation points to another current evidence version"
+        elif row["interpretation_hash"] != row["evidence_hash"]:
+            reason = "interpretation points to another evidence version"
         elif assessment.get("evidence_hash") != row["evidence_hash"]:
             reason = "interpretation is bound to another evidence version"
         elif assessment.get("project_identity_key") != row["project_identity_key"]:

@@ -49,7 +49,7 @@ def test_positive_campus_permit_survives_adjacent_microgrid_procedure():
         "The separate microgrid air permit remains pending.",
     )
     assert event is not None
-    assert (event.event_type, event.state) == ("construction", "construction")
+    assert (event.event_type, event.state) == ("building_permit_issued", "permitting")
 
 
 def test_positive_campus_energization_survives_adjacent_force_majeure_report():
@@ -88,7 +88,8 @@ def test_draft_air_permit_construction_does_not_hide_achieved_campus_permit():
         project_name="Project Jupiter campus",
         project_identity_key="project-jupiter-campus",
     )
-    assert event is not None and event.event_type == "construction"
+    assert event is not None and event.event_type == "building_permit_issued"
+    assert event.state == "permitting"
 
 
 def test_another_named_campus_event_cannot_advance_jupiter():
@@ -106,5 +107,61 @@ def test_standalone_issued_campus_permit_and_actual_energization_still_classify(
     permit = classify_event("Building permit issued for Project Jupiter data center campus")
     energization = classify_event("Project Jupiter data center campus was energized")
 
-    assert permit is not None and permit.state == "construction"
+    assert permit is not None
+    assert (permit.event_type, permit.state) == ("building_permit_issued", "permitting")
     assert energization is not None and energization.state == "utility_energization"
+
+
+def test_ordinary_multi_campus_report_binds_only_jupiter_event_clause():
+    event = classify_event(
+        "Project Jupiter data center update",
+        "Project Atlas campus building permit was issued; "
+        "Project Jupiter data center development agreement was approved.",
+        project_name="Project Jupiter campus",
+        project_identity_key="jupiter-campus-us-nm",
+    )
+
+    assert event is not None
+    assert (event.event_type, event.state) == ("project_formation", "site_control_planning")
+
+
+def test_permit_only_electrical_text_is_permitting_not_electrical_buildout():
+    event = classify_event(
+        "Project Jupiter data center electrical update",
+        "An electrical permit was issued for the Project Jupiter data center campus.",
+        project_name="Project Jupiter campus",
+        project_identity_key="jupiter-campus-us-nm",
+    )
+
+    assert event is not None
+    assert (event.event_type, event.state) == ("electrical_permit_issued", "permitting")
+
+
+def test_physical_construction_and_electrical_work_remain_achieved_states():
+    construction = classify_event(
+        "Project Jupiter data center update",
+        "Project Jupiter data center construction has started.",
+        project_name="Project Jupiter campus",
+        project_identity_key="jupiter-campus-us-nm",
+    )
+    electrical = classify_event(
+        "Project Jupiter data center update",
+        "The Project Jupiter campus transformer installation is underway.",
+        project_name="Project Jupiter campus",
+        project_identity_key="jupiter-campus-us-nm",
+    )
+
+    assert construction is not None and construction.state == "construction"
+    assert electrical is not None and electrical.state == "electrical_buildout"
+
+
+def test_bare_construction_wording_does_not_establish_physical_work():
+    assert (
+        classify_event(
+            "Project Jupiter data center update",
+            "Project Jupiter data center construction in Austin, TX.",
+            project_name="Project Jupiter campus",
+            project_identity_key="jupiter-campus-us-nm",
+        )
+        is None
+    )

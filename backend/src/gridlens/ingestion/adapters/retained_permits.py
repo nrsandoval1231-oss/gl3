@@ -7,6 +7,7 @@ in the original Evidence abstract; no reconstructed JSON is treated as evidence.
 from __future__ import annotations
 
 import re
+from datetime import date
 
 from gridlens.ingestion.adapters.socrata_permits import MAPS
 
@@ -110,6 +111,29 @@ def requires_achieved_lifecycle_milestone(source_id: str) -> bool:
     return source_id == GEORGIA
 
 
+def reported_permit_event_type(
+    source_id: str,
+    title: str,
+    abstract: str | None,
+    event_date: date | None,
+    event_date_label: str | None,
+) -> str | None:
+    """Normalize an official adapter's dated permit-issue field to its event kind."""
+    if (
+        source_id not in ISSUE_DATE_PERMIT_SOURCES
+        or event_date is None
+        or not event_date_label
+        or "issue" not in event_date_label.casefold()
+    ):
+        return None
+    text = f"{title} {abstract or ''}"
+    if re.search(r"\belectrical permit\b", text, re.IGNORECASE):
+        return "electrical_permit_issued"
+    if re.search(r"\bbuilding permit\b", text, re.IGNORECASE):
+        return "building_permit_issued"
+    return None
+
+
 BOSTON_FIELDS = {
     "Permit number": "Boston permit number",
     "Work type": "Boston work type",
@@ -159,6 +183,10 @@ CITY_MAPS = {
         "address": "Site address",
         "cost": "Reported job value",
     },
+}
+ISSUE_DATE_PERMIT_SOURCES = frozenset(MAPS) | frozenset(CITY_MAPS) | {
+    "boston-building-permits",
+    "houston-weekly-permits",
 }
 CULTIVATION_FIELDS = {
     "applicant_org": "Applicant organization (CCC cultivation application)",

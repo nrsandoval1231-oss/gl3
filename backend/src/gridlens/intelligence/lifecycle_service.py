@@ -7,7 +7,10 @@ from gridlens.domain.lifecycle import (
     estimate_first_production,
     lifecycle_rank,
 )
-from gridlens.ingestion.adapters.retained_permits import requires_achieved_lifecycle_milestone
+from gridlens.ingestion.adapters.retained_permits import (
+    reported_permit_event_type,
+    requires_achieved_lifecycle_milestone,
+)
 from gridlens.persistence.models import (
     Evidence,
     Interpretation,
@@ -29,7 +32,13 @@ def lifecycle_event_supported(
     if evidence is None or interpretation is None or not interpretation.assessment:
         return False
     assessment = interpretation.assessment
-    if assessment.get("evidence_hash") != evidence.content_hash:
+    observation = evidence.observation
+    if (
+        observation is None
+        or observation.content_hash != evidence.content_hash
+        or interpretation.content_hash != evidence.content_hash
+        or assessment.get("evidence_hash") != evidence.content_hash
+    ):
         return False
     bound_project = assessment.get("project_identity_key")
     if (
@@ -49,6 +58,14 @@ def lifecycle_event_supported(
             None if is_rrc else evidence.abstract,
             project_name=project.name,
             project_identity_key=project.identity_key,
+            project_asset_type=project.asset_type,
+            reported_permit_event=reported_permit_event_type(
+                observation.source_id,
+                evidence.title,
+                evidence.abstract,
+                evidence.event_date,
+                evidence.event_date_label,
+            ),
             require_achieved_milestone=requires_achieved_lifecycle_milestone(observation.source_id),
         )
         if (
@@ -78,6 +95,8 @@ def apply_lifecycle_observation(
         interpretation is None
         or interpretation.status != "accepted"
         or not assessment
+        or observation.content_hash != evidence.content_hash
+        or interpretation.content_hash != evidence.content_hash
         or assessment.get("evidence_hash") != evidence.content_hash
     ):
         _rebuild_projection(session, project)
@@ -100,6 +119,14 @@ def apply_lifecycle_observation(
         None if observation.source_id == "texas-rrc-drilling-permits" else evidence.abstract,
         project_name=project.name,
         project_identity_key=project.identity_key,
+        project_asset_type=project.asset_type,
+        reported_permit_event=reported_permit_event_type(
+            observation.source_id,
+            evidence.title,
+            evidence.abstract,
+            evidence.event_date,
+            evidence.event_date_label,
+        ),
         require_achieved_milestone=requires_achieved_lifecycle_milestone(observation.source_id),
     )
     if classification is None:
@@ -181,6 +208,8 @@ def _supported_event_date(evidence: Evidence, event_type: str):
         "completion": ("completion",),
         "first_production": ("production",),
         "construction": ("construction", "grading"),
+        "building_permit_issued": ("permit",),
+        "electrical_permit_issued": ("permit",),
         "electrical_buildout": ("electrical", "substation", "transformer"),
         "commissioning": ("commission",),
         "utility_service": ("utility", "service", "energiz"),
@@ -285,6 +314,16 @@ def _rebuild_projection(session: Session, project: Project) -> None:
         None if is_rrc else evidence.abstract,
         project_name=project.name,
         project_identity_key=project.identity_key,
+        project_asset_type=project.asset_type,
+        reported_permit_event=reported_permit_event_type(
+            source_observation.source_id,
+            evidence.title,
+            evidence.abstract,
+            evidence.event_date,
+            evidence.event_date_label,
+        )
+        if source_observation
+        else None,
         require_achieved_milestone=bool(
             source_observation
             and requires_achieved_lifecycle_milestone(source_observation.source_id)
