@@ -24,6 +24,8 @@ The isolated current-main candidate adds durable bounded research questions, ret
 
 Historical candidate `7768f2a` passed technical gates and recorded R4 corpus acceptance of **3/5**. Austin data-center and explicit temporary-power cases passed only under the narrow owner amendment; Chicago passed meaningful investigation. O&G and low-quality/unresolvable did not pass. Those results do not establish acceptance of the current branch. PR24 remains draft. The October 7 owner amendment authorizes fresh traceable corpus validation; the five regenerated commercial cohorts and final candidate gates now pass as documented in the [October 7 report](docs/validation/gl3-029-five-category-20261007.md). Historical proof remains distinct. See [historical acceptance](docs/validation/gl3-029-autonomous-pursuit-research.md) and [current closure record](docs/validation/gl3-029-closure-20261006.md).
 
+[October 7 delivery checkpoint](docs/validation/gl3-029-delivery-checkpoint-20261007.md) lists published code/procedures, locally retained raw artifacts, and the unconfigured/unapproved Firecrawl next step.
+
 ## Product model
 
 GridLens follows:
