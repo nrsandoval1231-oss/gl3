@@ -1,5 +1,9 @@
 # Work Graph
 
+## October 7 final five-category checkpoint
+
+PR24 remains draft; tested code `92f7689` passes the unchanged fresh five-category mechanical gate, final full suite (1,229 passed/one skip), 36 browser regressions, five real-database browser groups, migrations/preservation/replay and independent review. Six blockers remain explicitly unresolved; no promotions. Owner-authorized RRC download and one canonical drilling Signal close the missing fresh O&G category; retained native inspection does not imply live RRC research refresh. Original archive recovery is superseded, historical corpus/browser proof remains distinct, and cloud/outreach/merge remain excluded. See [final report](../docs/validation/gl3-029-five-category-20261007.md). Earlier checkpoints below are history.
+
 ## October 5 GL3-029 acceptance frontier
 
 Current main `9a4669e592a64d0513f0bbb70e9a29197b8d2e0d`; PR24 remains an OPEN draft at `d8b0e99897c600f32a0e00bb6770b841f2c6f907`. Isolated branch `repair/gl3-029-current-main-20261005` freezes code `7768f2a6e3ec19f29f657c23c2120a392d1c31bf` (tree `4118cdf83f21e0fa3519b9ca956eae4bf8c9ae8f`). The prior docs candidate received Sol FIX for database-backed category proof falling back to card text on missing/mismatched canonical rows; the repair and regressions now require exact Evidence ID/URL/hash and quote row abstract only. All controller gates pass (1,161 backend, one skip, one warning; Ruff/mypy/migrations/frontend/audit/diff pass); focused validator 44 pass. Original-corpus acceptance remains 3/5: canonical-row owner-amended Austin cases and meaningful Chicago pass; O&G and low-quality/unresolvable fail. Preservation/replay pass. Browser 41/41 is prior evidence for unchanged product/UI code from `15e27bc`, not a fresh R4 run. Provider config exists, but maximum cost is $0 and reservations are unset.

@@ -215,7 +215,7 @@ same distinction and require explicit corpus provenance and immutable baselines.
 Known bounds: exact native GET routes cover Austin, Chicago, Seattle, Boston,
 El Paso and Federal Register stable identifiers. Other registered families can use
 retained facts and eligible public supplements, but do not acquire unimplemented
-native adapters by inference. RRC's form-based download is excluded; Houston/Dallas
+native adapters by inference. RRC's form-based download is excluded from autonomous network research; Houston/Dallas
 bulk workbooks and Georgia/NC/Taylor/MA sources have no exact native research route
 in this slice. Public PDF support does not change that native-source distinction.
 Strict subject/activity/date/relationship and qualification grammars intentionally
@@ -235,3 +235,21 @@ The worker still rejects changed evidence or source-routing fingerprints before 
 No model, external retrieval or evidence qualification shortcut is added. This local
 projection pass covers eligible supplied projects, independently of the eight-question
 daily acquisition cap; unchanged claim/run identities are reused.
+
+### Complete retained native RRC inputs
+
+Tier A may inspect an existing RRC native permit only after the current accepted
+interpretation, exact source/project/need binding, unique observation link and
+canonical row fields match. The adapter reconstructs the complete retained record
+from strictly decoded bytes, verifies each SHA, limits encoded/decoded work to
+750,000 bytes and 20 provenance entries, and compares exact rendered content.
+Unexpected/conflicting sequences, malformed provenance or ambiguous bindings remain
+unsupported. Nested malformed JSON is handled as a parse failure.
+
+This validates internal retained consistency, not independent authenticity of an
+original full snapshot's filename/ordinal. Children remain opaque. The receipt keeps
+original acquisition time and a separate inspection time, reports UNRESOLVED for
+unsupported commercial facts, and explicitly denies live source refresh. No new
+evidence, model call, tier qualification, project merge or purchasing authority is
+introduced. Existing source-unavailable retry bounds and the five-category validator
+are unchanged. See [final code and receipts](../validation/gl3-029-five-category-20261007.md).
