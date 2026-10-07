@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from gridlens.domain.commercial_presentation import canonical_mw_claim
 from gridlens.domain.project_research import VERSION, project_claim_state
 from gridlens.domain.signal_admission import admitted_from_source
+from gridlens.domain.texas_permitting import texas_permitting_context
 from gridlens.ingestion.adapters.buying_chain_public import CAPTURE_VERSION
 from gridlens.intelligence.buying_chain import _accepted_version, buying_chain_view
 from gridlens.intelligence.lifecycle_service import lifecycle_event_supported
@@ -335,6 +336,11 @@ def project_state(session: Session, project_id: UUID) -> dict[str, Any] | None:
         "identity_key": project.identity_key,
         "state": state,
         "research_state": current_research_state(session, project_id),
+        "policy_context": texas_permitting_context(
+            asset_type=project.asset_type if accepted_lifecycle else "unknown",
+            site=state["site"],
+            as_of=date.today(),
+        ),
         "organizations_and_roles": parties,
         "lifecycle_events": [
             {
@@ -368,3 +374,4 @@ def project_state(session: Session, project_id: UUID) -> dict[str, Any] | None:
             "conflicting and unavailable facts remain explicit."
         ),
     }
+
