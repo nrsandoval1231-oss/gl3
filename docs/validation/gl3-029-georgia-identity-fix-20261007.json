@@ -1,0 +1,183 @@
+{
+  "product_candidate": "aa7a3464aa8f1dc681e6c37f08ed6d60df00a483",
+  "source_sha256": "e7c6fbd2674f275a94cda565a4faf83348c51c5be4cda4865219d0ad38cf825a",
+  "merge_ready": false,
+  "diagnosis": {
+    "facility": "Southern Natural Gas - Ellerslie Compressor Station",
+    "location": "Ellerslie",
+    "application": "926258",
+    "site_key": "ellerslie",
+    "facility_key": "southern natural gas ellerslie compressor station",
+    "site_matches": true,
+    "facility_matches": false,
+    "application_matches": false,
+    "page_count": 22,
+    "qts_rows": [
+      {
+        "facility": "QTS ATL3",
+        "location": "Augusta",
+        "application": "SIP-30169"
+      }
+    ]
+  },
+  "acquisition": {
+    "started_at": "2026-10-07T04:19:10.516731+00:00",
+    "provider_cost_usd": 0,
+    "model_calls": 0,
+    "max_seconds": 180,
+    "max_requests": 55,
+    "status": "collected",
+    "count": 18,
+    "sha256": "e44b4762d3a9e973005cdb1d47624312cfe3025eac117d38766068c5f252928f",
+    "qts_matches": [
+      "6aaae66ddfc92ac4cd31cd97"
+    ],
+    "finished_at": "2026-10-07T04:19:48.418398+00:00",
+    "elapsed_seconds": 37.90214230399579,
+    "request_count": 38
+  },
+  "backend": {
+    "passed": 1232,
+    "skipped": 1,
+    "warnings": 1,
+    "seconds": 150.49
+  },
+  "validator_subset": {
+    "passed": 71,
+    "overlaps_full": true
+  },
+  "static": {
+    "ruff": 0,
+    "mypy": 0,
+    "typecheck": 0,
+    "build": 0,
+    "audit": 0
+  },
+  "browser": {
+    "startTime": "2026-10-07T04:20:17.816Z",
+    "duration": 38417.784999999996,
+    "expected": 40,
+    "skipped": 0,
+    "unexpected": 2,
+    "flaky": 0
+  },
+  "migration": {
+    "checks": {
+      "clean": 0,
+      "clean-drift": 0,
+      "clean-repeat": 0,
+      "drift": 0,
+      "existing": 0,
+      "prepare": 0,
+      "repeat": 0
+    },
+    "exact_full_inventory_match": true,
+    "head": "0014_pursuit_research_questions",
+    "passed": true,
+    "tables_checked": 28
+  },
+  "replay": {
+    "candidate": {
+      "commit": "aa7a3464aa8f1dc681e6c37f08ed6d60df00a483",
+      "source_sha256": "e7c6fbd2674f275a94cda565a4faf83348c51c5be4cda4865219d0ad38cf825a"
+    },
+    "prior_questions": [
+      {
+        "id": "83ce190b-991b-4188-900d-d20c65a184dc",
+        "need_id": "f7a89b46-6875-4be0-bfb5-748305657f8f",
+        "category": "phase",
+        "status": "UNRESOLVED",
+        "retry_after": "2026-10-08T03:11:44.550391+00:00",
+        "retry_class": "FRESH_CHECK"
+      },
+      {
+        "id": "e8ea3124-37b0-4bd9-9bfa-70cab008472b",
+        "need_id": "7f81417f-2213-4de9-8e92-74034870fca1",
+        "category": "phase",
+        "status": "UNRESOLVED",
+        "retry_after": "2026-10-07T04:11:37.503658+00:00",
+        "retry_class": "BOUNDED_TRANSIENT"
+      },
+      {
+        "id": "9a152f9e-7cb1-48c4-972b-ef6ad1686f90",
+        "need_id": "7f81417f-2213-4de9-8e92-74034870fca1",
+        "category": "power_need",
+        "status": "UNRESOLVED",
+        "retry_after": "2026-10-07T04:11:38.776762+00:00",
+        "retry_class": "BOUNDED_TRANSIENT"
+      },
+      {
+        "id": "4e914459-e5e7-4140-9622-81eeef1a2133",
+        "need_id": "f7a89b46-6875-4be0-bfb5-748305657f8f",
+        "category": "power_need",
+        "status": "UNRESOLVED",
+        "retry_after": "2026-10-10T03:11:45.797109+00:00",
+        "retry_class": "FRESH_CHECK"
+      },
+      {
+        "id": "d471fbf1-9bb4-44cc-b7ba-d540c0cee508",
+        "need_id": "47265ecc-29a0-4d65-9ba9-7b69e1a7fb3c",
+        "category": "power_need",
+        "status": "UNRESOLVED",
+        "retry_after": "2026-10-10T03:11:42.190895+00:00",
+        "retry_class": "FRESH_CHECK"
+      },
+      {
+        "id": "4e54f686-ed80-43e5-af5d-8af215b1c96f",
+        "need_id": "47265ecc-29a0-4d65-9ba9-7b69e1a7fb3c",
+        "category": "phase",
+        "status": "UNRESOLVED",
+        "retry_after": "2026-10-08T03:11:41.075118+00:00",
+        "retry_class": "FRESH_CHECK"
+      }
+    ],
+    "windows": {
+      "within_freshness": {
+        "scheduler_now": "2026-10-07T04:11:36.503658+00:00",
+        "before_sha256": "39d69cdc8a92acec303346f08445766c6308258dfa2b9d97aba0492fddcee44a",
+        "after_sha256": "39d69cdc8a92acec303346f08445766c6308258dfa2b9d97aba0492fddcee44a",
+        "created": []
+      },
+      "current_time": {
+        "scheduler_now": "2026-10-07T04:23:08.938352+00:00",
+        "before_sha256": "39d69cdc8a92acec303346f08445766c6308258dfa2b9d97aba0492fddcee44a",
+        "after_sha256": "ddf302dff51d7591f9419a17bba07ec4c5f6d885b49612effa0ad58c4e126d89",
+        "created": [
+          {
+            "need_id": "7f81417f-2213-4de9-8e92-74034870fca1",
+            "category": "power_need",
+            "retry_index": 1
+          },
+          {
+            "need_id": "7f81417f-2213-4de9-8e92-74034870fca1",
+            "category": "phase",
+            "retry_index": 1
+          }
+        ]
+      }
+    },
+    "openapi_exact": true,
+    "persisted_state_sha256": "39d69cdc8a92acec303346f08445766c6308258dfa2b9d97aba0492fddcee44a",
+    "passed": true
+  },
+  "artifact_sha256": {
+    ".artifacts/regeneration/georgia-identity-diagnosis/requests.json": "4c27041ac59b6f87b5a9c87dd209022452b430d6cb226a3456e0213ca88bba9e",
+    ".artifacts/regeneration/georgia-identity-diagnosis/diagnosis.json": "5d78297b731f2e806f01641ce1f64100e01c52f49d3978138c003cd7ac2ce214",
+    ".artifacts/regeneration/georgia-company-red.log": "0f4c05ebca4d02b3f94674852e2c3295e159a03d4ec8e8d2136e679cc13acb72",
+    ".artifacts/regeneration/georgia-company-green.log": "34cbe3705cf3a5e1dd06076cc5160c32cabd6a953e7ac3ef2935163bef6a2692",
+    ".artifacts/regeneration/georgia-company-revalidation/receipt.json": "d2f6a3fc91d6a53fd5a82a7165e391770be03489f939977dcd3055d93daa354a",
+    ".artifacts/regeneration/georgia-company-revalidation/requests.json": "08a384db1a5d1afbdcc262a30cf1a68ec5331427d080354123132075aad1cb84",
+    ".artifacts/regeneration/georgia-company-revalidation/responses.json": "965b668c64464d795129b1051b147d841619da8afef76600d0d83a91647120f6",
+    ".artifacts/regeneration/browser-prereq-georgia/receipt.json": "950506e9ae868328f18c84298d3d7f1aff2b383b5e63b7dcd1d8972186e93834",
+    ".artifacts/regeneration/backend-tests-georgia-fix.log": "da48dc41c949c40746bf434d1724f930ac36024c4a6967accfc9e2e0dcd46e46",
+    ".artifacts/regeneration/validator-tests-georgia-fix.log": "de12eb86cce050162f9326e9ebe1788aeed2affca31bc369afee7501e2364a56",
+    ".artifacts/regeneration/static-georgia-fix.json": "77d788d781c7b9f065bb9787f4030524764752e0955be6591d12c5ae3d9f0b48",
+    ".artifacts/regeneration/browser-georgia-fixed.json": "b5cf760244bb517b1b996d5dd85d89ed373502fdb69ac5243cdef7b7a9a01988",
+    ".artifacts/regeneration/browser-georgia-fixed.log": "364f2557d197ef39e02e44f20f4d8e67f6439736db4ae1c96c23f90e31690af4",
+    ".artifacts/regeneration/browser-georgia-fixed-exit.json": "2618b95f1f6be6bfde8537756f85b83845d039001563135b9d59d817446733eb",
+    ".artifacts/regeneration/migration-preservation-geofix.json": "a22ea8424385767285c9ad6d73206967da64056fdb50607882cf0f485e830a0a",
+    ".artifacts/regeneration/geofix-replay-openapi.json": "17c6497748668e443f9c60a567c66da9f164ec52c49f5e329802fc895c2cbc7e",
+    ".artifacts/regeneration/geofix-scoped-replay-openapi.json": "7a498c2171eb96dbdbb4489f118fab1bd5a81bdc0395b44d5da87798c426c06a",
+    ".artifacts/regeneration/geofix-replay-windows.json": "522926f54f213d8a54e965961f3dfd09494801c71f0b0ee48d24e331253ee238"
+  }
+}
