@@ -408,10 +408,9 @@ def _assessment_for_evidence(
     assessment = interpretation.assessment
     from gridlens.ingestion.adapters.buying_chain_public import CAPTURE_VERSION
 
-    if (
-        observation.source_id.startswith("research-public-")
-        and assessment.get("acquisition_capture_version") != CAPTURE_VERSION
-    ):
+    if observation.source_id.startswith("research-public-") and assessment.get(
+        "acquisition_capture_version"
+    ) != CAPTURE_VERSION:
         return None
     if (
         assessment.get("semantic_hash") != observation.content_hash
