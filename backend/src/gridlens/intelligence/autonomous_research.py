@@ -59,7 +59,7 @@ def current_cards() -> list[dict]:
 
 
 def planning_cards() -> list[dict]:
-    """Recheck saved targets in one bulk projection; no shortlist starvation.
+    """Discover active needs and recheck saved targets beyond the UI shortlist.
 
     This read-only scan performs no acquisitions. Question scheduling separately
     enforces its daily cap, two active blockers and unchanged-result freshness.
@@ -71,7 +71,14 @@ def planning_cards() -> list[dict]:
     with SessionLocal() as session:
         cards = _commercial_triage_cards(session, 50)
         present = {card["id"] for card in cards}
-        targets = []
+        covered = present | {
+            need_id for card in cards for need_id in card.get("related_need_ids", [])
+        }
+        targets = {
+            str(need_id)
+            for need_id in session.scalars(select(PowerNeed.id).where(PowerNeed.active))
+            if str(need_id) not in covered
+        }
         for identity in session.scalars(
             select(Pursuit.identity_key)
             .where(Pursuit.identity_key.like("commercial-need:%"))
@@ -83,9 +90,10 @@ def planning_cards() -> list[dict]:
             except ValueError:
                 continue
             if value not in present:
-                targets.append(value)
-        projected = evaluate_targets(session, targets, cohort=cards)
-        return cards + [projected[target] for target in targets if target in projected]
+                targets.add(value)
+        ordered_targets = sorted(targets)
+        projected = evaluate_targets(session, ordered_targets, cohort=cards)
+        return cards + [projected[target] for target in ordered_targets if target in projected]
 
 
 def current_card(need_id: UUID) -> dict | None:

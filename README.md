@@ -1,5 +1,7 @@
 # GridLens 3
 
+**Postmerge correction, October 7:** PR24 merged at `94c3acb`. Three late P1 findings required a focused scheduler/retry repair: discover unsaved eligible needs beyond the 50-card view, apply bounded backoff to unexpected worker failures, and prevent exhausted leases from restarting unchanged questions. See the [repair validation](docs/validation/gl3-029-postmerge-repair-20261007.md). The repair remains a separate unmerged candidate; no deployment occurred.
+
 **October 7, 2026:** GL3-029 is implemented and locally validated: **1,232 backend tests passed / one optional skip; all 42 browser tests passed**. The unchanged five-category fresh-corpus gate passes 5/5, with six honest UNRESOLVED blockers and no promotions. Migrations, preservation, replay and independent review pass. [Final acceptance](docs/validation/gl3-029-final-acceptance-20261007.md) · [current state](.agent/CURRENT_STATE.md) · [PR24](https://github.com/nrsandoval1231-oss/gl3/pull/24).
 
 Positive autonomous new-fact resolution remains unproven; discovery credentials/spending were not configured. Meaningful bounded unresolved outcomes are permitted. Fresh regenerated validation is not original retained PR23 proof. No outreach or cloud deployment occurred.

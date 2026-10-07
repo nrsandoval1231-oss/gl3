@@ -55,12 +55,14 @@ The TypeSafe request/response contract was checked against the official [OpenAPI
 ## Autonomous pursuit research candidate
 
 GL3-029 adds `pursuit_question` jobs and migration `0014_pursuit_research_questions`.
-It remains a draft candidate. The [five-category regenerated-corpus gates](../validation/gl3-029-five-category-20261007.md) pass locally; historical retained-browser proof and production deployment remain separate. Use isolated validation databases and preserve historical research receipts.
+PR24 merged at `94c3acb`; the [postmerge scheduler/retry repair](../validation/gl3-029-postmerge-repair-20261007.md) remains a separate candidate. The [five-category regenerated-corpus gates](../validation/gl3-029-five-category-20261007.md) pass locally; historical retained-browser proof and production deployment remain separate. Use isolated validation databases and preserve historical research receipts.
 
 The current worker plans questions at startup and on its hourly refresh when
 `worker_auto_refresh` and `autonomous_research_enabled` are enabled. It considers
-the current 50-card shortlist plus every saved target in a shared read-only projection,
-including closures and promotions outside the shortlist. It caps active questions at
+the current 50-card shortlist, all active unsaved needs outside its grouped coverage,
+and every saved target through the existing canonical projection. Unsupported active
+needs are excluded; saved closures and promotions remain reevaluable. Planning itself
+does not acquire sources or bypass the daily question cap. It caps active questions at
 two per pursuit.
 Authenticated **Research missing facts** schedules the selected card; explicit refresh
 bypasses freshness reuse. Unchanged completed questions wait for their category retry
@@ -68,6 +70,11 @@ window (24 hours for phase/supply/commissioning/conflicts, 72 for timing, 168 fo
 buyer/load/power scope). The shorter source-family window also applies (news 24
 hours, permits 72). Changed semantic project/evidence, registry configuration or
 policy input permits new attempts.
+Unexpected worker failures use the existing 1-, 6-, and 24-hour retry delays, then
+stop unchanged automatic retries. Five expired job leases also stop unchanged
+automatic retries. Explicit refresh or changed evidence can reopen an exhausted
+question; any unresolved in-flight/ambiguous effect still blocks those paths.
+Historical receipts are preserved rather than retroactively rewritten.
 An initial WATCH may be investigated once. A resolved root question permits one child,
 with no further child branching.
 

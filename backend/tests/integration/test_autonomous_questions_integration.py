@@ -1342,3 +1342,272 @@ def test_paid_search_cannot_spend_after_document_budget_exhaustion(runtime):
         receipt = session.get(PursuitResearchQuestion, question_id).receipt
         assert receipt.get("searches", 0) == 0
         assert not receipt.get("queries_attempted")
+
+
+def test_postmerge_planning_discovers_unsaved_need_beyond_fifty(runtime, monkeypatch):
+    factory, worker, api, card = runtime
+    shortlist = []
+    with factory.begin() as session:
+        for index in range(50):
+            need = PowerNeed(
+                project_id=card["project_id"],
+                activity_key=f"synthetic-{index}",
+                tier="Signal",
+                rationale="Synthetic shortlist",
+                supply="Unknown",
+            )
+            session.add(need)
+            session.flush()
+            shortlist.append(
+                {**card, "id": str(need.id), "related_need_ids": [str(need.id)]}
+            )
+        assert session.scalar(select(Pursuit)) is None
+    monkeypatch.setattr(api, "_commercial_triage_cards", lambda *_: shortlist)
+    monkeypatch.setattr(
+        api,
+        "opportunity_projection",
+        lambda *_args, **_kwargs: [
+            {
+                "id": card["id"],
+                "project_id": card["project_id"],
+                "name": "Synthetic Orion",
+                "location": "Austin, TX",
+                "tier": "Signal",
+                "activity": "electrical-construction",
+                "asset_type": "data_center",
+                "lifecycle_state": "permitting",
+                "supply": "Unknown",
+                "supported_action": "Data center electrical construction includes transformers",
+                "evidence": [
+                    {
+                        "id": str(uuid4()),
+                        "title": "Synthetic permit",
+                        "abstract": "Data center electrical construction includes transformers",
+                        "event_date": "2026-10-01",
+                        "url": "https://example.invalid/permit",
+                    }
+                ],
+            }
+        ],
+    )
+    planned = worker.planning_cards()
+    assert len(planned) == 51
+    discovered = next(item for item in planned if item["id"] == card["id"])
+    assert discovered["disposition"] == "RESEARCH"
+    monkeypatch.setattr(settings, "autonomous_research_daily_questions", 1)
+    with factory.begin() as session:
+        assert session.scalar(select(Pursuit)) is None  # Planning remains read-only.
+        assert len(schedule_questions(session, [discovered])) == 1
+    with factory.begin() as session:
+        assert (
+            schedule_questions(session, planned) == []
+        )  # Discovery cannot bypass daily cap.
+
+
+@pytest.mark.parametrize("retry_index,delay", [(0, 1), (1, 6), (2, 24), (3, None)])
+def test_postmerge_unexpected_worker_failure_obeys_bounded_retry(
+    runtime, monkeypatch, retry_index, delay
+):
+    factory, research, _, card = runtime
+    job_worker = import_module("gridlens.jobs.worker")
+    monkeypatch.setattr(job_worker, "SessionLocal", factory)
+    question_id = schedule(factory, card)[0]
+    with factory.begin() as session:
+        question = session.get(PursuitResearchQuestion, question_id)
+        question.context = {**question.context, "retry_index": retry_index}
+        question.receipt = {
+            **question.receipt,
+            "source_checks": [{"reason": "partial"}],
+        }
+        job_id = session.scalar(select(Job.id).where(Job.target_id == question_id))
+
+    def unexpected(*_args):
+        raise RuntimeError("Synthetic unexpected failure")
+
+    monkeypatch.setattr(research, "process_question_job", unexpected)
+    assert job_worker.run_one({}, job_ids=[job_id])
+    assert schedule(factory, card) == []
+    with factory() as session:
+        question = session.get(PursuitResearchQuestion, question_id)
+        assert question.status == "FAILED"
+        assert question.receipt["source_checks"] == [{"reason": "partial"}]
+        assert question.receipt["result_disposition"] == "FAILED"
+        completed = question.completed_at
+        assert question.receipt["retry_class"] == (
+            "BOUNDED_TRANSIENT" if delay else "RETRIES_EXHAUSTED"
+        )
+        if delay:
+            assert question.retry_after == completed + timedelta(hours=delay)
+        assert session.get(Job, job_id).status == "failed"
+        assert session.get(PowerNeed, card["id"]).tier == "Signal"
+    later = schedule(
+        factory, card, now=completed + timedelta(hours=(delay or 48), seconds=1)
+    )
+    if delay:
+        assert len(later) == 1
+        with factory() as session:
+            row = session.get(PursuitResearchQuestion, later[0])
+            assert row.context["retry_index"] == retry_index + 1
+    else:
+        assert later == []
+
+
+@pytest.mark.parametrize("reschedule", ["unchanged", "force", "changed"])
+def test_postmerge_exhausted_lease_without_inflight_cannot_restart(runtime, reschedule):
+    factory, _, _, card = runtime
+    question_id = schedule(factory, card)[0]
+    with factory.begin() as session:
+        question = session.get(PursuitResearchQuestion, question_id)
+        question.receipt = {
+            **question.receipt,
+            "source_checks": [{"reason": "partial"}],
+        }
+        job = session.scalar(select(Job).where(Job.target_id == question_id))
+        job.status, job.attempts, job.lease_owner = "running", 5, "dead-worker"
+        job.lease_until = datetime.now(UTC) - timedelta(seconds=1)
+        job_id = job.id
+    with factory.begin() as session:
+        assert lease_one(session, "replacement", job_ids=[job_id]) is None
+    assert schedule(factory, card) == []
+    assert schedule(factory, card, now=datetime.now(UTC) + timedelta(days=2)) == []
+    with factory() as session:
+        question = session.get(PursuitResearchQuestion, question_id)
+        assert question.receipt["retry_class"] == "RETRIES_EXHAUSTED"
+        assert question.receipt["source_checks"] == [{"reason": "partial"}]
+    if reschedule == "changed":
+        card = {**card, "input_hash": "synthetic-new-evidence"}
+    if reschedule != "unchanged":
+        assert len(schedule(factory, card, force=reschedule == "force")) == 1
+
+
+@pytest.mark.parametrize("marker", ["inflight_url", "ambiguous_effects"])
+def test_postmerge_unexpected_failure_preserves_unknown_effect_block(
+    runtime, monkeypatch, marker
+):
+    factory, research, _, card = runtime
+    job_worker = import_module("gridlens.jobs.worker")
+    monkeypatch.setattr(job_worker, "SessionLocal", factory)
+    question_id = schedule(factory, card)[0]
+    with factory.begin() as session:
+        question = session.get(PursuitResearchQuestion, question_id)
+        question.receipt = {
+            **question.receipt,
+            marker: "https://example.invalid/interrupted",
+        }
+        job_id = session.scalar(select(Job.id).where(Job.target_id == question_id))
+
+    def unexpected(*_args):
+        raise RuntimeError("Synthetic interrupted acquisition")
+
+    monkeypatch.setattr(research, "process_question_job", unexpected)
+    assert job_worker.run_one({}, job_ids=[job_id])
+    changed = {**card, "input_hash": "synthetic-new-evidence"}
+    assert (
+        schedule(
+            factory, changed, force=True, now=datetime.now(UTC) + timedelta(days=2)
+        )
+        == []
+    )
+    with factory() as session:
+        question = session.get(PursuitResearchQuestion, question_id)
+        assert question.receipt["retry_class"] == "UNKNOWN_EFFECT"
+        assert question.receipt[marker] == "https://example.invalid/interrupted"
+        assert session.get(PowerNeed, card["id"]).tier == "Signal"
+
+
+def test_postmerge_planning_does_not_split_grouped_or_surface_unsupported_needs(
+    runtime, monkeypatch
+):
+    factory, worker, _, card = runtime
+    with factory.begin() as session:
+        grouped = PowerNeed(
+            project_id=card["project_id"],
+            activity_key="synthetic-related",
+            tier="Signal",
+            rationale="Synthetic grouped",
+            supply="Unknown",
+        )
+        unsupported = PowerNeed(
+            project_id=card["project_id"],
+            activity_key="synthetic-unsupported",
+            tier="Signal",
+            rationale="No admitted support",
+            supply="Unknown",
+        )
+        inactive = PowerNeed(
+            project_id=card["project_id"],
+            activity_key="synthetic-inactive",
+            tier="Signal",
+            rationale="Inactive",
+            supply="Unknown",
+            active=False,
+        )
+        session.add_all([grouped, unsupported, inactive])
+        session.flush()
+        card["related_need_ids"] = [card["id"], str(grouped.id)]
+    # Actual canonical projection excludes these unsupported records, and the
+    # grouped need stays represented by its existing commercial card.
+    assert worker.planning_cards() == [card]
+    with factory() as session:
+        assert session.scalar(select(Pursuit)) is None
+
+
+def test_postmerge_saved_grouped_inactive_target_is_still_reevaluated(runtime):
+    factory, worker, _, card = runtime
+    with factory.begin() as session:
+        need = PowerNeed(
+            project_id=card["project_id"],
+            activity_key="synthetic-closed",
+            tier="Signal",
+            rationale="Closed",
+            supply="Unknown",
+            active=False,
+        )
+        session.add(need)
+        session.flush()
+        card["related_need_ids"] = [card["id"], str(need.id)]
+        session.add(
+            Pursuit(
+                identity_key="commercial-need:" + str(need.id),
+                project_id=need.project_id,
+                project_ids=[str(need.project_id)],
+                snapshot={},
+            )
+        )
+        closed_id = str(need.id)
+    cards = worker.planning_cards()
+    assert len(cards) == 2
+    assert (
+        next(item for item in cards if item["id"] == closed_id)["disposition"]
+        == "REJECT"
+    )
+
+
+def test_postmerge_lost_worker_cannot_overwrite_successor_receipt(runtime, monkeypatch):
+    factory, research, _, card = runtime
+    job_worker = import_module("gridlens.jobs.worker")
+    monkeypatch.setattr(job_worker, "SessionLocal", factory)
+    question_id = schedule(factory, card)[0]
+    with factory() as session:
+        job_id = session.scalar(select(Job.id).where(Job.target_id == question_id))
+
+    def replaced(job_id, _worker_id, _fence):
+        with factory.begin() as session:
+            job = session.get(Job, job_id)
+            job.lease_until = datetime.now(UTC) - timedelta(seconds=1)
+        with factory.begin() as session:
+            assert lease_one(session, "successor", job_ids=[job_id])
+            question = session.get(PursuitResearchQuestion, question_id)
+            question.status = "SEARCHING"
+            question.receipt = {"marker": "successor receipt"}
+        raise RuntimeError("Synthetic former worker failure")
+
+    monkeypatch.setattr(research, "process_question_job", replaced)
+    assert job_worker.run_one({}, job_ids=[job_id])
+    with factory() as session:
+        job = session.get(Job, job_id)
+        assert job.status == "running" and job.lease_owner == "successor"
+        question = session.get(PursuitResearchQuestion, question_id)
+        assert question.status == "SEARCHING"
+        assert question.completed_at is None
+        assert question.receipt == {"marker": "successor receipt"}

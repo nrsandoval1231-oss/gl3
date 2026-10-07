@@ -1,5 +1,7 @@
 # Current state — October 7, 2026
 
+PR24 is merged at `94c3acb7b36c6d5d04a77a0ec445e793e05120a4`. Three P1 comments posted immediately before merge exposed unsaved-target discovery and failure-retry gaps. The focused, separately reviewed repair is on `fix/gl3-029-scheduler-retry-boundaries`; product commit `9d86e1359556feb56612d76a57991ea4282ecc28`. See [postmerge repair validation](../docs/validation/gl3-029-postmerge-repair-20261007.md) for current checks and limits. It is not merged or deployed. The following acceptance results describe the original PR24 candidate and do not substitute for repair validation.
+
 GL3-029 is implemented and locally validated in [PR24](https://github.com/nrsandoval1231-oss/gl3/pull/24). **1,232 backend tests passed / one optional skip; all 42 browser tests passed**, including the six original live journeys. Five additional actual-database research browser groups pass. Ruff, mypy, frontend typecheck/build/audit, migrations, preservation, OpenAPI and exact replay pass. See [final acceptance](../docs/validation/gl3-029-final-acceptance-20261007.md).
 
 Last product commit: `aa7a3464aa8f1dc681e6c37f08ed6d60df00a483`; tested head `e42b4200c618155dbbf7aa5dd1d14c47cac2cf29`; source fingerprint `e7c6fbd2674f275a94cda565a4faf83348c51c5be4cda4865219d0ad38cf825a`. Later publication changes documentation only. The owner authorized validation and merge, including narrow TDLR public-search retrieval at 04:30:46 UTC. GitHub PR metadata is authoritative for merge status; cloud deployment remains excluded.

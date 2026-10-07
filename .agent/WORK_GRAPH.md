@@ -1,5 +1,9 @@
 # Work Graph
 
+## October 7 postmerge correctness repair
+
+PR24 merged at `94c3acb`; three late P1 findings were reproduced in eight failing regression cases. Product repair `9d86e13` adds discovery beyond the shortlist and closes unexpected-failure/lease-exhaustion retry gaps. Thirteen new boundary cases, full validation and separate review are recorded in [repair validation](../docs/validation/gl3-029-postmerge-repair-20261007.md). Publication is a separate draft repair PR, with merge requiring explicit approval. No deployment. Earlier acceptance entries are historical.
+
 ## October 7 final local acceptance
 
 GL3-029 local gates pass: 1,232 backend/one optional skip, all 42 browser tests, five research-browser groups, fresh five-category acceptance 5/5, migrations/preservation/replay and independent review. Owner authorized conditional merge and narrow public TDLR search; deployment/provider spending remain excluded. See [final acceptance](../docs/validation/gl3-029-final-acceptance-20261007.md). GitHub PR24 records the merge state. Earlier checkpoints below are historical and their former blockers/permission limits are superseded where explicitly documented.
