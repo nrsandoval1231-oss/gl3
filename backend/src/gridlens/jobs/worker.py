@@ -78,7 +78,10 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
     attempted = datetime.now(UTC).isoformat()
     try:
         if kind == "pursuit_question":
-            from gridlens.intelligence.autonomous_research import process_question_job
+            from gridlens.intelligence.autonomous_research import (
+                _retry_deadline,
+                process_question_job,
+            )
             from gridlens.persistence.models import PursuitResearchQuestion
 
             try:
@@ -90,9 +93,22 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
                     if question:
                         question.status = "FAILED"
                         question.completed_at = datetime.now(UTC)
-                        question.retry_after = question.completed_at + timedelta(hours=24)
-                        question.receipt = {**question.receipt, "error": type(exc).__name__,
-                                            "reevaluation_status": "FAILED"}
+                        retry_after = _retry_deadline(question, question.completed_at)
+                        question.retry_after = retry_after or (
+                            question.completed_at + timedelta(hours=24)
+                        )
+                        question.receipt = {
+                            **question.receipt,
+                            "error": type(exc).__name__,
+                            "result_disposition": "FAILED",
+                            "reevaluation_status": "FAILED",
+                            "retry_class": "UNKNOWN_EFFECT"
+                            if question.receipt.get("inflight_url")
+                            or question.receipt.get("ambiguous_effects")
+                            else "BOUNDED_TRANSIENT"
+                            if retry_after is not None
+                            else "RETRIES_EXHAUSTED",
+                        }
                     question_job.status, question_job.error = "failed", type(exc).__name__
                     question_job.lease_owner, question_job.lease_until = None, None
             return True

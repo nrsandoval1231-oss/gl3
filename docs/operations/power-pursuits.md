@@ -58,16 +58,23 @@ GL3-029 adds `pursuit_question` jobs and migration `0014_pursuit_research_questi
 It remains a draft candidate. The [five-category regenerated-corpus gates](../validation/gl3-029-five-category-20261007.md) pass locally; historical retained-browser proof and production deployment remain separate. Use isolated validation databases and preserve historical research receipts.
 
 The current worker plans questions at startup and on its hourly refresh when
-`worker_auto_refresh` and `autonomous_research_enabled` are enabled. It considers
-the current 50-card shortlist plus every saved target in a shared read-only projection,
-including closures and promotions outside the shortlist. It caps active questions at
-two per pursuit.
+`worker_auto_refresh` and `autonomous_research_enabled` are enabled. Its shared
+read-only projection includes the current 50-card shortlist, other active needs
+supported by canonical evaluation, and every saved target outside the shortlist,
+including closures and promotions. Needs already represented by a grouped card
+are not scheduled twice. It caps active questions at two per pursuit and applies
+the daily question cap after discovery.
 Authenticated **Research missing facts** schedules the selected card; explicit refresh
 bypasses freshness reuse. Unchanged completed questions wait for their category retry
 window (24 hours for phase/supply/commissioning/conflicts, 72 for timing, 168 for
 buyer/load/power scope). The shorter source-family window also applies (news 24
 hours, permits 72). Changed semantic project/evidence, registry configuration or
 policy input permits new attempts.
+Unexpected question-worker failures use the same 1/6/24-hour bounded retry schedule;
+after the final retry the receipt records `RETRIES_EXHAUSTED`. A fifth expired job
+lease terminalizes the question and job together. If a provider reservation may have
+been dispatched, the receipt retains `UNKNOWN_EFFECT` and automatic or forced
+refresh stays blocked until the uncertain effect has a safe disposition.
 An initial WATCH may be investigated once. A resolved root question permits one child,
 with no further child branching.
 
