@@ -737,7 +737,9 @@ def test_corroborating_missing_lead_fields_are_not_conflicting_but_different_loa
                     contractor_phone="5125550100",
                 ),
                 record(
-                    source, corroborating, permit_number="TRANSITION-TEST-2",
+                    source,
+                    corroborating,
+                    permit_number="TRANSITION-TEST-2",
                     link={"url": "https://abc.austintexas.gov/permit/124"},
                 ),
             ],
@@ -780,14 +782,20 @@ def test_corroborating_missing_lead_fields_are_not_conflicting_but_different_loa
             job, fence = leased
             job_id = job.id
     if expected == "Signal":
+
         def acquire(source_id, external_id, *, before_request, **_kwargs):
             before_request("https://abc.austintexas.gov/permit/123")
             return source, record(
-                source, lead, permit_number=external_id,
+                source,
+                lead,
+                permit_number=external_id,
                 contractor_company_name="Synthetic Electric",
-                contractor_full_name="Pat Example", contractor_phone="5125550100",
-                link={"url": "https://abc.austintexas.gov/permit/"
-                      + ("123" if external_id == "TRANSITION-TEST-1" else "124")},
+                contractor_full_name="Pat Example",
+                contractor_phone="5125550100",
+                link={
+                    "url": "https://abc.austintexas.gov/permit/"
+                    + ("123" if external_id == "TRANSITION-TEST-1" else "124")
+                },
             )
 
         monkeypatch.setattr(worker, "acquire_registered_record", acquire)
@@ -889,3 +897,91 @@ def test_effective_lead_remaining_gap_controls_visibility_without_changing_gross
         assert items[0]["required_mw"] == need.required_mw == "1 MW"
         visible = api.opportunity_projection(session)
         assert len(visible) == (0 if expected == "below_floor" else 1)
+
+
+def test_retained_relationships_precede_sibling_question_fingerprints(
+    canonical_runtime, monkeypatch
+):
+    """Unchanged Chicago source must not invalidate a queued sibling after Tier A."""
+    from gridlens.persistence.models import BuyingChainClaim
+
+    factory, _, worker, seed_job = canonical_runtime
+    source = next(s for s in load_registry() if s["id"] == "chicago-building-permits")
+    native = render_record(
+        source,
+        {
+            "id": "9000001",
+            "permit_status": "ACTIVE",
+            "issue_date": datetime.now(UTC).date().isoformat(),
+            "work_description": (
+                "INTERIOR ALTERATIONS TO EXISTING OFFICE BUILDING TO CONVERT TO A DATA CENTER. "
+                "NEW EQUIPMENT WITH ASSOCIATED MEP UPGRADES."
+            ),
+            "permit_type": "PERMIT - RENOVATION/ALTERATION",
+            "street_number": "400",
+            "street_direction": "S",
+            "street_name": "SYNTHETIC",
+            "street_type": "ST",
+            "contact_1_type": "CONTRACTOR-ELECTRICAL",
+            "contact_1_name": "SYNTHETIC ELECTRIC",
+        },
+    )
+    with factory.begin() as session:
+        session.add(Source(**{k: v for k, v in source.items() if k in Source.__table__.columns}))
+        session.get(Job, seed_job).source_id = source["id"]
+        process_records(
+            session, seed_job, "seed-test", 1, source, [native], commit=False, allow_model=False
+        )
+        need = session.scalar(select(PowerNeed))
+        assert need is not None
+        need_id = need.id
+        card = evaluate_target(session, need_id)
+        assert card is not None and card["disposition"] == "RESEARCH"
+        assert not list(session.scalars(select(BuyingChainClaim)))
+        original_hash = card["input_hash"]
+        questions = schedule_questions(session, [card])
+        assert len(questions) == 2
+        assert list(session.scalars(select(BuyingChainClaim)))
+        assert all(q.context["before"]["input_hash"] != original_hash for q in questions)
+        assert len({q.evidence_fingerprint for q in questions}) == 1
+        identifiers = [q.id for q in questions]
+        evidence_before = {e.id: e.content_hash for e in session.scalars(select(Evidence))}
+        claim_ids = set(session.scalars(select(BuyingChainClaim.id)))
+        contexts = {q.id: q.context for q in questions}
+    planner = import_module("gridlens.intelligence.pursuit_questions")
+    with monkeypatch.context() as active_patch:
+
+        def no_prepare(*_args, **_kwargs):
+            pytest.fail("Active project questions must keep their frozen context")
+
+        active_patch.setattr(planner, "enrich_buying_chain", no_prepare)
+        with factory.begin() as session:
+            assert schedule_questions(session, [card]) == []
+            assert {
+                q.id: q.context for q in session.scalars(select(PursuitResearchQuestion))
+            } == contexts
+
+    def acquire(_source_id, _external_id, *, before_request, **_kwargs):
+        before_request(native["html_url"])
+        return source, native
+
+    monkeypatch.setattr(worker, "acquire_registered_record", acquire)
+    for question_id in identifiers:
+        with factory.begin() as session:
+            job = session.scalar(select(Job).where(Job.target_id == question_id))
+            leased = lease_one(session, "transition-test", lease_seconds=600, job_ids=[job.id])
+            assert leased
+            leased_job, fence = leased
+            job_id = leased_job.id
+        worker.process_question_job(job_id, "transition-test", fence)
+    with factory.begin() as session:
+        rows = [session.get(PursuitResearchQuestion, q) for q in identifiers]
+        assert all(row.status == "UNRESOLVED" for row in rows)
+        assert all(not row.receipt.get("error") for row in rows)
+        assert all(row.receipt["reevaluation_status"] == "COMPLETED" for row in rows)
+        assert {e.id: e.content_hash for e in session.scalars(select(Evidence))} == evidence_before
+        assert session.get(PowerNeed, need_id).tier == "Signal"
+        current = evaluate_target(session, need_id)
+        assert current is not None
+        assert schedule_questions(session, [current]) == []
+        assert set(session.scalars(select(BuyingChainClaim.id))) == claim_ids

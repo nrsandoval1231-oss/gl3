@@ -222,3 +222,16 @@ Strict subject/activity/date/relationship and qualification grammars intentional
 leave unsupported wording, complex supply schedules and incomplete inputs unknown. The original PR23 corpus and provider configuration remain unavailable here;
 local fixture proof is not retained-corpus or production proof. See the
 [validation report](../validation/gl3-029-autonomous-pursuit-research.md).
+
+### Retained preparation before question fingerprints
+
+Before scheduling questions for a RESEARCH/WATCH project with no active question,
+prepare its existing retained-only buying-chain projection and reevaluate the exact
+PowerNeed using the shared evaluator. Acquire project locks in deterministic order.
+Question contexts then include already-retained relationships, so the first worker
+cannot invalidate its queued sibling merely by deriving those same facts. Projects
+with active questions are excluded; their historical context is never overwritten.
+The worker still rejects changed evidence or source-routing fingerprints before I/O.
+No model, external retrieval or evidence qualification shortcut is added. This local
+projection pass covers eligible supplied projects, independently of the eight-question
+daily acquisition cap; unchanged claim/run identities are reused.
