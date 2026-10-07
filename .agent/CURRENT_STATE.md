@@ -1,6 +1,6 @@
 # Current state — October 7, 2026
 
-**Latest merge gate:** full browser suite **37 passed / 5 failed**; backend **1,229 passed / 1 optional skip**. Required browser prerequisites remain missing. No merge. [Exact final validation](../docs/validation/gl3-029-merge-validation-20261007.md).
+**Latest merge gate:** full browser suite **38 passed / 4 failed** after genuine retained El Paso recovery; backend **1,229 passed / 1 optional skip**. Georgia identity admission and legacy pursuit prerequisites remain blocked. No merge. [Latest recovery](../docs/validation/gl3-029-browser-recovery-20261007.md). [Exact final validation](../docs/validation/gl3-029-merge-validation-20261007.md).
 
 **Latest focused proof:** the owner-approved attempt to find a new resolving fact did not meet its objective. Two actual native Chicago refreshes returned unchanged Evidence; two blockers remain UNRESOLVED, RESEARCH/Signal unchanged, no new evidence. Current application Firecrawl credential and explicit cost reservations are absent; its budget is $0. Positive live proof remains pending; meaningful bounded UNRESOLVED outcomes are permitted. The required full browser gate currently blocks merge. See [focused proof and exact access gap](../docs/validation/gl3-029-live-fact-proof-20261007.md). No product code changed; previous final gates remain source-equivalent evidence.
 

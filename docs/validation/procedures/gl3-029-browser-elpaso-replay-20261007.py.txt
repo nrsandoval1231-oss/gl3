@@ -1,0 +1,23 @@
+import json,hashlib
+from pathlib import Path
+from datetime import date
+from gridlens.ingestion.adapters.el_paso_permits import _row
+from gridlens.ingestion.registry import load_registry
+from gridlens.ingestion.service import process_records
+from gridlens.persistence.database import SessionLocal
+from gridlens.jobs.queue import enqueue,lease_one,assert_fence
+from regenerate_pursuit_corpus import configured_url,snapshot,write_once,now
+assert configured_url().database=='gl3_regen_20261007_merge_browser'
+root=Path('.artifacts/regeneration');out=root/'browser-prereq-elpaso';out.mkdir(exist_ok=False)
+receipt=json.loads((root/'scout-oilgas.json').read_text());request=next(r for r in receipt['requests'] if r.get('body_file')=='scout-oilgas-body-5.txt')
+body=(root/request['body_file']).read_bytes();assert hashlib.sha256(body).hexdigest()==request['body_sha256'];assert request['status']==200
+record=_row(json.loads(body)['features'][0]['attributes'],date(2026,10,7));assert record['document_number']=='BCTI25-00142'
+source=next(s for s in load_registry() if s['id']=='el-paso-new-commercial-permits')
+write_once(out/'before.json',snapshot())
+with SessionLocal.begin() as session:
+ job_id=enqueue(session,source['id']);leased=lease_one(session,'browser-prereq',lease_seconds=600,job_ids=[job_id]);assert leased;_,fence=leased
+with SessionLocal.begin() as session:
+ counts=process_records(session,job_id,'browser-prereq',fence,source,[record],commit=False,allow_model=False)
+ job=assert_fence(session,job_id,'browser-prereq',fence);job.status='succeeded';job.lease_owner=None;job.lease_until=None
+write_once(out/'receipt.json',{'source_request':request,'retained_replay':True,'new_network_requests':0,'canonical_imported_at':now(),'counts':counts,'after':snapshot()})
+print(json.dumps(counts))
