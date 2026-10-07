@@ -4,7 +4,7 @@ The owner requested publication of completed work to GitHub. The existing
 [GL3-029 draft PR24](https://github.com/nrsandoval1231-oss/gl3/pull/24) is the delivery;
 no duplicate PR, deployment, credential configuration or paid research is part of
 this checkpoint. The subsequent owner instruction, “validate and merge,” authorizes
-merge only after applicable validation gates pass. Final validation is in progress.
+merge only after applicable validation gates pass. Final validation completed with five required browser failures; merge remains blocked. See [exact results](gl3-029-merge-validation-20261007.md).
 
 ## Published work
 
@@ -96,4 +96,4 @@ authorized; deployment remains excluded. Independent contract review found that
 bounded meaningful UNRESOLVED results are permitted by the original specification,
 PRD15 and the R4 owner amendment. The failed positive demonstration stays disclosed;
 it is not itself a newly imposed positive-only merge predicate. Existing live browser
-behavior coverage must still be verified.
+behavior coverage failed: 37 passed and five missing-data prerequisite failures. These gates remain mandatory.
