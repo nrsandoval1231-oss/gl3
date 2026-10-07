@@ -1,5 +1,7 @@
 # GL3-029 final local acceptance — October 7, 2026
 
+**Historical premerge receipt.** PR24 merged at `94c3acb`. Three P1 review comments posted immediately before merge required a separate [scheduler/retry repair](gl3-029-postmerge-repair-20261007.md). The results below remain valid records of the original candidate; they do not establish correctness of the repaired boundaries or deployment.
+
 **All required local validation gates pass.** Full browser: **42/42 passed**. Backend: **1,232 passed, one optional skip**. The final unchanged five-category validator passes **5/5** under the owner-authorized fresh-corpus amendment. Merge is authorized subject to current remote-head/protection checks; this pre-merge receipt does not itself claim a merge or deployment.
 
 Tested repository head: `e42b4200c618155dbbf7aa5dd1d14c47cac2cf29`.

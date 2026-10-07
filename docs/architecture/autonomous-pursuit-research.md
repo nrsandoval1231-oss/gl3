@@ -197,8 +197,11 @@ Lead fields without rewriting historical evidence; canonical updates clear obsol
 qualification fields. This adds implementation of the existing gates, not model
 qualification or a commercial-state shortcut.
 
-The hourly scheduler reprojects saved targets in one bulk pass, including targets
-outside the live 50-card shortlist. Fresh unchanged answers do not create more jobs;
+The hourly scheduler discovers active unsaved needs beyond the live 50-card shortlist
+and reprojects saved targets in one bulk pass through the canonical evaluator.
+Already grouped unsaved needs stay represented by their shortlist card; saved targets
+remain independently reevaluable after closure or promotion. Unsupported active
+needs cannot become cards merely because they were scanned. Fresh unchanged answers do not create more jobs;
 identity, buying-chain and material state changes are included in semantic hashes.
 Source registry definitions, selected source sets and current research policy also
 participate in reuse. Daily acquisition and active-blocker caps remain independent
@@ -257,3 +260,13 @@ are unchanged. See [final code and receipts](../validation/gl3-029-five-category
 ### Final identity and acceptance boundary
 
 Georgia source identity normalization includes the legal term `company` alongside existing `co`/`llc`; complete ordered facility tokens and the independent site match remain mandatory. Different stations/cities still fail admission. No application-ID rule, project consolidation, commercial rule or qualification gate changed. Final real-source/browser validation passes, with unresolved autonomous questions preserved honestly; see [final acceptance](../validation/gl3-029-final-acceptance-20261007.md).
+
+## Postmerge retry correction — October 7, 2026
+
+Unexpected question-worker exceptions reuse the existing bounded retry deadline
+(1, 6, 24 hours), persist result disposition and retry classification, and exhaust
+unchanged retries. An interrupted acquisition remains UNKNOWN_EFFECT. Fifth-lease
+terminalization persists RETRIES_EXHAUSTED while retaining partial receipts and
+in-flight markers. Existing fencing and transactional job/question updates remain
+authoritative. No schema change or historical receipt rewrite is needed. See the
+[repair validation](../validation/gl3-029-postmerge-repair-20261007.md).
