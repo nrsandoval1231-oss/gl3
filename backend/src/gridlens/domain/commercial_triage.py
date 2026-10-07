@@ -781,6 +781,15 @@ def cards(
     today: date,
     limit: int = MAX_CARDS,
 ) -> list[dict[str, Any]]:
+    return group_cards(items, chains, today)[: max(1, min(limit, MAX_CARDS))]
+
+
+def group_cards(
+    items: list[dict[str, Any]],
+    chains: dict[str, dict[str, Any]],
+    today: date,
+) -> list[dict[str, Any]]:
+    """Build canonical work-identity groups without applying the UI shortlist cap."""
     prepared = [build_card(item, chains.get(str(item["project_id"])), today) for item in items]
     by_id = {str(item["id"]): item for item in items}
     prepared.sort(key=lambda card: (_priority(by_id[card["id"]]), card["id"]))
@@ -904,4 +913,4 @@ def cards(
             ).encode()
         ).hexdigest()
         unique.append(merged)
-    return unique[: max(1, min(limit, MAX_CARDS))]
+    return unique

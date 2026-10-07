@@ -93,7 +93,12 @@ def planning_cards() -> list[dict]:
                 targets.add(value)
         ordered_targets = sorted(targets)
         projected = evaluate_targets(session, ordered_targets, cohort=cards)
-        return cards + [projected[target] for target in ordered_targets if target in projected]
+        additional: dict[str, dict] = {}
+        for target in ordered_targets:
+            card = projected.get(target)
+            if card is not None and card["id"] not in present:
+                additional.setdefault(card["id"], card)
+        return cards + list(additional.values())
 
 
 def current_card(need_id: UUID) -> dict | None:

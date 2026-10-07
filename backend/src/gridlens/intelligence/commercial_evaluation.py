@@ -16,47 +16,73 @@ def evaluate_targets(session: Session, need_ids, *, cohort: list[dict] | None = 
     from uuid import UUID
 
     from gridlens.api.app import _commercial_triage_cards, opportunity_projection
-    from gridlens.domain.commercial_triage import build_card
+    from gridlens.domain.commercial_triage import build_card, group_cards
     from gridlens.intelligence.buying_chain import buying_chain_view
     from gridlens.persistence.models import PowerNeed, Project
 
     wanted = {str(need_id) for need_id in need_ids}
     cohort = _commercial_triage_cards(session, 50) if cohort is None else cohort
-    found = {card["id"]: card for card in cohort if card["id"] in wanted}
+    found = {}
+    for card in cohort:
+        for related_id in card.get("related_need_ids", [card["id"]]):
+            if related_id in wanted:
+                found[related_id] = card
     missing = wanted - found.keys()
     if not missing:
         return found
-    items = {
-        str(item["id"]): item
-        for item in opportunity_projection(session, include_below_floor=True)
-        if str(item["id"]) in missing
-    }
+    items = opportunity_projection(session, include_below_floor=True)
     today = datetime.now(UTC).astimezone(ZoneInfo("America/Chicago")).date()
-    chains = {}
+    # Resolve exact work groups across the full projection before doing the more
+    # expensive buying-chain reads. Group identity depends on source/document/site
+    # evidence; final cards are rebuilt with current chain data for selected groups.
+    identity_groups = group_cards(items, {}, today)
+    requested_groups = [
+        card
+        for card in identity_groups
+        if missing.intersection(card["related_need_ids"])
+    ]
+    requested_ids = {
+        need_id for card in requested_groups for need_id in card["related_need_ids"]
+    }
+    selected_items = [item for item in items if str(item["id"]) in requested_ids]
+    selected_projects = sorted({item["project_id"] for item in selected_items}, key=str)
+    chains = {
+        str(project_id): buying_chain_view(session, project_id)
+        for project_id in selected_projects
+    }
+    grouped = group_cards(selected_items, chains, today)
+    for card in grouped:
+        for related_id in card["related_need_ids"]:
+            if related_id in missing:
+                found[related_id] = card
+    missing = wanted - found.keys()
+    if not missing:
+        return found
+
+    # Preserve saved inactive targets, but never turn an unsupported active need
+    # into a planning card merely because its ID appeared in a saved workspace.
     rows = session.execute(
         select(PowerNeed, Project)
         .join(Project)
         .where(PowerNeed.id.in_([UUID(identity) for identity in missing]))
     )
     for need, project in rows:
-        item = items.get(str(need.id))
-        if item is None:
-            if need.active:
-                continue  # Unsupported is unknown, never proof of cancellation.
-            item = {
-                "id": need.id,
-                "project_id": project.id,
-                "name": project.name,
-                "location": project.location,
-                "tier": need.tier,
-                "activity": need.activity_key,
-                "asset_type": project.asset_type,
-                "canonical_inactive": True,
-                "evidence": [],
-            }
-        if project.id not in chains:
-            chains[project.id] = buying_chain_view(session, project.id)
-        card = build_card(item, chains[project.id], today)
+        if need.active:
+            continue  # Unsupported is unknown, never proof of cancellation.
+        item = {
+            "id": need.id,
+            "project_id": project.id,
+            "name": project.name,
+            "location": project.location,
+            "tier": need.tier,
+            "activity": need.activity_key,
+            "asset_type": project.asset_type,
+            "canonical_inactive": True,
+            "evidence": [],
+        }
+        if str(project.id) not in chains:
+            chains[str(project.id)] = buying_chain_view(session, project.id)
+        card = build_card(item, chains.get(str(project.id)), today)
         card["related_need_ids"] = [str(need.id)]
         card["related_need_states"] = []
         found[str(need.id)] = card
