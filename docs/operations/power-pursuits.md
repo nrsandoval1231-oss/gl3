@@ -18,7 +18,7 @@ A native installation uses the existing `.env` and the established PostgreSQL se
 
 ```bash
 (cd backend && uv run alembic upgrade head)
-PYTHONPATH=backend/src uv run --project backend uvicorn gridlens.api.app:app --host 127.0.0.1 --port 8000
+PYTHONPATH=backend/src uv run --project backend uvicorn gridlens.api.app:app --host 127.0.0.1 --port 8000 --no-proxy-headers
 PYTHONPATH=backend/src uv run --project backend python -m gridlens.jobs.worker
 npm --prefix web run dev
 ```
