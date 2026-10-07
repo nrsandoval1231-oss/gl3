@@ -14,4 +14,4 @@ Stop only this cluster:
 & 'C:\Program Files\PostgreSQL\18\bin\pg_ctl.exe' -D "$PWD\.artifacts\local-postgres\data" stop -m fast
 ```
 
-Runtime connection values are in `.artifacts/local-postgres/connection.env`. Application startup instructions are maintained in the root README. This local database is not a cloud deployment or a completion of Milestone A. Docker Desktop engine was unavailable during initial checks; the local PostgreSQL cluster provides real integration testing without changing the existing service.
+Runtime connection values are in `.artifacts/local-postgres/connection.env`. Application startup instructions are maintained in the root README. Use Uvicorn's `--no-proxy-headers` for the local API process so a direct local client cannot rewrite its peer address through `X-Forwarded-For`; the app only trusts forwarding headers when a separately configured trusted proxy is in use. This local database is not a cloud deployment or a completion of Milestone A. Docker Desktop engine was unavailable during initial checks; the local PostgreSQL cluster provides real integration testing without changing the existing service.

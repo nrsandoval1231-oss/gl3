@@ -72,7 +72,7 @@ Start the services in separate terminals:
 
 ```powershell
 uv run --directory backend alembic upgrade head
-uv run --project backend uvicorn gridlens.api.app:app --app-dir backend/src --host 127.0.0.1 --port 8000
+uv run --project backend uvicorn gridlens.api.app:app --app-dir backend/src --host 127.0.0.1 --port 8000 --no-proxy-headers
 $env:PYTHONPATH = (Join-Path $PWD 'backend/src')
 uv run --project backend python -m gridlens.jobs.worker
 npm --prefix web run dev
