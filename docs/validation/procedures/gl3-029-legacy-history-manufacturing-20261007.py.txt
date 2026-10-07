@@ -1,0 +1,11 @@
+import json,hashlib,time
+from pathlib import Path
+from datetime import datetime,UTC
+import httpx
+from gridlens.ingestion.adapters.georgia_air_permits import _bounded_get
+root=Path('.artifacts/regeneration/legacy-history-manufacturing');root.mkdir(exist_ok=False)
+url='https://data.austintexas.gov/resource/3syk-w9eu.json';params={'$where':"permit_class_mapped='Commercial' AND status_current='Active' AND issue_date >= '2024-10-08T00:00:00.000' AND permit_number like '% EP' AND lower(description) like '%light manufacturing%'",'$limit':20,'$order':'issue_date DESC'}
+start=datetime.now(UTC).isoformat()
+with httpx.Client(timeout=20,follow_redirects=False) as c:h,b=_bounded_get(c,url,750000,params=params)
+(root/'response.json').write_bytes(b);rows=json.loads(b);assert isinstance(rows,list) and len(rows)<=20
+receipt={'method':'GET','url':url,'params':params,'retrieved_at':start,'finished_at':datetime.now(UTC).isoformat(),'bytes':len(b),'sha256':hashlib.sha256(b).hexdigest(),'records':len(rows)};(root/'receipt.json').write_text(json.dumps(receipt,indent=2));print(json.dumps(receipt));print(json.dumps([{'id':r.get('permit_number'),'site':r.get('original_address1'),'description':r.get('description','')[:140]} for r in rows]))

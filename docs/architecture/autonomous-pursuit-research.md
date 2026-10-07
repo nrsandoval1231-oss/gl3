@@ -253,3 +253,7 @@ unsupported commercial facts, and explicitly denies live source refresh. No new
 evidence, model call, tier qualification, project merge or purchasing authority is
 introduced. Existing source-unavailable retry bounds and the five-category validator
 are unchanged. See [final code and receipts](../validation/gl3-029-five-category-20261007.md).
+
+### Final identity and acceptance boundary
+
+Georgia source identity normalization includes the legal term `company` alongside existing `co`/`llc`; complete ordered facility tokens and the independent site match remain mandatory. Different stations/cities still fail admission. No application-ID rule, project consolidation, commercial rule or qualification gate changed. Final real-source/browser validation passes, with unresolved autonomous questions preserved honestly; see [final acceptance](../validation/gl3-029-final-acceptance-20261007.md).

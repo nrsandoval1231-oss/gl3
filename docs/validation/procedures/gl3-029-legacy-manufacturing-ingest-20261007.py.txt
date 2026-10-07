@@ -1,0 +1,24 @@
+from pathlib import Path
+import json
+from gridlens.ingestion.service import process_records
+from gridlens.persistence.database import SessionLocal
+from gridlens.jobs.queue import enqueue,lease_one,assert_fence
+from regenerate_pursuit_corpus import configured_url,snapshot,write_once,now,checked_collection
+assert configured_url().database=='gl3_regen_20261007_legacy_run'
+root=Path('.artifacts/regeneration');out=root/'legacy-manufacturing-ingestion';out.mkdir(exist_ok=False)
+from gridlens.ingestion.registry import load_registry
+from gridlens.ingestion.adapters.socrata_permits import render_record
+import hashlib
+receipt=json.loads((root/'legacy-history-manufacturing/receipt.json').read_text());body=(root/'legacy-history-manufacturing/response.json').read_bytes();assert hashlib.sha256(body).hexdigest()==receipt['sha256']
+source=next(s for s in load_registry() if s['id']=='austin-building-permits')
+selected={'2026-015271 EP','2026-015270 EP','2022-015372 EP'}
+records=[(source,render_record(source,r)) for r in json.loads(body) if r['permit_number'] in selected];assert len(records)==3
+write_once(out/'before.json',snapshot());results=[]
+for source,record in records:
+ with SessionLocal.begin() as session:
+  job_id=enqueue(session,source['id']);leased=lease_one(session,'browser-prereq',lease_seconds=600,job_ids=[job_id]);assert leased;_,fence=leased
+ with SessionLocal.begin() as session:
+  counts=process_records(session,job_id,'browser-prereq',fence,source,[record],commit=False,allow_model=False)
+  job=assert_fence(session,job_id,'browser-prereq',fence);job.status='succeeded';job.lease_owner=None;job.lease_until=None
+ results.append({'source':source['id'],'external_id':record['document_number'],'counts':counts})
+write_once(out/'receipt.json',{'canonical_imported_at':now(),'results':results,'after':snapshot()});print(json.dumps(results))

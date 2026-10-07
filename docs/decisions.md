@@ -102,3 +102,9 @@ six blockers remain unresolved, with no promotion. Historical original-corpus pr
 and unavailable historical browser prerequisites are not substituted. Canonical docs
 link the final exact-candidate report; older failure/authorization receipts remain
 immutable history. No new architecture, migration, outreach or deployment follows.
+
+## October 7, 2026 — complete local acceptance and bounded TDLR retrieval
+
+The owner authorized the existing public TDLR search form solely for retrieval after the original no-forms boundary was explained (message Sentinel_e58b307f03488191abf3194a12196ad4, 04:30:46 UTC). This permits rebuilding real legacy pursuit/conflict history and conditional merge; it does not authorize outreach, login, purchases, credentials or deployment.
+
+Keep canonical admission unchanged. A proven Georgia false negative was corrected by normalizing the legal term Company, retaining exact station/city checks. Rejected corpus candidates stayed rejected; genuine additional manufacturing permits supplied history pagination, with same-address phases retaining separate stable identities. All 42 browser tests and 1,232 backend tests pass (one optional skip); final fresh five-category acceptance is 5/5 with honest unresolved results. Positive autonomous new-fact resolution is not claimed. See [final evidence](validation/gl3-029-final-acceptance-20261007.md).
