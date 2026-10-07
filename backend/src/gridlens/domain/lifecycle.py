@@ -118,7 +118,30 @@ _ASSETS = (
 )
 
 
+def requires_scoped_lifecycle_evidence(title: str, abstract: str | None = None) -> bool:
+    """Keep multi-facility and procedural reports out of the single-asset clock.
+
+    This keyword classifier cannot bind a campus milestone separately from its
+    power facility, permit proceeding or contract. Retain that evidence for
+    research; require a separately scoped source before advancing a lifecycle.
+    This is abstention, not a construction stop, cancellation or permit denial.
+    """
+    text = f"{title} {abstract or ''}".casefold()
+    return bool(
+        re.search(r"data cent(?:er|re)|server campus|hyperscale", text)
+        and (
+            re.search(r"\bmicrogrid\b|\bforce[\s-]+majeure\b", text)
+            or (
+                re.search(r"\bair(?: quality)?[ -]permit", text)
+                and re.search(r"\bcourt\b|\bhearing\b|\bproceedings?\b", text)
+            )
+        )
+    )
+
+
 def classify_event(title: str, abstract: str | None = None) -> Classification | None:
+    if requires_scoped_lifecycle_evidence(title, abstract):
+        return None
     text = f"{title} {abstract or ''}".casefold()
     asset = next((kind for kind, pattern in _ASSETS if re.search(pattern, text)), AssetType.UNKNOWN)
     if asset == AssetType.UNKNOWN:
