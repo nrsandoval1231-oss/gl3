@@ -1,3 +1,5 @@
+import hashlib
+import json
 from collections import defaultdict
 from datetime import UTC, date, datetime, timedelta
 from datetime import date as DateType
@@ -445,21 +447,37 @@ def health():
         )
         source_health = []
         window_start = chicago_today(checked_at) - timedelta(days=6)
+        window_start_utc = datetime.combine(
+            window_start, datetime.min.time(), tzinfo=ZoneInfo("America/Chicago")
+        ).astimezone(UTC)
         due_rows = session.scalars(
-            select(SourceDueCheck).where(SourceDueCheck.local_day >= window_start)
+            select(SourceDueCheck).where(
+                SourceDueCheck.scheduled_for >= window_start_utc,
+                SourceDueCheck.scheduled_for < checked_at,
+            )
         ).all()
-        receipts = session.scalars(
-            select(SourceCheckReceipt)
+        due_by_key = {due.due_key: due for due in due_rows}
+        attempts = session.execute(
+            select(SourceCheckReceipt, SourceDueCheck, Job)
             .join(SourceDueCheck, SourceDueCheck.due_key == SourceCheckReceipt.due_key)
-            .where(SourceDueCheck.local_day >= window_start)
+            .join(Job, Job.id == SourceCheckReceipt.job_id)
+            .where(
+                SourceDueCheck.scheduled_for >= window_start_utc,
+                SourceDueCheck.scheduled_for < checked_at,
+            )
             .order_by(SourceCheckReceipt.recorded_at)
         ).all()
-        latest_receipt = {}
-        for receipt in receipts:
-            latest_receipt[receipt.due_key] = receipt
-        due_by_source: dict[str, list[SourceDueCheck]] = defaultdict(list)
-        for due in due_rows:
-            due_by_source[due.source_id].append(due)
+        latest_attempt = {}
+        for receipt, due, job in attempts:
+            current = latest_attempt.get(receipt.due_key)
+            receipt_order = (receipt.fence, receipt.recorded_at, str(receipt.id))
+            current_order = (
+                (current[0].fence, current[0].recorded_at, str(current[0].id))
+                if current
+                else None
+            )
+            if current_order is None or receipt_order > current_order:
+                latest_attempt[receipt.due_key] = (receipt, due, job)
         worker = session.scalar(
             select(WorkerHeartbeat).order_by(WorkerHeartbeat.last_seen_at.desc()).limit(1)
         )
@@ -485,50 +503,139 @@ def health():
             for state in session.scalars(select(PlannerState))
         }
         freshness_states = []
+        from gridlens.jobs.worker import _due_key, _scheduled_instants
+
         for row in rows:
             definition = definitions.get(row.id, {})
-            dues = due_by_source.get(row.id, [])
             epochs = session.scalars(
                 select(SourceScheduleEpoch)
                 .where(SourceScheduleEpoch.source_id == row.id)
                 .order_by(SourceScheduleEpoch.effective_from)
             ).all()
-            window_start_utc = datetime.combine(
-                window_start, datetime.min.time(), tzinfo=ZoneInfo("America/Chicago")
-            ).astimezone(UTC)
             covered_until = window_start_utc
             history_known = bool(epochs)
+            schedule_inputs_known = True
+            expected_due: dict[str, tuple[SourceScheduleEpoch, datetime]] = {}
             for epoch in epochs:
-                epoch_end = min(epoch.effective_until or checked_at, checked_at)
-                if epoch_end <= covered_until:
-                    continue
-                if epoch.effective_from > covered_until or not epoch.history_known:
+                try:
+                    epoch_end = min(epoch.effective_until or checked_at, checked_at)
+                    epoch_start = max(epoch.effective_from, window_start_utc)
+                except (TypeError, ValueError, OverflowError):
                     history_known = False
-                    break
-                covered_until = epoch_end
-            expected_history = history_known and covered_until >= checked_at
-            successes = sum(
-                latest_receipt.get(due.due_key) is not None
-                and latest_receipt[due.due_key].disposition == "succeeded"
-                for due in dues
+                    schedule_inputs_known = False
+                    continue
+                if epoch_end <= epoch_start:
+                    continue
+                if epoch_start > covered_until or not epoch.history_known:
+                    history_known = False
+                if epoch_start <= covered_until and epoch_end > covered_until:
+                    covered_until = epoch_end
+                if not (
+                    epoch.history_known and epoch.registry_enabled and epoch.operator_enabled
+                ):
+                    continue
+                try:
+                    for scheduled_for in _scheduled_instants(
+                        epoch, checked_at, not_before=window_start_utc
+                    ):
+                        due_key = _due_key(epoch, scheduled_for)
+                        expected_due[due_key] = (epoch, scheduled_for)
+                except (
+                    AttributeError,
+                    KeyError,
+                    OverflowError,
+                    TypeError,
+                    ValueError,
+                    ZeroDivisionError,
+                ):
+                    schedule_inputs_known = False
+                    history_known = False
+            expected_history = (
+                history_known and schedule_inputs_known and covered_until >= checked_at
             )
-            if not expected_history or not dues:
+            successes = 0
+            missing_due = False
+            invalid_receipt = False
+            dispositions = []
+            for due_key, (epoch, scheduled_for) in expected_due.items():
+                due = due_by_key.get(due_key)
+                if due is None:
+                    missing_due = True
+                    continue
+                expected_local_day = scheduled_for.astimezone(
+                    ZoneInfo("America/Chicago")
+                ).date()
+                if (
+                    due.source_id != row.id
+                    or due.epoch_id != epoch.id
+                    or due.scheduled_for != scheduled_for
+                    or due.local_day != expected_local_day
+                    or due.configuration != epoch.configuration
+                ):
+                    invalid_receipt = True
+                    continue
+                attempt = latest_attempt.get(due_key)
+                if due.job_id is None or attempt is None:
+                    missing_due = True
+                    continue
+                receipt, receipt_due, job = attempt
+                if (
+                    receipt_due.due_key != due_key
+                    or receipt_due.job_id != due.job_id
+                    or receipt.job_id != due.job_id
+                    or job.id != due.job_id
+                    or job.source_id != row.id
+                    or job.kind != "ingestion"
+                    or job.fence < 1
+                    or receipt.fence != job.fence
+                    or job.lease_owner is not None
+                    or job.lease_until is not None
+                ):
+                    invalid_receipt = True
+                    continue
+                try:
+                    canonical_counts = json.dumps(
+                        receipt.check_counts,
+                        sort_keys=True,
+                        separators=(",", ":"),
+                        default=str,
+                    )
+                except (TypeError, ValueError):
+                    invalid_receipt = True
+                    continue
+                if hashlib.sha256(canonical_counts.encode()).hexdigest() != receipt.digest:
+                    invalid_receipt = True
+                    continue
+                if receipt.disposition == "succeeded":
+                    counts = receipt.check_counts
+                    if (
+                        job.status != "succeeded"
+                        or not isinstance(counts, dict)
+                        or any(
+                            type(counts.get(field)) is not int or counts[field] < 0
+                            for field in ("new", "changed", "unchanged")
+                        )
+                    ):
+                        invalid_receipt = True
+                        continue
+                    successes += 1
+                elif receipt.disposition in {"failed", "partial", "unknown"}:
+                    if job.status not in {"queued", "failed", "succeeded"}:
+                        invalid_receipt = True
+                    else:
+                        dispositions.append(receipt.disposition)
+                else:
+                    invalid_receipt = True
+            if not expected_history or not expected_due:
                 freshness = "UNKNOWN"
-            elif successes != len(dues):
-                dispositions = [
-                    latest_receipt[due.due_key].disposition
-                    for due in dues
-                    if due.due_key in latest_receipt
-                ]
-                freshness = (
-                    "FAILED"
-                    if "failed" in dispositions
-                    else "PARTIAL"
-                    if "partial" in dispositions
-                    else "UNKNOWN"
-                    if "unknown" in dispositions
-                    else "OVERDUE"
-                )
+            elif "failed" in dispositions:
+                freshness = "FAILED"
+            elif "partial" in dispositions:
+                freshness = "PARTIAL"
+            elif "unknown" in dispositions or invalid_receipt:
+                freshness = "UNKNOWN"
+            elif missing_due or successes != len(expected_due):
+                freshness = "OVERDUE"
             else:
                 freshness = "FRESH"
             freshness_states.append(freshness)
@@ -539,7 +646,7 @@ def health():
                 "geography": row.geography,
                 "enabled": row.enabled and row.registry_enabled,
                 "freshness": freshness,
-                "due_checks_7d": len(dues),
+                "due_checks_7d": len(expected_due),
                 "verified_successes_7d": successes,
                 "collection_scope": (
                     definition.get("collection_scope")
