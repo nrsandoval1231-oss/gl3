@@ -842,14 +842,89 @@ def retain_research_document(
     }
 
 
+def _inspect_retained_rrc(
+    session: Session,
+    project: Project,
+    need: PowerNeed,
+    evidence: Evidence,
+    observation: Observation,
+    interpretation: Interpretation,
+) -> dict:
+    """Inspect complete native bytes without re-acquisition or new canonical claims."""
+    from gridlens.ingestion.adapters.federal_register import SourceParseError
+    from gridlens.ingestion.adapters.rrc_drilling import (
+        PORTAL,
+        SOURCE_ID,
+        reconstruct_retained_record,
+    )
+
+    assessment = interpretation.assessment or {}
+    linked = set(
+        session.scalars(
+            select(NeedObservation.need_id).where(NeedObservation.observation_id == observation.id)
+        )
+    )
+    if not (
+        linked == {need.id}
+        and project.source_id == SOURCE_ID
+        and project.external_id == observation.external_id
+        and project.identity_key == f"{SOURCE_ID}:{observation.external_id}"
+        and interpretation.status == "accepted"
+        and interpretation.content_hash == evidence.content_hash == observation.content_hash
+        and assessment.get("evidence_hash") == evidence.content_hash
+        and assessment.get("project_identity_key") == project.identity_key
+        and evidence.url == observation.url == PORTAL
+        and evidence.title == observation.title
+        and evidence.abstract == observation.abstract
+        and evidence.published_at == observation.published_at
+        and _need_admission_basis_is_current(session, need, project)
+    ):
+        return {"reason": "Retained native permit lacks a current, unambiguous canonical binding."}
+    try:
+        native = reconstruct_retained_record(
+            evidence.abstract or "",
+            permit_number=observation.external_id,
+            observed_at=evidence.observed_at,
+        )
+    except SourceParseError:
+        return {"reason": "Retained native permit failed bounded byte reconstruction."}
+    if not (
+        native["source_hash"] == evidence.content_hash
+        and native["title"] == evidence.title
+        and native["abstract"] == evidence.abstract
+        and native["publication_date"] == str(evidence.published_at)
+        and native["event_date"] == str(evidence.event_date)
+        and native["event_date_label"] == evidence.event_date_label
+        and native["extraction_location"] == evidence.extraction_location
+    ):
+        return {"reason": "Reconstructed native permit differs from canonical evidence."}
+    return {
+        "retained_native_replay": True,
+        "source_id": SOURCE_ID,
+        "source_publisher": "Railroad Commission of Texas",
+        "retrieved_at": evidence.observed_at.isoformat(),
+        "publication_date": native["publication_date"],
+        "extraction_location": native["extraction_location"],
+        "document_hash": evidence.content_hash,
+        "network_refresh": False,
+        "excerpt": native["title"][:300],
+        "label": "Reported",
+        "reason": "Inspected retained RRC root/master fields and verified internal byte "
+        "consistency. These fields do not answer the commercial blocker. Permit approval "
+        "does not establish drilling underway, power demand, supply or a buyer. Opaque "
+        "children were not interpreted; filename/ordinal remain ingestion provenance. "
+        "No live source refresh or exhaustive public search is claimed.",
+    }
+
+
 def replay_retained_research(
     session: Session, project: Project, need: PowerNeed, *, limit: int = 20
 ) -> list[dict]:
     """Replay complete previously captured input without inventing a retrieval.
 
     An RSS abstract/native excerpt is not proof of a complete public document.
-    Only this acquisition path's full-input hash can prove the retained text is
-    complete. Original evidence IDs, source identity and observation dates remain
+    Public captures require a full-input hash; native RRC permits require exact
+    reconstruction of retained source bytes. Original IDs and observation dates remain
     unchanged; normal admission owns every reinterpretation and correction.
     """
     if need.project_id != project.id or not 1 <= limit <= 50:
@@ -880,6 +955,16 @@ def replay_retained_research(
             "canonical facts remain available, but no whole-document replay is claimed.",
         }
         assessment = interpretation.assessment or {}
+        if source.id == "texas-rrc-drilling-permits":
+            receipts.append(
+                {
+                    **receipt,
+                    **_inspect_retained_rrc(
+                        session, project, need, evidence, observation, interpretation
+                    ),
+                }
+            )
+            continue
         host = urlsplit(evidence.url or "").hostname
         full_hash = fingerprint([evidence.title, evidence.abstract or "", evidence.published_at])
         if not (
