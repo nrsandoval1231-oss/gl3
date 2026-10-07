@@ -25,7 +25,9 @@ from gridlens.settings import settings
 def source_db():
     target = make_url(settings.test_database_url)
     application = make_url(settings.database_url)
-    assert target.database == "gl3audit_source_test"
+    assert target.database and target.database.endswith("_test"), (
+        "Refusing to reset a database without an explicit disposable *_test name"
+    )
     assert (target.host, target.port, target.database) != (
         application.host,
         application.port,

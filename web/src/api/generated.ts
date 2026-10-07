@@ -72,6 +72,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/health/live": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Process Liveness
+         * @description Report API process liveness without depending on database connectivity.
+         */
+        get: operations["process_liveness_health_live_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/health/ready": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Runtime Readiness
+         * @description Report whether the API can query its database and queue state.
+         */
+        get: operations["runtime_readiness_health_ready_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/ingestion": {
         parameters: {
             query?: never;
@@ -208,6 +248,23 @@ export interface paths {
         put?: never;
         /** Refresh */
         post: operations["refresh_api_refresh_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sources/{source_id}/enabled": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Set Source Enabled Endpoint */
+        post: operations["set_source_enabled_endpoint_api_sources__source_id__enabled_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1109,6 +1166,27 @@ export interface components {
             backlog: number;
             /** Pending Interpretations */
             pending_interpretations: number;
+            /**
+             * Worker Liveness
+             * @default UNKNOWN
+             */
+            worker_liveness: string;
+            /**
+             * Readiness
+             * @default false
+             */
+            readiness: boolean;
+            /**
+             * Collection Freshness
+             * @default UNKNOWN
+             */
+            collection_freshness: string;
+            /** Planners */
+            planners?: {
+                [key: string]: {
+                    [key: string]: unknown;
+                };
+            };
         };
         /** HealthSourceOut */
         HealthSourceOut: {
@@ -1125,6 +1203,21 @@ export interface components {
              * @default true
              */
             enabled: boolean;
+            /**
+             * Freshness
+             * @default UNKNOWN
+             */
+            freshness: string;
+            /**
+             * Due Checks 7D
+             * @default 0
+             */
+            due_checks_7d: number;
+            /**
+             * Verified Successes 7D
+             * @default 0
+             */
+            verified_successes_7d: number;
             /** Last Attempt */
             last_attempt?: string | null;
             /** Last Success */
@@ -2034,6 +2127,22 @@ export interface components {
             /** Unadjudicated */
             unadjudicated: number;
         };
+        /** SourceEnabledIn */
+        SourceEnabledIn: {
+            /** Enabled */
+            enabled: boolean;
+        };
+        /** SourceEnabledOut */
+        SourceEnabledOut: {
+            /** Id */
+            id: string;
+            /** Registry Enabled */
+            registry_enabled: boolean;
+            /** Operator Enabled */
+            operator_enabled: boolean;
+            /** Effective Enabled */
+            effective_enabled: boolean;
+        };
         /** ValidationError */
         ValidationError: {
             /** Location */
@@ -2145,6 +2254,46 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HealthOut"];
+                };
+            };
+        };
+    };
+    process_liveness_health_live_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    runtime_readiness_health_ready_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
         };
@@ -2366,6 +2515,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RefreshOut"];
+                };
+            };
+        };
+    };
+    set_source_enabled_endpoint_api_sources__source_id__enabled_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                source_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SourceEnabledIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SourceEnabledOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
