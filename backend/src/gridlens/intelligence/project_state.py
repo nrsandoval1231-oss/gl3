@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from datetime import date
+from datetime import date, datetime
 from typing import Any
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -15,6 +16,7 @@ from gridlens.domain.project_research import VERSION, project_claim_state
 from gridlens.domain.signal_admission import admitted_from_source
 from gridlens.ingestion.adapters.buying_chain_public import CAPTURE_VERSION
 from gridlens.intelligence.buying_chain import _accepted_version, buying_chain_view
+from gridlens.intelligence.interconnection import current_interconnection_state
 from gridlens.intelligence.lifecycle_service import lifecycle_event_supported
 from gridlens.intelligence.project_identity import canonical_site_claim, normalized_identity
 from gridlens.persistence.models import (
@@ -224,7 +226,9 @@ def _project_field_claim(
     return _supported(value, list({evidence.id: evidence for _, evidence in claims}.values()))
 
 
-def project_state(session: Session, project_id: UUID) -> dict[str, Any] | None:
+def project_state(
+    session: Session, project_id: UUID, *, today: date | None = None
+) -> dict[str, Any] | None:
     project = session.get(Project, project_id)
     if project is None:
         return None
@@ -308,6 +312,9 @@ def project_state(session: Session, project_id: UUID) -> dict[str, Any] | None:
         "commissioning": _unknown(),
         "temporary_power_demand": _unknown(),
         "buyer_authority": _unknown(),
+        "large_load_interconnection": current_interconnection_state(
+            session, project_id, today=today or datetime.now(ZoneInfo("America/Chicago")).date()
+        ),
     }
     chain = buying_chain_view(session, project_id)
     parties = [
