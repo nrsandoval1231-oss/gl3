@@ -15,6 +15,7 @@ from gridlens.domain.project_research import VERSION, project_claim_state
 from gridlens.domain.signal_admission import admitted_from_source
 from gridlens.ingestion.adapters.buying_chain_public import CAPTURE_VERSION
 from gridlens.intelligence.buying_chain import _accepted_version, buying_chain_view
+from gridlens.intelligence.ercot_impact_rfi import public_rfi_state
 from gridlens.intelligence.lifecycle_service import lifecycle_event_supported
 from gridlens.intelligence.project_identity import canonical_site_claim, normalized_identity
 from gridlens.persistence.models import (
@@ -335,6 +336,7 @@ def project_state(session: Session, project_id: UUID) -> dict[str, Any] | None:
         "identity_key": project.identity_key,
         "state": state,
         "research_state": current_research_state(session, project_id),
+        "ercot_impact_rfi": public_rfi_state(session, project),
         "organizations_and_roles": parties,
         "lifecycle_events": [
             {
