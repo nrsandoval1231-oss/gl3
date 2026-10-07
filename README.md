@@ -1,6 +1,8 @@
 # GridLens 3
 
-**October 7, 2026:** GL3-029 is implemented and locally validated: **1,232 backend tests passed / one optional skip; all 42 browser tests passed**. The unchanged five-category fresh-corpus gate passes 5/5, with six honest UNRESOLVED blockers and no promotions. Migrations, preservation, replay and independent review pass. [Final acceptance](docs/validation/gl3-029-final-acceptance-20261007.md) · [current state](.agent/CURRENT_STATE.md) · [PR24](https://github.com/nrsandoval1231-oss/gl3/pull/24).
+**October 7, 2026:** GL3-029 is implemented and locally validated; PR #24 merged at 04:51:38 UTC. The recorded acceptance was **1,232 backend tests passed / one optional skip; all 42 browser tests passed**. The unchanged five-category fresh-corpus gate passes 5/5, with six UNRESOLVED blockers and no promotions. See [final acceptance](docs/validation/gl3-029-final-acceptance-20261007.md) and [PR #24](https://github.com/nrsandoval1231-oss/gl3/pull/24). The observed `main` head is `94c3acb7b36c6d5d04a77a0ec445e793e05120a4`.
+
+GitHub's private-repository plan currently prevents configuring branch protection (protection API returned HTTP 403). Required checks and reviews are therefore not GitHub-enforced; use the documented [manual pull request review procedure](docs/operations/manual-pr-review.md) and retain exact-candidate evidence.
 
 Positive autonomous new-fact resolution remains unproven; discovery credentials/spending were not configured. Meaningful bounded unresolved outcomes are permitted. Fresh regenerated validation is not original retained PR23 proof. No outreach or cloud deployment occurred.
 
