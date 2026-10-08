@@ -225,6 +225,205 @@ def test_supply_range_uses_conservative_gap_and_zero_gap_abstention(supply, expe
         assert "qualified_remaining_gap" not in result
 
 
+def test_full_window_adequate_supply_reconciles_source_prospect_to_inactive():
+    need_id, project_id = uuid4(), uuid4()
+    need = SimpleNamespace(id=need_id, project_id=project_id, activity_key="construction")
+    project = SimpleNamespace(id=project_id, location="Test City")
+    source = qualify_official_power(
+        text=(
+            "Test City construction requires 20 to 25 MW. "
+            "Power supply for Test City construction is insufficient."
+        ),
+        site="Test City",
+        activity_key="construction",
+        location="Test City",
+    )
+    source = {**source, "semantic_hash": "source-semantic", "evidence_hash": "source-evidence"}
+    timing = _row(
+        "timing",
+        {"start_date": "2027-01-01", "end_date": "2027-02-01", "duration_days": 31},
+        need_id=need_id,
+        project_id=project_id,
+    )
+    adequate = _row(
+        "suitable_supply",
+        {"mw_min": "25", "mw_max": "30", "quality": "suitable"},
+        need_id=need_id,
+        project_id=project_id,
+    )
+    adequate.effective_until = datetime(2027, 3, 4, tzinfo=UTC)
+    without_window = qualification_from_facts(source, [adequate], need=need, project=project)
+    assert without_window and not without_window.get("closed_by_fact")
+    result = qualification_from_facts(source, [timing, adequate], need=need, project=project)
+
+    assert result and result["closed_by_fact"] is True
+    assert result["closure_basis"]["kind"] == "confirmed_adequate_supply"
+    assert result["closure_basis"]["suitable_supply_fact_id"] == str(adequate.id)
+    assert result["closure_basis"]["suitable_supply_fact_hash"] == adequate.content_hash
+    assert result["closure_basis"]["source_semantic_hash"] == "source-semantic"
+    assert result["closure_basis"]["source_evidence_hash"] == "source-evidence"
+    assert result["closure_basis"]["activity_interval_end_exclusive"] == (
+        "2027-03-04T00:00:00+00:00"
+    )
+    assert result["tier"] == "Signal"
+    assert result["required_mw"] is None
+    assert "qualified_remaining_gap" not in result
+
+
+def test_full_window_adequate_supply_reconciles_source_lead_without_operator_buyer_or_timing():
+    need_id, project_id = uuid4(), uuid4()
+    need = SimpleNamespace(id=need_id, project_id=project_id, activity_key="construction")
+    project = SimpleNamespace(id=project_id, location="Test City")
+    source = qualify_official_power(
+        text=(
+            "Test City construction requires 20 to 25 MW. "
+            "Power supply for Test City construction is insufficient. "
+            "Test City construction starts between 2027-01-01 and 2027-02-01. "
+            "Test City construction lasts 31 to 62 days. "
+            "No suitable power supply is available for Test City construction throughout this "
+            "start window and duration. The electrical contractor is responsible for power "
+            "procurement for Test City construction."
+        ),
+        site="Test City",
+        activity_key="construction",
+        location="Test City",
+    )
+    assert source["tier"] == "Lead"
+    source = {**source, "semantic_hash": "lead-semantic", "evidence_hash": "lead-evidence"}
+    adequate = _row(
+        "suitable_supply",
+        {"mw_min": "25", "mw_max": "30", "quality": "suitable"},
+        need_id=need_id,
+        project_id=project_id,
+    )
+    adequate.effective_until = datetime(2027, 4, 4, tzinfo=UTC)
+
+    result = qualification_from_facts(source, [adequate], need=need, project=project)
+
+    assert result and result["closed_by_fact"] is True
+    assert result["closure_basis"]["kind"] == "confirmed_adequate_supply"
+    assert result["closure_basis"]["suitable_supply_fact_id"] == str(adequate.id)
+    assert result["closure_basis"]["suitable_supply_fact_hash"] == adequate.content_hash
+    assert result["closure_basis"]["source_semantic_hash"] == "lead-semantic"
+    assert result["closure_basis"]["source_evidence_hash"] == "lead-evidence"
+    assert result["closure_basis"]["activity_interval_end_exclusive"] == (
+        "2027-04-04T00:00:00+00:00"
+    )
+    assert result["tier"] == "Signal"
+    assert result["required_mw"] is None
+    assert "qualified_remaining_gap" not in result
+
+
+def test_source_lead_reconciles_partial_and_possible_zero_gap_without_stale_lead():
+    need_id, project_id = uuid4(), uuid4()
+    need = SimpleNamespace(id=need_id, project_id=project_id, activity_key="construction")
+    project = SimpleNamespace(id=project_id, location="Test City")
+    source = qualify_official_power(
+        text=(
+            "Test City construction requires 20 to 25 MW. "
+            "Power supply for Test City construction is insufficient. "
+            "Test City construction starts between 2027-01-01 and 2027-02-01. "
+            "Test City construction lasts 31 to 62 days. "
+            "No suitable power supply is available for Test City construction throughout this "
+            "start window and duration. The electrical contractor is responsible for power "
+            "procurement for Test City construction."
+        ),
+        site="Test City",
+        activity_key="construction",
+        location="Test City",
+    )
+    assert source["tier"] == "Lead"
+    assert source["qualified_remaining_gap"]["remaining_mw_min"] == "20"
+
+    partial = _row(
+        "suitable_supply",
+        {"mw_min": "10", "mw_max": "15", "quality": "suitable"},
+        need_id=need_id,
+        project_id=project_id,
+    )
+    recomputed = qualification_from_facts(source, [partial], need=need, project=project)
+    assert recomputed and recomputed["tier"] == "Lead"
+    assert (recomputed["qualified_remaining_gap"]["remaining_mw_min"],
+            recomputed["qualified_remaining_gap"]["remaining_mw_max"]) == ("5", "15")
+    assert recomputed["qualified_remaining_gap"]["suitable_supply_fact_id"] == str(partial.id)
+    assert (
+        recomputed["qualified_remaining_gap"]["suitable_supply_fact_hash"]
+        == partial.content_hash
+    )
+
+    possible_zero = _row(
+        "suitable_supply",
+        {"mw_min": "20", "mw_max": "30", "quality": "suitable"},
+        need_id=need_id,
+        project_id=project_id,
+    )
+    lower_tier = qualification_from_facts(source, [possible_zero], need=need, project=project)
+    assert lower_tier and lower_tier["tier"] == "Prospect"
+    assert "qualified_remaining_gap" not in lower_tier
+    assert "start_window" not in lower_tier and "duration" not in lower_tier
+    assert lower_tier["closed_by_fact"] is False
+
+    incomplete = _row(
+        "suitable_supply",
+        {"mw_min": "25", "mw_max": "30", "quality": "suitable"},
+        need_id=need_id,
+        project_id=project_id,
+    )
+    incomplete.effective_until = datetime(2027, 4, 3, tzinfo=UTC)
+    unchanged = qualification_from_facts(source, [incomplete], need=need, project=project)
+    assert unchanged and unchanged["tier"] == "Lead"
+    assert not unchanged.get("closed_by_fact")
+    assert unchanged["qualified_remaining_gap"] == source["qualified_remaining_gap"]
+
+    unknown_quality = _row(
+        "suitable_supply",
+        {"mw_min": "25", "mw_max": "30", "quality": "unknown"},
+        need_id=need_id,
+        project_id=project_id,
+    )
+    not_confirmed = qualification_from_facts(source, [unknown_quality], need=need, project=project)
+    assert not_confirmed and not not_confirmed.get("closed_by_fact")
+    assert not_confirmed["tier"] == "Lead"
+
+
+def test_current_signal_can_close_only_with_supported_full_window_need_facts():
+    need_id, project_id = uuid4(), uuid4()
+    need = SimpleNamespace(id=need_id, project_id=project_id, activity_key="construction")
+    project = SimpleNamespace(id=project_id, location="Test City")
+    facts = [
+        _row("demand", {"mw": "20"}, need_id=need_id, project_id=project_id),
+        _row("unsuitable_supply", {"mw": "3"}, need_id=need_id, project_id=project_id),
+        _row(
+            "timing",
+            {"start_date": "2027-01-01", "end_date": "2027-02-01", "duration_days": 31},
+            need_id=need_id,
+            project_id=project_id,
+        ),
+        _row(
+            "suitable_supply",
+            {"mw_min": "20", "mw_max": "24", "quality": "suitable"},
+            need_id=need_id,
+            project_id=project_id,
+        ),
+    ]
+    base = {
+        "tier": "Signal",
+        "reason": "Current exact-need support is incomplete.",
+        "semantic_hash": "signal-semantic",
+        "evidence_hash": "signal-evidence",
+    }
+    result = qualification_from_facts(base, facts, need=need, project=project)
+    assert result and result["closed_by_fact"] is True
+    assert result["closure_basis"]["kind"] == "confirmed_adequate_supply"
+    assert result["closure_basis"]["demand_fact_id"] == str(facts[0].id)
+    assert result["closure_basis"]["source_semantic_hash"] == "signal-semantic"
+
+    # A workflow status is not an input and cannot substitute for a supply fact.
+    only_shortage = qualification_from_facts(base, facts[:2], need=need, project=project)
+    assert only_shortage and only_shortage["tier"] == "Prospect"
+    assert not only_shortage.get("closed_by_fact")
+
+
 def test_facts_require_exact_scope_and_current_source_base():
     need_id, project_id = uuid4(), uuid4()
     need = SimpleNamespace(id=need_id, project_id=project_id, activity_key="construction")
@@ -294,6 +493,12 @@ def test_lead_requires_current_gap_interval_and_buyer_facts():
         "required_mw": "20",
         "available_mw": "5",
         "value_kind": "Derived",
+        "suitable_supply_basis": "User-confirmed",
+        "suitable_supply_fact_id": str(facts[3].id),
+        "suitable_supply_fact_hash": facts[3].content_hash,
+        "source_semantic_hash": None,
+        "source_evidence_hash": None,
+        "source_reported_supply_quote": None,
         "remaining_mw": "15",
     }
     assert "Northstar Electric" in result["qualification_next_action"]
