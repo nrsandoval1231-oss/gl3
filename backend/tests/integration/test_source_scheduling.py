@@ -6,7 +6,7 @@ from threading import Barrier, Event
 from zoneinfo import ZoneInfo
 
 import pytest
-from sqlalchemy import create_engine, func, select
+from sqlalchemy import create_engine, func, select, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 
@@ -194,7 +194,7 @@ def test_registry_sync_keeps_operator_disable_and_explicit_reenable_is_effective
         assert current.history_known
 
 
-def test_health_and_ingestion_gate_respect_persisted_registry_disable(source_db, monkeypatch):
+def test_operator_enable_reconciles_persisted_registry_disable(source_db, monkeypatch):
     from starlette.requests import Request
 
     import gridlens.api.app as api
@@ -263,11 +263,176 @@ def test_health_and_ingestion_gate_respect_persisted_registry_disable(source_db,
     )
     assert response == {
         "id": "synthetic-scheduled-source",
-        "registry_enabled": False,
+        "registry_enabled": True,
         "operator_enabled": True,
-        "effective_enabled": False,
+        "effective_enabled": True,
     }
-    assert api.health()["sources"][0]["enabled"] is False
+    assert api.health()["sources"][0]["enabled"] is True
+    with factory.begin() as session:
+        assert enqueue(session, "synthetic-scheduled-source")
+    with factory.begin() as session:
+        assert lease_one(session, "reconciled-registry-worker") is not None
+
+
+@pytest.mark.parametrize("drift", ["registry_disabled", "endpoint_changed"])
+def test_operator_transition_reconciles_unsynced_registry_drift(source_db, monkeypatch, drift):
+    from starlette.requests import Request
+
+    import gridlens.api.app as api
+    import gridlens.jobs.worker as worker
+    from gridlens.api.app import SourceEnabledIn
+    from gridlens.jobs.queue import enqueue
+
+    factory = source_db
+    registry = [definition()]
+    monkeypatch.setattr(api, "SessionLocal", factory)
+    monkeypatch.setattr(api, "load_registry", lambda: registry)
+    monkeypatch.setattr(worker, "SessionLocal", factory)
+    monkeypatch.setattr(worker, "load_registry", lambda: registry)
+    worker.sync_registry()
+    def load_registry_while_target_locked():
+        with factory.begin() as session:
+            lock_available = session.scalar(
+                text("SELECT pg_try_advisory_xact_lock(hashtextextended(:source_id, 0))"),
+                {"source_id": "synthetic-scheduled-source"},
+            )
+            assert lock_available is False
+        return registry
+
+    monkeypatch.setattr(worker, "load_registry", load_registry_while_target_locked)
+    with factory.begin() as session:
+        source = session.get(Source, "synthetic-scheduled-source")
+        assert source
+        original_epoch = session.scalar(select(SourceScheduleEpoch))
+        assert original_epoch and original_epoch.history_known
+        original_epoch_id = original_epoch.id
+        source.health = {"status": "Updated", "last_attempt": datetime.now(UTC).isoformat()}
+        session.add(Job(source_id=source.id, status="queued"))
+
+    current = definition(enabled=drift != "registry_disabled")
+    if drift == "endpoint_changed":
+        current["endpoint"] = "https://example.invalid/changed"
+    registry[0] = current
+    request = Request(
+        {
+            "type": "http",
+            "method": "POST",
+            "scheme": "http",
+            "path": "/api/sources/synthetic-scheduled-source/enabled",
+            "query_string": b"",
+            "headers": [(b"host", b"testserver")],
+            "server": ("testserver", 80),
+            "client": ("testclient", 123),
+        }
+    )
+    response = api.set_source_enabled_endpoint(
+        "synthetic-scheduled-source", SourceEnabledIn(enabled=True), request
+    )
+    expected_enabled = drift == "endpoint_changed"
+    assert response["registry_enabled"] is expected_enabled
+    assert response["operator_enabled"] is True
+    assert response["effective_enabled"] is expected_enabled
+
+    with factory() as session:
+        source = session.get(Source, "synthetic-scheduled-source")
+        old_epoch = session.get(SourceScheduleEpoch, original_epoch_id)
+        epochs = session.scalars(
+            select(SourceScheduleEpoch).where(
+                SourceScheduleEpoch.source_id == "synthetic-scheduled-source"
+            )
+        ).all()
+        current_epoch = next(epoch for epoch in epochs if epoch.effective_until is None)
+        assert source and source.registry_enabled is expected_enabled and source.enabled
+        assert old_epoch and not old_epoch.history_known
+        assert current_epoch.history_known
+        assert current_epoch.registry_enabled is expected_enabled
+        assert current_epoch.configuration["endpoint"] == current["endpoint"]
+        assert len(epochs) == 2
+    health = api.health()["sources"][0]
+    assert health["enabled"] is expected_enabled
+    assert health["freshness"] == "UNKNOWN"
+
+    with factory.begin() as session:
+        if expected_enabled:
+            assert enqueue(session, "synthetic-scheduled-source")
+        else:
+            with pytest.raises(ValueError, match="disabled"):
+                enqueue(session, "synthetic-scheduled-source")
+    with factory.begin() as session:
+        leased = lease_one(session, "operator-drift-worker")
+        assert bool(leased) is expected_enabled
+
+
+def test_unchanged_registry_operator_transition_is_idempotent_and_sticky(
+    source_db, monkeypatch
+):
+    import gridlens.jobs.worker as worker
+
+    factory = source_db
+    registry = [definition()]
+    monkeypatch.setattr(worker, "SessionLocal", factory)
+    monkeypatch.setattr(worker, "load_registry", lambda: registry)
+    worker.sync_registry()
+    worker.set_source_enabled("synthetic-scheduled-source", False)
+
+    def assert_known_operator_epoch(expected_count):
+        with factory() as session:
+            source = session.get(Source, "synthetic-scheduled-source")
+            epochs = session.scalars(
+                select(SourceScheduleEpoch).where(
+                    SourceScheduleEpoch.source_id == "synthetic-scheduled-source"
+                )
+            ).all()
+            assert source and not source.enabled and source.registry_enabled
+            assert len(epochs) == expected_count
+            assert all(epoch.history_known for epoch in epochs)
+            open_epochs = [epoch for epoch in epochs if epoch.effective_until is None]
+            assert len(open_epochs) == 1
+            assert not open_epochs[0].operator_enabled
+
+    assert_known_operator_epoch(2)
+    worker.set_source_enabled("synthetic-scheduled-source", False)
+    assert_known_operator_epoch(2)
+    worker.sync_registry()
+    assert_known_operator_epoch(2)
+
+
+def test_invalid_live_registry_leaves_operator_transition_atomic(source_db, monkeypatch):
+    import gridlens.jobs.worker as worker
+
+    factory = source_db
+    monkeypatch.setattr(worker, "SessionLocal", factory)
+    monkeypatch.setattr(worker, "load_registry", lambda: [definition()])
+    worker.sync_registry()
+    with factory() as session:
+        before_source = session.get(Source, "synthetic-scheduled-source")
+        before_epoch = session.scalar(select(SourceScheduleEpoch))
+        assert before_source and before_epoch
+        before = (
+            before_source.enabled,
+            before_source.registry_enabled,
+            before_source.endpoint,
+            before_epoch.id,
+            before_epoch.history_known,
+        )
+
+    def invalid_registry():
+        raise ValueError("invalid source registry")
+
+    monkeypatch.setattr(worker, "load_registry", invalid_registry)
+    with pytest.raises(ValueError, match="invalid source registry"):
+        worker.set_source_enabled("synthetic-scheduled-source", False)
+    with factory() as session:
+        source = session.get(Source, "synthetic-scheduled-source")
+        epoch = session.scalar(select(SourceScheduleEpoch))
+        assert source and epoch
+        assert (
+            source.enabled,
+            source.registry_enabled,
+            source.endpoint,
+            epoch.id,
+            epoch.history_known,
+        ) == before
 
 
 def test_stopped_worker_cannot_look_fresh_with_unreconciled_due_slots(source_db, monkeypatch):
