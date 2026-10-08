@@ -954,6 +954,228 @@ def test_current_public_support_bounds_fact_qualification_and_reassessment(runti
     assert str(need_id) not in csv.text
 
 
+def test_timing_correction_is_source_version_bound_and_replayed_after_source_change(runtime):
+    client, factory, need_id, project_id, pursuit_id = runtime
+    from gridlens.domain.power_qualification import qualify_official_power
+
+    source_description = (
+        "Test City construction requires 20 to 25 MW. "
+        "Power supply for Test City construction is insufficient. "
+        "Test City construction starts between 2027-01-01 and 2027-02-01. "
+        "Test City construction lasts 31 to 62 days. "
+        "No suitable power supply is available for Test City construction throughout this "
+        "start window and duration. The electrical contractor is responsible for power "
+        "procurement for Test City construction."
+    )
+    source_text = f"description: {source_description}\naddress: Test City"
+    source_hash = "e" * 64
+    changed_source_hash = "f" * 64
+    with factory.begin() as session:
+        need = session.get(PowerNeed, need_id)
+        project = session.get(Project, project_id)
+        assert need is not None and project is not None
+        claim = qualify_official_power(
+            text=source_description,
+            site="Test City",
+            activity_key="construction",
+            location="Test City",
+        )
+        assert claim["tier"] == "Lead"
+        claim.update(
+            {
+                "decision": "accepted",
+                "semantic_hash": source_hash,
+                "evidence_hash": source_hash,
+                "project_identity_key": project.identity_key,
+                "power_activity": "construction",
+                "subject": project.name,
+                "location": project.location,
+            }
+        )
+        observation = Observation(
+            source_id="a6-test-source",
+            external_id="synthetic-timing-correction-1",
+            title="Synthetic construction permit correction test",
+            abstract=source_text,
+            published_at=datetime.now(UTC).date(),
+            url="https://example.test/synthetic-timing-correction-1",
+            content_hash=source_hash,
+        )
+        session.add(observation)
+        session.flush()
+        evidence = Evidence(
+            observation_id=observation.id,
+            content_hash=source_hash,
+            title=observation.title,
+            abstract=source_text,
+            url=observation.url,
+            published_at=observation.published_at,
+            observed_at=datetime.now(UTC),
+        )
+        interpretation = Interpretation(
+            observation_id=observation.id,
+            content_hash=source_hash,
+            status="accepted",
+            assessment=claim,
+        )
+        session.add_all(
+            [
+                evidence,
+                interpretation,
+                NeedObservation(need_id=need.id, observation_id=observation.id),
+            ]
+        )
+        need.active = True
+        need.tier = "Lead"
+        need.required_mw = claim.get("required_mw") or claim["demand_mw"]
+        need.start_window = claim["start_window"]
+        need.duration = claim["duration"]
+        need.rationale = claim["reason"]
+
+    headers = {"origin": "http://testserver"}
+    correction_value = {
+        "start_date": "2026-11-01",
+        "end_date": "2026-11-01",
+        "duration_days": 31,
+        "corrects_source_semantic_hash": source_hash,
+        "corrects_source_evidence_hash": source_hash,
+        "basis": "Owner confirmed the current reported timing was outdated.",
+    }
+    correction_body = _body(project_id, pursuit_id, expected_version=0)
+    correction_body["fact_type"] = "timing"
+    correction_body["value"] = correction_value
+    correction_body["effective_from"] = "2026-01-01T00:00:00+00:00"
+    correction_body["effective_until"] = "2026-12-03T00:00:00+00:00"
+    correction_draft = client.post(
+        f"/api/needs/{need_id}/facts", json=correction_body, headers=headers
+    )
+    assert correction_draft.status_code == 200, correction_draft.text
+    assert correction_draft.json()["value"] == {
+        **correction_value,
+        "start_date": "2026-11-01",
+        "end_date": "2026-11-01",
+    }
+    correction_decision = client.post(
+        f"/api/needs/{need_id}/facts/{correction_draft.json()['id']}/decision",
+        json={
+            "client_id": str(uuid4()),
+            "expected_version": 1,
+            "decision": "accepted",
+            "reason": "Accepted attributed timing correction",
+        },
+        headers=headers,
+    )
+    assert correction_decision.status_code == 200, correction_decision.text
+    correction_history = client.get(f"/api/needs/{need_id}/facts?limit=20")
+    assert correction_history.status_code == 200, correction_history.text
+    history_correction = next(
+        row
+        for row in correction_history.json()["items"]
+        if row["id"] == correction_draft.json()["id"]
+    )
+    assert history_correction["value"] == correction_draft.json()["value"]
+
+    supply_body = _body(project_id, pursuit_id, expected_version=2)
+    supply_body["fact_type"] = "suitable_supply"
+    supply_body["value"] = {
+        "mw_min": "25",
+        "mw_max": "30",
+        "quality": "suitable",
+        "basis": "Synthetic full-window suitable capacity confirmation",
+    }
+    supply_body["effective_from"] = "2026-01-01T00:00:00+00:00"
+    supply_body["effective_until"] = "2026-12-03T00:00:00+00:00"
+    supply_draft = client.post(
+        f"/api/needs/{need_id}/facts", json=supply_body, headers=headers
+    )
+    assert supply_draft.status_code == 200, supply_draft.text
+    supply_decision = client.post(
+        f"/api/needs/{need_id}/facts/{supply_draft.json()['id']}/decision",
+        json={
+            "client_id": str(uuid4()),
+            "expected_version": 3,
+            "decision": "accepted",
+            "reason": "Accepted suitable supply for corrected window",
+        },
+        headers=headers,
+    )
+    assert supply_decision.status_code == 200, supply_decision.text
+    with factory() as session:
+        from gridlens.ingestion.service import effective_need_qualification
+
+        need = session.get(PowerNeed, need_id)
+        project = session.get(Project, project_id)
+        assert need is not None and project is not None
+        effective_after_supply = effective_need_qualification(session, need, project)
+        assert effective_after_supply is not None
+        assert effective_after_supply["closed_by_fact"] is True, effective_after_supply
+    assert supply_decision.json()["active"] is False, supply_decision.json()
+    before_source_replay = client.get("/api/opportunities?tier=Prospect")
+    assert before_source_replay.status_code == 200, before_source_replay.text
+    old_cohort = before_source_replay.headers["x-cohort-token"]
+    with factory.begin() as session:
+        from gridlens.ingestion.service import effective_need_qualification
+
+        need = session.get(PowerNeed, need_id)
+        project = session.get(Project, project_id)
+        assert need is not None and project is not None
+        effective = effective_need_qualification(session, need, project)
+        assert effective is not None and effective["closed_by_fact"] is True
+        basis = effective["closure_basis"]
+        assert basis["timing_fact_id"] == correction_draft.json()["id"]
+        assert basis["timing_fact_hash"] == correction_draft.json()["content_hash"]
+        assert basis["timing_resolution"] == "explicit_source_correction"
+        assert basis["timing_source_semantic_hash"] == source_hash
+        assert basis["timing_source_evidence_hash"] == source_hash
+        assert basis["source_reported_start_window"] == "2027-01-01 to 2027-02-01"
+        assert need.active is False
+        assert need.start_window is None and need.duration is None
+        observation = session.scalar(select(Observation))
+        interpretation = session.scalar(select(Interpretation))
+        assert observation is not None and interpretation is not None
+        observation.content_hash = changed_source_hash
+        observation.abstract = source_text
+        session.add(
+            Evidence(
+                observation_id=observation.id,
+                content_hash=changed_source_hash,
+                title=observation.title,
+                abstract=source_text,
+                url=observation.url,
+                published_at=observation.published_at,
+                observed_at=datetime.now(UTC),
+            )
+        )
+        interpretation.content_hash = changed_source_hash
+        interpretation.assessment = {
+            **interpretation.assessment,
+            "semantic_hash": changed_source_hash,
+            "evidence_hash": changed_source_hash,
+        }
+        need.active = True
+        from gridlens.ingestion.service import _apply_current_qualification
+
+        _apply_current_qualification(session, need, project)
+        current = effective_need_qualification(session, need, project)
+        assert current is not None and current["qualification_conflict"] is True
+        assert current["tier"] == "Prospect"
+        assert not current.get("closed_by_fact")
+        assert need.active is True
+        assert need.start_window is None and need.duration is None
+        assert changed_source_hash in need.rationale
+        assert interpretation.assessment["start_window"] == "2027-01-01 to 2027-02-01"
+    current_browse = client.get("/api/opportunities?tier=Prospect")
+    assert current_browse.status_code == 200, current_browse.text
+    assert any(str(item["id"]) == str(need_id) for item in current_browse.json())
+    stale_browse = client.get(
+        f"/api/opportunities?tier=Prospect&cohort_token={old_cohort}"
+    )
+    assert stale_browse.status_code == 409
+    current_csv = client.get("/api/opportunities/export.csv?tier=Prospect")
+    assert current_csv.status_code == 200, current_csv.text
+    assert str(need_id) in current_csv.text
+
+
 def test_saved_commercial_card_binds_accepted_fact_versions_as_of(runtime):
     client, factory, need_id, project_id, pursuit_id = runtime
     original_hash = "c" * 64
