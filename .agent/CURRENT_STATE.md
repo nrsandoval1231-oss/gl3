@@ -1,15 +1,13 @@
-# Current state — October 7, 2026
+# Current audit repair state — October 8, 2026
 
-## Repository checkpoint
+Owner scope: comprehensive GL3 audit repair, preserve application data and historical evidence; draft PR delivery authorized. GitHub merge, deployment, paid-provider activation and external messages are excluded.
 
-PR #24 merged at 04:51:38 UTC (PR head `89a715c4a6469f4d3f23a874fcd97b42177b6dd1`). The observed private `main` head is `94c3acb7b36c6d5d04a77a0ec445e793e05120a4`. GL3-029's retained acceptance records 1,232 backend tests passed with one optional skip and 42 browser tests passed; see [final acceptance](../docs/validation/gl3-029-final-acceptance-20261007.md). That checkpoint does not establish a positive live-fact resolution or unattended production operation. No deployment or outreach is claimed.
+Integration branch `repair/gl3-audit-integration-20261008` starts from independently accepted lifecycle candidate `20328d7fd723622192557a70736258a27fa9f274`; controller transfer commit `f150362e534f91232679786100d4515a64aec015` preserves selected root artifacts with a hash manifest. The inherited state is archived unchanged alongside that manifest.
 
-## Review governance
+Accepted components: auth PR34 `53b77ad5c802e7dc6543569f4dd79384b7354c78`; governance PR36 `1d24f2e84dea02f971f954d4837fc9a74cd8c69c`; research PR37 `1ef6b5961d7dcbb87c703b555ac201b08ee01f8e`; lifecycle PR38 `20328d7fd723622192557a70736258a27fa9f274`. Each has exact-candidate independent PASS and successful push/PR CI. These component results do not certify a future joined candidate.
 
-The read-only GitHub branch-protection request returned HTTP 403 because this private repository's current plan does not enable the feature. Required checks and reviews are not GitHub-enforced. Follow the [manual exact-candidate review procedure](../docs/operations/manual-pr-review.md). Repository privacy remains unchanged.
+A4 source controls candidate `a6bbe529ef612f865a33d3aaee552112a224436a` remains FIX: cadence and effective health flags pass, but an operator action after unsynchronized registry drift can leave persisted state stale and overstate known epoch history. Formal receipt remains in the preserved parent worktree `.artifacts/audit-20261007/a4-cadence-review.json`. Next action: controller direction and one bounded Luna operator-transition repair, followed by frozen-candidate gates and independent review. Integrate only an accepted source candidate.
 
-At 20:23 UTC, GitHub's PR listing showed multiple open draft pull requests. Their moving state is not treated as an acceptance claim; each candidate requires review and validation on its exact head and tree.
+Remaining graph: A5 pagination/performance/client, A6 attributed facts, A8 inert operational/recovery/readiness tools. A7 UI depends on checksum-matching original screenshot and interactive HTML; the exact video is supplemental only. Original application databases and preserved dump remain untouched. Live corpus/provider/readiness acceptance remains OPEN; no deployment is claimed.
 
-## A9 bounded work
-
-The governance packet starts from `94c3acb7b36c6d5d04a77a0ec445e793e05120a4`. This checkpoint pins CI actions, limits workflow permissions to read-only contents, audits locked backend dependencies, adds portable corpus-regeneration regressions, and documents manual exact-candidate review. One earlier full-suite attempt reported 12 failures and 64 errors; its raw output was not retained and its cause is UNKNOWN. A later complete run passed 1,235 tests with two skips. The isolated Playwright regression run passed all 36 tests, migrations passed twice plus `alembic check`, Ruff/mypy and web type/build/audit gates passed, and the backend scanner reported zero known vulnerabilities. See `.agent/artifacts/GL3-AUDIT-A9/` for retained evidence. Independent review and controller acceptance remain outstanding.
+Canonical references: `docs/product/PRD.md`, `docs/design/UI_CANON.md`, `docs/design/references/canonical-ui-reference.json`, `.agent/graphs/GL3-AUDIT-20261007.md`, and `.agent/AGENT_RULES.md`. Private-repository branch protection is unavailable; use `docs/operations/manual-pr-review.md` for exact head/tree and CI identities.
