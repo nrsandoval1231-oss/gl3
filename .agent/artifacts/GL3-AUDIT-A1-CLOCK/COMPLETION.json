@@ -29,6 +29,7 @@
     ".agent/artifacts/GL3-AUDIT-A1-CLOCK/diff-check.txt",
     ".agent/artifacts/GL3-AUDIT-A1-CLOCK/focused-four-files-green.txt",
     ".agent/artifacts/GL3-AUDIT-A1-CLOCK/mypy.txt",
+    ".agent/artifacts/GL3-AUDIT-A1-CLOCK/prerepair-full-suite-red.log",
     ".agent/artifacts/GL3-AUDIT-A1-CLOCK/red-utc-daily-cap.txt",
     ".agent/artifacts/GL3-AUDIT-A1-CLOCK/ruff.txt"
   ],
@@ -57,6 +58,10 @@
   "historical_failure": {
     "command": "pytest tests/integration/test_autonomous_questions_integration.py -k 'daily_cap_uses_one_utc_clock_for_inserted_question or planning_discovers_supported_need_beyond_shortlist_without_splitting_group' -q (before scheduler fix)",
     "result": "FAIL: both deterministic tests reproduced the bug; the captured output is retained in red-utc-daily-cap.txt"
+  },
+  "prerepair_full_suite_failure": {
+    "provenance": "Copied unchanged from gl3-source-controls-20261007/.artifacts/a4-comparator-controller-full.log; earlier full result on the then-current combined candidate before this clock/date repair.",
+    "result": "FAIL: 8 listed failures, 1275 passed, 2 skipped. The eight failures match the bounded UTC-cap and six host-dependent synthetic publication-date cases. The exact raw log is retained as prerepair-full-suite-red.log."
   },
   "implementation": [
     "The scheduler normalizes its single supplied/current clock to UTC, interprets legacy naive values as UTC, and counts persisted creation timestamps after UTC normalization.",
