@@ -390,7 +390,13 @@ class _QualificationClaimsSummary:
 def _effective_qualification_from_claim(claim: dict[str, Any]) -> dict[str, Any]:
     tier = claim["tier"]
     closed_by_fact = bool(claim.get("closed_by_fact"))
-    return {
+    fact_timing = claim.get("fact_derived_timing")
+    lower_tier_timing = (
+        fact_timing
+        if tier != "Lead" and isinstance(fact_timing, dict) and not closed_by_fact
+        else None
+    )
+    result = {
         "tier": tier,
         "rationale": claim["reason"],
         # Only an explicit accepted-demand intersection may override the source
@@ -400,8 +406,20 @@ def _effective_qualification_from_claim(claim: dict[str, Any]) -> dict[str, Any]
             if closed_by_fact
             else claim.get("fact_derived_required_mw") or _reported_mw(claim)
         ),
-        "start_window": claim.get("start_window") if tier == "Lead" else None,
-        "duration": claim.get("duration") if tier == "Lead" else None,
+        "start_window": (
+            claim.get("start_window")
+            if tier == "Lead"
+            else lower_tier_timing.get("start_window")
+            if lower_tier_timing
+            else None
+        ),
+        "duration": (
+            claim.get("duration")
+            if tier == "Lead"
+            else lower_tier_timing.get("duration")
+            if lower_tier_timing
+            else None
+        ),
         "supply": (
             "Unknown"
             if closed_by_fact
@@ -419,6 +437,9 @@ def _effective_qualification_from_claim(claim: dict[str, Any]) -> dict[str, Any]
         "closed_by_fact": closed_by_fact,
         "closure_basis": claim.get("closure_basis") if closed_by_fact else None,
     }
+    if lower_tier_timing:
+        result["timing_provenance"] = lower_tier_timing
+    return result
 
 
 def _current_need_claims(

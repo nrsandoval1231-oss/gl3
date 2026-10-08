@@ -39,7 +39,9 @@ def evaluate_targets(
         if not missing:
             return found
     else:
-        items = opportunity_projection(session, include_below_floor=True)
+        items = opportunity_projection(
+            session, include_below_floor=True, include_operator_fact_refs=True
+        )
         exact_items = {str(item["id"]): item for item in items if str(item["id"]) in wanted}
         chains = {
             str(project_id): buying_chain_view(session, project_id)
@@ -57,7 +59,9 @@ def evaluate_targets(
             return found
 
     if grouped:
-        items = opportunity_projection(session, include_below_floor=True)
+        items = opportunity_projection(
+            session, include_below_floor=True, include_operator_fact_refs=True
+        )
         # Resolve exact work groups across the full projection before doing the more
         # expensive buying-chain reads. Group identity depends on source/document/site
         # evidence; final cards are rebuilt with current chain data for selected groups.
