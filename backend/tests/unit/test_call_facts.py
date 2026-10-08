@@ -379,6 +379,105 @@ def test_timing_correction_marker_requires_both_current_source_hashes_and_reason
             validate_fact("timing", invalid)
 
 
+def _current_lead_with_november_timing_correction(need_id, project_id):
+    source = qualify_official_power(
+        text=(
+            "Test City construction requires 20 to 25 MW. "
+            "Power supply for Test City construction is insufficient. "
+            "Test City construction starts between 2027-01-01 and 2027-02-01. "
+            "Test City construction lasts 31 to 62 days. "
+            "No suitable power supply is available for Test City construction throughout this "
+            "start window and duration. The electrical contractor is responsible for power "
+            "procurement for Test City construction."
+        ),
+        site="Test City",
+        activity_key="construction",
+        location="Test City",
+    )
+    assert source["tier"] == "Lead"
+    source = {**source, "semantic_hash": "a" * 64, "evidence_hash": "b" * 64}
+    timing_value = validate_fact(
+        "timing",
+        {
+            "start_date": "2026-11-01",
+            "end_date": "2026-11-01",
+            "duration_days": 31,
+            "corrects_source_semantic_hash": "a" * 64,
+            "corrects_source_evidence_hash": "b" * 64,
+            "basis": "Owner confirmed the current reported window was outdated.",
+        },
+    )
+    timing = _row("timing", timing_value, need_id=need_id, project_id=project_id)
+    timing.effective_until = datetime(2026, 12, 3, tzinfo=UTC)
+    return source, timing
+
+
+def test_explicit_disjoint_timing_without_applicable_supply_clears_stale_source_lead():
+    need_id, project_id = uuid4(), uuid4()
+    need = SimpleNamespace(id=need_id, project_id=project_id, activity_key="construction")
+    project = SimpleNamespace(id=project_id, location="Test City")
+    source, correction = _current_lead_with_november_timing_correction(need_id, project_id)
+
+    result = qualification_from_facts(source, [correction], need=need, project=project)
+
+    assert result and result["tier"] == "Prospect"
+    assert result["closed_by_fact"] is False
+    assert "qualified_remaining_gap" not in result
+    assert "start_window" not in result and "duration" not in result
+    assert str(correction.id) in result["reason"]
+    assert correction.content_hash in result["reason"]
+    assert "2026-11-01" in result["reason"]
+    assert "2027-01-01 to 2027-02-01" in result["reason"]
+
+    correction.effective_until = datetime(2026, 11, 15, tzinfo=UTC)
+    partially_effective = qualification_from_facts(
+        source, [correction], need=need, project=project
+    )
+    assert partially_effective and partially_effective["tier"] == "Prospect"
+    assert "fact_derived_timing" not in partially_effective
+
+    source_without_shortage = {**source, "supply_quote": None}
+    unsupported_shortage = qualification_from_facts(
+        source_without_shortage,
+        [_current_lead_with_november_timing_correction(need_id, project_id)[1]],
+        need=need,
+        project=project,
+    )
+    assert unsupported_shortage and unsupported_shortage["tier"] == "Signal"
+    assert "qualified_remaining_gap" not in unsupported_shortage
+
+
+def test_explicit_disjoint_timing_with_partial_supply_uses_corrected_lead_dates():
+    need_id, project_id = uuid4(), uuid4()
+    need = SimpleNamespace(id=need_id, project_id=project_id, activity_key="construction")
+    project = SimpleNamespace(id=project_id, location="Test City")
+    source, correction = _current_lead_with_november_timing_correction(need_id, project_id)
+    supply = _row(
+        "suitable_supply",
+        {"mw_min": "10", "mw_max": "15", "quality": "suitable"},
+        need_id=need_id,
+        project_id=project_id,
+    )
+    supply.effective_until = datetime(2026, 12, 3, tzinfo=UTC)
+
+    result = qualification_from_facts(
+        source, [correction, supply], need=need, project=project
+    )
+
+    assert result and result["tier"] == "Lead"
+    assert result["start_window"] == "2026-11-01 to 2026-11-01"
+    assert result["duration"] == "31 days"
+    gap = result["qualified_remaining_gap"]
+    assert (gap["remaining_mw_min"], gap["remaining_mw_max"]) == ("5", "15")
+    assert gap["timing_fact_id"] == str(correction.id)
+    assert gap["timing_fact_hash"] == correction.content_hash
+    assert gap["timing_resolution"] == "explicit_source_correction"
+    assert gap["selected_activity_interval_start"] == "2026-11-01T00:00:00+00:00"
+    assert gap["selected_activity_interval_end_exclusive"] == "2026-12-02T00:00:00+00:00"
+    assert gap["source_reported_start_window"] == source["start_window"]
+    assert gap["source_reported_duration"] == source["duration"]
+
+
 def test_compatible_timing_narrowing_closes_with_timing_version_provenance():
     need_id, project_id = uuid4(), uuid4()
     need = SimpleNamespace(id=need_id, project_id=project_id, activity_key="construction")
@@ -442,6 +541,15 @@ def test_compatible_timing_narrowing_closes_with_timing_version_provenance():
     assert gap["timing_resolution"] == "compatible_narrowing"
     assert gap["selected_activity_interval_start"] == "2027-01-10T00:00:00+00:00"
     assert gap["selected_activity_interval_end_exclusive"] == "2027-03-01T00:00:00+00:00"
+    assert revised["start_window"] == "2027-01-10 to 2027-01-20"
+    assert revised["duration"] == "40 days"
+
+    narrowed_without_new_supply = qualification_from_facts(
+        source, [timing], need=need, project=project
+    )
+    assert narrowed_without_new_supply and narrowed_without_new_supply["tier"] == "Lead"
+    assert narrowed_without_new_supply["start_window"] == "2027-01-10 to 2027-01-20"
+    assert narrowed_without_new_supply["duration"] == "40 days"
 
 
 def test_explicit_current_source_timing_correction_can_replace_disjoint_window():

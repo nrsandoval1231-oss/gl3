@@ -369,6 +369,57 @@ def _fact_covers_interval(row: Any, interval: tuple[datetime, datetime]) -> bool
     return starts_at <= start and (ends_at is None or ends_at >= end)
 
 
+def _demote_source_lead_for_timing_correction(
+    base: dict[str, Any],
+    timing: dict[str, Any],
+    timing_row: Any,
+    selected_interval: tuple[datetime, datetime] | None,
+    timing_resolution: str,
+) -> dict[str, Any]:
+    covers_interval = bool(
+        selected_interval is not None and _fact_covers_interval(timing_row, selected_interval)
+    )
+    result = {
+        **base,
+        "tier": "Prospect" if base.get("supply_quote") else "Signal",
+        "closed_by_fact": False,
+        "reason": (
+            "The current source-reported Lead window "
+            f"{base.get('start_window')} / {base.get('duration')} was corrected to "
+            f"{timing['start_date']} / {timing['duration_days']} days by accepted "
+            f"timing fact {timing_row.id} ({timing_row.content_hash}) bound to current "
+            f"source hashes {base.get('semantic_hash')} / {base.get('evidence_hash')}; "
+            "no supported suitable-supply assessment covers the corrected activity interval, "
+            "so the prior Lead gap cannot be carried forward. Original source report and any "
+            "supply quote remain preserved."
+        ),
+    }
+    if covers_interval and selected_interval is not None:
+        result["fact_derived_timing"] = {
+            "start_window": f"{timing['start_date']} to {timing['end_date']}",
+            "duration": f"{timing['duration_days']} days",
+            "basis": "User-confirmed",
+            "fact_id": str(timing_row.id),
+            "fact_hash": timing_row.content_hash,
+            "source_semantic_hash": base.get("semantic_hash"),
+            "source_evidence_hash": base.get("evidence_hash"),
+            "resolution": timing_resolution,
+            "selected_interval_start": selected_interval[0].isoformat(),
+            "selected_interval_end_exclusive": selected_interval[1].isoformat(),
+            "reported_start_window": base.get("start_window"),
+            "reported_duration": base.get("duration"),
+        }
+    for key in (
+        "start_window",
+        "duration",
+        "qualified_remaining_gap",
+        "qualification_next_action",
+        "buying_role",
+    ):
+        result.pop(key, None)
+    return result
+
+
 def qualification_from_facts(
     base: dict[str, Any] | None,
     facts: list[Any],
@@ -584,6 +635,15 @@ def qualification_from_facts(
         else bool(base.get("supply_quote"))
     )
     if required_interval is None or not has_unsuitable:
+        if (
+            base_tier == "Lead"
+            and timing_resolution == "explicit_source_correction"
+            and timing_row is not None
+            and timing
+        ):
+            return _demote_source_lead_for_timing_correction(
+                base, timing[0], timing_row, resolved_activity_interval, timing_resolution
+            )
         return base
 
     # An already replayed official Lead carries its own source-supported time
@@ -687,6 +747,17 @@ def qualification_from_facts(
         result = {
             **base,
             "tier": "Lead",
+            **(
+                {
+                    "start_window": (
+                        f"{timing[0]['start_date']} to {timing[0]['end_date']}"
+                    ),
+                    "duration": f"{timing[0]['duration_days']} days",
+                }
+                if timing_resolution in {"compatible_narrowing", "explicit_source_correction"}
+                and timing
+                else {}
+            ),
             "qualified_remaining_gap": gap,
             "reason": (
                 "Current official Lead support plus accepted full-window suitable supply "
@@ -695,6 +766,12 @@ def qualification_from_facts(
             ),
             "closed_by_fact": False,
         }
+        if timing_row is not None and timing_resolution in {
+            "compatible_narrowing",
+            "explicit_source_correction",
+        }:
+            gap["source_reported_start_window"] = base.get("start_window")
+            gap["source_reported_duration"] = base.get("duration")
         if fact_intersection:
             assert fact_interval is not None
             result["fact_derived_required_mw"] = _mw_presentation(required_interval)
@@ -707,6 +784,46 @@ def qualification_from_facts(
         return result
 
     if base_tier == "Lead":
+        if timing_resolution == "explicit_source_correction" and timing_row is not None:
+            return _demote_source_lead_for_timing_correction(
+                base, timing[0], timing_row, resolved_activity_interval, timing_resolution
+            )
+
+        if (
+            timing_resolution == "compatible_narrowing"
+            and timing_row is not None
+            and resolved_activity_interval is not None
+            and _fact_covers_interval(timing_row, resolved_activity_interval)
+        ):
+            result = {
+                **base,
+                "start_window": f"{timing[0]['start_date']} to {timing[0]['end_date']}",
+                "duration": f"{timing[0]['duration_days']} days",
+            }
+            existing_gap = base.get("qualified_remaining_gap")
+            if isinstance(existing_gap, dict):
+                gap = dict(existing_gap)
+                gap.update(
+                    {
+                        "timing_fact_id": str(timing_row.id),
+                        "timing_fact_hash": timing_row.content_hash,
+                        "timing_resolution": timing_resolution,
+                        "timing_basis": timing_row.value.get("basis"),
+                        "timing_source_semantic_hash": base.get("semantic_hash"),
+                        "timing_source_evidence_hash": base.get("evidence_hash"),
+                        "selected_activity_interval_start": resolved_activity_interval[
+                            0
+                        ].isoformat(),
+                        "selected_activity_interval_end_exclusive": resolved_activity_interval[
+                            1
+                        ].isoformat(),
+                        "source_reported_start_window": base.get("start_window"),
+                        "source_reported_duration": base.get("duration"),
+                    }
+                )
+                result["qualified_remaining_gap"] = gap
+            return result
+
         # A partial, unknown-quality, or otherwise unbound supply fact cannot
         # retract the already source-supported Lead calculation.
         return base

@@ -1032,6 +1032,16 @@ def test_timing_correction_is_source_version_bound_and_replayed_after_source_cha
         need.duration = claim["duration"]
         need.rationale = claim["reason"]
 
+    from gridlens.intelligence.commercial_evaluation import evaluate_target, save_evaluations
+
+    original_saved_at = datetime.now(UTC)
+    with factory.begin() as session:
+        original_card = evaluate_target(session, need_id)
+        assert original_card is not None and original_card["tier"] == "Lead"
+        assert original_card["start_window"] == "2027-01-01 to 2027-02-01"
+        assert original_card["duration"] == "31 to 62 days"
+        save_evaluations(session, [original_card], now=original_saved_at)
+
     headers = {"origin": "http://testserver"}
     correction_value = {
         "start_date": "2026-11-01",
@@ -1066,6 +1076,45 @@ def test_timing_correction_is_source_version_bound_and_replayed_after_source_cha
         headers=headers,
     )
     assert correction_decision.status_code == 200, correction_decision.text
+    assert correction_decision.json()["active"] is True
+    assert correction_decision.json()["tier"] == "Prospect"
+    corrected_saved_at = original_saved_at + timedelta(seconds=1)
+    with factory.begin() as session:
+        corrected_card = evaluate_target(session, need_id)
+        assert corrected_card is not None and corrected_card["tier"] == "Prospect"
+        assert corrected_card["start_window"] == "2026-11-01 to 2026-11-01"
+        assert corrected_card["duration"] == "31 days"
+        assert corrected_card["operator_fact_refs"][0]["fact_version_id"] == (
+            correction_draft.json()["id"]
+        )
+        assert corrected_card["operator_fact_refs"][0]["content_hash"] == (
+            correction_draft.json()["content_hash"]
+        )
+        save_evaluations(session, [corrected_card], now=corrected_saved_at)
+    with factory() as session:
+        pursuit = session.scalar(
+            select(Pursuit).where(Pursuit.identity_key == f"commercial-need:{need_id}")
+        )
+        assert pursuit is not None
+        saved_versions = pursuit.snapshot["commercial_triage"]["versions"]
+        original_saved = next(
+            version["saved_card"]
+            for version in saved_versions
+            if version["evaluated_at"] == original_saved_at.isoformat()
+        )
+        corrected_saved = next(
+            version["saved_card"]
+            for version in saved_versions
+            if version["evaluated_at"] == corrected_saved_at.isoformat()
+        )
+        assert original_saved["start_window"] == "2027-01-01 to 2027-02-01"
+        assert original_saved["duration"] == "31 to 62 days"
+        assert "operator_fact_refs" not in original_saved
+        assert corrected_saved["start_window"] == "2026-11-01 to 2026-11-01"
+        assert corrected_saved["duration"] == "31 days"
+        assert corrected_saved["operator_fact_refs"][0]["fact_version_id"] == (
+            correction_draft.json()["id"]
+        )
     correction_history = client.get(f"/api/needs/{need_id}/facts?limit=20")
     assert correction_history.status_code == 200, correction_history.text
     history_correction = next(
@@ -1075,13 +1124,56 @@ def test_timing_correction_is_source_version_bound_and_replayed_after_source_cha
     )
     assert history_correction["value"] == correction_draft.json()["value"]
 
+    with factory() as session:
+        from gridlens.ingestion.service import effective_need_qualification
+
+        need = session.get(PowerNeed, need_id)
+        project = session.get(Project, project_id)
+        assert need is not None and project is not None
+        current = effective_need_qualification(session, need, project)
+        assert current is not None and current["tier"] == "Prospect"
+        assert current["start_window"] == "2026-11-01 to 2026-11-01"
+        assert current["duration"] == "31 days"
+        assert current["qualified_remaining_gap"] is None
+        assert current["timing_provenance"]["fact_id"] == correction_draft.json()["id"]
+        assert current["timing_provenance"]["fact_hash"] == correction_draft.json()["content_hash"]
+        assert need.tier == "Prospect"
+        assert need.start_window == "2026-11-01 to 2026-11-01"
+        assert need.duration == "31 days"
+
+    known_timing_page = client.get("/api/opportunities?tier=Prospect&timing=KNOWN")
+    assert known_timing_page.status_code == 200, known_timing_page.text
+    known_timing_card = next(
+        item for item in known_timing_page.json() if str(item["id"]) == str(need_id)
+    )
+    assert known_timing_card["start_window"] == "2026-11-01 to 2026-11-01"
+    assert known_timing_card["duration"] == "31 days"
+    known_group = client.get(
+        f"/api/opportunity-groups/{known_timing_card['group_id']}?tier=Prospect&timing=KNOWN"
+        f"&cohort_token={known_timing_page.headers['x-cohort-token']}"
+    )
+    assert known_group.status_code == 200, known_group.text
+    assert any(str(item["id"]) == str(need_id) for item in known_group.json()["items"])
+    unknown_timing_page = client.get("/api/opportunities?tier=Prospect&timing=UNKNOWN")
+    assert unknown_timing_page.status_code == 200, unknown_timing_page.text
+    assert all(str(item["id"]) != str(need_id) for item in unknown_timing_page.json())
+    known_detail = client.get(
+        f"/api/opportunities/needs/{need_id}?tier=Prospect&timing=KNOWN"
+    )
+    assert known_detail.status_code == 200, known_detail.text
+    assert known_detail.json()["start_window"] == "2026-11-01 to 2026-11-01"
+    known_csv = client.get("/api/opportunities/export.csv?tier=Prospect&timing=KNOWN")
+    assert known_csv.status_code == 200, known_csv.text
+    assert str(need_id) in known_csv.text
+    assert "start_window" not in known_csv.text.splitlines()[0]
+
     supply_body = _body(project_id, pursuit_id, expected_version=2)
     supply_body["fact_type"] = "suitable_supply"
     supply_body["value"] = {
-        "mw_min": "25",
-        "mw_max": "30",
+        "mw_min": "10",
+        "mw_max": "15",
         "quality": "suitable",
-        "basis": "Synthetic full-window suitable capacity confirmation",
+        "basis": "Synthetic full-window partial supply confirmation",
     }
     supply_body["effective_from"] = "2026-01-01T00:00:00+00:00"
     supply_body["effective_until"] = "2026-12-03T00:00:00+00:00"
@@ -1100,6 +1192,8 @@ def test_timing_correction_is_source_version_bound_and_replayed_after_source_cha
         headers=headers,
     )
     assert supply_decision.status_code == 200, supply_decision.text
+    assert supply_decision.json()["active"] is True
+    assert supply_decision.json()["tier"] == "Lead"
     with factory() as session:
         from gridlens.ingestion.service import effective_need_qualification
 
@@ -1108,8 +1202,64 @@ def test_timing_correction_is_source_version_bound_and_replayed_after_source_cha
         assert need is not None and project is not None
         effective_after_supply = effective_need_qualification(session, need, project)
         assert effective_after_supply is not None
-        assert effective_after_supply["closed_by_fact"] is True, effective_after_supply
-    assert supply_decision.json()["active"] is False, supply_decision.json()
+        assert effective_after_supply["closed_by_fact"] is False, effective_after_supply
+        assert effective_after_supply["tier"] == "Lead"
+        assert effective_after_supply["start_window"] == "2026-11-01 to 2026-11-01"
+        assert effective_after_supply["duration"] == "31 days"
+        assert effective_after_supply["qualified_remaining_gap"]["remaining_mw_min"] == "5"
+        assert effective_after_supply["qualified_remaining_gap"]["remaining_mw_max"] == "15"
+
+    retract_partial_supply = client.post(
+        f"/api/needs/{need_id}/facts/{supply_draft.json()['id']}/decision",
+        json={
+            "client_id": str(uuid4()),
+            "expected_version": 4,
+            "decision": "retracted",
+            "reason": "Replace the partial fixture with a separate adequate-supply case",
+        },
+        headers=headers,
+    )
+    assert retract_partial_supply.status_code == 200, retract_partial_supply.text
+    adequate_supply_body = _body(project_id, pursuit_id, expected_version=5)
+    adequate_supply_body["fact_type"] = "suitable_supply"
+    adequate_supply_body["value"] = {
+        "mw_min": "25",
+        "mw_max": "30",
+        "quality": "suitable",
+        "basis": "Synthetic full-window suitable capacity confirmation",
+    }
+    adequate_supply_body["effective_from"] = "2026-01-01T00:00:00+00:00"
+    adequate_supply_body["effective_until"] = "2026-12-03T00:00:00+00:00"
+    adequate_supply_draft = client.post(
+        f"/api/needs/{need_id}/facts", json=adequate_supply_body, headers=headers
+    )
+    assert adequate_supply_draft.status_code == 200, adequate_supply_draft.text
+    adequate_supply_decision = client.post(
+        f"/api/needs/{need_id}/facts/{adequate_supply_draft.json()['id']}/decision",
+        json={
+            "client_id": str(uuid4()),
+            "expected_version": 6,
+            "decision": "accepted",
+            "reason": "Accepted sufficient supply for corrected window",
+        },
+        headers=headers,
+    )
+    assert adequate_supply_decision.status_code == 200, adequate_supply_decision.text
+    with factory() as session:
+        from gridlens.ingestion.service import effective_need_qualification
+
+        need = session.get(PowerNeed, need_id)
+        project = session.get(Project, project_id)
+        assert need is not None and project is not None
+        effective_after_adequate_supply = effective_need_qualification(session, need, project)
+        assert effective_after_adequate_supply is not None
+        assert effective_after_adequate_supply["closed_by_fact"] is True, (
+            effective_after_adequate_supply
+        )
+        assert effective_after_adequate_supply["closure_basis"]["source_reported_start_window"] == (
+            "2027-01-01 to 2027-02-01"
+        )
+    assert adequate_supply_decision.json()["active"] is False, adequate_supply_decision.json()
     before_source_replay = client.get("/api/opportunities?tier=Prospect")
     assert before_source_replay.status_code == 200, before_source_replay.text
     old_cohort = before_source_replay.headers["x-cohort-token"]
