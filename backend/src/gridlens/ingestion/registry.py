@@ -20,7 +20,7 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
         ):
             raise ValueError("Source definition lacks required fields")
         cadence = source.get("cadence_hours", 24)
-        if not isinstance(cadence, int) or cadence <= 0:
+        if type(cadence) is not int or cadence <= 0:
             raise ValueError("Source cadence must be a positive number of hours")
         default_mode = "utc_hourly" if cadence < 24 else "local_daily"
         schedule_mode = source.get("schedule_mode", default_mode)
@@ -28,8 +28,8 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
             raise ValueError("Unsupported source schedule mode")
         if schedule_mode == "utc_hourly" and cadence >= 24:
             raise ValueError("UTC hourly schedules require a cadence below 24 hours")
-        if schedule_mode == "local_daily" and cadence < 24:
-            raise ValueError("Local daily schedules require a cadence of at least 24 hours")
+        if schedule_mode == "local_daily" and cadence % 24 != 0:
+            raise ValueError("Local daily schedules require a cadence in whole 24-hour days")
         try:
             ZoneInfo(source.get("timezone", "America/Chicago"))
         except (ZoneInfoNotFoundError, ValueError) as exc:

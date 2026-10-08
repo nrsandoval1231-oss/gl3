@@ -173,8 +173,8 @@ def _scheduled_instants(
             yield due
             due += interval
         return
-    if epoch.cadence_hours < 24:
-        raise ValueError("Local-daily schedule cadence must be at least one day")
+    if epoch.cadence_hours % 24 != 0:
+        raise ValueError("Local-daily schedule cadence must be a whole number of days")
     zone = ZoneInfo(epoch.timezone)
     local_date = epoch.anchor["local_date"]
     local_time = epoch.anchor["local_time"]
