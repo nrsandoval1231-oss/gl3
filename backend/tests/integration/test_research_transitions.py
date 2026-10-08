@@ -1,6 +1,6 @@
 """Synthetic exact-source fixtures exercising canonical research transitions."""
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from importlib import import_module
 from uuid import uuid4
 
@@ -181,7 +181,22 @@ def test_worker_reevaluates_real_canonical_source_updates(
         question = session.get(PursuitResearchQuestion, question_id)
         assert calls == [(source["id"], "TRANSITION-TEST-1")]
         assert question.receipt["before"] == before
-        assert question.receipt["after"] == after, question.receipt
+        current_card = evaluate_target(session, need_id)
+        assert question.receipt["after"] == after, {
+            "receipt": question.receipt,
+            "current_card": {
+                key: current_card.get(key)
+                for key in (
+                    "disposition",
+                    "asset_type",
+                    "lifecycle_state",
+                    "activity",
+                    "blockers",
+                    "evidence",
+                    "lifecycle_timeline",
+                )
+            },
+        }
         assert question.receipt["reevaluation_status"] == "COMPLETED"
         assert question.receipt["resulting_evidence_ids"]
         assert session.get(PowerNeed, need_id).tier == "Signal"
@@ -493,7 +508,7 @@ def test_resolved_public_phase_worker_creates_one_bounded_followup(canonical_run
     from gridlens.persistence.models import Project
 
     factory, source, worker, seed_job = canonical_runtime
-    today = datetime.now(UTC).date()
+    today = date.today()
     url = "https://www.datacenterdynamics.com/en/news/synthetic-clayton-update/"
     initial_description = "Construct new data center."
     with factory.begin() as session:
@@ -620,7 +635,7 @@ def test_worker_public_adverse_report_vetoes_only_supported_exact_activity(
     from gridlens.persistence.models import Project
 
     factory, source, worker, seed_job = canonical_runtime
-    today = datetime.now(UTC).date()
+    today = date.today()
     url = "https://www.datacenterdynamics.com/en/news/synthetic-adverse-update/"
     description = (
         "Construct new data center. 811 Clayton Ln construction requires 1 MW. "

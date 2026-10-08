@@ -1,4 +1,6 @@
 from datetime import UTC, date, datetime
+from types import SimpleNamespace
+from uuid import uuid4
 
 import pytest
 from sqlalchemy import create_engine, func, select
@@ -28,7 +30,8 @@ from gridlens.settings import settings
 def lifecycle_db():
     target = make_url(settings.test_database_url)
     application = make_url(settings.database_url)
-    assert target.database == "gl3audit_lifecycle_test"
+    assert target.database and target.database.endswith("_test")
+    assert target.database != application.database
     assert target != application
     engine = create_engine(settings.test_database_url)
     Base.metadata.drop_all(engine)
@@ -138,7 +141,9 @@ def add_case(
             status="accepted",
             assessment={
                 "decision": "accepted",
+                "semantic_hash": observation.content_hash,
                 "evidence_hash": content_hash,
+                "evidence": {"id": str(evidence.id)},
                 "project_identity_key": project.identity_key,
             },
         )
@@ -194,6 +199,91 @@ def test_retained_mixed_event_is_not_supported_by_wrong_scope_or_state(lifecycle
         )
         assert not lifecycle_event_supported(
             "building_permit_issued", evidence, interpretation, project, "construction"
+        )
+
+
+def test_opportunity_projection_binds_lifecycle_event_state_and_observation(
+    lifecycle_db, monkeypatch
+):
+    from gridlens.api import app as api
+
+    factory = lifecycle_db
+    project_id, _, observation_id, evidence_id = add_case(
+        factory,
+        "Project Jupiter data center update",
+        "Project Jupiter data center campus received its building permit.",
+    )
+    monkeypatch.setattr(api, "_need_has_current_support", lambda *_args, **_kwargs: True)
+    with factory.begin() as session:
+        project = session.get(Project, project_id)
+        observation = session.get(Observation, observation_id)
+        evidence = session.get(Evidence, evidence_id)
+        assert project and observation and evidence
+        assert apply_lifecycle_observation(session, project, observation, evidence)
+        event = session.scalar(select(LifecycleEvent))
+        assert event
+
+        card = api.opportunity_projection(session)[0]
+        assert card["lifecycle_timeline"][0]["current"] is True
+
+        event.state = "construction"
+        card = api.opportunity_projection(session)[0]
+        assert card["lifecycle_timeline"][0]["current"] is False
+
+        event.state = "permitting"
+        other_observation = Observation(
+            source_id=observation.source_id,
+            external_id="different-observation-same-project",
+            title=observation.title,
+            abstract=observation.abstract,
+            published_at=observation.published_at,
+            url="https://example.invalid/jupiter-other-update",
+            content_hash=observation.content_hash,
+        )
+        session.add(other_observation)
+        session.flush()
+        event.observation_id = other_observation.id
+        card = api.opportunity_projection(session)[0]
+        assert card["lifecycle_timeline"][0]["current"] is False
+
+
+def test_accepted_positive_permit_cannot_be_relabelled_as_withdrawal_without_flag(lifecycle_db):
+    factory = lifecycle_db
+    project_id, _, observation_id, evidence_id = add_case(
+        factory,
+        "Project Jupiter data center update",
+        "Project Jupiter data center campus received its building permit.",
+    )
+    with factory.begin() as session:
+        project = session.get(Project, project_id)
+        evidence = session.get(Evidence, evidence_id)
+        interpretation = session.scalar(
+            select(Interpretation).where(Interpretation.observation_id == observation_id)
+        )
+        assert project and evidence and interpretation
+        withdrawal = SimpleNamespace(
+            project_id=project.id,
+            observation_id=observation_id,
+            evidence_id=evidence.id,
+            event_type="planning_application_withdrawn",
+            state="planning_application_withdrawn",
+        )
+        assert not lifecycle_event_supported(
+            withdrawal.event_type,
+            evidence,
+            interpretation,
+            project,
+            withdrawal.state,
+            event=withdrawal,
+        )
+        interpretation.assessment["withdrawal_supported"] = True
+        assert lifecycle_event_supported(
+            withdrawal.event_type,
+            evidence,
+            interpretation,
+            project,
+            withdrawal.state,
+            event=withdrawal,
         )
 
 
@@ -427,6 +517,101 @@ def test_retained_event_requires_exact_current_observation_interpretation_and_ev
         assert lifecycle_event_supported(
             "building_permit_issued", evidence, interpretation, project, "permitting"
         )
+        interpretation.status = "failed"
+        assert lifecycle_event_supported(
+            "building_permit_issued", evidence, interpretation, project, "permitting"
+        )
+        interpretation.status = "accepted"
+        event = session.scalar(select(LifecycleEvent))
+        assert event is not None
+        foreign_observation = Observation(
+            source_id=observation.source_id,
+            external_id="same-hash-other-observation",
+            title=observation.title,
+            abstract=observation.abstract,
+            published_at=observation.published_at,
+            url="https://example.invalid/other-observation",
+            content_hash=hash_a,
+        )
+        session.add(foreign_observation)
+        session.flush()
+        foreign_evidence = Evidence(
+            observation_id=foreign_observation.id,
+            content_hash=hash_a,
+            title=foreign_observation.title,
+            abstract=foreign_observation.abstract,
+            url=foreign_observation.url,
+            published_at=foreign_observation.published_at,
+        )
+        session.add(foreign_evidence)
+        session.flush()
+        assert not lifecycle_event_supported(
+            event.event_type,
+            foreign_evidence,
+            interpretation,
+            project,
+            event.state,
+        )
+        event_state = event.state
+        event.state = "construction"
+        assert not lifecycle_event_supported(
+            event.event_type,
+            evidence,
+            interpretation,
+            project,
+            event.state,
+            event=event,
+        )
+        event.state = event_state
+        event_observation_id = event.observation_id
+        event.observation_id = uuid4()
+        assert not lifecycle_event_supported(
+            event.event_type,
+            evidence,
+            interpretation,
+            project,
+            event.state,
+            event=event,
+        )
+        event.observation_id = event_observation_id
+        event_evidence_id = event.evidence_id
+        event.evidence_id = foreign_evidence.id
+        assert not lifecycle_event_supported(
+            event.event_type,
+            foreign_evidence,
+            interpretation,
+            project,
+            event.state,
+            event=event,
+        )
+        event.evidence_id = event_evidence_id
+        event_project_id = event.project_id
+        event.project_id = uuid4()
+        assert not lifecycle_event_supported(
+            event.event_type,
+            evidence,
+            interpretation,
+            project,
+            event.state,
+            event=event,
+        )
+        event.project_id = event_project_id
+
+        interpretation.assessment["semantic_hash"] = hash_b
+        assert not lifecycle_event_supported(
+            "building_permit_issued", evidence, interpretation, project, "permitting"
+        )
+        interpretation.assessment["semantic_hash"] = hash_a
+        interpretation.assessment.pop("semantic_hash")
+        assert not lifecycle_event_supported(
+            "building_permit_issued", evidence, interpretation, project, "permitting"
+        )
+        interpretation.assessment["semantic_hash"] = hash_a
+        interpretation.assessment["evidence"]["id"] = "wrong-evidence-id"
+        assert not lifecycle_event_supported(
+            "building_permit_issued", evidence, interpretation, project, "permitting"
+        )
+        interpretation.assessment["evidence"]["id"] = str(evidence.id)
         assert not apply_lifecycle_observation(session, project, observation, evidence)
         assert session.get(ProjectLifecycle, project_id).current_state == "permitting"
         assert session.scalar(select(func.count()).select_from(LifecycleEvent)) == 1
@@ -448,11 +633,15 @@ def test_evidence_correction_a_to_b_to_a_restores_only_supported_event(lifecycle
             select(Interpretation).where(Interpretation.observation_id == observation_id)
         )
         assert project and observation and evidence_a and interpretation
+        semantic_hash_a = observation.content_hash
+        evidence_hash_a = "f" * 64
+        evidence_a.content_hash = evidence_hash_a
+        interpretation.assessment["evidence_hash"] = evidence_hash_a
         assert apply_lifecycle_observation(session, project, observation, evidence_a)
         assert session.get(ProjectLifecycle, project_id).current_state == "permitting"
         evidence_b = Evidence(
             observation_id=observation.id,
-            content_hash="b" * 64,
+            content_hash="c" * 64,
             title="Project Jupiter data center update",
             abstract=(
                 "The campus construction is only proposed; "
@@ -465,24 +654,80 @@ def test_evidence_correction_a_to_b_to_a_restores_only_supported_event(lifecycle
         )
         session.add(evidence_b)
         session.flush()
-        observation.content_hash = evidence_b.content_hash
-        interpretation.content_hash = evidence_b.content_hash
+        observation.content_hash = "b" * 64
+        interpretation.content_hash = observation.content_hash
         interpretation.assessment = {
             "decision": "accepted",
+            "semantic_hash": observation.content_hash,
             "evidence_hash": evidence_b.content_hash,
+            "evidence": {"id": str(evidence_b.id)},
             "project_identity_key": project.identity_key,
         }
         assert not apply_lifecycle_observation(session, project, observation, evidence_b)
         session.flush()
         assert session.get(ProjectLifecycle, project_id) is None
-        interpretation.content_hash = evidence_a.content_hash
-        observation.content_hash = evidence_a.content_hash
+        interpretation.content_hash = semantic_hash_a
+        observation.content_hash = semantic_hash_a
         interpretation.assessment = {
             "decision": "accepted",
-            "evidence_hash": evidence_a.content_hash,
+            "semantic_hash": observation.content_hash,
+            "evidence_hash": evidence_hash_a,
+            "evidence": {"id": str(evidence_a.id)},
             "project_identity_key": project.identity_key,
         }
         assert not apply_lifecycle_observation(session, project, observation, evidence_a)
         assert session.get(ProjectLifecycle, project_id).current_state == "permitting"
         assert session.scalar(select(func.count()).select_from(LifecycleEvent)) == 1
         assert session.get(PowerNeed, need_id).tier == "Signal"
+
+
+def test_current_pending_version_cannot_borrow_prior_accepted_assessment(lifecycle_db):
+    factory = lifecycle_db
+    project_id, _, observation_id, evidence_a_id = add_case(
+        factory,
+        "Building permit issued for Project Jupiter data center campus",
+        "The Project Jupiter campus received its building permit.",
+    )
+    with factory.begin() as session:
+        project = session.get(Project, project_id)
+        observation = session.get(Observation, observation_id)
+        evidence_a = session.get(Evidence, evidence_a_id)
+        interpretation = session.scalar(
+            select(Interpretation).where(Interpretation.observation_id == observation_id)
+        )
+        assert project and observation and evidence_a and interpretation
+        semantic_hash_a = observation.content_hash
+        evidence_hash_a = "f" * 64
+        evidence_a.content_hash = evidence_hash_a
+        interpretation.assessment["evidence_hash"] = evidence_hash_a
+        assert apply_lifecycle_observation(session, project, observation, evidence_a)
+        assessment_a = dict(interpretation.assessment)
+        evidence_b = Evidence(
+            observation_id=observation.id,
+            content_hash="d" * 64,
+            title="Project Jupiter data center update",
+            abstract="The campus permit remains pending.",
+            url=observation.url,
+            published_at=observation.published_at,
+        )
+        session.add(evidence_b)
+        session.flush()
+        observation.content_hash = "e" * 64
+        interpretation.content_hash = observation.content_hash
+        interpretation.status = "pending"
+        # Keep A's accepted assessment deliberately stale while B is current.
+        assert not lifecycle_event_supported(
+            "building_permit_issued", evidence_a, interpretation, project, "permitting"
+        )
+        refresh_lifecycle_projection(session, project)
+        session.flush()
+        assert session.get(ProjectLifecycle, project_id) is None
+
+        observation.content_hash = semantic_hash_a
+        interpretation.content_hash = semantic_hash_a
+        interpretation.status = "accepted"
+        interpretation.assessment = assessment_a
+        assert not apply_lifecycle_observation(session, project, observation, evidence_a)
+        session.flush()
+        assert session.get(ProjectLifecycle, project_id).current_state == "permitting"
+        assert session.scalar(select(func.count()).select_from(LifecycleEvent)) == 1
