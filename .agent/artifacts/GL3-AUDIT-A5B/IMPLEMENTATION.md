@@ -25,3 +25,11 @@ An early direct pytest/bootstrap attempt was identified by the controller as vio
 ## Still open
 
 Builder checks do not certify A5B. The controller must rerun the complete backend/Ruff/mypy/web/OpenAPI audits on the frozen head, independent actual-TypeScript API/group/page traversal, retained-corpus read-only checks, matched public-page SQL/latency/response-byte/allocation checks, and fresh browser suite. Exact source SHA/tree and raw file hashes are recorded in `COMPLETION.json` and `RAW_LOGS.json` after the source commit is created.
+
+## R1 compatibility repair
+
+The controller's exact-head full gate found that `_commercial_triage_cards(session, limit)` had changed the legacy research caller contract from `list[dict]` to `(list[dict], grouped_total)`. R1 keeps the legacy helper list-shaped and moves offset/group-total metadata to `_commercial_triage_page(session, limit, offset)`, used by the paged triage response. Existing autonomous research and evaluation call sites remain unchanged. The focused regression asserts both the legacy list result and the separate page metadata result.
+
+Focused R1 validation passed: the two controller-failing integration tests plus the compatibility regression (3 passed), full backend mypy (78 source files), and Ruff on the changed app/test modules. OpenAPI/public schemas were not changed by R1. Root full backend, retained checks, browser suite, and independent review remain controller-owned after this new candidate is frozen.
+
+The first safe-wrapper invocation used a repository-root relative path while the shell was in `backend/`; it failed before the wrapper ran. That attempt created no raw log and its exact raw bytes are UNKNOWN. The corrected wrapper invocation passed its provider preflight and produced the raw log listed in `R1-RAW_LOGS.json`.

@@ -3394,7 +3394,7 @@ def save_pursuit_note(pursuit_id: UUID, body: CallNoteBody, request: Request):
         return note_view(note)
 
 
-def _commercial_triage_cards(
+def _commercial_triage_page(
     session, limit: int, offset: int = 0
 ) -> tuple[list[dict], int]:
     history_count = int(
@@ -3539,9 +3539,15 @@ def _commercial_triage_cards(
     return cards, len(all_keyed_groups)
 
 
+def _commercial_triage_cards(session, limit: int) -> list[dict]:
+    """Return the legacy complete shortlist shape used by research callers."""
+    cards, _grouped_total = _commercial_triage_page(session, limit)
+    return cards
+
+
 def _commercial_triage_payload(session, limit: int, offset: int = 0) -> dict:
     _begin_consistent_read(session)
-    cards, grouped_total = _commercial_triage_cards(session, limit, offset)
+    cards, grouped_total = _commercial_triage_page(session, limit, offset)
     today = chicago_today().isoformat()
     identities = ["commercial-need:" + item["id"] for item in cards]
     workspaces = (
@@ -3696,7 +3702,7 @@ def request_autonomous_research(need_id: UUID, body: AutonomousResearchBody, req
     from gridlens.intelligence.pursuit_questions import question_view, schedule_questions
 
     with SessionLocal.begin() as session:
-        cards, _total = _commercial_triage_cards(session, 50)
+        cards = _commercial_triage_cards(session, 50)
         card = next((card for card in cards if str(card["id"]) == str(need_id)), None)
         if card is None:
             raise HTTPException(409, "Power need is not in the current commercial cohort")
