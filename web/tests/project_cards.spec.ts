@@ -816,6 +816,190 @@ test('opening a same-cohort record during a pending Back page request does not s
   }
 })
 
+test('Previous hides later-page rows and metadata until the first-page request settles', async ({ page }) => {
+  const firstPageRecord = permit('transition-first-page', 'First page transition fixture')
+  const laterPageRecord = permit('transition-later-page', 'Later page transition fixture')
+  let pageZeroRequests = 0
+  let releasePrevious: (() => void) | undefined
+  let previousStarted = false
+  const previousGate = new Promise<void>((resolve) => { releasePrevious = resolve })
+  await page.route(apiRoute, async (route) => {
+    const url = new URL(route.request().url())
+    if (url.pathname === '/api/opportunities') {
+      const offset = Number(url.searchParams.get('offset') ?? '0')
+      if (offset === 0) {
+        pageZeroRequests += 1
+        if (pageZeroRequests > 1) {
+          previousStarted = true
+          await previousGate
+        }
+      }
+      const payload = serverOpportunityPage([offset === 0 ? firstPageRecord : laterPageRecord])
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        headers: { ...payload.headers, 'X-Limit': '25', 'X-Offset': String(offset), 'X-Cohort-Token': 'transition-token', ...(offset === 0 ? { 'X-Next-Offset': '25' } : {}) },
+        body: JSON.stringify(payload.items),
+      })
+      return
+    }
+    const path = url.pathname
+    const body = path === '/api/auth/session'
+      ? { authenticated: true }
+      : path === '/api/health'
+        ? { sources: [], backlog: 0, pending_interpretations: 0 }
+        : []
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
+  })
+  try {
+    await page.goto('/?tier=Signals&offset=25')
+    await expect(page.locator('[data-opportunity-id="transition-later-page"]')).toBeVisible()
+    await page.getByRole('button', { name: '← Previous' }).click()
+    await expect.poll(() => previousStarted).toBe(true)
+    await expect(page.getByText('Updating this view…')).toBeVisible()
+    await expect(page.locator('[data-opportunity-id="transition-later-page"]')).toHaveCount(0)
+    await expect(page.getByRole('link', { name: 'Download filtered CSV' })).toHaveCount(0)
+    await expect(page.getByRole('heading', { name: 'No Signals yet' })).toHaveCount(0)
+    await expect(page.getByText('1 filtered records · page 1')).toHaveCount(0)
+    expect(new URL(page.url()).searchParams.get('offset')).toBeNull()
+    expect(new URL(page.url()).hash).toBe('')
+    releasePrevious?.()
+    await expect(page.locator('[data-opportunity-id="transition-first-page"]')).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Download filtered CSV' })).toBeVisible()
+    await expect(page.getByText('1 filtered records · page 1')).toBeVisible()
+  } finally {
+    releasePrevious?.()
+  }
+})
+
+test('Next hides first-page rows and metadata until the later-page request settles', async ({ page }) => {
+  const firstPageRecord = permit('transition-next-first-page', 'First page Next fixture')
+  const laterPageRecord = permit('transition-next-later-page', 'Later page Next fixture')
+  let releaseNext: (() => void) | undefined
+  let nextStarted = false
+  const nextGate = new Promise<void>((resolve) => { releaseNext = resolve })
+  await page.route(apiRoute, async (route) => {
+    const url = new URL(route.request().url())
+    if (url.pathname === '/api/opportunities') {
+      const offset = Number(url.searchParams.get('offset') ?? '0')
+      if (offset > 0) {
+        nextStarted = true
+        await nextGate
+      }
+      const payload = serverOpportunityPage([offset === 0 ? firstPageRecord : laterPageRecord])
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        headers: { ...payload.headers, 'X-Limit': '25', 'X-Offset': String(offset), 'X-Cohort-Token': 'transition-next-token', ...(offset === 0 ? { 'X-Next-Offset': '25' } : {}) },
+        body: JSON.stringify(payload.items),
+      })
+      return
+    }
+    const path = url.pathname
+    const body = path === '/api/auth/session'
+      ? { authenticated: true }
+      : path === '/api/health'
+        ? { sources: [], backlog: 0, pending_interpretations: 0 }
+        : []
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
+  })
+  try {
+    await page.goto('/?tier=Signals')
+    await expect(page.locator('[data-opportunity-id="transition-next-first-page"]')).toBeVisible()
+    await page.getByRole('button', { name: 'Next →' }).click()
+    await expect.poll(() => nextStarted).toBe(true)
+    await expect(page.getByText('Updating this view…')).toBeVisible()
+    await expect(page.locator('[data-opportunity-id="transition-next-first-page"]')).toHaveCount(0)
+    await expect(page.getByRole('link', { name: 'Download filtered CSV' })).toHaveCount(0)
+    await expect(page.getByRole('heading', { name: 'No Signals yet' })).toHaveCount(0)
+    await expect(page.getByText('1 filtered records · page 1')).toHaveCount(0)
+    expect(new URL(page.url()).searchParams.get('offset')).toBe('25')
+    releaseNext?.()
+    await expect(page.locator('[data-opportunity-id="transition-next-later-page"]')).toBeVisible()
+    await expect(page.getByText('1 filtered records · page 2')).toBeVisible()
+  } finally {
+    releaseNext?.()
+  }
+})
+
+test('failed Previous clears the later page and reports unavailable instead of an empty cohort', async ({ page }) => {
+  const laterPageRecord = permit('transition-error-later-page', 'Later page error fixture')
+  let pageZeroRequests = 0
+  await page.route(apiRoute, async (route) => {
+    const url = new URL(route.request().url())
+    if (url.pathname === '/api/opportunities') {
+      const offset = Number(url.searchParams.get('offset') ?? '0')
+      if (offset === 0 && ++pageZeroRequests > 1) {
+        await route.fulfill({ status: 503, json: { detail: 'First page unavailable for transition test' } })
+        return
+      }
+      const payload = serverOpportunityPage([laterPageRecord])
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        headers: { ...payload.headers, 'X-Limit': '25', 'X-Offset': String(offset), 'X-Cohort-Token': 'transition-error-token', ...(offset === 0 ? { 'X-Next-Offset': '25' } : {}) },
+        body: JSON.stringify(payload.items),
+      })
+      return
+    }
+    const path = url.pathname
+    const body = path === '/api/auth/session'
+      ? { authenticated: true }
+      : path === '/api/health'
+        ? { sources: [], backlog: 0, pending_interpretations: 0 }
+        : []
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
+  })
+  await page.goto('/?tier=Signals&offset=25')
+  await expect(page.locator('[data-opportunity-id="transition-error-later-page"]')).toBeVisible()
+  await page.getByRole('button', { name: '← Previous' }).click()
+  await expect(page.getByRole('alert')).toContainText('503')
+  await expect(page.locator('[data-opportunity-id="transition-error-later-page"]')).toHaveCount(0)
+  await expect(page.getByRole('link', { name: 'Download filtered CSV' })).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: 'No Signals yet' })).toHaveCount(0)
+  await expect(page.getByText('1 filtered records · page 1')).toHaveCount(0)
+  expect(new URL(page.url()).searchParams.get('offset')).toBeNull()
+  expect(new URL(page.url()).hash).toBe('')
+})
+
+test('failed Next clears the first page and reports unavailable instead of retaining its cards', async ({ page }) => {
+  const firstPageRecord = permit('transition-error-first-page', 'First page error fixture')
+  await page.route(apiRoute, async (route) => {
+    const url = new URL(route.request().url())
+    if (url.pathname === '/api/opportunities') {
+      const offset = Number(url.searchParams.get('offset') ?? '0')
+      if (offset > 0) {
+        await route.fulfill({ status: 503, json: { detail: 'Later page unavailable for transition test' } })
+        return
+      }
+      const payload = serverOpportunityPage([firstPageRecord])
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        headers: { ...payload.headers, 'X-Limit': '25', 'X-Offset': '0', 'X-Next-Offset': '25', 'X-Cohort-Token': 'transition-next-error-token' },
+        body: JSON.stringify(payload.items),
+      })
+      return
+    }
+    const path = url.pathname
+    const body = path === '/api/auth/session'
+      ? { authenticated: true }
+      : path === '/api/health'
+        ? { sources: [], backlog: 0, pending_interpretations: 0 }
+        : []
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
+  })
+  await page.goto('/?tier=Signals')
+  await expect(page.locator('[data-opportunity-id="transition-error-first-page"]')).toBeVisible()
+  await page.getByRole('button', { name: 'Next →' }).click()
+  await expect(page.getByRole('alert')).toContainText('503')
+  await expect(page.locator('[data-opportunity-id="transition-error-first-page"]')).toHaveCount(0)
+  await expect(page.getByRole('link', { name: 'Download filtered CSV' })).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: 'No Signals yet' })).toHaveCount(0)
+  await expect(page.getByText('1 filtered records · page 1')).toHaveCount(0)
+  expect(new URL(page.url()).searchParams.get('offset')).toBe('25')
+})
+
 test('project title prefers a current owner over operator, applicant, and contractor claims', () => {
   const record = permit('roles', 'Facility construction', {
     abstract: 'owner_company_name: Owner Company\noperator_company_name: Operating Company\napplicant_org: Applicant Company\ncontractor_company_name: Builder Company',
