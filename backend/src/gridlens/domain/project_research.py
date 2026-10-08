@@ -272,30 +272,69 @@ def unparsed_adverse_text(text: str, claims: list[dict]) -> str:
     return text
 
 
-def project_claim_state(claims: list[dict], *, today: date) -> dict[str, dict]:
-    """Conflicting current source versions remain conflicts; never latest-URL wins."""
-    grouped: dict[str, list[dict]] = {field: [] for field in FIELDS}
-    for claim in claims:
+class _ProjectClaimAccumulator:
+    """Apply the canonical date/value rules while optionally retaining provenance."""
+
+    def __init__(self, *, today: date, retain_claims: bool) -> None:
+        self.today = today
+        self.retain_claims = retain_claims
+        self._values: dict[str, Any] = {field: None for field in FIELDS}
+        self._has_value: dict[str, bool] = {field: False for field in FIELDS}
+        self._conflict: dict[str, bool] = {field: False for field in FIELDS}
+        self._claims: dict[str, list[dict]] = {field: [] for field in FIELDS}
+
+    def add(self, claim: dict) -> None:
         field = claim.get("field")
-        if field not in grouped:
-            continue
+        if field not in self._values:
+            return
         try:
             dated = date.fromisoformat(claim["as_of"])
         except (KeyError, ValueError, TypeError):
-            continue
+            return
         persistent = claim.get("value") in {"completed", "cancelled", "adequate"}
-        if dated > today or (dated < today - timedelta(days=90) and not persistent):
-            continue
-        grouped[field].append(claim)
-    result = {}
-    for field, rows in grouped.items():
-        values = {row["value"] for row in rows}
-        result[field] = {
-            "status": "UNKNOWN" if not values else "SUPPORTED" if len(values) == 1 else "CONFLICT",
-            "value": next(iter(values)) if len(values) == 1 else None,
-            "claims": rows,
-        }
-    return result
+        if dated > self.today or (dated < self.today - timedelta(days=90) and not persistent):
+            return
+        value = claim["value"]
+        if not self._has_value[field]:
+            self._values[field] = value
+            self._has_value[field] = True
+        elif self._values[field] != value:
+            self._conflict[field] = True
+        if self.retain_claims:
+            self._claims[field].append(claim)
+
+    def finish(self) -> dict[str, dict]:
+        result = {}
+        for field in FIELDS:
+            has_value = self._has_value[field]
+            state = {
+                "status": (
+                    "UNKNOWN"
+                    if not has_value
+                    else "CONFLICT"
+                    if self._conflict[field]
+                    else "SUPPORTED"
+                ),
+                "value": self._values[field]
+                if has_value and not self._conflict[field]
+                else None,
+            }
+            if self.retain_claims:
+                state["claims"] = self._claims[field]
+            result[field] = state
+        return result
+
+
+def _project_claim_accumulator(*, today: date, retain_claims: bool = False):
+    return _ProjectClaimAccumulator(today=today, retain_claims=retain_claims)
+
+
+def project_claim_state(claims: list[dict], *, today: date) -> dict[str, dict]:
+    """Conflicting current source versions remain conflicts; never latest-URL wins."""
+    accumulator = _project_claim_accumulator(today=today, retain_claims=True)
+    for claim in claims:
+        accumulator.add(claim)
+    return accumulator.finish()
 
 
 def qualification_veto(fields: dict[str, dict]) -> str | None:

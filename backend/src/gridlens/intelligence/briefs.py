@@ -7,6 +7,7 @@ import json
 import re
 import unicodedata
 from datetime import UTC, datetime
+from typing import Any
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
@@ -285,6 +286,7 @@ def brief_payload_from_links(
     links: list[tuple[Observation, Evidence, Interpretation | None]],
     sources: dict[str, Source] | None = None,
     include_project_relationship: bool = True,
+    preloaded_chain: dict | None = None,
 ) -> tuple[dict, dict[str, dict]]:
     evidence_items: list[dict] = []
     for observation, evidence, interpretation in links:
@@ -310,11 +312,12 @@ def brief_payload_from_links(
             break
     # Existing fresh project-scoped relationship citations can support a company
     # display label. A listed role never proves purchasing authority.
-    chain = (
-        buying_chain_view(session, project.id)
-        if include_project_relationship
-        else {"candidates": []}
-    )
+    if not include_project_relationship:
+        chain: dict[str, Any] = {"candidates": []}
+    elif preloaded_chain is not None:
+        chain = preloaded_chain
+    else:
+        chain = buying_chain_view(session, project.id)
     fresh_candidates = [
         item
         for item in chain["candidates"]
@@ -387,6 +390,7 @@ def brief_preview(
     links: list[tuple[Observation, Evidence, Interpretation | None]],
     source_rows: dict[str, Source],
     row: PowerNeedBrief | None,
+    preloaded_chain: dict | None = None,
 ) -> dict:
     if row is None:
         return {
@@ -398,7 +402,13 @@ def brief_preview(
     fingerprint = None
     try:
         payload, _ = brief_payload_from_links(
-            session, need, project, links, source_rows, include_project_relationship=True
+            session,
+            need,
+            project,
+            links,
+            source_rows,
+            include_project_relationship=True,
+            preloaded_chain=preloaded_chain,
         )
         fingerprint = _digest(payload)
     except BriefUnavailable:

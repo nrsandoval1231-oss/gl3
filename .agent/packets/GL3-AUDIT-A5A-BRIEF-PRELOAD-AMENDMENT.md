@@ -1,0 +1,7 @@
+# A5A bounded brief preload amendment
+
+CONTINUE existing A5A ownership/base5c03880/dispatch. Sol direction parent .agent/graphs/GL3-AUDIT-A5-BRIEF-PRELOAD-DIRECTION.md SHA D0873C34E1BC51961D224F12A9CA6D135486003ADE18BAF6C808F83FAB34EBEB. Read exact direction.
+
+Additional allowed file: backend/src/gridlens/intelligence/briefs.py, only optional canonical preloaded-chain input propagation for brief_payload_from_links/brief_preview. No brief text/evidence/fingerprint/staleness algorithm changes, persisted payload rewrites, relationship authority expansion, otherbriefhelpers or product policy. Current include_project_relationship=False must override suppliedpreload; fix conditional precedence before freeze. Legacy absence remains legacy path; absent/empty preload semantics explicit. You are not alone; preserve all other edits.
+
+Required focused tests: same canonical input legacy/preloaded payload+fingerprint+ready/stale parity; absent/empty preload; include_project_relationship=False with suppliedpreload; selectedpage with persistedbriefs <=200SQL and exactselecteddetail/counts/groups; full frozenoracle parity/latency/allocation/responsebytes remeasure afterfreeze. Existing two-attempt recovery, DB/provider/data/external boundaries and handoff unchanged. Sol scope decision is not implementation acceptance. Preserve original outside-scope hunk attribution and amended authority in receipt.
