@@ -1,5 +1,16 @@
 {
   "evidence_root": ".artifacts/",
+  "tested_source_candidate": "46671c602875f7b69cb6acd92cbd93bd543c9598",
+  "browser_results": [
+    {
+      "path": "a5b-cohort-browser-c7fa49f0165d41a1aa1156a4646dba24-results/",
+      "result": "failed selector assertions; unique native trace/error-context files retained"
+    },
+    {
+      "path": "a5b-cohort-browser-f89f86d435344e2ead5f2a90e6b78b59-results/",
+      "result": "green two-test rerun; unique Playwright output directory"
+    }
+  ],
   "records": [
     {
       "path": "a5b-cohort-red-missing-token-20261008T1711249447707Z-29b0056c2be94b41925644fa0986c633-pytest.log",
