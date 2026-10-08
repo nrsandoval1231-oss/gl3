@@ -497,6 +497,7 @@ def test_compatible_timing_narrowing_closes_with_timing_version_provenance():
         location="Test City",
     )
     source = {**source, "semantic_hash": "a" * 64, "evidence_hash": "b" * 64}
+    source_gap_before = dict(source["qualified_remaining_gap"])
     timing = _row(
         "timing",
         {"start_date": "2027-01-10", "end_date": "2027-01-20", "duration_days": 40},
@@ -543,6 +544,10 @@ def test_compatible_timing_narrowing_closes_with_timing_version_provenance():
     assert gap["selected_activity_interval_end_exclusive"] == "2027-03-01T00:00:00+00:00"
     assert revised["start_window"] == "2027-01-10 to 2027-01-20"
     assert revised["duration"] == "40 days"
+    assert gap["start_window"] == revised["start_window"]
+    assert gap["duration"] == revised["duration"]
+    assert gap["source_reported_start_window"] == source["start_window"]
+    assert gap["source_reported_duration"] == source["duration"]
 
     narrowed_without_new_supply = qualification_from_facts(
         source, [timing], need=need, project=project
@@ -550,6 +555,14 @@ def test_compatible_timing_narrowing_closes_with_timing_version_provenance():
     assert narrowed_without_new_supply and narrowed_without_new_supply["tier"] == "Lead"
     assert narrowed_without_new_supply["start_window"] == "2027-01-10 to 2027-01-20"
     assert narrowed_without_new_supply["duration"] == "40 days"
+    gap = narrowed_without_new_supply["qualified_remaining_gap"]
+    assert gap["start_window"] == "2027-01-10 to 2027-01-20"
+    assert gap["duration"] == "40 days"
+    assert gap["selected_activity_interval_start"] == "2027-01-10T00:00:00+00:00"
+    assert gap["selected_activity_interval_end_exclusive"] == "2027-03-01T00:00:00+00:00"
+    assert gap["source_reported_start_window"] == "2027-01-01 to 2027-02-01"
+    assert gap["source_reported_duration"] == "31 to 62 days"
+    assert source["qualified_remaining_gap"] == source_gap_before
 
 
 def test_explicit_current_source_timing_correction_can_replace_disjoint_window():
@@ -917,6 +930,8 @@ def test_lead_requires_current_gap_interval_and_buyer_facts():
         "timing_basis": None,
         "timing_source_semantic_hash": None,
         "timing_source_evidence_hash": None,
+        "start_window": "2027-01-01 to 2027-02-01",
+        "duration": "30 days",
         "selected_activity_interval_start": "2027-01-01T00:00:00+00:00",
         "selected_activity_interval_end_exclusive": "2027-03-03T00:00:00+00:00",
         "remaining_mw": "15",

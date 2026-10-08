@@ -247,6 +247,40 @@ def _activity_interval(value: dict[str, Any]) -> tuple[datetime, datetime] | Non
     )
 
 
+def _finalize_lead_interval(
+    result: dict[str, Any],
+    interval: tuple[datetime, datetime] | None,
+    *,
+    source_claim: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Keep the current Lead gap's displayed interval aligned with its selected interval."""
+    source_gap = result.get("qualified_remaining_gap")
+    if not isinstance(source_gap, dict):
+        return result
+
+    gap = dict(source_gap)
+    if result.get("start_window") is not None:
+        gap["start_window"] = result["start_window"]
+    if result.get("duration") is not None:
+        gap["duration"] = result["duration"]
+    if interval is not None and (
+        "selected_activity_interval_start" in gap
+        or "selected_activity_interval_end_exclusive" in gap
+    ):
+        gap["selected_activity_interval_start"] = interval[0].isoformat()
+        gap["selected_activity_interval_end_exclusive"] = interval[1].isoformat()
+    if source_claim is not None and (
+        result.get("start_window") != source_claim.get("start_window")
+        or result.get("duration") != source_claim.get("duration")
+    ):
+        if source_claim.get("start_window") is not None:
+            gap.setdefault("source_reported_start_window", source_claim["start_window"])
+        if source_claim.get("duration") is not None:
+            gap.setdefault("source_reported_duration", source_claim["duration"])
+    result["qualified_remaining_gap"] = gap
+    return result
+
+
 def _source_lead_timing_bounds(
     claim: dict[str, Any],
 ) -> tuple[date, date, int, int] | None:
@@ -781,7 +815,7 @@ def qualification_from_facts(
             gap["user_confirmed_demand_mw"] = _mw_presentation(fact_interval)
             gap["demand_fact_id"] = str(demand_row.id)
             gap["demand_fact_hash"] = demand_row.content_hash
-        return result
+        return _finalize_lead_interval(result, resolved_activity_interval)
 
     if base_tier == "Lead":
         if timing_resolution == "explicit_source_correction" and timing_row is not None:
@@ -822,7 +856,7 @@ def qualification_from_facts(
                     }
                 )
                 result["qualified_remaining_gap"] = gap
-            return result
+            return _finalize_lead_interval(result, resolved_activity_interval)
 
         # A partial, unknown-quality, or otherwise unbound supply fact cannot
         # retract the already source-supported Lead calculation.
@@ -960,7 +994,7 @@ def qualification_from_facts(
     )
     if fact_intersection:
         result["fact_derived_required_mw"] = _mw_presentation(required_interval)
-    return result
+    return _finalize_lead_interval(result, interval, source_claim=base)
 
 
 def fact_digest(facts: list[Any]) -> str:
