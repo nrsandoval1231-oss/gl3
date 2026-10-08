@@ -3,7 +3,6 @@ import json
 from collections import defaultdict
 from datetime import UTC, date, datetime, timedelta
 from datetime import date as DateType
-from datetime import time as TimeType
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
@@ -504,21 +503,7 @@ def health():
             for state in session.scalars(select(PlannerState))
         }
         freshness_states = []
-        from gridlens.jobs.worker import _due_key, _scheduled_instants, _source_configuration
-
-        configuration_fields = (
-            "publisher",
-            "endpoint",
-            "family",
-            "geography",
-            "industries",
-            "retrieval_method",
-            "cadence_hours",
-            "schedule_mode",
-            "timezone",
-            "schedule_anchor_time",
-        )
-        missing_configuration = object()
+        from gridlens.jobs.worker import _due_key, _scheduled_instants, _source_registry_drift
         for row in rows:
             definition = definitions.get(row.id, {})
             epochs = session.scalars(
@@ -541,46 +526,12 @@ def health():
                 history_known = False
             else:
                 try:
-                    current_configuration = _source_configuration(definition)
-                    # Registry validation accepts omitted cadence as the documented 24h default.
-                    current_configuration.setdefault("cadence_hours", 24)
-                    current_enabled = bool(definition["enabled"])
                     if epochs:
                         latest_epoch = max(epochs, key=lambda epoch: epoch.effective_from)
-                        stored_configuration = dict(latest_epoch.configuration)
-                        immutable_epoch_values = {
-                            "cadence_hours": latest_epoch.cadence_hours,
-                            "schedule_mode": latest_epoch.schedule_mode,
-                            "timezone": latest_epoch.timezone,
-                            "schedule_anchor_time": (
-                                latest_epoch.anchor.get("local_time", missing_configuration)
-                                if isinstance(latest_epoch.anchor, dict)
-                                else missing_configuration
-                            ),
-                        }
-                        previous_configuration = {
-                            key: stored_configuration.get(
-                                key, immutable_epoch_values.get(key, missing_configuration)
-                            )
-                            for key in configuration_fields
-                        }
-                        live_configuration = {
-                            key: current_configuration.get(key, missing_configuration)
-                            for key in configuration_fields
-                        }
-                        for comparable in (previous_configuration, live_configuration):
-                            anchor_time = comparable["schedule_anchor_time"]
-                            if anchor_time is not missing_configuration:
-                                comparable["schedule_anchor_time"] = TimeType.fromisoformat(
-                                    anchor_time
-                                ).isoformat()
                         if (
                             latest_epoch.effective_until is None
                             and latest_epoch.history_known
-                            and (
-                                previous_configuration != live_configuration
-                                or latest_epoch.registry_enabled != current_enabled
-                            )
+                            and _source_registry_drift(definition, row, latest_epoch)
                         ):
                             history_known = False
                 except (AttributeError, KeyError, TypeError, ValueError):

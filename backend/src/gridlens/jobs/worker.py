@@ -29,6 +29,22 @@ from gridlens.settings import settings
 WORKER_ID = f"{socket.gethostname()}-{os.getpid()}"
 SCHEDULE_ZONE = "America/Chicago"
 DAILY_ANCHOR = day_time(3, 0)
+_SOURCE_CONFIGURATION_FIELDS = (
+    "publisher",
+    "endpoint",
+    "family",
+    "geography",
+    "industries",
+    "retrieval_method",
+    "cadence_hours",
+)
+_REGISTRY_CONFIGURATION_FIELDS = (
+    *_SOURCE_CONFIGURATION_FIELDS,
+    "schedule_mode",
+    "timezone",
+    "schedule_anchor_time",
+)
+_MISSING_CONFIGURATION = object()
 _PLANNER_RETRY_MONOTONIC: dict[str, float] = {}
 _PLANNER_FAILURES: dict[str, int] = {}
 
@@ -62,6 +78,68 @@ def _source_configuration(item: dict) -> dict:
         "schedule_anchor_time", DAILY_ANCHOR.isoformat()
     )
     return configuration
+
+
+def _normalized_registry_configuration(item: dict) -> dict:
+    configuration = _source_configuration(item)
+    configuration.setdefault("cadence_hours", 24)
+    return configuration
+
+
+def _epoch_configuration(epoch: SourceScheduleEpoch) -> dict:
+    configuration = dict(epoch.configuration or {})
+    configuration.setdefault("cadence_hours", epoch.cadence_hours)
+    configuration.setdefault("schedule_mode", epoch.schedule_mode)
+    configuration.setdefault("timezone", epoch.timezone)
+    if isinstance(epoch.anchor, dict) and "local_time" in epoch.anchor:
+        configuration.setdefault("schedule_anchor_time", epoch.anchor["local_time"])
+    return configuration
+
+
+def _normalized_configuration_values(configuration: dict, fields: tuple[str, ...]) -> tuple:
+    values = []
+    for field in fields:
+        value = configuration.get(field, _MISSING_CONFIGURATION)
+        if field == "schedule_anchor_time" and value is not _MISSING_CONFIGURATION:
+            value = day_time.fromisoformat(value).isoformat()
+        values.append((field, value))
+    return tuple(values)
+
+
+def _configuration_differs(left: dict, right: dict, fields: tuple[str, ...]) -> bool:
+    return _normalized_configuration_values(left, fields) != _normalized_configuration_values(
+        right, fields
+    )
+
+
+def _source_registry_drift(
+    item: dict, source: Source, epoch: SourceScheduleEpoch | None
+) -> bool:
+    live_configuration = _normalized_registry_configuration(item)
+    persisted_configuration = {
+        field: getattr(source, field, _MISSING_CONFIGURATION)
+        for field in _SOURCE_CONFIGURATION_FIELDS
+    }
+    changed = (
+        source.registry_enabled != bool(item["enabled"])
+        or _configuration_differs(
+            live_configuration, persisted_configuration, _SOURCE_CONFIGURATION_FIELDS
+        )
+    )
+    if epoch is not None:
+        changed = changed or epoch.registry_enabled != bool(item["enabled"])
+        changed = changed or _configuration_differs(
+            live_configuration,
+            _epoch_configuration(epoch),
+            _REGISTRY_CONFIGURATION_FIELDS,
+        )
+    return changed
+
+
+def _sync_source_configuration(source: Source, item: dict) -> None:
+    for field in _SOURCE_CONFIGURATION_FIELDS:
+        setattr(source, field, item[field])
+    source.registry_enabled = bool(item["enabled"])
 
 
 def _append_epoch(
@@ -336,18 +414,7 @@ def sync_registry() -> list[dict]:
             row = session.scalar(
                 select(Source).where(Source.id == item["id"]).with_for_update()
             )
-            values = {
-                key: item[key]
-                for key in (
-                    "publisher",
-                    "endpoint",
-                    "family",
-                    "geography",
-                    "industries",
-                    "retrieval_method",
-                    "cadence_hours",
-                )
-            }
+            values = {key: item[key] for key in _SOURCE_CONFIGURATION_FIELDS}
             if row is None:
                 row = Source(
                     id=item["id"],
@@ -358,9 +425,7 @@ def sync_registry() -> list[dict]:
                 )
                 session.add(row)
             else:
-                for key, value in values.items():
-                    setattr(row, key, value)
-                row.registry_enabled = bool(item["enabled"])
+                _sync_source_configuration(row, item)
             session.flush()
             _append_epoch(session, row, item, now)
     return definitions
@@ -376,20 +441,34 @@ def refresh_due() -> int:
 
 def set_source_enabled(source_id: str, enabled: bool) -> None:
     """Perform an explicit operator enable/disable transition with its epoch."""
-    definitions = {item["id"]: item for item in load_registry()}
-    if source_id not in definitions:
-        raise ValueError("Source is not present in the registry")
-    now = datetime.now(UTC)
     with SessionLocal.begin() as session:
         session.execute(
             text("SELECT pg_advisory_xact_lock(hashtextextended(:source_id, 0))"),
             {"source_id": source_id},
         )
+        definitions = {item["id"]: item for item in load_registry()}
+        item = definitions.get(source_id)
+        if item is None:
+            raise ValueError("Source is not present in the registry")
+        now = datetime.now(UTC)
         source = session.scalar(select(Source).where(Source.id == source_id).with_for_update())
         if source is None:
             raise ValueError("Source must be reconciled before an operator transition")
+        current = session.scalar(
+            select(SourceScheduleEpoch)
+            .where(
+                SourceScheduleEpoch.source_id == source_id,
+                SourceScheduleEpoch.effective_until.is_(None),
+            )
+            .with_for_update()
+            .order_by(SourceScheduleEpoch.effective_from.desc())
+            .limit(1)
+        )
+        if _source_registry_drift(item, source, current) and current is not None:
+            current.history_known = False
+        _sync_source_configuration(source, item)
         source.enabled = enabled
-        _append_epoch(session, source, definitions[source_id], now, transition_known=True)
+        _append_epoch(session, source, item, now, transition_known=True)
 
 
 def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) -> bool:

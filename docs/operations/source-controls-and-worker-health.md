@@ -14,11 +14,12 @@ Content-Type: application/json
 ```
 
 Use `{"enabled": true}` to explicitly re-enable a source that is still enabled
-in the registry. An explicit operator transition closes the current schedule
-epoch and records its known effective UTC time in the same transaction. A
-registry/configuration change starts a new epoch when observed; if the prior
-effective time cannot be proven, its earlier history is marked unknown and is
-not backfilled as if the observed time were the original change time. Seven-day
+in the registry. The endpoint reads and synchronizes that source's current
+registry definition while holding its transition lock, even for a no-op request.
+An operator transition closes the current schedule epoch and records its known
+effective UTC time in the same transaction. If registry/configuration drift was
+not observed earlier, its prior interval becomes unknown rather than being
+backdated to the operator request. Seven-day
 freshness remains `UNKNOWN` until the uncertain interval leaves the window. If
 the registry disables a source, the operator endpoint cannot override it.
 
