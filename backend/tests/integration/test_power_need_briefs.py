@@ -1,5 +1,7 @@
 import hashlib
 import json
+import time
+import tracemalloc
 from datetime import UTC, datetime, timedelta
 from importlib import import_module
 from uuid import UUID, uuid4
@@ -18,11 +20,14 @@ from gridlens.persistence import models  # noqa: F401
 from gridlens.persistence.database import Base
 from gridlens.persistence.models import (
     BriefDailyBudget,
+    CallFactDecision,
+    CallFactVersion,
     Evidence,
     Interpretation,
     Job,
     LifecycleEvent,
     NeedObservation,
+    NeedWorkflowStatusEvent,
     Observation,
     PowerNeed,
     PowerNeedBrief,
@@ -1187,7 +1192,7 @@ def test_authenticated_csv_matches_filtered_cohort_and_declares_scope(runtime):
 
 @pytest.mark.parametrize("conflicting_demand", [False, True])
 def test_summary_batches_preserve_cross_boundary_case_siblings_and_compact_history(
-    runtime, conflicting_demand
+    runtime, conflicting_demand, monkeypatch
 ):
     factory, _service, _ids = runtime
     api = import_module("gridlens.api.app")
@@ -1426,20 +1431,156 @@ def test_summary_batches_preserve_cross_boundary_case_siblings_and_compact_histo
             need_observation_rows.append(
                 NeedObservation(need_id=large_need.id, observation_id=observation.id)
             )
+        fact_rows = []
+        fact_decisions = []
+        status_rows = []
+        now = datetime.now(UTC)
+        for index, (need, project, _observation) in enumerate(created[:50]):
+            fact_id = uuid4()
+            fact_hash = hashlib.sha256(f"a6-bulk-fact-{index}".encode()).hexdigest()
+            fact_rows.append(
+                CallFactVersion(
+                    id=fact_id,
+                    need_id=need.id,
+                    project_id=project.id,
+                    client_id=uuid4(),
+                    activity_key=need.activity_key,
+                    facility_scope=project.location,
+                    fact_type="demand",
+                    value={"mw": "1"},
+                    reporter_name="Synthetic bulk fixture",
+                    confirmation_channel="customer_call",
+                    confirmed_at=now,
+                    effective_from=now - timedelta(days=1),
+                    content_hash=fact_hash,
+                    recorded_by="Synthetic fixture",
+                )
+            )
+            fact_decisions.append(
+                CallFactDecision(
+                    need_id=need.id,
+                    fact_version_id=fact_id,
+                    version=1,
+                    client_id=uuid4(),
+                    decision="accepted",
+                    expected_version=0,
+                    reason="Synthetic current fact for bounded batch test",
+                    content_hash=fact_hash,
+                    actor="Synthetic fixture",
+                )
+            )
+            status_rows.append(
+                NeedWorkflowStatusEvent(
+                    need_id=need.id,
+                    project_id=project.id,
+                    version=1,
+                    client_id=uuid4(),
+                    status="Investigating",
+                    expected_version=0,
+                    reason="Synthetic current status for bounded batch test",
+                    content_hash=hashlib.sha256(f"a6-bulk-status-{index}".encode()).hexdigest(),
+                    actor="Synthetic fixture",
+                )
+            )
+        session.add_all(fact_rows)
+        session.flush()
         session.add_all(
-            evidence_rows + interpretation_rows + need_observation_rows + lifecycle_event_rows
+            evidence_rows
+            + interpretation_rows
+            + need_observation_rows
+            + lifecycle_event_rows
+            + fact_decisions
+            + status_rows
         )
         session.flush()
         session.expunge_all()
 
         stats: dict[str, int] = {}
-        summary = api.opportunity_projection(
-            session, summary_only=True, summary_diagnostics=stats
+        query_count = [0]
+
+        def count_summary_query(*_args):
+            query_count[0] += 1
+
+        connection = session.connection()
+        event.listen(connection, "before_cursor_execute", count_summary_query)
+        tracemalloc.start()
+        try:
+            summary = api.opportunity_projection(
+                session, summary_only=True, summary_diagnostics=stats
+            )
+        finally:
+            _, peak_python_bytes = tracemalloc.get_traced_memory()
+            tracemalloc.stop()
+            event.remove(connection, "before_cursor_execute", count_summary_query)
+        assert query_count[0] <= 200
+        assert peak_python_bytes < 56_000_000
+        print(
+            "A6 synthetic summary batch: "
+            f"needs={len(created)} facts={len(fact_rows)} statuses={len(status_rows)} "
+            f"queries={query_count[0]} peak_python_bytes={peak_python_bytes}"
         )
+
+        engine = factory.kw["bind"]
+
+        class ExistingSessionContext:
+            def __enter__(self):
+                return session
+
+            def __exit__(self, *_exc):
+                return False
+
+        monkeypatch.setattr(api, "SessionLocal", lambda: ExistingSessionContext())
+
+        def measure_handler(label, handler):
+            statements = [0]
+
+            def count_handler_query(*_args):
+                statements[0] += 1
+
+            event.listen(engine, "before_cursor_execute", count_handler_query)
+            tracemalloc.start()
+            started = time.perf_counter()
+            try:
+                result, group_count = handler()
+                encoded = json.dumps(
+                    result, default=str, sort_keys=True, separators=(",", ":")
+                ).encode()
+                _, peak_bytes = tracemalloc.get_traced_memory()
+                elapsed = time.perf_counter() - started
+            finally:
+                tracemalloc.stop()
+                event.remove(engine, "before_cursor_execute", count_handler_query)
+            records = result.get("items", []) if isinstance(result, dict) else result
+            assert len(records) == 50, f"{label} handler returned {len(records)} records"
+            assert statements[0] <= 200
+            assert peak_bytes < 56_000_000
+            print(
+                "A6 synthetic page handler: "
+                f"kind={label} records={len(records)} groups={group_count} "
+                f"queries={statements[0]} elapsed_seconds={elapsed:.4f} "
+                f"peak_python_bytes={peak_bytes} serialized_bytes={len(encoded)}"
+            )
+
+        def public_handler():
+            response = Response()
+            rows = api.opportunities(limit=50, response=response)
+            return rows, int(response.headers["X-Group-Total-Count"])
+
+        def commercial_handler():
+            result = api.commercial_triage(limit=50)
+            return result, result["grouped_total"]
+
+        measure_handler("public", public_handler)
+        measure_handler("commercial", commercial_handler)
         full = api.opportunity_projection(session)
         summary_ids = [str(row["id"]) for row in summary]
         full_ids = [str(row["id"]) for row in full]
         assert summary_ids == full_ids
+        summary_by_id = {str(row["id"]): row for row in summary}
+        for need, _project, _observation in created[:50]:
+            row = summary_by_id[str(need.id)]
+            assert row["workflow_status"] == "Investigating"
+            assert len(row["_current_fact_digest"]) == 64
         assert {str(row["id"]): _priority(row) for row in summary} == {
             str(row["id"]): _priority(row) for row in full
         }

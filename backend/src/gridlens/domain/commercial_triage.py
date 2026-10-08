@@ -895,6 +895,23 @@ def build_card(item: dict[str, Any], chain: dict[str, Any] | None, today: date) 
         "qualification_conflict": item.get("qualification_conflict"),
         "research_state": research_state,
     }
+    operator_fact_refs = item.get("operator_fact_refs")
+    if operator_fact_refs:
+        card["operator_fact_refs"] = sorted(
+            {
+                (
+                    str(reference["need_id"]),
+                    str(reference["fact_version_id"]),
+                    str(reference["content_hash"]),
+                ): reference
+                for reference in operator_fact_refs
+            }.values(),
+            key=lambda reference: (
+                str(reference["need_id"]),
+                str(reference["fact_version_id"]),
+                str(reference["content_hash"]),
+            ),
+        )
     card["input_hash"] = hashlib.sha256(
         json.dumps([POLICY_VERSION, card], sort_keys=True, default=str).encode()
     ).hexdigest()
@@ -1000,6 +1017,27 @@ def group_cards(
                 }.values(),
                 key=lambda value: value["evidence_id"],
             )
+            operator_fact_refs = [
+                reference
+                for card in group
+                for reference in card.get("operator_fact_refs", [])
+            ]
+            if operator_fact_refs:
+                merged["operator_fact_refs"] = sorted(
+                    {
+                        (
+                            str(reference["need_id"]),
+                            str(reference["fact_version_id"]),
+                            str(reference["content_hash"]),
+                        ): reference
+                        for reference in operator_fact_refs
+                    }.values(),
+                    key=lambda reference: (
+                        str(reference["need_id"]),
+                        str(reference["fact_version_id"]),
+                        str(reference["content_hash"]),
+                    ),
+                )
 
             state_signatures = {
                 (

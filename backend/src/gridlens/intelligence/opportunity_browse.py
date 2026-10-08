@@ -433,6 +433,8 @@ def cohort_token(filters: dict[str, Any], rows: list[dict[str, Any]], group_keys
                                 "title_company_role",
                                 "evidence",
                                 "_browse_evidence_fingerprint",
+                                "_current_fact_digest",
+                                "workflow_status",
                             )
                         },
                         sort_keys=True,
