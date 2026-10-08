@@ -155,6 +155,12 @@ def classify_event(
     permit_marker: str | None = None
     if reported_permit_event is not None and reported_permit_event in permit_patterns:
         permit_pattern, permit_marker = permit_patterns[reported_permit_event]
+    names_other_facility = bool(
+        re.search(
+            r"\b(?:warehouse|distribution center|manufacturing facility|factory)\b",
+            text,
+        )
+    )
     candidates = []
     for part in _split_lifecycle_clauses(title, abstract):
         if (project_name or project_identity_key) and not _mentions_project(
@@ -173,7 +179,15 @@ def classify_event(
             and permit_marker
             and re.search(permit_pattern, part)
             and not adjacent_facility
+            and not (
+                names_other_facility
+                and not explicit_campus
+                and not campus_reference
+            )
         ):
+            # A previously typed data-center project cannot lend a generic
+            # permit title to a different facility named in this current record.
+            # Explicit campus clauses above remain independently classifiable.
             candidates.append(f"data center {part}; {permit_marker}")
     classifications = [
         event

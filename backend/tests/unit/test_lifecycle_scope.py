@@ -137,6 +137,33 @@ def test_permit_only_electrical_text_is_permitting_not_electrical_buildout():
     assert (event.event_type, event.state) == ("electrical_permit_issued", "permitting")
 
 
+def test_typed_target_does_not_lend_permit_milestone_to_named_warehouse():
+    assert (
+        classify_event(
+            "Austin building permit TRANSITION-TEST-1 - Electrical Permit",
+            "Construct new warehouse.",
+            project_name="Austin permit TRANSITION-TEST-1",
+            project_identity_key="permit:transition-test-1",
+            project_asset_type="data_center",
+            reported_permit_event="electrical_permit_issued",
+        )
+        is None
+    )
+
+
+def test_explicit_campus_clause_remains_supported_beside_separate_warehouse_clause():
+    event = classify_event(
+        "Project Jupiter data center update",
+        "Project Jupiter data center campus received its electrical permit. "
+        "A separate warehouse is proposed on the neighboring lot.",
+        project_name="Project Jupiter campus",
+        project_identity_key="project-jupiter-campus",
+        project_asset_type="data_center",
+    )
+    assert event is not None
+    assert (event.event_type, event.state) == ("electrical_permit_issued", "permitting")
+
+
 def test_physical_construction_and_electrical_work_remain_achieved_states():
     construction = classify_event(
         "Project Jupiter data center update",

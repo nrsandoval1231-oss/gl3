@@ -706,6 +706,8 @@ def opportunity_projection(
                 lifecycle_evidence,
                 lifecycle_interpretation,
                 project,
+                lifecycle_event.state,
+                event=lifecycle_event,
             ):
                 current_lifecycle_ids.add(lifecycle_event.id)
         taylor_withdrawn = bool(

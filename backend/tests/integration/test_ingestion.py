@@ -962,7 +962,9 @@ def test_lifecycle_projection_is_evidence_version_bound_and_never_uses_publicati
                 status="accepted",
                 evaluator_version="test",
                 assessment={
+                    "semantic_hash": observation.content_hash,
                     "evidence_hash": evidence.content_hash,
+                    "evidence": {"id": str(evidence.id)},
                     "project_identity_key": project.identity_key,
                 },
             )
@@ -995,7 +997,9 @@ def test_lifecycle_projection_is_evidence_version_bound_and_never_uses_publicati
         assert interpretation is not None
         interpretation.content_hash = hash_b
         interpretation.assessment = {
+            "semantic_hash": hash_b,
             "evidence_hash": corrected.content_hash,
+            "evidence": {"id": str(corrected.id)},
             "project_identity_key": project.identity_key,
         }
         observation.content_hash = hash_b
@@ -1011,7 +1015,9 @@ def test_lifecycle_projection_is_evidence_version_bound_and_never_uses_publicati
         interpretation.content_hash = hash_a
         interpretation.status = "accepted"
         interpretation.assessment = {
+            "semantic_hash": hash_a,
             "evidence_hash": hash_a,
+            "evidence": {"id": str(evidence.id)},
             "project_identity_key": project.identity_key,
         }
         assert apply_lifecycle_observation(session, project, observation, evidence) is False

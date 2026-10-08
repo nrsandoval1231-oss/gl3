@@ -70,8 +70,10 @@ def _inventory(connection) -> list[dict[str, Any]]:
                 p.name AS project_name,
                 p.asset_type AS project_asset_type,
                 le.observation_id::text AS observation_id,
+                i.observation_id::text AS interpretation_observation_id,
                 o.source_id,
                 le.evidence_id::text AS evidence_id,
+                e.observation_id::text AS evidence_observation_id,
                 e.url AS source_url,
                 e.title AS evidence_title,
                 e.abstract AS evidence_abstract,
@@ -116,25 +118,37 @@ def _inventory(connection) -> list[dict[str, Any]]:
         )
         assessment = row["interpretation_assessment"] or {}
         evidence = SimpleNamespace(
+            id=row["evidence_id"],
+            observation_id=row["evidence_observation_id"],
             content_hash=row["evidence_hash"],
             title=row["evidence_title"],
             abstract=row["evidence_abstract"],
             event_date=row["event_date"],
             event_date_label=row["event_date_label"],
             observation=SimpleNamespace(
+                id=row["evidence_observation_id"],
                 source_id=source_id,
                 content_hash=row["observation_hash"],
             ),
         )
         interpretation = SimpleNamespace(
+            observation_id=row["interpretation_observation_id"],
             status=row["interpretation_status"],
             content_hash=row["interpretation_hash"],
             assessment=assessment,
         )
         project = SimpleNamespace(
+            id=row["project_id"],
             name=row["project_name"],
             identity_key=row["project_identity_key"],
             asset_type=row["project_asset_type"],
+        )
+        event = SimpleNamespace(
+            project_id=row["project_id"],
+            observation_id=row["observation_id"],
+            evidence_id=row["evidence_id"],
+            event_type=row["retained_event_type"],
+            state=row["retained_state"],
         )
         supported = lifecycle_event_supported(
             row["retained_event_type"],
@@ -142,18 +156,40 @@ def _inventory(connection) -> list[dict[str, Any]]:
             interpretation,
             project,
             row["retained_state"],
+            event=event,
         )
         if supported:
             continue
 
         if not assessment:
             reason = "no retained interpretation assessment"
-        elif row["observation_hash"] != row["evidence_hash"]:
-            reason = "observation points to another current evidence version"
-        elif row["interpretation_hash"] != row["evidence_hash"]:
-            reason = "interpretation points to another evidence version"
+        elif (
+            row["observation_id"] != row["interpretation_observation_id"]
+            or row["observation_id"] != row["evidence_observation_id"]
+        ):
+            reason = "event, evidence, and interpretation reference different observations"
+        elif row["observation_hash"] != row["interpretation_hash"]:
+            reason = "interpretation points to another semantic version"
+        elif assessment.get("semantic_hash") != row["observation_hash"]:
+            reason = "interpretation assessment is bound to another semantic version"
         elif assessment.get("evidence_hash") != row["evidence_hash"]:
             reason = "interpretation is bound to another evidence version"
+        elif (
+            (assessment.get("evidence_id") is not None
+             and str(assessment["evidence_id"]) != row["evidence_id"])
+            or (
+                isinstance(assessment.get("evidence"), dict)
+                and assessment["evidence"].get("id") is not None
+                and str(assessment["evidence"]["id"]) != row["evidence_id"]
+            )
+        ):
+            reason = "interpretation records another evidence row"
+        elif (
+            row["project_id"] != event.project_id
+            or row["observation_id"] != event.observation_id
+            or row["evidence_id"] != event.evidence_id
+        ):
+            reason = "lifecycle event foreign keys do not bind the current record"
         elif assessment.get("project_identity_key") != row["project_identity_key"]:
             reason = "interpretation is bound to another project identity"
         elif classification is None:

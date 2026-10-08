@@ -21,12 +21,25 @@ from gridlens.persistence.models import (
 )
 
 
+def _assessment_evidence_id_matches(assessment: dict, evidence: Evidence) -> bool:
+    recorded_ids = [assessment.get("evidence_id")]
+    evidence_claim = assessment.get("evidence")
+    if isinstance(evidence_claim, dict):
+        recorded_ids.append(evidence_claim.get("id"))
+    return all(
+        recorded_id is None or str(recorded_id) == str(evidence.id)
+        for recorded_id in recorded_ids
+    )
+
+
 def lifecycle_event_supported(
     event_type: str,
     evidence: Evidence | None,
     interpretation: Interpretation | None,
     project: Project,
     event_state: str | None = None,
+    *,
+    event: LifecycleEvent | None = None,
 ) -> bool:
     """Return whether an event retains valid evidence-bound accepted support."""
     if evidence is None or interpretation is None or not interpretation.assessment:
@@ -35,9 +48,21 @@ def lifecycle_event_supported(
     observation = evidence.observation
     if (
         observation is None
-        or observation.content_hash != evidence.content_hash
-        or interpretation.content_hash != evidence.content_hash
+        or interpretation.observation_id != observation.id
+        or evidence.observation_id != interpretation.observation_id
+        or observation.content_hash != interpretation.content_hash
+        or assessment.get("semantic_hash") != observation.content_hash
         or assessment.get("evidence_hash") != evidence.content_hash
+    ):
+        return False
+    if not _assessment_evidence_id_matches(assessment, evidence):
+        return False
+    if event is not None and (
+        event.project_id != project.id
+        or event.observation_id != interpretation.observation_id
+        or event.evidence_id != evidence.id
+        or event.event_type != event_type
+        or (event_state is not None and event.state != event_state)
     ):
         return False
     bound_project = assessment.get("project_identity_key")
@@ -79,7 +104,7 @@ def lifecycle_event_supported(
         interpretation.status in {"failed", "pending"} and assessment.get("decision") == "accepted"
     )
     if event_type == "planning_application_withdrawn":
-        return accepted or assessment.get("withdrawal_supported") is True
+        return assessment.get("withdrawal_supported") is True
     return accepted
 
 
@@ -95,9 +120,13 @@ def apply_lifecycle_observation(
         interpretation is None
         or interpretation.status != "accepted"
         or not assessment
-        or observation.content_hash != evidence.content_hash
-        or interpretation.content_hash != evidence.content_hash
+        or interpretation.observation_id != observation.id
+        or evidence.observation_id != interpretation.observation_id
+        or observation.content_hash != interpretation.content_hash
+        or assessment.get("semantic_hash") != observation.content_hash
         or assessment.get("evidence_hash") != evidence.content_hash
+        or assessment.get("project_identity_key") != project.identity_key
+        or not _assessment_evidence_id_matches(assessment, evidence)
     ):
         _rebuild_projection(session, project)
         return False
@@ -246,7 +275,7 @@ def _rebuild_projection(session: Session, project: Project) -> None:
         )
         evidence = session.get(Evidence, event.evidence_id)
         if lifecycle_event_supported(
-            event.event_type, evidence, interpretation, project, event.state
+            event.event_type, evidence, interpretation, project, event.state, event=event
         ):
             accepted_events.append(event)
     # Filter to the currently bound accepted version first: an A→B→A correction
