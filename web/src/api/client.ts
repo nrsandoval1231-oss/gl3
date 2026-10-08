@@ -79,6 +79,7 @@ async function opportunityPage(tier: string, search: string, decision: string, l
   addBrowseFilters(params, filters)
   const response = await fetch(`/api/opportunities?${params}`, { credentials: 'same-origin', signal })
   if (response.status === 401) throw new Error('Your session ended. Sign in again.')
+  if (response.status === 409) throw new OpportunityCohortChangedError()
   if (!response.ok) throw new Error(`GridLens could not complete this request (${response.status}).`)
   const items = await response.json() as Opportunity[]
   const header = (name: string) => Number(response.headers.get(name) ?? '0')
@@ -98,6 +99,13 @@ async function opportunityPage(tier: string, search: string, decision: string, l
     nextOffset: nextOffset === null ? null : Number(nextOffset),
     cohortToken: response.headers.get('X-Cohort-Token') ?? '',
     decisionCounts,
+  }
+}
+
+export class OpportunityCohortChangedError extends Error {
+  constructor() {
+    super('Opportunity cohort changed; restart pagination from the first page.')
+    this.name = 'OpportunityCohortChangedError'
   }
 }
 
