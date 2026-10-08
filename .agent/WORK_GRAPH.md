@@ -1,3 +1,9 @@
+# Current Back repair frontier — October 8, 2026
+
+A5A ACCEPTED. A5B: two independent FIX receipts → Back repair 44ba1d5 / tested 7c3a4e3 → root gates PASS → proof freeze → fresh independent review PENDING.
+
+A6 backend facts/status → functional UI and bulk status integration → A8 may proceed only after A5B acceptance. A7 exact assets and authentic launch gates remain OPEN. Historical graph below is retained; current GATES and manifests govern coverage.
+
 # Current cohort repair frontier — October 8, 2026
 
 A5A ACCEPTED. Prior A5Bf15 independent FIX -> cohort repair46671c6 -> root gates PASS on29c3062 -> exact proof freeze -> fresh independent review PENDING. A6 remains dependent on acceptance; then backend facts/status -> functional UI/bulk status integration -> A8. A7 exact reference assets and real launch gates OPEN. No publication before review; no merge/deploy. Historical checkpoints below retained; source/proof bytes determine coverage.
@@ -169,5 +175,7 @@ GL3-029 2026-10-07 OWNER AMENDMENT -> REGENERATE -> VALIDATE: owner superseded m
 GL3-029 2026-10-07 VALIDATE -> BLOCKED COMMERCIAL ACCEPTANCE: frozen f63eb62, fresh14Evidence/13Signals, 28-table restore/migration parity and research replay pass. Full backend1196pass/1skip, focused71, regression36, supplemental real-browser4checkgroups. Diagnostic2accepted/4selected with O&G absent; two stale-input failures remain in history. No predicate relaxed; draft24 remains unmerged/undeployed.
 
 GL3-029 2026-10-07 CORRECT -> VALIDATE: frozen15f4910 derives retained relationships before question fingerprints, excluding active projects; guards unchanged. Fresh isolated replay oforiginalnewcorpus passes4/4selected cases,4UNRESOLVED/0FAILED, no transitions, exactpreservation/replay.1197backend/1skip,71focused,36browser; independentreview no materialfindings. ExistingRRCdrilling scopeconfirmed valid, listingsHTTP200; anonymousdownloadPOST clarification pending. Fivecohorts andhistoricalsixlivecases notpassed.
+
+
 
 
