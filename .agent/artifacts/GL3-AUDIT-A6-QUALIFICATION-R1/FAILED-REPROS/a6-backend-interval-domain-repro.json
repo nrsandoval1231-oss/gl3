@@ -1,0 +1,21 @@
+{
+  "accepted_current_fact_types": [
+    "buyer",
+    "demand",
+    "suitable_supply",
+    "timing",
+    "unsuitable_supply"
+  ],
+  "current_at": "2026-10-08T00:00:00Z",
+  "expected_under_prd_23_24": "No Lead because suitable-supply fact does not cover required future activity window",
+  "result_remaining_gap": {
+    "available_mw": "5",
+    "remaining_mw": "15",
+    "required_mw": "20",
+    "value_kind": "Derived"
+  },
+  "result_tier": "Lead",
+  "source_base": "admitted exact-site Signal assumed separately",
+  "suitable_supply_effective_until": "2026-10-09T00:00:00Z",
+  "timing_start_window": "2027-01-01 to 2027-02-01"
+}
