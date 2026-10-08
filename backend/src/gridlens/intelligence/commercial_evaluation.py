@@ -145,6 +145,8 @@ def save_evaluations(session: Session, cards: list[dict], *, now: datetime | Non
         row.project_ids = card["related_project_ids"]
         card["pursuit_id"] = row.id
         saved_card = CommercialTriageCard.model_validate(card).model_dump(mode="json")
+        if not card.get("operator_fact_refs"):
+            saved_card.pop("operator_fact_refs", None)
         saved_card["notes"] = []
         snapshot = dict(row.snapshot or {})
         prior = snapshot.get("commercial_triage", {})
@@ -184,6 +186,7 @@ def save_evaluations(session: Session, cards: list[dict], *, now: datetime | Non
                     "evaluated_on": today,
                     "evaluated_at": saved_at,
                     "input_hash": card["input_hash"],
+                    "operator_fact_provenance": "recorded",
                     "snapshot_status": "saved_as_of",
                     "live_status": "not_rechecked",
                     "saved_card": saved_card,
