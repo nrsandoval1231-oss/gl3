@@ -314,6 +314,310 @@ def test_full_window_adequate_supply_reconciles_source_lead_without_operator_buy
     assert "qualified_remaining_gap" not in result
 
 
+def test_disjoint_timing_and_expiring_supply_conflict_with_current_source_lead():
+    need_id, project_id = uuid4(), uuid4()
+    need = SimpleNamespace(id=need_id, project_id=project_id, activity_key="construction")
+    project = SimpleNamespace(id=project_id, location="Test City")
+    source = qualify_official_power(
+        text=(
+            "Test City construction requires 20 to 25 MW. "
+            "Power supply for Test City construction is insufficient. "
+            "Test City construction starts between 2027-01-01 and 2027-02-01. "
+            "Test City construction lasts 31 to 62 days. "
+            "No suitable power supply is available for Test City construction throughout this "
+            "start window and duration. The electrical contractor is responsible for power "
+            "procurement for Test City construction."
+        ),
+        site="Test City",
+        activity_key="construction",
+        location="Test City",
+    )
+    assert source["tier"] == "Lead"
+    source = {**source, "semantic_hash": "a" * 64, "evidence_hash": "b" * 64}
+    timing = _row(
+        "timing",
+        {"start_date": "2026-11-01", "end_date": "2026-11-01", "duration_days": 31},
+        need_id=need_id,
+        project_id=project_id,
+    )
+    timing.effective_until = datetime(2026, 12, 3, tzinfo=UTC)
+    supply = _row(
+        "suitable_supply",
+        {"mw_min": "25", "mw_max": "30", "quality": "suitable"},
+        need_id=need_id,
+        project_id=project_id,
+    )
+    supply.effective_until = datetime(2026, 12, 3, tzinfo=UTC)
+
+    result = qualification_from_facts(source, [timing, supply], need=need, project=project)
+
+    assert result and result.get("qualification_conflict") is True
+    assert not result.get("closed_by_fact")
+    assert result["tier"] == "Prospect"
+    assert "qualified_remaining_gap" not in result
+    assert "start_window" not in result and "duration" not in result
+    assert "source timing report" in result["reason"]
+
+
+def test_timing_correction_marker_requires_both_current_source_hashes_and_reason():
+    marker = {
+        "start_date": "2026-11-01",
+        "end_date": "2026-11-01",
+        "duration_days": 31,
+        "corrects_source_semantic_hash": "a" * 64,
+        "corrects_source_evidence_hash": "b" * 64,
+        "basis": "Owner confirmed the reported start window was outdated.",
+    }
+    cleaned = validate_fact("timing", marker)
+    assert cleaned == marker
+    for invalid in (
+        {**marker, "corrects_source_evidence_hash": "bad"},
+        {key: value for key, value in marker.items() if key != "corrects_source_semantic_hash"},
+        {**marker, "basis": " "},
+    ):
+        with pytest.raises(ValueError):
+            validate_fact("timing", invalid)
+
+
+def test_compatible_timing_narrowing_closes_with_timing_version_provenance():
+    need_id, project_id = uuid4(), uuid4()
+    need = SimpleNamespace(id=need_id, project_id=project_id, activity_key="construction")
+    project = SimpleNamespace(id=project_id, location="Test City")
+    source = qualify_official_power(
+        text=(
+            "Test City construction requires 20 to 25 MW. "
+            "Power supply for Test City construction is insufficient. "
+            "Test City construction starts between 2027-01-01 and 2027-02-01. "
+            "Test City construction lasts 31 to 62 days. "
+            "No suitable power supply is available for Test City construction throughout this "
+            "start window and duration. The electrical contractor is responsible for power "
+            "procurement for Test City construction."
+        ),
+        site="Test City",
+        activity_key="construction",
+        location="Test City",
+    )
+    source = {**source, "semantic_hash": "a" * 64, "evidence_hash": "b" * 64}
+    timing = _row(
+        "timing",
+        {"start_date": "2027-01-10", "end_date": "2027-01-20", "duration_days": 40},
+        need_id=need_id,
+        project_id=project_id,
+    )
+    timing.effective_until = datetime(2027, 3, 1, tzinfo=UTC)
+    supply = _row(
+        "suitable_supply",
+        {"mw_min": "25", "mw_max": "30", "quality": "suitable"},
+        need_id=need_id,
+        project_id=project_id,
+    )
+    supply.effective_until = datetime(2027, 3, 1, tzinfo=UTC)
+
+    result = qualification_from_facts(source, [timing, supply], need=need, project=project)
+
+    assert result and result["closed_by_fact"] is True
+    basis = result["closure_basis"]
+    assert basis["activity_interval_start"] == "2027-01-10T00:00:00+00:00"
+    assert basis["activity_interval_end_exclusive"] == "2027-03-01T00:00:00+00:00"
+    assert basis["timing_fact_id"] == str(timing.id)
+    assert basis["timing_fact_hash"] == timing.content_hash
+    assert basis["timing_resolution"] == "compatible_narrowing"
+    assert basis["timing_source_semantic_hash"] == "a" * 64
+    assert basis["timing_source_evidence_hash"] == "b" * 64
+
+    partial_supply = _row(
+        "suitable_supply",
+        {"mw_min": "10", "mw_max": "15", "quality": "suitable"},
+        need_id=need_id,
+        project_id=project_id,
+    )
+    partial_supply.effective_until = datetime(2027, 3, 1, tzinfo=UTC)
+    revised = qualification_from_facts(
+        source, [timing, partial_supply], need=need, project=project
+    )
+    assert revised and revised["tier"] == "Lead"
+    gap = revised["qualified_remaining_gap"]
+    assert gap["timing_fact_id"] == str(timing.id)
+    assert gap["timing_fact_hash"] == timing.content_hash
+    assert gap["timing_resolution"] == "compatible_narrowing"
+    assert gap["selected_activity_interval_start"] == "2027-01-10T00:00:00+00:00"
+    assert gap["selected_activity_interval_end_exclusive"] == "2027-03-01T00:00:00+00:00"
+
+
+def test_explicit_current_source_timing_correction_can_replace_disjoint_window():
+    need_id, project_id = uuid4(), uuid4()
+    need = SimpleNamespace(id=need_id, project_id=project_id, activity_key="construction")
+    project = SimpleNamespace(id=project_id, location="Test City")
+    source = qualify_official_power(
+        text=(
+            "Test City construction requires 20 to 25 MW. "
+            "Power supply for Test City construction is insufficient. "
+            "Test City construction starts between 2027-01-01 and 2027-02-01. "
+            "Test City construction lasts 31 to 62 days. "
+            "No suitable power supply is available for Test City construction throughout this "
+            "start window and duration. The electrical contractor is responsible for power "
+            "procurement for Test City construction."
+        ),
+        site="Test City",
+        activity_key="construction",
+        location="Test City",
+    )
+    source = {**source, "semantic_hash": "a" * 64, "evidence_hash": "b" * 64}
+    correction_value = validate_fact(
+        "timing",
+        {
+            "start_date": "2026-11-01",
+            "end_date": "2026-11-01",
+            "duration_days": 31,
+            "corrects_source_semantic_hash": "a" * 64,
+            "corrects_source_evidence_hash": "b" * 64,
+            "basis": "Owner confirmed the current reported window was outdated.",
+        },
+    )
+    timing = _row("timing", correction_value, need_id=need_id, project_id=project_id)
+    timing.effective_until = datetime(2026, 12, 3, tzinfo=UTC)
+    supply = _row(
+        "suitable_supply",
+        {"mw_min": "25", "mw_max": "30", "quality": "suitable"},
+        need_id=need_id,
+        project_id=project_id,
+    )
+    supply.effective_until = datetime(2026, 12, 3, tzinfo=UTC)
+
+    corrected = qualification_from_facts(source, [timing, supply], need=need, project=project)
+
+    assert corrected and corrected["closed_by_fact"] is True
+    basis = corrected["closure_basis"]
+    assert basis["activity_interval_start"] == "2026-11-01T00:00:00+00:00"
+    assert basis["activity_interval_end_exclusive"] == "2026-12-02T00:00:00+00:00"
+    assert basis["timing_resolution"] == "explicit_source_correction"
+    assert basis["timing_fact_id"] == str(timing.id)
+    assert basis["timing_fact_hash"] == timing.content_hash
+    assert basis["timing_source_semantic_hash"] == "a" * 64
+    assert basis["timing_source_evidence_hash"] == "b" * 64
+    assert basis["source_reported_start_window"] == source["start_window"]
+    assert basis["source_reported_duration"] == source["duration"]
+
+
+def test_stale_timing_correction_and_partial_overlap_fail_closed():
+    need_id, project_id = uuid4(), uuid4()
+    need = SimpleNamespace(id=need_id, project_id=project_id, activity_key="construction")
+    project = SimpleNamespace(id=project_id, location="Test City")
+    source = qualify_official_power(
+        text=(
+            "Test City construction requires 20 to 25 MW. "
+            "Power supply for Test City construction is insufficient. "
+            "Test City construction starts between 2027-01-01 and 2027-02-01. "
+            "Test City construction lasts 31 to 62 days. "
+            "No suitable power supply is available for Test City construction throughout this "
+            "start window and duration. The electrical contractor is responsible for power "
+            "procurement for Test City construction."
+        ),
+        site="Test City",
+        activity_key="construction",
+        location="Test City",
+    )
+    source = {**source, "semantic_hash": "a" * 64, "evidence_hash": "b" * 64}
+    stale = _row(
+        "timing",
+        validate_fact(
+            "timing",
+            {
+                "start_date": "2026-11-01",
+                "end_date": "2026-11-01",
+                "duration_days": 31,
+                "corrects_source_semantic_hash": "c" * 64,
+                "corrects_source_evidence_hash": "b" * 64,
+                "basis": "This correction targets an older source version.",
+            },
+        ),
+        need_id=need_id,
+        project_id=project_id,
+    )
+    stale_supply = _row(
+        "suitable_supply",
+        {"mw_min": "25", "mw_max": "30", "quality": "suitable"},
+        need_id=need_id,
+        project_id=project_id,
+    )
+    stale_supply.effective_until = datetime(2028, 1, 1, tzinfo=UTC)
+    stale_result = qualification_from_facts(
+        source, [stale, stale_supply], need=need, project=project
+    )
+    assert stale_result and stale_result["qualification_conflict"]
+    assert not stale_result.get("closed_by_fact")
+    assert stale_result["tier"] == "Prospect"
+
+    partial = _row(
+        "timing",
+        {"start_date": "2027-01-20", "end_date": "2027-02-10", "duration_days": 40},
+        need_id=need_id,
+        project_id=project_id,
+    )
+    partial_supply = _row(
+        "suitable_supply",
+        {"mw_min": "25", "mw_max": "30", "quality": "suitable"},
+        need_id=need_id,
+        project_id=project_id,
+    )
+    partial_result = qualification_from_facts(
+        source, [partial, partial_supply], need=need, project=project
+    )
+    assert partial_result and partial_result["qualification_conflict"]
+    assert not partial_result.get("closed_by_fact")
+    assert partial_result["tier"] == "Prospect"
+
+
+def test_timing_correction_cannot_replace_unreplayable_source_lead_window():
+    need_id, project_id = uuid4(), uuid4()
+    need = SimpleNamespace(id=need_id, project_id=project_id, activity_key="construction")
+    project = SimpleNamespace(id=project_id, location="Test City")
+    source = qualify_official_power(
+        text=(
+            "Test City construction requires 20 to 25 MW. "
+            "Power supply for Test City construction is insufficient. "
+            "Test City construction starts between 2027-01-01 and 2027-02-01. "
+            "Test City construction lasts 31 to 62 days. "
+            "No suitable power supply is available for Test City construction throughout this "
+            "start window and duration. The electrical contractor is responsible for power "
+            "procurement for Test City construction."
+        ),
+        site="Test City",
+        activity_key="construction",
+        location="Test City",
+    )
+    source = {**source, "semantic_hash": "a" * 64, "evidence_hash": "b" * 64}
+    source.pop("start_window")
+    source.pop("duration")
+    timing = _row(
+        "timing",
+        validate_fact(
+            "timing",
+            {
+                "start_date": "2026-11-01",
+                "end_date": "2026-11-01",
+                "duration_days": 31,
+                "corrects_source_semantic_hash": "a" * 64,
+                "corrects_source_evidence_hash": "b" * 64,
+                "basis": "The source timing cannot be replayed; do not assume replacement.",
+            },
+        ),
+        need_id=need_id,
+        project_id=project_id,
+    )
+    supply = _row(
+        "suitable_supply",
+        {"mw_min": "25", "mw_max": "30", "quality": "suitable"},
+        need_id=need_id,
+        project_id=project_id,
+    )
+    result = qualification_from_facts(source, [timing, supply], need=need, project=project)
+    assert result and result["qualification_conflict"]
+    assert result["tier"] == "Prospect"
+    assert not result.get("closed_by_fact")
+    assert "reported window None" in result["reason"]
+
+
 def test_source_lead_reconciles_partial_and_possible_zero_gap_without_stale_lead():
     need_id, project_id = uuid4(), uuid4()
     need = SimpleNamespace(id=need_id, project_id=project_id, activity_key="construction")
@@ -499,6 +803,14 @@ def test_lead_requires_current_gap_interval_and_buyer_facts():
         "source_semantic_hash": None,
         "source_evidence_hash": None,
         "source_reported_supply_quote": None,
+        "timing_fact_id": str(facts[2].id),
+        "timing_fact_hash": facts[2].content_hash,
+        "timing_resolution": "operator_timing",
+        "timing_basis": None,
+        "timing_source_semantic_hash": None,
+        "timing_source_evidence_hash": None,
+        "selected_activity_interval_start": "2027-01-01T00:00:00+00:00",
+        "selected_activity_interval_end_exclusive": "2027-03-03T00:00:00+00:00",
         "remaining_mw": "15",
     }
     assert "Northstar Electric" in result["qualification_next_action"]

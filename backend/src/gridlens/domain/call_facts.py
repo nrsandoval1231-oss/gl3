@@ -38,7 +38,13 @@ def validate_fact(fact_type: str, value: dict[str, Any]) -> dict[str, Any]:
         "demand": {"mw", "mw_min", "mw_max"},
         "unsuitable_supply": {"mw"},
         "suitable_supply": {"mw", "mw_min", "mw_max", "quality"},
-        "timing": {"start_date", "end_date", "duration_days"},
+        "timing": {
+            "start_date",
+            "end_date",
+            "duration_days",
+            "corrects_source_semantic_hash",
+            "corrects_source_evidence_hash",
+        },
         "buyer": {"organization", "role"},
         "closure": {"state"},
     }
@@ -91,6 +97,24 @@ def validate_fact(fact_type: str, value: dict[str, Any]) -> dict[str, Any]:
             "end_date": last.isoformat(),
             "duration_days": duration,
         }
+        correction_keys = {
+            "corrects_source_semantic_hash",
+            "corrects_source_evidence_hash",
+        }
+        supplied_correction_keys = correction_keys.intersection(value)
+        if supplied_correction_keys and supplied_correction_keys != correction_keys:
+            raise ValueError("timing correction must bind both current source hashes")
+        if supplied_correction_keys:
+            for key in sorted(correction_keys):
+                source_hash = value.get(key)
+                if not isinstance(source_hash, str) or re.fullmatch(
+                    r"[0-9a-fA-F]{64}", source_hash
+                ) is None:
+                    raise ValueError("timing correction source hashes must be SHA-256 values")
+                clean[key] = source_hash.lower()
+            basis = value.get("basis")
+            if not isinstance(basis, str) or not basis.strip():
+                raise ValueError("timing correction requires a basis reason")
     elif fact_type == "buyer":
         organization = value.get("organization")
         role = value.get("role")
@@ -223,8 +247,10 @@ def _activity_interval(value: dict[str, Any]) -> tuple[datetime, datetime] | Non
     )
 
 
-def _source_lead_activity_interval(claim: dict[str, Any]) -> tuple[datetime, datetime] | None:
-    """Replay the already-qualified official Lead's complete possible activity window."""
+def _source_lead_timing_bounds(
+    claim: dict[str, Any],
+) -> tuple[date, date, int, int] | None:
+    """Read the already-qualified official Lead's complete source timing bounds."""
     start_window = claim.get("start_window")
     duration = claim.get("duration")
     if not isinstance(start_window, str) or not isinstance(duration, str):
@@ -234,16 +260,89 @@ def _source_lead_activity_interval(claim: dict[str, Any]) -> tuple[datetime, dat
     if starts is None or duration_match is None:
         return None
     try:
+        first_start = date.fromisoformat(starts[1])
+        last_start = date.fromisoformat(starts[2])
+        min_days = int(duration_match[1])
         max_days = int(duration_match[2] or duration_match[1])
-        return _activity_interval(
-            {
-                "start_date": starts[1],
-                "end_date": starts[2],
-                "duration_days": max_days,
-            }
-        )
+        if first_start > last_start or min_days <= 0 or max_days < min_days:
+            return None
+        return first_start, last_start, min_days, max_days
     except (TypeError, ValueError, OverflowError):
         return None
+
+
+def _source_lead_activity_interval(claim: dict[str, Any]) -> tuple[datetime, datetime] | None:
+    """Replay the already-qualified official Lead's complete possible activity window."""
+    bounds = _source_lead_timing_bounds(claim)
+    if bounds is None:
+        return None
+    first_start, last_start, _, max_days = bounds
+    return _activity_interval(
+        {
+            "start_date": first_start.isoformat(),
+            "end_date": last_start.isoformat(),
+            "duration_days": max_days,
+        }
+    )
+
+
+def _timing_resolution(
+    base: dict[str, Any],
+    base_tier: str,
+    timing: dict[str, Any] | None,
+) -> tuple[tuple[datetime, datetime] | None, str, bool]:
+    """Resolve an operator timing report against the current source Lead interval."""
+    source_interval = _source_lead_activity_interval(base) if base_tier == "Lead" else None
+    if timing is None:
+        return (
+            source_interval if base_tier == "Lead" else None,
+            "source_reported" if source_interval is not None else "none",
+            False,
+        )
+    operator_interval = _activity_interval(timing)
+    if operator_interval is None:
+        return None, "invalid_operator_timing", base_tier == "Lead"
+    if base_tier != "Lead":
+        return operator_interval, "operator_timing", False
+
+    source_bounds = _source_lead_timing_bounds(base)
+    semantic_hash = base.get("semantic_hash")
+    evidence_hash = base.get("evidence_hash")
+    corrects_semantic = timing.get("corrects_source_semantic_hash")
+    corrects_evidence = timing.get("corrects_source_evidence_hash")
+    has_correction_marker = corrects_semantic is not None or corrects_evidence is not None
+    if has_correction_marker:
+        marker_current = (
+            isinstance(semantic_hash, str)
+            and isinstance(evidence_hash, str)
+            and corrects_semantic == semantic_hash
+            and corrects_evidence == evidence_hash
+            and isinstance(timing.get("basis"), str)
+            and bool(timing["basis"].strip())
+        )
+        if marker_current and source_bounds is not None:
+            return operator_interval, "explicit_source_correction", False
+        return None, "stale_or_unbound_source_correction", True
+
+    if source_bounds is None:
+        # The timing fact may fill a missing Prospect-style gate, but cannot
+        # identify or replace a source Lead interval that cannot be replayed.
+        return operator_interval, "operator_timing_missing_source_window", False
+    if source_interval is None:
+        return None, "unreplayable_source_timing", True
+    try:
+        op_first = date.fromisoformat(str(timing["start_date"]))
+        op_last = date.fromisoformat(str(timing["end_date"]))
+        op_days = timing["duration_days"]
+    except (KeyError, TypeError, ValueError):
+        return None, "invalid_operator_timing", True
+    source_first, source_last, source_min_days, source_max_days = source_bounds
+    if (
+        source_first <= op_first <= op_last <= source_last
+        and source_min_days <= op_days <= source_max_days
+    ):
+        return operator_interval, "compatible_narrowing", False
+    return None, "unresolved_source_timing_conflict", True
 
 
 def _fact_covers_interval(row: Any, interval: tuple[datetime, datetime]) -> bool:
@@ -345,6 +444,37 @@ def qualification_from_facts(
     suitable_rows = rows_by_type.get("suitable_supply", [])
     timing = fields.get("timing", [])
     timing_rows = rows_by_type.get("timing", [])
+    timing_row = timing_rows[0] if timing_rows else None
+    resolved_activity_interval, timing_resolution, timing_conflict = _timing_resolution(
+        base,
+        str(base_tier),
+        timing[0] if timing else None,
+    )
+    if timing_conflict:
+        conflict = {
+            **base,
+            "tier": "Prospect",
+            "qualification_conflict": True,
+            "closed_by_fact": False,
+            "reason": (
+                "Accepted timing conflicts with the current source Lead interval or does not "
+                "correct its exact current source version; retain the source timing report and "
+                f"leave this need active pending an attributed correction. Timing fact "
+                f"{timing_rows[0].id} ({timing_rows[0].content_hash}); current source "
+                f"reported window {base.get('start_window')} / {base.get('duration')}; "
+                f"operator basis {timing[0].get('basis')}; semantic hash "
+                f"{base.get('semantic_hash')}, evidence hash {base.get('evidence_hash')}."
+            ),
+        }
+        for key in (
+            "start_window",
+            "duration",
+            "qualified_remaining_gap",
+            "qualification_next_action",
+            "buying_role",
+        ):
+            conflict.pop(key, None)
+        return conflict
     if base_tier == "Signal":
         closure_demand = fact_interval
         closure_has_shortage_support = bool(closure_demand and unsuitable)
@@ -353,13 +483,7 @@ def qualification_from_facts(
         closure_has_shortage_support = bool(
             closure_demand and source_interval is not None and base.get("supply_quote")
         )
-    closure_activity_interval = (
-        _activity_interval(timing[0])
-        if timing
-        else _source_lead_activity_interval(base)
-        if base_tier == "Lead"
-        else None
-    )
+    closure_activity_interval = resolved_activity_interval
     closure_rows = list(suitable_rows[:1])
     if timing_rows:
         closure_rows.append(timing_rows[0])
@@ -404,6 +528,19 @@ def qualification_from_facts(
             "source_qualification_version": base.get("qualification_version"),
             "source_reported_supply_quote": base.get("supply_quote"),
         }
+        if timing_row is not None:
+            basis.update(
+                {
+                    "timing_fact_id": str(timing_row.id),
+                    "timing_fact_hash": timing_row.content_hash,
+                    "timing_resolution": timing_resolution,
+                    "timing_basis": timing_row.value.get("basis"),
+                    "timing_source_semantic_hash": source_semantic_hash,
+                    "timing_source_evidence_hash": source_evidence_hash,
+                    "source_reported_start_window": base.get("start_window"),
+                    "source_reported_duration": base.get("duration"),
+                }
+            )
         if demand:
             demand_row = rows_by_type["demand"][0]
             basis["demand_fact_id"] = str(demand_row.id)
@@ -513,6 +650,22 @@ def qualification_from_facts(
             "source_evidence_hash": base.get("evidence_hash"),
             "source_reported_supply_quote": base.get("supply_quote"),
         }
+        if timing_row is not None:
+            assert resolved_activity_interval is not None
+            gap.update(
+                {
+                    "timing_fact_id": str(timing_row.id),
+                    "timing_fact_hash": timing_row.content_hash,
+                    "timing_resolution": timing_resolution,
+                    "timing_basis": timing_row.value.get("basis"),
+                    "timing_source_semantic_hash": base.get("semantic_hash"),
+                    "timing_source_evidence_hash": base.get("evidence_hash"),
+                    "selected_activity_interval_start": resolved_activity_interval[0].isoformat(),
+                    "selected_activity_interval_end_exclusive": resolved_activity_interval[
+                        1
+                    ].isoformat(),
+                }
+            )
         if ranged:
             gap.update(
                 {
@@ -631,6 +784,19 @@ def qualification_from_facts(
         "source_evidence_hash": base.get("evidence_hash"),
         "source_reported_supply_quote": base.get("supply_quote"),
     }
+    if timing_row is not None:
+        gap.update(
+            {
+                "timing_fact_id": str(timing_row.id),
+                "timing_fact_hash": timing_row.content_hash,
+                "timing_resolution": timing_resolution,
+                "timing_basis": timing_row.value.get("basis"),
+                "timing_source_semantic_hash": base.get("semantic_hash"),
+                "timing_source_evidence_hash": base.get("evidence_hash"),
+                "selected_activity_interval_start": interval[0].isoformat(),
+                "selected_activity_interval_end_exclusive": interval[1].isoformat(),
+            }
+        )
     if (
         base_tier == "Prospect"
         and demand
