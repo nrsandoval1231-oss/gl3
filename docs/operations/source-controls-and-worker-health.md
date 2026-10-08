@@ -70,7 +70,11 @@ retrieval method, cadence, schedule mode, timezone, and schedule anchor. A missi
 meaningful snapshot field is not ignored. Omitted current cadence is equivalent
 to 24 hours only when the persisted epoch cadence proves that default; omitted
 mode, timezone, or anchor values are checked against the epoch's immutable
-schedule columns and anchor.
+schedule columns and anchor. The source table stores omitted industries as an
+empty list to satisfy its non-null storage field, while epoch declarations retain
+whether industries were omitted; removing a declared list therefore remains
+visible as UNKNOWN until its transition is recorded. Omitted cadence is
+normalized to 24 hours in both stored and epoch declarations.
 
 Health signals answer different questions:
 

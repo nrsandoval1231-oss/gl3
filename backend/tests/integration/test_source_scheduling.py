@@ -847,6 +847,210 @@ def test_live_registry_comparison_does_not_hide_omitted_fields(
         )
 
 
+@pytest.mark.parametrize("omitted", ["cadence", "industries", "both"])
+def test_validator_accepted_optional_registry_fields_sync_and_operator(
+    source_db, monkeypatch, tmp_path, omitted
+):
+    from starlette.requests import Request
+
+    import gridlens.api.app as api
+    import gridlens.jobs.worker as worker
+    from gridlens.api.app import SourceEnabledIn
+    from gridlens.ingestion.registry import load_registry
+
+    factory = source_db
+    source = next(
+        item for item in load_registry() if item["id"] == "federal-register-eis"
+    )
+    declared_industries = source["industries"]
+    if omitted in {"cadence", "both"}:
+        source.pop("cadence_hours")
+    if omitted in {"industries", "both"}:
+        source.pop("industries")
+    path = tmp_path / "registry.json"
+    path.write_text(json.dumps({"version": 1, "sources": [source]}), encoding="utf-8")
+    registry = load_registry(path)
+
+    monkeypatch.setattr(worker, "SessionLocal", factory)
+    monkeypatch.setattr(worker, "load_registry", lambda: registry)
+    monkeypatch.setattr(api, "SessionLocal", factory)
+    monkeypatch.setattr(api, "load_registry", lambda: registry)
+
+    worker.sync_registry()
+    with factory() as session:
+        row = session.get(Source, "federal-register-eis")
+        epoch = session.scalar(
+            select(SourceScheduleEpoch).where(
+                SourceScheduleEpoch.source_id == "federal-register-eis",
+                SourceScheduleEpoch.effective_until.is_(None),
+            )
+        )
+        assert row and epoch
+        assert row.cadence_hours == 24
+        expected_industries = (
+            [] if omitted in {"industries", "both"} else declared_industries
+        )
+        assert row.industries == expected_industries
+        assert epoch.configuration.get("cadence_hours") == 24
+        assert ("industries" in epoch.configuration) is ("industries" in source)
+
+    with factory.begin() as session:
+        epoch = session.scalar(
+            select(SourceScheduleEpoch).where(
+                SourceScheduleEpoch.source_id == "federal-register-eis",
+                SourceScheduleEpoch.effective_until.is_(None),
+            )
+        )
+        assert epoch
+        # Prior accepted declarations could omit this default from the snapshot.
+        epoch.configuration = dict(epoch.configuration)
+        epoch.configuration.pop("cadence_hours", None)
+
+    worker.sync_registry()
+    with factory() as session:
+        assert session.scalar(
+            select(func.count()).select_from(SourceScheduleEpoch).where(
+                SourceScheduleEpoch.source_id == "federal-register-eis"
+            )
+        ) == 1
+
+    request = Request(
+        {
+            "type": "http",
+            "method": "POST",
+            "scheme": "http",
+            "path": "/api/sources/federal-register-eis/enabled",
+            "query_string": b"",
+            "headers": [(b"host", b"testserver")],
+            "server": ("testserver", 80),
+            "client": ("testclient", 123),
+        }
+    )
+    response = api.set_source_enabled_endpoint(
+        "federal-register-eis", SourceEnabledIn(enabled=False), request
+    )
+    assert response["registry_enabled"] is True
+    assert response["operator_enabled"] is False
+    assert response["effective_enabled"] is False
+    health_source = api.health()["sources"][0]
+    assert health_source["enabled"] is False
+
+    response = api.set_source_enabled_endpoint(
+        "federal-register-eis", SourceEnabledIn(enabled=True), request
+    )
+    assert response["effective_enabled"] is True
+    assert api.health()["sources"][0]["enabled"] is True
+
+    with factory() as session:
+        count_before_noop = session.scalar(
+            select(func.count()).select_from(SourceScheduleEpoch).where(
+                SourceScheduleEpoch.source_id == "federal-register-eis"
+            )
+        )
+        current = session.scalar(
+            select(SourceScheduleEpoch).where(
+                SourceScheduleEpoch.source_id == "federal-register-eis",
+                SourceScheduleEpoch.effective_until.is_(None),
+            )
+        )
+        assert current and current.configuration.get("cadence_hours") == 24
+        assert ("industries" in current.configuration) is ("industries" in source)
+
+    worker.set_source_enabled("federal-register-eis", True)
+    with factory() as session:
+        assert session.scalar(
+            select(func.count()).select_from(SourceScheduleEpoch).where(
+                SourceScheduleEpoch.source_id == "federal-register-eis"
+            )
+        ) == count_before_noop
+
+
+@pytest.mark.parametrize("previous_industries", [["environment"], []])
+def test_omitted_industries_is_epoch_drift_but_omitted_cadence_is_equivalent(
+    source_db, monkeypatch, tmp_path, previous_industries
+):
+    from starlette.requests import Request
+
+    import gridlens.api.app as api
+    import gridlens.jobs.worker as worker
+    from gridlens.api.app import SourceEnabledIn
+    from gridlens.ingestion.registry import load_registry
+
+    factory = source_db
+    original = next(
+        item for item in load_registry() if item["id"] == "federal-register-eis"
+    )
+    original["industries"] = previous_industries
+    registry_path = tmp_path / "registry.json"
+    registry_path.write_text(
+        json.dumps({"version": 1, "sources": [original]}), encoding="utf-8"
+    )
+    registry = load_registry(registry_path)
+    monkeypatch.setattr(worker, "SessionLocal", factory)
+    monkeypatch.setattr(api, "SessionLocal", factory)
+    monkeypatch.setattr(worker, "load_registry", lambda: registry)
+    monkeypatch.setattr(api, "load_registry", lambda: registry)
+    worker.sync_registry()
+
+    # An omitted default cadence is the same declaration as explicit 24 hours.
+    registry[0].pop("cadence_hours")
+    worker.sync_registry()
+    with factory() as session:
+        assert session.scalar(
+            select(func.count()).select_from(SourceScheduleEpoch).where(
+                SourceScheduleEpoch.source_id == "federal-register-eis"
+            )
+        ) == 1
+
+    # Industries are different: absence is preserved in the epoch declaration.
+    registry[0].pop("industries")
+    request = Request(
+        {
+            "type": "http",
+            "method": "POST",
+            "scheme": "http",
+            "path": "/api/sources/federal-register-eis/enabled",
+            "query_string": b"",
+            "headers": [(b"host", b"testserver")],
+            "server": ("testserver", 80),
+            "client": ("testclient", 123),
+        }
+    )
+    response = api.set_source_enabled_endpoint(
+        "federal-register-eis", SourceEnabledIn(enabled=True), request
+    )
+    assert response["effective_enabled"] is True
+    with factory() as session:
+        epochs = session.scalars(
+            select(SourceScheduleEpoch)
+            .where(SourceScheduleEpoch.source_id == "federal-register-eis")
+            .order_by(SourceScheduleEpoch.effective_from)
+        ).all()
+        assert len(epochs) == 2
+        assert epochs[0].history_known is False
+        assert epochs[1].history_known is True
+        assert "industries" not in epochs[1].configuration
+        assert epochs[1].configuration["cadence_hours"] == 24
+        source = session.get(Source, "federal-register-eis")
+        assert source and source.industries == [] and source.cadence_hours == 24
+
+    worker.sync_registry()
+    worker.set_source_enabled("federal-register-eis", True)
+    with factory() as session:
+        assert session.scalar(
+            select(func.count()).select_from(SourceScheduleEpoch).where(
+                SourceScheduleEpoch.source_id == "federal-register-eis"
+            )
+        ) == 2
+        epochs = session.scalars(
+            select(SourceScheduleEpoch)
+            .where(SourceScheduleEpoch.source_id == "federal-register-eis")
+            .order_by(SourceScheduleEpoch.effective_from)
+        ).all()
+        assert epochs[0].history_known is False
+        assert epochs[1].history_known is True
+
+
 @pytest.mark.parametrize(
     ("disposition", "expected"), [("failed", "FAILED"), ("partial", "PARTIAL")]
 )
