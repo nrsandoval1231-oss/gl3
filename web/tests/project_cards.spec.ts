@@ -1,10 +1,59 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Route } from '@playwright/test'
 import type { Opportunity } from '../src/api/client'
 import { projectCards, projectTitle, signalDecisionCards, signalDisplayDecision } from '../src/features/opportunities/projectCards'
 
 const apiRoute = `http://127.0.0.1:${process.env.GRIDLENS_WEB_PORT ?? '5173'}/api/**`
 
 const zilkerDescription = '2026/10/02 - 2026/10/04 - Weekend 1 | 2026/10/09 - 2026/10/11 - Weekend 2 | (2026/09/14) | Music stages food vendors art vendors & hospitality programs. October 2-4 & 9-11 2026 in Zilker Park.'
+
+function serverOpportunityPage(records: Opportunity[], selectedDecision = 'ALL', search = '') {
+  const groups = new Map<string, Opportunity[]>()
+  for (const item of records) {
+    const key = item.group_id ?? (item.project_id ? `project:${item.tier}:${item.project_id}` : `record:${item.id}`)
+    groups.set(key, [...(groups.get(key) ?? []), item])
+  }
+  const allGroups = [...groups.entries()].map(([id, members]) => ({
+    id,
+    members,
+    decision: signalDisplayDecision(members),
+  }))
+  const normalizedSearch = search.normalize('NFKC').replace(/\s+/gu, ' ').trim().toLocaleLowerCase('en-US')
+  const matches = (item: Opportunity) => !normalizedSearch || [item.id, item.name, item.location, item.activity, item.rationale, item.assessment_reason, item.supported_subject, item.supported_action, ...item.evidence.flatMap((evidence) => [evidence.title, evidence.abstract, evidence.url, evidence.document_number])]
+    .some((value) => value?.normalize('NFKC').replace(/\s+/gu, ' ').trim().toLocaleLowerCase('en-US').includes(normalizedSearch))
+  const searchedGroups = allGroups.filter((group) => group.members.some(matches))
+  const selectedGroups = (selectedDecision === 'ALL' ? searchedGroups : searchedGroups.filter((group) => group.decision === selectedDecision))
+  const decisionCounts = Object.fromEntries(['SHOW', 'REVIEW', 'HOLD'].map((decision) => [decision, searchedGroups.filter((group) => group.decision === decision).length]))
+  const items = selectedGroups.flatMap((group) => {
+    const titleRecord = group.members.find((item) => item.signal_display_decision === group.decision) ?? group.members[0]
+    return group.members.map((item) => ({
+      ...item,
+      group_id: group.id,
+      group_title: item.group_title ?? projectTitle(titleRecord),
+      group_total_filtered: group.members.length,
+      group_loaded_on_page: group.members.length,
+      group_complete_on_page: true,
+      matched_search: matches(item),
+    }))
+  })
+  const headers = {
+    'X-Total-Count': String(items.length),
+    'X-Group-Total-Count': String(selectedGroups.length),
+    'X-Page-Record-Count': String(items.length),
+    'X-Page-Group-Count': String(selectedGroups.length),
+    'X-Limit': '50',
+    'X-Offset': '0',
+    'X-Cohort-Token': 'fixture-server-cohort',
+    'X-Decision-Counts': JSON.stringify(decisionCounts),
+  }
+  return { items, headers }
+}
+
+async function fulfillServerOpportunityPage(route: Route, records: Opportunity[]) {
+  const params = new URL(route.request().url()).searchParams
+  const selectedDecision = params.get('decision') ?? 'ALL'
+  const page = serverOpportunityPage(records, selectedDecision, params.get('search') ?? '')
+  await route.fulfill({ status: 200, contentType: 'application/json', headers: page.headers, body: JSON.stringify(page.items) })
+}
 
 function permit(id: string, action: string | null, options: { location?: string; activity?: string; tier?: string; abstract?: string; projectId?: string; decision?: string | null } = {}): Opportunity {
   return {
@@ -208,11 +257,13 @@ test('grouped permit members use company-first titles while retaining each permi
   const records = [keeter, merichem]
   await page.route(apiRoute, async (route) => {
     const path = new URL(route.request().url()).pathname
+    if (path === '/api/opportunities') {
+      await fulfillServerOpportunityPage(route, records)
+      return
+    }
     const body = path === '/api/auth/session'
       ? { authenticated: true }
-      : path === '/api/opportunities'
-        ? records
-        : path === '/api/health'
+      : path === '/api/health'
           ? { sources: [], backlog: 0, pending_interpretations: 0 }
           : []
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
@@ -238,7 +289,11 @@ test('Signals default to All and keep SHOW, REVIEW, and HOLD selectable', async 
   ]
   await page.route(apiRoute, async (route) => {
     const path = new URL(route.request().url()).pathname
-    const body = path === '/api/auth/session' ? { authenticated: true } : path === '/api/opportunities' ? records : path === '/api/health' ? { sources: [], backlog: 0, pending_interpretations: 0 } : []
+    if (path === '/api/opportunities') {
+      await fulfillServerOpportunityPage(route, records)
+      return
+    }
+    const body = path === '/api/auth/session' ? { authenticated: true } : path === '/api/health' ? { sources: [], backlog: 0, pending_interpretations: 0 } : []
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
   })
   await page.goto('/?tier=Signals')
@@ -275,6 +330,9 @@ test('only exact dated event evidence groups; titles describe permit work; all r
   const currentYear = permit('2026-126812 BP', zilkerDescription)
   const sameEvent = permit('2026-126791 BP', zilkerDescription)
   const nextYear = permit('2027-126791 BP', zilkerDescription.replaceAll('2026', '2027'))
+  currentYear.group_id = 'event:zilker:2026-10'
+  sameEvent.group_id = 'event:zilker:2026-10'
+  nextYear.group_id = 'event:zilker:2027-10'
   const records = [currentYear, sameEvent, nextYear]
   const groups = projectCards(records)
   expect(groups.map((group) => group.members.length)).toEqual([2, 1])
@@ -334,7 +392,11 @@ test('only exact dated event evidence groups; titles describe permit work; all r
   await page.unroute(apiRoute)
   await page.route(apiRoute, async (route) => {
     const path = new URL(route.request().url()).pathname
-    const body = path === '/api/auth/session' ? { authenticated: true } : path === '/api/opportunities' ? browseRecords : path === '/api/health' ? { sources: [], backlog: 0, pending_interpretations: 0 } : []
+    if (path === '/api/opportunities') {
+      await fulfillServerOpportunityPage(route, browseRecords)
+      return
+    }
+    const body = path === '/api/auth/session' ? { authenticated: true } : path === '/api/health' ? { sources: [], backlog: 0, pending_interpretations: 0 } : []
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
   })
   await page.goto('/?tier=Signals')
@@ -348,21 +410,23 @@ test('only exact dated event evidence groups; titles describe permit work; all r
 
   await page.route(apiRoute, async (route) => {
     const path = new URL(route.request().url()).pathname
+    if (path === '/api/opportunities') {
+      await fulfillServerOpportunityPage(route, records)
+      return
+    }
     const body = path === '/api/auth/session'
       ? { authenticated: true }
-      : path === '/api/opportunities'
-        ? records
-        : path === '/api/health'
+      : path === '/api/health'
           ? { sources: [], backlog: 0, pending_interpretations: 0 }
           : []
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
   })
   await page.goto('/?tier=Signals')
-  await expect(page.getByRole('heading', { name: /2 project cards · 3 opportunity records/ })).toBeVisible()
+  await expect(page.getByRole('heading', { name: /2 filtered project cards · 3 filtered opportunity records/ })).toBeVisible()
   const project = page.getByRole('button', { name: /Zilker Park.*Oct 2026/ })
   await expect(project).toBeVisible()
   await project.click()
-  await expect(page.getByText('2 individual permit records')).toBeVisible()
+  await expect(page.getByText('2 matching · 2 related permit records')).toBeVisible()
   const currentPermitMember = page.locator('.project-member[data-opportunity-id="2026-126812 BP"]')
   await expect(currentPermitMember).toBeVisible()
   await expect(currentPermitMember).toContainText(projectTitle(currentYear))
@@ -373,10 +437,10 @@ test('only exact dated event evidence groups; titles describe permit work; all r
 
   await page.getByRole('button', { name: /^SHOW \d+$/ }).click()
   await page.getByRole('textbox', { name: 'Search projects' }).fill('2026-126812 BP')
-  await expect(page.getByText('1 matching SHOW project cards · 1 matching Signal records across all decisions · 3 total Signal records.')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Signals · 1 filtered project cards · 2 filtered opportunity records' })).toBeVisible()
   const searchResult = page.locator('.opportunity-row').filter({ hasText: /Zilker Park.*Oct 2026/ })
   await expect(searchResult).toBeVisible()
-  if (!(await page.getByText('1 matching record · 2 related permit records').isVisible())) await searchResult.click()
-  await expect(page.getByText('1 matching record · 2 related permit records')).toBeVisible()
+  if (!(await page.getByText('1 matching · 2 related permit records').isVisible())) await searchResult.click()
+  await expect(page.getByText('1 matching · 2 related permit records')).toBeVisible()
   await expect(currentPermitMember).toBeVisible()
 })

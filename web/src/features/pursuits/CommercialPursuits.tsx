@@ -208,6 +208,7 @@ type CommercialHistoryVersion = { version: number; disposition: string; evaluate
 function legacyHistoryVersion(item: CommercialTriageHistoryItem): CommercialHistoryVersion { return { version: 1, disposition: item.disposition, evaluated_at: item.evaluated_at ?? null, evaluated_on: item.evaluated_on ?? null, input_hash: item.input_hash ?? null, snapshot_status: item.snapshot_status, live_status: item.live_status, saved_card: item.saved_card ?? null } }
 
 function HistoricalDetail({ item, version }: { item: CommercialTriageHistoryItem; version: CommercialHistoryVersion }) {
+  const [inspectLaterResearch, setInspectLaterResearch] = useState(false)
   const card = version.saved_card
   const savedAt = version.evaluated_at ? new Date(version.evaluated_at).toLocaleString() : version.evaluated_on ?? 'date unknown'
   return <div className="commercial-history-detail">
@@ -220,6 +221,16 @@ function HistoricalDetail({ item, version }: { item: CommercialTriageHistoryItem
       <section><h4>Saved source citations</h4>{card.sources?.length ? <ul>{card.sources.map((fact, index) => <li key={`${fact.evidence_id}-${index}`}>{fact.text ?? 'Source text unavailable.'} <Citation fact={fact}/></li>)}</ul> : <p>No source citations saved in this snapshot.</p>}</section>
     </> : <p>This earlier receipt predates full-card snapshots. Only its saved disposition and operator notes are available; facts are not reconstructed.</p>}
     <section><h4>Operator notes</h4>{item.notes?.length ? item.notes.map((note) => <article className="commercial-note" key={note.id}><p><b>{note.outcome}</b> · {note.owner} · {new Date(note.created_at).toLocaleString()}</p><p>{note.note}</p>{note.next_action && <p><b>Next action:</b> {note.next_action}</p>}{note.follow_up && <p><b>Follow-up:</b> {note.follow_up}</p>}</article>) : <p>No operator notes were saved with this evaluation.</p>}</section>
+    <section aria-label="Later research attempts">
+      <h4>Later research attempts</h4>
+      <button type="button" aria-expanded={inspectLaterResearch} onClick={() => setInspectLaterResearch(true)}>Inspect later research attempts</button>
+      {inspectLaterResearch && <AutonomousResearch
+        key={`saved-ledger-${item.need_id}`}
+        needId={item.need_id}
+        readOnly
+        readOnlyLabel="Research attempt history loaded now; it may include attempts after this saved evaluation. Saved disposition and tier were not rechecked."
+      />}
+    </section>
   </div>
 }
 
