@@ -503,19 +503,54 @@ def health():
             for state in session.scalars(select(PlannerState))
         }
         freshness_states = []
-        from gridlens.jobs.worker import _due_key, _scheduled_instants
+        from gridlens.jobs.worker import _due_key, _scheduled_instants, _source_configuration
 
         for row in rows:
             definition = definitions.get(row.id, {})
             epochs = session.scalars(
                 select(SourceScheduleEpoch)
-                .where(SourceScheduleEpoch.source_id == row.id)
+                .where(
+                    SourceScheduleEpoch.source_id == row.id,
+                    SourceScheduleEpoch.effective_from < checked_at,
+                    or_(
+                        SourceScheduleEpoch.effective_until.is_(None),
+                        SourceScheduleEpoch.effective_until > window_start_utc,
+                    ),
+                )
                 .order_by(SourceScheduleEpoch.effective_from)
             ).all()
             covered_until = window_start_utc
             history_known = bool(epochs)
             schedule_inputs_known = True
             expected_due: dict[str, tuple[SourceScheduleEpoch, datetime]] = {}
+            if not definition:
+                history_known = False
+            else:
+                try:
+                    current_configuration = _source_configuration(definition)
+                    current_enabled = bool(definition["enabled"])
+                    if epochs:
+                        latest_epoch = max(epochs, key=lambda epoch: epoch.effective_from)
+                        epoch_configuration = dict(latest_epoch.configuration)
+                        for key in ("schedule_mode", "timezone", "schedule_anchor_time"):
+                            epoch_configuration.setdefault(key, current_configuration[key])
+                        epoch_configuration = {
+                            key: epoch_configuration[key]
+                            for key in current_configuration
+                            if key in epoch_configuration
+                        }
+                        if (
+                            latest_epoch.effective_until is None
+                            and latest_epoch.history_known
+                            and (
+                                epoch_configuration != current_configuration
+                                or latest_epoch.registry_enabled != current_enabled
+                            )
+                        ):
+                            history_known = False
+                except (AttributeError, KeyError, TypeError, ValueError):
+                    history_known = False
+                    schedule_inputs_known = False
             for epoch in epochs:
                 try:
                     epoch_end = min(epoch.effective_until or checked_at, checked_at)
@@ -644,7 +679,7 @@ def health():
                 **row.health,
                 "family": row.family,
                 "geography": row.geography,
-                "enabled": row.enabled and row.registry_enabled,
+                "enabled": row.enabled and bool(definition.get("enabled", False)),
                 "freshness": freshness,
                 "due_checks_7d": len(expected_due),
                 "verified_successes_7d": successes,
@@ -666,7 +701,7 @@ def health():
             last_attempt = row.health.get("last_attempt")
             if (
                 row.enabled
-                and row.registry_enabled
+                and bool(definition.get("enabled", False))
                 and info["status"] not in {"Running", "Failed", "RegistryUnavailable"}
                 and (
                     not last_attempt
