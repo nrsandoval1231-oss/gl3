@@ -449,6 +449,21 @@ def test_unobserved_registry_drift_keeps_seven_day_freshness_unknown(source_db, 
         == complete_status["sources"][0]["due_checks_7d"]
     )
     registry = [{**definition(), "endpoint": "https://example.invalid/revised"}]
+    with factory() as session:
+        due_count_before_drift = session.scalar(select(func.count()).select_from(SourceDueCheck))
+        epoch_count_before_drift = session.scalar(
+            select(func.count()).select_from(SourceScheduleEpoch)
+        )
+    unobserved_drift_status = api.health()
+    assert unobserved_drift_status["sources"][0]["freshness"] == "UNKNOWN"
+    assert unobserved_drift_status["sources"][0]["enabled"] is True
+    with factory() as session:
+        assert session.scalar(select(func.count()).select_from(SourceDueCheck)) == (
+            due_count_before_drift
+        )
+        assert session.scalar(select(func.count()).select_from(SourceScheduleEpoch)) == (
+            epoch_count_before_drift
+        )
     worker.sync_registry()
     with factory() as session:
         epochs = session.scalars(

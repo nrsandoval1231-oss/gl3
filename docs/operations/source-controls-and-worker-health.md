@@ -53,8 +53,12 @@ count as fresh. A worker stopped before due-ledger reconciliation therefore
 leaves missing slots `OVERDUE`; the health request never reconciles or enqueues
 work itself. Unprovable legacy or drift intervals, invalid schedule parameters,
 and unverifiable receipts remain `UNKNOWN` rather than being treated as
-successful coverage. Old schedule anchors are evaluated from the seven-day
-window boundary, not replayed from enrollment.
+successful coverage. The health query loads only epoch intervals that intersect
+the window, and old schedule anchors are evaluated from the seven-day window
+boundary, not replayed from enrollment. It also compares the current registry
+definition with the latest open known epoch; an unrecorded registry edit is
+reported as `UNKNOWN` until a worker records its transition. The displayed
+enabled flag follows the current registry declaration and operator switch.
 
 Health signals answer different questions:
 
