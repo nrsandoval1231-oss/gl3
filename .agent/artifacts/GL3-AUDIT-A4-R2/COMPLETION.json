@@ -1,0 +1,84 @@
+{
+  "packet": "GL3-AUDIT-A4-R2",
+  "status": "IMPLEMENTED_VALIDATION_HANDOFF",
+  "repository": "GridLens GL3",
+  "branch": "repair/gl3-source-controls-20261007",
+  "base_commit": "8a70f689e44767fce5fbc0fc2ab65bba0f03b58a",
+  "code_candidate_commit": "5e56447f4e40b46c98f55c8000056221ea551774",
+  "scope": [
+    "backend/src/gridlens/api/app.py",
+    "backend/tests/integration/test_source_scheduling.py",
+    "docs/operations/source-controls-and-worker-health.md",
+    ".agent/packets/GL3-AUDIT-A4-R2.md",
+    ".agent/artifacts/GL3-AUDIT-A4-R2/*"
+  ],
+  "behavior": [
+    "Health loads only schedule epochs intersecting the Chicago-local seven-day UTC interval.",
+    "Health compares the live registry declaration with the latest open known epoch and reports UNKNOWN on unobserved configuration drift without writing transition history.",
+    "The health enabled field follows the current registry flag and persisted operator switch.",
+    "Expected due identities and valid success receipts remain read-only; no schema or public response shape changed."
+  ],
+  "validation": {
+    "python": "3.11 via uv --locked --extra dev",
+    "database": {
+      "test": "postgresql+psycopg://gl3audit@127.0.0.1:55437/gl3audit_source_test",
+      "migration": "postgresql+psycopg://gl3audit@127.0.0.1:55437/gl3audit_source_migration",
+      "provider_keys": "blank",
+      "api_or_browser_server": "not started"
+    },
+    "focused_tests": {
+      "command": "uv run --locked --extra dev pytest tests/integration/test_source_scheduling.py -q",
+      "result": "24 passed",
+      "raw_log": ".agent/artifacts/GL3-AUDIT-A4-R2/green-focused-r2-window-drift.txt"
+    },
+    "ruff": {
+      "command": "uv run --locked --extra dev ruff check src/gridlens/api/app.py src/gridlens/jobs/worker.py tests/integration/test_source_scheduling.py",
+      "result": "all checks passed",
+      "raw_log": ".agent/artifacts/GL3-AUDIT-A4-R2/ruff-r2-window-drift.txt"
+    },
+    "mypy": {
+      "command": "uv run --locked --extra dev mypy src/gridlens/api/app.py src/gridlens/jobs/worker.py",
+      "result": "success, 2 source files",
+      "raw_log": ".agent/artifacts/GL3-AUDIT-A4-R2/mypy-r2-window-drift.txt"
+    },
+    "diff_check": {
+      "result": "exit 0",
+      "raw_log": ".agent/artifacts/GL3-AUDIT-A4-R2/diff-check-r2-window-drift.txt"
+    }
+  },
+  "retained_failures": [
+    {
+      "attempt": "Original A4 false-positive regression before repair",
+      "classification": "health returned FRESH despite unreconciled expected slots",
+      "raw_log": ".agent/artifacts/GL3-AUDIT-A4-R2/red-freshness-false-positive.txt"
+    },
+    {
+      "attempt": "Earlier test fixture setup error",
+      "classification": "fixture supplied an unsupported WorkerHeartbeat constructor field; corrected fixture only",
+      "raw_log": ".agent/artifacts/GL3-AUDIT-A4-R2/attempt-01-test-fixture-error.txt"
+    }
+  ],
+  "unretained_attempts": [
+    "A first comparator-normalization run had 21 passed and 3 failed because direct test epochs included fixture-only id/enabled keys; the live-registry comparison was adjusted to canonical configuration keys and the final focused run passed. Its raw output was not retained.",
+    "A prior interrupted 19-test attempt remains unretained with cause UNKNOWN; it is not replaced by later green results."
+  ],
+  "historical_nonacceptance_evidence": [
+    "Earlier 31-test and full-suite 1270-pass/2-skip plus browser 36-pass runs predate the R2 false-positive repair and are not acceptance evidence for this candidate."
+  ],
+  "handoff": {
+    "api_file_ownership": "released to parent for the separately authorized A2 lifecycle_event_supported call",
+    "controller_full_and_browser_gates": "pending",
+    "independent_review": "pending",
+    "self_certification": false,
+    "overall_acceptance": "not claimed"
+  },
+  "timing_and_usage": {
+    "start_utc": "UNKNOWN",
+    "finish_utc": "2026-10-08T00:04:10Z",
+    "planning_duration": "UNKNOWN",
+    "build_duration": "UNKNOWN",
+    "validation_duration": "UNKNOWN",
+    "tokens": "UNKNOWN",
+    "model_and_config_identity": "UNKNOWN"
+  }
+}
