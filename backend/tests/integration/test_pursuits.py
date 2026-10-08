@@ -894,19 +894,22 @@ def test_commercial_evaluate_replay_and_operator_note_are_durable_without_tier_w
     monkeypatch.setattr(api, "opportunity_projection", lambda *_args, **_kwargs: [item])
     monkeypatch.setattr(
         api,
-        "buying_chain_view",
-        lambda *_args, **_kwargs: {
-            "candidates": [],
-            "permit_summaries": [
-                {
-                    "evidence_id": str(item["evidence"][0]["id"]),
-                    "url": "https://example.test/current-permit",
-                    "facts": [
-                        {"label": "Permit contractor trade", "value": "Electrical Contractor"},
-                        {"label": "Contractor phone", "value": "5550102"},
-                    ],
-                }
-            ],
+        "buying_chain_views",
+        lambda _session, project_ids: {
+            str(project_id): {
+                "candidates": [],
+                "permit_summaries": [
+                    {
+                        "evidence_id": str(item["evidence"][0]["id"]),
+                        "url": "https://example.test/current-permit",
+                        "facts": [
+                            {"label": "Permit contractor trade", "value": "Electrical Contractor"},
+                            {"label": "Contractor phone", "value": "5550102"},
+                        ],
+                    }
+                ],
+            }
+            for project_id in project_ids
         },
     )
     client = TestClient(api.app, base_url="https://testserver")

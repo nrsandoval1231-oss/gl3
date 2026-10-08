@@ -6,9 +6,8 @@ from uuid import UUID
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
-from scripts.export_review_sample import build_export
-
 from gridlens.persistence.models import Evidence, Observation
+from scripts.export_review_sample import build_export
 
 
 class Result:
