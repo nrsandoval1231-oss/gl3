@@ -392,7 +392,9 @@ def _effective_qualification_from_claim(claim: dict[str, Any]) -> dict[str, Any]
     return {
         "tier": tier,
         "rationale": claim["reason"],
-        "required_mw": _reported_mw(claim),
+        # Only an explicit accepted-demand intersection may override the source
+        # claim for calculation. Source-only claims keep the original projection.
+        "required_mw": claim.get("fact_derived_required_mw") or _reported_mw(claim),
         "start_window": claim.get("start_window") if tier == "Lead" else None,
         "duration": claim.get("duration") if tier == "Lead" else None,
         "supply": "Reported constraint" if tier in {"Prospect", "Lead"} else "Unknown",

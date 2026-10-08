@@ -336,7 +336,7 @@ def test_current_public_support_bounds_fact_qualification_and_reassessment(runti
     client, factory, need_id, project_id, pursuit_id = runtime
     content_hash = "a" * 64
     source_abstract = (
-        "description: Test City construction requires 20 MW. "
+        "description: Test City construction requires 20 to 25 MW. "
         "Power supply for Test City construction is insufficient.\n"
         "address: Test City"
     )
@@ -374,8 +374,8 @@ def test_current_public_support_bounds_fact_qualification_and_reassessment(runti
                 "project_identity_key": project.identity_key,
                 "power_activity": "construction",
                 "tier": "Prospect",
-                "demand_mw": "20 MW",
-                "demand_quote": "Test City construction requires 20 MW.",
+                "demand_mw": "20 to 25 MW",
+                "demand_quote": "Test City construction requires 20 to 25 MW.",
                 "supply_quote": "Power supply for Test City construction is insufficient.",
                 "reason": "Current retained exact-site permit support.",
                 "subject": project.name,
@@ -392,6 +392,22 @@ def test_current_public_support_bounds_fact_qualification_and_reassessment(runti
 
     headers = {"origin": "http://testserver"}
     event_version = 0
+    range_draft_body = _body(project_id, pursuit_id, expected_version=event_version)
+    range_draft_body["value"] = {"mw": "20 to 25 MW"}
+    range_draft = client.post(
+        f"/api/needs/{need_id}/facts", json=range_draft_body, headers=headers
+    )
+    assert range_draft.status_code == 200, range_draft.text
+    assert range_draft.json()["value"] == {"mw_min": "20", "mw_max": "25"}
+    equivalent_range_body = deepcopy(range_draft_body)
+    equivalent_range_body["value"] = {"mw_min": "20", "mw_max": "25"}
+    same_range_draft = client.post(
+        f"/api/needs/{need_id}/facts", json=equivalent_range_body, headers=headers
+    )
+    assert same_range_draft.status_code == 200, same_range_draft.text
+    assert same_range_draft.json()["id"] == range_draft.json()["id"]
+    assert same_range_draft.json()["content_hash"] == range_draft.json()["content_hash"]
+    event_version += 1
     initial_browse = client.get("/api/opportunities?tier=Prospect")
     assert initial_browse.status_code == 200, initial_browse.text
     assert any(str(item["id"]) == str(need_id) for item in initial_browse.json())
@@ -456,7 +472,9 @@ def test_current_public_support_bounds_fact_qualification_and_reassessment(runti
         assert need is not None and project is not None
         effective = effective_need_qualification(session, need, project)
         assert effective is not None and effective["tier"] == "Lead"
-        assert effective["qualified_remaining_gap"]["remaining_mw"] == "15"
+        assert effective["qualified_remaining_gap"]["remaining_mw_min"] == "15"
+        assert effective["qualified_remaining_gap"]["remaining_mw_max"] == "20"
+        assert effective["required_mw"] == "20 to 25 MW"
 
     closure_body = _body(project_id, pursuit_id, expected_version=event_version)
     closure_body["fact_type"] = "closure"
@@ -494,7 +512,97 @@ def test_current_public_support_bounds_fact_qualification_and_reassessment(runti
 
     # Add a source-consistent demand version so a subsequent source correction
     # can exercise the established conflict/demotion/reassessment path.
-    assert accept("demand", {"mw": "20"}).json()["tier"] == "Lead"
+    # A point confirmation inside the current public interval narrows the
+    # calculation without replacing the retained Reported source claim.
+    point_demand = accept("demand", {"mw": "22"}).json()
+    assert point_demand["tier"] == "Lead"
+    with factory() as session:
+        from gridlens.ingestion.service import effective_need_qualification
+
+        need = session.get(PowerNeed, need_id)
+        project = session.get(Project, project_id)
+        assert need is not None and project is not None
+        effective = effective_need_qualification(session, need, project)
+        assert effective is not None
+        assert effective["qualified_remaining_gap"]["remaining_mw"] == "17"
+        # This assertion exposes whether the fact-assisted calculation is
+        # actually projected to the persisted/read-back required_mw field.
+        assert effective["required_mw"] == "22 MW"
+        assert need.required_mw == "22 MW"
+        gap = effective["qualified_remaining_gap"]
+        assert gap["required_mw_basis"] == "User-confirmed intersection"
+        assert gap["source_demand_mw"] == "20 to 25 MW"
+        assert gap["user_confirmed_demand_mw"] == "22 MW"
+        assert gap["demand_fact_id"] == point_demand["fact_version_id"]
+        assert gap["demand_fact_hash"] == point_demand["content_hash"]
+
+    range_body = _body(
+        project_id,
+        pursuit_id,
+        expected_version=event_version,
+        predecessor_id=UUID(point_demand["fact_version_id"]),
+    )
+    range_body["fact_type"] = "demand"
+    range_body["value"] = {"mw_min": "21", "mw_max": "24"}
+    range_body["effective_from"] = "2026-01-01T00:00:00+00:00"
+    range_body["effective_until"] = "2027-03-04T00:00:00+00:00"
+    range_draft = client.post(f"/api/needs/{need_id}/facts", json=range_body, headers=headers)
+    assert range_draft.status_code == 200, range_draft.text
+    assert range_draft.json()["value"] == {"mw_min": "21", "mw_max": "24"}
+    event_version += 1
+    range_decision = client.post(
+        f"/api/needs/{need_id}/facts/{range_draft.json()['id']}/decision",
+        json={
+            "client_id": str(uuid4()),
+            "expected_version": event_version,
+            "decision": "corrected",
+            "reason": "Synthetic corrected demand interval",
+        },
+        headers=headers,
+    )
+    assert range_decision.status_code == 200, range_decision.text
+    assert range_decision.json()["tier"] == "Lead"
+    event_version += 2
+    corrected_demand = range_decision.json()
+    with factory() as session:
+        from gridlens.ingestion.service import effective_need_qualification
+
+        need = session.get(PowerNeed, need_id)
+        project = session.get(Project, project_id)
+        assert need is not None and project is not None
+        effective = effective_need_qualification(session, need, project)
+        assert effective is not None
+        assert effective["required_mw"] == "21 to 24 MW"
+        gap = effective["qualified_remaining_gap"]
+        assert (gap["remaining_mw_min"], gap["remaining_mw_max"]) == ("16", "19")
+        assert gap["demand_fact_id"] == corrected_demand["fact_version_id"]
+        assert gap["demand_fact_hash"] == corrected_demand["content_hash"]
+
+    page = client.get("/api/opportunities?tier=Lead&limit=50")
+    assert page.status_code == 200, page.text
+    page_card = next(item for item in page.json() if str(item["id"]) == str(need_id))
+    assert page_card["required_mw"] == "21 to 24 MW"
+    assert page_card["commercial_size_status"] == "at_or_above_floor"
+    cohort = page.headers["x-cohort-token"]
+    detail = client.get(
+        f"/api/opportunities/needs/{need_id}?tier=Lead&cohort_token={cohort}"
+    )
+    assert detail.status_code == 200, detail.text
+    assert detail.json()["required_mw"] == "21 to 24 MW"
+    group_id = page_card["group_id"]
+    group_page = client.get(
+        f"/api/opportunity-groups/{group_id}?tier=Lead&cohort_token={cohort}"
+    )
+    assert group_page.status_code == 200, group_page.text
+    grouped_card = next(
+        item for item in group_page.json()["items"] if str(item["id"]) == str(need_id)
+    )
+    assert grouped_card["required_mw"] == "21 to 24 MW"
+    csv = client.get(
+        f"/api/opportunities/export.csv?tier=Lead&limit=50&cohort_token={cohort}"
+    )
+    assert csv.status_code == 200, csv.text
+    assert "21 to 24 MW" in csv.text
 
     with factory.begin() as session:
         need = session.get(PowerNeed, need_id)
@@ -566,14 +674,16 @@ def test_current_public_support_bounds_fact_qualification_and_reassessment(runti
             "semantic_hash": restored_hash,
             "evidence_hash": restored_hash,
             "tier": "Signal",
-            "demand_mw": "20 MW",
-            "demand_quote": "Test City construction requires 20 MW.",
+            "demand_mw": "20 to 25 MW",
+            "demand_quote": "Test City construction requires 20 to 25 MW.",
             "supply_quote": "Power supply for Test City construction is insufficient.",
             "reason": "Compatible current source support restored.",
         }
         interpretation.status = "accepted"
         _apply_current_qualification(session, need, project)
         assert need.tier == "Lead"
+        assert need.required_mw == "21 to 24 MW"
+        assert interpretation.assessment["demand_mw"] == "20 to 25 MW"
         assert session.scalar(select(func.count()).select_from(Evidence)) == 2
         assert set(session.scalars(select(Evidence.content_hash))) == {
             content_hash,

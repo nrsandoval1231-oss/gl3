@@ -54,6 +54,177 @@ def test_fact_values_are_typed_and_reject_invalid_ranges():
     assert validate_timezone(datetime(2026, 10, 8, tzinfo=UTC), "confirmed_at").tzinfo == UTC
 
 
+def test_exact_mw_fact_ranges_normalize_without_changing_legacy_scalar_shape():
+    assert validate_fact("demand", {"mw_min": 20, "mw_max": "25.0"}) == {
+        "mw_min": "20",
+        "mw_max": "25",
+    }
+    assert validate_fact("demand", {"mw": "20 to 25 MW"}) == {
+        "mw_min": "20",
+        "mw_max": "25",
+    }
+    assert validate_fact("suitable_supply", {"mw": "0 to 5 MW", "quality": "suitable"}) == {
+        "mw_min": "0",
+        "mw_max": "5",
+        "quality": "suitable",
+    }
+    assert validate_fact("demand", {"mw": "12.50"}) == {"mw": "12.5"}
+    with pytest.raises(ValueError, match="positive numeric"):
+        validate_fact("unsuitable_supply", {"mw": "5 to 8 MW"})
+
+    for value in (
+        {"mw_min": "25", "mw_max": "20"},
+        {"mw_min": "1e999", "mw_max": "2e999"},
+        {"mw": "about 20 to 25 MW"},
+        {"mw": "up to 25 MW"},
+        {"mw": "20+ MW"},
+        {"mw": "20 to 25 MW approximately"},
+        {"mw": "20 to 25"},
+        {"mw_min": "-1", "mw_max": "25"},
+        {"mw_min": "20", "mw_max": "1000001"},
+        {"mw": "20", "mw_min": "20", "mw_max": "25"},
+    ):
+        with pytest.raises(ValueError):
+            validate_fact("demand", value)
+
+
+def test_source_demand_ranges_intersect_operator_ranges_and_derive_gap_envelope():
+    need_id, project_id = uuid4(), uuid4()
+    need = SimpleNamespace(id=need_id, project_id=project_id, activity_key="construction")
+    project = SimpleNamespace(id=project_id, location="Test City")
+    source_claim = qualify_official_power(
+        text=(
+            "Test City construction requires 20 to 25 MW. "
+            "Power supply for Test City construction is insufficient."
+        ),
+        site="Test City",
+        activity_key="construction",
+        location="Test City",
+    )
+    assert source_claim["tier"] == "Prospect"
+    assert source_claim["demand_mw"] == "20 to 25 MW"
+
+    def lead_facts(demand=None, suitable=None):
+        facts = [
+            _row(
+                "timing",
+                {"start_date": "2027-01-01", "end_date": "2027-02-01", "duration_days": 31},
+                need_id=need_id,
+                project_id=project_id,
+            ),
+            _row(
+                "suitable_supply",
+                suitable or {"mw": "5", "quality": "suitable"},
+                need_id=need_id,
+                project_id=project_id,
+            ),
+            _row(
+                "buyer",
+                {"organization": "Northstar Electric", "role": "electrical contractor"},
+                need_id=need_id,
+                project_id=project_id,
+            ),
+        ]
+        if demand is not None:
+            facts.append(_row("demand", demand, need_id=need_id, project_id=project_id))
+        return facts
+
+    source_only = qualification_from_facts(source_claim, lead_facts(), need=need, project=project)
+    assert source_only and source_only["tier"] == "Lead"
+    assert source_only["demand_mw"] == "20 to 25 MW"
+    assert source_only["qualified_remaining_gap"]["remaining_mw_min"] == "15"
+    assert source_only["qualified_remaining_gap"]["remaining_mw_max"] == "20"
+
+    point_facts = lead_facts({"mw": "22"})
+    point = qualification_from_facts(source_claim, point_facts, need=need, project=project)
+    assert point and point["tier"] == "Lead" and not point.get("qualification_conflict")
+    assert point["demand_mw"] == "20 to 25 MW"
+    assert point["required_mw"] == "22 MW"
+    assert point["fact_derived_required_mw"] == "22 MW"
+    assert point["qualified_remaining_gap"]["remaining_mw"] == "17"
+    assert point["qualified_remaining_gap"]["required_mw_basis"] == "User-confirmed intersection"
+    assert point["qualified_remaining_gap"]["source_demand_mw"] == "20 to 25 MW"
+    assert point["qualified_remaining_gap"]["user_confirmed_demand_mw"] == "22 MW"
+    demand_row = next(row for row in point_facts if row.fact_type == "demand")
+    assert point["qualified_remaining_gap"]["demand_fact_id"] == str(demand_row.id)
+    assert point["qualified_remaining_gap"]["demand_fact_hash"] == demand_row.content_hash
+
+    short_point_facts = lead_facts({"mw": "22"})
+    short_point = next(row for row in short_point_facts if row.fact_type == "demand")
+    short_point.effective_until = datetime(2027, 2, 1, tzinfo=UTC)
+    short_result = qualification_from_facts(
+        source_claim, short_point_facts, need=need, project=project
+    )
+    assert short_result and short_result["tier"] == "Prospect"
+    assert "qualified_remaining_gap" not in short_result
+    assert "fact_derived_required_mw" not in short_result
+
+    overlap = qualification_from_facts(
+        source_claim,
+        lead_facts({"mw_min": "22", "mw_max": "30"}),
+        need=need,
+        project=project,
+    )
+    assert overlap and overlap["tier"] == "Lead" and not overlap.get("qualification_conflict")
+    assert overlap["required_mw"] == "22 to 25 MW"
+    assert overlap["qualified_remaining_gap"]["remaining_mw_min"] == "17"
+    assert overlap["qualified_remaining_gap"]["remaining_mw_max"] == "20"
+
+    conflict = qualification_from_facts(
+        source_claim,
+        lead_facts({"mw_min": "26", "mw_max": "30"}),
+        need=need,
+        project=project,
+    )
+    assert conflict and conflict["tier"] == "Signal" and conflict["qualification_conflict"]
+
+
+@pytest.mark.parametrize(
+    ("supply", "expected_tier"),
+    [
+        ({"mw": "0", "quality": "suitable"}, "Lead"),
+        ({"mw_min": "5", "mw_max": "7", "quality": "suitable"}, "Lead"),
+        ({"mw_min": "20", "mw_max": "21", "quality": "suitable"}, "Prospect"),
+        ({"mw_min": "5", "mw_max": "7", "quality": "unknown"}, "Prospect"),
+        ({"mw_min": "5", "mw_max": "7", "quality": "unsuitable"}, "Prospect"),
+    ],
+)
+def test_supply_range_uses_conservative_gap_and_zero_gap_abstention(supply, expected_tier):
+    need_id, project_id = uuid4(), uuid4()
+    need = SimpleNamespace(id=need_id, project_id=project_id, activity_key="construction")
+    project = SimpleNamespace(id=project_id, location="Test City")
+    source = {
+        "tier": "Prospect",
+        "demand_mw": "20 to 25 MW",
+        "supply_quote": "Power supply for Test City construction is insufficient.",
+    }
+    facts = [
+        _row(
+            "timing",
+            {"start_date": "2027-01-01", "end_date": "2027-02-01", "duration_days": 31},
+            need_id=need_id,
+            project_id=project_id,
+        ),
+        _row("suitable_supply", supply, need_id=need_id, project_id=project_id),
+        _row(
+            "buyer",
+            {"organization": "Northstar Electric", "role": "electrical contractor"},
+            need_id=need_id,
+            project_id=project_id,
+        ),
+    ]
+    result = qualification_from_facts(source, facts, need=need, project=project)
+    assert result and result["tier"] == expected_tier
+    if expected_tier == "Lead":
+        gap = result["qualified_remaining_gap"]
+        if supply.get("mw") == "0":
+            assert (gap["remaining_mw_min"], gap["remaining_mw_max"]) == ("20", "25")
+        else:
+            assert (gap["remaining_mw_min"], gap["remaining_mw_max"]) == ("13", "20")
+    else:
+        assert "qualified_remaining_gap" not in result
+
+
 def test_facts_require_exact_scope_and_current_source_base():
     need_id, project_id = uuid4(), uuid4()
     need = SimpleNamespace(id=need_id, project_id=project_id, activity_key="construction")
@@ -119,7 +290,12 @@ def test_lead_requires_current_gap_interval_and_buyer_facts():
         project=project,
     )
     assert result and result["tier"] == "Lead"
-    assert result["qualified_remaining_gap"]["remaining_mw"] == "15"
+    assert result["qualified_remaining_gap"] == {
+        "required_mw": "20",
+        "available_mw": "5",
+        "value_kind": "Derived",
+        "remaining_mw": "15",
+    }
     assert "Northstar Electric" in result["qualification_next_action"]
     assert (
         qualification_from_facts(
