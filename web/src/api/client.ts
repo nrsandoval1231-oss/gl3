@@ -29,6 +29,13 @@ export type OpportunityPage = {
   cohortToken: string
   decisionCounts: Record<'SHOW' | 'REVIEW' | 'HOLD', number>
 }
+export type OpportunityNeedScope = {
+  tier: string
+  search: string
+  decision: string
+  cohortToken: string
+  filters?: OpportunityBrowseFilters
+}
 export type OpportunityGroupPage = components['schemas']['OpportunityGroupPageOut']
 export type SourceHealth = components['schemas']['HealthSourceOut']
 export type Evidence = components['schemas']['EvidenceOut']
@@ -109,6 +116,32 @@ export class OpportunityCohortChangedError extends Error {
   }
 }
 
+export class OpportunityNeedUnavailableError extends Error {
+  constructor() {
+    super('The selected opportunity is not available in this filtered cohort.')
+    this.name = 'OpportunityNeedUnavailableError'
+  }
+}
+
+async function opportunityNeed(needId: string, scope: OpportunityNeedScope, signal?: AbortSignal): Promise<Opportunity> {
+  const params = new URLSearchParams({
+    tier: scope.tier,
+    search: scope.search,
+    decision: scope.decision,
+    cohort_token: scope.cohortToken,
+  })
+  addBrowseFilters(params, scope.filters)
+  const response = await fetch(`/api/opportunities/needs/${encodeURIComponent(needId)}?${params}`, {
+    credentials: 'same-origin',
+    signal,
+  })
+  if (response.status === 401) throw new Error('Your session ended. Sign in again.')
+  if (response.status === 409) throw new OpportunityCohortChangedError()
+  if (response.status === 404) throw new OpportunityNeedUnavailableError()
+  if (!response.ok) throw new Error(`GridLens could not complete this request (${response.status}).`)
+  return response.json() as Promise<Opportunity>
+}
+
 export const client = {
   pursuits: (signal?: AbortSignal, includeDropped = false, offset = 0) => api<PursuitsResult>(`/api/pursuits${includeDropped ? `?include_dropped=true&offset=${offset}` : ''}`, { signal }),
   refreshPursuits: (force = false) => api<components['schemas']['PursuitJobOut']>(`/api/pursuits/refresh${force ? '?force=true' : ''}`, { method: 'POST' }),
@@ -134,7 +167,7 @@ export const client = {
     addBrowseFilters(params, filters)
     return api<OpportunityGroupPage>(`/api/opportunity-groups/${encodeURIComponent(groupId)}?${params}`, { signal })
   },
-  opportunityNeed: (needId: string, signal?: AbortSignal) => api<Opportunity>(`/api/opportunities/needs/${encodeURIComponent(needId)}`, { signal }),
+  opportunityNeed,
   opportunityExportUrl: (tier: string, search: string, decision: string, cohortToken?: string, filters: OpportunityBrowseFilters = {}) => {
     const params = new URLSearchParams({ tier, search, decision })
     if (cohortToken) params.set('cohort_token', cohortToken)

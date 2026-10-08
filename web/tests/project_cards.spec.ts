@@ -266,6 +266,221 @@ test('stale later-page cohort restarts at page one without showing the previous 
   expect(restarted?.searchParams.get('cohort_token')).toBeNull()
 })
 
+test('Back restores the exact selected need across tiers and pages with its cohort and focus', async ({ page }) => {
+  const firstSignal = permit('signal-first-page', 'First Signal page record')
+  const selectedSignal = permit('signal-later-page', 'Exact Signal later-page record')
+  selectedSignal.evidence[0].title = 'Citation for the exact later-page Signal'
+  const prospect = permit('prospect-first-page', 'Distinct Prospect page record', { tier: 'Prospect' })
+  const requests: URL[] = []
+  await page.route(apiRoute, async (route) => {
+    const url = new URL(route.request().url())
+    const path = url.pathname
+    if (path === '/api/opportunities') {
+      requests.push(url)
+      const tier = url.searchParams.get('tier') ?? 'Signal'
+      const offset = Number(url.searchParams.get('offset') ?? '0')
+      const record = tier === 'Prospect' ? prospect : offset === 0 ? firstSignal : selectedSignal
+      const payload = serverOpportunityPage([record], url.searchParams.get('decision') ?? 'ALL', url.searchParams.get('search') ?? '')
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        headers: {
+          ...payload.headers,
+          'X-Limit': '25',
+          'X-Offset': String(offset),
+          'X-Cohort-Token': tier === 'Prospect' ? 'prospect-scope-token' : 'signal-scope-token',
+          ...(tier === 'Signal' && offset === 0 ? { 'X-Next-Offset': '25' } : {}),
+        },
+        body: JSON.stringify(payload.items),
+      })
+      return
+    }
+    const body = path === '/api/auth/session'
+      ? { authenticated: true }
+      : path === '/api/health'
+        ? { sources: [], backlog: 0, pending_interpretations: 0 }
+        : path.startsWith('/api/power-needs/')
+          ? { status: 'unavailable', result: null, citations: [] }
+          : []
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
+  })
+
+  await page.goto('/?tier=Signals&decision=SHOW&offset=25&activity=event-power')
+  const selectedCard = page.locator('[data-opportunity-id="signal-later-page"]')
+  await expect(selectedCard).toBeVisible()
+  await selectedCard.click()
+  await expect(page.getByRole('link', { name: 'Citation for the exact later-page Signal' })).toBeVisible()
+  expect(new URL(page.url()).hash).toBe('#signal-later-page')
+  await page.getByRole('button', { name: 'Prospects' }).click()
+  await expect(page.locator('[data-opportunity-id="prospect-first-page"]')).toBeVisible()
+
+  await page.goBack()
+  await expect(page.getByRole('link', { name: 'Citation for the exact later-page Signal' })).toBeVisible()
+  expect(new URL(page.url()).searchParams.get('tier')).toBe('Signals')
+  expect(new URL(page.url()).searchParams.get('offset')).toBe('25')
+  expect(new URL(page.url()).searchParams.get('decision')).toBe('SHOW')
+  expect(new URL(page.url()).searchParams.get('activity')).toBe('event-power')
+  expect(new URL(page.url()).hash).toBe('#signal-later-page')
+  const restoreRequests = requests.filter((request) => request.searchParams.get('tier') === 'Signal').slice(-2)
+  expect(restoreRequests.map((request) => request.searchParams.get('offset'))).toEqual(['0', '25'])
+  expect(restoreRequests[0].searchParams.get('cohort_token')).toBeNull()
+  expect(restoreRequests[1].searchParams.get('cohort_token')).toBe('signal-scope-token')
+
+  await page.goBack()
+  await expect(page.locator('[data-opportunity-id="signal-later-page"]')).toBeFocused()
+  await page.goForward()
+  await expect(page.getByRole('link', { name: 'Citation for the exact later-page Signal' })).toBeVisible()
+  await page.goForward()
+  await expect(page.locator('[data-opportunity-id="prospect-first-page"]')).toBeVisible()
+  expect(new URL(page.url()).searchParams.get('tier')).toBe('Prospects')
+})
+
+test('direct selected URL reports an exact need outside its filtered cohort without showing another record', async ({ page }) => {
+  const visibleRecord = permit('visible-filtered-record', 'Visible record in the selected filter')
+  const detailRequests: URL[] = []
+  await page.route(apiRoute, async (route) => {
+    const url = new URL(route.request().url())
+    if (url.pathname === '/api/opportunities') {
+      const payload = serverOpportunityPage([visibleRecord], url.searchParams.get('decision') ?? 'ALL', url.searchParams.get('search') ?? '')
+      await route.fulfill({ status: 200, contentType: 'application/json', headers: payload.headers, body: JSON.stringify(payload.items) })
+      return
+    }
+    if (url.pathname === '/api/opportunities/needs/not-in-filtered-cohort') {
+      detailRequests.push(url)
+      await route.fulfill({ status: 404, json: { detail: 'Opportunity is outside the requested filtered cohort' } })
+      return
+    }
+    const body = url.pathname === '/api/auth/session'
+      ? { authenticated: true }
+      : url.pathname === '/api/health'
+        ? { sources: [], backlog: 0, pending_interpretations: 0 }
+        : []
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
+  })
+
+  await page.goto('/?tier=Signals&q=visible&activity=event-power#not-in-filtered-cohort')
+  await expect(page.getByRole('alert')).toContainText(/selected opportunity is not available in this filtered cohort/i)
+  await expect(page.getByRole('heading', { level: 1, name: 'Signals' })).toBeVisible()
+  await expect(page.locator('[data-opportunity-id="visible-filtered-record"]')).toBeVisible()
+  await expect(page.getByRole('link', { name: /not-in-filtered-cohort/ })).toHaveCount(0)
+  expect(new URL(page.url()).hash).toBe('')
+  expect(detailRequests).toHaveLength(1)
+  expect(detailRequests[0].searchParams.get('tier')).toBe('Signal')
+  expect(detailRequests[0].searchParams.get('search')).toBe('visible')
+  expect(detailRequests[0].searchParams.get('activity')).toBe('event-power')
+  expect(detailRequests[0].searchParams.get('cohort_token')).toBe('fixture-server-cohort')
+})
+
+test('direct selected URL hydrates the exact need with the restored page cohort when it moved off-page', async ({ page }) => {
+  const currentPageRecord = permit('current-page-record', 'A separate current page record')
+  const selectedRecord = permit('selected-off-page', 'Exact restored off-page record')
+  selectedRecord.evidence[0].title = 'Citation for the restored off-page record'
+  const detailRequests: URL[] = []
+  const opportunityRequests: URL[] = []
+  await page.route(apiRoute, async (route) => {
+    const url = new URL(route.request().url())
+    if (url.pathname === '/api/opportunities') {
+      opportunityRequests.push(url)
+      const payload = serverOpportunityPage([currentPageRecord], url.searchParams.get('decision') ?? 'ALL')
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        headers: { ...payload.headers, 'X-Limit': '25', 'X-Offset': url.searchParams.get('offset') ?? '0', 'X-Cohort-Token': 'restored-scope-token' },
+        body: JSON.stringify(payload.items),
+      })
+      return
+    }
+    if (url.pathname === '/api/opportunities/needs/selected-off-page') {
+      detailRequests.push(url)
+      await route.fulfill({ status: 200, json: selectedRecord })
+      return
+    }
+    const body = url.pathname === '/api/auth/session'
+      ? { authenticated: true }
+      : url.pathname === '/api/health'
+        ? { sources: [], backlog: 0, pending_interpretations: 0 }
+        : []
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
+  })
+
+  await page.goto('/?tier=Signals&offset=25&activity=event-power#selected-off-page')
+  await expect(page.getByRole('link', { name: 'Citation for the restored off-page record' })).toBeVisible()
+  await expect(page.getByRole('link', { name: /current-page-record/ })).toHaveCount(0)
+  expect(opportunityRequests.map((url) => url.searchParams.get('offset'))).toEqual(['0', '25'])
+  expect(opportunityRequests[0].searchParams.get('cohort_token')).toBeNull()
+  expect(opportunityRequests[1].searchParams.get('cohort_token')).toBe('restored-scope-token')
+  expect(detailRequests).toHaveLength(1)
+  expect(detailRequests[0].searchParams.get('tier')).toBe('Signal')
+  expect(detailRequests[0].searchParams.get('activity')).toBe('event-power')
+  expect(detailRequests[0].searchParams.get('cohort_token')).toBe('restored-scope-token')
+})
+
+test('late restored-page response cannot replace a newer Back/Forward destination', async ({ page }) => {
+  const firstSignal = permit('late-first-signal', 'First Signal page')
+  const selectedSignal = permit('late-selected-signal', 'Delayed Signal detail record')
+  const prospect = permit('late-prospect', 'Current Prospect destination', { tier: 'Prospect' })
+  const requests: URL[] = []
+  let restoreSignalPage = false
+  let delayedResponseStarted = false
+  let releaseDelayedResponse: (() => void) | undefined
+  const delayedResponseGate = new Promise<void>((resolve) => { releaseDelayedResponse = resolve })
+  await page.route(apiRoute, async (route) => {
+    const url = new URL(route.request().url())
+    if (url.pathname === '/api/opportunities') {
+      requests.push(url)
+      const tier = url.searchParams.get('tier') ?? 'Signal'
+      const offset = Number(url.searchParams.get('offset') ?? '0')
+      const record = tier === 'Prospect' ? prospect : offset === 0 ? firstSignal : selectedSignal
+      const payload = serverOpportunityPage([record], url.searchParams.get('decision') ?? 'ALL', url.searchParams.get('search') ?? '')
+      if (restoreSignalPage && tier === 'Signal' && offset === 25 && !delayedResponseStarted) {
+        delayedResponseStarted = true
+        await delayedResponseGate
+      }
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        headers: {
+          ...payload.headers,
+          'X-Limit': '25',
+          'X-Offset': String(offset),
+          'X-Cohort-Token': tier === 'Prospect' ? 'prospect-race-token' : 'signal-race-token',
+          ...(tier === 'Signal' && offset === 0 ? { 'X-Next-Offset': '25' } : {}),
+        },
+        body: JSON.stringify(payload.items),
+      })
+      return
+    }
+    const body = url.pathname === '/api/auth/session'
+      ? { authenticated: true }
+      : url.pathname === '/api/health'
+        ? { sources: [], backlog: 0, pending_interpretations: 0 }
+        : url.pathname.startsWith('/api/power-needs/')
+          ? { status: 'unavailable', result: null, citations: [] }
+          : []
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
+  })
+
+  try {
+    await page.goto('/?tier=Signals&offset=25')
+    await page.locator('[data-opportunity-id="late-selected-signal"]').click()
+    await page.getByRole('button', { name: 'Prospects' }).click()
+    await expect(page.locator('[data-opportunity-id="late-prospect"]')).toBeVisible()
+
+    restoreSignalPage = true
+    await page.goBack()
+    await expect.poll(() => delayedResponseStarted).toBe(true)
+    await page.goForward()
+    await expect(page.locator('[data-opportunity-id="late-prospect"]')).toBeVisible()
+    releaseDelayedResponse?.()
+    await expect(page.locator('[data-opportunity-id="late-prospect"]')).toBeVisible()
+    await expect(page.getByRole('link', { name: /Delayed Signal detail record/ })).toHaveCount(0)
+    expect(new URL(page.url()).searchParams.get('tier')).toBe('Prospects')
+    expect(requests.some((request) => request.searchParams.get('tier') === 'Signal' && request.searchParams.get('offset') === '25')).toBe(true)
+  } finally {
+    releaseDelayedResponse?.()
+  }
+})
+
 test('project title prefers a current owner over operator, applicant, and contractor claims', () => {
   const record = permit('roles', 'Facility construction', {
     abstract: 'owner_company_name: Owner Company\noperator_company_name: Operating Company\napplicant_org: Applicant Company\ncontractor_company_name: Builder Company',
