@@ -97,6 +97,40 @@
         }
       }
     },
+    "/health/live": {
+      "get": {
+        "summary": "Process Liveness",
+        "description": "Report API process liveness without depending on database connectivity.",
+        "operationId": "process_liveness_health_live_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health/ready": {
+      "get": {
+        "summary": "Runtime Readiness",
+        "description": "Report whether the API can query its database and queue state.",
+        "operationId": "runtime_readiness_health_ready_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/ingestion": {
       "get": {
         "summary": "Ingestion",
@@ -438,6 +472,55 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/RefreshOut"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/sources/{source_id}/enabled": {
+      "post": {
+        "summary": "Set Source Enabled Endpoint",
+        "operationId": "set_source_enabled_endpoint_api_sources__source_id__enabled_post",
+        "parameters": [
+          {
+            "name": "source_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Source Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SourceEnabledIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SourceEnabledOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -3057,6 +3140,29 @@
           "pending_interpretations": {
             "type": "integer",
             "title": "Pending Interpretations"
+          },
+          "worker_liveness": {
+            "type": "string",
+            "title": "Worker Liveness",
+            "default": "UNKNOWN"
+          },
+          "readiness": {
+            "type": "boolean",
+            "title": "Readiness",
+            "default": false
+          },
+          "collection_freshness": {
+            "type": "string",
+            "title": "Collection Freshness",
+            "default": "UNKNOWN"
+          },
+          "planners": {
+            "additionalProperties": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "object",
+            "title": "Planners"
           }
         },
         "type": "object",
@@ -3089,6 +3195,21 @@
             "type": "boolean",
             "title": "Enabled",
             "default": true
+          },
+          "freshness": {
+            "type": "string",
+            "title": "Freshness",
+            "default": "UNKNOWN"
+          },
+          "due_checks_7d": {
+            "type": "integer",
+            "title": "Due Checks 7D",
+            "default": 0
+          },
+          "verified_successes_7d": {
+            "type": "integer",
+            "title": "Verified Successes 7D",
+            "default": 0
           },
           "last_attempt": {
             "anyOf": [
@@ -5626,6 +5747,47 @@
           "unadjudicated"
         ],
         "title": "SignalDecisionCountsOut"
+      },
+      "SourceEnabledIn": {
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "title": "Enabled"
+          }
+        },
+        "type": "object",
+        "required": [
+          "enabled"
+        ],
+        "title": "SourceEnabledIn"
+      },
+      "SourceEnabledOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "registry_enabled": {
+            "type": "boolean",
+            "title": "Registry Enabled"
+          },
+          "operator_enabled": {
+            "type": "boolean",
+            "title": "Operator Enabled"
+          },
+          "effective_enabled": {
+            "type": "boolean",
+            "title": "Effective Enabled"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "registry_enabled",
+          "operator_enabled",
+          "effective_enabled"
+        ],
+        "title": "SourceEnabledOut"
       },
       "ValidationError": {
         "properties": {

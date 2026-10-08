@@ -1,0 +1,64 @@
+F                                                                        [100%]
+================================== FAILURES ===================================
+______ test_stopped_worker_cannot_look_fresh_with_unreconciled_due_slots ______
+
+source_db = sessionmaker(class_='Session', bind=Engine(postgresql+psycopg://gl3audit@127.0.0.1:55437/gl3audit_source_test), autoflush=True, expire_on_commit=False)
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000001EC613D6D90>
+
+    def test_stopped_worker_cannot_look_fresh_with_unreconciled_due_slots(source_db, monkeypatch):
+        import gridlens.api.app as api
+        import gridlens.jobs.worker as worker
+
+        factory = source_db
+        now = datetime.now(UTC)
+        monkeypatch.setattr(api, "SessionLocal", factory)
+        monkeypatch.setattr(api, "load_registry", lambda: [definition()])
+        with factory.begin() as session:
+            source = session.get(Source, "synthetic-scheduled-source")
+            assert source
+            source.health = {"status": "Updated", "last_attempt": now.isoformat()}
+            epoch_start = now - timedelta(days=10)
+            epoch = SourceScheduleEpoch(
+                source_id=source.id,
+                registry_enabled=True,
+                operator_enabled=True,
+                effective_from=epoch_start,
+                cadence_hours=24,
+                schedule_mode="local_daily",
+                timezone="America/Chicago",
+                anchor={
+                    "local_date": epoch_start.astimezone(ZoneInfo("America/Chicago"))
+                    .date()
+                    .isoformat(),
+                    "local_time": "03:00",
+                },
+                configuration=definition(),
+                history_known=True,
+            )
+            session.add(epoch)
+            session.flush()
+            expected_slots = list(
+                worker._scheduled_instants(epoch, now, not_before=_window_start_utc(now))
+            )
+            assert len(expected_slots) >= 6
+            _record_receipt(session, epoch, expected_slots[0])
+            session.add(
+                WorkerHeartbeat(
+                    worker_id="stopped-source-worker",
+                    last_seen_at=now - timedelta(minutes=10),
+                )
+            )
+
+        status = api.health()
+        source_status = status["sources"][0]
+>       assert source_status["freshness"] == "OVERDUE"
+E       AssertionError: assert 'FRESH' == 'OVERDUE'
+E
+E         - OVERDUE
+E         + FRESH
+
+tests\integration\test_source_scheduling.py:236: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/integration/test_source_scheduling.py::test_stopped_worker_cannot_look_fresh_with_unreconciled_due_slots
+1 failed in 1.29s
+exit=1
