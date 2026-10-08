@@ -1,6 +1,6 @@
 """Transactional research admission against an isolated PostgreSQL test schema."""
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from uuid import uuid4
 
 import pytest
@@ -894,7 +894,7 @@ def test_public_typed_reports_preserve_tier_and_versioned_conflicts(research_db)
             "Orion Data Center update",
             "Orion Data Center at 811 Clayton Ln, Austin, TX construction is underway. "
             "Orion Data Center permanent service remains pending.",
-            datetime.now(UTC).date(),
+            date(2026, 10, 1),
             datetime.now(UTC),
             "public project update",
         )
@@ -934,6 +934,31 @@ def test_public_typed_reports_preserve_tier_and_versioned_conflicts(research_db)
             == "cancelled"
         )
         assert session.get(Evidence, receipt["evidence_id"]).abstract == document.text.strip()
+
+
+def test_future_publication_does_not_admit_project_claims(research_db):
+    from gridlens.intelligence.project_state import current_research_state
+
+    factory, source, job_id = research_db
+    need_id = seed(factory, source, job_id)
+    with factory.begin() as session:
+        need = session.get(PowerNeed, need_id)
+        project = session.get(Project, need.project_id)
+        project.name = "Orion Data Center"
+        document = PublicDocument(
+            "https://www.datacenterdynamics.com/en/news/orion-future-project/",
+            "Orion Data Center update",
+            "Orion Data Center at 811 Clayton Ln, Austin, TX construction is underway.",
+            date(2099, 1, 1),
+            datetime.now(UTC),
+            "public project update",
+        )
+        receipt = retain_research_document(session, project, need, document)
+        assert receipt["disposition"] == "UNRESOLVED"
+        assert receipt["research_claims"] == []
+        assert receipt["label"] == "Unknown"
+        assert need.tier == "Signal" and need.required_mw is None
+        assert current_research_state(session, project.id, need.id) == {}
 
 
 @pytest.mark.parametrize(
