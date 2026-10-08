@@ -70,8 +70,9 @@ def _source_configuration(item: dict) -> dict:
         )
         if key in item
     }
+    configuration["cadence_hours"] = item.get("cadence_hours", 24)
     configuration["schedule_mode"] = item.get(
-        "schedule_mode", "utc_hourly" if item.get("cadence_hours", 24) < 24 else "local_daily"
+        "schedule_mode", "utc_hourly" if configuration["cadence_hours"] < 24 else "local_daily"
     )
     configuration["timezone"] = item.get("timezone", SCHEDULE_ZONE)
     configuration["schedule_anchor_time"] = item.get(
@@ -81,8 +82,17 @@ def _source_configuration(item: dict) -> dict:
 
 
 def _normalized_registry_configuration(item: dict) -> dict:
-    configuration = _source_configuration(item)
-    configuration.setdefault("cadence_hours", 24)
+    return _source_configuration(item)
+
+
+def _source_storage_configuration(item: dict) -> dict:
+    declaration = _normalized_registry_configuration(item)
+    configuration = {
+        field: declaration[field]
+        for field in _SOURCE_CONFIGURATION_FIELDS
+        if field in declaration
+    }
+    configuration["industries"] = item.get("industries", [])
     return configuration
 
 
@@ -116,6 +126,7 @@ def _source_registry_drift(
     item: dict, source: Source, epoch: SourceScheduleEpoch | None
 ) -> bool:
     live_configuration = _normalized_registry_configuration(item)
+    storage_configuration = _source_storage_configuration(item)
     persisted_configuration = {
         field: getattr(source, field, _MISSING_CONFIGURATION)
         for field in _SOURCE_CONFIGURATION_FIELDS
@@ -123,7 +134,7 @@ def _source_registry_drift(
     changed = (
         source.registry_enabled != bool(item["enabled"])
         or _configuration_differs(
-            live_configuration, persisted_configuration, _SOURCE_CONFIGURATION_FIELDS
+            storage_configuration, persisted_configuration, _SOURCE_CONFIGURATION_FIELDS
         )
     )
     if epoch is not None:
@@ -137,8 +148,8 @@ def _source_registry_drift(
 
 
 def _sync_source_configuration(source: Source, item: dict) -> None:
-    for field in _SOURCE_CONFIGURATION_FIELDS:
-        setattr(source, field, item[field])
+    for field, value in _source_storage_configuration(item).items():
+        setattr(source, field, value)
     source.registry_enabled = bool(item["enabled"])
 
 
@@ -183,7 +194,7 @@ def _append_epoch(
             current.schedule_mode,
             current.timezone,
             None,
-            current.configuration,
+            _epoch_configuration(current),
         )
         # The anchor is immutable within an epoch; ignore its generated value
         # while deciding whether the source's declared scheduling config changed.
@@ -414,7 +425,7 @@ def sync_registry() -> list[dict]:
             row = session.scalar(
                 select(Source).where(Source.id == item["id"]).with_for_update()
             )
-            values = {key: item[key] for key in _SOURCE_CONFIGURATION_FIELDS}
+            values = _source_storage_configuration(item)
             if row is None:
                 row = Source(
                     id=item["id"],
