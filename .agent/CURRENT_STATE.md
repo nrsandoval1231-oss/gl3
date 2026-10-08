@@ -1,3 +1,11 @@
+# Current audit repair frontier — October 8, 2026
+
+A5A independently accepted and published as draft PR40 at fb65ceb70a58c5c8d7f414a4b46cc7e3aa9e2f39; recorded push and synthetic-merge CI passed. A5B root final gates PASS on d5f950c677b830f0a1b3fba8dbe3d9213191cddc; independent review PENDING. See .agent/artifacts/GL3-AUDIT-A5B-CONTROLLER/GATES.md and exact raw manifests. This supersedes the inherited A5A pending-review state below.
+
+Next direction: VALIDATE exact proof descendant with independent Sol, then authorized draft publication. A6 attributed facts, seven-state workflow, functional UI and bulk status integration remain pending; A8 operations/readiness pending; A7 canonical PNG/HTML missing. Parent objective OPEN. Preserve original data and credentials. No merge, deployment, paid activation or external messages. Historical state bytes archived unchanged.
+
+## Inherited historical state
+
 # Current audit repair state — October 8, 2026
 
 Owner scope: comprehensive audit repair; preserve application evidence/history and credentials. Draft PR publication authorized. GitHub merge, deployment, paid activation, external messages and original application-data changes excluded.
@@ -11,3 +19,4 @@ Historical overwritten diagnostic originals remain UNKNOWN. Three credential-bea
 A5B bounded API/client/search/export follows accepted A5A. A6 attributed facts and A8 inert operational/recovery/readiness tooling remain pending. A7 visual implementation requires checksum-matching original canonical PNG and HTML; the matched MP4 is supplemental only. No seven-day uptime, live feed readiness, actual customer confirmation, real Lead or original-data reconciliation is claimed. Original backup/history remain preserved; unresolved replay projects remain visible. Parent objective OPEN.
 
 Canonical references: docs/product/PRD.md, docs/design/UI_CANON.md, docs/design/references/canonical-ui-reference.json, .agent/AGENT_RULES.md and the A5A packet/amendments. Old aggregate work and historical receipts remain preserved. Timing/tokens are UNKNOWN where unmeasured.
+
