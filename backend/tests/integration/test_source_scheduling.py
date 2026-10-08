@@ -71,6 +71,9 @@ def definition(*, enabled=True, endpoint="https://example.invalid/current"):
         "industries": ["mining"],
         "retrieval_method": "test",
         "cadence_hours": 24,
+        "schedule_mode": "local_daily",
+        "timezone": "America/Chicago",
+        "schedule_anchor_time": "03:00:00",
         "enabled": enabled,
     }
 
@@ -490,6 +493,98 @@ def test_unobserved_registry_drift_keeps_seven_day_freshness_unknown(source_db, 
     status = api.health()
     assert status["sources"][0]["freshness"] == "UNKNOWN"
     assert status["collection_freshness"] == "UNKNOWN"
+
+
+@pytest.mark.parametrize(
+    ("drift", "expected"),
+    [
+        ("industries_removed", "UNKNOWN"),
+        ("cadence_removed", "UNKNOWN"),
+        ("stored_timezone_missing", "UNKNOWN"),
+        ("documented_schedule_defaults", "FRESH"),
+    ],
+)
+def test_live_registry_comparison_does_not_hide_omitted_fields(
+    source_db, monkeypatch, drift, expected
+):
+    import gridlens.api.app as api
+    import gridlens.jobs.worker as worker
+
+    factory = source_db
+    now = datetime.now(UTC)
+    original = definition()
+    if drift == "cadence_removed":
+        original["cadence_hours"] = 1
+        original["schedule_mode"] = "utc_hourly"
+    registry = [original]
+    monkeypatch.setattr(worker, "SessionLocal", factory)
+    monkeypatch.setattr(api, "SessionLocal", factory)
+    monkeypatch.setattr(worker, "load_registry", lambda: registry)
+    monkeypatch.setattr(api, "load_registry", lambda: registry)
+    worker.sync_registry()
+    with factory.begin() as session:
+        epoch = session.scalar(select(SourceScheduleEpoch))
+        source = session.get(Source, "synthetic-scheduled-source")
+        assert epoch and source
+        epoch.effective_from = now - timedelta(days=10)
+        if epoch.schedule_mode == "utc_hourly":
+            epoch.anchor = {
+                "utc": (now - timedelta(days=10)).replace(
+                    minute=0, second=0, microsecond=0
+                ).isoformat()
+            }
+        else:
+            epoch.anchor = {
+                "local_date": (now - timedelta(days=10))
+                .astimezone(ZoneInfo("America/Chicago"))
+                .date()
+                .isoformat(),
+                "local_time": "03:00",
+            }
+        if drift == "stored_timezone_missing":
+            epoch.configuration = dict(epoch.configuration)
+            epoch.configuration.pop("timezone")
+        source.health = {"status": "Updated", "last_attempt": now.isoformat()}
+        scheduled_slots = list(
+            worker._scheduled_instants(epoch, now, not_before=_window_start_utc(now))
+        )
+        assert scheduled_slots
+        for scheduled_for in scheduled_slots:
+            _record_receipt(session, epoch, scheduled_for)
+
+    assert api.health()["sources"][0]["freshness"] == "FRESH"
+    if drift == "industries_removed":
+        current = dict(original)
+        current.pop("industries")
+    elif drift == "cadence_removed":
+        current = dict(original)
+        current.pop("cadence_hours")
+        current.pop("schedule_mode")
+    elif drift == "documented_schedule_defaults":
+        current = dict(original)
+        for field in (
+            "cadence_hours",
+            "schedule_mode",
+            "timezone",
+            "schedule_anchor_time",
+        ):
+            current.pop(field)
+    else:
+        current = {**original, "timezone": "America/New_York"}
+    registry[0] = current
+    with factory() as session:
+        due_count_before = session.scalar(select(func.count()).select_from(SourceDueCheck))
+        epoch_count_before = session.scalar(select(func.count()).select_from(SourceScheduleEpoch))
+
+    status = api.health()
+
+    assert status["sources"][0]["freshness"] == expected, status
+    assert status["collection_freshness"] == expected
+    with factory() as session:
+        assert session.scalar(select(func.count()).select_from(SourceDueCheck)) == due_count_before
+        assert session.scalar(select(func.count()).select_from(SourceScheduleEpoch)) == (
+            epoch_count_before
+        )
 
 
 @pytest.mark.parametrize(
