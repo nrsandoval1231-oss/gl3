@@ -389,15 +389,26 @@ class _QualificationClaimsSummary:
 
 def _effective_qualification_from_claim(claim: dict[str, Any]) -> dict[str, Any]:
     tier = claim["tier"]
+    closed_by_fact = bool(claim.get("closed_by_fact"))
     return {
         "tier": tier,
         "rationale": claim["reason"],
         # Only an explicit accepted-demand intersection may override the source
         # claim for calculation. Source-only claims keep the original projection.
-        "required_mw": claim.get("fact_derived_required_mw") or _reported_mw(claim),
+        "required_mw": (
+            None
+            if closed_by_fact
+            else claim.get("fact_derived_required_mw") or _reported_mw(claim)
+        ),
         "start_window": claim.get("start_window") if tier == "Lead" else None,
         "duration": claim.get("duration") if tier == "Lead" else None,
-        "supply": "Reported constraint" if tier in {"Prospect", "Lead"} else "Unknown",
+        "supply": (
+            "Unknown"
+            if closed_by_fact
+            else "Reported constraint"
+            if tier in {"Prospect", "Lead"}
+            else "Unknown"
+        ),
         "qualified_remaining_gap": claim.get("qualified_remaining_gap") if tier == "Lead" else None,
         "buying_role": claim.get("buying_role") if tier == "Lead" else None,
         "qualification_next_action": claim.get("qualification_next_action")
@@ -405,7 +416,8 @@ def _effective_qualification_from_claim(claim: dict[str, Any]) -> dict[str, Any]
         else None,
         "qualification_version": claim.get("qualification_version"),
         "qualification_conflict": bool(claim.get("qualification_conflict")),
-        "closed_by_fact": bool(claim.get("closed_by_fact")),
+        "closed_by_fact": closed_by_fact,
+        "closure_basis": claim.get("closure_basis") if closed_by_fact else None,
     }
 
 

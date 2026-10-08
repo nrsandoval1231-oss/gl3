@@ -334,6 +334,17 @@ def test_concurrent_workflow_updates_serialize_by_exact_need(runtime):
 
 def test_current_public_support_bounds_fact_qualification_and_reassessment(runtime):
     client, factory, need_id, project_id, pursuit_id = runtime
+    with factory.begin() as session:
+        sibling = PowerNeed(
+            project_id=project_id,
+            activity_key="operations",
+            tier="Signal",
+            rationale="Synthetic sibling need remains independent",
+            supply="Unknown",
+        )
+        session.add(sibling)
+        session.flush()
+        sibling_need_id = sibling.id
     content_hash = "a" * 64
     source_abstract = (
         "description: Test City construction requires 20 to 25 MW. "
@@ -459,7 +470,7 @@ def test_current_public_support_bounds_fact_qualification_and_reassessment(runti
         f"/api/opportunities?tier=Prospect&cohort_token={initial_cohort}"
     )
     assert stale_fact_page.status_code == 409
-    accept("suitable_supply", {"mw": "5", "quality": "suitable"})
+    initial_supply = accept("suitable_supply", {"mw": "5", "quality": "suitable"}).json()
     lead_result = accept(
         "buyer", {"organization": "Synthetic Owner LLC", "role": "project owner"}
     ).json()
@@ -689,6 +700,220 @@ def test_current_public_support_bounds_fact_qualification_and_reassessment(runti
             content_hash,
             conflicting_hash,
         }
+
+    # Replace the old 5 MW report with an exact current adequate range. The
+    # correction is append-only and must remove this Need from every active
+    # browse projection without rewriting its Reported source assessment.
+    preclosure_page = client.get("/api/opportunities?tier=Lead&limit=50")
+    assert preclosure_page.status_code == 200, preclosure_page.text
+    preclosure_card = next(
+        item for item in preclosure_page.json() if str(item["id"]) == str(need_id)
+    )
+    preclosure_token = preclosure_page.headers["x-cohort-token"]
+    preclosure_group_id = preclosure_card["group_id"]
+    adequate_body = _body(
+        project_id,
+        pursuit_id,
+        expected_version=event_version,
+        predecessor_id=UUID(initial_supply["fact_version_id"]),
+    )
+    adequate_body["fact_type"] = "suitable_supply"
+    adequate_body["value"] = {
+        "mw_min": "25",
+        "mw_max": "30",
+        "quality": "suitable",
+    }
+    adequate_body["effective_from"] = "2026-01-01T00:00:00+00:00"
+    adequate_body["effective_until"] = "2027-03-04T00:00:00+00:00"
+    adequate_draft = client.post(
+        f"/api/needs/{need_id}/facts", json=adequate_body, headers=headers
+    )
+    assert adequate_draft.status_code == 200, adequate_draft.text
+    event_version += 1
+    adequate_decision = client.post(
+        f"/api/needs/{need_id}/facts/{adequate_draft.json()['id']}/decision",
+        json={
+            "client_id": str(uuid4()),
+            "expected_version": event_version,
+            "decision": "corrected",
+            "reason": "Synthetic full-window suitable supply correction",
+        },
+        headers=headers,
+    )
+    assert adequate_decision.status_code == 200, adequate_decision.text
+    assert adequate_decision.json()["active"] is False
+    assert adequate_decision.json()["tier"] == "Signal"
+    event_version += 2
+    adequate_fact = adequate_decision.json()
+
+    inactive_leads = client.get("/api/opportunities?tier=Lead&limit=50")
+    assert inactive_leads.status_code == 200, inactive_leads.text
+    assert inactive_leads.headers["x-total-count"] == "0"
+    assert all(str(item["id"]) != str(need_id) for item in inactive_leads.json())
+    inactive_prospects = client.get("/api/opportunities?tier=Prospect&limit=50")
+    assert inactive_prospects.status_code == 200, inactive_prospects.text
+    assert all(str(item["id"]) != str(need_id) for item in inactive_prospects.json())
+    stale_preclosure = client.get(
+        f"/api/opportunities?tier=Lead&cohort_token={preclosure_token}"
+    )
+    assert stale_preclosure.status_code == 409
+    inactive_csv = client.get("/api/opportunities/export.csv?tier=Lead&limit=50")
+    assert inactive_csv.status_code == 200, inactive_csv.text
+    assert str(need_id) not in inactive_csv.text
+    inactive_detail = client.get(f"/api/opportunities/needs/{need_id}?tier=Lead")
+    assert inactive_detail.status_code == 404
+    inactive_group = client.get(
+        f"/api/opportunity-groups/{preclosure_group_id}?tier=Lead"
+        f"&cohort_token={inactive_leads.headers['x-cohort-token']}"
+    )
+    assert inactive_group.status_code == 404
+    fact_history = client.get(f"/api/needs/{need_id}/facts?limit=100")
+    assert fact_history.status_code == 200, fact_history.text
+    assert any(
+        item["id"] == adequate_fact["fact_version_id"]
+        and item["content_hash"] == adequate_fact["content_hash"]
+        for item in fact_history.json()["items"]
+    )
+    with factory() as session:
+        from gridlens.ingestion.service import effective_need_qualification
+
+        need = session.get(PowerNeed, need_id)
+        project = session.get(Project, project_id)
+        observation = session.scalar(select(Observation))
+        interpretation = session.scalar(select(Interpretation))
+        assert need is not None and project is not None
+        assert observation is not None and interpretation is not None
+        effective = effective_need_qualification(session, need, project)
+        assert effective is not None and effective["closed_by_fact"] is True
+        assert effective["required_mw"] is None
+        assert effective["qualified_remaining_gap"] is None
+        basis = effective["closure_basis"]
+        assert basis["suitable_supply_fact_id"] == adequate_fact["fact_version_id"]
+        assert basis["suitable_supply_fact_hash"] == adequate_fact["content_hash"]
+        assert basis["source_semantic_hash"] == content_hash
+        assert basis["source_evidence_hash"] == content_hash
+        assert need.active is False and need.required_mw is None
+        sibling = session.get(PowerNeed, sibling_need_id)
+        assert sibling is not None and sibling.active is True
+        assert "source semantic hash" in need.rationale.casefold()
+        assert interpretation.assessment["demand_mw"] == "20 to 25 MW"
+        assert (
+            interpretation.assessment["supply_quote"]
+            == "Power supply for Test City construction is insufficient."
+        )
+
+    # Replaying a new compatible public source version cannot reopen a Need
+    # while the accepted exact-need adequate supply remains current.
+    replay_hash = "d" * 64
+    with factory.begin() as session:
+        need = session.get(PowerNeed, need_id)
+        project = session.get(Project, project_id)
+        observation = session.scalar(select(Observation))
+        interpretation = session.scalar(select(Interpretation))
+        assert need is not None and project is not None
+        assert observation is not None and interpretation is not None
+        observation.content_hash = replay_hash
+        observation.abstract = source_abstract
+        session.add(
+            Evidence(
+                observation_id=observation.id,
+                content_hash=replay_hash,
+                title=observation.title,
+                abstract=source_abstract,
+                url=observation.url,
+                published_at=observation.published_at,
+                observed_at=datetime.now(UTC),
+            )
+        )
+        interpretation.content_hash = replay_hash
+        interpretation.status = "accepted"
+        interpretation.assessment = {
+            **interpretation.assessment,
+            "semantic_hash": replay_hash,
+            "evidence_hash": replay_hash,
+        }
+        from gridlens.ingestion.service import _apply_current_qualification
+
+        need.active = True  # ingestion reopens on a new source version before replay
+        _apply_current_qualification(session, need, project)
+        assert need.active is False and need.tier == "Signal"
+        assert replay_hash in need.rationale
+
+    # A supported partial range reopens only an active, recomputed gap; retracting
+    # it returns to the public Prospect instead of reusing a stale closed state.
+    partial_body = _body(
+        project_id,
+        pursuit_id,
+        expected_version=event_version,
+        predecessor_id=UUID(adequate_fact["fact_version_id"]),
+    )
+    partial_body["fact_type"] = "suitable_supply"
+    partial_body["value"] = {"mw_min": "10", "mw_max": "15", "quality": "suitable"}
+    partial_body["effective_from"] = "2026-01-01T00:00:00+00:00"
+    partial_body["effective_until"] = "2027-03-04T00:00:00+00:00"
+    partial_draft = client.post(
+        f"/api/needs/{need_id}/facts", json=partial_body, headers=headers
+    )
+    assert partial_draft.status_code == 200, partial_draft.text
+    event_version += 1
+    partial_decision = client.post(
+        f"/api/needs/{need_id}/facts/{partial_draft.json()['id']}/decision",
+        json={
+            "client_id": str(uuid4()),
+            "expected_version": event_version,
+            "decision": "corrected",
+            "reason": "Synthetic suitable supply range leaves an open gap",
+        },
+        headers=headers,
+    )
+    assert partial_decision.status_code == 200, partial_decision.text
+    assert partial_decision.json()["active"] is True
+    assert partial_decision.json()["tier"] == "Lead"
+    event_version += 2
+    with factory() as session:
+        from gridlens.ingestion.service import effective_need_qualification
+
+        need = session.get(PowerNeed, need_id)
+        project = session.get(Project, project_id)
+        assert need is not None and project is not None
+        effective = effective_need_qualification(session, need, project)
+        assert effective is not None and effective["tier"] == "Lead"
+        assert (
+            effective["qualified_remaining_gap"]["remaining_mw_min"],
+            effective["qualified_remaining_gap"]["remaining_mw_max"],
+        ) == ("6", "14")
+        assert (
+            effective["qualified_remaining_gap"]["suitable_supply_fact_id"]
+            == partial_decision.json()["fact_version_id"]
+        )
+    retracted_partial = client.post(
+        f"/api/needs/{need_id}/facts/{partial_draft.json()['id']}/decision",
+        json={
+            "client_id": str(uuid4()),
+            "expected_version": event_version,
+            "decision": "retracted",
+            "reason": "Synthetic supply range retracted",
+        },
+        headers=headers,
+    )
+    assert retracted_partial.status_code == 200, retracted_partial.text
+    assert retracted_partial.json()["active"] is True
+    assert retracted_partial.json()["tier"] == "Prospect"
+    event_version += 1
+    restored_supply = accept("suitable_supply", {"mw": "5", "quality": "suitable"}).json()
+    assert restored_supply["active"] is True and restored_supply["tier"] == "Lead"
+    with factory() as session:
+        from gridlens.ingestion.service import effective_need_qualification
+
+        need = session.get(PowerNeed, need_id)
+        project = session.get(Project, project_id)
+        assert need is not None and project is not None
+        effective = effective_need_qualification(session, need, project)
+        assert effective is not None and effective["tier"] == "Lead"
+        assert (
+            effective["qualified_remaining_gap"]["remaining_mw_min"],
+            effective["qualified_remaining_gap"]["remaining_mw_max"],
+        ) == ("16", "19")
 
     unknown_page = client.get("/api/opportunities?tier=Lead&status=UNKNOWN")
     assert unknown_page.status_code == 200, unknown_page.text

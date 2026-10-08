@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 from datetime import UTC, date, datetime, time, timedelta
 from decimal import Decimal, InvalidOperation
 from typing import Any
@@ -222,6 +223,29 @@ def _activity_interval(value: dict[str, Any]) -> tuple[datetime, datetime] | Non
     )
 
 
+def _source_lead_activity_interval(claim: dict[str, Any]) -> tuple[datetime, datetime] | None:
+    """Replay the already-qualified official Lead's complete possible activity window."""
+    start_window = claim.get("start_window")
+    duration = claim.get("duration")
+    if not isinstance(start_window, str) or not isinstance(duration, str):
+        return None
+    starts = re.fullmatch(r"(\d{4}-\d{2}-\d{2}) to (\d{4}-\d{2}-\d{2})", start_window)
+    duration_match = re.fullmatch(r"(\d{1,6})(?: to (\d{1,6}))? days", duration)
+    if starts is None or duration_match is None:
+        return None
+    try:
+        max_days = int(duration_match[2] or duration_match[1])
+        return _activity_interval(
+            {
+                "start_date": starts[1],
+                "end_date": starts[2],
+                "duration_days": max_days,
+            }
+        )
+    except (TypeError, ValueError, OverflowError):
+        return None
+
+
 def _fact_covers_interval(row: Any, interval: tuple[datetime, datetime]) -> bool:
     """Fail closed unless an accepted version covers the whole activity interval."""
     if not hasattr(row, "effective_from") or not hasattr(row, "effective_until"):
@@ -294,6 +318,7 @@ def qualification_from_facts(
     source_value = base.get("demand_mw") or base.get("required_mw")
     source_interval = exact_mw_interval(source_value)
     fact_interval = _fact_mw_interval(demand[0], allow_zero=False) if demand else None
+    base_tier = base.get("tier")
     calculation_demand: tuple[Decimal, Decimal] | None = None
     if source_interval is not None:
         calculation_demand = source_interval
@@ -312,18 +337,225 @@ def qualification_from_facts(
                     ),
                 }
             calculation_demand = overlap
-    base_tier = base.get("tier")
-    if base_tier not in {"Signal", "Prospect"}:
+
+    if base_tier not in {"Signal", "Prospect", "Lead"}:
         return base
+
+    suitable = fields.get("suitable_supply", [])
+    suitable_rows = rows_by_type.get("suitable_supply", [])
+    timing = fields.get("timing", [])
+    timing_rows = rows_by_type.get("timing", [])
+    if base_tier == "Signal":
+        closure_demand = fact_interval
+        closure_has_shortage_support = bool(closure_demand and unsuitable)
+    else:
+        closure_demand = calculation_demand
+        closure_has_shortage_support = bool(
+            closure_demand and source_interval is not None and base.get("supply_quote")
+        )
+    closure_activity_interval = (
+        _activity_interval(timing[0])
+        if timing
+        else _source_lead_activity_interval(base)
+        if base_tier == "Lead"
+        else None
+    )
+    closure_rows = list(suitable_rows[:1])
+    if timing_rows:
+        closure_rows.append(timing_rows[0])
+    if demand and (base_tier == "Signal" or fact_interval is not None):
+        closure_rows.append(rows_by_type["demand"][0])
+    if base_tier == "Signal" and unsuitable:
+        closure_rows.append(rows_by_type["unsuitable_supply"][0])
+    closure_supply_interval = (
+        _fact_mw_interval(suitable[0], allow_zero=True)
+        if suitable
+        else None
+    )
+    if (
+        closure_has_shortage_support
+        and suitable
+        and suitable[0].get("quality") == "suitable"
+        and closure_supply_interval is not None
+        and closure_activity_interval is not None
+        and closure_rows
+        and all(_fact_covers_interval(row, closure_activity_interval) for row in closure_rows)
+        and closure_demand is not None
+        and closure_supply_interval[0] >= closure_demand[1]
+    ):
+        supply_row = suitable_rows[0]
+        source_semantic_hash = base.get("semantic_hash")
+        source_evidence_hash = base.get("evidence_hash")
+        basis = {
+            "kind": "confirmed_adequate_supply",
+            "required_mw": _mw_presentation(closure_demand),
+            "suitable_supply_mw": _mw_presentation(closure_supply_interval),
+            "remaining_mw_min": "0",
+            "remaining_mw_max": "0",
+            "calculation": "[max(0, required_min - suitable_max), "
+            "max(0, required_max - suitable_min)]",
+            "version": POWER_QUALIFICATION_VERSION,
+            "activity_interval_start": closure_activity_interval[0].isoformat(),
+            "activity_interval_end_exclusive": closure_activity_interval[1].isoformat(),
+            "suitable_supply_fact_id": str(supply_row.id),
+            "suitable_supply_fact_hash": supply_row.content_hash,
+            "source_semantic_hash": source_semantic_hash,
+            "source_evidence_hash": source_evidence_hash,
+            "source_qualification_version": base.get("qualification_version"),
+            "source_reported_supply_quote": base.get("supply_quote"),
+        }
+        if demand:
+            demand_row = rows_by_type["demand"][0]
+            basis["demand_fact_id"] = str(demand_row.id)
+            basis["demand_fact_hash"] = demand_row.content_hash
+        rationale = (
+            f"Confirmed suitable supply {_mw_presentation(closure_supply_interval)} covers "
+            f"the full activity interval and {_mw_presentation(closure_demand)} requirement; "
+            f"accepted fact {supply_row.id} ({supply_row.content_hash}) supersedes the current "
+            f"reported open-supply basis. Source semantic hash {source_semantic_hash}; "
+            f"evidence hash {source_evidence_hash}."
+        )
+        closed = {
+            **base,
+            "tier": "Signal",
+            "demand_mw": None,
+            "required_mw": None,
+            "closed_by_fact": True,
+            "closure_basis": basis,
+            "reason": rationale,
+        }
+        for key in (
+            "start_window",
+            "duration",
+            "qualified_remaining_gap",
+            "qualification_next_action",
+            "buying_role",
+            "fact_derived_required_mw",
+        ):
+            closed.pop(key, None)
+        return closed
 
     # A source-supported Prospect already establishes activity-specific demand
     # and unsuitable supply. Signal needs compatible exact-need facts for both.
-    if base_tier == "Prospect":
+    if base_tier in {"Prospect", "Lead"}:
         required_interval = calculation_demand
     else:
         required_interval = fact_interval
-    has_unsuitable = bool(unsuitable) if base_tier == "Signal" else bool(base.get("supply_quote"))
+    has_unsuitable = (
+        bool(unsuitable)
+        if base_tier == "Signal"
+        else bool(base.get("supply_quote"))
+    )
     if required_interval is None or not has_unsuitable:
+        return base
+
+    # An already replayed official Lead carries its own source-supported time
+    # and buyer gates. Reconcile a newly accepted suitable-supply fact against
+    # those gates without requiring duplicate operator timing or buyer facts.
+    if (
+        base_tier == "Lead"
+        and suitable
+        and suitable[0].get("quality") == "suitable"
+        and closure_supply_interval is not None
+        and closure_activity_interval is not None
+        and all(_fact_covers_interval(row, closure_activity_interval) for row in closure_rows)
+    ):
+        required_low, required_high = required_interval
+        available_low, available_high = closure_supply_interval
+        remaining_low = max(Decimal(0), required_low - available_high)
+        remaining_high = max(Decimal(0), required_high - available_low)
+        supply_row = suitable_rows[0]
+        fact_intersection = bool(
+            demand and source_interval is not None and fact_interval is not None
+        )
+        ranged = (
+            required_low != required_high or available_low != available_high or fact_intersection
+        )
+        if remaining_low == 0:
+            result = {
+                **base,
+                "tier": "Prospect",
+                "reason": (
+                    "Accepted full-window suitable supply leaves a possible remaining gap "
+                    f"of 0 to {_format_mw(remaining_high)} MW; retain an active Prospect "
+                    "until the interval is resolved."
+                ),
+                "closed_by_fact": False,
+            }
+            for key in (
+                "start_window",
+                "duration",
+                "qualified_remaining_gap",
+                "qualification_next_action",
+                "buying_role",
+            ):
+                result.pop(key, None)
+            if fact_intersection:
+                result["fact_derived_required_mw"] = _mw_presentation(required_interval)
+            return result
+
+        gap = {
+            "required_mw": (
+                _mw_presentation(required_interval)
+                if ranged
+                else _format_mw(required_low)
+            ),
+            "available_mw": (
+                _mw_presentation(closure_supply_interval)
+                if ranged
+                else _format_mw(available_low)
+            ),
+            "value_kind": "Derived",
+            "suitable_supply_basis": "User-confirmed",
+            "suitable_supply_fact_id": str(supply_row.id),
+            "suitable_supply_fact_hash": supply_row.content_hash,
+            "source_semantic_hash": base.get("semantic_hash"),
+            "source_evidence_hash": base.get("evidence_hash"),
+            "source_reported_supply_quote": base.get("supply_quote"),
+        }
+        if ranged:
+            gap.update(
+                {
+                    "required_mw_min": _format_mw(required_low),
+                    "required_mw_max": _format_mw(required_high),
+                    "available_mw_min": _format_mw(available_low),
+                    "available_mw_max": _format_mw(available_high),
+                    "remaining_mw_min": _format_mw(remaining_low),
+                    "remaining_mw_max": _format_mw(remaining_high),
+                    "calculation": "[max(0, required_min - suitable_max), "
+                    "max(0, required_max - suitable_min)]",
+                    "version": POWER_QUALIFICATION_VERSION,
+                }
+            )
+            if remaining_low == remaining_high:
+                gap["remaining_mw"] = _format_mw(remaining_low)
+        else:
+            gap["remaining_mw"] = _format_mw(remaining_low)
+        result = {
+            **base,
+            "tier": "Lead",
+            "qualified_remaining_gap": gap,
+            "reason": (
+                "Current official Lead support plus accepted full-window suitable supply "
+                f"leaves a derived {_format_mw(remaining_low)} to "
+                f"{_format_mw(remaining_high)} MW gap."
+            ),
+            "closed_by_fact": False,
+        }
+        if fact_intersection:
+            assert fact_interval is not None
+            result["fact_derived_required_mw"] = _mw_presentation(required_interval)
+            demand_row = rows_by_type["demand"][0]
+            gap["required_mw_basis"] = "User-confirmed intersection"
+            gap["source_demand_mw"] = str(source_value)
+            gap["user_confirmed_demand_mw"] = _mw_presentation(fact_interval)
+            gap["demand_fact_id"] = str(demand_row.id)
+            gap["demand_fact_hash"] = demand_row.content_hash
+        return result
+
+    if base_tier == "Lead":
+        # A partial, unknown-quality, or otherwise unbound supply fact cannot
+        # retract the already source-supported Lead calculation.
         return base
 
     result = dict(base)
@@ -392,6 +624,12 @@ def qualification_from_facts(
             _mw_presentation(available_interval) if ranged else _format_mw(available_low)
         ),
         "value_kind": "Derived",
+        "suitable_supply_basis": "User-confirmed",
+        "suitable_supply_fact_id": str(suitable_rows[0].id),
+        "suitable_supply_fact_hash": suitable_rows[0].content_hash,
+        "source_semantic_hash": base.get("semantic_hash"),
+        "source_evidence_hash": base.get("evidence_hash"),
+        "source_reported_supply_quote": base.get("supply_quote"),
     }
     if (
         base_tier == "Prospect"
