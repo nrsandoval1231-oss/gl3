@@ -3447,39 +3447,77 @@ def _commercial_triage_page(
     selected_groups = [need_ids for _identity, need_ids in selected_keyed_groups]
     selected_ids = {UUID(need_id) for group in selected_groups for need_id in group}
     summary_by_id = {str(item["id"]): item for item in summaries}
-    for identity, group in selected_keyed_groups:
-        group_ids = {UUID(need_id) for need_id in group}
-        evidence_rows = int(
-            session.scalar(
-                select(func.count(Evidence.id))
-                .select_from(NeedObservation)
-                .join(Observation, Observation.id == NeedObservation.observation_id)
-                .join(Evidence, Evidence.observation_id == Observation.id)
-                .outerjoin(
-                    Interpretation,
-                    and_(
-                        Interpretation.observation_id == Observation.id,
-                        Interpretation.content_hash == Observation.content_hash,
-                    ),
-                )
-                .where(NeedObservation.need_id.in_(group_ids))
+
+    evidence_counts_by_need = dict(
+        session.execute(
+            select(NeedObservation.need_id, func.count(Evidence.id))
+            .select_from(NeedObservation)
+            .join(Observation, Observation.id == NeedObservation.observation_id)
+            .join(Evidence, Evidence.observation_id == Observation.id)
+            .outerjoin(
+                Interpretation,
+                and_(
+                    Interpretation.observation_id == Observation.id,
+                    Interpretation.content_hash == Observation.content_hash,
+                ),
             )
-            or 0
-        )
+            .where(NeedObservation.need_id.in_(selected_ids))
+            .group_by(NeedObservation.need_id)
+        ).all()
+    )
+    project_ids_by_need = {
+        UUID(need_id): UUID(str(summary_by_id[need_id]["project_id"]))
+        for group in selected_groups
+        for need_id in group
+    }
+    selected_project_ids = set(project_ids_by_need.values())
+    lifecycle_counts_by_project = dict(
+        session.execute(
+            select(LifecycleEvent.project_id, func.count(LifecycleEvent.id))
+            .where(LifecycleEvent.project_id.in_(selected_project_ids))
+            .group_by(LifecycleEvent.project_id)
+        ).all()
+    )
+    relationship_counts_by_project = dict(
+        session.execute(
+            select(BuyingChainEvidence.project_id, func.count(BuyingChainEvidence.id))
+            .where(BuyingChainEvidence.project_id.in_(selected_project_ids))
+            .group_by(BuyingChainEvidence.project_id)
+        ).all()
+    )
+    workspace_ids_by_need = {
+        UUID(need_id): f"commercial-need:{need_id}"
+        for group in selected_groups
+        for need_id in group
+    }
+    selected_workspace_ids = set(workspace_ids_by_need.values())
+    workspace_sizes = dict(
+        session.execute(
+            select(Pursuit.identity_key, func.octet_length(cast(Pursuit.snapshot, Text))).where(
+                Pursuit.identity_key.in_(selected_workspace_ids)
+            )
+        ).all()
+    )
+    note_counts_by_workspace = dict(
+        session.execute(
+            select(Pursuit.identity_key, func.count(PursuitCallNote.id))
+            .join(Pursuit, Pursuit.id == PursuitCallNote.pursuit_id)
+            .where(Pursuit.identity_key.in_(selected_workspace_ids))
+            .group_by(Pursuit.identity_key)
+        ).all()
+    )
+
+    for identity, group in selected_keyed_groups:
+        group_need_ids = {UUID(need_id) for need_id in group}
+        evidence_rows = sum(evidence_counts_by_need.get(need_id, 0) for need_id in group_need_ids)
         if evidence_rows > _MAX_COMMERCIAL_CARD_EVIDENCE_ROWS:
             raise _commercial_bound_error(
                 identity, evidence_rows, _MAX_COMMERCIAL_CARD_EVIDENCE_ROWS, "evidence_rows"
             )
-        project_ids_for_group = {
-            UUID(str(summary_by_id[need_id]["project_id"])) for need_id in group
-        }
-        lifecycle_rows = int(
-            session.scalar(
-                select(func.count(LifecycleEvent.id)).where(
-                    LifecycleEvent.project_id.in_(project_ids_for_group)
-                )
-            )
-            or 0
+        project_ids_for_group = {project_ids_by_need[need_id] for need_id in group_need_ids}
+        lifecycle_rows = sum(
+            lifecycle_counts_by_project.get(project_id, 0)
+            for project_id in project_ids_for_group
         )
         if lifecycle_rows > _MAX_COMMERCIAL_CARD_LIFECYCLE_ROWS:
             raise _commercial_bound_error(
@@ -3488,13 +3526,9 @@ def _commercial_triage_page(
                 _MAX_COMMERCIAL_CARD_LIFECYCLE_ROWS,
                 "lifecycle_rows",
             )
-        relationship_rows = int(
-            session.scalar(
-                select(func.count(BuyingChainEvidence.id)).where(
-                    BuyingChainEvidence.project_id.in_(project_ids_for_group)
-                )
-            )
-            or 0
+        relationship_rows = sum(
+            relationship_counts_by_project.get(project_id, 0)
+            for project_id in project_ids_for_group
         )
         if relationship_rows > _MAX_COMMERCIAL_CARD_RELATIONSHIP_ROWS:
             raise _commercial_bound_error(
@@ -3503,12 +3537,9 @@ def _commercial_triage_page(
                 _MAX_COMMERCIAL_CARD_RELATIONSHIP_ROWS,
                 "relationship_rows",
             )
-        workspace_ids = [f"commercial-need:{need_id}" for need_id in group]
-        workspace_sizes = session.execute(
-            select(Pursuit.identity_key, func.octet_length(cast(Pursuit.snapshot, Text)))
-            .where(Pursuit.identity_key.in_(workspace_ids))
-        ).all()
-        for _workspace, snapshot_size in workspace_sizes:
+        group_workspace_ids = [workspace_ids_by_need[need_id] for need_id in group_need_ids]
+        for workspace_id in group_workspace_ids:
+            snapshot_size = workspace_sizes.get(workspace_id)
             if snapshot_size and snapshot_size > _MAX_SAVED_SNAPSHOT_BYTES:
                 raise _commercial_bound_error(
                     identity,
@@ -3516,13 +3547,8 @@ def _commercial_triage_page(
                     _MAX_SAVED_SNAPSHOT_BYTES,
                     "saved_snapshot_bytes",
                 )
-        note_count = int(
-            session.scalar(
-                select(func.count(PursuitCallNote.id))
-                .join(Pursuit, Pursuit.id == PursuitCallNote.pursuit_id)
-                .where(Pursuit.identity_key.in_(workspace_ids))
-            )
-            or 0
+        note_count = sum(
+            note_counts_by_workspace.get(workspace_id, 0) for workspace_id in group_workspace_ids
         )
         if note_count > _MAX_COMMERCIAL_CARD_NOTES:
             raise _commercial_bound_error(identity, note_count, _MAX_COMMERCIAL_CARD_NOTES, "notes")

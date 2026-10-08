@@ -442,6 +442,122 @@ def test_commercial_triage_cards_keeps_list_contract(runtime):
     assert grouped_total == 1
 
 
+def test_commercial_triage_preflight_query_count_is_bounded_for_50_groups(runtime, monkeypatch):
+    factory, _service, _ids = runtime
+    api = import_module("gridlens.api.app")
+    summaries = [
+        {
+            "id": UUID(int=40_000 + index),
+            "project_id": UUID(int=50_000 + index),
+            "tier": "Signal",
+            "name": f"Synthetic preflight project {index}",
+            "location": f"{1000 + index} Synthetic Test Road",
+            "activity": "facility-expansion",
+            "evidence": [],
+        }
+        for index in range(50)
+    ]
+
+    def projection(_session, *, summary_only=False, selected_need_ids=None, **_kwargs):
+        if summary_only:
+            return summaries
+        assert selected_need_ids is not None
+        return []
+
+    monkeypatch.setattr(api, "opportunity_projection", projection)
+    statement_counts = []
+    for limit in (1, 50):
+        with factory() as session:
+            count = [0]
+
+            def count_statement(*_args, query_counter=count):
+                query_counter[0] += 1
+
+            connection = session.connection()
+            event.listen(connection, "before_cursor_execute", count_statement)
+            try:
+                cards, grouped_total = api._commercial_triage_page(session, limit)
+            finally:
+                event.remove(connection, "before_cursor_execute", count_statement)
+            assert cards == []
+            assert grouped_total == 50
+            statement_counts.append(count[0])
+
+    assert statement_counts[1] <= 200
+    assert statement_counts[1] <= statement_counts[0] + 2
+
+
+def test_batched_commercial_preflight_rejects_nested_evidence_before_evaluation_write(
+    runtime, monkeypatch
+):
+    factory, _service, (need_id, evidence_id) = runtime
+    api = import_module("gridlens.api.app")
+    from gridlens.persistence.models import Pursuit
+
+    with factory.begin() as session:
+        evidence = session.get(Evidence, evidence_id)
+        observation_id = evidence.observation_id
+        project_id = session.get(PowerNeed, need_id).project_id
+        session.add_all(
+            [
+                Evidence(
+                    observation_id=observation_id,
+                    content_hash=f"{index + 1000:064x}",
+                    title="Synthetic retained evidence row",
+                    abstract="Evidence retained for the nested-card preflight test.",
+                    url=f"https://example.test/evidence/{index}",
+                )
+                for index in range(api._MAX_COMMERCIAL_CARD_EVIDENCE_ROWS)
+            ]
+        )
+
+    summary = {
+        "id": need_id,
+        "project_id": project_id,
+        "tier": "Signal",
+        "name": "Synthetic nested-evidence project",
+        "location": "Test City",
+        "activity": "facility-expansion",
+        "evidence": [
+            {
+                "assessment_current": True,
+                "source_id": "brief-test-permits",
+                "document_number": "nested-evidence-case",
+            }
+        ],
+    }
+
+    def projection(_session, *, summary_only=False, **_kwargs):
+        if summary_only:
+            return [summary]
+        pytest.fail("detail projection must not run after the nested evidence cap is exceeded")
+
+    monkeypatch.setattr(api, "opportunity_projection", projection)
+    with factory() as session:
+        before = session.scalar(
+            select(func.count()).select_from(Pursuit).where(
+                Pursuit.identity_key.like("commercial-need:%")
+            )
+        )
+
+    client = TestClient(api.app)
+    client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
+    response = client.post(
+        "/api/commercial/triage/evaluate",
+        headers={"Origin": "http://testserver"},
+    )
+
+    assert response.status_code == 413
+    assert response.json()["detail"]["resource"] == "evidence_rows"
+    with factory() as session:
+        after = session.scalar(
+            select(func.count()).select_from(Pursuit).where(
+                Pursuit.identity_key.like("commercial-need:%")
+            )
+        )
+    assert after == before
+
+
 def test_opportunity_projection_uses_stable_updated_at_tiebreak(runtime):
     factory, _service, (need_id, _evidence_id) = runtime
     api = import_module("gridlens.api.app")

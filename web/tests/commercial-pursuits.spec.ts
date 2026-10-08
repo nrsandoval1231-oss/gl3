@@ -338,9 +338,13 @@ test('saved evaluation history keeps as-of card and notes searchable after cohor
     const item = historyItems.find((candidate) => candidate.pursuit_id === pursuitId)
     return route.fulfill(item ? { json: item } : { status: 404, json: { detail: 'Not found' } })
   })
-  let liveResearchReads = 0
+  const researchReads: string[] = []
   await page.route(/\/api\/commercial\/triage\/[^/]+\/autonomous-research/, (route) => {
-    liveResearchReads += 1
+    const needId = new URL(route.request().url()).pathname.split('/').at(-2) ?? ''
+    researchReads.push(needId)
+    if (needId === 'need-old' && researchReads.filter((value) => value === needId).length === 1) {
+      return route.fulfill({ status: 503, json: { detail: 'Retained research history is temporarily unavailable.' } })
+    }
     return route.fulfill({ json: { items: [] } })
   })
   await page.goto('/?view=pursuits')
@@ -358,14 +362,26 @@ test('saved evaluation history keeps as-of card and notes searchable after cohor
   await expect(history.locator('.commercial-history-detail')).toContainText('Construction filing accepted.')
   await expect(history.locator('.commercial-history-detail')).toContainText('Required power: Unknown')
   await expect(history.locator('.commercial-history-detail .commercial-note')).toContainText('Persisted operator note after displacement.')
-  expect(liveResearchReads).toBe(0)
+  expect(researchReads).toEqual([])
   expect(captured.evaluationCalls).toBe(0)
+  await history.getByRole('button', { name: 'Inspect later research attempts' }).click()
+  await expect(history.getByText(/Research attempt history loaded now/)).toBeVisible()
+  expect(researchReads).toEqual(['need-a'])
   await history.getByLabel('Search saved evaluations').fill('need-old')
   await expect(history.getByRole('button', { name: /Saved work · need-old/ })).toBeVisible()
   await history.getByRole('button', { name: /Saved work · need-old/ }).click()
   await expect(history.locator('.commercial-history-detail')).toContainText('Only its saved disposition and operator notes are available; facts are not reconstructed.')
   await expect(history.locator('.commercial-history-detail')).toContainText('Saved version 1: REJECT')
   await expect(history.locator('.commercial-history-detail')).not.toContainText('Construction filing accepted.')
+  await expect(history.getByRole('region', { name: 'Autonomous pursuit research' })).toHaveCount(0)
+  await history.getByRole('button', { name: 'Inspect later research attempts' }).click()
+  await expect(history.locator('.commercial-history-detail')).toContainText('Later research attempt history is unavailable; status is UNKNOWN.')
+  expect(researchReads).toEqual(['need-a', 'need-old'])
+  await history.getByRole('button', { name: /Saved work · need-old/ }).click()
+  await history.getByRole('button', { name: /Saved work · need-old/ }).click()
+  await history.getByRole('button', { name: 'Inspect later research attempts' }).click()
+  await expect(history.locator('.commercial-history-detail')).toContainText('No autonomous research questions recorded.')
+  expect(researchReads).toEqual(['need-a', 'need-old', 'need-old'])
 })
 
 test('saved evaluation history traverses more than one bounded page', async ({ page }) => {
