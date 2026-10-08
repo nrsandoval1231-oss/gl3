@@ -39,7 +39,9 @@ request and blindly replay it.
 
 Each enabled schedule epoch records its source configuration, cadence, mode,
 timezone, anchor and effective interval. Cadences below 24 hours use elapsed UTC
-intervals. Daily schedules use a local wall-clock anchor (default 03:00 in
+intervals. Local-daily cadence is a positive integer number of whole 24-hour
+days; values such as 36 hours are rejected rather than rounded to a different
+schedule. Daily schedules use a local wall-clock anchor (default 03:00 in
 America/Chicago); nonexistent spring-forward times resolve to the first valid
 wall time after the gap, and ambiguous fall-back times use the first occurrence.
 The worker reconciles missed occurrences into a unique source/epoch/UTC due
@@ -58,7 +60,10 @@ the window, and old schedule anchors are evaluated from the seven-day window
 boundary, not replayed from enrollment. It also compares the current registry
 definition with the latest open known epoch; an unrecorded registry edit is
 reported as `UNKNOWN` until a worker records its transition. The displayed
-enabled flag follows the current registry declaration and operator switch.
+health `enabled` flag is true only when the persisted registry flag, current
+live registry declaration, and operator switch are all enabled. An unsynchronized
+registry enable cannot override a persisted registry disable or make health claim
+that ingestion is effective.
 Registry comparison covers publisher, endpoint, family, geography, industries,
 retrieval method, cadence, schedule mode, timezone, and schedule anchor. A missing
 meaningful snapshot field is not ignored. Omitted current cadence is equivalent

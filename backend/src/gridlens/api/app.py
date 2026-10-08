@@ -709,12 +709,15 @@ def health():
             else:
                 freshness = "FRESH"
             freshness_states.append(freshness)
+            effective_enabled = (
+                row.enabled and row.registry_enabled and bool(definition.get("enabled", False))
+            )
             info = {
                 "id": row.id,
                 **row.health,
                 "family": row.family,
                 "geography": row.geography,
-                "enabled": row.enabled and bool(definition.get("enabled", False)),
+                "enabled": effective_enabled,
                 "freshness": freshness,
                 "due_checks_7d": len(expected_due),
                 "verified_successes_7d": successes,
@@ -735,8 +738,7 @@ def health():
                 info["coverage_limitation"] = definition["coverage_limitation"]
             last_attempt = row.health.get("last_attempt")
             if (
-                row.enabled
-                and bool(definition.get("enabled", False))
+                effective_enabled
                 and info["status"] not in {"Running", "Failed", "RegistryUnavailable"}
                 and (
                     not last_attempt

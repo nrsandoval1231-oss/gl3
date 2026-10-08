@@ -194,6 +194,82 @@ def test_registry_sync_keeps_operator_disable_and_explicit_reenable_is_effective
         assert current.history_known
 
 
+def test_health_and_ingestion_gate_respect_persisted_registry_disable(source_db, monkeypatch):
+    from starlette.requests import Request
+
+    import gridlens.api.app as api
+    import gridlens.jobs.worker as worker
+    from gridlens.api.app import SourceEnabledIn
+    from gridlens.jobs.queue import enqueue
+
+    factory = source_db
+    registry = [definition(enabled=True)]
+    monkeypatch.setattr(api, "SessionLocal", factory)
+    monkeypatch.setattr(api, "load_registry", lambda: registry)
+    monkeypatch.setattr(worker, "SessionLocal", factory)
+    monkeypatch.setattr(worker, "load_registry", lambda: registry)
+    now = datetime.now(UTC)
+    with factory.begin() as session:
+        source = session.get(Source, "synthetic-scheduled-source")
+        assert source
+        source.enabled = True
+        source.registry_enabled = False
+        source.health = {"status": "Updated", "last_attempt": now.isoformat()}
+        session.add(
+            SourceScheduleEpoch(
+                source_id=source.id,
+                registry_enabled=False,
+                operator_enabled=True,
+                effective_from=now - timedelta(days=10),
+                cadence_hours=24,
+                schedule_mode="local_daily",
+                timezone="America/Chicago",
+                anchor={
+                    "local_date": (now - timedelta(days=10))
+                    .astimezone(ZoneInfo("America/Chicago"))
+                    .date()
+                    .isoformat(),
+                    "local_time": "03:00",
+                },
+                configuration=definition(enabled=False),
+                history_known=True,
+            )
+        )
+        session.add(Job(source_id=source.id, status="queued"))
+
+    before = api.health()["sources"][0]
+    assert before["enabled"] is False
+    assert before["freshness"] == "UNKNOWN"
+    with factory.begin() as session:
+        with pytest.raises(ValueError, match="disabled"):
+            enqueue(session, "synthetic-scheduled-source")
+    with factory.begin() as session:
+        assert lease_one(session, "disabled-source-worker") is None
+
+    request = Request(
+        {
+            "type": "http",
+            "method": "POST",
+            "scheme": "http",
+            "path": "/api/sources/synthetic-scheduled-source/enabled",
+            "query_string": b"",
+            "headers": [(b"host", b"testserver")],
+            "server": ("testserver", 80),
+            "client": ("testclient", 123),
+        }
+    )
+    response = api.set_source_enabled_endpoint(
+        "synthetic-scheduled-source", SourceEnabledIn(enabled=True), request
+    )
+    assert response == {
+        "id": "synthetic-scheduled-source",
+        "registry_enabled": False,
+        "operator_enabled": True,
+        "effective_enabled": False,
+    }
+    assert api.health()["sources"][0]["enabled"] is False
+
+
 def test_stopped_worker_cannot_look_fresh_with_unreconciled_due_slots(source_db, monkeypatch):
     import gridlens.api.app as api
     import gridlens.jobs.worker as worker
@@ -291,6 +367,24 @@ def test_bounded_local_daily_enumeration_preserves_anchor_phase():
     assert local_days == ["2026-10-07", "2026-10-09", "2026-10-11"]
 
 
+@pytest.mark.parametrize("cadence", [36, True])
+def test_local_daily_scheduler_rejects_unrepresentable_cadence(cadence):
+    import gridlens.jobs.worker as worker
+
+    now = datetime(2026, 10, 12, 12, tzinfo=UTC)
+    epoch = SourceScheduleEpoch(
+        source_id="invalid-local-cadence-source",
+        effective_from=datetime(2026, 10, 1, 8, tzinfo=UTC),
+        effective_until=None,
+        cadence_hours=cadence,
+        schedule_mode="local_daily",
+        timezone="America/Chicago",
+        anchor={"local_date": "2026-10-01", "local_time": "03:00"},
+    )
+    with pytest.raises(ValueError, match="cadence"):
+        list(worker._scheduled_instants(epoch, now))
+
+
 def test_missing_schedule_history_never_claims_fresh(source_db, monkeypatch):
     import gridlens.api.app as api
 
@@ -371,6 +465,7 @@ def test_freshness_requires_matching_fenced_complete_receipt(
     ("field", "value"),
     [
         ("cadence_hours", 0),
+        ("cadence_hours", 36),
         ("timezone", "Invalid/Zone"),
         ("anchor", {"local_date": "2026-10-01", "local_time": "not-a-time"}),
     ],
