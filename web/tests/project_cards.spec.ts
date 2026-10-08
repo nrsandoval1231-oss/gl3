@@ -481,6 +481,341 @@ test('late restored-page response cannot replace a newer Back/Forward destinatio
   }
 })
 
+test('active first-page tier click preserves ready metadata and closes its detail without refetching', async ({ page }) => {
+  const record = permit('active-tier-ready', 'Campus facility activity')
+  const requests: URL[] = []
+  await page.route(apiRoute, async (route) => {
+    const url = new URL(route.request().url())
+    if (url.pathname === '/api/opportunities') {
+      requests.push(url)
+      const payload = serverOpportunityPage([record], url.searchParams.get('decision') ?? 'ALL', url.searchParams.get('search') ?? '')
+      await route.fulfill({ status: 200, contentType: 'application/json', headers: { ...payload.headers, 'X-Limit': '25', 'X-Offset': '0', 'X-Next-Offset': '25' }, body: JSON.stringify(payload.items) })
+      return
+    }
+    const body = url.pathname === '/api/auth/session'
+      ? { authenticated: true }
+      : url.pathname === '/api/health'
+        ? { sources: [], backlog: 0, pending_interpretations: 0 }
+        : url.pathname.startsWith('/api/power-needs/')
+          ? { status: 'unavailable', result: null, citations: [] }
+          : []
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
+  })
+
+  await page.goto('/?tier=Signals')
+  await expect(page.locator('[data-opportunity-id="active-tier-ready"]')).toBeVisible()
+  const initialUrl = page.url()
+  const csv = page.getByRole('link', { name: 'Download filtered CSV' })
+  await expect(csv).toBeVisible()
+  await expect(page.locator('.collection-pagination button').nth(1)).toBeEnabled()
+  await page.getByRole('button', { name: 'Signals', exact: true }).click()
+  await expect(page.getByText('1 filtered records · page 1')).toBeVisible()
+  await expect(csv).toBeVisible()
+  await expect(page.locator('.collection-pagination button').nth(1)).toBeEnabled()
+  expect(page.url()).toBe(initialUrl)
+  expect(requests).toHaveLength(1)
+
+  await page.locator('[data-opportunity-id="active-tier-ready"]').click()
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+  await page.getByRole('button', { name: 'Signals', exact: true }).click()
+  await expect(page.locator('[data-opportunity-id="active-tier-ready"]')).toBeVisible()
+  await expect(csv).toBeVisible()
+  await expect(page.locator('.collection-pagination button').nth(1)).toBeEnabled()
+  expect(requests).toHaveLength(1)
+})
+
+test('active first-page tier click while loading lets the matching request settle', async ({ page }) => {
+  const record = permit('active-tier-pending', 'Pending campus facility activity')
+  let requestCount = 0
+  let releaseRequest: (() => void) | undefined
+  const gate = new Promise<void>((resolve) => { releaseRequest = resolve })
+  await page.route(apiRoute, async (route) => {
+    const url = new URL(route.request().url())
+    if (url.pathname === '/api/opportunities') {
+      requestCount += 1
+      await gate
+      const payload = serverOpportunityPage([record])
+      await route.fulfill({ status: 200, contentType: 'application/json', headers: { ...payload.headers, 'X-Limit': '25', 'X-Offset': '0', 'X-Next-Offset': '25' }, body: JSON.stringify(payload.items) })
+      return
+    }
+    const body = url.pathname === '/api/auth/session'
+      ? { authenticated: true }
+      : url.pathname === '/api/health'
+        ? { sources: [], backlog: 0, pending_interpretations: 0 }
+        : []
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
+  })
+  try {
+    await page.goto('/?tier=Signals')
+    await expect(page.getByRole('button', { name: 'Signals' })).toBeVisible()
+    await expect.poll(() => requestCount).toBe(1)
+    await expect(page.getByText('Updating this view…')).toBeVisible()
+    await page.getByRole('button', { name: 'Signals' }).click()
+    releaseRequest?.()
+    await expect(page.locator('[data-opportunity-id="active-tier-pending"]')).toBeVisible()
+    await expect(page.getByText('Updating this view…')).toHaveCount(0)
+    await expect(page.getByRole('link', { name: 'Download filtered CSV' })).toBeVisible()
+    await expect(page.locator('.collection-pagination button').nth(1)).toBeEnabled()
+    expect(requestCount).toBe(1)
+  } finally {
+    releaseRequest?.()
+  }
+})
+
+test('active tier click from a later page fetches first-page data before showing totals', async ({ page }) => {
+  const firstPageRecord = permit('active-tier-first-page', 'First-page campus activity')
+  const laterPageRecord = permit('active-tier-later-page', 'Later-page campus activity')
+  const requests: URL[] = []
+  await page.route(apiRoute, async (route) => {
+    const url = new URL(route.request().url())
+    if (url.pathname === '/api/opportunities') {
+      requests.push(url)
+      const offset = Number(url.searchParams.get('offset') ?? '0')
+      const record = offset === 0 ? firstPageRecord : laterPageRecord
+      const payload = serverOpportunityPage([record], url.searchParams.get('decision') ?? 'ALL')
+      await route.fulfill({ status: 200, contentType: 'application/json', headers: { ...payload.headers, 'X-Limit': '25', 'X-Offset': String(offset), 'X-Cohort-Token': 'active-tier-page-token', ...(offset === 0 ? { 'X-Next-Offset': '25' } : {}) }, body: JSON.stringify(payload.items) })
+      return
+    }
+    const body = url.pathname === '/api/auth/session'
+      ? { authenticated: true }
+      : url.pathname === '/api/health'
+        ? { sources: [], backlog: 0, pending_interpretations: 0 }
+        : []
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
+  })
+
+  await page.goto('/?tier=Signals&offset=25')
+  await expect(page.locator('[data-opportunity-id="active-tier-later-page"]')).toBeVisible()
+  await page.getByRole('button', { name: 'Signals', exact: true }).click()
+  await expect(page.locator('[data-opportunity-id="active-tier-first-page"]')).toBeVisible()
+  await expect(page.locator('[data-opportunity-id="active-tier-later-page"]')).toHaveCount(0)
+  await expect(page.getByText('1 filtered records · page 1')).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Download filtered CSV' })).toBeVisible()
+  expect(new URL(page.url()).searchParams.get('offset')).toBeNull()
+  expect(requests.map((url) => url.searchParams.get('offset'))).toEqual(['0', '25', '0'])
+  expect(requests[1].searchParams.get('cohort_token')).toBe('active-tier-page-token')
+  expect(requests[2].searchParams.get('cohort_token')).toBeNull()
+})
+
+test('active Signals decision and unchanged search preserve ready page metadata', async ({ page }) => {
+  const record = permit('same-decision-search', 'Campus facility activity')
+  const requests: URL[] = []
+  await page.route(apiRoute, async (route) => {
+    const url = new URL(route.request().url())
+    if (url.pathname === '/api/opportunities') {
+      requests.push(url)
+      const payload = serverOpportunityPage([record], url.searchParams.get('decision') ?? 'ALL', url.searchParams.get('search') ?? '')
+      await route.fulfill({ status: 200, contentType: 'application/json', headers: { ...payload.headers, 'X-Limit': '25', 'X-Offset': '0', 'X-Next-Offset': '25' }, body: JSON.stringify(payload.items) })
+      return
+    }
+    const body = url.pathname === '/api/auth/session'
+      ? { authenticated: true }
+      : url.pathname === '/api/health'
+        ? { sources: [], backlog: 0, pending_interpretations: 0 }
+        : []
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
+  })
+  await page.goto('/?tier=Signals&q=campus&activity=event-power')
+  await expect(page.locator('[data-opportunity-id="same-decision-search"]')).toBeVisible()
+  const csv = page.getByRole('link', { name: 'Download filtered CSV' })
+  await page.getByRole('group', { name: 'Filter Signals by review decision' }).getByRole('button', { name: /All/ }).click()
+  await expect(csv).toBeVisible()
+  await expect(page.locator('.collection-pagination button').nth(1)).toBeEnabled()
+  await page.getByRole('textbox', { name: 'Search projects' }).fill('campus')
+  await expect(csv).toBeVisible()
+  await expect(page.locator('.collection-pagination button').nth(1)).toBeEnabled()
+  await page.getByRole('textbox', { name: 'Filter by exact power activity' }).fill('event-power')
+  await expect(csv).toBeVisible()
+  await expect(page.locator('.collection-pagination button').nth(1)).toBeEnabled()
+  expect(requests).toHaveLength(1)
+})
+
+test('active decision and unchanged activity filter during page load preserve the request', async ({ page }) => {
+  const record = permit('same-controls-pending', 'Campus facility activity')
+  let requestStarted = false
+  let releaseRequest: (() => void) | undefined
+  const gate = new Promise<void>((resolve) => { releaseRequest = resolve })
+  await page.route(apiRoute, async (route) => {
+    const url = new URL(route.request().url())
+    if (url.pathname === '/api/opportunities') {
+      requestStarted = true
+      await gate
+      const payload = serverOpportunityPage([record], url.searchParams.get('decision') ?? 'ALL')
+      await route.fulfill({ status: 200, contentType: 'application/json', headers: { ...payload.headers, 'X-Limit': '25', 'X-Offset': '0', 'X-Next-Offset': '25' }, body: JSON.stringify(payload.items) })
+      return
+    }
+    const body = url.pathname === '/api/auth/session'
+      ? { authenticated: true }
+      : url.pathname === '/api/health'
+        ? { sources: [], backlog: 0, pending_interpretations: 0 }
+        : []
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
+  })
+  try {
+    await page.goto('/?tier=Signals&activity=event-power')
+    await expect(page.getByRole('button', { name: 'Signals' })).toBeVisible()
+    await expect.poll(() => requestStarted).toBe(true)
+    await page.getByRole('group', { name: 'Filter Signals by review decision' }).getByRole('button', { name: /All/ }).click()
+    await page.getByRole('textbox', { name: 'Filter by exact power activity' }).fill('event-power')
+    releaseRequest?.()
+    await expect(page.locator('[data-opportunity-id="same-controls-pending"]')).toBeVisible()
+    await expect(page.getByText('Updating this view…')).toHaveCount(0)
+    await expect(page.getByRole('link', { name: 'Download filtered CSV' })).toBeVisible()
+    await expect(page.locator('.collection-pagination button').nth(1)).toBeEnabled()
+  } finally {
+    releaseRequest?.()
+  }
+})
+
+test('unchanged search during page load does not cancel its terminal response', async ({ page }) => {
+  const record = permit('same-search-pending', 'Campus facility activity')
+  let requestStarted = false
+  let releaseRequest: (() => void) | undefined
+  const gate = new Promise<void>((resolve) => { releaseRequest = resolve })
+  await page.route(apiRoute, async (route) => {
+    const url = new URL(route.request().url())
+    if (url.pathname === '/api/opportunities') {
+      requestStarted = true
+      await gate
+      const payload = serverOpportunityPage([record], url.searchParams.get('decision') ?? 'ALL', url.searchParams.get('search') ?? '')
+      await route.fulfill({ status: 200, contentType: 'application/json', headers: { ...payload.headers, 'X-Limit': '25', 'X-Offset': '0', 'X-Next-Offset': '25' }, body: JSON.stringify(payload.items) })
+      return
+    }
+    const body = url.pathname === '/api/auth/session'
+      ? { authenticated: true }
+      : url.pathname === '/api/health'
+        ? { sources: [], backlog: 0, pending_interpretations: 0 }
+        : []
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
+  })
+  try {
+    await page.goto('/?tier=Signals&q=campus')
+    await expect(page.getByRole('textbox', { name: 'Search projects' })).toHaveValue('campus')
+    await expect.poll(() => requestStarted).toBe(true)
+    await page.getByRole('textbox', { name: 'Search projects' }).fill('campus')
+    releaseRequest?.()
+    await expect(page.locator('[data-opportunity-id="same-search-pending"]')).toBeVisible()
+    await expect(page.getByText('Updating this view…')).toHaveCount(0)
+    await expect(page.getByRole('link', { name: 'Download filtered CSV' })).toBeVisible()
+  } finally {
+    releaseRequest?.()
+  }
+})
+
+test('unchanged activity filter during page load does not cancel or duplicate its request', async ({ page }) => {
+  const record = permit('same-filter-pending', 'Campus facility activity')
+  const requests: URL[] = []
+  let releaseRequest: (() => void) | undefined
+  const gate = new Promise<void>((resolve) => { releaseRequest = resolve })
+  await page.route(apiRoute, async (route) => {
+    const url = new URL(route.request().url())
+    if (url.pathname === '/api/opportunities') {
+      requests.push(url)
+      await gate
+      const payload = serverOpportunityPage([record])
+      await route.fulfill({ status: 200, contentType: 'application/json', headers: { ...payload.headers, 'X-Limit': '25', 'X-Offset': '0', 'X-Next-Offset': '25' }, body: JSON.stringify(payload.items) })
+      return
+    }
+    const body = url.pathname === '/api/auth/session'
+      ? { authenticated: true }
+      : url.pathname === '/api/health'
+        ? { sources: [], backlog: 0, pending_interpretations: 0 }
+        : []
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
+  })
+  try {
+    await page.goto('/?tier=Signals&activity=event-power')
+    await expect(page.getByRole('textbox', { name: 'Filter by exact power activity' })).toHaveValue('event-power')
+    await expect.poll(() => requests.length).toBe(1)
+    await page.getByRole('textbox', { name: 'Filter by exact power activity' }).fill('event-power')
+    await page.waitForTimeout(100)
+    expect(requests).toHaveLength(1)
+    releaseRequest?.()
+    await expect(page.locator('[data-opportunity-id="same-filter-pending"]')).toBeVisible()
+    await expect(page.getByText('Updating this view…')).toHaveCount(0)
+  } finally {
+    releaseRequest?.()
+  }
+})
+
+test('clicking the active ingestion view during its request does not strand loading', async ({ page }) => {
+  let requestStarted = false
+  let releaseRequest: (() => void) | undefined
+  const gate = new Promise<void>((resolve) => { releaseRequest = resolve })
+  await page.route(apiRoute, async (route) => {
+    const url = new URL(route.request().url())
+    if (url.pathname === '/api/ingestion') {
+      requestStarted = true
+      await gate
+      await route.fulfill({ status: 200, json: { items: [], total: 0, limit: 25, offset: 0 } })
+      return
+    }
+    const body = url.pathname === '/api/auth/session'
+      ? { authenticated: true }
+      : url.pathname === '/api/health'
+        ? { sources: [], backlog: 0, pending_interpretations: 0 }
+        : []
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
+  })
+  try {
+    await page.goto('/?view=ingestion')
+    await expect(page.getByRole('button', { name: 'Ingestion' })).toBeVisible()
+    await expect.poll(() => requestStarted).toBe(true)
+    await page.getByRole('button', { name: 'Ingestion' }).click()
+    releaseRequest?.()
+    await expect(page.getByText('Updating this view…')).toHaveCount(0)
+    await expect(page.getByRole('heading', { name: 'No retained source items' })).toBeVisible()
+  } finally {
+    releaseRequest?.()
+  }
+})
+
+test('opening a same-cohort record during a pending Back page request does not strand loading', async ({ page }) => {
+  const record = permit('open-during-refresh-a', 'First campus facility activity')
+  const nextRecord = permit('open-during-refresh-b', 'Second campus facility activity')
+  let opportunityRequests = 0
+  let secondRequestStarted = false
+  let releaseSecondRequest: (() => void) | undefined
+  const secondRequestGate = new Promise<void>((resolve) => { releaseSecondRequest = resolve })
+  await page.route(apiRoute, async (route) => {
+    const url = new URL(route.request().url())
+    if (url.pathname === '/api/opportunities') {
+      opportunityRequests += 1
+      if (opportunityRequests === 2) {
+        secondRequestStarted = true
+        await secondRequestGate
+      }
+      const payload = serverOpportunityPage([record, nextRecord], url.searchParams.get('decision') ?? 'ALL', url.searchParams.get('search') ?? '')
+      await route.fulfill({ status: 200, contentType: 'application/json', headers: { ...payload.headers, 'X-Limit': '25', 'X-Offset': '0' }, body: JSON.stringify(payload.items) })
+      return
+    }
+    const body = url.pathname === '/api/auth/session'
+      ? { authenticated: true }
+      : url.pathname === '/api/health'
+        ? { sources: [], backlog: 0, pending_interpretations: 0 }
+        : url.pathname.startsWith('/api/power-needs/')
+          ? { status: 'unavailable', result: null, citations: [] }
+          : []
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
+  })
+  try {
+    await page.goto('/?tier=Signals')
+    await page.locator('[data-opportunity-id="open-during-refresh-a"]').click()
+    await page.getByRole('button', { name: '← Back to Signals' }).click()
+    await expect.poll(() => secondRequestStarted).toBe(true)
+    await expect(page.locator('[data-opportunity-id="open-during-refresh-a"]')).toBeVisible()
+    await page.locator('[data-opportunity-id="open-during-refresh-a"]').click()
+    await expect(page.getByRole('button', { name: 'Next →' })).toBeEnabled()
+    await page.getByRole('button', { name: 'Next →' }).click()
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Second Campus Facility Activity')
+    releaseSecondRequest?.()
+    await expect(page.getByText('Updating this view…')).toHaveCount(0)
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText('Second Campus Facility Activity')
+  } finally {
+    releaseSecondRequest?.()
+  }
+})
+
 test('project title prefers a current owner over operator, applicant, and contractor claims', () => {
   const record = permit('roles', 'Facility construction', {
     abstract: 'owner_company_name: Owner Company\noperator_company_name: Operating Company\napplicant_org: Applicant Company\ncontractor_company_name: Builder Company',
