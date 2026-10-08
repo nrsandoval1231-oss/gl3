@@ -88,7 +88,7 @@ def seed(
         title="Orion Data Center",
         abstract=observation.abstract,
         url=observation.url,
-        content_hash="accepted-v1",
+        content_hash="accepted-evidence-v1",
         published_at=observation.published_at,
         observed_at=NOW,
     )
@@ -109,7 +109,8 @@ def seed(
                 status="accepted",
                 assessment={
                     "decision": "accepted",
-                    "evidence_hash": "accepted-v1",
+                    "semantic_hash": observation.content_hash,
+                    "evidence_hash": evidence.content_hash,
                     "project_identity_key": "state-test-orion",
                     "admission_status": "supplemental",
                 },
@@ -149,7 +150,8 @@ def linked_official_need_evidence(
         )
     )
     session.flush()
-    content_hash = f"need-hash-{key}"
+    semantic_hash = f"need-hash-{key}"
+    evidence_hash = f"need-evidence-{key}"
     observation = Observation(
         source_id=source_id,
         external_id=key,
@@ -157,7 +159,7 @@ def linked_official_need_evidence(
         abstract="Orion Data Center construction in Austin, TX.",
         url=f"https://permits.example/{key}",
         published_at=date(2026, 9, 20),
-        content_hash=content_hash,
+        content_hash=semantic_hash,
     )
     session.add(observation)
     session.flush()
@@ -166,13 +168,14 @@ def linked_official_need_evidence(
         title=observation.title,
         abstract=observation.abstract,
         url=observation.url,
-        content_hash=content_hash,
+        content_hash=evidence_hash,
         published_at=observation.published_at,
         observed_at=NOW,
     )
     assessment = {
         "decision": "accepted",
-        "evidence_hash": content_hash,
+        "semantic_hash": observation.content_hash,
+        "evidence_hash": evidence.content_hash,
         "project_identity_key": identity_key or project.identity_key,
         "power_activity": activity or need.activity_key,
         "tier": tier,
@@ -187,7 +190,7 @@ def linked_official_need_evidence(
             evidence,
             Interpretation(
                 observation_id=observation.id,
-                content_hash=content_hash,
+                content_hash=observation.content_hash,
                 status="accepted",
                 assessment=assessment,
             ),
@@ -224,7 +227,10 @@ def test_state_keeps_unproven_fields_unknown_and_rejected_revision_is_not_curren
         assert project_state(session, project.id)["state"]["lifecycle"]["status"] == "SUPPORTED"
         interpretation = session.scalar(select(Interpretation))
         interpretation.status = "rejected"
-        interpretation.assessment = {"decision": "rejected", "evidence_hash": "accepted-v1"}
+        interpretation.assessment = {
+            "decision": "rejected",
+            "evidence_hash": evidence.content_hash,
+        }
         assert project_state(session, project.id)["state"]["lifecycle"]["status"] == "UNKNOWN"
 
 
@@ -1057,6 +1063,7 @@ def test_rejected_interpretation_with_supported_withdrawal_remains_current(db):
         interpretation.status = "rejected"
         interpretation.assessment = {
             "decision": "rejected",
+            "semantic_hash": observation.content_hash,
             "evidence_hash": evidence.content_hash,
             "withdrawal_supported": True,
             "project_identity_key": project.identity_key,
@@ -1146,14 +1153,16 @@ def test_accepted_utility_revision_replaces_current_date_but_keeps_history(db):
                 "Orion Data Center utility service was energized in Austin, TX"
             ),
         )
-        session.add(ProjectLifecycle(project_id=project.id, current_state="energization"))
+        session.add(
+            ProjectLifecycle(project_id=project.id, current_state="utility_energization")
+        )
         session.add(
             LifecycleEvent(
                 project_id=project.id,
                 observation_id=observation.id,
                 evidence_id=evidence.id,
                 event_type="utility_service",
-                state="energization",
+                state="utility_energization",
                 occurred_on=date(2027, 1, 1),
             )
         )
@@ -1164,17 +1173,18 @@ def test_accepted_utility_revision_replaces_current_date_but_keeps_history(db):
             title="Orion revision",
             abstract="Orion Data Center utility service was energized in Austin, TX",
             url=observation.url,
-            content_hash="accepted-v2",
+            content_hash="accepted-evidence-v2",
             published_at=date(2026, 9, 21),
             observed_at=NOW + timedelta(minutes=1),
         )
         session.add(replacement)
-        observation.content_hash = "accepted-v2"
+        observation.content_hash = "accepted-semantic-v2"
         interpretation = session.scalar(select(Interpretation))
-        interpretation.content_hash = "accepted-v2"
+        interpretation.content_hash = observation.content_hash
         interpretation.assessment = {
             "decision": "accepted",
-            "evidence_hash": "accepted-v2",
+            "semantic_hash": observation.content_hash,
+            "evidence_hash": replacement.content_hash,
             "project_identity_key": project.identity_key,
         }
         session.add(
@@ -1183,7 +1193,7 @@ def test_accepted_utility_revision_replaces_current_date_but_keeps_history(db):
                 observation_id=observation.id,
                 evidence_id=replacement.id,
                 event_type="utility_service",
-                state="energization",
+                state="utility_energization",
                 occurred_on=date(2027, 7, 1),
             )
         )
@@ -1219,14 +1229,16 @@ def test_research_recommendation_sees_nested_missing_current_need_fact(
                 "Orion Data Center utility service was energized in Austin, TX"
             ),
         )
-        session.add(ProjectLifecycle(project_id=project.id, current_state="energization"))
+        session.add(
+            ProjectLifecycle(project_id=project.id, current_state="utility_energization")
+        )
         session.add(
             LifecycleEvent(
                 project_id=project.id,
                 observation_id=observation.id,
                 evidence_id=lifecycle_evidence.id,
                 event_type="utility_service",
-                state="energization",
+                state="utility_energization",
                 occurred_on=date(2027, 1, 1),
             )
         )
@@ -1246,10 +1258,13 @@ def test_research_recommendation_sees_nested_missing_current_need_fact(
             if key != removed_assessment_key
         }
         state = project_state(session, project.id)
-        assert all(
-            state["state"][field]["status"] == "SUPPORTED"
+        statuses = {
+            field: state["state"][field]["status"]
             for field in ("power_need", "utility_service", "lifecycle", "activity")
-        )
+        }
+        assert all(
+            status == "SUPPORTED" for status in statuses.values()
+        ), statuses
         assert state["state"]["power_need"]["value"][0][nested_field]["status"] == "UNKNOWN"
         assert recommend_from_context(judgment, state) is True
 
@@ -1271,14 +1286,16 @@ def test_research_recommendation_sees_nested_current_need_conflict(db):
                 "Orion Data Center utility service was energized in Austin, TX"
             ),
         )
-        session.add(ProjectLifecycle(project_id=project.id, current_state="energization"))
+        session.add(
+            ProjectLifecycle(project_id=project.id, current_state="utility_energization")
+        )
         session.add(
             LifecycleEvent(
                 project_id=project.id,
                 observation_id=observation.id,
                 evidence_id=lifecycle_evidence.id,
                 event_type="utility_service",
-                state="energization",
+                state="utility_energization",
                 occurred_on=date(2027, 1, 1),
             )
         )
