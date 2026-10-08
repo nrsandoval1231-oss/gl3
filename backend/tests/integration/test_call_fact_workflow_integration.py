@@ -33,7 +33,14 @@ from gridlens.settings import settings
 def runtime(monkeypatch):
     test_url = make_url(settings.test_database_url)
     app_url = make_url(settings.database_url)
-    assert test_url.database == "gl3audit_a6_test"
+    assert test_url.database and (
+        test_url.database == "test" or test_url.database.endswith("_test")
+    ), (
+        "Refusing destructive setup without an explicit disposable *_test database"
+    )
+    assert "corpus" not in test_url.database.lower(), (
+        "Refusing destructive setup against a retained corpus database"
+    )
     assert (test_url.host, test_url.port, test_url.database) != (
         app_url.host,
         app_url.port,
