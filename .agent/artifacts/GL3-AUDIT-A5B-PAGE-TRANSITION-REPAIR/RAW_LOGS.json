@@ -129,7 +129,7 @@
   },
   "timing": {
     "utc_start": "UNKNOWN",
-    "latest_validation_utc": "2026-10-08T18:36:53Z",
+    "final_validation_run_started_utc": "2026-10-08T18:36:53Z",
     "planning_seconds": "UNKNOWN",
     "implementation_seconds": "UNKNOWN",
     "validation_seconds": "UNKNOWN",
