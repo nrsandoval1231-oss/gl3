@@ -335,6 +335,11 @@ def test_concurrent_workflow_updates_serialize_by_exact_need(runtime):
 def test_current_public_support_bounds_fact_qualification_and_reassessment(runtime):
     client, factory, need_id, project_id, pursuit_id = runtime
     content_hash = "a" * 64
+    source_abstract = (
+        "description: Test City construction requires 20 MW. "
+        "Power supply for Test City construction is insufficient.\n"
+        "address: Test City"
+    )
     with factory.begin() as session:
         need = session.get(PowerNeed, need_id)
         project = session.get(Project, project_id)
@@ -342,7 +347,7 @@ def test_current_public_support_bounds_fact_qualification_and_reassessment(runti
             source_id="a6-test-source",
             external_id="synthetic-permit-1",
             title="Synthetic construction permit for Synthetic Test Facility",
-            abstract="Current public permit supports construction activity at Test City.",
+            abstract=source_abstract,
             published_at=datetime.now(UTC).date(),
             url="https://example.test/synthetic-permit-1",
             content_hash=content_hash,
@@ -368,8 +373,11 @@ def test_current_public_support_bounds_fact_qualification_and_reassessment(runti
                 "evidence_hash": content_hash,
                 "project_identity_key": project.identity_key,
                 "power_activity": "construction",
-                "tier": "Signal",
-                "reason": "Current retained public construction permit.",
+                "tier": "Prospect",
+                "demand_mw": "20 MW",
+                "demand_quote": "Test City construction requires 20 MW.",
+                "supply_quote": "Power supply for Test City construction is insufficient.",
+                "reason": "Current retained exact-site permit support.",
                 "subject": project.name,
                 "location": project.location,
             },
@@ -384,7 +392,7 @@ def test_current_public_support_bounds_fact_qualification_and_reassessment(runti
 
     headers = {"origin": "http://testserver"}
     event_version = 0
-    initial_browse = client.get("/api/opportunities?tier=Signal")
+    initial_browse = client.get("/api/opportunities?tier=Prospect")
     assert initial_browse.status_code == 200, initial_browse.text
     assert any(str(item["id"]) == str(need_id) for item in initial_browse.json())
     initial_cohort = initial_browse.headers["x-cohort-token"]
@@ -398,6 +406,8 @@ def test_current_public_support_bounds_fact_qualification_and_reassessment(runti
         body = _body(project_id, pursuit_id, expected_version=event_version)
         body["fact_type"] = fact_type
         body["value"] = value
+        body["effective_from"] = "2026-01-01T00:00:00+00:00"
+        body["effective_until"] = "2027-03-04T00:00:00+00:00"
         draft = client.post(f"/api/needs/{need_id}/facts", json=body, headers=headers)
         assert draft.status_code == 200, draft.text
         event_version += 1
@@ -415,32 +425,38 @@ def test_current_public_support_bounds_fact_qualification_and_reassessment(runti
         event_version += 1
         return decision
 
-    assert accept("demand", {"mw": "20"}).json()["tier"] == "Signal"
+    # The current official source already supports Prospect. These facts add
+    # only the missing Lead gates; no duplicate demand or shortage assertion is needed.
+    assert accept(
+        "timing", {"start_date": "2027-01-01", "end_date": "2027-02-01", "duration_days": 31}
+    ).json()["tier"] == "Prospect"
     with factory.begin() as session:
         need = session.get(PowerNeed, need_id)
-        assert need is not None and need.tier == "Signal"
+        assert need is not None
         # Hold the legacy row timestamp constant to prove the token binds current
         # accepted facts directly, rather than relying on incidental row updates.
         need.updated_at = original_updated_at
-    changed_fact_browse = client.get("/api/opportunities?tier=Signal")
+    changed_fact_browse = client.get("/api/opportunities?tier=Prospect")
     assert changed_fact_browse.status_code == 200, changed_fact_browse.text
     assert changed_fact_browse.headers["x-cohort-token"] != initial_cohort
     stale_fact_page = client.get(
-        f"/api/opportunities?tier=Signal&cohort_token={initial_cohort}"
+        f"/api/opportunities?tier=Prospect&cohort_token={initial_cohort}"
     )
     assert stale_fact_page.status_code == 409
-    assert (
-        accept("unsuitable_supply", {"mw": "1", "basis": "No suitable service"}).json()["tier"]
-        == "Prospect"
-    )
-    accept("timing", {"start_date": "2027-01-01", "end_date": "2027-02-01", "duration_days": 31})
     accept("suitable_supply", {"mw": "5", "quality": "suitable"})
-    assert (
-        accept("buyer", {"organization": "Synthetic Owner LLC", "role": "project owner"}).json()[
-            "tier"
-        ]
-        == "Lead"
-    )
+    lead_result = accept(
+        "buyer", {"organization": "Synthetic Owner LLC", "role": "project owner"}
+    ).json()
+    assert lead_result["tier"] == "Lead"
+    with factory() as session:
+        from gridlens.ingestion.service import effective_need_qualification
+
+        need = session.get(PowerNeed, need_id)
+        project = session.get(Project, project_id)
+        assert need is not None and project is not None
+        effective = effective_need_qualification(session, need, project)
+        assert effective is not None and effective["tier"] == "Lead"
+        assert effective["qualified_remaining_gap"]["remaining_mw"] == "15"
 
     closure_body = _body(project_id, pursuit_id, expected_version=event_version)
     closure_body["fact_type"] = "closure"
@@ -474,6 +490,11 @@ def test_current_public_support_bounds_fact_qualification_and_reassessment(runti
     assert retracted.status_code == 200, retracted.text
     assert retracted.json()["tier"] == "Lead"
     assert retracted.json()["active"] is True
+    event_version += 3
+
+    # Add a source-consistent demand version so a subsequent source correction
+    # can exercise the established conflict/demotion/reassessment path.
+    assert accept("demand", {"mw": "20"}).json()["tier"] == "Lead"
 
     with factory.begin() as session:
         need = session.get(PowerNeed, need_id)
@@ -493,7 +514,11 @@ def test_current_public_support_bounds_fact_qualification_and_reassessment(runti
         # fact remains historical and forces an explicit conflict demotion.
         conflicting_hash = "b" * 64
         observation.content_hash = conflicting_hash
-        observation.abstract = "Current official report says the facility requires 30 MW."
+        observation.abstract = (
+            "description: Test City construction requires 30 MW. "
+            "Power supply for Test City construction is insufficient.\n"
+            "address: Test City"
+        )
         session.add(
             Evidence(
                 observation_id=observation.id,
@@ -534,7 +559,7 @@ def test_current_public_support_bounds_fact_qualification_and_reassessment(runti
         # Lead through the same canonical replay path.
         restored_hash = content_hash
         observation.content_hash = restored_hash
-        observation.abstract = "Current public permit supports construction activity at Test City."
+        observation.abstract = source_abstract
         interpretation.content_hash = restored_hash
         interpretation.assessment = {
             **interpretation.assessment,
@@ -542,8 +567,8 @@ def test_current_public_support_bounds_fact_qualification_and_reassessment(runti
             "evidence_hash": restored_hash,
             "tier": "Signal",
             "demand_mw": "20 MW",
-            "demand_quote": "The facility requires 20 MW.",
-            "supply_quote": "The source reports constrained utility service.",
+            "demand_quote": "Test City construction requires 20 MW.",
+            "supply_quote": "Power supply for Test City construction is insufficient.",
             "reason": "Compatible current source support restored.",
         }
         interpretation.status = "accepted"
