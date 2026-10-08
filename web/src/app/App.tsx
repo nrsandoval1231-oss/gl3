@@ -1,5 +1,5 @@
 import { type FormEvent, useEffect, useRef, useState } from 'react'
-import { client, OpportunityCohortChangedError, type Brief, type IngestionItem, type Opportunity, type OpportunityBrowseFilters, type OpportunityPage } from '../api/client'
+import { client, OpportunityCohortChangedError, OpportunityNeedUnavailableError, type Brief, type IngestionItem, type Opportunity, type OpportunityBrowseFilters, type OpportunityPage } from '../api/client'
 import { projectTitle, serverProjectCards, signalDisplayDecision, type SignalDisplayDecision, type ProjectCard } from '../features/opportunities/projectCards'
 
 import { CommercialPursuits } from '../features/pursuits/CommercialPursuits'
@@ -12,6 +12,8 @@ type Health = Awaited<ReturnType<typeof client.health>>
 type Change = Awaited<ReturnType<typeof client.changes>>[number]
 type View = 'opportunities' | 'ingestion' | 'pursuits'
 type SignalFilter = 'ALL' | SignalDisplayDecision
+type PendingSelection = { id: string; cohortKey: string; offset: number; navigationId: number }
+type PendingViewRestore = { navigationId: number; afterPageRevision: number; scrollY: number; focusedId?: string }
 const pageSize = 25
 const browseFilterKeys = [
   ['geography', 'geography'], ['industry', 'industry'], ['activity', 'activity'], ['timing', 'timing'],
@@ -48,6 +50,10 @@ function opportunityCohortKey(tier: Tier, search: string, decision: SignalFilter
     filters.activity ?? '', filters.timing ?? '', filters.mwStatus ?? '', filters.mwMin ?? '', filters.mwMax ?? '',
     filters.prioritySegment ?? '', filters.status ?? '',
   ])
+}
+function selectedIdFromHash(hash: string) {
+  if (!hash.startsWith('#') || hash.length < 2) return ''
+  try { return decodeURIComponent(hash.slice(1)) } catch { return '' }
 }
 function routeUrl(tier: Tier, search: string, hash = '', offset = 0, decision: SignalFilter = 'ALL', filters: OpportunityBrowseFilters = {}) {
   const query = new URLSearchParams({ tier, q: search })
@@ -164,26 +170,61 @@ export function App() {
   const [showHealth, setShowHealth] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [pageRevision, setPageRevision] = useState(0)
+  const [navigationRevision, setNavigationRevision] = useState(0)
   const requestSequence = useRef(0)
   const opportunityCohort = useRef<{ key: string; token: string } | null>(null)
-  const itemsRef = useRef(items)
-  itemsRef.current = items
+  const navigationSequence = useRef(0)
+  const pageRevisionRef = useRef(0)
+  const pendingSelection = useRef<PendingSelection | null>(null)
+  const pendingViewRestore = useRef<PendingViewRestore | null>(null)
+
+  function cancelPendingNavigation() {
+    navigationSequence.current += 1
+    requestSequence.current += 1
+    pendingSelection.current = null
+    pendingViewRestore.current = null
+  }
 
   useEffect(() => {
     void client.session().then((value) => setAuthenticated(value.authenticated)).catch(() => setAuthenticated(false))
     const params = new URLSearchParams(location.search)
     const initialTier = params.get('tier')
-    if (tiers.includes(initialTier as Tier)) setTier(initialTier as Tier)
-    setSearch(params.get('q') ?? '')
-    setBrowseFilters(browseFiltersFrom(params))
+    const restoredTier = tiers.includes(initialTier as Tier) ? initialTier as Tier : 'Signals'
+    const restoredSearch = params.get('q') ?? ''
+    const restoredFilters = browseFiltersFrom(params)
+    if (restoredTier !== 'Signals') setTier(restoredTier)
+    setSearch(restoredSearch)
+    setBrowseFilters(restoredFilters)
     const initialDecision = params.get('decision')
-    if (initialDecision && ['ALL', 'SHOW', 'REVIEW', 'HOLD'].includes(initialDecision)) setSignalFilter(initialDecision as SignalFilter)
+    const restoredDecision = initialDecision && ['ALL', 'SHOW', 'REVIEW', 'HOLD'].includes(initialDecision)
+      ? initialDecision as SignalFilter
+      : 'ALL'
+    if (restoredDecision !== 'ALL') setSignalFilter(restoredDecision)
     const initialView = params.get('view')
     if (initialView === 'ingestion' || initialView === 'pursuits') setView(initialView)
     else setView('opportunities')
     setSourceFilter(params.get('source') ?? '')
     setVerticalFilter(canonicalVertical(params.get('vertical') ?? ''))
-    setOffset(parseOffset(params.get('offset')))
+    const restoredOffset = parseOffset(params.get('offset'))
+    setOffset(restoredOffset)
+    const historyState = history.state as { id?: string; scrollY?: number; focusedId?: string } | null
+    const restoredId = selectedIdFromHash(location.hash) || historyState?.id || ''
+    if (restoredId) {
+      const navigationId = ++navigationSequence.current
+      pendingSelection.current = {
+        id: restoredId,
+        cohortKey: opportunityCohortKey(restoredTier, restoredSearch, restoredDecision, restoredFilters),
+        offset: restoredOffset,
+        navigationId,
+      }
+      pendingViewRestore.current = {
+        navigationId,
+        afterPageRevision: pageRevisionRef.current + 1,
+        scrollY: historyState?.scrollY ?? 0,
+        focusedId: historyState?.focusedId,
+      }
+    }
   }, [])
 
   useEffect(() => {
@@ -195,6 +236,8 @@ export function App() {
         if (view === 'opportunities') {
           const decision = tier === 'Signals' ? signalFilter : 'ALL'
           const cohortKey = opportunityCohortKey(tier, search, decision, browseFilters)
+          const pending = pendingSelection.current
+          const restoreIntent = pending?.cohortKey === cohortKey && pending.offset === offset ? pending : null
           let cohortToken = opportunityCohort.current?.key === cohortKey ? opportunityCohort.current.token : ''
           if (offset > 0 && opportunityPage?.offset !== offset) {
             setItems([])
@@ -219,14 +262,34 @@ export function App() {
           opportunityCohort.current = opportunities.cohortToken
             ? { key: cohortKey, token: opportunities.cohortToken }
             : null
-          const [digest, sourceHealth] = await Promise.all([client.changes(), client.health()])
-          if (requestId !== requestSequence.current) return
           setItems(opportunities.items)
           setOpportunityPage(opportunities)
           setExpandedGroupMembers({})
+          let restoredSelection: Opportunity | null = null
+          if (restoreIntent) {
+            restoredSelection = opportunities.items.find((item) => item.id === restoreIntent.id) ?? null
+            if (!restoredSelection) {
+              restoredSelection = await client.opportunityNeed(restoreIntent.id, {
+                tier: tierValue(tier),
+                search,
+                decision,
+                cohortToken: opportunities.cohortToken,
+                filters: browseFilters,
+              })
+            }
+            if (requestId !== requestSequence.current
+              || pendingSelection.current?.navigationId !== restoreIntent.navigationId) return
+          }
+          const [digest, sourceHealth] = await Promise.all([client.changes(), client.health()])
+          if (requestId !== requestSequence.current) return
           setChanges(digest)
           setHealth(sourceHealth)
-          if (selected) setSelected(opportunities.items.find((item) => item.id === selected.id) ?? null)
+          if (restoreIntent && pendingSelection.current?.navigationId === restoreIntent.navigationId) {
+            pendingSelection.current = null
+            setSelected(restoredSelection)
+          } else if (selected) {
+            setSelected(opportunities.items.find((item) => item.id === selected.id) ?? null)
+          }
         } else if (view === 'pursuits') {
           const sourceHealth = await client.health()
           if (requestId !== requestSequence.current) return
@@ -247,6 +310,8 @@ export function App() {
       } catch (cause: unknown) {
         if (requestId === requestSequence.current && cause instanceof OpportunityCohortChangedError) {
           opportunityCohort.current = null
+          pendingSelection.current = null
+          pendingViewRestore.current = null
           setItems([])
           setOpportunityPage(null)
           setExpandedGroupMembers({})
@@ -254,48 +319,109 @@ export function App() {
           setOffset(0)
           setError('The opportunity cohort changed; restarted at page one.')
         } else if (requestId === requestSequence.current) {
-          setError(cause instanceof Error ? cause.message : 'GridLens could not load this view.')
+          const pending = pendingSelection.current
+          if (pending && pending.cohortKey === opportunityCohortKey(tier, search, tier === 'Signals' ? signalFilter : 'ALL', browseFilters)
+            && pending.offset === offset) {
+            pendingSelection.current = null
+            setSelected(null)
+            setError(cause instanceof OpportunityNeedUnavailableError
+              ? cause.message
+              : `The selected opportunity could not be restored: ${cause instanceof Error ? cause.message : 'request failed.'}`)
+            const currentState = { ...(history.state ?? {}) } as Record<string, unknown>
+            delete currentState.id
+            history.replaceState(currentState, '', routeUrl(tier, search, '', offset, signalFilter, browseFilters))
+          } else {
+            setError(cause instanceof Error ? cause.message : 'GridLens could not load this view.')
+          }
         }
       } finally {
-        if (requestId === requestSequence.current) setLoading(false)
+        if (requestId === requestSequence.current) {
+          setLoading(false)
+          pageRevisionRef.current += 1
+          setPageRevision(pageRevisionRef.current)
+        }
       }
     })()
+    const cohortKey = opportunityCohortKey(tier, search, tier === 'Signals' ? signalFilter : 'ALL', browseFilters)
+    const pending = pendingSelection.current
+    const routedSelectionId = selected?.id
+      ?? (pending?.cohortKey === cohortKey && pending.offset === offset ? pending.id : '')
     const url = view === 'opportunities'
-      ? routeUrl(tier, search, selected ? `#${encodeURIComponent(selected.id)}` : '', offset, signalFilter, browseFilters)
+      ? routeUrl(tier, search, routedSelectionId ? `#${encodeURIComponent(routedSelectionId)}` : '', offset, signalFilter, browseFilters)
       : view === 'pursuits' ? `${location.pathname}?view=pursuits` : ingestionUrl(view, sourceFilter, verticalFilter, offset)
+    const nextHistoryState = { ...(history.state ?? {}), tier, search, view, sourceFilter, verticalFilter, offset, browseFilters, scrollY: window.scrollY } as Record<string, unknown>
+    if (routedSelectionId) nextHistoryState.id = routedSelectionId
+    else delete nextHistoryState.id
     history.replaceState(
-      { ...(history.state ?? {}), tier, search, view, sourceFilter, verticalFilter, offset, browseFilters, scrollY: window.scrollY },
+      nextHistoryState,
       '',
       url,
     )
-  }, [authenticated, tier, search, signalFilter, view, sourceFilter, verticalFilter, offset, browseFilters])
+  }, [authenticated, tier, search, signalFilter, view, sourceFilter, verticalFilter, offset, browseFilters, navigationRevision])
 
   useEffect(() => {
     function onPopState(event: PopStateEvent) {
       const state = event.state as { tier?: Tier; search?: string; id?: string; view?: View; sourceFilter?: string; verticalFilter?: string; offset?: number; browseFilters?: OpportunityBrowseFilters; scrollY?: number; focusedId?: string; expandedCardKey?: string | null; signalFilter?: SignalFilter } | null
       const params = new URLSearchParams(location.search)
-      if (state?.tier && tiers.includes(state.tier)) setTier(state.tier)
-      else setTier('Signals')
+      const restoredTierValue = state?.tier ?? params.get('tier')
+      const restoredTier = tiers.includes(restoredTierValue as Tier) ? restoredTierValue as Tier : 'Signals'
+      const restoredSearch = state?.search ?? params.get('q') ?? ''
+      const restoredFilters = state?.browseFilters ?? browseFiltersFrom(params)
+      const restoredDecisionValue = state?.signalFilter ?? params.get('decision')
+      const restoredDecision = restoredDecisionValue && ['ALL', 'SHOW', 'REVIEW', 'HOLD'].includes(restoredDecisionValue)
+        ? restoredDecisionValue as SignalFilter
+        : 'ALL'
+      const restoredOffset = state?.offset ?? parseOffset(params.get('offset'))
+      const restoredId = selectedIdFromHash(location.hash) || state?.id || ''
       const restoredView = state?.view ?? params.get('view')
-    const nextView = restoredView === 'ingestion' || restoredView === 'pursuits' ? restoredView : 'opportunities'
+      const nextView = restoredView === 'ingestion' || restoredView === 'pursuits' ? restoredView : 'opportunities'
+      const navigationId = ++navigationSequence.current
+      requestSequence.current += 1
+      pendingSelection.current = restoredId && nextView === 'opportunities'
+        ? {
+            id: restoredId,
+            cohortKey: opportunityCohortKey(restoredTier, restoredSearch, restoredDecision, restoredFilters),
+            offset: restoredOffset,
+            navigationId,
+          }
+        : null
+      pendingViewRestore.current = {
+        navigationId,
+        afterPageRevision: pageRevisionRef.current + 1,
+        scrollY: state?.scrollY ?? 0,
+        focusedId: state?.focusedId,
+      }
+      setTier(restoredTier)
       setView(nextView)
       if (nextView === 'pursuits') setCommercialMounted(true)
-      setSearch(state?.search ?? '')
-      setBrowseFilters(state?.browseFilters ?? browseFiltersFrom(params))
+      setSearch(restoredSearch)
+      setBrowseFilters(restoredFilters)
       setSourceFilter(state?.sourceFilter ?? params.get('source') ?? '')
       setVerticalFilter(canonicalVertical(state?.verticalFilter ?? params.get('vertical') ?? ''))
-      setOffset(state?.offset ?? parseOffset(params.get('offset')))
-      setSelected(state?.id ? itemsRef.current.find((item) => item.id === state.id) ?? null : null)
+      setOffset(restoredOffset)
+      setSignalFilter(restoredDecision)
+      setSelected(null)
       setExpandedCardKey(state?.expandedCardKey ?? null)
-      if (state?.signalFilter && ['ALL', 'SHOW', 'REVIEW', 'HOLD'].includes(state.signalFilter)) setSignalFilter(state.signalFilter)
-      requestAnimationFrame(() => {
-        window.scrollTo(0, state?.scrollY ?? 0)
-        if (state?.focusedId) document.querySelector<HTMLButtonElement>(`[data-opportunity-id="${CSS.escape(state.focusedId)}"]`)?.focus()
-      })
+      setError('')
+      setNavigationRevision((revision) => revision + 1)
     }
     window.addEventListener('popstate', onPopState)
     return () => window.removeEventListener('popstate', onPopState)
   }, [])
+
+  useEffect(() => {
+    const restore = pendingViewRestore.current
+    if (!restore || pageRevision < restore.afterPageRevision) return
+    const frame = requestAnimationFrame(() => {
+      if (pendingViewRestore.current?.navigationId !== restore.navigationId) return
+      window.scrollTo(0, restore.scrollY)
+      if (restore.focusedId) {
+        document.querySelector<HTMLButtonElement>(`[data-opportunity-id="${CSS.escape(restore.focusedId)}"]`)?.focus()
+      }
+      pendingViewRestore.current = null
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [pageRevision, navigationRevision, items, selected, loading, tier, view, offset])
 
   useEffect(() => {
     if (!selected) return
@@ -359,6 +485,7 @@ export function App() {
 
   function chooseTier(value: Tier) {
     history.pushState({ tier, search, id: selected?.id, view, sourceFilter, verticalFilter, offset, browseFilters, scrollY: window.scrollY, expandedCardKey, signalFilter }, '', location.href)
+    cancelPendingNavigation()
     setView('opportunities')
     setTier(value)
     setOffset(0)
@@ -371,6 +498,7 @@ export function App() {
 
   function chooseView(value: View) {
     if (value === 'pursuits') setCommercialMounted(true)
+    cancelPendingNavigation()
     setView(value)
     setSelected(null)
     setOffset(0)
@@ -386,6 +514,7 @@ export function App() {
   }
 
   function changeBrowseFilter(key: keyof OpportunityBrowseFilters, value: string) {
+    cancelPendingNavigation()
     setBrowseFilters((current) => ({ ...current, [key]: value } as OpportunityBrowseFilters))
     setOffset(0)
     setOpportunityPage(null)
@@ -394,12 +523,14 @@ export function App() {
   }
 
   function open(item: Opportunity) {
+    cancelPendingNavigation()
     history.replaceState({ tier, search, browseFilters, scrollY: window.scrollY, focusedId: item.id }, '', routeUrl(tier, search, '', offset, signalFilter, browseFilters))
     history.pushState({ tier, search, id: item.id, offset, signalFilter, browseFilters }, '', routeUrl(tier, search, `#${encodeURIComponent(item.id)}`, offset, signalFilter, browseFilters))
     setSelected(item)
   }
 
   function moveTo(item: Opportunity) {
+    cancelPendingNavigation()
     history.replaceState({ tier, search, id: item.id, offset, signalFilter, browseFilters }, '', routeUrl(tier, search, `#${encodeURIComponent(item.id)}`, offset, signalFilter, browseFilters))
     setSelected(item)
   }
@@ -433,7 +564,7 @@ export function App() {
       {!selected && view === 'ingestion' && <section className="hero"><div><p className="eyebrow">Retained evidence · Publisher and government sources</p><h1>Ingestion inbox</h1><p>Permits are primary project discovery; news is supplemental. Source evidence and qualification stay visible. City permit coverage is regional and limited to a rolling issue-date window.</p></div></section>}
       {selected && <section className="hero detail-hero"><div><p className="eyebrow">{selected.tier} · {selected.activity.replaceAll('-', ' ')}{selected.tier === 'Signal' ? ` · ${selected.signal_display_decision ?? 'REVIEW'}` : ''}</p><h1>{projectTitle(selected)}</h1>{selected.commercial_size_status === 'unknown' && selected.tier === 'Signal' && <p role="status" className="integrity"><strong>Activity size unknown.</strong> Retained for investigation; the 300 kW minimum is inclusive.</p>}{selected.signal_evidence_state === 'planning_application_withdrawn' && <p role="status" className="integrity"><strong>Planning application withdrawn · historical Signal.</strong> Current project viability is unknown.</p>}{selected.signal_evidence_state === 'planning_status_unknown' && <p role="status" className="integrity"><strong>Conflicting planning revision · historical Signal.</strong> Current application and project status are unknown.</p>}<p>{selected.rationale}</p>{selectedGroup && <p className="group-context">{selectedSharesProjectId ? `Part of a physical project group with ${selectedGroup.members.length} retained records. Each record and its evidence remain available.` : `Part of an exact-event permit group with ${selectedGroup.members.length} records. Each record and its evidence remain separate.`}</p>}</div><button className="back-button" onClick={returnToBrowse}>← Back to {tier}</button></section>}
       {showHealth && <HealthPanel health={health} />}
-      {view === 'opportunities' && <div className="list-toolbar"><div><h2>{selected ? 'Opportunity brief' : `${tier} · ${opportunityPage?.groupTotalCount ?? visibleCards.length} filtered project cards · ${opportunityPage?.totalCount ?? items.length} filtered opportunity records`}</h2>{!selected && <p>{tier === 'Signals' ? `${signalFilter === 'ALL' ? 'All' : signalFilter} · ${visibleCards.length} cards and ${items.length} records on this page of ${opportunityPage?.groupTotalCount ?? 0} filtered cards and ${opportunityPage?.totalCount ?? 0} records. SHOW means worth investigating, not qualified.` : 'Browse the evidence and open a project for its source details.'}</p>}</div><label className="search"><span className="sr-only">Search projects</span><input value={search} onChange={(event) => { setSearch(event.target.value); setOffset(0); setOpportunityPage(null); setExpandedGroupMembers({}) }} placeholder="Search projects, work, or permit ID"/></label>{!selected && opportunityPage && <a href={client.opportunityExportUrl(tierValue(tier), search, tier === 'Signals' ? signalFilter : 'ALL', opportunityPage.cohortToken, browseFilters)} download>Download filtered CSV</a>}</div>}
+      {view === 'opportunities' && <div className="list-toolbar"><div><h2>{selected ? 'Opportunity brief' : `${tier} · ${opportunityPage?.groupTotalCount ?? visibleCards.length} filtered project cards · ${opportunityPage?.totalCount ?? items.length} filtered opportunity records`}</h2>{!selected && <p>{tier === 'Signals' ? `${signalFilter === 'ALL' ? 'All' : signalFilter} · ${visibleCards.length} cards and ${items.length} records on this page of ${opportunityPage?.groupTotalCount ?? 0} filtered cards and ${opportunityPage?.totalCount ?? 0} records. SHOW means worth investigating, not qualified.` : 'Browse the evidence and open a project for its source details.'}</p>}</div><label className="search"><span className="sr-only">Search projects</span><input value={search} onChange={(event) => { cancelPendingNavigation(); setSearch(event.target.value); setOffset(0); setOpportunityPage(null); setExpandedGroupMembers({}); setSelected(null) }} placeholder="Search projects, work, or permit ID"/></label>{!selected && opportunityPage && <a href={client.opportunityExportUrl(tierValue(tier), search, tier === 'Signals' ? signalFilter : 'ALL', opportunityPage.cohortToken, browseFilters)} download>Download filtered CSV</a>}</div>}
       {view === 'opportunities' && !selected && <div className="browse-filter-controls" aria-label="Filter opportunity records">
         <label>Geography<select aria-label="Select unknown geography" value={browseFilters.geography === 'UNKNOWN' ? 'UNKNOWN' : ''} onChange={(event) => changeBrowseFilter('geography', event.target.value)}><option value="">Any exact location</option><option value="UNKNOWN">Unknown</option></select><input aria-label="Filter by exact geography" placeholder="Exact stored location" value={browseFilters.geography === 'UNKNOWN' ? '' : browseFilters.geography ?? ''} onChange={(event) => changeBrowseFilter('geography', event.target.value)}/></label>
         <label>Industry<select aria-label="Select unknown industry" value={browseFilters.industry === 'UNKNOWN' ? 'UNKNOWN' : ''} onChange={(event) => changeBrowseFilter('industry', event.target.value)}><option value="">Any exact asset type</option><option value="UNKNOWN">Unknown</option></select><input aria-label="Filter by exact project asset type" placeholder="Exact stored asset type" value={browseFilters.industry === 'UNKNOWN' ? '' : browseFilters.industry ?? ''} onChange={(event) => changeBrowseFilter('industry', event.target.value)}/></label>
@@ -445,7 +576,7 @@ export function App() {
         <label>Priority<select aria-label="Filter by canonical priority segment" value={browseFilters.prioritySegment ?? ''} onChange={(event) => changeBrowseFilter('prioritySegment', event.target.value)}><option value="">Any priority</option>{Array.from({ length: 9 }, (_, segment) => <option key={segment} value={segment}>Segment {segment}</option>)}</select></label>
         <label>Workflow status<select aria-label="Filter by workflow status" value={browseFilters.status ?? ''} onChange={(event) => changeBrowseFilter('status', event.target.value)}><option value="">Any status</option><option value="UNKNOWN">Unknown</option></select></label>
       </div>}
-      {view === 'opportunities' && tier === 'Signals' && !selected && <div className="signal-filters" role="group" aria-label="Filter Signals by review decision">{(['ALL', 'SHOW', 'REVIEW', 'HOLD'] as const).map((decision) => { const count = decision === 'ALL' ? signalAllCount : signalCounts[decision]; return <button key={decision} className={signalFilter === decision ? 'signal-filter-active' : ''} aria-pressed={signalFilter === decision} onClick={() => { setSignalFilter(decision); setSelected(null); setOffset(0); setOpportunityPage(null); setExpandedGroupMembers({}) }}>{decision === 'ALL' ? 'All' : decision} <span>{count}</span></button> })}</div>}
+      {view === 'opportunities' && tier === 'Signals' && !selected && <div className="signal-filters" role="group" aria-label="Filter Signals by review decision">{(['ALL', 'SHOW', 'REVIEW', 'HOLD'] as const).map((decision) => { const count = decision === 'ALL' ? signalAllCount : signalCounts[decision]; return <button key={decision} className={signalFilter === decision ? 'signal-filter-active' : ''} aria-pressed={signalFilter === decision} onClick={() => { cancelPendingNavigation(); setSignalFilter(decision); setSelected(null); setOffset(0); setOpportunityPage(null); setExpandedGroupMembers({}) }}>{decision === 'ALL' ? 'All' : decision} <span>{count}</span></button> })}</div>}
       {view === 'ingestion' && <div className="ingestion-tools"><label>Source<select aria-label="Filter by source" value={sourceFilter} onChange={(event) => { setSourceFilter(event.target.value); setOffset(0) }}><option value="">All sources</option>{sourceOptions.map((source) => <option value={source.id} key={source.id}>{source.label}</option>)}</select></label><label>Source sector<select aria-label="Filter by source sector" value={verticalFilter} onChange={(event) => chooseVertical(event.target.value)}><option value="">All source sectors</option>{verticalGroups.map((group) => <option value={group.id} key={group.id}>{group.label}</option>)}</select></label><span>{ingestionTotal} retained {ingestionTotal === 1 ? 'item' : 'items'} · page {Math.floor(offset / pageSize) + 1}</span></div>}
       {error && <p role="alert" className="error-banner">{error}</p>}
       {loading && <p className="loading-inline" role="status">Updating this view…</p>}
@@ -468,7 +599,7 @@ export function App() {
           {card.grouped && expanded && <div className="project-members"><p>{card.complete ? `${matchingMembers.length} matching · ${card.groupTotal ?? card.members.length} related ${card.members.every((member) => member.evidence.some((evidence) => evidence.source_id.endsWith('-building-permits'))) ? 'permit ' : ''}records` : `${card.members.length} of ${card.groupTotal ?? card.members.length} related records loaded`}</p>{sameProject && <p>Grouped under the same stable physical project identity. Each record and its evidence remain available below.</p>}{lifecycleEvents.size > 0 && <p>Lifecycle evidence: {[...lifecycleEvents.values()].map((event) => <span key={`${event.event_type}:${event.date ?? ''}:${event.evidence_url}`}>{event.event_type.replaceAll('_', ' ')}{event.date ? ` · ${event.date}` : ''}; </span>)}</p>}{members.map((member) => { const memberDecision = signalDisplayDecision([member]); return <button key={member.id} data-opportunity-id={member.id} className="project-member" onClick={() => open(member)}><strong>{projectTitle(member)}</strong>{tier === 'Signals' && <span className={`tier-pill signal-decision-badge signal-decision-${memberDecision.toLowerCase()}`} style={{ marginBottom: 0 }} data-review-decision={memberDecision}><strong>Decision: {memberDecision}</strong></span>}<span>{memberDate(member)} · {member.location ?? 'Location unknown'}{member.matched_search && search ? ' · Matches search' : ''}</span><span>Open this record and its evidence →</span></button> })}</div>}
         </div>
       })}</div> : !loading ? <div className="empty"><span className="empty-mark" aria-hidden="true">◇</span><h3>{search ? 'No matching projects' : tier === 'Signals' ? signalFilter === 'ALL' ? 'No Signals yet' : signalFilter === 'SHOW' ? 'No SHOW decisions yet' : `No ${signalFilter} Signals` : `No ${tier.toLowerCase()} yet`}</h3><p>{search ? tier === 'Signals' && signalFilter !== 'ALL' && matchingRecordCount > 0 ? `Matching Signal records exist outside the ${signalFilter} filter. Switch decision tabs to inspect them.` : 'No retained opportunity records match this search.' : tier === 'Signals' ? signalFilter === 'SHOW' ? `Check REVIEW (${signalCounts.REVIEW}) for uncertain or not-yet-adjudicated projects. An unavailable Jev decision stays visible there.` : signalFilter === 'ALL' ? 'No Signal project cards are currently available.' : `No project cards currently have a ${signalFilter} decision.` : `${tier} require additional supported facts. They will appear here when the evidence meets the qualification gate.`}</p></div> : null : <><IngestionList items={ingestionItems} loading={loading}/><div className="collection-pagination"><button disabled={offset <= 0 || loading} onClick={() => setOffset(Math.max(0, offset - pageSize))}>← Previous</button><button disabled={offset + pageSize >= ingestionTotal || loading} onClick={() => setOffset(offset + pageSize)}>Next →</button></div></>}
-      {view === 'opportunities' && !selected && <div className="collection-pagination"><span>{opportunityPage?.totalCount ?? 0} filtered records · page {Math.floor(offset / pageSize) + 1}</span><button disabled={offset <= 0 || loading} onClick={() => setOffset(Math.max(0, offset - pageSize))}>← Previous</button><button disabled={!opportunityPage || opportunityPage.nextOffset == null || loading} onClick={() => { const next = opportunityPage?.nextOffset; if (next !== null && next !== undefined) setOffset(next) }}>Next →</button></div>}
+      {view === 'opportunities' && !selected && <div className="collection-pagination"><span>{opportunityPage?.totalCount ?? 0} filtered records · page {Math.floor(offset / pageSize) + 1}</span><button disabled={offset <= 0 || loading} onClick={() => { cancelPendingNavigation(); setOffset(Math.max(0, offset - pageSize)) }}>← Previous</button><button disabled={!opportunityPage || opportunityPage.nextOffset == null || loading} onClick={() => { const next = opportunityPage?.nextOffset; if (next !== null && next !== undefined) { cancelPendingNavigation(); setOffset(next) } }}>Next →</button></div>}
       </main><footer>Coverage is limited to configured and checked sources. Unknown project facts stay unknown.</footer>
   </div>
 }
