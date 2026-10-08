@@ -43,6 +43,8 @@ Earlier boundedness1234/387 failures, fixture corrections, typed qualification v
 
 Archive3b9d4f5d58a15ad379fec28b2cfa0b7b52c013e5d6ebd093409db2c64accba33 has89 byte/hash-verified entries. Original backup SHA828beace65cd2b06182f30e4713857656a993d3969c8cbecb02e6ee40ff8a886 remains unchanged. Raw historical whitespace is immutable; source/docs/packet diff checks are scoped separately.
 
+The separate seven-entry ARCHIVED-CONTROLLER-BYTES.zip preserves controller directions and original state snapshot bytes against recorded provenance. Two Markdown Git views normalize CRLF; original-hash validation uses the sealed binary entries. Its SHA0f2765441e3128bc49d8701b0d2d92728b5af5ad411fb2a5dee61d7efa2470e8 and both original/Git blob hashes are recorded in its JSON manifest. This evidence-only correction preceded independent review; tested source is unchanged.
+
 ## Scope and remaining work
 
 A5A bounds unselected summary ORM/history and hydrates only selected group members. Selected complete-group detail still depends on member cardinality;53 members in this corpus is a measurement, not a universal50-record ceiling. Public pagination/search/filter/group-completeness/history/client/export remains A5B and is not certified here. A6 attributed facts and A8 inert readiness/recovery tooling remain pending. Launch configuration must prevent credential-bearing validation diagnostics as part of operational preparation. A7 still needs original checksum-matching PNG/HTML; supplemental video cannot substitute. No original-data mutation, provider activation, GitHub merge, deployment or operational/real-Lead acceptance occurred. Parent OPEN.
