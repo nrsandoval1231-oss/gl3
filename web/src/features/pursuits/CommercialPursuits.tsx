@@ -67,6 +67,7 @@ function checkedCommercialHistory(value: unknown): CommercialTriageHistory {
 
 export function CommercialPursuits() {
   const [data, setData] = useState<CommercialTriage | null>(null)
+  const [pageOffset, setPageOffset] = useState(0)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState('')
@@ -78,21 +79,22 @@ export function CommercialPursuits() {
 
   useEffect(() => {
     const controller = new AbortController()
-    void client.commercialTriage(50, controller.signal).then((result) => { setData(checkedCommercialTriage(result)); setError('') }).catch((cause: unknown) => {
+    setLoading(true)
+    void client.commercialTriage(50, controller.signal, pageOffset).then((result) => { setData(checkedCommercialTriage(result)); setError('') }).catch((cause: unknown) => {
       if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : 'Commercial pursuits are unavailable.')
     }).finally(() => { if (!controller.signal.aborted) setLoading(false) })
     return () => controller.abort()
-  }, [])
+  }, [pageOffset])
 
   const visible = useMemo(() => (data?.items ?? []).filter((item) => item.disposition === filter && `${item.name} ${item.location ?? ''} ${item.industry} ${item.activity} ${item.stage.stage} ${item.organization ?? ''}`.toLowerCase().includes(query.trim().toLowerCase())), [data, filter, query])
   async function evaluate() {
     setEvaluating(true)
-    try { setData(checkedCommercialTriage(await client.evaluateCommercialTriage())); setError('') }
+    try { setData(checkedCommercialTriage(await client.evaluateCommercialTriage(50, pageOffset))); setError('') }
     catch (cause) { setError(cause instanceof Error ? cause.message : 'Evaluation could not be saved.') }
     finally { setEvaluating(false) }
   }
   async function refreshTriage() {
-    try { setData(checkedCommercialTriage(await client.commercialTriage())); setError('') }
+    try { setData(checkedCommercialTriage(await client.commercialTriage(50, undefined, pageOffset))); setError('') }
     catch (cause) { setError(cause instanceof Error ? cause.message : 'Commercial metrics could not refresh.') }
   }
   function updateDraft(item: CommercialTriageCard, changes: Partial<CommercialDraft>) {
@@ -103,16 +105,21 @@ export function CommercialPursuits() {
     <section className="hero commercial-hero"><div><p className="eyebrow">Retained Signals · Commercial work queue</p><h1>What should we work today?</h1><p>Evidence-backed pursuits with clear next steps. Power, supply, timing and buying roles stay unknown until sources support them.</p></div><button type="button" className="back-button" onClick={() => void evaluate()} disabled={evaluating}>{evaluating ? 'Evaluating…' : 'Evaluate Signals'}</button></section>
     {!data && error ? <section className="commercial-unavailable" role="alert"><h2>Commercial pursuits are unavailable</h2><p>{error}</p></section> : <>
     <section className="commercial-summary" aria-label="Current cohort summary">
-      <div><span>Current cohort</span><strong>{data?.total ?? '—'}</strong></div>
-      {dispositions.map((state) => <div key={state}><span>{state}</span><strong>{data?.cohort_counts[state.toLowerCase().replaceAll(' ', '_') as keyof CommercialTriage['cohort_counts']] ?? '—'}</strong></div>)}
+      <div><span>All eligible groups</span><strong>{data?.grouped_total ?? '—'}</strong></div>
+      {dispositions.map((state) => <div key={state}><span>{state} · this page</span><strong>{data?.cohort_counts[state.toLowerCase().replaceAll(' ', '_') as keyof CommercialTriage['cohort_counts']] ?? '—'}</strong></div>)}
       <div className="commercial-daily">Today · {data?.daily.evaluated ?? '—'} evaluated · {data?.daily.surfaced ?? '—'} surfaced · {data?.daily.contacted ?? '—'} contacted · {data?.daily.reached_buyer ?? '—'} buyer reached · {data?.daily.qualified ?? '—'} qualified · {data?.daily.promoted_prospects ?? '—'} Prospects · {data?.daily.promoted_leads ?? '—'} Leads · {data ? unknown(data.daily.supported_mw) : '—'} supported MW <details><summary>{data?.daily.unavailable_metrics?.length ?? '—'} metric limits</summary><span>{[...(data?.daily.metric_scope ?? []), ...(data?.daily.unavailable_metrics ?? [])].join('; ') || 'No additional metric limitations reported.'}</span></details></div>
     </section>
     <ResearchChanges overview={data?.research_overview}/>
-    <div className="list-toolbar commercial-toolbar"><div><h2>{filter} · {visible.length} pursuits</h2><p>Showing up to 50 retained candidates · {data?.evaluated_at ? `queue refreshed ${new Date(data.evaluated_at).toLocaleString()}` : 'evaluation has not been saved'}</p></div><label className="search"><span className="sr-only">Search commercial pursuits</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search project, company, site"/></label></div>
+    <div className="list-toolbar commercial-toolbar"><div><h2>{filter} · {visible.length} pursuits on this page</h2><p>Page {data ? Math.floor((data.offset ?? pageOffset) / (data.limit ?? 50)) + 1 : 1} · {data?.total ?? 0} saved cards · {data?.grouped_total ?? 0} eligible groups overall · disposition counts below are page-scoped · {data?.evaluated_at ? `queue refreshed ${new Date(data.evaluated_at).toLocaleString()}` : 'evaluation has not been saved'}</p></div><label className="search"><span className="sr-only">Search commercial pursuits on this page</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search this page: project, company, site"/></label></div>
     <div className="commercial-filters" role="group" aria-label="Filter pursuit state">{dispositions.map((state) => <button type="button" key={state} className={filter === state ? 'commercial-filter-active' : ''} aria-pressed={filter === state} onClick={() => setFilter(state)}>{state}<span>{data?.cohort_counts[state.toLowerCase().replaceAll(' ', '_') as keyof CommercialTriage['cohort_counts']] ?? '—'}</span></button>)}</div>
     {error && <p className="error-banner" role="alert">{error} Saved findings remain available.</p>}{loading && <p role="status">Loading retained commercial pursuits…</p>}
     {!loading && data && !visible.length && <div className="empty"><h3>{query ? 'No matching pursuits' : `No ${filter.toLowerCase()} pursuits`}</h3><p>{query ? 'Try another project, company or site.' : 'The current retained cohort has no candidates in this state.'}</p></div>}
-    <div className="commercial-list">{visible.map((item, index) => <CommercialCard key={item.id} item={item} index={index} expanded={expanded === item.id} draft={drafts[item.id] ?? emptyDraft(item)} onDraftChange={(changes) => updateDraft(item, changes)} onToggle={() => setExpanded(expanded === item.id ? null : item.id)} onSaved={() => void refreshTriage()}/>)}</div>
+    <div className="commercial-list">{visible.map((item, index) => <CommercialCard key={item.id} item={item} index={index + pageOffset} expanded={expanded === item.id} draft={drafts[item.id] ?? emptyDraft(item)} onDraftChange={(changes) => updateDraft(item, changes)} onToggle={() => setExpanded(expanded === item.id ? null : item.id)} onSaved={() => void refreshTriage()}/>)}</div>
+    <nav className="opportunity-pagination commercial-pagination" aria-label="Commercial pursuit pages">
+      <button type="button" disabled={loading || pageOffset <= 0} onClick={() => { setExpanded(null); setPageOffset(Math.max(0, pageOffset - (data?.limit ?? 50))) }}>Previous page</button>
+      <span>{data?.total ?? 0} cards on this page · {data?.grouped_total ?? 0} eligible groups overall</span>
+      <button type="button" disabled={loading || data?.next_offset == null} onClick={() => { setExpanded(null); setPageOffset(data?.next_offset ?? pageOffset) }}>Next page</button>
+    </nav>
     </>}
     <CommercialHistory currentNeedIds={(data?.items ?? []).map((item) => item.id)}/>
     <details className="commercial-legacy" onToggle={(event) => setLegacyOpen(event.currentTarget.open)}><summary>Saved research workspace and call history</summary>{legacyOpen && <><p>Existing source research and saved call outcomes remain available here.</p><Pursuits/></>}</details>
@@ -121,16 +128,41 @@ export function CommercialPursuits() {
 
 function CommercialHistory({ currentNeedIds }: { currentNeedIds: string[] }) {
   const [history, setHistory] = useState<CommercialTriageHistory | null>(null)
+  const [historyOffset, setHistoryOffset] = useState(0)
   const [query, setQuery] = useState('')
   const [expanded, setExpanded] = useState<string | null>(null)
+  const [historyDetails, setHistoryDetails] = useState<Record<string, CommercialTriageHistoryItem>>({})
+  const [detailLoading, setDetailLoading] = useState<Record<string, boolean>>({})
+  const [detailErrors, setDetailErrors] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  async function load() {
+  async function load(offset = historyOffset) {
     if (loading) return
     setLoading(true)
-    try { setHistory(checkedCommercialHistory(await client.commercialTriageHistory())); setError('') }
+    try {
+      const page = checkedCommercialHistory(await client.commercialTriageHistory(undefined, offset))
+      setHistory(page)
+      setHistoryOffset(page.offset ?? offset)
+      setExpanded(null)
+      setError('')
+    }
     catch (cause) { setError(cause instanceof Error ? cause.message : 'Saved commercial history is unavailable.') }
     finally { setLoading(false) }
+  }
+  async function toggleHistoryDetail(key: string, pursuitId: string) {
+    if (expanded === key) { setExpanded(null); return }
+    setExpanded(key)
+    if (historyDetails[pursuitId] || detailLoading[pursuitId]) return
+    setDetailLoading((current) => ({ ...current, [pursuitId]: true }))
+    setDetailErrors((current) => ({ ...current, [pursuitId]: '' }))
+    try {
+      const detail = checkedCommercialHistory({ items: [await client.commercialTriageHistoryDetail(pursuitId)] }).items[0]
+      setHistoryDetails((current) => ({ ...current, [pursuitId]: detail }))
+    } catch (cause) {
+      setDetailErrors((current) => ({ ...current, [pursuitId]: cause instanceof Error ? cause.message : 'Saved detail is unavailable.' }))
+    } finally {
+      setDetailLoading((current) => ({ ...current, [pursuitId]: false }))
+    }
   }
   const current = new Set(currentNeedIds)
   const normalizedQuery = query.trim().toLowerCase()
@@ -145,7 +177,7 @@ function CommercialHistory({ currentNeedIds }: { currentNeedIds: string[] }) {
     return haystack.includes(normalizedQuery)
   })
   return <details className="commercial-history" onToggle={(event) => { if (event.currentTarget.open && !history && !loading) void load() }}>
-    <summary>Saved evaluation history · closed and out-of-cohort work</summary>
+    <summary>Saved evaluation history · snapshots and earlier versions</summary>
     <p>Saved evaluations stay available after they leave the current 50. Every entry is an as-of snapshot; live status has not been rechecked.</p>
     <div className="commercial-history-tools"><label><span className="sr-only">Search saved evaluations</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search saved project, site, note or ID"/></label><button type="button" onClick={() => void load()} disabled={loading}>{loading ? 'Loading…' : history ? 'Refresh history' : 'Load saved history'}</button></div>
     {loading && <p role="status">Loading saved evaluations…</p>}{error && <p role="alert">{error}</p>}
@@ -155,11 +187,20 @@ function CommercialHistory({ currentNeedIds }: { currentNeedIds: string[] }) {
       const key = `${item.pursuit_id}:${version.version}:${version.input_hash ?? version.evaluated_at ?? version.evaluated_on ?? 'date-unknown'}`
       const title = card?.name ?? `Saved work · ${item.need_id.slice(0, 8)}`
       const date = version.evaluated_at ? new Date(version.evaluated_at).toLocaleString() : version.evaluated_on ?? 'Saved date unknown'
+      const detailedItem = historyDetails[item.pursuit_id]
+      const detailedVersion = detailedItem?.versions?.find((candidate) => candidate.version === version.version && candidate.input_hash === version.input_hash) ?? version
       return <article className="commercial-history-card" key={key}>
-        <button type="button" className="commercial-history-heading" aria-expanded={expanded === key} onClick={() => setExpanded(expanded === key ? null : key)}><span><strong>{title}</strong><small>{unknown(card?.location)} · {enumLabel(card?.industry)} · {enumLabel(card?.activity)}</small></span><span>Version {version.version} · {version.disposition} · {version.snapshot_status === 'saved_as_of' ? 'saved card' : 'metadata only'}<small>As of {date}</small></span></button>
-        {expanded === key && <HistoricalDetail item={item} version={version}/>}
+        <button type="button" className="commercial-history-heading" aria-expanded={expanded === key} onClick={() => void toggleHistoryDetail(key, item.pursuit_id)}><span><strong>{title}</strong><small>{unknown(card?.location)} · {enumLabel(card?.industry)} · {enumLabel(card?.activity)}</small></span><span>Version {version.version} · {version.disposition} · {version.snapshot_status === 'saved_as_of' ? 'saved card' : 'metadata only'}<small>As of {date}</small></span></button>
+        {expanded === key && detailLoading[item.pursuit_id] && <p role="status">Loading saved as-of detail…</p>}
+        {expanded === key && detailErrors[item.pursuit_id] && <p role="alert">{detailErrors[item.pursuit_id]}</p>}
+        {expanded === key && detailedItem && <HistoricalDetail item={detailedItem} version={detailedVersion}/>}
       </article>
     })}</div>
+    {history && !error && <nav className="opportunity-pagination commercial-pagination" aria-label="Saved evaluation history pages">
+      <button type="button" disabled={loading || historyOffset <= 0} onClick={() => void load(Math.max(0, historyOffset - (history.limit ?? 50)))}>Previous page</button>
+      <span>Showing {history.items.length ? historyOffset + 1 : 0}–{historyOffset + history.items.length} of {history.total ?? 0} saved workspaces · search applies to this page</span>
+      <button type="button" disabled={loading || history.next_offset == null} onClick={() => void load(history.next_offset ?? historyOffset)}>Next page</button>
+    </nav>}
   </details>
 }
 
@@ -178,7 +219,6 @@ function HistoricalDetail({ item, version }: { item: CommercialTriageHistoryItem
       <section><h4>Saved buying-path evidence</h4>{card.contacts?.length ? card.contacts.map((contact, index) => <p key={`${contact.organization}-${contact.person}-${index}`}>{enumLabel(contact.role)} · {unknown(contact.organization)} · {unknown(contact.person)} · {unknown(contact.kind)}: {unknown(contact.value)}{contact.source_url && <> · <a href={contact.source_url} target="_blank" rel="noreferrer">Source ↗</a></>}</p>) : <p>Buying role and direct or intermediary path unknown in this snapshot.</p>}<p>Roles and contact routes do not establish personal purchasing authority.</p></section>
       <section><h4>Saved source citations</h4>{card.sources?.length ? <ul>{card.sources.map((fact, index) => <li key={`${fact.evidence_id}-${index}`}>{fact.text ?? 'Source text unavailable.'} <Citation fact={fact}/></li>)}</ul> : <p>No source citations saved in this snapshot.</p>}</section>
     </> : <p>This earlier receipt predates full-card snapshots. Only its saved disposition and operator notes are available; facts are not reconstructed.</p>}
-    <AutonomousResearch key={item.need_id} needId={item.need_id} readOnly/>
     <section><h4>Operator notes</h4>{item.notes?.length ? item.notes.map((note) => <article className="commercial-note" key={note.id}><p><b>{note.outcome}</b> · {note.owner} · {new Date(note.created_at).toLocaleString()}</p><p>{note.note}</p>{note.next_action && <p><b>Next action:</b> {note.next_action}</p>}{note.follow_up && <p><b>Follow-up:</b> {note.follow_up}</p>}</article>) : <p>No operator notes were saved with this evaluation.</p>}</section>
   </div>
 }

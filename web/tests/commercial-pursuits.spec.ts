@@ -172,6 +172,46 @@ test('commercial queue filters backend states, exposes UNKNOWN, and saves target
   await expect(page.locator('.commercial-card-heading')).toContainText('Northstar Campus')
 })
 
+test('commercial pages report all-group totals and preserve note drafts while traversing', async ({ page }) => {
+  await useCommercialFixture(page)
+  const firstPage: CommercialTriage = {
+    ...base,
+    total: 1,
+    limit: 50,
+    offset: 0,
+    grouped_total: 51,
+    next_offset: 50,
+    cohort_counts: { action_now: 1, research: 0, watch: 0, reject: 0 },
+    items: [base.items[0]],
+  }
+  const secondPage: CommercialTriage = {
+    ...base,
+    total: 1,
+    limit: 50,
+    offset: 50,
+    grouped_total: 51,
+    next_offset: null,
+    cohort_counts: { action_now: 0, research: 1, watch: 0, reject: 0 },
+    items: [base.items[1]],
+  }
+  await page.route(/\/api\/commercial\/triage\?/, (route) => {
+    const offset = Number(new URL(route.request().url()).searchParams.get('offset') ?? 0)
+    return route.fulfill({ json: offset ? secondPage : firstPage })
+  })
+  await page.goto('/?view=pursuits')
+  await expect(page.getByText('All eligible groups').locator('..')).toContainText('51')
+  await expect(page.getByText(/eligible groups overall/).first()).toContainText('51')
+  await page.locator('.commercial-card-heading').first().click()
+  const noteDraft = 'Keep this unsaved operator note across pages.'
+  await page.locator('.commercial-action textarea').nth(1).fill(noteDraft)
+  const pager = page.getByRole('navigation', { name: 'Commercial pursuit pages' })
+  await pager.getByRole('button', { name: 'Next page' }).click()
+  await expect(page.locator('.pursuit-position')).toHaveText('51')
+  await pager.getByRole('button', { name: 'Previous page' }).click()
+  await page.locator('.commercial-card-heading').first().click()
+  await expect(page.locator('.commercial-action textarea').nth(1)).toHaveValue(noteDraft)
+})
+
 test('commercial targeted research reports unavailable response', async ({ page }) => {
   const captured = await useCommercialFixture(page, 503)
   await page.locator('.commercial-card-heading').click()
@@ -281,22 +321,33 @@ test('commercial queue stays behind sign-in until the authenticated session is e
 })
 
 test('saved evaluation history keeps as-of card and notes searchable after cohort departure', async ({ page }) => {
-  await useCommercialFixture(page)
+  const captured = await useCommercialFixture(page)
   const current = structuredClone(base)
   current.items = [current.items[1]]
   current.total = 1
   current.cohort_counts = { action_now: 0, research: 1, watch: 0, reject: 0 }
   current.daily.evaluated = 1
   await page.route('**/api/commercial/triage?limit=50', (route) => route.fulfill({ json: current }))
-  await page.route('**/api/commercial/triage/history', (route) => route.fulfill({ json: { items: [
+  const historyItems = [
     { pursuit_id: 'pursuit-a', need_id: 'need-a', project_id: 'project-a', related_project_ids: ['project-a-related'], disposition: 'ACTION NOW', evaluated_at: '2026-10-02T14:00:00Z', evaluated_on: '2026-10-02', input_hash: 'persisted-hash-a', snapshot_status: 'saved_as_of', live_status: 'not_rechecked', saved_card: base.items[0], notes: [{ id: 'saved-note-a', client_id: 'client-a', owner: 'Operator', created_at: '2026-10-02T14:10:00Z', note: 'Persisted operator note after displacement.', outcome: 'Reached buying organization', next_action: 'Confirm the project load.', follow_up: null }] },
     { pursuit_id: 'pursuit-old', need_id: 'need-old', project_id: 'project-old', disposition: 'REJECT', evaluated_at: null, evaluated_on: null, input_hash: null, snapshot_status: 'metadata_only', live_status: 'not_rechecked', saved_card: null, notes: [] },
-  ] } }))
+  ]
+  await page.route('**/api/commercial/triage/history', (route) => route.fulfill({ json: { items: historyItems, total: 2, limit: 50, offset: 0, next_offset: null } }))
+  await page.route('**/api/commercial/triage/history/*', (route) => {
+    const pursuitId = new URL(route.request().url()).pathname.split('/').at(-1)
+    const item = historyItems.find((candidate) => candidate.pursuit_id === pursuitId)
+    return route.fulfill(item ? { json: item } : { status: 404, json: { detail: 'Not found' } })
+  })
+  let liveResearchReads = 0
+  await page.route(/\/api\/commercial\/triage\/[^/]+\/autonomous-research/, (route) => {
+    liveResearchReads += 1
+    return route.fulfill({ json: { items: [] } })
+  })
   await page.goto('/?view=pursuits')
   await page.locator('.commercial-filters button').nth(1).click()
   await expect(page.locator('.commercial-card-heading')).toContainText('South Ridge Works')
   await expect(page.locator('.commercial-card-heading')).not.toContainText('Northstar Campus')
-  const history = page.locator('.commercial-history')
+  const history = page.locator('details.commercial-history')
   await history.locator('summary').click()
   await expect(history.getByRole('button', { name: /Northstar Campus/ })).toBeVisible()
   await history.getByLabel('Search saved evaluations').fill('Persisted operator note')
@@ -307,6 +358,8 @@ test('saved evaluation history keeps as-of card and notes searchable after cohor
   await expect(history.locator('.commercial-history-detail')).toContainText('Construction filing accepted.')
   await expect(history.locator('.commercial-history-detail')).toContainText('Required power: Unknown')
   await expect(history.locator('.commercial-history-detail .commercial-note')).toContainText('Persisted operator note after displacement.')
+  expect(liveResearchReads).toBe(0)
+  expect(captured.evaluationCalls).toBe(0)
   await history.getByLabel('Search saved evaluations').fill('need-old')
   await expect(history.getByRole('button', { name: /Saved work · need-old/ })).toBeVisible()
   await history.getByRole('button', { name: /Saved work · need-old/ }).click()
@@ -315,18 +368,55 @@ test('saved evaluation history keeps as-of card and notes searchable after cohor
   await expect(history.locator('.commercial-history-detail')).not.toContainText('Construction filing accepted.')
 })
 
+test('saved evaluation history traverses more than one bounded page', async ({ page }) => {
+  await useCommercialFixture(page)
+  const historyItem = (pursuitId: string, needId: string) => ({
+    pursuit_id: pursuitId,
+    need_id: needId,
+    project_id: `project-${needId}`,
+    disposition: 'REJECT',
+    evaluated_at: null,
+    evaluated_on: null,
+    input_hash: null,
+    snapshot_status: 'metadata_only' as const,
+    live_status: 'not_rechecked' as const,
+    saved_card: null,
+    notes: [],
+  })
+  await page.route((url) => url.pathname === '/api/commercial/triage/history', (route) => {
+    const offset = Number(new URL(route.request().url()).searchParams.get('offset') ?? 0)
+    return route.fulfill({ json: {
+      items: [offset ? historyItem('pursuit-last', 'historic-last') : historyItem('pursuit-first', 'historic-first')],
+      total: 51,
+      limit: 50,
+      offset,
+      next_offset: offset ? null : 50,
+    } })
+  })
+  await page.goto('/?view=pursuits')
+  const history = page.locator('details.commercial-history')
+  await history.locator('summary').click()
+  await expect(history).toContainText('Showing 1–1 of 51 saved workspaces')
+  await expect(history.getByRole('button', { name: /Saved work · historic/ })).toBeVisible()
+  await history.getByRole('navigation', { name: 'Saved evaluation history pages' }).getByRole('button', { name: 'Next page' }).click()
+  await expect(history).toContainText('Showing 51–51 of 51 saved workspaces')
+  await expect(history.getByRole('button', { name: /Saved work · historic/ })).toBeVisible()
+})
+
 test('prior saved versions remain visible when the need is still in the current cohort', async ({ page }) => {
   await useCommercialFixture(page)
   const card = structuredClone(base.items[0])
   const olderCard = { ...card, reason: 'Earlier evidence cited an announced project stage.' }
-  await page.route('**/api/commercial/triage/history', (route) => route.fulfill({ json: { items: [{
+  const historyItem = {
     pursuit_id: 'pursuit-a', need_id: 'need-a', project_id: 'project-a', disposition: 'ACTION NOW', evaluated_at: '2026-10-03T14:00:00Z', evaluated_on: '2026-10-03', input_hash: 'hash-new', snapshot_status: 'saved_as_of', live_status: 'not_rechecked', saved_card: card, notes: [], versions: [
       { version: 1, disposition: 'RESEARCH', evaluated_at: '2026-10-02T14:00:00Z', evaluated_on: '2026-10-02', input_hash: 'hash-older', snapshot_status: 'saved_as_of', live_status: 'not_rechecked', saved_card: olderCard },
       { version: 2, disposition: 'ACTION NOW', evaluated_at: '2026-10-03T14:00:00Z', evaluated_on: '2026-10-03', input_hash: 'hash-new', snapshot_status: 'saved_as_of', live_status: 'not_rechecked', saved_card: card },
     ],
-  }] } }))
+  }
+  await page.route('**/api/commercial/triage/history', (route) => route.fulfill({ json: { items: [historyItem], total: 1, limit: 50, offset: 0, next_offset: null } }))
+  await page.route('**/api/commercial/triage/history/*', (route) => route.fulfill({ json: historyItem }))
   await page.locator('.commercial-card-heading').waitFor()
-  const history = page.locator('.commercial-history')
+  const history = page.locator('details.commercial-history')
   await history.locator('summary').click()
   await history.getByLabel('Search saved evaluations').fill('hash-older')
   const previous = history.getByRole('button', { name: /Version 1 · RESEARCH/ })

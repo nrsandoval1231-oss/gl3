@@ -1,9 +1,12 @@
+import hashlib
+import json
 from datetime import UTC, datetime, timedelta
 from importlib import import_module
 from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
 
 import pytest
+from fastapi import HTTPException, Response
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
 from sqlalchemy import create_engine, event, func, select, update
@@ -411,13 +414,14 @@ def test_selected_browse_reuses_preloaded_chain_for_persisted_brief(runtime, mon
         connection = session.connection()
         event.listen(connection, "before_cursor_execute", count_statement)
         try:
-            cards = api._commercial_triage_cards(session, 50)
+            cards, grouped_total = api._commercial_triage_cards(session, 50)
             selected = api.opportunity_projection(
                 session, tier="Signal", selected_need_ids={need_id}
             )
         finally:
             event.remove(connection, "before_cursor_execute", count_statement)
         assert len(cards) == 1
+        assert grouped_total == 1
         assert len(selected) == 1
         assert selected[0]["brief_status"] == "ready"
         assert selected[0]["brief_stale"] is False
@@ -498,6 +502,507 @@ def test_opportunity_projection_uses_stable_updated_at_tiebreak(runtime):
             if item["id"] in {first.id, second.id}
         ]
         assert matching_ids == sorted([str(first.id), str(second.id)])
+
+
+def test_bounded_opportunity_page_group_detail_and_stale_cohort(runtime):
+    factory, _service, (need_id, _evidence_id) = runtime
+    api = import_module("gridlens.api.app")
+    with factory.begin() as session:
+        first = session.get(PowerNeed, need_id)
+        project = session.get(Project, first.project_id)
+        source = session.get(Source, project.source_id)
+        sibling = PowerNeed(
+            project_id=project.id,
+            activity_key="facility-expansion",
+            tier=first.tier,
+            rationale=first.rationale,
+            supply=first.supply,
+        )
+        observation = Observation(
+            source_id=source.id,
+            external_id="record-search-sibling",
+            title="Related campus construction record",
+            abstract="A related record without the requested phrase.",
+            url="https://example.test/permits/search-sibling",
+            content_hash="c" * 64,
+        )
+        session.add_all([sibling, observation])
+        session.flush()
+        evidence = Evidence(
+            observation_id=observation.id,
+            content_hash=observation.content_hash,
+            title=observation.title,
+            abstract=observation.abstract,
+            url=observation.url,
+            extraction_location="permit description",
+        )
+        interpretation = Interpretation(
+            observation_id=observation.id,
+            content_hash=observation.content_hash,
+            evaluator_version="browse-test",
+            status="accepted",
+            assessment={
+                "semantic_hash": observation.content_hash,
+                "evidence_hash": evidence.content_hash,
+                "project_identity_key": project.identity_key,
+                "power_activity": sibling.activity_key,
+                "decision": "accepted",
+                "subject": project.name,
+                "location": project.location,
+            },
+        )
+        session.add_all([evidence, interpretation])
+        session.flush()
+        session.add(NeedObservation(need_id=sibling.id, observation_id=observation.id))
+        first.updated_at = datetime(2026, 10, 7, 12, tzinfo=UTC)
+        sibling.updated_at = datetime(2026, 10, 7, 11, tzinfo=UTC)
+        sibling_id = sibling.id
+
+    first_response = Response()
+    first_page = api.opportunities(
+        tier="Signal",
+        search="public permit describes",
+        limit=1,
+        offset=0,
+        cohort=None,
+        response=first_response,
+    )
+    assert len(first_page) == 1
+    assert first_response.headers["X-Total-Count"] == "2"
+    assert first_response.headers["X-Group-Total-Count"] == "1"
+    assert first_page[0]["group_complete_on_page"] is False
+    assert first_page[0]["group_loaded_on_page"] == 1
+    assert first_page[0]["group_total_filtered"] == 2
+    assert first_page[0]["matched_search"] is True
+    cohort = first_response.headers["X-Cohort-Token"]
+
+    group_page = api.opportunity_group_page(
+        first_page[0]["group_id"],
+        cohort_token=cohort,
+        tier="Signal",
+        search="public permit describes",
+        decision=None,
+        limit=50,
+        offset=0,
+    )
+    assert group_page["total"] == 2
+    assert {item["id"] for item in group_page["items"]} == {need_id, sibling_id}
+    assert [item["matched_search"] for item in group_page["items"]].count(True) == 1
+    from gridlens.intelligence.opportunity_browse import grouped_signal_decision
+
+    expected_decision = grouped_signal_decision(group_page["items"])
+    assert json.loads(first_response.headers["X-Decision-Counts"]) == {
+        "SHOW": int(expected_decision == "SHOW"),
+        "REVIEW": int(expected_decision == "REVIEW"),
+        "HOLD": int(expected_decision == "HOLD"),
+    }
+
+    with factory.begin() as session:
+        need = session.get(PowerNeed, need_id)
+        need.updated_at = datetime(2026, 10, 8, tzinfo=UTC)
+
+    with pytest.raises(HTTPException) as stale:
+        api.opportunities(
+            tier="Signal",
+            search="public permit describes",
+            limit=1,
+            offset=0,
+            decision=None,
+            cohort=cohort,
+            response=Response(),
+        )
+    assert stale.value.status_code == 409
+
+
+def test_opportunity_http_and_direct_defaults_are_bounded(runtime):
+    _factory, _service, _ids = runtime
+    api = import_module("gridlens.api.app")
+
+    response = Response()
+    page = api.opportunities(tier="Signal", response=response)
+
+    assert page
+    assert response.headers["X-Limit"] == "50"
+    assert response.headers["X-Offset"] == "0"
+
+    client = TestClient(api.app)
+    client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
+    http_page = client.get("/api/opportunities", params={"tier": "Signal"})
+    assert http_page.status_code == 200
+    assert http_page.headers["X-Limit"] == "50"
+    assert http_page.headers["X-Offset"] == "0"
+    assert client.get("/api/opportunities", params={"limit": 51}).status_code == 422
+
+
+def test_opportunity_filter_scope_is_shared_by_pages_groups_detail_and_csv(runtime):
+    _factory, _service, (need_id, _evidence_id) = runtime
+    api = import_module("gridlens.api.app")
+    response = Response()
+    page = api.opportunities(
+        tier="signal", geography="  TEST   CITY ", activity="Construction",
+        timing="UNKNOWN", mw_status="UNKNOWN", status="unknown", response=response,
+    )
+    assert [str(item["id"]) for item in page] == [str(need_id)]
+    assert page[0]["workflow_status"] == "UNKNOWN"
+    assert isinstance(page[0]["priority_segment"], int)
+    assert page[0]["priority_label"]
+    token = response.headers["X-Cohort-Token"]
+
+    group = api.opportunity_group_page(
+        page[0]["group_id"], token, tier="Signal", geography="test city",
+        activity="construction", timing="unknown", mw_status="unknown", status="UNKNOWN",
+    )
+    assert group["total"] == 1
+    assert str(group["items"][0]["id"]) == str(need_id)
+
+    detail = api.opportunity_need_detail(
+        need_id, tier="Signal", geography="test city", activity="construction",
+        timing="UNKNOWN", mw_status="UNKNOWN", status="UNKNOWN", cohort_token=token,
+    )
+    assert str(detail["id"]) == str(need_id)
+    with pytest.raises(HTTPException) as out_of_scope:
+        api.opportunity_need_detail(need_id, tier="Signal", geography="Elsewhere")
+    assert out_of_scope.value.status_code == 404
+
+    with pytest.raises(HTTPException) as changed:
+        api.opportunities(
+            tier="Signal", geography="Elsewhere", cohort=token, response=Response()
+        )
+    assert changed.value.status_code == 409
+
+    client = TestClient(api.app)
+    client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
+    unsupported = client.get("/api/opportunities", params={"state": "TX"})
+    assert unsupported.status_code == 422
+    unsupported_status = client.get("/api/opportunities", params={"status": "ACTIVE"})
+    assert unsupported_status.status_code == 422
+    csv = client.get(
+        "/api/opportunities/export.csv",
+        params={
+            "tier": "Signal", "geography": "test city", "activity": "construction",
+            "timing": "UNKNOWN", "mw_status": "UNKNOWN", "status": "UNKNOWN",
+            "cohort_token": token,
+        },
+    )
+    assert csv.status_code == 200
+    assert csv.headers["X-Total-Count"] == "1"
+    assert "workflow_status,priority_segment,priority_label" in csv.text.splitlines()[0]
+    assert str(need_id) in csv.text
+
+
+def test_history_routes_preflight_one_oversized_snapshot_before_hydration(runtime):
+    factory, _service, (need_id, _evidence_id) = runtime
+    api = import_module("gridlens.api.app")
+    from gridlens.persistence.models import Pursuit
+
+    with factory.begin() as session:
+        need = session.get(PowerNeed, need_id)
+        pursuit = Pursuit(
+            identity_key="commercial-need:oversized-snapshot-test",
+            project_id=need.project_id,
+            project_ids=[str(need.project_id)],
+            snapshot={"commercial_triage": {"saved_card": {"notes": "x" * 1_000_010}}},
+            research_status="not_researched",
+            research_errors=[],
+        )
+        session.add(pursuit)
+        session.flush()
+        pursuit_id = pursuit.id
+
+    with pytest.raises(HTTPException) as page_error:
+        api.commercial_triage_history()
+    with pytest.raises(HTTPException) as detail_error:
+        api.commercial_triage_history_detail(pursuit_id)
+
+    assert page_error.value.status_code == 413
+    assert detail_error.value.status_code == 413
+    assert page_error.value.detail["resource"] == "saved_snapshot_bytes"
+    assert detail_error.value.detail["resource"] == "saved_snapshot_bytes"
+
+
+def test_oversized_commercial_group_rejects_before_detail_or_evaluation_write(
+    runtime, monkeypatch
+):
+    factory, _service, _ids = runtime
+    api = import_module("gridlens.api.app")
+    from gridlens.persistence.models import Pursuit
+
+    summaries = [
+        {
+            "id": UUID(int=20_000 + index),
+            "project_id": UUID(int=30_000 + index),
+            "tier": "Signal",
+            "name": f"Synthetic project {index}",
+            "location": "100 Shared Test Road",
+            "activity": "facility-expansion",
+            "required_mw": "2",
+            "supply": "Unknown",
+            "evidence": [
+                {
+                    "assessment_current": True,
+                    "source_id": "synthetic-building-permits",
+                    "document_number": "same-official-case",
+                }
+            ],
+        }
+        for index in range(51)
+    ]
+    from gridlens.domain.commercial_triage import grouped_need_groups
+
+    identity, members = grouped_need_groups(summaries)[0]
+    expected_group_id = "cg_" + hashlib.sha256(identity.encode()).hexdigest()[:32]
+    assert len(members) == 51
+
+    def canonical_summary_only(_session, *, summary_only=False, **_kwargs):
+        assert summary_only is True
+        return summaries
+
+    monkeypatch.setattr(api, "opportunity_projection", canonical_summary_only)
+    with factory() as session:
+        before = session.scalar(
+            select(func.count()).select_from(Pursuit).where(
+                Pursuit.identity_key.like("commercial-need:%")
+            )
+        )
+    client = TestClient(api.app)
+    client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
+
+    response = client.post(
+        "/api/commercial/triage/evaluate",
+        headers={"Origin": "http://testserver"},
+    )
+
+    assert response.status_code == 413
+    assert response.json()["detail"]["code"] == "commercial_group_too_large"
+    assert response.json()["detail"]["group_member_count"] == 51
+    assert response.json()["detail"]["group_id"] == expected_group_id
+    with factory() as session:
+        after = session.scalar(
+            select(func.count()).select_from(Pursuit).where(
+                Pursuit.identity_key.like("commercial-need:%")
+            )
+        )
+    assert after == before
+
+
+def test_opportunity_search_rejects_single_oversized_retained_text(runtime):
+    factory, _service, (need_id, evidence_id) = runtime
+    api = import_module("gridlens.api.app")
+
+    with factory.begin() as session:
+        evidence = session.get(Evidence, evidence_id)
+        evidence.abstract = "x" * (api._MAX_OPPORTUNITY_SEARCH_FIELD_BYTES + 1)
+
+    with pytest.raises(HTTPException) as oversized:
+        api.opportunities(
+            tier="Signal",
+            search="never-matches",
+            limit=50,
+            offset=0,
+            cohort=None,
+            response=Response(),
+        )
+    assert oversized.value.status_code == 413
+
+
+def test_search_byte_budget_counts_unassessed_retained_evidence(runtime, monkeypatch):
+    factory, _service, (need_id, _evidence_id) = runtime
+    api = import_module("gridlens.api.app")
+    monkeypatch.setattr(api, "_MAX_OPPORTUNITY_SEARCH_COHORT_BYTES", 40)
+
+    with factory.begin() as session:
+        base_need = session.get(PowerNeed, need_id)
+        project = session.get(Project, base_need.project_id)
+        need = PowerNeed(
+            project_id=project.id,
+            activity_key="construction-unassessed-history",
+            tier="Signal",
+            rationale="Synthetic unassessed search budget case",
+            supply="Unknown",
+        )
+        source = session.get(Source, project.source_id)
+        session.add(need)
+        session.flush()
+        links = []
+        for index in range(2):
+            observation = Observation(
+                source_id=source.id,
+                external_id=f"unassessed-budget-{index}",
+                title="unassessed title",
+                abstract="retained older abstract text",
+                url=f"https://example.test/unassessed/{index}",
+                content_hash=f"{index + 10:064x}",
+            )
+            session.add(observation)
+            session.flush()
+            evidence = Evidence(
+                observation_id=observation.id,
+                content_hash=observation.content_hash,
+                title=observation.title,
+                abstract=observation.abstract,
+                url=observation.url,
+                extraction_location="test",
+            )
+            session.add(evidence)
+            links.append(NeedObservation(need_id=need.id, observation_id=observation.id))
+        session.add_all(links)
+        session.flush()
+        unassessed_need_id = need.id
+
+    with factory() as session, pytest.raises(HTTPException) as oversized:
+        api._opportunity_evidence_search_matches(
+            session,
+            [{"id": unassessed_need_id, "name": "Synthetic project"}],
+            "never matches",
+        )
+
+    assert oversized.value.status_code == 413
+
+
+def test_cohort_rejects_retained_text_change_without_need_timestamp_change(runtime):
+    factory, _service, (_need_id, evidence_id) = runtime
+    api = import_module("gridlens.api.app")
+    response = Response()
+    api.opportunities(
+        tier="Signal", search="", limit=50, offset=0, decision=None, cohort=None, response=response
+    )
+    token = response.headers["X-Cohort-Token"]
+    with factory.begin() as session:
+        evidence = session.get(Evidence, evidence_id)
+        evidence.title = "A different retained title with stable need timestamp"
+
+    with pytest.raises(HTTPException) as stale:
+        api.opportunities(
+            tier="Signal",
+            search="",
+            limit=50,
+            offset=0,
+            decision=None,
+            cohort=token,
+            response=Response(),
+        )
+    assert stale.value.status_code == 409
+
+
+def test_search_uses_final_derived_title_and_joined_evidence_fields(runtime):
+    factory, _service, (need_id, _evidence_id) = runtime
+    api = import_module("gridlens.api.app")
+
+    with factory.begin() as session:
+        need = session.get(PowerNeed, need_id)
+        project = session.get(Project, need.project_id)
+        observation = Observation(
+            source_id="brief-test-permits",
+            external_id="record-company-old",
+            title="Older retained supporting permit",
+            abstract="owner_company_name: Example Holdings",
+            url="https://example.test/permits/company-old",
+            content_hash="b" * 64,
+        )
+        session.add(observation)
+        session.flush()
+        evidence = Evidence(
+            observation_id=observation.id,
+            content_hash=observation.content_hash,
+            title=observation.title,
+            abstract=observation.abstract,
+            url=observation.url,
+            observed_at=datetime(2026, 10, 1, tzinfo=UTC),
+            extraction_location="permit description",
+        )
+        session.add(evidence)
+        session.flush()
+        session.add(
+            Interpretation(
+                observation_id=observation.id,
+                content_hash=observation.content_hash,
+                evaluator_version="browse-title-order-test",
+                status="accepted",
+                assessment={
+                    "semantic_hash": observation.content_hash,
+                    "evidence_hash": evidence.content_hash,
+                    "evidence": {"id": str(evidence.id)},
+                    "project_identity_key": project.identity_key,
+                    "power_activity": need.activity_key,
+                    "decision": "accepted",
+                    "subject": project.name,
+                    "location": project.location,
+                    "owner_company_name": "Example Holdings",
+                },
+            )
+        )
+        session.add(NeedObservation(need_id=need.id, observation_id=observation.id))
+
+    with factory() as session:
+        summary = next(
+            item
+            for item in api.opportunity_projection(session, tier="Signal", summary_only=True)
+            if item["id"] == need_id
+        )
+        summary["_browse_first_evidence"] = {}
+        summary["_browse_action_candidates"] = summary.get("_browse_action_candidates", [])
+        company_evidence_match = api._opportunity_evidence_search_matches(
+            session, [summary], "owner test city"
+        )[str(need_id)]
+        assert summary.get("_browse_company_candidates") == {
+            "owner_company_name": ["Example Holdings"]
+        }
+        assert api.opportunity_project_title(summary) == "Example Holdings · owner"
+        assert company_evidence_match
+        selected_details = api.opportunity_projection(
+            session, tier="Signal", selected_need_ids={need_id}
+        )
+        assert selected_details
+
+    title_boundary = Response()
+    title_matches = api.opportunities(
+        tier="Signal",
+        search="owner test city",
+        limit=50,
+        offset=0,
+        cohort=None,
+        response=title_boundary,
+    )
+    evidence_boundary = api.opportunities(
+        tier="Signal",
+        search="record-company-old brief-test-permits",
+        limit=50,
+        offset=0,
+        cohort=None,
+        response=Response(),
+    )
+
+    assert title_boundary.headers["X-Total-Count"] == "1"
+    assert any(
+        str(item["id"]) == str(need_id) and item["matched_search"] for item in title_matches
+    )
+    assert any(
+        str(item["id"]) == str(need_id) and item["matched_search"] for item in evidence_boundary
+    )
+
+
+def test_authenticated_csv_matches_filtered_cohort_and_declares_scope(runtime):
+    _factory, _service, _ids = runtime
+    api = import_module("gridlens.api.app")
+    client = TestClient(api.app)
+    assert client.get("/api/opportunities/export.csv?tier=Signal").status_code == 401
+    client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
+
+    page = client.get("/api/opportunities", params={"tier": "Signal", "decision": "ALL"})
+    assert page.status_code == 200
+    exported = client.get(
+        "/api/opportunities/export.csv",
+        params={
+            "tier": "Signal",
+            "decision": "ALL",
+            "cohort_token": page.headers["X-Cohort-Token"],
+        },
+    )
+    assert exported.status_code == 200
+    assert exported.headers["X-Export-Scope"] == "all_filtered_matches"
+    assert exported.headers["X-Total-Count"] == page.headers["X-Total-Count"]
+    assert "export_scope,cohort_token" in exported.text.splitlines()[0]
+    assert len(exported.text.splitlines()) == int(exported.headers["X-Total-Count"]) + 1
 
 
 @pytest.mark.parametrize("conflicting_demand", [False, True])
@@ -826,6 +1331,80 @@ def test_summary_projection_preserves_preloaded_session_rows(runtime):
         assert [row["id"] for row in summary] == [need_id]
         assert session.get(Evidence, evidence_id) is evidence
         assert session.get(Interpretation, interpretation.id) is interpretation
+
+
+def test_summary_and_detail_share_batched_houston_title_attribution(runtime, monkeypatch):
+    factory, _service, (need_id, _evidence_id) = runtime
+    api = import_module("gridlens.api.app")
+    project_id = None
+    with factory.begin() as session:
+        need = session.get(PowerNeed, need_id)
+        assert need is not None
+        project = session.get(Project, need.project_id)
+        assert project is not None
+        project_id = project.id
+        session.add(
+            Source(
+                id="houston-weekly-permits",
+                publisher="Synthetic Houston",
+                endpoint="https://example.test/houston",
+                family="construction-permits",
+                geography="Houston",
+                industries=["construction"],
+                retrieval_method="houston-weekly-permits",
+                health={},
+            )
+        )
+        session.flush()
+        project.source_id = "houston-weekly-permits"
+
+    requested_batches = []
+
+    def with_owner_occupant(_session, project_ids):
+        requested_batches.append(set(project_ids))
+        return {
+            str(project_id): {
+                "permit_summaries": [
+                    {
+                        "facts": [
+                            {
+                                "label": "Permit-listed owner / occupant",
+                                "value": "Synthetic Houston Operator LLC",
+                            }
+                        ]
+                    }
+                ]
+            }
+        }
+
+    monkeypatch.setattr(api, "buying_chain_views", with_owner_occupant)
+    with factory() as session:
+        diagnostics = {}
+        summary = api.opportunity_projection(
+            session,
+            summary_only=True,
+            selected_need_ids={need_id},
+            summary_diagnostics=diagnostics,
+        )[0]
+        detail = api.opportunity_projection(session, selected_need_ids={need_id})[0]
+        assert summary["title_company"] == detail["title_company"]
+        assert summary["title_company_role"] == detail["title_company_role"]
+        assert summary["title_company"] == "Synthetic Houston Operator LLC"
+        assert len(requested_batches) == 2
+        assert all(len(batch) <= 32 for batch in requested_batches)
+        assert diagnostics["title_company_project_count"] == 1
+        assert diagnostics["title_company_batch_count"] == 1
+        assert diagnostics["max_title_company_batch_size"] == 1
+
+    monkeypatch.setattr(api, "buying_chain_views", lambda _session, _ids: {})
+    with factory() as session:
+        summary_without_attribution = api.opportunity_projection(
+            session,
+            summary_only=True,
+            selected_need_ids={need_id},
+        )[0]
+        assert summary_without_attribution["title_company"] is None
+        assert summary_without_attribution["title_company_role"] is None
 
 
 def test_provider_failure_retains_last_good_brief_without_blind_retry(runtime, monkeypatch):

@@ -1,12 +1,21 @@
+from decimal import Decimal
+
 import pytest
 
-from gridlens.domain.commercial_presentation import commercial_size_status
+from gridlens.domain.commercial_presentation import commercial_size_status, exact_mw_interval
 
 
 def test_inclusive_floor_and_no_maximum():
     assert commercial_size_status("0.299", "construction", None, []) == "below_floor"
     assert commercial_size_status("0.3", "construction", None, []) == "at_or_above_floor"
     assert commercial_size_status("5000", "construction", None, []) == "at_or_above_floor"
+
+
+def test_exact_mw_interval_reuses_floor_unit_and_range_rules():
+    assert exact_mw_interval("300 kW") == (Decimal("0.300"), Decimal("0.300"))
+    assert exact_mw_interval("300 kW to 1 MW") == (Decimal("0.300"), Decimal("1"))
+    assert exact_mw_interval("0.5–1 MW") == (Decimal("0.5"), Decimal("1"))
+    assert exact_mw_interval("over 300 kW") is None
 
 
 def test_unknown_and_ambiguous_ranges_remain_visible():

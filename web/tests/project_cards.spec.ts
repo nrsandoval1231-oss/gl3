@@ -13,6 +13,7 @@ function permit(id: string, action: string | null, options: { location?: string;
     name: `AUSTIN permit ${id}`,
     location: options.location ?? '2100 BARTON SPRINGS RD, AUSTIN, TX',
     tier: options.tier ?? 'Signal',
+    workflow_status: 'UNKNOWN',
     activity: options.activity ?? 'event-power',
     rationale: 'Permit reports a dated powered event activity; temporary rental power is a question to investigate.',
     signal_evidence_state: 'active_evidence',
@@ -97,6 +98,65 @@ test('Cannabis Watch is removed and an evidence-supported applicant titles the c
   await page.getByRole('button', { name: /Back to Signals/ }).click()
   await page.getByRole('textbox', { name: 'Search projects' }).fill('Green Valley Cultivation')
   await expect(page.getByRole('button', { name: /Green Valley Cultivation LLC · applicant/ })).toBeVisible()
+})
+
+test('browse filters travel through the request URL and restore with the selected detail Back state', async ({ page }) => {
+  const record = permit('filter-back', 'Dated construction permit for a synthetic campus')
+  record.group_id = 'opaque-filter-group'
+  record.group_title = 'Synthetic campus'
+  record.group_total_filtered = 1
+  record.group_loaded_on_page = 1
+  record.group_complete_on_page = true
+  record.matched_search = true
+  const requests: URL[] = []
+  await page.route(apiRoute, async (route) => {
+    const url = new URL(route.request().url())
+    const path = url.pathname
+    if (path === '/api/opportunities') requests.push(url)
+    const body = path === '/api/auth/session'
+      ? { authenticated: true }
+      : path === '/api/opportunities'
+        ? [record]
+        : path === '/api/health'
+          ? { sources: [], backlog: 0, pending_interpretations: 0 }
+          : []
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      headers: path === '/api/opportunities'
+        ? { 'X-Total-Count': '1', 'X-Group-Total-Count': '1', 'X-Page-Record-Count': '1', 'X-Page-Group-Count': '1', 'X-Limit': '25', 'X-Offset': '25', 'X-Cohort-Token': 'fixture-cohort', 'X-Decision-Counts': '{"SHOW":1,"REVIEW":0,"HOLD":0}' }
+        : undefined,
+      body: JSON.stringify(body),
+    })
+  })
+  await page.goto('/?tier=Signals&q=campus&decision=SHOW&offset=25&geography=UNKNOWN&industry=data_center&activity=facility-expansion&timing=UNKNOWN&mw_status=UNKNOWN&mw_min=0.3&priority_segment=8&status=UNKNOWN')
+  await expect(page.getByRole('textbox', { name: 'Search projects' })).toHaveValue('campus')
+  await expect(page.getByRole('textbox', { name: 'Filter by exact project asset type' })).toHaveValue('data_center')
+  await expect(page.getByRole('textbox', { name: 'Filter by exact power activity' })).toHaveValue('facility-expansion')
+  await expect(page.getByRole('button', { name: /Back to Signals/ })).toHaveCount(0)
+  await expect.poll(() => requests.some((request) => request.searchParams.get('geography') === 'UNKNOWN'
+    && request.searchParams.get('industry') === 'data_center'
+    && request.searchParams.get('activity') === 'facility-expansion'
+    && request.searchParams.get('timing') === 'UNKNOWN'
+    && request.searchParams.get('mw_status') === 'UNKNOWN'
+    && request.searchParams.get('mw_min') === '0.3'
+    && request.searchParams.get('priority_segment') === '8'
+    && request.searchParams.get('status') === 'UNKNOWN')).toBe(true)
+  await page.locator('[data-opportunity-id="filter-back"]').first().click()
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+  await page.getByRole('button', { name: /Back to Signals/ }).click()
+  await expect(page.getByRole('textbox', { name: 'Search projects' })).toHaveValue('campus')
+  await expect(page.getByRole('textbox', { name: 'Filter by exact project asset type' })).toHaveValue('data_center')
+  await expect(page.getByRole('textbox', { name: 'Filter by exact power activity' })).toHaveValue('facility-expansion')
+  const restored = new URL(page.url())
+  expect(restored.searchParams.get('offset')).toBe('25')
+  expect(restored.searchParams.get('geography')).toBe('UNKNOWN')
+  expect(restored.searchParams.get('industry')).toBe('data_center')
+  expect(restored.searchParams.get('activity')).toBe('facility-expansion')
+  expect(restored.searchParams.get('timing')).toBe('UNKNOWN')
+  expect(restored.searchParams.get('mw_min')).toBe('0.3')
+  expect(restored.searchParams.get('priority_segment')).toBe('8')
+  expect(restored.searchParams.get('status')).toBe('UNKNOWN')
 })
 
 test('project title prefers a current owner over operator, applicant, and contractor claims', () => {
