@@ -10,7 +10,7 @@ from gridlens.persistence.models import Job, PursuitResearchQuestion, Source
 
 def enqueue(session: Session, source_id: str, *, kind: str = "ingestion") -> UUID:
     source = session.scalar(select(Source).where(Source.id == source_id).with_for_update())
-    if source is None or not source.enabled:
+    if source is None or not source.enabled or not source.registry_enabled:
         raise ValueError("Source is missing or disabled")
     active = session.scalar(
         select(Job.id)
@@ -36,7 +36,17 @@ def lease_one(
     scope = [] if job_ids is None else [Job.id.in_(job_ids)]
     abandoned = session.scalars(
         select(Job)
-        .where(Job.status == "running", Job.lease_until < now, Job.attempts >= 5, *scope)
+        .join(Source, Source.id == Job.source_id)
+        .where(
+            Job.status == "running",
+            Job.lease_until < now,
+            Job.attempts >= 5,
+            *scope,
+            (
+                (Job.kind != "ingestion")
+                | (Source.enabled.is_(True) & Source.registry_enabled.is_(True))
+            ),
+        )
         .with_for_update(skip_locked=True)
     ).all()
     for expired in abandoned:
@@ -82,6 +92,10 @@ def lease_one(
             Job.attempts < 5,
             Job.available_at <= now,
             ((Job.status == "queued") | ((Job.status == "running") & (Job.lease_until < now))),
+            (
+                (Job.kind != "ingestion")
+                | (Source.enabled.is_(True) & Source.registry_enabled.is_(True))
+            ),
         )
         # Permit jobs lead recent work, while a one-day age bucket guarantees
         # old news jobs advance even during sustained permit refresh activity.
