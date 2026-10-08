@@ -3,18 +3,25 @@ import json
 from collections import defaultdict
 from datetime import UTC, date, datetime, timedelta
 from datetime import date as DateType
+from typing import Any
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
 from pydantic import BaseModel, Field, SecretStr
-from sqlalchemy import Date, func, or_, select
+from sqlalchemy import Date, and_, func, or_, select
+from sqlalchemy.orm import joinedload
 
 from gridlens.api.verticals import vertical_source_tags
 from gridlens.domain.buying_chain import BuyingChainOut, BuyingEnrichBody
 from gridlens.domain.commercial_presentation import commercial_size_status
 from gridlens.domain.commercial_triage import POLICY_VERSION as COMMERCIAL_TRIAGE_POLICY
-from gridlens.domain.commercial_triage import cards as make_commercial_cards
+from gridlens.domain.commercial_triage import (
+    cards as make_commercial_cards,
+)
+from gridlens.domain.commercial_triage import (
+    grouped_need_ids,
+)
 from gridlens.domain.pursuits import (
     AutonomousResearchBody,
     AutonomousResearchOut,
@@ -34,7 +41,11 @@ from gridlens.intelligence.briefs import (
     brief_view,
     request_brief,
 )
-from gridlens.intelligence.buying_chain import buying_chain_view, enrich_buying_chain
+from gridlens.intelligence.buying_chain import (
+    buying_chain_view,
+    buying_chain_views,
+    enrich_buying_chain,
+)
 from gridlens.intelligence.lifecycle_service import lifecycle_event_supported
 from gridlens.intelligence.project_state import project_state as read_project_state
 from gridlens.intelligence.signal_adjudication import POLICY_VERSION, adjudicate_current_signals
@@ -861,21 +872,430 @@ def opportunities(tier: str | None = None, search: str | None = None):
         return opportunity_projection(session, tier=tier, search=search)
 
 
+_BROWSE_SUMMARY_BATCH_SIZE = 128
+
+
+def _opportunity_summary_projection(
+    session,
+    *,
+    tier: str | None,
+    search: str | None,
+    include_below_floor: bool,
+    selected_need_ids: set[UUID] | None,
+    diagnostics: dict[str, int] | None,
+) -> list[dict]:
+    """Stream compact candidate inputs; selected details use the regular projection."""
+    from gridlens.domain.commercial_triage import PriorityInputAccumulator
+    from gridlens.ingestion.service import CurrentNeedQualificationAccumulator
+    from gridlens.intelligence.project_state import ResearchSummaryAccumulator
+
+    sources = {source.id: source for source in session.scalars(select(Source))}
+    caller_owned_orm_ids = {id(row) for row in session.identity_map.values()}
+
+    def release_streamed_row(orm_row: Any) -> None:
+        if (
+            orm_row is not None
+            and orm_row in session
+            and id(orm_row) not in caller_owned_orm_ids
+        ):
+            session.expunge(orm_row)
+
+    summaries: list[dict] = []
+    metrics = diagnostics if diagnostics is not None else {}
+    metrics.update(
+        {
+            "candidate_rows_scanned": 0,
+            "max_candidate_batch_size": 0,
+            "max_current_link_rows_per_batch": 0,
+            "max_current_link_rows_per_need": 0,
+            "max_resident_link_orm_rows": 0,
+            "max_resident_lifecycle_orm_rows": 0,
+            "link_fetch_chunk_size": 128,
+            "lifecycle_fetch_chunk_size": 128,
+            "max_compact_need_states_per_batch": 0,
+            "historical_date_rows_aggregated": 0,
+            "historical_evidence_orm_rows": 0,
+            "lifecycle_rows_streamed": 0,
+            "supported_lifecycle_rows": 0,
+            "brief_orm_rows": 0,
+            "summary_candidate_count": 0,
+        }
+    )
+    cursor: UUID | None = None
+    while True:
+        query = (
+            select(PowerNeed, Project)
+            .join(Project, PowerNeed.project_id == Project.id)
+            .where(PowerNeed.active.is_(True))
+            .order_by(PowerNeed.id)
+            .limit(_BROWSE_SUMMARY_BATCH_SIZE)
+        )
+        if search:
+            query = query.where(Project.name.ilike(f"%{search[:100]}%"))
+        if selected_need_ids is not None:
+            query = query.where(PowerNeed.id.in_(selected_need_ids))
+        elif cursor is not None:
+            query = query.where(PowerNeed.id > cursor)
+        batch = session.execute(query).all()
+        if not batch:
+            break
+        metrics["candidate_rows_scanned"] += len(batch)
+        metrics["max_candidate_batch_size"] = max(
+            metrics["max_candidate_batch_size"], len(batch)
+        )
+        if selected_need_ids is None:
+            cursor = batch[-1][0].id
+        needs = [need for need, _project in batch]
+        projects_by_id = {project.id: project for _need, project in batch}
+        need_ids = [need.id for need in needs]
+        project_ids = list(projects_by_id)
+
+        latest_retained_date: dict[UUID, str] = {}
+        date_rows = session.execute(
+            select(
+                NeedObservation.need_id,
+                func.max(func.coalesce(Evidence.published_at, Evidence.event_date)),
+            )
+            .join(Observation, Observation.id == NeedObservation.observation_id)
+            .join(Evidence, Evidence.observation_id == Observation.id)
+            .where(NeedObservation.need_id.in_(need_ids))
+            .group_by(NeedObservation.need_id)
+        )
+        for need_id, retained_date in date_rows:
+            metrics["historical_date_rows_aggregated"] += 1
+            if retained_date is None:
+                continue
+            value = (
+                retained_date.isoformat()
+                if hasattr(retained_date, "isoformat")
+                else str(retained_date)
+            )
+            if len(value) >= 10 and value[4:5] == "-" and value[7:8] == "-":
+                day = value[:10]
+                latest_retained_date[need_id] = max(
+                    latest_retained_date.get(need_id, "0000-00-00"), day
+                )
+
+        lifecycle_state_by_project = dict(
+            session.execute(
+                select(ProjectLifecycle.project_id, ProjectLifecycle.current_state).where(
+                    ProjectLifecycle.project_id.in_(project_ids)
+                )
+            ).all()
+        )
+        project_priority_inputs = {
+            project.id: PriorityInputAccumulator(lifecycle_state_by_project.get(project.id))
+            for project in projects_by_id.values()
+        }
+        lifecycle_rows = session.execute(
+            select(LifecycleEvent, Evidence, Interpretation)
+            .join(Evidence, Evidence.id == LifecycleEvent.evidence_id)
+            .join(Observation, Observation.id == Evidence.observation_id)
+            .join(
+                Interpretation,
+                and_(
+                    Interpretation.observation_id == Observation.id,
+                    Interpretation.content_hash == Observation.content_hash,
+                    Evidence.content_hash
+                    == Interpretation.assessment["evidence_hash"].as_string(),
+                ),
+            )
+            .where(LifecycleEvent.project_id.in_(project_ids))
+            .options(joinedload(Evidence.observation))
+            .order_by(
+                Evidence.published_at.asc().nullslast(),
+                Evidence.observed_at,
+                LifecycleEvent.recorded_at,
+            )
+        ).yield_per(128)
+        for lifecycle_event, lifecycle_evidence, lifecycle_interpretation in lifecycle_rows:
+            metrics["lifecycle_rows_streamed"] += 1
+            project = projects_by_id.get(lifecycle_event.project_id)
+            is_supported = project is not None and lifecycle_event_supported(
+                lifecycle_event.event_type,
+                lifecycle_evidence,
+                lifecycle_interpretation,
+                project,
+                lifecycle_event.state,
+                event=lifecycle_event,
+            )
+            if is_supported:
+                metrics["supported_lifecycle_rows"] += 1
+                project_priority_inputs[lifecycle_event.project_id].add_lifecycle(
+                    lifecycle_event.event_type, lifecycle_event.state
+                )
+            for orm_row in (
+                lifecycle_event,
+                lifecycle_evidence,
+                lifecycle_evidence.observation,
+                lifecycle_interpretation,
+            ):
+                release_streamed_row(orm_row)
+            metrics["max_resident_lifecycle_orm_rows"] = max(
+                metrics["max_resident_lifecycle_orm_rows"],
+                sum(
+                    isinstance(row, LifecycleEvent | Evidence | Observation | Interpretation)
+                    for row in session.identity_map.values()
+                ),
+            )
+
+        need_states: dict[UUID, dict[str, Any]] = {}
+        for need, project in batch:
+            priority_inputs = PriorityInputAccumulator(lifecycle_state_by_project.get(project.id))
+            project_inputs = project_priority_inputs[project.id]
+            priority_inputs.lifecycle_phase = project_inputs.lifecycle_phase
+            priority_inputs.lifecycle_producing = project_inputs.lifecycle_producing
+            need_states[need.id] = {
+                "need": need,
+                "project": project,
+                "priority": priority_inputs,
+                "taylor_priority": PriorityInputAccumulator(
+                    lifecycle_state_by_project.get(project.id)
+                ),
+                "qualification": CurrentNeedQualificationAccumulator(
+                    session, need, project, sources=sources
+                ),
+                "research": ResearchSummaryAccumulator(need, project),
+                "has_current_support": False,
+                "taylor_identity_conflict": False,
+                "first_priority_identity": None,
+                "first_non_taylor_priority_identity": None,
+                "first_admitted": None,
+                "first_non_taylor_admitted": None,
+                "current_link_rows": 0,
+            }
+        metrics["max_compact_need_states_per_batch"] = max(
+            metrics["max_compact_need_states_per_batch"], len(need_states)
+        )
+
+        current_link_rows = 0
+        current_links = session.execute(
+            select(NeedObservation.need_id, Observation, Evidence, Interpretation)
+            .join(Observation, Observation.id == NeedObservation.observation_id)
+            .join(
+                Interpretation,
+                and_(
+                    Interpretation.observation_id == Observation.id,
+                    Interpretation.content_hash == Observation.content_hash,
+                    Interpretation.assessment["semantic_hash"].as_string()
+                    == Observation.content_hash,
+                ),
+            )
+            .join(
+                Evidence,
+                and_(
+                    Evidence.observation_id == Observation.id,
+                    Evidence.content_hash
+                    == Interpretation.assessment["evidence_hash"].as_string(),
+                ),
+            )
+            .where(NeedObservation.need_id.in_(need_ids))
+            .order_by(
+                NeedObservation.need_id,
+                Evidence.observed_at.desc(),
+                Evidence.content_hash.desc(),
+            )
+        ).yield_per(128)
+        for need_id, observation, evidence, interpretation in current_links:
+            state = need_states[need_id]
+            need = state["need"]
+            project = state["project"]
+            current_link_rows += 1
+            state["current_link_rows"] += 1
+            row = (observation, evidence, interpretation)
+            state["has_current_support"] = state["has_current_support"] or (
+                interpretation is not None
+                and _need_has_current_support(
+                    session,
+                    need,
+                    project,
+                    links=[row],
+                    sources=sources,
+                )
+            )
+            state["qualification"].add_link(*row)
+            if interpretation is not None:
+                state["research"].add(observation, evidence, interpretation)
+                if (
+                    observation.source_id == "taylor-development-newsflash"
+                    and "conflicting project or site facts"
+                    in str((interpretation.assessment or {}).get("reason") or "")
+                ):
+                    state["taylor_identity_conflict"] = True
+
+            assessment = _assessment_for_evidence(interpretation, observation, evidence)
+            if assessment is not None and (
+                assessment.get("project_identity_key") != project.identity_key
+                or (assessment.get("power_activity") or assessment.get("activity_key"))
+                != need.activity_key
+            ):
+                assessment = None
+            is_taylor = observation.source_id == "taylor-development-newsflash"
+            taylor_withdrawn = (
+                lifecycle_state_by_project.get(project.id) == "planning_application_withdrawn"
+            )
+            if taylor_withdrawn and is_taylor:
+                assessment = None
+            if assessment is not None:
+                identity = {
+                    "id": evidence.id,
+                    "source_id": observation.source_id,
+                    "document_number": observation.external_id,
+                }
+                if state["first_priority_identity"] is None:
+                    state["first_priority_identity"] = identity
+                if not is_taylor and state["first_non_taylor_priority_identity"] is None:
+                    state["first_non_taylor_priority_identity"] = identity
+            state["priority"].add_evidence(
+                published_at=evidence.published_at,
+                event_date=evidence.event_date,
+                supporting=assessment is not None and not is_taylor,
+                title=evidence.title,
+                abstract=evidence.abstract,
+            )
+            if assessment is not None and is_taylor:
+                state["taylor_priority"].add_evidence(
+                    title=evidence.title,
+                    abstract=evidence.abstract,
+                    supporting=True,
+                )
+
+            source = sources.get(observation.source_id)
+            if (
+                assessment is not None
+                and source is not None
+                and admitted_from_source(source, assessment, evidence).admitted
+            ):
+                action = {
+                    "action": assessment.get("action"),
+                    "reported_power_facts": assessment.get("reported_power_facts", []),
+                }
+                if state["first_admitted"] is None:
+                    state["first_admitted"] = action
+                if not is_taylor and state["first_non_taylor_admitted"] is None:
+                    state["first_non_taylor_admitted"] = action
+            for orm_row in (interpretation, evidence, observation):
+                release_streamed_row(orm_row)
+            metrics["max_resident_link_orm_rows"] = max(
+                metrics["max_resident_link_orm_rows"],
+                sum(
+                    isinstance(row, Evidence | Observation | Interpretation)
+                    for row in session.identity_map.values()
+                ),
+            )
+        metrics["max_current_link_rows_per_batch"] = max(
+            metrics["max_current_link_rows_per_batch"], current_link_rows
+        )
+        metrics["max_current_link_rows_per_need"] = max(
+            metrics["max_current_link_rows_per_need"],
+            max((state["current_link_rows"] for state in need_states.values()), default=0),
+        )
+
+        for need, project in batch:
+            state = need_states[need.id]
+            if not state["has_current_support"]:
+                continue
+            research_state = state["research"].finish()
+            qualified = state["qualification"].finish(research_state)
+            effective = qualified or {
+                "tier": "Signal",
+                "required_mw": None,
+                "supply": "Unknown",
+            }
+            if tier in {"Signal", "Prospect", "Lead"} and effective["tier"] != tier:
+                continue
+            current_lifecycle_state = lifecycle_state_by_project.get(project.id)
+            taylor_withdrawn = current_lifecycle_state == "planning_application_withdrawn"
+            max_date = latest_retained_date.get(need.id)
+            if max_date:
+                state["priority"].add_evidence(published_at=max_date, supporting=False)
+                state["taylor_priority"].add_evidence(published_at=max_date, supporting=False)
+            taylor_suppressed = taylor_withdrawn or state["taylor_identity_conflict"]
+            if not taylor_suppressed:
+                state["priority"].merge_supporting_evidence(state["taylor_priority"])
+            first_admitted = (
+                state["first_non_taylor_admitted"]
+                if taylor_suppressed
+                else state["first_admitted"]
+            )
+            identity = (
+                state["first_non_taylor_priority_identity"]
+                if taylor_suppressed
+                else state["first_priority_identity"]
+            )
+            summary_evidence = (
+                [
+                    {
+                        **identity,
+                        "assessment_current": True,
+                    }
+                ]
+                if identity is not None
+                else []
+            )
+            if not include_below_floor and commercial_size_status(
+                effective.get("required_mw"),
+                need.activity_key,
+                first_admitted.get("action") if first_admitted else None,
+                first_admitted.get("reported_power_facts", []) if first_admitted else [],
+                remaining_gap=(
+                    effective.get("qualified_remaining_gap")
+                    if effective.get("tier") == "Lead"
+                    and effective.get("qualification_version")
+                    else None
+                ),
+            ) == "below_floor":
+                continue
+            summaries.append(
+                {
+                    "id": need.id,
+                    "project_id": project.id,
+                    "name": project.name,
+                    "location": project.location,
+                    "activity": need.activity_key,
+                    "supported_action": first_admitted.get("action") if first_admitted else None,
+                    "asset_type": project.asset_type,
+                    "lifecycle_state": current_lifecycle_state,
+                    "lifecycle_timeline": [],
+                    "evidence": summary_evidence,
+                    "_priority_features": state["priority"].snapshot(),
+                }
+            )
+        metrics["summary_candidate_count"] = len(summaries)
+        if selected_need_ids is not None:
+            break
+    return summaries
+
+
 def opportunity_projection(
     session,
     *,
     tier: str | None = None,
     search: str | None = None,
     include_below_floor: bool = False,
+    selected_need_ids: set[UUID] | None = None,
+    summary_only: bool = False,
+    summary_diagnostics: dict[str, int] | None = None,
 ):
+    if summary_only:
+        return _opportunity_summary_projection(
+            session,
+            tier=tier,
+            search=search,
+            include_below_floor=include_below_floor,
+            selected_need_ids=selected_need_ids,
+            diagnostics=summary_diagnostics,
+        )
     query = (
         select(PowerNeed, Project)
         .join(Project, PowerNeed.project_id == Project.id)
         .where(PowerNeed.active.is_(True))
-        .order_by(PowerNeed.updated_at.desc())
+        .order_by(PowerNeed.updated_at.desc(), PowerNeed.id)
     )
     if search:
         query = query.where(Project.name.ilike(f"%{search[:100]}%"))
+    if selected_need_ids is not None:
+        query = query.where(PowerNeed.id.in_(selected_need_ids))
     rows = session.execute(query).all()
     # One set of evidence/lifecycle reads for the list, preserving the same
     # version-bound admission checks used by ingestion and detail rendering.
@@ -945,17 +1365,51 @@ def opportunity_projection(
     from gridlens.ingestion.service import effective_need_qualification
     from gridlens.intelligence.project_state import current_research_state
 
+    projects_by_id = {project.id: project for _, project in rows}
+    research_rows_by_project: dict[
+        UUID, list[tuple[PowerNeed, Observation, Evidence, Interpretation]]
+    ] = defaultdict(list)
+    for need, project in rows:
+        research_rows_by_project[project.id].extend(
+            (need, observation, evidence_row, interpretation)
+            for observation, evidence_row, interpretation in links_by_need[need.id]
+            if interpretation is not None
+        )
     research_by_project = {
-        project_id: current_research_state(session, project_id) for project_id in set(project_ids)
+        project_id: current_research_state(
+            session,
+            project_id,
+            project=project,
+            rows=research_rows_by_project.get(project_id, []),
+        )
+        for project_id, project in projects_by_id.items()
     }
+    chain_project_ids = {
+        project.id
+        for need, project in rows
+        if not summary_only
+        and (
+            project.source_id == "houston-weekly-permits"
+            or briefs_by_need.get(need.id) is not None
+        )
+    }
+    buying_chains_by_project = buying_chain_views(session, chain_project_ids)
     result = []
     title_company_by_project = {}
+    lifecycle_timeline_by_state = {}
     for need, project in rows:
         research_state = research_by_project.get(project.id, {}).get(str(need.id), {})
         links = links_by_need[need.id]
         if not _need_has_current_support(session, need, project, links=links):
             continue
-        qualified = effective_need_qualification(session, need, project)
+        qualified = effective_need_qualification(
+            session,
+            need,
+            project,
+            links=links,
+            sources=sources,
+            research_state=research_state,
+        )
         effective = qualified or {
             "tier": "Signal",
             "rationale": need.rationale,
@@ -1015,38 +1469,57 @@ def opportunity_projection(
                 and admitted_from_source(evidence_source, current_assessment, ev).admitted
             ):
                 current_assessments.append(current_assessment)
-            evidence.append(
-                {
-                    "id": ev.id,
-                    "title": ev.title,
-                    "abstract": ev.abstract,
-                    "url": ev.url,
-                    "published_at": ev.published_at,
-                    "retrieved_at": ev.observed_at,
-                    "extraction_location": ev.extraction_location,
-                    "content_hash": ev.content_hash,
-                    "event_date": ev.event_date,
-                    "event_date_label": ev.event_date_label
-                    or (
-                        "Permit issue date (source publication date unknown)"
-                        if ev.event_date and obs.source_id.endswith("-building-permits")
-                        else "Source event date"
-                        if ev.event_date
-                        else "Unknown"
-                    ),
-                    "source_id": obs.source_id,
-                    "source_origin": source_origin(
-                        evidence_source.family, evidence_source.retrieval_method
-                    )
-                    if evidence_source is not None
-                    else "Source evidence",
-                    "document_number": obs.external_id,
-                    "assessment_current": current_assessment is not None,
-                    "permit_status": current_assessment.get("permit_status")
-                    if current_assessment
-                    else None,
-                }
-            )
+            if summary_only:
+                evidence.append(
+                    {
+                        "id": ev.id,
+                        "title": ev.title,
+                        "abstract": ev.abstract,
+                        "url": ev.url,
+                        "published_at": ev.published_at,
+                        "content_hash": ev.content_hash,
+                        "event_date": ev.event_date,
+                        "source_id": obs.source_id,
+                        "document_number": obs.external_id,
+                        "assessment_current": current_assessment is not None,
+                        "permit_status": current_assessment.get("permit_status")
+                        if current_assessment
+                        else None,
+                    }
+                )
+            else:
+                evidence.append(
+                    {
+                        "id": ev.id,
+                        "title": ev.title,
+                        "abstract": ev.abstract,
+                        "url": ev.url,
+                        "published_at": ev.published_at,
+                        "retrieved_at": ev.observed_at,
+                        "extraction_location": ev.extraction_location,
+                        "content_hash": ev.content_hash,
+                        "event_date": ev.event_date,
+                        "event_date_label": ev.event_date_label
+                        or (
+                            "Permit issue date (source publication date unknown)"
+                            if ev.event_date and obs.source_id.endswith("-building-permits")
+                            else "Source event date"
+                            if ev.event_date
+                            else "Unknown"
+                        ),
+                        "source_id": obs.source_id,
+                        "source_origin": source_origin(
+                            evidence_source.family, evidence_source.retrieval_method
+                        )
+                        if evidence_source is not None
+                        else "Source evidence",
+                        "document_number": obs.external_id,
+                        "assessment_current": current_assessment is not None,
+                        "permit_status": current_assessment.get("permit_status")
+                        if current_assessment
+                        else None,
+                    }
+                )
         current_assessment = current_assessments[0] if current_assessments else None
         display_decisions: list[SignalDecision] = []
         has_unadjudicated_current_signal = False
@@ -1136,6 +1609,26 @@ def opportunity_projection(
                 f"{lifecycle.time_to_power_start.isoformat()} to "
                 f"{lifecycle.time_to_power_end.isoformat()} (estimated)"
             )
+        timeline_key = (project.id, taylor_withdrawn, taylor_identity_conflict)
+        if timeline_key not in lifecycle_timeline_by_state:
+            lifecycle_timeline_by_state[timeline_key] = [
+                {
+                    "state": event.state,
+                    "event_type": event.event_type,
+                    "date": event.occurred_on.isoformat() if event.occurred_on else None,
+                    "value_kind": event.value_kind,
+                    "evidence_url": lifecycle_evidence.url,
+                    "current": event.id in current_lifecycle_ids
+                    and (
+                        not taylor_withdrawn
+                        or event.event_type == "planning_application_withdrawn"
+                    )
+                    and not taylor_identity_conflict,
+                    "published_at": lifecycle_evidence.published_at,
+                    "event_date_label": lifecycle_evidence.event_date_label,
+                }
+                for event, lifecycle_evidence in lifecycle_rows
+            ]
         missing_facts = (
             current_assessment.get("missing_facts", [])
             if current_assessment
@@ -1167,11 +1660,11 @@ def opportunity_projection(
         )
         if size_status == "below_floor" and not include_below_floor:
             continue
-        if project.id not in title_company_by_project:
+        if not summary_only and project.id not in title_company_by_project:
             title_company = None
             title_company_role = None
             if project.source_id == "houston-weekly-permits":
-                chain = buying_chain_view(session, project.id)
+                chain = buying_chains_by_project.get(str(project.id), {})
                 owner_occupant = next(
                     (
                         fact["value"]
@@ -1186,7 +1679,7 @@ def opportunity_projection(
                     title_company = owner_occupant
                     title_company_role = "permit-listed owner / occupant"
             title_company_by_project[project.id] = (title_company, title_company_role)
-        title_company, title_company_role = title_company_by_project[project.id]
+        title_company, title_company_role = title_company_by_project.get(project.id, (None, None))
         result.append(
             {
                 "id": need.id,
@@ -1267,24 +1760,7 @@ def opportunity_projection(
                 "evidence": evidence,
                 "asset_type": project.asset_type,
                 "lifecycle_state": lifecycle.current_state if lifecycle else None,
-                "lifecycle_timeline": [
-                    {
-                        "state": event.state,
-                        "event_type": event.event_type,
-                        "date": event.occurred_on.isoformat() if event.occurred_on else None,
-                        "value_kind": event.value_kind,
-                        "evidence_url": lifecycle_evidence.url,
-                        "current": event.id in current_lifecycle_ids
-                        and (
-                            not taylor_withdrawn
-                            or event.event_type == "planning_application_withdrawn"
-                        )
-                        and not taylor_identity_conflict,
-                        "published_at": lifecycle_evidence.published_at,
-                        "event_date_label": lifecycle_evidence.event_date_label,
-                    }
-                    for event, lifecycle_evidence in lifecycle_rows
-                ],
+                "lifecycle_timeline": lifecycle_timeline_by_state[timeline_key],
                 "expected_next_milestone": (
                     None
                     if taylor_withdrawn or taylor_identity_conflict
@@ -1319,13 +1795,18 @@ def opportunity_projection(
                 "signal_display_source": display_source,
                 "signal_display_reason": display_reason,
                 "signal_admission_origin": (need.admission_basis or {}).get("origin"),
-                **brief_preview(
-                    session,
-                    need,
-                    project,
-                    links,
-                    sources,
-                    briefs_by_need.get(need.id),
+                **(
+                    {}
+                    if summary_only
+                    else brief_preview(
+                        session,
+                        need,
+                        project,
+                        links,
+                        sources,
+                        briefs_by_need.get(need.id),
+                        buying_chains_by_project.get(str(project.id)),
+                    )
                 ),
             }
         )
@@ -1662,12 +2143,14 @@ def save_pursuit_note(pursuit_id: UUID, body: CallNoteBody, request: Request):
 
 
 def _commercial_triage_cards(session, limit: int) -> list[dict]:
-    items = opportunity_projection(session, tier="Signal")
-    shortlist = make_commercial_cards(items, {}, chicago_today(), limit)
-    selected_ids = {need_id for card in shortlist for need_id in card["related_need_ids"]}
-    selected = [item for item in items if str(item["id"]) in selected_ids]
+    summaries = opportunity_projection(session, tier="Signal", summary_only=True)
+    selected_groups = grouped_need_ids(summaries, limit)
+    selected_ids = {UUID(need_id) for group in selected_groups for need_id in group}
+    selected = opportunity_projection(
+        session, tier="Signal", selected_need_ids=selected_ids
+    )
     project_ids = {item["project_id"] for item in selected}
-    chains = {str(project_id): buying_chain_view(session, project_id) for project_id in project_ids}
+    chains = buying_chain_views(session, project_ids)
     return make_commercial_cards(selected, chains, chicago_today(), limit)
 
 

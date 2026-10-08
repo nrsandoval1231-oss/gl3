@@ -91,22 +91,144 @@ def _is_rental_intermediary(category: Any, organization: Any, reason: Any = "") 
     )
 
 
+class PriorityInputAccumulator:
+    """Compact the exact text predicates used by canonical browse priority."""
+
+    def __init__(self, lifecycle_state: str | None = None) -> None:
+        self.lifecycle_state = str(lifecycle_state or "").casefold()
+        self.latest_date = "0000-00-00"
+        self.evidence_scope = False
+        self.evidence_commissioning = False
+        self.evidence_construction = False
+        self.evidence_oil_gas = False
+        self.lifecycle_phase = bool(
+            re.search(r"electrical_buildout|construction|commissioning", self.lifecycle_state)
+        )
+        self.lifecycle_producing = bool(
+            re.search(
+                r"production|producing|completion|workover|spud|startup|operating",
+                self.lifecycle_state,
+            )
+        )
+
+    def add_evidence(
+        self,
+        *,
+        title: Any = "",
+        abstract: Any = "",
+        published_at: Any = None,
+        event_date: Any = None,
+        supporting: bool = True,
+    ) -> None:
+        retained_date = published_at or event_date
+        if retained_date is not None:
+            value = (
+                retained_date.isoformat()
+                if hasattr(retained_date, "isoformat")
+                else str(retained_date)
+            )
+            if re.match(r"^\d{4}-\d{2}-\d{2}", value):
+                self.latest_date = max(self.latest_date, value[:10])
+        if not supporting:
+            return
+        text = f"{title} {abstract}".casefold()
+        scope_pattern = (
+            r"temporary (?:service|power)|construction power|bridge power|load bank|"
+            r"commissioning.{0,40}(?:power|generator|load bank)"
+        )
+        self.evidence_scope = self.evidence_scope or bool(re.search(scope_pattern, text))
+        self.evidence_commissioning = self.evidence_commissioning or bool(
+            re.search(r"commission|load bank", text)
+        )
+        self.evidence_construction = self.evidence_construction or bool(
+            re.search(r"construct|building permit|substation|transformer", text)
+        )
+        self.evidence_oil_gas = self.evidence_oil_gas or bool(
+            re.search(r"oil|gas|well|pipeline|compressor", text)
+        )
+
+    def add_lifecycle(self, event_type: Any, state: Any) -> None:
+        text = f"{event_type or ''} {state or ''}".casefold()
+        self.lifecycle_phase = self.lifecycle_phase or bool(
+            re.search(r"electrical_buildout|construction|commissioning", text)
+        )
+        self.lifecycle_producing = self.lifecycle_producing or bool(
+            re.search(
+                r"production|producing|completion|workover|spud|startup|operating", text
+            )
+        )
+
+    def merge_supporting_evidence(self, other: PriorityInputAccumulator) -> None:
+        self.evidence_scope = self.evidence_scope or other.evidence_scope
+        self.evidence_commissioning = (
+            self.evidence_commissioning or other.evidence_commissioning
+        )
+        self.evidence_construction = self.evidence_construction or other.evidence_construction
+        self.evidence_oil_gas = self.evidence_oil_gas or other.evidence_oil_gas
+        self.latest_date = max(self.latest_date, other.latest_date)
+
+    def snapshot(self) -> dict[str, Any]:
+        return {
+            "latest_date": self.latest_date,
+            "lifecycle_state": self.lifecycle_state,
+            "evidence_scope": self.evidence_scope,
+            "evidence_commissioning": self.evidence_commissioning,
+            "evidence_construction": self.evidence_construction,
+            "evidence_oil_gas": self.evidence_oil_gas,
+            "lifecycle_phase": self.lifecycle_phase,
+            "lifecycle_producing": self.lifecycle_producing,
+        }
+
+
 def _priority(item: dict[str, Any]) -> tuple[int, int, int, str, str]:
-    evidence_texts = [
-        (str(e.get("title", "")) + " " + str(e.get("abstract", ""))).casefold()
-        for e in _supporting_evidence(item)
-    ]
-    text = " ".join(
-        [
-            str(item.get("activity", "")),
-            str(item.get("name", "")),
-            str(item.get("supported_action", "")),
-            *evidence_texts,
-        ]
-    ).casefold()
-    data_center, project_formation_or_backup, dc_project_phase, producing_asset = _phase_flags(
-        item, evidence_texts
+    features = item.get("_priority_features")
+    if not isinstance(features, dict):
+        accumulator = PriorityInputAccumulator(item.get("lifecycle_state"))
+        for evidence in item.get("evidence", []):
+            accumulator.add_evidence(
+                title=evidence.get("title", ""),
+                abstract=evidence.get("abstract", ""),
+                published_at=evidence.get("published_at"),
+                event_date=evidence.get("event_date"),
+                supporting=evidence.get("assessment_current", True),
+            )
+        for event in item.get("lifecycle_timeline", []):
+            if event.get("current"):
+                accumulator.add_lifecycle(event.get("event_type"), event.get("state"))
+        features = accumulator.snapshot()
+
+    lifecycle_state = str(features.get("lifecycle_state") or "").casefold()
+    data_center = item.get("asset_type") == "data_center" or bool(
+        re.search(r"data[ -]cent(?:er|re)", str(item.get("name", "")).casefold())
     )
+    project_formation_or_backup = data_center and (
+        "formation" in lifecycle_state or item.get("activity") == "backup-power"
+    )
+    specific_action = str(item.get("supported_action") or "").casefold()
+    dc_project_phase = (
+        data_center
+        and not project_formation_or_backup
+        and bool(
+            re.search(
+                r"construct|electrical|transformer|substation|switchgear|commission|expand",
+                specific_action,
+            )
+            or features.get("lifecycle_phase")
+        )
+    )
+    producing_asset = bool(
+        re.search(
+            r"oil|gas|well|pipeline|compressor",
+            " ".join(
+                [
+                    str(item.get("activity", "")),
+                    str(item.get("name", "")),
+                    str(item.get("supported_action") or ""),
+                ]
+            ).casefold(),
+        )
+        or features.get("evidence_oil_gas")
+    ) and bool(features.get("lifecycle_producing"))
     scope_pattern = (
         r"temporary (?:service|power)|construction power|bridge power|load bank|"
         r"commissioning.{0,40}(?:power|generator|load bank)"
@@ -114,13 +236,10 @@ def _priority(item: dict[str, Any]) -> tuple[int, int, int, str, str]:
     explicit_scope = bool(
         re.search(scope_pattern, str(item.get("supported_action") or "").casefold())
         if data_center
-        else any(re.search(scope_pattern, source) for source in evidence_texts)
+        else features.get("evidence_scope")
     )
-    commissioning = any(re.search(r"commission|load bank", source) for source in evidence_texts)
-    construction = any(
-        re.search(r"construct|building permit|substation|transformer", source)
-        for source in evidence_texts
-    )
+    commissioning = bool(features.get("evidence_commissioning"))
+    construction = bool(features.get("evidence_construction"))
     if dc_project_phase and commissioning:
         segment = 1
     elif dc_project_phase:
@@ -135,7 +254,19 @@ def _priority(item: dict[str, Any]) -> tuple[int, int, int, str, str]:
         segment = 5
     elif data_center:
         segment = 6
-    elif re.search(r"oil|gas|drill|well|pipeline|compressor", text):
+    elif (
+        re.search(
+            r"oil|gas|drill|well|pipeline|compressor",
+            " ".join(
+                [
+                    str(item.get("activity", "")),
+                    str(item.get("name", "")),
+                    str(item.get("supported_action") or ""),
+                ]
+            ).casefold(),
+        )
+        or features.get("evidence_oil_gas")
+    ):
         segment = 7
     else:
         segment = 8
@@ -153,12 +284,7 @@ def _priority(item: dict[str, Any]) -> tuple[int, int, int, str, str]:
         if re.search(r"california|\bca\b", location)
         else 5
     )
-    dates = [
-        str(e.get("published_at") or e.get("event_date") or "") for e in item.get("evidence", [])
-    ]
-    latest = max(
-        (d[:10] for d in dates if re.match(r"^\d{4}-\d{2}-\d{2}", d)), default="0000-00-00"
-    )
+    latest = str(features.get("latest_date") or "0000-00-00")
     return segment, geography, -int(latest.replace("-", "")), item["project_id"].hex, item["id"].hex
 
 
@@ -781,23 +907,18 @@ def cards(
     today: date,
     limit: int = MAX_CARDS,
 ) -> list[dict[str, Any]]:
-    return group_cards(items, chains, today)[: max(1, min(limit, MAX_CARDS))]
+    return group_cards(items, chains, today, limit=max(1, min(limit, MAX_CARDS)))
 
 
-def group_cards(
-    items: list[dict[str, Any]],
-    chains: dict[str, dict[str, Any]],
-    today: date,
-) -> list[dict[str, Any]]:
-    """Build canonical work-identity groups without applying the UI shortlist cap."""
-    prepared = [build_card(item, chains.get(str(item["project_id"])), today) for item in items]
-    by_id = {str(item["id"]): item for item in items}
-    prepared.sort(key=lambda card: (_priority(by_id[card["id"]]), card["id"]))
+def grouped_need_ids(
+    items: list[dict[str, Any]], limit: int | None = None
+) -> list[list[str]]:
+    """Return canonical work groups in first priority encounter order."""
     from gridlens.domain.pursuit_screening import work_identity
 
-    grouped: dict[str, list[dict[str, Any]]] = {}
-    for card in prepared:
-        item = by_id[card["id"]]
+    prepared = sorted(items, key=lambda item: (_priority(item), str(item["id"])))
+    grouped: dict[str, list[str]] = {}
+    for item in prepared:
         supporting = _supporting_evidence(item)
         first = supporting[0] if supporting else {}
         identity = work_identity(
@@ -805,7 +926,19 @@ def group_cards(
             str(first.get("document_number") or first.get("id") or ""),
             str(item.get("location") or ""),
         )
-        grouped.setdefault(identity, []).append(card)
+        grouped.setdefault(identity, []).append(str(item["id"]))
+    groups = [sorted(need_ids) for need_ids in grouped.values()]
+    return groups[:limit] if limit is not None else groups
+
+
+def group_cards(
+    items: list[dict[str, Any]],
+    chains: dict[str, dict[str, Any]],
+    today: date,
+    limit: int | None = None,
+) -> list[dict[str, Any]]:
+    """Build canonical work-identity groups without applying the UI shortlist cap."""
+    by_id = {str(item["id"]): item for item in items}
 
     def state_for(card: dict[str, Any]) -> dict[str, Any]:
         item = by_id[card["id"]]
@@ -823,9 +956,11 @@ def group_cards(
         }
 
     unique: list[dict[str, Any]] = []
-    for group in grouped.values():
-        # This order is independent of input iteration and UUID priority sorting.
-        group = sorted(group, key=lambda card: card["id"])
+    for need_ids in grouped_need_ids(items, limit):
+        group = [
+            build_card(by_id[need_id], chains.get(str(by_id[need_id]["project_id"])), today)
+            for need_id in need_ids
+        ]
         merged = group[0]
         states = [state_for(card) for card in group]
         merged["related_need_ids"] = sorted({state["need_id"] for state in states})
