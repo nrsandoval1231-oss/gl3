@@ -1,0 +1,88 @@
+{
+  "raw_strategic_verdict": "ACCEPT",
+  "scope": "Proposed selected-interval finalization direction only. Exact existing candidate remains FIX. No implementation acceptance or completion certification.",
+  "proposed_graph_direction": "REDIRECT",
+  "candidate": {
+    "head": "e3c7005fd18e95db25ae5eba1a7490e4406e50b0",
+    "tree": "27682fb74645a65dfcbc93b9d22743ba9e5a66cd",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-facts-workflow-20261008",
+    "clean_git_status": true,
+    "tested_head": "792faff37689130ed57218ad133608167299475e"
+  },
+  "proposal": {
+    "path": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-audit-repair-20261007/.agent/packets/GL3-AUDIT-A6-SELECTED-INTERVAL-DIRECTION.md",
+    "sha256": "34e0140d8bf5a69069081bf3b2784c0359a609db7270c80274c691a5a3037824"
+  },
+  "failed_review_sha256": "d4b3233665b90b2082bd76787bca70d9bf1782f53cf8fc909815fefea33c79fa",
+  "verified_evidence": {
+    "source_and_governing_inputs": 273,
+    "working_git_hash_mismatches": 0,
+    "archive_entries": 508,
+    "archive_entry_length_hash_mismatches": 0,
+    "archive_sha256": "8b6fd010d4ae489ce6917c99ec9765414fc8ba70e0ec928d72efdbd2258fff2d",
+    "proposal_review_hashes": "MATCH",
+    "git_diff_check": "PASS",
+    "candidate_dotenv_present": false
+  },
+  "deterministic_validation_boundary": "Sealed controller evidence states1470 backend/2 skips/7 warnings and62 browser plus static/schema/retained gates PASS. This audit independently checked byte binding and current code, not a full gate rerun or new runtime reproduction.",
+  "findings": [
+    {
+      "id": "SELECTED-1",
+      "disposition": "confirmed failure and bounded cause",
+      "evidence": [
+        "backend/src/gridlens/domain/call_facts.py:793-824",
+        "backend/src/gridlens/ingestion/service.py:430",
+        "backend/src/gridlens/api/app.py:2669"
+      ],
+      "finding": "The compatible-narrowing branch copies the existing source gap and appends selected and source_reported metadata without replacing current gap.start_window/duration. Current projection passes that object through. The ordinary reviewer residual finding is supported by actual code."
+    },
+    {
+      "id": "SELECTED-2",
+      "disposition": "proposal accepted",
+      "evidence": [
+        "docs/product/PRD.md requirements17,22-26,30"
+      ],
+      "finding": "A shared finalization step for successfully qualified current Leads is the smallest coherent repair. The top-level dates, nested current gap dates, and exclusive selected interval must agree; previous source timing stays explicitly Reported. This changes serialization consistency, not qualification policy, numeric supply arithmetic or source authority."
+    },
+    {
+      "id": "SELECTED-3",
+      "disposition": "existing invariants remain mandatory",
+      "finding": "Finalization must follow existing successful resolution AND effective-coverage/tier gates, and copy rather than mutate original source or saved gap dictionaries. It must not turn an expired, partially effective, contradictory, or stale-hash timing fact into selected current timing simply because a helper was invoked. These are consequences of the packet no-policy-change and immutable-history requirements."
+    },
+    {
+      "id": "SELECTED-4",
+      "disposition": "matrix sufficient for this proposed direction",
+      "finding": "The proposed no-timing/narrowing/correction/conflict matrix across source and accepted supply, Lead/lower-tier/closure and current/saved outputs targets the missed seam. The decisive Jan10-Jan20/40-day source-supply-only row must assert all three current date representations and Mar1 exclusive end, unchanged numeric gap/source quote, preserved prior saved bytes and current timing fact identity. User-supply Lead paths and Signal/Prospect promotion paths also require the invariant so this is not a one-branch patch."
+    },
+    {
+      "id": "SELECTED-5",
+      "disposition": "ownership accepted",
+      "finding": "call_facts.py and focused unit/integration tests suffice for the observed defect. Service/API are pass-through consumers, and no new ownership there is justified. A demonstrated additional serialization failure requires the named narrow controller amendment; no architecture, model/migration, admission, workflow or UI expansion is authorized."
+    },
+    {
+      "id": "SELECTED-6",
+      "disposition": "acceptance remains blocked",
+      "finding": "Existing candidate remains independent FIX despite verified sealed gates. Parent functional UI/seven-status, A7 originals, A8, authentic feed/quality/seven-day/customer gates and governing Finish Contract remain open. Changed candidate needs its own deterministic checks and fresh ordinary Sol review."
+    }
+  ],
+  "one_next_direction": "REDIRECT: dispatch one Luna under the exact selected-interval proposal, preserve all prior failed candidates and receipts, freeze a new integrated bounded result, then run mandatory exact-candidate deterministic gates and fresh independent Sol review.",
+  "timing": {
+    "started_utc": "UNKNOWN: initial invocation not clocked",
+    "first_measured_utc": "2026-10-08T23:32:56.6416674Z",
+    "finished_utc": "2026-10-08T23:34:58.555752+00:00",
+    "total_audit_duration_seconds": "UNKNOWN",
+    "planning_build_validation_duration_seconds": "UNKNOWN",
+    "repair_count_this_audit": 0,
+    "elapsed_to_accepted": "UNKNOWN; proposal acceptance only"
+  },
+  "identity": {
+    "role": "independent strategic auditor",
+    "lane": "exceptional proposed-direction checkpoint",
+    "model": "gpt-6-astra per assigned role; runtime identity not independently exposed",
+    "config_identity": "UNKNOWN",
+    "tokens": "UNKNOWN"
+  },
+  "authority": "No candidate edits, application/settings imports, DB/provider calls, original data writes, publication, merge or deployment. Only this new external audit artifact written.",
+  "tool_failures": "One diff used an unresolved short ref and one optional ATTEMPT-HISTORY path was absent; neither is relied on. Diff against actual earlier candidate80a5cf51 succeeded. Current source and all273 source/governing hashes independently verified.",
+  "memory": "No new memory lookup or unverified historical claim used in this checkpoint; canonical current documents and exact candidate govern."
+}
