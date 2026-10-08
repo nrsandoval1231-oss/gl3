@@ -1,3 +1,7 @@
+# Current audit frontier — October 8, 2026
+
+A5A ACCEPTED / PR40 draft / CI PASS. A5B root gates PASS; exact proof freeze then independent review required. A6 facts + seven operator states -> functional UI + bulk browse status integration -> A8 inert operations/recovery and readiness tooling. A7 visual implementation awaits original checksum-matching PNG/HTML; supplemental video cannot close it. Real feed, quality, seven-day and customer Lead evidence remain OPEN. Historical graph below is superseded only where stated; original bytes preserved in proof archive.
+
 # Work Graph
 
 ## October 7 final local acceptance
@@ -161,3 +165,4 @@ GL3-029 2026-10-07 OWNER AMENDMENT -> REGENERATE -> VALIDATE: owner superseded m
 GL3-029 2026-10-07 VALIDATE -> BLOCKED COMMERCIAL ACCEPTANCE: frozen f63eb62, fresh14Evidence/13Signals, 28-table restore/migration parity and research replay pass. Full backend1196pass/1skip, focused71, regression36, supplemental real-browser4checkgroups. Diagnostic2accepted/4selected with O&G absent; two stale-input failures remain in history. No predicate relaxed; draft24 remains unmerged/undeployed.
 
 GL3-029 2026-10-07 CORRECT -> VALIDATE: frozen15f4910 derives retained relationships before question fingerprints, excluding active projects; guards unchanged. Fresh isolated replay oforiginalnewcorpus passes4/4selected cases,4UNRESOLVED/0FAILED, no transitions, exactpreservation/replay.1197backend/1skip,71focused,36browser; independentreview no materialfindings. ExistingRRCdrilling scopeconfirmed valid, listingsHTTP200; anonymousdownloadPOST clarification pending. Fivecohorts andhistoricalsixlivecases notpassed.
+
