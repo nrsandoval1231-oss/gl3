@@ -486,6 +486,13 @@ def test_current_public_support_bounds_fact_qualification_and_reassessment(runti
         assert effective["qualified_remaining_gap"]["remaining_mw_min"] == "15"
         assert effective["qualified_remaining_gap"]["remaining_mw_max"] == "20"
         assert effective["required_mw"] == "20 to 25 MW"
+        gap = effective["qualified_remaining_gap"]
+        assert effective["start_window"] == "2027-01-01 to 2027-02-01"
+        assert effective["duration"] == "31 days"
+        assert gap["start_window"] == effective["start_window"]
+        assert gap["duration"] == effective["duration"]
+        assert gap["selected_activity_interval_start"] == "2027-01-01T00:00:00+00:00"
+        assert gap["selected_activity_interval_end_exclusive"] == "2027-03-04T00:00:00+00:00"
 
     closure_body = _body(project_id, pursuit_id, expected_version=event_version)
     closure_body["fact_type"] = "closure"
@@ -1043,6 +1050,101 @@ def test_timing_correction_is_source_version_bound_and_replayed_after_source_cha
         save_evaluations(session, [original_card], now=original_saved_at)
 
     headers = {"origin": "http://testserver"}
+    compatible_body = _body(project_id, pursuit_id, expected_version=0)
+    compatible_body["fact_type"] = "timing"
+    compatible_body["value"] = {
+        "start_date": "2027-01-10",
+        "end_date": "2027-01-20",
+        "duration_days": 40,
+        "basis": "Owner confirmed the compatible narrower activity window.",
+    }
+    compatible_body["effective_from"] = "2026-01-01T00:00:00+00:00"
+    compatible_body["effective_until"] = "2027-03-01T00:00:00+00:00"
+    compatible_draft = client.post(
+        f"/api/needs/{need_id}/facts", json=compatible_body, headers=headers
+    )
+    assert compatible_draft.status_code == 200, compatible_draft.text
+    compatible_decision = client.post(
+        f"/api/needs/{need_id}/facts/{compatible_draft.json()['id']}/decision",
+        json={
+            "client_id": str(uuid4()),
+            "expected_version": 1,
+            "decision": "accepted",
+            "reason": "Accepted compatible interval narrowing",
+        },
+        headers=headers,
+    )
+    assert compatible_decision.status_code == 200, compatible_decision.text
+    assert compatible_decision.json()["tier"] == "Lead"
+    with factory() as session:
+        from gridlens.ingestion.service import effective_need_qualification
+
+        need = session.get(PowerNeed, need_id)
+        project = session.get(Project, project_id)
+        assert need is not None and project is not None
+        effective = effective_need_qualification(session, need, project)
+        assert effective is not None and effective["tier"] == "Lead"
+        assert effective["start_window"] == "2027-01-10 to 2027-01-20"
+        assert effective["duration"] == "40 days"
+        assert need.start_window == effective["start_window"]
+        assert need.duration == effective["duration"]
+        gap = effective["qualified_remaining_gap"]
+        assert gap["start_window"] == effective["start_window"]
+        assert gap["duration"] == effective["duration"]
+        assert gap["selected_activity_interval_start"] == "2027-01-10T00:00:00+00:00"
+        assert gap["selected_activity_interval_end_exclusive"] == "2027-03-01T00:00:00+00:00"
+        assert gap["source_reported_start_window"] == "2027-01-01 to 2027-02-01"
+        assert gap["source_reported_duration"] == "31 to 62 days"
+        assert gap["remaining_mw_min"] == "20"
+        assert gap["remaining_mw_max"] == "25"
+
+    compatible_page = client.get("/api/opportunities?tier=Lead&timing=KNOWN")
+    assert compatible_page.status_code == 200, compatible_page.text
+    compatible_card = next(
+        item for item in compatible_page.json() if str(item["id"]) == str(need_id)
+    )
+    assert compatible_card["start_window"] == "2027-01-10 to 2027-01-20"
+    assert compatible_card["duration"] == "40 days"
+    compatible_group = client.get(
+        f"/api/opportunity-groups/{compatible_card['group_id']}?tier=Lead&timing=KNOWN"
+        f"&cohort_token={compatible_page.headers['x-cohort-token']}"
+    )
+    assert compatible_group.status_code == 200, compatible_group.text
+    assert any(str(item["id"]) == str(need_id) for item in compatible_group.json()["items"])
+    compatible_detail = client.get(
+        f"/api/opportunities/needs/{need_id}?tier=Lead&timing=KNOWN"
+    )
+    assert compatible_detail.status_code == 200, compatible_detail.text
+    assert compatible_detail.json()["start_window"] == "2027-01-10 to 2027-01-20"
+    compatible_csv = client.get("/api/opportunities/export.csv?tier=Lead&timing=KNOWN")
+    assert compatible_csv.status_code == 200, compatible_csv.text
+    assert str(need_id) in compatible_csv.text
+    assert "start_window" not in compatible_csv.text.splitlines()[0]
+
+    compatible_saved_at = original_saved_at + timedelta(seconds=1)
+    with factory.begin() as session:
+        compatible_card = evaluate_target(session, need_id)
+        assert compatible_card is not None and compatible_card["tier"] == "Lead"
+        assert compatible_card["start_window"] == "2027-01-10 to 2027-01-20"
+        assert compatible_card["duration"] == "40 days"
+        assert compatible_card["operator_fact_refs"][0]["fact_version_id"] == (
+            compatible_draft.json()["id"]
+        )
+        save_evaluations(session, [compatible_card], now=compatible_saved_at)
+
+    retract_compatible = client.post(
+        f"/api/needs/{need_id}/facts/{compatible_draft.json()['id']}/decision",
+        json={
+            "client_id": str(uuid4()),
+            "expected_version": 2,
+            "decision": "retracted",
+            "reason": "Restore the source timing before the separate correction case",
+        },
+        headers=headers,
+    )
+    assert retract_compatible.status_code == 200, retract_compatible.text
+    assert retract_compatible.json()["tier"] == "Lead"
+
     correction_value = {
         "start_date": "2026-11-01",
         "end_date": "2026-11-01",
@@ -1051,7 +1153,7 @@ def test_timing_correction_is_source_version_bound_and_replayed_after_source_cha
         "corrects_source_evidence_hash": source_hash,
         "basis": "Owner confirmed the current reported timing was outdated.",
     }
-    correction_body = _body(project_id, pursuit_id, expected_version=0)
+    correction_body = _body(project_id, pursuit_id, expected_version=3)
     correction_body["fact_type"] = "timing"
     correction_body["value"] = correction_value
     correction_body["effective_from"] = "2026-01-01T00:00:00+00:00"
@@ -1069,7 +1171,7 @@ def test_timing_correction_is_source_version_bound_and_replayed_after_source_cha
         f"/api/needs/{need_id}/facts/{correction_draft.json()['id']}/decision",
         json={
             "client_id": str(uuid4()),
-            "expected_version": 1,
+            "expected_version": 4,
             "decision": "accepted",
             "reason": "Accepted attributed timing correction",
         },
@@ -1078,7 +1180,7 @@ def test_timing_correction_is_source_version_bound_and_replayed_after_source_cha
     assert correction_decision.status_code == 200, correction_decision.text
     assert correction_decision.json()["active"] is True
     assert correction_decision.json()["tier"] == "Prospect"
-    corrected_saved_at = original_saved_at + timedelta(seconds=1)
+    corrected_saved_at = original_saved_at + timedelta(seconds=2)
     with factory.begin() as session:
         corrected_card = evaluate_target(session, need_id)
         assert corrected_card is not None and corrected_card["tier"] == "Prospect"
@@ -1102,6 +1204,11 @@ def test_timing_correction_is_source_version_bound_and_replayed_after_source_cha
             for version in saved_versions
             if version["evaluated_at"] == original_saved_at.isoformat()
         )
+        compatible_saved = next(
+            version["saved_card"]
+            for version in saved_versions
+            if version["evaluated_at"] == compatible_saved_at.isoformat()
+        )
         corrected_saved = next(
             version["saved_card"]
             for version in saved_versions
@@ -1110,6 +1217,11 @@ def test_timing_correction_is_source_version_bound_and_replayed_after_source_cha
         assert original_saved["start_window"] == "2027-01-01 to 2027-02-01"
         assert original_saved["duration"] == "31 to 62 days"
         assert "operator_fact_refs" not in original_saved
+        assert compatible_saved["start_window"] == "2027-01-10 to 2027-01-20"
+        assert compatible_saved["duration"] == "40 days"
+        assert compatible_saved["operator_fact_refs"][0]["fact_version_id"] == (
+            compatible_draft.json()["id"]
+        )
         assert corrected_saved["start_window"] == "2026-11-01 to 2026-11-01"
         assert corrected_saved["duration"] == "31 days"
         assert corrected_saved["operator_fact_refs"][0]["fact_version_id"] == (
@@ -1167,7 +1279,7 @@ def test_timing_correction_is_source_version_bound_and_replayed_after_source_cha
     assert str(need_id) in known_csv.text
     assert "start_window" not in known_csv.text.splitlines()[0]
 
-    supply_body = _body(project_id, pursuit_id, expected_version=2)
+    supply_body = _body(project_id, pursuit_id, expected_version=5)
     supply_body["fact_type"] = "suitable_supply"
     supply_body["value"] = {
         "mw_min": "10",
@@ -1185,7 +1297,7 @@ def test_timing_correction_is_source_version_bound_and_replayed_after_source_cha
         f"/api/needs/{need_id}/facts/{supply_draft.json()['id']}/decision",
         json={
             "client_id": str(uuid4()),
-            "expected_version": 3,
+            "expected_version": 6,
             "decision": "accepted",
             "reason": "Accepted suitable supply for corrected window",
         },
@@ -1213,14 +1325,14 @@ def test_timing_correction_is_source_version_bound_and_replayed_after_source_cha
         f"/api/needs/{need_id}/facts/{supply_draft.json()['id']}/decision",
         json={
             "client_id": str(uuid4()),
-            "expected_version": 4,
+            "expected_version": 7,
             "decision": "retracted",
             "reason": "Replace the partial fixture with a separate adequate-supply case",
         },
         headers=headers,
     )
     assert retract_partial_supply.status_code == 200, retract_partial_supply.text
-    adequate_supply_body = _body(project_id, pursuit_id, expected_version=5)
+    adequate_supply_body = _body(project_id, pursuit_id, expected_version=8)
     adequate_supply_body["fact_type"] = "suitable_supply"
     adequate_supply_body["value"] = {
         "mw_min": "25",
@@ -1238,7 +1350,7 @@ def test_timing_correction_is_source_version_bound_and_replayed_after_source_cha
         f"/api/needs/{need_id}/facts/{adequate_supply_draft.json()['id']}/decision",
         json={
             "client_id": str(uuid4()),
-            "expected_version": 6,
+            "expected_version": 9,
             "decision": "accepted",
             "reason": "Accepted sufficient supply for corrected window",
         },
