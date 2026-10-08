@@ -414,7 +414,7 @@ def test_selected_browse_reuses_preloaded_chain_for_persisted_brief(runtime, mon
         connection = session.connection()
         event.listen(connection, "before_cursor_execute", count_statement)
         try:
-            cards, grouped_total = api._commercial_triage_cards(session, 50)
+            cards, grouped_total = api._commercial_triage_page(session, 50)
             selected = api.opportunity_projection(
                 session, tier="Signal", selected_need_ids={need_id}
             )
@@ -427,6 +427,19 @@ def test_selected_browse_reuses_preloaded_chain_for_persisted_brief(runtime, mon
         assert selected[0]["brief_stale"] is False
         assert selected[0]["brief_summary"] == "A retained browse summary."
         assert statements[0] <= 200
+
+
+def test_commercial_triage_cards_keeps_list_contract(runtime):
+    factory, _service, (need_id, _evidence_id) = runtime
+    api = import_module("gridlens.api.app")
+    with factory() as session:
+        cards = api._commercial_triage_cards(session, 50)
+        page_cards, grouped_total = api._commercial_triage_page(session, 50)
+
+    assert isinstance(cards, list)
+    assert len(cards) == 1
+    assert cards == page_cards
+    assert grouped_total == 1
 
 
 def test_opportunity_projection_uses_stable_updated_at_tiebreak(runtime):
