@@ -59,6 +59,12 @@ boundary, not replayed from enrollment. It also compares the current registry
 definition with the latest open known epoch; an unrecorded registry edit is
 reported as `UNKNOWN` until a worker records its transition. The displayed
 enabled flag follows the current registry declaration and operator switch.
+Registry comparison covers publisher, endpoint, family, geography, industries,
+retrieval method, cadence, schedule mode, timezone, and schedule anchor. A missing
+meaningful snapshot field is not ignored. Omitted current cadence is equivalent
+to 24 hours only when the persisted epoch cadence proves that default; omitted
+mode, timezone, or anchor values are checked against the epoch's immutable
+schedule columns and anchor.
 
 Health signals answer different questions:
 
