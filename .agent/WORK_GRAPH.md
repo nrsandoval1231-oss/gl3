@@ -1,3 +1,11 @@
+# Current page-transition repair frontier — October 8, 2026
+
+A5A accepted / draft PR40 / recorded CI PASS. Four prior A5B independent FIX receipts are preserved. Tested ea4543f7dd1ec1f8733593629088e2474b7c8d3b passes root 1419 backend tests (2 environmental skips), 57 browser tests and mandatory gates, retained parity and query bounds. Exact proof: .agent/artifacts/GL3-AUDIT-A5B-PAGE-CONTROLLER. Fresh independent review PENDING; A5B is not accepted or published. Supersedes earlier pending states below.
+
+Direction VALIDATE exact proof descendant. A6 facts/workflow → functional UI/bulk status → A8 remain dependent; A7 original assets and real launch gates OPEN. UNKNOWN-only status is partial. Parent OPEN. No original data mutation, merge, deploy, paid activation or external messages.
+
+## Historical checkpoints
+
 # Current request-state repair frontier — October 8, 2026
 
 A5A accepted / draft PR40 / recorded CI PASS. Three prior A5B independent FIX receipts are preserved. Request-state implementation 7c29da3 / tested 3d67ac8 passes root 1,419 backend tests (two environmental skips), 53 browser tests, mandatory gates, retained parity and query bounds. Exact proof is .agent/artifacts/GL3-AUDIT-A5B-REQUEST-CONTROLLER. Fresh independent review is PENDING; A5B is not accepted or published. This supersedes earlier pending states below.
