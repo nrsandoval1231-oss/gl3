@@ -1408,6 +1408,8 @@ def opportunities(
         activity=activity, timing=timing, mw_status=mw_status, mw_min=mw_min,
         mw_max=mw_max, priority_segment=priority_segment, status=status, search=search,
     )
+    if offset > 0 and (cohort is None or not cohort.strip()):
+        raise HTTPException(422, "cohort_token is required when offset is greater than zero")
     tier = filters["tier"]
     decision = filters["decision"]
     with SessionLocal() as session:

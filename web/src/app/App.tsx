@@ -1,5 +1,5 @@
 import { type FormEvent, useEffect, useRef, useState } from 'react'
-import { client, type Brief, type IngestionItem, type Opportunity, type OpportunityBrowseFilters, type OpportunityPage } from '../api/client'
+import { client, OpportunityCohortChangedError, type Brief, type IngestionItem, type Opportunity, type OpportunityBrowseFilters, type OpportunityPage } from '../api/client'
 import { projectTitle, serverProjectCards, signalDisplayDecision, type SignalDisplayDecision, type ProjectCard } from '../features/opportunities/projectCards'
 
 import { CommercialPursuits } from '../features/pursuits/CommercialPursuits'
@@ -42,6 +42,13 @@ function initialView(): View {
 }
 
 function tierValue(tier: Tier) { return tier.slice(0, -1) }
+function opportunityCohortKey(tier: Tier, search: string, decision: SignalFilter, filters: OpportunityBrowseFilters) {
+  return JSON.stringify([
+    tierValue(tier), search, tier === 'Signals' ? decision : 'ALL', filters.geography ?? '', filters.industry ?? '',
+    filters.activity ?? '', filters.timing ?? '', filters.mwStatus ?? '', filters.mwMin ?? '', filters.mwMax ?? '',
+    filters.prioritySegment ?? '', filters.status ?? '',
+  ])
+}
 function routeUrl(tier: Tier, search: string, hash = '', offset = 0, decision: SignalFilter = 'ALL', filters: OpportunityBrowseFilters = {}) {
   const query = new URLSearchParams({ tier, q: search })
   if (offset > 0) query.set('offset', String(offset))
@@ -158,6 +165,7 @@ export function App() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const requestSequence = useRef(0)
+  const opportunityCohort = useRef<{ key: string; token: string } | null>(null)
   const itemsRef = useRef(items)
   itemsRef.current = items
 
@@ -185,9 +193,33 @@ export function App() {
     void (async () => {
       try {
         if (view === 'opportunities') {
-          const [opportunities, digest, sourceHealth] = await Promise.all([
-            client.opportunityPage(tierValue(tier), search, tier === 'Signals' ? signalFilter : 'ALL', pageSize, offset, offset > 0 ? opportunityPage?.cohortToken : undefined, browseFilters), client.changes(), client.health(),
-          ])
+          const decision = tier === 'Signals' ? signalFilter : 'ALL'
+          const cohortKey = opportunityCohortKey(tier, search, decision, browseFilters)
+          let cohortToken = opportunityCohort.current?.key === cohortKey ? opportunityCohort.current.token : ''
+          if (offset > 0 && opportunityPage?.offset !== offset) {
+            setItems([])
+            setOpportunityPage(null)
+            setExpandedGroupMembers({})
+          }
+          if (offset > 0 && !cohortToken) {
+            setItems([])
+            setOpportunityPage(null)
+            setExpandedGroupMembers({})
+            const firstPage = await client.opportunityPage(
+              tierValue(tier), search, decision, pageSize, 0, undefined, browseFilters,
+            )
+            if (requestId !== requestSequence.current) return
+            cohortToken = firstPage.cohortToken.trim()
+            if (!cohortToken) throw new Error('The first opportunity page did not provide a cohort token; restart from page one.')
+          }
+          const opportunities = await client.opportunityPage(
+            tierValue(tier), search, decision, pageSize, offset, offset > 0 ? cohortToken : undefined, browseFilters,
+          )
+          if (requestId !== requestSequence.current) return
+          opportunityCohort.current = opportunities.cohortToken
+            ? { key: cohortKey, token: opportunities.cohortToken }
+            : null
+          const [digest, sourceHealth] = await Promise.all([client.changes(), client.health()])
           if (requestId !== requestSequence.current) return
           setItems(opportunities.items)
           setOpportunityPage(opportunities)
@@ -213,7 +245,17 @@ export function App() {
         }
         setError('')
       } catch (cause: unknown) {
-        if (requestId === requestSequence.current) setError(cause instanceof Error ? cause.message : 'GridLens could not load this view.')
+        if (requestId === requestSequence.current && cause instanceof OpportunityCohortChangedError) {
+          opportunityCohort.current = null
+          setItems([])
+          setOpportunityPage(null)
+          setExpandedGroupMembers({})
+          setSelected(null)
+          setOffset(0)
+          setError('The opportunity cohort changed; restarted at page one.')
+        } else if (requestId === requestSequence.current) {
+          setError(cause instanceof Error ? cause.message : 'GridLens could not load this view.')
+        }
       } finally {
         if (requestId === requestSequence.current) setLoading(false)
       }

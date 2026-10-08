@@ -1,0 +1,78 @@
+{
+  "evidence_root": ".artifacts/",
+  "records": [
+    {
+      "path": "a5b-cohort-red-missing-token-20261008T1711249447707Z-29b0056c2be94b41925644fa0986c633-pytest.log",
+      "sha256": "29c44a46eef981d5a607c0d613667496bf01e1c3790e86b7eaa66ab5ce15bb18",
+      "bytes": 6952,
+      "exit_code": 1,
+      "result": "red before API validation guard"
+    },
+    {
+      "path": "a5b-cohort-green-missing-token-20261008T1711342734518Z-1fa5069a7a26440ab69adf2dbc40ebff-pytest.log",
+      "sha256": "01ab55ef2295aac6bb98b7ac9ff9406d1f589d9bab2e4f785ce7c0214e2fc581",
+      "bytes": 630,
+      "exit_code": 0,
+      "result": "2 passed after API validation guard"
+    },
+    {
+      "path": "a5b-cohort-backend-focused-01-20261008T1713491082551Z-9b6bf923b5164447965afd149342bc2f-pytest.log",
+      "sha256": "e6c22f3e061f9abdd59cffeb52fff8c6716fa6b6b78cafc32d9752c11489c6dd",
+      "bytes": 630,
+      "exit_code": 0,
+      "result": "4 passed focused backend checkpoint"
+    },
+    {
+      "path": "a5b-cohort-browser-c7fa49f0165d41a1aa1156a4646dba24.log",
+      "sha256": "16483ebd4ff7bce7e39e70c113e2812693aba5d7834b9bbaaada8176428bef01",
+      "bytes": 6139,
+      "exit_code": 1,
+      "result": "browser assertions used case-sensitive title text; unique traces retained in matching results directory"
+    },
+    {
+      "path": "a5b-cohort-browser-f89f86d435344e2ead5f2a90e6b78b59.log",
+      "sha256": "2bc94ce0903cdfc2427d679ae5bed0587570dfa086dae41c1ed19d5891602a45",
+      "bytes": 970,
+      "exit_code": 0,
+      "result": "2 focused browser tests passed; unique traces retained in matching results directory"
+    },
+    {
+      "path": "a5b-cohort-final-focused-20261008T1716177895422Z-a333421d8d814898a0b6642a847548b6-pytest.log",
+      "sha256": "b42dcc946589aacff2749a5ab0f72b6f488bed8ad323665c364aaa292a31cf12",
+      "bytes": 645,
+      "exit_code": 0,
+      "result": "3 focused backend tests passed"
+    },
+    {
+      "path": "a5b-cohort-ruff-20261008T1716229569851Z-16c608cb871d42659684466fb7edc199-ruff.log",
+      "sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0",
+      "bytes": 20,
+      "exit_code": 0,
+      "result": "Ruff passed"
+    },
+    {
+      "path": "a5b-cohort-mypy-20261008T1716253177844Z-fef31972c58d42729edf6bc6ca8b6860-mypy.log",
+      "sha256": "83f5c62eac1069da1a8cc799602eea824a6af679a240622d2daca952929ce2a1",
+      "bytes": 202,
+      "exit_code": 0,
+      "result": "mypy src passed, 78 source files"
+    },
+    {
+      "path": "a5b-cohort-web-static-7dc042fe0f2143789c95f88d787b5522.log",
+      "sha256": "cf5a84425f82c1b543bd3ac77d558a9b28f8566ee2a542bbeae7a4135296582d",
+      "bytes": 445,
+      "exit_code": 0,
+      "result": "web typecheck and production build passed"
+    }
+  ],
+  "unretained_tool_receipts": [
+    {
+      "description": "One Playwright launch wrapper command was rejected by PowerShell parameter binding before starting; no raw file was created.",
+      "raw_bytes": "UNKNOWN"
+    },
+    {
+      "description": "One hash-manifest inspection command had a PowerShell parser error before execution; no repository file was modified.",
+      "raw_bytes": "UNKNOWN"
+    }
+  ]
+}

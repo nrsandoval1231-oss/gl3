@@ -173,7 +173,7 @@ test('browse filters travel through the request URL and restore with the selecte
       status: 200,
       contentType: 'application/json',
       headers: path === '/api/opportunities'
-        ? { 'X-Total-Count': '1', 'X-Group-Total-Count': '1', 'X-Page-Record-Count': '1', 'X-Page-Group-Count': '1', 'X-Limit': '25', 'X-Offset': '25', 'X-Cohort-Token': 'fixture-cohort', 'X-Decision-Counts': '{"SHOW":1,"REVIEW":0,"HOLD":0}' }
+        ? { 'X-Total-Count': '1', 'X-Group-Total-Count': '1', 'X-Page-Record-Count': '1', 'X-Page-Group-Count': '1', 'X-Limit': '25', 'X-Offset': url.searchParams.get('offset') ?? '0', 'X-Cohort-Token': 'fixture-cohort', 'X-Decision-Counts': '{"SHOW":1,"REVIEW":0,"HOLD":0}' }
         : undefined,
       body: JSON.stringify(body),
     })
@@ -191,6 +191,12 @@ test('browse filters travel through the request URL and restore with the selecte
     && request.searchParams.get('mw_min') === '0.3'
     && request.searchParams.get('priority_segment') === '8'
     && request.searchParams.get('status') === 'UNKNOWN')).toBe(true)
+  const opportunityRequests = requests.filter((request) => request.pathname === '/api/opportunities')
+  const laterPageIndex = opportunityRequests.findIndex((request) => request.searchParams.get('offset') === '25')
+  expect(laterPageIndex).toBeGreaterThan(0)
+  expect(opportunityRequests.slice(0, laterPageIndex).every((request) => (request.searchParams.get('offset') ?? '0') === '0'
+    && request.searchParams.get('cohort_token') === null)).toBe(true)
+  expect(opportunityRequests[laterPageIndex].searchParams.get('cohort_token')).toBe('fixture-cohort')
   await page.locator('[data-opportunity-id="filter-back"]').first().click()
   await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
   await page.getByRole('button', { name: /Back to Signals/ }).click()
@@ -206,6 +212,58 @@ test('browse filters travel through the request URL and restore with the selecte
   expect(restored.searchParams.get('mw_min')).toBe('0.3')
   expect(restored.searchParams.get('priority_segment')).toBe('8')
   expect(restored.searchParams.get('status')).toBe('UNKNOWN')
+  await page.goForward()
+  await expect(page.getByRole('heading', { level: 1 })).toContainText(/Synthetic campus/i)
+  await page.goBack()
+  await expect(page.getByRole('textbox', { name: 'Filter by exact project asset type' })).toHaveValue('data_center')
+  expect(new URL(page.url()).searchParams.get('offset')).toBe('25')
+})
+
+test('stale later-page cohort restarts at page one without showing the previous cohort', async ({ page }) => {
+  const staleRecord = permit('old-cohort-record', 'Old cohort construction filing')
+  const currentRecord = permit('current-cohort-record', 'Current cohort construction filing')
+  let changed = false
+  const requests: URL[] = []
+  await page.route(apiRoute, async (route) => {
+    const url = new URL(route.request().url())
+    if (url.pathname === '/api/opportunities') {
+      requests.push(url)
+      const offset = Number(url.searchParams.get('offset') ?? '0')
+      if (offset > 0 && url.searchParams.get('cohort_token') === 'old-cohort-token' && !changed) {
+        changed = true
+        await route.fulfill({ status: 409, json: { detail: 'Opportunity cohort changed; restart pagination' } })
+        return
+      }
+      const record = changed ? currentRecord : staleRecord
+      const payload = serverOpportunityPage([record], url.searchParams.get('decision') ?? 'ALL')
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        headers: { ...payload.headers, 'X-Offset': String(offset), 'X-Cohort-Token': changed ? 'current-cohort-token' : 'old-cohort-token', ...(offset === 0 && !changed ? { 'X-Next-Offset': '25' } : {}) },
+        body: JSON.stringify(payload.items),
+      })
+      return
+    }
+    const body = url.pathname === '/api/auth/session'
+      ? { authenticated: true }
+      : url.pathname === '/api/health'
+        ? { sources: [], backlog: 0, pending_interpretations: 0 }
+        : []
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
+  })
+  await page.goto('/?tier=Signals')
+  const oldCard = page.getByRole('button', { name: /Old cohort construction filing/i })
+  await expect(oldCard).toBeVisible()
+  await page.getByRole('button', { name: /Next/ }).click()
+  const currentCard = page.getByRole('button', { name: /Current cohort construction filing/i })
+  await expect(currentCard).toBeVisible()
+  await expect(page.getByRole('button', { name: /Old cohort construction filing/i })).toHaveCount(0)
+  expect(new URL(page.url()).searchParams.get('offset')).toBeNull()
+  const opportunityRequests = requests
+  const laterRequest = opportunityRequests.find((request) => request.searchParams.get('offset') === '25')
+  expect(laterRequest?.searchParams.get('cohort_token')).toBe('old-cohort-token')
+  const restarted = opportunityRequests.find((request, index) => index > opportunityRequests.indexOf(laterRequest!) && (request.searchParams.get('offset') ?? '0') === '0')
+  expect(restarted?.searchParams.get('cohort_token')).toBeNull()
 })
 
 test('project title prefers a current owner over operator, applicant, and contractor claims', () => {

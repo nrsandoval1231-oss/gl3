@@ -705,6 +705,31 @@ def test_bounded_opportunity_page_group_detail_and_stale_cohort(runtime):
     assert first_page[0]["matched_search"] is True
     cohort = first_response.headers["X-Cohort-Token"]
 
+    for missing_cohort in (None, "", "   "):
+        with pytest.raises(HTTPException) as missing_token:
+            api.opportunities(
+                tier="Signal",
+                search="public permit describes",
+                limit=1,
+                offset=1,
+                cohort=missing_cohort,
+                response=Response(),
+            )
+        assert missing_token.value.status_code == 422
+
+    second_response = Response()
+    second_page = api.opportunities(
+        tier="Signal",
+        search="public permit describes",
+        limit=1,
+        offset=1,
+        cohort=cohort,
+        response=second_response,
+    )
+    assert [item["id"] for item in second_page] == [sibling_id]
+    assert second_response.headers["X-Offset"] == "1"
+    assert second_response.headers["X-Cohort-Token"] == cohort
+
     group_page = api.opportunity_group_page(
         first_page[0]["group_id"],
         cohort_token=cohort,
@@ -741,10 +766,20 @@ def test_bounded_opportunity_page_group_detail_and_stale_cohort(runtime):
             response=Response(),
         )
     assert stale.value.status_code == 409
+    with pytest.raises(HTTPException) as stale_later_page:
+        api.opportunities(
+            tier="Signal",
+            search="public permit describes",
+            limit=1,
+            offset=1,
+            cohort=cohort,
+            response=Response(),
+        )
+    assert stale_later_page.value.status_code == 409
 
 
 def test_opportunity_http_and_direct_defaults_are_bounded(runtime):
-    _factory, _service, _ids = runtime
+    _factory, _service, (need_id, _evidence_id) = runtime
     api = import_module("gridlens.api.app")
 
     response = Response()
@@ -761,6 +796,22 @@ def test_opportunity_http_and_direct_defaults_are_bounded(runtime):
     assert http_page.headers["X-Limit"] == "50"
     assert http_page.headers["X-Offset"] == "0"
     assert client.get("/api/opportunities", params={"limit": 51}).status_code == 422
+    token = http_page.headers["X-Cohort-Token"]
+    assert token
+    assert str(need_id) in {item["id"] for item in http_page.json()}
+    for missing_token_params in (
+        {"tier": "Signal", "offset": 1},
+        {"tier": "Signal", "offset": 1, "cohort_token": ""},
+        {"tier": "Signal", "offset": 1, "cohort_token": "   "},
+    ):
+        assert client.get("/api/opportunities", params=missing_token_params).status_code == 422
+    later_page = client.get(
+        "/api/opportunities",
+        params={"tier": "Signal", "offset": 1, "cohort_token": token},
+    )
+    assert later_page.status_code == 200
+    assert later_page.headers["X-Offset"] == "1"
+    assert later_page.headers["X-Cohort-Token"] == token
 
 
 def test_opportunity_filter_scope_is_shared_by_pages_groups_detail_and_csv(runtime):
