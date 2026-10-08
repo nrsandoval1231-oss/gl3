@@ -1,0 +1,77 @@
+{
+  "verdict": "FIX",
+  "controller_direction": "CORRECT",
+  "scope": "A6 backend exact candidate only; parent completion remains OPEN",
+  "candidate": {
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-facts-workflow-20261008",
+    "head": "d99ef3477096baa2519e882b60f4a26deba2316b",
+    "tree": "d582570324327fef608e942b338527406334aa3a",
+    "tested_head": "7262c3f915c5fddd9178171e672812fae7d01de3",
+    "clean_status": true,
+    "post_tested_changes": "proof and .agent state only; no product/source/governing input drift"
+  },
+  "timing": {
+    "first_measured_review_utc": "2026-10-08T22:19:46Z",
+    "finished_utc": "2026-10-08T22:20:53Z",
+    "total_audit_duration_seconds": "UNKNOWN: review began before first reliable timestamp"
+  },
+  "identity": {
+    "role": "ordinary independent Sol reviewer",
+    "model": "UNKNOWN: runtime model identity not independently exposed",
+    "config_identity": "UNKNOWN",
+    "tokens": "UNKNOWN"
+  },
+  "verified_proof": {
+    "source_and_governing_inputs": 270,
+    "working_and_git_sha256_mismatches": 0,
+    "root_archive_entries": 362,
+    "root_archive_sha256": "004754003d806d007837ec35654f44332a20113031d8265a3ba6accb053862ef",
+    "archive_entry_hash_or_length_mismatches": 0,
+    "git_diff_check": "PASS",
+    "full_backend": "1461 passed, 2 environmental skips, 7 warnings in 238.62 seconds, from sealed controller proof",
+    "browser": "62 passed in 44.9 seconds, from sealed controller proof",
+    "retained_and_static": "controller archive preserves static/schema/OpenAPI34/dependency/retained 24-page and 24-fingerprint gates; no broad rerun"
+  },
+  "findings": [
+    {
+      "severity": "blocking",
+      "title": "Accepted timing silently substitutes for a still-current source Lead window in adequate-supply closure",
+      "governing_contract": [
+        "docs/product/PRD.md:132 Lead gate",
+        "docs/product/PRD.md:134 material-input basis",
+        "docs/product/PRD.md:136-142 full applicable interval, supply realism, uncertainty, requalification/contradictions",
+        "docs/product/PRD.md:152 attributed corrections",
+        "A6 adequate-supply reconciliation packet: full source Lead window or explicit supported accepted-timing correction"
+      ],
+      "code": [
+        "backend/src/gridlens/domain/call_facts.py:356-362 selects any accepted timing interval before source Lead interval",
+        "backend/src/gridlens/domain/call_facts.py:375-384 tests supply coverage only against that selected interval",
+        "backend/src/gridlens/domain/call_facts.py:389-425 closure basis records supply and optional demand fact IDs/hashes but omits decisive timing fact ID/hash and any source-timing correction/conflict disposition",
+        "backend/src/gridlens/ingestion/service.py:797-800 deactivates on closed_by_fact"
+      ],
+      "deterministic_repro": {
+        "environment": "backend venv; FIRECRAWL_API_KEY, OPENAI_API_KEY, TYPESAFE_API_KEY blank; WORKER_AUTO_REFRESH and AUTONOMOUS_RESEARCH_ENABLED false; no DB or provider",
+        "source": "official Test City construction Lead: demand 20 to 25 MW, insufficient supply, possible start 2027-01-01 to 2027-02-01, duration 31 to 62 days",
+        "source_full_exclusive_end": "2027-04-04T00:00:00Z",
+        "accepted_supply": "suitable 25 to 30 MW; effective 2026-01-01 through 2027-02-02 exclusive",
+        "accepted_timing": "start 2027-01-01 only, duration 31 days; effective 2026-01-01 through 2027-02-02 exclusive",
+        "observed_without_timing": "source Lead remains open; closed_by_fact absent",
+        "observed_with_timing": "tier Signal, closed_by_fact true, closure exclusive end 2027-02-01; supply does not cover source full window",
+        "disjoint_variant": "accepted timing 2027-06-01 for 31 days also closes the still-current Jan-Feb source Lead without timing conflict or correction attribution",
+        "provenance": "closure_basis lacks accepted timing fact ID/hash even when that timing fact determines closure"
+      },
+      "action": "Reconcile accepted timing against the source Lead window as an attributed correction or contradiction; require full coverage of the applicable interval and include the decisive timing fact version/hash in closure basis. Preserve exact source, supply, history, siblings, and existing source Lead behavior when no timing correction exists."
+    }
+  ],
+  "positive_checks": [
+    "Earlier scalar Prospect promotion and demand-range intersection appear closed in source and focused tests",
+    "Source Lead with no operator timing uses latest possible start plus maximum duration",
+    "Adequate supply and possible-zero gap branches are distinguished; explicit closure and source replay tests are retained"
+  ],
+  "boundaries": [
+    "This negative verdict does not nullify sealed deterministic gates; exact candidate remains unaccepted.",
+    "A6 seven-state UI/filter, A7 original PNG/HTML, A8 authentic feed/quality cycles and real customer Lead gates remain OPEN.",
+    "Ignored known-private failed browser trace was neither opened nor copied; original overwritten/unretained bytes remain UNKNOWN.",
+    "No candidate edits, DB writes, provider calls, publication, merge, or deploy."
+  ]
+}
