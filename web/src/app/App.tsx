@@ -179,6 +179,8 @@ export function App() {
   const loadedOpportunityPageKey = useRef<string | null>(null)
   const opportunityCohort = useRef<{ key: string; token: string } | null>(null)
   const navigationSequence = useRef(0)
+  const groupExpansionSequence = useRef(0)
+  const groupExpansionIntent = useRef<{ id: number; key: string; scope: string } | null>(null)
   const pageRevisionRef = useRef(0)
   const pendingSelection = useRef<PendingSelection | null>(null)
   const pendingViewRestore = useRef<PendingViewRestore | null>(null)
@@ -188,12 +190,27 @@ export function App() {
     && opportunityPage?.offset === offset
   const currentOpportunityPage = opportunityPageIsCurrent ? opportunityPage : null
   const currentOpportunityItems = opportunityPageIsCurrent ? items : []
+  const currentGroupScope = JSON.stringify([
+    view,
+    requestedPageKey,
+    currentOpportunityPage?.cohortToken ?? '',
+  ])
+  const currentGroupScopeRef = useRef(currentGroupScope)
+  currentGroupScopeRef.current = currentGroupScope
+
+  function invalidateGroupExpansion() {
+    groupExpansionSequence.current += 1
+    groupExpansionIntent.current = null
+    setExpandedGroupMembers({})
+    setExpandedCardKey(null)
+  }
 
   function cancelPendingNavigation() {
     navigationSequence.current += 1
     requestSequence.current += 1
     pendingSelection.current = null
     pendingViewRestore.current = null
+    invalidateGroupExpansion()
   }
 
   useEffect(() => {
@@ -390,6 +407,7 @@ export function App() {
       const nextView = restoredView === 'ingestion' || restoredView === 'pursuits' ? restoredView : 'opportunities'
       const navigationId = ++navigationSequence.current
       requestSequence.current += 1
+      invalidateGroupExpansion()
       pendingSelection.current = restoredId && nextView === 'opportunities'
         ? {
             id: restoredId,
@@ -464,10 +482,33 @@ export function App() {
   }
 
   async function toggleGroup(card: ProjectCard) {
-    const expanded = expandedCardKey === card.key
-    if (expanded) {
+    const pending = groupExpansionIntent.current
+    if (expandedCardKey === card.key || pending?.key === card.key) {
+      groupExpansionSequence.current += 1
+      groupExpansionIntent.current = null
+      setExpandedGroupMembers((current) => {
+        const next = { ...current }
+        delete next[card.key]
+        return next
+      })
       setExpandedCardKey(null)
       return
+    }
+    groupExpansionSequence.current += 1
+    const intent = {
+      id: groupExpansionSequence.current,
+      key: card.key,
+      scope: currentGroupScopeRef.current,
+    }
+    groupExpansionIntent.current = intent
+    setExpandedCardKey(null)
+    setExpandedGroupMembers({})
+    const isCurrentIntent = () => {
+      const active = groupExpansionIntent.current
+      return active?.id === intent.id
+        && active.key === intent.key
+        && active.scope === intent.scope
+      && currentGroupScopeRef.current === intent.scope
     }
     if (!card.complete && card.groupTotal && currentOpportunityPage?.cohortToken) {
       try {
@@ -484,16 +525,27 @@ export function App() {
             nextOffset,
             browseFilters,
           )
+          if (!isCurrentIntent()) return
           loaded.push(...page.items)
           nextOffset = page.next_offset ?? -1
         } while (nextOffset >= 0)
+        if (!isCurrentIntent()) return
         setExpandedGroupMembers((current) => ({ ...current, [card.key]: loaded }))
       } catch (cause) {
+        if (!isCurrentIntent()) return
+        setExpandedGroupMembers((current) => {
+          const next = { ...current }
+          delete next[card.key]
+          return next
+        })
         setError(cause instanceof Error ? cause.message : 'Could not load all related records.')
+        groupExpansionIntent.current = null
         return
       }
     }
+    if (!isCurrentIntent()) return
     setExpandedCardKey(card.key)
+    groupExpansionIntent.current = null
   }
 
   function chooseTier(value: Tier) {
@@ -551,6 +603,7 @@ export function App() {
   }
 
   function open(item: Opportunity) {
+    invalidateGroupExpansion()
     pendingSelection.current = null
     pendingViewRestore.current = null
     history.replaceState({ tier, search, browseFilters, scrollY: window.scrollY, focusedId: item.id }, '', routeUrl(tier, search, '', offset, signalFilter, browseFilters))
@@ -559,6 +612,7 @@ export function App() {
   }
 
   function moveTo(item: Opportunity) {
+    invalidateGroupExpansion()
     pendingSelection.current = null
     pendingViewRestore.current = null
     history.replaceState({ tier, search, id: item.id, offset, signalFilter, browseFilters }, '', routeUrl(tier, search, `#${encodeURIComponent(item.id)}`, offset, signalFilter, browseFilters))

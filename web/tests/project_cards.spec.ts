@@ -55,6 +55,20 @@ async function fulfillServerOpportunityPage(route: Route, records: Opportunity[]
   await route.fulfill({ status: 200, contentType: 'application/json', headers: page.headers, body: JSON.stringify(page.items) })
 }
 
+function partialServerOpportunityPage(records: Opportunity[]) {
+  const page = serverOpportunityPage(records)
+  page.items = page.items.map((item) => {
+    const source = records.find((record) => record.id === item.id)
+    return {
+      ...item,
+      group_total_filtered: source?.group_total_filtered ?? 2,
+      group_loaded_on_page: records.filter((record) => record.group_id === item.group_id).length,
+      group_complete_on_page: source?.group_complete_on_page ?? false,
+    }
+  })
+  return page
+}
+
 function permit(id: string, action: string | null, options: { location?: string; activity?: string; tier?: string; abstract?: string; projectId?: string; decision?: string | null } = {}): Opportunity {
   return {
     id,
@@ -813,6 +827,358 @@ test('opening a same-cohort record during a pending Back page request does not s
     await expect(page.getByRole('heading', { level: 1 })).toHaveText('Second Campus Facility Activity')
   } finally {
     releaseSecondRequest?.()
+  }
+})
+
+test('late group expansion pages cannot restore members from a superseded browse filter', async ({ page }) => {
+  const oldFirst = permit('scope-a-first', 'Activity A first record', { activity: 'activity-a' })
+  const oldLast = permit('scope-a-last', 'Activity A later record', { activity: 'activity-a' })
+  const current = permit('scope-b-current', 'Activity B current record', { activity: 'activity-b' })
+  const partial = (record: Opportunity, groupId: string, total: number) => {
+    record.group_id = groupId
+    record.group_title = 'Stable event group'
+    record.group_total_filtered = total
+    record.group_loaded_on_page = 1
+    record.group_complete_on_page = false
+    return record
+  }
+  partial(oldFirst, 'stable-group', 51)
+  partial(oldLast, 'stable-group', 51)
+  partial(current, 'stable-group', 2)
+  let releaseOldLaterPage: (() => void) | undefined
+  const oldLaterPage = new Promise<void>((resolve) => { releaseOldLaterPage = resolve })
+  let oldLaterPageStarted = false
+  const groupRequests: URL[] = []
+  await page.route(apiRoute, async (route) => {
+    const url = new URL(route.request().url())
+    const path = url.pathname
+    if (path === '/api/opportunities') {
+      const activity = url.searchParams.get('activity')
+      const record = activity === 'activity-a' ? oldFirst : current
+      const payload = partialServerOpportunityPage([record])
+      await route.fulfill({ status: 200, contentType: 'application/json', headers: { ...payload.headers, 'X-Limit': '25', 'X-Offset': url.searchParams.get('offset') ?? '0' }, body: JSON.stringify(payload.items) })
+      return
+    }
+    if (path === '/api/opportunity-groups/stable-group') {
+      groupRequests.push(url)
+      const activity = url.searchParams.get('activity')
+      const groupOffset = Number(url.searchParams.get('offset'))
+      if (activity === 'activity-a' && groupOffset === 50) {
+        oldLaterPageStarted = true
+        await oldLaterPage
+        await route.fulfill({ status: 200, json: { items: [oldLast], total: 51, limit: 50, offset: 50, next_offset: null, cohort_token: 'fixture-server-cohort' } })
+        return
+      }
+      await route.fulfill({ status: 200, json: { items: [activity === 'activity-a' ? oldFirst : current], total: activity === 'activity-a' ? 51 : 1, limit: 50, offset: groupOffset, next_offset: activity === 'activity-a' ? 50 : null, cohort_token: 'fixture-server-cohort' } })
+      return
+    }
+    const body = path === '/api/auth/session'
+      ? { authenticated: true }
+      : path === '/api/health'
+        ? { sources: [], backlog: 0, pending_interpretations: 0 }
+        : []
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
+  })
+  try {
+    await page.goto('/?tier=Signals&activity=activity-a')
+    const group = page.locator('[data-opportunity-id="scope-a-first"]')
+    await expect(group).toBeVisible()
+    await group.click()
+    await expect.poll(() => oldLaterPageStarted).toBe(true)
+    await page.getByRole('textbox', { name: 'Filter by exact power activity' }).fill('activity-b')
+    await expect(page.locator('[data-opportunity-id="scope-b-current"]')).toBeVisible()
+    releaseOldLaterPage?.()
+    await expect(page.locator('.project-members')).toHaveCount(0)
+    await expect(page.locator('[data-opportunity-id="scope-a-last"]')).toHaveCount(0)
+    expect(groupRequests.every((request) => request.searchParams.get('cohort_token') === 'fixture-server-cohort')).toBe(true)
+    expect(groupRequests.some((request) => request.searchParams.get('activity') === 'activity-a' && request.searchParams.get('offset') === '50')).toBe(true)
+    await page.locator('[data-opportunity-id="scope-b-current"]').click()
+    await expect(page.locator('.project-members [data-opportunity-id="scope-b-current"]')).toBeVisible()
+    await expect(page.locator('.project-members [data-opportunity-id="scope-a-last"]')).toHaveCount(0)
+  } finally {
+    releaseOldLaterPage?.()
+  }
+})
+
+test('Back refresh with a rotated cohort token supersedes a pending group expansion', async ({ page }) => {
+  const record = permit('token-rotation-member', 'Token rotation group member')
+  record.group_id = 'token-rotation-group'
+  record.group_title = 'Token rotation group'
+  record.group_total_filtered = 2
+  record.group_loaded_on_page = 1
+  record.group_complete_on_page = false
+  let pageRequests = 0
+  let releaseGroup: (() => void) | undefined
+  const groupGate = new Promise<void>((resolve) => { releaseGroup = resolve })
+  let groupStarted = false
+  let groupFinished = false
+  const groupRequests: URL[] = []
+  const pageTokens: string[] = []
+  await page.route(apiRoute, async (route) => {
+    const url = new URL(route.request().url())
+    if (url.pathname === '/api/opportunities') {
+      pageRequests += 1
+      const payload = partialServerOpportunityPage([record])
+      const token = pageRequests === 1 ? 'token-before-back' : 'token-after-back'
+      pageTokens.push(token)
+      await route.fulfill({ status: 200, contentType: 'application/json', headers: { ...payload.headers, 'X-Cohort-Token': token, 'X-Limit': '25', 'X-Offset': '0' }, body: JSON.stringify(payload.items) })
+      return
+    }
+    if (url.pathname === '/api/opportunity-groups/token-rotation-group') {
+      groupStarted = true
+      groupRequests.push(url)
+      await groupGate
+      await route.fulfill({ status: 200, json: { items: [record], total: 2, limit: 50, offset: 0, next_offset: null, cohort_token: 'token-before-back' } })
+      groupFinished = true
+      return
+    }
+    const body = url.pathname === '/api/auth/session'
+      ? { authenticated: true }
+      : url.pathname === '/api/health'
+        ? { sources: [], backlog: 0, pending_interpretations: 0 }
+        : []
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
+  })
+  try {
+    await page.goto('/?tier=Signals')
+    await page.locator('[data-opportunity-id="token-rotation-member"]').click()
+    await expect.poll(() => groupStarted).toBe(true)
+    expect(groupRequests[0]?.searchParams.get('cohort_token')).toBe('token-before-back')
+    await page.evaluate(() => {
+      history.pushState(history.state, '', location.href)
+      history.back()
+    })
+    await expect.poll(() => pageRequests).toBe(2)
+    expect(pageTokens).toEqual(['token-before-back', 'token-after-back'])
+    await expect(page.locator('[data-opportunity-id="token-rotation-member"]')).toBeVisible()
+    releaseGroup?.()
+    await expect.poll(() => groupFinished).toBe(true)
+    await expect(page.locator('.project-members')).toHaveCount(0)
+  } finally {
+    releaseGroup?.()
+  }
+})
+
+test('only the latest group expansion intent may open a card or surface its failure', async ({ page }) => {
+  const first = permit('intent-first', 'First exact group member')
+  const second = permit('intent-second', 'Second exact group member')
+  for (const [record, groupId] of [[first, 'intent-group-a'], [second, 'intent-group-b']] as const) {
+    record.group_id = groupId
+    record.group_title = groupId
+    record.group_total_filtered = 2
+    record.group_loaded_on_page = 1
+    record.group_complete_on_page = false
+  }
+  let releaseFirst: (() => void) | undefined
+  const firstGate = new Promise<void>((resolve) => { releaseFirst = resolve })
+  let firstStarted = false
+  let failSecond = false
+  await page.route(apiRoute, async (route) => {
+    const url = new URL(route.request().url())
+    if (url.pathname === '/api/opportunities') {
+      const payload = partialServerOpportunityPage([first, second])
+      await route.fulfill({ status: 200, contentType: 'application/json', headers: { ...payload.headers, 'X-Limit': '25', 'X-Offset': '0' }, body: JSON.stringify(payload.items) })
+      return
+    }
+    if (url.pathname.startsWith('/api/opportunity-groups/')) {
+      if (url.pathname.endsWith('intent-group-a')) {
+        firstStarted = true
+        await firstGate
+        await route.fulfill({ status: 503, json: { detail: 'synthetic stale group failure' } })
+        return
+      }
+      if (failSecond) {
+        await route.fulfill({ status: 503, json: { detail: 'synthetic current group failure' } })
+        return
+      }
+      await route.fulfill({ status: 200, json: { items: [second], total: 2, limit: 50, offset: 0, next_offset: null, cohort_token: 'fixture-server-cohort' } })
+      return
+    }
+    const body = url.pathname === '/api/auth/session'
+      ? { authenticated: true }
+      : url.pathname === '/api/health'
+        ? { sources: [], backlog: 0, pending_interpretations: 0 }
+        : []
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
+  })
+  try {
+    await page.goto('/?tier=Signals')
+    await page.locator('[data-opportunity-id="intent-first"]').click()
+    await expect.poll(() => firstStarted).toBe(true)
+    await page.locator('.opportunity-row[data-opportunity-id="intent-second"]').click()
+    await expect(page.locator('.project-members [data-opportunity-id="intent-second"]')).toBeVisible()
+    releaseFirst?.()
+    await expect(page.locator('.project-members [data-opportunity-id="intent-second"]')).toBeVisible()
+    await expect(page.locator('.project-members [data-opportunity-id="intent-first"]')).toHaveCount(0)
+    await expect(page.getByRole('alert')).toHaveCount(0)
+
+    await page.locator('.opportunity-row[data-opportunity-id="intent-second"]').click()
+    await expect(page.locator('.project-members')).toHaveCount(0)
+    failSecond = true
+    await page.locator('[data-opportunity-id="intent-second"]').click()
+    await expect(page.getByRole('alert')).toContainText('503')
+    await expect(page.locator('.project-members')).toHaveCount(0)
+  } finally {
+    releaseFirst?.()
+  }
+})
+
+test('reclicking a pending group cancels its expansion and selected-record navigation supersedes it', async ({ page }) => {
+  const grouped = permit('pending-group-member', 'Pending group member')
+  grouped.group_id = 'pending-group'
+  grouped.group_title = 'Pending group'
+  grouped.group_total_filtered = 2
+  grouped.group_loaded_on_page = 1
+  grouped.group_complete_on_page = false
+  const selected = permit('pending-selection', 'Selected standalone record')
+  selected.group_total_filtered = 1
+  selected.group_loaded_on_page = 1
+  selected.group_complete_on_page = true
+  const groupReleases: (() => void)[] = []
+  let groupRequests = 0
+  await page.route(apiRoute, async (route) => {
+    const url = new URL(route.request().url())
+    if (url.pathname === '/api/opportunities') {
+      const payload = partialServerOpportunityPage([grouped, selected])
+      await route.fulfill({ status: 200, contentType: 'application/json', headers: { ...payload.headers, 'X-Limit': '25', 'X-Offset': '0' }, body: JSON.stringify(payload.items) })
+      return
+    }
+    if (url.pathname === '/api/opportunity-groups/pending-group') {
+      groupRequests += 1
+      await new Promise<void>((resolve) => { groupReleases.push(resolve) })
+      await route.fulfill({ status: 200, json: { items: [grouped], total: 2, limit: 50, offset: 0, next_offset: null, cohort_token: 'fixture-server-cohort' } })
+      return
+    }
+    const body = url.pathname === '/api/auth/session'
+      ? { authenticated: true }
+      : url.pathname === '/api/health'
+        ? { sources: [], backlog: 0, pending_interpretations: 0 }
+        : url.pathname.startsWith('/api/opportunities/needs/')
+          ? selected
+          : []
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
+  })
+  try {
+    await page.goto('/?tier=Signals')
+    const group = page.locator('[data-opportunity-id="pending-group-member"]')
+    await group.click()
+    await expect.poll(() => groupRequests).toBe(1)
+    await group.click()
+    groupReleases[0]?.()
+    await expect(page.locator('.project-members')).toHaveCount(0)
+    await group.click()
+    await expect.poll(() => groupRequests).toBe(2)
+    await page.locator('[data-opportunity-id="pending-selection"]').click()
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('Selected Standalone Record')
+    groupReleases[1]?.()
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('Selected Standalone Record')
+    await expect(page.locator('.project-members')).toHaveCount(0)
+  } finally {
+    for (const release of groupReleases) release()
+  }
+})
+
+test('group expansion intent is invalidated by tier, search, Signal decision, page, and view transitions', async ({ page }) => {
+  const scenarios = [
+    { name: 'tier', initialId: 'scope-signal', nextId: 'scope-prospect' },
+    { name: 'search', initialId: 'scope-signal', nextId: 'scope-search' },
+    { name: 'decision', initialId: 'scope-show', nextId: 'scope-review' },
+    { name: 'page', initialId: 'scope-page-first', nextId: 'scope-page-next' },
+    { name: 'view', initialId: 'scope-signal', nextId: '' },
+  ] as const
+  const records = new Map<string, Opportunity>()
+  for (const [id, action, options] of [
+    ['scope-signal', 'Signal scope activity', {}],
+    ['scope-prospect', 'Prospect scope activity', { tier: 'Prospect' }],
+    ['scope-search', 'newterm scope activity', {}],
+    ['scope-show', 'SHOW scope activity', { decision: 'SHOW' }],
+    ['scope-review', 'REVIEW scope activity', { decision: 'REVIEW' }],
+    ['scope-page-first', 'First page scope activity', {}],
+    ['scope-page-next', 'Next page scope activity', {}],
+  ] as const) {
+    const record = permit(id, action, options)
+    record.group_id = `group-${id}`
+    record.group_title = `Group ${id}`
+    record.group_total_filtered = 2
+    record.group_loaded_on_page = 1
+    record.group_complete_on_page = false
+    records.set(id, record)
+  }
+  let activeScenario: typeof scenarios[number] = scenarios[0]
+  let releaseGroup: (() => void) | undefined
+  let groupGate = Promise.resolve()
+  let groupStarted = false
+  let groupFinished = false
+  await page.route(apiRoute, async (route) => {
+    const url = new URL(route.request().url())
+    const path = url.pathname
+    if (path === '/api/opportunities') {
+      const tier = url.searchParams.get('tier')
+      const search = url.searchParams.get('search') ?? ''
+      const decision = url.searchParams.get('decision') ?? 'ALL'
+      const offset = Number(url.searchParams.get('offset') ?? 0)
+      const chosenId = tier?.toLowerCase() === 'prospect' ? 'scope-prospect'
+        : search ? 'scope-search'
+          : decision === 'REVIEW' ? 'scope-review'
+            : offset > 0 ? 'scope-page-next'
+              : activeScenario.name === 'decision' ? 'scope-show'
+                : activeScenario.name === 'page' ? 'scope-page-first' : 'scope-signal'
+      const record = records.get(chosenId)!
+      const payload = partialServerOpportunityPage([record])
+      const headers: Record<string, string> = { ...payload.headers, 'X-Limit': '25', 'X-Offset': String(offset) }
+      if (activeScenario.name === 'page' && offset === 0) headers['X-Next-Offset'] = '25'
+      await route.fulfill({ status: 200, contentType: 'application/json', headers, body: JSON.stringify(payload.items) })
+      return
+    }
+    if (path.startsWith('/api/opportunity-groups/')) {
+      groupStarted = true
+      await groupGate
+      const groupId = path.split('/').at(-1) ?? ''
+      const record = [...records.values()].find((candidate) => candidate.group_id === groupId)!
+      await route.fulfill({ status: 200, json: { items: [record], total: 2, limit: 50, offset: 0, next_offset: null, cohort_token: 'fixture-server-cohort' } })
+      groupFinished = true
+      return
+    }
+    const body = path === '/api/auth/session'
+      ? { authenticated: true }
+      : path === '/api/health'
+        ? { sources: [], backlog: 0, pending_interpretations: 0 }
+        : []
+    await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
+  })
+  try {
+  for (const scenario of scenarios) {
+    activeScenario = scenario
+    groupStarted = false
+    groupFinished = false
+    groupGate = new Promise<void>((resolve) => { releaseGroup = resolve })
+    await page.goto('/?tier=Signals')
+    await page.locator(`[data-opportunity-id="${scenario.initialId}"]`).click()
+    await expect.poll(() => groupStarted).toBe(true)
+    if (scenario.name === 'tier') {
+      await page.getByRole('button', { name: 'Prospects' }).click()
+      await expect(page.locator('[data-opportunity-id="scope-prospect"]')).toBeVisible()
+    } else if (scenario.name === 'search') {
+      await page.getByRole('textbox', { name: 'Search projects' }).fill('newterm')
+      await expect(page.locator('[data-opportunity-id="scope-search"]')).toBeVisible()
+    } else if (scenario.name === 'decision') {
+      await page.getByRole('button', { name: /^REVIEW/ }).click()
+      await expect(page.locator('[data-opportunity-id="scope-review"]')).toBeVisible()
+    } else if (scenario.name === 'page') {
+      await page.getByRole('button', { name: 'Next →' }).click()
+      await expect(page.locator('[data-opportunity-id="scope-page-next"]')).toBeVisible()
+    } else {
+      await page.getByRole('button', { name: 'Ingestion' }).click()
+      await expect.poll(() => new URL(page.url()).searchParams.get('view')).toBe('ingestion')
+    }
+    releaseGroup?.()
+    await expect.poll(() => groupFinished).toBe(true)
+    await expect(page.locator('.project-members')).toHaveCount(0)
+    if (scenario.nextId) await expect(page.locator(`[data-opportunity-id="${scenario.nextId}"]`)).toBeVisible()
+  }
+  } finally {
+    releaseGroup?.()
+    await page.unroute(apiRoute)
   }
 })
 
