@@ -4,7 +4,7 @@ from uuid import UUID, uuid4
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, select
+from sqlalchemy import create_engine, select, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 
@@ -181,6 +181,17 @@ def test_daily_question_cap_holds_then_reopens_next_day(runtime, monkeypatch):
     assert schedule(factory, card, now=now + timedelta(hours=2)) == []
     next_day = schedule(factory, card, now=now + timedelta(days=1))
     assert len(next_day) == 1
+
+
+def test_daily_cap_uses_one_utc_clock_for_inserted_question(runtime, monkeypatch):
+    factory, _, _, card = runtime
+    monkeypatch.setattr(settings, "autonomous_research_daily_questions", 1)
+    now = datetime(2026, 10, 8, 0, 30, tzinfo=UTC)
+    with factory.begin() as session:
+        session.execute(text("SET LOCAL TIME ZONE 'America/Chicago'"))
+        rows = schedule_questions(session, [card], now=now)
+        assert len(rows) == 1
+        assert rows[0].created_at == now
 
 
 @pytest.mark.parametrize("change", ["force", "evidence", "expired"])
@@ -1408,11 +1419,16 @@ def test_planning_discovers_supported_need_beyond_shortlist_without_splitting_gr
     assert len(planned) == 51
     assert planned[-1]["id"] == card["id"]
     monkeypatch.setattr(settings, "autonomous_research_daily_questions", 1)
+    first_day = datetime(2026, 10, 8, 0, 30, tzinfo=UTC)
     with factory.begin() as session:
-        scheduled = schedule_questions(session, [planned[-1]])
+        session.execute(text("SET LOCAL TIME ZONE 'America/Chicago'"))
+        scheduled = schedule_questions(session, [planned[-1]], now=first_day)
         assert len(scheduled) == 1
     with factory.begin() as session:
-        assert schedule_questions(session, planned) == []
+        session.execute(text("SET LOCAL TIME ZONE 'America/Chicago'"))
+        assert schedule_questions(session, planned, now=first_day) == []
+    with factory() as session:
+        assert len(list(session.scalars(select(PursuitResearchQuestion)))) == 1
 
 
 def test_real_projection_groups_outside_shortlist_before_research_planning(runtime, monkeypatch):

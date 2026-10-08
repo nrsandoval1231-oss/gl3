@@ -1,6 +1,6 @@
 """Synthetic exact-source fixtures exercising canonical research transitions."""
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from importlib import import_module
 from uuid import uuid4
 
@@ -493,7 +493,7 @@ def test_resolved_public_phase_worker_creates_one_bounded_followup(canonical_run
     from gridlens.persistence.models import Project
 
     factory, source, worker, seed_job = canonical_runtime
-    today = datetime.now(UTC).date()
+    today = date(2026, 10, 1)
     url = "https://www.datacenterdynamics.com/en/news/synthetic-clayton-update/"
     initial_description = "Construct new data center."
     with factory.begin() as session:
@@ -620,7 +620,7 @@ def test_worker_public_adverse_report_vetoes_only_supported_exact_activity(
     from gridlens.persistence.models import Project
 
     factory, source, worker, seed_job = canonical_runtime
-    today = datetime.now(UTC).date()
+    today = date(2026, 10, 1)
     url = "https://www.datacenterdynamics.com/en/news/synthetic-adverse-update/"
     description = (
         "Construct new data center. 811 Clayton Ln construction requires 1 MW. "
