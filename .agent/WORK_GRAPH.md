@@ -1,3 +1,11 @@
+# Current commercial-fixture repair frontier — October 8, 2026
+
+A5A accepted / draft PR40 / recorded CI PASS. Five prior A5B independent FIX receipts are preserved. Tested 6746240463bd389ba182055ec9ec17f325dcf975 passes root 1419 backend tests (2 environmental skips), 62 browser tests and mandatory gates, retained parity and query bounds. Exact proof: .agent/artifacts/GL3-AUDIT-A5B-FIXTURE-CONTROLLER. Fresh independent review PENDING; A5B is not accepted or published. Supersedes earlier pending states below.
+
+Direction VALIDATE exact proof descendant. A6 facts/workflow → functional UI/bulk status → A8 remain dependent; A7 original assets and real launch gates OPEN. UNKNOWN-only status is partial. Parent OPEN. No original data mutation, merge, deploy, paid activation or external messages.
+
+## Historical checkpoints
+
 # Current group-scope validation failure — October 8, 2026
 
 A5B group source dcd8ff6 / tested cf338691 has 1,419 backend passes but full browser61passed/1fixture failure. Frozen raw proof .agent/artifacts/GL3-AUDIT-A5B-GROUP-CONTROLLER is unaccepted; no fresh corpus/performance acceptance was completed on this failed checkpoint. Direction CORRECT_TEST_FIXTURE only after preserving this exact failure. Five prior independent FIX receipts remain preserved. A5A draft PR40 remains accepted/recorded CI PASS.
