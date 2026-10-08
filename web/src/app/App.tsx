@@ -51,6 +51,9 @@ function opportunityCohortKey(tier: Tier, search: string, decision: SignalFilter
     filters.prioritySegment ?? '', filters.status ?? '',
   ])
 }
+function opportunityPageKey(tier: Tier, search: string, decision: SignalFilter, filters: OpportunityBrowseFilters, offset: number) {
+  return `${opportunityCohortKey(tier, search, decision, filters)}:${offset}`
+}
 function selectedIdFromHash(hash: string) {
   if (!hash.startsWith('#') || hash.length < 2) return ''
   try { return decodeURIComponent(hash.slice(1)) } catch { return '' }
@@ -173,11 +176,18 @@ export function App() {
   const [pageRevision, setPageRevision] = useState(0)
   const [navigationRevision, setNavigationRevision] = useState(0)
   const requestSequence = useRef(0)
+  const loadedOpportunityPageKey = useRef<string | null>(null)
   const opportunityCohort = useRef<{ key: string; token: string } | null>(null)
   const navigationSequence = useRef(0)
   const pageRevisionRef = useRef(0)
   const pendingSelection = useRef<PendingSelection | null>(null)
   const pendingViewRestore = useRef<PendingViewRestore | null>(null)
+  const requestedPageKey = opportunityPageKey(tier, search, tier === 'Signals' ? signalFilter : 'ALL', browseFilters, offset)
+  const opportunityPageIsCurrent = view === 'opportunities'
+    && loadedOpportunityPageKey.current === requestedPageKey
+    && opportunityPage?.offset === offset
+  const currentOpportunityPage = opportunityPageIsCurrent ? opportunityPage : null
+  const currentOpportunityItems = opportunityPageIsCurrent ? items : []
 
   function cancelPendingNavigation() {
     navigationSequence.current += 1
@@ -236,10 +246,12 @@ export function App() {
         if (view === 'opportunities') {
           const decision = tier === 'Signals' ? signalFilter : 'ALL'
           const cohortKey = opportunityCohortKey(tier, search, decision, browseFilters)
+          const requestedPageKey = opportunityPageKey(tier, search, decision, browseFilters, offset)
           const pending = pendingSelection.current
           const restoreIntent = pending?.cohortKey === cohortKey && pending.offset === offset ? pending : null
           let cohortToken = opportunityCohort.current?.key === cohortKey ? opportunityCohort.current.token : ''
-          if (offset > 0 && opportunityPage?.offset !== offset) {
+          if (loadedOpportunityPageKey.current !== requestedPageKey || opportunityPage?.offset !== offset) {
+            loadedOpportunityPageKey.current = null
             setItems([])
             setOpportunityPage(null)
             setExpandedGroupMembers({})
@@ -262,6 +274,7 @@ export function App() {
           opportunityCohort.current = opportunities.cohortToken
             ? { key: cohortKey, token: opportunities.cohortToken }
             : null
+          loadedOpportunityPageKey.current = requestedPageKey
           setItems(opportunities.items)
           setOpportunityPage(opportunities)
           setExpandedGroupMembers({})
@@ -309,6 +322,7 @@ export function App() {
       } catch (cause: unknown) {
         if (requestId === requestSequence.current && cause instanceof OpportunityCohortChangedError) {
           opportunityCohort.current = null
+          loadedOpportunityPageKey.current = null
           pendingSelection.current = null
           pendingViewRestore.current = null
           setItems([])
@@ -455,7 +469,7 @@ export function App() {
       setExpandedCardKey(null)
       return
     }
-    if (!card.complete && card.groupTotal && opportunityPage?.cohortToken) {
+    if (!card.complete && card.groupTotal && currentOpportunityPage?.cohortToken) {
       try {
         const loaded: Opportunity[] = []
         let nextOffset = 0
@@ -465,7 +479,7 @@ export function App() {
             tierValue(tier),
             search,
             signalFilter,
-            opportunityPage.cohortToken,
+            currentOpportunityPage.cohortToken,
             50,
             nextOffset,
             browseFilters,
@@ -556,19 +570,19 @@ export function App() {
   if (authenticated === null) return <main className="loading" aria-live="polite">Loading your private workspace…</main>
   if (!authenticated) return <main className="login-wrap"><form className="login" onSubmit={onLogin}><img src="/brand/lockup-horizontal-navy.svg" alt="GridLens"/><h1>Sign in</h1><p>Your private GridLens workspace.</p><label htmlFor="password">Password</label><input id="password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required/><button className="primary">Continue</button>{error && <p role="alert" className="error">{error}</p>}</form></main>
 
-  const selectedIndex = selected ? items.findIndex((item) => item.id === selected.id) : -1
-  const cards: ProjectCard[] = serverProjectCards(items).map((card) => ({
+  const selectedIndex = selected ? currentOpportunityItems.findIndex((item) => item.id === selected.id) : -1
+  const cards: ProjectCard[] = serverProjectCards(currentOpportunityItems).map((card) => ({
     ...card,
     members: expandedGroupMembers[card.key] ?? card.members,
   }))
   const visibleCards = cards
-  const signalCounts = opportunityPage?.decisionCounts ?? { SHOW: 0, REVIEW: 0, HOLD: 0 }
-  const signalAllCount = opportunityPage?.groupTotalCount ?? 0
+  const signalCounts = currentOpportunityPage?.decisionCounts ?? { SHOW: 0, REVIEW: 0, HOLD: 0 }
+  const signalAllCount = currentOpportunityPage?.groupTotalCount ?? 0
   const sourceOptions = (health?.sources ?? []).map((source) => ({ id: source.id, label: sourceLabel(source.id) }))
   if (sourceFilter && !sourceOptions.some((source) => source.id === sourceFilter)) {
     sourceOptions.unshift({ id: sourceFilter, label: `${sourceLabel(sourceFilter)} (unavailable)` })
   }
-  const matchingRecordCount = opportunityPage?.totalCount ?? items.length
+  const matchingRecordCount = currentOpportunityPage?.totalCount ?? currentOpportunityItems.length
   const selectedGroup = selected && cards.find((card) => card.grouped && card.members.some((item) => item.id === selected.id))
   const selectedSharesProjectId = Boolean(selectedGroup && selected?.project_id && selectedGroup.members.every((member) => member.project_id === selected.project_id))
   return <div className={`shell${view === 'pursuits' ? ' shell-commercial' : ''}`}>
@@ -580,7 +594,7 @@ export function App() {
       {!selected && view === 'ingestion' && <section className="hero"><div><p className="eyebrow">Retained evidence · Publisher and government sources</p><h1>Ingestion inbox</h1><p>Permits are primary project discovery; news is supplemental. Source evidence and qualification stay visible. City permit coverage is regional and limited to a rolling issue-date window.</p></div></section>}
       {selected && <section className="hero detail-hero"><div><p className="eyebrow">{selected.tier} · {selected.activity.replaceAll('-', ' ')}{selected.tier === 'Signal' ? ` · ${selected.signal_display_decision ?? 'REVIEW'}` : ''}</p><h1>{projectTitle(selected)}</h1>{selected.commercial_size_status === 'unknown' && selected.tier === 'Signal' && <p role="status" className="integrity"><strong>Activity size unknown.</strong> Retained for investigation; the 300 kW minimum is inclusive.</p>}{selected.signal_evidence_state === 'planning_application_withdrawn' && <p role="status" className="integrity"><strong>Planning application withdrawn · historical Signal.</strong> Current project viability is unknown.</p>}{selected.signal_evidence_state === 'planning_status_unknown' && <p role="status" className="integrity"><strong>Conflicting planning revision · historical Signal.</strong> Current application and project status are unknown.</p>}<p>{selected.rationale}</p>{selectedGroup && <p className="group-context">{selectedSharesProjectId ? `Part of a physical project group with ${selectedGroup.members.length} retained records. Each record and its evidence remain available.` : `Part of an exact-event permit group with ${selectedGroup.members.length} records. Each record and its evidence remain separate.`}</p>}</div><button className="back-button" onClick={returnToBrowse}>← Back to {tier}</button></section>}
       {showHealth && <HealthPanel health={health} />}
-      {view === 'opportunities' && <div className="list-toolbar"><div><h2>{selected ? 'Opportunity brief' : `${tier} · ${opportunityPage?.groupTotalCount ?? visibleCards.length} filtered project cards · ${opportunityPage?.totalCount ?? items.length} filtered opportunity records`}</h2>{!selected && <p>{tier === 'Signals' ? `${signalFilter === 'ALL' ? 'All' : signalFilter} · ${visibleCards.length} cards and ${items.length} records on this page of ${opportunityPage?.groupTotalCount ?? 0} filtered cards and ${opportunityPage?.totalCount ?? 0} records. SHOW means worth investigating, not qualified.` : 'Browse the evidence and open a project for its source details.'}</p>}</div><label className="search"><span className="sr-only">Search projects</span><input value={search} onChange={(event) => { const nextSearch = event.target.value; if (nextSearch === search) return; cancelPendingNavigation(); setSearch(nextSearch); setOffset(0); setItems([]); setOpportunityPage(null); setExpandedGroupMembers({}); setSelected(null) }} placeholder="Search projects, work, or permit ID"/></label>{!selected && opportunityPage && <a href={client.opportunityExportUrl(tierValue(tier), search, tier === 'Signals' ? signalFilter : 'ALL', opportunityPage.cohortToken, browseFilters)} download>Download filtered CSV</a>}</div>}
+      {view === 'opportunities' && <div className="list-toolbar"><div><h2>{selected ? 'Opportunity brief' : currentOpportunityPage ? `${tier} · ${currentOpportunityPage.groupTotalCount} filtered project cards · ${currentOpportunityPage.totalCount} filtered opportunity records` : `${tier} · ${loading ? 'Loading' : 'Unavailable'} page ${Math.floor(offset / pageSize) + 1}`}</h2>{!selected && <p>{currentOpportunityPage ? tier === 'Signals' ? `${signalFilter === 'ALL' ? 'All' : signalFilter} · ${visibleCards.length} cards and ${currentOpportunityItems.length} records on this page of ${currentOpportunityPage.groupTotalCount} filtered cards and ${currentOpportunityPage.totalCount} records. SHOW means worth investigating, not qualified.` : 'Browse the evidence and open a project for its source details.' : `Page ${Math.floor(offset / pageSize) + 1} ${loading ? 'is loading' : 'is unavailable'}.`}</p>}</div><label className="search"><span className="sr-only">Search projects</span><input value={search} onChange={(event) => { const nextSearch = event.target.value; if (nextSearch === search) return; cancelPendingNavigation(); setSearch(nextSearch); setOffset(0); setItems([]); setOpportunityPage(null); setExpandedGroupMembers({}); setSelected(null) }} placeholder="Search projects, work, or permit ID"/></label>{!selected && currentOpportunityPage && <a href={client.opportunityExportUrl(tierValue(tier), search, tier === 'Signals' ? signalFilter : 'ALL', currentOpportunityPage.cohortToken, browseFilters)} download>Download filtered CSV</a>}</div>}
       {view === 'opportunities' && !selected && <div className="browse-filter-controls" aria-label="Filter opportunity records">
         <label>Geography<select aria-label="Select unknown geography" value={browseFilters.geography === 'UNKNOWN' ? 'UNKNOWN' : ''} onChange={(event) => changeBrowseFilter('geography', event.target.value)}><option value="">Any exact location</option><option value="UNKNOWN">Unknown</option></select><input aria-label="Filter by exact geography" placeholder="Exact stored location" value={browseFilters.geography === 'UNKNOWN' ? '' : browseFilters.geography ?? ''} onChange={(event) => changeBrowseFilter('geography', event.target.value)}/></label>
         <label>Industry<select aria-label="Select unknown industry" value={browseFilters.industry === 'UNKNOWN' ? 'UNKNOWN' : ''} onChange={(event) => changeBrowseFilter('industry', event.target.value)}><option value="">Any exact asset type</option><option value="UNKNOWN">Unknown</option></select><input aria-label="Filter by exact project asset type" placeholder="Exact stored asset type" value={browseFilters.industry === 'UNKNOWN' ? '' : browseFilters.industry ?? ''} onChange={(event) => changeBrowseFilter('industry', event.target.value)}/></label>
@@ -592,11 +606,11 @@ export function App() {
         <label>Priority<select aria-label="Filter by canonical priority segment" value={browseFilters.prioritySegment ?? ''} onChange={(event) => changeBrowseFilter('prioritySegment', event.target.value)}><option value="">Any priority</option>{Array.from({ length: 9 }, (_, segment) => <option key={segment} value={segment}>Segment {segment}</option>)}</select></label>
         <label>Workflow status<select aria-label="Filter by workflow status" value={browseFilters.status ?? ''} onChange={(event) => changeBrowseFilter('status', event.target.value)}><option value="">Any status</option><option value="UNKNOWN">Unknown</option></select></label>
       </div>}
-      {view === 'opportunities' && tier === 'Signals' && !selected && <div className="signal-filters" role="group" aria-label="Filter Signals by review decision">{(['ALL', 'SHOW', 'REVIEW', 'HOLD'] as const).map((decision) => { const count = decision === 'ALL' ? signalAllCount : signalCounts[decision]; return <button key={decision} className={signalFilter === decision ? 'signal-filter-active' : ''} aria-pressed={signalFilter === decision} onClick={() => { if (decision === signalFilter) return; cancelPendingNavigation(); setSignalFilter(decision); setSelected(null); setOffset(0); setItems([]); setOpportunityPage(null); setExpandedGroupMembers({}) }}>{decision === 'ALL' ? 'All' : decision} <span>{count}</span></button> })}</div>}
+      {view === 'opportunities' && tier === 'Signals' && !selected && <div className="signal-filters" role="group" aria-label="Filter Signals by review decision">{(['ALL', 'SHOW', 'REVIEW', 'HOLD'] as const).map((decision) => { const count = !currentOpportunityPage ? '…' : decision === 'ALL' ? signalAllCount : signalCounts[decision]; return <button key={decision} className={signalFilter === decision ? 'signal-filter-active' : ''} aria-pressed={decision === signalFilter} onClick={() => { if (decision === signalFilter) return; cancelPendingNavigation(); setSignalFilter(decision); setSelected(null); setOffset(0); setItems([]); setOpportunityPage(null); setExpandedGroupMembers({}) }}>{decision === 'ALL' ? 'All' : decision} <span>{count}</span></button> })}</div>}
       {view === 'ingestion' && <div className="ingestion-tools"><label>Source<select aria-label="Filter by source" value={sourceFilter} onChange={(event) => { setSourceFilter(event.target.value); setOffset(0) }}><option value="">All sources</option>{sourceOptions.map((source) => <option value={source.id} key={source.id}>{source.label}</option>)}</select></label><label>Source sector<select aria-label="Filter by source sector" value={verticalFilter} onChange={(event) => chooseVertical(event.target.value)}><option value="">All source sectors</option>{verticalGroups.map((group) => <option value={group.id} key={group.id}>{group.label}</option>)}</select></label><span>{ingestionTotal} retained {ingestionTotal === 1 ? 'item' : 'items'} · page {Math.floor(offset / pageSize) + 1}</span></div>}
       {error && <p role="alert" className="error-banner">{error}</p>}
       {loading && <p className="loading-inline" role="status">Updating this view…</p>}
-      {view === 'pursuits' ? null : selected ? <><OpportunityDetail item={selected}/><div className="detail-navigation"><button disabled={selectedIndex <= 0} onClick={() => moveTo(items[selectedIndex - 1])}>← Previous</button><button disabled={selectedIndex < 0 || selectedIndex >= items.length - 1} onClick={() => moveTo(items[selectedIndex + 1])}>Next →</button></div></> : view === 'opportunities' ? visibleCards.length ? <div className="opportunity-list">{visibleCards.map((card) => {
+      {view === 'pursuits' ? null : selected ? <><OpportunityDetail item={selected}/><div className="detail-navigation"><button disabled={selectedIndex <= 0} onClick={() => moveTo(currentOpportunityItems[selectedIndex - 1])}>← Previous</button><button disabled={selectedIndex < 0 || selectedIndex >= currentOpportunityItems.length - 1} onClick={() => moveTo(currentOpportunityItems[selectedIndex + 1])}>Next →</button></div></> : view === 'opportunities' ? visibleCards.length ? <div className="opportunity-list">{visibleCards.map((card) => {
         const matchingMembers = card.members.filter((item) => item.matched_search !== false)
         const members = card.members
         const decision = signalDisplayDecision(card.members)
@@ -614,8 +628,8 @@ export function App() {
           </button>
           {card.grouped && expanded && <div className="project-members"><p>{card.complete ? `${matchingMembers.length} matching · ${card.groupTotal ?? card.members.length} related ${card.members.every((member) => member.evidence.some((evidence) => evidence.source_id.endsWith('-building-permits'))) ? 'permit ' : ''}records` : `${card.members.length} of ${card.groupTotal ?? card.members.length} related records loaded`}</p>{sameProject && <p>Grouped under the same stable physical project identity. Each record and its evidence remain available below.</p>}{lifecycleEvents.size > 0 && <p>Lifecycle evidence: {[...lifecycleEvents.values()].map((event) => <span key={`${event.event_type}:${event.date ?? ''}:${event.evidence_url}`}>{event.event_type.replaceAll('_', ' ')}{event.date ? ` · ${event.date}` : ''}; </span>)}</p>}{members.map((member) => { const memberDecision = signalDisplayDecision([member]); return <button key={member.id} data-opportunity-id={member.id} className="project-member" onClick={() => open(member)}><strong>{projectTitle(member)}</strong>{tier === 'Signals' && <span className={`tier-pill signal-decision-badge signal-decision-${memberDecision.toLowerCase()}`} style={{ marginBottom: 0 }} data-review-decision={memberDecision}><strong>Decision: {memberDecision}</strong></span>}<span>{memberDate(member)} · {member.location ?? 'Location unknown'}{member.matched_search && search ? ' · Matches search' : ''}</span><span>Open this record and its evidence →</span></button> })}</div>}
         </div>
-      })}</div> : !loading ? <div className="empty"><span className="empty-mark" aria-hidden="true">◇</span><h3>{search ? 'No matching projects' : tier === 'Signals' ? signalFilter === 'ALL' ? 'No Signals yet' : signalFilter === 'SHOW' ? 'No SHOW decisions yet' : `No ${signalFilter} Signals` : `No ${tier.toLowerCase()} yet`}</h3><p>{search ? tier === 'Signals' && signalFilter !== 'ALL' && matchingRecordCount > 0 ? `Matching Signal records exist outside the ${signalFilter} filter. Switch decision tabs to inspect them.` : 'No retained opportunity records match this search.' : tier === 'Signals' ? signalFilter === 'SHOW' ? `Check REVIEW (${signalCounts.REVIEW}) for uncertain or not-yet-adjudicated projects. An unavailable Jev decision stays visible there.` : signalFilter === 'ALL' ? 'No Signal project cards are currently available.' : `No project cards currently have a ${signalFilter} decision.` : `${tier} require additional supported facts. They will appear here when the evidence meets the qualification gate.`}</p></div> : null : <><IngestionList items={ingestionItems} loading={loading}/><div className="collection-pagination"><button disabled={offset <= 0 || loading} onClick={() => setOffset(Math.max(0, offset - pageSize))}>← Previous</button><button disabled={offset + pageSize >= ingestionTotal || loading} onClick={() => setOffset(offset + pageSize)}>Next →</button></div></>}
-      {view === 'opportunities' && !selected && <div className="collection-pagination"><span>{opportunityPage?.totalCount ?? 0} filtered records · page {Math.floor(offset / pageSize) + 1}</span><button disabled={offset <= 0 || loading} onClick={() => { cancelPendingNavigation(); setOffset(Math.max(0, offset - pageSize)) }}>← Previous</button><button disabled={!opportunityPage || opportunityPage.nextOffset == null || loading} onClick={() => { const next = opportunityPage?.nextOffset; if (next !== null && next !== undefined) { cancelPendingNavigation(); setOffset(next) } }}>Next →</button></div>}
+      })}</div> : !loading && !error && currentOpportunityPage ? <div className="empty"><span className="empty-mark" aria-hidden="true">◇</span><h3>{search ? 'No matching projects' : tier === 'Signals' ? signalFilter === 'ALL' ? 'No Signals yet' : signalFilter === 'SHOW' ? 'No SHOW decisions yet' : `No ${signalFilter} Signals` : `No ${tier.toLowerCase()} yet`}</h3><p>{search ? tier === 'Signals' && signalFilter !== 'ALL' && matchingRecordCount > 0 ? `Matching Signal records exist outside the ${signalFilter} filter. Switch decision tabs to inspect them.` : 'No retained opportunity records match this search.' : tier === 'Signals' ? signalFilter === 'SHOW' ? `Check REVIEW (${signalCounts.REVIEW}) for uncertain or not-yet-adjudicated projects. An unavailable Jev decision stays visible there.` : signalFilter === 'ALL' ? 'No Signal project cards are currently available.' : `No project cards currently have a ${signalFilter} decision.` : `${tier} require additional supported facts. They will appear here when the evidence meets the qualification gate.`}</p></div> : null : <><IngestionList items={ingestionItems} loading={loading}/><div className="collection-pagination"><button disabled={offset <= 0 || loading} onClick={() => setOffset(Math.max(0, offset - pageSize))}>← Previous</button><button disabled={offset + pageSize >= ingestionTotal || loading} onClick={() => setOffset(offset + pageSize)}>Next →</button></div></>}
+      {view === 'opportunities' && !selected && <div className="collection-pagination"><span>{currentOpportunityPage ? `${currentOpportunityPage.totalCount} filtered records` : loading ? 'Loading page' : 'Page unavailable'} · page {Math.floor(offset / pageSize) + 1}</span><button disabled={offset <= 0 || loading || !currentOpportunityPage} onClick={() => { cancelPendingNavigation(); setOffset(Math.max(0, offset - pageSize)) }}>← Previous</button><button disabled={!currentOpportunityPage || currentOpportunityPage.nextOffset == null || loading} onClick={() => { const next = currentOpportunityPage?.nextOffset; if (next !== null && next !== undefined) { cancelPendingNavigation(); setOffset(next) } }}>Next →</button></div>}
       </main><footer>Coverage is limited to configured and checked sources. Unknown project facts stay unknown.</footer>
   </div>
 }
