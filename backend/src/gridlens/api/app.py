@@ -1,29 +1,52 @@
+import hashlib
+import io
+import json
 from collections import defaultdict
+from csv import DictWriter
 from datetime import UTC, date, datetime, timedelta
 from datetime import date as DateType
-from uuid import UUID
+from decimal import Decimal, InvalidOperation
+from typing import Annotated, Any, Literal
+from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
 
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field, SecretStr
-from sqlalchemy import Date, func, or_, select
+from sqlalchemy import Date, Text, and_, cast, func, or_, select
+from sqlalchemy.orm import joinedload
 
 from gridlens.api.verticals import vertical_source_tags
 from gridlens.domain.buying_chain import BuyingChainOut, BuyingEnrichBody
-from gridlens.domain.commercial_presentation import commercial_size_status
+from gridlens.domain.call_facts import (
+    CurrentOperatorInputBoundExceeded,
+    _source_lead_timing_bounds,
+    canonical_hash,
+    fact_digest,
+    validate_fact,
+    validate_timezone,
+)
+from gridlens.domain.commercial_presentation import commercial_size_status, exact_mw_interval
 from gridlens.domain.commercial_triage import POLICY_VERSION as COMMERCIAL_TRIAGE_POLICY
-from gridlens.domain.commercial_triage import cards as make_commercial_cards
+from gridlens.domain.commercial_triage import (
+    cards as make_commercial_cards,
+)
+from gridlens.domain.commercial_triage import (
+    grouped_need_groups,
+)
 from gridlens.domain.pursuits import (
     AutonomousResearchBody,
     AutonomousResearchOut,
     CommercialResearchBody,
     CommercialResearchStatusOut,
+    CommercialTriageHistoryItem,
     CommercialTriageHistoryOut,
     CommercialTriageOut,
 )
 from gridlens.domain.signal_admission import admitted_from_source, source_origin
+from gridlens.domain.workflow_status import WORKFLOW_STATUSES
 from gridlens.ingestion.registry import load_registry
-from gridlens.ingestion.service import _need_has_current_support
+from gridlens.ingestion.service import _current_need_claims, _need_has_current_support
 from gridlens.intelligence.briefs import (
     BriefUnavailable,
     brief_fingerprint,
@@ -32,21 +55,43 @@ from gridlens.intelligence.briefs import (
     brief_view,
     request_brief,
 )
-from gridlens.intelligence.buying_chain import buying_chain_view, enrich_buying_chain
+from gridlens.intelligence.buying_chain import (
+    buying_chain_view,
+    buying_chain_views,
+    enrich_buying_chain,
+)
 from gridlens.intelligence.lifecycle_service import lifecycle_event_supported
+from gridlens.intelligence.opportunity_browse import (
+    add_browse_evidence,
+    grouped_opportunities,
+    grouped_signal_decision,
+    matched_opportunity,
+    normalized_dimension,
+    opportunity_group_id,
+)
+from gridlens.intelligence.opportunity_browse import (
+    cohort_token as build_opportunity_cohort_token,
+)
+from gridlens.intelligence.opportunity_browse import (
+    project_title as opportunity_project_title,
+)
 from gridlens.intelligence.project_state import project_state as read_project_state
 from gridlens.intelligence.signal_adjudication import POLICY_VERSION, adjudicate_current_signals
 from gridlens.jobs.queue import enqueue
 from gridlens.persistence.database import SessionLocal
 from gridlens.persistence.models import (
     BuyingChainEvidence,
+    CallFactDecision,
+    CallFactVersion,
     ChangeEvent,
     Evidence,
     Interpretation,
     Job,
     LifecycleEvent,
     NeedObservation,
+    NeedWorkflowStatusEvent,
     Observation,
+    PlannerState,
     PowerNeed,
     PowerNeedBrief,
     PowerNeedBriefVersion,
@@ -54,18 +99,33 @@ from gridlens.persistence.models import (
     ProjectLifecycle,
     SignalDecision,
     Source,
+    SourceCheckReceipt,
+    SourceDueCheck,
+    SourceScheduleEpoch,
+    WorkerHeartbeat,
 )
 from gridlens.security import (
     check_password,
-    login_allowed,
-    record_login_failure,
+    client_ip,
+    consume_login_attempt,
+    create_session,
     require_same_origin,
     require_session,
-    token_for,
+    revoke_token,
 )
 from gridlens.settings import settings
 
 app = FastAPI(title="GridLens API", version="1.0.0", openapi_url=None)
+WorkflowStatusFilter = Literal[
+    "UNKNOWN", "NEW", "INVESTIGATING", "CONTACTED", "QUALIFIED", "WON", "LOST", "CLOSED"
+]
+
+
+@app.exception_handler(CurrentOperatorInputBoundExceeded)
+async def current_operator_input_bound_error(
+    _request: Request, exc: CurrentOperatorInputBoundExceeded
+):
+    return JSONResponse(status_code=413, content={"detail": str(exc)})
 
 
 def chicago_today(now: datetime | None = None) -> date:
@@ -108,6 +168,7 @@ class OpportunityOut(BaseModel):
     name: str
     location: str | None
     tier: str
+    workflow_status: str = "UNKNOWN"
     activity: str
     rationale: str
     signal_evidence_state: str = "active_evidence"
@@ -147,6 +208,631 @@ class OpportunityOut(BaseModel):
     brief_summary: str | None = None
     brief_generated_at: datetime | None = None
     brief_stale: bool = False
+    group_id: str | None = None
+    group_title: str | None = None
+    group_total_filtered: int | None = None
+    group_loaded_on_page: int | None = None
+    group_complete_on_page: bool | None = None
+    matched_search: bool | None = None
+    priority_segment: int | None = None
+    priority_label: str | None = None
+
+
+class CallFactDraftBody(BaseModel):
+    client_id: UUID
+    project_id: UUID
+    pursuit_id: UUID | None = None
+    expected_version: int = Field(ge=0)
+    predecessor_id: UUID | None = None
+    activity_key: str = Field(min_length=1, max_length=100)
+    facility_scope: str = Field(min_length=2, max_length=500)
+    fact_type: str
+    value: dict[str, Any]
+    reporter_name: str = Field(min_length=2, max_length=160)
+    reporter_organization: str | None = Field(default=None, max_length=200)
+    reporter_role: str | None = Field(default=None, max_length=160)
+    confirmation_channel: str = Field(min_length=2, max_length=40)
+    source_reference: str | None = Field(default=None, max_length=2000)
+    source_date: date | None = None
+    confirmed_at: datetime
+    effective_from: datetime
+    effective_until: datetime | None = None
+
+
+class CallFactDecisionBody(BaseModel):
+    client_id: UUID
+    expected_version: int = Field(ge=0)
+    decision: str
+    reason: str = Field(min_length=3, max_length=1000)
+
+
+class NeedWorkflowStatusBody(BaseModel):
+    client_id: UUID
+    project_id: UUID
+    pursuit_id: UUID | None = None
+    expected_version: int = Field(ge=0)
+    status: str
+    reason: str = Field(min_length=3, max_length=1000)
+
+
+class CallFactOut(BaseModel):
+    id: UUID
+    need_id: UUID
+    project_id: UUID
+    pursuit_id: UUID | None
+    predecessor_id: UUID | None
+    activity_key: str
+    facility_scope: str
+    fact_type: str
+    value: dict[str, Any]
+    reporter_name: str
+    reporter_organization: str | None
+    reporter_role: str | None
+    confirmation_channel: str
+    source_reference: str | None
+    source_date: date | None
+    confirmed_at: datetime
+    effective_from: datetime
+    effective_until: datetime | None
+    content_hash: str
+    decision: str
+    decision_version: int | None
+    decision_reason: str | None
+    decision_actor: str | None
+    decided_at: datetime | None
+    authority_label: str
+    recorded_by: str
+    created_at: datetime
+
+
+class TimingCorrectionTargetOut(BaseModel):
+    available: bool
+    unavailable_reason: str | None
+    need_id: UUID
+    project_id: UUID
+    project_identity_key: str
+    activity_key: str
+    facility_identity: str | None
+    source_semantic_hash: str | None
+    source_evidence_hash: str | None
+    retained_evidence_id: str | None
+    source_id: str | None
+    earliest_possible_start: DateType | None
+    latest_possible_start: DateType | None
+    minimum_duration_days: int | None
+    maximum_duration_days: int | None
+    current_fact_version: int
+
+
+class CallFactPageOut(BaseModel):
+    items: list[CallFactOut]
+    total: int
+    limit: int
+    offset: int
+    next_offset: int | None
+    current_fact_version: int
+    current_reported_timing_correction_target: TimingCorrectionTargetOut
+
+
+class CallFactDecisionOut(BaseModel):
+    id: UUID
+    version: int
+    decision: str
+    reason: str
+    actor: str
+    created_at: datetime
+    fact_version_id: UUID | None = None
+    content_hash: str | None = None
+    tier: str | None = None
+    active: bool | None = None
+
+
+class NeedWorkflowEventOut(BaseModel):
+    id: UUID
+    need_id: UUID
+    project_id: UUID
+    pursuit_id: UUID | None
+    version: int
+    status: str
+    previous_status: str | None
+    expected_version: int
+    reason: str
+    content_hash: str
+    actor: str
+    created_at: datetime
+
+
+class NeedWorkflowStatusOut(BaseModel):
+    status: str
+    version: int
+    events: list[NeedWorkflowEventOut]
+
+
+class OpportunityGroupPageOut(BaseModel):
+    items: list[OpportunityOut]
+    total: int
+    limit: int
+    offset: int
+    next_offset: int | None
+    cohort_token: str
+
+
+_BROWSE_FILTER_NAMES = {
+    "geography",
+    "industry",
+    "activity",
+    "timing",
+    "mw_status",
+    "mw_min",
+    "mw_max",
+    "priority_segment",
+    "status",
+}
+_BROWSE_QUERY_NAMES = _BROWSE_FILTER_NAMES | {
+    "tier",
+    "search",
+    "decision",
+    "cohort_token",
+    "limit",
+    "offset",
+}
+_PRIORITY_SEGMENT_LABELS = {
+    0: "Data center project phase",
+    1: "Data center commissioning",
+    2: "Producing asset",
+    3: "Explicit temporary or construction power scope",
+    4: "Data center commissioning evidence",
+    5: "Data center construction evidence",
+    6: "Data center",
+    7: "Oil and gas activity",
+    8: "Other opportunity",
+}
+
+
+def _opportunity_priority_segment(item: dict[str, Any]) -> int | None:
+    value = item.get("_priority_segment")
+    return value if isinstance(value, int) else None
+
+
+def _opportunity_priority_label(item: dict[str, Any]) -> str | None:
+    segment = _opportunity_priority_segment(item)
+    return _PRIORITY_SEGMENT_LABELS.get(segment) if segment is not None else None
+
+
+def _validate_browse_query(request: Request) -> None:
+    allowed = _BROWSE_QUERY_NAMES
+    if request.url.path == "/api/opportunities/export.csv":
+        allowed = allowed - {"offset"}
+    unsupported = sorted(set(request.query_params.keys()) - allowed)
+    if unsupported:
+        raise HTTPException(
+            422,
+            {
+                "message": "Unsupported opportunity browse query parameter",
+                "unsupported": unsupported,
+                "supported": sorted(allowed),
+            },
+        )
+
+
+def _normalized_browse_filters(
+    *,
+    tier: str | None,
+    decision: str | None,
+    geography: str | None,
+    industry: str | None,
+    activity: str | None,
+    timing: str | None,
+    mw_status: str | None,
+    mw_min: str | None,
+    mw_max: str | None,
+    priority_segment: str | None,
+    status: str | None,
+    search: str | None,
+) -> dict[str, Any]:
+    if tier is not None:
+        tiers = {value.casefold(): value for value in ("Signal", "Prospect", "Lead")}
+        tier = tiers.get(tier.strip().casefold())
+        if tier is None:
+            raise HTTPException(422, "tier must be Signal, Prospect, or Lead")
+    if search is not None and len(search) > 250:
+        raise HTTPException(422, "search must be at most 250 characters")
+
+    def dimension(name: str, value: str | None) -> str | None:
+        if value is None:
+            return None
+        clean = normalized_dimension(value)
+        if not clean or len(clean) > 128:
+            raise HTTPException(422, f"{name} must contain 1 to 128 characters")
+        return "UNKNOWN" if clean == "unknown" else clean
+
+    def enum(name: str, value: str | None, accepted: set[str]) -> str | None:
+        if value is None:
+            return None
+        normalized = value.strip().upper()
+        if normalized not in accepted:
+            raise HTTPException(422, f"{name} must be one of {', '.join(sorted(accepted))}")
+        return normalized
+
+    decision = enum("decision", decision, {"ALL", "SHOW", "REVIEW", "HOLD"})
+    if decision not in {None, "ALL"} and tier != "Signal":
+        raise HTTPException(422, "Signal decisions can only filter Signal opportunities")
+    timing = enum("timing", timing, {"KNOWN", "UNKNOWN"})
+    mw_status = enum("mw_status", mw_status, {"KNOWN", "UNKNOWN"})
+    status = enum("status", status, {"UNKNOWN", *(value.upper() for value in WORKFLOW_STATUSES)})
+
+    def decimal_bound(name: str, value: str | None) -> str | None:
+        if value is None:
+            return None
+        if not value or len(value) > 64:
+            raise HTTPException(422, f"{name} must be a finite nonnegative decimal MW value")
+        try:
+            number = Decimal(value)
+        except InvalidOperation as exc:
+            raise HTTPException(
+                422, f"{name} must be a finite nonnegative decimal MW value"
+            ) from exc
+        if not number.is_finite() or number < 0:
+            raise HTTPException(422, f"{name} must be a finite nonnegative decimal MW value")
+        parts = number.as_tuple()
+        digits = list(parts.digits)
+        exponent = int(parts.exponent)
+        while digits and digits[-1] == 0:
+            digits.pop()
+            exponent += 1
+        if not digits:
+            return "0"
+        coefficient = "".join(str(digit) for digit in digits)
+        adjusted_exponent = exponent + len(coefficient) - 1
+        mantissa = coefficient[0] + (f".{coefficient[1:]}" if len(coefficient) > 1 else "")
+        return f"{mantissa}e{adjusted_exponent}"
+
+    minimum = decimal_bound("mw_min", mw_min)
+    maximum = decimal_bound("mw_max", mw_max)
+    if minimum is not None and maximum is not None and Decimal(minimum) > Decimal(maximum):
+        raise HTTPException(422, "mw_min must be less than or equal to mw_max")
+    if mw_status == "UNKNOWN" and (minimum is not None or maximum is not None):
+        raise HTTPException(422, "Numeric MW bounds cannot be combined with mw_status=UNKNOWN")
+    if priority_segment is None:
+        priority = None
+    elif not priority_segment.isdecimal() or not 0 <= int(priority_segment) <= 8:
+        raise HTTPException(422, "priority_segment must be an integer from 0 through 8")
+    else:
+        priority = int(priority_segment)
+    return {
+        "tier": tier,
+        "search": search,
+        "decision": decision,
+        "geography": dimension("geography", geography),
+        "industry": dimension("industry", industry),
+        "activity": dimension("activity", activity),
+        "timing": timing,
+        "mw_status": mw_status,
+        "mw_min": minimum,
+        "mw_max": maximum,
+        "priority_segment": priority,
+        "status": status,
+    }
+
+
+def _filter_opportunity_summaries(
+    items: list[dict[str, Any]], filters: dict[str, Any]
+) -> list[dict[str, Any]]:
+    minimum = Decimal(filters["mw_min"]) if filters.get("mw_min") is not None else None
+    maximum = Decimal(filters["mw_max"]) if filters.get("mw_max") is not None else None
+
+    def dimension_matches(
+        item: dict[str, Any],
+        field: str,
+        value: str | None,
+        *,
+        unknown_word: bool = False,
+    ) -> bool:
+        if value is None:
+            return True
+        actual = normalized_dimension(item.get(field))
+        if value == "UNKNOWN":
+            return not actual or (unknown_word and actual == "unknown")
+        return bool(actual) and actual == value
+
+    selected: list[dict[str, Any]] = []
+    for item in items:
+        if not dimension_matches(item, "location", filters.get("geography")):
+            continue
+        if not dimension_matches(item, "asset_type", filters.get("industry"), unknown_word=True):
+            continue
+        if not dimension_matches(item, "activity", filters.get("activity")):
+            continue
+        effective_timing = item.get("start_window")
+        has_timing = (
+            isinstance(effective_timing, str)
+            and bool(effective_timing.strip())
+            and normalized_dimension(effective_timing) != "unknown"
+        )
+        if filters.get("timing") == "KNOWN" and not has_timing:
+            continue
+        if filters.get("timing") == "UNKNOWN" and has_timing:
+            continue
+        demand = exact_mw_interval(item.get("required_mw"))
+        is_known_mw = demand is not None
+        if filters.get("mw_status") == "KNOWN" and not is_known_mw:
+            continue
+        if filters.get("mw_status") == "UNKNOWN" and is_known_mw:
+            continue
+        if minimum is not None or maximum is not None:
+            if demand is None:
+                continue
+            low, high = demand
+            if minimum is not None and high < minimum:
+                continue
+            if maximum is not None and low > maximum:
+                continue
+        if (
+            filters.get("priority_segment") is not None
+            and item.get("_priority_segment") != filters["priority_segment"]
+        ):
+            continue
+        selected_status = filters.get("status")
+        if selected_status is not None:
+            actual_status = str(item.get("workflow_status", "UNKNOWN")).upper()
+            if actual_status != selected_status:
+                continue
+        selected.append(item)
+    return selected
+
+
+class CommercialTriagePageOut(CommercialTriageOut):
+    limit: int | None = None
+    offset: int | None = None
+    grouped_total: int | None = None
+    next_offset: int | None = None
+
+
+class CommercialTriageHistoryPageOut(CommercialTriageHistoryOut):
+    total: int | None = None
+    limit: int | None = None
+    offset: int | None = None
+    next_offset: int | None = None
+
+
+_MAX_OPPORTUNITY_EVIDENCE_ROWS = 500
+_MAX_OPPORTUNITY_LIFECYCLE_ROWS = 500
+_MAX_OPPORTUNITY_PAGE_BYTES = 4_000_000
+_MAX_OPPORTUNITY_SEARCH_FIELD_BYTES = 1_000_000
+_MAX_OPPORTUNITY_SEARCH_COHORT_BYTES = 512_000_000
+_MAX_COMMERCIAL_CARD_BYTES = 2_000_000
+_MAX_COMMERCIAL_CARD_EVIDENCE_ROWS = 500
+_MAX_COMMERCIAL_CARD_LIFECYCLE_ROWS = 500
+_MAX_COMMERCIAL_CARD_RELATIONSHIP_ROWS = 500
+_MAX_COMMERCIAL_CARD_NOTES = 500
+_MAX_SAVED_SNAPSHOT_BYTES = 1_000_000
+_MAX_COMMERCIAL_HISTORY_PAGE_BYTES = 2_000_000
+
+
+def _signal_display_metadata(
+    decisions: list[SignalDecision],
+    has_unadjudicated_current_signal: bool,
+    *,
+    is_signal: bool,
+    lifecycle_state: str | None = None,
+    identity_conflict: bool = False,
+) -> dict[str, Any]:
+    if not is_signal:
+        decisions = []
+        has_unadjudicated_current_signal = False
+    precedence = {"SHOW": 0, "REVIEW": 1, "HOLD": 2}
+    selected = min(
+        decisions,
+        key=lambda item: precedence.get(item.decision, 1),
+        default=None,
+    )
+    display = (
+        "SHOW"
+        if any(item.decision == "SHOW" for item in decisions)
+        else "REVIEW"
+        if has_unadjudicated_current_signal
+        else selected.decision
+        if selected
+        else None
+    )
+    source = (
+        selected.source
+        if selected and not (has_unadjudicated_current_signal and selected.decision == "HOLD")
+        else None
+    )
+    reason = (
+        "One or more linked current Signal evidence versions have no decision."
+        if has_unadjudicated_current_signal and (selected is None or selected.decision == "HOLD")
+        else selected.reason
+        if selected
+        else None
+    )
+    state = (
+        "adjudicated"
+        if decisions and not has_unadjudicated_current_signal
+        else "partially_adjudicated"
+        if decisions
+        else "unadjudicated"
+    )
+    if is_signal and lifecycle_state == "planning_application_withdrawn":
+        display = "HOLD"
+        source = "deterministic"
+        reason = (
+            "The current official planning application is withdrawn; earlier "
+            "positive evidence remains historical and project viability is UNKNOWN."
+        )
+        state = "adjudicated"
+    elif is_signal and identity_conflict:
+        display = "REVIEW"
+        source = "deterministic"
+        reason = (
+            "The latest Taylor revision conflicts with retained project or site facts; "
+            "current application and project status are UNKNOWN."
+        )
+        state = "adjudicated"
+    return {
+        "signal_display_decision": display,
+        "signal_display_source": source,
+        "signal_display_reason": reason,
+        "signal_display_decision_state": state,
+    }
+
+
+def _bounded_opportunity_payload(items: list[dict]) -> list[dict]:
+    encoded_size = len(json.dumps(items, default=str, separators=(",", ":")).encode("utf-8"))
+    if encoded_size > _MAX_OPPORTUNITY_PAGE_BYTES:
+        raise HTTPException(413, "Opportunity page exceeds the complete response byte budget")
+    for item in items:
+        if len(item.get("evidence", [])) > _MAX_OPPORTUNITY_EVIDENCE_ROWS:
+            raise HTTPException(
+                413, "Opportunity has too many retained evidence rows for one response"
+            )
+        if len(item.get("lifecycle_timeline", [])) > _MAX_OPPORTUNITY_LIFECYCLE_ROWS:
+            raise HTTPException(413, "Opportunity has too many lifecycle rows for one response")
+    return items
+
+
+def _begin_consistent_read(session) -> None:
+    """Pin multi-query reads to one PostgreSQL cohort snapshot."""
+    session.connection(execution_options={"isolation_level": "REPEATABLE READ"})
+
+
+def _preflight_opportunity_details(session, rows: list[dict]) -> None:
+    need_ids = [UUID(str(row["id"])) for row in rows]
+    if not need_ids:
+        return
+    evidence_counts = dict(
+        session.execute(
+            select(NeedObservation.need_id, func.count(Evidence.id))
+            .join(Observation, Observation.id == NeedObservation.observation_id)
+            .join(Evidence, Evidence.observation_id == Observation.id)
+            .outerjoin(
+                Interpretation,
+                and_(
+                    Interpretation.observation_id == Observation.id,
+                    Interpretation.content_hash == Observation.content_hash,
+                ),
+            )
+            .where(NeedObservation.need_id.in_(need_ids))
+            .group_by(NeedObservation.need_id)
+        ).all()
+    )
+    project_ids = {UUID(str(row["project_id"])) for row in rows}
+    lifecycle_counts = dict(
+        session.execute(
+            select(LifecycleEvent.project_id, func.count(LifecycleEvent.id))
+            .where(LifecycleEvent.project_id.in_(project_ids))
+            .group_by(LifecycleEvent.project_id)
+        ).all()
+    )
+    for row in rows:
+        if evidence_counts.get(UUID(str(row["id"])), 0) > _MAX_OPPORTUNITY_EVIDENCE_ROWS:
+            raise HTTPException(
+                413, "Opportunity has too many retained evidence rows for one response"
+            )
+        if lifecycle_counts.get(UUID(str(row["project_id"])), 0) > _MAX_OPPORTUNITY_LIFECYCLE_ROWS:
+            raise HTTPException(413, "Opportunity has too many lifecycle rows for one response")
+
+
+def _preflight_streamed_evidence_text(
+    session, need_ids: list[UUID], project_ids: list[UUID]
+) -> None:
+    scopes = []
+    if need_ids:
+        scopes.append(
+            select(Evidence.id)
+            .join(Observation, Observation.id == Evidence.observation_id)
+            .join(NeedObservation, NeedObservation.observation_id == Observation.id)
+            .where(NeedObservation.need_id.in_(need_ids))
+        )
+    if project_ids:
+        scopes.append(
+            select(Evidence.id)
+            .join(LifecycleEvent, LifecycleEvent.evidence_id == Evidence.id)
+            .where(LifecycleEvent.project_id.in_(project_ids))
+        )
+    for evidence_scope in scopes:
+        text_fields = (
+            func.octet_length(func.coalesce(Evidence.title, "")),
+            func.octet_length(func.coalesce(Evidence.abstract, "")),
+            func.octet_length(func.coalesce(Evidence.url, "")),
+            func.octet_length(func.coalesce(Observation.external_id, "")),
+            func.octet_length(func.coalesce(Observation.source_id, "")),
+            func.coalesce(func.octet_length(cast(Interpretation.assessment, Text)), 0),
+        )
+        query = (
+            select(
+                func.max(func.greatest(*text_fields)),
+                func.coalesce(func.sum(sum(text_fields)), 0),
+            )
+            .select_from(Evidence)
+            .join(Observation, Observation.id == Evidence.observation_id)
+            .outerjoin(
+                Interpretation,
+                and_(
+                    Interpretation.observation_id == Observation.id,
+                    Interpretation.content_hash == Observation.content_hash,
+                ),
+            )
+            .where(Evidence.id.in_(evidence_scope))
+        )
+        max_field, total_bytes = session.execute(query).one()
+        if max_field and max_field > _MAX_OPPORTUNITY_SEARCH_FIELD_BYTES:
+            raise HTTPException(
+                413, "Retained evidence text exceeds the bounded processing field limit"
+            )
+        if total_bytes > _MAX_OPPORTUNITY_SEARCH_COHORT_BYTES:
+            raise HTTPException(
+                413, "Retained evidence text exceeds the bounded processing cohort limit"
+            )
+
+
+def _commercial_bound_error(identity: str, count: int, cap: int, resource: str) -> HTTPException:
+    return HTTPException(
+        413,
+        {
+            "code": "commercial_group_exceeds_resource_bound",
+            "group_id": "cg_" + hashlib.sha256(identity.encode()).hexdigest()[:32],
+            "resource": resource,
+            "resource_count": count,
+            "resource_cap": cap,
+            "message": (
+                "The complete commercial work group exceeds this response budget; "
+                "no partial card was returned."
+            ),
+        },
+    )
+
+
+def _check_saved_history_bounds(row: Any, note_count: int) -> None:
+    snapshot = row.snapshot or {}
+    snapshot_size = len(json.dumps(snapshot, default=str, separators=(",", ":")).encode("utf-8"))
+    if snapshot_size > _MAX_SAVED_SNAPSHOT_BYTES:
+        raise _commercial_bound_error(
+            row.identity_key, snapshot_size, _MAX_SAVED_SNAPSHOT_BYTES, "saved_snapshot_bytes"
+        )
+    if note_count > _MAX_COMMERCIAL_CARD_NOTES:
+        raise _commercial_bound_error(
+            row.identity_key, note_count, _MAX_COMMERCIAL_CARD_NOTES, "notes"
+        )
+    receipt = snapshot.get("commercial_triage", {})
+    versions = receipt.get("versions")
+    if isinstance(versions, list) and len(versions) > _MAX_COMMERCIAL_CARD_NOTES:
+        raise _commercial_bound_error(
+            row.identity_key, len(versions), _MAX_COMMERCIAL_CARD_NOTES, "saved_versions"
+        )
+    cards = [receipt.get("saved_card")]
+    if isinstance(versions, list):
+        cards.extend(version.get("saved_card") for version in versions if isinstance(version, dict))
+    for card in cards:
+        if not isinstance(card, dict):
+            continue
+        for key in ("evidence", "lifecycle_timeline", "contacts", "notes"):
+            value = card.get(key)
+            if isinstance(value, list) and len(value) > _MAX_COMMERCIAL_CARD_NOTES:
+                raise _commercial_bound_error(
+                    row.identity_key, len(value), _MAX_COMMERCIAL_CARD_NOTES, f"saved_{key}"
+                )
 
 
 class BriefStatementOut(BaseModel):
@@ -190,6 +876,9 @@ class HealthSourceOut(BaseModel):
     family: str
     geography: str
     enabled: bool = True
+    freshness: str = "UNKNOWN"
+    due_checks_7d: int = 0
+    verified_successes_7d: int = 0
     last_attempt: str | None = None
     last_success: str | None = None
     new_records: int = 0
@@ -224,6 +913,10 @@ class HealthOut(BaseModel):
     sources: list[HealthSourceOut]
     backlog: int
     pending_interpretations: int
+    worker_liveness: str = "UNKNOWN"
+    readiness: bool = False
+    collection_freshness: str = "UNKNOWN"
+    planners: dict[str, dict] = Field(default_factory=dict)
 
 
 class ChangeSourceOut(BaseModel):
@@ -286,6 +979,17 @@ class RefreshOut(BaseModel):
     queued: list[str]
 
 
+class SourceEnabledIn(BaseModel):
+    enabled: bool
+
+
+class SourceEnabledOut(BaseModel):
+    id: str
+    registry_enabled: bool
+    operator_enabled: bool
+    effective_enabled: bool
+
+
 class IngestionItemOut(BaseModel):
     source_id: str
     source_origin: str = "Source evidence"
@@ -333,16 +1037,15 @@ def private_openapi(request: Request):
 @app.post("/api/auth/login", response_model=LoginOut)
 def login(body: LoginBody, request: Request, response: Response):
     require_same_origin(request)
-    remote = request.client.host if request.client else "unknown"
-    if not login_allowed(remote):
+    remote = client_ip(request)
+    if not consume_login_attempt(remote):
         raise HTTPException(429, "Too many login attempts")
     if not check_password(body.password.get_secret_value()):
-        record_login_failure(remote)
         raise HTTPException(401, "Invalid credentials")
-    expires = int(datetime.now(UTC).timestamp()) + settings.session_hours * 3600
+    token, expires = create_session()
     response.set_cookie(
         "gridlens_session",
-        token_for(expires),
+        token,
         httponly=True,
         secure=settings.cookie_secure,
         samesite="strict",
@@ -355,6 +1058,7 @@ def login(body: LoginBody, request: Request, response: Response):
 @app.post("/api/auth/logout", response_model=LogoutOut)
 def logout(request: Request, response: Response):
     require_same_origin(request)
+    revoke_token(request.cookies.get("gridlens_session"))
     response.delete_cookie(
         "gridlens_session",
         path="/",
@@ -384,9 +1088,10 @@ def _assessment_for_evidence(
     assessment = interpretation.assessment
     from gridlens.ingestion.adapters.buying_chain_public import CAPTURE_VERSION
 
-    if observation.source_id.startswith("research-public-") and assessment.get(
-        "acquisition_capture_version"
-    ) != CAPTURE_VERSION:
+    if (
+        observation.source_id.startswith("research-public-")
+        and assessment.get("acquisition_capture_version") != CAPTURE_VERSION
+    ):
         return None
     if (
         assessment.get("semantic_hash") != observation.content_hash
@@ -420,14 +1125,227 @@ def health():
             or 0
         )
         source_health = []
+        window_start = chicago_today(checked_at) - timedelta(days=6)
+        window_start_utc = datetime.combine(
+            window_start, datetime.min.time(), tzinfo=ZoneInfo("America/Chicago")
+        ).astimezone(UTC)
+        due_rows = session.scalars(
+            select(SourceDueCheck).where(
+                SourceDueCheck.scheduled_for >= window_start_utc,
+                SourceDueCheck.scheduled_for < checked_at,
+            )
+        ).all()
+        due_by_key = {due.due_key: due for due in due_rows}
+        attempts = session.execute(
+            select(SourceCheckReceipt, SourceDueCheck, Job)
+            .join(SourceDueCheck, SourceDueCheck.due_key == SourceCheckReceipt.due_key)
+            .join(Job, Job.id == SourceCheckReceipt.job_id)
+            .where(
+                SourceDueCheck.scheduled_for >= window_start_utc,
+                SourceDueCheck.scheduled_for < checked_at,
+            )
+            .order_by(SourceCheckReceipt.recorded_at)
+        ).all()
+        latest_attempt = {}
+        for receipt, due, job in attempts:
+            current = latest_attempt.get(receipt.due_key)
+            receipt_order = (receipt.fence, receipt.recorded_at, str(receipt.id))
+            current_order = (
+                (current[0].fence, current[0].recorded_at, str(current[0].id)) if current else None
+            )
+            if current_order is None or receipt_order > current_order:
+                latest_attempt[receipt.due_key] = (receipt, due, job)
+        worker = session.scalar(
+            select(WorkerHeartbeat).order_by(WorkerHeartbeat.last_seen_at.desc()).limit(1)
+        )
+        worker_liveness = (
+            "UNKNOWN"
+            if worker is None
+            else "LIVE"
+            if worker.last_seen_at >= checked_at - timedelta(seconds=30)
+            else "STALE"
+        )
+        planners = {
+            state.planner_key: {
+                "last_attempt_at": state.last_attempt_at.isoformat()
+                if state.last_attempt_at
+                else None,
+                "last_success_at": state.last_success_at.isoformat()
+                if state.last_success_at
+                else None,
+                "consecutive_failures": state.consecutive_failures,
+                "next_retry_at": state.next_retry_at.isoformat() if state.next_retry_at else None,
+                "error_class": state.error_class,
+            }
+            for state in session.scalars(select(PlannerState))
+        }
+        freshness_states = []
+        from gridlens.jobs.worker import _due_key, _scheduled_instants, _source_registry_drift
+
         for row in rows:
             definition = definitions.get(row.id, {})
+            epochs = session.scalars(
+                select(SourceScheduleEpoch)
+                .where(
+                    SourceScheduleEpoch.source_id == row.id,
+                    SourceScheduleEpoch.effective_from < checked_at,
+                    or_(
+                        SourceScheduleEpoch.effective_until.is_(None),
+                        SourceScheduleEpoch.effective_until > window_start_utc,
+                    ),
+                )
+                .order_by(SourceScheduleEpoch.effective_from)
+            ).all()
+            covered_until = window_start_utc
+            history_known = bool(epochs)
+            schedule_inputs_known = True
+            expected_due: dict[str, tuple[SourceScheduleEpoch, datetime]] = {}
+            if not definition:
+                history_known = False
+            else:
+                try:
+                    if epochs:
+                        latest_epoch = max(epochs, key=lambda epoch: epoch.effective_from)
+                        if (
+                            latest_epoch.effective_until is None
+                            and latest_epoch.history_known
+                            and _source_registry_drift(definition, row, latest_epoch)
+                        ):
+                            history_known = False
+                except (AttributeError, KeyError, TypeError, ValueError):
+                    history_known = False
+                    schedule_inputs_known = False
+            for epoch in epochs:
+                try:
+                    epoch_end = min(epoch.effective_until or checked_at, checked_at)
+                    epoch_start = max(epoch.effective_from, window_start_utc)
+                except (TypeError, ValueError, OverflowError):
+                    history_known = False
+                    schedule_inputs_known = False
+                    continue
+                if epoch_end <= epoch_start:
+                    continue
+                if epoch_start > covered_until or not epoch.history_known:
+                    history_known = False
+                if epoch_start <= covered_until and epoch_end > covered_until:
+                    covered_until = epoch_end
+                if not (epoch.history_known and epoch.registry_enabled and epoch.operator_enabled):
+                    continue
+                try:
+                    for scheduled_for in _scheduled_instants(
+                        epoch, checked_at, not_before=window_start_utc
+                    ):
+                        due_key = _due_key(epoch, scheduled_for)
+                        expected_due[due_key] = (epoch, scheduled_for)
+                except (
+                    AttributeError,
+                    KeyError,
+                    OverflowError,
+                    TypeError,
+                    ValueError,
+                    ZeroDivisionError,
+                ):
+                    schedule_inputs_known = False
+                    history_known = False
+            expected_history = (
+                history_known and schedule_inputs_known and covered_until >= checked_at
+            )
+            successes = 0
+            missing_due = False
+            invalid_receipt = False
+            dispositions = []
+            for due_key, (epoch, scheduled_for) in expected_due.items():
+                due = due_by_key.get(due_key)
+                if due is None:
+                    missing_due = True
+                    continue
+                expected_local_day = scheduled_for.astimezone(ZoneInfo("America/Chicago")).date()
+                if (
+                    due.source_id != row.id
+                    or due.epoch_id != epoch.id
+                    or due.scheduled_for != scheduled_for
+                    or due.local_day != expected_local_day
+                    or due.configuration != epoch.configuration
+                ):
+                    invalid_receipt = True
+                    continue
+                attempt = latest_attempt.get(due_key)
+                if due.job_id is None or attempt is None:
+                    missing_due = True
+                    continue
+                receipt, receipt_due, job = attempt
+                if (
+                    receipt_due.due_key != due_key
+                    or receipt_due.job_id != due.job_id
+                    or receipt.job_id != due.job_id
+                    or job.id != due.job_id
+                    or job.source_id != row.id
+                    or job.kind != "ingestion"
+                    or job.fence < 1
+                    or receipt.fence != job.fence
+                    or job.lease_owner is not None
+                    or job.lease_until is not None
+                ):
+                    invalid_receipt = True
+                    continue
+                try:
+                    canonical_counts = json.dumps(
+                        receipt.check_counts,
+                        sort_keys=True,
+                        separators=(",", ":"),
+                        default=str,
+                    )
+                except (TypeError, ValueError):
+                    invalid_receipt = True
+                    continue
+                if hashlib.sha256(canonical_counts.encode()).hexdigest() != receipt.digest:
+                    invalid_receipt = True
+                    continue
+                if receipt.disposition == "succeeded":
+                    counts = receipt.check_counts
+                    if (
+                        job.status != "succeeded"
+                        or not isinstance(counts, dict)
+                        or any(
+                            type(counts.get(field)) is not int or counts[field] < 0
+                            for field in ("new", "changed", "unchanged")
+                        )
+                    ):
+                        invalid_receipt = True
+                        continue
+                    successes += 1
+                elif receipt.disposition in {"failed", "partial", "unknown"}:
+                    if job.status not in {"queued", "failed", "succeeded"}:
+                        invalid_receipt = True
+                    else:
+                        dispositions.append(receipt.disposition)
+                else:
+                    invalid_receipt = True
+            if not expected_history or not expected_due:
+                freshness = "UNKNOWN"
+            elif "failed" in dispositions:
+                freshness = "FAILED"
+            elif "partial" in dispositions:
+                freshness = "PARTIAL"
+            elif "unknown" in dispositions or invalid_receipt:
+                freshness = "UNKNOWN"
+            elif missing_due or successes != len(expected_due):
+                freshness = "OVERDUE"
+            else:
+                freshness = "FRESH"
+            freshness_states.append(freshness)
+            effective_enabled = (
+                row.enabled and row.registry_enabled and bool(definition.get("enabled", False))
+            )
             info = {
                 "id": row.id,
                 **row.health,
                 "family": row.family,
                 "geography": row.geography,
-                "enabled": row.enabled,
+                "enabled": effective_enabled,
+                "freshness": freshness,
+                "due_checks_7d": len(expected_due),
+                "verified_successes_7d": successes,
                 "collection_scope": (
                     definition.get("collection_scope")
                     or row.health.get("collection_scope")
@@ -445,8 +1363,8 @@ def health():
                 info["coverage_limitation"] = definition["coverage_limitation"]
             last_attempt = row.health.get("last_attempt")
             if (
-                row.enabled
-                and info["status"] not in {"Running", "Failed"}
+                effective_enabled
+                and info["status"] not in {"Running", "Failed", "RegistryUnavailable"}
                 and (
                     not last_attempt
                     or datetime.fromisoformat(last_attempt)
@@ -459,7 +1377,34 @@ def health():
             "sources": source_health,
             "backlog": jobs,
             "pending_interpretations": pending,
+            "worker_liveness": worker_liveness,
+            "readiness": True,
+            "planners": planners,
+            "collection_freshness": (
+                "UNKNOWN"
+                if not freshness_states or "UNKNOWN" in freshness_states
+                else "FRESH"
+                if all(state == "FRESH" for state in freshness_states)
+                else "OVERDUE"
+            ),
         }
+
+
+@app.get("/health/live")
+def process_liveness():
+    """Report API process liveness without depending on database connectivity."""
+    return {"api_process": "LIVE"}
+
+
+@app.get("/health/ready")
+def runtime_readiness():
+    """Report whether the API can query its database and queue state."""
+    try:
+        with SessionLocal() as session:
+            session.execute(select(func.count()).select_from(Job)).scalar_one()
+    except Exception as exc:
+        raise HTTPException(503, "Database or queue is unavailable") from exc
+    return {"readiness": "READY"}
 
 
 def _ingestion_filters(source_id: str | None, vertical: str | None):
@@ -583,11 +1528,1250 @@ def ingestion(
 @app.get(
     "/api/opportunities",
     response_model=list[OpportunityOut],
-    dependencies=[Depends(require_session)],
+    dependencies=[Depends(require_session), Depends(_validate_browse_query)],
 )
-def opportunities(tier: str | None = None, search: str | None = None):
+def opportunities(
+    tier: str | None = None,
+    search: str | None = None,
+    decision: str | None = None,
+    limit: Annotated[int, Query(ge=1, le=50)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
+    cohort: Annotated[str | None, Query(alias="cohort_token")] = None,
+    response: Response = None,  # type: ignore[assignment]
+    *,
+    geography: str | None = None,
+    industry: str | None = None,
+    activity: str | None = None,
+    timing: str | None = None,
+    mw_status: str | None = None,
+    mw_min: str | None = None,
+    mw_max: str | None = None,
+    priority_segment: str | None = None,
+    status: WorkflowStatusFilter | None = None,
+):
+    response = response or Response()
+    filters = _normalized_browse_filters(
+        tier=tier,
+        decision=decision,
+        geography=geography,
+        industry=industry,
+        activity=activity,
+        timing=timing,
+        mw_status=mw_status,
+        mw_min=mw_min,
+        mw_max=mw_max,
+        priority_segment=priority_segment,
+        status=status,
+        search=search,
+    )
+    if offset > 0 and (cohort is None or not cohort.strip()):
+        raise HTTPException(422, "cohort_token is required when offset is greater than zero")
+    tier = filters["tier"]
+    decision = filters["decision"]
     with SessionLocal() as session:
-        return opportunity_projection(session, tier=tier, search=search)
+        _begin_consistent_read(session)
+        summaries = opportunity_projection(session, tier=tier, summary_only=True)
+        items = _filter_opportunity_summaries(
+            [
+                {
+                    **item,
+                    "_browse_first_evidence": {},
+                    "_browse_action_candidates": item.get("_browse_action_candidates", []),
+                }
+                for item in summaries
+            ],
+            filters,
+        )
+        evidence_matches = _opportunity_evidence_search_matches(session, items, search)
+        items.sort(key=lambda item: str(item["id"]))
+        items.sort(key=lambda item: item.get("_updated_at") or datetime.min, reverse=True)
+        groups = grouped_opportunities(items)
+        key_by_id = {str(member["id"]): key for key, members in groups for member in members}
+        matched_by_id = {
+            str(item["id"]): matched_opportunity(
+                item, search or "", evidence_matches.get(str(item["id"]), False)
+            )
+            for item in items
+        }
+        matching_group_keys = {
+            key_by_id[str(item["id"])] for item in items if matched_by_id[str(item["id"])]
+        }
+        search_groups = [(key, members) for key, members in groups if key in matching_group_keys]
+        decision_counts = {
+            value: sum(grouped_signal_decision(members) == value for _key, members in search_groups)
+            for value in ("SHOW", "REVIEW", "HOLD")
+        }
+        filtered_groups = [
+            (key, members)
+            for key, members in search_groups
+            if decision in {None, "ALL"} or grouped_signal_decision(members) == decision
+        ]
+        filtered = [member for _key, members in filtered_groups for member in members]
+        # The canonical record order is preserved across group membership and page slices.
+        filtered.sort(key=lambda item: str(item["id"]))
+        filtered.sort(key=lambda item: item.get("_updated_at") or datetime.min, reverse=True)
+        filtered_keys = [key_by_id[str(item["id"])] for item in filtered]
+        token_rows = filtered
+        token = build_opportunity_cohort_token(filters, token_rows, filtered_keys)
+        if cohort is not None and cohort != token:
+            raise HTTPException(409, "Opportunity cohort changed; restart pagination")
+        page_summaries = filtered[offset : offset + limit]
+        page_ids = {UUID(str(item["id"])) for item in page_summaries}
+        _preflight_opportunity_details(session, page_summaries)
+        page_details = opportunity_projection(
+            session, tier=tier, selected_need_ids=page_ids, include_below_floor=False
+        )
+        details_by_id = {str(item["id"]): item for item in page_details}
+        summary_by_id = {str(item["id"]): item for item in page_summaries}
+        page = [
+            details_by_id[str(item["id"])]
+            for item in page_summaries
+            if str(item["id"]) in details_by_id
+        ]
+        loaded_by_key: dict[str, int] = {}
+        total_by_key: dict[str, int] = {}
+        for _item, key in zip(filtered, filtered_keys, strict=True):
+            total_by_key[key] = total_by_key.get(key, 0) + 1
+        for item in page:
+            key = key_by_id[str(item["id"])]
+            loaded_by_key[key] = loaded_by_key.get(key, 0) + 1
+        output = []
+        group_title_by_key = {key: opportunity_project_title(members[0]) for key, members in groups}
+        for item in page:
+            key = key_by_id[str(item["id"])]
+            summary = summary_by_id[str(item["id"])]
+            output.append(
+                {
+                    **item,
+                    "group_id": opportunity_group_id(key),
+                    "group_title": group_title_by_key[key],
+                    "group_total_filtered": total_by_key[key],
+                    "group_loaded_on_page": loaded_by_key[key],
+                    "group_complete_on_page": loaded_by_key[key] == total_by_key[key],
+                    "matched_search": matched_by_id[str(item["id"])],
+                    "priority_segment": _opportunity_priority_segment(summary),
+                    "priority_label": _opportunity_priority_label(summary),
+                    "workflow_status": summary.get("workflow_status", "UNKNOWN"),
+                }
+            )
+        response.headers.update(
+            {
+                "X-Total-Count": str(len(filtered)),
+                "X-Group-Total-Count": str(len(filtered_groups)),
+                "X-Page-Record-Count": str(len(page)),
+                "X-Page-Group-Count": str(len({key_by_id[str(item["id"])] for item in page})),
+                "X-Limit": str(limit),
+                "X-Offset": str(offset),
+                "X-Cohort-Token": token,
+                "X-Decision-Counts": json.dumps(decision_counts, separators=(",", ":")),
+            }
+        )
+        if offset + len(page) < len(filtered):
+            response.headers["X-Next-Offset"] = str(offset + len(page))
+        return _bounded_opportunity_payload(output)
+
+
+def _opportunity_evidence_search_matches(
+    session, items: list[dict], search: str | None
+) -> dict[str, bool]:
+    from gridlens.intelligence.opportunity_browse import normalized
+
+    term = normalized(search)
+    matches = {str(item["id"]): False for item in items}
+    fingerprints = {key: hashlib.sha256() for key in matches}
+    states: dict[str, tuple[str, bool]] = {}
+    tail_length = max(len(term) - 1, 0)
+    for item in items:
+        key = str(item["id"])
+        states[key] = ("", False)
+    need_ids = [UUID(key) for key in matches]
+    largest_search_field = (
+        session.scalar(
+            select(
+                func.max(
+                    func.greatest(
+                        func.octet_length(func.coalesce(Evidence.title, "")),
+                        func.octet_length(func.coalesce(Evidence.abstract, "")),
+                        func.octet_length(func.coalesce(Evidence.url, "")),
+                        func.octet_length(func.coalesce(Observation.external_id, "")),
+                        func.octet_length(func.coalesce(Observation.source_id, "")),
+                        func.octet_length(cast(Interpretation.assessment, Text)),
+                    )
+                )
+            )
+            .select_from(NeedObservation)
+            .join(Observation, Observation.id == NeedObservation.observation_id)
+            .join(Evidence, Evidence.observation_id == Observation.id)
+            .outerjoin(
+                Interpretation,
+                and_(
+                    Interpretation.observation_id == Observation.id,
+                    Interpretation.content_hash == Observation.content_hash,
+                ),
+            )
+            .where(NeedObservation.need_id.in_(need_ids))
+        )
+        if need_ids
+        else 0
+    )
+    if largest_search_field and largest_search_field > _MAX_OPPORTUNITY_SEARCH_FIELD_BYTES:
+        raise HTTPException(413, "Opportunity evidence text exceeds the searchable field limit")
+    search_text_bytes = (
+        session.scalar(
+            select(
+                func.coalesce(
+                    func.sum(
+                        func.octet_length(func.coalesce(Evidence.title, ""))
+                        + func.octet_length(func.coalesce(Evidence.abstract, ""))
+                        + func.octet_length(func.coalesce(Evidence.url, ""))
+                        + func.octet_length(func.coalesce(Observation.external_id, ""))
+                        + func.octet_length(func.coalesce(Observation.source_id, ""))
+                        + func.coalesce(func.octet_length(cast(Interpretation.assessment, Text)), 0)
+                    ),
+                    0,
+                )
+            )
+            .select_from(NeedObservation)
+            .join(Observation, Observation.id == NeedObservation.observation_id)
+            .join(Evidence, Evidence.observation_id == Observation.id)
+            .outerjoin(
+                Interpretation,
+                and_(
+                    Interpretation.observation_id == Observation.id,
+                    Interpretation.content_hash == Observation.content_hash,
+                ),
+            )
+            .where(NeedObservation.need_id.in_(need_ids))
+        )
+        if need_ids
+        else 0
+    )
+    if search_text_bytes > _MAX_OPPORTUNITY_SEARCH_COHORT_BYTES:
+        raise HTTPException(413, "Opportunity evidence text exceeds the searchable cohort limit")
+    evidence_statement = (
+        select(
+            NeedObservation.need_id,
+            Evidence.id,
+            Evidence.title,
+            Evidence.abstract,
+            Evidence.url,
+            Evidence.content_hash,
+            Observation.external_id,
+            Observation.source_id,
+            Observation.content_hash,
+            Interpretation.assessment,
+        )
+        .join(Observation, Observation.id == NeedObservation.observation_id)
+        .join(Evidence, Evidence.observation_id == Observation.id)
+        .outerjoin(
+            Interpretation,
+            and_(
+                Interpretation.observation_id == Observation.id,
+                Interpretation.content_hash == Observation.content_hash,
+            ),
+        )
+        .where(NeedObservation.need_id.in_(need_ids))
+        .order_by(
+            NeedObservation.need_id,
+            Evidence.observed_at.desc(),
+            Evidence.content_hash.desc(),
+            Evidence.id,
+        )
+    )
+    item_by_id = {str(item["id"]): item for item in items}
+    for (
+        need_id,
+        evidence_id,
+        title,
+        abstract,
+        url,
+        content_hash,
+        document_number,
+        source_id,
+        observation_hash,
+        assessment,
+    ) in session.execute(evidence_statement).yield_per(32):
+        key = str(need_id)
+        fingerprints[key].update(
+            "\x1f".join(
+                (
+                    str(evidence_id),
+                    str(content_hash),
+                    str(observation_hash),
+                    str(source_id),
+                    str(document_number),
+                )
+            ).encode("utf-8")
+        )
+        fingerprints[key].update(
+            hashlib.sha256(
+                "\x1f".join(str(value or "") for value in (title, abstract, url)).encode("utf-8")
+            ).digest()
+        )
+        fingerprints[key].update(
+            hashlib.sha256(
+                json.dumps(
+                    assessment or {}, sort_keys=True, separators=(",", ":"), default=str
+                ).encode("utf-8")
+            ).digest()
+        )
+        fingerprints[key].update(b"\x1e")
+        item = item_by_id[key]
+        add_browse_evidence(
+            item,
+            {
+                "id": evidence_id,
+                "title": title,
+                "abstract": abstract,
+                "url": url,
+                "content_hash": content_hash,
+                "document_number": document_number,
+                "source_id": source_id,
+                "assessment_current": bool(
+                    assessment
+                    and assessment.get("semantic_hash") == observation_hash
+                    and observation_hash == content_hash
+                    and assessment.get("evidence_hash") == content_hash
+                    and assessment.get("evidence", {}).get("id") == str(evidence_id)
+                    and assessment.get("project_identity_key")
+                    == item.get("_cohort_project_identity")
+                    and (assessment.get("power_activity") or assessment.get("activity_key"))
+                    == item.get("activity")
+                ),
+            },
+        )
+    for key, item in item_by_id.items():
+        item["_browse_evidence_fingerprint"] = fingerprints[key].hexdigest()
+        prefix = " ".join(
+            normalized(value)
+            for value in (
+                item.get("name"),
+                opportunity_project_title(item),
+                item.get("location"),
+                item.get("activity"),
+                item.get("supported_subject"),
+                item.get("supported_action"),
+                item.get("assessment_reason"),
+            )
+            if value
+        )
+        found = bool(term) and term in prefix
+        tail = prefix[-tail_length:] if tail_length else ""
+        states[key] = (tail, found)
+    if term:
+        for (
+            need_id,
+            _evidence_id,
+            title,
+            abstract,
+            _url,
+            _content_hash,
+            document_number,
+            source_id,
+            _observation_hash,
+            _assessment,
+        ) in session.execute(evidence_statement).yield_per(32):
+            key = str(need_id)
+            tail, found = states[key]
+            for value in (title, abstract, document_number, source_id):
+                part = normalized(value)
+                candidate = f"{tail} {part}".strip()
+                found = found or term in candidate
+                tail = candidate[-tail_length:] if tail_length else ""
+            states[key] = (tail, found)
+    return {key: found for key, (_tail, found) in states.items()}
+
+
+@app.get(
+    "/api/opportunity-groups/{group_id}",
+    response_model=OpportunityGroupPageOut,
+    dependencies=[Depends(require_session), Depends(_validate_browse_query)],
+)
+def opportunity_group_page(
+    group_id: str,
+    cohort_token: str,
+    tier: str | None = None,
+    search: str | None = None,
+    decision: str | None = None,
+    limit: Annotated[int, Query(ge=1, le=50)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
+    *,
+    geography: str | None = None,
+    industry: str | None = None,
+    activity: str | None = None,
+    timing: str | None = None,
+    mw_status: str | None = None,
+    mw_min: str | None = None,
+    mw_max: str | None = None,
+    priority_segment: str | None = None,
+    status: WorkflowStatusFilter | None = None,
+):
+    filters = _normalized_browse_filters(
+        tier=tier,
+        decision=decision,
+        geography=geography,
+        industry=industry,
+        activity=activity,
+        timing=timing,
+        mw_status=mw_status,
+        mw_min=mw_min,
+        mw_max=mw_max,
+        priority_segment=priority_segment,
+        status=status,
+        search=search,
+    )
+    tier = filters["tier"]
+    decision = filters["decision"]
+    with SessionLocal() as session:
+        _begin_consistent_read(session)
+        summaries = opportunity_projection(session, tier=tier, summary_only=True)
+        all_items = _filter_opportunity_summaries(
+            [
+                {
+                    **item,
+                    "_browse_first_evidence": {},
+                    "_browse_action_candidates": item.get("_browse_action_candidates", []),
+                }
+                for item in summaries
+            ],
+            filters,
+        )
+        evidence_matches = _opportunity_evidence_search_matches(session, all_items, search)
+        member_matches = {
+            str(member["id"]): matched_opportunity(
+                member, search or "", evidence_matches.get(str(member["id"]), False)
+            )
+            for member in all_items
+        }
+        groups = grouped_opportunities(all_items)
+        filtered_groups = [
+            (key, members)
+            for key, members in groups
+            if any(member_matches[str(member["id"])] for member in members)
+            and (decision in {None, "ALL"} or grouped_signal_decision(members) == decision)
+        ]
+        rows = [member for _key, members in filtered_groups for member in members]
+        keys = [key for key, members in filtered_groups for _member in members]
+        ordered = sorted(zip(rows, keys, strict=True), key=lambda pair: str(pair[0]["id"]))
+        ordered.sort(key=lambda pair: pair[0].get("_updated_at") or datetime.min, reverse=True)
+        rows = [row for row, _key in ordered]
+        keys = [key for _row, key in ordered]
+        token_rows = rows
+        current_token = build_opportunity_cohort_token(filters, token_rows, keys)
+        if current_token != cohort_token:
+            raise HTTPException(409, "Opportunity cohort changed; restart pagination")
+        target = next(
+            (members for key, members in filtered_groups if opportunity_group_id(key) == group_id),
+            None,
+        )
+        if target is None:
+            raise HTTPException(404, "Opportunity group not found")
+        target.sort(key=lambda item: str(item["id"]))
+        target.sort(key=lambda item: item.get("_updated_at") or datetime.min, reverse=True)
+        page_summaries = target[offset : offset + limit]
+        page_ids = {UUID(str(item["id"])) for item in page_summaries}
+        _preflight_opportunity_details(session, page_summaries)
+        details = opportunity_projection(
+            session, tier=tier, selected_need_ids=page_ids, include_below_floor=False
+        )
+        details_by_id = {str(item["id"]): item for item in details}
+        summary_by_id = {str(item["id"]): item for item in page_summaries}
+        page = [
+            details_by_id[str(item["id"])]
+            for item in page_summaries
+            if str(item["id"]) in details_by_id
+        ]
+        output_items: list[dict[str, Any]] = [
+            {
+                **member,
+                "group_id": group_id,
+                "group_title": opportunity_project_title(target[0]),
+                "group_total_filtered": len(target),
+                "group_loaded_on_page": len(page),
+                "group_complete_on_page": offset == 0 and len(page) == len(target),
+                "matched_search": member_matches[str(member["id"])],
+                "priority_segment": _opportunity_priority_segment(summary_by_id[str(member["id"])]),
+                "priority_label": _opportunity_priority_label(summary_by_id[str(member["id"])]),
+                "workflow_status": summary_by_id[str(member["id"])].get(
+                    "workflow_status", "UNKNOWN"
+                ),
+            }
+            for member in page
+        ]
+        result = {
+            "items": output_items,
+            "total": len(target),
+            "limit": limit,
+            "offset": offset,
+            "next_offset": offset + len(page) if offset + len(page) < len(target) else None,
+            "cohort_token": current_token,
+        }
+        _bounded_opportunity_payload(output_items)
+        return result
+
+
+@app.get(
+    "/api/opportunities/needs/{need_id}",
+    response_model=OpportunityOut,
+    dependencies=[Depends(require_session), Depends(_validate_browse_query)],
+)
+def opportunity_need_detail(
+    need_id: UUID,
+    tier: str | None = None,
+    search: str | None = None,
+    decision: str | None = None,
+    cohort_token: str | None = None,
+    *,
+    geography: str | None = None,
+    industry: str | None = None,
+    activity: str | None = None,
+    timing: str | None = None,
+    mw_status: str | None = None,
+    mw_min: str | None = None,
+    mw_max: str | None = None,
+    priority_segment: str | None = None,
+    status: WorkflowStatusFilter | None = None,
+):
+    filters = _normalized_browse_filters(
+        tier=tier,
+        decision=decision,
+        geography=geography,
+        industry=industry,
+        activity=activity,
+        timing=timing,
+        mw_status=mw_status,
+        mw_min=mw_min,
+        mw_max=mw_max,
+        priority_segment=priority_segment,
+        status=status,
+        search=search,
+    )
+    tier = filters["tier"]
+    decision = filters["decision"]
+    with SessionLocal() as session:
+        _begin_consistent_read(session)
+        summaries = _filter_opportunity_summaries(
+            opportunity_projection(session, tier=tier, summary_only=True), filters
+        )
+        summaries = [
+            {
+                **item,
+                "_browse_first_evidence": {},
+                "_browse_action_candidates": item.get("_browse_action_candidates", []),
+            }
+            for item in summaries
+        ]
+        evidence_matches = _opportunity_evidence_search_matches(session, summaries, search)
+        groups = grouped_opportunities(summaries)
+        member_matches = {
+            str(member["id"]): matched_opportunity(
+                member, search or "", evidence_matches.get(str(member["id"]), False)
+            )
+            for member in summaries
+        }
+        group_keys_by_id = {str(member["id"]): key for key, members in groups for member in members}
+        selected_groups = [
+            (key, members)
+            for key, members in groups
+            if any(member_matches[str(member["id"])] for member in members)
+            and (decision in {None, "ALL"} or grouped_signal_decision(members) == decision)
+        ]
+        selected = [member for _key, members in selected_groups for member in members]
+        selected.sort(key=lambda item: str(item["id"]))
+        selected.sort(key=lambda item: item.get("_updated_at") or datetime.min, reverse=True)
+        selected_keys = [group_keys_by_id[str(item["id"])] for item in selected]
+        current_token = build_opportunity_cohort_token(filters, selected, selected_keys)
+        if cohort_token is not None and cohort_token != current_token:
+            raise HTTPException(409, "Opportunity cohort changed; reopen the selected record")
+        summary = next((item for item in selected if item["id"] == need_id), None)
+        if summary is None:
+            raise HTTPException(404, "Opportunity is outside the requested filtered cohort")
+        _preflight_opportunity_details(session, [summary])
+        items = opportunity_projection(session, selected_need_ids={need_id})
+        if not items:
+            raise HTTPException(404, "Opportunity not found")
+        detail = _bounded_opportunity_payload(items)[0]
+        detail["priority_segment"] = _opportunity_priority_segment(summary)
+        detail["priority_label"] = _opportunity_priority_label(summary)
+        detail["workflow_status"] = summary.get("workflow_status", "UNKNOWN")
+        return detail
+
+
+def _csv_cell(value: Any) -> str:
+    text = "" if value is None else str(value)
+    if text.lstrip(" \t\r\n\x00\x0b\x0c\x1b\x7f").startswith(("=", "+", "-", "@")):
+        return "'" + text
+    return text
+
+
+@app.get(
+    "/api/opportunities/export.csv",
+    dependencies=[Depends(require_session), Depends(_validate_browse_query)],
+)
+def export_opportunities_csv(
+    tier: str | None = None,
+    search: str | None = None,
+    decision: str | None = None,
+    cohort_token: str | None = None,
+    limit: Annotated[int, Query(ge=1, le=500)] = 500,
+    *,
+    geography: str | None = None,
+    industry: str | None = None,
+    activity: str | None = None,
+    timing: str | None = None,
+    mw_status: str | None = None,
+    mw_min: str | None = None,
+    mw_max: str | None = None,
+    priority_segment: str | None = None,
+    status: WorkflowStatusFilter | None = None,
+):
+    filters = _normalized_browse_filters(
+        tier=tier,
+        decision=decision,
+        geography=geography,
+        industry=industry,
+        activity=activity,
+        timing=timing,
+        mw_status=mw_status,
+        mw_min=mw_min,
+        mw_max=mw_max,
+        priority_segment=priority_segment,
+        status=status,
+        search=search,
+    )
+    tier = filters["tier"]
+    decision = filters["decision"]
+    with SessionLocal() as session:
+        _begin_consistent_read(session)
+        summaries = opportunity_projection(session, tier=tier, summary_only=True)
+        items = _filter_opportunity_summaries(
+            [
+                {
+                    **item,
+                    "_browse_first_evidence": {},
+                    "_browse_action_candidates": item.get("_browse_action_candidates", []),
+                }
+                for item in summaries
+            ],
+            filters,
+        )
+        evidence_matches = _opportunity_evidence_search_matches(session, items, search)
+        matches = {
+            str(item["id"]): matched_opportunity(
+                item, search or "", evidence_matches.get(str(item["id"]), False)
+            )
+            for item in items
+        }
+        groups = grouped_opportunities(items)
+        selected_groups = [
+            (key, members)
+            for key, members in groups
+            if any(matches[str(member["id"])] for member in members)
+            and (decision in {None, "ALL"} or grouped_signal_decision(members) == decision)
+        ]
+        key_by_id = {
+            str(member["id"]): key for key, members in selected_groups for member in members
+        }
+        selected = [member for _key, members in selected_groups for member in members]
+        selected.sort(key=lambda item: str(item["id"]))
+        selected.sort(key=lambda item: item.get("_updated_at") or datetime.min, reverse=True)
+        selected_keys = [key_by_id[str(item["id"])] for item in selected]
+        token = build_opportunity_cohort_token(filters, selected, selected_keys)
+        if cohort_token is not None and cohort_token != token:
+            raise HTTPException(409, "Opportunity cohort changed; restart export")
+        if len(selected) > limit:
+            raise HTTPException(
+                413,
+                {
+                    "code": "opportunity_export_row_limit",
+                    "total": len(selected),
+                    "max_rows": limit,
+                    "message": "Narrow filters before exporting; no rows were omitted silently.",
+                },
+            )
+        _preflight_opportunity_details(session, selected)
+        selected_ids = [UUID(str(item["id"])) for item in selected]
+        fields = [
+            "need_id",
+            "project_id",
+            "name",
+            "location",
+            "tier",
+            "signal_decision",
+            "workflow_status",
+            "priority_segment",
+            "priority_label",
+            "activity",
+            "required_mw",
+            "supply",
+            "source_ids",
+            "evidence_urls",
+            "evidence_hashes",
+            "signal_evidence_state",
+            "export_scope",
+            "cohort_token",
+        ]
+        chunks: list[bytes] = []
+        total_bytes = 0
+        buffer = io.StringIO()
+        writer = DictWriter(buffer, fieldnames=fields, lineterminator="\r\n")
+        writer.writeheader()
+        chunks.append(buffer.getvalue().encode("utf-8"))
+        total_bytes += len(chunks[-1])
+        selected_by_id = {str(item["id"]): item for item in selected}
+        for start in range(0, len(selected_ids), 50):
+            batch_ids = selected_ids[start : start + 50]
+            records = _bounded_opportunity_payload(
+                opportunity_projection(session, tier=tier, selected_need_ids=set(batch_ids))
+            )
+            by_id = {str(record["id"]): record for record in records}
+            for need_id in batch_ids:
+                record = by_id.get(str(need_id))
+                if record is None:
+                    raise HTTPException(409, "Opportunity cohort changed during export")
+                summary = selected_by_id[str(need_id)]
+                export_priority_segment = _opportunity_priority_segment(summary)
+                values = {
+                    "need_id": record["id"],
+                    "project_id": record["project_id"],
+                    "name": record["name"],
+                    "location": record["location"] or "UNKNOWN",
+                    "tier": record["tier"],
+                    "signal_decision": record.get("signal_display_decision") or "UNKNOWN",
+                    "workflow_status": record.get("workflow_status", "UNKNOWN"),
+                    "priority_segment": (
+                        str(export_priority_segment)
+                        if export_priority_segment is not None
+                        else "UNKNOWN"
+                    ),
+                    "priority_label": _opportunity_priority_label(summary) or "UNKNOWN",
+                    "activity": record["activity"],
+                    "required_mw": record.get("required_mw") or "UNKNOWN",
+                    "supply": record.get("supply") or "UNKNOWN",
+                    "source_ids": json.dumps(
+                        sorted({evidence["source_id"] for evidence in record["evidence"]}),
+                        separators=(",", ":"),
+                    ),
+                    "evidence_urls": json.dumps(
+                        [evidence["url"] for evidence in record["evidence"]],
+                        separators=(",", ":"),
+                    ),
+                    "evidence_hashes": json.dumps(
+                        [evidence["content_hash"] for evidence in record["evidence"]],
+                        separators=(",", ":"),
+                    ),
+                    "signal_evidence_state": record.get("signal_evidence_state") or "UNKNOWN",
+                    "export_scope": "all_filtered_matches",
+                    "cohort_token": token,
+                }
+                buffer.seek(0)
+                buffer.truncate(0)
+                writer.writerow({key: _csv_cell(value) for key, value in values.items()})
+                encoded_row = buffer.getvalue().encode("utf-8")
+                total_bytes += len(encoded_row)
+                if total_bytes > 20_000_000:
+                    raise HTTPException(413, "CSV exceeds the declared 20 MB export budget")
+                chunks.append(encoded_row)
+
+    filename = f"gridlens-opportunities-{chicago_today().isoformat()}.csv"
+    return StreamingResponse(
+        iter(chunks),
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "X-Export-Scope": "all_filtered_matches",
+            "X-Total-Count": str(len(selected_ids)),
+        },
+    )
+
+
+_BROWSE_SUMMARY_BATCH_SIZE = 128
+_BROWSE_BUYING_CHAIN_PROJECT_BATCH_SIZE = 32
+
+
+def _opportunity_summary_projection(
+    session,
+    *,
+    tier: str | None,
+    search: str | None,
+    include_below_floor: bool,
+    selected_need_ids: set[UUID] | None,
+    diagnostics: dict[str, int] | None,
+) -> list[dict]:
+    """Stream compact candidate inputs; selected details use the regular projection."""
+    from gridlens.domain.commercial_triage import PriorityInputAccumulator, _priority
+    from gridlens.ingestion.service import (
+        CurrentNeedQualificationAccumulator,
+        load_current_need_operator_inputs,
+    )
+    from gridlens.intelligence.project_state import ResearchSummaryAccumulator
+
+    sources = {source.id: source for source in session.scalars(select(Source))}
+    caller_owned_orm_ids = {id(row) for row in session.identity_map.values()}
+
+    def release_streamed_row(orm_row: Any) -> None:
+        if orm_row is not None and orm_row in session and id(orm_row) not in caller_owned_orm_ids:
+            session.expunge(orm_row)
+
+    summaries: list[dict] = []
+    metrics = diagnostics if diagnostics is not None else {}
+    metrics.update(
+        {
+            "candidate_rows_scanned": 0,
+            "max_candidate_batch_size": 0,
+            "max_current_link_rows_per_batch": 0,
+            "max_current_link_rows_per_need": 0,
+            "max_resident_link_orm_rows": 0,
+            "max_resident_lifecycle_orm_rows": 0,
+            "link_fetch_chunk_size": 128,
+            "lifecycle_fetch_chunk_size": 128,
+            "max_compact_need_states_per_batch": 0,
+            "historical_date_rows_aggregated": 0,
+            "historical_evidence_orm_rows": 0,
+            "lifecycle_rows_streamed": 0,
+            "supported_lifecycle_rows": 0,
+            "brief_orm_rows": 0,
+            "summary_candidate_count": 0,
+            "title_company_project_count": 0,
+            "title_company_batch_count": 0,
+            "max_title_company_batch_size": 0,
+        }
+    )
+    cursor: UUID | None = None
+    houston_project_ids: set[UUID] = set()
+    while True:
+        query = (
+            select(PowerNeed, Project)
+            .join(Project, PowerNeed.project_id == Project.id)
+            .where(PowerNeed.active.is_(True))
+            .order_by(PowerNeed.id)
+            .limit(_BROWSE_SUMMARY_BATCH_SIZE)
+        )
+        if search:
+            query = query.where(Project.name.ilike(f"%{search[:100]}%"))
+        if selected_need_ids is not None:
+            query = query.where(PowerNeed.id.in_(selected_need_ids))
+        elif cursor is not None:
+            query = query.where(PowerNeed.id > cursor)
+        batch = session.execute(query).all()
+        if not batch:
+            break
+        metrics["candidate_rows_scanned"] += len(batch)
+        metrics["max_candidate_batch_size"] = max(metrics["max_candidate_batch_size"], len(batch))
+        if selected_need_ids is None:
+            cursor = batch[-1][0].id
+        needs = [need for need, _project in batch]
+        projects_by_id = {project.id: project for _need, project in batch}
+        houston_project_ids.update(
+            project.id
+            for project in projects_by_id.values()
+            if project.source_id == "houston-weekly-permits"
+        )
+        need_ids = [need.id for need in needs]
+        project_ids = list(projects_by_id)
+        fact_rows_by_need, workflow_by_need = load_current_need_operator_inputs(session, need_ids)
+        _preflight_streamed_evidence_text(session, need_ids, project_ids)
+
+        latest_retained_date: dict[UUID, str] = {}
+        date_rows = session.execute(
+            select(
+                NeedObservation.need_id,
+                func.max(func.coalesce(Evidence.published_at, Evidence.event_date)),
+            )
+            .join(Observation, Observation.id == NeedObservation.observation_id)
+            .join(Evidence, Evidence.observation_id == Observation.id)
+            .where(NeedObservation.need_id.in_(need_ids))
+            .group_by(NeedObservation.need_id)
+        )
+        for need_id, retained_date in date_rows:
+            metrics["historical_date_rows_aggregated"] += 1
+            if retained_date is None:
+                continue
+            value = (
+                retained_date.isoformat()
+                if hasattr(retained_date, "isoformat")
+                else str(retained_date)
+            )
+            if len(value) >= 10 and value[4:5] == "-" and value[7:8] == "-":
+                day = value[:10]
+                latest_retained_date[need_id] = max(
+                    latest_retained_date.get(need_id, "0000-00-00"), day
+                )
+
+        lifecycle_state_by_project = dict(
+            session.execute(
+                select(ProjectLifecycle.project_id, ProjectLifecycle.current_state).where(
+                    ProjectLifecycle.project_id.in_(project_ids)
+                )
+            ).all()
+        )
+        project_priority_inputs = {
+            project.id: PriorityInputAccumulator(lifecycle_state_by_project.get(project.id))
+            for project in projects_by_id.values()
+        }
+        lifecycle_rows = session.execute(
+            select(LifecycleEvent, Evidence, Interpretation)
+            .join(Evidence, Evidence.id == LifecycleEvent.evidence_id)
+            .join(Observation, Observation.id == Evidence.observation_id)
+            .join(
+                Interpretation,
+                and_(
+                    Interpretation.observation_id == Observation.id,
+                    Interpretation.content_hash == Observation.content_hash,
+                    Evidence.content_hash == Interpretation.assessment["evidence_hash"].as_string(),
+                ),
+            )
+            .where(LifecycleEvent.project_id.in_(project_ids))
+            .options(joinedload(Evidence.observation))
+            .order_by(
+                Evidence.published_at.asc().nullslast(),
+                Evidence.observed_at,
+                LifecycleEvent.recorded_at,
+            )
+        ).yield_per(128)
+        for lifecycle_event, lifecycle_evidence, lifecycle_interpretation in lifecycle_rows:
+            metrics["lifecycle_rows_streamed"] += 1
+            project = projects_by_id.get(lifecycle_event.project_id)
+            is_supported = project is not None and lifecycle_event_supported(
+                lifecycle_event.event_type,
+                lifecycle_evidence,
+                lifecycle_interpretation,
+                project,
+                lifecycle_event.state,
+                event=lifecycle_event,
+            )
+            if is_supported:
+                metrics["supported_lifecycle_rows"] += 1
+                project_priority_inputs[lifecycle_event.project_id].add_lifecycle(
+                    lifecycle_event.event_type, lifecycle_event.state
+                )
+            for orm_row in (
+                lifecycle_event,
+                lifecycle_evidence,
+                lifecycle_evidence.observation,
+                lifecycle_interpretation,
+            ):
+                release_streamed_row(orm_row)
+            metrics["max_resident_lifecycle_orm_rows"] = max(
+                metrics["max_resident_lifecycle_orm_rows"],
+                sum(
+                    isinstance(row, LifecycleEvent | Evidence | Observation | Interpretation)
+                    for row in session.identity_map.values()
+                ),
+            )
+
+        need_states: dict[UUID, dict[str, Any]] = {}
+        for need, project in batch:
+            priority_inputs = PriorityInputAccumulator(lifecycle_state_by_project.get(project.id))
+            project_inputs = project_priority_inputs[project.id]
+            priority_inputs.lifecycle_phase = project_inputs.lifecycle_phase
+            priority_inputs.lifecycle_producing = project_inputs.lifecycle_producing
+            need_states[need.id] = {
+                "need": need,
+                "project": project,
+                "priority": priority_inputs,
+                "taylor_priority": PriorityInputAccumulator(
+                    lifecycle_state_by_project.get(project.id)
+                ),
+                "qualification": CurrentNeedQualificationAccumulator(
+                    session,
+                    need,
+                    project,
+                    sources=sources,
+                    call_facts=fact_rows_by_need.get(need.id, []),
+                ),
+                "call_facts": fact_rows_by_need.get(need.id, []),
+                "workflow_status": (
+                    workflow_by_need[need.id].status if need.id in workflow_by_need else "UNKNOWN"
+                ),
+                "research": ResearchSummaryAccumulator(need, project),
+                "has_current_support": False,
+                "taylor_identity_conflict": False,
+                "first_priority_identity": None,
+                "first_non_taylor_priority_identity": None,
+                "first_admitted": None,
+                "first_non_taylor_admitted": None,
+                "signal_decisions": [],
+                "has_unadjudicated_current_signal": False,
+                "current_link_rows": 0,
+            }
+        metrics["max_compact_need_states_per_batch"] = max(
+            metrics["max_compact_need_states_per_batch"], len(need_states)
+        )
+
+        current_link_rows = 0
+        current_links = session.execute(
+            select(NeedObservation.need_id, Observation, Evidence, Interpretation, SignalDecision)
+            .join(Observation, Observation.id == NeedObservation.observation_id)
+            .join(
+                Interpretation,
+                and_(
+                    Interpretation.observation_id == Observation.id,
+                    Interpretation.content_hash == Observation.content_hash,
+                    Interpretation.assessment["semantic_hash"].as_string()
+                    == Observation.content_hash,
+                ),
+            )
+            .join(
+                Evidence,
+                and_(
+                    Evidence.observation_id == Observation.id,
+                    Evidence.content_hash == Interpretation.assessment["evidence_hash"].as_string(),
+                ),
+            )
+            .outerjoin(
+                SignalDecision,
+                and_(
+                    SignalDecision.observation_id == Observation.id,
+                    SignalDecision.content_hash == Evidence.content_hash,
+                    SignalDecision.policy_version == POLICY_VERSION,
+                ),
+            )
+            .where(NeedObservation.need_id.in_(need_ids))
+            .order_by(
+                NeedObservation.need_id,
+                Evidence.observed_at.desc(),
+                Evidence.content_hash.desc(),
+            )
+        ).yield_per(128)
+        for need_id, observation, evidence, interpretation, signal_decision in current_links:
+            state = need_states[need_id]
+            need = state["need"]
+            project = state["project"]
+            current_link_rows += 1
+            state["current_link_rows"] += 1
+            row = (observation, evidence, interpretation)
+            state["has_current_support"] = state["has_current_support"] or (
+                interpretation is not None
+                and _need_has_current_support(
+                    session,
+                    need,
+                    project,
+                    links=[row],
+                    sources=sources,
+                )
+            )
+            state["qualification"].add_link(*row)
+            if interpretation is not None:
+                state["research"].add(observation, evidence, interpretation)
+                if (
+                    observation.source_id == "taylor-development-newsflash"
+                    and "conflicting project or site facts"
+                    in str((interpretation.assessment or {}).get("reason") or "")
+                ):
+                    state["taylor_identity_conflict"] = True
+
+            assessment = _assessment_for_evidence(interpretation, observation, evidence)
+            if assessment is not None and (
+                assessment.get("project_identity_key") != project.identity_key
+                or (assessment.get("power_activity") or assessment.get("activity_key"))
+                != need.activity_key
+            ):
+                assessment = None
+            is_taylor = observation.source_id == "taylor-development-newsflash"
+            taylor_withdrawn = (
+                lifecycle_state_by_project.get(project.id) == "planning_application_withdrawn"
+            )
+            if taylor_withdrawn and is_taylor:
+                assessment = None
+            if assessment is not None:
+                identity = {
+                    "id": evidence.id,
+                    "source_id": observation.source_id,
+                    "document_number": observation.external_id,
+                }
+                if state["first_priority_identity"] is None:
+                    state["first_priority_identity"] = identity
+                if not is_taylor and state["first_non_taylor_priority_identity"] is None:
+                    state["first_non_taylor_priority_identity"] = identity
+            state["priority"].add_evidence(
+                published_at=evidence.published_at,
+                event_date=evidence.event_date,
+                supporting=assessment is not None and not is_taylor,
+                title=evidence.title,
+                abstract=evidence.abstract,
+            )
+            if assessment is not None and is_taylor:
+                state["taylor_priority"].add_evidence(
+                    title=evidence.title,
+                    abstract=evidence.abstract,
+                    supporting=True,
+                )
+
+            source = sources.get(observation.source_id)
+            if (
+                assessment is not None
+                and source is not None
+                and admitted_from_source(source, assessment, evidence).admitted
+            ):
+                if signal_decision is None:
+                    state["has_unadjudicated_current_signal"] = True
+                else:
+                    state["signal_decisions"].append(signal_decision)
+                action = {
+                    "action": assessment.get("action"),
+                    "reason": assessment.get("reason"),
+                    "subject": assessment.get("subject"),
+                    "reported_power_facts": assessment.get("reported_power_facts", []),
+                }
+                if state["first_admitted"] is None:
+                    state["first_admitted"] = action
+                if not is_taylor and state["first_non_taylor_admitted"] is None:
+                    state["first_non_taylor_admitted"] = action
+            for orm_row in (signal_decision, interpretation, evidence, observation):
+                release_streamed_row(orm_row)
+            metrics["max_resident_link_orm_rows"] = max(
+                metrics["max_resident_link_orm_rows"],
+                sum(
+                    isinstance(row, SignalDecision | Evidence | Observation | Interpretation)
+                    for row in session.identity_map.values()
+                ),
+            )
+        metrics["max_current_link_rows_per_batch"] = max(
+            metrics["max_current_link_rows_per_batch"], current_link_rows
+        )
+        metrics["max_current_link_rows_per_need"] = max(
+            metrics["max_current_link_rows_per_need"],
+            max((state["current_link_rows"] for state in need_states.values()), default=0),
+        )
+
+        for need, project in batch:
+            state = need_states[need.id]
+            if not state["has_current_support"]:
+                continue
+            research_state = state["research"].finish()
+            qualified = state["qualification"].finish(research_state)
+            effective = qualified or {
+                "tier": "Signal",
+                "required_mw": None,
+                "supply": "Unknown",
+            }
+            if tier in {"Signal", "Prospect", "Lead"} and effective["tier"] != tier:
+                continue
+            current_lifecycle_state = lifecycle_state_by_project.get(project.id)
+            signal_metadata = _signal_display_metadata(
+                state["signal_decisions"],
+                state["has_unadjudicated_current_signal"],
+                is_signal=effective["tier"] == "Signal",
+                lifecycle_state=current_lifecycle_state,
+                identity_conflict=state["taylor_identity_conflict"],
+            )
+            taylor_withdrawn = current_lifecycle_state == "planning_application_withdrawn"
+            max_date = latest_retained_date.get(need.id)
+            if max_date:
+                state["priority"].add_evidence(published_at=max_date, supporting=False)
+                state["taylor_priority"].add_evidence(published_at=max_date, supporting=False)
+            taylor_suppressed = taylor_withdrawn or state["taylor_identity_conflict"]
+            if not taylor_suppressed:
+                state["priority"].merge_supporting_evidence(state["taylor_priority"])
+            first_admitted = (
+                state["first_non_taylor_admitted"] if taylor_suppressed else state["first_admitted"]
+            )
+            identity = (
+                state["first_non_taylor_priority_identity"]
+                if taylor_suppressed
+                else state["first_priority_identity"]
+            )
+            summary_evidence = (
+                [
+                    {
+                        **identity,
+                        "assessment_current": True,
+                    }
+                ]
+                if identity is not None
+                else []
+            )
+            if (
+                not include_below_floor
+                and commercial_size_status(
+                    effective.get("required_mw"),
+                    need.activity_key,
+                    first_admitted.get("action") if first_admitted else None,
+                    first_admitted.get("reported_power_facts", []) if first_admitted else [],
+                    remaining_gap=(
+                        effective.get("qualified_remaining_gap")
+                        if effective.get("tier") == "Lead"
+                        and effective.get("qualification_version")
+                        else None
+                    ),
+                )
+                == "below_floor"
+            ):
+                continue
+            summary = {
+                "id": need.id,
+                "project_id": project.id,
+                "_cohort_project_identity": project.identity_key,
+                "_cohort_active": need.active,
+                "name": project.name,
+                "location": project.location,
+                "tier": effective["tier"],
+                "workflow_status": state["workflow_status"],
+                "_current_fact_digest": fact_digest(state["call_facts"]),
+                "required_mw": effective.get("required_mw"),
+                "start_window": effective.get("start_window"),
+                "_updated_at": need.updated_at,
+                "_cohort_version": need.updated_at.isoformat() if need.updated_at else "",
+                "activity": need.activity_key,
+                "supported_action": first_admitted.get("action") if first_admitted else None,
+                "assessment_reason": first_admitted.get("reason") if first_admitted else None,
+                "supported_subject": first_admitted.get("subject") if first_admitted else None,
+                "asset_type": project.asset_type,
+                "lifecycle_state": current_lifecycle_state,
+                **signal_metadata,
+                "lifecycle_timeline": [],
+                "evidence": summary_evidence,
+                "_browse_action_candidates": [first_admitted.get("action")]
+                if first_admitted and first_admitted.get("action")
+                else [],
+                "_priority_features": state["priority"].snapshot(),
+            }
+            summary["_priority_segment"] = _priority(summary)[0]
+            summaries.append(summary)
+        metrics["summary_candidate_count"] = len(summaries)
+        if selected_need_ids is not None:
+            break
+    summary_project_ids = {UUID(str(item["project_id"])) for item in summaries}
+    houston_project_ids.intersection_update(summary_project_ids)
+    if houston_project_ids:
+        metrics["title_company_project_count"] = len(houston_project_ids)
+        ordered_project_ids = sorted(houston_project_ids, key=str)
+        for start in range(0, len(ordered_project_ids), _BROWSE_BUYING_CHAIN_PROJECT_BATCH_SIZE):
+            project_batch = set(
+                ordered_project_ids[start : start + _BROWSE_BUYING_CHAIN_PROJECT_BATCH_SIZE]
+            )
+            metrics["title_company_batch_count"] += 1
+            metrics["max_title_company_batch_size"] = max(
+                metrics["max_title_company_batch_size"], len(project_batch)
+            )
+            chain_views = buying_chain_views(session, project_batch)
+            for summary in summaries:
+                project_id = summary.get("project_id")
+                if project_id not in project_batch:
+                    continue
+                title_company, title_company_role = _opportunity_title_company(
+                    chain_views.get(str(project_id), {})
+                )
+                summary["title_company"] = title_company
+                summary["title_company_role"] = title_company_role
+    return summaries
+
+
+def _opportunity_title_company(chain: dict) -> tuple[str | None, str | None]:
+    owner_occupant = next(
+        (
+            fact["value"]
+            for permit in chain.get("permit_summaries", [])
+            for fact in permit.get("facts", [])
+            if fact.get("label") == "Permit-listed owner / occupant"
+            and str(fact.get("value") or "").strip()
+        ),
+        None,
+    )
+    if owner_occupant:
+        return owner_occupant, "permit-listed owner / occupant"
+    return None, None
 
 
 def opportunity_projection(
@@ -596,20 +2780,38 @@ def opportunity_projection(
     tier: str | None = None,
     search: str | None = None,
     include_below_floor: bool = False,
+    selected_need_ids: set[UUID] | None = None,
+    include_operator_fact_refs: bool = False,
+    summary_only: bool = False,
+    summary_diagnostics: dict[str, int] | None = None,
 ):
+    if summary_only:
+        return _opportunity_summary_projection(
+            session,
+            tier=tier,
+            search=search,
+            include_below_floor=include_below_floor,
+            selected_need_ids=selected_need_ids,
+            diagnostics=summary_diagnostics,
+        )
     query = (
         select(PowerNeed, Project)
         .join(Project, PowerNeed.project_id == Project.id)
         .where(PowerNeed.active.is_(True))
-        .order_by(PowerNeed.updated_at.desc())
+        .order_by(PowerNeed.updated_at.desc(), PowerNeed.id)
     )
     if search:
         query = query.where(Project.name.ilike(f"%{search[:100]}%"))
+    if selected_need_ids is not None:
+        query = query.where(PowerNeed.id.in_(selected_need_ids))
     rows = session.execute(query).all()
     # One set of evidence/lifecycle reads for the list, preserving the same
     # version-bound admission checks used by ingestion and detail rendering.
     need_ids = [need.id for need, _ in rows]
     project_ids = [project.id for _, project in rows]
+    from gridlens.ingestion.service import load_current_need_operator_inputs
+
+    fact_rows_by_need, workflow_by_need = load_current_need_operator_inputs(session, need_ids)
     sources = {source.id: source for source in session.scalars(select(Source))}
     lifecycle_by_project = {
         life.project_id: life
@@ -674,17 +2876,51 @@ def opportunity_projection(
     from gridlens.ingestion.service import effective_need_qualification
     from gridlens.intelligence.project_state import current_research_state
 
+    projects_by_id = {project.id: project for _, project in rows}
+    research_rows_by_project: dict[
+        UUID, list[tuple[PowerNeed, Observation, Evidence, Interpretation]]
+    ] = defaultdict(list)
+    for need, project in rows:
+        research_rows_by_project[project.id].extend(
+            (need, observation, evidence_row, interpretation)
+            for observation, evidence_row, interpretation in links_by_need[need.id]
+            if interpretation is not None
+        )
     research_by_project = {
-        project_id: current_research_state(session, project_id) for project_id in set(project_ids)
+        project_id: current_research_state(
+            session,
+            project_id,
+            project=project,
+            rows=research_rows_by_project.get(project_id, []),
+        )
+        for project_id, project in projects_by_id.items()
     }
+    chain_project_ids = {
+        project.id
+        for need, project in rows
+        if not summary_only
+        and (
+            project.source_id == "houston-weekly-permits" or briefs_by_need.get(need.id) is not None
+        )
+    }
+    buying_chains_by_project = buying_chain_views(session, chain_project_ids)
     result = []
     title_company_by_project = {}
+    lifecycle_timeline_by_state = {}
     for need, project in rows:
         research_state = research_by_project.get(project.id, {}).get(str(need.id), {})
         links = links_by_need[need.id]
         if not _need_has_current_support(session, need, project, links=links):
             continue
-        qualified = effective_need_qualification(session, need, project)
+        qualified = effective_need_qualification(
+            session,
+            need,
+            project,
+            links=links,
+            sources=sources,
+            research_state=research_state,
+            call_facts=fact_rows_by_need.get(need.id, []),
+        )
         effective = qualified or {
             "tier": "Signal",
             "rationale": need.rationale,
@@ -705,6 +2941,8 @@ def opportunity_projection(
                 lifecycle_evidence,
                 lifecycle_interpretation,
                 project,
+                lifecycle_event.state,
+                event=lifecycle_event,
             ):
                 current_lifecycle_ids.add(lifecycle_event.id)
         taylor_withdrawn = bool(
@@ -742,38 +2980,57 @@ def opportunity_projection(
                 and admitted_from_source(evidence_source, current_assessment, ev).admitted
             ):
                 current_assessments.append(current_assessment)
-            evidence.append(
-                {
-                    "id": ev.id,
-                    "title": ev.title,
-                    "abstract": ev.abstract,
-                    "url": ev.url,
-                    "published_at": ev.published_at,
-                    "retrieved_at": ev.observed_at,
-                    "extraction_location": ev.extraction_location,
-                    "content_hash": ev.content_hash,
-                    "event_date": ev.event_date,
-                    "event_date_label": ev.event_date_label
-                    or (
-                        "Permit issue date (source publication date unknown)"
-                        if ev.event_date and obs.source_id.endswith("-building-permits")
-                        else "Source event date"
-                        if ev.event_date
-                        else "Unknown"
-                    ),
-                    "source_id": obs.source_id,
-                    "source_origin": source_origin(
-                        evidence_source.family, evidence_source.retrieval_method
-                    )
-                    if evidence_source is not None
-                    else "Source evidence",
-                    "document_number": obs.external_id,
-                    "assessment_current": current_assessment is not None,
-                    "permit_status": current_assessment.get("permit_status")
-                    if current_assessment
-                    else None,
-                }
-            )
+            if summary_only:
+                evidence.append(
+                    {
+                        "id": ev.id,
+                        "title": ev.title,
+                        "abstract": ev.abstract,
+                        "url": ev.url,
+                        "published_at": ev.published_at,
+                        "content_hash": ev.content_hash,
+                        "event_date": ev.event_date,
+                        "source_id": obs.source_id,
+                        "document_number": obs.external_id,
+                        "assessment_current": current_assessment is not None,
+                        "permit_status": current_assessment.get("permit_status")
+                        if current_assessment
+                        else None,
+                    }
+                )
+            else:
+                evidence.append(
+                    {
+                        "id": ev.id,
+                        "title": ev.title,
+                        "abstract": ev.abstract,
+                        "url": ev.url,
+                        "published_at": ev.published_at,
+                        "retrieved_at": ev.observed_at,
+                        "extraction_location": ev.extraction_location,
+                        "content_hash": ev.content_hash,
+                        "event_date": ev.event_date,
+                        "event_date_label": ev.event_date_label
+                        or (
+                            "Permit issue date (source publication date unknown)"
+                            if ev.event_date and obs.source_id.endswith("-building-permits")
+                            else "Source event date"
+                            if ev.event_date
+                            else "Unknown"
+                        ),
+                        "source_id": obs.source_id,
+                        "source_origin": source_origin(
+                            evidence_source.family, evidence_source.retrieval_method
+                        )
+                        if evidence_source is not None
+                        else "Source evidence",
+                        "document_number": obs.external_id,
+                        "assessment_current": current_assessment is not None,
+                        "permit_status": current_assessment.get("permit_status")
+                        if current_assessment
+                        else None,
+                    }
+                )
         current_assessment = current_assessments[0] if current_assessments else None
         display_decisions: list[SignalDecision] = []
         has_unadjudicated_current_signal = False
@@ -805,64 +3062,42 @@ def opportunity_projection(
                 display_decisions.append(decision)
             else:
                 has_unadjudicated_current_signal = True
-        precedence = {"SHOW": 0, "REVIEW": 1, "HOLD": 2}
-        selected_decision = min(
+        display_metadata = _signal_display_metadata(
             display_decisions,
-            key=lambda item: precedence.get(item.decision, 1),
-            default=None,
+            has_unadjudicated_current_signal,
+            is_signal=effective["tier"] == "Signal",
+            lifecycle_state=lifecycle.current_state if lifecycle else None,
+            identity_conflict=taylor_identity_conflict,
         )
-        display_decision = (
-            "SHOW"
-            if any(item.decision == "SHOW" for item in display_decisions)
-            else "REVIEW"
-            if has_unadjudicated_current_signal
-            else selected_decision.decision
-            if selected_decision
-            else None
-        )
-        display_source = (
-            selected_decision.source
-            if selected_decision
-            and not (has_unadjudicated_current_signal and selected_decision.decision == "HOLD")
-            else None
-        )
-        display_reason = (
-            "One or more linked current Signal evidence versions have no decision."
-            if has_unadjudicated_current_signal
-            and (selected_decision is None or selected_decision.decision == "HOLD")
-            else selected_decision.reason
-            if selected_decision
-            else None
-        )
-        display_state = (
-            "adjudicated"
-            if display_decisions and not has_unadjudicated_current_signal
-            else "partially_adjudicated"
-            if display_decisions
-            else "unadjudicated"
-        )
-        if effective["tier"] == "Signal" and taylor_withdrawn:
-            display_decision = "HOLD"
-            display_source = "deterministic"
-            display_reason = (
-                "The current official planning application is withdrawn; earlier "
-                "positive evidence remains historical and project viability is UNKNOWN."
-            )
-            display_state = "adjudicated"
-        elif effective["tier"] == "Signal" and taylor_identity_conflict:
-            display_decision = "REVIEW"
-            display_source = "deterministic"
-            display_reason = (
-                "The latest Taylor revision conflicts with retained project or site facts; "
-                "current application and project status are UNKNOWN."
-            )
-            display_state = "adjudicated"
+        display_decision = display_metadata["signal_display_decision"]
+        display_source = display_metadata["signal_display_source"]
+        display_reason = display_metadata["signal_display_reason"]
+        display_state = display_metadata["signal_display_decision_state"]
         time_to_power_window = None
         if lifecycle and lifecycle.time_to_power_start and lifecycle.time_to_power_end:
             time_to_power_window = (
                 f"{lifecycle.time_to_power_start.isoformat()} to "
                 f"{lifecycle.time_to_power_end.isoformat()} (estimated)"
             )
+        timeline_key = (project.id, taylor_withdrawn, taylor_identity_conflict)
+        if timeline_key not in lifecycle_timeline_by_state:
+            lifecycle_timeline_by_state[timeline_key] = [
+                {
+                    "state": event.state,
+                    "event_type": event.event_type,
+                    "date": event.occurred_on.isoformat() if event.occurred_on else None,
+                    "value_kind": event.value_kind,
+                    "evidence_url": lifecycle_evidence.url,
+                    "current": event.id in current_lifecycle_ids
+                    and (
+                        not taylor_withdrawn or event.event_type == "planning_application_withdrawn"
+                    )
+                    and not taylor_identity_conflict,
+                    "published_at": lifecycle_evidence.published_at,
+                    "event_date_label": lifecycle_evidence.event_date_label,
+                }
+                for event, lifecycle_evidence in lifecycle_rows
+            ]
         missing_facts = (
             current_assessment.get("missing_facts", [])
             if current_assessment
@@ -894,26 +3129,14 @@ def opportunity_projection(
         )
         if size_status == "below_floor" and not include_below_floor:
             continue
-        if project.id not in title_company_by_project:
+        if not summary_only and project.id not in title_company_by_project:
             title_company = None
             title_company_role = None
             if project.source_id == "houston-weekly-permits":
-                chain = buying_chain_view(session, project.id)
-                owner_occupant = next(
-                    (
-                        fact["value"]
-                        for summary in chain["permit_summaries"]
-                        for fact in summary["facts"]
-                        if fact["label"] == "Permit-listed owner / occupant"
-                        and fact["value"].strip()
-                    ),
-                    None,
-                )
-                if owner_occupant:
-                    title_company = owner_occupant
-                    title_company_role = "permit-listed owner / occupant"
+                chain = buying_chains_by_project.get(str(project.id), {})
+                title_company, title_company_role = _opportunity_title_company(chain)
             title_company_by_project[project.id] = (title_company, title_company_role)
-        title_company, title_company_role = title_company_by_project[project.id]
+        title_company, title_company_role = title_company_by_project.get(project.id, (None, None))
         result.append(
             {
                 "id": need.id,
@@ -921,6 +3144,9 @@ def opportunity_projection(
                 "name": project.name,
                 "location": project.location,
                 "tier": effective["tier"],
+                "workflow_status": (
+                    workflow_by_need[need.id].status if need.id in workflow_by_need else "UNKNOWN"
+                ),
                 "activity": need.activity_key,
                 "rationale": (
                     "The latest linked Taylor revision withdraws this planning application. "
@@ -955,7 +3181,8 @@ def opportunity_projection(
                 "research_state": research_state,
                 # Internal raw-card proof; absence of current authority is not clearance.
                 "qualification_conflict": effective.get("qualification_conflict", False)
-                if qualified is not None else None,
+                if qualified is not None
+                else None,
                 "conflict_state": "CONFLICT"
                 if effective.get("qualification_conflict")
                 or any(field.get("status") == "CONFLICT" for field in research_state.values())
@@ -993,24 +3220,7 @@ def opportunity_projection(
                 "evidence": evidence,
                 "asset_type": project.asset_type,
                 "lifecycle_state": lifecycle.current_state if lifecycle else None,
-                "lifecycle_timeline": [
-                    {
-                        "state": event.state,
-                        "event_type": event.event_type,
-                        "date": event.occurred_on.isoformat() if event.occurred_on else None,
-                        "value_kind": event.value_kind,
-                        "evidence_url": lifecycle_evidence.url,
-                        "current": event.id in current_lifecycle_ids
-                        and (
-                            not taylor_withdrawn
-                            or event.event_type == "planning_application_withdrawn"
-                        )
-                        and not taylor_identity_conflict,
-                        "published_at": lifecycle_evidence.published_at,
-                        "event_date_label": lifecycle_evidence.event_date_label,
-                    }
-                    for event, lifecycle_evidence in lifecycle_rows
-                ],
+                "lifecycle_timeline": lifecycle_timeline_by_state[timeline_key],
                 "expected_next_milestone": (
                     None
                     if taylor_withdrawn or taylor_identity_conflict
@@ -1045,16 +3255,36 @@ def opportunity_projection(
                 "signal_display_source": display_source,
                 "signal_display_reason": display_reason,
                 "signal_admission_origin": (need.admission_basis or {}).get("origin"),
-                **brief_preview(
-                    session,
-                    need,
-                    project,
-                    links,
-                    sources,
-                    briefs_by_need.get(need.id),
+                **(
+                    {}
+                    if summary_only
+                    else brief_preview(
+                        session,
+                        need,
+                        project,
+                        links,
+                        sources,
+                        briefs_by_need.get(need.id),
+                        buying_chains_by_project.get(str(project.id)),
+                    )
                 ),
             }
         )
+        if include_operator_fact_refs:
+            accepted_facts = fact_rows_by_need.get(need.id, [])
+            if accepted_facts:
+                result[-1]["operator_fact_refs"] = [
+                    {
+                        "need_id": str(need.id),
+                        "fact_version_id": str(fact.id),
+                        "content_hash": fact.content_hash,
+                        "authority": "User-confirmed",
+                    }
+                    for fact in sorted(
+                        accepted_facts,
+                        key=lambda row: (row.fact_type, row.content_hash, str(row.id)),
+                    )
+                ]
     return result
 
 
@@ -1195,8 +3425,43 @@ def refresh(request: Request):
 
     definitions = sync_registry()
     with SessionLocal.begin() as session:
-        ids = [str(enqueue(session, source["id"])) for source in definitions if source["enabled"]]
+        sources = {
+            row.id: row
+            for row in session.scalars(
+                select(Source).where(Source.id.in_([d["id"] for d in definitions]))
+            )
+        }
+        ids = [
+            str(enqueue(session, item["id"]))
+            for item in definitions
+            if sources[item["id"]].enabled and sources[item["id"]].registry_enabled
+        ]
     return {"queued": ids}
+
+
+@app.post(
+    "/api/sources/{source_id}/enabled",
+    response_model=SourceEnabledOut,
+    dependencies=[Depends(require_session)],
+)
+def set_source_enabled_endpoint(source_id: str, body: SourceEnabledIn, request: Request):
+    require_same_origin(request)
+    from gridlens.jobs.worker import set_source_enabled
+
+    try:
+        set_source_enabled(source_id, body.enabled)
+    except ValueError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    with SessionLocal() as session:
+        source = session.get(Source, source_id)
+        if source is None:
+            raise HTTPException(404, "Source not found")
+        return {
+            "id": source.id,
+            "registry_enabled": source.registry_enabled,
+            "operator_enabled": source.enabled,
+            "effective_enabled": source.enabled and source.registry_enabled,
+        }
 
 
 @app.get(
@@ -1282,6 +3547,525 @@ from gridlens.intelligence.pursuits import (  # noqa: E402
 from gridlens.persistence.models import Pursuit, PursuitCallNote  # noqa: E402
 
 
+def _validate_need_scope(session, need_id: UUID, project_id: UUID, pursuit_id: UUID | None):
+    need = session.scalar(select(PowerNeed).where(PowerNeed.id == need_id).with_for_update())
+    if need is None:
+        raise HTTPException(404, "Power need not found")
+    project = session.get(Project, need.project_id)
+    if project is None or project.id != project_id:
+        raise HTTPException(404, "Need/project scope does not match")
+    pursuit = None
+    if pursuit_id is not None:
+        pursuit = session.get(Pursuit, pursuit_id)
+        if pursuit is None or pursuit.project_id != project.id:
+            raise HTTPException(404, "Need/project/pursuit scope does not match")
+    return need, project, pursuit
+
+
+def _fact_version_view(row: CallFactVersion, decision: CallFactDecision | None):
+    return {
+        "id": row.id,
+        "need_id": row.need_id,
+        "project_id": row.project_id,
+        "pursuit_id": row.pursuit_id,
+        "predecessor_id": row.predecessor_id,
+        "activity_key": row.activity_key,
+        "facility_scope": row.facility_scope,
+        "fact_type": row.fact_type,
+        "value": row.value,
+        "reporter_name": row.reporter_name,
+        "reporter_organization": row.reporter_organization,
+        "reporter_role": row.reporter_role,
+        "confirmation_channel": row.confirmation_channel,
+        "source_reference": row.source_reference,
+        "source_date": row.source_date,
+        "confirmed_at": row.confirmed_at,
+        "effective_from": row.effective_from,
+        "effective_until": row.effective_until,
+        "content_hash": row.content_hash,
+        "decision": decision.decision if decision else "UNKNOWN",
+        "decision_version": decision.version if decision else None,
+        "decision_reason": decision.reason if decision else None,
+        "decision_actor": decision.actor if decision else None,
+        "decided_at": decision.created_at if decision else None,
+        "authority_label": (
+            "User-confirmed"
+            if decision and decision.decision in {"accepted", "corrected"}
+            else "Reported / not accepted"
+        ),
+        "recorded_by": row.recorded_by,
+        "created_at": row.created_at,
+    }
+
+
+def _reported_timing_correction_target(
+    session, need: PowerNeed, project: Project, current_fact_version: int
+) -> dict[str, Any]:
+    unavailable = {
+        "available": False,
+        "unavailable_reason": "no_current_admitted_lead",
+        "need_id": need.id,
+        "project_id": project.id,
+        "project_identity_key": project.identity_key,
+        "activity_key": need.activity_key,
+        "facility_identity": None,
+        "source_semantic_hash": None,
+        "source_evidence_hash": None,
+        "retained_evidence_id": None,
+        "source_id": None,
+        "earliest_possible_start": None,
+        "latest_possible_start": None,
+        "minimum_duration_days": None,
+        "maximum_duration_days": None,
+        "current_fact_version": current_fact_version,
+    }
+    claims = _current_need_claims(session, need, project)
+    if not claims:
+        return unavailable
+    claim = claims[0]
+    if claim.get("qualification_conflict"):
+        unavailable["unavailable_reason"] = "current_source_claim_conflict"
+        return unavailable
+    if claim.get("tier") != "Lead":
+        return unavailable
+    bounds = _source_lead_timing_bounds(claim)
+    evidence = claim.get("evidence")
+    semantic_hash = claim.get("semantic_hash")
+    evidence_hash = claim.get("evidence_hash")
+    evidence_id = evidence.get("id") if isinstance(evidence, dict) else None
+    if (
+        bounds is None
+        or not isinstance(semantic_hash, str)
+        or len(semantic_hash) != 64
+        or any(character not in "0123456789abcdef" for character in semantic_hash)
+        or not isinstance(evidence_hash, str)
+        or len(evidence_hash) != 64
+        or any(character not in "0123456789abcdef" for character in evidence_hash)
+        or not isinstance(evidence_id, str)
+        or claim.get("project_identity_key") != project.identity_key
+    ):
+        unavailable["unavailable_reason"] = "current_source_timing_not_replayable"
+        return unavailable
+    try:
+        retained_evidence_id = UUID(evidence_id)
+    except ValueError:
+        unavailable["unavailable_reason"] = "current_source_timing_not_replayable"
+        return unavailable
+    bound_evidence_id = session.scalar(
+        select(Evidence.id)
+        .join(Observation, Observation.id == Evidence.observation_id)
+        .join(NeedObservation, NeedObservation.observation_id == Observation.id)
+        .where(
+            NeedObservation.need_id == need.id,
+            Observation.content_hash == semantic_hash,
+            Evidence.content_hash == evidence_hash,
+            Evidence.id == retained_evidence_id,
+        )
+        .limit(1)
+    )
+    if bound_evidence_id is None:
+        unavailable["unavailable_reason"] = "current_source_timing_not_replayable"
+        return unavailable
+    first_start, last_start, minimum_duration, maximum_duration = bounds
+    return {
+        **unavailable,
+        "available": True,
+        "unavailable_reason": None,
+        "facility_identity": (
+            project.identity_key
+            if claim.get("project_identity_key") == project.identity_key
+            else None
+        ),
+        "source_semantic_hash": semantic_hash,
+        "source_evidence_hash": evidence_hash,
+        "retained_evidence_id": str(bound_evidence_id),
+        "source_id": claim.get("source_id"),
+        "earliest_possible_start": first_start,
+        "latest_possible_start": last_start,
+        "minimum_duration_days": minimum_duration,
+        "maximum_duration_days": maximum_duration,
+    }
+
+
+def _workflow_event_view(event: NeedWorkflowStatusEvent):
+    return {
+        "id": event.id,
+        "need_id": event.need_id,
+        "project_id": event.project_id,
+        "pursuit_id": event.pursuit_id,
+        "version": event.version,
+        "status": event.status,
+        "previous_status": event.previous_status,
+        "expected_version": event.expected_version,
+        "reason": event.reason,
+        "content_hash": event.content_hash,
+        "actor": event.actor,
+        "created_at": event.created_at,
+    }
+
+
+@app.get(
+    "/api/needs/{need_id}/facts",
+    response_model=CallFactPageOut,
+    dependencies=[Depends(require_session)],
+)
+def list_need_call_facts(
+    need_id: UUID,
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
+):
+    with SessionLocal() as session:
+        need = session.get(PowerNeed, need_id)
+        if need is None:
+            raise HTTPException(404, "Power need not found")
+        project = session.get(Project, need.project_id)
+        if project is None:
+            raise HTTPException(404, "Need project not found")
+        versions = session.scalars(
+            select(CallFactVersion)
+            .where(CallFactVersion.need_id == need_id)
+            .order_by(CallFactVersion.created_at.desc(), CallFactVersion.id)
+            .limit(limit)
+            .offset(offset)
+        ).all()
+        decisions = (
+            session.scalars(
+                select(CallFactDecision)
+                .where(CallFactDecision.fact_version_id.in_([row.id for row in versions]))
+                .order_by(CallFactDecision.version.desc())
+            ).all()
+            if versions
+            else []
+        )
+        latest: dict[UUID, CallFactDecision] = {}
+        for event in decisions:
+            latest.setdefault(event.fact_version_id, event)
+        total = (
+            session.scalar(
+                select(func.count())
+                .select_from(CallFactVersion)
+                .where(CallFactVersion.need_id == need_id)
+            )
+            or 0
+        )
+        current_fact_version = (
+            session.scalar(
+                select(func.max(CallFactDecision.version)).where(
+                    CallFactDecision.need_id == need_id
+                )
+            )
+            or 0
+        )
+        return {
+            "items": [_fact_version_view(row, latest.get(row.id)) for row in versions],
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+            "next_offset": offset + len(versions) if offset + len(versions) < total else None,
+            "current_fact_version": current_fact_version,
+            "current_reported_timing_correction_target": _reported_timing_correction_target(
+                session, need, project, current_fact_version
+            ),
+        }
+
+
+@app.post(
+    "/api/needs/{need_id}/facts",
+    response_model=CallFactOut,
+    dependencies=[Depends(require_session)],
+)
+def create_need_call_fact(need_id: UUID, body: CallFactDraftBody, request: Request):
+    require_same_origin(request)
+    try:
+        value = validate_fact(body.fact_type, body.value)
+        confirmed_at = validate_timezone(body.confirmed_at, "confirmed_at")
+        effective_from = validate_timezone(body.effective_from, "effective_from")
+        effective_until = (
+            validate_timezone(body.effective_until, "effective_until")
+            if body.effective_until
+            else None
+        )
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    if effective_until is not None and effective_until <= effective_from:
+        raise HTTPException(422, "effective_until must follow effective_from")
+    if confirmed_at > datetime.now(UTC):
+        raise HTTPException(422, "confirmed_at cannot be in the future")
+    payload = body.model_dump(mode="json", exclude={"expected_version"})
+    payload["value"] = value
+    digest = canonical_hash(payload)
+    with SessionLocal.begin() as session:
+        need, project, pursuit = _validate_need_scope(
+            session, need_id, body.project_id, body.pursuit_id
+        )
+        prior = session.scalar(
+            select(CallFactVersion).where(
+                CallFactVersion.need_id == need.id, CallFactVersion.client_id == body.client_id
+            )
+        )
+        if prior is not None:
+            if prior.content_hash != digest:
+                raise HTTPException(
+                    409, "This fact request key was already used with different content"
+                )
+            latest = session.scalar(
+                select(CallFactDecision)
+                .where(CallFactDecision.fact_version_id == prior.id)
+                .order_by(CallFactDecision.version.desc())
+                .limit(1)
+            )
+            return _fact_version_view(prior, latest)
+        version = (
+            session.scalar(
+                select(func.max(CallFactDecision.version)).where(
+                    CallFactDecision.need_id == need.id
+                )
+            )
+            or 0
+        )
+        if body.expected_version != version:
+            raise HTTPException(409, "Fact history version is stale")
+        facility = " ".join(body.facility_scope.split())
+        if (
+            body.activity_key != need.activity_key
+            or facility.casefold() != " ".join((project.location or "").split()).casefold()
+        ):
+            raise HTTPException(
+                422, "Fact activity and facility must match the exact need and project"
+            )
+        if body.predecessor_id is not None:
+            predecessor = session.get(CallFactVersion, body.predecessor_id)
+            if predecessor is None or predecessor.need_id != need.id:
+                raise HTTPException(404, "Predecessor fact is outside this exact need")
+        row = CallFactVersion(
+            need_id=need.id,
+            project_id=project.id,
+            pursuit_id=pursuit.id if pursuit else None,
+            predecessor_id=body.predecessor_id,
+            client_id=body.client_id,
+            activity_key=body.activity_key,
+            facility_scope=facility,
+            fact_type=body.fact_type,
+            value=value,
+            reporter_name=body.reporter_name.strip(),
+            reporter_organization=body.reporter_organization.strip()
+            if body.reporter_organization
+            else None,
+            reporter_role=body.reporter_role.strip() if body.reporter_role else None,
+            confirmation_channel=body.confirmation_channel,
+            source_reference=body.source_reference,
+            source_date=body.source_date,
+            confirmed_at=confirmed_at,
+            effective_from=effective_from,
+            effective_until=effective_until,
+            content_hash=digest,
+            recorded_by="Nick Sandoval",
+        )
+        session.add(row)
+        session.flush()
+        event = CallFactDecision(
+            need_id=need.id,
+            fact_version_id=row.id,
+            version=version + 1,
+            client_id=body.client_id,
+            decision="draft",
+            expected_version=version,
+            reason="Fact captured as an unaccepted operator report.",
+            content_hash=canonical_hash({"draft": digest}),
+            actor="Nick Sandoval",
+        )
+        session.add(event)
+        session.flush()
+        return _fact_version_view(row, event)
+
+
+@app.post(
+    "/api/needs/{need_id}/facts/{fact_version_id}/decision",
+    response_model=CallFactDecisionOut,
+    dependencies=[Depends(require_session)],
+)
+def decide_need_call_fact(
+    need_id: UUID, fact_version_id: UUID, body: CallFactDecisionBody, request: Request
+):
+    require_same_origin(request)
+    if body.decision not in {"accepted", "rejected", "corrected", "retracted"}:
+        raise HTTPException(422, "Unsupported fact decision")
+    digest = canonical_hash(body.model_dump(mode="json", exclude={"expected_version"}))
+    with SessionLocal.begin() as session:
+        need = session.scalar(select(PowerNeed).where(PowerNeed.id == need_id).with_for_update())
+        if need is None:
+            raise HTTPException(404, "Power need not found")
+        prior = session.scalar(
+            select(CallFactDecision).where(
+                CallFactDecision.need_id == need.id, CallFactDecision.client_id == body.client_id
+            )
+        )
+        if prior is not None:
+            if prior.fact_version_id != fact_version_id:
+                raise HTTPException(
+                    409, "This fact decision key was already used for a different fact version"
+                )
+            if prior.content_hash != digest:
+                raise HTTPException(
+                    409, "This fact decision key was already used with different content"
+                )
+            return {
+                "id": prior.id,
+                "version": prior.version,
+                "decision": prior.decision,
+                "reason": prior.reason,
+                "actor": prior.actor,
+                "created_at": prior.created_at,
+            }
+        row = session.get(CallFactVersion, fact_version_id)
+        if row is None or row.need_id != need.id:
+            raise HTTPException(404, "Fact version is outside this exact need")
+        version = (
+            session.scalar(
+                select(func.max(CallFactDecision.version)).where(
+                    CallFactDecision.need_id == need.id
+                )
+            )
+            or 0
+        )
+        if version != body.expected_version:
+            raise HTTPException(409, "Fact history version is stale")
+        next_version = version + 1
+        if body.decision == "corrected":
+            if row.predecessor_id is None:
+                raise HTTPException(422, "A corrected version must identify its predecessor")
+            predecessor = session.get(CallFactVersion, row.predecessor_id)
+            if predecessor is None or predecessor.need_id != need.id:
+                raise HTTPException(409, "Correction predecessor is invalid")
+            session.add(
+                CallFactDecision(
+                    need_id=need.id,
+                    fact_version_id=predecessor.id,
+                    version=next_version,
+                    client_id=uuid4(),
+                    decision="superseded",
+                    expected_version=version,
+                    reason=body.reason,
+                    content_hash=canonical_hash({"superseded": digest}),
+                    actor="Nick Sandoval",
+                )
+            )
+            next_version += 1
+        event = CallFactDecision(
+            need_id=need.id,
+            fact_version_id=row.id,
+            version=next_version,
+            client_id=body.client_id,
+            decision=body.decision,
+            expected_version=version,
+            reason=body.reason.strip(),
+            content_hash=digest,
+            actor="Nick Sandoval",
+        )
+        session.add(event)
+        session.flush()
+        project = session.get(Project, need.project_id)
+        if project is not None:
+            from gridlens.ingestion.service import _apply_current_qualification
+
+            _apply_current_qualification(session, need, project)
+        return {
+            "id": event.id,
+            "version": event.version,
+            "decision": event.decision,
+            "reason": event.reason,
+            "actor": event.actor,
+            "created_at": event.created_at,
+            "fact_version_id": row.id,
+            "content_hash": row.content_hash,
+            "tier": need.tier,
+            "active": need.active,
+        }
+
+
+@app.get(
+    "/api/needs/{need_id}/workflow-status",
+    response_model=NeedWorkflowStatusOut,
+    dependencies=[Depends(require_session)],
+)
+def read_need_workflow_status(need_id: UUID):
+    with SessionLocal() as session:
+        if session.get(PowerNeed, need_id) is None:
+            raise HTTPException(404, "Power need not found")
+        events = session.scalars(
+            select(NeedWorkflowStatusEvent)
+            .where(NeedWorkflowStatusEvent.need_id == need_id)
+            .order_by(NeedWorkflowStatusEvent.version.desc())
+            .limit(100)
+        ).all()
+        latest = events[0] if events else None
+        return {
+            "status": latest.status if latest else "UNKNOWN",
+            "version": latest.version if latest else 0,
+            "events": list(reversed(events)),
+        }
+
+
+@app.post(
+    "/api/needs/{need_id}/workflow-status",
+    response_model=NeedWorkflowEventOut,
+    dependencies=[Depends(require_session)],
+)
+def set_need_workflow_status(need_id: UUID, body: NeedWorkflowStatusBody, request: Request):
+    require_same_origin(request)
+    if body.status not in WORKFLOW_STATUSES:
+        raise HTTPException(422, "Unsupported workflow status")
+    digest = canonical_hash(
+        {
+            "status": body.status,
+            "reason": body.reason.strip(),
+            "project_id": str(body.project_id),
+            "pursuit_id": str(body.pursuit_id) if body.pursuit_id else None,
+        }
+    )
+    with SessionLocal.begin() as session:
+        need, project, pursuit = _validate_need_scope(
+            session, need_id, body.project_id, body.pursuit_id
+        )
+        prior = session.scalar(
+            select(NeedWorkflowStatusEvent).where(
+                NeedWorkflowStatusEvent.need_id == need.id,
+                NeedWorkflowStatusEvent.client_id == body.client_id,
+            )
+        )
+        if prior is not None:
+            if prior.content_hash != digest:
+                raise HTTPException(
+                    409, "This status request key was already used with different content"
+                )
+            return _workflow_event_view(prior)
+        latest = session.scalar(
+            select(NeedWorkflowStatusEvent)
+            .where(NeedWorkflowStatusEvent.need_id == need.id)
+            .order_by(NeedWorkflowStatusEvent.version.desc())
+            .limit(1)
+        )
+        version = latest.version if latest else 0
+        if body.expected_version != version:
+            raise HTTPException(409, "Workflow status version is stale")
+        event = NeedWorkflowStatusEvent(
+            need_id=need.id,
+            project_id=project.id,
+            pursuit_id=pursuit.id if pursuit else None,
+            version=version + 1,
+            client_id=body.client_id,
+            status=body.status,
+            previous_status=latest.status if latest else None,
+            expected_version=version,
+            reason=body.reason.strip(),
+            content_hash=digest,
+            actor="Nick Sandoval",
+        )
+        session.add(event)
+        session.flush()
+        return _workflow_event_view(event)
+
+
 @app.get("/api/pursuits", response_model=PursuitsOut, dependencies=[Depends(require_session)])
 def pursuits(include_dropped: bool = False, offset: int = Query(default=0, ge=0, le=10000)):
     with SessionLocal() as session:
@@ -1352,18 +4136,187 @@ def save_pursuit_note(pursuit_id: UUID, body: CallNoteBody, request: Request):
         return note_view(note)
 
 
-def _commercial_triage_cards(session, limit: int) -> list[dict]:
-    items = opportunity_projection(session, tier="Signal")
-    shortlist = make_commercial_cards(items, {}, chicago_today(), limit)
-    selected_ids = {need_id for card in shortlist for need_id in card["related_need_ids"]}
-    selected = [item for item in items if str(item["id"]) in selected_ids]
+def _commercial_triage_page(session, limit: int, offset: int = 0) -> tuple[list[dict], int]:
+    history_count = int(
+        session.scalar(
+            select(func.count())
+            .select_from(Pursuit)
+            .where(Pursuit.identity_key.like("commercial-need:%"))
+        )
+        or 0
+    )
+    if history_count > _MAX_COMMERCIAL_CARD_NOTES:
+        raise HTTPException(413, "Saved commercial history exceeds the triage overview row budget")
+    max_snapshot_size = int(
+        session.scalar(
+            select(func.max(func.octet_length(cast(Pursuit.snapshot, Text)))).where(
+                Pursuit.identity_key.like("commercial-need:%")
+            )
+        )
+        or 0
+    )
+    if max_snapshot_size > _MAX_SAVED_SNAPSHOT_BYTES:
+        raise HTTPException(413, "Saved commercial history exceeds the triage overview byte budget")
+    from gridlens.persistence.models import PursuitResearchQuestion
+
+    question_count = int(
+        session.scalar(select(func.count()).select_from(PursuitResearchQuestion)) or 0
+    )
+    if question_count > _MAX_COMMERCIAL_CARD_NOTES:
+        raise HTTPException(
+            413, "Commercial research history exceeds the triage overview row budget"
+        )
+    summaries = opportunity_projection(session, tier="Signal", summary_only=True)
+    all_keyed_groups = grouped_need_groups(summaries)
+    selected_keyed_groups = all_keyed_groups[offset : offset + limit]
+    for identity, group in selected_keyed_groups:
+        if len(group) > 50:
+            raise HTTPException(
+                413,
+                {
+                    "code": "commercial_group_too_large",
+                    "group_id": "cg_" + hashlib.sha256(identity.encode()).hexdigest()[:32],
+                    "group_member_count": len(group),
+                    "max_group_members": 50,
+                    "message": (
+                        "This work group exceeds the supported card size; no evaluation was saved."
+                    ),
+                },
+            )
+    selected_groups = [need_ids for _identity, need_ids in selected_keyed_groups]
+    selected_ids = {UUID(need_id) for group in selected_groups for need_id in group}
+    summary_by_id = {str(item["id"]): item for item in summaries}
+
+    evidence_counts_by_need = dict(
+        session.execute(
+            select(NeedObservation.need_id, func.count(Evidence.id))
+            .select_from(NeedObservation)
+            .join(Observation, Observation.id == NeedObservation.observation_id)
+            .join(Evidence, Evidence.observation_id == Observation.id)
+            .outerjoin(
+                Interpretation,
+                and_(
+                    Interpretation.observation_id == Observation.id,
+                    Interpretation.content_hash == Observation.content_hash,
+                ),
+            )
+            .where(NeedObservation.need_id.in_(selected_ids))
+            .group_by(NeedObservation.need_id)
+        ).all()
+    )
+    project_ids_by_need = {
+        UUID(need_id): UUID(str(summary_by_id[need_id]["project_id"]))
+        for group in selected_groups
+        for need_id in group
+    }
+    selected_project_ids = set(project_ids_by_need.values())
+    lifecycle_counts_by_project = dict(
+        session.execute(
+            select(LifecycleEvent.project_id, func.count(LifecycleEvent.id))
+            .where(LifecycleEvent.project_id.in_(selected_project_ids))
+            .group_by(LifecycleEvent.project_id)
+        ).all()
+    )
+    relationship_counts_by_project = dict(
+        session.execute(
+            select(BuyingChainEvidence.project_id, func.count(BuyingChainEvidence.id))
+            .where(BuyingChainEvidence.project_id.in_(selected_project_ids))
+            .group_by(BuyingChainEvidence.project_id)
+        ).all()
+    )
+    workspace_ids_by_need = {
+        UUID(need_id): f"commercial-need:{need_id}"
+        for group in selected_groups
+        for need_id in group
+    }
+    selected_workspace_ids = set(workspace_ids_by_need.values())
+    workspace_sizes = dict(
+        session.execute(
+            select(Pursuit.identity_key, func.octet_length(cast(Pursuit.snapshot, Text))).where(
+                Pursuit.identity_key.in_(selected_workspace_ids)
+            )
+        ).all()
+    )
+    note_counts_by_workspace = dict(
+        session.execute(
+            select(Pursuit.identity_key, func.count(PursuitCallNote.id))
+            .join(Pursuit, Pursuit.id == PursuitCallNote.pursuit_id)
+            .where(Pursuit.identity_key.in_(selected_workspace_ids))
+            .group_by(Pursuit.identity_key)
+        ).all()
+    )
+
+    for identity, group in selected_keyed_groups:
+        group_need_ids = {UUID(need_id) for need_id in group}
+        evidence_rows = sum(evidence_counts_by_need.get(need_id, 0) for need_id in group_need_ids)
+        if evidence_rows > _MAX_COMMERCIAL_CARD_EVIDENCE_ROWS:
+            raise _commercial_bound_error(
+                identity, evidence_rows, _MAX_COMMERCIAL_CARD_EVIDENCE_ROWS, "evidence_rows"
+            )
+        project_ids_for_group = {project_ids_by_need[need_id] for need_id in group_need_ids}
+        lifecycle_rows = sum(
+            lifecycle_counts_by_project.get(project_id, 0) for project_id in project_ids_for_group
+        )
+        if lifecycle_rows > _MAX_COMMERCIAL_CARD_LIFECYCLE_ROWS:
+            raise _commercial_bound_error(
+                identity,
+                lifecycle_rows,
+                _MAX_COMMERCIAL_CARD_LIFECYCLE_ROWS,
+                "lifecycle_rows",
+            )
+        relationship_rows = sum(
+            relationship_counts_by_project.get(project_id, 0)
+            for project_id in project_ids_for_group
+        )
+        if relationship_rows > _MAX_COMMERCIAL_CARD_RELATIONSHIP_ROWS:
+            raise _commercial_bound_error(
+                identity,
+                relationship_rows,
+                _MAX_COMMERCIAL_CARD_RELATIONSHIP_ROWS,
+                "relationship_rows",
+            )
+        group_workspace_ids = [workspace_ids_by_need[need_id] for need_id in group_need_ids]
+        for workspace_id in group_workspace_ids:
+            snapshot_size = workspace_sizes.get(workspace_id)
+            if snapshot_size and snapshot_size > _MAX_SAVED_SNAPSHOT_BYTES:
+                raise _commercial_bound_error(
+                    identity,
+                    snapshot_size,
+                    _MAX_SAVED_SNAPSHOT_BYTES,
+                    "saved_snapshot_bytes",
+                )
+        note_count = sum(
+            note_counts_by_workspace.get(workspace_id, 0) for workspace_id in group_workspace_ids
+        )
+        if note_count > _MAX_COMMERCIAL_CARD_NOTES:
+            raise _commercial_bound_error(identity, note_count, _MAX_COMMERCIAL_CARD_NOTES, "notes")
+    selected = opportunity_projection(
+        session,
+        tier="Signal",
+        selected_need_ids=selected_ids,
+        include_operator_fact_refs=True,
+    )
     project_ids = {item["project_id"] for item in selected}
-    chains = {str(project_id): buying_chain_view(session, project_id) for project_id in project_ids}
-    return make_commercial_cards(selected, chains, chicago_today(), limit)
+    chains = buying_chain_views(session, project_ids)
+    cards = make_commercial_cards(selected, chains, chicago_today(), limit)
+    encoded_size = len(json.dumps(cards, default=str, separators=(",", ":")).encode("utf-8"))
+    if encoded_size > _MAX_COMMERCIAL_CARD_BYTES:
+        identity = selected_keyed_groups[0][0] if selected_keyed_groups else "empty"
+        raise _commercial_bound_error(
+            identity, encoded_size, _MAX_COMMERCIAL_CARD_BYTES, "card_bytes"
+        )
+    return cards, len(all_keyed_groups)
 
 
-def _commercial_triage_payload(session, limit: int) -> dict:
-    cards = _commercial_triage_cards(session, limit)
+def _commercial_triage_cards(session, limit: int) -> list[dict]:
+    """Return the legacy complete shortlist shape used by research callers."""
+    cards, _grouped_total = _commercial_triage_page(session, limit)
+    return cards
+
+
+def _commercial_triage_payload(session, limit: int, offset: int = 0) -> dict:
+    _begin_consistent_read(session)
+    cards, grouped_total = _commercial_triage_page(session, limit, offset)
     today = chicago_today().isoformat()
     identities = ["commercial-need:" + item["id"] for item in cards]
     workspaces = (
@@ -1374,21 +4327,18 @@ def _commercial_triage_payload(session, limit: int) -> dict:
         if identities
         else {}
     )
+    notes_by_pursuit: dict[UUID, list[dict]] = {row.id: [] for row in workspaces.values()}
+    if notes_by_pursuit:
+        for note in session.scalars(
+            select(PursuitCallNote)
+            .where(PursuitCallNote.pursuit_id.in_(list(notes_by_pursuit)))
+            .order_by(PursuitCallNote.created_at.desc(), PursuitCallNote.id)
+        ):
+            notes_by_pursuit[note.pursuit_id].append(note_view(note))
     for card in cards:
         row = workspaces.get(card["id"])
         card["pursuit_id"] = row.id if row else None
-        card["notes"] = (
-            [
-                note_view(note)
-                for note in session.scalars(
-                    select(PursuitCallNote)
-                    .where(PursuitCallNote.pursuit_id == row.id)
-                    .order_by(PursuitCallNote.created_at.desc(), PursuitCallNote.id)
-                )
-            ]
-            if row
-            else []
-        )
+        card["notes"] = notes_by_pursuit.get(row.id, []) if row else []
     cohort = {
         key: sum(card["disposition"] == label for card in cards)
         for key, label in (
@@ -1434,11 +4384,15 @@ def _commercial_triage_payload(session, limit: int) -> dict:
     from gridlens.persistence.models import PursuitResearchQuestion
 
     questions = list(session.scalars(select(PursuitResearchQuestion)))
-    return {
+    payload = {
         "research_overview": research_overview(cards, questions, receipts, midnight),
         "evaluated_at": datetime.now(UTC),
         "policy_version": COMMERCIAL_TRIAGE_POLICY,
         "total": len(cards),
+        "limit": limit,
+        "offset": offset,
+        "grouped_total": grouped_total,
+        "next_offset": offset + len(cards) if offset + len(cards) < grouped_total else None,
         "cohort_counts": cohort,
         "daily": {
             "evaluated": evaluated,
@@ -1464,16 +4418,26 @@ def _commercial_triage_payload(session, limit: int) -> dict:
         },
         "items": cards,
     }
+    size = len(json.dumps(payload, default=str, separators=(",", ":")).encode("utf-8"))
+    if size > _MAX_COMMERCIAL_CARD_BYTES:
+        identity = "commercial-page:" + str(offset)
+        raise _commercial_bound_error(
+            identity, size, _MAX_COMMERCIAL_CARD_BYTES, "triage_page_bytes"
+        )
+    return payload
 
 
 @app.get(
     "/api/commercial/triage",
-    response_model=CommercialTriageOut,
+    response_model=CommercialTriagePageOut,
     dependencies=[Depends(require_session)],
 )
-def commercial_triage(limit: int = Query(default=50, ge=1, le=50)):
+def commercial_triage(
+    limit: Annotated[int, Query(ge=1, le=50)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
+):
     with SessionLocal() as session:
-        return _commercial_triage_payload(session, limit)
+        return _commercial_triage_payload(session, limit, offset)
 
 
 @app.get(
@@ -1515,24 +4479,177 @@ def request_autonomous_research(need_id: UUID, body: AutonomousResearchBody, req
         return {"items": [question_view(row) for row in rows]}
 
 
+def _commercial_history_item(row: Any, notes: list[dict]) -> dict:
+    receipt = (row.snapshot or {}).get("commercial_triage", {})
+    saved_card = receipt.get("saved_card")
+    if isinstance(saved_card, dict):
+        saved_card = {**saved_card, "pursuit_id": str(row.id), "notes": []}
+    else:
+        saved_card = None
+    stored_versions = receipt.get("versions")
+    versions = (
+        stored_versions
+        if isinstance(stored_versions, list) and stored_versions
+        else [
+            {
+                "version": 1,
+                "disposition": receipt.get("disposition")
+                or (saved_card or {}).get("disposition")
+                or "UNKNOWN",
+                "evaluated_at": receipt.get("saved_at"),
+                "evaluated_on": receipt.get("evaluated_on"),
+                "input_hash": receipt.get("input_hash") or (saved_card or {}).get("input_hash"),
+                "snapshot_status": "saved_as_of" if saved_card else "metadata_only",
+                "live_status": "not_rechecked",
+                "saved_card": saved_card,
+            }
+        ]
+    )
+    normalized_versions = []
+    for index, version in enumerate(versions, start=1):
+        version_card = version.get("saved_card")
+        if isinstance(version_card, dict):
+            version_card = {**version_card, "pursuit_id": str(row.id), "notes": []}
+        else:
+            version_card = None
+        normalized_versions.append(
+            {
+                **version,
+                "version": version.get("version") or index,
+                "snapshot_status": "saved_as_of" if version_card else "metadata_only",
+                "live_status": "not_rechecked",
+                "saved_card": version_card,
+            }
+        )
+    return {
+        "pursuit_id": row.id,
+        "need_id": receipt.get("need_id") or row.identity_key.removeprefix("commercial-need:"),
+        "project_id": row.project_id,
+        "related_project_ids": row.project_ids or [str(row.project_id)],
+        "disposition": receipt.get("disposition")
+        or (saved_card or {}).get("disposition")
+        or "UNKNOWN",
+        "evaluated_at": receipt.get("saved_at"),
+        "evaluated_on": receipt.get("evaluated_on"),
+        "input_hash": receipt.get("input_hash") or (saved_card or {}).get("input_hash"),
+        "snapshot_status": "saved_as_of" if saved_card else "metadata_only",
+        "live_status": "not_rechecked",
+        "saved_card": saved_card,
+        "notes": notes,
+        "versions": normalized_versions,
+    }
+
+
 @app.get(
     "/api/commercial/triage/history",
-    response_model=CommercialTriageHistoryOut,
+    response_model=CommercialTriageHistoryPageOut,
     dependencies=[Depends(require_session)],
 )
-def commercial_triage_history():
+def commercial_triage_history(
+    limit: Annotated[int, Query(ge=1, le=50)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
+):
     """Read evaluated Pursuit snapshots; never refreshes live facts or dispositions."""
     with SessionLocal() as session:
-        rows = list(
-            session.scalars(select(Pursuit).where(Pursuit.identity_key.like("commercial-need:%")))
+        _begin_consistent_read(session)
+        history_scope = Pursuit.identity_key.like("commercial-need:%")
+        total = int(
+            session.scalar(select(func.count()).select_from(Pursuit).where(history_scope)) or 0
         )
-        rows.sort(
-            key=lambda row: (
-                str((row.snapshot or {}).get("commercial_triage", {}).get("saved_at") or ""),
-                str(row.id),
+        saved_at = Pursuit.snapshot["commercial_triage"]["saved_at"].astext
+        history_ids = list(
+            session.scalars(
+                select(Pursuit.id)
+                .where(history_scope)
+                .order_by(saved_at.desc().nullslast(), Pursuit.id.desc())
+                .limit(limit)
+                .offset(offset)
+            )
+        )
+        snapshot_sizes: dict[UUID, int | None] = (
+            {
+                pursuit_id: size
+                for pursuit_id, size in session.execute(
+                    select(Pursuit.id, func.octet_length(cast(Pursuit.snapshot, Text))).where(
+                        Pursuit.id.in_(history_ids)
+                    )
+                ).all()
+            }
+            if history_ids
+            else {}
+        )
+        oversized_snapshot = next(
+            (
+                (pursuit_id, size)
+                for pursuit_id, size in snapshot_sizes.items()
+                if size and size > _MAX_SAVED_SNAPSHOT_BYTES
             ),
-            reverse=True,
+            None,
         )
+        if oversized_snapshot:
+            raise _commercial_bound_error(
+                str(oversized_snapshot[0]),
+                oversized_snapshot[1],
+                _MAX_SAVED_SNAPSHOT_BYTES,
+                "saved_snapshot_bytes",
+            )
+        note_counts: dict[UUID, int] = (
+            {
+                pursuit_id: count
+                for pursuit_id, count in session.execute(
+                    select(PursuitCallNote.pursuit_id, func.count(PursuitCallNote.id))
+                    .where(PursuitCallNote.pursuit_id.in_(history_ids))
+                    .group_by(PursuitCallNote.pursuit_id)
+                ).all()
+            }
+            if history_ids
+            else {}
+        )
+        note_bytes_by_pursuit: dict[UUID, int] = (
+            {
+                pursuit_id: byte_count
+                for pursuit_id, byte_count in session.execute(
+                    select(
+                        PursuitCallNote.pursuit_id,
+                        func.sum(
+                            func.octet_length(PursuitCallNote.note)
+                            + func.octet_length(PursuitCallNote.outcome)
+                            + func.octet_length(PursuitCallNote.next_action)
+                        ),
+                    )
+                    .where(PursuitCallNote.pursuit_id.in_(history_ids))
+                    .group_by(PursuitCallNote.pursuit_id)
+                ).all()
+            }
+            if history_ids
+            else {}
+        )
+        page_note_count = sum(note_counts.values())
+        page_bytes = sum(size or 0 for size in snapshot_sizes.values()) + sum(
+            note_bytes_by_pursuit.values()
+        )
+        if page_note_count > _MAX_COMMERCIAL_CARD_NOTES:
+            raise _commercial_bound_error(
+                str(history_ids[0]), page_note_count, _MAX_COMMERCIAL_CARD_NOTES, "page_notes"
+            )
+        if page_bytes > _MAX_COMMERCIAL_HISTORY_PAGE_BYTES:
+            raise _commercial_bound_error(
+                str(history_ids[0]),
+                page_bytes,
+                _MAX_COMMERCIAL_HISTORY_PAGE_BYTES,
+                "history_page_bytes",
+            )
+        rows_by_id = (
+            {
+                row.id: row
+                for row in session.scalars(select(Pursuit).where(Pursuit.id.in_(history_ids)))
+            }
+            if history_ids
+            else {}
+        )
+        rows = [rows_by_id[pursuit_id] for pursuit_id in history_ids]
+        for row in rows:
+            _check_saved_history_bounds(row, note_counts.get(row.id, 0))
         notes_by_pursuit: dict[UUID, list[dict]] = {row.id: [] for row in rows}
         if rows:
             notes = session.scalars(
@@ -1609,18 +4726,116 @@ def commercial_triage_history():
                     "versions": normalized_versions,
                 }
             )
-        return {"items": history}
+        result = {
+            "items": history,
+            "total": total,
+            "limit": limit,
+            "offset": offset,
+            "next_offset": offset + len(history) if offset + len(history) < total else None,
+        }
+        response_size = len(json.dumps(result, default=str, separators=(",", ":")).encode("utf-8"))
+        if response_size > _MAX_COMMERCIAL_HISTORY_PAGE_BYTES:
+            raise _commercial_bound_error(
+                f"commercial-history-page:{offset}",
+                response_size,
+                _MAX_COMMERCIAL_HISTORY_PAGE_BYTES,
+                "history_page_bytes",
+            )
+        return result
+
+
+@app.get(
+    "/api/commercial/triage/history/{pursuit_id}",
+    response_model=CommercialTriageHistoryItem,
+    dependencies=[Depends(require_session)],
+)
+def commercial_triage_history_detail(pursuit_id: UUID):
+    """Hydrate one bounded saved snapshot without rechecking live evidence."""
+    with SessionLocal() as session:
+        _begin_consistent_read(session)
+        identity_key = session.scalar(select(Pursuit.identity_key).where(Pursuit.id == pursuit_id))
+        if identity_key is None or not identity_key.startswith("commercial-need:"):
+            raise HTTPException(404, "Saved commercial snapshot not found")
+        snapshot_size = int(
+            session.scalar(
+                select(func.octet_length(cast(Pursuit.snapshot, Text))).where(
+                    Pursuit.id == pursuit_id
+                )
+            )
+            or 0
+        )
+        if snapshot_size > _MAX_SAVED_SNAPSHOT_BYTES:
+            raise _commercial_bound_error(
+                identity_key, snapshot_size, _MAX_SAVED_SNAPSHOT_BYTES, "saved_snapshot_bytes"
+            )
+        note_count = int(
+            session.scalar(
+                select(func.count(PursuitCallNote.id)).where(
+                    PursuitCallNote.pursuit_id == pursuit_id
+                )
+            )
+            or 0
+        )
+        note_bytes = int(
+            session.scalar(
+                select(
+                    func.coalesce(
+                        func.sum(
+                            func.octet_length(PursuitCallNote.note)
+                            + func.octet_length(PursuitCallNote.outcome)
+                            + func.octet_length(PursuitCallNote.next_action)
+                        ),
+                        0,
+                    )
+                ).where(PursuitCallNote.pursuit_id == pursuit_id)
+            )
+            or 0
+        )
+        if note_count > _MAX_COMMERCIAL_CARD_NOTES:
+            raise _commercial_bound_error(
+                identity_key, note_count, _MAX_COMMERCIAL_CARD_NOTES, "notes"
+            )
+        if snapshot_size + note_bytes > _MAX_COMMERCIAL_CARD_BYTES:
+            raise _commercial_bound_error(
+                identity_key,
+                snapshot_size + note_bytes,
+                _MAX_COMMERCIAL_CARD_BYTES,
+                "history_detail_bytes",
+            )
+        row = session.get(Pursuit, pursuit_id)
+        if row is None:
+            raise HTTPException(404, "Saved commercial snapshot not found")
+        _check_saved_history_bounds(row, note_count)
+        notes = [
+            note_view(note)
+            for note in session.scalars(
+                select(PursuitCallNote)
+                .where(PursuitCallNote.pursuit_id == row.id)
+                .order_by(PursuitCallNote.created_at.desc(), PursuitCallNote.id)
+            )
+        ]
+        result = _commercial_history_item(row, notes)
+        size = len(json.dumps(result, default=str, separators=(",", ":")).encode("utf-8"))
+        if size > _MAX_COMMERCIAL_CARD_BYTES:
+            raise _commercial_bound_error(
+                row.identity_key, size, _MAX_COMMERCIAL_CARD_BYTES, "history_detail_bytes"
+            )
+        return result
 
 
 @app.post(
     "/api/commercial/triage/evaluate",
-    response_model=CommercialTriageOut,
+    response_model=CommercialTriagePageOut,
     dependencies=[Depends(require_session)],
 )
-def evaluate_commercial_triage(request: Request, limit: int = Query(default=50, ge=1, le=50)):
+def evaluate_commercial_triage(
+    request: Request,
+    limit: Annotated[int, Query(ge=1, le=50)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
+):
     require_same_origin(request)
     with SessionLocal.begin() as session:
-        payload = _commercial_triage_payload(session, limit)
+        payload = _commercial_triage_payload(session, limit, offset)
         today = chicago_today().isoformat()
         saved_at = datetime.now(UTC).isoformat()
         payload["evaluated_at"] = saved_at
@@ -1753,3 +4968,4 @@ def commercial_research_status(need_id: UUID, question: str = Query(..., min_len
             "citations": [],
             "error": None,
         }
+

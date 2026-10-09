@@ -1,7 +1,9 @@
 import json
+from datetime import time
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 REGISTRY_PATH = Path(__file__).resolve().parents[4] / "config" / "sources" / "registry.v1.json"
 
@@ -17,6 +19,25 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
             for k in ("id", "publisher", "endpoint", "family", "geography", "retrieval_method")
         ):
             raise ValueError("Source definition lacks required fields")
+        cadence = source.get("cadence_hours", 24)
+        if type(cadence) is not int or cadence <= 0:
+            raise ValueError("Source cadence must be a positive number of hours")
+        default_mode = "utc_hourly" if cadence < 24 else "local_daily"
+        schedule_mode = source.get("schedule_mode", default_mode)
+        if schedule_mode not in {"utc_hourly", "local_daily"}:
+            raise ValueError("Unsupported source schedule mode")
+        if schedule_mode == "utc_hourly" and cadence >= 24:
+            raise ValueError("UTC hourly schedules require a cadence below 24 hours")
+        if schedule_mode == "local_daily" and cadence % 24 != 0:
+            raise ValueError("Local daily schedules require a cadence in whole 24-hour days")
+        try:
+            ZoneInfo(source.get("timezone", "America/Chicago"))
+        except (ZoneInfoNotFoundError, ValueError) as exc:
+            raise ValueError("Source timezone must be a valid IANA zone") from exc
+        try:
+            time.fromisoformat(source.get("schedule_anchor_time", "03:00:00"))
+        except ValueError as exc:
+            raise ValueError("Source schedule anchor must be a local clock time") from exc
         allowed_hosts = {
             "json-api": {"www.federalregister.gov"},
             "federal-register-json": {"www.federalregister.gov"},

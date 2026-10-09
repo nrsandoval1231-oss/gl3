@@ -47,9 +47,36 @@ def test_artifacts_are_contained_and_write_once(tmp_path):
     for relative in ("../escape", "/tmp/escape", "sub/record.json"):
         with pytest.raises(ValueError):
             wrapper.child_file(out, relative)
-    (out / "link").symlink_to(tmp_path / "escape")
+
+
+def test_mocked_symlink_boundary_is_rejected_on_every_platform(tmp_path, monkeypatch):
+    out = tmp_path / ".artifacts" / "run"
+    wrapper.fresh_directory(out)
+    link = out / "link"
+    real_is_symlink = Path.is_symlink
+
+    def mocked_is_symlink(path):
+        return path == link or real_is_symlink(path)
+
+    monkeypatch.setattr(Path, "is_symlink", mocked_is_symlink)
     with pytest.raises(ValueError):
-        wrapper.child_file(out, "link")
+        wrapper.child_file(out, link.name)
+
+
+def test_real_symlink_boundary_when_supported(tmp_path):
+    out = tmp_path / ".artifacts" / "run"
+    wrapper.fresh_directory(out)
+    target = out / "target.json"
+    target.write_text("{}")
+    link = out / "link"
+    try:
+        link.symlink_to(target)
+    except OSError as exc:
+        if getattr(exc, "winerror", None) == 1314:
+            pytest.skip("Windows symlink privilege is unavailable")
+        raise
+    with pytest.raises(ValueError):
+        wrapper.child_file(out, link.name)
 
 
 def test_collection_preserves_failure_and_rendered_record_receipts(tmp_path, monkeypatch):
@@ -85,6 +112,38 @@ def test_collection_preserves_failure_and_rendered_record_receipts(tmp_path, mon
     assert "not raw response" in result["attempts"][0]["representation"]
     assert (out / "request-01.json").exists()
     assert all(call["max_bytes"] == 750_000 for call in calls)
+
+
+def test_request_callbacks_keep_their_row_receipts_after_iteration(tmp_path, monkeypatch):
+    from gridlens.ingestion.adapters import pursuit_acquisition
+
+    callbacks = []
+
+    def acquire(source_id, external_id, **kwargs):
+        callbacks.append((external_id, kwargs["before_request"]))
+        return {"id": source_id}, {"document_number": external_id}
+
+    monkeypatch.setattr(pursuit_acquisition, "acquire_registered_record", acquire)
+    monkeypatch.setattr(wrapper, "candidate_identity", lambda: {"commit": "offline"})
+    selection = tmp_path / "selection.json"
+    wrapper.write_once(
+        selection,
+        {
+            "records": [
+                {"source_id": "austin-building-permits", "external_id": value}
+                for value in ("123", "456")
+            ]
+        },
+    )
+    out = tmp_path / ".artifacts" / "collection"
+    result = wrapper.collect(selection, out)
+    for external_id, callback in callbacks:
+        callback("https://data.austintexas.gov/exact/" + external_id)
+
+    assert result["attempts"][0]["requests"][0]["url"].endswith("/123")
+    assert result["attempts"][1]["requests"][0]["url"].endswith("/456")
+    assert (out / "request-00.json").exists()
+    assert (out / "request-01.json").exists()
 
 
 def test_ingestion_rejects_tampered_artifact_before_database_work(tmp_path, monkeypatch):
