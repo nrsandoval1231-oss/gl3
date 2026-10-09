@@ -1,11 +1,12 @@
-# Work graph â€” GL3 audit frontier
+# Work graph — GL3 audit frontier
 
-Parent OPEN; canonical PRD, Finish Contract and protected reference manifest govern. Prior state/graph and exact rejected review preserved under recovery dispatch.
+Parent OPEN; canonical PRD/Finish Contract/protected reference manifest govern.
 
-- ACCEPTED bounded A3/A9/A1/A2/A4/A5A/A5B and A6 backend, draftPR43, CI success. No merge/deploy.
-- FIX A6 UI/status ce3a03bf/treecb8eaee9, ordinary review9c2d1290. Green gates do not override lost-response recovery and recent-history findings. Original backend acceptance remains separate.
-- READY A6-UI-STATUS-RECOVERY, sole Luna, packet GL3-AUDIT-A6-UI-STATUS-RECOVERY.md. Exact event/idempotent read-back and newest-ten history; two UI files only, no backend/API/policy/schema/style changes.
-- DEPENDENT root exact-frozen full gates and fresh ordinary Sol review; A8A prepared operational packet waits for PASS and actual resources, A8B follows. Authentic feed/quality/cycle/customer proof OPEN.
-- EXTERNAL A7 original PNG/HTML absent; video supplemental, visual identity protected.
+- ACCEPTED bounded backend through PR43 daedade, remote CI success.
+- HISTORICAL FIX UI ce3a03bf, review9c2d1290, preserved unchanged.
+- BUILT A6-UI-STATUS-RECOVERY a1d1b96, one Luna two-file packet; root deterministic and actual committed-response-loss runtime gates PASS.
+- VALIDATE: freeze proof-only exact candidate and fresh ordinary Sol review; no UI publication before PASS.
+- DEPENDENT A8A prepared operations packet waits accepted UI/resource binding; A8B follows. Authentic feed/quality/seven-day/customer gates OPEN.
+- EXTERNAL A7 original PNG/HTML absent; supplemental video cannot satisfy checksums.
 
-Direction CORRECT. Preserve ambiguous UNKNOWN, immutable source/saved history, originals and all attempts. No new parallel builder, paid/provider activation, external sends, merge/deploy or parent completion.
+Direction VALIDATE. Preserve UNKNOWN, original/saved evidence and all failed attempts. No provider/alert activation, external sends, merge/deploy or parent completion.
