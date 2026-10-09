@@ -1,11 +1,11 @@
 # Work graph — GL3 audit frontier
 
-Parent OPEN; canonical PRD, Finish Contract and protected reference manifest govern. Previous state/graph bytes preserved under dispatch and controller-before archives.
+Parent OPEN; canonical PRD, Finish Contract and protected reference manifest govern. Prior state/graph and exact rejected review preserved under recovery dispatch.
 
-- ACCEPTED bounded A3/A9/A1/A2/A4/A5A/A5B and A6 backend. PR43 published with successful push/PR Actions; no merge/deploy.
-- FROZEN A6-UI-STATUS and bounded buying-chain fixture repair at 86ada778cec8c7f3d21e26872f9421c3fb82b209. Sole Luna terminal handoff. Root backend1471/2 environment skips and browser72/1 dedicated skip PASS; separate fresh persisted API/browser PASS. Prior failures retained.
-- VALIDATED exact source, retained performance/status population, immutable data and sealed proof archive. Ordinary independent review pending; green deterministic gates do not accept UI or parent.
-- DEPENDENT A8A inert deployment/alerts/diagnostics/restore. Ready-to-bind supplement prepared in old controller; actual accepted UI base and migration identity wait for exact PASS. A8B follows A8A. Authentic feed, quality, consecutive-cycle and customer gates OPEN.
-- EXTERNAL A7 original PNG/HTML absent; supplied video supplemental, protected visual identity unchanged.
+- ACCEPTED bounded A3/A9/A1/A2/A4/A5A/A5B and A6 backend, draftPR43, CI success. No merge/deploy.
+- FIX A6 UI/status ce3a03bf/treecb8eaee9, ordinary review9c2d1290. Green gates do not override lost-response recovery and recent-history findings. Original backend acceptance remains separate.
+- READY A6-UI-STATUS-RECOVERY, sole Luna, packet GL3-AUDIT-A6-UI-STATUS-RECOVERY.md. Exact event/idempotent read-back and newest-ten history; two UI files only, no backend/API/policy/schema/style changes.
+- DEPENDENT root exact-frozen full gates and fresh ordinary Sol review; A8A prepared operational packet waits for PASS and actual resources, A8B follows. Authentic feed/quality/cycle/customer proof OPEN.
+- EXTERNAL A7 original PNG/HTML absent; video supplemental, visual identity protected.
 
-Direction VALIDATE then Sol review. Findings become bounded correction packets. No speculative parallel work, original-data mutation, paid activation, external sends or parent completion. Status/notes are not qualification evidence; Reported dates and immutable saved history remain separate from current reports.
+Direction CORRECT. Preserve ambiguous UNKNOWN, immutable source/saved history, originals and all attempts. No new parallel builder, paid/provider activation, external sends, merge/deploy or parent completion.
