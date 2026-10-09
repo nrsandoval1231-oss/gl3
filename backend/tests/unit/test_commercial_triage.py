@@ -1,9 +1,14 @@
 from datetime import date
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 
-from gridlens.domain.commercial_triage import build_card, cards, surfaced_on
+from gridlens.domain.commercial_triage import (
+    build_card,
+    cards,
+    grouped_need_ids,
+    surfaced_on,
+)
 
 
 def _item(**overrides):
@@ -71,6 +76,27 @@ def test_permit_contact_is_action_now_with_unknown_need_and_no_inferred_company(
     assert "unverified" in card["contacts"][0]["role"]
     assert "construction not established" in card["stage"]["stage"]
     assert "campus" not in card["hypothesis"].casefold()
+
+
+def test_grouped_need_id_seam_pages_after_merging_same_work_siblings():
+    items = []
+    for index in range(54):
+        item_id = UUID(int=index + 1)
+        item = _item(id=item_id, project_id=item_id)
+        item["evidence"][0]["document_number"] = f"permit-{index}"
+        items.append(item)
+    sibling = items[-1]
+    sibling["evidence"][0]["document_number"] = items[0]["evidence"][0]["document_number"]
+    sibling["signal_display_decision"] = "REVIEW"
+    items[0]["signal_display_decision"] = "HOLD"
+
+    expected = grouped_need_ids(items, limit=50)
+    cards_page = cards(items, {}, date(2026, 10, 7), limit=50)
+
+    assert len(expected) == len(cards_page) == 50
+    assert expected == [card["related_need_ids"] for card in cards_page]
+    assert expected[0] == sorted([str(items[0]["id"]), str(sibling["id"])])
+    assert len({need_id for group in expected for need_id in group}) == 51
 
 
 def test_contractor_is_not_rejected_as_rental_intermediary_and_hold_routes_to_research():
