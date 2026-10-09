@@ -1,10 +1,11 @@
 # Work graph — GL3 audit frontier
 
-Parent OPEN; PRD, Finish Contract and protected references govern. Historical state/graph bytes and controller packet originals are archived in `.agent/artifacts/GL3-AUDIT-A6-UI-STATUS-DISPATCH/`.
+Parent OPEN; canonical PRD, Finish Contract and protected reference manifest govern. Previous state/graph bytes preserved under dispatch and controller-before archives.
 
-- ACCEPTED bounded A3/A9/A1/A2/A4/A5A/A5B. A6 backend independently PASS on `daedade06adc0dbe18fb09c46a5dcfc2444681f5` / tree `75e002ec439e8c303bb185dfd9daeafd5c4c4abe`; raw review preserved. PR43 is a draft stacked on PR41; publication, CI, merge and deployment are separate states.
-- READY **A6-UI-STATUS**, one Luna, one worktree and packet `packets/GL3-AUDIT-A6-UI-STATUS-READY-20261008.md`: exact-Need attributed fact/status UI, additive current-source timing correction target, all-seven-plus-UNKNOWN status browse integration and deterministic proof. No parallel builder shares UI/API state.
-- DEPENDENT root frozen combined gates, exact-candidate independent Sol review and bounded correction if needed. A6 functional acceptance cannot be claimed before these.
-- DEPENDENT A8A/A8B operational work and authentic feed/quality/consecutive-cycle/customer evidence. EXTERNAL A7 checksum-matching original visual assets absent; no protected UI claim.
+- ACCEPTED bounded A3/A9/A1/A2/A4/A5A/A5B and A6 backend. PR43 published with successful push/PR Actions; no merge/deploy.
+- FROZEN A6-UI-STATUS and bounded buying-chain fixture repair at 86ada778cec8c7f3d21e26872f9421c3fb82b209. Sole Luna terminal handoff. Root backend1471/2 environment skips and browser72/1 dedicated skip PASS; separate fresh persisted API/browser PASS. Prior failures retained.
+- VALIDATED exact source, retained performance/status population, immutable data and sealed proof archive. Ordinary independent review pending; green deterministic gates do not accept UI or parent.
+- DEPENDENT A8A inert deployment/alerts/diagnostics/restore. Ready-to-bind supplement prepared in old controller; actual accepted UI base and migration identity wait for exact PASS. A8B follows A8A. Authentic feed, quality, consecutive-cycle and customer gates OPEN.
+- EXTERNAL A7 original PNG/HTML absent; supplied video supplemental, protected visual identity unchanged.
 
-Direction CONTINUE with the sole READY UI/status node. No original-data mutation, paid activation, external sends, merge/deploy or parent completion. Notes/status are not qualification evidence; current corrected dates and immutable Reported/saved-as-of history remain distinct.
+Direction VALIDATE then Sol review. Findings become bounded correction packets. No speculative parallel work, original-data mutation, paid activation, external sends or parent completion. Status/notes are not qualification evidence; Reported dates and immutable saved history remain separate from current reports.
