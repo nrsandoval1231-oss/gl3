@@ -1,6 +1,6 @@
 """Synthetic exact-source fixtures exercising canonical research transitions."""
 
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from importlib import import_module
 from uuid import uuid4
 
@@ -181,7 +181,22 @@ def test_worker_reevaluates_real_canonical_source_updates(
         question = session.get(PursuitResearchQuestion, question_id)
         assert calls == [(source["id"], "TRANSITION-TEST-1")]
         assert question.receipt["before"] == before
-        assert question.receipt["after"] == after, question.receipt
+        current_card = evaluate_target(session, need_id)
+        assert question.receipt["after"] == after, {
+            "receipt": question.receipt,
+            "current_card": {
+                key: current_card.get(key)
+                for key in (
+                    "disposition",
+                    "asset_type",
+                    "lifecycle_state",
+                    "activity",
+                    "blockers",
+                    "evidence",
+                    "lifecycle_timeline",
+                )
+            },
+        }
         assert question.receipt["reevaluation_status"] == "COMPLETED"
         assert question.receipt["resulting_evidence_ids"]
         assert session.get(PowerNeed, need_id).tier == "Signal"
@@ -199,7 +214,7 @@ def test_worker_reevaluates_real_canonical_source_updates(
 def test_grouped_primary_switch_does_not_redirect_exact_target_receipt(
     canonical_runtime, monkeypatch
 ):
-    from gridlens.intelligence.commercial_evaluation import save_evaluations
+    from gridlens.intelligence.commercial_evaluation import evaluate_targets, save_evaluations
 
     factory, source, _, seed_job = canonical_runtime
     api = import_module("gridlens.api.app")
@@ -231,20 +246,28 @@ def test_grouped_primary_switch_does_not_redirect_exact_target_receipt(
     }
     monkeypatch.setattr(api, "_commercial_triage_cards", lambda *_args: [switched_group])
     with factory.begin() as session:
-        actual = evaluate_target(session, target_id)
+        actual = evaluate_targets(session, [target_id], cohort=[switched_group])[str(target_id)]
         assert actual is not None
         assert actual["id"] == str(target_id)
         assert actual["related_need_ids"] == [str(target_id)]
         assert actual["input_hash"] != switched_group["input_hash"]
         save_evaluations(session, [actual])
         save_evaluations(session, [evaluate_target(session, target_id)])
+    saved_refresh_input = {
+        **switched_group,
+        "id": str(target_id),
+        "related_need_ids": [str(different_primary_id), str(target_id)],
+    }
+    with factory.begin() as session:
+        schedule_questions(session, [saved_refresh_input], origin="manual")
     with factory() as session:
         pursuits = session.scalars(select(Pursuit)).all()
         assert len(pursuits) == 1
         assert pursuits[0].identity_key == f"commercial-need:{target_id}"
         versions = pursuits[0].snapshot["commercial_triage"]["versions"]
-        assert len(versions) == 2
+        assert len({version["input_hash"] for version in versions}) == len(versions)
         assert all(v["saved_card"]["id"] == str(target_id) for v in versions)
+        assert all(v["saved_card"]["related_need_ids"] == [str(target_id)] for v in versions)
 
 
 @pytest.mark.parametrize(
@@ -485,7 +508,7 @@ def test_resolved_public_phase_worker_creates_one_bounded_followup(canonical_run
     from gridlens.persistence.models import Project
 
     factory, source, worker, seed_job = canonical_runtime
-    today = datetime.now(UTC).date()
+    today = date(2026, 10, 1)
     url = "https://www.datacenterdynamics.com/en/news/synthetic-clayton-update/"
     initial_description = "Construct new data center."
     with factory.begin() as session:
@@ -612,7 +635,7 @@ def test_worker_public_adverse_report_vetoes_only_supported_exact_activity(
     from gridlens.persistence.models import Project
 
     factory, source, worker, seed_job = canonical_runtime
-    today = datetime.now(UTC).date()
+    today = date(2026, 10, 1)
     url = "https://www.datacenterdynamics.com/en/news/synthetic-adverse-update/"
     description = (
         "Construct new data center. 811 Clayton Ln construction requires 1 MW. "
