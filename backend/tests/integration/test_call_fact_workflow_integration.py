@@ -223,6 +223,52 @@ def test_fact_draft_accept_correction_are_append_only_and_nonpromoting_without_s
             session.flush()
 
 
+@pytest.mark.parametrize("target_exists", [True, False])
+def test_fact_decision_replay_cannot_acknowledge_a_different_fact(runtime, target_exists):
+    client, factory, need_id, project_id, pursuit_id = runtime
+    headers = {"origin": "http://testserver"}
+    first = client.post(
+        f"/api/needs/{need_id}/facts", json=_body(project_id, pursuit_id), headers=headers
+    )
+    assert first.status_code == 200, first.text
+    second = client.post(
+        f"/api/needs/{need_id}/facts",
+        json=_body(project_id, pursuit_id, expected_version=1),
+        headers=headers,
+    )
+    assert second.status_code == 200, second.text
+    first_id, second_id = first.json()["id"], second.json()["id"]
+    decision = {
+        "client_id": str(uuid4()),
+        "expected_version": 2,
+        "decision": "accepted",
+        "reason": "Synthetic explicit acceptance of the first fact only",
+    }
+    accepted = client.post(
+        f"/api/needs/{need_id}/facts/{first_id}/decision", json=decision, headers=headers
+    )
+    assert accepted.status_code == 200, accepted.text
+    target_id = second_id if target_exists else str(uuid4())
+    wrong_target = client.post(
+        f"/api/needs/{need_id}/facts/{target_id}/decision", json=decision, headers=headers
+    )
+    assert wrong_target.status_code == 409, wrong_target.text
+    assert "different fact version" in wrong_target.json()["detail"]
+    replay = client.post(
+        f"/api/needs/{need_id}/facts/{first_id}/decision", json=decision, headers=headers
+    )
+    assert replay.status_code == 200, replay.text
+    assert replay.json()["id"] == accepted.json()["id"]
+    assert replay.json()["version"] == accepted.json()["version"]
+    history = client.get(f"/api/needs/{need_id}/facts").json()
+    assert history["current_fact_version"] == 3
+    assert {row["id"]: row["decision"] for row in history["items"]} == {
+        first_id: "accepted", second_id: "draft"
+    }
+    with factory() as session:
+        assert session.scalar(select(func.count()).select_from(CallFactDecision)) == 3
+
+
 def test_status_unknown_seven_states_idempotency_and_tier_independence(runtime):
     client, factory, need_id, project_id, pursuit_id = runtime
     headers = {"origin": "http://testserver"}
@@ -1844,3 +1890,4 @@ def test_current_fact_preflight_fails_closed_before_fact_orm_hydration(runtime, 
             .select_from(CallFactVersion)
             .where(CallFactVersion.need_id == need_id)
         ) == number_of_rows
+
