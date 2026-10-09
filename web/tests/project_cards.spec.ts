@@ -4,6 +4,26 @@ import { projectCards, projectTitle, signalDecisionCards, signalDisplayDecision 
 
 const apiRoute = `http://127.0.0.1:${process.env.GRIDLENS_WEB_PORT ?? '5173'}/api/**`
 
+function emptyExactNeedAuxiliary(path: string) {
+  const facts = path.match(/^\/api\/needs\/([^/]+)\/facts$/)
+  if (facts) {
+    return {
+      items: [], total: 0, limit: 50, offset: 0, next_offset: null, current_fact_version: 0,
+      current_reported_timing_correction_target: {
+        available: false, unavailable_reason: 'no_current_admitted_lead', need_id: facts[1],
+        project_id: null, project_identity_key: null, activity_key: null, facility_identity: null,
+        source_semantic_hash: null, source_evidence_hash: null, retained_evidence_id: null,
+        source_id: null, earliest_possible_start: null, latest_possible_start: null,
+        minimum_duration_days: null, maximum_duration_days: null, current_fact_version: 0,
+      },
+    }
+  }
+  if (/^\/api\/needs\/[^/]+\/workflow-status$/.test(path)) {
+    return { status: 'UNKNOWN', version: 0, events: [] }
+  }
+  return undefined
+}
+
 const zilkerDescription = '2026/10/02 - 2026/10/04 - Weekend 1 | 2026/10/09 - 2026/10/11 - Weekend 2 | (2026/09/14) | Music stages food vendors art vendors & hospitality programs. October 2-4 & 9-11 2026 in Zilker Park.'
 
 function serverOpportunityPage(records: Opportunity[], selectedDecision = 'ALL', search = '') {
@@ -147,7 +167,7 @@ test('Cannabis Watch is removed and an evidence-supported applicant titles the c
         ? [record]
         : path === '/api/health'
           ? { sources: [], backlog: 0, pending_interpretations: 0 }
-          : []
+          : emptyExactNeedAuxiliary(new URL(route.request().url()).pathname) ?? []
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
   })
   await page.goto('/?tier=Signals')
@@ -180,9 +200,20 @@ test('browse filters travel through the request URL and restore with the selecte
       ? { authenticated: true }
       : path === '/api/opportunities'
         ? [record]
+        : /^\/api\/needs\/[^/]+\/facts$/.test(path)
+          ? { items: [], total: 0, limit: 50, offset: 0, next_offset: null, current_fact_version: 0,
+            current_reported_timing_correction_target: {
+              available: false, unavailable_reason: 'no_current_admitted_lead', need_id: record.id,
+              project_id: record.project_id, project_identity_key: record.group_id ?? record.id, activity_key: record.activity,
+              facility_identity: null, source_semantic_hash: null, source_evidence_hash: null, retained_evidence_id: null,
+              source_id: null, earliest_possible_start: null, latest_possible_start: null,
+              minimum_duration_days: null, maximum_duration_days: null, current_fact_version: 0,
+            } }
+        : /^\/api\/needs\/[^/]+\/workflow-status$/.test(path)
+          ? { status: 'UNKNOWN', version: 0, events: [] }
         : path === '/api/health'
           ? { sources: [], backlog: 0, pending_interpretations: 0 }
-          : []
+          : emptyExactNeedAuxiliary(new URL(route.request().url()).pathname) ?? []
     await route.fulfill({
       status: 200,
       contentType: 'application/json',
@@ -262,7 +293,7 @@ test('stale later-page cohort restarts at page one without showing the previous 
       ? { authenticated: true }
       : url.pathname === '/api/health'
         ? { sources: [], backlog: 0, pending_interpretations: 0 }
-        : []
+        : emptyExactNeedAuxiliary(new URL(route.request().url()).pathname) ?? []
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
   })
   await page.goto('/?tier=Signals')
@@ -315,7 +346,7 @@ test('Back restores the exact selected need across tiers and pages with its coho
         ? { sources: [], backlog: 0, pending_interpretations: 0 }
         : path.startsWith('/api/power-needs/')
           ? { status: 'unavailable', result: null, citations: [] }
-          : []
+          : emptyExactNeedAuxiliary(new URL(route.request().url()).pathname) ?? []
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
   })
 
@@ -368,7 +399,7 @@ test('direct selected URL reports an exact need outside its filtered cohort with
       ? { authenticated: true }
       : url.pathname === '/api/health'
         ? { sources: [], backlog: 0, pending_interpretations: 0 }
-        : []
+        : emptyExactNeedAuxiliary(new URL(route.request().url()).pathname) ?? []
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
   })
 
@@ -413,7 +444,7 @@ test('direct selected URL hydrates the exact need with the restored page cohort 
       ? { authenticated: true }
       : url.pathname === '/api/health'
         ? { sources: [], backlog: 0, pending_interpretations: 0 }
-        : []
+        : emptyExactNeedAuxiliary(new URL(route.request().url()).pathname) ?? []
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
   })
 
@@ -470,7 +501,7 @@ test('late restored-page response cannot replace a newer Back/Forward destinatio
         ? { sources: [], backlog: 0, pending_interpretations: 0 }
         : url.pathname.startsWith('/api/power-needs/')
           ? { status: 'unavailable', result: null, citations: [] }
-          : []
+          : emptyExactNeedAuxiliary(new URL(route.request().url()).pathname) ?? []
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
   })
 
@@ -512,7 +543,7 @@ test('active first-page tier click preserves ready metadata and closes its detai
         ? { sources: [], backlog: 0, pending_interpretations: 0 }
         : url.pathname.startsWith('/api/power-needs/')
           ? { status: 'unavailable', result: null, citations: [] }
-          : []
+          : emptyExactNeedAuxiliary(new URL(route.request().url()).pathname) ?? []
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
   })
 
@@ -556,7 +587,7 @@ test('active first-page tier click while loading lets the matching request settl
       ? { authenticated: true }
       : url.pathname === '/api/health'
         ? { sources: [], backlog: 0, pending_interpretations: 0 }
-        : []
+        : emptyExactNeedAuxiliary(new URL(route.request().url()).pathname) ?? []
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
   })
   try {
@@ -594,7 +625,7 @@ test('active tier click from a later page fetches first-page data before showing
       ? { authenticated: true }
       : url.pathname === '/api/health'
         ? { sources: [], backlog: 0, pending_interpretations: 0 }
-        : []
+        : emptyExactNeedAuxiliary(new URL(route.request().url()).pathname) ?? []
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
   })
 
@@ -626,7 +657,7 @@ test('active Signals decision and unchanged search preserve ready page metadata'
       ? { authenticated: true }
       : url.pathname === '/api/health'
         ? { sources: [], backlog: 0, pending_interpretations: 0 }
-        : []
+        : emptyExactNeedAuxiliary(new URL(route.request().url()).pathname) ?? []
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
   })
   await page.goto('/?tier=Signals&q=campus&activity=event-power')
@@ -662,7 +693,7 @@ test('active decision and unchanged activity filter during page load preserve th
       ? { authenticated: true }
       : url.pathname === '/api/health'
         ? { sources: [], backlog: 0, pending_interpretations: 0 }
-        : []
+        : emptyExactNeedAuxiliary(new URL(route.request().url()).pathname) ?? []
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
   })
   try {
@@ -699,7 +730,7 @@ test('unchanged search during page load does not cancel its terminal response', 
       ? { authenticated: true }
       : url.pathname === '/api/health'
         ? { sources: [], backlog: 0, pending_interpretations: 0 }
-        : []
+        : emptyExactNeedAuxiliary(new URL(route.request().url()).pathname) ?? []
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
   })
   try {
@@ -734,7 +765,7 @@ test('unchanged activity filter during page load does not cancel or duplicate it
       ? { authenticated: true }
       : url.pathname === '/api/health'
         ? { sources: [], backlog: 0, pending_interpretations: 0 }
-        : []
+        : emptyExactNeedAuxiliary(new URL(route.request().url()).pathname) ?? []
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
   })
   try {
@@ -768,7 +799,7 @@ test('clicking the active ingestion view during its request does not strand load
       ? { authenticated: true }
       : url.pathname === '/api/health'
         ? { sources: [], backlog: 0, pending_interpretations: 0 }
-        : []
+        : emptyExactNeedAuxiliary(new URL(route.request().url()).pathname) ?? []
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
   })
   try {
@@ -809,7 +840,7 @@ test('opening a same-cohort record during a pending Back page request does not s
         ? { sources: [], backlog: 0, pending_interpretations: 0 }
         : url.pathname.startsWith('/api/power-needs/')
           ? { status: 'unavailable', result: null, citations: [] }
-          : []
+          : emptyExactNeedAuxiliary(new URL(route.request().url()).pathname) ?? []
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
   })
   try {
@@ -876,7 +907,7 @@ test('late group expansion pages cannot restore members from a superseded browse
       ? { authenticated: true }
       : path === '/api/health'
         ? { sources: [], backlog: 0, pending_interpretations: 0 }
-        : []
+        : emptyExactNeedAuxiliary(new URL(route.request().url()).pathname) ?? []
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
   })
   try {
@@ -936,7 +967,7 @@ test('Back refresh with a rotated cohort token supersedes a pending group expans
       ? { authenticated: true }
       : url.pathname === '/api/health'
         ? { sources: [], backlog: 0, pending_interpretations: 0 }
-        : []
+        : emptyExactNeedAuxiliary(new URL(route.request().url()).pathname) ?? []
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
   })
   try {
@@ -998,7 +1029,7 @@ test('only the latest group expansion intent may open a card or surface its fail
       ? { authenticated: true }
       : url.pathname === '/api/health'
         ? { sources: [], backlog: 0, pending_interpretations: 0 }
-        : []
+        : emptyExactNeedAuxiliary(new URL(route.request().url()).pathname) ?? []
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
   })
   try {
@@ -1055,7 +1086,7 @@ test('reclicking a pending group cancels its expansion and selected-record navig
         ? { sources: [], backlog: 0, pending_interpretations: 0 }
         : url.pathname.startsWith('/api/opportunities/needs/')
           ? selected
-          : []
+          : emptyExactNeedAuxiliary(new URL(route.request().url()).pathname) ?? []
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
   })
   try {
@@ -1143,7 +1174,7 @@ test('group expansion intent is invalidated by tier, search, Signal decision, pa
       ? { authenticated: true }
       : path === '/api/health'
         ? { sources: [], backlog: 0, pending_interpretations: 0 }
-        : []
+        : emptyExactNeedAuxiliary(new URL(route.request().url()).pathname) ?? []
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
   })
   try {
@@ -1214,7 +1245,7 @@ test('Previous hides later-page rows and metadata until the first-page request s
       ? { authenticated: true }
       : path === '/api/health'
         ? { sources: [], backlog: 0, pending_interpretations: 0 }
-        : []
+        : emptyExactNeedAuxiliary(new URL(route.request().url()).pathname) ?? []
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
   })
   try {
@@ -1266,7 +1297,7 @@ test('Next hides first-page rows and metadata until the later-page request settl
       ? { authenticated: true }
       : path === '/api/health'
         ? { sources: [], backlog: 0, pending_interpretations: 0 }
-        : []
+        : emptyExactNeedAuxiliary(new URL(route.request().url()).pathname) ?? []
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
   })
   try {
@@ -1313,7 +1344,7 @@ test('failed Previous clears the later page and reports unavailable instead of a
       ? { authenticated: true }
       : path === '/api/health'
         ? { sources: [], backlog: 0, pending_interpretations: 0 }
-        : []
+        : emptyExactNeedAuxiliary(new URL(route.request().url()).pathname) ?? []
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
   })
   await page.goto('/?tier=Signals&offset=25')
@@ -1352,7 +1383,7 @@ test('failed Next clears the first page and reports unavailable instead of retai
       ? { authenticated: true }
       : path === '/api/health'
         ? { sources: [], backlog: 0, pending_interpretations: 0 }
-        : []
+        : emptyExactNeedAuxiliary(new URL(route.request().url()).pathname) ?? []
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
   })
   await page.goto('/?tier=Signals')
@@ -1423,7 +1454,7 @@ test('grouped permit members use company-first titles while retaining each permi
       ? { authenticated: true }
       : path === '/api/health'
           ? { sources: [], backlog: 0, pending_interpretations: 0 }
-          : []
+          : emptyExactNeedAuxiliary(new URL(route.request().url()).pathname) ?? []
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
   })
   await page.goto('/?tier=Signals')
@@ -1451,7 +1482,7 @@ test('Signals default to All and keep SHOW, REVIEW, and HOLD selectable', async 
       await fulfillServerOpportunityPage(route, records)
       return
     }
-    const body = path === '/api/auth/session' ? { authenticated: true } : path === '/api/health' ? { sources: [], backlog: 0, pending_interpretations: 0 } : []
+    const body = path === '/api/auth/session' ? { authenticated: true } : path === '/api/health' ? { sources: [], backlog: 0, pending_interpretations: 0 } : emptyExactNeedAuxiliary(new URL(route.request().url()).pathname) ?? []
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
   })
   await page.goto('/?tier=Signals')
@@ -1554,7 +1585,7 @@ test('only exact dated event evidence groups; titles describe permit work; all r
       await fulfillServerOpportunityPage(route, browseRecords)
       return
     }
-    const body = path === '/api/auth/session' ? { authenticated: true } : path === '/api/health' ? { sources: [], backlog: 0, pending_interpretations: 0 } : []
+    const body = path === '/api/auth/session' ? { authenticated: true } : path === '/api/health' ? { sources: [], backlog: 0, pending_interpretations: 0 } : emptyExactNeedAuxiliary(new URL(route.request().url()).pathname) ?? []
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
   })
   await page.goto('/?tier=Signals')
@@ -1576,7 +1607,7 @@ test('only exact dated event evidence groups; titles describe permit work; all r
       ? { authenticated: true }
       : path === '/api/health'
           ? { sources: [], backlog: 0, pending_interpretations: 0 }
-          : []
+          : emptyExactNeedAuxiliary(new URL(route.request().url()).pathname) ?? []
     await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
   })
   await page.goto('/?tier=Signals')

@@ -6,7 +6,7 @@ from csv import DictWriter
 from datetime import UTC, date, datetime, timedelta
 from datetime import date as DateType
 from decimal import Decimal, InvalidOperation
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
 
@@ -20,6 +20,7 @@ from gridlens.api.verticals import vertical_source_tags
 from gridlens.domain.buying_chain import BuyingChainOut, BuyingEnrichBody
 from gridlens.domain.call_facts import (
     CurrentOperatorInputBoundExceeded,
+    _source_lead_timing_bounds,
     canonical_hash,
     fact_digest,
     validate_fact,
@@ -45,7 +46,7 @@ from gridlens.domain.pursuits import (
 from gridlens.domain.signal_admission import admitted_from_source, source_origin
 from gridlens.domain.workflow_status import WORKFLOW_STATUSES
 from gridlens.ingestion.registry import load_registry
-from gridlens.ingestion.service import _need_has_current_support
+from gridlens.ingestion.service import _current_need_claims, _need_has_current_support
 from gridlens.intelligence.briefs import (
     BriefUnavailable,
     brief_fingerprint,
@@ -115,6 +116,9 @@ from gridlens.security import (
 from gridlens.settings import settings
 
 app = FastAPI(title="GridLens API", version="1.0.0", openapi_url=None)
+WorkflowStatusFilter = Literal[
+    "UNKNOWN", "NEW", "INVESTIGATING", "CONTACTED", "QUALIFIED", "WON", "LOST", "CLOSED"
+]
 
 
 @app.exception_handler(CurrentOperatorInputBoundExceeded)
@@ -281,12 +285,33 @@ class CallFactOut(BaseModel):
     created_at: datetime
 
 
+class TimingCorrectionTargetOut(BaseModel):
+    available: bool
+    unavailable_reason: str | None
+    need_id: UUID
+    project_id: UUID
+    project_identity_key: str
+    activity_key: str
+    facility_identity: str | None
+    source_semantic_hash: str | None
+    source_evidence_hash: str | None
+    retained_evidence_id: str | None
+    source_id: str | None
+    earliest_possible_start: DateType | None
+    latest_possible_start: DateType | None
+    minimum_duration_days: int | None
+    maximum_duration_days: int | None
+    current_fact_version: int
+
+
 class CallFactPageOut(BaseModel):
     items: list[CallFactOut]
     total: int
     limit: int
     offset: int
     next_offset: int | None
+    current_fact_version: int
+    current_reported_timing_correction_target: TimingCorrectionTargetOut
 
 
 class CallFactDecisionOut(BaseModel):
@@ -434,7 +459,7 @@ def _normalized_browse_filters(
         raise HTTPException(422, "Signal decisions can only filter Signal opportunities")
     timing = enum("timing", timing, {"KNOWN", "UNKNOWN"})
     mw_status = enum("mw_status", mw_status, {"KNOWN", "UNKNOWN"})
-    status = enum("status", status, {"UNKNOWN"})
+    status = enum("status", status, {"UNKNOWN", *(value.upper() for value in WORKFLOW_STATUSES)})
 
     def decimal_bound(name: str, value: str | None) -> str | None:
         if value is None:
@@ -547,12 +572,11 @@ def _filter_opportunity_summaries(
             and item.get("_priority_segment") != filters["priority_segment"]
         ):
             continue
-        # A6 currently exposes UNKNOWN only: it means no operator status event
-        # exists for this need. Seven explicit states remain a later filter slice.
-        if filters.get("status") == "UNKNOWN" and item.get("workflow_status", "UNKNOWN") != (
-            "UNKNOWN"
-        ):
-            continue
+        selected_status = filters.get("status")
+        if selected_status is not None:
+            actual_status = str(item.get("workflow_status", "UNKNOWN")).upper()
+            if actual_status != selected_status:
+                continue
         selected.append(item)
     return selected
 
@@ -1523,7 +1547,7 @@ def opportunities(
     mw_min: str | None = None,
     mw_max: str | None = None,
     priority_segment: str | None = None,
-    status: str | None = None,
+    status: WorkflowStatusFilter | None = None,
 ):
     response = response or Response()
     filters = _normalized_browse_filters(
@@ -1880,7 +1904,7 @@ def opportunity_group_page(
     mw_min: str | None = None,
     mw_max: str | None = None,
     priority_segment: str | None = None,
-    status: str | None = None,
+    status: WorkflowStatusFilter | None = None,
 ):
     filters = _normalized_browse_filters(
         tier=tier,
@@ -2006,7 +2030,7 @@ def opportunity_need_detail(
     mw_min: str | None = None,
     mw_max: str | None = None,
     priority_segment: str | None = None,
-    status: str | None = None,
+    status: WorkflowStatusFilter | None = None,
 ):
     filters = _normalized_browse_filters(
         tier=tier,
@@ -2099,7 +2123,7 @@ def export_opportunities_csv(
     mw_min: str | None = None,
     mw_max: str | None = None,
     priority_segment: str | None = None,
-    status: str | None = None,
+    status: WorkflowStatusFilter | None = None,
 ):
     filters = _normalized_browse_filters(
         tier=tier,
@@ -3574,6 +3598,95 @@ def _fact_version_view(row: CallFactVersion, decision: CallFactDecision | None):
     }
 
 
+def _reported_timing_correction_target(
+    session, need: PowerNeed, project: Project, current_fact_version: int
+) -> dict[str, Any]:
+    unavailable = {
+        "available": False,
+        "unavailable_reason": "no_current_admitted_lead",
+        "need_id": need.id,
+        "project_id": project.id,
+        "project_identity_key": project.identity_key,
+        "activity_key": need.activity_key,
+        "facility_identity": None,
+        "source_semantic_hash": None,
+        "source_evidence_hash": None,
+        "retained_evidence_id": None,
+        "source_id": None,
+        "earliest_possible_start": None,
+        "latest_possible_start": None,
+        "minimum_duration_days": None,
+        "maximum_duration_days": None,
+        "current_fact_version": current_fact_version,
+    }
+    claims = _current_need_claims(session, need, project)
+    if not claims:
+        return unavailable
+    claim = claims[0]
+    if claim.get("qualification_conflict"):
+        unavailable["unavailable_reason"] = "current_source_claim_conflict"
+        return unavailable
+    if claim.get("tier") != "Lead":
+        return unavailable
+    bounds = _source_lead_timing_bounds(claim)
+    evidence = claim.get("evidence")
+    semantic_hash = claim.get("semantic_hash")
+    evidence_hash = claim.get("evidence_hash")
+    evidence_id = evidence.get("id") if isinstance(evidence, dict) else None
+    if (
+        bounds is None
+        or not isinstance(semantic_hash, str)
+        or len(semantic_hash) != 64
+        or any(character not in "0123456789abcdef" for character in semantic_hash)
+        or not isinstance(evidence_hash, str)
+        or len(evidence_hash) != 64
+        or any(character not in "0123456789abcdef" for character in evidence_hash)
+        or not isinstance(evidence_id, str)
+        or claim.get("project_identity_key") != project.identity_key
+    ):
+        unavailable["unavailable_reason"] = "current_source_timing_not_replayable"
+        return unavailable
+    try:
+        retained_evidence_id = UUID(evidence_id)
+    except ValueError:
+        unavailable["unavailable_reason"] = "current_source_timing_not_replayable"
+        return unavailable
+    bound_evidence_id = session.scalar(
+        select(Evidence.id)
+        .join(Observation, Observation.id == Evidence.observation_id)
+        .join(NeedObservation, NeedObservation.observation_id == Observation.id)
+        .where(
+            NeedObservation.need_id == need.id,
+            Observation.content_hash == semantic_hash,
+            Evidence.content_hash == evidence_hash,
+            Evidence.id == retained_evidence_id,
+        )
+        .limit(1)
+    )
+    if bound_evidence_id is None:
+        unavailable["unavailable_reason"] = "current_source_timing_not_replayable"
+        return unavailable
+    first_start, last_start, minimum_duration, maximum_duration = bounds
+    return {
+        **unavailable,
+        "available": True,
+        "unavailable_reason": None,
+        "facility_identity": (
+            project.identity_key
+            if claim.get("project_identity_key") == project.identity_key
+            else None
+        ),
+        "source_semantic_hash": semantic_hash,
+        "source_evidence_hash": evidence_hash,
+        "retained_evidence_id": str(bound_evidence_id),
+        "source_id": claim.get("source_id"),
+        "earliest_possible_start": first_start,
+        "latest_possible_start": last_start,
+        "minimum_duration_days": minimum_duration,
+        "maximum_duration_days": maximum_duration,
+    }
+
+
 def _workflow_event_view(event: NeedWorkflowStatusEvent):
     return {
         "id": event.id,
@@ -3602,8 +3715,12 @@ def list_need_call_facts(
     offset: Annotated[int, Query(ge=0)] = 0,
 ):
     with SessionLocal() as session:
-        if session.get(PowerNeed, need_id) is None:
+        need = session.get(PowerNeed, need_id)
+        if need is None:
             raise HTTPException(404, "Power need not found")
+        project = session.get(Project, need.project_id)
+        if project is None:
+            raise HTTPException(404, "Need project not found")
         versions = session.scalars(
             select(CallFactVersion)
             .where(CallFactVersion.need_id == need_id)
@@ -3631,12 +3748,24 @@ def list_need_call_facts(
             )
             or 0
         )
+        current_fact_version = (
+            session.scalar(
+                select(func.max(CallFactDecision.version)).where(
+                    CallFactDecision.need_id == need_id
+                )
+            )
+            or 0
+        )
         return {
             "items": [_fact_version_view(row, latest.get(row.id)) for row in versions],
             "total": total,
             "limit": limit,
             "offset": offset,
             "next_offset": offset + len(versions) if offset + len(versions) < total else None,
+            "current_fact_version": current_fact_version,
+            "current_reported_timing_correction_target": _reported_timing_correction_target(
+                session, need, project, current_fact_version
+            ),
         }
 
 
