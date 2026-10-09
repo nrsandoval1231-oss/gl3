@@ -1,6 +1,6 @@
 # Current state — GL3 audit repair
 
-Parent OPEN. Canonical PRD, Finish Contract and protected reference manifest govern. Accepted bounded components and PR42 → 40 → 41 CI PASS; no merge/deploy.
+Parent OPEN. Canonical PRD, Finish Contract and protected reference manifest govern. PR42/40/41 integrated after exact-candidate validation; no deployment. PR43 pending integration.
 
 A6 preceding candidates remain independent FIX despite green gates, with original proofs retained. Exceptional Astra accepted the selected-interval direction only. Sole Luna froze source a797ebfca5e1a08d68badd848b332f8148ef4348 and completion fd5356654b53f218b95a4533a92e2000d681eb79. Shared Lead interval finalization follows existing timing/coverage gates and copies current gap mappings. Current top-level, nested gap and exclusive interval agree; Reported source dates and prior saved cards remain separate and immutable. Only call_facts.py plus two focused test files changed in this repair; no API/model/migration/UI changes.
 
