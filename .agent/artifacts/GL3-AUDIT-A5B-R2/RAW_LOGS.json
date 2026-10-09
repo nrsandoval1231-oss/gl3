@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "candidate_base": "67a30c1b83b9990c17cff321ed54e4d1a1bc60d8",
+  "root_relative_log_directory": ".artifacts",
+  "logs": [
+    {"path":"a5b-r2-batch-guards-focused-01-20261008T1628259368594Z-6b18b507e8b44634b6685de0a91e03a2-pytest.log","bytes":630,"sha256":"d78c60c90de82980534206e04294296d99ac614823d7f96a63c806c19ec05101","exit_code":0,"result":"four focused R2/list/preflight tests passed"},
+    {"path":"a5b-r2-browser-focused-02-20261008T1629547703397Z-4428775eb8214f28b46a8ff05460bf0e.log","bytes":11510,"sha256":"fc63736782e8fbd71afe1090034ee088a153b43a31a974bdccf4e9574ae65a38","exit_code":1,"result":"one pass, four failures; fixture/API contract and read-count diagnostics"},
+    {"path":"a5b-r2-browser-focused-03-20261008T1631574127651Z-23473d04fe834d6ab3875184f41edb01.log","bytes":6121,"sha256":"03f8fc5ce8b861f1fe5231a7b0a4c3bfd4ee434fe10856081cfee40fb52270ae","exit_code":1,"result":"three passes, two failures; StrictMode double GET and stale label diagnostics"},
+    {"path":"a5b-r2-browser-focused-05-20261008.log","bytes":4127,"sha256":"858828eb672c2474d7d3559ce3669ca24294d1164e33625e08396326bb722fe5","exit_code":1,"result":"one pass, one failure; saved read behavior passed"},
+    {"path":"a5b-r2-browser-focused-06-20261008.log","bytes":4782,"sha256":"7babff1668def6d5c8d877a22b534ff3f3cfca0766dcdf1890d28109a1e7c8e6","exit_code":1,"result":"four passes, one failure; search fixture parsed wrong query key"},
+    {"path":"a5b-r2-browser-focused-07-20261008.log","bytes":972,"sha256":"fa591599b6e077de4a5d492cdaa4a7415a09533a17dd4d842cd0ba4e487d767c","exit_code":0,"result":"dated event regression passed after q-to-search correction"},
+    {"path":"a5b-r2-browser-focused-08-20261008.log","bytes":2138,"sha256":"03c60915f30e63b16338b2ec10fe992505341816f19e605524434195e6b828dc","exit_code":0,"result":"five original focused browser regressions passed"},
+    {"path":"a5b-r2-browser-history-final-20261008.log","bytes":1022,"sha256":"48d32e71f06be1b65fff0d3d572af452b289caf08e6e5ecf01f5d836df47e465","exit_code":0,"result":"saved-history explicit read case passed before unavailable/retry extension"},
+    {"path":"a5b-r2-history-detail-final-20261008.log","bytes":1023,"sha256":"f52f0cec5be0505ab34178d3314e3a032f9b504bc83bd78b8b582ba04b548970","exit_code":0,"result":"saved history exact-need, unavailable UNKNOWN, retry and no-stale-data case passed"},
+    {"path":"a5b-r2-browser-final-focused-20261008.log","bytes":2584,"sha256":"564072b62206e9a662172acd3c9fff794d508d166c1bbeebe94243625619ed20","exit_code":0,"result":"six final focused browser regressions passed"},
+    {"path":"a5b-r2-final-focused-backend-20261008T1636378629968Z-cad0083e16b240d991a6750b39cb8bec-pytest.log","bytes":630,"sha256":"3efb916d4df87d8e12859c36b66257cdee5034de331eb11d43d0c8e8c973943b","exit_code":0,"result":"six focused backend regressions passed"},
+    {"path":"a5b-r2-final-focused-backend-repeat-20261008T1637325001989Z-369a74d52cc34d35bdcc1b528d2f48bf-pytest.log","bytes":630,"sha256":"c6f3bf0291d3e352be871e420129f4decb9dfaf46318f7a38894e8441d8e9139","exit_code":0,"result":"six focused backend regressions passed after lint-only edits"},
+    {"path":"a5b-r2-final-mypy-20261008T1636503562543Z-f4a35cb0174347a18763a06aaf5a376d-mypy.log","bytes":1055,"sha256":"46a667c80a4f71702294793f690647a62fb2788f9c6a8606cae6b9fc21b426d1","exit_code":1,"result":"exploratory mypy src tests: one unchanged out-of-scope error in test_source_scheduling.py:95"},
+    {"path":"a5b-r2-final-mypy-src-20261008T1637126870414Z-0a885f8b12ee4c579c1522ea4342a356-mypy.log","bytes":202,"sha256":"83f5c62eac1069da1a8cc799602eea824a6af679a240622d2daca952929ce2a1","exit_code":0,"result":"mypy src passed, 78 source files"},
+    {"path":"a5b-r2-final-ruff-focused-20261008T1637189078110Z-3d16185a58b74104aff8640090b39bd4-ruff.log","bytes":902,"sha256":"efc734b5ff7656a23d52da72f8e8fb179dc5e33e337d80e581ce9b6a4756eac0","exit_code":1,"result":"initial focused Ruff failure: E501 and B023; both corrected"},
+    {"path":"a5b-r2-final-ruff-focused-20261008T1637323998843Z-ce84cf33956343928ada84f793aa6c43-ruff.log","bytes":20,"sha256":"a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0","exit_code":0,"result":"focused Ruff passed"},
+    {"path":"a5b-r2-web-final-typecheck-20261008.log","bytes":52,"sha256":"6e2f251662437d85417559b9c1f81367fa9947f3260f8d41fb5623f694160039","exit_code":0,"result":"web npm run typecheck passed"},
+    {"path":"a5b-r2-web-final-build-20261008.log","bytes":393,"sha256":"151aae67854c94d85367d402fbc210de6a2d1da8b328dc7921a1c961858c0ecf","exit_code":0,"result":"web npm run build passed"}
+  ],
+  "unretained_attempts": [
+    {"tool":"Playwright focused run","result":"did not start: first log destination resolved beneath web/.artifacts, which did not exist; tool output only, raw bytes unavailable"},
+    {"tool":"safe mypy wrapper","result":"argument validation rejected an empty ToolArguments array before checker execution; no checker log"},
+    {"tool":"Playwright native traces","result":"default test-results output directory reused during development; original trace bytes from earlier runs are UNKNOWN and are not represented as retained evidence"}
+  ]
+}

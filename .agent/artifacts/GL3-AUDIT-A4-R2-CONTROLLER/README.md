@@ -1,0 +1,9 @@
+# Controller evidence: A4 R2 comparator
+
+Code1be5fe2e/receiptfe03a053 is not accepted yet. Fixed expected-slot health and strict fixed-field comparison passed28focused tests. Root full:8failed/1275passed/2skipped/3warnings187.82seconds; all8shared baseline clock/publication-date cases require the separately scoped A1-CLOCK repair. Preserve this red; do not relabel as product acceptance. Source-focused behavior was not a full-gate failure.
+
+Root Ruffall, mypy77, webtypecheck/build, OpenAPI exactmatch, diffcheck, repeated0016upgrade andAlembicdrift, backend locked44dependency audit0knownvulnerabilities, andweb audit0knownvulnerabilities passed. Browser36passed with freshCI servers55497/55498 on distinct source_migration DB; noauto workers orpaidproviders. Exactlocalcredential scan of copiedraw captures found0matches. Originalraw .artifacts captures preserved; Git text normalization may alter capture bytes.
+
+Historical initial A4 full1270/browser36 and the prior R2 receipt remain historical, not certification of this candidate. Current full/evidence freeze and independentreview follow accepted A1 clock integration. Originalapplication databases/corpus/backup unchanged; no merge/deployment/paidactivation/externalcommunications.
+
+Integrated current b5f666 merges accepted1ef clock correction. Finalroot full1285passed/2skipped/3warnings190.92seconds, freshbrowser36passed33.8seconds on55501/55502, allstatic/web/contracts/repeatedschema/drift gates pass. Previous eight-failure red remains above as historical evidence. Readable .log mirrors remain ignored local captures; portable RAW-CAPTURE.zip and RAW-MANIFEST.json preserve original bytes without rewriting captured whitespace. Locks unchanged from current captured vulnerability scans. Final independent review remains pending on the head containing this receipt. No original data or external operational acceptance is claimed.

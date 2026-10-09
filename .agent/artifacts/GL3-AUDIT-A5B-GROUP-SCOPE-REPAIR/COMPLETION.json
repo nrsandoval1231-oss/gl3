@@ -1,0 +1,104 @@
+{
+  "schema": "codex-task-completion/v1",
+  "packet_id": "GL3-AUDIT-A5B-GROUP-REQUEST-SCOPE-REPAIR",
+  "status": "FROZEN_FOR_ROOT_VALIDATION",
+  "acceptance_claim": false,
+  "objective": "Bind asynchronous project-group expansion to the complete current browse scope and latest expansion intent.",
+  "base": {
+    "commit": "5dd6073a64dd7603a9218315060edd35f152f39e",
+    "tree": "12e5a3472fb7bef886be2dda68056185cc74754f"
+  },
+  "source_candidate": {
+    "commit": "dcd8ff6ee498efe65e9c7fde39fbd473c9164567",
+    "tree": "0405738a9dc0eed191f89e405ee7c13bb0fadec3",
+    "files": [
+      {
+        "path": "web/src/app/App.tsx",
+        "sha256": "950639946198a83460f3790cd933d43b7b1052c9766c5db8589588e27467d027"
+      },
+      {
+        "path": "web/tests/project_cards.spec.ts",
+        "sha256": "40028c6f54833893c09e37a9a25c6a5e8556d888228ac584cc5a03a4eec96276"
+      }
+    ],
+    "task_artifact_commit": "reported in terminal handoff; completion avoids recursive self-hashing"
+  },
+  "implementation": {
+    "summary": "A monotonic expansion intent and scope key bind view, filtered cohort/page, current cohort token, and stable group ID. Each awaited group page and every final member/card/error write checks the active intent. Browse navigation, Back/Forward, and need selection invalidate pending expansion; same-group reclick cancels it; newer group intent wins.",
+    "changed_files": [
+      "web/src/app/App.tsx",
+      "web/tests/project_cards.spec.ts"
+    ],
+    "api_or_schema_changed": false,
+    "migrations_changed": false
+  },
+  "old_base_reproduction": {
+    "base_app_blob": "60f2176a3ccbbaccaa9f151e391dc68e773e7e0b",
+    "test": "late group expansion pages cannot restore members from a superseded browse filter",
+    "exit_code": 1,
+    "failure": "The stale old-scope response restored .project-members after the activity filter changed.",
+    "guarded_source_sha256_before": "950639946198a83460f3790cd933d43b7b1052c9766c5db8589588e27467d027",
+    "guarded_source_sha256_after": "950639946198a83460f3790cd933d43b7b1052c9766c5db8589588e27467d027",
+    "restoration": "PowerShell finally copied the guarded source back; byte hash matched."
+  },
+  "validation": [
+    {
+      "command": "npm test -- --project=regression tests/project_cards.spec.ts --output=<unique-results-dir> --workers=1",
+      "exit_code": 0,
+      "result": "32 passed",
+      "measured_test_runtime": "19.5 seconds",
+      "log": ".artifacts/a5b-group-scope-final-checks-20261008T1905400796870Z-d1c4ba9f1b8b4fa28c2c53675de2f48e-browser.log",
+      "sha256": "5d8aa91ee000641d26c7def54b4aab201766bce26530f6131ae1e12ae97fc183"
+    },
+    {
+      "command": "npm run typecheck",
+      "exit_code": 0,
+      "log": ".artifacts/a5b-group-scope-final-checks-20261008T1905400796870Z-d1c4ba9f1b8b4fa28c2c53675de2f48e-typecheck.log",
+      "sha256": "6e2f251662437d85417559b9c1f81367fa9947f3260f8d41fb5623f694160039"
+    },
+    {
+      "command": "npm run build",
+      "exit_code": 0,
+      "log": ".artifacts/a5b-group-scope-final-checks-20261008T1905400796870Z-d1c4ba9f1b8b4fa28c2c53675de2f48e-build.log",
+      "sha256": "51f24aa5169747ca9b21ee1c8b9dd13116d3a0094f99c5ade1acbb41b6064d6f"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0,
+      "log": ".artifacts/a5b-group-scope-diffcheck-20261008T1907201668413Z-ebc83e2ed3ff49c8a3dd584dc7c8ff26.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "retained_failures": {
+    "all_captured_logs_and_playwright_files": ".agent/artifacts/GL3-AUDIT-A5B-GROUP-SCOPE-REPAIR/RAW-MANIFEST.json",
+    "raw_manifest_sha256_at_completion_creation": "aee0714954302bcd18941300cef95b8f0490fcf02cfbf4679ab181b1926df051",
+    "notes": "The manifest preserves exact hashes for captured focused-test failures and native Playwright artifacts. Two PowerShell construction errors stopped before app/test startup; their raw console bytes were not separately saved and are marked UNKNOWN in the manifest. The first token-fixture typecheck error and earlier browser fixture/assertion errors were corrected and retained."
+  },
+  "safety": {
+    "provider_keys": "Blank before test/build imports; no provider calls.",
+    "automation": "Worker auto-refresh and autonomous research disabled during checks.",
+    "credentials": "Synthetic test authentication only; no candidate .env.",
+    "database": "Only assigned disposable A5B test/application databases; no retained corpus or original data writes.",
+    "external_actions": "No push, merge, deployment, paid provider use, or A6 work.",
+    "focused_browser_ports_55533_55534": "Confirmed free after the final run."
+  },
+  "root_owned_gates": {
+    "full_backend": "UNRUN",
+    "full_browser": "UNRUN",
+    "retained_corpus_and_performance": "UNRUN",
+    "protected_surface_and_repository_audits": "UNRUN",
+    "independent_review": "PENDING"
+  },
+  "provenance": {
+    "started_utc": "UNKNOWN",
+    "finished_utc": "2026-10-08T19:07:35Z",
+    "planning_duration": "UNKNOWN",
+    "implementation_duration": "UNKNOWN",
+    "validation_duration": "UNKNOWN",
+    "repair_attempts": 1,
+    "lane": "single Luna",
+    "model": "UNKNOWN",
+    "configuration_identity": "UNKNOWN",
+    "tokens": "UNKNOWN"
+  }
+}

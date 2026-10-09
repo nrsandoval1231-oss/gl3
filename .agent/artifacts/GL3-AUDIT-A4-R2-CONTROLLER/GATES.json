@@ -1,0 +1,49 @@
+{
+  "recorded_at_utc": "2026-10-08T01:00:19.1704169Z",
+  "tested_candidate": "b5f666694fc1f3216caf9887fa09725a85761c56",
+  "tested_tree": "d4d3de10f51c2307d4088f6324e0325e1bedf468",
+  "source_candidate": "1be5fe2e9e681c1917d24aca833422c505169914",
+  "accepted_clock_parent": "1ef6b5961d7dcbb87c703b555ac201b08ee01f8e",
+  "backend": {
+    "warnings": 3,
+    "passed": 1285,
+    "exit": 0,
+    "skipped": 2,
+    "seconds": 190.92
+  },
+  "browser": {
+    "database": "gl3audit_source_migration",
+    "api_port": 55501,
+    "exit": 0,
+    "CI": true,
+    "reuse_existing_servers": false,
+    "passed": 36,
+    "seconds": 33.8,
+    "web_port": 55502
+  },
+  "ruff": 0,
+  "mypy": 0,
+  "web_typecheck": 0,
+  "web_build": 0,
+  "openapi_match": 0,
+  "repeated_upgrade": 0,
+  "schema_drift": 0,
+  "fresh_schema_provenance": "Unchanged0016; retained builder fresh downgrade/reupgrade and prior controller evidence",
+  "backend_audit": {
+    "raw": "a4-comparator-controller-backend-audit.json",
+    "dependencies": 44,
+    "lock_unchanged": true,
+    "known_vulnerabilities": 0
+  },
+  "web_audit": 0,
+  "test_database": "gl3audit_source_test",
+  "application_database": "gl3audit_source_migration",
+  "paid_keys": "blank",
+  "automatic_workers": "disabled",
+  "exact_local_secret_matches": 0,
+  "raw_archive_sha256": "a2e62dd21d3eb219710df941851226436b2e06796fee5214ac6c4fbbb844d984",
+  "independent_review": "PENDING",
+  "model_config_tokens": "UNKNOWN",
+  "merge": false,
+  "deployment": false
+}

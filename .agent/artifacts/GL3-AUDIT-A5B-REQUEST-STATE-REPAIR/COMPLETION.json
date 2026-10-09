@@ -1,0 +1,97 @@
+{
+  "task": "GL3-AUDIT-A5B same-cohort request-state review repair",
+  "status": "builder_handoff_ready_for_controller_validation",
+  "acceptance_claim": false,
+  "candidate": {
+    "branch": "repair/gl3-public-browse-20261008",
+    "implementation_commit": "7c29da3e6e52494f026ac78e66a55e1567f901b9",
+    "implementation_tree": "7a8349fe061f31daee6c680279eebf9f8a6caab9",
+    "base_commit": "0415f19bfbe2ee54a56715f0fcb777d0226cae16",
+    "base_tree": "fe64ea873fd55e353b2522069ef265f9cd305090",
+    "worktree_clean_after_implementation_commit": true
+  },
+  "scope": {
+    "changed_product_files": [
+      "web/src/app/App.tsx",
+      "web/tests/project_cards.spec.ts"
+    ],
+    "unchanged_protected_surfaces": [
+      "web/src/api/client.ts",
+      "backend API and schema",
+      "authentication and migrations",
+      "qualification/grouping policy",
+      "styles and protected UI assets",
+      "retained corpus and original application data",
+      "providers and release state"
+    ]
+  },
+  "behavior": [
+    "Active first-page tier, active view, active Signals decision, and same-value search/filter actions do not clear valid page metadata or cancel the matching request.",
+    "Clicking the active tier from a selected first-page detail closes the detail while retaining page metadata/history behavior; clicking it on a later page fetches page one before showing first-page totals.",
+    "Intentional cohort changes clear old rows and metadata and run the existing replacement effect, preventing old filtered rows from being selected while the new request is pending.",
+    "Opening or moving to another record clears obsolete pending-restore bookkeeping without invalidating a matching in-flight page response; its epoch can settle loading and page metadata while preserving the latest selected record."
+  ],
+  "deterministic_checks": [
+    {
+      "command": "npm exec -- playwright test --project=regression tests/project_cards.spec.ts --output=<unique-results-directory>",
+      "exit_code": 0,
+      "result": "23 passed",
+      "raw_log": ".artifacts/a5b-request-state-freeze-20261008T1813463318395Z-d714c5ea2eb547b59351b5392ff5a9d9-browser.log",
+      "sha256": "ae136f42de21df0637a07875c758bb8cd468b122bf42a3f0c7b6184eaf3b2767"
+    },
+    {
+      "command": "npm run typecheck",
+      "exit_code": 0,
+      "raw_log": ".artifacts/a5b-request-state-freeze-20261008T1813463318395Z-d714c5ea2eb547b59351b5392ff5a9d9-typecheck.log",
+      "sha256": "6e2f251662437d85417559b9c1f81367fa9947f3260f8d41fb5623f694160039"
+    },
+    {
+      "command": "npm run build",
+      "exit_code": 0,
+      "result": "tsc -b and Vite production build passed",
+      "raw_log": ".artifacts/a5b-request-state-freeze-20261008T1813463318395Z-d714c5ea2eb547b59351b5392ff5a9d9-build.log",
+      "sha256": "e7bf4dadafc370842dee1ac95d2be4adf76dba9c370f6b8dbedbbc4820883328"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  ],
+  "negative_evidence": {
+    "red_to_green": "Multiple preserved browser RED attempts reproduce active-tier metadata loss, cancellation of active decision/view/page requests, and stuck loading when opening/moving between records during a same-cohort response. Early locator/title assertion defects are called out in RAW_LOGS.json; corrected tests then passed.",
+    "unchanged_filter_case": "Filling an unchanged filter value did not emit a browser change event in Playwright even before the product repair. The implementation retains an equality guard; this fixture is not used as proof of a prior product failure."
+  },
+  "runtime_and_authority": {
+    "providers": "FIRECRAWL_API_KEY, OPENAI_API_KEY, and TYPESAFE_API_KEY were blank before web test/build/typecheck commands; no provider calls.",
+    "automation": "Disabled during browser runs.",
+    "authentication": "Synthetic non-production browser test configuration.",
+    "database": "Only dispatched disposable A5B test/migration URLs were configured; browser API routes were fixture-mocked. Root-exclusive final DBs were untouched.",
+    "retained_corpus": "Not accessed or changed.",
+    "external_effects": "No push, merge, deploy, paid provider, or external message."
+  },
+  "handoff_gaps": [
+    "Root must rerun mandatory exact-candidate A5B gates, retained checks, and protected-boundary scans.",
+    "Fresh independent review remains required; builder does not certify A5B acceptance or authorize A6."
+  ],
+  "evidence_metadata": {
+    "packet_sha256": "411f7e95a8dff794d52a4a7c9c6147164b6cc0b677b7eb66d804f890a4905b97",
+    "independent_fix_receipt_sha256": "4174cb1491b9b284d4fef6069de9fdb7aab523f7fff521a37905e582660e39a6",
+    "raw_log_manifest": ".agent/artifacts/GL3-AUDIT-A5B-REQUEST-STATE-REPAIR/RAW_LOGS.json",
+    "source_manifest": {
+      "web/src/app/App.tsx": "e4bfdcd5ef4b9b6a0361e70f01b7df740be2bd57bd525e5506f91c322f5f556e",
+      "web/tests/project_cards.spec.ts": "dd10c217a0aaada94d9f949550697a1c8e7a6c813509afa9c8feab5334ba08c6"
+    }
+  },
+  "timing_and_usage": {
+    "utc_start": "UNKNOWN",
+    "utc_finish": "2026-10-08T18:14:31Z",
+    "planning_duration_seconds": "UNKNOWN",
+    "implementation_duration_seconds": "UNKNOWN",
+    "validation_duration_seconds": "UNKNOWN",
+    "repair_count": 1,
+    "lane": "Luna builder",
+    "model": "UNKNOWN",
+    "config_identity": "UNKNOWN",
+    "tokens": "UNKNOWN"
+  }
+}

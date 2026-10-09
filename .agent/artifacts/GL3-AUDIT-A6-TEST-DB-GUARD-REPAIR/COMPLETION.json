@@ -1,0 +1,91 @@
+{
+  "schema": "codex-task-completion/v1",
+  "packet_id": "GL3-AUDIT-A6-TEST-DB-GUARD-REPAIR",
+  "status": "FROZEN_FOR_ROOT_VALIDATION",
+  "acceptance_claim": false,
+  "base": {
+    "commit": "0b81c2de358213d7d5760aebc8faa3f659924c34",
+    "tree": "fa05c11845e021d9dbeceb0881027d28ecfbfb14"
+  },
+  "source_candidate": {
+    "commit": "47c2fe58ade730ba2543f576d0882a3d926d3f3e",
+    "tree": "1e1c113ab7f8a759a030cefb7266bc7a09643d9b",
+    "source_only_files": [
+      "backend/tests/integration/test_call_fact_workflow_integration.py"
+    ],
+    "source_blob_oid": "b530fae868914604a58a99edab78c7e06cd9a36c",
+    "source_blob_sha256": "6f0c197dc13237409d12db1629c36e9abc238f7cf88276d7e21ecf8e22105420",
+    "task_metadata_commit": "reported in terminal handoff to avoid recursive self-hashing"
+  },
+  "implementation": {
+    "summary": "Replace the builder-only exact test-database name assertion with the established disposable test-database suffix guard, keep distinct-endpoint protection, and explicitly reject corpus-named targets.",
+    "source_changed": "backend/tests/integration/test_call_fact_workflow_integration.py",
+    "schema_or_product_behavior_changed": false,
+    "test_database_names_proven": [
+      "gl3audit_a6_test",
+      "gl3audit_a6_final_test"
+    ],
+    "migration_test_database": "gl3audit_a6_migration; root final migration database not used"
+  },
+  "validation": [
+    {
+      "check": "Focused integration file on builder disposable test DB",
+      "exit_code": 0,
+      "result": "8 passed, 1 deprecation warning",
+      "log": ".artifacts/a6-db-guard-final-focused-20261008T2054599095423Z-a53cc44104804cc2902afd6e521f82f5-pytest.log",
+      "sha256": "6d769edc7ec1bde3f17f4705f6cbdc4cee9ec0c5d997c9ff7603a313a5331422"
+    },
+    {
+      "check": "Focused integration file on root-designated disposable final test DB",
+      "exit_code": 0,
+      "result": "8 passed, 1 deprecation warning",
+      "log": ".artifacts/a6-db-guard-root-final-testdb-20261008T2056024729061Z-bd50ec3c86994a7086787a668b3267e4-pytest.log",
+      "sha256": "48256f8bd2d1dda43e4d0d72093b950263a49128a1750a15800ef56d77f7b9c4"
+    },
+    {
+      "check": "Ruff on repaired integration test",
+      "exit_code": 0,
+      "log": ".artifacts/a6-db-guard-ruff-corrected-20261008T2054508341961Z-79509aaac4c44660a1b983721810d02e-ruff.log",
+      "sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0"
+    },
+    {
+      "check": "Root frozen backend run before repair",
+      "exit_code": 1,
+      "result": "1423 passed, 3 failed, 8 errors; only the eight exact-name setup errors are addressed here. Root later attributed the three failures to auth-table setup caused by sharing the application DB with migration tests and prepared a separate application DB.",
+      "log": ".artifacts/root-a6-final-full.log",
+      "sha256": "fdd34a941d5f6eb814dc76629e132e07c3e79462d31694ffc45969d617d2c8d3"
+    },
+    {
+      "check": "git diff --check",
+      "exit_code": 0,
+      "result": "Passed on the fixture-only diff before freeze."
+    }
+  ],
+  "retained_failures": {
+    "logs": ".agent/artifacts/GL3-AUDIT-A6-TEST-DB-GUARD-REPAIR/RAW-LOG-MANIFEST.json",
+    "manifest_sha256": "34e0dd1439591af83c4878342997e3ccc2bb0e6cafa1b3b5da1405eefad81d37",
+    "initial_ruff_e501_preserved": true
+  },
+  "root_owned_gates": {
+    "full_backend_after_repair_and_isolated_app_db": "PENDING",
+    "fresh_final_migration_and_repository_gates": "PENDING",
+    "independent_review": "PENDING"
+  },
+  "safety": {
+    "providers_blank_before_import": true,
+    "automation_disabled": true,
+    "synthetic_authentication": true,
+    "provider_calls": 0,
+    "original_data_mutations": 0,
+    "root_controller_artifacts_staged": false,
+    "push_merge_deploy": false
+  },
+  "provenance": {
+    "started_utc": "UNKNOWN",
+    "finished_utc": "2026-10-08T20:57:05Z",
+    "repair_attempts": 1,
+    "model": "UNKNOWN",
+    "configuration_identity": "UNKNOWN",
+    "tokens": "UNKNOWN"
+  }
+}

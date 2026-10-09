@@ -1,0 +1,144 @@
+{
+  "task": "GL3-AUDIT-A5B-PAGE-TRANSITION-REPAIR",
+  "source_base": {
+    "commit": "114bb671c32af00839aab4d2b3feac95c6cd3793",
+    "tree": "f46944739603c385154698e32472fd6bedd0d8ae"
+  },
+  "preservation": "All available local logs and Playwright failure traces are retained under .artifacts; no files were overwritten.",
+  "runtime": {
+    "provider_keys": "FIRECRAWL_API_KEY, OPENAI_API_KEY, TYPESAFE_API_KEY were set blank before browser/type/build processes; no provider calls.",
+    "automation": "WORKER_AUTO_REFRESH=false and AUTONOMOUS_RESEARCH_ENABLED=false.",
+    "candidate_env_files": "Checked absent on the successful browser/type/build invocations.",
+    "authentication": "Synthetic non-production browser auth only; synthetic values are intentionally not recorded.",
+    "database": "Only gl3audit_a5b_migration and gl3audit_a5b_test on loopback PostgreSQL 55437 were configured; browser API calls were route-mocked.",
+    "ports": "API 55531 and web 55532; verified free before the successful browser commands.",
+    "root_reserved_final_databases_and_ports": "Untouched."
+  },
+  "attempts": [
+    {
+      "label": "output-path invocation error",
+      "command": "npm exec -- playwright test --project=regression tests/project_cards.spec.ts -g 'Previous hides later-page rows' --output .artifacts/<unique-results>",
+      "exit_code": "UNKNOWN; shell redirection failed before Playwright ran",
+      "log": ".artifacts/a5b-page-transition-red-20261008T1830473071894Z-6085f18065be4edc801454dc117a3ec5.log",
+      "log_bytes": 0,
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "result": "The relative output path resolved beneath web/.artifacts; that directory was absent. No test executed. The empty log is retained."
+    },
+    {
+      "label": "original page-transition reproduction",
+      "command": "npm exec -- playwright test --project=regression tests/project_cards.spec.ts -g 'Previous hides later-page rows' --output <absolute-unique-results-directory>",
+      "exit_code": 1,
+      "log": ".artifacts/a5b-page-transition-red-20261008T1830559615131Z-b9f927f1560f42289faf3e632837b73f.log",
+      "log_bytes": 3480,
+      "log_sha256": "423e91344615f8d1983ff29c5c66da07a528198240838cd7735c15e0329eb055",
+      "result": "RED: after Previous changed offset 25 to 0, the later-page row remained rendered while the page-zero request was deliberately blocked.",
+      "playwright_trace": {
+        "path": ".artifacts/a5b-page-transition-red-20261008T1830559615131Z-b9f927f1560f42289faf3e632837b73f-results/project_cards-Previous-hid-34800--first-page-request-settles-regression/trace.zip",
+        "bytes": 281263,
+        "sha256": "0a247c47205dfe96458015ce5f8c7e9619fe9bad821b89a08be259a5404a1a61"
+      }
+    },
+    {
+      "label": "first focused post-repair run",
+      "command": "npm exec -- playwright test --project=regression tests/project_cards.spec.ts -g 'Previous hides later-page rows|Next hides first-page rows|failed Previous clears' --output <absolute-unique-results-directory>",
+      "exit_code": 1,
+      "log": ".artifacts/a5b-page-transition-focused-20261008T1832494905937Z-a700d6d053c04cee9d639f499b3e8d70.log",
+      "log_bytes": 3849,
+      "log_sha256": "25201d602ccc6c17962917ee52ee523eb74d1b5a88842ec45ea0c2be29281e2e",
+      "result": "Two tests passed; the failed-Previous case failed only because it expected fixture detail text that the API client replaces with its generic 503 message. Product state assertions had not yet run after that assertion.",
+      "playwright_trace": {
+        "path": ".artifacts/a5b-page-transition-focused-20261008T1832494905937Z-a700d6d053c04cee9d639f499b3e8d70-results/project_cards-failed-Previ-7ca26--instead-of-an-empty-cohort-regression/trace.zip",
+        "bytes": 273914,
+        "sha256": "97302f66bb342d09712e08aa7fd36dc1bbea2def032e24bd387c2fbb6dcadaae"
+      }
+    },
+    {
+      "label": "corrected three-case page-transition run",
+      "command": "npm exec -- playwright test --project=regression tests/project_cards.spec.ts -g 'Previous hides later-page rows|Next hides first-page rows|failed Previous clears' --output <absolute-unique-results-directory>",
+      "exit_code": 0,
+      "log": ".artifacts/a5b-page-transition-focused-20261008T1833462824549Z-bed4667c487045a5b1e1d9cf872fbfe9.log",
+      "log_bytes": 1123,
+      "log_sha256": "583c5025cbd8fa155c75cefc27bf773b63223b34442483f535a3e434f198acb2",
+      "result": "3 focused page-transition cases passed. The command emitted a PowerShell Test-Path parameter-binding warning because the candidate-env preflight expression was malformed; provider variables had already been blanked and candidate/backend .env absence had been checked on the preceding browser invocation. This warning was not a browser failure.",
+      "warning_exactness": "The shell warning appeared in the tool-call output, not in this Playwright log; retained original warning bytes are UNKNOWN. No reconstructed raw log is claimed."
+    },
+    {
+      "label": "full focused project_cards browser suite",
+      "command": "npm exec -- playwright test --project=regression tests/project_cards.spec.ts --output <absolute-unique-results-directory>",
+      "exit_code": 0,
+      "log": ".artifacts/a5b-page-transition-focused-20261008T1834272597943Z-a073f2789f884514b4f7d07d5786b7f5.log",
+      "log_bytes": 4890,
+      "log_sha256": "069124e53f9ccc47f73621d8316b8dc820a33d215bd7150bec6cb6cf3dfaf8b1",
+      "result": "27 passed, including delayed Previous and Next replacements, errors in both directions, existing exact selected Back/forward restoration, late response, cohort token, and same-key request-state regressions."
+    },
+    {
+      "label": "frozen-source full focused project_cards browser suite",
+      "command": "npm exec -- playwright test --project=regression tests/project_cards.spec.ts --output <unique-absolute-results-directory>",
+      "exit_code": 0,
+      "log": ".artifacts/a5b-page-transition-final-20261008T1836538117277Z-86d2f35adc294496b7babd6cae637887-browser.log",
+      "log_bytes": 4890,
+      "log_sha256": "d00d20a080b8b66c0a1274c40629bc1d625898d20b3d04810d183a6cc68cd8ee",
+      "result": "27 passed on final source/test content; includes the added pending-state assertion that no false No Signals message appears."
+    },
+    {
+      "label": "frozen-source web typecheck",
+      "command": "npm run typecheck",
+      "exit_code": 0,
+      "log": ".artifacts/a5b-page-transition-final-20261008T1836538117277Z-86d2f35adc294496b7babd6cae637887-typecheck.log",
+      "log_bytes": 52,
+      "log_sha256": "6e2f251662437d85417559b9c1f81367fa9947f3260f8d41fb5623f694160039"
+    },
+    {
+      "label": "frozen-source web production build",
+      "command": "npm run build",
+      "exit_code": 0,
+      "log": ".artifacts/a5b-page-transition-final-20261008T1836538117277Z-86d2f35adc294496b7babd6cae637887-build.log",
+      "log_bytes": 393,
+      "log_sha256": "4a7aaf1ea9f94d865f849ecc800fda8d4f2e52c1381641c1e576909e5112b42e"
+    },
+    {
+      "label": "frozen-source diff check",
+      "command": "git diff --check",
+      "exit_code": 0,
+      "log": ".artifacts/a5b-page-transition-final-20261008T1836538117277Z-86d2f35adc294496b7babd6cae637887-diff-check.log",
+      "log_bytes": 238,
+      "log_sha256": "5536ecd078c05f73ff12df96fa5f817301f764341f8aa3cf996e3fc04a0ca30d",
+      "result": "Pass; only Git's LF/CRLF informational notices were emitted."
+    },
+    {
+      "label": "web typecheck",
+      "command": "npm run typecheck",
+      "exit_code": 0,
+      "log": ".artifacts/a5b-page-transition-checks-20261008T1834505197317Z-657522916d28434bbf48ce642fc558f0-typecheck.log",
+      "log_bytes": 52,
+      "log_sha256": "6e2f251662437d85417559b9c1f81367fa9947f3260f8d41fb5623f694160039"
+    },
+    {
+      "label": "web production build",
+      "command": "npm run build",
+      "exit_code": 0,
+      "log": ".artifacts/a5b-page-transition-checks-20261008T1834505197317Z-657522916d28434bbf48ce642fc558f0-build.log",
+      "log_bytes": 393,
+      "log_sha256": "851837e0183b260dcb976d542671c41d03a579e34fd41696510fe95fdff6ef17"
+    }
+  ],
+  "diff_check": {
+    "command": "git diff --check",
+    "exit_code": 0,
+    "raw_log": "Not captured to a dedicated file; output was limited to Git line-ending notices."
+  },
+  "timing": {
+    "utc_start": "UNKNOWN",
+    "final_validation_run_started_utc": "2026-10-08T18:36:53Z",
+    "planning_seconds": "UNKNOWN",
+    "implementation_seconds": "UNKNOWN",
+    "validation_seconds": "UNKNOWN",
+    "model": "UNKNOWN",
+    "config_identity": "UNKNOWN",
+    "tokens": "UNKNOWN"
+  },
+  "limitations": [
+    "This is builder evidence only. Root must run exact-candidate mandatory gates and obtain fresh independent review.",
+    "No live provider, retained-corpus, original application data, release, A6, or acceptance work was performed."
+  ]
+}

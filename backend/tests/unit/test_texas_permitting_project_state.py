@@ -53,7 +53,7 @@ def test_policy_context_preserves_project_lifecycle_need_and_utility_unknown():
         observation = Observation(
             source_id=source.id,
             external_id="a",
-            title=project.name,
+            title="Fixture Data Center construction has begun",
             url="https://example.test/a",
             content_hash="v1",
             published_at=date(2026, 9, 20),
@@ -63,7 +63,7 @@ def test_policy_context_preserves_project_lifecycle_need_and_utility_unknown():
         evidence = Evidence(
             observation_id=observation.id,
             content_hash="v1",
-            title=project.name,
+            title="Fixture Data Center construction has begun",
             url=observation.url,
             published_at=observation.published_at,
             observed_at=datetime(2026, 10, 7, tzinfo=UTC),
@@ -82,6 +82,7 @@ def test_policy_context_preserves_project_lifecycle_need_and_utility_unknown():
             assessment={
                 "decision": "accepted",
                 "evidence_hash": "v1",
+                "semantic_hash": "v1",
                 "project_identity_key": "a",
                 "subject": project.name,
                 "location": project.location,
