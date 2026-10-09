@@ -6,9 +6,11 @@ import pytest
 from gridlens.domain.commercial_triage import (
     build_card,
     cards,
+    group_cards,
     grouped_need_ids,
     surfaced_on,
 )
+from gridlens.domain.pursuits import CommercialTriageHistoryVersion
 
 
 def _item(**overrides):
@@ -97,6 +99,48 @@ def test_grouped_need_id_seam_pages_after_merging_same_work_siblings():
     assert expected == [card["related_need_ids"] for card in cards_page]
     assert expected[0] == sorted([str(items[0]["id"]), str(sibling["id"])])
     assert len({need_id for group in expected for need_id in group}) == 51
+
+
+def test_user_fact_hash_is_optional_and_group_provenance_stays_need_scoped():
+    first_id = UUID(int=8001)
+    second_id = UUID(int=8002)
+    first = _item(id=first_id, project_id=first_id)
+    second = _item(id=second_id, project_id=second_id)
+    second["evidence"][0]["document_number"] = first["evidence"][0]["document_number"]
+
+    no_fact = build_card(first, None, date(2026, 10, 7))
+    explicit_no_fact = build_card(
+        {**first, "operator_fact_refs": []}, None, date(2026, 10, 7)
+    )
+    first_ref = {
+        "need_id": str(first_id),
+        "fact_version_id": str(UUID(int=8101)),
+        "content_hash": "a" * 64,
+        "authority": "User-confirmed",
+    }
+    second_ref = {
+        "need_id": str(second_id),
+        "fact_version_id": str(UUID(int=8102)),
+        "content_hash": "b" * 64,
+        "authority": "User-confirmed",
+    }
+    first["operator_fact_refs"] = [first_ref]
+    second["operator_fact_refs"] = [second_ref]
+    grouped_card = group_cards([first, second], {}, date(2026, 10, 7))[0]
+
+    assert no_fact["input_hash"] == explicit_no_fact["input_hash"]
+    assert "operator_fact_refs" not in explicit_no_fact
+    assert grouped_card["input_hash"] != no_fact["input_hash"]
+    assert grouped_card["operator_fact_refs"] == [first_ref, second_ref]
+    assert all("value" not in reference for reference in grouped_card["operator_fact_refs"])
+    legacy_version = CommercialTriageHistoryVersion.model_validate(
+        {
+            "version": 1,
+            "disposition": "RESEARCH",
+            "snapshot_status": "saved_as_of",
+        }
+    )
+    assert legacy_version.operator_fact_provenance == "legacy_unknown"
 
 
 def test_contractor_is_not_rejected_as_rental_intermediary_and_hold_routes_to_research():
