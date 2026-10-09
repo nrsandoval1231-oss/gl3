@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "as_of_date": "2026-10-07",
+  "policy_id": "sf-261021",
+  "jurisdiction": "San Francisco, CA",
+  "kind": "land_use_moratorium",
+  "scope": "Citywide prohibition of Data Centers as defined in File 261021; exact enacted definition and exceptions unverified.",
+  "duration_days": 45,
+  "evidence": [
+    {
+      "id": "official",
+      "url": "https://sfgov.legistar.com/LegislationDetail.aspx?GUID=AF7EB213-B55E-4BC5-9F8F-0F965226CB04&ID=8217305",
+      "kind": "official_record",
+      "location": "File 261021 details",
+      "summary": "Mayors Office; enactment date and number blank.",
+      "observed_on": "2026-10-07"
+    },
+    {
+      "id": "vote",
+      "url": "https://www.sfchronicle.com/bayarea/article/santa-clara-data-centers-22460374.php",
+      "kind": "reported_vote",
+      "location": "October 7 reporting of October 6 votes",
+      "summary": "Reports San Francisco approval on October 6.",
+      "observed_on": "2026-10-07"
+    }
+  ],
+  "observations": [
+    {
+      "source_id": "vote",
+      "status": "reported_council_approval",
+      "event_date": "2026-10-06"
+    },
+    {
+      "source_id": "official",
+      "status": "Mayors Office",
+      "event_date": null
+    }
+  ],
+  "limitations": [
+    "No verified enactment or effective interval; the 45-day duration does not establish start or expiry.",
+    "Council-vote report and official-record lag are retained separately.",
+    "Jurisdiction context only; no project denial, demand, gap or purchasing authority inferred."
+  ]
+}

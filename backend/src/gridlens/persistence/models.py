@@ -690,3 +690,19 @@ class PursuitCallNote(Base):
     next_action: Mapped[str] = mapped_column(Text)
     follow_up: Mapped[date | None] = mapped_column(Date)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class InterconnectionFactVersion(Base):
+    """Append-only reviewed request facts bound to a retained evidence version."""
+
+    __tablename__ = "interconnection_fact_versions"
+    __table_args__ = (
+        UniqueConstraint("project_id", "evidence_id", name="uq_interconnection_fact_evidence"),
+    )
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id"), nullable=False)
+    evidence_id: Mapped[UUID] = mapped_column(ForeignKey("evidence.id"), nullable=False)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
