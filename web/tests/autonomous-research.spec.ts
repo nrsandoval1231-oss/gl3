@@ -108,11 +108,13 @@ test('failed status request is visible and retry only reads status', async ({ pa
   expect(calls.posts).toBe(0)
 })
 
-test('saved evaluation research history is read-only even for an active attempt', async ({ page }) => {
+test('saved evaluation research history loads only on explicit read and stays read-only', async ({ page }) => {
   await fixture(page, [])
   let reads = 0
   let writes = 0
-  await page.route('**/api/commercial/triage/history', (route) => route.fulfill({ json: { items: [{ pursuit_id: 'pursuit-old', need_id: 'need-old', project_id: 'project-old', disposition: 'RESEARCH', snapshot_status: 'metadata_only', live_status: 'not_rechecked', saved_card: null, notes: [] }] } }))
+  const savedDetail = { pursuit_id: 'pursuit-old', need_id: 'need-old', project_id: 'project-old', disposition: 'RESEARCH', snapshot_status: 'metadata_only' as const, live_status: 'not_rechecked' as const, saved_card: null, notes: [] }
+  await page.route('**/api/commercial/triage/history', (route) => route.fulfill({ json: { items: [savedDetail] } }))
+  await page.route('**/api/commercial/triage/history/pursuit-old', (route) => route.fulfill({ json: savedDetail }))
   await page.route('**/api/commercial/triage/need-old/autonomous-research', (route) => {
     if (route.request().method() === 'POST') writes += 1
     else reads += 1
@@ -121,10 +123,16 @@ test('saved evaluation research history is read-only even for an active attempt'
   const history = page.locator('.commercial-history')
   await history.locator('summary').click()
   await history.getByRole('button', { name: /Saved work · need-old/ }).click()
+  expect(reads).toBe(0)
+  expect(writes).toBe(0)
+  await expect(history.getByRole('region', { name: 'Autonomous pursuit research' })).toHaveCount(0)
+  await history.getByRole('button', { name: 'Inspect later research attempts' }).click()
   const panel = history.getByRole('region', { name: 'Autonomous pursuit research' })
-  await expect(panel.getByText(/Read-only research history/)).toBeVisible()
+  await expect(history.getByText('Research attempt history loaded now; it may include attempts after this saved evaluation. Saved disposition and tier were not rechecked.')).toBeVisible()
+  await expect(panel.getByText(/Research attempt history loaded now; it may include attempts after this saved evaluation/)).toBeVisible()
   await expect(panel.getByText(/1 active blocker/)).toBeVisible()
   await expect(panel.getByRole('button')).toHaveCount(0)
+  expect(reads).toBe(1)
   const initialReads = reads
   await page.waitForTimeout(1800)
   expect(reads).toBe(initialReads)

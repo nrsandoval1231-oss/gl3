@@ -914,6 +914,14 @@ def grouped_need_ids(
     items: list[dict[str, Any]], limit: int | None = None
 ) -> list[list[str]]:
     """Return canonical work groups in first priority encounter order."""
+    groups = grouped_need_groups(items)
+    return [need_ids for _identity, need_ids in groups[:limit]] if limit is not None else [
+        need_ids for _identity, need_ids in groups
+    ]
+
+
+def grouped_need_groups(items: list[dict[str, Any]]) -> list[tuple[str, list[str]]]:
+    """Return canonical work identities and members in canonical priority order."""
     from gridlens.domain.pursuit_screening import work_identity
 
     prepared = sorted(items, key=lambda item: (_priority(item), str(item["id"])))
@@ -927,8 +935,7 @@ def grouped_need_ids(
             str(item.get("location") or ""),
         )
         grouped.setdefault(identity, []).append(str(item["id"]))
-    groups = [sorted(need_ids) for need_ids in grouped.values()]
-    return groups[:limit] if limit is not None else groups
+    return [(identity, sorted(need_ids)) for identity, need_ids in grouped.items()]
 
 
 def group_cards(

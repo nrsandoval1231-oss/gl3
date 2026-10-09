@@ -146,6 +146,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/opportunity-groups/{group_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Opportunity Group Page */
+        get: operations["opportunity_group_page_api_opportunity_groups__group_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/opportunities/needs/{need_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Opportunity Need Detail */
+        get: operations["opportunity_need_detail_api_opportunities_needs__need_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/opportunities/export.csv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Export Opportunities Csv */
+        get: operations["export_opportunities_csv_api_opportunities_export_csv_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/signals/decisions": {
         parameters: {
             query?: never;
@@ -438,6 +489,26 @@ export interface paths {
          * @description Read evaluated Pursuit snapshots; never refreshes live facts or dispositions.
          */
         get: operations["commercial_triage_history_api_commercial_triage_history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/commercial/triage/history/{pursuit_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Commercial Triage History Detail
+         * @description Hydrate one bounded saved snapshot without rechecking live evidence.
+         */
+        get: operations["commercial_triage_history_detail_api_commercial_triage_history__pursuit_id__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -999,10 +1070,18 @@ export interface components {
             /** Versions */
             versions?: components["schemas"]["CommercialTriageHistoryVersion"][];
         };
-        /** CommercialTriageHistoryOut */
-        CommercialTriageHistoryOut: {
+        /** CommercialTriageHistoryPageOut */
+        CommercialTriageHistoryPageOut: {
             /** Items */
             items: components["schemas"]["CommercialTriageHistoryItem"][];
+            /** Total */
+            total?: number | null;
+            /** Limit */
+            limit?: number | null;
+            /** Offset */
+            offset?: number | null;
+            /** Next Offset */
+            next_offset?: number | null;
         };
         /** CommercialTriageHistoryVersion */
         CommercialTriageHistoryVersion: {
@@ -1080,8 +1159,8 @@ export interface components {
              */
             closed: boolean;
         };
-        /** CommercialTriageOut */
-        CommercialTriageOut: {
+        /** CommercialTriagePageOut */
+        CommercialTriagePageOut: {
             research_overview?: components["schemas"]["ResearchOverviewOut"] | null;
             /**
              * Evaluated At
@@ -1096,6 +1175,14 @@ export interface components {
             daily: components["schemas"]["CommercialTriageDaily"];
             /** Items */
             items: components["schemas"]["CommercialTriageCard"][];
+            /** Limit */
+            limit?: number | null;
+            /** Offset */
+            offset?: number | null;
+            /** Grouped Total */
+            grouped_total?: number | null;
+            /** Next Offset */
+            next_offset?: number | null;
         };
         /** CommercialTriageStage */
         CommercialTriageStage: {
@@ -1447,6 +1534,21 @@ export interface components {
             /** Authenticated */
             authenticated: boolean;
         };
+        /** OpportunityGroupPageOut */
+        OpportunityGroupPageOut: {
+            /** Items */
+            items: components["schemas"]["OpportunityOut"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+            /** Next Offset */
+            next_offset: number | null;
+            /** Cohort Token */
+            cohort_token: string;
+        };
         /** OpportunityOut */
         OpportunityOut: {
             /**
@@ -1465,6 +1567,11 @@ export interface components {
             location: string | null;
             /** Tier */
             tier: string;
+            /**
+             * Workflow Status
+             * @default UNKNOWN
+             */
+            workflow_status: string;
             /** Activity */
             activity: string;
             /** Rationale */
@@ -1557,6 +1664,22 @@ export interface components {
              * @default false
              */
             brief_stale: boolean;
+            /** Group Id */
+            group_id?: string | null;
+            /** Group Title */
+            group_title?: string | null;
+            /** Group Total Filtered */
+            group_total_filtered?: number | null;
+            /** Group Loaded On Page */
+            group_loaded_on_page?: number | null;
+            /** Group Complete On Page */
+            group_complete_on_page?: boolean | null;
+            /** Matched Search */
+            matched_search?: boolean | null;
+            /** Priority Segment */
+            priority_segment?: number | null;
+            /** Priority Label */
+            priority_label?: string | null;
         };
         /** PermitFactOut */
         PermitFactOut: {
@@ -2337,6 +2460,19 @@ export interface operations {
             query?: {
                 tier?: string | null;
                 search?: string | null;
+                decision?: string | null;
+                limit?: number;
+                offset?: number;
+                cohort_token?: string | null;
+                geography?: string | null;
+                industry?: string | null;
+                activity?: string | null;
+                timing?: string | null;
+                mw_status?: string | null;
+                mw_min?: string | null;
+                mw_max?: string | null;
+                priority_segment?: string | null;
+                status?: string | null;
             };
             header?: never;
             path?: never;
@@ -2351,6 +2487,142 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OpportunityOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    opportunity_group_page_api_opportunity_groups__group_id__get: {
+        parameters: {
+            query: {
+                cohort_token: string;
+                tier?: string | null;
+                search?: string | null;
+                decision?: string | null;
+                limit?: number;
+                offset?: number;
+                geography?: string | null;
+                industry?: string | null;
+                activity?: string | null;
+                timing?: string | null;
+                mw_status?: string | null;
+                mw_min?: string | null;
+                mw_max?: string | null;
+                priority_segment?: string | null;
+                status?: string | null;
+            };
+            header?: never;
+            path: {
+                group_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpportunityGroupPageOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    opportunity_need_detail_api_opportunities_needs__need_id__get: {
+        parameters: {
+            query?: {
+                tier?: string | null;
+                search?: string | null;
+                decision?: string | null;
+                cohort_token?: string | null;
+                geography?: string | null;
+                industry?: string | null;
+                activity?: string | null;
+                timing?: string | null;
+                mw_status?: string | null;
+                mw_min?: string | null;
+                mw_max?: string | null;
+                priority_segment?: string | null;
+                status?: string | null;
+            };
+            header?: never;
+            path: {
+                need_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpportunityOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_opportunities_csv_api_opportunities_export_csv_get: {
+        parameters: {
+            query?: {
+                tier?: string | null;
+                search?: string | null;
+                decision?: string | null;
+                cohort_token?: string | null;
+                limit?: number;
+                geography?: string | null;
+                industry?: string | null;
+                activity?: string | null;
+                timing?: string | null;
+                mw_status?: string | null;
+                mw_min?: string | null;
+                mw_max?: string | null;
+                priority_segment?: string | null;
+                status?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */
@@ -2817,6 +3089,7 @@ export interface operations {
         parameters: {
             query?: {
                 limit?: number;
+                offset?: number;
             };
             header?: never;
             path?: never;
@@ -2830,7 +3103,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CommercialTriageOut"];
+                    "application/json": components["schemas"]["CommercialTriagePageOut"];
                 };
             };
             /** @description Validation Error */
@@ -2912,7 +3185,10 @@ export interface operations {
     };
     commercial_triage_history_api_commercial_triage_history_get: {
         parameters: {
-            query?: never;
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -2925,7 +3201,47 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CommercialTriageHistoryOut"];
+                    "application/json": components["schemas"]["CommercialTriageHistoryPageOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    commercial_triage_history_detail_api_commercial_triage_history__pursuit_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                pursuit_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommercialTriageHistoryItem"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -2934,6 +3250,7 @@ export interface operations {
         parameters: {
             query?: {
                 limit?: number;
+                offset?: number;
             };
             header?: never;
             path?: never;
@@ -2947,7 +3264,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CommercialTriageOut"];
+                    "application/json": components["schemas"]["CommercialTriagePageOut"];
                 };
             };
             /** @description Validation Error */

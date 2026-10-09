@@ -1,3 +1,49 @@
+# Current commercial-fixture repair frontier — October 8, 2026
+
+A5A accepted / draft PR40 / recorded CI PASS. Five prior A5B independent FIX receipts are preserved. Tested 6746240463bd389ba182055ec9ec17f325dcf975 passes root 1419 backend tests (2 environmental skips), 62 browser tests and mandatory gates, retained parity and query bounds. Exact proof: .agent/artifacts/GL3-AUDIT-A5B-FIXTURE-CONTROLLER. Fresh independent review PENDING; A5B is not accepted or published. Supersedes earlier pending states below.
+
+Direction VALIDATE exact proof descendant. A6 facts/workflow → functional UI/bulk status → A8 remain dependent; A7 original assets and real launch gates OPEN. UNKNOWN-only status is partial. Parent OPEN. No original data mutation, merge, deploy, paid activation or external messages.
+
+## Historical checkpoints
+
+# Current group-scope validation failure — October 8, 2026
+
+A5B group source dcd8ff6 / tested cf338691 has 1,419 backend passes but full browser61passed/1fixture failure. Frozen raw proof .agent/artifacts/GL3-AUDIT-A5B-GROUP-CONTROLLER is unaccepted; no fresh corpus/performance acceptance was completed on this failed checkpoint. Direction CORRECT_TEST_FIXTURE only after preserving this exact failure. Five prior independent FIX receipts remain preserved. A5A draft PR40 remains accepted/recorded CI PASS.
+
+A6/A7/A8 and real readiness/customer gates remain OPEN; status UNKNOWN-only partial. No A5B publication, parent completion, original-data mutation, merge/deploy, paid activation or external messages. Prior state bytes remain in raw proof; dated checkpoints below are superseded.
+
+## Historical checkpoints
+
+# Current page-transition repair frontier — October 8, 2026
+
+A5A accepted / draft PR40 / recorded CI PASS. Four prior A5B independent FIX receipts are preserved. Tested ea4543f7dd1ec1f8733593629088e2474b7c8d3b passes root 1419 backend tests (2 environmental skips), 57 browser tests and mandatory gates, retained parity and query bounds. Exact proof: .agent/artifacts/GL3-AUDIT-A5B-PAGE-CONTROLLER. Fresh independent review PENDING; A5B is not accepted or published. Supersedes earlier pending states below.
+
+Direction VALIDATE exact proof descendant. A6 facts/workflow → functional UI/bulk status → A8 remain dependent; A7 original assets and real launch gates OPEN. UNKNOWN-only status is partial. Parent OPEN. No original data mutation, merge, deploy, paid activation or external messages.
+
+## Historical checkpoints
+
+# Current request-state repair frontier — October 8, 2026
+
+A5A accepted / draft PR40 / recorded CI PASS. Three prior A5B independent FIX receipts are preserved. Request-state implementation 7c29da3 / tested 3d67ac8 passes root 1,419 backend tests (two environmental skips), 53 browser tests, mandatory gates, retained parity and query bounds. Exact proof is .agent/artifacts/GL3-AUDIT-A5B-REQUEST-CONTROLLER. Fresh independent review is PENDING; A5B is not accepted or published. This supersedes earlier pending states below.
+
+Direction: VALIDATE the exact proof descendant. A6 facts/seven-state workflow → functional UI and bulk status integration → A8 remain dependent on A5B acceptance. A7 original PNG/HTML and real launch gates remain OPEN. UNKNOWN-only status is partial, not a waiver. Parent objective OPEN. No original data mutation, merge, deployment, paid activation or external messages.
+
+## Historical checkpoints
+
+# Current Back repair frontier — October 8, 2026
+
+A5A ACCEPTED. A5B: two independent FIX receipts → Back repair 44ba1d5 / tested 7c3a4e3 → root gates PASS → proof freeze → fresh independent review PENDING.
+
+A6 backend facts/status → functional UI and bulk status integration → A8 may proceed only after A5B acceptance. A7 exact assets and authentic launch gates remain OPEN. Historical graph below is retained; current GATES and manifests govern coverage.
+
+# Current cohort repair frontier — October 8, 2026
+
+A5A ACCEPTED. Prior A5Bf15 independent FIX -> cohort repair46671c6 -> root gates PASS on29c3062 -> exact proof freeze -> fresh independent review PENDING. A6 remains dependent on acceptance; then backend facts/status -> functional UI/bulk status integration -> A8. A7 exact reference assets and real launch gates OPEN. No publication before review; no merge/deploy. Historical checkpoints below retained; source/proof bytes determine coverage.
+
+# Current audit frontier — October 8, 2026
+
+A5A ACCEPTED / PR40 draft / CI PASS. A5B root gates PASS; exact proof freeze then independent review required. A6 facts + seven operator states -> functional UI + bulk browse status integration -> A8 inert operations/recovery and readiness tooling. A7 visual implementation awaits original checksum-matching PNG/HTML; supplemental video cannot close it. Real feed, quality, seven-day and customer Lead evidence remain OPEN. Historical graph below is superseded only where stated; original bytes preserved in proof archive.
+
 # Work Graph
 
 ## October 7 final local acceptance
@@ -161,3 +207,7 @@ GL3-029 2026-10-07 OWNER AMENDMENT -> REGENERATE -> VALIDATE: owner superseded m
 GL3-029 2026-10-07 VALIDATE -> BLOCKED COMMERCIAL ACCEPTANCE: frozen f63eb62, fresh14Evidence/13Signals, 28-table restore/migration parity and research replay pass. Full backend1196pass/1skip, focused71, regression36, supplemental real-browser4checkgroups. Diagnostic2accepted/4selected with O&G absent; two stale-input failures remain in history. No predicate relaxed; draft24 remains unmerged/undeployed.
 
 GL3-029 2026-10-07 CORRECT -> VALIDATE: frozen15f4910 derives retained relationships before question fingerprints, excluding active projects; guards unchanged. Fresh isolated replay oforiginalnewcorpus passes4/4selected cases,4UNRESOLVED/0FAILED, no transitions, exactpreservation/replay.1197backend/1skip,71focused,36browser; independentreview no materialfindings. ExistingRRCdrilling scopeconfirmed valid, listingsHTTP200; anonymousdownloadPOST clarification pending. Fivecohorts andhistoricalsixlivecases notpassed.
+
+
+
+
