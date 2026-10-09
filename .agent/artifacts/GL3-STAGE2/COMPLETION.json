@@ -47,7 +47,7 @@
     },
     {
       "path": "docs/validation/procedures/stage2-build-public-sample-20261009.py",
-      "sha256": "3387a23da2215e109ff849f67880c7c8e474ec2b00ad8c224278510d466d39af"
+      "sha256": "5d123a5e19d899b02ffe91195f97ba35c8e08095a502f87e5553ad7e64a0fbf6"
     }
   ],
   "controller_owned_public_receipts": [
@@ -333,5 +333,12 @@
     "Canonical UI review, Stage4 attributed outcome save/restart, deployment, production, and owner visual acceptance remain OPEN.",
     "Controller must freeze exact candidate and run full required CI plus independent Sol review; no self-grade or finish-contract closure by builder."
   ],
-  "resume": "Use same Stage2 worktree and ignored .artifacts/STAGE2 DB/evidence paths. Start from docs/validation/procedures/stage2-reproducibility-20261009.md. Do not rerun live source requests or alter the frozen pool/sample. API/Vite/browser runtime ownership is with controller for its remaining review."
+  "resume": "Use same Stage2 worktree and ignored .artifacts/STAGE2 DB/evidence paths. Start from docs/validation/procedures/stage2-reproducibility-20261009.md. Do not rerun live source requests or alter the frozen pool/sample. API/Vite/browser runtime ownership is with controller for its remaining review.",
+  "integration_repair_S2_R1": {
+    "issue": "Trailing blank lines at EOF in public sample helper",
+    "repair": "Trimmed trailing whitespace and retained exactly one terminal newline; sample content unchanged.",
+    "helper_sha256": "5d123a5e19d899b02ffe91195f97ba35c8e08095a502f87e5553ad7e64a0fbf6",
+    "completion_before_repair_private_copy": ".artifacts/STAGE2/evidence/COMPLETION-before-S2-R1.json",
+    "completion_before_repair_sha256": "59ec9ec7a415e4219039061e3e44da30a3153a80c956bfe9fd7b9765ed20af48"
+  }
 }

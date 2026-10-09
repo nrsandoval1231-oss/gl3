@@ -4,13 +4,59 @@
   "application_source_changed": false,
   "scope": "Stage2 documentation, fixed authentic evaluation artifacts and offline report generator only",
   "controller_reruns": [
-    {"command": "python docs/validation/procedures/stage2-build-public-sample-20261009.py", "exit_code": 0, "result": "Regenerated identical public fixed36 sample from SHA-bound private sample/pool; no requests or database writes."},
-    {"command": "python .artifacts/CONTROLLER-STAGE2/validate.py", "exit_code": 0, "result": "29 allowed files before this receipt,15 valid JSON files,15 active local links,36 public identities match fixed sample,341-word current state,4 private runtime values scanned without output,0 errors."},
-    {"command": "python .artifacts/CONTROLLER-STAGE2/preserve.py", "exit_code": 0, "result": "38 other worktree HEADs,145 pre-existing Git-visible dirty-file hashes and exact original dump unchanged;0 differences."},
-    {"command": "git diff --name-only c761e38 -- backend web config .github AGENTS.md docs/product docs/design", "exit_code": 0, "result": "No protected application,configuration,CI,product/design authority changes."},
-    {"command": "git diff --check", "exit_code": 0, "result": "No whitespace errors."}
+    {
+      "command": "python docs/validation/procedures/stage2-build-public-sample-20261009.py",
+      "exit_code": 0,
+      "result": "Regenerated identical public fixed36 sample from SHA-bound private sample/pool; no requests or database writes."
+    },
+    {
+      "command": "python .artifacts/CONTROLLER-STAGE2/validate.py",
+      "exit_code": 0,
+      "result": "29 allowed files before this receipt,15 valid JSON files,15 active local links,36 public identities match fixed sample,341-word current state,4 private runtime values scanned without output,0 errors."
+    },
+    {
+      "command": "python .artifacts/CONTROLLER-STAGE2/preserve.py",
+      "exit_code": 0,
+      "result": "38 other worktree HEADs,145 pre-existing Git-visible dirty-file hashes and exact original dump unchanged;0 differences."
+    },
+    {
+      "command": "git diff --name-only c761e38 -- backend web config .github AGENTS.md docs/product docs/design",
+      "exit_code": 0,
+      "result": "No protected application,configuration,CI,product/design authority changes."
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0,
+      "result": "No whitespace errors."
+    }
   ],
+  "initial_integration_failure": {
+    "head": "369a16ae8c067a61342e009cc0edd3ac5b546a80",
+    "command": "git diff --check c761e38 HEAD",
+    "exit_code": 2,
+    "finding": "New helper trailing blank lines at EOF. Earlier unstaged diff check covered tracked changes and omitted untracked new files; initial commit was created before honoring staged failure. No review freeze or acceptance applies to this initial head.",
+    "retained_output": ".artifacts/CONTROLLER-STAGE2/initial-staged-whitespace-failure.txt",
+    "repair": "S2-R1 single Luna: trim trailing helper whitespace, verify regenerated sample identical, update completion helper hash, rerun full baseline-relative diff check; no semantic/source/database/runtime change."
+  },
   "source_quality_proof": "See independent controller original-source,selection,history,changed-version,replay,configuration,API and browser receipts. No fixture substitutes for authentic acceptance.",
-  "remaining_candidate_gates": ["Freeze exact PR head/tree and current main base", "Full required hosted gates on final candidate and recorded synthetic merge", "Independent Sol review", "Separate owner merge authorization"],
-  "limits": "This receipt validates evidence consistency and protected boundaries. It does not close failed acquisition routes, unknown source freshness, four missing originals, qualification recall, real buyer/Lead acceptance, canonical UI, deployment or seven real cycles. Final CI/review identities are maintained separately to avoid changing the reviewed candidate."
+  "remaining_candidate_gates": [
+    "Freeze exact PR head/tree and current main base",
+    "Full required hosted gates on final candidate and recorded synthetic merge",
+    "Independent Sol review",
+    "Separate owner merge authorization"
+  ],
+  "limits": "This receipt validates evidence consistency and protected boundaries. It does not close failed acquisition routes, unknown source freshness, four missing originals, qualification recall, real buyer/Lead acceptance, canonical UI, deployment or seven real cycles. Final CI/review identities are maintained separately to avoid changing the reviewed candidate.",
+  "final_pre_freeze_checks": {
+    "observed_at_utc": "2026-10-09T23:39:26Z",
+    "allowed_files": 30,
+    "valid_json_files": 16,
+    "active_local_links": 15,
+    "current_state_words": 352,
+    "fixed_sample_identities": 36,
+    "builder_file_hashes_verified": 8,
+    "helper_ast": "PASS",
+    "baseline_relative_whitespace_exit_code": 0,
+    "errors": 0,
+    "status": "Corrected candidate ready for freeze; hosted gates and independent review pending."
+  }
 }
