@@ -1,0 +1,72 @@
+[
+  {
+    "name": "a4-cadence-controller-backend-audit-diagnostics.log",
+    "bytes": 268,
+    "sha256": "e82148c0c30269ca5a2c35420ece6af011a4faf5a375325d750e243ffdb10625"
+  },
+  {
+    "name": "a4-cadence-controller-backend-audit.json",
+    "bytes": 2504,
+    "sha256": "f31cf2ec95e537975cf04d599f688fa7883003b79747368e77475a43d1fbc993"
+  },
+  {
+    "name": "a4-cadence-controller-browser.log",
+    "bytes": 6093,
+    "sha256": "cd9915cf2435bb18172cc3f4776f6bc8e77c88bed8b98c02be07c415cb7cbc34"
+  },
+  {
+    "name": "a4-cadence-controller-full.log",
+    "bytes": 2886,
+    "sha256": "2ab6b637063ef54a12ddf6dce0264a8ee6e1404157f731647183fdda38917094"
+  },
+  {
+    "name": "a4-cadence-controller-lock-export.log",
+    "bytes": 25646,
+    "sha256": "d3b6471d28245021e9dac33cda4fe880357dfe89431314e48131e37e34e19468"
+  },
+  {
+    "name": "a4-cadence-controller-migrate-drift.log",
+    "bytes": 1933,
+    "sha256": "e4048ff83bf61fceef30a8f93ac6620cdcc783887960754aff0794adf9afdc9f"
+  },
+  {
+    "name": "a4-cadence-controller-migrate-repeat1.log",
+    "bytes": 260,
+    "sha256": "c9dede11c80ccef6853207a302c79427d48bcdbd6fbf586b5dc306be0763cd94"
+  },
+  {
+    "name": "a4-cadence-controller-migrate-repeat2.log",
+    "bytes": 260,
+    "sha256": "c9dede11c80ccef6853207a302c79427d48bcdbd6fbf586b5dc306be0763cd94"
+  },
+  {
+    "name": "a4-cadence-controller-mypy.log",
+    "bytes": 358,
+    "sha256": "e1bcce4fa3822573db9808c95f863a7b54cd173124f0bf9610197085485e7852"
+  },
+  {
+    "name": "a4-cadence-controller-requirements.txt",
+    "bytes": 25224,
+    "sha256": "509cc33d61bb23f74a5acf0d1e8e82e4da59b5db3b7dd6d6416a8fd5c550f2d0"
+  },
+  {
+    "name": "a4-cadence-controller-ruff.log",
+    "bytes": 20,
+    "sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0"
+  },
+  {
+    "name": "a4-cadence-controller-web-audit.json",
+    "bytes": 385,
+    "sha256": "03f8e9fe5ab2d32913f2d78d6d82565488c46779b420abcaef976109882b1123"
+  },
+  {
+    "name": "a4-cadence-controller-web-build.log",
+    "bytes": 393,
+    "sha256": "86a04f1c2636b2f41742e5d28989132d5a094d1ca6a069ba0e229aa0dda78c95"
+  },
+  {
+    "name": "a4-cadence-controller-web-typecheck.log",
+    "bytes": 52,
+    "sha256": "6e2f251662437d85417559b9c1f81367fa9947f3260f8d41fb5623f694160039"
+  }
+]

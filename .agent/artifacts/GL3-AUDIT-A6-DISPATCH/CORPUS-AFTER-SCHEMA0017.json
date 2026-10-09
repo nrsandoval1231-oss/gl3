@@ -1,0 +1,10 @@
+{
+  "utc": "2026-10-08T19:58:16.739925+00:00",
+  "tables_checked": 24,
+  "data_tables_identical": 23,
+  "expected_metadata_difference": "alembic_version0016->0017",
+  "unexpected_differences": [],
+  "fingerprint_file": ".artifacts\\a6-original-columns-after-schema0017.json",
+  "fingerprint_sha256": "7437c8ff48d7e5531a0015d292aba74ca9d824de51289fbb0061762a2fbe031e",
+  "scope": "Read-only original-column identity on isolated A6 acceptance copy, not original mutation or tier conversion proof"
+}

@@ -1,0 +1,54 @@
+{
+  "note": "Raw logs are retained in the ignored worktree .artifacts directory. Hashes identify the exact bytes; test-result directories are also retained there. No corpus payloads are included.",
+  "logs": [
+    {
+      "path": ".artifacts/a5b-back-repair-red-cba870702c47443fb93be1016d8fcfb6.log",
+      "sha256": "295592dc52b76dacf7ce814f6babbeef33ccba07ff002cbe3ecf03520e7222c0",
+      "bytes": 6447,
+      "result": "Expected RED: cross-tier selected detail restore and direct selected-hash handling failed; delayed-response guard passed."
+    },
+    {
+      "path": ".artifacts/a5b-back-browser-20261008T1741373370891Z-e7993b686b2f4893b34b3e6b48156dc3.log",
+      "sha256": "297dc8f567d761217e7a73023b1e5c2dd8d21f5a58955911f6066cb9399035ea",
+      "bytes": 603,
+      "result": "Launch failed before test collection: wrong Playwright port environment variable names left default localhost:5173 occupied; no test ran."
+    },
+    {
+      "path": ".artifacts/a5b-back-browser-20261008T1741481061939Z-d57d0b6e27cd4ffe871c3ecb878794a0.log",
+      "sha256": "c4f45debe05e1f5171d8f922fc1a12ee4913c36a96873981a8d40b5049d30de0",
+      "bytes": 2611,
+      "result": "Corrected unique-port run: 13 project_cards tests passed."
+    },
+    {
+      "path": ".artifacts/a5b-back-hydration-20261008T1742299827381Z-89f17e0392ea4c069ea967fece860aba.log",
+      "sha256": "f1e6228e34f493e64c7cd5693f8c8f7f3cda556557221def209cc752099d5033",
+      "bytes": 1280,
+      "result": "Focused Back/direct-selection/race subset after off-page hydration regression: 4 passed."
+    },
+    {
+      "path": ".artifacts/a5b-back-final-focused-20261008T1743030565957Z-8344b837a08248569c4a346bc871117d-browser.log",
+      "sha256": "87442ee21bcc37db5ca23c5f09416cabb7a32e960398501c374ddaef86e6e621",
+      "bytes": 2773,
+      "result": "Final focused file run: 14 passed."
+    },
+    {
+      "path": ".artifacts/a5b-back-final-focused-20261008T1743030565957Z-8344b837a08248569c4a346bc871117d-build.log",
+      "sha256": "e14ac30e34a358172c89c0b01b3d91bb50e61cd637b193ea7dc80a177ca88e2a",
+      "bytes": 393,
+      "result": "npm run build (tsc -b and Vite production build): exit 0."
+    },
+    {
+      "path": ".artifacts/a5b-back-typecheck-20261008T1743592424967Z-d09880a5de4a463ea4c165df041f208d.log",
+      "sha256": "6e2f251662437d85417559b9c1f81367fa9947f3260f8d41fb5623f694160039",
+      "bytes": 52,
+      "result": "npm run typecheck: exit 0."
+    }
+  ],
+  "trace_directories": [
+    ".artifacts/a5b-back-repair-red-cba870702c47443fb93be1016d8fcfb6-results",
+    ".artifacts/a5b-back-browser-20261008T1741373370891Z-e7993b686b2f4893b34b3e6b48156dc3-results",
+    ".artifacts/a5b-back-browser-20261008T1741481061939Z-d57d0b6e27cd4ffe871c3ecb878794a0-results",
+    ".artifacts/a5b-back-hydration-20261008T1742299827381Z-89f17e0392ea4c069ea967fece860aba-results",
+    ".artifacts/a5b-back-final-focused-20261008T1743030565957Z-8344b837a08248569c4a346bc871117d-results"
+  ]
+}

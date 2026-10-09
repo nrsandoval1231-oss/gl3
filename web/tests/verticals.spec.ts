@@ -16,6 +16,40 @@ function record(id: string, name: string, decision: 'SHOW' | 'REVIEW' | 'HOLD', 
   } as unknown as Opportunity
 }
 
+function serverOpportunityResponse(records: Opportunity[], selectedDecision = 'ALL') {
+  const groups = new Map<string, Opportunity[]>()
+  for (const item of records) {
+    const key = item.project_id ? `project:Signal:${item.project_id}` : `record:${item.id}`
+    groups.set(key, [...(groups.get(key) ?? []), item])
+  }
+  const groupEntries = [...groups.entries()].map(([id, members]) => {
+    const memberDecisions = members.map((item) => item.signal_display_decision)
+    const decision = memberDecisions.includes('SHOW') ? 'SHOW' : memberDecisions.includes('REVIEW') ? 'REVIEW' : 'HOLD'
+    return { id, members, decision }
+  })
+  const decisions = groupEntries.map((group) => group.decision)
+  const selectedGroups = selectedDecision === 'ALL' ? groupEntries : groupEntries.filter((group) => group.decision === selectedDecision)
+  const items = selectedGroups.flatMap((group) => group.members.map((item) => ({
+    ...item,
+    group_id: group.id,
+    group_title: group.members.find((member) => member.signal_display_decision === group.decision)?.name ?? group.members[0].name,
+    group_total_filtered: group.members.length,
+    group_loaded_on_page: group.members.length,
+    group_complete_on_page: true,
+  })))
+  const counts = Object.fromEntries(['SHOW', 'REVIEW', 'HOLD'].map((decision) => [decision, decisions.filter((value) => value === decision).length]))
+  return { items, headers: {
+    'X-Total-Count': String(items.length),
+    'X-Group-Total-Count': String(selectedGroups.length),
+    'X-Page-Record-Count': String(items.length),
+    'X-Page-Group-Count': String(selectedGroups.length),
+    'X-Limit': '50',
+    'X-Offset': '0',
+    'X-Cohort-Token': 'vertical-fixture-cohort',
+    'X-Decision-Counts': JSON.stringify(counts),
+  } }
+}
+
 test('source-sector groups preserve the oil and gas URL alias and send canonical filter values', async ({ page }) => {
   const filters: Array<string | null> = []
   await page.route('**/api/auth/session', (route) => route.fulfill({ json: { authenticated: true } }))
@@ -76,7 +110,11 @@ test('All Signals labels cards and every member of a mixed decision group', asyn
   await page.route('**/api/auth/session', (route) => route.fulfill({ json: { authenticated: true } }))
   await page.route('**/api/health', (route) => route.fulfill({ json: { sources: [], backlog: 0, pending_interpretations: 0 } }))
   await page.route('**/api/changes', (route) => route.fulfill({ json: [] }))
-  await page.route('**/api/opportunities**', (route) => route.fulfill({ json: records }))
+  await page.route('**/api/opportunities**', (route) => {
+    const selectedDecision = new URL(route.request().url()).searchParams.get('decision') ?? 'ALL'
+    const response = serverOpportunityResponse(records, selectedDecision)
+    return route.fulfill({ json: response.items, headers: response.headers })
+  })
 
   await page.goto('/?tier=Signals')
   await expect(page.getByRole('button', { name: 'All 3' })).toHaveAttribute('aria-pressed', 'true')

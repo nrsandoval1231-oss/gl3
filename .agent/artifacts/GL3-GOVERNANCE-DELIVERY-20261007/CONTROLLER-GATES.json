@@ -1,0 +1,49 @@
+{
+  "tested_code_commit": "f89a3774a9fda7f9e0f5a91304c0c4fbd15cce81",
+  "tested_tree": "91ae67601b2f0120a67bd7b04e5090489f68d51d",
+  "base": "53b77ad5c802e7dc6543569f4dd79384b7354c78",
+  "recorded_at_utc": "2026-10-07T21:40:10.8180889Z",
+  "full_backend": {
+    "skipped": 2,
+    "warnings": 3,
+    "passed": 1240,
+    "exit": 0,
+    "log": "controller-full-tests-prepared.log"
+  },
+  "prior_full_attempt": {
+    "failed": 3,
+    "passed": 1237,
+    "exit": 1,
+    "reason": "controller app DB was unmigrated and trusted origin omitted",
+    "log": "controller-full-tests.log"
+  },
+  "skip_reasons": [
+    "local access probe absent",
+    "Windows symlink privilege unavailable; portable assertions still passed"
+  ],
+  "ruff": 0,
+  "mypy": 0,
+  "web_typecheck": 0,
+  "web_build": 0,
+  "web_audit": 0,
+  "locked_backend_audit": 0,
+  "fresh_repeat_drift": 0,
+  "openapi_match": 0,
+  "browser": {
+    "database": "gl3audit_governance_delivery_migration",
+    "web_port": 55488,
+    "exit": 0,
+    "reuse_existing_servers": false,
+    "api_port": 55487,
+    "passed": 36,
+    "automated_workers": "disabled",
+    "paid_keys": "blank",
+    "ci": true
+  },
+  "credential_scan": "PASS_TASK_PASSWORD_HASH_SECRET_NOT_FOUND",
+  "independent_delivery_review": "PENDING",
+  "evidence_only_freeze": "Adds these validation logs and receipt; production/test/docs implementation unchanged",
+  "model_config_tokens": "UNKNOWN",
+  "deployed": false,
+  "merged": false
+}

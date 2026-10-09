@@ -1,0 +1,111 @@
+{
+  "packet": "GL3-AUDIT-A5B-COHORT-REVIEW-REPAIR.md",
+  "packet_sha256": "b865857cf796bea625ff277a50c4d283be6e4a4d0a22836de105953efaa0fd70",
+  "review_receipt": "INDEPENDENT-REVIEW.json",
+  "review_receipt_sha256": "47f09fd59f40136ae2f5cafa3c1a71e68ba08d1d75c69dbd60b60ccb4178f800",
+  "base_commit": "f15deee344cd3f161169412e0ee62cd329225f60",
+  "source_candidate_commit": "46671c602875f7b69cb6acd92cbd93bd543c9598",
+  "source_candidate_tree": "71748d4b43d9078331808218b89f63fa708ff2a3",
+  "branch": "repair/gl3-public-browse-20261008",
+  "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-public-browse-20261008",
+  "changed_files": [
+    "backend/src/gridlens/api/app.py",
+    "backend/tests/integration/test_power_need_briefs.py",
+    "web/src/api/client.ts",
+    "web/src/app/App.tsx",
+    "web/tests/project_cards.spec.ts",
+    ".agent/artifacts/GL3-AUDIT-A5B-COHORT-REPAIR/COHORT-REVIEW-REPAIR.md",
+    ".agent/artifacts/GL3-AUDIT-A5B-COHORT-REPAIR/INDEPENDENT-REVIEW.json",
+    ".agent/artifacts/GL3-AUDIT-A5B-COHORT-REPAIR/IMPLEMENTATION.md",
+    ".agent/artifacts/GL3-AUDIT-A5B-COHORT-REPAIR/RAW_LOGS.json"
+  ],
+  "outcome": "Implemented bounded cohort repair; independent acceptance remains open.",
+  "behavior": {
+    "later_opportunity_page_without_nonblank_cohort_token": "HTTP 422 before page query/response",
+    "stale_supplied_cohort_token": "existing HTTP 409 behavior retained",
+    "direct_later_page_without_bound_client_token": "fetch offset zero then fetch requested offset with returned token",
+    "stale_client_token": "clear old page and selection, then restart at offset zero",
+    "public_schema_or_header_changes": false,
+    "persisted_data_or_migration_changes": false
+  },
+  "checks": [
+    {
+      "command": "safe wrapper pytest -q tests/integration/test_power_need_briefs.py -k 'bounded_opportunity_page_group_detail_and_stale_cohort or opportunity_http_and_direct_defaults_are_bounded or opportunity_filter_scope_is_shared_by_pages_groups_detail_and_csv'",
+      "exit_code": 0,
+      "result": "3 passed, 29 deselected"
+    },
+    {
+      "command": "safe wrapper ruff check src/gridlens/api/app.py tests/integration/test_power_need_briefs.py",
+      "exit_code": 0,
+      "result": "All checks passed"
+    },
+    {
+      "command": "safe wrapper mypy src",
+      "exit_code": 0,
+      "result": "Success: no issues found in 78 source files"
+    },
+    {
+      "command": "npm run typecheck",
+      "exit_code": 0,
+      "result": "passed"
+    },
+    {
+      "command": "npm run build",
+      "exit_code": 0,
+      "result": "passed"
+    },
+    {
+      "command": "Playwright regression project, tests/project_cards.spec.ts, direct offset/restoration and stale token recovery, unique output directory",
+      "exit_code": 0,
+      "result": "2 passed"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0,
+      "result": "passed"
+    }
+  ],
+  "preserved_failures": [
+    {
+      "log": ".artifacts/a5b-cohort-red-missing-token-20261008T1711249447707Z-29b0056c2be94b41925644fa0986c633-pytest.log",
+      "sha256": "29c44a46eef981d5a607c0d613667496bf01e1c3790e86b7eaa66ab5ce15bb18",
+      "finding": "Before the API guard, later offset without a cohort token was not rejected."
+    },
+    {
+      "log": ".artifacts/a5b-cohort-browser-c7fa49f0165d41a1aa1156a4646dba24.log",
+      "sha256": "16483ebd4ff7bce7e39e70c113e2812693aba5d7834b9bbaaada8176428bef01",
+      "finding": "The browser behaviors reached render, but two title assertions were case-sensitive against canonical title capitalization; selectors were made case-insensitive and the unique rerun passed."
+    }
+  ],
+  "evidence_manifest": ".agent/artifacts/GL3-AUDIT-A5B-COHORT-REPAIR/RAW_LOGS.json",
+  "test_database": "gl3audit_a5b_test",
+  "migration_database": "gl3audit_a5b_migration",
+  "provider_keys": "blank before test imports",
+  "candidate_env_file_present": false,
+  "worker_or_automation": "disabled",
+  "external_actions": "none",
+  "not_run_by_builder": [
+    "repository-wide backend suite",
+    "final migration proof",
+    "retained-corpus parity/traversal/performance",
+    "full browser suite",
+    "independent review of repaired candidate",
+    "A5B acceptance"
+  ],
+  "timing": {
+    "task_start_utc": "UNKNOWN",
+    "first_preserved_test_utc": "2026-10-08T17:11:24Z",
+    "completion_recorded_utc": "2026-10-08T17:18:19Z",
+    "planning_duration": "UNKNOWN",
+    "implementation_duration": "UNKNOWN",
+    "validation_duration": "UNKNOWN",
+    "audit_duration": "not performed by builder"
+  },
+  "execution": {
+    "lane": "single Luna builder",
+    "model": "gpt-6-luna",
+    "config_identity": "UNKNOWN",
+    "tokens": "UNKNOWN"
+  },
+  "acceptance": "Not self-certified; root final gates and fresh independent review remain required."
+}

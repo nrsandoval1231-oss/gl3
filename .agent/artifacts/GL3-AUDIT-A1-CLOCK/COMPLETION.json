@@ -1,0 +1,76 @@
+{
+  "packet_id": "GL3-AUDIT-A1-CLOCK",
+  "node_id": "repair/research-question-utc-cap",
+  "repository": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-research-delivery-20261007",
+  "base_sha": "2cd93392eb4e490b52a3a9434e142eabbcd28a55",
+  "implementation_commit_sha": "f60483969a428db15804b3d8f5afcf333983ce96",
+  "candidate_state": "frozen implementation commit; controller full gates and independent review pending",
+  "started_at_utc": "UNKNOWN",
+  "finished_at_utc": "2026-10-08T00:29:51Z",
+  "elapsed_seconds": "UNKNOWN",
+  "model": "GPT-6; exact model/config UNKNOWN",
+  "tokens": "UNKNOWN",
+  "database_isolation": {
+    "database_url_database": "gl3audit_research_delivery_migration",
+    "test_database_url_database": "gl3audit_research_delivery_test",
+    "host_port_user": "127.0.0.1:55437/gl3audit",
+    "provider_keys": "blank",
+    "autonomous_worker": "disabled",
+    "original_application_data": "not used"
+  },
+  "changed_files": [
+    "backend/src/gridlens/intelligence/pursuit_questions.py",
+    "backend/tests/integration/test_autonomous_questions_integration.py",
+    "backend/tests/integration/test_pursuit_evidence.py",
+    "backend/tests/integration/test_retained_research_replay.py",
+    "backend/tests/integration/test_research_transitions.py",
+    ".agent/packets/GL3-AUDIT-A1-CLOCK.md",
+    ".agent/artifacts/GL3-AUDIT-A1-CLOCK/COMPLETION.json",
+    ".agent/artifacts/GL3-AUDIT-A1-CLOCK/diff-check.txt",
+    ".agent/artifacts/GL3-AUDIT-A1-CLOCK/focused-four-files-green.txt",
+    ".agent/artifacts/GL3-AUDIT-A1-CLOCK/mypy.txt",
+    ".agent/artifacts/GL3-AUDIT-A1-CLOCK/prerepair-full-suite-red.log",
+    ".agent/artifacts/GL3-AUDIT-A1-CLOCK/red-utc-daily-cap.txt",
+    ".agent/artifacts/GL3-AUDIT-A1-CLOCK/ruff.txt"
+  ],
+  "validation": [
+    {
+      "command": "uv run --locked --extra dev pytest tests/integration/test_autonomous_questions_integration.py -k 'daily_cap_uses_one_utc_clock_for_inserted_question or planning_discovers_supported_need_beyond_shortlist_without_splitting_group' -q",
+      "result": "PASS: 2 passed; deterministic UTC midnight and Chicago session-timezone regression"
+    },
+    {
+      "command": "uv run --locked --extra dev pytest tests/integration/test_autonomous_questions_integration.py tests/integration/test_pursuit_evidence.py tests/integration/test_retained_research_replay.py tests/integration/test_research_transitions.py -q",
+      "result": "PASS: 135 passed in 55.61 seconds"
+    },
+    {
+      "command": "uv run --locked --extra dev ruff check src tests",
+      "result": "PASS: All checks passed"
+    },
+    {
+      "command": "uv run --locked --extra dev mypy src",
+      "result": "PASS: no issues found in 77 source files"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS: no whitespace errors"
+    }
+  ],
+  "historical_failure": {
+    "command": "pytest tests/integration/test_autonomous_questions_integration.py -k 'daily_cap_uses_one_utc_clock_for_inserted_question or planning_discovers_supported_need_beyond_shortlist_without_splitting_group' -q (before scheduler fix)",
+    "result": "FAIL: both deterministic tests reproduced the bug; the captured output is retained in red-utc-daily-cap.txt"
+  },
+  "prerepair_full_suite_failure": {
+    "provenance": "Copied unchanged from gl3-source-controls-20261007/.artifacts/a4-comparator-controller-full.log; earlier full result on the then-current combined candidate before this clock/date repair.",
+    "result": "FAIL: 8 listed failures, 1275 passed, 2 skipped. The eight failures match the bounded UTC-cap and six host-dependent synthetic publication-date cases. The exact raw log is retained as prerepair-full-suite-red.log."
+  },
+  "implementation": [
+    "The scheduler normalizes its single supplied/current clock to UTC, interprets legacy naive values as UTC, and counts persisted creation timestamps after UTC normalization.",
+    "New questions persist the same normalized clock used by the daily-cap check, making the decision independent of database session timezone and insertion wall-clock time.",
+    "The six affected synthetic public-document fixtures use a stable already-published date while retaining actual observed_at values; future-publication rejection remains covered by an unresolved/no-claim regression."
+  ],
+  "remaining_gates": [
+    "Controller full repository gates and independent review are pending.",
+    "No browser/runtime test was run for this scheduler-only change.",
+    "No push, merge, deployment, or external action was performed."
+  ]
+}

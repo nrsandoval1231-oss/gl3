@@ -1,0 +1,54 @@
+{
+  "recorded_at_utc": "2026-10-08T02:09:27.3677241Z",
+  "tested_code_candidate": "063b0f766ab6372215c5b4fe8eec0c9a2b9d66c5",
+  "tested_code_tree": "863b494e63f9a1adf1e1a1535ba01011391978b3",
+  "integration_parents": [
+    "c67ed4e0b10eff508f1d3351c1dd6daf69a91bc7",
+    "27913cbcabf1e450b07b16cde6c8d316d94f35f5"
+  ],
+  "accepted_lifecycle": "20328d7fd723622192557a70736258a27fa9f274",
+  "accepted_research": "1ef6b5961d7dcbb87c703b555ac201b08ee01f8e",
+  "backend": {
+    "passed": 1336,
+    "seconds": 209.45,
+    "skipped": 2,
+    "warnings": 5,
+    "exit": 0
+  },
+  "browser": {
+    "api_port": 55511,
+    "passed": 36,
+    "reuse_existing_servers": false,
+    "CI": true,
+    "seconds": 37.8,
+    "exit": 0,
+    "web_port": 55512
+  },
+  "ruff": 0,
+  "mypy": 0,
+  "web_typecheck": 0,
+  "web_build": 0,
+  "openapi_match": 0,
+  "fresh_upgrade": 0,
+  "repeat_upgrade": 0,
+  "schema_drift": 0,
+  "schema_head": "0016_operational_schedule",
+  "backend_audit": {
+    "dependencies": 44,
+    "known_vulnerabilities": 0
+  },
+  "web_audit": 0,
+  "test_database": "gl3audit_join_test",
+  "application_database": "gl3audit_join_migration",
+  "paid_keys": "blank",
+  "automation": "disabled",
+  "exact_local_secret_matches": 0,
+  "raw_secret_matches": 0,
+  "source_docs_packet_diff": 0,
+  "raw_archive_sha256": "cbd9a5ab9649986977af2b723813ddd8edeccea6a6ad7f5a559d109f586ea54c",
+  "independent_review": "PENDING",
+  "model_config_tokens": "UNKNOWN",
+  "github_pr_merge": false,
+  "deployment": false,
+  "parent_objective": "OPEN"
+}

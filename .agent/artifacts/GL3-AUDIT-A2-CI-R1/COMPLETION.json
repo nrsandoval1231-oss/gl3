@@ -1,0 +1,64 @@
+{
+  "packet": "GL3-AUDIT-A2-CI-R1",
+  "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-lifecycle-delivery-20261007",
+  "branch": "repair/gl3-lifecycle-delivery-20261007",
+  "base_commit": "990994f3a161a7fc3720f4f8330e5446d09eef20",
+  "code_candidate_commit": "c8c5a6341f5055995ab4663cdb9a38505039f842",
+  "code_commit_message": "fix: bind lifecycle projections to current evidence",
+  "completed_utc": "2026-10-08T00:10:26Z",
+  "disposable_databases": {
+    "test": "gl3audit_lifecycle_delivery_test",
+    "migration": "gl3audit_lifecycle_delivery_migration",
+    "host": "127.0.0.1",
+    "port": 55437
+  },
+  "validation": [
+    {
+      "command": "uv run --directory backend --locked pytest tests/unit/test_lifecycle_scope.py tests/unit/test_lifecycle.py tests/unit/test_replay_lifecycle_history_cli.py tests/integration/test_lifecycle_scope_integration.py tests/integration/test_ingestion.py tests/integration/test_taylor_ingestion.py tests/integration/test_research_transitions.py -q",
+      "exit_code": 0,
+      "result": "121 passed, 3 warnings in 36.28s",
+      "raw_log": "pytest-affected-final2.log"
+    },
+    {
+      "command": "uv run --directory backend --locked ruff check src tests ../scripts --no-cache",
+      "exit_code": 0,
+      "result": "All checks passed",
+      "raw_log": "ruff-final2.log"
+    },
+    {
+      "command": "uv run --directory backend --locked mypy src",
+      "exit_code": 0,
+      "result": "Success: no issues found in 77 source files",
+      "raw_log": "mypy-final2.log"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0,
+      "result": "Passed",
+      "raw_log": "diff-check-final.log"
+    }
+  ],
+  "date_rollover_diagnosis": {
+    "finding": "Four public-research tests failed at accepted base 2cd and candidate when UTC advanced to Oct 8 while local date remained Oct 7; synthetic published_at used datetime.now(UTC).date(), one day ahead of local date.today() used by research evidence evaluation.",
+    "repair": "Synthetic research fixture publication dates now use date.today(); the bounded affected suite passed.",
+    "base_comparison_log": "accepted-base-research-test.log",
+    "retained_failed_attempt_logs": [
+      "pytest-affected-final.log",
+      "research-red-isolated.log",
+      "research-fixture-redgreen.log"
+    ]
+  },
+  "preserved_initial_failure_evidence": ".artifacts/controller-full-tests.log (controller-owned; 1263 passed, 2 failed, 12 setup errors, 2 skipped)",
+  "constraints": {
+    "application_replay_selector_invoked": false,
+    "provider_keys_used": false,
+    "retained_corpus_or_original_backup_touched": false,
+    "push_merge_or_deploy": false
+  },
+  "remaining_gates": [
+    "Controller rerun of the full affected and repository test suites",
+    "Controller review of isolated retained-corpus clone replay evidence",
+    "Independent review of the exact code candidate"
+  ],
+  "acceptance_claimed": false
+}

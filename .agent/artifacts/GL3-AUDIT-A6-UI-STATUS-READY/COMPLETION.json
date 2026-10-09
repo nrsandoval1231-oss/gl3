@@ -1,0 +1,61 @@
+{
+  "schema": "gl3-a6-ui-completion-v1",
+  "status": "builder_handoff",
+  "acceptance_verdict": "NOT_CLAIMED",
+  "packet": {
+    "path": ".agent/packets/GL3-AUDIT-A6-UI-STATUS-READY-20261008.md",
+    "sha256": "1f12f06ae525a817c40d6716c557e47d73584da6673c1d88e59055e969eeff1b"
+  },
+  "base": "6727f5ac5cafc4e555dac58e4153739c4b5a11e5",
+  "implementation_commit": "ba752cd5a58553050f2291d7c7bdbe18a0742488",
+  "implementation_tree": "e929a22a27b3d599d4d6dfc4de05897f1f498796",
+  "attribution_correction_commit": "bffb1ab66a22d2969489e65b1880b90fee20c2cb",
+  "attribution_correction_tree": "3288954303352f73ceb80c74985d7dd33b2c6f33",
+  "branch": "repair/gl3-facts-entry-20261008",
+  "changed_paths": [
+    "backend/src/gridlens/api/app.py",
+    "backend/tests/integration/test_call_fact_workflow_integration.py",
+    "backend/tests/unit/test_browse_filters.py",
+    "web/src/api/client.ts",
+    "web/src/api/generated.ts",
+    "web/src/api/openapi.json",
+    "web/src/app/App.tsx",
+    "web/src/features/pursuits/CommercialPursuits.tsx",
+    "web/src/features/pursuits/FactWorkflowPanel.tsx",
+    "web/tests/call-facts.spec.ts",
+    "web/tests/commercial-pursuits.spec.ts",
+    "web/tests/project_cards.spec.ts",
+    ".agent/artifacts/GL3-AUDIT-A6-UI-STATUS-READY/PACKET.md",
+    ".agent/artifacts/GL3-AUDIT-A6-UI-STATUS-READY/HANDOFF.md",
+    ".agent/artifacts/GL3-AUDIT-A6-UI-STATUS-READY/FAILED-ATTEMPTS.md",
+    ".agent/artifacts/GL3-AUDIT-A6-UI-STATUS-READY/RAW-MANIFEST.json",
+    ".agent/artifacts/GL3-AUDIT-A6-UI-STATUS-READY/RAW-VALIDATION.zip",
+    ".agent/artifacts/GL3-AUDIT-A6-UI-STATUS-READY/seed_persisted_fixture.py"
+  ],
+  "validation": [
+    {"check": "affected backend tests", "result": "PASS", "detail": "40 passed; one upstream deprecation warning", "raw": ".artifacts/a6-ui-backend-affected-final-20261009T0120106156566Z-0f01452d0f7a45c29033cdbd44d7b284-pytest.log"},
+    {"check": "Ruff changed backend files", "result": "PASS", "raw": ".artifacts/a6-ui-ruff-affected-final-20261009T0120334244185Z-e32a01b08e32458ea637cb12fd50d8c2-ruff.log"},
+    {"check": "mypy backend/src", "result": "PASS", "detail": "80 source files", "raw": ".artifacts/a6-ui-mypy-final-20261009T0120335891996Z-3de4a89b9ef84ceea276a8775368b966-mypy.log"},
+    {"check": "affected Playwright", "result": "PASS", "detail": "54 passed, 1 intentionally skipped; persisted flow was run separately", "raw": ".artifacts/a6-ui-affected-fixture-browser-20261009T0119105085582Z-3d49d4b59c3944a8be279393555d962c.log"},
+    {"check": "isolated persisted authenticated flow", "result": "PASS", "detail": "1 passed against synthetic registered source-backed fixture and real disposable API/PostgreSQL", "raw": ".artifacts/a6-ui-persisted-registered-browser-20261009T0113592491968Z-fa5a01537d774d9b9ebd2f98370a276a.log"},
+    {"check": "web typecheck", "result": "PASS", "raw": ".artifacts/a6-ui-web-typecheck-fixture-final-20261009T0122020718343Z-ed12eceb8e534495adf8c2735373925d.log"},
+    {"check": "web production build", "result": "PASS", "raw": ".artifacts/a6-ui-web-build-final-20261009T0120549541992Z-39d1cb2c817349d891c3a4fe6d6c0d1c.log"},
+    {"check": "OpenAPI TypeScript generation", "result": "PASS", "detail": "generated output byte-matches tracked generated.ts; SHA-256 BA63DCBB8983961A647AB74A9036437F457924A41920106CF06F1B291FC0374B", "raw": ".artifacts/a6-ui-generated-check-5a3f92cfc3524a86bbe14e6847b09d1b.log"},
+    {"check": "git diff --check", "result": "PASS", "raw": ".artifacts/a6-ui-diff-check-final-20261009T012400Z.log"}
+  ],
+  "raw_archive": {
+    "path": ".agent/artifacts/GL3-AUDIT-A6-UI-STATUS-READY/RAW-VALIDATION.zip",
+    "sha256": "7e74e7c632afb51326cd363189c0056a4e3a9887f4600ae40e5e56947384e927",
+    "manifest": ".agent/artifacts/GL3-AUDIT-A6-UI-STATUS-READY/RAW-MANIFEST.json"
+  },
+  "known_history": "Initial projection fixture was correctly rejected; two synthetic seeding attempts had FK setup errors; selected-detail browser fixture run had 9 failures because newly additive exact-Need DTO routes were absent in test fallbacks; fallback fixtures were corrected without changing product assertions. Preserved raw evidence and attribution in FAILED-ATTEMPTS.md.",
+  "root_owned_checks": "Full backend/browser gates, fresh migration/repeat/downgrade/drift, final retained-scale/parity and source preservation, secret scan, exact final source capture, and independent review remain for root.",
+  "environment": {
+    "utc_validation_window": "2026-10-09T01:12:10Z/2026-10-09T01:22:02Z",
+    "model": "UNKNOWN",
+    "config_identity": "UNKNOWN",
+    "token_usage": "UNKNOWN",
+    "provider_keys": "cleared before imports; no provider calls",
+    "automatic_research": "disabled"
+  }
+}

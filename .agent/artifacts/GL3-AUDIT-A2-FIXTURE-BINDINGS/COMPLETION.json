@@ -1,0 +1,68 @@
+{
+  "packet": "GL3-AUDIT-A2-FIXTURE-BINDINGS",
+  "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-lifecycle-delivery-20261007",
+  "branch": "repair/gl3-lifecycle-delivery-20261007",
+  "base_commit": "1ee98fdbde23a37186e6725ef362902a3038e26b",
+  "candidate_commit": "b29e4817aa4a2b4d423f4366fabb5ceb9dc2b123",
+  "prior_production_candidate": "c8c5a6341f5055995ab4663cdb9a38505039f842",
+  "completed_utc": "2026-10-08T00:23:07Z",
+  "owned_files_changed": [
+    "backend/tests/integration/test_project_state_changes.py",
+    ".agent/packets/GL3-AUDIT-A2-FIXTURE-BINDINGS.md"
+  ],
+  "validation": [
+    {
+      "command": "uv run --directory backend --locked pytest tests/integration/test_project_state_changes.py -q",
+      "exit_code": 0,
+      "result": "92 passed, 1 warning in 24.25s",
+      "raw_log": "pytest-green2.log"
+    },
+    {
+      "command": "uv run --directory backend --locked pytest tests/unit/test_lifecycle_scope.py tests/unit/test_lifecycle.py tests/integration/test_lifecycle_scope_integration.py tests/integration/test_taylor_ingestion.py -q",
+      "exit_code": 0,
+      "result": "49 passed in 6.78s",
+      "raw_log": "c8-regressions.log"
+    },
+    {
+      "command": "uv run --directory backend --locked ruff check src tests ../scripts --no-cache",
+      "exit_code": 0,
+      "result": "All checks passed",
+      "raw_log": "ruff.log"
+    },
+    {
+      "command": "uv run --directory backend --locked mypy src",
+      "exit_code": 0,
+      "result": "Success: no issues found in 77 source files",
+      "raw_log": "mypy.log"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0,
+      "result": "Passed",
+      "raw_log": "diff-check.log"
+    }
+  ],
+  "fixture_repairs": [
+    "Common seed and linked official evidence fixtures bind assessment.semantic_hash to the current Observation and Interpretation semantic hash, separately from distinct Evidence.content_hash.",
+    "Explicit withdrawal and utility replacement assessments bind the current semantic version.",
+    "Utility lifecycle fixture states use canonical utility_energization.",
+    "Existing transient-failed-refresh assertions continue to prove prior accepted current support; negative stale, foreign, wrong-project, and rejected assertions remain unchanged."
+  ],
+  "preserved_red_logs": [
+    "pytest-red.log",
+    "pytest-green.log",
+    "nested-diagnostic.log"
+  ],
+  "constraints": {
+    "production_files_changed": false,
+    "application_database_or_corpus_touched": false,
+    "providers_used": false,
+    "push_merge_or_deploy": false
+  },
+  "remaining_gates": [
+    "Controller serial integration and full backend rerun",
+    "Independent review of the exact integrated candidate"
+  ],
+  "acceptance_claimed": false,
+  "tokens": "UNKNOWN"
+}
