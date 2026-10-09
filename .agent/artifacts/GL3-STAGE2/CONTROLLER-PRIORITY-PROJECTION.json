@@ -1,0 +1,60 @@
+{
+  "observed_at_utc": "2026-10-09T21:47:47.503239+00:00",
+  "code_base": "c761e38f6ac00e7d54d6f6b57959cf40cdcf4d79",
+  "method": "READ ONLY NeedObservation joins and current ordinary default-floor opportunity projection, isolated corpus.",
+  "records": [
+    {
+      "source_id": "austin-building-permits",
+      "stable_record_id": "2026-036762 EP",
+      "needs": [
+        {
+          "need_id": "aa7fb09f-b4df-4591-bb9a-cd840009f510",
+          "project_id": "073692d2-ee82-42ac-8b01-81b47c495d82",
+          "visible": true,
+          "tier": "Signal"
+        }
+      ]
+    },
+    {
+      "source_id": "austin-building-permits",
+      "stable_record_id": "2026-036762 BP",
+      "needs": [
+        {
+          "need_id": "d2f6dfbd-832b-419f-b196-3f3c80233bef",
+          "project_id": "6c561998-81eb-4166-9a88-596b3f54af48",
+          "visible": true,
+          "tier": "Signal"
+        }
+      ]
+    },
+    {
+      "source_id": "austin-building-permits",
+      "stable_record_id": "2025-155325 EP",
+      "needs": [
+        {
+          "need_id": "8212d5e4-4125-4d53-9d6b-70106dff03cc",
+          "project_id": "2402bd03-ff7d-4546-b28b-a02873362b80",
+          "visible": true,
+          "tier": "Signal"
+        }
+      ]
+    },
+    {
+      "source_id": "austin-building-permits",
+      "stable_record_id": "2026-127192 EP",
+      "needs": [
+        {
+          "need_id": "298ed18d-9cb8-4c0f-94d6-e2c3303f275f",
+          "project_id": "bfc8da73-342e-40f3-ac0c-c860f76839cf",
+          "visible": true,
+          "tier": "Signal"
+        }
+      ]
+    }
+  ],
+  "private_receipt": {
+    "path": ".artifacts/CONTROLLER-STAGE2/priority-projection.private.json",
+    "sha256": "3f6db882080b22f1c40fa6327fa56409dee7acffb13ef1c775ec346e8cb80995"
+  },
+  "limits": "Signal visibility does not confirm MW, gap, active package, utility status or buyer authority. Same-site permit grouping requires source comparison, not tier promotion."
+}

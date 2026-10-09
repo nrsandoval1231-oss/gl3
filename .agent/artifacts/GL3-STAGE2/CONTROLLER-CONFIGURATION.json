@@ -1,0 +1,30 @@
+{
+  "observed_at_utc": "2026-10-09T21:49:50.852807+00:00",
+  "code_base": "c761e38f6ac00e7d54d6f6b57959cf40cdcf4d79",
+  "settings_module": "C:\\Users\\nrsan\\Nucleus\\02_Projects\\GridLens\\gl3-stage2-source-quality-20261009\\backend\\src\\gridlens\\settings.py",
+  "database_target": "127.0.0.1:55747/gl3_s2_corpus",
+  "test_database_target": "127.0.0.1:55747/gl3_s2_unit_test",
+  "provider_credential_presence_only": {
+    "firecrawl_api_key": false,
+    "openai_api_key": false,
+    "typesafe_api_key": false
+  },
+  "flags": {
+    "cookie_secure": false,
+    "worker_auto_refresh": false,
+    "jev_enabled": false,
+    "jev_shadow_mode": false,
+    "autonomous_research_enabled": false
+  },
+  "budgets": {
+    "pursuits_daily_fetch_limit": 0,
+    "pursuits_daily_model_limit": 0,
+    "jev_shadow_batch_limit": 0,
+    "jev_shadow_daily_limit": 0,
+    "briefs_daily_request_limit": 0,
+    "autonomous_research_daily_questions": 0,
+    "autonomous_research_max_searches": 0,
+    "autonomous_research_max_cost_usd": "0"
+  },
+  "limits": "Controller subprocess loaded task-local environment helper and this worktree source. No secret values recorded. Loopback cookie_secure=false is local-only and is not deployment configuration. Native official public requests are separate from paid-provider budgets."
+}

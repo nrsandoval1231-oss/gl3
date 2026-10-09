@@ -1,13 +1,13 @@
-# Work graph — 2026-10-09
+# Work graph — sequential commercial acceptance
 
-Parent objective OPEN. Canonical destination remains the PRD and Finish Contract.
+S1 COMPLETE: exact-reviewed/tested PR47 merged at c761e38 with explicit owner authorization. Historical state archived unchanged.
 
-- **S1 — documentation baseline:** reconcile one current-state entry point, preserve superseded active narratives, and record exact baseline evidence and later acceptance gates. Bounded files are in `.agent/packets/GL3-STAGE1.md`.
-- **S2 — source quality and commercial usefulness:** blocked on accepted S1 and separately authorized S1 PR merge.
-- **S3 — qualification recall without lowering evidence standards:** follows accepted S2.
-- **S4 — one real commercial pursuit end to end:** follows accepted S3.
-- **S5 — locked canonical UI:** follows accepted S4 and recovery/verification of required original references.
-- **S6 — reduce specific architectural coupling:** follows accepted S5.
-- **S7 — reliable PC-off operation:** follows accepted S6.
+S2 READY/RUNNING: one Luna bounded authentic-source quality packet GL3-STAGE2; own isolated cluster/corpus, six existing Texas routes, minimum30 authentic review records and source-backed shortlist. No qualification repairs or unrelated feature nodes. Completion requires controller evidence validation, ordinary Sol review, final gates and separately authorized serial PR integration.
 
-See [Stage 1 report](../docs/validation/stage1-baseline-20261009.md) for exact evidence gates. Existing A2–A8 audit packets are historical and do not redefine this order. Keep missing evidence UNKNOWN. Do not represent hosted CI, a local probe, or retained historical receipts as live operation. Controller owns evidence JSON and packet updates; this graph is an index, not an evidence receipt.
+S3 DEPENDENT on S2: demonstrated qualification bottlenecks and fixed authentic before/after evaluation.
+S4 DEPENDENT on S3: one real end-to-end commercial pursuit, no fake calls/promotions.
+S5 DEPENDENT on S4 and exact original PNG/HTML recovery: canonical journey/browser proof and separate Nick visual acceptance.
+S6 DEPENDENT on S5: remove demonstrated intelligence→HTTP coupling with parity.
+S7 DEPENDENT on S6 and deployment/spending/monitoring authority: real PC-off operation/restore/alerts/seven real daily cycles and commercial acceptance.
+
+Parent OPEN. See [current state](CURRENT_STATE.md), [Stage2 packet](packets/GL3-STAGE2.md), and [baseline gate report](../docs/validation/stage1-baseline-20261009.md). No source count or CI badge closes authentic or operational gates.
