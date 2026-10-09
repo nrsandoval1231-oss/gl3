@@ -11,6 +11,15 @@ import {
 } from '../../api/client'
 
 type FactType = 'demand' | 'unsuitable_supply' | 'suitable_supply' | 'timing' | 'buyer' | 'closure'
+type FrozenWorkflowRequest = {
+  needId: string
+  projectId: string
+  pursuitId: null
+  clientId: string
+  expectedVersion: number
+  status: WorkflowStatus
+  reason: string
+}
 type CorrectionBinding = Pick<TimingCorrectionTarget, 'need_id' | 'project_id' | 'project_identity_key' | 'activity_key' | 'facility_identity' | 'source_id' | 'source_semantic_hash' | 'source_evidence_hash' | 'retained_evidence_id' | 'earliest_possible_start' | 'latest_possible_start' | 'minimum_duration_days' | 'maximum_duration_days' | 'current_fact_version'>
 type EditorDraft = {
   factType: FactType
@@ -35,6 +44,7 @@ type EditorDraft = {
   workflowSelection: WorkflowStatus | ''
   workflowReason: string
   workflowClientId: string
+  workflowRequest: FrozenWorkflowRequest | null
   timingBinding: CorrectionBinding | null
 }
 
@@ -54,8 +64,20 @@ function newDraft(facilityScope: string): EditorDraft {
       duration_days: '', organization: '', role: '', state: '' },
     correctsReportedTiming: false, timingBasis: '', predecessorId: '', decisionReason: '',
     factClientId: crypto.randomUUID(), decisionClientId: crypto.randomUUID(), pendingFactId: '',
-    workflowSelection: '', workflowReason: '', workflowClientId: crypto.randomUUID(), timingBinding: null,
+    workflowSelection: '', workflowReason: '', workflowClientId: crypto.randomUUID(), workflowRequest: null, timingBinding: null,
   }
+}
+
+function workflowEventMatchesRequest(
+  event: NeedWorkflowStatus['events'][number],
+  request: FrozenWorkflowRequest,
+) {
+  return event.need_id === request.needId
+    && event.project_id === request.projectId
+    && event.pursuit_id === request.pursuitId
+    && event.status === request.status
+    && event.reason === request.reason
+    && event.expected_version === request.expectedVersion
 }
 
 function targetBinding(target: TimingCorrectionTarget, version: number): CorrectionBinding | null {
@@ -383,41 +405,101 @@ export function FactWorkflowPanel({ item, onReadback }: { item: Opportunity; onR
   async function saveStatus(event: FormEvent) {
     event.preventDefault()
     const before = workflow
-    if (!before || !draft.workflowSelection || !draft.workflowReason.trim()) {
+    if (!draft.workflowRequest && (!before || !draft.workflowSelection || !draft.workflowReason.trim())) {
       setError('Choose an operator status and enter its reason.')
       return
     }
     setBusy(true); setError(''); setNotice('')
     try {
-      const fresh = await client.workflowStatus(needId)
-      if (fresh.version !== before.version) {
-        setWorkflow(fresh)
-        setError('The exact-Need workflow status changed. Review its latest event before submitting this preserved status draft.')
+      let request = draft.workflowRequest
+      if (!request) {
+        let fresh: NeedWorkflowStatus
+        try { fresh = await client.workflowStatus(needId) }
+        catch (cause) {
+          if (activeNeedId.current === needId) setError(statusError(cause))
+          return
+        }
+        if (activeNeedId.current !== needId) return
+        if (!before || fresh.version !== before.version) {
+          setWorkflow(fresh)
+          setError('The exact-Need workflow status changed. Review its latest event before submitting this preserved status draft.')
+          return
+        }
+        request = {
+          needId,
+          projectId: item.project_id,
+          pursuitId: null,
+          clientId: draft.workflowClientId,
+          expectedVersion: fresh.version,
+          status: draft.workflowSelection as WorkflowStatus,
+          reason: draft.workflowReason.trim(),
+        }
+        storeDraft({ ...draft, workflowRequest: request })
+      }
+      if (!request) return
+
+      let savedEvent: NeedWorkflowStatus['events'][number]
+      try {
+        savedEvent = await client.setWorkflowStatus(request.needId, {
+          client_id: request.clientId,
+          project_id: request.projectId,
+          pursuit_id: request.pursuitId,
+          expected_version: request.expectedVersion,
+          status: request.status,
+          reason: request.reason,
+        })
+      } catch (cause) {
+        if (activeNeedId.current !== request.needId) return
+        try {
+          const current = await client.workflowStatus(request.needId)
+          if (activeNeedId.current === request.needId) setWorkflow(current)
+        } catch {
+          if (activeNeedId.current === request.needId) setWorkflow(null)
+        }
+        if (activeNeedId.current !== request.needId) return
+        setError(`${statusError(cause)} The save is unconfirmed. Retrying will reuse the same request.`)
         return
       }
-      await client.setWorkflowStatus(needId, {
-        client_id: draft.workflowClientId,
-        project_id: item.project_id,
-        pursuit_id: null,
-        expected_version: fresh.version,
-        status: draft.workflowSelection,
-        reason: draft.workflowReason.trim(),
-      })
-      const readback = await client.workflowStatus(needId)
-      const saved = readback.events.find((row) => row.version === fresh.version + 1)
-      if (!saved || saved.status !== draft.workflowSelection || saved.reason !== draft.workflowReason.trim()) {
+      if (activeNeedId.current !== request.needId) return
+      if (!workflowEventMatchesRequest(savedEvent, request)) {
+        try {
+          const current = await client.workflowStatus(request.needId)
+          if (activeNeedId.current === request.needId) setWorkflow(current)
+        } catch {
+          if (activeNeedId.current === request.needId) setWorkflow(null)
+        }
+        if (activeNeedId.current !== request.needId) return
+        setError('The returned status event did not match this exact-Need request. Its draft is preserved for review.')
+        return
+      }
+
+      let readback: NeedWorkflowStatus
+      try { readback = await client.workflowStatus(request.needId) }
+      catch (cause) {
+        if (activeNeedId.current !== request.needId) return
+        setWorkflow(null)
+        setError(`${statusError(cause)} The returned event is not confirmed in exact-Need history; retrying will reuse the same request.`)
+        return
+      }
+      if (activeNeedId.current !== request.needId) return
+      const confirmed = readback.events.find((row) => row.id === savedEvent.id)
+      if (!confirmed || !workflowEventMatchesRequest(confirmed, request)
+        || confirmed.version !== savedEvent.version
+        || confirmed.content_hash !== savedEvent.content_hash) {
         setWorkflow(readback)
-        setError('The status response could not be confirmed in exact-Need history. Its draft is preserved; reload before retrying.')
+        setError('The status response could not be confirmed in exact-Need history. Its draft is preserved; retry will reuse the same request.')
         return
       }
+
       setWorkflow(readback)
-      updateDraft({ workflowClientId: crypto.randomUUID(), workflowSelection: '', workflowReason: '' })
-      setNotice(`Live operator status ${saved.status} was read back at version ${saved.version}. Status and reason do not qualify the Need.`)
+      storeDraft({ ...draft, workflowClientId: crypto.randomUUID(), workflowSelection: '', workflowReason: '', workflowRequest: null })
+      setNotice(readback.version > confirmed.version
+        ? `Status event ${confirmed.status} was confirmed at version ${confirmed.version}; the newer current status remains ${readback.status} at version ${readback.version}. Status and reason do not qualify the Need.`
+        : `Live operator status ${confirmed.status} was read back at version ${confirmed.version}. Status and reason do not qualify the Need.`)
       onReadback()
-    } catch (cause) {
-      try { setWorkflow(await client.workflowStatus(needId)) } catch { /* Keep the original error and draft. */ }
-      setError(statusError(cause))
-    } finally { setBusy(false) }
+    } finally {
+      setBusy(false)
+    }
   }
 
   const target = page?.current_reported_timing_correction_target
@@ -498,12 +580,13 @@ export function FactWorkflowPanel({ item, onReadback }: { item: Opportunity; onR
     <section aria-label="Live operator workflow status">
       <h4>Live workflow status</h4>
       <p>Current status: {workflow?.status ?? 'UNKNOWN'} · version {workflow?.version ?? 0}. No event is UNKNOWN, not New. Status and reason do not establish or close an evidence need.</p>
+      {draft.workflowRequest && <p role="status">This save is unconfirmed. Its status and reason are held; retrying sends the same request and cannot create a second event.</p>}
       <form onSubmit={(event) => void saveStatus(event)}>
-        <label>Set operator status<select aria-label="Set operator status" value={draft.workflowSelection} disabled={busy} onChange={(event) => updateDraft({ workflowSelection: event.target.value as WorkflowStatus | '', workflowClientId: crypto.randomUUID() }, false, true)}><option value="">Choose status</option>{workflowStatuses.map((status) => <option key={status} value={status}>{status}</option>)}</select></label>
-        <label>Status reason<textarea aria-label="Status reason" value={draft.workflowReason} disabled={busy} onChange={(event) => updateDraft({ workflowReason: event.target.value }, false, true)}/></label>
-        <button type="submit" disabled={busy || !draft.workflowSelection || !draft.workflowReason.trim()}>Save live status</button>
+        <label>Set operator status<select aria-label="Set operator status" value={draft.workflowSelection} disabled={busy || Boolean(draft.workflowRequest)} onChange={(event) => updateDraft({ workflowSelection: event.target.value as WorkflowStatus | '', workflowClientId: crypto.randomUUID() }, false, true)}><option value="">Choose status</option>{workflowStatuses.map((status) => <option key={status} value={status}>{status}</option>)}</select></label>
+        <label>Status reason<textarea aria-label="Status reason" value={draft.workflowReason} disabled={busy || Boolean(draft.workflowRequest)} onChange={(event) => updateDraft({ workflowReason: event.target.value }, false, true)}/></label>
+        <button type="submit" disabled={busy || !draft.workflowSelection || !draft.workflowReason.trim()}>{draft.workflowRequest ? 'Retry same status request' : 'Save live status'}</button>
       </form>
-      <ol>{workflow?.events.slice(0, 10).map((event) => <li key={event.id}>{event.status} · {event.reason} · {event.actor} · {new Date(event.created_at).toLocaleString()}</li>)}</ol>
+      <ol>{workflow?.events.slice(-10).reverse().map((event) => <li key={event.id}>{event.status} · {event.reason} · {event.actor} · {new Date(event.created_at).toLocaleString()}</li>)}</ol>
     </section>
   </section>
 }

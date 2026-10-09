@@ -73,14 +73,42 @@ async function installFactsFixture(
   changeTargetAfterTimingDraft = false,
   changeTargetBoundsAfterTimingDraft = false,
   changeSavedPayloadAfterTimingDraft = false,
+  workflowScenario: {
+    lostReplies?: number
+    failedReadsAfterPost?: number
+    foreignReply?: boolean
+    conflictBeforeCommit?: boolean
+    competingStatusAfterCommit?: boolean
+    eventEvictedFromReadback?: boolean
+    seedHistory?: number
+  } = {},
 ) {
   let facts = emptyFacts()
   let selectedTarget = target
   let status: NeedWorkflowStatus = { status: 'UNKNOWN', version: 0, events: [] }
   let createFailure = initialCreateFailure
+  let lostWorkflowReplies = workflowScenario.lostReplies ?? 0
+  let failedWorkflowReads = workflowScenario.failedReadsAfterPost ?? 0
+  let workflowPostCount = 0
+  let conflictPending = workflowScenario.conflictBeforeCommit ?? false
+  const seededHistory = workflowScenario.seedHistory ?? 0
+  if (seededHistory > 0) {
+    const events: NeedWorkflowStatus['events'] = Array.from({ length: seededHistory }, (_, index) => {
+      const version = index + 1
+      const eventStatus = version === seededHistory ? 'Qualified' : 'Investigating'
+      return {
+        id: `seeded-status-${version}`, need_id: 'need-a', project_id: 'project-a', pursuit_id: null,
+        version, status: eventStatus, previous_status: version === 1 ? null : 'Investigating',
+        expected_version: version - 1, reason: `History reason ${version}`, content_hash: `${version}`.padStart(64, '0'),
+        actor: 'Operator', created_at: `2026-10-08T12:${String(version % 60).padStart(2, '0')}:00Z`,
+      }
+    })
+    status = { status: 'Qualified', version: seededHistory, events }
+  }
   let alterSavedTimingOnReadback = false
   let nextFactNumber = 1
   const factsByClientId = new Map<string, CallFact>()
+  const workflowEventsByClientId = new Map<string, NeedWorkflowStatus['events'][number]>()
   const requests: { path: string; url: string; method: string; body: Record<string, unknown> | null }[] = []
   const records = [opportunity('need-a'), opportunity('need-b')]
   await page.route('**/api/**', async (route: Route) => {
@@ -178,15 +206,76 @@ async function installFactsFixture(
       return route.fulfill({ json: { id: `decision-${version}`, version, decision, reason: body?.reason, actor: 'Operator', created_at: '2026-10-08T12:00:01Z', fact_version_id: factId, content_hash: saved.content_hash, tier: 'Lead', active: true } })
     }
     if (/^\/api\/needs\/[^/]+\/workflow-status$/.test(path) && method === 'GET') {
-      return route.fulfill({ json: path === '/api/needs/need-a/workflow-status' ? status : { status: 'UNKNOWN', version: 0, events: [] } })
+      if (workflowPostCount > 0 && failedWorkflowReads > 0) {
+        failedWorkflowReads -= 1
+        return route.fulfill({ status: 503, json: { detail: 'Workflow read-back unavailable.' } })
+      }
+      return route.fulfill({ json: path === '/api/needs/need-a/workflow-status'
+        ? { ...status, events: status.events.slice(-100) }
+        : { status: 'UNKNOWN', version: 0, events: [] } })
     }
     if (path === '/api/needs/need-a/workflow-status' && method === 'POST') {
+      workflowPostCount += 1
+      if (conflictPending) {
+        conflictPending = false
+        const competing = {
+          id: `status-${status.version + 1}`, need_id: 'need-a', project_id: 'project-a', pursuit_id: null,
+          version: status.version + 1, status: 'Contacted', previous_status: status.status === 'UNKNOWN' ? null : status.status,
+          expected_version: status.version, reason: 'A separate operator updated this Need.', content_hash: 'f'.repeat(64),
+          actor: 'Other operator', created_at: '2026-10-08T12:00:03Z',
+        }
+        status = { status: 'Contacted', version: competing.version, events: [...status.events, competing].sort((left, right) => left.version - right.version) }
+        records[0].workflow_status = 'Contacted'
+        return route.fulfill({ status: 409, json: { detail: 'The expected workflow version is stale.' } })
+      }
+      const clientId = String(body?.client_id ?? '')
+      const priorEvent = workflowEventsByClientId.get(clientId)
+      if (priorEvent) {
+        if (lostWorkflowReplies > 0) {
+          lostWorkflowReplies -= 1
+          return route.fulfill({ status: 503, json: { detail: 'The idempotent replay response was lost.' } })
+        }
+        return route.fulfill({ json: priorEvent })
+      }
+      if (Number(body?.expected_version) !== status.version) {
+        return route.fulfill({ status: 409, json: { detail: 'The expected workflow version is stale.' } })
+      }
       const nextStatus = String(body?.status ?? 'New')
       const event = { id: `status-${status.version + 1}`, need_id: 'need-a', project_id: 'project-a', pursuit_id: null,
         version: status.version + 1, status: nextStatus, previous_status: status.status === 'UNKNOWN' ? null : status.status,
-        expected_version: status.version, reason: String(body?.reason ?? ''), content_hash: 'e'.repeat(64), actor: 'Operator', created_at: '2026-10-08T12:00:02Z' }
-      status = { status: nextStatus, version: event.version, events: [event, ...status.events] }
+        expected_version: Number(body?.expected_version ?? status.version), reason: String(body?.reason ?? ''), content_hash: 'e'.repeat(64), actor: 'Operator', created_at: '2026-10-08T12:00:02Z' }
+      workflowEventsByClientId.set(clientId, event)
+      status = { status: nextStatus, version: event.version, events: [...status.events, event].sort((left, right) => left.version - right.version) }
       records[0].workflow_status = nextStatus
+      if (workflowScenario.competingStatusAfterCommit) {
+        const competing = {
+          id: `status-${status.version + 1}`, need_id: 'need-a', project_id: 'project-a', pursuit_id: null,
+          version: status.version + 1, status: 'Contacted', previous_status: nextStatus,
+          expected_version: status.version, reason: 'A later operator update.', content_hash: 'f'.repeat(64),
+          actor: 'Other operator', created_at: '2026-10-08T12:00:03Z',
+        }
+        status = { status: 'Contacted', version: competing.version, events: [...status.events, competing] }
+        records[0].workflow_status = 'Contacted'
+      }
+      if (workflowScenario.eventEvictedFromReadback) {
+        for (let index = 0; index < 100; index += 1) {
+          const version = status.version + 1
+          const later = {
+            id: `later-status-${version}`, need_id: 'need-a', project_id: 'project-a', pursuit_id: null,
+            version, status: 'Investigating', previous_status: status.status, expected_version: status.version,
+            reason: `Later status ${version}`, content_hash: 'a'.repeat(64), actor: 'Other operator',
+            created_at: '2026-10-08T12:00:04Z',
+          }
+          status = { status: later.status, version, events: [...status.events, later] }
+        }
+      }
+      if (workflowScenario.foreignReply) {
+        return route.fulfill({ json: { ...event, need_id: 'need-foreign', project_id: 'project-foreign', pursuit_id: 'pursuit-foreign' } })
+      }
+      if (lostWorkflowReplies > 0) {
+        lostWorkflowReplies -= 1
+        return route.fulfill({ status: 503, json: { detail: 'The response was lost after persistence.' } })
+      }
       return route.fulfill({ json: event })
     }
     return route.fulfill({ json: [] })
@@ -231,6 +320,138 @@ test('exact-Need timing correction uses the server target and status is separate
   await expect(page.getByText(/Live operator status Investigating was read back at version 1/)).toBeVisible()
   expect(fixture.status.status).toBe('Investigating')
   await expect(page.getByText(/Status and reason do not qualify the Need/)).toBeVisible()
+})
+
+test('lost workflow-status reply retries the frozen key and confirms the original event', async ({ page }) => {
+  const fixture = await installFactsFixture(page, 'none', false, false, false, false, { lostReplies: 1 })
+  await page.goto('/?tier=Leads')
+  await page.locator('[data-opportunity-id="need-a"]').first().click()
+  await page.getByLabel('Set operator status').selectOption('Investigating')
+  await page.getByLabel('Status reason').fill('Confirm this status exactly once.')
+  await page.getByRole('button', { name: 'Save live status' }).click()
+  await expect(page.getByRole('alert')).toBeVisible()
+  await expect(page.getByLabel('Status reason')).toHaveValue('Confirm this status exactly once.')
+  const firstPost = fixture.requests.find((request) => request.path === '/api/needs/need-a/workflow-status' && request.method === 'POST')
+  expect(firstPost?.body?.expected_version).toBe(0)
+  await page.getByRole('button', { name: 'Retry same status request' }).click()
+  await expect(page.getByText(/Live operator status Investigating was read back at version 1/)).toBeVisible()
+  const statusPosts = fixture.requests.filter((request) => request.path === '/api/needs/need-a/workflow-status' && request.method === 'POST')
+  expect(statusPosts).toHaveLength(2)
+  expect(statusPosts[1].body?.client_id).toBe(firstPost?.body?.client_id)
+  expect(statusPosts[1].body?.expected_version).toBe(firstPost?.body?.expected_version)
+  expect(fixture.status.version).toBe(1)
+  expect(fixture.status.events).toHaveLength(1)
+})
+
+test('status retry succeeds when first exact-Need read-back is unavailable', async ({ page }) => {
+  const fixture = await installFactsFixture(page, 'none', false, false, false, false, { lostReplies: 1, failedReadsAfterPost: 1 })
+  await page.goto('/?tier=Leads')
+  await page.locator('[data-opportunity-id="need-a"]').first().click()
+  await page.getByLabel('Set operator status').selectOption('Contacted')
+  await page.getByLabel('Status reason').fill('The operator made contact.')
+  await page.getByRole('button', { name: 'Save live status' }).click()
+  await expect(page.getByRole('alert')).toContainText('unconfirmed')
+  await page.getByRole('button', { name: 'Retry same status request' }).click()
+  await expect(page.getByText(/Live operator status Contacted was read back at version 1/)).toBeVisible()
+  const posts = fixture.requests.filter((request) => request.path === '/api/needs/need-a/workflow-status' && request.method === 'POST')
+  expect(posts).toHaveLength(2)
+  expect(posts[0].body?.client_id).toBe(posts[1].body?.client_id)
+  expect(fixture.status.events).toHaveLength(1)
+})
+
+test('failed read-back does not leave a possibly stale current status visible', async ({ page }) => {
+  await installFactsFixture(page, 'none', false, false, false, false, { lostReplies: 1, failedReadsAfterPost: 1, seedHistory: 3 })
+  await page.goto('/?tier=Leads')
+  await page.locator('[data-opportunity-id="need-a"]').first().click()
+  await expect(page.getByText('Current status: Qualified · version 3')).toBeVisible()
+  await page.getByLabel('Set operator status').selectOption('Contacted')
+  await page.getByLabel('Status reason').fill('Confirm status after current read-back recovers.')
+  await page.getByRole('button', { name: 'Save live status' }).click()
+  await expect(page.getByRole('alert')).toContainText('unconfirmed')
+  await expect(page.getByText('Current status: UNKNOWN · version 0')).toBeVisible()
+  await expect(page.getByLabel('Status reason')).toHaveValue('Confirm status after current read-back recovers.')
+})
+
+test('repeated lost status replies keep the exact draft and idempotency key unresolved', async ({ page }) => {
+  const fixture = await installFactsFixture(page, 'none', false, false, false, false, { lostReplies: 2, failedReadsAfterPost: 2 })
+  await page.goto('/?tier=Leads')
+  await page.locator('[data-opportunity-id="need-a"]').first().click()
+  await page.getByLabel('Set operator status').selectOption('Won')
+  await page.getByLabel('Status reason').fill('The purchase is complete.')
+  await page.getByRole('button', { name: 'Save live status' }).click()
+  await expect(page.getByRole('alert')).toContainText('unconfirmed')
+  await page.getByRole('button', { name: 'Retry same status request' }).click()
+  await expect(page.getByRole('alert')).toContainText('unconfirmed')
+  await expect(page.getByLabel('Status reason')).toHaveValue('The purchase is complete.')
+  await expect(page.getByLabel('Set operator status')).toBeDisabled()
+  const posts = fixture.requests.filter((request) => request.path === '/api/needs/need-a/workflow-status' && request.method === 'POST')
+  expect(posts).toHaveLength(2)
+  expect(posts[0].body?.client_id).toBe(posts[1].body?.client_id)
+  expect(posts[0].body).toEqual(posts[1].body)
+  expect(fixture.status.events).toHaveLength(1)
+})
+
+test('foreign status event with matching text cannot confirm the selected Need request', async ({ page }) => {
+  const fixture = await installFactsFixture(page, 'none', false, false, false, false, { foreignReply: true })
+  await page.goto('/?tier=Leads')
+  await page.locator('[data-opportunity-id="need-a"]').first().click()
+  await page.getByLabel('Set operator status').selectOption('Qualified')
+  await page.getByLabel('Status reason').fill('Reviewed for qualification.')
+  await page.getByRole('button', { name: 'Save live status' }).click()
+  await expect(page.getByRole('alert')).toContainText('did not match this exact-Need request')
+  await expect(page.getByLabel('Status reason')).toHaveValue('Reviewed for qualification.')
+  expect(fixture.status.version).toBe(1)
+  expect(fixture.status.events).toHaveLength(1)
+})
+
+test('a concurrent version conflict keeps the original status request for review', async ({ page }) => {
+  const fixture = await installFactsFixture(page, 'none', false, false, false, false, { conflictBeforeCommit: true })
+  await page.goto('/?tier=Leads')
+  await page.locator('[data-opportunity-id="need-a"]').first().click()
+  await page.getByLabel('Set operator status').selectOption('Investigating')
+  await page.getByLabel('Status reason').fill('The operator is investigating.')
+  await page.getByRole('button', { name: 'Save live status' }).click()
+  await expect(page.getByRole('alert')).toContainText('409')
+  await expect(page.getByText('Current status: Contacted · version 1')).toBeVisible()
+  await expect(page.getByLabel('Status reason')).toHaveValue('The operator is investigating.')
+  await expect(page.getByRole('button', { name: 'Retry same status request' })).toBeEnabled()
+  const posts = fixture.requests.filter((request) => request.path === '/api/needs/need-a/workflow-status' && request.method === 'POST')
+  expect(posts).toHaveLength(1)
+  expect(fixture.status.events).toHaveLength(1)
+})
+
+test('status event committed before a newer update confirms historically without replacing current status', async ({ page }) => {
+  const fixture = await installFactsFixture(page, 'none', false, false, false, false, { competingStatusAfterCommit: true })
+  await page.goto('/?tier=Leads')
+  await page.locator('[data-opportunity-id="need-a"]').first().click()
+  await page.getByLabel('Set operator status').selectOption('Investigating')
+  await page.getByLabel('Status reason').fill('The first operator update.')
+  await page.getByRole('button', { name: 'Save live status' }).click()
+  await expect(page.getByText(/confirmed at version 1; the newer current status remains Contacted at version 2/)).toBeVisible()
+  await expect(page.getByText('Current status: Contacted · version 2')).toBeVisible()
+  expect(fixture.status.events.map((row) => row.version)).toEqual([1, 2])
+})
+
+test('an idempotent event outside the latest hundred remains unresolved', async ({ page }) => {
+  const fixture = await installFactsFixture(page, 'none', false, false, false, false, { eventEvictedFromReadback: true })
+  await page.goto('/?tier=Leads')
+  await page.locator('[data-opportunity-id="need-a"]').first().click()
+  await page.getByLabel('Set operator status').selectOption('Closed')
+  await page.getByLabel('Status reason').fill('The event is outside the available history window.')
+  await page.getByRole('button', { name: 'Save live status' }).click()
+  await expect(page.getByRole('alert')).toContainText('could not be confirmed in exact-Need history')
+  await expect(page.getByLabel('Status reason')).toHaveValue('The event is outside the available history window.')
+  await expect(page.getByText('Current status: Investigating · version 101')).toBeVisible()
+  expect(fixture.status.version).toBe(101)
+})
+
+test('workflow history shows the newest ten events from the returned ascending page', async ({ page }) => {
+  await installFactsFixture(page, 'none', false, false, false, false, { seedHistory: 12 })
+  await page.goto('/?tier=Leads')
+  await page.locator('[data-opportunity-id="need-a"]').first().click()
+  await expect(page.getByText('Qualified · History reason 12 · Operator')).toBeVisible()
+  await expect(page.getByText('Investigating · History reason 3 · Operator')).toBeVisible()
+  await expect(page.getByText('Investigating · History reason 2 · Operator')).toHaveCount(0)
 })
 
 test('a concurrent source-target change after draft read-back cannot rebind a timing correction', async ({ page }) => {
@@ -463,6 +684,19 @@ test('synthetic authenticated browser writes persist through the isolated local 
   })
   await page.route('**/api/health', (route) => route.fulfill({ json: { sources: [], backlog: 0, pending_interpretations: 0 } }))
   await page.route('**/api/changes', (route) => route.fulfill({ json: [] }))
+  let statusPostCount = 0
+  let lostStatusEventId = ''
+  const statusPostBodies: Record<string, unknown>[] = []
+  await page.route('**/api/needs/*/workflow-status', async (route) => {
+    if (route.request().method() !== 'POST') return route.continue()
+    statusPostCount += 1
+    statusPostBodies.push(route.request().postDataJSON() as Record<string, unknown>)
+    if (statusPostCount !== 2) return route.continue()
+    const response = await route.fetch()
+    const saved = await response.json() as { id: string }
+    lostStatusEventId = saved.id
+    await route.abort('failed')
+  })
   await page.goto('/?tier=Signals')
   await page.getByLabel('Password').fill(password!)
   await page.getByRole('button', { name: 'Continue' }).click()
@@ -487,6 +721,22 @@ test('synthetic authenticated browser writes persist through the isolated local 
   await page.getByLabel('Status reason').fill('Synthetic live status persistence verification.')
   await page.getByRole('button', { name: 'Save live status' }).click()
   await expect(page.getByText(/Live operator status Investigating was read back at version 1/)).toBeVisible()
+  await page.getByLabel('Set operator status').selectOption('Contacted')
+  await page.getByLabel('Status reason').fill('Synthetic lost-response idempotency verification.')
+  await page.getByRole('button', { name: 'Save live status' }).click()
+  await expect(page.getByRole('alert')).toContainText('unconfirmed')
+  await expect(page.getByText('Current status: Contacted · version 2')).toBeVisible()
+  await page.getByRole('button', { name: 'Retry same status request' }).click()
+  await expect(page.getByText(/Live operator status Contacted was read back at version 2/)).toBeVisible()
+  const statusReadback = await page.evaluate(async (selectedNeedId) => {
+    const response = await fetch(`/api/needs/${encodeURIComponent(selectedNeedId)}/workflow-status`, { credentials: 'include' })
+    if (!response.ok) throw new Error(`Workflow status read-back failed with ${response.status}`)
+    return response.json() as Promise<NeedWorkflowStatus>
+  }, needId!)
+  expect(statusReadback.events.filter((event) => event.id === lostStatusEventId)).toHaveLength(1)
+  expect(statusReadback.version).toBe(2)
+  expect(statusPostBodies).toHaveLength(3)
+  expect(statusPostBodies[2]).toEqual(statusPostBodies[1])
   const afterStatus = await readCurrentNeed()
   expect(afterStatus.tier).toBe(beforeDecision.tier)
   await expect(page.getByText(/Status and reason do not qualify the Need/)).toBeVisible()
