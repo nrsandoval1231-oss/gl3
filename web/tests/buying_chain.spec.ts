@@ -5,6 +5,7 @@ const apiRoute = `http://127.0.0.1:${process.env.GRIDLENS_WEB_PORT ?? '5173'}/ap
 const stamp = '2026-09-30T12:00:00Z'
 const project = (id: string): Opportunity => ({
   id, project_id: id, name: `Test facility ${id}`, location: 'Chicago, IL', tier: 'Signal',
+  workflow_status: 'UNKNOWN',
   activity: 'construction', rationale: 'A test-only sourced construction event.',
   brief_status: 'unavailable', brief_stale: false,
   required_mw: null, start_window: null, duration: null, supply: 'Unknown',
@@ -29,13 +30,34 @@ const chain = (id: string): BuyingChainResult => ({
   }],
 })
 
+function emptyExactNeedAuxiliary(path: string) {
+  const facts = path.match(/^\/api\/needs\/([^/]+)\/facts$/)
+  if (facts) {
+    return {
+      items: [], total: 0, limit: 50, offset: 0, next_offset: null, current_fact_version: 0,
+      current_reported_timing_correction_target: {
+        available: false, unavailable_reason: 'no_current_admitted_lead', need_id: facts[1],
+        project_id: null, project_identity_key: null, activity_key: null, facility_identity: null,
+        source_semantic_hash: null, source_evidence_hash: null, retained_evidence_id: null,
+        source_id: null, earliest_possible_start: null, latest_possible_start: null,
+        minimum_duration_days: null, maximum_duration_days: null, current_fact_version: 0,
+      },
+    }
+  }
+  if (/^\/api\/needs\/[^/]+\/workflow-status$/.test(path)) {
+    return { status: 'UNKNOWN', version: 0, events: [] }
+  }
+  return undefined
+}
+
 async function shell(page: import('@playwright/test').Page, buying: (route: import('@playwright/test').Route) => Promise<void>) {
   await page.route(apiRoute, async (route) => {
     const path = new URL(route.request().url()).pathname
     if (path.includes('/buying-chain')) { await buying(route); return }
     const body = path === '/api/auth/session' ? { authenticated: true }
       : path === '/api/opportunities' ? [project('one'), project('two')]
-      : path === '/api/health' ? { sources: [], backlog: 0, pending_interpretations: 0 } : []
+      : path === '/api/health' ? { sources: [], backlog: 0, pending_interpretations: 0 }
+        : emptyExactNeedAuxiliary(path) ?? []
     await route.fulfill({ contentType: 'application/json', body: JSON.stringify(body) })
   })
   await page.goto('/?tier=Signals')

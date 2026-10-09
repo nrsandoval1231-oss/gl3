@@ -270,6 +270,15 @@ class CommercialTriageNeedState(BaseModel):
     closed: bool = False
 
 
+class CommercialTriageOperatorFactRef(BaseModel):
+    """Compact as-of pointer to an accepted exact-need operator fact."""
+
+    need_id: UUID
+    fact_version_id: UUID
+    content_hash: str
+    authority: Literal["User-confirmed"] = "User-confirmed"
+
+
 class CommercialTriageCard(BaseModel):
     research_state: dict = Field(default_factory=dict)
     id: UUID
@@ -302,6 +311,7 @@ class CommercialTriageCard(BaseModel):
     next_action: str
     watch: dict | None = None
     sources: list[CommercialTriageFact] = Field(default_factory=list)
+    operator_fact_refs: list[CommercialTriageOperatorFactRef] | None = None
     conflict_state: str | None
     input_hash: str
     notes: list[CallNoteOut] = Field(default_factory=list)
@@ -375,6 +385,7 @@ class CommercialTriageHistoryVersion(BaseModel):
     evaluated_at: datetime | None = None
     evaluated_on: Date | None = None
     input_hash: str | None = None
+    operator_fact_provenance: Literal["recorded", "legacy_unknown"] = "legacy_unknown"
     snapshot_status: Literal["saved_as_of", "metadata_only"]
     live_status: Literal["not_rechecked"] = "not_rechecked"
     saved_card: CommercialTriageCard | None = None

@@ -62,22 +62,14 @@ def test_concurrent_enqueue_serializes_per_source(db):
         assert session.scalar(select(func.count()).select_from(Job)) == 1
 
 
-def test_managed_scheduler_enqueue_is_idempotent_per_chicago_day(db, monkeypatch):
-    _, factory = db
+def test_managed_scheduler_delegates_to_due_ledger(db, monkeypatch):
     import gridlens.jobs.refresh_sources as scheduler
+    import gridlens.jobs.worker as worker
 
-    monkeypatch.setattr(scheduler, "SessionLocal", factory)
-    monkeypatch.setattr(
-        scheduler,
-        "sync_registry",
-        lambda: [{"id": "synthetic-test-source", "enabled": True}],
-    )
+    values = iter((1, 0))
+    monkeypatch.setattr(worker, "refresh_due", lambda: next(values))
     assert scheduler.enqueue_daily_sources() == 1
     assert scheduler.enqueue_daily_sources() == 0
-    with factory() as session:
-        assert session.scalar(select(func.count()).select_from(Job)) == 1
-        source = session.get(Source, "synthetic-test-source")
-        assert source and source.health.get("scheduled_day")
 
 
 def test_expired_lease_reclaims_with_new_fence_and_rejects_stale_worker(db):
@@ -149,6 +141,11 @@ def test_parser_failure_preserves_accepted_health_and_is_visible(db, monkeypatch
     from gridlens.security import token_for
 
     monkeypatch.setattr(worker, "SessionLocal", factory)
+    monkeypatch.setattr(
+        worker,
+        "load_registry",
+        lambda: [{"id": "synthetic-test-source", "enabled": True}],
+    )
     monkeypatch.setattr(api, "SessionLocal", factory)
     monkeypatch.setattr(
         worker,

@@ -1,8 +1,9 @@
 import { type FormEvent, useEffect, useRef, useState } from 'react'
-import { client, type Brief, type IngestionItem, type Opportunity } from '../api/client'
-import { matchesOpportunity, projectCards, projectTitle, signalDecisionCards, signalDisplayDecision, type SignalDisplayDecision } from '../features/opportunities/projectCards'
+import { client, OpportunityCohortChangedError, OpportunityNeedUnavailableError, workflowStatuses, type Brief, type IngestionItem, type Opportunity, type OpportunityBrowseFilters, type OpportunityPage, type WorkflowStatusFilter } from '../api/client'
+import { projectTitle, serverProjectCards, signalDisplayDecision, type SignalDisplayDecision, type ProjectCard } from '../features/opportunities/projectCards'
 
 import { CommercialPursuits } from '../features/pursuits/CommercialPursuits'
+import { FactWorkflowPanel } from '../features/pursuits/FactWorkflowPanel'
 
 import { BuyingChain } from '../features/buyingChain/BuyingChain'
 
@@ -12,7 +13,33 @@ type Health = Awaited<ReturnType<typeof client.health>>
 type Change = Awaited<ReturnType<typeof client.changes>>[number]
 type View = 'opportunities' | 'ingestion' | 'pursuits'
 type SignalFilter = 'ALL' | SignalDisplayDecision
+type PendingSelection = { id: string; cohortKey: string; offset: number; navigationId: number }
+type PendingViewRestore = { navigationId: number; afterPageRevision: number; scrollY: number; focusedId?: string }
 const pageSize = 25
+const browseFilterKeys = [
+  ['geography', 'geography'], ['industry', 'industry'], ['activity', 'activity'], ['timing', 'timing'],
+  ['mw_status', 'mwStatus'], ['mw_min', 'mwMin'], ['mw_max', 'mwMax'],
+  ['priority_segment', 'prioritySegment'], ['status', 'status'],
+] as const
+
+function browseFiltersFrom(params: URLSearchParams): OpportunityBrowseFilters {
+  const timing = params.get('timing')
+  const mwStatus = params.get('mw_status')
+  const status = params.get('status')
+  return {
+    geography: params.get('geography') ?? '',
+    industry: params.get('industry') ?? '',
+    activity: params.get('activity') ?? '',
+    timing: timing === 'KNOWN' || timing === 'UNKNOWN' ? timing : '',
+    mwStatus: mwStatus === 'KNOWN' || mwStatus === 'UNKNOWN' ? mwStatus : '',
+    mwMin: params.get('mw_min') ?? '',
+    mwMax: params.get('mw_max') ?? '',
+    prioritySegment: params.get('priority_segment') ?? '',
+    status: status === 'UNKNOWN' || workflowStatuses.some((value) => value.toUpperCase() === status)
+      ? status as WorkflowStatusFilter
+      : '',
+  }
+}
 
 function initialView(): View {
   const params = new URLSearchParams(location.search)
@@ -20,8 +47,28 @@ function initialView(): View {
 }
 
 function tierValue(tier: Tier) { return tier.slice(0, -1) }
-function routeUrl(tier: Tier, search: string, hash = '') {
+function opportunityCohortKey(tier: Tier, search: string, decision: SignalFilter, filters: OpportunityBrowseFilters) {
+  return JSON.stringify([
+    tierValue(tier), search, tier === 'Signals' ? decision : 'ALL', filters.geography ?? '', filters.industry ?? '',
+    filters.activity ?? '', filters.timing ?? '', filters.mwStatus ?? '', filters.mwMin ?? '', filters.mwMax ?? '',
+    filters.prioritySegment ?? '', filters.status ?? '',
+  ])
+}
+function opportunityPageKey(tier: Tier, search: string, decision: SignalFilter, filters: OpportunityBrowseFilters, offset: number) {
+  return `${opportunityCohortKey(tier, search, decision, filters)}:${offset}`
+}
+function selectedIdFromHash(hash: string) {
+  if (!hash.startsWith('#') || hash.length < 2) return ''
+  try { return decodeURIComponent(hash.slice(1)) } catch { return '' }
+}
+function routeUrl(tier: Tier, search: string, hash = '', offset = 0, decision: SignalFilter = 'ALL', filters: OpportunityBrowseFilters = {}) {
   const query = new URLSearchParams({ tier, q: search })
+  if (offset > 0) query.set('offset', String(offset))
+  if (decision !== 'ALL') query.set('decision', decision)
+  for (const [parameter, key] of browseFilterKeys) {
+    const value = filters[key]
+    if (value) query.set(parameter, value)
+  }
   return `${location.pathname}?${query.toString()}${hash}`
 }
 function ingestionUrl(view: 'ingestion', source: string, vertical: string, offset: number) {
@@ -113,7 +160,10 @@ export function App() {
   const [commercialMounted, setCommercialMounted] = useState(() => initialView() === 'pursuits')
   const [defaultTodayEntry] = useState(() => !new URLSearchParams(location.search).has('tier') && !new URLSearchParams(location.search).has('view'))
   const [search, setSearch] = useState('')
+  const [browseFilters, setBrowseFilters] = useState<OpportunityBrowseFilters>(() => browseFiltersFrom(new URLSearchParams(location.search)))
   const [items, setItems] = useState<Opportunity[]>([])
+  const [opportunityPage, setOpportunityPage] = useState<OpportunityPage | null>(null)
+  const [expandedGroupMembers, setExpandedGroupMembers] = useState<Record<string, Opportunity[]>>({})
   const [selected, setSelected] = useState<Opportunity | null>(null)
   const [expandedCardKey, setExpandedCardKey] = useState<string | null>(null)
   const [health, setHealth] = useState<Health | null>(null)
@@ -126,22 +176,86 @@ export function App() {
   const [showHealth, setShowHealth] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [pageRevision, setPageRevision] = useState(0)
+  const [navigationRevision, setNavigationRevision] = useState(0)
+  const [serverReadbackRevision, setServerReadbackRevision] = useState(0)
   const requestSequence = useRef(0)
-  const itemsRef = useRef(items)
-  itemsRef.current = items
+  const loadedOpportunityPageKey = useRef<string | null>(null)
+  const opportunityCohort = useRef<{ key: string; token: string } | null>(null)
+  const navigationSequence = useRef(0)
+  const groupExpansionSequence = useRef(0)
+  const groupExpansionIntent = useRef<{ id: number; key: string; scope: string } | null>(null)
+  const pageRevisionRef = useRef(0)
+  const pendingSelection = useRef<PendingSelection | null>(null)
+  const pendingViewRestore = useRef<PendingViewRestore | null>(null)
+  const requestedPageKey = opportunityPageKey(tier, search, tier === 'Signals' ? signalFilter : 'ALL', browseFilters, offset)
+  const opportunityPageIsCurrent = view === 'opportunities'
+    && loadedOpportunityPageKey.current === requestedPageKey
+    && opportunityPage?.offset === offset
+  const currentOpportunityPage = opportunityPageIsCurrent ? opportunityPage : null
+  const currentOpportunityItems = opportunityPageIsCurrent ? items : []
+  const currentGroupScope = JSON.stringify([
+    view,
+    requestedPageKey,
+    currentOpportunityPage?.cohortToken ?? '',
+  ])
+  const currentGroupScopeRef = useRef(currentGroupScope)
+  currentGroupScopeRef.current = currentGroupScope
+
+  function invalidateGroupExpansion() {
+    groupExpansionSequence.current += 1
+    groupExpansionIntent.current = null
+    setExpandedGroupMembers({})
+    setExpandedCardKey(null)
+  }
+
+  function cancelPendingNavigation() {
+    navigationSequence.current += 1
+    requestSequence.current += 1
+    pendingSelection.current = null
+    pendingViewRestore.current = null
+    invalidateGroupExpansion()
+  }
 
   useEffect(() => {
     void client.session().then((value) => setAuthenticated(value.authenticated)).catch(() => setAuthenticated(false))
     const params = new URLSearchParams(location.search)
     const initialTier = params.get('tier')
-    if (tiers.includes(initialTier as Tier)) setTier(initialTier as Tier)
-    setSearch(params.get('q') ?? '')
+    const restoredTier = tiers.includes(initialTier as Tier) ? initialTier as Tier : 'Signals'
+    const restoredSearch = params.get('q') ?? ''
+    const restoredFilters = browseFiltersFrom(params)
+    if (restoredTier !== 'Signals') setTier(restoredTier)
+    setSearch(restoredSearch)
+    setBrowseFilters(restoredFilters)
+    const initialDecision = params.get('decision')
+    const restoredDecision = initialDecision && ['ALL', 'SHOW', 'REVIEW', 'HOLD'].includes(initialDecision)
+      ? initialDecision as SignalFilter
+      : 'ALL'
+    if (restoredDecision !== 'ALL') setSignalFilter(restoredDecision)
     const initialView = params.get('view')
     if (initialView === 'ingestion' || initialView === 'pursuits') setView(initialView)
     else setView('opportunities')
     setSourceFilter(params.get('source') ?? '')
     setVerticalFilter(canonicalVertical(params.get('vertical') ?? ''))
-    setOffset(parseOffset(params.get('offset')))
+    const restoredOffset = parseOffset(params.get('offset'))
+    setOffset(restoredOffset)
+    const historyState = history.state as { id?: string; scrollY?: number; focusedId?: string } | null
+    const restoredId = selectedIdFromHash(location.hash) || historyState?.id || ''
+    if (restoredId) {
+      const navigationId = ++navigationSequence.current
+      pendingSelection.current = {
+        id: restoredId,
+        cohortKey: opportunityCohortKey(restoredTier, restoredSearch, restoredDecision, restoredFilters),
+        offset: restoredOffset,
+        navigationId,
+      }
+      pendingViewRestore.current = {
+        navigationId,
+        afterPageRevision: pageRevisionRef.current + 1,
+        scrollY: historyState?.scrollY ?? 0,
+        focusedId: historyState?.focusedId,
+      }
+    }
   }, [])
 
   useEffect(() => {
@@ -151,14 +265,64 @@ export function App() {
     void (async () => {
       try {
         if (view === 'opportunities') {
-          const [opportunities, digest, sourceHealth] = await Promise.all([
-            client.opportunities(tierValue(tier), ''), client.changes(), client.health(),
-          ])
+          const decision = tier === 'Signals' ? signalFilter : 'ALL'
+          const cohortKey = opportunityCohortKey(tier, search, decision, browseFilters)
+          const requestedPageKey = opportunityPageKey(tier, search, decision, browseFilters, offset)
+          const pending = pendingSelection.current
+          const restoreIntent = pending?.cohortKey === cohortKey && pending.offset === offset ? pending : null
+          let cohortToken = opportunityCohort.current?.key === cohortKey ? opportunityCohort.current.token : ''
+          if (loadedOpportunityPageKey.current !== requestedPageKey || opportunityPage?.offset !== offset) {
+            loadedOpportunityPageKey.current = null
+            setItems([])
+            setOpportunityPage(null)
+            setExpandedGroupMembers({})
+          }
+          if (offset > 0 && !cohortToken) {
+            setItems([])
+            setOpportunityPage(null)
+            setExpandedGroupMembers({})
+            const firstPage = await client.opportunityPage(
+              tierValue(tier), search, decision, pageSize, 0, undefined, browseFilters,
+            )
+            if (requestId !== requestSequence.current) return
+            cohortToken = firstPage.cohortToken.trim()
+            if (!cohortToken) throw new Error('The first opportunity page did not provide a cohort token; restart from page one.')
+          }
+          const opportunities = await client.opportunityPage(
+            tierValue(tier), search, decision, pageSize, offset, offset > 0 ? cohortToken : undefined, browseFilters,
+          )
           if (requestId !== requestSequence.current) return
-          setItems(opportunities)
+          opportunityCohort.current = opportunities.cohortToken
+            ? { key: cohortKey, token: opportunities.cohortToken }
+            : null
+          loadedOpportunityPageKey.current = requestedPageKey
+          setItems(opportunities.items)
+          setOpportunityPage(opportunities)
+          setExpandedGroupMembers({})
+          let restoredSelection: Opportunity | null = null
+          if (restoreIntent && pendingSelection.current?.navigationId === restoreIntent.navigationId) {
+            restoredSelection = opportunities.items.find((item) => item.id === restoreIntent.id) ?? null
+            if (!restoredSelection) {
+              restoredSelection = await client.opportunityNeed(restoreIntent.id, {
+                tier: tierValue(tier),
+                search,
+                decision,
+                cohortToken: opportunities.cohortToken,
+                filters: browseFilters,
+              })
+            }
+            if (requestId !== requestSequence.current) return
+          }
+          const [digest, sourceHealth] = await Promise.all([client.changes(), client.health()])
+          if (requestId !== requestSequence.current) return
           setChanges(digest)
           setHealth(sourceHealth)
-          if (selected) setSelected(opportunities.find((item) => item.id === selected.id) ?? null)
+          if (restoreIntent && pendingSelection.current?.navigationId === restoreIntent.navigationId) {
+            pendingSelection.current = null
+            setSelected(restoredSelection)
+          } else if (selected) {
+            setSelected(opportunities.items.find((item) => item.id === selected.id) ?? null)
+          }
         } else if (view === 'pursuits') {
           const sourceHealth = await client.health()
           if (requestId !== requestSequence.current) return
@@ -177,46 +341,122 @@ export function App() {
         }
         setError('')
       } catch (cause: unknown) {
-        if (requestId === requestSequence.current) setError(cause instanceof Error ? cause.message : 'GridLens could not load this view.')
+        if (requestId === requestSequence.current && cause instanceof OpportunityCohortChangedError) {
+          opportunityCohort.current = null
+          loadedOpportunityPageKey.current = null
+          pendingSelection.current = null
+          pendingViewRestore.current = null
+          setItems([])
+          setOpportunityPage(null)
+          setExpandedGroupMembers({})
+          setSelected(null)
+          setOffset(0)
+          setError('The opportunity cohort changed; restarted at page one.')
+        } else if (requestId === requestSequence.current) {
+          const pending = pendingSelection.current
+          if (pending && pending.cohortKey === opportunityCohortKey(tier, search, tier === 'Signals' ? signalFilter : 'ALL', browseFilters)
+            && pending.offset === offset) {
+            pendingSelection.current = null
+            setSelected(null)
+            setError(cause instanceof OpportunityNeedUnavailableError
+              ? cause.message
+              : `The selected opportunity could not be restored: ${cause instanceof Error ? cause.message : 'request failed.'}`)
+            const currentState = { ...(history.state ?? {}) } as Record<string, unknown>
+            delete currentState.id
+            history.replaceState(currentState, '', routeUrl(tier, search, '', offset, signalFilter, browseFilters))
+          } else {
+            setError(cause instanceof Error ? cause.message : 'GridLens could not load this view.')
+          }
+        }
       } finally {
-        if (requestId === requestSequence.current) setLoading(false)
+        if (requestId === requestSequence.current) {
+          setLoading(false)
+          pageRevisionRef.current += 1
+          setPageRevision(pageRevisionRef.current)
+        }
       }
     })()
+    const cohortKey = opportunityCohortKey(tier, search, tier === 'Signals' ? signalFilter : 'ALL', browseFilters)
+    const pending = pendingSelection.current
+    const routedSelectionId = selected?.id
+      ?? (pending?.cohortKey === cohortKey && pending.offset === offset ? pending.id : '')
     const url = view === 'opportunities'
-      ? routeUrl(tier, search, selected ? `#${encodeURIComponent(selected.id)}` : '')
+      ? routeUrl(tier, search, routedSelectionId ? `#${encodeURIComponent(routedSelectionId)}` : '', offset, signalFilter, browseFilters)
       : view === 'pursuits' ? `${location.pathname}?view=pursuits` : ingestionUrl(view, sourceFilter, verticalFilter, offset)
+    const nextHistoryState = { ...(history.state ?? {}), tier, search, view, sourceFilter, verticalFilter, offset, browseFilters, scrollY: window.scrollY } as Record<string, unknown>
+    if (routedSelectionId) nextHistoryState.id = routedSelectionId
+    else delete nextHistoryState.id
     history.replaceState(
-      { ...(history.state ?? {}), tier, search, view, sourceFilter, verticalFilter, offset, scrollY: window.scrollY },
+      nextHistoryState,
       '',
       url,
     )
-  }, [authenticated, tier, search, view, sourceFilter, verticalFilter, offset])
+  }, [authenticated, tier, search, signalFilter, view, sourceFilter, verticalFilter, offset, browseFilters, navigationRevision, serverReadbackRevision])
 
   useEffect(() => {
     function onPopState(event: PopStateEvent) {
-      const state = event.state as { tier?: Tier; search?: string; id?: string; view?: View; sourceFilter?: string; verticalFilter?: string; offset?: number; scrollY?: number; focusedId?: string; expandedCardKey?: string | null; signalFilter?: SignalFilter } | null
+      const state = event.state as { tier?: Tier; search?: string; id?: string; view?: View; sourceFilter?: string; verticalFilter?: string; offset?: number; browseFilters?: OpportunityBrowseFilters; scrollY?: number; focusedId?: string; expandedCardKey?: string | null; signalFilter?: SignalFilter } | null
       const params = new URLSearchParams(location.search)
-      if (state?.tier && tiers.includes(state.tier)) setTier(state.tier)
-      else setTier('Signals')
+      const restoredTierValue = state?.tier ?? params.get('tier')
+      const restoredTier = tiers.includes(restoredTierValue as Tier) ? restoredTierValue as Tier : 'Signals'
+      const restoredSearch = state?.search ?? params.get('q') ?? ''
+      const restoredFilters = state?.browseFilters ?? browseFiltersFrom(params)
+      const restoredDecisionValue = state?.signalFilter ?? params.get('decision')
+      const restoredDecision = restoredDecisionValue && ['ALL', 'SHOW', 'REVIEW', 'HOLD'].includes(restoredDecisionValue)
+        ? restoredDecisionValue as SignalFilter
+        : 'ALL'
+      const restoredOffset = state?.offset ?? parseOffset(params.get('offset'))
+      const restoredId = selectedIdFromHash(location.hash) || state?.id || ''
       const restoredView = state?.view ?? params.get('view')
-    const nextView = restoredView === 'ingestion' || restoredView === 'pursuits' ? restoredView : 'opportunities'
+      const nextView = restoredView === 'ingestion' || restoredView === 'pursuits' ? restoredView : 'opportunities'
+      const navigationId = ++navigationSequence.current
+      requestSequence.current += 1
+      invalidateGroupExpansion()
+      pendingSelection.current = restoredId && nextView === 'opportunities'
+        ? {
+            id: restoredId,
+            cohortKey: opportunityCohortKey(restoredTier, restoredSearch, restoredDecision, restoredFilters),
+            offset: restoredOffset,
+            navigationId,
+          }
+        : null
+      pendingViewRestore.current = {
+        navigationId,
+        afterPageRevision: pageRevisionRef.current + 1,
+        scrollY: state?.scrollY ?? 0,
+        focusedId: state?.focusedId,
+      }
+      setTier(restoredTier)
       setView(nextView)
       if (nextView === 'pursuits') setCommercialMounted(true)
-      setSearch(state?.search ?? '')
+      setSearch(restoredSearch)
+      setBrowseFilters(restoredFilters)
       setSourceFilter(state?.sourceFilter ?? params.get('source') ?? '')
       setVerticalFilter(canonicalVertical(state?.verticalFilter ?? params.get('vertical') ?? ''))
-      setOffset(state?.offset ?? parseOffset(params.get('offset')))
-      setSelected(state?.id ? itemsRef.current.find((item) => item.id === state.id) ?? null : null)
+      setOffset(restoredOffset)
+      setSignalFilter(restoredDecision)
+      setSelected(null)
       setExpandedCardKey(state?.expandedCardKey ?? null)
-      if (state?.signalFilter && ['ALL', 'SHOW', 'REVIEW', 'HOLD'].includes(state.signalFilter)) setSignalFilter(state.signalFilter)
-      requestAnimationFrame(() => {
-        window.scrollTo(0, state?.scrollY ?? 0)
-        if (state?.focusedId) document.querySelector<HTMLButtonElement>(`[data-opportunity-id="${CSS.escape(state.focusedId)}"]`)?.focus()
-      })
+      setError('')
+      setNavigationRevision((revision) => revision + 1)
     }
     window.addEventListener('popstate', onPopState)
     return () => window.removeEventListener('popstate', onPopState)
   }, [])
+
+  useEffect(() => {
+    const restore = pendingViewRestore.current
+    if (!restore || pageRevision < restore.afterPageRevision) return
+    const frame = requestAnimationFrame(() => {
+      if (pendingViewRestore.current?.navigationId !== restore.navigationId) return
+      window.scrollTo(0, restore.scrollY)
+      if (restore.focusedId) {
+        document.querySelector<HTMLButtonElement>(`[data-opportunity-id="${CSS.escape(restore.focusedId)}"]`)?.focus()
+      }
+      pendingViewRestore.current = null
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [pageRevision, navigationRevision, items, selected, loading, tier, view, offset])
 
   useEffect(() => {
     if (!selected) return
@@ -245,22 +485,107 @@ export function App() {
     setSelected(null)
   }
 
+  async function toggleGroup(card: ProjectCard) {
+    const pending = groupExpansionIntent.current
+    if (expandedCardKey === card.key || pending?.key === card.key) {
+      groupExpansionSequence.current += 1
+      groupExpansionIntent.current = null
+      setExpandedGroupMembers((current) => {
+        const next = { ...current }
+        delete next[card.key]
+        return next
+      })
+      setExpandedCardKey(null)
+      return
+    }
+    groupExpansionSequence.current += 1
+    const intent = {
+      id: groupExpansionSequence.current,
+      key: card.key,
+      scope: currentGroupScopeRef.current,
+    }
+    groupExpansionIntent.current = intent
+    setExpandedCardKey(null)
+    setExpandedGroupMembers({})
+    const isCurrentIntent = () => {
+      const active = groupExpansionIntent.current
+      return active?.id === intent.id
+        && active.key === intent.key
+        && active.scope === intent.scope
+      && currentGroupScopeRef.current === intent.scope
+    }
+    if (!card.complete && card.groupTotal && currentOpportunityPage?.cohortToken) {
+      try {
+        const loaded: Opportunity[] = []
+        let nextOffset = 0
+        do {
+          const page = await client.opportunityGroupPage(
+            card.key,
+            tierValue(tier),
+            search,
+            signalFilter,
+            currentOpportunityPage.cohortToken,
+            50,
+            nextOffset,
+            browseFilters,
+          )
+          if (!isCurrentIntent()) return
+          loaded.push(...page.items)
+          nextOffset = page.next_offset ?? -1
+        } while (nextOffset >= 0)
+        if (!isCurrentIntent()) return
+        setExpandedGroupMembers((current) => ({ ...current, [card.key]: loaded }))
+      } catch (cause) {
+        if (!isCurrentIntent()) return
+        setExpandedGroupMembers((current) => {
+          const next = { ...current }
+          delete next[card.key]
+          return next
+        })
+        setError(cause instanceof Error ? cause.message : 'Could not load all related records.')
+        groupExpansionIntent.current = null
+        return
+      }
+    }
+    if (!isCurrentIntent()) return
+    setExpandedCardKey(card.key)
+    groupExpansionIntent.current = null
+  }
+
   function chooseTier(value: Tier) {
-    history.pushState({ tier, search, id: selected?.id, view, sourceFilter, verticalFilter, offset, scrollY: window.scrollY, expandedCardKey, signalFilter }, '', location.href)
+    if (value === tier && view === 'opportunities' && offset === 0) {
+      const pendingId = selected?.id ?? pendingSelection.current?.id
+      if (!pendingId) return
+      history.pushState({ tier, search, id: pendingId, view, sourceFilter, verticalFilter, offset, browseFilters, scrollY: window.scrollY, expandedCardKey, signalFilter }, '', location.href)
+      pendingSelection.current = null
+      pendingViewRestore.current = null
+      setSelected(null)
+      history.replaceState({ tier: value, search, view: 'opportunities', sourceFilter, verticalFilter, offset: 0, browseFilters, signalFilter, scrollY: 0 }, '', routeUrl(value, search, '', 0, signalFilter, browseFilters))
+      window.scrollTo(0, 0)
+      return
+    }
+    history.pushState({ tier, search, id: selected?.id, view, sourceFilter, verticalFilter, offset, browseFilters, scrollY: window.scrollY, expandedCardKey, signalFilter }, '', location.href)
+    cancelPendingNavigation()
     setView('opportunities')
     setTier(value)
+    setOffset(0)
+    setItems([])
+    setOpportunityPage(null)
+    setExpandedGroupMembers({})
     setSelected(null)
-    history.replaceState({ tier: value, search, view: 'opportunities', sourceFilter, verticalFilter, offset: 0, scrollY: 0 }, '', routeUrl(value, search))
+    history.replaceState({ tier: value, search, view: 'opportunities', sourceFilter, verticalFilter, browseFilters, offset: 0, scrollY: 0 }, '', routeUrl(value, search, '', 0, 'ALL', browseFilters))
     window.scrollTo(0, 0)
   }
 
   function chooseView(value: View) {
+    if (value === view && offset === 0 && !selected) return
     if (value === 'pursuits') setCommercialMounted(true)
+    cancelPendingNavigation()
     setView(value)
     setSelected(null)
     setOffset(0)
-    history.pushState({ tier, search, id: selected?.id, view, sourceFilter, verticalFilter, offset, scrollY: window.scrollY, expandedCardKey, signalFilter }, '', location.href)
-    history.replaceState({ tier, search, view: value, sourceFilter, verticalFilter, offset: 0, scrollY: 0 }, '', value === 'opportunities' ? routeUrl(tier, search) : value === 'pursuits' ? `${location.pathname}?view=pursuits` : ingestionUrl('ingestion', sourceFilter, verticalFilter, 0))
+    history.pushState({ tier, search, id: selected?.id, view, sourceFilter, verticalFilter, offset, browseFilters, scrollY: window.scrollY, expandedCardKey, signalFilter }, '', location.href)
+    history.replaceState({ tier, search, view: value, sourceFilter, verticalFilter, browseFilters, offset: 0, scrollY: 0 }, '', value === 'opportunities' ? routeUrl(tier, search, '', 0, 'ALL', browseFilters) : value === 'pursuits' ? `${location.pathname}?view=pursuits` : ingestionUrl('ingestion', sourceFilter, verticalFilter, 0))
     window.scrollTo(0, 0)
   }
 
@@ -270,14 +595,37 @@ export function App() {
     setOffset(0)
   }
 
+  function changeBrowseFilter(key: keyof OpportunityBrowseFilters, value: string) {
+    if ((browseFilters[key] ?? '') === value) return
+    if (key === 'status') {
+      history.pushState({
+        ...(history.state ?? {}), tier, search, view, sourceFilter, verticalFilter, offset,
+        browseFilters, signalFilter, scrollY: window.scrollY,
+      }, '', location.href)
+    }
+    cancelPendingNavigation()
+    setBrowseFilters((current) => ({ ...current, [key]: value } as OpportunityBrowseFilters))
+    setOffset(0)
+    setItems([])
+    setOpportunityPage(null)
+    setExpandedGroupMembers({})
+    setSelected(null)
+  }
+
   function open(item: Opportunity) {
-    history.replaceState({ tier, search, scrollY: window.scrollY, focusedId: item.id }, '', routeUrl(tier, search))
-    history.pushState({ tier, search, id: item.id }, '', routeUrl(tier, search, `#${encodeURIComponent(item.id)}`))
+    invalidateGroupExpansion()
+    pendingSelection.current = null
+    pendingViewRestore.current = null
+    history.replaceState({ tier, search, browseFilters, scrollY: window.scrollY, focusedId: item.id }, '', routeUrl(tier, search, '', offset, signalFilter, browseFilters))
+    history.pushState({ tier, search, id: item.id, offset, signalFilter, browseFilters }, '', routeUrl(tier, search, `#${encodeURIComponent(item.id)}`, offset, signalFilter, browseFilters))
     setSelected(item)
   }
 
   function moveTo(item: Opportunity) {
-    history.replaceState({ tier, search, id: item.id }, '', routeUrl(tier, search, `#${encodeURIComponent(item.id)}`))
+    invalidateGroupExpansion()
+    pendingSelection.current = null
+    pendingViewRestore.current = null
+    history.replaceState({ tier, search, id: item.id, offset, signalFilter, browseFilters }, '', routeUrl(tier, search, `#${encodeURIComponent(item.id)}`, offset, signalFilter, browseFilters))
     setSelected(item)
   }
 
@@ -286,22 +634,19 @@ export function App() {
   if (authenticated === null) return <main className="loading" aria-live="polite">Loading your private workspace…</main>
   if (!authenticated) return <main className="login-wrap"><form className="login" onSubmit={onLogin}><img src="/brand/lockup-horizontal-navy.svg" alt="GridLens"/><h1>Sign in</h1><p>Your private GridLens workspace.</p><label htmlFor="password">Password</label><input id="password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required/><button className="primary">Continue</button>{error && <p role="alert" className="error">{error}</p>}</form></main>
 
-  const selectedIndex = selected ? items.findIndex((item) => item.id === selected.id) : -1
-  const cards = projectCards(items)
-  const searchedCards = cards.filter((card) => card.members.some((item) => matchesOpportunity(item, search)))
-  const visibleCards = tier === 'Signals'
-    ? signalFilter === 'ALL' ? searchedCards : signalDecisionCards(searchedCards, signalFilter)
-    : searchedCards
-  const signalCounts = Object.fromEntries((['SHOW', 'REVIEW', 'HOLD'] as const).map((decision) => [
-    decision,
-    signalDecisionCards(cards, decision).length,
-  ])) as Record<SignalDisplayDecision, number>
-  const signalAllCount = cards.length
+  const selectedIndex = selected ? currentOpportunityItems.findIndex((item) => item.id === selected.id) : -1
+  const cards: ProjectCard[] = serverProjectCards(currentOpportunityItems).map((card) => ({
+    ...card,
+    members: expandedGroupMembers[card.key] ?? card.members,
+  }))
+  const visibleCards = cards
+  const signalCounts = currentOpportunityPage?.decisionCounts ?? { SHOW: 0, REVIEW: 0, HOLD: 0 }
+  const signalAllCount = currentOpportunityPage?.groupTotalCount ?? 0
   const sourceOptions = (health?.sources ?? []).map((source) => ({ id: source.id, label: sourceLabel(source.id) }))
   if (sourceFilter && !sourceOptions.some((source) => source.id === sourceFilter)) {
     sourceOptions.unshift({ id: sourceFilter, label: `${sourceLabel(sourceFilter)} (unavailable)` })
   }
-  const matchingRecordCount = items.filter((item) => matchesOpportunity(item, search)).length
+  const matchingRecordCount = currentOpportunityPage?.totalCount ?? currentOpportunityItems.length
   const selectedGroup = selected && cards.find((card) => card.grouped && card.members.some((item) => item.id === selected.id))
   const selectedSharesProjectId = Boolean(selectedGroup && selected?.project_id && selectedGroup.members.every((member) => member.project_id === selected.project_id))
   return <div className={`shell${view === 'pursuits' ? ' shell-commercial' : ''}`}>
@@ -313,13 +658,24 @@ export function App() {
       {!selected && view === 'ingestion' && <section className="hero"><div><p className="eyebrow">Retained evidence · Publisher and government sources</p><h1>Ingestion inbox</h1><p>Permits are primary project discovery; news is supplemental. Source evidence and qualification stay visible. City permit coverage is regional and limited to a rolling issue-date window.</p></div></section>}
       {selected && <section className="hero detail-hero"><div><p className="eyebrow">{selected.tier} · {selected.activity.replaceAll('-', ' ')}{selected.tier === 'Signal' ? ` · ${selected.signal_display_decision ?? 'REVIEW'}` : ''}</p><h1>{projectTitle(selected)}</h1>{selected.commercial_size_status === 'unknown' && selected.tier === 'Signal' && <p role="status" className="integrity"><strong>Activity size unknown.</strong> Retained for investigation; the 300 kW minimum is inclusive.</p>}{selected.signal_evidence_state === 'planning_application_withdrawn' && <p role="status" className="integrity"><strong>Planning application withdrawn · historical Signal.</strong> Current project viability is unknown.</p>}{selected.signal_evidence_state === 'planning_status_unknown' && <p role="status" className="integrity"><strong>Conflicting planning revision · historical Signal.</strong> Current application and project status are unknown.</p>}<p>{selected.rationale}</p>{selectedGroup && <p className="group-context">{selectedSharesProjectId ? `Part of a physical project group with ${selectedGroup.members.length} retained records. Each record and its evidence remain available.` : `Part of an exact-event permit group with ${selectedGroup.members.length} records. Each record and its evidence remain separate.`}</p>}</div><button className="back-button" onClick={returnToBrowse}>← Back to {tier}</button></section>}
       {showHealth && <HealthPanel health={health} />}
-      {view === 'opportunities' && <div className="list-toolbar"><div><h2>{selected ? 'Opportunity brief' : `${tier} · ${visibleCards.length} project cards · ${items.length} opportunity records`}</h2>{!selected && <p>{tier === 'Signals' && search ? `${visibleCards.length} matching ${signalFilter === 'ALL' ? 'All' : signalFilter} project cards · ${matchingRecordCount} matching Signal records across all decisions · ${items.length} total Signal records.` : tier === 'Signals' ? `${signalFilter === 'ALL' ? 'All' : signalFilter} · ${visibleCards.length} project cards · ${items.length} retained Signal records. SHOW means worth investigating, not qualified.` : search ? `${visibleCards.length} matching project cards · ${matchingRecordCount} matching records · ${items.length} underlying records.` : 'Browse the evidence and open a project for its source details.'}</p>}</div><label className="search"><span className="sr-only">Search projects</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search projects, work, or permit ID"/></label></div>}
-      {view === 'opportunities' && tier === 'Signals' && !selected && <div className="signal-filters" role="group" aria-label="Filter Signals by review decision">{(['ALL', 'SHOW', 'REVIEW', 'HOLD'] as const).map((decision) => { const count = decision === 'ALL' ? signalAllCount : signalCounts[decision]; return <button key={decision} className={signalFilter === decision ? 'signal-filter-active' : ''} aria-pressed={signalFilter === decision} onClick={() => { setSignalFilter(decision); setSelected(null) }}>{decision === 'ALL' ? 'All' : decision} <span>{count}</span></button> })}</div>}
+      {view === 'opportunities' && <div className="list-toolbar"><div><h2>{selected ? 'Opportunity brief' : currentOpportunityPage ? `${tier} · ${currentOpportunityPage.groupTotalCount} filtered project cards · ${currentOpportunityPage.totalCount} filtered opportunity records` : `${tier} · ${loading ? 'Loading' : 'Unavailable'} page ${Math.floor(offset / pageSize) + 1}`}</h2>{!selected && <p>{currentOpportunityPage ? tier === 'Signals' ? `${signalFilter === 'ALL' ? 'All' : signalFilter} · ${visibleCards.length} cards and ${currentOpportunityItems.length} records on this page of ${currentOpportunityPage.groupTotalCount} filtered cards and ${currentOpportunityPage.totalCount} records. SHOW means worth investigating, not qualified.` : 'Browse the evidence and open a project for its source details.' : `Page ${Math.floor(offset / pageSize) + 1} ${loading ? 'is loading' : 'is unavailable'}.`}</p>}</div><label className="search"><span className="sr-only">Search projects</span><input value={search} onChange={(event) => { const nextSearch = event.target.value; if (nextSearch === search) return; cancelPendingNavigation(); setSearch(nextSearch); setOffset(0); setItems([]); setOpportunityPage(null); setExpandedGroupMembers({}); setSelected(null) }} placeholder="Search projects, work, or permit ID"/></label>{!selected && currentOpportunityPage && <a href={client.opportunityExportUrl(tierValue(tier), search, tier === 'Signals' ? signalFilter : 'ALL', currentOpportunityPage.cohortToken, browseFilters)} download>Download filtered CSV</a>}</div>}
+      {view === 'opportunities' && !selected && <div className="browse-filter-controls" aria-label="Filter opportunity records">
+        <label>Geography<select aria-label="Select unknown geography" value={browseFilters.geography === 'UNKNOWN' ? 'UNKNOWN' : ''} onChange={(event) => changeBrowseFilter('geography', event.target.value)}><option value="">Any exact location</option><option value="UNKNOWN">Unknown</option></select><input aria-label="Filter by exact geography" placeholder="Exact stored location" value={browseFilters.geography === 'UNKNOWN' ? '' : browseFilters.geography ?? ''} onChange={(event) => changeBrowseFilter('geography', event.target.value)}/></label>
+        <label>Industry<select aria-label="Select unknown industry" value={browseFilters.industry === 'UNKNOWN' ? 'UNKNOWN' : ''} onChange={(event) => changeBrowseFilter('industry', event.target.value)}><option value="">Any exact asset type</option><option value="UNKNOWN">Unknown</option></select><input aria-label="Filter by exact project asset type" placeholder="Exact stored asset type" value={browseFilters.industry === 'UNKNOWN' ? '' : browseFilters.industry ?? ''} onChange={(event) => changeBrowseFilter('industry', event.target.value)}/></label>
+        <label>Activity<select aria-label="Select unknown activity" value={browseFilters.activity === 'UNKNOWN' ? 'UNKNOWN' : ''} onChange={(event) => changeBrowseFilter('activity', event.target.value)}><option value="">Any exact activity</option><option value="UNKNOWN">Unknown</option></select><input aria-label="Filter by exact power activity" placeholder="Exact stored activity" value={browseFilters.activity === 'UNKNOWN' ? '' : browseFilters.activity ?? ''} onChange={(event) => changeBrowseFilter('activity', event.target.value)}/></label>
+        <label>Timing<select aria-label="Filter by supported timing availability" value={browseFilters.timing ?? ''} onChange={(event) => changeBrowseFilter('timing', event.target.value)}><option value="">Any timing</option><option value="KNOWN">Known</option><option value="UNKNOWN">Unknown</option></select></label>
+        <label>Required MW<select aria-label="Filter by required MW availability" value={browseFilters.mwStatus ?? ''} onChange={(event) => changeBrowseFilter('mwStatus', event.target.value)}><option value="">Any MW status</option><option value="KNOWN">Known</option><option value="UNKNOWN">Unknown</option></select></label>
+        <label>MW minimum<input aria-label="Minimum overlapping required MW" inputMode="decimal" placeholder="MW minimum" value={browseFilters.mwMin ?? ''} onChange={(event) => changeBrowseFilter('mwMin', event.target.value)}/></label>
+        <label>MW maximum<input aria-label="Maximum overlapping required MW" inputMode="decimal" placeholder="MW maximum" value={browseFilters.mwMax ?? ''} onChange={(event) => changeBrowseFilter('mwMax', event.target.value)}/></label>
+        <label>Priority<select aria-label="Filter by canonical priority segment" value={browseFilters.prioritySegment ?? ''} onChange={(event) => changeBrowseFilter('prioritySegment', event.target.value)}><option value="">Any priority</option>{Array.from({ length: 9 }, (_, segment) => <option key={segment} value={segment}>Segment {segment}</option>)}</select></label>
+        <label>Workflow status<select aria-label="Filter by workflow status" value={browseFilters.status ?? ''} onChange={(event) => changeBrowseFilter('status', event.target.value as WorkflowStatusFilter)}><option value="">Any status</option><option value="UNKNOWN">Unknown</option>{workflowStatuses.map((status) => <option key={status} value={status.toUpperCase()}>{status}</option>)}</select></label>
+      </div>}
+      {view === 'opportunities' && tier === 'Signals' && !selected && <div className="signal-filters" role="group" aria-label="Filter Signals by review decision">{(['ALL', 'SHOW', 'REVIEW', 'HOLD'] as const).map((decision) => { const count = !currentOpportunityPage ? '…' : decision === 'ALL' ? signalAllCount : signalCounts[decision]; return <button key={decision} className={signalFilter === decision ? 'signal-filter-active' : ''} aria-pressed={decision === signalFilter} onClick={() => { if (decision === signalFilter) return; cancelPendingNavigation(); setSignalFilter(decision); setSelected(null); setOffset(0); setItems([]); setOpportunityPage(null); setExpandedGroupMembers({}) }}>{decision === 'ALL' ? 'All' : decision} <span>{count}</span></button> })}</div>}
       {view === 'ingestion' && <div className="ingestion-tools"><label>Source<select aria-label="Filter by source" value={sourceFilter} onChange={(event) => { setSourceFilter(event.target.value); setOffset(0) }}><option value="">All sources</option>{sourceOptions.map((source) => <option value={source.id} key={source.id}>{source.label}</option>)}</select></label><label>Source sector<select aria-label="Filter by source sector" value={verticalFilter} onChange={(event) => chooseVertical(event.target.value)}><option value="">All source sectors</option>{verticalGroups.map((group) => <option value={group.id} key={group.id}>{group.label}</option>)}</select></label><span>{ingestionTotal} retained {ingestionTotal === 1 ? 'item' : 'items'} · page {Math.floor(offset / pageSize) + 1}</span></div>}
       {error && <p role="alert" className="error-banner">{error}</p>}
       {loading && <p className="loading-inline" role="status">Updating this view…</p>}
-      {view === 'pursuits' ? null : selected ? <><OpportunityDetail item={selected}/><div className="detail-navigation"><button disabled={selectedIndex <= 0} onClick={() => moveTo(items[selectedIndex - 1])}>← Previous</button><button disabled={selectedIndex < 0 || selectedIndex >= items.length - 1} onClick={() => moveTo(items[selectedIndex + 1])}>Next →</button></div></> : view === 'opportunities' ? visibleCards.length ? <div className="opportunity-list">{visibleCards.map((card) => {
-        const matchingMembers = card.members.filter((item) => matchesOpportunity(item, search))
+      {view === 'pursuits' ? null : selected ? <><OpportunityDetail item={selected} onReadback={() => setServerReadbackRevision((revision) => revision + 1)}/><div className="detail-navigation"><button disabled={selectedIndex <= 0} onClick={() => moveTo(currentOpportunityItems[selectedIndex - 1])}>← Previous</button><button disabled={selectedIndex < 0 || selectedIndex >= currentOpportunityItems.length - 1} onClick={() => moveTo(currentOpportunityItems[selectedIndex + 1])}>Next →</button></div></> : view === 'opportunities' ? visibleCards.length ? <div className="opportunity-list">{visibleCards.map((card) => {
+        const matchingMembers = card.members.filter((item) => item.matched_search !== false)
         const members = card.members
         const decision = signalDisplayDecision(card.members)
         const first = card.members.find((item) => decision === 'SHOW'
@@ -331,12 +687,13 @@ export function App() {
         const lifecycleEvents = new Map(card.members.flatMap((member) => member.lifecycle_timeline ?? []).map((event) => [`${event.event_type}:${event.date ?? ''}:${event.evidence_url}`, event]))
         const expanded = expandedCardKey === card.key
         return <div className="project-card" key={card.key}>
-          <button key={first.id} data-opportunity-id={first.id} className="opportunity-row" aria-expanded={card.grouped ? expanded : undefined} onClick={() => card.grouped ? setExpandedCardKey(expanded ? null : card.key) : open(first)}>
-            <span className="row-marker"/><span className="row-main"><strong>{projectTitle(first)}</strong><span>{first.location ?? 'Location unknown'}</span>{first.brief_summary && <small className={first.brief_stale ? 'brief-stale' : 'brief-preview'}>AI-assisted{first.brief_stale ? ' · stale' : ''}: {first.brief_summary}</small>}</span><span className="row-meta">{tier === 'Signals' && <span className={`tier-pill signal-decision-badge signal-decision-${decision.toLowerCase()}`} style={{ marginBottom: 0 }} data-review-decision={decision}><strong>Decision: {decision}</strong></span>}<span>{first.signal_evidence_state === 'planning_application_withdrawn' ? 'Historical Signal · application withdrawn' : first.signal_evidence_state === 'planning_status_unknown' ? 'Historical Signal · status unknown' : first.tier}</span>{first.commercial_size_status === 'unknown' && <span>Activity size unknown · retained</span>}{first.reported_power_facts?.length ? <span>{first.reported_power_facts.slice(0, 2).join(' · ')}</span> : null}{card.grouped ? <span>{card.members.length} records</span> : null}</span><span className="arrow" aria-hidden="true">{card.grouped ? (expanded ? '−' : '+') : '→'}</span>
+          <button key={first.id} data-opportunity-id={first.id} className="opportunity-row" aria-expanded={card.grouped ? expanded : undefined} onClick={() => card.grouped ? void toggleGroup(card) : open(first)}>
+            <span className="row-marker"/><span className="row-main"><strong>{card.title}</strong><span>{first.location ?? 'Location unknown'}</span>{first.brief_summary && <small className={first.brief_stale ? 'brief-stale' : 'brief-preview'}>AI-assisted{first.brief_stale ? ' · stale' : ''}: {first.brief_summary}</small>}</span><span className="row-meta">{tier === 'Signals' && <span className={`tier-pill signal-decision-badge signal-decision-${decision.toLowerCase()}`} style={{ marginBottom: 0 }} data-review-decision={decision}><strong>Decision: {decision}</strong></span>}<span>{first.signal_evidence_state === 'planning_application_withdrawn' ? 'Historical Signal · application withdrawn' : first.signal_evidence_state === 'planning_status_unknown' ? 'Historical Signal · status unknown' : first.tier}</span>{first.commercial_size_status === 'unknown' && <span>Activity size unknown · retained</span>}{first.reported_power_facts?.length ? <span>{first.reported_power_facts.slice(0, 2).join(' · ')}</span> : null}{card.grouped ? <span>{card.complete ? `${card.groupTotal ?? card.members.length} records` : `${card.members.length} of ${card.groupTotal ?? card.members.length} related records`}</span> : null}</span><span className="arrow" aria-hidden="true">{card.grouped ? (expanded ? '−' : '+') : '→'}</span>
           </button>
-          {card.grouped && expanded && <div className="project-members"><p>{matchingMembers.length < card.members.length ? `${matchingMembers.length} matching record · ${card.members.length} related ${card.members.every((member) => member.evidence.some((evidence) => evidence.source_id.endsWith('-building-permits'))) ? 'permit ' : ''}records` : `${card.members.length} individual ${card.members.every((member) => member.evidence.some((evidence) => evidence.source_id.endsWith('-building-permits'))) ? 'permit ' : ''}records`}</p>{sameProject && <p>Grouped under the same stable physical project identity. Each source observation remains available below.</p>}{lifecycleEvents.size > 0 && <p>Lifecycle evidence: {[...lifecycleEvents.values()].map((event) => <span key={`${event.event_type}:${event.date ?? ''}:${event.evidence_url}`}>{event.event_type.replaceAll('_', ' ')}{event.date ? ` · ${event.date}` : ''}; </span>)}</p>}{members.map((member) => { const memberDecision = signalDisplayDecision([member]); return <button key={member.id} data-opportunity-id={member.id} className="project-member" onClick={() => open(member)}><strong>{projectTitle(member)}</strong>{tier === 'Signals' && <span className={`tier-pill signal-decision-badge signal-decision-${memberDecision.toLowerCase()}`} style={{ marginBottom: 0 }} data-review-decision={memberDecision}><strong>Decision: {memberDecision}</strong></span>}<span>{memberDate(member)} · {member.location ?? 'Location unknown'}{matchesOpportunity(member, search) && search ? ' · Matches search' : ''}</span><span>Open this record and its evidence →</span></button> })}</div>}
+          {card.grouped && expanded && <div className="project-members"><p>{card.complete ? `${matchingMembers.length} matching · ${card.groupTotal ?? card.members.length} related ${card.members.every((member) => member.evidence.some((evidence) => evidence.source_id.endsWith('-building-permits'))) ? 'permit ' : ''}records` : `${card.members.length} of ${card.groupTotal ?? card.members.length} related records loaded`}</p>{sameProject && <p>Grouped under the same stable physical project identity. Each record and its evidence remain available below.</p>}{lifecycleEvents.size > 0 && <p>Lifecycle evidence: {[...lifecycleEvents.values()].map((event) => <span key={`${event.event_type}:${event.date ?? ''}:${event.evidence_url}`}>{event.event_type.replaceAll('_', ' ')}{event.date ? ` · ${event.date}` : ''}; </span>)}</p>}{members.map((member) => { const memberDecision = signalDisplayDecision([member]); return <button key={member.id} data-opportunity-id={member.id} className="project-member" onClick={() => open(member)}><strong>{projectTitle(member)}</strong>{tier === 'Signals' && <span className={`tier-pill signal-decision-badge signal-decision-${memberDecision.toLowerCase()}`} style={{ marginBottom: 0 }} data-review-decision={memberDecision}><strong>Decision: {memberDecision}</strong></span>}<span>{memberDate(member)} · {member.location ?? 'Location unknown'}{member.matched_search && search ? ' · Matches search' : ''}</span><span>Open this record and its evidence →</span></button> })}</div>}
         </div>
-      })}</div> : !loading ? <div className="empty"><span className="empty-mark" aria-hidden="true">◇</span><h3>{search ? 'No matching projects' : tier === 'Signals' ? signalFilter === 'ALL' ? 'No Signals yet' : signalFilter === 'SHOW' ? 'No SHOW decisions yet' : `No ${signalFilter} Signals` : `No ${tier.toLowerCase()} yet`}</h3><p>{search ? tier === 'Signals' && signalFilter !== 'ALL' && matchingRecordCount > 0 ? `Matching Signal records exist outside the ${signalFilter} filter. Switch decision tabs to inspect them.` : 'No retained opportunity records match this search.' : tier === 'Signals' ? signalFilter === 'SHOW' ? `Check REVIEW (${signalCounts.REVIEW}) for uncertain or not-yet-adjudicated projects. An unavailable Jev decision stays visible there.` : signalFilter === 'ALL' ? 'No Signal project cards are currently available.' : `No project cards currently have a ${signalFilter} decision.` : `${tier} require additional supported facts. They will appear here when the evidence meets the qualification gate.`}</p></div> : null : <><IngestionList items={ingestionItems} loading={loading}/><div className="collection-pagination"><button disabled={offset <= 0 || loading} onClick={() => setOffset(Math.max(0, offset - pageSize))}>← Previous</button><button disabled={offset + pageSize >= ingestionTotal || loading} onClick={() => setOffset(offset + pageSize)}>Next →</button></div></>}
+      })}</div> : !loading && !error && currentOpportunityPage ? <div className="empty"><span className="empty-mark" aria-hidden="true">◇</span><h3>{search ? 'No matching projects' : tier === 'Signals' ? signalFilter === 'ALL' ? 'No Signals yet' : signalFilter === 'SHOW' ? 'No SHOW decisions yet' : `No ${signalFilter} Signals` : `No ${tier.toLowerCase()} yet`}</h3><p>{search ? tier === 'Signals' && signalFilter !== 'ALL' && matchingRecordCount > 0 ? `Matching Signal records exist outside the ${signalFilter} filter. Switch decision tabs to inspect them.` : 'No retained opportunity records match this search.' : tier === 'Signals' ? signalFilter === 'SHOW' ? `Check REVIEW (${signalCounts.REVIEW}) for uncertain or not-yet-adjudicated projects. An unavailable Jev decision stays visible there.` : signalFilter === 'ALL' ? 'No Signal project cards are currently available.' : `No project cards currently have a ${signalFilter} decision.` : `${tier} require additional supported facts. They will appear here when the evidence meets the qualification gate.`}</p></div> : null : <><IngestionList items={ingestionItems} loading={loading}/><div className="collection-pagination"><button disabled={offset <= 0 || loading} onClick={() => setOffset(Math.max(0, offset - pageSize))}>← Previous</button><button disabled={offset + pageSize >= ingestionTotal || loading} onClick={() => setOffset(offset + pageSize)}>Next →</button></div></>}
+      {view === 'opportunities' && !selected && <div className="collection-pagination"><span>{currentOpportunityPage ? `${currentOpportunityPage.totalCount} filtered records` : loading ? 'Loading page' : 'Page unavailable'} · page {Math.floor(offset / pageSize) + 1}</span><button disabled={offset <= 0 || loading || !currentOpportunityPage} onClick={() => { cancelPendingNavigation(); setOffset(Math.max(0, offset - pageSize)) }}>← Previous</button><button disabled={!currentOpportunityPage || currentOpportunityPage.nextOffset == null || loading} onClick={() => { const next = currentOpportunityPage?.nextOffset; if (next !== null && next !== undefined) { cancelPendingNavigation(); setOffset(next) } }}>Next →</button></div>}
       </main><footer>Coverage is limited to configured and checked sources. Unknown project facts stay unknown.</footer>
   </div>
 }
@@ -360,7 +717,7 @@ function missingFactCategory(fact: string) {
   return normalized
 }
 
-function OpportunityDetail({ item }: { item: Opportunity }) {
+function OpportunityDetail({ item, onReadback }: { item: Opportunity; onReadback: () => void }) {
   const activeNeedId = useRef(item.id)
   const [brief, setBrief] = useState<Brief | null>(null)
   const [briefBusy, setBriefBusy] = useState(false)
@@ -431,5 +788,5 @@ function OpportunityDetail({ item }: { item: Opportunity }) {
   const content = brief?.result as { event_summary?: { text: string; evidence_id: string }[]; commercial_hypothesis?: { text: string; evidence_id: string }; unknowns?: string[]; next_step?: string } | null
   const statements = [...(content?.event_summary ?? []), ...(content?.commercial_hypothesis ? [content.commercial_hypothesis] : [])]
   const briefSection = <section className="detail-section brief-panel"><div className="evidence-heading"><div><p className="eyebrow">AI-assisted · source cited</p><h3>Concise evidence brief</h3></div><span>{brief?.status === 'pending' ? 'Generation pending' : brief?.status === 'stale' ? 'Stale evidence' : brief?.status === 'failed' ? 'Latest request failed' : brief?.generated_at ? `Generated ${new Date(brief.generated_at).toLocaleString()}` : 'Not generated'}</span></div>{brief?.status === 'pending' && <p role="status">Generating from retained public evidence…</p>}{briefError && <p className="error" role="alert">{briefError}</p>}{brief?.error && <p className="integrity">The last request could not produce a new brief. Any displayed brief is the last successfully generated version.</p>}{brief?.stale && <p className="integrity">Source evidence or brief settings changed after generation. This cached text is stale.</p>}{statements.map((statement, index) => { const citation = (brief?.citations ?? []).find((item) => item.evidence_id === statement.evidence_id); return <p key={`${statement.evidence_id}-${index}`}>{statement.text} {citation && <a href={citation.url} target="_blank" rel="noreferrer">[{citation.title}]</a>}</p> })}{content?.unknowns && content.unknowns.length > 0 && <><strong>Unknown</strong><ul>{content.unknowns.map((fact) => <li key={fact}>{fact}</li>)}</ul></>}{content?.next_step && <p><strong>Next verification step:</strong> {content.next_step}</p>}{!statements.length && brief?.status !== 'pending' && <p>The brief has not been generated.</p>}<button type="button" disabled={briefBusy || brief?.status === 'pending'} onClick={() => void requestBrief()}>{briefBusy ? 'Requesting…' : brief?.status === 'ready' ? 'Refresh brief' : 'Generate or retry brief'}</button></section>
-  return <article className="detail">{briefSection}<div className="detail-summary"><div><span className="tier-pill">{item.tier}</span>{item.signal_admission_origin && <p>{item.signal_admission_origin}</p>}<p className="eyebrow">{item.activity.replaceAll('-', ' ')}</p><h2>{projectTitle(item)}</h2><p className="location">{item.location ?? 'Location unknown'}</p></div><div className="unknown-grid"><div><span>Required power</span><strong>{item.required_mw ?? 'Unknown'}</strong></div><div><span>Start</span><strong>{item.start_window ?? 'Unknown'}</strong></div><div><span>Duration</span><strong>{item.duration ?? 'Unknown'}</strong></div><div><span>Suitable supply</span><strong>{item.supply}</strong></div></div></div>{item.lifecycle_state && <section className="detail-section lifecycle"><p className="eyebrow">Asset lifecycle · separate from {item.tier} tier</p><h3>{(item.asset_type ?? 'unknown').replaceAll('_', ' ')} · {item.lifecycle_state.replaceAll('_', ' ')}</h3><p><strong>Expected next milestone:</strong> {item.expected_next_milestone ?? 'Unknown'}</p><p><strong>Expected power event:</strong> {item.expected_power_event ?? 'Unknown'}</p><p><strong>{item.asset_type === 'upstream_well' ? 'Estimated first production window' : 'Estimated lifecycle window'}:</strong> {item.time_to_power_window ?? 'Unknown'}</p>{item.estimate_version && <p className="integrity">Derived estimate · {item.estimate_version} · {String(item.estimate_basis?.confidence ?? 'confidence unknown')}. This is not a reported date, power requirement, or power gap.</p>}{(item.lifecycle_timeline?.length ?? 0) > 0 && <ol>{item.lifecycle_timeline?.map((event, index) => <li key={`${event.event_type}-${index}`}><a href={event.evidence_url} target="_blank" rel="noreferrer">{event.date ?? 'Date unknown'} · {event.state.replaceAll('_', ' ')}</a> <span>({event.value_kind}{event.current ? '' : ', superseded'}{event.published_at ? ` · published ${event.published_at}` : ''})</span></li>)}</ol>}{(item.monitoring_requirements?.length ?? 0) > 0 && <p><strong>Monitoring:</strong> {item.monitoring_requirements?.join(' · ')}</p>}{(item.lifecycle_open_questions?.length ?? 0) > 0 && <p><strong>Lifecycle evidence still missing:</strong> {item.lifecycle_open_questions?.join(' · ')}</p>}</section>}<section className="detail-section"><p className="eyebrow">Evidence-based assessment</p><p>{item.assessment_reason ?? item.rationale}</p>{item.supported_subject && <p>Supported subject: {item.supported_subject}{item.supported_action ? ` · ${item.supported_action}` : ''}</p>}{item.demand_quote && <blockquote>{item.demand_quote}</blockquote>}{item.supply_quote && <blockquote>{item.supply_quote}</blockquote>}{Boolean(item.reported_power_facts?.length) && <><p>Reported power figures (source claims; not rental requirements)</p><ul>{item.reported_power_facts?.map((fact, index) => <li key={`${index}-${fact}`}>{fact}</li>)}</ul></>}{item.tier === 'Signal' && <p className="integrity">Power need is not established. A Signal does not imply a power gap.</p>}</section><>{item.project_id && <BuyingChain key={item.project_id} projectId={item.project_id}/>}</><section className="detail-section"><p className="eyebrow">Next action</p><p>{item.next_action}</p></section><section className="detail-section"><div className="evidence-heading"><div><p className="eyebrow">Source evidence</p><h3>{item.evidence.length} {item.evidence.length === 1 ? 'record' : 'records'}</h3></div><span>Conflicts: {item.conflict_state}</span></div>{item.evidence.map((evidence) => <div className="evidence" key={`${evidence.document_number}-${evidence.content_hash}`}><h4><a href={evidence.url} target="_blank" rel="noreferrer">{evidence.title}</a></h4>{!evidence.assessment_current && <p className="integrity">{evidence.source_id === 'georgia-air-draft-title-v' ? 'Retained filing or supporting document; the current interpretation is bound to its parent filing version.' : 'Historical evidence version; the current assessment is bound to another retained version.'}</p>}<div className="evidence-meta"><span>{evidence.source_id === 'georgia-air-draft-title-v' ? `${evidence.event_date_label}: ${evidence.event_date ?? 'unknown'} · publication date unknown` : evidence.source_id.endsWith('-building-permits') ? `Permit issue date ${evidence.event_date ?? 'unknown'} · source publication time unknown` : evidence.published_at ? `Published ${evidence.published_at}` : 'Publication date unknown'}</span><span>Retrieved {new Date(evidence.retrieved_at).toLocaleString()}</span><span>{evidence.source_id === 'georgia-air-draft-title-v' ? `${evidence.event_date_label}: ${evidence.event_date ?? 'unknown'}` : `${evidence.source_id.endsWith('-building-permits') ? 'Permit event date' : 'Described event'}: ${evidence.source_id.endsWith('-building-permits') ? evidence.event_date ?? 'Unknown' : evidence.event_date_label}`}</span><span>{evidence.source_origin ?? 'Source evidence'} · {evidence.extraction_location}</span><span>{evidence.source_id} · {evidence.document_number} · {evidence.content_hash.slice(0, 12)}</span></div><p>{(evidence.source_id === 'texas-rrc-drilling-permits' ? evidence.abstract?.split('\nOpaque source bytes (base64; not interpreted): ')[0] : evidence.abstract) ?? 'No abstract provided by the source.'}</p></div>)}</section>{stillUnknown.length > 0 && <section className="detail-section missing"><h3>Still unknown</h3><ul>{stillUnknown.map((fact) => <li key={fact}>{missingFactLabels[missingFactCategory(fact)] ?? fact}</li>)}</ul></section>}</article>
+  return <article className="detail">{briefSection}<FactWorkflowPanel key={item.id} item={item} onReadback={onReadback}/><div className="detail-summary"><div><span className="tier-pill">{item.tier}</span>{item.signal_admission_origin && <p>{item.signal_admission_origin}</p>}<p className="eyebrow">{item.activity.replaceAll('-', ' ')}</p><h2>{projectTitle(item)}</h2><p className="location">{item.location ?? 'Location unknown'}</p></div><div className="unknown-grid"><div><span>Required power</span><strong>{item.required_mw ?? 'Unknown'}</strong></div><div><span>Start</span><strong>{item.start_window ?? 'Unknown'}</strong></div><div><span>Duration</span><strong>{item.duration ?? 'Unknown'}</strong></div><div><span>Suitable supply</span><strong>{item.supply}</strong></div></div></div>{item.lifecycle_state && <section className="detail-section lifecycle"><p className="eyebrow">Asset lifecycle · separate from {item.tier} tier</p><h3>{(item.asset_type ?? 'unknown').replaceAll('_', ' ')} · {item.lifecycle_state.replaceAll('_', ' ')}</h3><p><strong>Expected next milestone:</strong> {item.expected_next_milestone ?? 'Unknown'}</p><p><strong>Expected power event:</strong> {item.expected_power_event ?? 'Unknown'}</p><p><strong>{item.asset_type === 'upstream_well' ? 'Estimated first production window' : 'Estimated lifecycle window'}:</strong> {item.time_to_power_window ?? 'Unknown'}</p>{item.estimate_version && <p className="integrity">Derived estimate · {item.estimate_version} · {String(item.estimate_basis?.confidence ?? 'confidence unknown')}. This is not a reported date, power requirement, or power gap.</p>}{(item.lifecycle_timeline?.length ?? 0) > 0 && <ol>{item.lifecycle_timeline?.map((event, index) => <li key={`${event.event_type}-${index}`}><a href={event.evidence_url} target="_blank" rel="noreferrer">{event.date ?? 'Date unknown'} · {event.state.replaceAll('_', ' ')}</a> <span>({event.value_kind}{event.current ? '' : ', superseded'}{event.published_at ? ` · published ${event.published_at}` : ''})</span></li>)}</ol>}{(item.monitoring_requirements?.length ?? 0) > 0 && <p><strong>Monitoring:</strong> {item.monitoring_requirements?.join(' · ')}</p>}{(item.lifecycle_open_questions?.length ?? 0) > 0 && <p><strong>Lifecycle evidence still missing:</strong> {item.lifecycle_open_questions?.join(' · ')}</p>}</section>}<section className="detail-section"><p className="eyebrow">Evidence-based assessment</p><p>{item.assessment_reason ?? item.rationale}</p>{item.supported_subject && <p>Supported subject: {item.supported_subject}{item.supported_action ? ` · ${item.supported_action}` : ''}</p>}{item.demand_quote && <blockquote>{item.demand_quote}</blockquote>}{item.supply_quote && <blockquote>{item.supply_quote}</blockquote>}{Boolean(item.reported_power_facts?.length) && <><p>Reported power figures (source claims; not rental requirements)</p><ul>{item.reported_power_facts?.map((fact, index) => <li key={`${index}-${fact}`}>{fact}</li>)}</ul></>}{item.tier === 'Signal' && <p className="integrity">Power need is not established. A Signal does not imply a power gap.</p>}</section><>{item.project_id && <BuyingChain key={item.project_id} projectId={item.project_id}/>}</><section className="detail-section"><p className="eyebrow">Next action</p><p>{item.next_action}</p></section><section className="detail-section"><div className="evidence-heading"><div><p className="eyebrow">Source evidence</p><h3>{item.evidence.length} {item.evidence.length === 1 ? 'record' : 'records'}</h3></div><span>Conflicts: {item.conflict_state}</span></div>{item.evidence.map((evidence) => <div className="evidence" key={`${evidence.document_number}-${evidence.content_hash}`}><h4><a href={evidence.url} target="_blank" rel="noreferrer">{evidence.title}</a></h4>{!evidence.assessment_current && <p className="integrity">{evidence.source_id === 'georgia-air-draft-title-v' ? 'Retained filing or supporting document; the current interpretation is bound to its parent filing version.' : 'Historical evidence version; the current assessment is bound to another retained version.'}</p>}<div className="evidence-meta"><span>{evidence.source_id === 'georgia-air-draft-title-v' ? `${evidence.event_date_label}: ${evidence.event_date ?? 'unknown'} · publication date unknown` : evidence.source_id.endsWith('-building-permits') ? `Permit issue date ${evidence.event_date ?? 'unknown'} · source publication time unknown` : evidence.published_at ? `Published ${evidence.published_at}` : 'Publication date unknown'}</span><span>Retrieved {new Date(evidence.retrieved_at).toLocaleString()}</span><span>{evidence.source_id === 'georgia-air-draft-title-v' ? `${evidence.event_date_label}: ${evidence.event_date ?? 'unknown'}` : `${evidence.source_id.endsWith('-building-permits') ? 'Permit event date' : 'Described event'}: ${evidence.source_id.endsWith('-building-permits') ? evidence.event_date ?? 'Unknown' : evidence.event_date_label}`}</span><span>{evidence.source_origin ?? 'Source evidence'} · {evidence.extraction_location}</span><span>{evidence.source_id} · {evidence.document_number} · {evidence.content_hash.slice(0, 12)}</span></div><p>{(evidence.source_id === 'texas-rrc-drilling-permits' ? evidence.abstract?.split('\nOpaque source bytes (base64; not interpreted): ')[0] : evidence.abstract) ?? 'No abstract provided by the source.'}</p></div>)}</section>{stillUnknown.length > 0 && <section className="detail-section missing"><h3>Still unknown</h3><ul>{stillUnknown.map((fact) => <li key={fact}>{missingFactLabels[missingFactCategory(fact)] ?? fact}</li>)}</ul></section>}</article>
 }

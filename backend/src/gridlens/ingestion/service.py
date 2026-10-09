@@ -4,12 +4,19 @@ import re
 from collections.abc import Sequence
 from datetime import UTC, date, datetime, timedelta
 from typing import Any
+from uuid import UUID
 
 import httpx
-from sqlalchemy import or_, select, text
+from sqlalchemy import Text, cast, func, or_, select, text
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
+from gridlens.domain.call_facts import (
+    MAX_CURRENT_OPERATOR_FACT_BYTES_PER_NEED,
+    MAX_CURRENT_OPERATOR_FACTS_PER_NEED,
+    CurrentOperatorInputBoundExceeded,
+    qualification_from_facts,
+)
 from gridlens.domain.lifecycle import classify_event
 from gridlens.domain.news_interpretation import (
     EVALUATOR_VERSION,
@@ -58,11 +65,14 @@ from gridlens.intelligence.signal_adjudication import adjudicate as adjudicate_s
 from gridlens.jobs.queue import assert_fence
 from gridlens.persistence.models import (
     BuyingChainEvidence,
+    CallFactDecision,
+    CallFactVersion,
     ChangeEvent,
     Evidence,
     Interpretation,
     LifecycleEvent,
     NeedObservation,
+    NeedWorkflowStatusEvent,
     Observation,
     PowerNeed,
     Project,
@@ -233,6 +243,7 @@ def _need_has_current_support(
     project: Project,
     *,
     links: list[tuple[Observation, Evidence, Interpretation | None]] | None = None,
+    sources: dict[str, Source] | None = None,
 ) -> bool:
     rows = (
         [(obs, interpretation) for obs, _, interpretation in links]
@@ -282,7 +293,11 @@ def _need_has_current_support(
         )
         if evidence is None:
             continue
-        source = session.get(Source, linked_observation.source_id)
+        source = (
+            sources.get(linked_observation.source_id)
+            if sources is not None
+            else session.get(Source, linked_observation.source_id)
+        )
         if source is None or not admitted_from_source(source, assessment, evidence).admitted:
             continue
         return True
@@ -319,19 +334,148 @@ def _need_admission_basis_is_current(session: Session, need: PowerNeed, project:
     return False
 
 
+class _QualificationClaimsSummary:
+    """Canonical first-claim and conflict fold shared by full and streamed browse."""
+
+    def __init__(self) -> None:
+        self.best: dict[str, Any] | None = None
+        self.best_key: tuple[Any, ...] | None = None
+        self.field_values: dict[str, Any] = {}
+        self.field_conflicts = {"demand_mw": False, "start_window": False, "duration": False}
+        self.gap_value: tuple[Any, Any] | None = None
+        self.has_gap = False
+        self.gap_conflict = False
+        self.qualification_conflict = False
+        self.has_qualification_version = False
+        self.has_claim = False
+
+    def add(self, row: dict[str, Any]) -> None:
+        claim = row["claim"]
+        key = (row["priority"], row["content_hash"], row["source_id"], row["external_id"])
+        if self.best_key is None or key < self.best_key:
+            self.best_key = key
+            self.best = claim
+        self.has_claim = True
+        if claim.get("tier") in {"Prospect", "Lead"}:
+            for field in ("demand_mw", "start_window", "duration"):
+                value = claim.get(field)
+                if value is None:
+                    continue
+                if field not in self.field_values:
+                    self.field_values[field] = value
+                elif self.field_values[field] != value:
+                    self.field_conflicts[field] = True
+            gap = claim.get("qualified_remaining_gap")
+            if isinstance(gap, dict):
+                value = (gap.get("available_mw_min"), gap.get("available_mw_max"))
+                if not self.has_gap:
+                    self.gap_value = value
+                    self.has_gap = True
+                elif self.gap_value != value:
+                    self.gap_conflict = True
+        self.qualification_conflict = self.qualification_conflict or bool(
+            claim.get("qualification_conflict")
+        )
+        self.has_qualification_version = self.has_qualification_version or bool(
+            claim.get("qualification_version")
+        )
+
+    @property
+    def conflicts(self) -> bool:
+        return (
+            any(self.field_conflicts.values()) or self.gap_conflict or self.qualification_conflict
+        )
+
+
+def _effective_qualification_from_claim(claim: dict[str, Any]) -> dict[str, Any]:
+    tier = claim["tier"]
+    closed_by_fact = bool(claim.get("closed_by_fact"))
+    fact_timing = claim.get("fact_derived_timing")
+    lower_tier_timing = (
+        fact_timing
+        if tier != "Lead" and isinstance(fact_timing, dict) and not closed_by_fact
+        else None
+    )
+    result = {
+        "tier": tier,
+        "rationale": claim["reason"],
+        # Only an explicit accepted-demand intersection may override the source
+        # claim for calculation. Source-only claims keep the original projection.
+        "required_mw": (
+            None
+            if closed_by_fact
+            else claim.get("fact_derived_required_mw") or _reported_mw(claim)
+        ),
+        "start_window": (
+            claim.get("start_window")
+            if tier == "Lead"
+            else lower_tier_timing.get("start_window")
+            if lower_tier_timing
+            else None
+        ),
+        "duration": (
+            claim.get("duration")
+            if tier == "Lead"
+            else lower_tier_timing.get("duration")
+            if lower_tier_timing
+            else None
+        ),
+        "supply": (
+            "Unknown"
+            if closed_by_fact
+            else "Reported constraint"
+            if tier in {"Prospect", "Lead"}
+            else "Unknown"
+        ),
+        "qualified_remaining_gap": claim.get("qualified_remaining_gap") if tier == "Lead" else None,
+        "buying_role": claim.get("buying_role") if tier == "Lead" else None,
+        "qualification_next_action": claim.get("qualification_next_action")
+        if tier == "Lead"
+        else None,
+        "qualification_version": claim.get("qualification_version"),
+        "qualification_conflict": bool(claim.get("qualification_conflict")),
+        "closed_by_fact": closed_by_fact,
+        "closure_basis": claim.get("closure_basis") if closed_by_fact else None,
+    }
+    if lower_tier_timing:
+        result["timing_provenance"] = lower_tier_timing
+    return result
+
+
 def _current_need_claims(
-    session: Session, need: PowerNeed, project: Project
+    session: Session,
+    need: PowerNeed,
+    project: Project,
+    *,
+    links: list[tuple[Observation, Evidence, Interpretation | None]] | None = None,
+    sources: dict[str, Source] | None = None,
+    research_state: dict[str, Any] | None = None,
 ) -> list[dict[str, Any]]:
-    rows = session.execute(
-        select(Observation, Interpretation)
-        .join(NeedObservation, NeedObservation.observation_id == Observation.id)
-        .join(Interpretation, Interpretation.observation_id == Observation.id)
-        .where(NeedObservation.need_id == need.id)
-    ).all()
+    rows: list[tuple[Observation, Interpretation | None]]
+    if links is None:
+        result_rows = session.execute(
+            select(Observation, Interpretation)
+            .join(NeedObservation, NeedObservation.observation_id == Observation.id)
+            .join(Interpretation, Interpretation.observation_id == Observation.id)
+            .where(NeedObservation.need_id == need.id)
+        ).all()
+        rows = [(row[0], row[1]) for row in result_rows]
+    else:
+        # Browse already loaded the linked, retained evidence versions in the
+        # canonical observed-at/hash order. Collapse multiple evidence rows for
+        # one observation just as the query above does.
+        rows = list(
+            {
+                observation.id: (observation, interpretation)
+                for observation, _evidence, interpretation in links
+                if interpretation is not None
+            }.values()
+        )
     claims: list[dict[str, Any]] = []
     for observation, interpretation in rows:
         if (
-            interpretation.status != "accepted"
+            interpretation is None
+            or interpretation.status != "accepted"
             or interpretation.content_hash != observation.content_hash
         ):
             continue
@@ -344,17 +488,30 @@ def _current_need_claims(
         if activity != need.activity_key:
             continue
         evidence_hash = assessment.get("evidence_hash")
-        evidence = (
-            session.scalar(
-                select(Evidence).where(
-                    Evidence.observation_id == observation.id,
-                    Evidence.content_hash == evidence_hash,
+        evidence = None
+        if isinstance(evidence_hash, str):
+            if links is None:
+                evidence = session.scalar(
+                    select(Evidence).where(
+                        Evidence.observation_id == observation.id,
+                        Evidence.content_hash == evidence_hash,
+                    )
                 )
-            )
-            if isinstance(evidence_hash, str)
-            else None
+            else:
+                evidence = next(
+                    (
+                        candidate
+                        for linked_observation, candidate, _ in links
+                        if linked_observation.id == observation.id
+                        and candidate.content_hash == evidence_hash
+                    ),
+                    None,
+                )
+        source = (
+            sources.get(observation.source_id)
+            if sources is not None
+            else session.get(Source, observation.source_id)
         )
-        source = session.get(Source, observation.source_id)
         if (
             evidence is None
             or source is None
@@ -412,47 +569,127 @@ def _current_need_claims(
             row["external_id"],
         )
     )
-    qualified_claims = [
-        row["claim"] for row in claims if row["claim"]["tier"] in {"Prospect", "Lead"}
-    ]
-    conflicts = any(
-        len({claim[key] for claim in qualified_claims if claim.get(key) is not None}) > 1
-        for key in ("demand_mw", "start_window", "duration")
-    )
-    gap_inputs = {
-        (gap.get("available_mw_min"), gap.get("available_mw_max"))
-        for claim in qualified_claims
-        if isinstance(gap := claim.get("qualified_remaining_gap"), dict)
-    }
-    conflicts = (
-        conflicts
-        or len(gap_inputs) > 1
-        or any(row["claim"].get("qualification_conflict") for row in claims)
-    )
-    if conflicts and any(row["claim"].get("qualification_version") for row in claims):
+    summary = _QualificationClaimsSummary()
+    for row in claims:
+        summary.add(row)
+    if summary.conflicts and summary.has_qualification_version:
         return [
             {
                 "tier": "Signal",
                 "demand_mw": None,
                 "reason": "Current official power claims conflict; qualification is unresolved.",
                 "qualification_conflict": True,
+                "_qualification_version_present": summary.has_qualification_version,
             }
         ]
     # New typed public reports may conservatively veto qualification, but
     # never supply its positive prerequisites or award a tier themselves.
     from gridlens.domain.project_research import qualification_veto
-    from gridlens.intelligence.project_state import current_research_state
 
-    veto = qualification_veto(
-        current_research_state(session, project.id, need.id).get(str(need.id), {})
-    )
+    if research_state is None:
+        from gridlens.intelligence.project_state import current_research_state
+
+        research_state = current_research_state(session, project.id, need.id).get(str(need.id), {})
+    veto = qualification_veto(research_state)
     if claims and veto:
         return [{"tier": "Signal", "demand_mw": None, "reason": veto}]
     return [row["claim"] for row in claims]
 
 
+class CurrentNeedQualificationAccumulator(_QualificationClaimsSummary):
+    """Stream browse links through the same qualification and conflict policy."""
+
+    def __init__(
+        self,
+        session: Session,
+        need: PowerNeed,
+        project: Project,
+        *,
+        sources: dict[str, Source],
+        call_facts: list[CallFactVersion] | None = None,
+    ) -> None:
+        super().__init__()
+        self.session = session
+        self.need = need
+        self.project = project
+        self.sources = sources
+        self.call_facts = call_facts or []
+
+    def add_link(
+        self,
+        observation: Observation,
+        evidence: Evidence,
+        interpretation: Interpretation | None,
+    ) -> None:
+        claims = _current_need_claims(
+            self.session,
+            self.need,
+            self.project,
+            links=[(observation, evidence, interpretation)],
+            sources=self.sources,
+            research_state={},
+        )
+        for claim in claims:
+            if claim.get("_qualification_version_present"):
+                self.has_qualification_version = True
+            if claim.get("qualification_conflict") and claim["tier"] == "Signal":
+                # This is a row-local assessment, so the flag itself is an exact veto.
+                self.add(
+                    {
+                        "claim": claim,
+                        "priority": 2,
+                        "content_hash": observation.content_hash,
+                        "source_id": observation.source_id,
+                        "external_id": observation.external_id,
+                    }
+                )
+            else:
+                self.add(
+                    {
+                        "claim": claim,
+                        "priority": {"Lead": 0, "Prospect": 1, "Signal": 2}[claim["tier"]],
+                        "content_hash": observation.content_hash,
+                        "source_id": observation.source_id,
+                        "external_id": observation.external_id,
+                    }
+                )
+
+    def finish(self, research_state: dict[str, Any]) -> dict[str, Any] | None:
+        if not self.has_claim or self.best is None:
+            return None
+        if self.conflicts and self.has_qualification_version:
+            return _effective_qualification_from_claim(
+                {
+                    "tier": "Signal",
+                    "demand_mw": None,
+                    "reason": (
+                        "Current official power claims conflict; qualification is unresolved."
+                    ),
+                    "qualification_conflict": True,
+                }
+            )
+        from gridlens.domain.project_research import qualification_veto
+
+        veto = qualification_veto(research_state)
+        if veto:
+            return _effective_qualification_from_claim(
+                {"tier": "Signal", "demand_mw": None, "reason": veto}
+            )
+        claim = qualification_from_facts(
+            self.best, self.call_facts, need=self.need, project=self.project
+        )
+        return _effective_qualification_from_claim(claim or self.best)
+
+
 def effective_need_qualification(
-    session: Session, need: PowerNeed, project: Project
+    session: Session,
+    need: PowerNeed,
+    project: Project,
+    *,
+    links: list[tuple[Observation, Evidence, Interpretation | None]] | None = None,
+    sources: dict[str, Source] | None = None,
+    research_state: dict[str, Any] | None = None,
+    call_facts: list[CallFactVersion] | None = None,
 ) -> dict[str, Any] | None:
     """Read-only replay of current admitted tier fields for API and persistence.
 
@@ -461,37 +698,127 @@ def effective_need_qualification(
     positive qualification authority. Stored historical Lead fields are omitted
     when their current gate or interval no longer supports that tier.
     """
-    claims = _current_need_claims(session, need, project)
+    claims = _current_need_claims(
+        session,
+        need,
+        project,
+        links=links,
+        sources=sources,
+        research_state=research_state,
+    )
     if not claims:
         return None
-    selected = claims[0]
-    tier = selected["tier"]
-    return {
-        "tier": tier,
-        "rationale": selected["reason"],
-        "required_mw": _reported_mw(selected),
-        "start_window": selected.get("start_window") if tier == "Lead" else None,
-        "duration": selected.get("duration") if tier == "Lead" else None,
-        "supply": "Reported constraint" if tier in {"Prospect", "Lead"} else "Unknown",
-        "qualified_remaining_gap": selected.get("qualified_remaining_gap")
-        if tier == "Lead"
-        else None,
-        "buying_role": selected.get("buying_role") if tier == "Lead" else None,
-        "qualification_next_action": selected.get("qualification_next_action")
-        if tier == "Lead"
-        else None,
-        "qualification_version": selected.get("qualification_version"),
-        "qualification_conflict": bool(selected.get("qualification_conflict")),
+    if call_facts is None:
+        current_facts_by_need, _statuses = load_current_need_operator_inputs(session, [need.id])
+        call_facts = current_facts_by_need.get(need.id, [])
+    claim = qualification_from_facts(claims[0], call_facts, need=need, project=project)
+    return _effective_qualification_from_claim(claim or claims[0])
+
+
+def load_current_need_operator_inputs(
+    session: Session, need_ids: list[UUID], *, now: datetime | None = None
+) -> tuple[dict[UUID, list[CallFactVersion]], dict[UUID, NeedWorkflowStatusEvent]]:
+    """Bulk-load only current accepted fact versions and the latest status event."""
+    if not need_ids:
+        return {}, {}
+    current = now or datetime.now(UTC)
+    ranked_decisions = (
+        select(
+            CallFactDecision,
+            func.row_number()
+            .over(
+                partition_by=CallFactDecision.fact_version_id,
+                order_by=CallFactDecision.version.desc(),
+            )
+            .label("rank"),
+        )
+        .where(CallFactDecision.need_id.in_(need_ids))
+        .subquery()
+    )
+    current_fact_filter = (
+        ranked_decisions.c.rank == 1,
+        ranked_decisions.c.decision.in_(["accepted", "corrected"]),
+        CallFactVersion.need_id.in_(need_ids),
+        CallFactVersion.effective_from <= current,
+        or_(
+            CallFactVersion.effective_until.is_(None), CallFactVersion.effective_until > current
+        ),
+    )
+    fact_bytes = sum(
+        (
+            func.coalesce(func.octet_length(cast(CallFactVersion.value, Text)), 0),
+            func.coalesce(func.octet_length(CallFactVersion.facility_scope), 0),
+            func.coalesce(func.octet_length(CallFactVersion.source_reference), 0),
+            func.coalesce(func.octet_length(CallFactVersion.reporter_name), 0),
+            func.coalesce(func.octet_length(CallFactVersion.reporter_organization), 0),
+            func.coalesce(func.octet_length(CallFactVersion.reporter_role), 0),
+        )
+    )
+    current_fact_sizes = session.execute(
+        select(CallFactVersion.need_id, func.count(CallFactVersion.id), func.sum(fact_bytes))
+        .join(ranked_decisions, ranked_decisions.c.fact_version_id == CallFactVersion.id)
+        .where(*current_fact_filter)
+        .group_by(CallFactVersion.need_id)
+    )
+    for _need_id, fact_count, fact_byte_count in current_fact_sizes:
+        if (
+            fact_count > MAX_CURRENT_OPERATOR_FACTS_PER_NEED
+            or (fact_byte_count or 0) > MAX_CURRENT_OPERATOR_FACT_BYTES_PER_NEED
+        ):
+            raise CurrentOperatorInputBoundExceeded(
+                "Current accepted operator facts exceed the supported exact-need bound; "
+                "no evidence was truncated."
+            )
+    fact_rows = session.execute(
+        select(CallFactVersion, ranked_decisions.c.decision)
+        .join(ranked_decisions, ranked_decisions.c.fact_version_id == CallFactVersion.id)
+        .where(*current_fact_filter)
+        .order_by(CallFactVersion.need_id, CallFactVersion.fact_type, CallFactVersion.content_hash)
+    )
+    facts: dict[UUID, list[CallFactVersion]] = {}
+    for row, _decision in fact_rows:
+        facts.setdefault(row.need_id, []).append(row)
+    ranked_status = (
+        select(
+            NeedWorkflowStatusEvent,
+            func.row_number()
+            .over(
+                partition_by=NeedWorkflowStatusEvent.need_id,
+                order_by=NeedWorkflowStatusEvent.version.desc(),
+            )
+            .label("rank"),
+        )
+        .where(NeedWorkflowStatusEvent.need_id.in_(need_ids))
+        .subquery()
+    )
+    statuses = {
+        row.need_id: row
+        for row in session.scalars(
+            select(NeedWorkflowStatusEvent)
+            .join(ranked_status, ranked_status.c.id == NeedWorkflowStatusEvent.id)
+            .where(ranked_status.c.rank == 1)
+        )
     }
+    return facts, statuses
 
 
 def _apply_current_qualification(session: Session, need: PowerNeed, project: Project) -> None:
     """Replay gates and clear obsolete Lead fields on every authoritative update."""
     effective = effective_need_qualification(session, need, project)
     if effective is None:
+        need.tier = "Signal"
+        need.rationale = "Current qualification support is unavailable."
+        need.required_mw = None
+        need.start_window = None
+        need.duration = None
+        need.supply = "Unknown"
         return
     for key in ("tier", "rationale", "required_mw", "start_window", "duration", "supply"):
         setattr(need, key, effective[key])
+    if effective.get("closed_by_fact"):
+        need.active = False
+    else:
+        need.active = True
 
 
 def _assessment_payload(
@@ -2208,6 +2535,13 @@ def process_records(
                         interpretation.assessment["withdrawal_supported"] = True
                         supported_project = session.get(Project, supported_need.project_id)
                         if supported_project is not None:
+                            # The current revision can be a rejected/withdrawn
+                            # interpretation with no project identity of its own.
+                            # Bind the explicit withdrawal only through the unique
+                            # same-article accepted need that selected this project.
+                            interpretation.assessment["project_identity_key"] = (
+                                supported_project.identity_key
+                            )
                             apply_planning_withdrawal(
                                 session, supported_project, observation, current_evidence
                             )
