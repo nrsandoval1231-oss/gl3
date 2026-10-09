@@ -2112,9 +2112,9 @@ def test_interconnection_history_survives_real_rejected_correction(db):
         connection = session.connection()
         connection.execute(text(
             """CREATE OR REPLACE FUNCTION reject_immutable_history_mutation()
-            RETURNS trigger AS $ BEGIN
+            RETURNS trigger AS $$ BEGIN
             RAISE EXCEPTION 'append-only history cannot be updated or deleted';
-            END; $ LANGUAGE plpgsql"""
+            END; $$ LANGUAGE plpgsql"""
         ))
         with Operations.context(MigrationContext.configure(connection)):
             migration.downgrade()  # Remove only the new, still-empty metadata-created table.
