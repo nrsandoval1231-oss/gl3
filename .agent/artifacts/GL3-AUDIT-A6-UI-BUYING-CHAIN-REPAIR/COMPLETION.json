@@ -4,7 +4,7 @@
   "acceptance_verdict": "NOT_CLAIMED",
   "packet": {
     "path": ".agent/packets/GL3-AUDIT-A6-UI-BUYING-CHAIN-FIXTURE-REPAIR.md",
-    "sha256": "packet SHA not measured in this repair turn"
+    "sha256": "34d4ff238227c2b67270423be51947dc413b4a9fb275a7bd9a01754127012f74"
   },
   "base": "975d43542b958e5adf36e7d9e65094c445c2456b",
   "implementation_commit": "6acdeafca7674a3f86ce2a410bd765021a7aa1c4",
