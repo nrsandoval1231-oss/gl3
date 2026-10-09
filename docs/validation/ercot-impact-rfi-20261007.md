@@ -1,3 +1,9 @@
+# October 9, 2026 reconciliation
+
+The October 9 candidate integrates onto current main and returns event_date and event_date_label separately from publication and retrieval. ORM regressions exercise publication-dated and event-only disclosures, including invalid bindings. The original base, test counts and environment limitations below are historical. Exact-candidate CI and independent review are recorded in PR #30; no acquisition writer or production readiness is claimed.
+
+---
+
 # ERCOT RFI mapping validation — October 7, 2026
 
 Base: main `94c3acb7b36c6d5d04a77a0ec445e793e05120a4`.
