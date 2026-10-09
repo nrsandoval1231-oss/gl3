@@ -67,7 +67,3 @@ Historical overwritten diagnostic originals remain UNKNOWN. Three credential-bea
 A5B bounded API/client/search/export follows accepted A5A. A6 attributed facts and A8 inert operational/recovery/readiness tooling remain pending. A7 visual implementation requires checksum-matching original canonical PNG and HTML; the matched MP4 is supplemental only. No seven-day uptime, live feed readiness, actual customer confirmation, real Lead or original-data reconciliation is claimed. Original backup/history remain preserved; unresolved replay projects remain visible. Parent objective OPEN.
 
 Canonical references: docs/product/PRD.md, docs/design/UI_CANON.md, docs/design/references/canonical-ui-reference.json, .agent/AGENT_RULES.md and the A5A packet/amendments. Old aggregate work and historical receipts remain preserved. Timing/tokens are UNKNOWN where unmeasured.
-
-
-
-
