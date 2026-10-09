@@ -3,6 +3,16 @@ import type { components } from './generated'
 export type PursuitsResult = components['schemas']['PursuitsOut']
 export type Pursuit = components['schemas']['PursuitOut']
 export type CallNoteBody = components['schemas']['CallNoteBody']
+export const workflowStatuses = ['New', 'Investigating', 'Contacted', 'Qualified', 'Won', 'Lost', 'Closed'] as const
+export type WorkflowStatus = typeof workflowStatuses[number]
+export type WorkflowStatusFilter = Uppercase<WorkflowStatus> | 'UNKNOWN' | ''
+export type CallFact = components['schemas']['CallFactOut']
+export type CallFactPage = components['schemas']['CallFactPageOut']
+export type TimingCorrectionTarget = components['schemas']['TimingCorrectionTargetOut']
+export type CallFactDraftBody = components['schemas']['CallFactDraftBody']
+export type CallFactDecisionBody = components['schemas']['CallFactDecisionBody']
+export type NeedWorkflowStatus = components['schemas']['NeedWorkflowStatusOut']
+export type NeedWorkflowStatusBody = components['schemas']['NeedWorkflowStatusBody']
 
 export type BuyingChainResult = components['schemas']['BuyingChainOut']
 export type Opportunity = components['schemas']['OpportunityOut']
@@ -15,7 +25,7 @@ export type OpportunityBrowseFilters = {
   mwMin?: string
   mwMax?: string
   prioritySegment?: string
-  status?: 'UNKNOWN' | ''
+  status?: WorkflowStatusFilter
 }
 export type OpportunityPage = {
   items: Opportunity[]
@@ -168,6 +178,22 @@ export const client = {
     return api<OpportunityGroupPage>(`/api/opportunity-groups/${encodeURIComponent(groupId)}?${params}`, { signal })
   },
   opportunityNeed,
+  callFacts: (needId: string, limit = 50, offset = 0, signal?: AbortSignal) => api<CallFactPage>(
+    `/api/needs/${encodeURIComponent(needId)}/facts?limit=${limit}&offset=${offset}`, { signal }, true,
+  ),
+  createCallFact: (needId: string, body: CallFactDraftBody) => api<CallFact>(
+    `/api/needs/${encodeURIComponent(needId)}/facts`, { method: 'POST', body: JSON.stringify(body) }, true,
+  ),
+  decideCallFact: (needId: string, factVersionId: string, body: CallFactDecisionBody) => api<components['schemas']['CallFactDecisionOut']>(
+    `/api/needs/${encodeURIComponent(needId)}/facts/${encodeURIComponent(factVersionId)}/decision`,
+    { method: 'POST', body: JSON.stringify(body) }, true,
+  ),
+  workflowStatus: (needId: string, signal?: AbortSignal) => api<NeedWorkflowStatus>(
+    `/api/needs/${encodeURIComponent(needId)}/workflow-status`, { signal }, true,
+  ),
+  setWorkflowStatus: (needId: string, body: NeedWorkflowStatusBody) => api<components['schemas']['NeedWorkflowEventOut']>(
+    `/api/needs/${encodeURIComponent(needId)}/workflow-status`, { method: 'POST', body: JSON.stringify(body) }, true,
+  ),
   opportunityExportUrl: (tier: string, search: string, decision: string, cohortToken?: string, filters: OpportunityBrowseFilters = {}) => {
     const params = new URLSearchParams({ tier, search, decision })
     if (cohortToken) params.set('cohort_token', cohortToken)
