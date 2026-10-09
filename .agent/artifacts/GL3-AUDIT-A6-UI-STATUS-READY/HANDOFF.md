@@ -20,7 +20,7 @@ The browser fixtures now provide valid empty facts and `UNKNOWN` status DTOs for
 - Web typecheck and production build: **passed**. Logs: `.artifacts/a6-ui-web-typecheck-fixture-final-20261009T0122020718343Z-ed12eceb8e534495adf8c2735373925d.log` and `.artifacts/a6-ui-web-build-final-20261009T0120549541992Z-39d1cb2c817349d891c3a4fe6d6c0d1c.log`.
 - OpenAPI type generation to an ignored temporary output matched `web/src/api/generated.ts` byte-for-byte; both SHA-256 `BA63DCBB8983961A647AB74A9036437F457924A41920106CF06F1B291FC0374B`. Raw generator log: `.artifacts/a6-ui-generated-check-5a3f92cfc3524a86bbe14e6847b09d1b.log`.
 - `git diff --check`: exit 0. Raw output log: `.artifacts/a6-ui-diff-check-final-20261009T012400Z.log`. Git emitted only its configured LF-to-CRLF working-copy notices.
-- Root supplied a separate retained-scale populated-status measurement and original-column preservation receipt before handoff. Those are root-owned evidence, not a builder rerun or a claim that the frozen candidate has passed root's final gates.
+- Builder ran the retained-scale populated-status measurement on a root-created, authorized disposable clone; root independently verified the 24 original-table fingerprints afterward. These checks do not claim the frozen candidate has passed root's final gates.
 
 ## Persisted fixture diagnosis
 
