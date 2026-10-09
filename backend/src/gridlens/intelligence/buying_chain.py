@@ -8,12 +8,13 @@ import re
 import time
 from collections import Counter, defaultdict
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 from urllib.parse import parse_qs, urlencode, urlsplit
 from uuid import UUID
 
-from sqlalchemy import and_, or_, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
 from gridlens.domain.buying_chain import (
@@ -66,6 +67,25 @@ from gridlens.persistence.models import (
 MAX_SECONDS = 35
 
 
+@dataclass(slots=True)
+class BuyingChainViewPreload:
+    runs: dict[UUID, list[BuyingChainRun]] = field(default_factory=lambda: defaultdict(list))
+    claims: dict[UUID, list[BuyingChainClaim]] = field(default_factory=lambda: defaultdict(list))
+    sources: dict[UUID, list[BuyingChainEvidence]] = field(
+        default_factory=lambda: defaultdict(list)
+    )
+    retained: dict[UUID, list[Evidence]] = field(default_factory=lambda: defaultdict(list))
+    retained_observations: dict[UUID, dict[UUID, Observation]] = field(
+        default_factory=lambda: defaultdict(dict)
+    )
+    retained_current: dict[UUID, dict[UUID, bool]] = field(
+        default_factory=lambda: defaultdict(dict)
+    )
+    permit_details: dict[UUID, list[BuyingChainEvidence]] = field(
+        default_factory=lambda: defaultdict(list)
+    )
+
+
 def _hash(value: object) -> str:
     return hashlib.sha256(json.dumps(value, sort_keys=True, default=str).encode()).hexdigest()
 
@@ -83,7 +103,14 @@ def _accepted_version(interpretation: Interpretation | None, evidence: Evidence)
 
 
 def _retained_evidence_current_for_project(
-    session: Session, project: Project, evidence: Evidence
+    session: Session,
+    project: Project,
+    evidence: Evidence,
+    *,
+    observation: Observation | None = None,
+    interpretation: Interpretation | None = None,
+    source: Source | None = None,
+    preloaded: bool = False,
 ) -> bool:
     """Return whether a retained citation can support this project's current view.
 
@@ -92,14 +119,15 @@ def _retained_evidence_current_for_project(
     match to an already-admitted project need.  Both cases require a concrete
     current project binding; missing keys are never a wildcard.
     """
-    observation = session.get(Observation, evidence.observation_id)
-    interpretation = (
-        session.scalar(
-            select(Interpretation).where(Interpretation.observation_id == observation.id)
+    if not preloaded:
+        observation = observation or session.get(Observation, evidence.observation_id)
+        interpretation = interpretation or (
+            session.scalar(
+                select(Interpretation).where(Interpretation.observation_id == observation.id)
+            )
+            if observation
+            else None
         )
-        if observation
-        else None
-    )
     if (
         observation is None
         or interpretation is None
@@ -114,7 +142,8 @@ def _retained_evidence_current_for_project(
         or bound_project != project.identity_key
     ):
         return False
-    source = session.get(Source, observation.source_id)
+    if not preloaded:
+        source = source or session.get(Source, observation.source_id)
     if source is None:
         return False
     if source.id.startswith("research-public-") and assessment.get(
@@ -893,35 +922,184 @@ def enrich_buying_chain(
     return buying_chain_view(session, project.id, now=now)
 
 
+def buying_chain_views(
+    session: Session, project_ids: set[UUID], *, now: datetime | None = None
+) -> dict[str, dict]:
+    """Bulk-load the canonical selected-project buying-chain projections."""
+    if not project_ids:
+        return {}
+    projects = {
+        project.id: project
+        for project in session.scalars(select(Project).where(Project.id.in_(project_ids)))
+    }
+    preload = BuyingChainViewPreload()
+
+    ranked_runs = (
+        select(
+            BuyingChainRun.id.label("run_id"),
+            func.row_number()
+            .over(
+                partition_by=BuyingChainRun.project_id,
+                order_by=(BuyingChainRun.created_at.desc(), BuyingChainRun.id.desc()),
+            )
+            .label("run_rank"),
+        )
+        .where(BuyingChainRun.project_id.in_(project_ids))
+        .subquery()
+    )
+    for run_row in session.scalars(
+        select(BuyingChainRun)
+        .join(ranked_runs, ranked_runs.c.run_id == BuyingChainRun.id)
+        .where(ranked_runs.c.run_rank <= 10)
+        .order_by(
+            BuyingChainRun.project_id,
+            BuyingChainRun.created_at.desc(),
+            BuyingChainRun.id.desc(),
+        )
+    ):
+        preload.runs[run_row.project_id].append(run_row)
+    for claim_row in session.scalars(
+        select(BuyingChainClaim)
+        .where(BuyingChainClaim.project_id.in_(project_ids))
+        .order_by(BuyingChainClaim.created_at.desc(), BuyingChainClaim.id.desc())
+    ):
+        preload.claims[claim_row.project_id].append(claim_row)
+    for source_row in session.scalars(
+        select(BuyingChainEvidence)
+        .where(BuyingChainEvidence.project_id.in_(project_ids))
+        .order_by(BuyingChainEvidence.last_seen_at.desc(), BuyingChainEvidence.id.desc())
+    ):
+        preload.sources[source_row.project_id].append(source_row)
+    for detail_row in session.scalars(
+        select(BuyingChainEvidence)
+        .where(
+            BuyingChainEvidence.project_id.in_(project_ids),
+            BuyingChainEvidence.retained_evidence_id.is_(None),
+            BuyingChainEvidence.url.like(
+                "https://cohtora.houstontx.gov/ibi_apps/WFServlet.ibfs%"
+            ),
+        )
+        .order_by(BuyingChainEvidence.last_seen_at.desc())
+    ):
+        preload.permit_details[detail_row.project_id].append(detail_row)
+
+    need_observations = (
+        select(NeedObservation.observation_id)
+        .join(PowerNeed, PowerNeed.id == NeedObservation.need_id)
+        .where(PowerNeed.project_id == Project.id)
+    )
+    retained_query = (
+        select(Project, Evidence, Observation, Interpretation, Source)
+        .select_from(Project)
+        .join(
+            Observation,
+            or_(
+                Observation.id.in_(need_observations),
+                and_(
+                    Observation.source_id == Project.source_id,
+                    Observation.external_id == Project.external_id,
+                ),
+            ),
+        )
+        .join(Evidence, Evidence.observation_id == Observation.id)
+        .outerjoin(Interpretation, Interpretation.observation_id == Observation.id)
+        .join(Source, Source.id == Observation.source_id)
+        .where(Project.id.in_(project_ids))
+        .order_by(Project.id, Evidence.observed_at.desc(), Evidence.id)
+    )
+    for project, evidence, observation, interpretation, source in session.execute(
+        retained_query.execution_options(yield_per=500)
+    ):
+        current = _retained_evidence_current_for_project(
+            session,
+            project,
+            evidence,
+            observation=observation,
+            interpretation=interpretation,
+            source=source,
+            preloaded=True,
+        )
+        preload.retained_current[project.id][evidence.id] = current
+        if current and len(preload.retained[project.id]) < 4:
+            preload.retained[project.id].append(evidence)
+            preload.retained_observations[project.id][evidence.id] = observation
+
+    retained_reference_rows = session.execute(
+        select(Project, Evidence, Observation, Interpretation, Source)
+        .select_from(Project)
+        .join(BuyingChainEvidence, BuyingChainEvidence.project_id == Project.id)
+        .join(Evidence, Evidence.id == BuyingChainEvidence.retained_evidence_id)
+        .join(Observation, Observation.id == Evidence.observation_id)
+        .outerjoin(Interpretation, Interpretation.observation_id == Observation.id)
+        .join(Source, Source.id == Observation.source_id)
+        .where(
+            Project.id.in_(project_ids),
+            BuyingChainEvidence.retained_evidence_id.is_not(None),
+        )
+        .distinct()
+        .execution_options(yield_per=500)
+    )
+    for project, evidence, observation, interpretation, source in retained_reference_rows:
+        if evidence.id not in preload.retained_current[project.id]:
+            preload.retained_current[project.id][evidence.id] = (
+                _retained_evidence_current_for_project(
+                    session,
+                    project,
+                    evidence,
+                    observation=observation,
+                    interpretation=interpretation,
+                    source=source,
+                    preloaded=True,
+                )
+            )
+
+    return {
+        str(project_id): buying_chain_view(session, project_id, now=now, preload=preload)
+        for project_id in project_ids
+        if project_id in projects
+    }
+
+
 def buying_chain_view(
-    session: Session, project_id: UUID, *, now: datetime | None = None, history: bool = False
+    session: Session,
+    project_id: UUID,
+    *,
+    now: datetime | None = None,
+    history: bool = False,
+    preload: BuyingChainViewPreload | None = None,
 ) -> dict:
     now = now or datetime.now(UTC)
     project = session.get(Project, project_id)
     if project is None:
         raise LookupError("Project not found")
-    runs = session.scalars(
-        select(BuyingChainRun)
-        .where(
-            BuyingChainRun.project_id == project_id,
-        )
-        .order_by(BuyingChainRun.created_at.desc(), BuyingChainRun.id.desc())
-        .limit(10)
-    ).all()
-    claims = session.scalars(
-        select(BuyingChainClaim)
-        .where(
-            BuyingChainClaim.project_id == project_id,
-        )
-        .order_by(BuyingChainClaim.created_at.desc(), BuyingChainClaim.id.desc())
-    ).all()
-    sources = session.scalars(
-        select(BuyingChainEvidence)
-        .where(
-            BuyingChainEvidence.project_id == project_id,
-        )
-        .order_by(BuyingChainEvidence.last_seen_at.desc(), BuyingChainEvidence.id.desc())
-    ).all()
+    runs = (
+        preload.runs.get(project_id, [])
+        if preload
+        else session.scalars(
+            select(BuyingChainRun)
+            .where(BuyingChainRun.project_id == project_id)
+            .order_by(BuyingChainRun.created_at.desc(), BuyingChainRun.id.desc())
+            .limit(10)
+        ).all()
+    )
+    claims = (
+        preload.claims.get(project_id, [])
+        if preload
+        else session.scalars(
+            select(BuyingChainClaim)
+            .where(BuyingChainClaim.project_id == project_id)
+            .order_by(BuyingChainClaim.created_at.desc(), BuyingChainClaim.id.desc())
+        ).all()
+    )
+    sources = (
+        preload.sources.get(project_id, [])
+        if preload
+        else session.scalars(
+            select(BuyingChainEvidence)
+            .where(BuyingChainEvidence.project_id == project_id)
+            .order_by(BuyingChainEvidence.last_seen_at.desc(), BuyingChainEvidence.id.desc())
+        ).all()
+    )
     by_id = {str(row.id): row for row in sources}
     active_run = runs[0] if runs else None
     newest_by_url = _newest_source_by_url(sources, active_run)
@@ -934,6 +1112,10 @@ def buying_chain_view(
     def retained_source_current(source: BuyingChainEvidence) -> bool:
         if source.retained_evidence_id is None:
             return True
+        if preload is not None:
+            return preload.retained_current.get(project_id, {}).get(
+                source.retained_evidence_id, False
+            )
         original = session.get(Evidence, source.retained_evidence_id)
         return bool(original and _retained_evidence_current_for_project(session, project, original))
 
@@ -967,12 +1149,23 @@ def buying_chain_view(
                 and (now.date() - age_basis).days > ROLE_MAX_AGE_DAYS
             )
             if row.retained_evidence_id:
-                original = session.get(Evidence, row.retained_evidence_id)
+                original = (
+                    None
+                    if preload is not None
+                    else session.get(Evidence, row.retained_evidence_id)
+                )
                 # The accepted observation version is authoritative for retained
                 # fields. Native lines and earlier live JSON use different quote
                 # formats; a later research fetch cannot retract accepted evidence.
-                source_superseded = not (
-                    original and _retained_evidence_current_for_project(session, project, original)
+                source_superseded = (
+                    not preload.retained_current.get(project_id, {}).get(
+                        row.retained_evidence_id, False
+                    )
+                    if preload is not None
+                    else not (
+                        original
+                        and _retained_evidence_current_for_project(session, project, original)
+                    )
                 )
             if citation["supports"] in {"project_organization", "organization_category"}:
                 organization_stale = organization_stale or source_superseded
@@ -1134,14 +1327,7 @@ def buying_chain_view(
             item["person_name"] or "",
         )
     )
-    runs = session.scalars(
-        select(BuyingChainRun)
-        .where(
-            BuyingChainRun.project_id == project_id,
-        )
-        .order_by(BuyingChainRun.created_at.desc(), BuyingChainRun.id.desc())
-        .limit(10)
-    ).all()
+    # Reuse the latest-run selection loaded above for bounded multi-project reads.
     unresolved = (
         list(active_run.unresolved)
         if active_run
@@ -1165,18 +1351,25 @@ def buying_chain_view(
             }
             for row in runs
         ],
-        "permit_summaries": _permit_summaries(session, project_id),
+        "permit_summaries": _permit_summaries(session, project_id, preload=preload),
         "policy_version": POLICY_VERSION,
     }
 
 
-def _permit_summaries(session: Session, project_id: UUID) -> list[dict]:
+def _permit_summaries(
+    session: Session, project_id: UUID, *, preload: BuyingChainViewPreload | None = None
+) -> list[dict]:
     project = session.get(Project, project_id)
     if project is None:
         return []
     summaries: list[dict[str, Any]] = []
-    for evidence in _retained(session, project):
-        observation = session.get(Observation, evidence.observation_id)
+    retained = preload.retained.get(project_id, []) if preload else _retained(session, project)
+    for evidence in retained:
+        observation = (
+            preload.retained_observations.get(project_id, {}).get(evidence.id)
+            if preload
+            else session.get(Observation, evidence.observation_id)
+        )
         if observation is None:
             continue
         facts = permit_facts(observation.source_id, evidence.abstract or "")
@@ -1199,17 +1392,22 @@ def _permit_summaries(session: Session, project_id: UUID) -> list[dict]:
         )
         if primary:
             primary_facts = {item["label"]: item["value"] for item in primary["facts"]}
-            for detail in session.scalars(
-                select(BuyingChainEvidence)
-                .where(
-                    BuyingChainEvidence.project_id == project.id,
-                    BuyingChainEvidence.retained_evidence_id.is_(None),
-                    BuyingChainEvidence.url.like(
-                        "https://cohtora.houstontx.gov/ibi_apps/WFServlet.ibfs%"
-                    ),
+            detail_rows = (
+                preload.permit_details.get(project_id, [])
+                if preload
+                else session.scalars(
+                    select(BuyingChainEvidence)
+                    .where(
+                        BuyingChainEvidence.project_id == project.id,
+                        BuyingChainEvidence.retained_evidence_id.is_(None),
+                        BuyingChainEvidence.url.like(
+                            "https://cohtora.houstontx.gov/ibi_apps/WFServlet.ibfs%"
+                        ),
+                    )
+                    .order_by(BuyingChainEvidence.last_seen_at.desc())
                 )
-                .order_by(BuyingChainEvidence.last_seen_at.desc())
-            ):
+            )
+            for detail in detail_rows:
                 query = parse_qs(urlsplit(detail.url).query)
                 details = permit_facts(project.source_id, detail.excerpt)
                 fields = {item["label"]: item["value"] for item in details}

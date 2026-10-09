@@ -916,7 +916,11 @@ def test_prior_candidate_hash_replays_without_a_migration_or_duplicate_evidence(
 
 def test_lifecycle_projection_is_evidence_version_bound_and_never_uses_publication_date(db):
     _, factory, _ = db
-    from gridlens.intelligence.lifecycle_service import apply_lifecycle_observation
+    from gridlens.intelligence.lifecycle_service import (
+        apply_lifecycle_observation,
+        lifecycle_event_supported,
+        refresh_lifecycle_projection,
+    )
 
     with factory.begin() as session:
         project = Project(
@@ -934,13 +938,13 @@ def test_lifecycle_projection_is_evidence_version_bound_and_never_uses_publicati
             abstract=None,
             published_at=datetime(2026, 9, 20).date(),
             url="https://example.test/well",
-            content_hash="a" * 64,
+            content_hash="b" * 64,
         )
         session.add_all([project, observation])
         session.flush()
         evidence = Evidence(
             observation_id=observation.id,
-            content_hash="b" * 64,
+            content_hash=observation.content_hash,
             title="Spud reported at Test well",
             abstract=None,
             url=observation.url,
@@ -954,11 +958,13 @@ def test_lifecycle_projection_is_evidence_version_bound_and_never_uses_publicati
         session.add(
             Interpretation(
                 observation_id=observation.id,
-                content_hash=observation.content_hash,
+                content_hash=evidence.content_hash,
                 status="accepted",
                 evaluator_version="test",
                 assessment={
+                    "semantic_hash": observation.content_hash,
                     "evidence_hash": evidence.content_hash,
+                    "evidence": {"id": str(evidence.id)},
                     "project_identity_key": project.identity_key,
                 },
             )
@@ -973,9 +979,10 @@ def test_lifecycle_projection_is_evidence_version_bound_and_never_uses_publicati
 
         assert replay_accepted_lifecycle(session)["events_added"] == 0
         assert replay_accepted_lifecycle(session)["events_added"] == 0
+        hash_a, hash_b = evidence.content_hash, "c" * 64
         corrected = Evidence(
             observation_id=observation.id,
-            content_hash="c" * 64,
+            content_hash=hash_b,
             title="Routine regional operations update",
             abstract=None,
             url=observation.url,
@@ -988,8 +995,15 @@ def test_lifecycle_projection_is_evidence_version_bound_and_never_uses_publicati
             select(Interpretation).where(Interpretation.observation_id == observation.id)
         )
         assert interpretation is not None
-        interpretation.status = "rejected"
-        interpretation.assessment = {"evidence_hash": corrected.content_hash}
+        interpretation.content_hash = hash_b
+        interpretation.assessment = {
+            "semantic_hash": hash_b,
+            "evidence_hash": corrected.content_hash,
+            "evidence": {"id": str(corrected.id)},
+            "project_identity_key": project.identity_key,
+        }
+        observation.content_hash = hash_b
+        interpretation.status = "accepted"
         apply_lifecycle_observation(session, project, observation, corrected)
         assert session.scalar(select(func.count()).select_from(LifecycleEvent)) == 1
         assert session.get(ProjectLifecycle, project.id) is None
@@ -997,15 +1011,40 @@ def test_lifecycle_projection_is_evidence_version_bound_and_never_uses_publicati
 
         # A correction may return to a retained accepted evidence version. Its event
         # must become current again, and the existing-event path restores asset type.
+        observation.content_hash = hash_a
+        interpretation.content_hash = hash_a
         interpretation.status = "accepted"
         interpretation.assessment = {
-            "evidence_hash": evidence.content_hash,
+            "semantic_hash": hash_a,
+            "evidence_hash": hash_a,
+            "evidence": {"id": str(evidence.id)},
             "project_identity_key": project.identity_key,
         }
         assert apply_lifecycle_observation(session, project, observation, evidence) is False
         projection = session.get(ProjectLifecycle, project.id)
         assert projection is not None and projection.current_state == "spud"
         assert project.asset_type == "upstream_well"
+
+        observation.content_hash = hash_b
+        assert not lifecycle_event_supported(
+            "spud", evidence, interpretation, project, "spud"
+        )
+        refresh_lifecycle_projection(session, project)
+        session.flush()
+        assert session.get(ProjectLifecycle, project.id) is None
+        observation.content_hash = hash_a
+        interpretation.content_hash = hash_b
+        assert not lifecycle_event_supported(
+            "spud", evidence, interpretation, project, "spud"
+        )
+        interpretation.content_hash = hash_a
+        interpretation.assessment["evidence_hash"] = hash_b
+        assert not lifecycle_event_supported(
+            "spud", evidence, interpretation, project, "spud"
+        )
+        interpretation.assessment["evidence_hash"] = hash_a
+        assert apply_lifecycle_observation(session, project, observation, evidence) is False
+        assert session.get(ProjectLifecycle, project.id).current_state == "spud"
 
 
 def test_identity_match_requires_corroborated_site_and_keeps_ambiguous_candidates_separate(
@@ -2029,3 +2068,58 @@ def test_rrc_amendment_rollover_history_no_duplicate_asset_or_inferred_productio
         assert session.scalar(select(func.count()).select_from(Project)) == 1
         assert session.scalar(select(func.count()).select_from(Evidence)) == 4
     assert api.opportunities(tier="Signal") == []
+
+
+def test_interconnection_history_survives_real_rejected_correction(db):
+    from copy import deepcopy
+    from datetime import date
+
+    from gridlens.intelligence.interconnection import (
+        attach_interconnection_facts,
+        current_interconnection_state,
+    )
+    from gridlens.persistence.models import InterconnectionFactVersion
+
+    _, factory, job_id = db
+    initial = record("Study completed for the synthetic mine interconnection request.")
+    run(factory, job_id, initial)
+    with factory.begin() as session:
+        observation = session.scalar(select(Observation))
+        evidence = session.scalar(select(Evidence))
+        interpretation = session.scalar(select(Interpretation))
+        project = Project(
+            identity_key="retained-synthetic-request",
+            name="Synthetic mine",
+            source_id=observation.source_id,
+            external_id="retained-request",
+        )
+        session.add(project)
+        session.flush()
+        # Seed an explicitly reviewed prior acceptance; exercise actual ingestion below.
+        interpretation.status = "accepted"
+        interpretation.assessment = {
+            "decision": "accepted",
+            "project_identity_key": project.identity_key,
+            "semantic_hash": observation.content_hash,
+            "evidence_hash": evidence.content_hash,
+        }
+        session.flush()
+        attach_interconnection_facts(
+            session, project.id, evidence.id, request_id="request-1",
+            facts=[{"field": "study_state", "value": "completed", "quote": "Study completed"}],
+            today=date(2026, 10, 9),
+        )
+        project_id = project.id
+        version = session.scalar(select(InterconnectionFactVersion))
+        version_id, payload = version.id, deepcopy(version.payload)
+    correction = record("The proposed development was canceled and will not proceed.")
+    run(factory, job_id, correction)
+    run(factory, job_id, correction)
+    with factory() as session:
+        assert session.scalar(select(Interpretation.status)) == "rejected"
+        assert session.get(InterconnectionFactVersion, version_id).payload == payload
+        assert session.scalar(select(func.count()).select_from(InterconnectionFactVersion)) == 1
+        assert session.scalar(select(func.count()).select_from(Evidence)) == 2
+        assert current_interconnection_state(
+            session, project_id, today=date(2026, 10, 9)
+        )["requests"] == []

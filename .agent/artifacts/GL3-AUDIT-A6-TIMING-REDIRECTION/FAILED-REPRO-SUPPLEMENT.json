@@ -1,0 +1,23 @@
+{
+  "parent_review_sha256": "29d5cb5caf62c3568cd9c73f2dcd1f619674eee9a182e412d9058dc9b6b47de4",
+  "candidate_head": "d99ef3477096baa2519e882b60f4a26deba2316b",
+  "verdict": "FIX",
+  "purpose": "Clarify exact disjoint timing repro and accepted-correction boundary without altering raw parent verdict",
+  "observed_provider_off_no_db": {
+    "current_official_source_lead": "Test City construction, 20 to 25 MW, start 2027-01-01 to 2027-02-01, duration 31 to 62 days",
+    "accepted_timing_fact": "2026-11-01 start only, 31 days, effective 2026-01-01 to 2026-12-03",
+    "accepted_suitable_supply_fact": "25 to 30 MW, effective 2026-01-01 to 2026-12-03",
+    "with_supply_only": "No closed_by_fact; source Lead remains open because supply expires before source activity begins",
+    "with_disjoint_timing": "closed_by_fact true, tier Signal, activity end 2026-12-02, despite current source Lead in 2027",
+    "timing_fact_provenance_in_closure_basis": "absent",
+    "current_as_of": "2026-10-08; both accepted fact versions are current at replay"
+  },
+  "contract_interpretation": "An attributed accepted timing correction can legitimately replace or narrow reported dates under PRD30. The current code does not establish or disclose that correction, test compatibility, or flag unresolved contradiction; it silently takes any timing fact over current source Lead dates and closes against it. Repair should allow evidenced compatible narrowing or explicit attributed correction, while preserving source-window coverage or conflict when neither is established. Include decisive timing fact ID/hash in closure provenance.",
+  "code": [
+    "backend/src/gridlens/domain/call_facts.py:356-362",
+    "backend/src/gridlens/domain/call_facts.py:375-425",
+    "docs/product/PRD.md:132-142",
+    "docs/product/PRD.md:152"
+  ],
+  "note": "Earlier parent review mentions a June disjoint variant where the supply fact covered the source window; this November variant isolates the actual temporal contradiction and should be used as the decisive disjoint repro."
+}

@@ -1,0 +1,7 @@
+{
+  "issue": "Root proof writer translated historical CR bytes again; diff check failed before commit",
+  "repair": "Normalize current Markdown and JSON views to LF; source and archived prior bytes unchanged",
+  "original_archive_unchanged": true,
+  "failed_tool_output_bytes": "UNKNOWN",
+  "acceptance": "PENDING"
+}

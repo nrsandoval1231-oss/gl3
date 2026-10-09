@@ -1,0 +1,44 @@
+{
+  "tested_candidate": "e2784402f09a80f0349e9cc94f1e3a003e415b01",
+  "tested_tree": "6f1c640dce7d43298c88a181eaa3f9c97b20c679",
+  "base": "2cd93392eb4e490b52a3a9434e142eabbcd28a55",
+  "recorded_at_utc": "2026-10-07T22:52:08.1692183Z",
+  "backend": {
+    "skipped": 2,
+    "passed": 1270,
+    "exit": 0,
+    "warnings": 3,
+    "seconds": 213.77
+  },
+  "ruff": 0,
+  "mypy": 0,
+  "web_typecheck": 0,
+  "web_build": 0,
+  "openapi_match": 0,
+  "migration_repeat": 0,
+  "schema_drift": 0,
+  "fresh_migration_provenance": "Builder exact code 4fc3bd4 downgrade base/upgrade head; evidence-only e278 follows",
+  "backend_audit": {
+    "platform": "Windows Python3.11",
+    "known_vulnerabilities": 0,
+    "dependencies": 44
+  },
+  "web_audit": 0,
+  "browser": {
+    "exit": 0,
+    "passed": 36,
+    "api_port": 55493,
+    "reuse_existing_servers": false,
+    "database": "gl3audit_source_migration",
+    "ci": true,
+    "web_port": 55494
+  },
+  "test_database": "gl3audit_source_test",
+  "paid_keys": "blank",
+  "automated_workers": "disabled",
+  "credential_scan": "PASS",
+  "independent_review": "PENDING",
+  "model_config_tokens": "UNKNOWN",
+  "deployed": false,
+  "merged": false
+}

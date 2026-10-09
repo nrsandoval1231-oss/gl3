@@ -1,0 +1,294 @@
+{
+  "candidate_commit": "d66d1de180b1d05f2f1720c879e29866a38f4a2d",
+  "candidate_tree": "863646c2c12b7a57597a4f0edb06ce20b59b8bfd",
+  "generated_utc": "2026-10-08T13:00:40.5306758Z",
+  "artifacts": [
+    {
+      "path": ".artifacts\\A5A\\logs\\benchmark-2026-10-08-frozen-output-guard-candidate.log",
+      "sha256": "460d4b279ffb5a83b8f88aff53f8b61e3da4cc68297d0df48af7a10927714ef9",
+      "bytes": 2296,
+      "exactness": "raw file currently present"
+    },
+    {
+      "path": ".artifacts\\A5A\\logs\\benchmark-2026-10-08-post-residency-candidate.log",
+      "sha256": "edfd914d001be9a70e9c0a94ec5402bb71418b7afbed98f40a5677fa70cfcf73",
+      "bytes": 2297,
+      "exactness": "raw file currently present"
+    },
+    {
+      "path": ".artifacts\\A5A\\logs\\benchmark-2026-10-08-qualified-stream-final.log",
+      "sha256": "d047cee9a3c72889851ccf1f5b8089b37e1ec913dca8b520742b993a5934c91a",
+      "bytes": 2329,
+      "exactness": "raw file currently present"
+    },
+    {
+      "path": ".artifacts\\A5A\\logs\\benchmark-2026-10-08-version-marker-final.log",
+      "sha256": "3f940263daa8f878fd43b32d0b6fcdc54d5afdf243003d314e3b55af74b0623f",
+      "bytes": 2331,
+      "exactness": "raw file currently present"
+    },
+    {
+      "path": ".artifacts\\A5A\\logs\\benchmark-full-parity.log",
+      "sha256": "1dae627a3195728a50b8220124390da502dd1bd5a3f4af25c3cefa6df87d2a9b",
+      "bytes": 1785,
+      "exactness": "raw file currently present"
+    },
+    {
+      "path": ".artifacts\\A5A\\logs\\benchmark-log-overwrite-incident-20261008.txt",
+      "sha256": "8244742eb78dc54218e10253918c60b251ff9b5c61eab329908b99f27c57da7c",
+      "bytes": 1461,
+      "exactness": "raw file currently present"
+    },
+    {
+      "path": ".artifacts\\A5A\\logs\\benchmark-matched-final.log",
+      "sha256": "50c09d736ba3560f6ad8bfcca568f058be47950cdf18e7d1d884f2a7ff1937e7",
+      "bytes": 1785,
+      "exactness": "raw file currently present"
+    },
+    {
+      "path": ".artifacts\\A5A\\logs\\benchmark-output-guard-red-20261008.log",
+      "sha256": "7d46afb7592e04f76081dd4956647a4f5bb93f8e9998e4d3cfd9967fea3ee94e",
+      "bytes": 3035,
+      "exactness": "raw file currently present"
+    },
+    {
+      "path": ".artifacts\\A5A\\logs\\benchmark-output-guard-red-configured-20261008.log",
+      "sha256": "6d1e15d5063c1f3c58daa200251beb433b8c6783fb4d7480606abe3eb9db3899",
+      "bytes": 115,
+      "exactness": "raw file currently present"
+    },
+    {
+      "path": ".artifacts\\A5A\\logs\\benchmark-path-errors-reconstructed-20261008.txt",
+      "sha256": "0b28bf7730b1ac123e18f2884e153c7854e330a059e9c05ffe0d676af8baee37",
+      "bytes": 1014,
+      "exactness": "raw file currently present"
+    },
+    {
+      "path": ".artifacts\\A5A\\logs\\bounded-summary-full-parity-latest.log",
+      "sha256": "003da576c567e5b5b0d51ba27510941b7cb9eb1ed9e04f8f718135a381c71464",
+      "bytes": 2297,
+      "exactness": "raw file currently present"
+    },
+    {
+      "path": ".artifacts\\A5A\\logs\\bounded-summary-full-parity.log",
+      "sha256": "84722b2d4a6aa9105bccc1d94b460a6314c2709229ce2b8a4a9313323e067a3c",
+      "bytes": 2121,
+      "exactness": "raw file currently present"
+    },
+    {
+      "path": ".artifacts\\A5A\\logs\\canonical-reducer-units.log",
+      "sha256": "6e699bb320a056beb6cecb0696436a0564f2d311f222ed5c1b8153cc888d2e5c",
+      "bytes": 182,
+      "exactness": "raw file currently present"
+    },
+    {
+      "path": ".artifacts\\A5A\\logs\\focused-exact-freeze-final-20261008.log",
+      "sha256": "3502b8c9f5dcab9b59950e64e1f27be3612305090b0b5e5bb18c2783515d1744",
+      "bytes": 716,
+      "exactness": "raw file currently present"
+    },
+    {
+      "path": ".artifacts\\A5A\\logs\\focused-final-after-supported-events-20261008.log",
+      "sha256": "156e51a65e30f202ca4d716d9bf60a3a5e808d8cff00b09314a3744b0ad40848",
+      "bytes": 716,
+      "exactness": "raw file currently present"
+    },
+    {
+      "path": ".artifacts\\A5A\\logs\\focused-frozen-final-20261008.log",
+      "sha256": "e6c44d3e901c4340162a96530619a396c71d3232ac623b3b4aaae4f5b1ee9de5",
+      "bytes": 716,
+      "exactness": "raw file currently present"
+    },
+    {
+      "path": ".artifacts\\A5A\\logs\\focused-full-final-20261008-configured.log",
+      "sha256": "a26fba82b96c5cacef1fa6b00e85b47fbe2167b0ae0b350b535d22c3baa0a6cf",
+      "bytes": 716,
+      "exactness": "raw file currently present"
+    },
+    {
+      "path": ".artifacts\\A5A\\logs\\focused-full-final-20261008.log",
+      "sha256": "acbae9299f72d8f93ff2b4c8d7a9ae3adb3314703cedf9d5efadbc1f0e9cfa71",
+      "bytes": 1255,
+      "exactness": "raw file currently present"
+    },
+    {
+      "path": ".artifacts\\A5A\\logs\\focused-tests-amended.log",
+      "sha256": "7a834a846eacbffcfa78fb77ed6bf2068c5da64dc4afa315bf4687049be5b11b",
+      "bytes": 636,
+      "exactness": "raw file currently present"
+    },
+    {
+      "path": ".artifacts\\A5A\\logs\\focused-tests-final.log",
+      "sha256": "83f9a0e86e26e2e0e0972d771ac6dd6420c631767393a214fef78b430363a31d",
+      "bytes": 636,
+      "exactness": "raw file currently present"
+    },
+    {
+      "path": ".artifacts\\A5A\\logs\\lifecycle-state-exact-freeze-final-20261008.log",
+      "sha256": "717f56a1587458934f0385f79244b0ec506f1aaf2f1b2d98a8b025a2df99ba65",
+      "bytes": 718,
+      "exactness": "raw file currently present"
+    },
+    {
+      "path": ".artifacts\\A5A\\logs\\lifecycle-state-frozen-final-20261008.log",
+      "sha256": "c955efd9a21cf2ea253d340d73c69afb0a66165dd29588438a5fde515ee60554",
+      "bytes": 718,
+      "exactness": "raw file currently present"
+    },
+    {
+      "path": ".artifacts\\A5A\\logs\\lifecycle-state-regression-20261008.log",
+      "sha256": "b212d8aacd6bb292c4cf8373d9c42ff17177a004239bfa75490a13db77e7f0dd",
+      "bytes": 718,
+      "exactness": "raw file currently present"
+    },
+    {
+      "path": ".artifacts\\A5A\\logs\\mypy-bounded1.log",
+      "sha256": "0680a76dc51e7e5b7cf38e55798e8d72e9ae0ccb3b26bd3a5c3d237c72f63965",
+      "bytes": 1309,
+      "exactness": "raw file currently present"
+    },
+    {
+      "path": ".artifacts\\A5A\\logs\\mypy-exact-freeze-final-20261008.log",
+      "sha256": "3ff264ba8f05b3e6c2a2abf755603566491cdacc4fcc32d17fc980e5e04d946b",
+      "bytes": 357,
+      "exactness": "raw file currently present"
+    },
+    {
+      "path": ".artifacts\\A5A\\logs\\mypy-final-candidate-20261008.log",
+      "sha256": "08f998cd5cae4c21acdd408afebd2bf188cbd60150d379108af51f3b382f614d",
+      "bytes": 357,
+      "exactness": "raw file currently present"
+    },
+    {
+      "path": ".artifacts\\A5A\\logs\\mypy-final.log",
+      "sha256": "a65a473fdbf9f1e22058d38ebb4b346b48458353ffd852c9b8384b12ad71fd75",
+      "bytes": 357,
+      "exactness": "raw file currently present"
+    },
+    {
+      "path": ".artifacts\\A5A\\logs\\mypy-frozen-final-20261008.log",
+      "sha256": "3ff264ba8f05b3e6c2a2abf755603566491cdacc4fcc32d17fc980e5e04d946b",
+      "bytes": 357,
+      "exactness": "raw file currently present"
+    },
+    {
+      "path": ".artifacts\\A5A\\logs\\oversized-current-links-after-baseline-reset.log",
+      "sha256": "449eaaa3804bcb1719250c3d42dcb30e9023dd7d8d1613e8b19801fecd96cb00",
+      "bytes": 10244,
+      "exactness": "raw file currently present"
+    },
+    {
+      "path": ".artifacts\\A5A\\logs\\oversized-current-links-expunge.log",
+      "sha256": "402f5fdef51c80787ce1d8e5cf6730556501d73bcc76230044889ff083362c27",
+      "bytes": 634,
+      "exactness": "raw file currently present"
+    },
+    {
+      "path": ".artifacts\\A5A\\logs\\oversized-current-links-test.log",
+      "sha256": "93337b3f3be2542fe927a9d7fe8ff3fdc1313096b0c916545734aaaafd64ceab",
+      "bytes": 10210,
+      "exactness": "raw file currently present"
+    },
+    {
+      "path": ".artifacts\\A5A\\logs\\priority-and-batch-green.log",
+      "sha256": "47e9cbb3da9c65ad5c0c7ba9903be6a7d8817b7b44200137c16be8a0f30b0365",
+      "bytes": 634,
+      "exactness": "raw file currently present"
+    },
+    {
+      "path": ".artifacts\\A5A\\logs\\priority-and-batch-red.log",
+      "sha256": "db53a4de3d62b73a88c54cb5e8b3dcd0a7aa27ed88a1e6bf312f90cbac190ce2",
+      "bytes": 18024,
+      "exactness": "raw file currently present"
+    },
+    {
+      "path": ".artifacts\\A5A\\logs\\qualification-stream-crosschunk-20261008.log",
+      "sha256": "da0ca5acb378c92d02ced87fc6be007503cfba76f9c3fe9db784ce8a981b5c12",
+      "bytes": 25776,
+      "exactness": "raw file currently present"
+    },
+    {
+      "path": ".artifacts\\A5A\\logs\\qualification-stream-crosschunk-retry-20261008.log",
+      "sha256": "2e766def2638c361cb9708cb62bc6c35ea362f94c31f6a0ed1ce2c8bd0df4828",
+      "bytes": 24207,
+      "exactness": "raw file currently present"
+    },
+    {
+      "path": ".artifacts\\A5A\\logs\\qualification-stream-crosschunk-retry2-20261008.log",
+      "sha256": "4c1c6494624f0c7bc26f7bda6cc945d80c013f92e24935bc7d569ebab30f6132",
+      "bytes": 634,
+      "exactness": "raw file currently present"
+    },
+    {
+      "path": ".artifacts\\A5A\\logs\\qualification-stream-crosschunk-retry3-20261008.log",
+      "sha256": "85d5390fa83cfedcc6755e49787592473e76cbd920853288f6d437357a28dfc8",
+      "bytes": 634,
+      "exactness": "raw file currently present"
+    },
+    {
+      "path": ".artifacts\\A5A\\logs\\qualification-stream-final-regression-20261008.log",
+      "sha256": "13d7712a85b1f0a24c926575863e1657f8c0bc0cb2496b799a69d37c19498d6c",
+      "bytes": 634,
+      "exactness": "raw file currently present"
+    },
+    {
+      "path": ".artifacts\\A5A\\logs\\reducers-and-batch-green.log",
+      "sha256": "ff550789563c87b06be94e2fd0457359707b9d833d7567cba4f30b7599d9466a",
+      "bytes": 716,
+      "exactness": "raw file currently present"
+    },
+    {
+      "path": ".artifacts\\A5A\\logs\\ruff-bounded1.log",
+      "sha256": "05c90d6543793932e34a50f3929cae89340ee90ced854e184dd7402b24b707b0",
+      "bytes": 535,
+      "exactness": "raw file currently present"
+    },
+    {
+      "path": ".artifacts\\A5A\\logs\\ruff-exact-freeze-final-20261008.log",
+      "sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0",
+      "bytes": 20,
+      "exactness": "raw file currently present"
+    },
+    {
+      "path": ".artifacts\\A5A\\logs\\ruff-final-after-qualification-repair-20261008.log",
+      "sha256": "c8f336081e5cf9bb7bded329762ec222386717b2b99f33b6a1e956b5bf00b587",
+      "bytes": 1083,
+      "exactness": "raw file currently present"
+    },
+    {
+      "path": ".artifacts\\A5A\\logs\\ruff-final-candidate-20261008.log",
+      "sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0",
+      "bytes": 20,
+      "exactness": "raw file currently present"
+    },
+    {
+      "path": ".artifacts\\A5A\\logs\\ruff-final.log",
+      "sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0",
+      "bytes": 20,
+      "exactness": "raw file currently present"
+    },
+    {
+      "path": ".artifacts\\A5A\\logs\\ruff-frozen-final-20261008.log",
+      "sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0",
+      "bytes": 20,
+      "exactness": "raw file currently present"
+    },
+    {
+      "path": ".artifacts\\A5A\\logs\\supported-lifecycle-boundary-20261008.log",
+      "sha256": "231cfa02a5e5f7e12c4a091e7ba83b984f324bda74132b3469a4360168bea4e3",
+      "bytes": 634,
+      "exactness": "raw file currently present"
+    },
+    {
+      "path": ".artifacts/A5A/benchmark-2026-10-08-version-marker-final.json",
+      "sha256": "3f940263daa8f878fd43b32d0b6fcdc54d5afdf243003d314e3b55af74b0623f",
+      "bytes": 2331,
+      "exactness": "raw result currently present"
+    }
+  ],
+  "overwrite_incident": {
+    "path": ".artifacts/A5A/logs/bounded-summary-full-parity-latest.log",
+    "original_bytes_and_hash": "UNKNOWN",
+    "explanation": "Overwritten during path correction before exclusive-output guard; reconstructed visible transcript and incident receipt are explicitly labeled."
+  }
+}

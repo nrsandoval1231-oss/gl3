@@ -1,0 +1,14 @@
+Traceback (most recent call last):
+  File "C:\Users\nrsan\Nucleus\02_Projects\GridLens\gl3-lifecycle-repair-20261007\scripts\reconcile_lifecycle_inventory.py", line 273, in <module>
+    raise SystemExit(main())
+                     ^^^^^^
+  File "C:\Users\nrsan\Nucleus\02_Projects\GridLens\gl3-lifecycle-repair-20261007\scripts\reconcile_lifecycle_inventory.py", line 228, in main
+    suspects = _inventory(connection)
+               ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nrsan\Nucleus\02_Projects\GridLens\gl3-lifecycle-repair-20261007\scripts\reconcile_lifecycle_inventory.py", line 137, in _inventory
+    supported = lifecycle_event_supported(
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\nrsan\Nucleus\02_Projects\GridLens\gl3-lifecycle-repair-20261007\backend\src\gridlens\intelligence\lifecycle_service.py", line 66, in lifecycle_event_supported
+    evidence.event_date,
+    ^^^^^^^^^^^^^^^^^^^
+AttributeError: 'types.SimpleNamespace' object has no attribute 'event_date'

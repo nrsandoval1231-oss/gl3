@@ -1,0 +1,81 @@
+{
+  "packet": "GL3-AUDIT-A4-R2-COMPARATOR",
+  "status": "IMPLEMENTED_VALIDATION_HANDOFF",
+  "branch": "repair/gl3-source-controls-20261007",
+  "base_receipt_head": "162506c59393385267fb2f114f708fefbcc1129a",
+  "code_candidate_commit": "1be5fe2e9e681c1917d24aca833422c505169914",
+  "prior_receipt": ".agent/artifacts/GL3-AUDIT-A4-R2/COMPLETION.json",
+  "prior_receipt_modified": false,
+  "scope": [
+    "backend/src/gridlens/api/app.py",
+    "backend/tests/integration/test_source_scheduling.py",
+    "docs/operations/source-controls-and-worker-health.md",
+    ".agent/packets/GL3-AUDIT-A4-R2-COMPARATOR.md",
+    ".agent/artifacts/GL3-AUDIT-A4-R2-COMPARATOR/*"
+  ],
+  "behavior": [
+    "Health compares a fixed whitelist of ten meaningful configuration fields instead of projecting the intersection of current and persisted keys.",
+    "Stored-only/current-only fields remain distinguishable; missing industries cannot be erased by omitting that field in the current registry.",
+    "A missing historical cadence/mode/timezone/anchor-time snapshot value is recovered only from immutable epoch columns or anchor data. Current omitted cadence uses the loader's documented 24-hour default and is accepted only when the persisted epoch proves equivalence.",
+    "Equivalent schedule anchor time spellings are normalized before comparison; mismatches and unprovable values fail closed to UNKNOWN without writes."
+  ],
+  "validation": {
+    "python": "3.11 via uv --locked --extra dev",
+    "database": {
+      "test": "postgresql+psycopg://gl3audit@127.0.0.1:55437/gl3audit_source_test",
+      "migration": "postgresql+psycopg://gl3audit@127.0.0.1:55437/gl3audit_source_migration",
+      "provider_keys": "blank",
+      "api_or_browser_server": "not started"
+    },
+    "focused_tests": {
+      "command": "uv run --locked --extra dev pytest tests/integration/test_source_scheduling.py -q",
+      "result": "28 passed",
+      "raw_log": ".agent/artifacts/GL3-AUDIT-A4-R2-COMPARATOR/green-focused-final.txt"
+    },
+    "ruff": {
+      "command": "uv run --locked --extra dev ruff check src/gridlens/api/app.py src/gridlens/jobs/worker.py tests/integration/test_source_scheduling.py",
+      "result": "all checks passed",
+      "raw_log": ".agent/artifacts/GL3-AUDIT-A4-R2-COMPARATOR/ruff-final.txt"
+    },
+    "mypy": {
+      "command": "uv run --locked --extra dev mypy src/gridlens/api/app.py src/gridlens/jobs/worker.py",
+      "result": "success, 2 source files",
+      "raw_log": ".agent/artifacts/GL3-AUDIT-A4-R2-COMPARATOR/mypy-final.txt"
+    },
+    "diff_check": {
+      "result": "exit 0",
+      "raw_log": ".agent/artifacts/GL3-AUDIT-A4-R2-COMPARATOR/diff-check.txt"
+    }
+  },
+  "retained_failures": [
+    {
+      "attempt": "Comparator omission regressions against the prior implementation",
+      "classification": "removing industries and changing a timezone whose stored configuration key was missing both incorrectly remained FRESH; the omitted-cadence case correctly detected drift",
+      "raw_log": ".agent/artifacts/GL3-AUDIT-A4-R2-COMPARATOR/red-comparator-omissions.txt"
+    },
+    {
+      "attempt": "Initial Ruff check after adding anchor-time normalization",
+      "classification": "datetime alias import order; fixed with Ruff import organization",
+      "raw_log": ".agent/artifacts/GL3-AUDIT-A4-R2-COMPARATOR/ruff.txt"
+    }
+  ],
+  "unretained_attempts": [
+    "The first full 28-case run after adding the documented default-equivalence case had 27 passed and one failed because _source_configuration omits cadence_hours when the registry omits it. The comparison now explicitly applies the validated 24-hour loader default; the final 28-case run passed. Raw output was not retained.",
+    "An initial log redirection used a repository-relative path from the backend directory that did not exist; pytest did not start. The corrected path produced the retained red run."
+  ],
+  "handoff": {
+    "controller_full_and_browser_gates": "not run; owned by parent controller",
+    "independent_review": "pending",
+    "self_certification": false,
+    "overall_acceptance": "not claimed"
+  },
+  "timing_and_usage": {
+    "start_utc": "UNKNOWN",
+    "finish_utc": "2026-10-08T00:13:10Z",
+    "planning_duration": "UNKNOWN",
+    "build_duration": "UNKNOWN",
+    "validation_duration": "UNKNOWN",
+    "tokens": "UNKNOWN",
+    "model_and_config_identity": "UNKNOWN"
+  }
+}

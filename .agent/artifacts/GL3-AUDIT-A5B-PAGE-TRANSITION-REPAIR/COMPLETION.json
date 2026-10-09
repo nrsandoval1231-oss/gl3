@@ -1,0 +1,98 @@
+{
+  "task": "GL3-AUDIT-A5B-PAGE-TRANSITION-REPAIR",
+  "status": "builder_handoff_ready_for_controller_validation",
+  "acceptance_claim": false,
+  "candidate": {
+    "branch": "repair/gl3-public-browse-20261008",
+    "base_commit": "114bb671c32af00839aab4d2b3feac95c6cd3793",
+    "base_tree": "f46944739603c385154698e32472fd6bedd0d8ae",
+    "implementation_commit": "9eaf26fe232925b2cb0d822f0746ff3b168ca97d",
+    "implementation_tree": "1b1ed3a5a7a26b8f5e08780850ea02db055674e2",
+    "worktree_clean_after_implementation_commit": true
+  },
+  "scope": {
+    "changed_product_files": [
+      "web/src/app/App.tsx",
+      "web/tests/project_cards.spec.ts"
+    ],
+    "protected_surfaces_untouched": [
+      "backend/API/schema/migrations",
+      "auth and qualification policy",
+      "client API and generated contracts",
+      "styles and protected assets",
+      "commercial history",
+      "retained corpus/original application data",
+      "providers, release state, A6"
+    ]
+  },
+  "behavior": [
+    "An opportunity page is considered loaded only for its complete cohort key and offset.",
+    "During a changed-page or changed-cohort request, old rows, page counts, decision totals, CSV export, and detail targets are unavailable until the matching response is applied.",
+    "Failed page replacements show the request error and unavailable page state without retaining the prior page or claiming an empty cohort.",
+    "Same-key requests, cohort token bootstrap, 409 restart, selected-need Back restoration, and late-response epoch protection remain covered by the focused suite."
+  ],
+  "validation": [
+    {
+      "command": "npm exec -- playwright test --project=regression tests/project_cards.spec.ts --output <unique-absolute-results-directory>",
+      "exit_code": 0,
+      "result": "27 passed",
+      "raw_log": ".artifacts/a5b-page-transition-final-20261008T1836538117277Z-86d2f35adc294496b7babd6cae637887-browser.log",
+      "sha256": "d00d20a080b8b66c0a1274c40629bc1d625898d20b3d04810d183a6cc68cd8ee"
+    },
+    {
+      "command": "npm run typecheck",
+      "exit_code": 0,
+      "raw_log": ".artifacts/a5b-page-transition-final-20261008T1836538117277Z-86d2f35adc294496b7babd6cae637887-typecheck.log",
+      "sha256": "6e2f251662437d85417559b9c1f81367fa9947f3260f8d41fb5623f694160039"
+    },
+    {
+      "command": "npm run build",
+      "exit_code": 0,
+      "raw_log": ".artifacts/a5b-page-transition-final-20261008T1836538117277Z-86d2f35adc294496b7babd6cae637887-build.log",
+      "sha256": "4a7aaf1ea9f94d865f849ecc800fda8d4f2e52c1381641c1e576909e5112b42e"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0,
+      "raw_log": ".artifacts/a5b-page-transition-final-20261008T1836538117277Z-86d2f35adc294496b7babd6cae637887-diff-check.log",
+      "sha256": "5536ecd078c05f73ff12df96fa5f817301f764341f8aa3cf996e3fc04a0ca30d"
+    }
+  ],
+  "evidence": {
+    "packet_copy": ".agent/artifacts/GL3-AUDIT-A5B-PAGE-TRANSITION-REPAIR/PAGE-TRANSITION-REPAIR.md",
+    "packet_sha256": "0b47502b6f770872db910c6fbf74f4741b72609a557640d402dd2620db63b27c",
+    "independent_direction_copy": ".agent/artifacts/GL3-AUDIT-A5B-PAGE-TRANSITION-REPAIR/INDEPENDENT-DIRECTION.md",
+    "independent_review_copy": ".agent/artifacts/GL3-AUDIT-A5B-PAGE-TRANSITION-REPAIR/INDEPENDENT-REVIEW.json",
+    "independent_review_sha256": "0e26f86debd5a18857396e8e563630a83636ef70d4bd64e42894d81d0eb12949",
+    "raw_log_manifest": ".agent/artifacts/GL3-AUDIT-A5B-PAGE-TRANSITION-REPAIR/RAW_LOGS.json",
+    "source_hashes": {
+      "web/src/app/App.tsx": "7a9739ea28d6c6ba88820e4024ae786326cd862869bc328ff04d53648c7ad011",
+      "web/tests/project_cards.spec.ts": "e81d4b9a79a2a5e0532e0fed73f9aae895085c6e1c10d6fe796665acc369557c"
+    },
+    "negative_attempts": "The original stale-row RED, generic-503 expectation mismatch, path-resolution invocation issue, and shell preflight warning are described with byte hashes or UNKNOWN provenance in RAW_LOGS.json."
+  },
+  "runtime_and_authority": {
+    "providers": "All three provider key variables were blank before browser/type/build processes; no provider calls.",
+    "automation": "Disabled for browser runs.",
+    "authentication": "Synthetic, non-production browser authentication.",
+    "database": "Only the released gl3audit_a5b_test and gl3audit_a5b_migration databases were configured on loopback port 55437. Browser API routes were fixture-mocked.",
+    "ports": "Focused browser API/web ports 55531/55532 were checked free before successful invocation. Root-reserved final databases and ports were untouched.",
+    "external_effects": "No push, merge, deploy, paid provider, original-data write, external message, or A6 work."
+  },
+  "handoff_gaps": [
+    "Root must run the mandatory exact-candidate A5B gates and fresh independent review.",
+    "This builder receipt does not accept A5B or authorize A6."
+  ],
+  "timing_and_usage": {
+    "utc_start": "UNKNOWN",
+    "utc_finish": "2026-10-08T18:38:44Z",
+    "planning_seconds": "UNKNOWN",
+    "implementation_seconds": "UNKNOWN",
+    "validation_seconds": "UNKNOWN",
+    "repair_count": 1,
+    "lane": "Luna builder",
+    "model": "UNKNOWN",
+    "config_identity": "UNKNOWN",
+    "tokens": "UNKNOWN"
+  }
+}

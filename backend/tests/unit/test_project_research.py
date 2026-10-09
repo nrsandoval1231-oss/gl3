@@ -1,8 +1,10 @@
-from datetime import date
+from datetime import date, timedelta
 
 import pytest
 
 from gridlens.domain.project_research import (
+    FIELDS,
+    _project_claim_accumulator,
     extract_project_claims,
     project_claim_state,
     qualification_veto,
@@ -86,6 +88,56 @@ def test_conflict_and_negative_veto_but_energized_alone_not_adequacy():
     assert qualification_veto(
         project_claim_state(claims("Orion Data Center project was cancelled."), today=TODAY)
     )
+
+
+def test_compact_claim_accumulator_matches_full_age_conflict_and_order_rules():
+    rows = [
+        {"field": "permanent_service", "value": "pending", "as_of": TODAY.isoformat()},
+        {
+            "field": "phase",
+            "value": "completed",
+            "as_of": (TODAY - timedelta(days=120)).isoformat(),
+        },
+        {
+            "field": "permanent_service",
+            "value": "pending",
+            "as_of": (TODAY - timedelta(days=90)).isoformat(),
+        },
+        {"field": "permanent_service", "value": "energized", "as_of": "2026-01-01"},
+        {"field": "phase", "value": "production_started", "as_of": TODAY.isoformat()},
+        {"field": "phase", "value": "cancelled", "as_of": "2026-10-05"},
+        {"field": "supply_adequacy", "value": "adequate", "as_of": "2025-01-01"},
+        {"field": "unknown_field", "value": "ignored", "as_of": TODAY.isoformat()},
+    ]
+    full = project_claim_state(rows, today=TODAY)
+    compact = _project_claim_accumulator(today=TODAY)
+    for row in rows:
+        compact.add(row)
+    compact_state = compact.finish()
+    assert {
+        field: (state["status"], state["value"])
+        for field, state in full.items()
+    } == {
+        field: (state["status"], state["value"])
+        for field, state in compact_state.items()
+    }
+    assert full["permanent_service"]["claims"] == [rows[0], rows[2]]
+    assert full["phase"]["claims"] == [rows[1], rows[4]]
+    assert qualification_veto(full) == qualification_veto(compact_state)
+    assert len(compact._claims) == len(FIELDS)
+    assert sum(map(len, compact._claims.values())) == 0
+
+
+def test_compact_claim_accumulator_residency_does_not_grow_with_claim_count():
+    accumulator = _project_claim_accumulator(today=TODAY)
+    claim = {"field": "phase", "value": "construction_active", "as_of": TODAY.isoformat()}
+    for _ in range(10_000):
+        accumulator.add(claim)
+    state = accumulator.finish()
+    assert state["phase"]["status"] == "SUPPORTED"
+    assert state["phase"]["value"] == "construction_active"
+    assert sum(map(len, accumulator._claims.values())) == 0
+    assert len(accumulator._values) == len(FIELDS)
 
 
 def test_supported_phrase_does_not_hide_unparsed_negative_in_same_clause():

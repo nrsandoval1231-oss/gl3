@@ -1,0 +1,32 @@
+{
+  "status": "DETERMINISTIC_GATES_PASS_PENDING_INDEPENDENT_REVIEW",
+  "parent_complete": false,
+  "tested_head": "a752049343f4ffff1e153426893c9b23902daccc",
+  "utc_recorded": "2026-10-08T21:02:38.882507+00:00",
+  "backend": {
+    "passed": 1434,
+    "skipped": 2,
+    "warnings": 7,
+    "seconds": 260.52
+  },
+  "browser": {
+    "passed": 62,
+    "seconds": 44.4,
+    "source_anchor": "0b81c2de358213d7d5760aebc8faa3f659924c34",
+    "subsequent_changed_input": [
+      "backend/tests/integration/test_call_fact_workflow_integration.py"
+    ]
+  },
+  "source_inputs": 267,
+  "independent_review": "PENDING",
+  "deployment": false,
+  "tokens": "UNKNOWN",
+  "config_identity": "UNKNOWN",
+  "limitations": [
+    "Browser original failed trace remains private, separate redacted copy included",
+    "Historical tool output bytes not retained remain UNKNOWN",
+    "Python allocation metrics are not RSS or production SLO",
+    "Mypy checks 80 source files, not entire test tree",
+    "Actual feed, quality, seven-day, customer and protected canonical UI gates remain OPEN"
+  ]
+}

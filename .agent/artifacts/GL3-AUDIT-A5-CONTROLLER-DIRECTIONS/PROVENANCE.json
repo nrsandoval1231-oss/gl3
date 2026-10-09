@@ -1,0 +1,31 @@
+{
+  "purpose": "Byte-identical controller directions and dated development checkpoint; architecture direction is not acceptance",
+  "copied_utc": "2026-10-08T12:54:39.2253516Z",
+  "files": [
+    {
+      "sha256": "D0873C34E1BC51961D224F12A9CA6D135486003ADE18BAF6C808F83FAB34EBEB",
+      "source": "C:\\Users\\nrsan\\Nucleus\\02_Projects\\GridLens\\gl3-audit-repair-20261007\\.agent\\graphs\\GL3-AUDIT-A5-BRIEF-PRELOAD-DIRECTION.md",
+      "name": "GL3-AUDIT-A5-BRIEF-PRELOAD-DIRECTION.md"
+    },
+    {
+      "sha256": "A5C888C64B8B0513E2EE86F5B93590E29BF205F7D4E020A3D256604A2F214A21",
+      "source": "C:\\Users\\nrsan\\Nucleus\\02_Projects\\GridLens\\gl3-audit-repair-20261007\\.agent\\graphs\\GL3-AUDIT-A5-BOUNDED-SUMMARY-DIRECTION.md",
+      "name": "GL3-AUDIT-A5-BOUNDED-SUMMARY-DIRECTION.md"
+    },
+    {
+      "sha256": "41E033A402E7FCBB1712A12F89F03F9119B88B42010A957977A89B5A4E6032AB",
+      "source": "C:\\Users\\nrsan\\Nucleus\\02_Projects\\GridLens\\gl3-audit-repair-20261007\\.agent\\graphs\\GL3-AUDIT-A5-PER-NEED-BOUND-DIRECTION.md",
+      "name": "GL3-AUDIT-A5-PER-NEED-BOUND-DIRECTION.md"
+    },
+    {
+      "sha256": "66BFBE600C1F2BD942723C2D997E28AD6C0D232C7AD0A38ED423D7E9DA98213E",
+      "source": "C:\\Users\\nrsan\\Nucleus\\02_Projects\\GridLens\\gl3-audit-repair-20261007\\.agent\\graphs\\GL3-AUDIT-A5-RESEARCH-REDUCER-SUPPLEMENT.md",
+      "name": "GL3-AUDIT-A5-RESEARCH-REDUCER-SUPPLEMENT.md"
+    },
+    {
+      "sha256": "5BBADE0C264AAD53321464B7E71D3A67346E821D82594C42314D0969264CDC7D",
+      "source": "C:\\Users\\nrsan\\Nucleus\\02_Projects\\GridLens\\gl3-audit-repair-20261007\\.agent\\graphs\\GL3-AUDIT-A5-CANONICAL-PARITY-CHECKPOINT.md",
+      "name": "GL3-AUDIT-A5-CANONICAL-PARITY-CHECKPOINT.md"
+    }
+  ]
+}

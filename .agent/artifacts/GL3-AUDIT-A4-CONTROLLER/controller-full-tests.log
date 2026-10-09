@@ -1,0 +1,108 @@
+============================= test session starts =============================
+platform win32 -- Python 3.11.16, pytest-9.1.1, pluggy-1.6.0
+rootdir: C:\Users\nrsan\Nucleus\02_Projects\GridLens\gl3-source-controls-20261007\backend
+configfile: pyproject.toml
+plugins: anyio-4.15.1
+collected 1272 items
+
+tests\integration\test_autonomous_questions_integration.py ............. [  1%]
+.......................................                                  [  4%]
+tests\integration\test_buying_chain.py ...............................   [  6%]
+tests\integration\test_collection_only_ingestion.py .................... [  8%]
+.........                                                                [  8%]
+tests\integration\test_evidence_shadow_storage.py ...............        [  9%]
+tests\integration\test_ingestion.py .............................        [ 12%]
+tests\integration\test_jobs.py ..........                                [ 13%]
+tests\integration\test_ma_cultivation_ingestion.py .                     [ 13%]
+tests\integration\test_power_need_briefs.py .............                [ 14%]
+tests\integration\test_project_state_changes.py ........................ [ 16%]
+....................................................................     [ 21%]
+tests\integration\test_pursuit_evidence.py ............................. [ 23%]
+.........                                                                [ 24%]
+tests\integration\test_pursuits.py ...............                       [ 25%]
+tests\integration\test_research_transitions.py ......................... [ 27%]
+.............                                                            [ 28%]
+tests\integration\test_retained_research_replay.py .....                 [ 28%]
+tests\integration\test_signal_adjudication.py .......                    [ 29%]
+tests\integration\test_signal_admission_migration.py .                   [ 29%]
+tests\integration\test_source_scheduling.py ...............              [ 30%]
+tests\integration\test_taylor_ingestion.py ............                  [ 31%]
+tests\unit\test_api_auth.py ....                                         [ 31%]
+tests\unit\test_auth_persistence.py .....                                [ 32%]
+tests\unit\test_autonomous_questions.py ................                 [ 33%]
+tests\unit\test_autonomous_resolution.py ............................... [ 36%]
+                                                                         [ 36%]
+tests\unit\test_boston_permits.py ...............                        [ 37%]
+tests\unit\test_briefs.py ............                                   [ 38%]
+tests\unit\test_buying_chain_deadline.py ............                    [ 39%]
+tests\unit\test_buying_chain_policy.py ................................. [ 41%]
+......................                                                   [ 43%]
+tests\unit\test_buying_chain_public_dates.py .......                     [ 44%]
+tests\unit\test_city_permits.py ............                             [ 44%]
+tests\unit\test_commercial_presentation.py ............                  [ 45%]
+tests\unit\test_commercial_triage.py ...................                 [ 47%]
+tests\unit\test_evidence_judge.py ..................                     [ 48%]
+tests\unit\test_exact_research_routes.py ............................... [ 51%]
+.....                                                                    [ 51%]
+tests\unit\test_federal_register.py ....                                 [ 51%]
+tests\unit\test_firecrawl_extraction.py ..........................       [ 54%]
+tests\unit\test_generator_schedule.py .....                              [ 54%]
+tests\unit\test_georgia_air_permits.py ............................      [ 56%]
+tests\unit\test_govinfo_pdf.py ...                                       [ 56%]
+tests\unit\test_houston_permits.py ..                                    [ 56%]
+tests\unit\test_lifecycle.py ......                                      [ 57%]
+tests\unit\test_local_pipeline_check.py ...                              [ 57%]
+tests\unit\test_ma_cultivation.py ..............                         [ 58%]
+tests\unit\test_nc_commerce.py .....s                                    [ 59%]
+tests\unit\test_news_interpretation.py .......................           [ 61%]
+tests\unit\test_origin.py ..                                             [ 61%]
+tests\unit\test_permit_interpretation.py ............................... [ 63%]
+...............................                                          [ 66%]
+tests\unit\test_power_qualification.py ................................. [ 68%]
+.............................                                            [ 70%]
+tests\unit\test_project_research.py .................................... [ 73%]
+..................                                                       [ 75%]
+tests\unit\test_publisher_rss.py ............                            [ 76%]
+tests\unit\test_pursuit_acquisition.py .................                 [ 77%]
+tests\unit\test_pursuit_public.py ................                       [ 78%]
+tests\unit\test_pursuit_screening.py ............                        [ 79%]
+tests\unit\test_qualification.py ........                                [ 80%]
+tests\unit\test_question_partial_progress.py ...                         [ 80%]
+tests\unit\test_regenerate_pursuit_corpus.py ........s.................. [ 82%]
+...                                                                      [ 82%]
+tests\unit\test_registry.py ......                                       [ 83%]
+tests\unit\test_research_acquisition_boundary.py ......................  [ 85%]
+tests\unit\test_research_metrics.py ..........                           [ 85%]
+tests\unit\test_research_validation_tools.py ........................... [ 88%]
+.................                                                        [ 89%]
+tests\unit\test_retained_permits.py .........                            [ 90%]
+tests\unit\test_review_export.py .                                       [ 90%]
+tests\unit\test_rrc_drilling.py ........................................ [ 93%]
+............                                                             [ 94%]
+tests\unit\test_rrc_flare_exceptions.py .............                    [ 95%]
+tests\unit\test_security.py .....                                        [ 95%]
+tests\unit\test_signal_adjudication_policy.py ....                       [ 95%]
+tests\unit\test_signal_admission.py .....                                [ 96%]
+tests\unit\test_socrata_permits.py .......................               [ 98%]
+tests\unit\test_taylor_newsflash.py .................                    [ 99%]
+tests\unit\test_taylor_planning.py ....                                  [ 99%]
+tests\unit\test_verticals.py ..                                          [100%]
+
+============================== warnings summary ===============================
+.venv\Lib\site-packages\fastapi\testclient.py:1
+  C:\Users\nrsan\Nucleus\02_Projects\GridLens\gl3-source-controls-20261007\backend\.venv\Lib\site-packages\fastapi\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+tests/unit/test_security.py::test_installed_uvicorn_config_ignores_forwarded_peer_headers_when_disabled
+  C:\Users\nrsan\Nucleus\02_Projects\GridLens\gl3-source-controls-20261007\backend\.venv\Lib\site-packages\websockets\legacy\__init__.py:6: DeprecationWarning: websockets.legacy is deprecated; see https://websockets.readthedocs.io/en/stable/howto/upgrade.html for upgrade instructions
+    warnings.warn(  # deprecated in 14.0 - 2024-11-09
+
+tests/unit/test_security.py::test_installed_uvicorn_config_ignores_forwarded_peer_headers_when_disabled
+  C:\Users\nrsan\Nucleus\02_Projects\GridLens\gl3-source-controls-20261007\backend\.venv\Lib\site-packages\uvicorn\protocols\websockets\websockets_impl.py:17: DeprecationWarning: websockets.server.WebSocketServerProtocol is deprecated
+    from websockets.server import WebSocketServerProtocol
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+SKIPPED [1] tests\unit\test_nc_commerce.py:137: local access probe is not present
+SKIPPED [1] tests\unit\test_regenerate_pursuit_corpus.py:76: Windows symlink privilege is unavailable
+=========== 1270 passed, 2 skipped, 3 warnings in 213.77s (0:03:33) ===========

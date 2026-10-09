@@ -12,7 +12,11 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from gridlens.domain.commercial_presentation import canonical_mw_claim
-from gridlens.domain.project_research import VERSION, project_claim_state
+from gridlens.domain.project_research import (
+    VERSION,
+    _project_claim_accumulator,
+    project_claim_state,
+)
 from gridlens.domain.signal_admission import admitted_from_source
 from gridlens.ingestion.adapters.buying_chain_public import CAPTURE_VERSION
 from gridlens.intelligence.buying_chain import _accepted_version, buying_chain_view
@@ -72,28 +76,35 @@ def _conflict(values: list[tuple[Any, Evidence]], *, mw: bool = False) -> dict[s
 
 
 def current_research_state(
-    session: Session, project_id: UUID, need_id: UUID | None = None
+    session: Session,
+    project_id: UUID,
+    need_id: UUID | None = None,
+    *,
+    project: Project | None = None,
+    rows: list[tuple[PowerNeed, Observation, Evidence, Interpretation]] | None = None,
 ) -> dict[str, dict]:
     """Current exact-bound typed source reports, independent of qualification.
 
     Immutable historical evidence is intentionally excluded when its observation
     or interpretation now represents a different version or a rejection.
     """
-    project = session.get(Project, project_id)
+    project = project or session.get(Project, project_id)
     if project is None:
         return {}
-    query = (
-        select(PowerNeed, Observation, Evidence, Interpretation)
-        .join(NeedObservation, NeedObservation.need_id == PowerNeed.id)
-        .join(Observation, Observation.id == NeedObservation.observation_id)
-        .join(Evidence, Evidence.observation_id == Observation.id)
-        .join(Interpretation, Interpretation.observation_id == Observation.id)
-        .where(PowerNeed.project_id == project_id)
-    )
-    if need_id is not None:
-        query = query.where(PowerNeed.id == need_id)
+    if rows is None:
+        query = (
+            select(PowerNeed, Observation, Evidence, Interpretation)
+            .join(NeedObservation, NeedObservation.need_id == PowerNeed.id)
+            .join(Observation, Observation.id == NeedObservation.observation_id)
+            .join(Evidence, Evidence.observation_id == Observation.id)
+            .join(Interpretation, Interpretation.observation_id == Observation.id)
+            .where(PowerNeed.project_id == project_id)
+        )
+        if need_id is not None:
+            query = query.where(PowerNeed.id == need_id)
+        rows = [tuple(row) for row in session.execute(query).all()]
     claims: dict[str, list[dict]] = defaultdict(list)
-    for need, observation, evidence, interpretation in session.execute(query):
+    for need, observation, evidence, interpretation in rows:
         assessment = interpretation.assessment or {}
         if not (
             interpretation.status == "accepted"
@@ -119,6 +130,55 @@ def current_research_state(
                 continue
             claims[str(need.id)].append({**claim, "evidence": _provenance(evidence)})
     return {key: project_claim_state(rows, today=date.today()) for key, rows in claims.items()}
+
+
+class ResearchSummaryAccumulator:
+    """Fold exact current claims to the canonical status/value fields used by vetoes."""
+
+    def __init__(self, need: PowerNeed, project: Project, *, today: date | None = None) -> None:
+        self.need = need
+        self.project = project
+        self.today = today or date.today()
+        self._claims = _project_claim_accumulator(today=self.today)
+
+    def add(
+        self,
+        observation: Observation,
+        evidence: Evidence,
+        interpretation: Interpretation,
+    ) -> None:
+        assessment = interpretation.assessment or {}
+        if not (
+            interpretation.status == "accepted"
+            and interpretation.evaluator_version == VERSION
+            and assessment.get("acquisition_capture_version") == CAPTURE_VERSION
+            and assessment.get("admission_status") == "project_research_supplement"
+            and assessment.get("project_identity_key") == self.project.identity_key
+            and assessment.get("target_need_id") == str(self.need.id)
+            and observation.content_hash == evidence.content_hash == interpretation.content_hash
+            and assessment.get("evidence_hash") == evidence.content_hash
+        ):
+            return
+        for claim in assessment.get("research_claims", []):
+            if not (
+                claim.get("project_id") == str(self.project.id)
+                and claim.get("need_id") == str(self.need.id)
+                and claim.get("activity_key") == self.need.activity_key
+                and claim.get("evidence_id") == str(evidence.id)
+                and claim.get("evidence_hash") == evidence.content_hash
+                and claim.get("quote")
+                and claim["quote"] in (evidence.abstract or "")
+            ):
+                continue
+            self._claims.add(claim)
+
+    def finish(self) -> dict[str, dict[str, Any]]:
+        """Return exactly the compact subset consumed by qualification_veto."""
+        states = self._claims.finish()
+        return {
+            field: {"status": state["status"], "value": state["value"]}
+            for field, state in states.items()
+        }
 
 
 def _accepted_need_evidence(
@@ -262,7 +322,12 @@ def project_state(
             else None
         )
         if evidence and lifecycle_event_supported(
-            event.event_type, evidence, interpretation, project
+            event.event_type,
+            evidence,
+            interpretation,
+            project,
+            event.state,
+            event=event,
         ):
             accepted_lifecycle.append((event, evidence))
     # ProjectLifecycle is the current projection. Earlier accepted lifecycle

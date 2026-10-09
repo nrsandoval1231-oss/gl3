@@ -1,0 +1,18 @@
+{
+  "review": "GL3-AUDIT-A3 launcher repair independent review",
+  "verdict": "PASS",
+  "candidate_head": "53b77ad5c802e7dc6543569f4dd79384b7354c78",
+  "prior_head": "70136f774953d928f840d2ef3ef9595665a706a6",
+  "scope": "Narrow read-only review of the local Uvicorn launcher bypass repair and previously open A3 concern; no candidate edits.",
+  "finding_resolution": [
+    "Playwright's API webServer, root README, and current local power-pursuits command now pass --no-proxy-headers. Compose and Docker already passed it.",
+    "Installed Uvicorn Config regression supplies a forged X-Forwarded-For with raw peer 127.0.0.1 and confirms proxy_headers=False keeps the raw client tuple unchanged.",
+    "Dated October 1 post-GL3-019 historical handoff retains its old command; current README and local-runtime guidance supersede it."
+  ],
+  "validation_seen": [
+    "Controller focused auth/security log: 14 passed.",
+    "Controller Ruff: all checks passed; full-source mypy: no issues in 77 files.",
+    "Controller fresh CI browser retry: 36 regression tests passed after dependency installation; the first missing-dependency attempt remains preserved."
+  ],
+  "remaining_boundary": "External HTTPS proxy topology remains to be exercised at deployment with exact trusted proxy peers and public HTTPS origin; this is an operational gate, not an unresolved local A3 code finding."
+}

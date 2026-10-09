@@ -1,0 +1,6 @@
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+INFO  [alembic.runtime.migration] Running upgrade 0014_pursuit_research_questions -> 0015_revocable_auth, Persist revocable sessions and bounded login attempt buckets.
+INFO  [alembic.runtime.migration] Running upgrade 0014_pursuit_research_questions -> 0015_revocable_auth, Persist revocable sessions and bounded login attempt buckets.
