@@ -78,6 +78,13 @@ class Admission:
 
 def source_origin(family: str, retrieval_method: str) -> str:
     """Return a display-safe origin label based on registered source metadata."""
+    if family == "ercot-impact-rfi":
+        return {
+            "ercot-impact-rfi-schema": "Public RFI question schema",
+            "ercot-impact-rfi-aggregate": "Public RFI aggregate results",
+            "ercot-impact-rfi-anonymized": "Public RFI anonymized results",
+            "ercot-impact-rfi-project": "Public RFI project disclosure",
+        }.get(retrieval_method, "Unverified RFI context")
     if family == "news" or retrieval_method == "publisher-rss":
         return "News context"
     if family == "municipal-planning-news" or retrieval_method == "taylor-newsflash":

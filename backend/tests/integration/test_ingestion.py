@@ -2068,3 +2068,91 @@ def test_rrc_amendment_rollover_history_no_duplicate_asset_or_inferred_productio
         assert session.scalar(select(func.count()).select_from(Project)) == 1
         assert session.scalar(select(func.count()).select_from(Evidence)) == 4
     assert api.opportunities(tier="Signal") == []
+
+
+def test_interconnection_history_survives_real_rejected_correction(db):
+    import importlib.util
+    from copy import deepcopy
+    from datetime import date
+    from pathlib import Path
+
+    from alembic.migration import MigrationContext
+    from alembic.operations import Operations
+    from sqlalchemy.exc import DBAPIError
+
+    from gridlens.intelligence.interconnection import (
+        attach_interconnection_facts,
+        current_interconnection_state,
+    )
+    from gridlens.persistence.models import InterconnectionFactVersion
+
+    _, factory, job_id = db
+    initial = record("Study completed for the synthetic mine interconnection request.")
+    run(factory, job_id, initial)
+    with factory.begin() as session:
+        observation = session.scalar(select(Observation))
+        evidence = session.scalar(select(Evidence))
+        interpretation = session.scalar(select(Interpretation))
+        project = Project(
+            identity_key="retained-synthetic-request",
+            name="Synthetic mine",
+            source_id=observation.source_id,
+            external_id="retained-request",
+        )
+        session.add(project)
+        session.flush()
+        migration_path = (
+            Path(__file__).resolve().parents[2] / "migrations" / "versions"
+            / "0018_interconnection_fact_versions.py"
+        )
+        spec = importlib.util.spec_from_file_location("interconnection_migration", migration_path)
+        assert spec is not None and spec.loader is not None
+        migration = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(migration)
+        connection = session.connection()
+        connection.execute(text(
+            """CREATE OR REPLACE FUNCTION reject_immutable_history_mutation()
+            RETURNS trigger AS $$ BEGIN
+            RAISE EXCEPTION 'append-only history cannot be updated or deleted';
+            END; $$ LANGUAGE plpgsql"""
+        ))
+        with Operations.context(MigrationContext.configure(connection)):
+            migration.downgrade()  # Remove only the new, still-empty metadata-created table.
+            migration.upgrade()
+        assert session.scalar(select(func.count()).select_from(Evidence)) == 1
+        assert session.scalar(select(func.count()).select_from(Project)) == 1
+        # Seed an explicitly reviewed prior acceptance; exercise actual ingestion below.
+        interpretation.status = "accepted"
+        interpretation.assessment = {
+            "decision": "accepted",
+            "project_identity_key": project.identity_key,
+            "semantic_hash": observation.content_hash,
+            "evidence_hash": evidence.content_hash,
+        }
+        session.flush()
+        attach_interconnection_facts(
+            session, project.id, evidence.id, request_id="request-1",
+            facts=[{"field": "study_state", "value": "completed", "quote": "Study completed"}],
+            today=date(2026, 10, 9),
+        )
+        project_id = project.id
+        version = session.scalar(select(InterconnectionFactVersion))
+        version_id, payload = version.id, deepcopy(version.payload)
+        for statement in (
+            "UPDATE interconnection_fact_versions SET payload = '{}'::jsonb WHERE id = :id",
+            "DELETE FROM interconnection_fact_versions WHERE id = :id",
+        ):
+            with pytest.raises(DBAPIError, match="append-only history"):
+                with session.begin_nested():
+                    session.execute(text(statement), {"id": version_id})
+    correction = record("The proposed development was canceled and will not proceed.")
+    run(factory, job_id, correction)
+    run(factory, job_id, correction)
+    with factory() as session:
+        assert session.scalar(select(Interpretation.status)) == "rejected"
+        assert session.get(InterconnectionFactVersion, version_id).payload == payload
+        assert session.scalar(select(func.count()).select_from(InterconnectionFactVersion)) == 1
+        assert session.scalar(select(func.count()).select_from(Evidence)) == 2
+        assert current_interconnection_state(
+            session, project_id, today=date(2026, 10, 9)
+        )["requests"] == []
