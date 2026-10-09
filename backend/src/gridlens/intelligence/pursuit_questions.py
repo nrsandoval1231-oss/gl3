@@ -72,6 +72,7 @@ def schedule_questions(
     *,
     force: bool = False,
     origin: str = "automatic",
+    grouped: bool = False,
     parent_id: UUID | None = None,
     now: datetime | None = None,
 ) -> list[PursuitResearchQuestion]:
@@ -79,6 +80,12 @@ def schedule_questions(
     if origin not in {"automatic", "manual", "follow_up", "validation"}:
         raise ValueError("Unknown research scheduling origin")
     now = now or datetime.now(UTC)
+    # The daily cap is a UTC calendar-day policy, independent of PostgreSQL's
+    # session timezone. Treat legacy naive test/caller values as UTC as well.
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=UTC)
+    else:
+        now = now.astimezone(UTC)
     session.execute(text("SELECT pg_advisory_xact_lock(290029)"))
     # Derive relationships already supported by retained evidence before freezing
     # sibling question inputs. Doing this first inside a worker invalidates its
@@ -103,7 +110,7 @@ def schedule_questions(
     refresh = set(eligible)
     if refresh:
         session.flush()
-        current = evaluate_targets(session, refresh)
+        current = evaluate_targets(session, refresh, grouped=grouped)
         cards = [
             current[str(card["id"])] if str(card["id"]) in refresh else card
             for card in cards
@@ -111,7 +118,15 @@ def schedule_questions(
         ]
     save_evaluations(session, cards, now=now)
     rows = list(session.scalars(select(PursuitResearchQuestion)))
-    today_count = sum(row.created_at.date() == now.date() for row in rows)
+    today_count = sum(
+        (
+            row.created_at.replace(tzinfo=UTC)
+            if row.created_at.tzinfo is None
+            else row.created_at.astimezone(UTC)
+        ).date()
+        == now.date()
+        for row in rows
+    )
     created = []
     for card in cards:
         pursuit = session.scalar(
@@ -290,6 +305,7 @@ def schedule_questions(
                 },
                 status="QUEUED",
                 attempt_count=0,
+                created_at=now,
             )
             session.add(row)
             session.flush()

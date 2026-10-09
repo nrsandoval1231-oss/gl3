@@ -1,6 +1,6 @@
 """Retained-first replay preserves immutable evidence and acquisition provenance."""
 
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 import pytest
 from sqlalchemy import func, select
@@ -27,7 +27,7 @@ def document():
         "https://www.federalregister.gov/documents/orion/",
         "Orion Data Center project update",
         "Orion Data Center at 811 Clayton Ln, Austin, TX construction is underway.",
-        datetime.now(UTC).date(),
+        date(2026, 10, 1),
         datetime.now(UTC),
         "public project update",
     )

@@ -258,7 +258,12 @@ def project_state(session: Session, project_id: UUID) -> dict[str, Any] | None:
             else None
         )
         if evidence and lifecycle_event_supported(
-            event.event_type, evidence, interpretation, project
+            event.event_type,
+            evidence,
+            interpretation,
+            project,
+            event.state,
+            event=event,
         ):
             accepted_lifecycle.append((event, evidence))
     # ProjectLifecycle is the current projection. Earlier accepted lifecycle
