@@ -16,7 +16,7 @@ export default defineConfig({
     { name: 'live-acceptance', testMatch: liveAcceptance },
   ],
   webServer: [
-    { command: `uv run uvicorn gridlens.api.app:app --app-dir src --host 127.0.0.1 --port ${apiPort}`, cwd: '../backend', port: Number(apiPort), reuseExistingServer: !process.env.CI },
+    { command: `uv run uvicorn gridlens.api.app:app --app-dir src --host 127.0.0.1 --port ${apiPort} --no-proxy-headers`, cwd: '../backend', port: Number(apiPort), reuseExistingServer: !process.env.CI },
     { command: `npm run dev -- --host 127.0.0.1 --port ${webPort}`, port: Number(webPort), reuseExistingServer: !process.env.CI },
   ],
 })

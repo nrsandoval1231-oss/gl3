@@ -5,6 +5,8 @@ export type ProjectCard = {
   title: string
   members: Opportunity[]
   grouped: boolean
+  groupTotal?: number
+  complete?: boolean
 }
 
 export type SignalDisplayDecision = 'SHOW' | 'REVIEW' | 'HOLD'
@@ -225,6 +227,25 @@ export function projectCards(items: Opportunity[]): ProjectCard[] {
     members,
     grouped: members.length > 1,
   }))
+}
+
+export function serverProjectCards(items: Opportunity[]): ProjectCard[] {
+  const groups = new Map<string, Opportunity[]>()
+  for (const item of items) {
+    const key = item.group_id ?? `record:${item.id}`
+    groups.set(key, [...(groups.get(key) ?? []), item])
+  }
+  return [...groups.entries()].map(([key, members]) => {
+    const total = Math.max(...members.map((item) => item.group_total_filtered ?? members.length))
+    return {
+      key,
+      title: members[0].group_title ?? projectTitle(members[0]),
+      members,
+      grouped: total > 1,
+      groupTotal: total,
+      complete: members.some((item) => item.group_complete_on_page === true) || members.length === total,
+    }
+  })
 }
 
 export function matchesOpportunity(item: Opportunity, query: string) {

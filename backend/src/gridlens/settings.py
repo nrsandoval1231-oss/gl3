@@ -13,6 +13,11 @@ class Settings(BaseSettings):
     cookie_secure: bool = True
     session_hours: int = 12
     trusted_origins: str = ""
+    trusted_proxy_cidrs: str = ""
+    login_window_seconds: int = Field(default=60, ge=10, le=600)
+    login_client_limit: int = Field(default=5, ge=1, le=100)
+    login_global_limit: int = Field(default=500, ge=10, le=10000)
+    login_client_bucket_cap: int = Field(default=10000, ge=100, le=100000)
     worker_auto_refresh: bool = True
     pursuits_daily_fetch_limit: int = 160
     pursuits_daily_model_limit: int = 8

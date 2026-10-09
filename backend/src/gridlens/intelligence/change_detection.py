@@ -72,7 +72,14 @@ def material_state(session: Session, project_id: UUID, *, now: datetime | None =
         if (
             evidence
             and project
-            and lifecycle_event_supported(event.event_type, evidence, interpretation, project)
+            and lifecycle_event_supported(
+                event.event_type,
+                evidence,
+                interpretation,
+                project,
+                event.state,
+                event=event,
+            )
         ):
             accepted_events.append(event)
     chain = buying_chain_view(session, project_id, now=now or datetime.now(UTC))
