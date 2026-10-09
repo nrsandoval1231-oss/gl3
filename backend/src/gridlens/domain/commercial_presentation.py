@@ -28,6 +28,34 @@ _UNCERTAIN_QUANTITY = re.compile(
 _FLOOR_MW = Decimal("0.3")
 
 
+def exact_mw_interval(value: object) -> tuple[Decimal, Decimal] | None:
+    """Parse an exact point/range using the same unit rules as floor presentation."""
+    if not isinstance(value, str) or not value.strip() or len(value) > 128:
+        return None
+    match = _POWER.fullmatch(value.strip())
+    if match is None:
+        return None
+    low_unit = (match["unit"] or match["highunit"] or "mw").casefold()
+    high_unit = (match["highunit"] or match["unit"] or "mw").casefold()
+    try:
+        low = Decimal(match["low"].replace(",", ""))
+        high = Decimal((match["high"] or match["low"]).replace(",", ""))
+        if low_unit == "kw":
+            low *= Decimal("0.001")
+        if high_unit == "kw":
+            high *= Decimal("0.001")
+    except ArithmeticError:
+        return None
+    if (
+        not low.is_finite()
+        or not high.is_finite()
+        or low < 0
+        or high < low
+    ):
+        return None
+    return low, high
+
+
 def canonical_mw_claim(value: object) -> object:
     """Compare exact single power quantities without collapsing bounds or estimates."""
     if not isinstance(value, str):
@@ -68,17 +96,10 @@ def commercial_size_status(
     if required_mw is not None:
         # required_mw is already an admitted activity quantity. Preserve its units
         # and interval; qualifiers and arbitrary prose never become exact loads.
-        match = _POWER.fullmatch(required_mw.strip())
-        if match is None:
+        interval = exact_mw_interval(required_mw)
+        if interval is None:
             return "unknown"
-        low_unit = (match["unit"] or match["highunit"] or "mw").casefold()
-        high_unit = (match["highunit"] or match["unit"] or "mw").casefold()
-        low = Decimal(match["low"].replace(",", "")) * (Decimal("0.001") if low_unit == "kw" else 1)
-        high = Decimal((match["high"] or match["low"]).replace(",", "")) * (
-            Decimal("0.001") if high_unit == "kw" else 1
-        )
-        if high < low:
-            return "unknown"
+        low, high = interval
         if high < _FLOOR_MW:
             return "below_floor"
         return "at_or_above_floor" if low >= _FLOOR_MW else "unknown"

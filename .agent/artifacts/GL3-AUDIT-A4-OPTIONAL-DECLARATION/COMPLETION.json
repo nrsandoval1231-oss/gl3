@@ -1,0 +1,96 @@
+{
+  "packet_id": "GL3-AUDIT-A4-OPTIONAL-DECLARATION",
+  "node_id": "repair/operator-optional-declaration-normalization",
+  "repository": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-source-controls-20261007",
+  "branch": "repair/gl3-source-controls-20261007",
+  "base_sha": "8efa5002b92cff7e6a17f8c2ca19a3e325c1cb47",
+  "implementation_commit_sha": "386d3145017d99bb9d346499d16887b8398e8b2e",
+  "implementation_tree_sha": "21f3f50f31d34403eec5b627ffb0dc11e01fbdf6",
+  "candidate_state": "frozen implementation; controller full gates and independent review pending",
+  "started_at_utc": "UNKNOWN",
+  "finished_at_utc": "2026-10-08T01:54:28Z",
+  "elapsed_seconds": "UNKNOWN",
+  "model": "GPT-6; exact variant/config UNKNOWN",
+  "tokens": "UNKNOWN",
+  "validation_config": {
+    "worker_and_automation": "WORKER_AUTO_REFRESH=false for final validation",
+    "python": "3.11.16",
+    "application_or_browser_servers": "none started",
+    "host_port_user": "127.0.0.1:55437/gl3audit",
+    "database_url_database": "gl3audit_source_migration",
+    "dependency_mode": "uv --locked --extra dev",
+    "provider_keys": "explicitly blank for final validation",
+    "backend_uv_lock_sha256": "05d0749dd37965ed3e1015926604b5c5051213ab634f09453a6c94016c0e4ddc",
+    "test_database_url_database": "gl3audit_source_test"
+  },
+  "changed_files": [
+    "backend/src/gridlens/jobs/worker.py",
+    "backend/tests/integration/test_source_scheduling.py",
+    "docs/operations/source-controls-and-worker-health.md",
+    ".agent/packets/GL3-AUDIT-A4-OPTIONAL-DECLARATION.md",
+    ".agent/artifacts/GL3-AUDIT-A4-OPTIONAL-DECLARATION/COMPLETION.json",
+    ".agent/artifacts/GL3-AUDIT-A4-OPTIONAL-DECLARATION/RAW-MANIFEST.json",
+    ".agent/artifacts/GL3-AUDIT-A4-OPTIONAL-DECLARATION/GL3-AUDIT-A4-OPTIONAL-DECLARATION-diff-check-final.txt",
+    ".agent/artifacts/GL3-AUDIT-A4-OPTIONAL-DECLARATION/GL3-AUDIT-A4-OPTIONAL-DECLARATION-diff-check-safe.txt",
+    ".agent/artifacts/GL3-AUDIT-A4-OPTIONAL-DECLARATION/GL3-AUDIT-A4-OPTIONAL-DECLARATION-diff-check.txt",
+    ".agent/artifacts/GL3-AUDIT-A4-OPTIONAL-DECLARATION/GL3-AUDIT-A4-OPTIONAL-DECLARATION-environment.txt",
+    ".agent/artifacts/GL3-AUDIT-A4-OPTIONAL-DECLARATION/GL3-AUDIT-A4-OPTIONAL-DECLARATION-focused-final.txt",
+    ".agent/artifacts/GL3-AUDIT-A4-OPTIONAL-DECLARATION/GL3-AUDIT-A4-OPTIONAL-DECLARATION-focused-safe.txt",
+    ".agent/artifacts/GL3-AUDIT-A4-OPTIONAL-DECLARATION/GL3-AUDIT-A4-OPTIONAL-DECLARATION-focused.txt",
+    ".agent/artifacts/GL3-AUDIT-A4-OPTIONAL-DECLARATION/GL3-AUDIT-A4-OPTIONAL-DECLARATION-mypy-final.txt",
+    ".agent/artifacts/GL3-AUDIT-A4-OPTIONAL-DECLARATION/GL3-AUDIT-A4-OPTIONAL-DECLARATION-mypy-safe.txt",
+    ".agent/artifacts/GL3-AUDIT-A4-OPTIONAL-DECLARATION/GL3-AUDIT-A4-OPTIONAL-DECLARATION-mypy.txt",
+    ".agent/artifacts/GL3-AUDIT-A4-OPTIONAL-DECLARATION/GL3-AUDIT-A4-OPTIONAL-DECLARATION-red.txt",
+    ".agent/artifacts/GL3-AUDIT-A4-OPTIONAL-DECLARATION/GL3-AUDIT-A4-OPTIONAL-DECLARATION-ruff-final.txt",
+    ".agent/artifacts/GL3-AUDIT-A4-OPTIONAL-DECLARATION/GL3-AUDIT-A4-OPTIONAL-DECLARATION-ruff-safe.txt",
+    ".agent/artifacts/GL3-AUDIT-A4-OPTIONAL-DECLARATION/GL3-AUDIT-A4-OPTIONAL-DECLARATION-ruff.txt"
+  ],
+  "validation": [
+    {
+      "exit_code": 0,
+      "command": "uv run --locked --extra dev pytest tests/integration/test_source_scheduling.py tests/integration/test_jobs.py -q",
+      "result": "PASS: 51 passed, 1 existing Starlette/httpx deprecation warning, 12.73 seconds",
+      "raw": ".agent/artifacts/GL3-AUDIT-A4-OPTIONAL-DECLARATION/GL3-AUDIT-A4-OPTIONAL-DECLARATION-focused-safe.txt"
+    },
+    {
+      "exit_code": 0,
+      "command": "uv run --locked --extra dev ruff check src tests",
+      "result": "PASS: All checks passed",
+      "raw": ".agent/artifacts/GL3-AUDIT-A4-OPTIONAL-DECLARATION/GL3-AUDIT-A4-OPTIONAL-DECLARATION-ruff-safe.txt"
+    },
+    {
+      "exit_code": 0,
+      "command": "uv run --locked --extra dev mypy src",
+      "result": "PASS: no issues found in 77 source files",
+      "raw": ".agent/artifacts/GL3-AUDIT-A4-OPTIONAL-DECLARATION/GL3-AUDIT-A4-OPTIONAL-DECLARATION-mypy-safe.txt"
+    },
+    {
+      "exit_code": 0,
+      "command": "git diff --check -- backend/src/gridlens/jobs/worker.py backend/tests/integration/test_source_scheduling.py docs/operations/source-controls-and-worker-health.md",
+      "result": "PASS: scoped source, test, docs diff clean; raw logs are retained byte-for-byte",
+      "raw": ".agent/artifacts/GL3-AUDIT-A4-OPTIONAL-DECLARATION/GL3-AUDIT-A4-OPTIONAL-DECLARATION-diff-check-safe.txt"
+    },
+    {
+      "exit_code": 0,
+      "command": "uv run --locked --extra dev python --version",
+      "result": "Python 3.11.16"
+    }
+  ],
+  "historical_red": {
+    "exit_code": 1,
+    "command": "uv run --locked --extra dev pytest tests/integration/test_source_scheduling.py -k validator_accepted_optional_registry_fields_sync_and_operator -q before implementation",
+    "result": "FAIL as expected: three validator-accepted federal-register-eis declarations (cadence omitted, industries omitted, both omitted) failed sync creation with KeyError for the omitted field",
+    "raw": ".agent/artifacts/GL3-AUDIT-A4-OPTIONAL-DECLARATION/GL3-AUDIT-A4-OPTIONAL-DECLARATION-red.txt"
+  },
+  "raw_manifest": ".agent/artifacts/GL3-AUDIT-A4-OPTIONAL-DECLARATION/RAW-MANIFEST.json",
+  "implementation": [
+    "Canonical declarations materialize cadence_hours=24 and use that value for schedule-mode defaults, making omitted and explicit 24 equivalent in Source and epoch signatures, including comparison with legacy epoch snapshots.",
+    "Source storage normalization uses industries=[] when the declaration omits industries, satisfying the mapped non-null column without copying that placeholder into epoch declaration JSON.",
+    "Source drift comparison uses normalized storage values while epoch drift remains presence-aware; explicit list or [] removed to omission makes the old history UNKNOWN and records a new epoch. Repeated omission is stable.",
+    "Regression tests validate real federal-register-eis declarations through load_registry, sync create/update, operator enable POST, health state, omission idempotence, cadence equivalence, and explicit industries removal from both a populated list and [] ."
+  ],
+  "remaining_gates": [
+    "Controller full backend/browser/web/OpenAPI/schema/scanner gates and independent review remain pending on this exact frozen implementation.",
+    "No browser or application server started; no migration, production/corpus data, provider call, push, merge, deployment, or external action performed."
+  ]
+}

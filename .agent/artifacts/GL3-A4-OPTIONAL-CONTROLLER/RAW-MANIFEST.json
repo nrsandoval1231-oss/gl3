@@ -1,0 +1,87 @@
+[
+  {
+    "name": "a4-optional-controller-backend-audit-diagnostics.log",
+    "bytes": 268,
+    "sha256": "e82148c0c30269ca5a2c35420ece6af011a4faf5a375325d750e243ffdb10625"
+  },
+  {
+    "name": "a4-optional-controller-backend-audit.json",
+    "bytes": 2504,
+    "sha256": "f31cf2ec95e537975cf04d599f688fa7883003b79747368e77475a43d1fbc993"
+  },
+  {
+    "name": "a4-optional-controller-browser.log",
+    "bytes": 6093,
+    "sha256": "0f72862517528ec259a760b1af9e7ccb03e168159e358c0dc41d03d84f3483ff"
+  },
+  {
+    "name": "a4-optional-controller-diff-check.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "name": "a4-optional-controller-export.log",
+    "bytes": 25647,
+    "sha256": "80a7e3ba52584b811b35997e5e860fe1d1664f5c28d8819fd10a49252316a15d"
+  },
+  {
+    "name": "a4-optional-controller-full.log",
+    "bytes": 2967,
+    "sha256": "da34475efaebc31a075995af3a38bb3b4969d30e00abdf0d467b338e46360555"
+  },
+  {
+    "name": "a4-optional-controller-mypy.log",
+    "bytes": 358,
+    "sha256": "42eb51aa75045d5cab86c8e7d177545710f7854e7299d864f766dc2532000c2a"
+  },
+  {
+    "name": "a4-optional-controller-openapi.log",
+    "bytes": 36,
+    "sha256": "7a699cee0b904931f15a7136a850f19af99798229d7a47e19010690172d93dd5"
+  },
+  {
+    "name": "a4-optional-controller-requirements.txt",
+    "bytes": 25225,
+    "sha256": "9f2f5c10401d7e6cb6cd8dc87a50db53237d2e53e8f050891cfdd7b40663617f"
+  },
+  {
+    "name": "a4-optional-controller-ruff.log",
+    "bytes": 20,
+    "sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0"
+  },
+  {
+    "name": "a4-optional-controller-schema-drift.log",
+    "bytes": 1933,
+    "sha256": "b43659e6e4fe9ba913d0a9f385f8e355ac5162a0f4dd6034965f4b0e29b22507"
+  },
+  {
+    "name": "a4-optional-controller-schema-repeat.log",
+    "bytes": 260,
+    "sha256": "c9dede11c80ccef6853207a302c79427d48bcdbd6fbf586b5dc306be0763cd94"
+  },
+  {
+    "name": "a4-optional-controller-schema-upgrade.log",
+    "bytes": 260,
+    "sha256": "c9dede11c80ccef6853207a302c79427d48bcdbd6fbf586b5dc306be0763cd94"
+  },
+  {
+    "name": "a4-optional-controller-secret-scan.json",
+    "bytes": 160,
+    "sha256": "cff3836dd747745efbc6ddfbffce8365718dd3c0cf65e042081efbed725d96c3"
+  },
+  {
+    "name": "a4-optional-controller-web-audit.json",
+    "bytes": 385,
+    "sha256": "03f8e9fe5ab2d32913f2d78d6d82565488c46779b420abcaef976109882b1123"
+  },
+  {
+    "name": "a4-optional-controller-web-build.log",
+    "bytes": 393,
+    "sha256": "bd09c32e6fbdb28b2caa59876dc67d44226dea76d5a5b2ee6600ac8d7b95a036"
+  },
+  {
+    "name": "a4-optional-controller-web-typecheck.log",
+    "bytes": 52,
+    "sha256": "6e2f251662437d85417559b9c1f81367fa9947f3260f8d41fb5623f694160039"
+  }
+]

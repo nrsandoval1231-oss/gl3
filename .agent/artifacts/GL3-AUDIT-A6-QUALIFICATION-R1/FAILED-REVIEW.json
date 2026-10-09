@@ -1,0 +1,92 @@
+{
+  "task": "GL3-AUDIT-A6 backend fresh ordinary independent review",
+  "verdict": "FIX",
+  "controller_direction": "CORRECT",
+  "scope": "Frozen A6 exact-need fact/status backend and canonical qualification integration only; A6 UI/status-filter and parent finish contract remain open",
+  "candidate": {
+    "branch": "repair/gl3-facts-workflow-20261008",
+    "head": "c3c60dfedcc68d5b33594363a334989b42e8e57f",
+    "tree": "3fa60813bade4a3785cca7c450629255505ee208",
+    "base_accepted_a5b": "df4e8216bfa07ec8194aa00053d5883f6065d5db",
+    "product_source_head": "209caeb",
+    "test_guard_source_head": "47c2fe5",
+    "tested_head": "a752049343f4ffff1e153426893c9b23902daccc",
+    "source_manifest_entries_checked": 267,
+    "source_mismatches": 0,
+    "worktree_clean": true
+  },
+  "governing_prd": {
+    "path": "docs/product/PRD.md",
+    "working_sha256": "4415972a56af5ebfe3eab9deeee59224f4a202ab5489bb31856ed6b8df47bdc5",
+    "git_blob": "4ce4aaa2e49e6e42f94870db6d862272f29e7523",
+    "sections": "Requirements 20, 21, 23, 24 and 26 at lines 130-142; user feedback requirement 30 at line 152"
+  },
+  "findings": [
+    {
+      "severity": "blocking",
+      "code": "current_public_prospect_cannot_promote_to_lead_from_compatible_facts",
+      "location": "backend/src/gridlens/domain/call_facts.py:182-218",
+      "supporting_locations": [
+        "backend/src/gridlens/domain/power_qualification.py:66-115",
+        "backend/src/gridlens/ingestion/service.py:649-680",
+        "backend/tests/unit/test_call_facts.py:54-120",
+        "docs/product/PRD.md:130-136"
+      ],
+      "trigger": "A current accepted exact-site official source establishes a 20 MW Prospect and separate insufficient supply. The same exact need/project/activity/facility receives accepted compatible demand, unsuitable-supply, timing, suitable-supply-with-positive-gap and likely buyer facts.",
+      "evidence": "The canonical official parser returns Prospect for the exact-site demand/insufficient-supply clauses. qualification_from_facts evaluates the timing/suitable/buyer Lead branch only inside if base.get('tier') == 'Signal'; a Prospect base falls through to return base unchanged. Pure domain repro with provider keys blank and automation false returned source_tier Prospect and result_tier Prospect, with no start window or remaining-gap output. Existing unit/integration promotion fixtures begin with a Signal base, so green tests do not cover this natural Prospect-to-Lead path.",
+      "repro_artifact": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-audit-repair-20261007/.artifacts/audit-20261007/a6-backend-prospect-domain-repro.json",
+      "repro_sha256": "a3cea0aaaa8bf2198cd293537f9835c8781e5fdbd97c70d9aae6ac05e0e713c7",
+      "impact": "An evidence-supported current Prospect cannot advance to Lead when later operator-confirmed exact-need facts fill its missing Lead prerequisites, contrary to the PRD daily journey, requirements 21 and 30, and A6 packet. This repro assumes the official parser result has passed the separate current-source admission gate; it does not claim a live customer Lead.",
+      "required_correction": "Evaluate Lead prerequisites for current admitted Prospect as well as Signal while retaining source admission, exact need/project/activity/facility binding, conflict/closure/expiry gates and deterministic gap calculation. Add a meaningful official-source Prospect-to-Lead fixture and demotion/correction path."
+    },
+    {
+      "severity": "blocking",
+      "code": "lead_gap_uses_suitable_supply_outside_activity_interval",
+      "location": "backend/src/gridlens/domain/call_facts.py:109-128,190-218",
+      "supporting_locations": [
+        "backend/src/gridlens/ingestion/service.py:703-710",
+        "docs/product/PRD.md:132-140",
+        ".agent/packets/GL3-AUDIT-A6-BACKEND-DISPATCH-SUPPLEMENT.md"
+      ],
+      "trigger": "At 2026-10-08, accepted exact-need suitable supply of 5 MW is effective only until 2026-10-09, while the accepted activity start window is 2027-01-01 to 2027-02-01 with 31-day duration.",
+      "evidence": "current_accepted_facts and SQL preload include fact versions active at the current instant only. qualification_from_facts uses the suitable-supply MW/quality to subtract from demand without comparing its effective interval to the required future start window and duration. A pure domain repro selected all five current accepted facts and returned Lead with a derived positive gap even though the suitable-supply version expires months before the activity. The accepted fact values, dates and current-time selection were explicit in the saved repro; no DB or provider call was made.",
+      "repro_artifact": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-audit-repair-20261007/.artifacts/audit-20261007/a6-backend-interval-domain-repro.json",
+      "repro_sha256": "3e7e2c756d33aa5af0493767970d628676b15f06e39f849bf26f095890f41b54",
+      "impact": "The Lead calculation treats supply that is unsupported for the need's activity interval as suitable available supply. This violates PRD requirements 21, 23 and 24 and the A6 packet's interval-specific suitable-supply gate. A similar expiry mismatch can affect other fact kinds; correction must validate compatible effective coverage rather than simply ignore expiry.",
+      "required_correction": "Bind the accepted timing and supply facts to one compatible activity interval and require supported suitable-supply capacity/quality throughout that interval before deriving a Lead gap. Preserve current-time expiry, source contradiction, version history and bounded preload semantics. Add a future-window-versus-expiring-supply regression and valid covering-interval positive case."
+    }
+  ],
+  "independent_checks": [
+    "Read actual tracked canonical docs/product/PRD.md and verified its working SHA/Git blob; dispatch text naming docs/PRD.md was a stale path reference, not alternate authority.",
+    "Read A6 packet, reassessment addendum, backend dispatch supplement, controller GATES/COMPLETION, call-fact/status models and APIs, qualification path, source hooks, current preload/token input, and focused unit/integration fixtures.",
+    "Verified exact HEAD/tree and clean worktree; tested-to-final changes are proof-only. Independently verified all 267 current working/Git source bytes against TESTED-SOURCE-MANIFEST.json.",
+    "Independently verified ROOT-RAW-AND-REDACTED-PROOF.zip SHA256 a352201f6cfdb08eab7d133728718265be244c0bafd080c9328967a821c8b8f4 and all 197 archived entry lengths/hashes against RAW-HASH-MANIFEST.json.",
+    "Ran two pure domain reproductions with Firecrawl/OpenAI/Typesafe keys blank and automatic research/worker flags false; saved their generated JSON output outside candidate. No application DB, provider or paid service was used.",
+    "Reviewed preserved initial red gates and repaired setup/test guard lineage as negative evidence, not acceptance. Did not inspect or copy private credential-bearing original browser trace; redacted copy and original hash manifest remain distinct."
+  ],
+  "deterministic_evidence": {
+    "backend": "1434 passed, 2 environmental skips, 7 warnings, 260.52 seconds",
+    "browser": "62 passed, 44.4 seconds on unchanged product/browser source before sole later disposable-DB test guard change",
+    "static_contract_migration": "Ruff, mypy src 80 files, web typecheck/build, locked audits, exact OpenAPI 34 paths, migration0017 fresh/repeat/drift PASS per root raw receipts",
+    "retained_parity": "Read-only 1167 records, 1149 public groups, 17 searches and all 24 pages exact; 24 original-table column fingerprints unchanged",
+    "commercial_first50": "135 SQL, exact accepted 202084-byte payload hash",
+    "public_first50": "125 SQL, exact accepted 597098-byte payload hash",
+    "root_raw_entries": 197,
+    "root_raw_sha256": "a352201f6cfdb08eab7d133728718265be244c0bafd080c9328967a821c8b8f4"
+  },
+  "limitations": [
+    "The two blocking findings are deterministic pure-domain repros on accepted-current fact objects and a canonical official parser output; a repaired candidate still needs disposable-DB integration proof of source admission, exact need scope, intervals, correction/demotion, and source reassessment.",
+    "Status UNKNOWN-only filter is partial; full seven-state public filter and functional fact/status UI are dependent packets, not accepted here.",
+    "A7 original PNG/HTML, A8 and real feed, quality, seven-day and customer Lead gates remain OPEN. No parent completion, merge or deployment claim.",
+    "Python allocation is not RSS or a production SLO. Historical unretained tool bytes remain UNKNOWN; private original failed browser trace stays ignored and was not copied or printed."
+  ],
+  "timing": {
+    "utc_start": "2026-10-08T21:03:50Z",
+    "utc_finish": "2026-10-08T21:11:40Z",
+    "audit_duration_seconds": 470,
+    "lane": "Sol independent review",
+    "model": "UNKNOWN",
+    "config_identity": "UNKNOWN",
+    "tokens": "UNKNOWN"
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "observed_at_utc": "2026-10-07T20:56:03Z",
+  "repository": "nrsandoval1231-oss/gl3",
+  "private": true,
+  "default_branch": "main",
+  "main_head_sha": "94c3acb7b36c6d5d04a77a0ec445e793e05120a4",
+  "pr_24": {
+    "state": "MERGED",
+    "draft": false,
+    "head_sha": "89a715c4a6469f4d3f23a874fcd97b42177b6dd1",
+    "base": "main",
+    "merged_at_utc": "2026-10-07T04:51:38Z",
+    "url": "https://github.com/nrsandoval1231-oss/gl3/pull/24"
+  },
+  "branch_protection": {
+    "method": "GET /repos/nrsandoval1231-oss/gl3/branches/main/protection",
+    "probe_count": 1,
+    "http_status": 403,
+    "message": "Upgrade to GitHub Pro or make this repository public to enable this feature.",
+    "observed_at_utc": "2026-10-07T20:23Z",
+    "observed_second": "UNKNOWN"
+  }
+}

@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 import pytest
@@ -20,4 +21,42 @@ def test_registry_rejects_unbounded_page_query(tmp_path: Path):
     bad = tmp_path / "registry.json"
     bad.write_text(payload, encoding="utf-8")
     with pytest.raises(ValueError):
+        load_registry(bad)
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    [
+        ("cadence_hours", 0, "positive number of hours"),
+        ("schedule_mode", "unknown", "Unsupported source schedule mode"),
+        ("timezone", "Not/A_Zone", "valid IANA zone"),
+        ("schedule_anchor_time", "25:90", "local clock time"),
+    ],
+)
+def test_registry_rejects_invalid_schedule_configuration(tmp_path: Path, field, value, message):
+    source_path = Path(__file__).parents[3] / "config" / "sources" / "registry.v1.json"
+    payload = json.loads(source_path.read_text(encoding="utf-8"))
+    payload["sources"][0][field] = value
+    bad = tmp_path / "registry.json"
+    bad.write_text(json.dumps(payload), encoding="utf-8")
+    with pytest.raises(ValueError, match=message):
+        load_registry(bad)
+
+
+@pytest.mark.parametrize(
+    ("cadence", "schedule_mode"),
+    [(36, "local_daily"), (True, "utc_hourly")],
+)
+def test_registry_rejects_unrepresentable_or_boolean_cadence(
+    tmp_path: Path, cadence: int | bool, schedule_mode: str
+):
+    source_path = Path(__file__).parents[3] / "config" / "sources" / "registry.v1.json"
+    payload = json.loads(source_path.read_text(encoding="utf-8"))
+    source = next(item for item in payload["sources"] if item["id"] == "federal-register-eis")
+    assert source["retrieval_method"] == "json-api"
+    source["cadence_hours"] = cadence
+    source["schedule_mode"] = schedule_mode
+    bad = tmp_path / "registry.json"
+    bad.write_text(json.dumps(payload), encoding="utf-8")
+    with pytest.raises(ValueError, match="cadence"):
         load_registry(bad)

@@ -1,0 +1,7 @@
+Commit lookup results:
+actions/checkout@11d5960a326750d5838078e36cf38b85af677262 exit=0 resolved=11d5960a326750d5838078e36cf38b85af677262
+actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 exit=0 resolved=49933ea5288caeca8642d1e84afbd3f7d6820020
+actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 exit=0 resolved=ea165f8d65b6e75b540449e92b4886f43607fa02
+astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e exit=0 resolved=d0cc045d04ccac9d8b7881df0226f9e82c39688e
+Official v6.8.0 tag: d0cc045d04ccac9d8b7881df0226f9e82c39688e	refs/tags/v6.8.0 exit=0
+Supplied d0d8abe699bfb85fec6de9f7adb5ae17292296ff was the annotated v6 tag object; the peeled v6.8.0 commit above is pinned.

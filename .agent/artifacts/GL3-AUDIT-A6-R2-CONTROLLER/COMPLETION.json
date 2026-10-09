@@ -1,0 +1,33 @@
+{
+  "status": "DETERMINISTIC_GATES_PASS_PENDING_INDEPENDENT_REVIEW",
+  "parent_complete": false,
+  "tested_head": "7262c3f915c5fddd9178171e672812fae7d01de3",
+  "utc_recorded": "2026-10-08T22:16:23.587709+00:00",
+  "backend": {
+    "passed": 1461,
+    "skipped": 2,
+    "warnings": 7,
+    "seconds": 238.62
+  },
+  "browser": {
+    "passed": 62,
+    "seconds": 44.9
+  },
+  "source_inputs": 270,
+  "source_changes": [
+    "backend/src/gridlens/domain/call_facts.py",
+    "backend/src/gridlens/ingestion/service.py",
+    "backend/tests/integration/test_call_fact_workflow_integration.py",
+    "backend/tests/unit/test_call_facts.py"
+  ],
+  "prior_independent_verdict": "FIX",
+  "new_independent_review": "PENDING",
+  "deployment": false,
+  "tokens": "UNKNOWN",
+  "config_identity": "UNKNOWN",
+  "limitations": [
+    "No real customer Lead or production SLO claim",
+    "Protected canonical UI originals and authentic feed/quality/seven-day gates remain OPEN",
+    "Known-private original failed browser trace remains private; separately attributed redacted copy retained"
+  ]
+}
