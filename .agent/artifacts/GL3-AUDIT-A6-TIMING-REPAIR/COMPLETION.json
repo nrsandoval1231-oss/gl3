@@ -1,0 +1,63 @@
+{
+  "schema": "gl3-a6-bounded-completion-v1",
+  "task": "GL3-AUDIT-A6-TIMING-CONFLICT-REDIRECTION",
+  "direction": "CONTINUE_TO_ROOT_VALIDATION",
+  "acceptance_claim": false,
+  "source_commit": "98345e808f7915e463ef5b520308a8bd95b16fff",
+  "source_tree": "3c50376fd82ca04e93d2633f2390e3570c7c78bd",
+  "changed_source_files": [
+    "backend/src/gridlens/domain/call_facts.py",
+    "backend/tests/unit/test_call_facts.py",
+    "backend/tests/integration/test_call_fact_workflow_integration.py"
+  ],
+  "governing_packet_sha256": "7b107f886d97c4200fe7b90aad64629111197e6783f287725f3626c6ea2de886",
+  "raw_hash_manifest": {
+    "path": ".agent/artifacts/GL3-AUDIT-A6-TIMING-REPAIR/RAW-HASH-MANIFEST.json",
+    "sha256": "ef28a59b48c19e88b9c1f8f0dc4f63ea04b38c82af0951df35e7cf5077f5959f"
+  },
+  "exact_red_reproduction": {
+    "command": "pytest -q tests/unit/test_call_facts.py::test_disjoint_timing_and_expiring_supply_conflict_with_current_source_lead tests/unit/test_call_facts.py::test_timing_correction_marker_requires_both_current_source_hashes_and_reason",
+    "exit_code": 1,
+    "result": "2 failures on pre-fix source: disjoint timing did not conflict and typed source-correction markers were rejected",
+    "raw_log": ".artifacts/a6-timing-red-20261008T2229396497583Z-6360ab4e08a842a2ae9be4594777c473-pytest.log",
+    "raw_sha256": "2838ef49c25b8b1983c2705cb3eaedc6a0b400315d29655d7e7cec5af30171ca"
+  },
+  "validation": [
+    {
+      "command": "pytest -q tests/unit/test_call_facts.py tests/unit/test_commercial_presentation.py tests/integration/test_call_fact_workflow_integration.py",
+      "exit_code": 0,
+      "result": "61 passed; 1 existing Starlette/httpx deprecation warning",
+      "raw_log": ".artifacts/a6-timing-final-focused-4-20261008T2240192223345Z-5c0b1e6b5bd74d9a9487015005a4452c-pytest.log",
+      "raw_sha256": "5f6da69c233c598c69ac4bb64dc92b9652d699a336937ad6ee07bbbbf9210ec4"
+    },
+    {
+      "command": "ruff check src/gridlens/domain/call_facts.py tests/unit/test_call_facts.py tests/integration/test_call_fact_workflow_integration.py",
+      "exit_code": 0,
+      "result": "All checks passed",
+      "raw_log": ".artifacts/a6-timing-ruff-final-2-20261008T2240306564948Z-52d01258c1904f219e6b82be291ed197-ruff.log",
+      "raw_sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0"
+    },
+    {
+      "command": "mypy src",
+      "exit_code": 0,
+      "result": "Success: no issues found in 80 source files",
+      "raw_log": ".artifacts/a6-timing-mypy-2-20261008T2239572166957Z-56fe6f1a703e4bda86da61a34544bada-mypy.log",
+      "raw_sha256": "fea320e2e156bbfc4c4e54eba09d22d9c6d042cde79c5b02cb628fc505ca21e6"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0,
+      "result": "Passed before source freeze",
+      "raw_log": null,
+      "raw_sha256": null
+    }
+  ],
+  "provider_preflight": "Safe wrapper cleared FIRECRAWL_API_KEY, OPENAI_API_KEY, TYPESAFE_API_KEY before imports; worker/autonomous flags disabled; synthetic auth; candidate .env absent; builder disposable DB only",
+  "retained_or_original_data_mutation": false,
+  "root_full_gates_and_independent_review": "pending",
+  "utc_freeze": "2026-10-08T22:41:25Z",
+  "model": "UNKNOWN",
+  "config_identity": "UNKNOWN",
+  "tokens": "UNKNOWN",
+  "phase_durations": "UNKNOWN"
+}

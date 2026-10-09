@@ -39,7 +39,9 @@ def evaluate_targets(
         if not missing:
             return found
     else:
-        items = opportunity_projection(session, include_below_floor=True)
+        items = opportunity_projection(
+            session, include_below_floor=True, include_operator_fact_refs=True
+        )
         exact_items = {str(item["id"]): item for item in items if str(item["id"]) in wanted}
         chains = {
             str(project_id): buying_chain_view(session, project_id)
@@ -57,7 +59,9 @@ def evaluate_targets(
             return found
 
     if grouped:
-        items = opportunity_projection(session, include_below_floor=True)
+        items = opportunity_projection(
+            session, include_below_floor=True, include_operator_fact_refs=True
+        )
         # Resolve exact work groups across the full projection before doing the more
         # expensive buying-chain reads. Group identity depends on source/document/site
         # evidence; final cards are rebuilt with current chain data for selected groups.
@@ -145,6 +149,8 @@ def save_evaluations(session: Session, cards: list[dict], *, now: datetime | Non
         row.project_ids = card["related_project_ids"]
         card["pursuit_id"] = row.id
         saved_card = CommercialTriageCard.model_validate(card).model_dump(mode="json")
+        if not card.get("operator_fact_refs"):
+            saved_card.pop("operator_fact_refs", None)
         saved_card["notes"] = []
         snapshot = dict(row.snapshot or {})
         prior = snapshot.get("commercial_triage", {})
@@ -184,6 +190,7 @@ def save_evaluations(session: Session, cards: list[dict], *, now: datetime | Non
                     "evaluated_on": today,
                     "evaluated_at": saved_at,
                     "input_hash": card["input_hash"],
+                    "operator_fact_provenance": "recorded",
                     "snapshot_status": "saved_as_of",
                     "live_status": "not_rechecked",
                     "saved_card": saved_card,

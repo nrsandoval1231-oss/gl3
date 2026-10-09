@@ -1,0 +1,175 @@
+{
+  "schema": "codex-task-completion/v1",
+  "packet_id": "GL3-AUDIT-A6-ARCHIVE-BINARY-REPAIR",
+  "status": "FROZEN_FOR_ROOT_VALIDATION",
+  "acceptance_claim": false,
+  "repair_commit": {
+    "commit": "38934cf391a2d84d3f833047e76e051e3a94b634",
+    "tree": "1b4e5b47d9f9ab9d6aada0af932f03fff8506fec",
+    "branch": "repair/gl3-facts-workflow-20261008"
+  },
+  "product_source_anchor": {
+    "commit": "209caeb1551afa3dbda2650cd8fa64e93f68de2b",
+    "tree": "a567e9e2ed71ee65b3644de0d383ee205ba282bb"
+  },
+  "source_scope_unchanged": true,
+  "source_paths_changed_since_product_anchor": [],
+  "attribute_rule": ".agent/artifacts/GL3-AUDIT-A6-DISPATCH/*.bin -text -diff",
+  "archive_blobs": [
+    {
+      "path": ".agent/artifacts/GL3-AUDIT-A6-DISPATCH/CURRENT_STATE.md.before-compact.bin",
+      "original_working_sha256_from_root": "a7e5228ad55c796569f568531efbb808899e0d96d5f036c99b5f8b966e6241d0",
+      "pre_repair_head_blob_sha256": "a7e5228ad55c796569f568531efbb808899e0d96d5f036c99b5f8b966e6241d0",
+      "pre_repair_working_sha256_unchanged": true,
+      "working_bytes": 10298,
+      "working_sha256_after": "a7e5228ad55c796569f568531efbb808899e0d96d5f036c99b5f8b966e6241d0",
+      "repair_commit_blob_oid": "e8b7ad6b9226dcd0b7e52697819b47af5a3df82a",
+      "repair_commit_blob_bytes": 10298,
+      "repair_commit_blob_sha256": "a7e5228ad55c796569f568531efbb808899e0d96d5f036c99b5f8b966e6241d0",
+      "working_equals_committed_blob": true
+    },
+    {
+      "path": ".agent/artifacts/GL3-AUDIT-A6-DISPATCH/CURRENT_STATE.md.prior.bin",
+      "original_working_sha256_from_root": "e4bcf73d3d760dd4d3e56214c2e6c77b06b9ffe2c35e29bf0548eeef0b7ce773",
+      "pre_repair_head_blob_sha256": "a0590db9839ca28c78a8aa2331aba3bc6b6cccc10673f6882e7e7c138c5c934c",
+      "pre_repair_working_sha256_unchanged": true,
+      "working_bytes": 9542,
+      "working_sha256_after": "e4bcf73d3d760dd4d3e56214c2e6c77b06b9ffe2c35e29bf0548eeef0b7ce773",
+      "repair_commit_blob_oid": "1e326de9ce6cb5b78c96675b9bc70c8eb585ca10",
+      "repair_commit_blob_bytes": 9542,
+      "repair_commit_blob_sha256": "e4bcf73d3d760dd4d3e56214c2e6c77b06b9ffe2c35e29bf0548eeef0b7ce773",
+      "working_equals_committed_blob": true
+    },
+    {
+      "path": ".agent/artifacts/GL3-AUDIT-A6-DISPATCH/WORK_GRAPH.md.before-compact.bin",
+      "original_working_sha256_from_root": "619af666bf73093a9166f49137c784e9d16f9373d7d5436dabcb359903e487d9",
+      "pre_repair_head_blob_sha256": "619af666bf73093a9166f49137c784e9d16f9373d7d5436dabcb359903e487d9",
+      "pre_repair_working_sha256_unchanged": true,
+      "working_bytes": 34107,
+      "working_sha256_after": "619af666bf73093a9166f49137c784e9d16f9373d7d5436dabcb359903e487d9",
+      "repair_commit_blob_oid": "323fd6fe1b7f5189608b02ffb2e83823c3831b44",
+      "repair_commit_blob_bytes": 34107,
+      "repair_commit_blob_sha256": "619af666bf73093a9166f49137c784e9d16f9373d7d5436dabcb359903e487d9",
+      "working_equals_committed_blob": true
+    },
+    {
+      "path": ".agent/artifacts/GL3-AUDIT-A6-DISPATCH/WORK_GRAPH.md.prior.bin",
+      "original_working_sha256_from_root": "f6f84d875b55ae18e73966ee37d4e0676e85c07c6351a57e65060bfafd9864bf",
+      "pre_repair_head_blob_sha256": "10032f66eecd17e90c5c4dd826c8aff42008e6d71fe9c504f2134e97f0ab7383",
+      "pre_repair_working_sha256_unchanged": true,
+      "working_bytes": 33491,
+      "working_sha256_after": "f6f84d875b55ae18e73966ee37d4e0676e85c07c6351a57e65060bfafd9864bf",
+      "repair_commit_blob_oid": "080786089a84b094a803c485e50508320979ec38",
+      "repair_commit_blob_bytes": 33491,
+      "repair_commit_blob_sha256": "f6f84d875b55ae18e73966ee37d4e0676e85c07c6351a57e65060bfafd9864bf",
+      "working_equals_committed_blob": true
+    }
+  ],
+  "all_four_working_bytes_preserved": true,
+  "all_four_committed_blobs_equal_working_bytes": true,
+  "pre_repair_normalized_blobs_archive": {
+    "path": ".agent/artifacts/GL3-AUDIT-A6-ARCHIVE-BINARY-REPAIR/PRE-REPAIR-GIT-BLOBS.zip",
+    "sha256": "8e7395ea955d2c18b6a247a683703a0274b224f2681734835e9077a2e2c54745",
+    "entry_count": 8,
+    "entries": [
+      {
+        "commit": "80dbc2f6f5a7a5cc43534ad995501fb63c0c3885",
+        "path": ".agent/artifacts/GL3-AUDIT-A6-DISPATCH/CURRENT_STATE.md.before-compact.bin",
+        "zip_entry": "80dbc2f6f5a7a5cc43534ad995501fb63c0c3885/.agent/artifacts/GL3-AUDIT-A6-DISPATCH/CURRENT_STATE.md.before-compact.bin",
+        "bytes": 10298,
+        "sha256": "a7e5228ad55c796569f568531efbb808899e0d96d5f036c99b5f8b966e6241d0"
+      },
+      {
+        "commit": "80dbc2f6f5a7a5cc43534ad995501fb63c0c3885",
+        "path": ".agent/artifacts/GL3-AUDIT-A6-DISPATCH/CURRENT_STATE.md.prior.bin",
+        "zip_entry": "80dbc2f6f5a7a5cc43534ad995501fb63c0c3885/.agent/artifacts/GL3-AUDIT-A6-DISPATCH/CURRENT_STATE.md.prior.bin",
+        "bytes": 9469,
+        "sha256": "a0590db9839ca28c78a8aa2331aba3bc6b6cccc10673f6882e7e7c138c5c934c"
+      },
+      {
+        "commit": "80dbc2f6f5a7a5cc43534ad995501fb63c0c3885",
+        "path": ".agent/artifacts/GL3-AUDIT-A6-DISPATCH/WORK_GRAPH.md.before-compact.bin",
+        "zip_entry": "80dbc2f6f5a7a5cc43534ad995501fb63c0c3885/.agent/artifacts/GL3-AUDIT-A6-DISPATCH/WORK_GRAPH.md.before-compact.bin",
+        "bytes": 34107,
+        "sha256": "619af666bf73093a9166f49137c784e9d16f9373d7d5436dabcb359903e487d9"
+      },
+      {
+        "commit": "80dbc2f6f5a7a5cc43534ad995501fb63c0c3885",
+        "path": ".agent/artifacts/GL3-AUDIT-A6-DISPATCH/WORK_GRAPH.md.prior.bin",
+        "zip_entry": "80dbc2f6f5a7a5cc43534ad995501fb63c0c3885/.agent/artifacts/GL3-AUDIT-A6-DISPATCH/WORK_GRAPH.md.prior.bin",
+        "bytes": 33278,
+        "sha256": "10032f66eecd17e90c5c4dd826c8aff42008e6d71fe9c504f2134e97f0ab7383"
+      },
+      {
+        "commit": "209caeb1551afa3dbda2650cd8fa64e93f68de2b",
+        "path": ".agent/artifacts/GL3-AUDIT-A6-DISPATCH/CURRENT_STATE.md.before-compact.bin",
+        "zip_entry": "209caeb1551afa3dbda2650cd8fa64e93f68de2b/.agent/artifacts/GL3-AUDIT-A6-DISPATCH/CURRENT_STATE.md.before-compact.bin",
+        "bytes": 10298,
+        "sha256": "a7e5228ad55c796569f568531efbb808899e0d96d5f036c99b5f8b966e6241d0"
+      },
+      {
+        "commit": "209caeb1551afa3dbda2650cd8fa64e93f68de2b",
+        "path": ".agent/artifacts/GL3-AUDIT-A6-DISPATCH/CURRENT_STATE.md.prior.bin",
+        "zip_entry": "209caeb1551afa3dbda2650cd8fa64e93f68de2b/.agent/artifacts/GL3-AUDIT-A6-DISPATCH/CURRENT_STATE.md.prior.bin",
+        "bytes": 9469,
+        "sha256": "a0590db9839ca28c78a8aa2331aba3bc6b6cccc10673f6882e7e7c138c5c934c"
+      },
+      {
+        "commit": "209caeb1551afa3dbda2650cd8fa64e93f68de2b",
+        "path": ".agent/artifacts/GL3-AUDIT-A6-DISPATCH/WORK_GRAPH.md.before-compact.bin",
+        "zip_entry": "209caeb1551afa3dbda2650cd8fa64e93f68de2b/.agent/artifacts/GL3-AUDIT-A6-DISPATCH/WORK_GRAPH.md.before-compact.bin",
+        "bytes": 34107,
+        "sha256": "619af666bf73093a9166f49137c784e9d16f9373d7d5436dabcb359903e487d9"
+      },
+      {
+        "commit": "209caeb1551afa3dbda2650cd8fa64e93f68de2b",
+        "path": ".agent/artifacts/GL3-AUDIT-A6-DISPATCH/WORK_GRAPH.md.prior.bin",
+        "zip_entry": "209caeb1551afa3dbda2650cd8fa64e93f68de2b/.agent/artifacts/GL3-AUDIT-A6-DISPATCH/WORK_GRAPH.md.prior.bin",
+        "bytes": 33278,
+        "sha256": "10032f66eecd17e90c5c4dd826c8aff42008e6d71fe9c504f2134e97f0ab7383"
+      }
+    ]
+  },
+  "root_failure_evidence": [
+    {
+      "source": ".artifacts/root-a6-builder-diff-check.log",
+      "copy": ".agent/artifacts/GL3-AUDIT-A6-ARCHIVE-BINARY-REPAIR/ROOT-EVIDENCE/root-a6-builder-diff-check.log",
+      "bytes": 390,
+      "source_sha256": "5498f864378112f233f874399d0c2a7a0e3937b2bda619b2f1d3836326793e44",
+      "copy_sha256": "5498f864378112f233f874399d0c2a7a0e3937b2bda619b2f1d3836326793e44",
+      "identical": true
+    },
+    {
+      "source": ".artifacts/root-a6-archive-bin-identity.json",
+      "copy": ".agent/artifacts/GL3-AUDIT-A6-ARCHIVE-BINARY-REPAIR/ROOT-EVIDENCE/root-a6-archive-bin-identity.json",
+      "bytes": 1387,
+      "source_sha256": "724f33b67a33ad5d2a95673c7576853ec72e1631d294d89f2aeca79ae4b6a85e",
+      "copy_sha256": "724f33b67a33ad5d2a95673c7576853ec72e1631d294d89f2aeca79ae4b6a85e",
+      "identical": true
+    }
+  ],
+  "validation": {
+    "command": "git diff --check HEAD^ HEAD",
+    "exit_code": 0,
+    "raw_log": ".artifacts/a6-archive-binary-repair-diffcheck-20261008T203900Z.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "classification": "Archived .bin files are binary; no source changes were made and whitespace check passed."
+  },
+  "product_tests_repeated": false,
+  "reason": "Artifact-only repair; root owns full/frozen validation and independent review.",
+  "provenance": {
+    "started_utc": "2026-10-08T20:39:06.942014Z",
+    "finished_utc": "2026-10-08T20:41:53Z",
+    "repair_attempts": 2,
+    "model": "UNKNOWN",
+    "configuration_identity": "UNKNOWN",
+    "tokens": "UNKNOWN"
+  },
+  "safety": {
+    "provider_calls": 0,
+    "original_data_mutations": 0,
+    "push_merge_deploy": false
+  },
+  "artifact_metadata_commit": "reported in terminal handoff to avoid recursive self-hashing"
+}

@@ -297,6 +297,92 @@ class PowerNeed(Base):
     )
 
 
+class CallFactVersion(Base):
+    """Immutable, attributed operator fact version scoped to one exact need."""
+
+    __tablename__ = "call_fact_versions"
+    __table_args__ = (
+        UniqueConstraint("need_id", "client_id", name="uq_call_fact_version_request"),
+        Index("ix_call_fact_version_scope", "need_id", "created_at"),
+    )
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    need_id: Mapped[UUID] = mapped_column(ForeignKey("power_needs.id"), nullable=False)
+    project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id"), nullable=False)
+    pursuit_id: Mapped[UUID | None] = mapped_column(ForeignKey("pursuits.id"), nullable=True)
+    predecessor_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), nullable=True)
+    client_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    activity_key: Mapped[str] = mapped_column(String(100), nullable=False)
+    facility_scope: Mapped[str] = mapped_column(Text, nullable=False)
+    fact_type: Mapped[str] = mapped_column(String(40), nullable=False)
+    value: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    reporter_name: Mapped[str] = mapped_column(String(160), nullable=False)
+    reporter_organization: Mapped[str | None] = mapped_column(String(200), nullable=True)
+    reporter_role: Mapped[str | None] = mapped_column(String(160), nullable=True)
+    confirmation_channel: Mapped[str] = mapped_column(String(40), nullable=False)
+    source_reference: Mapped[str | None] = mapped_column(Text, nullable=True)
+    source_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    confirmed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    effective_from: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    effective_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    recorded_by: Mapped[str] = mapped_column(String(200), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class CallFactDecision(Base):
+    """Append-only decision receipt for a fact version; current state is derived."""
+
+    __tablename__ = "call_fact_decisions"
+    __table_args__ = (
+        UniqueConstraint("need_id", "version", name="uq_call_fact_decision_version"),
+        UniqueConstraint("need_id", "client_id", name="uq_call_fact_decision_request"),
+        Index("ix_call_fact_decision_need", "need_id", "version"),
+    )
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    need_id: Mapped[UUID] = mapped_column(ForeignKey("power_needs.id"), nullable=False)
+    fact_version_id: Mapped[UUID] = mapped_column(
+        ForeignKey("call_fact_versions.id"), nullable=False
+    )
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    client_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    decision: Mapped[str] = mapped_column(String(20), nullable=False)
+    expected_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    actor: Mapped[str] = mapped_column(String(200), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class NeedWorkflowStatusEvent(Base):
+    """Append-only operator workflow assertion, independent from evidence tier."""
+
+    __tablename__ = "need_workflow_status_events"
+    __table_args__ = (
+        UniqueConstraint("need_id", "version", name="uq_need_workflow_status_version"),
+        UniqueConstraint("need_id", "client_id", name="uq_need_workflow_status_request"),
+        Index("ix_need_workflow_status_need", "need_id", "version"),
+    )
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    need_id: Mapped[UUID] = mapped_column(ForeignKey("power_needs.id"), nullable=False)
+    project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id"), nullable=False)
+    pursuit_id: Mapped[UUID | None] = mapped_column(ForeignKey("pursuits.id"), nullable=True)
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    client_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), nullable=False)
+    status: Mapped[str] = mapped_column(String(24), nullable=False)
+    previous_status: Mapped[str | None] = mapped_column(String(24), nullable=True)
+    expected_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    reason: Mapped[str] = mapped_column(Text, nullable=False)
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    actor: Mapped[str] = mapped_column(String(200), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
 class PowerNeedBrief(Base):
     """Latest advisory brief and explicit request state for one physical need."""
 
