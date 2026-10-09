@@ -1,0 +1,85 @@
+src\gridlens\api\app.py:1:1: I001 [*] Import block is un-sorted or un-formatted
+   |
+ 1 | / import hashlib
+ 2 | | import json
+ 3 | | from collections import defaultdict
+ 4 | | from datetime import UTC, date, datetime, time as TimeType, timedelta
+ 5 | | from datetime import date as DateType
+ 6 | | from uuid import UUID
+ 7 | | from zoneinfo import ZoneInfo
+ 8 | |
+ 9 | | from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
+10 | | from pydantic import BaseModel, Field, SecretStr
+11 | | from sqlalchemy import Date, func, or_, select
+12 | |
+13 | | from gridlens.api.verticals import vertical_source_tags
+14 | | from gridlens.domain.buying_chain import BuyingChainOut, BuyingEnrichBody
+15 | | from gridlens.domain.commercial_presentation import commercial_size_status
+16 | | from gridlens.domain.commercial_triage import POLICY_VERSION as COMMERCIAL_TRIAGE_POLICY
+17 | | from gridlens.domain.commercial_triage import cards as make_commercial_cards
+18 | | from gridlens.domain.pursuits import (
+19 | |     AutonomousResearchBody,
+20 | |     AutonomousResearchOut,
+21 | |     CommercialResearchBody,
+22 | |     CommercialResearchStatusOut,
+23 | |     CommercialTriageHistoryOut,
+24 | |     CommercialTriageOut,
+25 | | )
+26 | | from gridlens.domain.signal_admission import admitted_from_source, source_origin
+27 | | from gridlens.ingestion.registry import load_registry
+28 | | from gridlens.ingestion.service import _need_has_current_support
+29 | | from gridlens.intelligence.briefs import (
+30 | |     BriefUnavailable,
+31 | |     brief_fingerprint,
+32 | |     brief_input,
+33 | |     brief_preview,
+34 | |     brief_view,
+35 | |     request_brief,
+36 | | )
+37 | | from gridlens.intelligence.buying_chain import buying_chain_view, enrich_buying_chain
+38 | | from gridlens.intelligence.lifecycle_service import lifecycle_event_supported
+39 | | from gridlens.intelligence.project_state import project_state as read_project_state
+40 | | from gridlens.intelligence.signal_adjudication import POLICY_VERSION, adjudicate_current_signals
+41 | | from gridlens.jobs.queue import enqueue
+42 | | from gridlens.persistence.database import SessionLocal
+43 | | from gridlens.persistence.models import (
+44 | |     BuyingChainEvidence,
+45 | |     ChangeEvent,
+46 | |     Evidence,
+47 | |     Interpretation,
+48 | |     Job,
+49 | |     LifecycleEvent,
+50 | |     NeedObservation,
+51 | |     Observation,
+52 | |     PlannerState,
+53 | |     PowerNeed,
+54 | |     PowerNeedBrief,
+55 | |     PowerNeedBriefVersion,
+56 | |     Project,
+57 | |     ProjectLifecycle,
+58 | |     SignalDecision,
+59 | |     Source,
+60 | |     SourceCheckReceipt,
+61 | |     SourceDueCheck,
+62 | |     SourceScheduleEpoch,
+63 | |     WorkerHeartbeat,
+64 | | )
+65 | | from gridlens.security import (
+66 | |     check_password,
+67 | |     client_ip,
+68 | |     consume_login_attempt,
+69 | |     create_session,
+70 | |     require_same_origin,
+71 | |     require_session,
+72 | |     revoke_token,
+73 | | )
+74 | | from gridlens.settings import settings
+   | |______________________________________^ I001
+75 |
+76 |   app = FastAPI(title="GridLens API", version="1.0.0", openapi_url=None)
+   |
+   = help: Organize imports
+
+Found 1 error.
+[*] 1 fixable with the `--fix` option.
+exit_code=1

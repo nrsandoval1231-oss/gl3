@@ -2208,6 +2208,13 @@ def process_records(
                         interpretation.assessment["withdrawal_supported"] = True
                         supported_project = session.get(Project, supported_need.project_id)
                         if supported_project is not None:
+                            # The current revision can be a rejected/withdrawn
+                            # interpretation with no project identity of its own.
+                            # Bind the explicit withdrawal only through the unique
+                            # same-article accepted need that selected this project.
+                            interpretation.assessment["project_identity_key"] = (
+                                supported_project.identity_key
+                            )
                             apply_planning_withdrawal(
                                 session, supported_project, observation, current_evidence
                             )

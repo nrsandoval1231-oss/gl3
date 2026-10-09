@@ -34,7 +34,106 @@ class Source(Base):
     retrieval_method: Mapped[str] = mapped_column(String(50))
     cadence_hours: Mapped[int] = mapped_column(Integer, default=24)
     enabled: Mapped[bool] = mapped_column(default=True)
+    registry_enabled: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
     health: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
+
+
+class SourceScheduleEpoch(Base):
+    """Append-only, effective-dated source scheduling configuration."""
+
+    __tablename__ = "source_schedule_epochs"
+    __table_args__ = (
+        Index(
+            "uq_source_schedule_epoch_current",
+            "source_id",
+            unique=True,
+            postgresql_where=text("effective_until IS NULL"),
+        ),
+    )
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    source_id: Mapped[str] = mapped_column(ForeignKey("sources.id"), index=True)
+    registry_enabled: Mapped[bool] = mapped_column(Boolean)
+    operator_enabled: Mapped[bool] = mapped_column(Boolean)
+    effective_from: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+    effective_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    cadence_hours: Mapped[int] = mapped_column(Integer)
+    schedule_mode: Mapped[str] = mapped_column(String(20))
+    timezone: Mapped[str] = mapped_column(String(80))
+    anchor: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    configuration: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    history_known: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
+
+
+class SourceDueCheck(Base):
+    """One immutable scheduled occurrence and its at-most-once job assignment."""
+
+    __tablename__ = "source_due_checks"
+    __table_args__ = (UniqueConstraint("job_id", name="uq_source_due_checks_job"),)
+    due_key: Mapped[str] = mapped_column(String(64), primary_key=True)
+    source_id: Mapped[str] = mapped_column(ForeignKey("sources.id"), index=True)
+    epoch_id: Mapped[UUID] = mapped_column(ForeignKey("source_schedule_epochs.id"), index=True)
+    scheduled_for: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    local_day: Mapped[date] = mapped_column(Date)
+    configuration: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    job_id: Mapped[UUID | None] = mapped_column(ForeignKey("jobs.id"), nullable=True)
+
+
+class SourceCheckReceipt(Base):
+    """Append-only terminal result for one fenced attempt at a due occurrence."""
+
+    __tablename__ = "source_check_receipts"
+    __table_args__ = (UniqueConstraint("job_id", "fence", name="uq_source_check_receipt_attempt"),)
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    due_key: Mapped[str] = mapped_column(ForeignKey("source_due_checks.due_key"), index=True)
+    job_id: Mapped[UUID] = mapped_column(ForeignKey("jobs.id"))
+    fence: Mapped[int] = mapped_column(Integer)
+    disposition: Mapped[str] = mapped_column(String(20))
+    check_counts: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    digest: Mapped[str] = mapped_column(String(64))
+    recorded_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+
+class PlannerState(Base):
+    """Bounded retry and last-outcome state for an independent planner cycle."""
+
+    __tablename__ = "planner_states"
+    planner_key: Mapped[str] = mapped_column(String(40), primary_key=True)
+    last_attempt_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_success_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    consecutive_failures: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    next_retry_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    error_class: Mapped[str | None] = mapped_column(String(80))
+
+
+class WorkerHeartbeat(Base):
+    """Process liveness, independent from API or collection freshness."""
+
+    __tablename__ = "worker_heartbeats"
+    worker_id: Mapped[str] = mapped_column(String(160), primary_key=True)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True)
+
+
+class AuthSession(Base):
+    __tablename__ = "auth_sessions"
+    token_digest: Mapped[str] = mapped_column(String(64), primary_key=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, index=True
+    )
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    credential_fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+
+
+class AuthLoginBucket(Base):
+    __tablename__ = "auth_login_buckets"
+    id: Mapped[str] = mapped_column(String(72), primary_key=True)
+    scope: Mapped[str] = mapped_column(String(10), nullable=False, index=True)
+    window_started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, index=True
+    )
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False)
 
 
 class Job(Base):
@@ -250,12 +349,18 @@ class ChangeEvent(Base):
     __tablename__ = "change_events"
     __table_args__ = (
         Index(
-            "uq_change_replay_key", "replay_key", unique=True,
+            "uq_change_replay_key",
+            "replay_key",
+            unique=True,
             postgresql_where=text("replay_key IS NOT NULL"),
         ),
         Index("ix_change_project_material", "project_id", "material", "created_at"),
         Index(
-            "uq_project_change_revision", "project_id", "field_name", "replay_key", unique=True,
+            "uq_project_change_revision",
+            "project_id",
+            "field_name",
+            "replay_key",
+            unique=True,
             postgresql_where=text("material IS TRUE AND replay_key IS NOT NULL"),
         ),
     )

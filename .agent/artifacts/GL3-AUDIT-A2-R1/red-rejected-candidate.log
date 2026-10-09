@@ -1,0 +1,201 @@
+.........FFF.FF..FFF.........                                            [100%]
+================================== FAILURES ===================================
+_ test_standalone_issued_campus_permit_and_actual_energization_still_classify _
+
+    def test_standalone_issued_campus_permit_and_actual_energization_still_classify():
+        permit = classify_event("Building permit issued for Project Jupiter data center campus")
+        energization = classify_event("Project Jupiter data center campus was energized")
+    
+        assert permit is not None
+>       assert (permit.event_type, permit.state) == ("building_permit_issued", "permitting")
+E       AssertionError: assert ('constructio...construction') == ('building_pe... 'permitting')
+E         
+E         At index 0 diff: 'construction' != 'building_permit_issued'
+E         Use -v to get more diff
+
+tests\unit\test_lifecycle_scope.py:110: AssertionError
+______ test_ordinary_multi_campus_report_binds_only_jupiter_event_clause ______
+
+    def test_ordinary_multi_campus_report_binds_only_jupiter_event_clause():
+        event = classify_event(
+            "Project Jupiter data center update",
+            "Project Atlas campus building permit was issued; "
+            "Project Jupiter data center development agreement was approved.",
+            project_name="Project Jupiter campus",
+            project_identity_key="jupiter-campus-us-nm",
+        )
+    
+        assert event is not None
+>       assert (event.event_type, event.state) == ("project_formation", "site_control_planning")
+E       AssertionError: assert ('constructio...construction') == ('project_for...rol_planning')
+E         
+E         At index 0 diff: 'construction' != 'project_formation'
+E         Use -v to get more diff
+
+tests\unit\test_lifecycle_scope.py:124: AssertionError
+___ test_permit_only_electrical_text_is_permitting_not_electrical_buildout ____
+
+    def test_permit_only_electrical_text_is_permitting_not_electrical_buildout():
+        event = classify_event(
+            "Project Jupiter data center electrical update",
+            "An electrical permit was issued for the Project Jupiter data center campus.",
+            project_name="Project Jupiter campus",
+            project_identity_key="jupiter-campus-us-nm",
+        )
+    
+        assert event is not None
+>       assert (event.event_type, event.state) == ("electrical_permit_issued", "permitting")
+E       AssertionError: assert ('electrical_...cal_buildout') == ('electrical_... 'permitting')
+E         
+E         At index 0 diff: 'electrical_buildout' != 'electrical_permit_issued'
+E         Use -v to get more diff
+
+tests\unit\test_lifecycle_scope.py:136: AssertionError
+______ test_mixed_article_supports_campus_event_and_not_neighbor_permit _______
+
+lifecycle_db = sessionmaker(class_='Session', bind=Engine(postgresql+psycopg://gl3audit@127.0.0.1:55437/gl3audit_lifecycle_test), autoflush=True, expire_on_commit=False)
+
+    def test_mixed_article_supports_campus_event_and_not_neighbor_permit(lifecycle_db):
+        factory = lifecycle_db
+        project_id, need_id, observation_id, evidence_id = add_case(
+            factory,
+            "Project Jupiter data center update",
+            "The Project Jupiter data center campus received its building permit. "
+            "The separate microgrid air permit remains pending.",
+        )
+        with factory.begin() as session:
+            project = session.get(Project, project_id)
+            observation = session.get(Observation, observation_id)
+            evidence = session.get(Evidence, evidence_id)
+            assert project and observation and evidence
+            assert apply_lifecycle_observation(session, project, observation, evidence)
+            event = session.scalar(select(LifecycleEvent))
+            projection = session.get(ProjectLifecycle, project_id)
+>           assert event and event.event_type == "building_permit_issued"
+E           AssertionError: assert (<gridlens.persistence.models.LifecycleEvent object at 0x0000022AA4CA4490> and 'construction' == 'building_permit_issued'
+E             
+E             - building_permit_issued
+E             + construction)
+
+tests\integration\test_lifecycle_scope_integration.py:146: AssertionError
+_____ test_retained_mixed_event_is_not_supported_by_wrong_scope_or_state ______
+
+lifecycle_db = sessionmaker(class_='Session', bind=Engine(postgresql+psycopg://gl3audit@127.0.0.1:55437/gl3audit_lifecycle_test), autoflush=True, expire_on_commit=False)
+
+    def test_retained_mixed_event_is_not_supported_by_wrong_scope_or_state(lifecycle_db):
+        factory = lifecycle_db
+        project_id, _, observation_id, evidence_id = add_case(
+            factory,
+            "Project Jupiter data center update",
+            "The Project Jupiter data center campus received its building permit. "
+            "The separate microgrid air permit remains pending.",
+        )
+        with factory.begin() as session:
+            project = session.get(Project, project_id)
+            evidence = session.get(Evidence, evidence_id)
+            interpretation = session.scalar(
+                select(Interpretation).where(Interpretation.observation_id == observation_id)
+            )
+            assert project and evidence and interpretation
+            assert not lifecycle_event_supported(
+                "utility_service", evidence, interpretation, project, "utility_energization"
+            )
+>           assert lifecycle_event_supported(
+                "building_permit_issued", evidence, interpretation, project, "permitting"
+            )
+E           AssertionError: assert False
+E            +  where False = lifecycle_event_supported('building_permit_issued', <gridlens.persistence.models.Evidence object at 0x0000022AA4CFAD50>, <gridlens.persistence.models.Interpretation object at 0x0000022AA47C4210>, <gridlens.persistence.models.Project object at 0x0000022AA4CF8BD0>, 'permitting')
+
+tests\integration\test_lifecycle_scope_integration.py:172: AssertionError
+_______ test_achieved_campus_milestone_survives_draft_title_v_procedure _______
+
+lifecycle_db = sessionmaker(class_='Session', bind=Engine(postgresql+psycopg://gl3audit@127.0.0.1:55437/gl3audit_lifecycle_test), autoflush=True, expire_on_commit=False)
+
+    def test_achieved_campus_milestone_survives_draft_title_v_procedure(lifecycle_db):
+        factory = lifecycle_db
+        project_id, _, observation_id, evidence_id = add_case(
+            factory,
+            "Project Jupiter data center and air permit update",
+            "Project Jupiter's data center campus received its building permit. The draft air permit "
+            "authorizes construction and operation of emergency generators.",
+            source_id="georgia-air-draft-title-v",
+        )
+        with factory.begin() as session:
+            project = session.get(Project, project_id)
+            observation = session.get(Observation, observation_id)
+            evidence = session.get(Evidence, evidence_id)
+            assert project and observation and evidence
+            assert apply_lifecycle_observation(session, project, observation, evidence)
+            event = session.scalar(select(LifecycleEvent))
+>           assert event and event.event_type == "building_permit_issued" and event.state == "permitting"
+E           AssertionError: assert (<gridlens.persistence.models.LifecycleEvent object at 0x0000022AA4E14750> and 'construction' == 'building_permit_issued'
+E             
+E             - building_permit_issued
+E             + construction)
+
+tests\integration\test_lifecycle_scope_integration.py:233: AssertionError
+___ test_ordinary_multi_campus_article_cannot_lend_atlas_permit_to_jupiter ____
+
+lifecycle_db = sessionmaker(class_='Session', bind=Engine(postgresql+psycopg://gl3audit@127.0.0.1:55437/gl3audit_lifecycle_test), autoflush=True, expire_on_commit=False)
+
+    def test_ordinary_multi_campus_article_cannot_lend_atlas_permit_to_jupiter(lifecycle_db):
+        factory = lifecycle_db
+        project_id, need_id, observation_id, evidence_id = add_case(
+            factory,
+            "Project Jupiter data center update",
+            "Project Atlas campus building permit was issued; "
+            "Project Jupiter data center development agreement was approved.",
+        )
+        with factory.begin() as session:
+            project = session.get(Project, project_id)
+            observation = session.get(Observation, observation_id)
+            evidence = session.get(Evidence, evidence_id)
+            assert project and observation and evidence
+            assert apply_lifecycle_observation(session, project, observation, evidence)
+            event = session.scalar(select(LifecycleEvent))
+            projection = session.get(ProjectLifecycle, project_id)
+>           assert event and event.event_type == "project_formation"
+E           AssertionError: assert (<gridlens.persistence.models.LifecycleEvent object at 0x0000022AA47E1FD0> and 'construction' == 'project_formation'
+E             
+E             - project_formation
+E             + construction)
+
+tests\integration\test_lifecycle_scope_integration.py:253: AssertionError
+______ test_issued_building_permit_does_not_claim_physical_construction _______
+
+lifecycle_db = sessionmaker(class_='Session', bind=Engine(postgresql+psycopg://gl3audit@127.0.0.1:55437/gl3audit_lifecycle_test), autoflush=True, expire_on_commit=False)
+
+    def test_issued_building_permit_does_not_claim_physical_construction(lifecycle_db):
+        factory = lifecycle_db
+        project_id, _, observation_id, evidence_id = add_case(
+            factory,
+            "Building permit issued for Project Jupiter data center campus",
+            "The building permit was issued for the Project Jupiter campus.",
+        )
+        with factory.begin() as session:
+            project = session.get(Project, project_id)
+            observation = session.get(Observation, observation_id)
+            evidence = session.get(Evidence, evidence_id)
+            assert project and observation and evidence
+            assert apply_lifecycle_observation(session, project, observation, evidence)
+            event = session.scalar(select(LifecycleEvent))
+            projection = session.get(ProjectLifecycle, project_id)
+>           assert event and event.event_type == "building_permit_issued"
+E           AssertionError: assert (<gridlens.persistence.models.LifecycleEvent object at 0x0000022AA4E707D0> and 'construction' == 'building_permit_issued'
+E             
+E             - building_permit_issued
+E             + construction)
+
+tests\integration\test_lifecycle_scope_integration.py:274: AssertionError
+=========================== short test summary info ===========================
+FAILED tests/unit/test_lifecycle_scope.py::test_standalone_issued_campus_permit_and_actual_energization_still_classify
+FAILED tests/unit/test_lifecycle_scope.py::test_ordinary_multi_campus_report_binds_only_jupiter_event_clause
+FAILED tests/unit/test_lifecycle_scope.py::test_permit_only_electrical_text_is_permitting_not_electrical_buildout
+FAILED tests/integration/test_lifecycle_scope_integration.py::test_mixed_article_supports_campus_event_and_not_neighbor_permit
+FAILED tests/integration/test_lifecycle_scope_integration.py::test_retained_mixed_event_is_not_supported_by_wrong_scope_or_state
+FAILED tests/integration/test_lifecycle_scope_integration.py::test_achieved_campus_milestone_survives_draft_title_v_procedure
+FAILED tests/integration/test_lifecycle_scope_integration.py::test_ordinary_multi_campus_article_cannot_lend_atlas_permit_to_jupiter
+FAILED tests/integration/test_lifecycle_scope_integration.py::test_issued_building_permit_does_not_claim_physical_construction
+8 failed, 21 passed in 2.76s
+
+expected_red_exit_code=1

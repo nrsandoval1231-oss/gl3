@@ -1,10 +1,10 @@
 from datetime import UTC, date, datetime, timedelta
 from importlib import import_module
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, select
+from sqlalchemy import create_engine, select, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 
@@ -13,11 +13,16 @@ from gridlens.intelligence.pursuit_questions import schedule_questions
 from gridlens.jobs.queue import lease_one
 from gridlens.persistence.database import Base
 from gridlens.persistence.models import (
+    Evidence,
+    Interpretation,
     Job,
+    NeedObservation,
+    Observation,
     PowerNeed,
     Project,
     Pursuit,
     PursuitResearchQuestion,
+    SignalDecision,
     Source,
 )
 from gridlens.security import token_for
@@ -34,9 +39,20 @@ def runtime(monkeypatch):
     Base.metadata.create_all(engine)
     factory = sessionmaker(engine, expire_on_commit=False)
     worker = import_module("gridlens.intelligence.autonomous_research")
+    question_scheduler = import_module("gridlens.intelligence.pursuit_questions")
     api = import_module("gridlens.api.app")
+    monkeypatch.setattr(
+        api, "_unpatched_commercial_triage_cards", api._commercial_triage_cards, raising=False
+    )
     monkeypatch.setattr(worker, "SessionLocal", factory)
     monkeypatch.setattr(api, "SessionLocal", factory)
+    monkeypatch.setattr(
+        question_scheduler,
+        "evaluate_targets",
+        lambda session, need_ids, **_kwargs: {
+            str(need_id): worker.evaluate_target(session, need_id) for need_id in need_ids
+        },
+    )
     monkeypatch.setattr(settings, "autonomous_research_daily_questions", 100)
     with factory.begin() as session:
         session.add(
@@ -165,6 +181,17 @@ def test_daily_question_cap_holds_then_reopens_next_day(runtime, monkeypatch):
     assert schedule(factory, card, now=now + timedelta(hours=2)) == []
     next_day = schedule(factory, card, now=now + timedelta(days=1))
     assert len(next_day) == 1
+
+
+def test_daily_cap_uses_one_utc_clock_for_inserted_question(runtime, monkeypatch):
+    factory, _, _, card = runtime
+    monkeypatch.setattr(settings, "autonomous_research_daily_questions", 1)
+    now = datetime(2026, 10, 8, 0, 30, tzinfo=UTC)
+    with factory.begin() as session:
+        session.execute(text("SET LOCAL TIME ZONE 'America/Chicago'"))
+        rows = schedule_questions(session, [card], now=now)
+        assert len(rows) == 1
+        assert rows[0].created_at == now
 
 
 @pytest.mark.parametrize("change", ["force", "evidence", "expired"])
@@ -1142,7 +1169,10 @@ def test_retained_only_pass_preserves_previously_supported_external_buying_conta
 
 
 @pytest.mark.parametrize("status", ["QUEUED", "SEARCHING", "REVIEWING_EVIDENCE"])
-def test_exhausted_job_terminalizes_active_question_without_losing_receipt(runtime, status):
+@pytest.mark.parametrize("ambiguous", [False, True])
+def test_exhausted_job_terminalizes_active_question_without_losing_receipt(
+    runtime, status, ambiguous
+):
     from gridlens.jobs.queue import assert_fence
 
     factory, _, _, card = runtime
@@ -1150,11 +1180,9 @@ def test_exhausted_job_terminalizes_active_question_without_losing_receipt(runti
     with factory.begin() as session:
         question = session.get(PursuitResearchQuestion, question_id)
         question.status = status
-        question.receipt = {
-            **question.receipt,
-            "source_checks": [{"reason": "retained partial"}],
-            "inflight_url": "https://example.invalid/interrupted",
-        }
+        question.receipt = {**question.receipt, "source_checks": [{"reason": "retained partial"}]}
+        if ambiguous:
+            question.receipt["inflight_url"] = "https://example.invalid/interrupted"
         job = session.scalar(select(Job).where(Job.target_id == question_id))
         job.status, job.attempts, job.lease_owner, job.fence = "running", 5, "dead-worker", 5
         job.lease_until = datetime.now(UTC) - timedelta(seconds=1)
@@ -1168,13 +1196,19 @@ def test_exhausted_job_terminalizes_active_question_without_losing_receipt(runti
         assert question.receipt["result_disposition"] == "FAILED"
         assert question.receipt["reevaluation_status"] == "NOT_COMPLETED"
         assert question.receipt["source_checks"] == [{"reason": "retained partial"}]
-        assert question.receipt["inflight_url"] == "https://example.invalid/interrupted"
+        assert question.receipt.get("inflight_url") == (
+            "https://example.invalid/interrupted" if ambiguous else None
+        )
+        assert question.receipt["retry_class"] == (
+            "UNKNOWN_EFFECT" if ambiguous else "RETRIES_EXHAUSTED"
+        )
         assert question.retry_after > question.completed_at
         job = session.get(Job, job_id)
         assert job.status == "failed" and job.lease_owner is None and job.lease_until is None
         with pytest.raises(RuntimeError, match="fence lost"):
             assert_fence(session, job_id, "dead-worker", 5)
         assert session.get(PowerNeed, card["id"]).tier == "Signal"
+    assert schedule(factory, card) == []
 
 
 def test_expiry_cleanup_is_atomic_and_preserves_already_terminal_question(runtime):
@@ -1342,3 +1376,357 @@ def test_paid_search_cannot_spend_after_document_budget_exhaustion(runtime):
         receipt = session.get(PursuitResearchQuestion, question_id).receipt
         assert receipt.get("searches", 0) == 0
         assert not receipt.get("queries_attempted")
+
+
+def test_planning_discovers_supported_need_beyond_shortlist_without_splitting_group(
+    runtime, monkeypatch
+):
+    factory, worker, api, card = runtime
+    with factory.begin() as session:
+        needs = [
+            PowerNeed(
+                project_id=card["project_id"],
+                activity_key=f"shortlist-{index}",
+                tier="Signal",
+                rationale="Synthetic shortlist need",
+                supply="Unknown",
+            )
+            for index in range(50)
+        ]
+        grouped = PowerNeed(
+            project_id=card["project_id"],
+            activity_key="grouped-need",
+            tier="Signal",
+            rationale="Already represented by a grouped card",
+            supply="Unknown",
+        )
+        session.add_all([*needs, grouped])
+        session.flush()
+        shortlist = [
+            {**card, "id": str(need.id), "related_need_ids": [str(need.id)]}
+            for need in needs
+        ]
+        shortlist[0]["related_need_ids"].append(str(grouped.id))
+    monkeypatch.setattr(api, "_commercial_triage_cards", lambda *_: shortlist)
+    monkeypatch.setattr(worker, "evaluate_targets", lambda _s, ids, **_kw: {card["id"]: card})
+    questions = import_module("gridlens.intelligence.pursuit_questions")
+    monkeypatch.setattr(
+        questions,
+        "evaluate_targets",
+        lambda _s, _ids, **_kw: {str(card["id"]): card},
+    )
+    planned = worker.planning_cards()
+    assert len(planned) == 51
+    assert planned[-1]["id"] == card["id"]
+    monkeypatch.setattr(settings, "autonomous_research_daily_questions", 1)
+    first_day = datetime(2026, 10, 8, 0, 30, tzinfo=UTC)
+    with factory.begin() as session:
+        session.execute(text("SET LOCAL TIME ZONE 'America/Chicago'"))
+        scheduled = schedule_questions(session, [planned[-1]], now=first_day)
+        assert len(scheduled) == 1
+    with factory.begin() as session:
+        session.execute(text("SET LOCAL TIME ZONE 'America/Chicago'"))
+        assert schedule_questions(session, planned, now=first_day) == []
+    with factory() as session:
+        assert len(list(session.scalars(select(PursuitResearchQuestion)))) == 1
+
+
+def test_real_projection_groups_outside_shortlist_before_research_planning(runtime, monkeypatch):
+    import hashlib
+
+    factory, worker, api, _ = runtime
+    questions = import_module("gridlens.intelligence.pursuit_questions")
+    evaluator = import_module("gridlens.intelligence.commercial_evaluation")
+    monkeypatch.setattr(api, "_commercial_triage_cards", api._unpatched_commercial_triage_cards)
+    monkeypatch.setattr(questions, "evaluate_targets", evaluator.evaluate_targets)
+
+    def add_supported_need(
+        session,
+        *,
+        sequence,
+        need_number,
+        document_number,
+        location,
+        hold=False,
+        active=True,
+    ):
+        project_id = UUID(int=sequence)
+        need_id = UUID(int=need_number)
+        name = f"Commercial project {sequence:03d}"
+        action = "Data center electrical construction includes transformers."
+        title = f"{name} {location} electrical building permit"
+        abstract = f"{name} at {location}: {action}"
+        url = f"https://abc.austintexas.gov/permit/{document_number}"
+        semantic_hash = hashlib.sha256(f"semantic:{sequence}".encode()).hexdigest()
+        evidence_hash = hashlib.sha256(f"evidence:{sequence}".encode()).hexdigest()
+        project = Project(
+            id=project_id,
+            identity_key=f"austin-building-permits:{document_number}",
+            source_id="austin-building-permits",
+            external_id=document_number,
+            name=name,
+            location=location,
+            asset_type="data_center",
+        )
+        need = PowerNeed(
+            id=need_id,
+            project_id=project_id,
+            activity_key="electrical-construction",
+            tier="Signal",
+            rationale="Supported official permit work; temporary-power need is unverified.",
+            supply="Unknown",
+            active=active,
+        )
+        observation = Observation(
+            source_id="austin-building-permits",
+            external_id=document_number,
+            title=title,
+            abstract=abstract,
+            published_at=date(2026, 10, 1),
+            url=url,
+            content_hash=semantic_hash,
+        )
+        session.add(project)
+        session.flush()
+        session.add_all([need, observation])
+        session.flush()
+        evidence = Evidence(
+            observation_id=observation.id,
+            content_hash=evidence_hash,
+            title=title,
+            abstract=abstract,
+            url=url,
+            published_at=observation.published_at,
+            extraction_location="synthetic exact official permit record",
+        )
+        session.add(evidence)
+        session.flush()
+        session.add_all(
+            [
+                Interpretation(
+                    observation_id=observation.id,
+                    content_hash=semantic_hash,
+                    evaluator_version="grouping-test",
+                    status="accepted",
+                    assessment={
+                        "decision": "accepted",
+                        "semantic_hash": semantic_hash,
+                        "evidence_hash": evidence_hash,
+                        "evidence": {"id": str(evidence.id), "url": url},
+                        "project_identity_key": project.identity_key,
+                        "power_activity": need.activity_key,
+                        "activity_key": need.activity_key,
+                        "subject": name,
+                        "location": location,
+                        "action": action,
+                    },
+                ),
+                NeedObservation(need_id=need_id, observation_id=observation.id),
+            ]
+        )
+        if hold:
+            session.add(
+                SignalDecision(
+                    observation_id=observation.id,
+                    content_hash=evidence_hash,
+                    policy_version=api.POLICY_VERSION,
+                    decision="HOLD",
+                    source="deterministic",
+                    reason="Synthetic conflicting sibling state for grouping control.",
+                    dimensions={},
+                )
+            )
+        return project, need
+
+    with factory.begin() as session:
+        distractor_ids = []
+        for index in range(1, 51):
+            document_number = f"2026-{800000 + index:06d} EP"
+            _, need = add_supported_need(
+                session,
+                sequence=index,
+                need_number=10_000 + index,
+                document_number=document_number,
+                location=f"{1000 + index} DISTRACTOR LN",
+            )
+            distractor_ids.append(str(need.id))
+
+        site = "811 CLAYTON LN"
+        shared_case = "2026-900001"
+        _, bp_need = add_supported_need(
+            session,
+            sequence=1001,
+            need_number=1_000_001,
+            document_number=f"{shared_case} BP",
+            location=site,
+        )
+        _, ep_need = add_supported_need(
+            session,
+            sequence=1002,
+            need_number=1_000_002,
+            document_number=f"{shared_case} EP",
+            location=site,
+            hold=True,
+        )
+        _, nearby_need = add_supported_need(
+            session,
+            sequence=1003,
+            need_number=1_000_003,
+            document_number="2026-900002 EP",
+            location="813 CLAYTON LN",
+        )
+        saved_project, saved_need = add_supported_need(
+            session,
+            sequence=1004,
+            need_number=1_000_004,
+            document_number="2026-900003 BP",
+            location="815 CLAYTON LN",
+            active=False,
+        )
+        session.add(
+            Pursuit(
+                identity_key=f"commercial-need:{saved_need.id}",
+                project_id=saved_project.id,
+                project_ids=[str(saved_project.id)],
+                snapshot={},
+            )
+        )
+        pair_ids = {str(bp_need.id), str(ep_need.id)}
+        nearby_id, saved_id = str(nearby_need.id), str(saved_need.id)
+
+    with factory() as session:
+        before = api._commercial_triage_cards(session, 50)
+        assert len(before) == 50
+        assert {need_id for card in before for need_id in card["related_need_ids"]} == set(
+            distractor_ids
+        )
+
+    planned = worker.planning_cards()
+    pair_cards = [card for card in planned if pair_ids.intersection(card["related_need_ids"])]
+    assert len(pair_cards) == 1, [
+        (card["id"], card["related_need_ids"]) for card in pair_cards
+    ]
+    pair_card = pair_cards[0]
+    assert set(pair_card["related_need_ids"]) == pair_ids
+    assert pair_card["reason"].startswith(
+        "Related need records for this exact work scope have different states:"
+    )
+    assert {state["held"] for state in pair_card["related_need_states"]} == {False, True}
+    nearby_cards = [card for card in planned if nearby_id in card["related_need_ids"]]
+    assert len(nearby_cards) == 1 and set(nearby_cards[0]["related_need_ids"]) == {nearby_id}
+    saved_cards = [card for card in planned if saved_id in card["related_need_ids"]]
+    assert len(saved_cards) == 1 and saved_cards[0]["id"] == saved_id
+    with factory() as session:
+        assert session.get(PowerNeed, UUID(saved_id)).active is False
+
+    monkeypatch.setattr(settings, "autonomous_research_daily_questions", 1)
+    first_day = datetime(2026, 10, 7, 16, tzinfo=UTC)
+    with factory.begin() as session:
+        created_pair = schedule_questions(session, [pair_card], grouped=True, now=first_day)
+        assert len(created_pair) == 1
+        created_pair[0].created_at = first_day
+        pair_pursuit = session.scalar(
+            select(Pursuit).where(Pursuit.identity_key == f"commercial-need:{pair_card['id']}")
+        )
+        assert pair_pursuit is not None
+        pair_questions = list(
+            session.scalars(
+                select(PursuitResearchQuestion).where(
+                    PursuitResearchQuestion.pursuit_id == pair_pursuit.id
+                )
+            )
+        )
+        assert len(pair_questions) == 1
+        assert pair_questions[0].need_id == UUID(pair_card["id"])
+        assert set(pair_questions[0].context["before"]["related_need_ids"]) == pair_ids
+        pair_states = pair_questions[0].context["before"]["related_need_states"]
+        assert {state["held"] for state in pair_states} == {False, True}
+        assert len(pair_card["related_need_ids"]) == 2
+        assert schedule_questions(
+            session, [pair_card, nearby_cards[0]], grouped=True, now=first_day
+        ) == []
+
+    monkeypatch.setattr(settings, "autonomous_research_daily_questions", 1)
+    second_day = first_day + timedelta(days=1)
+    with factory.begin() as session:
+        created_nearby = schedule_questions(session, nearby_cards, grouped=True, now=second_day)
+        assert len(created_nearby) == 1
+        created_nearby[0].created_at = second_day
+        nearby_pursuit = session.scalar(
+            select(Pursuit).where(Pursuit.identity_key == f"commercial-need:{nearby_id}")
+        )
+        assert nearby_pursuit is not None and nearby_pursuit.id != pair_pursuit.id
+        assert schedule_questions(session, nearby_cards, grouped=True, now=second_day) == []
+
+
+@pytest.mark.parametrize("retry_index,delay", [(0, 1), (1, 6), (2, 24), (3, None)])
+def test_unexpected_question_worker_failure_uses_bounded_retry_and_keeps_receipt(
+    runtime, monkeypatch, retry_index, delay
+):
+    factory, research, _, card = runtime
+    job_worker = import_module("gridlens.jobs.worker")
+    monkeypatch.setattr(job_worker, "SessionLocal", factory)
+    question_id = schedule(factory, card)[0]
+    with factory.begin() as session:
+        question = session.get(PursuitResearchQuestion, question_id)
+        question.context = {**question.context, "retry_index": retry_index}
+        question.receipt = {**question.receipt, "partial_receipt": {"retained": True}}
+        job_id = session.scalar(select(Job.id).where(Job.target_id == question_id))
+
+    def fail_before_or_after_dispatch(*_args):
+        raise RuntimeError("synthetic worker failure")
+
+    monkeypatch.setattr(research, "process_question_job", fail_before_or_after_dispatch)
+    assert job_worker.run_one({}, job_ids=[job_id])
+    with factory() as session:
+        question = session.get(PursuitResearchQuestion, question_id)
+        job = session.get(Job, job_id)
+        assert question.status == "FAILED"
+        assert question.receipt["partial_receipt"] == {"retained": True}
+        assert question.receipt["result_disposition"] == "FAILED"
+        assert question.receipt["retry_class"] == (
+            "BOUNDED_TRANSIENT" if delay else "RETRIES_EXHAUSTED"
+        )
+        assert job.status == "failed"
+        completed_at = question.completed_at
+        if delay:
+            assert question.retry_after == completed_at + timedelta(hours=delay)
+    next_attempts = schedule(
+        factory,
+        card,
+        now=completed_at + timedelta(hours=(delay or 48), seconds=1),
+    )
+    assert bool(next_attempts) is (delay is not None)
+    if next_attempts:
+        with factory() as session:
+            retried = session.get(PursuitResearchQuestion, next_attempts[0])
+            assert retried.context["retry_index"] == retry_index + 1
+
+
+@pytest.mark.parametrize("marker", ["inflight_url", "ambiguous_effects"])
+def test_unexpected_failure_with_paid_effect_blocks_changed_forced_refresh(
+    runtime, monkeypatch, marker
+):
+    factory, research, _, card = runtime
+    job_worker = import_module("gridlens.jobs.worker")
+    monkeypatch.setattr(job_worker, "SessionLocal", factory)
+    question_id = schedule(factory, card)[0]
+    with factory.begin() as session:
+        question = session.get(PursuitResearchQuestion, question_id)
+        value = "https://example.invalid/paid-reservation"
+        question.receipt = {**question.receipt, marker: value}
+        job_id = session.scalar(select(Job.id).where(Job.target_id == question_id))
+    monkeypatch.setattr(
+        research,
+        "process_question_job",
+        lambda *_: (_ for _ in ()).throw(RuntimeError("synthetic interrupted call")),
+    )
+    assert job_worker.run_one({}, job_ids=[job_id])
+    changed = {**card, "input_hash": "changed-after-ambiguous-effect"}
+    assert schedule(
+        factory, changed, force=True, now=datetime.now(UTC) + timedelta(days=2)
+    ) == []
+    with factory() as session:
+        question = session.get(PursuitResearchQuestion, question_id)
+        assert question.receipt["retry_class"] == "UNKNOWN_EFFECT"
+        assert question.receipt[marker] == value

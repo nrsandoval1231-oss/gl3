@@ -1,0 +1,81 @@
+{
+  "packet_id": "GL3-AUDIT-A4-OPERATOR-REGISTRY-DRIFT",
+  "node_id": "repair/operator-transition-registry-drift",
+  "repository": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-source-controls-20261007",
+  "base_sha": "a6bbe529ef612f865a33d3aaee552112a224436a",
+  "implementation_commit_sha": "9e084a0dd901241d1810766f721a23d094a557b8",
+  "implementation_tree_sha": "b8d0e5571021e1dd8926ef30ab0d0a4ab9b54e95",
+  "candidate_state": "frozen implementation; controller full gates and independent review pending",
+  "started_at_utc": "UNKNOWN",
+  "finished_at_utc": "2026-10-08T01:30:54Z",
+  "elapsed_seconds": "UNKNOWN",
+  "model": "GPT-6; exact variant/config UNKNOWN",
+  "tokens": "UNKNOWN",
+  "validation_config": {
+    "python": "3.11.16",
+    "dependency_mode": "uv --locked --extra dev",
+    "backend_uv_lock_sha256": "05d0749dd37965ed3e1015926604b5c5051213ab634f09453a6c94016c0e4ddc",
+    "database_url_database": "gl3audit_source_migration",
+    "test_database_url_database": "gl3audit_source_test",
+    "host_port_user": "127.0.0.1:55437/gl3audit",
+    "provider_keys": "blank",
+    "worker_and_automation": "disabled"
+  },
+  "changed_files": [
+    "backend/src/gridlens/api/app.py",
+    "backend/src/gridlens/jobs/worker.py",
+    "backend/tests/integration/test_source_scheduling.py",
+    "docs/operations/source-controls-and-worker-health.md",
+    ".agent/packets/GL3-AUDIT-A4-OPERATOR-REGISTRY-DRIFT.md",
+    ".agent/artifacts/GL3-AUDIT-A4-OPERATOR-REGISTRY-DRIFT/COMPLETION.json",
+    ".agent/artifacts/GL3-AUDIT-A4-OPERATOR-REGISTRY-DRIFT/RAW-MANIFEST.json",
+    ".agent/artifacts/GL3-AUDIT-A4-OPERATOR-REGISTRY-DRIFT/diff-check.txt",
+    ".agent/artifacts/GL3-AUDIT-A4-OPERATOR-REGISTRY-DRIFT/focused-green.txt",
+    ".agent/artifacts/GL3-AUDIT-A4-OPERATOR-REGISTRY-DRIFT/mypy.txt",
+    ".agent/artifacts/GL3-AUDIT-A4-OPERATOR-REGISTRY-DRIFT/red.txt",
+    ".agent/artifacts/GL3-AUDIT-A4-OPERATOR-REGISTRY-DRIFT/ruff.txt"
+  ],
+  "validation": [
+    {
+      "command": "uv run --locked --extra dev pytest tests/integration/test_source_scheduling.py tests/integration/test_jobs.py -q",
+      "exit_code": 0,
+      "result": "PASS: 46 passed in 12.49 seconds; one existing Starlette/httpx deprecation warning"
+    },
+    {
+      "command": "uv run --locked --extra dev ruff check src tests",
+      "exit_code": 0,
+      "result": "PASS: All checks passed"
+    },
+    {
+      "command": "uv run --locked --extra dev mypy src",
+      "exit_code": 0,
+      "result": "PASS: no issues found in 77 source files"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0,
+      "result": "PASS: no whitespace errors"
+    },
+    {
+      "command": "uv run --locked --extra dev python --version (from backend/)",
+      "exit_code": 0,
+      "result": "Python 3.11.16"
+    }
+  ],
+  "historical_red": {
+    "command": "uv run --locked --extra dev pytest tests/integration/test_source_scheduling.py -k 'operator_transition_reconciles_unsynced_registry_drift or unchanged_registry_operator_transition_is_idempotent_and_sticky or invalid_live_registry_leaves_operator_transition_atomic' -q before implementation",
+    "exit_code": 1,
+    "result": "FAIL as expected: disabled live declaration remained persisted enabled after operator POST, and endpoint drift retained history_known=true. Unchanged-registry idempotence and invalid-registry atomicity passed on the base. Raw output retained in red.txt."
+  },
+  "raw_manifest": ".agent/artifacts/GL3-AUDIT-A4-OPERATOR-REGISTRY-DRIFT/RAW-MANIFEST.json",
+  "implementation": [
+    "set_source_enabled now acquires the target advisory transaction lock before loading the validated registry snapshot, then locks the source and open epoch before comparison or mutation.",
+    "A shared normalized configuration comparator checks the live definition against persisted Source fields and the open epoch; omitted meaningful fields remain visible as drift while immutable epoch schedule fields supply only their documented fallbacks.",
+    "Unobserved drift marks the old open history UNKNOWN, synchronizes the target's declarative fields and registry-enabled flag without changing the requested sticky operator flag, and appends a known new epoch atomically. Unchanged-registry operator-only changes preserve prior history and repeated no-op requests do not add epochs.",
+    "Read-only health uses the same comparator, keeping its drift judgment aligned with operator transition handling. The tests verify endpoint output, health, enqueue, lease, sticky disable, repeated no-op behavior, invalid-registry atomicity, and existing dispatch fencing."
+  ],
+  "remaining_gates": [
+    "Controller full backend/browser/static/web/schema/scan gates and independent review remain pending.",
+    "No migration, production/corpus data, provider, push, merge, deployment, or external action was performed."
+  ]
+}

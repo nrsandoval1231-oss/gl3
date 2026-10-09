@@ -1,0 +1,19 @@
+{
+  "review": "GL3-AUDIT-A1-CLOCK independent exact-candidate review",
+  "verdict": "PASS",
+  "candidate_head": "1ef6b5961d7dcbb87c703b555ac201b08ee01f8e",
+  "candidate_tree": "acb2121b6c0f02a130a084b0aea8fdaed2849e1f",
+  "source_code_head": "f60483969a428db15804b3d8f5afcf333983ce96",
+  "base": "2cd93392eb4e490b52a3a9434e142eabbcd28a55",
+  "scope": "Reviewed A1-CLOCK packet, production/test diff, UTC cap and insertion-clock behavior, retained root raw gate archive/manifest, final evidence-only commits and prior failed attempts. No implementation edits.",
+  "findings": [],
+  "evidence": [
+    "The worktree is clean. Code changes are confined to pursuit_questions.py and four owned integration test files; commits after f604839 add packet/evidence only. Schema, locks, public API and UI remain unchanged from the accepted 2cd base.",
+    "schedule_questions normalizes its one decision clock to UTC, counts persisted aware timestamps by UTC date and explicitly treats legacy naive timestamps as UTC, then assigns that same UTC now to every inserted question. Advisory serialization, global daily cap increment, per-pursuit active cap, grouped scheduling and retry/UNKNOWN guards remain in place.",
+    "Chicago-session integration regression schedules at 00:30 UTC (prior Chicago calendar day), checks created_at equals the decision clock and confirms a subsequent full-card sweep on that UTC day creates no second row. Focused red clock evidence is retained.",
+    "Only synthetic public-document publication fixtures changed to fixed 2026-10-01 dates; a separate far-future publication test still requires UNRESOLVED with no research claims, tier promotion or current research state.",
+    "Committed RAW-CAPTURE.zip SHA256 4429d486111fe7a807470e428a015e3f935b8887e15bf60bda7630174420dbd1 contains 14 entries; every entry's bytes and SHA256 match RAW-MANIFEST.json. Its full-suite tail reports 1253 passed, 2 skipped, 3 warnings; browser tail reports 36 passed. Controller receipt reports Ruff, mypy, web type/build, exact OpenAPI, repeat migration/drift and current backend/web audits passing.",
+    "Scoped implementation/test diff --check passes. Prior aggregate clock failures and red regressions remain retained rather than being reclassified as acceptance."
+  ],
+  "limits": "This PASS is for the frozen A1-CLOCK local candidate. Fresh schema migration proof is inherited from unchanged accepted ancestors; A2/source combined repairs, remote PR checks, merge, deployment and parent-audit completion remain outside this review."
+}

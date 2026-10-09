@@ -1,0 +1,2 @@
+c0cfb9c fix: derive source freshness from expected slots
+exit=0

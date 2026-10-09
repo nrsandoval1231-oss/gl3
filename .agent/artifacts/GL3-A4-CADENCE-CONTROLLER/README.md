@@ -1,0 +1,7 @@
+# Final A4 cadence and enabled truth evidence
+
+Prior628 independentFIX is retained. e5e39b4 fixes exactly its two findings: local_daily cadences must be positive integer multiples of24 (bool and36 rejected at registry and pure scheduler; invalid historical cadence yieldsUNKNOWN), and effective health enable requires operator, persisted registry and current live registry flags. Valid24/48 calendars andDST remain supported; enqueue/lease/enable endpoint agree during unsynced registry enable. Earlier expected-slot and config-drift repairs remain intact.
+
+Roottested66dbf46:1291backend passed/2existing skips/3warnings185.26seconds;36freshbrowser33.7seconds55505/55506. Ruffall/mypy77/typecheck/build/OpenAPIexact/repeated0016/schema drift/currentlocked backend44andweb vulnerability scans allpass0knownvulnerabilities. Fresh0016 lineage is unchanged originalbuilder proof, not fabricated as a new cadence migration. Dedicated source test/migration DBs, blankproviderkeys, disabledautomation. Exact tasklocal credential scan0matches.
+
+RAW-CAPTURE.zip and RAW-MANIFEST.json bind14 original root captures byte-for-byte; readable .log mirrors remain local ignored files. Builder red/green traces and priorfull/reviewfailures remain preserved. Finalindependentreview required on frozenhead including this receipt. No original data, paidproviders, deploy, realuptime or parentcompletion claim. Local branch merges are recorded; GitHubPR merge remainsfalse.

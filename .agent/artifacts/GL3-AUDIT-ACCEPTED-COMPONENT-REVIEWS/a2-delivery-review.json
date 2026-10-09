@@ -1,0 +1,21 @@
+{
+  "review": "GL3 A2 lifecycle delivery independent exact-candidate review",
+  "verdict": "PASS",
+  "candidate_head": "20328d7fd723622192557a70736258a27fa9f274",
+  "candidate_tree": "897ffee8d9d2b45b59e7e47049cbc8e6900bf8e8",
+  "tested_integrated_head": "36f23957a6c7ddab93b972e6856bc0e2a73e2fab",
+  "lifecycle_code_head": "c8c5a6341f5055995ab4663cdb9a38505039f842",
+  "accepted_clock_parent": "1ef6b5961d7dcbb87c703b555ac201b08ee01f8e",
+  "scope": "Reviewed A2 CI-R1, fixture-binding and clock-integration packets; exact delivery source/test/doc diff; lifecycle support, facility scope, reader binding, replay CLI and clone proof; frozen controller gates. No candidate edits.",
+  "findings": [],
+  "evidence": [
+    "Candidate worktree is clean at requested head/tree. The final commit adds controller evidence only; lifecycle service, domain and replay CLI blobs at HEAD equal tested c8 source. The local clock merge preserves both accepted lifecycle fixture and A1 clock parents and resolves only imports/publication dates in the conflicted test.",
+    "Current support requires matching observation and interpretation semantic hashes, assessment semantic and evidence hashes, observation/evidence/interpretation foreign keys, project identity, event type/state/project/observation/evidence binding, and a matching evidence ID when recorded. Current API, material state and project state readers pass the explicit retained event and state.",
+    "A stale A assessment cannot support current B or pending B. An actual A-to-B-to-A return restores the same retained event without duplication; a failed or pending refresh retains an unchanged current accepted version only when its full binding still matches. Withdrawal support requires the current explicit withdrawal flag and bound same-article project, so an accepted positive permit cannot be relabelled as withdrawal.",
+    "The data-center classifier cannot borrow a generic permit from a named warehouse despite an old data-center project tag; explicit correctly named campus clauses remain positive. Issued building/electrical permits remain permitting; construction needs begun/underway physical evidence, with commercial tier unaffected.",
+    "The replay CLI default and explicit URL paths require a distinct disposable *_test database and current repository Alembic heads, without auto-migration; its existing explicit application selector remains available but was not invoked. Its owner procedure requires a separate authorization before application replay.",
+    "Read-only original-copy inventory reports nine suspect events/nine projects and unchanged table hashes; backup SHA256 828beace65cd2b06182f30e4713857656a993d3969c8cbecb02e6ee40ff8a886. Isolated clone replay preserved all 938 original event IDs/rows, appended five events first run and zero second run, and left all second-run table hashes unchanged. Evidence, observation, interpretation, need and other original history remained unchanged; derived projects/lifecycles changed only in the clone, and five unresolved projects stayed visible.",
+    "Committed RAW-CAPTURE.zip SHA256 496119883c10eab5f07e6394f00d3c9939a5a71107e0388b001346845e0cd1ee; all 41 entry sizes and hashes match RAW-MANIFEST. Correct integrated raw logs show 1289 passed/2 skipped/5 warnings and fresh browser 36 passed; earlier setup and 12-failure logs remain identified as rejected history. Controller receipt records Ruff/mypy/web type/build/OpenAPI, repeat migration/drift and current scans passing. Scoped code/test/script/doc diff --check passes."
+  ],
+  "limits": "PASS covers exact local A2 delivery code and isolated replay evidence. No replay or reconciliation was applied to the original application database or retained corpus. Fresh schema proof is inherited from unchanged prior migration/clone checks. Remote CI, merge, deployment, paid-provider operation and parent audit completion remain outside this review."
+}

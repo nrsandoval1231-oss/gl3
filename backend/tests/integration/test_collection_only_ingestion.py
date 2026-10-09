@@ -1028,7 +1028,6 @@ def test_official_same_hash_reassignment_clears_former_project_support_and_keeps
     from gridlens.ingestion.service import _news_identity_key, assess_retained_news
     from gridlens.intelligence.buying_chain import buying_chain_view
     from gridlens.intelligence.change_detection import record_material_diff, seed_material_state
-    from gridlens.intelligence.lifecycle_service import apply_lifecycle_observation
     from gridlens.intelligence.project_state import project_state
     from gridlens.persistence.models import (
         BuyingChainClaim,
@@ -1147,8 +1146,22 @@ def test_official_same_hash_reassignment_clears_former_project_support_and_keeps
         session.add(old_need)
         session.flush()
         session.add(NeedObservation(need_id=old_need.id, observation_id=observation.id))
-        apply_lifecycle_observation(session, former, observation, evidence)
-        assert session.get(ProjectLifecycle, former.id) is not None
+        # Preserve the prior incorrect campus assignment as historical state.
+        # Current source identity contradicts this project's name/location, so
+        # lifecycle support must already be UNKNOWN before reassessment.
+        session.add(
+            LifecycleEvent(
+                project_id=former.id,
+                observation_id=observation.id,
+                evidence_id=evidence.id,
+                event_type="construction",
+                state="construction",
+                value_kind="reported",
+                occurred_on=evidence.published_at,
+            )
+        )
+        session.add(ProjectLifecycle(project_id=former.id, current_state="construction"))
+        session.flush()
 
         quote = "Acme Builders is the general contractor for Atlas Mesa data center."
         chain_claim_ids = {}
@@ -1208,7 +1221,7 @@ def test_official_same_hash_reassignment_clears_former_project_support_and_keeps
                 )
             )
         session.flush()
-        assert project_state(session, former.id)["state"]["lifecycle"]["status"] == "SUPPORTED"
+        assert project_state(session, former.id)["state"]["lifecycle"]["status"] == "UNKNOWN"
         assert buying_chain_view(session, former.id)["candidates"]
         if check_initial_binding:
             assert buying_chain_view(session, selected.id)["candidates"] == []
@@ -1239,7 +1252,9 @@ def test_official_same_hash_reassignment_clears_former_project_support_and_keeps
             row["id"] == chain_claim_ids[selected.id]
             for row in buying_chain_view(session, selected.id)["candidates"]
         )
-        assert project_state(session, selected.id)["state"]["lifecycle"]["status"] == "SUPPORTED"
+        # The source reports delayed construction, not begun work. Correcting the
+        # project binding must not turn that pending claim into lifecycle support.
+        assert project_state(session, selected.id)["state"]["lifecycle"]["status"] == "UNKNOWN"
         assert session.scalar(
             select(func.count()).select_from(ChangeEvent).where(
                 ChangeEvent.project_id == former.id,
@@ -1255,7 +1270,8 @@ def test_official_same_hash_reassignment_clears_former_project_support_and_keeps
                 )
             ).all()
         )
-        assert {"phase", "contractor", "buyer"} <= selected_fields
+        assert {"contractor", "buyer"} <= selected_fields
+        assert "phase" not in selected_fields
         event_count = session.scalar(select(func.count()).select_from(ChangeEvent))
         assert assess_retained_news(session, observation, evidence) is False
         assert session.scalar(select(func.count()).select_from(ChangeEvent)) == event_count

@@ -1,3 +1,5 @@
+import hashlib
+import json
 from collections import defaultdict
 from datetime import UTC, date, datetime, timedelta
 from datetime import date as DateType
@@ -47,6 +49,7 @@ from gridlens.persistence.models import (
     LifecycleEvent,
     NeedObservation,
     Observation,
+    PlannerState,
     PowerNeed,
     PowerNeedBrief,
     PowerNeedBriefVersion,
@@ -54,14 +57,19 @@ from gridlens.persistence.models import (
     ProjectLifecycle,
     SignalDecision,
     Source,
+    SourceCheckReceipt,
+    SourceDueCheck,
+    SourceScheduleEpoch,
+    WorkerHeartbeat,
 )
 from gridlens.security import (
     check_password,
-    login_allowed,
-    record_login_failure,
+    client_ip,
+    consume_login_attempt,
+    create_session,
     require_same_origin,
     require_session,
-    token_for,
+    revoke_token,
 )
 from gridlens.settings import settings
 
@@ -190,6 +198,9 @@ class HealthSourceOut(BaseModel):
     family: str
     geography: str
     enabled: bool = True
+    freshness: str = "UNKNOWN"
+    due_checks_7d: int = 0
+    verified_successes_7d: int = 0
     last_attempt: str | None = None
     last_success: str | None = None
     new_records: int = 0
@@ -224,6 +235,10 @@ class HealthOut(BaseModel):
     sources: list[HealthSourceOut]
     backlog: int
     pending_interpretations: int
+    worker_liveness: str = "UNKNOWN"
+    readiness: bool = False
+    collection_freshness: str = "UNKNOWN"
+    planners: dict[str, dict] = Field(default_factory=dict)
 
 
 class ChangeSourceOut(BaseModel):
@@ -286,6 +301,17 @@ class RefreshOut(BaseModel):
     queued: list[str]
 
 
+class SourceEnabledIn(BaseModel):
+    enabled: bool
+
+
+class SourceEnabledOut(BaseModel):
+    id: str
+    registry_enabled: bool
+    operator_enabled: bool
+    effective_enabled: bool
+
+
 class IngestionItemOut(BaseModel):
     source_id: str
     source_origin: str = "Source evidence"
@@ -333,16 +359,15 @@ def private_openapi(request: Request):
 @app.post("/api/auth/login", response_model=LoginOut)
 def login(body: LoginBody, request: Request, response: Response):
     require_same_origin(request)
-    remote = request.client.host if request.client else "unknown"
-    if not login_allowed(remote):
+    remote = client_ip(request)
+    if not consume_login_attempt(remote):
         raise HTTPException(429, "Too many login attempts")
     if not check_password(body.password.get_secret_value()):
-        record_login_failure(remote)
         raise HTTPException(401, "Invalid credentials")
-    expires = int(datetime.now(UTC).timestamp()) + settings.session_hours * 3600
+    token, expires = create_session()
     response.set_cookie(
         "gridlens_session",
-        token_for(expires),
+        token,
         httponly=True,
         secure=settings.cookie_secure,
         samesite="strict",
@@ -355,6 +380,7 @@ def login(body: LoginBody, request: Request, response: Response):
 @app.post("/api/auth/logout", response_model=LogoutOut)
 def logout(request: Request, response: Response):
     require_same_origin(request)
+    revoke_token(request.cookies.get("gridlens_session"))
     response.delete_cookie(
         "gridlens_session",
         path="/",
@@ -420,14 +446,232 @@ def health():
             or 0
         )
         source_health = []
+        window_start = chicago_today(checked_at) - timedelta(days=6)
+        window_start_utc = datetime.combine(
+            window_start, datetime.min.time(), tzinfo=ZoneInfo("America/Chicago")
+        ).astimezone(UTC)
+        due_rows = session.scalars(
+            select(SourceDueCheck).where(
+                SourceDueCheck.scheduled_for >= window_start_utc,
+                SourceDueCheck.scheduled_for < checked_at,
+            )
+        ).all()
+        due_by_key = {due.due_key: due for due in due_rows}
+        attempts = session.execute(
+            select(SourceCheckReceipt, SourceDueCheck, Job)
+            .join(SourceDueCheck, SourceDueCheck.due_key == SourceCheckReceipt.due_key)
+            .join(Job, Job.id == SourceCheckReceipt.job_id)
+            .where(
+                SourceDueCheck.scheduled_for >= window_start_utc,
+                SourceDueCheck.scheduled_for < checked_at,
+            )
+            .order_by(SourceCheckReceipt.recorded_at)
+        ).all()
+        latest_attempt = {}
+        for receipt, due, job in attempts:
+            current = latest_attempt.get(receipt.due_key)
+            receipt_order = (receipt.fence, receipt.recorded_at, str(receipt.id))
+            current_order = (
+                (current[0].fence, current[0].recorded_at, str(current[0].id))
+                if current
+                else None
+            )
+            if current_order is None or receipt_order > current_order:
+                latest_attempt[receipt.due_key] = (receipt, due, job)
+        worker = session.scalar(
+            select(WorkerHeartbeat).order_by(WorkerHeartbeat.last_seen_at.desc()).limit(1)
+        )
+        worker_liveness = (
+            "UNKNOWN"
+            if worker is None
+            else "LIVE"
+            if worker.last_seen_at >= checked_at - timedelta(seconds=30)
+            else "STALE"
+        )
+        planners = {
+            state.planner_key: {
+                "last_attempt_at": state.last_attempt_at.isoformat()
+                if state.last_attempt_at
+                else None,
+                "last_success_at": state.last_success_at.isoformat()
+                if state.last_success_at
+                else None,
+                "consecutive_failures": state.consecutive_failures,
+                "next_retry_at": state.next_retry_at.isoformat() if state.next_retry_at else None,
+                "error_class": state.error_class,
+            }
+            for state in session.scalars(select(PlannerState))
+        }
+        freshness_states = []
+        from gridlens.jobs.worker import _due_key, _scheduled_instants, _source_registry_drift
         for row in rows:
             definition = definitions.get(row.id, {})
+            epochs = session.scalars(
+                select(SourceScheduleEpoch)
+                .where(
+                    SourceScheduleEpoch.source_id == row.id,
+                    SourceScheduleEpoch.effective_from < checked_at,
+                    or_(
+                        SourceScheduleEpoch.effective_until.is_(None),
+                        SourceScheduleEpoch.effective_until > window_start_utc,
+                    ),
+                )
+                .order_by(SourceScheduleEpoch.effective_from)
+            ).all()
+            covered_until = window_start_utc
+            history_known = bool(epochs)
+            schedule_inputs_known = True
+            expected_due: dict[str, tuple[SourceScheduleEpoch, datetime]] = {}
+            if not definition:
+                history_known = False
+            else:
+                try:
+                    if epochs:
+                        latest_epoch = max(epochs, key=lambda epoch: epoch.effective_from)
+                        if (
+                            latest_epoch.effective_until is None
+                            and latest_epoch.history_known
+                            and _source_registry_drift(definition, row, latest_epoch)
+                        ):
+                            history_known = False
+                except (AttributeError, KeyError, TypeError, ValueError):
+                    history_known = False
+                    schedule_inputs_known = False
+            for epoch in epochs:
+                try:
+                    epoch_end = min(epoch.effective_until or checked_at, checked_at)
+                    epoch_start = max(epoch.effective_from, window_start_utc)
+                except (TypeError, ValueError, OverflowError):
+                    history_known = False
+                    schedule_inputs_known = False
+                    continue
+                if epoch_end <= epoch_start:
+                    continue
+                if epoch_start > covered_until or not epoch.history_known:
+                    history_known = False
+                if epoch_start <= covered_until and epoch_end > covered_until:
+                    covered_until = epoch_end
+                if not (
+                    epoch.history_known and epoch.registry_enabled and epoch.operator_enabled
+                ):
+                    continue
+                try:
+                    for scheduled_for in _scheduled_instants(
+                        epoch, checked_at, not_before=window_start_utc
+                    ):
+                        due_key = _due_key(epoch, scheduled_for)
+                        expected_due[due_key] = (epoch, scheduled_for)
+                except (
+                    AttributeError,
+                    KeyError,
+                    OverflowError,
+                    TypeError,
+                    ValueError,
+                    ZeroDivisionError,
+                ):
+                    schedule_inputs_known = False
+                    history_known = False
+            expected_history = (
+                history_known and schedule_inputs_known and covered_until >= checked_at
+            )
+            successes = 0
+            missing_due = False
+            invalid_receipt = False
+            dispositions = []
+            for due_key, (epoch, scheduled_for) in expected_due.items():
+                due = due_by_key.get(due_key)
+                if due is None:
+                    missing_due = True
+                    continue
+                expected_local_day = scheduled_for.astimezone(
+                    ZoneInfo("America/Chicago")
+                ).date()
+                if (
+                    due.source_id != row.id
+                    or due.epoch_id != epoch.id
+                    or due.scheduled_for != scheduled_for
+                    or due.local_day != expected_local_day
+                    or due.configuration != epoch.configuration
+                ):
+                    invalid_receipt = True
+                    continue
+                attempt = latest_attempt.get(due_key)
+                if due.job_id is None or attempt is None:
+                    missing_due = True
+                    continue
+                receipt, receipt_due, job = attempt
+                if (
+                    receipt_due.due_key != due_key
+                    or receipt_due.job_id != due.job_id
+                    or receipt.job_id != due.job_id
+                    or job.id != due.job_id
+                    or job.source_id != row.id
+                    or job.kind != "ingestion"
+                    or job.fence < 1
+                    or receipt.fence != job.fence
+                    or job.lease_owner is not None
+                    or job.lease_until is not None
+                ):
+                    invalid_receipt = True
+                    continue
+                try:
+                    canonical_counts = json.dumps(
+                        receipt.check_counts,
+                        sort_keys=True,
+                        separators=(",", ":"),
+                        default=str,
+                    )
+                except (TypeError, ValueError):
+                    invalid_receipt = True
+                    continue
+                if hashlib.sha256(canonical_counts.encode()).hexdigest() != receipt.digest:
+                    invalid_receipt = True
+                    continue
+                if receipt.disposition == "succeeded":
+                    counts = receipt.check_counts
+                    if (
+                        job.status != "succeeded"
+                        or not isinstance(counts, dict)
+                        or any(
+                            type(counts.get(field)) is not int or counts[field] < 0
+                            for field in ("new", "changed", "unchanged")
+                        )
+                    ):
+                        invalid_receipt = True
+                        continue
+                    successes += 1
+                elif receipt.disposition in {"failed", "partial", "unknown"}:
+                    if job.status not in {"queued", "failed", "succeeded"}:
+                        invalid_receipt = True
+                    else:
+                        dispositions.append(receipt.disposition)
+                else:
+                    invalid_receipt = True
+            if not expected_history or not expected_due:
+                freshness = "UNKNOWN"
+            elif "failed" in dispositions:
+                freshness = "FAILED"
+            elif "partial" in dispositions:
+                freshness = "PARTIAL"
+            elif "unknown" in dispositions or invalid_receipt:
+                freshness = "UNKNOWN"
+            elif missing_due or successes != len(expected_due):
+                freshness = "OVERDUE"
+            else:
+                freshness = "FRESH"
+            freshness_states.append(freshness)
+            effective_enabled = (
+                row.enabled and row.registry_enabled and bool(definition.get("enabled", False))
+            )
             info = {
                 "id": row.id,
                 **row.health,
                 "family": row.family,
                 "geography": row.geography,
-                "enabled": row.enabled,
+                "enabled": effective_enabled,
+                "freshness": freshness,
+                "due_checks_7d": len(expected_due),
+                "verified_successes_7d": successes,
                 "collection_scope": (
                     definition.get("collection_scope")
                     or row.health.get("collection_scope")
@@ -445,8 +689,8 @@ def health():
                 info["coverage_limitation"] = definition["coverage_limitation"]
             last_attempt = row.health.get("last_attempt")
             if (
-                row.enabled
-                and info["status"] not in {"Running", "Failed"}
+                effective_enabled
+                and info["status"] not in {"Running", "Failed", "RegistryUnavailable"}
                 and (
                     not last_attempt
                     or datetime.fromisoformat(last_attempt)
@@ -459,7 +703,34 @@ def health():
             "sources": source_health,
             "backlog": jobs,
             "pending_interpretations": pending,
+            "worker_liveness": worker_liveness,
+            "readiness": True,
+            "planners": planners,
+            "collection_freshness": (
+                "UNKNOWN"
+                if not freshness_states or "UNKNOWN" in freshness_states
+                else "FRESH"
+                if all(state == "FRESH" for state in freshness_states)
+                else "OVERDUE"
+            ),
         }
+
+
+@app.get("/health/live")
+def process_liveness():
+    """Report API process liveness without depending on database connectivity."""
+    return {"api_process": "LIVE"}
+
+
+@app.get("/health/ready")
+def runtime_readiness():
+    """Report whether the API can query its database and queue state."""
+    try:
+        with SessionLocal() as session:
+            session.execute(select(func.count()).select_from(Job)).scalar_one()
+    except Exception as exc:
+        raise HTTPException(503, "Database or queue is unavailable") from exc
+    return {"readiness": "READY"}
 
 
 def _ingestion_filters(source_id: str | None, vertical: str | None):
@@ -705,6 +976,8 @@ def opportunity_projection(
                 lifecycle_evidence,
                 lifecycle_interpretation,
                 project,
+                lifecycle_event.state,
+                event=lifecycle_event,
             ):
                 current_lifecycle_ids.add(lifecycle_event.id)
         taylor_withdrawn = bool(
@@ -955,7 +1228,8 @@ def opportunity_projection(
                 "research_state": research_state,
                 # Internal raw-card proof; absence of current authority is not clearance.
                 "qualification_conflict": effective.get("qualification_conflict", False)
-                if qualified is not None else None,
+                if qualified is not None
+                else None,
                 "conflict_state": "CONFLICT"
                 if effective.get("qualification_conflict")
                 or any(field.get("status") == "CONFLICT" for field in research_state.values())
@@ -1195,8 +1469,43 @@ def refresh(request: Request):
 
     definitions = sync_registry()
     with SessionLocal.begin() as session:
-        ids = [str(enqueue(session, source["id"])) for source in definitions if source["enabled"]]
+        sources = {
+            row.id: row
+            for row in session.scalars(
+                select(Source).where(Source.id.in_([d["id"] for d in definitions]))
+            )
+        }
+        ids = [
+            str(enqueue(session, item["id"]))
+            for item in definitions
+            if sources[item["id"]].enabled and sources[item["id"]].registry_enabled
+        ]
     return {"queued": ids}
+
+
+@app.post(
+    "/api/sources/{source_id}/enabled",
+    response_model=SourceEnabledOut,
+    dependencies=[Depends(require_session)],
+)
+def set_source_enabled_endpoint(source_id: str, body: SourceEnabledIn, request: Request):
+    require_same_origin(request)
+    from gridlens.jobs.worker import set_source_enabled
+
+    try:
+        set_source_enabled(source_id, body.enabled)
+    except ValueError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    with SessionLocal() as session:
+        source = session.get(Source, source_id)
+        if source is None:
+            raise HTTPException(404, "Source not found")
+        return {
+            "id": source.id,
+            "registry_enabled": source.registry_enabled,
+            "operator_enabled": source.enabled,
+            "effective_enabled": source.enabled and source.registry_enabled,
+        }
 
 
 @app.get(

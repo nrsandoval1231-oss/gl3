@@ -1,0 +1,53 @@
+{
+  "packet": "GL3-AUDIT-A1-R1",
+  "status": "implementation_complete_pending_independent_review_and_controller_gates",
+  "base_sha": "ba3e8a13807e59f97423d8202a625ae722b25075",
+  "tested_candidate_commit": "eef7e03e405f942ccce6f005b16848241e4ba39c",
+  "branch": "repair/gl3-research-grouping-20261007",
+  "changed_files": [
+    "backend/src/gridlens/domain/commercial_triage.py",
+    "backend/src/gridlens/intelligence/autonomous_research.py",
+    "backend/src/gridlens/intelligence/commercial_evaluation.py",
+    "backend/tests/integration/test_autonomous_questions_integration.py",
+    ".agent/artifacts/GL3-AUDIT-A1-R1/red-base-repro.log",
+    ".agent/artifacts/GL3-AUDIT-A1-R1/pytest-focused.log",
+    ".agent/artifacts/GL3-AUDIT-A1-R1/ruff.log",
+    ".agent/artifacts/GL3-AUDIT-A1-R1/mypy.log",
+    ".agent/artifacts/GL3-AUDIT-A1-R1/diff-check.log",
+    ".agent/artifacts/GL3-AUDIT-A1-R1/validation-exit-codes.txt",
+    ".agent/artifacts/GL3-AUDIT-A1-R1/COMPLETION.json"
+  ],
+  "red_reproduction": {
+    "candidate_sha": "c6cbb92eeacee7b67b98cfdc30a8df24aca302c5",
+    "command": "pytest tests/integration/test_autonomous_questions_integration.py -k real_projection_groups_outside_shortlist -q",
+    "result": "expected failure: actual projection produced two cards for the two same-work sibling needs; exit code 1",
+    "evidence": ".agent/artifacts/GL3-AUDIT-A1-R1/red-base-repro.log"
+  },
+  "validation": {
+    "command": "pytest tests/integration/test_autonomous_questions_integration.py -q",
+    "result": "52 passed; one existing Starlette/httpx deprecation warning",
+    "database": "disposable gl3audit_grouping_test on loopback port 55437",
+    "ruff": "ruff check src tests; passed",
+    "mypy": "mypy src; passed, 77 source files",
+    "diff_check": "git diff --check; passed",
+    "evidence_directory": ".agent/artifacts/GL3-AUDIT-A1-R1/"
+  },
+  "implementation": "Exposed uncapped canonical group_cards and kept cards UI cap/order. Out-of-shortlist target evaluation now resolves canonical groups from the full supported projection, then loads buying-chain data only for requested group members. Planning deduplicates returned targets by canonical card identity. Real DB regression creates 50 distinct groups, a same-case/site BP/EP sibling pair beyond the cutoff with conflicting held state, a nearby distinct case/site, and a saved inactive target; it proves one research card/question for the sibling group, separate work for the nearby control, and daily cap behavior.",
+  "constraints": "No provider calls, production or retained-corpus mutation, external messages, push, merge, or deployment. Full backend/controller gates and independent review remain pending.",
+  "timing_utc": {
+    "started_at": "UNKNOWN (not captured at dispatch)",
+    "finished_at": "2026-10-07T20:56:53Z",
+    "planning_duration": "UNKNOWN",
+    "build_duration": "UNKNOWN",
+    "validation_duration": "UNKNOWN",
+    "audit_duration": "UNKNOWN",
+    "elapsed_to_acceptance": "UNKNOWN (no independent acceptance yet)"
+  },
+  "model_config_tokens": {
+    "model": "UNKNOWN",
+    "config_identity": "UNKNOWN",
+    "token_usage": "UNKNOWN (not measured)"
+  },
+  "retry_count": 0
+}
+

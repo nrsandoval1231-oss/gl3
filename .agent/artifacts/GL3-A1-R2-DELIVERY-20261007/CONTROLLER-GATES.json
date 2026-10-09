@@ -1,0 +1,39 @@
+{
+  "tested_code_commit": "f4051576ff3e12e246a4019643b17eb58e456bdc",
+  "tested_tree": "1a4f418be6162db1ada72a70c8cac19ab4db16ef",
+  "base": "1d24f2e84dea02f971f954d4837fc9a74cd8c69c",
+  "recorded_at_utc": "2026-10-07T22:07:42.4150422Z",
+  "backend": {
+    "warnings": 3,
+    "skipped": 2,
+    "passed": 1251,
+    "exit": 0
+  },
+  "builder_focused": {
+    "exit": 0,
+    "passed": 90
+  },
+  "browser": {
+    "web_port": 55490,
+    "reuse_existing_servers": false,
+    "exit": 0,
+    "ci": true,
+    "database": "gl3audit_research_delivery_migration",
+    "passed": 36,
+    "api_port": 55489
+  },
+  "ruff": 0,
+  "mypy": 0,
+  "web_typecheck": 0,
+  "web_build": 0,
+  "openapi_match": 0,
+  "migration_proof": "Fresh/repeat/drift logs from identical migration schema before R2; R2 changes no schema",
+  "dependency_scan_provenance": "Accepted governance ancestor 1d24f2e; dependency lockfiles unchanged",
+  "prior_root_attempt": "4 failures: saved-target grouping regression and 3 controller setup failures; raw retained",
+  "prior_builder_attempt": "44 failed, 46 passed; raw unavailable. First reported obsolete synthetic evaluator fixture; remaining causes UNKNOWN",
+  "credential_scan": "PASS",
+  "independent_review": "PENDING",
+  "model_config_tokens": "UNKNOWN",
+  "deployed": false,
+  "merged": false
+}
