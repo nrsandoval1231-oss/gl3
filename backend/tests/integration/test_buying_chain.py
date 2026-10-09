@@ -8,7 +8,11 @@ from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 
 from gridlens.ingestion.adapters.buying_chain_public import PublicDocument, parse_document
-from gridlens.intelligence.buying_chain import buying_chain_view, enrich_buying_chain
+from gridlens.intelligence.buying_chain import (
+    buying_chain_view,
+    buying_chain_views,
+    enrich_buying_chain,
+)
 from gridlens.persistence.database import Base
 from gridlens.persistence.models import (
     BuyingChainClaim,
@@ -136,6 +140,24 @@ def test_replay_is_idempotent_and_never_changes_tier(db):
         assert first["candidates"][0]["id"] == second["candidates"][0]["id"]
         assert counts(session) == before
         assert session.scalar(select(PowerNeed.tier)) == "Signal"
+
+
+def test_batched_buying_chain_view_matches_single_project_projection(db):
+    with db.begin() as session:
+        project = seed(session)
+        enrich_buying_chain(
+            session,
+            project.id,
+            fetcher=lambda url: source(
+                "Acme is the general contractor for Orion Data Center in Austin, TX."
+            ),
+            now=NOW,
+        )
+
+        expected = buying_chain_view(session, project.id, now=NOW)
+        actual = buying_chain_views(session, {project.id}, now=NOW)[str(project.id)]
+
+        assert actual == expected
 
 
 def test_same_url_retained_and_full_page_quotes_bind_exact_versions(db):

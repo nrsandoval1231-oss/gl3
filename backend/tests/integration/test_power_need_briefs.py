@@ -6,10 +6,11 @@ from zoneinfo import ZoneInfo
 import pytest
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
-from sqlalchemy import create_engine, func, select
+from sqlalchemy import create_engine, event, func, select, update
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 
+from gridlens.ingestion.registry import load_registry
 from gridlens.persistence import models  # noqa: F401
 from gridlens.persistence.database import Base
 from gridlens.persistence.models import (
@@ -17,6 +18,7 @@ from gridlens.persistence.models import (
     Evidence,
     Interpretation,
     Job,
+    LifecycleEvent,
     NeedObservation,
     Observation,
     PowerNeed,
@@ -209,6 +211,55 @@ def test_browse_cache_fingerprint_matches_detail_relationship_evidence(runtime, 
             .outerjoin(Interpretation, Interpretation.observation_id == Observation.id)
             .where(NeedObservation.need_id == need_id)
         ).all()
+        link_items = [(item[0], item[1], item[2]) for item in raw_links]
+        source_rows = {source.id: source for source in session.scalars(select(Source)).all()}
+        canonical_chain = {"candidates": [relationship]}
+        legacy_payload, legacy_evidence = service.brief_payload_from_links(
+            session, need, project, link_items, source_rows
+        )
+        preloaded_payload, preloaded_evidence = service.brief_payload_from_links(
+            session,
+            need,
+            project,
+            link_items,
+            source_rows,
+            preloaded_chain=canonical_chain,
+        )
+        assert preloaded_payload == legacy_payload
+        assert preloaded_evidence == legacy_evidence
+        assert service.brief_fingerprint(preloaded_payload) == service.brief_fingerprint(
+            legacy_payload
+        )
+        empty_payload, empty_evidence = service.brief_payload_from_links(
+            session, need, project, link_items, source_rows, preloaded_chain={"candidates": []}
+        )
+        assert len(empty_evidence) == 1
+        assert not any(item["id"].startswith("buying-chain:") for item in empty_evidence.values())
+        assert empty_payload != legacy_payload
+
+        def reject_relationship_query(*_args):
+            pytest.fail("supplied preload or disabled relationships must not query the chain")
+
+        monkeypatch.setattr(service, "buying_chain_view", reject_relationship_query)
+        disabled_payload, disabled_evidence = service.brief_payload_from_links(
+            session,
+            need,
+            project,
+            link_items,
+            source_rows,
+            include_project_relationship=False,
+            preloaded_chain=canonical_chain,
+        )
+        assert len(disabled_evidence) == 1
+        assert not any(
+            item["id"].startswith("buying-chain:") for item in disabled_evidence.values()
+        )
+        assert disabled_payload == empty_payload
+        monkeypatch.setattr(
+            service,
+            "buying_chain_view",
+            lambda _session, _project_id: {"candidates": [relationship]},
+        )
         row = PowerNeedBrief(
             need_id=need_id,
             requested_fingerprint=fingerprint,
@@ -225,14 +276,26 @@ def test_browse_cache_fingerprint_matches_detail_relationship_evidence(runtime, 
             generated_at=datetime.now(UTC),
         )
         session.add(row)
+        links = link_items
+        sources = source_rows
         preview = service.brief_preview(
             session,
             need,
             project,
-            [(item[0], item[1], item[2]) for item in raw_links],
-            {source.id: source for source in session.scalars(select(Source)).all()},
+            links,
+            sources,
             row,
         )
+        preloaded_preview = service.brief_preview(
+            session,
+            need,
+            project,
+            links,
+            sources,
+            row,
+            preloaded_chain=canonical_chain,
+        )
+        assert preloaded_preview == preview
         assert preview["brief_stale"] is False
         assert preview["brief_status"] == "ready"
         relationship["evidence"][0]["quote"] = (
@@ -247,6 +310,16 @@ def test_browse_cache_fingerprint_matches_detail_relationship_evidence(runtime, 
             row,
         )
         assert changed["brief_stale"] is True
+        changed_preloaded = service.brief_preview(
+            session,
+            need,
+            project,
+            links,
+            sources,
+            row,
+            preloaded_chain=canonical_chain,
+        )
+        assert changed_preloaded == changed
         assert "North Campus Development LLC" in detail_payload["need"]["display_title"]
     with factory.begin() as session:
         cached = session.get(PowerNeedBrief, need_id)
@@ -300,6 +373,459 @@ def test_uncached_card_preview_does_not_load_relationships(runtime, monkeypatch)
         project = session.get(Project, need.project_id)
         preview = service.brief_preview(session, need, project, [], {}, None)
         assert preview["brief_status"] == "unavailable"
+
+
+def test_selected_browse_reuses_preloaded_chain_for_persisted_brief(runtime, monkeypatch):
+    factory, service, (need_id, _evidence_id) = runtime
+    api = import_module("gridlens.api.app")
+    with factory.begin() as session:
+        payload, _ = service.brief_input(session, need_id)
+        fingerprint = service.brief_fingerprint(payload)
+        cached = PowerNeedBrief(
+            need_id=need_id,
+            requested_fingerprint=fingerprint,
+            generated_fingerprint=fingerprint,
+            policy_version=service.POLICY_VERSION,
+            schema_version=service.SCHEMA_VERSION,
+            model=settings.openai_brief_model,
+            status="ready",
+            result={
+                "event_summary": [],
+                "commercial_hypothesis": {"text": "A retained browse summary."},
+            },
+            citations=[],
+            generated_at=datetime.now(UTC),
+        )
+        session.add(cached)
+        session.flush()
+
+        def reject_per_need_chain_query(*_args):
+            pytest.fail("selected browse must use its batched canonical chain preload")
+
+        monkeypatch.setattr(service, "buying_chain_view", reject_per_need_chain_query)
+        statements = [0]
+
+        def count_statement(*_args):
+            statements[0] += 1
+
+        connection = session.connection()
+        event.listen(connection, "before_cursor_execute", count_statement)
+        try:
+            cards = api._commercial_triage_cards(session, 50)
+            selected = api.opportunity_projection(
+                session, tier="Signal", selected_need_ids={need_id}
+            )
+        finally:
+            event.remove(connection, "before_cursor_execute", count_statement)
+        assert len(cards) == 1
+        assert len(selected) == 1
+        assert selected[0]["brief_status"] == "ready"
+        assert selected[0]["brief_stale"] is False
+        assert selected[0]["brief_summary"] == "A retained browse summary."
+        assert statements[0] <= 200
+
+
+def test_opportunity_projection_uses_stable_updated_at_tiebreak(runtime):
+    factory, _service, (need_id, _evidence_id) = runtime
+    api = import_module("gridlens.api.app")
+    with factory.begin() as session:
+        first = session.get(PowerNeed, need_id)
+        first_project = session.get(Project, first.project_id)
+        second = PowerNeed(
+            project_id=uuid4(),
+            activity_key=first.activity_key,
+            tier=first.tier,
+            rationale=first.rationale,
+            supply=first.supply,
+        )
+        second_project = Project(
+            id=second.project_id,
+            identity_key="brief-test-project-stable-order",
+            name="Synthetic South Campus",
+            location="Test City",
+            source_id=first_project.source_id,
+            external_id="record-2",
+        )
+        source = session.get(Source, first_project.source_id)
+        observation = Observation(
+            source_id=source.id,
+            external_id="record-2",
+            title="Public permit describes construction at Synthetic South Campus",
+            abstract="Construction work at Synthetic South Campus in Test City.",
+            url="https://example.test/permits/record-2",
+            content_hash="b" * 64,
+        )
+        session.add_all([second_project, observation])
+        session.flush()
+        evidence = Evidence(
+            observation_id=observation.id,
+            content_hash=observation.content_hash,
+            title=observation.title,
+            abstract=observation.abstract,
+            url=observation.url,
+            extraction_location="permit description",
+        )
+        interpretation = Interpretation(
+            observation_id=observation.id,
+            content_hash=observation.content_hash,
+            evaluator_version="brief-test",
+            status="accepted",
+            assessment={
+                "semantic_hash": observation.content_hash,
+                "evidence_hash": observation.content_hash,
+                "project_identity_key": second_project.identity_key,
+                "power_activity": second.activity_key,
+                "decision": "accepted",
+                "subject": second_project.name,
+                "location": second_project.location,
+            },
+        )
+        session.add_all([evidence, interpretation])
+        session.add(second)
+        session.flush()
+        session.add(NeedObservation(need_id=second.id, observation_id=observation.id))
+        fixed_updated_at = datetime(2026, 10, 7, tzinfo=UTC)
+        session.execute(
+            update(PowerNeed)
+            .where(PowerNeed.id.in_([first.id, second.id]))
+            .values(updated_at=fixed_updated_at)
+        )
+        session.flush()
+        projected = api.opportunity_projection(session, tier="Signal", summary_only=True)
+        matching_ids = [
+            str(item["id"])
+            for item in projected
+            if item["id"] in {first.id, second.id}
+        ]
+        assert matching_ids == sorted([str(first.id), str(second.id)])
+
+
+@pytest.mark.parametrize("conflicting_demand", [False, True])
+def test_summary_batches_preserve_cross_boundary_case_siblings_and_compact_history(
+    runtime, conflicting_demand
+):
+    factory, _service, _ids = runtime
+    api = import_module("gridlens.api.app")
+    from gridlens.domain.commercial_triage import _priority, grouped_need_ids
+
+    permit = next(row for row in load_registry() if row["id"] == "austin-building-permits")
+    source = Source(
+        **{key: value for key, value in permit.items() if key in Source.__table__.columns}
+    )
+    site = "100 Test Road, Austin, TX"
+    qualification_site = "100 Test Road"
+
+    def qualification_text(
+        required_mw: str,
+        *,
+        include_lead: bool = True,
+        contradictory_supply: bool = False,
+        buyer_role: str = "electrical contractor",
+    ) -> str:
+        description = f"{qualification_site} construction requires {required_mw} MW. "
+        description += f"Power supply for {qualification_site} construction is unavailable. "
+        if include_lead:
+            description += (
+                f"{qualification_site} construction starts between 2026-11-01 and 2026-11-05. "
+                f"{qualification_site} construction lasts 30 to 60 days. "
+                f"No suitable power supply is available for {qualification_site} construction "
+                "throughout this start window and duration. "
+                f"The {buyer_role} is responsible for power procurement for "
+                f"{qualification_site} construction."
+            )
+        if contradictory_supply:
+            description += (
+                f" Total suitable power supply available for {qualification_site} construction "
+                "is 1 MW throughout this start window and duration."
+            )
+        return f"description: {description}\naddress: {qualification_site}"
+
+    created: list[tuple[PowerNeed, Project, Observation]] = []
+    for index in range(129):
+        if index == 0:
+            need_id = UUID(int=1)
+            external_id = "2019-123456 BP"
+        elif index == 128:
+            need_id = UUID(int=1000)
+            external_id = "2019-123456 EP"
+        else:
+            need_id = UUID(int=index + 1)
+            external_id = f"2020-{index:06d} BP"
+        project_id = uuid4()
+        project = Project(
+            id=project_id,
+            identity_key=f"bounded-summary-project-{index}",
+            name=f"Permit project {index}",
+            location=qualification_site if index == 1 else site,
+            source_id=source.id,
+            external_id=external_id,
+        )
+        need = PowerNeed(
+            id=need_id,
+            project_id=project_id,
+            activity_key="construction",
+            tier="Signal",
+            rationale="Synthetic batch-boundary regression",
+            supply="Unknown",
+        )
+        content_hash = f"{index + 1:064x}"
+        title = (
+            f"Building permit was issued for {project.name} data center campus at {site}"
+            if index == 1
+            else f"Building permit for {project.name} at {site}"
+        )
+        observation = Observation(
+            source_id=source.id,
+            external_id=external_id,
+            title=title,
+            abstract=(
+                qualification_text(
+                    "1", contradictory_supply=conflicting_demand
+                )
+                if index == 1
+                else f"Construction work for {project.name} at {site}."
+            ),
+            url=f"https://example.test/austin/{index}",
+            content_hash=content_hash,
+            published_at=datetime(2026, 10, 1, tzinfo=UTC).date(),
+        )
+        created.append((need, project, observation))
+    large_need, large_project, _large_observation = created[1]
+    extra_observations = [
+        Observation(
+            source_id=source.id,
+            external_id=f"2021-{index:06d} BP",
+            title=(
+                f"Building permit was issued for {large_project.name} data center campus "
+                f"at {site} ({index})"
+            ),
+            abstract=(
+                f"Construction work for {large_project.name} at {site}."
+                if conflicting_demand
+                else qualification_text(
+                    "1",
+                    buyer_role=(
+                        "general contractor"
+                        if index % 2
+                        else "project owner"
+                    ),
+                )
+            ),
+            url=f"https://example.test/austin/large/{index}",
+            content_hash=f"{50000 + index:064x}",
+            published_at=datetime(2026, 9, 1, tzinfo=UTC).date(),
+        )
+        for index in range(260)
+    ]
+
+    with factory.begin() as session:
+        session.add(source)
+        session.flush()
+        session.add_all([project for _need, project, _observation in created])
+        session.flush()
+        session.add_all(
+            [row for need, _project, observation in created for row in (need, observation)]
+            + extra_observations
+        )
+        session.flush()
+        evidence_rows = []
+        interpretation_rows = []
+        need_observation_rows = []
+        lifecycle_event_rows = []
+        for index, (need, project, observation) in enumerate(created):
+            evidence = Evidence(
+                id=uuid4(),
+                observation_id=observation.id,
+                content_hash=observation.content_hash,
+                title=observation.title,
+                abstract=observation.abstract,
+                url=observation.url,
+                published_at=observation.published_at,
+                extraction_location="permit description",
+            )
+            evidence_rows.append(evidence)
+            if need.id == large_need.id:
+                lifecycle_event_rows.append(
+                    LifecycleEvent(
+                        project_id=project.id,
+                        observation_id=observation.id,
+                        evidence_id=evidence.id,
+                        event_type="building_permit_issued",
+                        state="permitting",
+                    )
+                )
+            interpretation_rows.append(
+                Interpretation(
+                    observation_id=observation.id,
+                    content_hash=observation.content_hash,
+                    evaluator_version="bounded-summary-test",
+                    status="accepted",
+                    assessment={
+                        "semantic_hash": observation.content_hash,
+                        "evidence_hash": evidence.content_hash,
+                        "evidence": {"id": str(evidence.id)},
+                        "project_identity_key": project.identity_key,
+                        "power_activity": need.activity_key,
+                        "decision": "accepted",
+                        "subject": project.name,
+                        "location": project.location,
+                    },
+                )
+            )
+            need_observation_rows.append(
+                NeedObservation(need_id=need.id, observation_id=observation.id)
+            )
+            if index == 0:
+                evidence_rows.extend(
+                    Evidence(
+                        observation_id=observation.id,
+                        content_hash=f"{10000 + old:064x}",
+                        title=f"Historical permit revision {old}",
+                        abstract="Old retained revision.",
+                        url=f"https://example.test/austin/{index}/history/{old}",
+                        published_at=datetime(2025, 1, 1, tzinfo=UTC).date(),
+                        extraction_location="historical permit revision",
+                    )
+                    for old in range(64)
+                )
+        for observation in extra_observations:
+            evidence = Evidence(
+                id=uuid4(),
+                observation_id=observation.id,
+                content_hash=observation.content_hash,
+                title=observation.title,
+                abstract=observation.abstract,
+                url=observation.url,
+                published_at=observation.published_at,
+                extraction_location="permit description",
+            )
+            evidence_rows.append(evidence)
+            lifecycle_event_rows.append(
+                LifecycleEvent(
+                    project_id=large_project.id,
+                    observation_id=observation.id,
+                    evidence_id=evidence.id,
+                    event_type="building_permit_issued",
+                    state="permitting",
+                )
+            )
+            assessment = {
+                "semantic_hash": observation.content_hash,
+                "evidence_hash": evidence.content_hash,
+                "evidence": {"id": str(evidence.id)},
+                "project_identity_key": large_project.identity_key,
+                "power_activity": large_need.activity_key,
+                "decision": "accepted",
+                "subject": large_project.name,
+                "location": large_project.location,
+            }
+            if conflicting_demand:
+                assessment.update(
+                    {
+                        "tier": "Prospect",
+                        "demand_mw": "2 MW",
+                        "demand_quote": "Construction demand is 2 MW.",
+                        "supply_quote": "Construction supply is unavailable.",
+                        "reason": "Legacy accepted Prospect assessment.",
+                    }
+                )
+            interpretation_rows.append(
+                Interpretation(
+                    observation_id=observation.id,
+                    content_hash=observation.content_hash,
+                    evaluator_version="bounded-summary-test",
+                    status="accepted",
+                    assessment=assessment,
+                )
+            )
+            need_observation_rows.append(
+                NeedObservation(need_id=large_need.id, observation_id=observation.id)
+            )
+        session.add_all(
+            evidence_rows + interpretation_rows + need_observation_rows + lifecycle_event_rows
+        )
+        session.flush()
+        session.expunge_all()
+
+        stats: dict[str, int] = {}
+        summary = api.opportunity_projection(
+            session, summary_only=True, summary_diagnostics=stats
+        )
+        full = api.opportunity_projection(session)
+        summary_ids = [str(row["id"]) for row in summary]
+        full_ids = [str(row["id"]) for row in full]
+        assert summary_ids == full_ids
+        assert {str(row["id"]): _priority(row) for row in summary} == {
+            str(row["id"]): _priority(row) for row in full
+        }
+        summary_groups = grouped_need_ids(summary)
+        assert summary_groups == grouped_need_ids(full)
+        cross_batch_group = next(group for group in summary_groups if str(UUID(int=1)) in group)
+        assert cross_batch_group == sorted([str(UUID(int=1)), str(UUID(int=1000))])
+        assert stats["candidate_rows_scanned"] == 130
+        assert stats["max_candidate_batch_size"] == 128
+        assert stats["max_compact_need_states_per_batch"] == 128
+        assert stats["max_current_link_rows_per_need"] == 261
+        assert stats["max_resident_link_orm_rows"] <= 3 * stats["link_fetch_chunk_size"]
+        assert stats["lifecycle_rows_streamed"] == 261
+        assert stats["supported_lifecycle_rows"] == 261
+        assert stats["max_resident_lifecycle_orm_rows"] <= (
+            4 * stats["lifecycle_fetch_chunk_size"]
+        )
+        assert stats["historical_date_rows_aggregated"] == 130
+        assert stats["historical_evidence_orm_rows"] == 0
+        large_full = next(row for row in full if row["id"] == large_need.id)
+        expected_tier = "Signal" if conflicting_demand else "Lead"
+        assert large_full["tier"] == expected_tier
+        assert large_full["required_mw"] == (None if conflicting_demand else "1 MW")
+        assert large_full["qualification_conflict"] is conflicting_demand
+        assert large_full["conflict_state"] == (
+            "CONFLICT" if conflicting_demand else "Not assessed"
+        )
+        tier_summary = api.opportunity_projection(
+            session,
+            tier=expected_tier,
+            summary_only=True,
+            selected_need_ids={large_need.id},
+        )
+        tier_full = api.opportunity_projection(
+            session,
+            tier=expected_tier,
+            selected_need_ids={large_need.id},
+        )
+        assert [row["id"] for row in tier_summary] == [large_need.id]
+        assert [row["id"] for row in tier_full] == [large_need.id]
+        summary_large = next(row for row in summary if row["id"] == large_need.id)
+        first_full_support = next(
+            row for row in large_full["evidence"] if row["assessment_current"]
+        )
+        assert str(summary_large["evidence"][0]["id"]) == str(first_full_support["id"])
+        if not conflicting_demand:
+            assert large_full["commercial_size_status"] == "at_or_above_floor"
+            assert large_full["next_action"] == (
+                "Contact the electrical contractor to verify the open power package."
+            )
+
+
+def test_summary_projection_preserves_preloaded_session_rows(runtime):
+    factory, _service, (need_id, evidence_id) = runtime
+    api = import_module("gridlens.api.app")
+    with factory() as session:
+        evidence = session.get(Evidence, evidence_id)
+        assert evidence is not None
+        interpretation = session.scalar(
+            select(Interpretation).where(Interpretation.observation_id == evidence.observation_id)
+        )
+        assert interpretation is not None
+        summary = api.opportunity_projection(
+            session,
+            tier="Signal",
+            summary_only=True,
+            selected_need_ids={need_id},
+        )
+        assert [row["id"] for row in summary] == [need_id]
+        assert session.get(Evidence, evidence_id) is evidence
+        assert session.get(Interpretation, interpretation.id) is interpretation
 
 
 def test_provider_failure_retains_last_good_brief_without_blind_retry(runtime, monkeypatch):
