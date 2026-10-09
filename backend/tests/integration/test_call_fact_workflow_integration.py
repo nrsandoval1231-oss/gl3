@@ -142,6 +142,20 @@ def _body(project_id, pursuit_id, *, client_id=None, expected_version=0, predece
     }
 
 
+def test_fact_read_exposes_typed_unavailable_timing_target_without_current_source(runtime):
+    client, _factory, need_id, _project_id, _pursuit_id = runtime
+    response = client.get(f"/api/needs/{need_id}/facts")
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["current_fact_version"] == 0
+    target = payload["current_reported_timing_correction_target"]
+    assert target["available"] is False
+    assert target["unavailable_reason"] == "no_current_admitted_lead"
+    assert target["source_semantic_hash"] is None
+    assert target["source_evidence_hash"] is None
+    assert target["retained_evidence_id"] is None
+
+
 def test_fact_draft_accept_correction_are_append_only_and_nonpromoting_without_source(runtime):
     client, factory, need_id, project_id, pursuit_id = runtime
     headers = {"origin": "http://testserver"}
@@ -929,36 +943,62 @@ def test_current_public_support_bounds_fact_qualification_and_reassessment(runti
     group_id = next(
         item["group_id"] for item in unknown_page.json() if str(item["id"]) == str(need_id)
     )
-    status_response = client.post(
-        f"/api/needs/{need_id}/workflow-status",
-        json={
-            "client_id": str(uuid4()),
-            "project_id": str(project_id),
-            "pursuit_id": str(pursuit_id),
-            "expected_version": 0,
-            "status": "Investigating",
-            "reason": "Synthetic status-filter test",
-        },
-        headers=headers,
-    )
-    assert status_response.status_code == 200, status_response.text
-    filtered = client.get("/api/opportunities?tier=Lead&status=UNKNOWN")
-    assert filtered.status_code == 200, filtered.text
-    assert all(str(item["id"]) != str(need_id) for item in filtered.json())
-    assert filtered.headers["x-total-count"] == "0"
-    stale_page = client.get(
-        f"/api/opportunities?tier=Lead&status=UNKNOWN&cohort_token={unknown_token}"
-    )
-    assert stale_page.status_code == 409
-    stale_group = client.get(
-        f"/api/opportunity-groups/{group_id}?tier=Lead&status=UNKNOWN&cohort_token={unknown_token}"
-    )
-    assert stale_group.status_code == 409
-    filtered_detail = client.get(f"/api/opportunities/needs/{need_id}?tier=Lead&status=UNKNOWN")
-    assert filtered_detail.status_code == 404
-    csv = client.get("/api/opportunities/export.csv?tier=Lead&status=UNKNOWN")
-    assert csv.status_code == 200
-    assert str(need_id) not in csv.text
+    status_version = 0
+    previous_token = unknown_token
+    for status in ("New", "Investigating", "Contacted", "Qualified", "Won", "Lost", "Closed"):
+        status_response = client.post(
+            f"/api/needs/{need_id}/workflow-status",
+            json={
+                "client_id": str(uuid4()),
+                "project_id": str(project_id),
+                "pursuit_id": str(pursuit_id),
+                "expected_version": status_version,
+                "status": status,
+                "reason": f"Synthetic status-filter test: {status}",
+            },
+            headers=headers,
+        )
+        assert status_response.status_code == 200, status_response.text
+        status_version += 1
+        status_filter = status.upper()
+        filtered = client.get(f"/api/opportunities?tier=Lead&status={status_filter}")
+        assert filtered.status_code == 200, filtered.text
+        filtered_item = next(
+            item for item in filtered.json() if str(item["id"]) == str(need_id)
+        )
+        assert filtered_item["workflow_status"] == status
+        assert int(filtered.headers["x-total-count"]) >= 1
+        current_token = filtered.headers["x-cohort-token"]
+        current_group = filtered_item["group_id"]
+        grouped = client.get(
+            f"/api/opportunity-groups/{current_group}?tier=Lead&status={status_filter}"
+            f"&cohort_token={current_token}"
+        )
+        assert grouped.status_code == 200, grouped.text
+        assert any(str(item["id"]) == str(need_id) for item in grouped.json()["items"])
+        detail = client.get(
+            f"/api/opportunities/needs/{need_id}?tier=Lead&status={status_filter}"
+            f"&cohort_token={current_token}"
+        )
+        assert detail.status_code == 200, detail.text
+        assert detail.json()["workflow_status"] == status
+        csv = client.get(f"/api/opportunities/export.csv?tier=Lead&status={status_filter}")
+        assert csv.status_code == 200, csv.text
+        assert str(need_id) in csv.text
+        unknown_filtered = client.get("/api/opportunities?tier=Lead&status=UNKNOWN")
+        assert unknown_filtered.status_code == 200, unknown_filtered.text
+        assert all(str(item["id"]) != str(need_id) for item in unknown_filtered.json())
+        if status == "New":
+            stale_page = client.get(
+                f"/api/opportunities?tier=Lead&status=UNKNOWN&cohort_token={previous_token}"
+            )
+            assert stale_page.status_code == 409
+            stale_group = client.get(
+                f"/api/opportunity-groups/{group_id}?tier=Lead&status=UNKNOWN"
+                f"&cohort_token={previous_token}"
+            )
+            assert stale_group.status_code == 409
+        previous_token = current_token
 
 
 def test_timing_correction_is_source_version_bound_and_replayed_after_source_change(runtime):
@@ -1019,6 +1059,9 @@ def test_timing_correction_is_source_version_bound_and_replayed_after_source_cha
             published_at=observation.published_at,
             observed_at=datetime.now(UTC),
         )
+        session.add(evidence)
+        session.flush()
+        claim["evidence"] = {"id": str(evidence.id), "url": evidence.url}
         interpretation = Interpretation(
             observation_id=observation.id,
             content_hash=source_hash,
@@ -1027,7 +1070,6 @@ def test_timing_correction_is_source_version_bound_and_replayed_after_source_cha
         )
         session.add_all(
             [
-                evidence,
                 interpretation,
                 NeedObservation(need_id=need.id, observation_id=observation.id),
             ]
@@ -1050,6 +1092,23 @@ def test_timing_correction_is_source_version_bound_and_replayed_after_source_cha
         save_evaluations(session, [original_card], now=original_saved_at)
 
     headers = {"origin": "http://testserver"}
+    source_readback = client.get(f"/api/needs/{need_id}/facts")
+    assert source_readback.status_code == 200, source_readback.text
+    assert source_readback.json()["current_fact_version"] == 0
+    target = source_readback.json()["current_reported_timing_correction_target"]
+    assert target["available"] is True
+    assert target["unavailable_reason"] is None
+    assert target["need_id"] == str(need_id)
+    assert target["project_id"] == str(project_id)
+    assert target["activity_key"] == "construction"
+    assert target["facility_identity"]
+    assert target["source_semantic_hash"] == source_hash
+    assert target["source_evidence_hash"] == source_hash
+    assert target["retained_evidence_id"]
+    assert target["earliest_possible_start"] == "2027-01-01"
+    assert target["latest_possible_start"] == "2027-02-01"
+    assert target["minimum_duration_days"] == 31
+    assert target["maximum_duration_days"] == 62
     compatible_body = _body(project_id, pursuit_id, expected_version=0)
     compatible_body["fact_type"] = "timing"
     compatible_body["value"] = {

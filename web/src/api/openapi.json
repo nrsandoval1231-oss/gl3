@@ -444,6 +444,16 @@
             "schema": {
               "anyOf": [
                 {
+                  "enum": [
+                    "UNKNOWN",
+                    "NEW",
+                    "INVESTIGATING",
+                    "CONTACTED",
+                    "QUALIFIED",
+                    "WON",
+                    "LOST",
+                    "CLOSED"
+                  ],
                   "type": "string"
                 },
                 {
@@ -711,6 +721,16 @@
             "schema": {
               "anyOf": [
                 {
+                  "enum": [
+                    "UNKNOWN",
+                    "NEW",
+                    "INVESTIGATING",
+                    "CONTACTED",
+                    "QUALIFIED",
+                    "WON",
+                    "LOST",
+                    "CLOSED"
+                  ],
                   "type": "string"
                 },
                 {
@@ -959,6 +979,16 @@
             "schema": {
               "anyOf": [
                 {
+                  "enum": [
+                    "UNKNOWN",
+                    "NEW",
+                    "INVESTIGATING",
+                    "CONTACTED",
+                    "QUALIFIED",
+                    "WON",
+                    "LOST",
+                    "CLOSED"
+                  ],
                   "type": "string"
                 },
                 {
@@ -1209,6 +1239,16 @@
             "schema": {
               "anyOf": [
                 {
+                  "enum": [
+                    "UNKNOWN",
+                    "NEW",
+                    "INVESTIGATING",
+                    "CONTACTED",
+                    "QUALIFIED",
+                    "WON",
+                    "LOST",
+                    "CLOSED"
+                  ],
                   "type": "string"
                 },
                 {
@@ -3585,6 +3625,13 @@
               }
             ],
             "title": "Next Offset"
+          },
+          "current_fact_version": {
+            "type": "integer",
+            "title": "Current Fact Version"
+          },
+          "current_reported_timing_correction_target": {
+            "$ref": "#/components/schemas/TimingCorrectionTargetOut"
           }
         },
         "type": "object",
@@ -3593,7 +3640,9 @@
           "total",
           "limit",
           "offset",
-          "next_offset"
+          "next_offset",
+          "current_fact_version",
+          "current_reported_timing_correction_target"
         ],
         "title": "CallFactPageOut"
       },
@@ -8103,6 +8152,168 @@
           "effective_enabled"
         ],
         "title": "SourceEnabledOut"
+      },
+      "TimingCorrectionTargetOut": {
+        "properties": {
+          "available": {
+            "type": "boolean",
+            "title": "Available"
+          },
+          "unavailable_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unavailable Reason"
+          },
+          "need_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Need Id"
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id"
+          },
+          "project_identity_key": {
+            "type": "string",
+            "title": "Project Identity Key"
+          },
+          "activity_key": {
+            "type": "string",
+            "title": "Activity Key"
+          },
+          "facility_identity": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Facility Identity"
+          },
+          "source_semantic_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Semantic Hash"
+          },
+          "source_evidence_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Evidence Hash"
+          },
+          "retained_evidence_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retained Evidence Id"
+          },
+          "source_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Id"
+          },
+          "earliest_possible_start": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Earliest Possible Start"
+          },
+          "latest_possible_start": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latest Possible Start"
+          },
+          "minimum_duration_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Minimum Duration Days"
+          },
+          "maximum_duration_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Maximum Duration Days"
+          },
+          "current_fact_version": {
+            "type": "integer",
+            "title": "Current Fact Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "available",
+          "unavailable_reason",
+          "need_id",
+          "project_id",
+          "project_identity_key",
+          "activity_key",
+          "facility_identity",
+          "source_semantic_hash",
+          "source_evidence_hash",
+          "retained_evidence_id",
+          "source_id",
+          "earliest_possible_start",
+          "latest_possible_start",
+          "minimum_duration_days",
+          "maximum_duration_days",
+          "current_fact_version"
+        ],
+        "title": "TimingCorrectionTargetOut"
       },
       "ValidationError": {
         "properties": {
