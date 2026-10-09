@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "as_of_date": "2026-10-07",
+  "policy_id": "santa-clara-svp-intake",
+  "jurisdiction": "Santa Clara, CA",
+  "kind": "utility_intake_constraint",
+  "scope": "Silicon Valley Power intake of new data-center electrical-load applications; not a citywide land-use prohibition.",
+  "reported_start": "2023 (year only; exact start date unverified)",
+  "evidence": [
+    {
+      "id": "staff",
+      "url": "https://santaclara.legistar.com/LegislationDetail.aspx?GUID=2791DE9D-56B5-49B5-9998-BC1264149D06&ID=8260886",
+      "kind": "staff_report",
+      "location": "File 26-1037, October 6 report, Background",
+      "summary": "Staff states SVP has accepted no new data-center applications since 2023.",
+      "observed_on": "2026-10-07"
+    }
+  ],
+  "observations": [
+    {
+      "source_id": "staff",
+      "status": "reported_intake_paused",
+      "event_date": "2026-10-06"
+    }
+  ],
+  "limitations": [
+    "System-capacity rationale is reported in the task and contemporaneous reporting; underlying November 2023 limitations letter not independently retrieved.",
+    "No exact reopening date, project-specific denial or existing-project power shortfall inferred."
+  ]
+}
