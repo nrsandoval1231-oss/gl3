@@ -1,0 +1,16 @@
+{
+  "evidence_kind": "historical hosted execution inspected during Stage 1",
+  "run_id": 37973616831,
+  "event": "push",
+  "tested_head": "b96024abb74cf63f011d9646f474d42355ad8b87",
+  "url": "https://github.com/nrsandoval1231-oss/gl3/actions/runs/37973616831",
+  "backend": {"passed": 1597, "skipped": 1, "warnings": 7, "job_id": 113966212484},
+  "browser": {"passed": 81, "skipped": 1, "job_id": 113966212484},
+  "raw_summary_lines": [
+    "2026-10-09T18:35:18.9689545Z =========== 1597 passed, 1 skipped, 7 warnings in 286.32s (0:04:46) ============",
+    "2026-10-09T18:37:24.2181733Z   1 skipped",
+    "2026-10-09T18:37:24.2189272Z   81 passed (1.6m)"
+  ],
+  "inspection_command": "gh run view 37973616831 --repo nrsandoval1231-oss/gl3 --log; filtered summary lines",
+  "limits": "Not a new local test run. Ephemeral CI database and browser regressions do not prove authentic acquisition, owner commercial acceptance, canonical UI acceptance, production deployment or seven-day operation. Does not cover Stage 1 document changes."
+}

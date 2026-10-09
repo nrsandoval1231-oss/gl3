@@ -1,0 +1,23 @@
+{
+  "evidence_kind": "Dated external historical report inspected; no retained database rerun",
+  "source_path": "C:\\Users\\nrsan\\Nucleus\\02_Projects\\GridLens\\stabilization\\20261009T134742Z\\STABILIZATION-RESULT.md",
+  "source_sha256": "4aad88c3dc6203d169deeedfdee0a836c5d81a2fbfb403f216ca6e97e592ada5",
+  "covered_head": "cb9cb3cedf2c211a8f917557dada82a70c546f8f",
+  "covered_tree": "8998bdaa20a8a0163bcb675ba08a597dc7777602",
+  "visible_signals": 1167,
+  "visible_prospects": 0,
+  "visible_leads": 0,
+  "commercial_groups": 1144,
+  "action_now": 9,
+  "research": 49,
+  "watch": 1086,
+  "original_restore_rows": 60286,
+  "limitations": [
+    "Copied original corpus; database read-only; authentication overridden for projection only; separately tested real authentication used synthetic browser fixture",
+    "No ordinary acquisition refresh and no current b96024a authentic acceptance",
+    "All observed records lacked required MW/start/duration/suitable supply",
+    "Four Georgia narratives checked; exact RRC permit not freshly fetched",
+    "Grady Road operation/proposed lifecycle mismatch and buyer inheritance concern recorded; current-code impact requires Stage2 evaluation",
+    "Nick commercial/visual acceptance and deployment/seven-cycle proof absent"
+  ]
+}
