@@ -1,0 +1,85 @@
+{
+  "task": "GL3-AUDIT-A5B fresh independent review after same-cohort request-state repair",
+  "verdict": "FIX",
+  "scope": "Frozen cumulative A5B bounded public browse/client candidate; prior token, Back-selection and active same-key failures corrected; A5B acceptance pending",
+  "candidate": {
+    "branch": "repair/gl3-public-browse-20261008",
+    "head": "114bb671c32af00839aab4d2b3feac95c6cd3793",
+    "tree": "f46944739603c385154698e32472fd6bedd0d8ae",
+    "tested_head": "3d67ac87cb82ff8221fd2047f13e4c016eb3a3d4",
+    "tested_tree": "bfb37c81755e104fb38414ff3cc5f83af9def866",
+    "implementation_head": "7c29da3e6e52494f026ac78e66a55e1567f901b9",
+    "source_manifest_entries_checked": 257,
+    "source_mismatches": 0,
+    "worktree_clean": true
+  },
+  "fixed_prior_findings": [
+    {
+      "code": "offset_without_cohort_token",
+      "status": "corrected",
+      "evidence": "Later offset pages require an echoed token and client bootstrap obtains it; prior backend/browser regressions remain green."
+    },
+    {
+      "code": "selected_need_back_restore_uses_current_page_only",
+      "status": "corrected",
+      "evidence": "Exact selected ID is carried as pending intent and resolved from restored page or scoped exact-need GET, with late-response guards; focused browser cases remain green."
+    },
+    {
+      "code": "active_tier_click_drops_browse_page_without_fetch",
+      "status": "corrected",
+      "evidence": "App.tsx:486-505 handles active tier/first page without cancelling the valid request or clearing page metadata; active view/decision and equal filter/search paths are also guarded. Ready and delayed browser cases pass."
+    }
+  ],
+  "findings": [
+    {
+      "severity": "blocking",
+      "code": "previous_to_page_zero_retains_later_page_rows_and_metadata",
+      "location": "web/src/app/App.tsx:242-246",
+      "supporting_locations": [
+        "web/src/app/App.tsx:258-267",
+        "web/src/app/App.tsx:309-341",
+        "web/src/app/App.tsx:559-564",
+        "web/src/app/App.tsx:599-618"
+      ],
+      "contract": ".agent/packets/GL3-AUDIT-A5B.md requires bounded pages, accurate server page/filter/group totals, stable pagination, and Back state; .agent/artifacts/GL3-AUDIT-A5B-REQUEST-STATE-REPAIR/SAME-COHORT-REQUEST-STATE-REPAIR.md requires changed browse scope not to expose stale rows under a replacement request.",
+      "trigger": "Load an opportunity page at offset 25, click the collection Previous button to offset 0, and delay or fail the page-zero request.",
+      "evidence": "The Previous handler at line 618 invalidates the old request and changes offset but does not clear items or opportunityPage. The fetch effect clears those only under offset > 0 at lines 242-246, so its offset-zero path leaves page-25 rows and headers intact while the new request is pending. The UI renders cards from those retained items and labels the page from offset, now page 1. On an ordinary page-zero request failure, the generic catch only sets error and finally clears loading; it never clears stale rows or metadata, making the mismatch persistent. A user can open a later-page row during the pending interval; open() writes the current offset zero into its detail URL/history. Existing browser cases test the opposite later-page bootstrap and active-tier reset, not this Previous-to-zero delayed/error path.",
+      "impact": "The public browse can display page-two records as page one, retain incorrect page metadata after a failed request, and open a need with the wrong return offset. This violates the bounded page and preserved Back-state contract despite green existing gates.",
+      "required_correction": "Treat both directions of page navigation as an explicit page-state transition. Clear or otherwise isolate outgoing rows and authoritative page metadata before an offset-zero replacement request, and ensure failed requests leave a truthful empty/error state rather than stale cards. Preserve token bootstrap/409 semantics and add delayed and failed Previous-to-zero browser cases, including inability to open stale rows and correct Back offset."
+    }
+  ],
+  "independent_checks": [
+    "Read owner A5B packet and request-state repair packet, implementation, root GATES, and three prior negative reviews; traced current App handlers, fetch effect, render and focused tests.",
+    "Verified exact HEAD/tree, clean worktree and no product/test/workflow diff from tested head.",
+    "Independently verified all 257 working and Git source hashes against TESTED-SOURCE-MANIFEST.json.",
+    "Independently verified ROOT-RAW.zip SHA256 f0036cd27e0ee334b4c3bbc1d14fb8004249b35a4abd786404c5215106370596 and all 397 archived entry lengths and hashes against RAW-HASH-MANIFEST.json.",
+    "Inspected raw 53-pass final browser log and root deterministic gate summary; no broad test repeat, provider import or DB mutation."
+  ],
+  "deterministic_evidence": {
+    "backend": "1419 passed, 2 environmental skips, 5 warnings, 202.00 seconds",
+    "browser": "53 passed, 39.6 seconds",
+    "static_contract_migration": "Ruff, mypy src 78 files, web type/build, exact OpenAPI 31 paths, audits, fresh0016/repeat/drift PASS per root raw receipts",
+    "retained_parity": "1167 records, 1149 opportunity groups, 17 searches, 24 pages exact per root receipts",
+    "commercial_first50": "50 groups, 53 needs, card SHA 4d44821139abdd92a657aa7f419f86754abb33be0e1e0d5082278dee0bed4812, 102 SQL",
+    "public_first50": "92 SQL per run, exact retained handler bytes per root receipts",
+    "root_raw_entries": 397,
+    "root_raw_sha256": "f0036cd27e0ee334b4c3bbc1d14fb8004249b35a4abd786404c5215106370596"
+  },
+  "limitations": [
+    "The Previous-to-zero failure follows deterministically from current source and effect dependencies; existing 53-pass browser suite does not cover the delayed or failed transition.",
+    "Status UNKNOWN-only is partial; A6 attributed facts, seven-state workflow, functional UI and bulk status integration remain open.",
+    "A7 original canonical PNG/HTML, A8 and authentic launch gates remain open. This verdict does not certify parent completion.",
+    "Local SQL, elapsed and Python allocation measurements do not prove production SLO or RSS.",
+    "Historical overwritten or unretained diagnostics remain UNKNOWN; no credential-bearing original was restored.",
+    "No push, merge, deployment, provider activation, original-data write or external communication is certified."
+  ],
+  "timing": {
+    "utc_start": "2026-10-08T18:23:53Z",
+    "utc_finish": "2026-10-08T18:26:45Z",
+    "audit_duration_seconds": 172,
+    "lane": "Sol independent review",
+    "model": "gpt-6.1-sol",
+    "config_identity": "UNKNOWN",
+    "tokens": "UNKNOWN"
+  }
+}

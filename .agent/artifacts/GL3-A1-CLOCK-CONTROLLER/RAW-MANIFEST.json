@@ -1,0 +1,72 @@
+[
+  {
+    "name": "a1-clock-controller-backend-audit-diagnostics.log",
+    "bytes": 268,
+    "sha256": "e82148c0c30269ca5a2c35420ece6af011a4faf5a375325d750e243ffdb10625"
+  },
+  {
+    "name": "a1-clock-controller-backend-audit.json",
+    "bytes": 2504,
+    "sha256": "f31cf2ec95e537975cf04d599f688fa7883003b79747368e77475a43d1fbc993"
+  },
+  {
+    "name": "a1-clock-controller-browser.log",
+    "bytes": 6093,
+    "sha256": "9a9293cf66b2e89c75bcaaaf916917b43f2aede78ecfb6d062bf0bab280b2018"
+  },
+  {
+    "name": "a1-clock-controller-full.log",
+    "bytes": 2892,
+    "sha256": "f844f53e89d5ae1cbc20602a7928c69324fea60f764ca777b184d7d4448b9bc0"
+  },
+  {
+    "name": "a1-clock-controller-lock-export.log",
+    "bytes": 25644,
+    "sha256": "19982b1b892662231b740502f5df805776e1630f00ce740fc020aecee3c64f01"
+  },
+  {
+    "name": "a1-clock-controller-migrate-drift.log",
+    "bytes": 1933,
+    "sha256": "c32b025a476f93c20fa850b6ab6ebf7f1500b56b30a29abf2fc3ee9b70de26e2"
+  },
+  {
+    "name": "a1-clock-controller-migrate-repeat1.log",
+    "bytes": 260,
+    "sha256": "c9dede11c80ccef6853207a302c79427d48bcdbd6fbf586b5dc306be0763cd94"
+  },
+  {
+    "name": "a1-clock-controller-migrate-repeat2.log",
+    "bytes": 260,
+    "sha256": "c9dede11c80ccef6853207a302c79427d48bcdbd6fbf586b5dc306be0763cd94"
+  },
+  {
+    "name": "a1-clock-controller-mypy.log",
+    "bytes": 202,
+    "sha256": "d47f66fe451a271a8df676aa02e67b7419d499e912ceb71e7c34ea9df0b5bf1f"
+  },
+  {
+    "name": "a1-clock-controller-requirements.txt",
+    "bytes": 25222,
+    "sha256": "52663abaf66607aa13e4b84f7a1a97e1cf3cfd08c3446ed20846b78ea7674b56"
+  },
+  {
+    "name": "a1-clock-controller-ruff.log",
+    "bytes": 20,
+    "sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0"
+  },
+  {
+    "name": "a1-clock-controller-web-audit.json",
+    "bytes": 385,
+    "sha256": "03f8e9fe5ab2d32913f2d78d6d82565488c46779b420abcaef976109882b1123"
+  },
+  {
+    "name": "a1-clock-controller-web-build.log",
+    "bytes": 393,
+    "sha256": "990c789a338b3d4d3c6a50e0b37685a885949342431a9097123b4e250079efba"
+  },
+  {
+    "name": "a1-clock-controller-web-typecheck.log",
+    "bytes": 52,
+    "sha256": "6e2f251662437d85417559b9c1f81367fa9947f3260f8d41fb5623f694160039"
+  }
+]

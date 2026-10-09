@@ -1,0 +1,58 @@
+{
+  "packet": "GL3-AUDIT-A9",
+  "attempts": [
+    {
+      "id": "full-backend-1",
+      "command": "uv run pytest tests",
+      "exit_code": 1,
+      "failed": 12,
+      "errors": 64,
+      "duration_seconds": 168.10,
+      "raw_log": null,
+      "classification": "UNKNOWN; do not infer a cause"
+    },
+    {
+      "id": "integration-subset",
+      "command": "uv run pytest tests/integration -q --tb=short -x",
+      "exit_code": 0,
+      "passed": 377,
+      "scope": "integration subset; not a full-suite result"
+    },
+    {
+      "id": "full-backend-2",
+      "command": "uv run pytest tests -q --tb=short",
+      "exit_code": 0,
+      "passed": 1235,
+      "skipped": 2,
+      "duration_seconds": 154.16,
+      "raw_log": "backend-pytest.log"
+    },
+    {
+      "id": "playwright-unisolated-exploratory",
+      "command": "npm --prefix web run test:ci",
+      "exit_code": 0,
+      "passed": 36,
+      "CI": false,
+      "reuse_existing_server": true,
+      "acceptance_evidence": false,
+      "reason": "a pre-existing Vite server could have been reused; actual server state was not recorded"
+    },
+    {
+      "id": "playwright-isolated-1",
+      "command": "npm --prefix web run test:ci with CI=1, API 55480, web 55481",
+      "exit_code": 1,
+      "passed": 35,
+      "failed": 1,
+      "failure": "real-auth test received HTTP 403 with a custom web origin absent from the disposable server trusted-origin setting",
+      "raw_log_retained": false,
+      "credential_context": "not retained"
+    },
+    {
+      "id": "playwright-isolated-2",
+      "command": "npm --prefix web run test:ci with CI=1, API 55480, web 55481 and disposable TRUSTED_ORIGINS=http://127.0.0.1:55481",
+      "exit_code": 0,
+      "passed": 36,
+      "raw_log": "playwright-isolated.log"
+    }
+  ]
+}

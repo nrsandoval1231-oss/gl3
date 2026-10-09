@@ -3,18 +3,59 @@ import type { components } from './generated'
 export type PursuitsResult = components['schemas']['PursuitsOut']
 export type Pursuit = components['schemas']['PursuitOut']
 export type CallNoteBody = components['schemas']['CallNoteBody']
+export const workflowStatuses = ['New', 'Investigating', 'Contacted', 'Qualified', 'Won', 'Lost', 'Closed'] as const
+export type WorkflowStatus = typeof workflowStatuses[number]
+export type WorkflowStatusFilter = Uppercase<WorkflowStatus> | 'UNKNOWN' | ''
+export type CallFact = components['schemas']['CallFactOut']
+export type CallFactPage = components['schemas']['CallFactPageOut']
+export type TimingCorrectionTarget = components['schemas']['TimingCorrectionTargetOut']
+export type CallFactDraftBody = components['schemas']['CallFactDraftBody']
+export type CallFactDecisionBody = components['schemas']['CallFactDecisionBody']
+export type NeedWorkflowStatus = components['schemas']['NeedWorkflowStatusOut']
+export type NeedWorkflowStatusBody = components['schemas']['NeedWorkflowStatusBody']
 
 export type BuyingChainResult = components['schemas']['BuyingChainOut']
 export type Opportunity = components['schemas']['OpportunityOut']
+export type OpportunityBrowseFilters = {
+  geography?: string
+  industry?: string
+  activity?: string
+  timing?: 'KNOWN' | 'UNKNOWN' | ''
+  mwStatus?: 'KNOWN' | 'UNKNOWN' | ''
+  mwMin?: string
+  mwMax?: string
+  prioritySegment?: string
+  status?: WorkflowStatusFilter
+}
+export type OpportunityPage = {
+  items: Opportunity[]
+  totalCount: number
+  groupTotalCount: number
+  pageRecordCount: number
+  pageGroupCount: number
+  limit: number
+  offset: number
+  nextOffset: number | null
+  cohortToken: string
+  decisionCounts: Record<'SHOW' | 'REVIEW' | 'HOLD', number>
+}
+export type OpportunityNeedScope = {
+  tier: string
+  search: string
+  decision: string
+  cohortToken: string
+  filters?: OpportunityBrowseFilters
+}
+export type OpportunityGroupPage = components['schemas']['OpportunityGroupPageOut']
 export type SourceHealth = components['schemas']['HealthSourceOut']
 export type Evidence = components['schemas']['EvidenceOut']
 export type IngestionItem = components['schemas']['IngestionItemOut']
 export type IngestionPage = components['schemas']['IngestionPageOut']
 export type Brief = components['schemas']['BriefOut']
 export type BriefRequest = components['schemas']['BriefRequestOut']
-export type CommercialTriage = components['schemas']['CommercialTriageOut']
+export type CommercialTriage = components['schemas']['CommercialTriagePageOut']
 export type CommercialTriageCard = components['schemas']['CommercialTriageCard']
-export type CommercialTriageHistory = components['schemas']['CommercialTriageHistoryOut']
+export type CommercialTriageHistory = components['schemas']['CommercialTriageHistoryPageOut']
 export type CommercialTriageHistoryItem = components['schemas']['CommercialTriageHistoryItem']
 export type CommercialResearchBody = components['schemas']['CommercialResearchBody']
 export type AutonomousResearch = components['schemas']['AutonomousResearchOut']
@@ -40,6 +81,77 @@ async function api<T>(path: string, init?: RequestInit, includeSafeDetail = fals
   return response.json() as Promise<T>
 }
 
+function addBrowseFilters(params: URLSearchParams, filters: OpportunityBrowseFilters = {}) {
+  const entries: [string, string | undefined][] = [
+    ['geography', filters.geography], ['industry', filters.industry], ['activity', filters.activity],
+    ['timing', filters.timing], ['mw_status', filters.mwStatus], ['mw_min', filters.mwMin],
+    ['mw_max', filters.mwMax], ['priority_segment', filters.prioritySegment], ['status', filters.status],
+  ]
+  for (const [key, value] of entries) if (value) params.set(key, value)
+}
+
+async function opportunityPage(tier: string, search: string, decision: string, limit: number, offset: number, cohortToken?: string, filters: OpportunityBrowseFilters = {}, signal?: AbortSignal): Promise<OpportunityPage> {
+  const params = new URLSearchParams({ tier, search, decision, limit: String(limit), offset: String(offset) })
+  if (cohortToken) params.set('cohort_token', cohortToken)
+  addBrowseFilters(params, filters)
+  const response = await fetch(`/api/opportunities?${params}`, { credentials: 'same-origin', signal })
+  if (response.status === 401) throw new Error('Your session ended. Sign in again.')
+  if (response.status === 409) throw new OpportunityCohortChangedError()
+  if (!response.ok) throw new Error(`GridLens could not complete this request (${response.status}).`)
+  const items = await response.json() as Opportunity[]
+  const header = (name: string) => Number(response.headers.get(name) ?? '0')
+  let decisionCounts: OpportunityPage['decisionCounts'] = { SHOW: 0, REVIEW: 0, HOLD: 0 }
+  try {
+    decisionCounts = { ...decisionCounts, ...JSON.parse(response.headers.get('X-Decision-Counts') ?? '{}') as OpportunityPage['decisionCounts'] }
+  } catch { /* Counts stay explicitly empty when an older backend is in front. */ }
+  const nextOffset = response.headers.get('X-Next-Offset')
+  return {
+    items,
+    totalCount: header('X-Total-Count'),
+    groupTotalCount: header('X-Group-Total-Count'),
+    pageRecordCount: header('X-Page-Record-Count'),
+    pageGroupCount: header('X-Page-Group-Count'),
+    limit: header('X-Limit'),
+    offset: header('X-Offset'),
+    nextOffset: nextOffset === null ? null : Number(nextOffset),
+    cohortToken: response.headers.get('X-Cohort-Token') ?? '',
+    decisionCounts,
+  }
+}
+
+export class OpportunityCohortChangedError extends Error {
+  constructor() {
+    super('Opportunity cohort changed; restart pagination from the first page.')
+    this.name = 'OpportunityCohortChangedError'
+  }
+}
+
+export class OpportunityNeedUnavailableError extends Error {
+  constructor() {
+    super('The selected opportunity is not available in this filtered cohort.')
+    this.name = 'OpportunityNeedUnavailableError'
+  }
+}
+
+async function opportunityNeed(needId: string, scope: OpportunityNeedScope, signal?: AbortSignal): Promise<Opportunity> {
+  const params = new URLSearchParams({
+    tier: scope.tier,
+    search: scope.search,
+    decision: scope.decision,
+    cohort_token: scope.cohortToken,
+  })
+  addBrowseFilters(params, scope.filters)
+  const response = await fetch(`/api/opportunities/needs/${encodeURIComponent(needId)}?${params}`, {
+    credentials: 'same-origin',
+    signal,
+  })
+  if (response.status === 401) throw new Error('Your session ended. Sign in again.')
+  if (response.status === 409) throw new OpportunityCohortChangedError()
+  if (response.status === 404) throw new OpportunityNeedUnavailableError()
+  if (!response.ok) throw new Error(`GridLens could not complete this request (${response.status}).`)
+  return response.json() as Promise<Opportunity>
+}
+
 export const client = {
   pursuits: (signal?: AbortSignal, includeDropped = false, offset = 0) => api<PursuitsResult>(`/api/pursuits${includeDropped ? `?include_dropped=true&offset=${offset}` : ''}`, { signal }),
   refreshPursuits: (force = false) => api<components['schemas']['PursuitJobOut']>(`/api/pursuits/refresh${force ? '?force=true' : ''}`, { method: 'POST' }),
@@ -48,9 +160,10 @@ export const client = {
   enrichBuyingChain: (projectId: string, sourceUrls: string[]) => api<BuyingChainResult>(`/api/projects/${encodeURIComponent(projectId)}/buying-chain/enrich`, { method: 'POST', body: JSON.stringify({ source_urls: sourceUrls }) }),
   brief: (needId: string) => api<Brief>(`/api/power-needs/${encodeURIComponent(needId)}/brief`),
   requestBrief: (needId: string) => api<BriefRequest>(`/api/power-needs/${encodeURIComponent(needId)}/brief`, { method: 'POST', body: '{}' }),
-  commercialTriage: (limit = 50, signal?: AbortSignal) => api<CommercialTriage>(`/api/commercial/triage?limit=${limit}`, { signal }),
-  commercialTriageHistory: (signal?: AbortSignal) => api<CommercialTriageHistory>('/api/commercial/triage/history', { signal }),
-  evaluateCommercialTriage: () => api<CommercialTriage>('/api/commercial/triage/evaluate', { method: 'POST', body: '{}' }),
+  commercialTriage: (limit = 50, signal?: AbortSignal, offset = 0) => api<CommercialTriage>(`/api/commercial/triage?limit=${limit}${offset ? `&offset=${offset}` : ''}`, { signal }),
+  commercialTriageHistory: (signal?: AbortSignal, offset = 0, limit = 50) => api<CommercialTriageHistory>(`/api/commercial/triage/history${offset || limit !== 50 ? `?limit=${limit}&offset=${offset}` : ''}`, { signal }),
+  commercialTriageHistoryDetail: (pursuitId: string, signal?: AbortSignal) => api<CommercialTriageHistoryItem>(`/api/commercial/triage/history/${encodeURIComponent(pursuitId)}`, { signal }),
+  evaluateCommercialTriage: (limit = 50, offset = 0) => api<CommercialTriage>(`/api/commercial/triage/evaluate${limit === 50 && offset === 0 ? '' : `?limit=${limit}&offset=${offset}`}`, { method: 'POST', body: '{}' }),
   researchCommercialNeed: (needId: string, body: CommercialResearchBody) => api<BriefRequest>(`/api/commercial/triage/${encodeURIComponent(needId)}/research`, { method: 'POST', body: JSON.stringify(body) }, true),
   commercialResearchStatus: (needId: string, question: string, signal?: AbortSignal) => api<CommercialResearchStatus>(`/api/commercial/triage/${encodeURIComponent(needId)}/research?${new URLSearchParams({ question }).toString()}`, { signal }, true),
   autonomousResearch: (needId: string, signal?: AbortSignal) => api<AutonomousResearch>(`/api/commercial/triage/${encodeURIComponent(needId)}/autonomous-research`, { signal }, true),
@@ -58,7 +171,35 @@ export const client = {
   session: () => api<{ authenticated: boolean }>('/api/auth/session'),
   login: (password: string) => api<{ authenticated: boolean }>('/api/auth/login', { method: 'POST', body: JSON.stringify({ password }) }),
   logout: () => api('/api/auth/logout', { method: 'POST' }),
-  opportunities: (tier: string, search: string) => api<Opportunity[]>(`/api/opportunities?tier=${encodeURIComponent(tier)}&search=${encodeURIComponent(search)}`),
+  opportunityPage,
+  opportunityGroupPage: (groupId: string, tier: string, search: string, decision: string, cohortToken: string, limit: number, offset: number, filters: OpportunityBrowseFilters = {}, signal?: AbortSignal) => {
+    const params = new URLSearchParams({ tier, search, decision, cohort_token: cohortToken, limit: String(limit), offset: String(offset) })
+    addBrowseFilters(params, filters)
+    return api<OpportunityGroupPage>(`/api/opportunity-groups/${encodeURIComponent(groupId)}?${params}`, { signal })
+  },
+  opportunityNeed,
+  callFacts: (needId: string, limit = 50, offset = 0, signal?: AbortSignal) => api<CallFactPage>(
+    `/api/needs/${encodeURIComponent(needId)}/facts?limit=${limit}&offset=${offset}`, { signal }, true,
+  ),
+  createCallFact: (needId: string, body: CallFactDraftBody) => api<CallFact>(
+    `/api/needs/${encodeURIComponent(needId)}/facts`, { method: 'POST', body: JSON.stringify(body) }, true,
+  ),
+  decideCallFact: (needId: string, factVersionId: string, body: CallFactDecisionBody) => api<components['schemas']['CallFactDecisionOut']>(
+    `/api/needs/${encodeURIComponent(needId)}/facts/${encodeURIComponent(factVersionId)}/decision`,
+    { method: 'POST', body: JSON.stringify(body) }, true,
+  ),
+  workflowStatus: (needId: string, signal?: AbortSignal) => api<NeedWorkflowStatus>(
+    `/api/needs/${encodeURIComponent(needId)}/workflow-status`, { signal }, true,
+  ),
+  setWorkflowStatus: (needId: string, body: NeedWorkflowStatusBody) => api<components['schemas']['NeedWorkflowEventOut']>(
+    `/api/needs/${encodeURIComponent(needId)}/workflow-status`, { method: 'POST', body: JSON.stringify(body) }, true,
+  ),
+  opportunityExportUrl: (tier: string, search: string, decision: string, cohortToken?: string, filters: OpportunityBrowseFilters = {}) => {
+    const params = new URLSearchParams({ tier, search, decision })
+    if (cohortToken) params.set('cohort_token', cohortToken)
+    addBrowseFilters(params, filters)
+    return `/api/opportunities/export.csv?${params.toString()}`
+  },
   changes: () => api<{ kind: string; title: string; url: string; published_at: string | null }[]>('/api/changes'),
   health: () => api<components['schemas']['HealthOut']>('/api/health'),
   ingestion: (sourceId: string, vertical: string, limit: number, offset: number) => {

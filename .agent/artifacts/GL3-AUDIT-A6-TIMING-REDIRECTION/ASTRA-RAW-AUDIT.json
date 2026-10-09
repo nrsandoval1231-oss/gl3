@@ -1,0 +1,93 @@
+{
+  "raw_strategic_verdict": "ACCEPT",
+  "scope": "Proposed direction only. Existing A6 candidate remains FIX; no implementation acceptance or completion certification.",
+  "proposed_graph_direction": "REDIRECT",
+  "candidate": {
+    "head": "d99ef3477096baa2519e882b60f4a26deba2316b",
+    "tree": "d582570324327fef608e942b338527406334aa3a",
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-facts-workflow-20261008",
+    "status_clean": true,
+    "tested_head": "7262c3f915c5fddd9178171e672812fae7d01de3"
+  },
+  "proposal": {
+    "path": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-audit-repair-20261007/.agent/packets/GL3-AUDIT-A6-TIMING-CONFLICT-REDIRECTION.md",
+    "sha256": "7b107f886d97c4200fe7b90aad64629111197e6783f287725f3626c6ea2de886"
+  },
+  "receipt_identities": {
+    "independent_review_sha256": "29d5cb5caf62c3568cd9c73f2dcd1f619674eee9a182e412d9058dc9b6b47de4",
+    "supplement_sha256": "585dee512e494a5f02351786d970ca2c7502e998c199a862d2c77510e4b6bb16"
+  },
+  "independently_verified": {
+    "source_governing_inputs": 270,
+    "working_git_hash_mismatches": 0,
+    "raw_archive_entries": 362,
+    "entry_length_hash_mismatches": 0,
+    "raw_archive_sha256": "004754003d806d007837ec35654f44332a20113031d8265a3ba6accb053862ef",
+    "proposal_and_review_hashes": "MATCH",
+    "git_diff_check": "PASS",
+    "candidate_dotenv_present": false
+  },
+  "deterministic_results_scope": "Sealed controller evidence records backend1461 passed/2 skipped/7 warnings, browser62 passed, static/schema/OpenAPI34/dependency/retained gates. Hash binding independently checked; full gates and runtime repro not rerun by this strategic audit.",
+  "findings": [
+    {
+      "id": "STRAT-1",
+      "disposition": "supports redirection",
+      "evidence": [
+        "backend/src/gridlens/domain/call_facts.py:356",
+        "backend/src/gridlens/domain/call_facts.py:389",
+        "backend/src/gridlens/ingestion/service.py:389"
+      ],
+      "finding": "Actual code selects any accepted timing ahead of current source Lead timing, tests coverage against that choice, and omits decisive timing identity from closure basis. The November supplement isolates noncoverage of the 2027 source interval. Green gates do not resolve this defect."
+    },
+    {
+      "id": "STRAT-2",
+      "disposition": "proposal accepted",
+      "evidence": [
+        "docs/product/PRD.md requirements17,22,23,24,25,26,30",
+        "backend/src/gridlens/domain/call_facts.py:33",
+        "backend/src/gridlens/domain/power_qualification.py:192"
+      ],
+      "finding": "One timing-resolution seam and additive exact-source correction hashes plus attributed reason are a minimal authority-safe way to distinguish compatible narrowing from contradiction and explicit correction. Current source output already retains start and duration bounds. No new admission grammar, migration, or alternate qualification engine is needed."
+    },
+    {
+      "id": "STRAT-3",
+      "disposition": "proposal accepted",
+      "finding": "PRD30 genuine corrections remain possible: an accepted exact-need fact explicitly targeting current source hashes may replace incorrect reported timing, while original quotes/history remain retained. Both start and duration must be compared; envelope overlap alone does not establish compatibility. Whole-claim hash invalidation is conservative and does not invent public-source semantics."
+    },
+    {
+      "id": "STRAT-4",
+      "disposition": "required implementation evidence already in packet",
+      "finding": "No marker on disjoint/partial-overlap input must retain active unresolved conflict and remove unsupported Lead gap; stale or absent source identities cannot authorize replacement. Explicit corrected timing outside source supply coverage requires accepted supply for the selected interval. Closure and revised gap must bind chosen timing ID/hash, source identities, window and disposition. Reingestion, expiry, retraction, as-of identity, siblings and no-fact parity remain deterministic gates."
+    },
+    {
+      "id": "STRAT-5",
+      "disposition": "finish contract remains open",
+      "finding": "Accepting this proposal authorizes only the bounded new build direction. The existing FIX, independent review requirement, functional UI/seven-status work, protected original PNG/HTML absence, A8 and authentic launch/commercial gates remain open. No publication, integration, merge or deployment acceptance is implied."
+    }
+  ],
+  "next_direction_detail": "REDIRECT to one bounded Luna timing-resolution packet exactly as proposed; preserve rejected candidate and receipts; freeze a new candidate after deterministic gates and obtain fresh independent Sol review. Two materially distinct local repairs maximum; unresolved source-version authority returns to controller/Astra.",
+  "recovery_observed": "Read R2 attempt history, current state, latest independent FIX and supplement. Proposed correction identity design is materially distinct from earlier arithmetic repairs.",
+  "authority": "No app/settings imports, provider calls, DB writes, original data changes or candidate changes. Only this new external audit artifact written.",
+  "timing": {
+    "started_utc": "UNKNOWN: not measured at invocation",
+    "first_measured_utc": "2026-10-08T22:25:31.137971+00:00",
+    "finished_utc": "2026-10-08T22:26:31.535118+00:00",
+    "audit_duration_seconds": "UNKNOWN",
+    "planning_build_validation_durations": "UNKNOWN",
+    "repair_count_this_audit": 0,
+    "elapsed_to_accepted": "UNKNOWN; only proposal accepted"
+  },
+  "identity": {
+    "role": "independent strategic auditor",
+    "lane": "exceptional proposed-direction audit",
+    "model": "gpt-6-astra per assigned role; runtime identity not independently verified",
+    "config_identity": "UNKNOWN",
+    "tokens": "UNKNOWN"
+  },
+  "memory_provenance": {
+    "file": "MEMORY.md",
+    "lines": "327-337",
+    "use": "Historical reminder about exact-need facts, immutable candidate review and parent-gate boundaries; current assertions verified against candidate and Finish Contract."
+  },
+  "audit_tool_note": "Initial unquoted PowerShell HEAD tree expression and default python alias failed; quoted Git expression and existing backend venv succeeded. No candidate mutations."
+}

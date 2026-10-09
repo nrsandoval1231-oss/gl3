@@ -17,8 +17,9 @@ def sqlite_jsonb(element, compiler, **kw):
     return "JSON"
 
 
+@pytest.mark.parametrize("date_kind", ["publication", "event"])
 @pytest.mark.parametrize("invalid", [None, "stale", "wrong_site", "quote", "aggregate", "id"])
-def test_real_orm_projection_requires_exact_public_project_support(invalid):
+def test_real_orm_projection_requires_exact_public_project_support(invalid, date_kind):
     engine = create_engine("sqlite://")
     for model in (Source, Observation, Evidence, Project, Interpretation):
         model.__table__.create(engine)
@@ -51,7 +52,9 @@ def test_real_orm_projection_requires_exact_public_project_support(invalid):
             abstract="Region C",
             url=source.endpoint,
             content_hash="a" * 64,
-            published_at=date(2026, 10, 7),
+            published_at=date(2026, 10, 7) if date_kind == "publication" else None,
+            event_date=date(2026, 10, 6),
+            event_date_label="reported event",
         )
         record = {
             "publication_state": "public_project_disclosure",
@@ -87,3 +90,9 @@ def test_real_orm_projection_requires_exact_public_project_support(invalid):
                 state["disclosures"][0]["claims"]["regional_water_planning_group"]["value"]
                 == "Region C"
             )
+
+            disclosure = state["disclosures"][0]
+            assert disclosure["published_at"] == evidence.published_at
+            assert disclosure["event_date"] == date(2026, 10, 6)
+            assert disclosure["event_date_label"] == "reported event"
+            assert disclosure["retrieved_at"] == evidence.observed_at

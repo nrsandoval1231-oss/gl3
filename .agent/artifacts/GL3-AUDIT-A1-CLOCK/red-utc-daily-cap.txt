@@ -1,0 +1,91 @@
+FF                                                                       [100%]
+================================== FAILURES ===================================
+___________ test_daily_cap_uses_one_utc_clock_for_inserted_question ___________
+
+runtime = (sessionmaker(class_='Session', bind=Engine(postgresql+psycopg://gl3audit@127.0.0.1:55437/gl3audit_research_delivery_t...2-9081-feff7a44bbf3', 'related_project_ids': ['0dd4ddc0-82bb-47e2-9081-feff7a44bbf3'], 'name': 'Synthetic Orion', ...})
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000002A6A7232A90>
+
+    def test_daily_cap_uses_one_utc_clock_for_inserted_question(runtime, monkeypatch):
+        factory, _, _, card = runtime
+        monkeypatch.setattr(settings, "autonomous_research_daily_questions", 1)
+        now = datetime(2026, 10, 8, 0, 30, tzinfo=UTC)
+        with factory.begin() as session:
+            session.execute(text("SET LOCAL TIME ZONE 'America/Chicago'"))
+            rows = schedule_questions(session, [card], now=now)
+            assert len(rows) == 1
+>           assert rows[0].created_at == now
+E           AssertionError: assert datetime.datetime(2026, 10, 7, 19, 22, 34, 996724, tzinfo=zoneinfo.ZoneInfo(key='America/Chicago')) == datetime.datetime(2026, 10, 8, 0, 30, tzinfo=datetime.timezone.utc)
+E            +  where datetime.datetime(2026, 10, 7, 19, 22, 34, 996724, tzinfo=zoneinfo.ZoneInfo(key='America/Chicago')) = <gridlens.persistence.models.PursuitResearchQuestion object at 0x000002A6AA9811D0>.created_at
+
+tests\integration\test_autonomous_questions_integration.py:194: AssertionError
+_ test_planning_discovers_supported_need_beyond_shortlist_without_splitting_group _
+
+runtime = (sessionmaker(class_='Session', bind=Engine(postgresql+psycopg://gl3audit@127.0.0.1:55437/gl3audit_research_delivery_t...1-a290-175c39a15367', 'related_project_ids': ['1f133ee0-d063-4951-a290-175c39a15367'], 'name': 'Synthetic Orion', ...})
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x000002A6AA8E36D0>
+
+    def test_planning_discovers_supported_need_beyond_shortlist_without_splitting_group(
+        runtime, monkeypatch
+    ):
+        factory, worker, api, card = runtime
+        with factory.begin() as session:
+            needs = [
+                PowerNeed(
+                    project_id=card["project_id"],
+                    activity_key=f"shortlist-{index}",
+                    tier="Signal",
+                    rationale="Synthetic shortlist need",
+                    supply="Unknown",
+                )
+                for index in range(50)
+            ]
+            grouped = PowerNeed(
+                project_id=card["project_id"],
+                activity_key="grouped-need",
+                tier="Signal",
+                rationale="Already represented by a grouped card",
+                supply="Unknown",
+            )
+            session.add_all([*needs, grouped])
+            session.flush()
+            shortlist = [
+                {**card, "id": str(need.id), "related_need_ids": [str(need.id)]}
+                for need in needs
+            ]
+            shortlist[0]["related_need_ids"].append(str(grouped.id))
+        monkeypatch.setattr(api, "_commercial_triage_cards", lambda *_: shortlist)
+        monkeypatch.setattr(worker, "evaluate_targets", lambda _s, ids, **_kw: {card["id"]: card})
+        questions = import_module("gridlens.intelligence.pursuit_questions")
+        monkeypatch.setattr(
+            questions,
+            "evaluate_targets",
+            lambda _s, _ids, **_kw: {str(card["id"]): card},
+        )
+        planned = worker.planning_cards()
+        assert len(planned) == 51
+        assert planned[-1]["id"] == card["id"]
+        monkeypatch.setattr(settings, "autonomous_research_daily_questions", 1)
+        first_day = datetime(2026, 10, 8, 0, 30, tzinfo=UTC)
+        with factory.begin() as session:
+            session.execute(text("SET LOCAL TIME ZONE 'America/Chicago'"))
+            scheduled = schedule_questions(session, [planned[-1]], now=first_day)
+            assert len(scheduled) == 1
+        with factory.begin() as session:
+            session.execute(text("SET LOCAL TIME ZONE 'America/Chicago'"))
+>           assert schedule_questions(session, planned, now=first_day) == []
+E           assert [<gridlens.pe...02A6AA17D2D0>] == []
+E             
+E             Left contains one more item: <gridlens.persistence.models.PursuitResearchQuestion object at 0x000002A6AA17D2D0>
+E             Use -v to get more diff
+
+tests\integration\test_autonomous_questions_integration.py:1429: AssertionError
+============================== warnings summary ===============================
+.venv\Lib\site-packages\fastapi\testclient.py:1
+  C:\Users\nrsan\Nucleus\02_Projects\GridLens\gl3-research-delivery-20261007\backend\.venv\Lib\site-packages\fastapi\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED tests/integration/test_autonomous_questions_integration.py::test_daily_cap_uses_one_utc_clock_for_inserted_question
+FAILED tests/integration/test_autonomous_questions_integration.py::test_planning_discovers_supported_need_beyond_shortlist_without_splitting_group
+2 failed, 1 warning in 1.92s
+exit_code=1

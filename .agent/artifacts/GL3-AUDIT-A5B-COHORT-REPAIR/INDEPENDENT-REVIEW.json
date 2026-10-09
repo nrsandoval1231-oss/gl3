@@ -1,0 +1,60 @@
+{
+  "task": "GL3-AUDIT-A5B independent exact-candidate review",
+  "verdict": "FIX",
+  "scope": "A5B bounded public browse, filters, grouping, history, detail, CSV and client only; parent Finish Contract remains OPEN",
+  "candidate": {
+    "branch": "repair/gl3-public-browse-20261008",
+    "head": "f15deee344cd3f161169412e0ee62cd329225f60",
+    "tree": "44c958cb9125e2266ff398654553cc1bd652832a",
+    "accepted_base": "fb65ceb70a58c5c8d7f414a4b46cc7e3aa9e2f39",
+    "tested_head": "d5f950c677b830f0a1b3fba8dbe3d9213191cddc",
+    "product_source_revision": "121f5f781ccc5bd0deeda3feb1b07da431ea3abe",
+    "tested_source_manifest_entries_checked": 257,
+    "tested_source_mismatches": 0,
+    "worktree_clean": true
+  },
+  "findings": [
+    {
+      "severity": "blocking",
+      "code": "offset_without_cohort_token",
+      "location": "backend/src/gridlens/api/app.py:1458-1460",
+      "supporting_location": "web/src/app/App.tsx:164-179,181-190",
+      "contract": ".agent/packets/GL3-AUDIT-A5B.md: API contract requires subsequent offset pages to echo the first-page token and reject changed cohorts",
+      "evidence": "The route compares cohort only if one was supplied, while offset is accepted independently. A request with offset>0 and no cohort_token therefore returns a page without stale-cohort verification. On a direct reload or restored URL with nonzero offset, the client has no prior opportunityPage token and makes precisely this request.",
+      "impact": "If records or ordering change between page reads, the server can silently return duplicate or omitted records, defeating the explicit offset-cohort guarantee.",
+      "required_correction": "Require a nonempty cohort_token whenever offset>0, compare it to the freshly computed token, and return an explicit validation/stale response when missing or changed. Make the client obtain a fresh first-page token before restoring a nonzero URL/Back offset, or reset to page zero explicitly. Add backend and browser regressions for missing token, changed cohort, and direct nonzero-offset reload/Back."
+    }
+  ],
+  "independent_checks": [
+    "Read AGENTS.md, A5B packet, bounded-card direction, filter contract, R1/R2 packets and completion evidence, current state and Finish Contract.",
+    "Inspected public browse/filter/group/detail/CSV/commercial-history handlers, canonical grouping and token helper, client request and URL restoration path, and relevant integration tests.",
+    "Verified exact HEAD/tree, clean worktree and product/test/workflow files unchanged after d5f950; all 257 tested source working-byte hashes matched.",
+    "Verified ROOT-RAW.zip SHA256 and each of 214 archived entry byte lengths and hashes; no mismatch.",
+    "Read raw final full suite and browser summaries and root gate report. No broad test rerun, DB reset or provider action."
+  ],
+  "accepted_evidence_retained": {
+    "backend": "1419 passed, 2 environmental skips, 5 warnings",
+    "browser": "39 passed",
+    "static_and_contracts": "Ruff, mypy src 78 files, web type/build, exact OpenAPI, fresh0016/repeat/drift, dependency audits reported PASS",
+    "retained_corpus": "1167 records, 1149 opportunity groups, 17 searches and 24 bounded pages matched frozen oracle per root receipts",
+    "commercial_card_sha256": "4d44821139abdd92a657aa7f419f86754abb33be0e1e0d5082278dee0bed4812",
+    "commercial_sql": 102,
+    "public_sql": 92,
+    "root_raw_zip_sha256": "eda480087fb5c7fab046e0d0dbb2b3c17c7c56f4a344efac8bb69be9dd5d0d2b",
+    "root_raw_entries_verified": 214
+  },
+  "limits": [
+    "A5B cannot be accepted on f15deee until the paging contract defect is repaired, newly frozen, deterministically validated and independently reviewed.",
+    "Status remains UNKNOWN only pending A6 workflow/facts integration; A7 original PNG/HTML, A8 and live launch gates remain open.",
+    "Overwritten browser traces and unretained credential-fragment tool output remain UNKNOWN; no excluded raw bytes were restored.",
+    "No merge, deployment, paid provider or original application-data mutation is certified."
+  ],
+  "timing": {
+    "utc_start": "2026-10-08T17:05:17.0000000Z",
+    "utc_finish": "2026-10-08T17:07:20.2099521Z",
+    "audit_duration_seconds": 123.21,
+    "model": "gpt-6.1-sol",
+    "config_identity": "UNKNOWN",
+    "tokens": "UNKNOWN"
+  }
+}

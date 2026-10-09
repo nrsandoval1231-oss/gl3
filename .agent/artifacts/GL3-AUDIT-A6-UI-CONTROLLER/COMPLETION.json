@@ -1,0 +1,42 @@
+{
+  "status": "DETERMINISTIC_GATES_PASS_PENDING_INDEPENDENT_REVIEW",
+  "parent_complete": false,
+  "tested_head": "86ada778cec8c7f3d21e26872f9421c3fb82b209",
+  "utc_recorded": "2026-10-09T01:41:28.796047+00:00",
+  "backend": {
+    "passed": 1471,
+    "skipped": 2,
+    "warnings": 7,
+    "seconds": 237.52
+  },
+  "browser": {
+    "passed": 72,
+    "seconds": 47.3
+  },
+  "source_inputs": 278,
+  "source_changes": [
+    "backend/src/gridlens/api/app.py",
+    "backend/tests/integration/test_call_fact_workflow_integration.py",
+    "backend/tests/unit/test_browse_filters.py",
+    "web/src/api/client.ts",
+    "web/src/api/generated.ts",
+    "web/src/api/openapi.json",
+    "web/src/app/App.tsx",
+    "web/src/features/pursuits/CommercialPursuits.tsx",
+    "web/src/features/pursuits/FactWorkflowPanel.tsx",
+    "web/tests/buying_chain.spec.ts",
+    "web/tests/call-facts.spec.ts",
+    "web/tests/commercial-pursuits.spec.ts",
+    "web/tests/project_cards.spec.ts"
+  ],
+  "prior_independent_verdict": "PASS_BOUNDED_BACKEND",
+  "new_independent_review": "PENDING",
+  "deployment": false,
+  "tokens": "UNKNOWN",
+  "config_identity": "UNKNOWN",
+  "limitations": [
+    "No real customer Lead or production SLO claim",
+    "Protected canonical UI originals and authentic feed/quality/seven-day gates remain OPEN",
+    "Known-private original failed browser trace remains private; separately attributed redacted copy retained"
+  ]
+}

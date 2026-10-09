@@ -1,0 +1,54 @@
+{
+  "packet": ".agent/packets/GL3-AUDIT-A5B-R1.md",
+  "repair": "R1",
+  "base_failed_head": "de83ebc3a181b94e01bcc5555b2b0b7dafe14e93",
+  "implementation_commit": "b484c0462ad193a85ec92c94a47de8340fed2ddd",
+  "implementation_tree": "5cf981894501e14a2f17ee7707f4ed7dd885a8f7",
+  "status": "BUILDER_HANDOFF_PENDING_CONTROLLER_RERUNS",
+  "builder_acceptance_claim": false,
+  "changed_paths": [
+    "backend/src/gridlens/api/app.py",
+    "backend/tests/integration/test_power_need_briefs.py",
+    ".agent/artifacts/GL3-AUDIT-A5B/IMPLEMENTATION.md",
+    ".agent/packets/GL3-AUDIT-A5B-R1.md",
+    ".agent/artifacts/GL3-AUDIT-A5B/R1-RAW_LOGS.json"
+  ],
+  "repair_summary": "Restored _commercial_triage_cards(session, limit) -> list[dict] and moved offset/grouped_total behavior to _commercial_triage_page(session, limit, offset). Paged route uses page helper; protected research caller keeps legacy list contract.",
+  "validation": [
+    {
+      "command": "Safe wrapper pytest: two root-failing integration tests plus list compatibility regression",
+      "result": "PASS",
+      "output": "3 passed",
+      "raw_log": ".artifacts/a5b-r1-compat-focused-02-20261008T1611387551330Z-d3e2315101e443f1aa11f2faa49fa9d0-pytest.log"
+    },
+    {
+      "command": "Safe wrapper mypy src",
+      "result": "PASS",
+      "output": "78 source files, no issues",
+      "raw_log": ".artifacts/a5b-r1-full-mypy-01-20261008T1611472313456Z-b9eab9b18b2e4979b0f9fee20e41a375-mypy.log"
+    },
+    {
+      "command": "Safe wrapper Ruff app.py and test_power_need_briefs.py",
+      "result": "PASS",
+      "raw_log": ".artifacts/a5b-r1-focused-ruff-01-20261008T1611473962938Z-f03a2d28fd764fe18334d46b7433cb61-ruff.log"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS"
+    }
+  ],
+  "preserved_failure": "Controller exact failed-head full suite: 2 failed, 1414 passed, 2 skipped; both failures and the full-mypy 9 errors traced to the list-to-tuple contract change. Raw hashes in R1-RAW_LOGS.json.",
+  "unavailable": "First wrapper command used the wrong relative script path; wrapper never ran, no log produced, raw bytes UNKNOWN.",
+  "pending_controller": [
+    "full backend and affected tests on repaired exact head",
+    "all remaining root final gates",
+    "independent review"
+  ],
+  "raw_logs": ".agent/artifacts/GL3-AUDIT-A5B/R1-RAW_LOGS.json",
+  "model": "UNKNOWN",
+  "config_identity": "safe focused wrapper; model UNKNOWN",
+  "tokens": "UNKNOWN",
+  "timing": "UNKNOWN",
+  "corpus_touched": false,
+  "push_merge_deploy": false
+}

@@ -1,0 +1,57 @@
+{
+  "archive": "ARCHIVED-CONTROLLER-BYTES.zip",
+  "archive_sha256": "0f2765441e3128bc49d8701b0d2d92728b5af5ad411fb2a5dee61d7efa2470e8",
+  "entries": [
+    {
+      "name": ".agent/artifacts/GL3-AUDIT-A5-CONTROLLER-DIRECTIONS/GL3-AUDIT-A5-BRIEF-PRELOAD-DIRECTION.md",
+      "bytes": 2981,
+      "original_sha256": "d0873c34e1bc51961d224f12a9ca6d135486003ade18baf6c808f83fab34ebeb",
+      "git_text_blob_sha256": "d0873c34e1bc51961d224f12a9ca6d135486003ade18baf6c808f83fab34ebeb",
+      "git_text_blob_equals_original": true
+    },
+    {
+      "name": ".agent/artifacts/GL3-AUDIT-A5-CONTROLLER-DIRECTIONS/GL3-AUDIT-A5-BOUNDED-SUMMARY-DIRECTION.md",
+      "bytes": 4672,
+      "original_sha256": "a5c888c64b8b0513e2ee86f5b93590e29bf205f7d4e020a3d256604a2f214a21",
+      "git_text_blob_sha256": "a5c888c64b8b0513e2ee86f5b93590e29bf205f7d4e020a3d256604a2f214a21",
+      "git_text_blob_equals_original": true
+    },
+    {
+      "name": ".agent/artifacts/GL3-AUDIT-A5-CONTROLLER-DIRECTIONS/GL3-AUDIT-A5-PER-NEED-BOUND-DIRECTION.md",
+      "bytes": 5633,
+      "original_sha256": "41e033a402e7fcbb1712a12f89f03f9119b88b42010a957977a89b5a4e6032ab",
+      "git_text_blob_sha256": "41e033a402e7fcbb1712a12f89f03f9119b88b42010a957977a89b5a4e6032ab",
+      "git_text_blob_equals_original": true
+    },
+    {
+      "name": ".agent/artifacts/GL3-AUDIT-A5-CONTROLLER-DIRECTIONS/GL3-AUDIT-A5-RESEARCH-REDUCER-SUPPLEMENT.md",
+      "bytes": 2554,
+      "original_sha256": "66bfbe600c1f2bd942723c2d997e28ad6c0d232c7ad0a38ed423d7e9da98213e",
+      "git_text_blob_sha256": "66bfbe600c1f2bd942723c2d997e28ad6c0d232c7ad0a38ed423d7e9da98213e",
+      "git_text_blob_equals_original": true
+    },
+    {
+      "name": ".agent/artifacts/GL3-AUDIT-A5-CONTROLLER-DIRECTIONS/GL3-AUDIT-A5-CANONICAL-PARITY-CHECKPOINT.md",
+      "bytes": 2864,
+      "original_sha256": "5bbade0c264aad53321464b7e71d3a67346e821d82594c42314d0969264cdc7d",
+      "git_text_blob_sha256": "5bbade0c264aad53321464b7e71d3a67346e821d82594c42314d0969264cdc7d",
+      "git_text_blob_equals_original": true
+    },
+    {
+      "name": ".agent/artifacts/GL3-AUDIT-A5-CONTROLLER-DIRECTIONS/CURRENT_STATE.inherited.md",
+      "bytes": 2009,
+      "original_sha256": "6baeeceb2d4822c7202df470d689b40a3f68ae92c6112633daa03ddfb83d2b95",
+      "git_text_blob_sha256": "bb5d849a4108820ce5612229a0ab3630759973b3c4aa83e1850dfa9ff6f1775d",
+      "git_text_blob_equals_original": false
+    },
+    {
+      "name": ".agent/artifacts/GL3-AUDIT-A5A-CONTROLLER/CURRENT_STATE.pre-root-gates.md",
+      "bytes": 2618,
+      "original_sha256": "b581e2510d059e3b2962bbf00cef032769ae0b6f37a8b8c5411ba79dd5dcffc4",
+      "git_text_blob_sha256": "9feba22af8ef7dbb49b82ca9732c751f18c4672519aa6d5bda7a0ebcf8e55108",
+      "git_text_blob_equals_original": false
+    }
+  ],
+  "purpose": "Original controller snapshots preserved as binary bytes; standalone Markdown is a normalized human-readable Git view, not the original-byte hash authority",
+  "verification": "All original snapshot hashes matched their recorded provenance and sealed archive entries"
+}

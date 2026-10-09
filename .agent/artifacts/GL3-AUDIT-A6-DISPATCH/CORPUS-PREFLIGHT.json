@@ -1,0 +1,45 @@
+{
+  "utc": "2026-10-08T19:44:15.800308+00:00",
+  "source_database": "gl3audit_a5_corpus_test",
+  "acceptance_database": "gl3audit_a6_corpus_test",
+  "source_revision": "0016_operational_schedule",
+  "original_column_tables": 24,
+  "pre_0017_differences": [],
+  "allowed": "Schema0017 migration on new A6 copy, then read-only semantic/query/inventory; no retained-row qualification mutation",
+  "dump_sha256": "90EAE29142F7A24A88A816336E9A24B5A23EA1F178D483D9840802D1F5A999FA",
+  "raw_refs": [
+    {
+      "path": ".artifacts\\a6-dispatch-python-version.log",
+      "sha256": "74cc6a79d40025bb0f371fdfd7791c9f22ab7d0f8e61406ec9004466a7143a6f",
+      "bytes": 16
+    },
+    {
+      "path": ".artifacts\\a6-dispatch-alembic-heads.log",
+      "sha256": "018f15b57d5fb5f28cba9381b53eebf87686059a4c44a0437aeef14d466e92d3",
+      "bytes": 34
+    },
+    {
+      "path": ".artifacts\\a6-retained-copy-dump.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": ".artifacts\\a6-retained-copy-restore.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    {
+      "path": ".artifacts\\a6-retained-copy-dump-hash.json",
+      "sha256": "4168c8860f46eca3890bc68c5dde59a2c979d38c009560ff90b34e90352d6186",
+      "bytes": 242
+    },
+    {
+      "path": ".artifacts\\a6-original-columns-before-0017.log",
+      "sha256": "4b1743cc3d4783abd48675cf7f12714bed50336d67252f290b00e2cc41b2e6a8",
+      "bytes": 35
+    }
+  ],
+  "provider_calls": 0,
+  "original_data_writes": 0,
+  "initial_packet_copy_refusal": "Preserved inherited A6.md; no files copied before assertion; original tool output unretained UNKNOWN"
+}
