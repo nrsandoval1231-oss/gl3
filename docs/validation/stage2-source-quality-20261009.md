@@ -70,7 +70,7 @@ The [separate shortlist](stage2-pursuit-shortlist-20261009.md) has three site-le
 ## Still open
 
 - Canonical UI/design-owner acceptance and a real accepted Lead/buyer workflow remain OPEN despite the controller’s successful read-only local browser/API proof.
-- Freshness is UNKNOWN for all six routes; Houston linked report is stale and RRC drilling acquisition failed.
+- Freshness is UNKNOWN for all six routes; Houston ordinary check failed because the latest linked report was missing or over 30 days old (which cause applies is UNKNOWN), and RRC drilling acquisition failed.
 - Four flare source originals are unavailable; El Paso multi-feature key/site grouping needs source-level resolution.
 - PRD39 independent-discovery Signal/Prospect evaluation, PRD40 seven-day monitoring, and PRD41 accepted lead/buyer workflow are not satisfied by this mixed intake set or by the one API page.
 - No power requirement/gap/utility evidence or buyer-authority path was demonstrated; the three-site supplement is investigative only.
