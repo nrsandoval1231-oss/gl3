@@ -21,7 +21,9 @@ def test_procedural_air_permit_event_does_not_establish_campus_formation(permit)
     ],
 )
 @pytest.mark.parametrize("permit", ["air permit", "air quality permit"])
-def test_separate_campus_milestone_survives_adjacent_procedure(milestone, event_type, state, permit):
+def test_separate_campus_milestone_survives_adjacent_procedure(
+    milestone, event_type, state, permit
+):
     result = classify_event(
         f"Project Jupiter data center campus {milestone}. "
         f"The adjacent microgrid {permit} remains pending."
