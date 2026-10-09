@@ -1,3 +1,9 @@
+# October 9, 2026 reconciliation
+
+The October 9 repair supersedes the blanket-abstention design described below. Current main already classifies independently scoped campus clauses. The reconciled implementation preserves that behavior, adds the air quality permit spelling to adjacent-facility detection, and uses nine focused cases covering procedural abstention and separately achieved campus milestones. A building permit is permitting evidence, not construction. The historical 11-case and broader validation counts below do not describe the new candidate.
+
+---
+
 # Project Jupiter — scoped reconciliation, October 7, 2026
 
 ## Inspection and delivery boundary
