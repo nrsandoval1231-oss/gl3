@@ -1,0 +1,54 @@
+FF                                                                       [100%]
+================================== FAILURES ===================================
+__ test_registry_rejects_unrepresentable_or_boolean_cadence[36-local_daily] ___
+
+tmp_path = WindowsPath('C:/Users/nrsan/AppData/Local/Temp/pytest-of-nrsan/pytest-4272/test_registry_rejects_unrepres0')
+cadence = 36, schedule_mode = 'local_daily'
+
+    @pytest.mark.parametrize(
+        ("cadence", "schedule_mode"),
+        [(36, "local_daily"), (True, "utc_hourly")],
+    )
+    def test_registry_rejects_unrepresentable_or_boolean_cadence(
+        tmp_path: Path, cadence: int | bool, schedule_mode: str
+    ):
+        source_path = Path(__file__).parents[3] / "config" / "sources" / "registry.v1.json"
+        payload = json.loads(source_path.read_text(encoding="utf-8"))
+        source = next(item for item in payload["sources"] if item["id"] == "federal-register-eis")
+        assert source["retrieval_method"] == "json-api"
+        source["cadence_hours"] = cadence
+        source["schedule_mode"] = schedule_mode
+        bad = tmp_path / "registry.json"
+        bad.write_text(json.dumps(payload), encoding="utf-8")
+>       with pytest.raises(ValueError, match="cadence"):
+E       Failed: DID NOT RAISE ValueError
+
+tests\unit\test_registry.py:61: Failed
+__ test_registry_rejects_unrepresentable_or_boolean_cadence[True-utc_hourly] __
+
+tmp_path = WindowsPath('C:/Users/nrsan/AppData/Local/Temp/pytest-of-nrsan/pytest-4272/test_registry_rejects_unrepres1')
+cadence = True, schedule_mode = 'utc_hourly'
+
+    @pytest.mark.parametrize(
+        ("cadence", "schedule_mode"),
+        [(36, "local_daily"), (True, "utc_hourly")],
+    )
+    def test_registry_rejects_unrepresentable_or_boolean_cadence(
+        tmp_path: Path, cadence: int | bool, schedule_mode: str
+    ):
+        source_path = Path(__file__).parents[3] / "config" / "sources" / "registry.v1.json"
+        payload = json.loads(source_path.read_text(encoding="utf-8"))
+        source = next(item for item in payload["sources"] if item["id"] == "federal-register-eis")
+        assert source["retrieval_method"] == "json-api"
+        source["cadence_hours"] = cadence
+        source["schedule_mode"] = schedule_mode
+        bad = tmp_path / "registry.json"
+        bad.write_text(json.dumps(payload), encoding="utf-8")
+>       with pytest.raises(ValueError, match="cadence"):
+E       Failed: DID NOT RAISE ValueError
+
+tests\unit\test_registry.py:61: Failed
+=========================== short test summary info ===========================
+FAILED tests/unit/test_registry.py::test_registry_rejects_unrepresentable_or_boolean_cadence[36-local_daily]
+FAILED tests/unit/test_registry.py::test_registry_rejects_unrepresentable_or_boolean_cadence[True-utc_hourly]
+2 failed, 6 deselected in 0.14s

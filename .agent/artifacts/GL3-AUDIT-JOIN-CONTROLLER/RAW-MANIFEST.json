@@ -1,0 +1,87 @@
+[
+  {
+    "name": "join-controller-backend-audit-diagnostics.log",
+    "bytes": 268,
+    "sha256": "e82148c0c30269ca5a2c35420ece6af011a4faf5a375325d750e243ffdb10625"
+  },
+  {
+    "name": "join-controller-backend-audit.json",
+    "bytes": 2504,
+    "sha256": "f31cf2ec95e537975cf04d599f688fa7883003b79747368e77475a43d1fbc993"
+  },
+  {
+    "name": "join-controller-browser.log",
+    "bytes": 6093,
+    "sha256": "44fd0e24d076189ad5adb4b99a7a1719554bd4f76c3b9a2a1ad46a2a35edc620"
+  },
+  {
+    "name": "join-controller-diff-check.log",
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  {
+    "name": "join-controller-export.log",
+    "bytes": 25640,
+    "sha256": "222255f19bbac0a111b78df581fc625d44f703e024479250ff466c8f674d202d"
+  },
+  {
+    "name": "join-controller-full.log",
+    "bytes": 3556,
+    "sha256": "f1daff1eb76235092500366c46474b4f035d60a460a6c65e0f83d0bc6de83d13"
+  },
+  {
+    "name": "join-controller-mypy.log",
+    "bytes": 358,
+    "sha256": "d9533b4ce0297ef87e6de4b29dd2c2c6d532666086dbaa35c33d39a1681df662"
+  },
+  {
+    "name": "join-controller-openapi.log",
+    "bytes": 36,
+    "sha256": "7a699cee0b904931f15a7136a850f19af99798229d7a47e19010690172d93dd5"
+  },
+  {
+    "name": "join-controller-requirements.txt",
+    "bytes": 25218,
+    "sha256": "1d531442d9358b4eafac4e2942fa51834f7b4969389df6d5d097309a2c874e09"
+  },
+  {
+    "name": "join-controller-ruff.log",
+    "bytes": 20,
+    "sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0"
+  },
+  {
+    "name": "join-controller-schema-drift.log",
+    "bytes": 1933,
+    "sha256": "210ae6e262a08b9813f1f3489116386fb2629c534c5dc3258bba023753da0dd8"
+  },
+  {
+    "name": "join-controller-schema-fresh.log",
+    "bytes": 5532,
+    "sha256": "d2e77b393c853c28935019d488dd920220258cde52295cf3f368b8740b1e69ec"
+  },
+  {
+    "name": "join-controller-schema-repeat.log",
+    "bytes": 260,
+    "sha256": "c9dede11c80ccef6853207a302c79427d48bcdbd6fbf586b5dc306be0763cd94"
+  },
+  {
+    "name": "join-controller-secret-scan.json",
+    "bytes": 160,
+    "sha256": "3bcb3ce50c9eeb01dd6545808fdf6905256c96706515b4b8980e58527086a00e"
+  },
+  {
+    "name": "join-controller-web-audit.json",
+    "bytes": 385,
+    "sha256": "03f8e9fe5ab2d32913f2d78d6d82565488c46779b420abcaef976109882b1123"
+  },
+  {
+    "name": "join-controller-web-build.log",
+    "bytes": 393,
+    "sha256": "dff92e01d14d9a188cf733b614724497b91ff8b242fee8065b9ac5b6468da9ec"
+  },
+  {
+    "name": "join-controller-web-typecheck.log",
+    "bytes": 52,
+    "sha256": "6e2f251662437d85417559b9c1f81367fa9947f3260f8d41fb5623f694160039"
+  }
+]

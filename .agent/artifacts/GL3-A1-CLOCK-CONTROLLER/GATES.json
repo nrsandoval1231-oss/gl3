@@ -1,0 +1,47 @@
+{
+  "recorded_at_utc": "2026-10-08T00:35:19.2133897Z",
+  "tested_candidate": "d48a644911c8091bfff0a553eb7e42b575d0bc6b",
+  "source_candidate": "f60483969a428db15804b3d8f5afcf333983ce96",
+  "base": "2cd93392eb4e490b52a3a9434e142eabbcd28a55",
+  "backend": {
+    "warnings": 3,
+    "passed": 1253,
+    "seconds": 162.98,
+    "exit": 0,
+    "skipped": 2
+  },
+  "browser": {
+    "CI": true,
+    "reuse_existing_servers": false,
+    "seconds": 37.3,
+    "passed": 36,
+    "api_port": 55499,
+    "database": "gl3audit_research_delivery_migration",
+    "web_port": 55500,
+    "exit": 0
+  },
+  "ruff": 0,
+  "mypy": 0,
+  "web_typecheck": 0,
+  "web_build": 0,
+  "openapi_match": 0,
+  "repeat_upgrade": 0,
+  "schema_drift": 0,
+  "fresh_schema_provenance": "Unchanged0015 schema; accepted ancestor governance/research delivery fresh proof",
+  "backend_audit": {
+    "dependencies": 44,
+    "known_vulnerabilities": 0,
+    "platform": "Windows Python3.11"
+  },
+  "web_audit": 0,
+  "test_database": "gl3audit_research_delivery_test",
+  "application_database": "gl3audit_research_delivery_migration",
+  "paid_keys": "blank",
+  "automatic_workers": "disabled",
+  "exact_local_secret_matches": 0,
+  "raw_archive_sha256": "4429d486111fe7a807470e428a015e3f935b8887e15bf60bda7630174420dbd1",
+  "independent_review": "PENDING",
+  "model_config_tokens": "UNKNOWN",
+  "merge": false,
+  "deployment": false
+}

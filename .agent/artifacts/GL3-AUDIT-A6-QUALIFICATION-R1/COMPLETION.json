@@ -1,0 +1,99 @@
+{
+  "schema": "gl3-audit-completion-v1",
+  "task": "GL3-AUDIT-A6-QUALIFICATION-R1",
+  "implementation_state": "FROZEN_FOR_ROOT_VALIDATION",
+  "acceptance_claim": false,
+  "candidate": {
+    "branch": "repair/gl3-facts-workflow-20261008",
+    "source_commit": "280fd66884155b95756272021bc89b8f28a70b33",
+    "source_tree": "25f12c32660d59731dcec18eb476408d7ff016bd",
+    "parent_dispatch_head": "225258f90bc3dd2eee5fac689e41fd4caba4af8d",
+    "source_worktree_clean_at_freeze": true
+  },
+  "implemented_findings": [
+    "Current parser-admitted source Prospect can use exact supported demand and unsuitable-supply basis while compatible accepted timing, suitable supply, and buyer facts complete the Lead gate.",
+    "Signal-to-Prospect still requires accepted exact-need demand and unsuitable-supply facts; both paths preserve exact scope, conflicts, closure, source admission, positive gap and buyer requirements.",
+    "Lead fact versions must cover the complete possible activity interval with timezone-aware effective bounds; open-ended until is explicit None and exact exclusive-end coverage is accepted. Missing/naive metadata, expired-before-start, partial overlap, and future-start-after-activity-start do not promote."
+  ],
+  "changed_source_paths": [
+    "backend/src/gridlens/domain/call_facts.py",
+    "backend/tests/unit/test_call_facts.py",
+    "backend/tests/integration/test_call_fact_workflow_integration.py"
+  ],
+  "repair_artifacts": [
+    ".agent/artifacts/GL3-AUDIT-A6-QUALIFICATION-R1/FAILED-REVIEW.json",
+    ".agent/artifacts/GL3-AUDIT-A6-QUALIFICATION-R1/FAILED-REPROS/a6-backend-prospect-domain-repro.json",
+    ".agent/artifacts/GL3-AUDIT-A6-QUALIFICATION-R1/FAILED-REPROS/a6-backend-interval-domain-repro.json",
+    ".agent/artifacts/GL3-AUDIT-A6-QUALIFICATION-R1/REPAIR.md",
+    ".agent/artifacts/GL3-AUDIT-A6-QUALIFICATION-R1/ATTEMPT-HISTORY.md",
+    ".agent/artifacts/GL3-AUDIT-A6-QUALIFICATION-R1/RAW-HASH-MANIFEST.json"
+  ],
+  "raw_hash_manifest_sha256": "25ccf917894c87fdc1f85f4762bd261705a1aa7d35a18af13f39c563fab71b36",
+  "review_binding": {
+    "prior_verdict": "FIX",
+    "prior_review_sha256": "318ad39dc32816e7521165153cc905ab416ff6e80454afdea870c7ebbf534367",
+    "prospect_repro_sha256": "a3cea0aaaa8bf2198cd293537f9835c8781e5fdbd97c70d9aae6ac05e0e713c7",
+    "interval_repro_sha256": "3e7e2c756d33aa5af0493767970d628676b15f06e39f849bf26f095890f41b54"
+  },
+  "focused_validation": {
+    "pytest": {
+      "command": "PowerShell safe wrapper: -Tool pytest -ToolArguments @('-q','tests/unit/test_call_facts.py','tests/integration/test_call_fact_workflow_integration.py') -Label a6-r1-final-focused-3",
+      "exit_code": 0,
+      "result": "30 passed, 1 existing Starlette/httpx deprecation warning",
+      "raw_log": ".artifacts/a6-r1-final-focused-3-20261008T2122211385820Z-0e43fd28bc7345b4b091d54800abb950-pytest.log",
+      "raw_log_sha256": "46324cac2b57aca3231b95fe422b1877640c29ccb00834239b9a3a94869c516b"
+    },
+    "ruff": {
+      "command": "PowerShell safe wrapper: -Tool ruff -ToolArguments @('check','src/gridlens/domain/call_facts.py','tests/unit/test_call_facts.py','tests/integration/test_call_fact_workflow_integration.py') -Label a6-r1-final-ruff",
+      "exit_code": 0,
+      "result": "All checks passed",
+      "raw_log": ".artifacts/a6-r1-final-ruff-20261008T2122311432891Z-6500a382e31f4e6793c97b85749ffe6f-ruff.log",
+      "raw_log_sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0"
+    },
+    "mypy": {
+      "command": "PowerShell safe wrapper: -Tool mypy -ToolArguments @('src') -Label a6-r1-final-mypy",
+      "exit_code": 0,
+      "result": "Success: no issues found in 80 source files",
+      "raw_log": ".artifacts/a6-r1-final-mypy-20261008T2122309957780Z-c1a0a16673954dd4a5e6bbb49a290278-mypy.log",
+      "raw_log_sha256": "fea320e2e156bbfc4c4e54eba09d22d9c6d042cde79c5b02cb628fc505ca21e6"
+    },
+    "diff_check": {
+      "command": "git diff --check",
+      "exit_code": 0
+    }
+  },
+  "failed_attempts": "All preserved in RAW-HASH-MANIFEST.json and explained in ATTEMPT-HISTORY.md; includes one relative-path wrapper invocation, baseline red regressions, an initial domain-row/value mismatch, one API response-shape assertion correction, and an integration expected-version fixture correction.",
+  "runtime_boundary": {
+    "safe_wrapper": ".artifacts/run-a6-focused-safe.ps1",
+    "provider_keys": "Blanked in child process before uv/application imports; no values read or emitted",
+    "automation": "WORKER_AUTO_REFRESH=false and AUTONOMOUS_RESEARCH_ENABLED=false in child process",
+    "candidate_env_file": "Absent; wrapper refuses if present",
+    "mutable_database": "Only builder gl3audit_a6_test via integration fixtures; wrapper application URL is separate gl3audit_a6_migration",
+    "retained_corpus_or_original_data": "Not accessed or mutated",
+    "providers_external_effects": "None"
+  },
+  "root_gates": {
+    "full_backend": "PENDING",
+    "browser": "PENDING",
+    "fresh_repeat_downgrade_migration": "PENDING",
+    "retained_corpus_parity_and_preservation": "PENDING",
+    "final_static_and_contract": "PENDING",
+    "independent_review": "PENDING"
+  },
+  "limitations": [
+    "Prior A6 full-gate PASS belongs to a candidate rejected by the independent FIX and does not apply to this source commit.",
+    "A source demand range is not collapsed into a scalar gap; absent an accepted exact demand fact, the fact-aware scalar path stays Prospect.",
+    "The known test-tree mypy limitation was not rerun; required `mypy src` passed."
+  ],
+  "timing": {
+    "first_retained_command_utc": "2026-10-08T21:16:34.2607207Z",
+    "source_freeze_commit_local": "2026-10-08T16:24:41-05:00",
+    "source_freeze_commit_utc": "2026-10-08T21:24:41Z",
+    "first_retained_command_to_source_freeze_seconds": 486.74,
+    "earlier_planning_and_initial_analysis_duration": "UNKNOWN",
+    "lane": "single Luna implementation",
+    "model": "UNKNOWN",
+    "config_identity": "UNKNOWN; locked uv wrapper and provider-off process environment used",
+    "tokens": "UNKNOWN"
+  }
+}

@@ -10,7 +10,19 @@ function checked(value: ResearchResponse): ResearchResponse {
   return value
 }
 
-export function AutonomousResearch({ needId, readOnly = false }: { needId: string; readOnly?: boolean }) {
+const readOnlyRequests = new Map<string, Promise<ResearchResponse>>()
+function readOnlyResearch(needId: string): Promise<ResearchResponse> {
+  const existing = readOnlyRequests.get(needId)
+  if (existing) return existing
+  const request = client.autonomousResearch(needId).then(checked)
+  readOnlyRequests.set(needId, request)
+  void request.finally(() => {
+    if (readOnlyRequests.get(needId) === request) readOnlyRequests.delete(needId)
+  }).catch(() => undefined)
+  return request
+}
+
+export function AutonomousResearch({ needId, readOnly = false, readOnlyLabel }: { needId: string; readOnly?: boolean; readOnlyLabel?: string }) {
   const [data, setData] = useState<ResearchResponse | null>(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -24,7 +36,9 @@ export function AutonomousResearch({ needId, readOnly = false }: { needId: strin
     setBusy(false)
     async function load() {
       try {
-        const result = checked(await client.autonomousResearch(needId, controller.signal))
+        const result = readOnly
+          ? await readOnlyResearch(needId)
+          : checked(await client.autonomousResearch(needId, controller.signal))
         if (controller.signal.aborted) return
         setData(result)
         setError('')
@@ -54,13 +68,14 @@ export function AutonomousResearch({ needId, readOnly = false }: { needId: strin
   return <section className="commercial-action" aria-label="Autonomous pursuit research">
     <h3>Missing facts · autonomous research</h3>
     <p>Bounded public research with evidence admission and deterministic reevaluation. No commercial outreach occurs.</p>
-    {readOnly && <p>Read-only research history for this power need, including attempts after the saved evaluation above.</p>}
+    {readOnly && data && <p>{readOnlyLabel ?? 'Read-only research history for this power need, including attempts after the saved evaluation above.'}</p>}
+    {readOnly && !data && error && <p>Later research attempt history is unavailable; status is UNKNOWN. Saved disposition and tier were not rechecked.</p>}
     {error && <p role="alert">{error}</p>}
     {!data && !error && <p role="status">Loading research history…</p>}
     {data && !data.items.length && <p>No autonomous research questions recorded.</p>}
     {pending.length > 0 && <p role="status">{pending.length} active blocker{pending.length === 1 ? '' : 's'} · queued or in progress; no completed result yet.</p>}
     {!readOnly && <button type="button" disabled={busy || pending.length > 0 || !data} onClick={() => void refresh()}>{busy ? 'Requesting research…' : pending.length ? 'Research in progress…' : data?.items.length ? 'Refresh missing facts' : 'Research missing facts'}</button>}
-    {error && <button type="button" disabled={busy} onClick={() => setReload((value) => value + 1)}>Retry research status</button>}
+    {!readOnly && error && <button type="button" disabled={busy} onClick={() => setReload((value) => value + 1)}>Retry research status</button>}
     {data?.items.map((question) => <Question key={question.id} question={question}/>)}
   </section>
 }

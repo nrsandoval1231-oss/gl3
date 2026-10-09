@@ -1,0 +1,114 @@
+{
+  "captured_utc": "2026-10-08T01:10:55.8340972Z",
+  "source": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-audit-repair-20261007",
+  "accepted_base": "20328d7fd723622192557a70736258a27fa9f274",
+  "original_source_preserved": true,
+  "excluded": "All environment secrets, original data, runtime dependencies, and builder-owned packets/artifacts",
+  "files": [
+    {
+      "relative_path": ".agent\\graphs\\GL3-AUDIT-20261007.md",
+      "sha256": "00c26aae4d3ded79df5439d7063dcce35d77708b85ffd9f83b6bc08cbc280f61",
+      "disposition": "ADDED"
+    },
+    {
+      "relative_path": ".agent\\graphs\\GL3-AUDIT-A2-FINAL-FAILURES-DIRECTION.md",
+      "sha256": "bf314a85d387b663cda2097f8c4870e40f2a9feea58aa2c36cc0750bb81cc614",
+      "disposition": "ADDED"
+    },
+    {
+      "relative_path": ".agent\\graphs\\GL3-AUDIT-A2-INTEGRATION-DIRECTION.md",
+      "sha256": "2d96b59c0478210e726d01a54035155f284478a197459c1e754ffa49c6615819",
+      "disposition": "ADDED"
+    },
+    {
+      "relative_path": ".agent\\graphs\\GL3-AUDIT-A5-ARCHITECTURE.md",
+      "sha256": "2b25e9ec24a330512e29a847d587740cba3794c8f8490fd4a51d4d1beab0f253",
+      "disposition": "ADDED"
+    },
+    {
+      "relative_path": ".agent\\graphs\\GL3-AUDIT-A6-A8-DIRECTION.md",
+      "sha256": "6bc7c21881d826724697f860d4a125e369c9c862cef404d1376909f2efac08b4",
+      "disposition": "ADDED"
+    },
+    {
+      "relative_path": ".agent\\graphs\\GL3-AUDIT-FINDINGS-20261007.md",
+      "sha256": "61ec45ff40a486251b3cdf1a29bca2b023f524f4ded69d2dee67a2a06ca7b09c",
+      "disposition": "ADDED"
+    },
+    {
+      "relative_path": ".agent\\packets\\GL3-AUDIT-A5A.md",
+      "sha256": "aa269bd764e9221e181f0aa3d796d1b6cff01dd8d86e113a98d65a515f18f4fd",
+      "disposition": "ADDED"
+    },
+    {
+      "relative_path": ".agent\\packets\\GL3-AUDIT-A5B.md",
+      "sha256": "0fbe8e089aaf599e111af797045b1beaca0e055552945b024b572ee58e9c8325",
+      "disposition": "ADDED"
+    },
+    {
+      "relative_path": ".agent\\packets\\GL3-AUDIT-A6.md",
+      "sha256": "1e7564537acf1459894b6816a33beeece84341e6933ed795956f9c95d9de8d37",
+      "disposition": "ADDED"
+    },
+    {
+      "relative_path": ".agent\\packets\\GL3-AUDIT-A8A.md",
+      "sha256": "b362f3121e85561ccddc520b9d673748c5ac155fcf01f32b343eadcd7161f47c",
+      "disposition": "ADDED"
+    },
+    {
+      "relative_path": ".agent\\packets\\GL3-AUDIT-A8B.md",
+      "sha256": "7dd20f87731c2db594e0a6524f69cc3cc5470430091d8fe8c2d6461062306c0c",
+      "disposition": "ADDED"
+    },
+    {
+      "relative_path": ".agent\\artifacts\\GL3-AUDIT-20261007\\A5-ARCHITECTURE-REVIEW.md",
+      "sha256": "cda08d4a22567edff3f815d9493e905b035a8383c6f59acdd9f8d776e6323d97",
+      "disposition": "ADDED"
+    },
+    {
+      "relative_path": ".agent\\artifacts\\GL3-AUDIT-20261007\\EPISODE-01.md",
+      "sha256": "99e6f85aed78479e2410e0893b0fea671ad3ffc1b1e11f96f78e754d6d441f5d",
+      "disposition": "ADDED"
+    },
+    {
+      "relative_path": ".agent\\artifacts\\GL3-AUDIT-20261007\\EPISODE-02.md",
+      "sha256": "50d2b6afd24cd38865ee30e2968e2e65ef834a37804aa58bd84fca08cc5d9fcc",
+      "disposition": "ADDED"
+    },
+    {
+      "relative_path": ".agent\\artifacts\\GL3-AUDIT-20261007\\EPISODE-03.md",
+      "sha256": "dbcae672961b12a1e28abbf3876ff8292dbcbe2595409543b4763fe58668524a",
+      "disposition": "ADDED"
+    },
+    {
+      "relative_path": ".agent\\artifacts\\GL3-AUDIT-20261007\\EPISODE-04.md",
+      "sha256": "f10599fee420e97b40d40db1fa31c2e8721a6615864a1fc80d32c3628b4a4fe9",
+      "disposition": "ADDED"
+    },
+    {
+      "relative_path": ".agent\\artifacts\\GL3-AUDIT-20261007\\EPISODE-05.md",
+      "sha256": "1842afbf811feb71e740816766d5828b2e5a96a1f734903d4af0e866c6bae753",
+      "disposition": "ADDED"
+    },
+    {
+      "relative_path": ".agent\\artifacts\\GL3-AUDIT-20261007\\EPISODE-06.md",
+      "sha256": "4248059545b0bd9eb4c6677105b728997d55b1e4f0cc89261b23b1c351a2edf9",
+      "disposition": "ADDED"
+    },
+    {
+      "relative_path": ".agent\\artifacts\\GL3-AUDIT-20261007\\UI-ASSET-STATUS.json",
+      "sha256": "eaa9267776517c703f3288b7a8e5c81f6d3f761053c0c7228fa8d567e6f336b4",
+      "disposition": "ADDED"
+    },
+    {
+      "relative_path": "docs\\validation\\gl3-audit-examples-20261007.md",
+      "sha256": "18a2cab8c7eddb1c75a572bb69541a083277a0c0ec0a90f21e77dc14e2aca093",
+      "disposition": "ADDED"
+    },
+    {
+      "relative_path": "docs\\design\\references\\gridlens-interactive-preview.mp4",
+      "sha256": "e93a7992d123ae2cd68132933db30ebab0532afddc6020da89818958a550676b",
+      "disposition": "ADDED"
+    }
+  ]
+}

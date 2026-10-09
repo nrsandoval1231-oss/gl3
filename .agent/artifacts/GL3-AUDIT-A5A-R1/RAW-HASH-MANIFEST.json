@@ -1,0 +1,49 @@
+{
+  "candidate_commit": "36c6c7897a23644eac42b194e15a6a4720eb5f4f",
+  "candidate_tree": "0bed69ba7346b28232bda259141247ee19cb1f59",
+  "generated_utc": "2026-10-08T13:15:52.7351465Z",
+  "copied_packet_sha256": "f648dfe52ca2907032d72865320fd26e7a569f649189e0e215f21369c2626313",
+  "logs": [
+    {
+      "path": ".artifacts/A5A/logs/integration-r1-focused-final-20261008.log",
+      "sha256": "47c10de312eb941342e006aaa8aa9494a4f8c0de37e2400b58caf7c3260dd89e",
+      "bytes": 635,
+      "classification": "raw output retained"
+    },
+    {
+      "path": ".artifacts/A5A/logs/integration-r1-auth-tests-20261008.log",
+      "sha256": "605083f98a3f80c4989211c9c9f14eb257e2a6b72246adbd14dfb8c9ea2b3e52",
+      "bytes": 634,
+      "classification": "raw output retained"
+    },
+    {
+      "path": ".artifacts/A5A/logs/integration-r1-two-tests-20261008.log",
+      "sha256": "b6c2efe0603a44df282f40f4d522ed697985d58e901631ebbdfb8f9f6dccd650",
+      "bytes": 634,
+      "classification": "raw output retained"
+    },
+    {
+      "path": ".artifacts/A5A/logs/integration-r1-ruff-final-20261008.log",
+      "sha256": "a4443afdcfb6d7363adb285762515ccf7cf50473b1a05c20c1a50f6bed4d26b0",
+      "bytes": 20,
+      "classification": "raw output retained"
+    },
+    {
+      "path": ".artifacts/A5A/logs/integration-r1-ruff-initial-20261008.log",
+      "sha256": "f551d8f16c3fc5c38569deeec12b26f0c90f6705ad2a2a92c236a9526ef045db",
+      "bytes": 385,
+      "classification": "raw failed check retained"
+    },
+    {
+      "path": ".artifacts/A5A/logs/integration-r1-config-redacted-20261008.txt",
+      "sha256": "ecfb8491c1e29b35d68d0cee1a8efce6470abd552f45dd941624407e91107797",
+      "bytes": 1132,
+      "classification": "redacted diagnostic; not raw exact bytes"
+    }
+  ],
+  "configuration_attempt": {
+    "first_launch": "failed before collection because isolated checkout lacked .env",
+    "secret_handling": "secret-bearing generated log removed; redacted diagnostic retained",
+    "provider_keys": "blanked for successful reruns"
+  }
+}

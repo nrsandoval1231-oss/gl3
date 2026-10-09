@@ -1,0 +1,86 @@
+{
+  "verdict": "FIX",
+  "controller_direction": "CORRECT",
+  "scope": "Cumulative A6 backend timing correction slice; parent A6 UI/status, A7/A8 and authentic gates remain OPEN",
+  "candidate": {
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-facts-workflow-20261008",
+    "head": "80a5cf51ea21ddd879b7345c65d36c5717d7e383",
+    "tree": "ce33a68dc7f96ec11cc26231b05c719fcdd8743e",
+    "tested_head": "8149fc0ea4cde08dd5e0b091453a90c62698a803",
+    "source_commit": "98345e808f7915e463ef5b520308a8bd95b16fff",
+    "clean_git_status": true,
+    "post_tested_changes": "proof and .agent state only; source/governing inputs unchanged"
+  },
+  "audit": {
+    "utc_start": "UNKNOWN: no reliable timestamp captured at dispatch before source inspection",
+    "first_measured_utc": "2026-10-08T22:50:42Z",
+    "utc_finish": "2026-10-08T22:51:15Z",
+    "duration_seconds": "UNKNOWN because initial timestamp was not captured",
+    "model": "UNKNOWN: Sol role requested; runtime identity not independently exposed",
+    "config_identity": "UNKNOWN",
+    "tokens": "UNKNOWN"
+  },
+  "verification": {
+    "source_and_governing_inputs": 270,
+    "source_working_git_hash_mismatches": 0,
+    "root_archive_entries": 436,
+    "archive_sha256": "2913db20748416b25fb2d4886c6c49b4d0eab10fc424e92a7f50572913e6d592",
+    "archive_entry_length_or_hash_mismatches": 0,
+    "backend_sealed": "1468 passed, 2 environmental skips, 7 warnings, 251.47 seconds",
+    "browser_sealed": "62 passed, 45.7 seconds",
+    "other_sealed": "Ruff, mypy, web, locked audits, OpenAPI34, fresh0017 repeat/drift, retained1167/1149/17/24 and 24 original fingerprints passed per byte-verified root archive",
+    "broad_gates_rerun": false
+  },
+  "findings": [
+    {
+      "severity": "blocking",
+      "title": "Explicit current-source timing correction without fully covering suitable-supply fact returns stale source Lead",
+      "contract": [
+        "docs/product/PRD.md:132 Lead requires an explained unresolved gap and supported start/duration",
+        "docs/product/PRD.md:134 and :136-142 preserve material input basis and use supply only for applicable interval",
+        "docs/product/PRD.md:152 recalculate from accepted attributed corrections",
+        "GL3-AUDIT-A6-TIMING-CONFLICT-REDIRECTION.md: correction outside reported supply window cannot reuse reported Lead gap"
+      ],
+      "code": [
+        "backend/src/gridlens/domain/call_facts.py:448-452 resolves explicit correction",
+        "backend/src/gridlens/domain/call_facts.py:592-599 reconciles source Lead only when a suitable supply fact fully covers selected interval",
+        "backend/src/gridlens/domain/call_facts.py:709-712 returns base Lead unchanged otherwise",
+        "backend/src/gridlens/ingestion/service.py:403-414 projects stale source start/duration and gap into current effective qualification"
+      ],
+      "repro": {
+        "environment": "backend venv; provider API keys blank and auto flags false before import; no DB or provider calls",
+        "source": "Current admitted official Test City construction Lead, 20 to 25 MW, Jan 1-Feb 1 2027 start, 31-62 day duration, no suitable supply reported for that source window; semantic hash a*64, evidence hash b*64",
+        "accepted_timing": "Nov 1 2026 start, 31 days, exact current source hashes and nonempty correction basis; current effective interval Jan 1-Dec 3 2026",
+        "accepted_supply": "none",
+        "observed": "tier Lead with original Jan-Feb 2027 start/duration and original 20-25 MW zero-supply gap; no conflict or closure",
+        "expected": "Do not retain stale source Lead/gap for a corrected disjoint interval lacking applicable suitable-supply support; preserve attributed correction and active lower-tier uncertainty until applicable supply is established"
+      }
+    },
+    {
+      "severity": "blocking",
+      "title": "Positive-gap correction computes November supply arithmetic while publishing the old January-February Lead timing",
+      "code": [
+        "backend/src/gridlens/domain/call_facts.py:634-667 records corrected selected interval in gap",
+        "backend/src/gridlens/domain/call_facts.py:687-707 overlays gap on unmodified base start_window/duration",
+        "backend/src/gridlens/ingestion/service.py:403-414 projects those stale top-level dates"
+      ],
+      "repro": {
+        "same_explicit_correction": "Nov 1 2026, 31 days, exact source hashes and basis",
+        "accepted_suitable_supply": "10 to 15 MW, suitable, effective Jan 1-Dec 3 2026, fully covering corrected activity",
+        "observed": "Lead gap selected interval Nov 1-Dec 2 2026 and remaining 5-15 MW, but top-level Lead start_window Jan 1-Feb 1 2027 and duration 31-62 days",
+        "expected": "Current Lead timing projection must match the attributed corrected interval used by gap arithmetic, while original Reported source timing remains available as source provenance"
+      }
+    }
+  ],
+  "verified_positive": [
+    "Unmarked disjoint and partial-overlap timing conflict tests return active lower tier",
+    "Exact current-source hash marker and nonempty basis validation exists",
+    "Compatible narrowing and explicit adequate closure include timing fact ID/hash and source hashes",
+    "Prior scalar, range, source replay and retained tests remain sealed"
+  ],
+  "limits": [
+    "Exact candidate is unaccepted despite deterministic PASS",
+    "The two repros are pure domain calls; no original database, paid provider, external publication or candidate edit",
+    "Ignored known-private failed browser trace was not opened/copied; historical missing bytes remain UNKNOWN"
+  ]
+}

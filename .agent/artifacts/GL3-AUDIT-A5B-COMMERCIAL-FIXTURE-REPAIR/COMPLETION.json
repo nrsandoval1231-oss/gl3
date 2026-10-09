@@ -1,0 +1,71 @@
+{
+  "schema": "codex-task-completion/v1",
+  "packet_id": "GL3-AUDIT-A5B-COMMERCIAL-FIXTURE-REPAIR",
+  "status": "FROZEN_FOR_ROOT_VALIDATION",
+  "acceptance_claim": false,
+  "base": {
+    "commit": "392dc09f774e77a72d50af0540226a98b91ab058",
+    "tree": "e825b97032b01284a1a40dc5b1fa38090119cbaf"
+  },
+  "implementation": {
+    "summary": "Corrected the commercial pagination browser fixture to honor the preserved Action Now filter on the Research-only second page, then verify the South Ridge position, prior-page Action Now card, and exact unsaved Northstar note draft.",
+    "changed_files": [
+      "web/tests/commercial-pursuits.spec.ts",
+      ".agent/artifacts/GL3-AUDIT-A5B-COMMERCIAL-FIXTURE-REPAIR/PACKET.md",
+      ".agent/artifacts/GL3-AUDIT-A5B-COMMERCIAL-FIXTURE-REPAIR/FAILED_REVIEW.json",
+      ".agent/artifacts/GL3-AUDIT-A5B-COMMERCIAL-FIXTURE-REPAIR/HANDOFF.md",
+      ".agent/artifacts/GL3-AUDIT-A5B-COMMERCIAL-FIXTURE-REPAIR/RAW-MANIFEST.json",
+      ".agent/artifacts/GL3-AUDIT-A5B-COMMERCIAL-FIXTURE-REPAIR/COMPLETION.json"
+    ],
+    "product_source_sha256": "91B673C77E833FE7FB572F724011AC079F37AAC3D35D511125186D451718E247",
+    "product_or_public_contract_changed": false
+  },
+  "validation": [
+    {
+      "command": "npm exec playwright test -- --project=regression tests/commercial-pursuits.spec.ts --output=.artifacts/a5b-commercial-fixture-focused-20261008T1919150143158Z-535eadd55bf84d87a2c733b0e9ce1682-results",
+      "exit_code": 0,
+      "result": "12 passed",
+      "log": ".artifacts/a5b-commercial-fixture-focused-20261008T1919150143158Z-535eadd55bf84d87a2c733b0e9ce1682-browser.log",
+      "sha256": "CE584F7D77B99AED2319CBA6FD51F8DDFFBCAD8685656F84DC974462D849D885"
+    },
+    {
+      "command": "npm run typecheck",
+      "exit_code": 0,
+      "log": ".artifacts/a5b-commercial-fixture-typecheck-20261008T1919551515545Z-2dc3ffd733f54c21948d506d3837d2c7.log",
+      "sha256": "6E2F251662437D85417559B9C1F81367FA9947F3260F8D41FB5623F694160039"
+    },
+    {
+      "command": "npm run build",
+      "exit_code": 0,
+      "log": ".artifacts/a5b-commercial-fixture-build-20261008T1919574213897Z-24b21d5b5ffe40edbbe07e4e4304a771.log",
+      "sha256": "2AE4043C88AA38D39B25428B79F4DA0FF2A4172E650234FB3C3DF316B7B985E8"
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0,
+      "log": ".artifacts/a5b-commercial-fixture-diffcheck-20261008T1920592958065Z-893f40995e6e43588c16cc8f19a1e9cc.log",
+      "sha256": "80302FB6511AC11D502997552EC074F87A6C8997A35B0AEDBEE21D3C5C332B30"
+    }
+  ],
+  "root_gates": {
+    "backend_full": "PENDING",
+    "browser_full": "PENDING",
+    "retained_corpus_and_performance": "PENDING",
+    "independent_review": "PENDING"
+  },
+  "provenance": {
+    "started_utc": "2026-10-08T19:19:15Z",
+    "finished_utc": "2026-10-08T19:20:59Z",
+    "lane": "single Luna",
+    "model": "UNKNOWN",
+    "configuration_identity": "UNKNOWN",
+    "tokens": "UNKNOWN"
+  },
+  "safety": {
+    "provider_keys": "Cleared before browser/app startup; provider preflight passed; no provider calls.",
+    "automation": "Disabled during checks.",
+    "credentials": "Synthetic local test settings; candidate .env absent.",
+    "database": "Only assigned disposable gl3audit_a5b_test and gl3audit_a5b_migration DSNs; no original or retained corpus writes.",
+    "external_actions": "No push, merge, deploy, or A6 work."
+  }
+}
