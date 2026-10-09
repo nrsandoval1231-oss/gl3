@@ -1,3 +1,59 @@
+# Current commercial-fixture repair frontier — October 8, 2026
+
+A5A accepted / draft PR40 / recorded CI PASS. Five prior A5B independent FIX receipts are preserved. Tested 6746240463bd389ba182055ec9ec17f325dcf975 passes root 1419 backend tests (2 environmental skips), 62 browser tests and mandatory gates, retained parity and query bounds. Exact proof: .agent/artifacts/GL3-AUDIT-A5B-FIXTURE-CONTROLLER. Fresh independent review PENDING; A5B is not accepted or published. Supersedes earlier pending states below.
+
+Direction VALIDATE exact proof descendant. A6 facts/workflow → functional UI/bulk status → A8 remain dependent; A7 original assets and real launch gates OPEN. UNKNOWN-only status is partial. Parent OPEN. No original data mutation, merge, deploy, paid activation or external messages.
+
+## Historical checkpoints
+
+# Current group-scope validation failure — October 8, 2026
+
+A5B group source dcd8ff6 / tested cf338691 has 1,419 backend passes but full browser61passed/1fixture failure. Frozen raw proof .agent/artifacts/GL3-AUDIT-A5B-GROUP-CONTROLLER is unaccepted; no fresh corpus/performance acceptance was completed on this failed checkpoint. Direction CORRECT_TEST_FIXTURE only after preserving this exact failure. Five prior independent FIX receipts remain preserved. A5A draft PR40 remains accepted/recorded CI PASS.
+
+A6/A7/A8 and real readiness/customer gates remain OPEN; status UNKNOWN-only partial. No A5B publication, parent completion, original-data mutation, merge/deploy, paid activation or external messages. Prior state bytes remain in raw proof; dated checkpoints below are superseded.
+
+## Historical checkpoints
+
+# Current page-transition repair frontier — October 8, 2026
+
+A5A accepted / draft PR40 / recorded CI PASS. Four prior A5B independent FIX receipts are preserved. Tested ea4543f7dd1ec1f8733593629088e2474b7c8d3b passes root 1419 backend tests (2 environmental skips), 57 browser tests and mandatory gates, retained parity and query bounds. Exact proof: .agent/artifacts/GL3-AUDIT-A5B-PAGE-CONTROLLER. Fresh independent review PENDING; A5B is not accepted or published. Supersedes earlier pending states below.
+
+Direction VALIDATE exact proof descendant. A6 facts/workflow → functional UI/bulk status → A8 remain dependent; A7 original assets and real launch gates OPEN. UNKNOWN-only status is partial. Parent OPEN. No original data mutation, merge, deploy, paid activation or external messages.
+
+## Historical checkpoints
+
+# Current request-state repair frontier — October 8, 2026
+
+A5A accepted / draft PR40 / recorded CI PASS. Three prior A5B independent FIX receipts are preserved. Request-state implementation 7c29da3 / tested 3d67ac8 passes root 1,419 backend tests (two environmental skips), 53 browser tests, mandatory gates, retained parity and query bounds. Exact proof is .agent/artifacts/GL3-AUDIT-A5B-REQUEST-CONTROLLER. Fresh independent review is PENDING; A5B is not accepted or published. This supersedes earlier pending states below.
+
+Direction: VALIDATE the exact proof descendant. A6 facts/seven-state workflow → functional UI and bulk status integration → A8 remain dependent on A5B acceptance. A7 original PNG/HTML and real launch gates remain OPEN. UNKNOWN-only status is partial, not a waiver. Parent objective OPEN. No original data mutation, merge, deployment, paid activation or external messages.
+
+## Historical checkpoints
+
+# Current Back repair frontier — October 8, 2026
+
+A5A is accepted and published as draft PR40; recorded CI passed. A5B's f15deee and 0cf82c3 independent FIX receipts are preserved. Back repair 44ba1d5 / tested 7c3a4e3 passes root validation: 1,419 backend tests with two environmental skips, 44 browser checks, all mandatory gates, retained parity and performance bounds. Exact evidence is in .agent/artifacts/GL3-AUDIT-A5B-BACK-CONTROLLER. Fresh independent review is PENDING; A5B is not accepted or published. This supersedes earlier pending checkpoints below; historical bytes remain preserved.
+
+Direction: VALIDATE the exact proof descendant. A6 facts, seven-state workflow, functional UI and bulk status integration, then A8, remain dependent. A7 original PNG/HTML assets are absent. UNKNOWN-only status is partial, not a waiver. Authentic launch gates and the parent objective remain OPEN. Original data is unchanged. Merge, deployment, paid activation and external messages remain excluded.
+
+## Historical checkpoints
+
+# Current cohort repair frontier — October 8, 2026
+
+A5A accepted / draft PR40 / recorded CI PASS. A5B f15deee independent FIX preserved; new source46671c6 and tested29c3062 pass root1,419 backend(two environmental skips),40 browser and all mandatory gates. Exact source manifest and raw evidence: .agent/artifacts/GL3-AUDIT-A5B-COHORT-CONTROLLER. Fresh independent review PENDING; no A5B publication or acceptance yet. Supersedes inherited pending states below.
+
+Direction VALIDATE exact documentation descendant; then draft publication only after PASS. A6 facts/seven-state workflow/UI/bulk status integration and A8 remain dependent. A7 original PNG/HTML absent. Status UNKNOWN-only is partial, not waiver. Parent objective OPEN. Original data unchanged; no merge/deployment/paid activation/external messages. Historical state bytes sealed unchanged.
+
+## Historical checkpoints
+
+# Current audit repair frontier — October 8, 2026
+
+A5A independently accepted and published as draft PR40 at fb65ceb70a58c5c8d7f414a4b46cc7e3aa9e2f39; recorded push and synthetic-merge CI passed. A5B root final gates PASS on d5f950c677b830f0a1b3fba8dbe3d9213191cddc; independent review PENDING. See .agent/artifacts/GL3-AUDIT-A5B-CONTROLLER/GATES.md and exact raw manifests. This supersedes the inherited A5A pending-review state below.
+
+Next direction: VALIDATE exact proof descendant with independent Sol, then authorized draft publication. A6 attributed facts, seven-state workflow, functional UI and bulk status integration remain pending; A8 operations/readiness pending; A7 canonical PNG/HTML missing. Parent objective OPEN. Preserve original data and credentials. No merge, deployment, paid activation or external messages. Historical state bytes archived unchanged.
+
+## Inherited historical state
+
 # Current audit repair state — October 8, 2026
 
 Owner scope: comprehensive audit repair; preserve application evidence/history and credentials. Draft PR publication authorized. GitHub merge, deployment, paid activation, external messages and original application-data changes excluded.
