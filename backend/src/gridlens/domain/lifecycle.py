@@ -169,7 +169,9 @@ def classify_event(
             continue
         explicit_campus = bool(re.search(_ASSETS[0][1], part, re.IGNORECASE))
         campus_reference = bool(re.search(r"\bcampus\b|\bdata center site\b", part))
-        adjacent_facility = bool(re.search(r"\bmicrogrid\b|\bair[ -]permit\b", part))
+        adjacent_facility = bool(
+            re.search(r"\bmicrogrid\b|\bair(?:[ -]quality)?[ -]permit\b", part)
+        )
         if explicit_campus and not adjacent_facility:
             candidates.append(part)
         elif title_has_data_center and campus_reference and not adjacent_facility:
@@ -239,7 +241,9 @@ def requires_scoped_lifecycle_evidence(title: str, abstract: str | None = None) 
     text = f"{title} {abstract or ''}".casefold()
     return bool(
         re.search(_ASSETS[0][1], text)
-        and re.search(r"\bmicrogrid\b|\bair[ -]permit\b|\bforce[\s-]+majeure\b", text)
+        and re.search(
+            r"\bmicrogrid\b|\bair(?:[ -]quality)?[ -]permit\b|\bforce[\s-]+majeure\b", text
+        )
     )
 
 
@@ -247,7 +251,8 @@ def _split_lifecycle_clauses(title: str, abstract: str | None) -> list[str]:
     text = f"{title}. {abstract or ''}".casefold()
     parts = re.split(
         r"(?<=[.!?])\s+|;\s*|\s+\b(?:while|whereas|but|however)\b\s+|"
-        r",\s*(?=(?:the\s+)?(?:adjacent|separate|nearby)\s+(?:microgrid|air[ -]permit)\b)",
+        r",\s*(?=(?:the\s+)?(?:adjacent|separate|nearby)\s+"
+        r"(?:microgrid|air(?:[ -]quality)?[ -]permit)\b)",
         text,
     )
     return [part.strip(" ,:-") for part in parts if part.strip(" ,:-")]

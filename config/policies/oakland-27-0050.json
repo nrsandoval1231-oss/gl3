@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "as_of_date": "2026-10-07",
+  "policy_id": "oakland-27-0050",
+  "jurisdiction": "Oakland, CA",
+  "kind": "land_use_moratorium",
+  "scope": "Citywide approvals of land-use entitlements and/or agreements permitting data-center development or operation; adopted text and exceptions not verified.",
+  "duration_days": 45,
+  "evidence": [
+    {
+      "id": "official-open",
+      "url": "https://oakland.legistar.com/LegislationDetail.aspx?GUID=4775CA8D-0CB2-4BC8-BC13-DCCDA9352E08&ID=8203751",
+      "kind": "official_record",
+      "location": "File details, direct page retrieval",
+      "summary": "Passed; final action October 6, 2026; title proposes immediate effect upon adoption.",
+      "observed_on": "2026-10-07"
+    },
+    {
+      "id": "official-index",
+      "url": "https://oakland.legistar.com/LegislationDetail.aspx?GUID=4775CA8D-0CB2-4BC8-BC13-DCCDA9352E08&ID=8203751",
+      "kind": "official_record",
+      "location": "Search-index representation of same file",
+      "summary": "In Council; final action blank. Differs from direct retrieval on same review date.",
+      "observed_on": "2026-10-07"
+    },
+    {
+      "id": "minutes",
+      "url": "https://oakland.legistar.com/MeetingDetail.aspx?GUID=C9C0EC3E-F367-48AF-9AAA-FD8B5A74DFD9&ID=1447149",
+      "kind": "draft_minutes",
+      "location": "Meeting details",
+      "summary": "Minutes DRAFT; finalized actions/results unavailable.",
+      "observed_on": "2026-10-07"
+    },
+    {
+      "id": "vote",
+      "url": "https://www.sfchronicle.com/bayarea/article/santa-clara-data-centers-22460374.php",
+      "kind": "reported_vote",
+      "location": "October 7 reporting of October 6 votes",
+      "summary": "Reports Oakland approval of a 45-day moratorium.",
+      "observed_on": "2026-10-07"
+    }
+  ],
+  "observations": [
+    {
+      "source_id": "official-index",
+      "status": "In Council",
+      "event_date": null
+    },
+    {
+      "source_id": "vote",
+      "status": "reported_council_approval",
+      "event_date": "2026-10-06"
+    },
+    {
+      "source_id": "official-open",
+      "status": "Passed",
+      "event_date": "2026-10-06"
+    },
+    {
+      "source_id": "minutes",
+      "status": "DRAFT",
+      "event_date": "2026-10-06"
+    }
+  ],
+  "limitations": [
+    "Direct and indexed views disagree; ordering in this record does not prove the time the official status changed.",
+    "Supplemental legislation attachment retrieval failed; no verified adopted/signed text or effective interval retained.",
+    "Immediate-effect wording is in the recommendation title; it is not independently verified enacted effective-date evidence.",
+    "45 days retained from reporting pending adopted-text verification; no expiry inferred.",
+    "No project-specific denial or power-gap inference."
+  ]
+}

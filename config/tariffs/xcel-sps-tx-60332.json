@@ -1,0 +1,156 @@
+{
+  "schema_version": 1,
+  "proposal_id": "xcel-sps-tx-60332",
+  "utility": "Southwestern Public Service Company",
+  "regulator": "Public Utility Commission of Texas",
+  "docket": "60332",
+  "status": "proposed_pending",
+  "as_of_date": "2026-10-07",
+  "filing_date": "2026-09-25",
+  "announcement_date": "2026-09-28",
+  "proposed_effective_date": "2026-10-30",
+  "sources": [
+    {
+      "id": "application",
+      "kind": "regulatory_filing",
+      "url": "https://interchange.puc.texas.gov/Documents/60332_2_1687520.PDF",
+      "published_date": "2026-09-25",
+      "retrieved_date": "2026-10-07"
+    },
+    {
+      "id": "order-1",
+      "kind": "regulatory_order",
+      "url": "https://interchange.puc.texas.gov/Documents/60332_9_1689557.PDF",
+      "published_date": "2026-10-02",
+      "retrieved_date": "2026-10-07"
+    },
+    {
+      "id": "announcement",
+      "kind": "utility_announcement",
+      "url": "https://newsroom.xcelenergy.com/news/xcel-energy-proposal-protects-texas-customers-from-higher-bills-as-electric-demand-from-data-centers-grows",
+      "published_date": "2026-09-28",
+      "retrieved_date": "2026-10-07"
+    }
+  ],
+  "status_citation": {
+    "source_id": "order-1",
+    "location": "Order No. 1: staff recommendations requested on completeness, notice and schedule; not tariff approval"
+  },
+  "applicability": {
+    "territory": "SPS Texas retail service territory",
+    "threshold_mw": 75,
+    "threshold_basis": "Inclusive threshold: aggregated Peak Contracted Load or Peak Contracted Load Growth. Growth definition is increase of 75 MW or more after September 25, 2026.",
+    "conditions": "LGS-T commercial/industrial service at 69 kV or higher. Aggregate delivery points within 2.5 miles under common ultimate beneficial ownership/control; noncontrolling ownership below 50% is excepted. Off-Peak Alternate Rider delivery points do not count toward either threshold. Standby, supplementary, resale and shared service excluded.",
+    "citation": {
+      "source_id": "application",
+      "location": "Attachment A: Applicability, Territory, Off-Peak Alternate Rider, Aggregated Service and Peak Contracted Load Growth"
+    }
+  },
+  "terms": [
+    {
+      "key": "contract_term",
+      "stage": "proposed_tariff",
+      "summary": "At least 15 years at full contracted load; any elected ramp period is additional. Existing load may receive up to 10 years of prior-service credit based on load-weighted averages.",
+      "citation": {
+        "source_id": "application",
+        "location": "Attachment A, Commercial Terms: Term"
+      }
+    },
+    {
+      "key": "minimum_bill",
+      "stage": "proposed_tariff",
+      "summary": "Demand charges use the greater of metered demand or 80% of peak contracted load, including applicable demand-based riders.",
+      "citation": {
+        "source_id": "application",
+        "location": "Attachment A, Commercial Terms: Minimum Bill"
+      }
+    },
+    {
+      "key": "load_ramp",
+      "stage": "proposed_tariff",
+      "summary": "Up to five years after the ESA ramp start for qualifying growth; demand and service availability charges start on the ESA ramp start date.",
+      "citation": {
+        "source_id": "application",
+        "location": "Attachment A, Load Ramp Period"
+      }
+    },
+    {
+      "key": "application_and_study_fees",
+      "stage": "proposed_tariff",
+      "summary": "Nonrefundable $120,000 application fee; additional SPP-consistent study fees for previously unstudied load.",
+      "citation": {
+        "source_id": "application",
+        "location": "Attachment A, Commercial Terms: Transmission Infrastructure Application Fee"
+      }
+    },
+    {
+      "key": "security",
+      "stage": "proposed_tariff",
+      "summary": "Subject to utility discretion: irrevocable letter of credit covering at least three months of minimum bills at highest ESA peak load, plus guaranty of at least five years of minimum bills capped by initial exit fee. A letter of credit substitutes for guaranty without a creditworthy guarantor. Posting is due within 30 days of growth ESA execution or utility notice of threshold crossing.",
+      "citation": {
+        "source_id": "application",
+        "location": "Attachment A, Commercial Terms: Security Framework"
+      }
+    },
+    {
+      "key": "termination",
+      "stage": "proposed_tariff",
+      "summary": "Early termination other than an uncured and unexcused utility default requires minimum-bill payments for the lesser of 15 years or remaining ESA term. Text also specifies a 24-month notice period and 13 years of payments following termination; retain for contract review, not automated calculation.",
+      "citation": {
+        "source_id": "application",
+        "location": "Attachment A, Commercial Terms: Exit Fee"
+      }
+    },
+    {
+      "key": "renewal",
+      "stage": "proposed_tariff",
+      "summary": "Automatic five-year renewals unless written termination notice is given at least 24 months before term expiration.",
+      "citation": {
+        "source_id": "application",
+        "location": "Attachment A, Commercial Terms: Auto-Renewal"
+      }
+    },
+    {
+      "key": "direct_interconnection_costs",
+      "stage": "proposed_tariff",
+      "summary": "Customer prepays direct interconnection equipment, supplies and labor through CIAC; utility transformation requires agreement and advance customer payment.",
+      "citation": {
+        "source_id": "application",
+        "location": "Attachment A, Line Extensions"
+      }
+    },
+    {
+      "key": "dedicated_generation_costs",
+      "stage": "proposed_tariff",
+      "summary": "Customer bears incremental capital and operating costs for dedicated generation and associated interconnection, network upgrades, studies, fuel, metering and protection. Utility approval and separate SPP interconnection remain required; no automatic backup or power-purchase obligation.",
+      "citation": {
+        "source_id": "application",
+        "location": "Attachment A, Dedicated Generation Options and Related Costs"
+      }
+    },
+    {
+      "key": "incremental_cost_allocation",
+      "stage": "future_rate_case_intent",
+      "summary": "Proposed customer groups support a later incremental generation/transmission cost-allocation test in the next base rate case, anticipated in the second half of 2027. This application does not request a rate increase or decrease.",
+      "citation": {
+        "source_id": "application",
+        "location": "Application introduction pp. 5–6; Attachment B"
+      }
+    },
+    {
+      "key": "announced_infrastructure_responsibility",
+      "stage": "utility_announcement",
+      "summary": "Announcement describes responsibility for project-related transmission, substations, interconnection upgrades and generation, subject to PUCT approval.",
+      "citation": {
+        "source_id": "announcement",
+        "location": "Commercial terms and safeguards"
+      }
+    }
+  ],
+  "limitations": [
+    "No approval or operative effective date established as of review. Proposed effective date must not activate terms automatically.",
+    "No project-specific applicability, executed commitment, unpaid charge, service delay, temporary-power gap or qualification inferred.",
+    "Filing receipt and docket item 2 state September 25; Order No. 1 describes a September 30 petition. Preserve this discrepancy; September 28 is the announcement date.",
+    "Source summaries are reported proposal content, not legal interpretation or a billing calculator. Subsequent filings and orders require separate review."
+  ]
+}
