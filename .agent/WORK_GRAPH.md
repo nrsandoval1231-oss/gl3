@@ -2,7 +2,7 @@
 
 S1 COMPLETE: exact-reviewed/tested PR47 merged at c761e38 with explicit owner authorization. Historical state archived unchanged.
 
-S2 READY/RUNNING: one Luna bounded authentic-source quality packet GL3-STAGE2; own isolated cluster/corpus, six existing Texas routes, minimum30 authentic review records and source-backed shortlist. No qualification repairs or unrelated feature nodes. Completion requires controller evidence validation, ordinary Sol review, final gates and separately authorized serial PR integration.
+S2 CANDIDATE, [PR48](https://github.com/nrsandoval1231-oss/gl3/pull/48): one Luna bounded authentic-source quality packet GL3-STAGE2; own isolated cluster/corpus, six existing Texas routes, minimum30 authentic review records and source-backed shortlist. No qualification repairs or unrelated feature nodes. Completion requires controller evidence validation, ordinary Sol review, final gates and separately authorized serial PR integration.
 
 S3 DEPENDENT on S2: demonstrated qualification bottlenecks and fixed authentic before/after evaluation.
 S4 DEPENDENT on S3: one real end-to-end commercial pursuit, no fake calls/promotions.

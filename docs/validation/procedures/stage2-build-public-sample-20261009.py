@@ -162,7 +162,3 @@ result={
 }
 out=root/'docs/validation/stage2-review-sample-20261009.json'
 out.write_text(json.dumps(result,indent=2,ensure_ascii=False)+'\n',encoding='utf-8')
-
-
-
-
