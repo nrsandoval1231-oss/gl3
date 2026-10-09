@@ -67,6 +67,8 @@ def public_rfi_state(session: Session, project: Project) -> dict[str, Any]:
                 "extraction_location": evidence.extraction_location,
                 "published_at": evidence.published_at,
                 "retrieved_at": evidence.observed_at,
+                "event_date": evidence.event_date,
+                "event_date_label": evidence.event_date_label,
             }
         )
     return {

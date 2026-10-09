@@ -511,6 +511,20 @@ def test_same_id_supported_withdrawal_updates_stored_state_and_replays(db, monke
             )
         )
         assert withdrawal_evidence is not None
+        current_interpretation = session.scalar(
+            select(Interpretation).where(Interpretation.observation_id == observation.id)
+        )
+        assert current_interpretation is not None
+        assert current_interpretation.assessment["semantic_hash"] == observation.content_hash
+        assert (
+            current_interpretation.assessment["evidence_hash"]
+            == withdrawal_evidence.content_hash
+        )
+        assert observation.content_hash != withdrawal_evidence.content_hash
+        assert (
+            current_interpretation.assessment["project_identity_key"]
+            == project.identity_key
+        )
         withdrawal_change = session.scalar(
             select(ChangeEvent).where(
                 ChangeEvent.field_name == "phase",

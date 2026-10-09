@@ -9,7 +9,7 @@ def test_same_permit_has_asset_specific_meaning() -> None:
     upstream = classify_event("Drilling permit issued for STACK well API 35-017-12345")
     fixed = classify_event("Permit application for new natural gas compressor station")
 
-    assert data_center and data_center.state == "construction"
+    assert data_center and data_center.state == "permitting"
     assert "activity not yet established" in data_center.expected_power_event
     assert upstream and upstream.state == "drilling_permit"
     assert upstream.expected_power_event == "production / electrification power"
@@ -20,12 +20,12 @@ def test_same_permit_has_asset_specific_meaning() -> None:
 def test_data_center_events_cover_early_and_late_phases_without_inventing_phases() -> None:
     events = [
         classify_event("Rezoning application for Compass data center campus"),
-        classify_event("Building permit for Compass data center construction"),
+        classify_event("Building permit issued for Compass data center campus"),
         classify_event("Load bank commissioning package for Compass data center"),
     ]
     assert [event.state for event in events if event] == [
         "site_control_planning",
-        "construction",
+        "permitting",
         "commissioning",
     ]
     assert classify_event("Routine story about cloud software") is None
