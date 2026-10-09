@@ -1,3 +1,11 @@
+# October 9, 2026 reconciliation
+
+The current-main repair supersedes the original mutable Interpretation JSON storage described below. Reviewed request facts now live in append-only interconnection_fact_versions, tied to a project and retained evidence version. Migration 0018 adds only this table and reuses the existing database immutable-history trigger function; it does not rewrite existing data. Corrections append new evidence-bound attachments; current projection excludes rejected, stale and foreign bindings while historical structured payloads remain stored. The draft feature was not deployed; no legacy attachment backfill is claimed.
+
+Regressions cover idempotent attachment, refused overwrite, current semantic/document bindings, rejected reinterpretation and a real ingestion correction/replay. Exact-candidate CI and independent review are recorded on PR #29. Original baseline, no-migration statement, validation counts and environment limitations below are historical. No feed/parser/UI or production acceptance is claimed.
+
+---
+
 # §25.194 mapping verification — October 7, 2026
 
 Base: GL3 main `94c3acb7b36c6d5d04a77a0ec445e793e05120a4` (PR24 merged).

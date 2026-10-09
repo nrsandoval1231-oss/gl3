@@ -8,7 +8,14 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from gridlens.domain.large_load_interconnection import VERSION, interconnection_state
-from gridlens.persistence.models import Evidence, Interpretation, Observation, Project, Source
+from gridlens.persistence.models import (
+    Evidence,
+    InterconnectionFactVersion,
+    Interpretation,
+    Observation,
+    Project,
+    Source,
+)
 
 
 def _current(
@@ -18,7 +25,8 @@ def _current(
     return (
         interpretation.status == "accepted"
         and observation.id == evidence.observation_id == interpretation.observation_id
-        and observation.content_hash == evidence.content_hash == interpretation.content_hash
+        and observation.content_hash == interpretation.content_hash
+        and assessment.get("semantic_hash") == observation.content_hash
         and assessment.get("evidence_hash") == evidence.content_hash
         and assessment.get("project_identity_key") == project.identity_key
     )
@@ -88,14 +96,21 @@ def attach_interconnection_facts(
     view = interconnection_state([_record(evidence, source, payload)], today=today)
     if not facts or not view["requests"] or view["requests"][0]["limitations"]:
         raise ValueError("Dated, quoted, typed source facts required")
-    assessment = dict(interpretation.assessment or {})
-    previous = assessment.get("large_load_interconnection")
-    if previous is not None and previous != payload:
-        raise ValueError("Retained interconnection facts cannot be overwritten")
-    if previous == payload:
+    previous = session.scalar(
+        select(InterconnectionFactVersion).where(
+            InterconnectionFactVersion.project_id == project.id,
+            InterconnectionFactVersion.evidence_id == evidence.id,
+        )
+    )
+    if previous is not None:
+        if previous.payload != payload:
+            raise ValueError("Retained interconnection facts cannot be overwritten")
         return
-    assessment["large_load_interconnection"] = payload
-    interpretation.assessment = assessment
+    session.add(
+        InterconnectionFactVersion(
+            project_id=project.id, evidence_id=evidence.id, payload=payload
+        )
+    )
     session.flush()
 
 
@@ -105,18 +120,19 @@ def current_interconnection_state(session: Session, project_id: UUID, *, today: 
     if project is None:
         return interconnection_state([], today=today)
     query = (
-        select(Observation, Evidence, Interpretation, Source)
+        select(Observation, Evidence, Interpretation, Source, InterconnectionFactVersion)
         .join(Evidence, Evidence.observation_id == Observation.id)
         .join(Interpretation, Interpretation.observation_id == Observation.id)
         .join(Source, Source.id == Observation.source_id)
+        .join(InterconnectionFactVersion, InterconnectionFactVersion.evidence_id == Evidence.id)
         .where(
-            Interpretation.assessment["project_identity_key"].as_string() == project.identity_key
+            InterconnectionFactVersion.project_id == project.id
         )
         .order_by(Evidence.observed_at, Evidence.id)
     )
     records = []
-    for observation, evidence, interpretation, source in session.execute(query):
-        payload = (interpretation.assessment or {}).get("large_load_interconnection")
+    for observation, evidence, interpretation, source, version in session.execute(query):
+        payload = version.payload
         if not isinstance(payload, dict) or not _current(
             project, observation, evidence, interpretation
         ):

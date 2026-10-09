@@ -6,12 +6,19 @@ from importlib import import_module
 from uuid import uuid4
 
 import pytest
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, func, select
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import Session
 
-from gridlens.persistence.models import Evidence, Interpretation, Observation, Project, Source
+from gridlens.persistence.models import (
+    Evidence,
+    InterconnectionFactVersion,
+    Interpretation,
+    Observation,
+    Project,
+    Source,
+)
 
 
 @compiles(JSONB, "sqlite")
@@ -28,6 +35,7 @@ def retained():
         Project.__table__,
         Evidence.__table__,
         Interpretation.__table__,
+        InterconnectionFactVersion.__table__,
     ]
     for table in tables:
         table.create(engine)
@@ -80,6 +88,7 @@ def retained():
             assessment={
                 "project_identity_key": project.identity_key,
                 "evidence_hash": evidence.content_hash,
+                "semantic_hash": observation.content_hash,
                 "subject": project.name,
                 "tier": "Signal",
             },
@@ -161,6 +170,7 @@ def test_projection_drops_superseded_evidence_and_replay_does_not_duplicate(reta
     saved = deepcopy(interpretation.assessment)
     module.attach_interconnection_facts(session, project.id, evidence.id, **args)
     assert interpretation.assessment == saved
+    assert session.scalar(select(func.count()).select_from(InterconnectionFactVersion)) == 1
     observation.content_hash = "b" * 64
     assert (
         module.current_interconnection_state(session, project.id, today=date(2026, 10, 8))[
@@ -241,21 +251,29 @@ def test_reviewed_fact_changes_cannot_overwrite_accepted_history(retained):
     assert interpretation.assessment == saved
 
 
-def test_malformed_retained_payload_returns_visible_limitation(retained):
-    from gridlens.intelligence.interconnection import current_interconnection_state
 
-    session, project, _, evidence, interpretation = retained
-    interpretation.assessment = {
-        **interpretation.assessment,
-        "large_load_interconnection": {
-            "version": "tx-large-load-v1",
-            "project_identity_key": project.identity_key,
-            "evidence_id": str(evidence.id),
-            "evidence_hash": evidence.content_hash,
-            "request_id": "utility-serial-1",
-            "facts": None,
-        },
-    }
-    view = current_interconnection_state(session, project.id, today=date(2026, 10, 8))
-    assert view["requests"][0]["limitations"]
-    assert view["requests"][0]["interpretation"]["applicability"] == "UNKNOWN"
+def test_rejected_reinterpretation_preserves_fact_version(retained):
+    from gridlens.intelligence.interconnection import (
+        attach_interconnection_facts,
+        current_interconnection_state,
+    )
+
+    session, project, observation, evidence, interpretation = retained
+    attach_interconnection_facts(
+        session, project.id, evidence.id, request_id="request-1",
+        facts=[{"field": "study_state", "value": "completed",
+                "quote": "Intermediate agreement executed."}],
+        today=date(2026, 10, 8),
+    )
+    version = session.scalar(select(InterconnectionFactVersion))
+    saved = deepcopy(version.payload)
+    observation.content_hash = "b" * 64
+    interpretation.content_hash = "b" * 64
+    interpretation.status = "rejected"
+    interpretation.assessment = {"decision": "rejected"}
+    session.commit()
+    session.expire_all()
+    assert session.scalar(select(InterconnectionFactVersion)).payload == saved
+    assert current_interconnection_state(
+        session, project.id, today=date(2026, 10, 8)
+    )["requests"] == []
