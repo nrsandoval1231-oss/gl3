@@ -3901,6 +3901,10 @@ def decide_need_call_fact(
             )
         )
         if prior is not None:
+            if prior.fact_version_id != fact_version_id:
+                raise HTTPException(
+                    409, "This fact decision key was already used for a different fact version"
+                )
             if prior.content_hash != digest:
                 raise HTTPException(
                     409, "This fact decision key was already used with different content"
@@ -4964,3 +4968,4 @@ def commercial_research_status(need_id: UUID, question: str = Query(..., min_len
             "citations": [],
             "error": None,
         }
+
