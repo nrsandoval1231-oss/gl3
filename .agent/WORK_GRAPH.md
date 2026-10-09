@@ -1,12 +1,12 @@
-# Work graph â€” GL3 audit frontier
+# Work graph � GL3 audit frontier
 
-Parent OPEN. Actual PRD, Finish Contract and protected reference manifest govern; historical graph bytes retained.
+Parent OPEN; canonical PRD/Finish Contract/protected reference manifest govern.
 
-- ACCEPTED bounded A3/A9/A1/A2/A4/A5A/A5B; draft stack PR42â†’40â†’41 CI PASS; no merge/deploy.
-- REJECTED A6 c3c60df/R1 ca791d7/R2 d99ef347/timing80a5cf51; unchanged raw FIX/repros. Astra accepted proposed timing design only.
-- VALIDATE replacement792faff37689130ed57218ad133608167299475e:63focused/1470backend/62browser plus static/schema/runtime/retained gates PASS.273-input binding includes exact packet and two amendments. Independent FIX for residual nested-gap dates. Exceptional Astra accepted a shared selected-interval finalization direction only; one bounded Luna READY, then new exact gates/review.
-- DEPENDENT functional fact/status UI and all-seven-plus-UNKNOWN filters: exact backend PASS required.
-- DEPENDENT A8A inert config/alerts/recovery; A8B readiness/daily tooling. Authentic feed/quality/consecutive-cycle/customer gates OPEN.
-- EXTERNAL A7 checksum-matching originals absent; video supplemental.
+- ACCEPTED bounded backend through PR43 daedade, remote CI success.
+- HISTORICAL FIX UI ce3a03bf, review9c2d1290, preserved unchanged.
+- BUILT A6-UI-STATUS-RECOVERY a1d1b96, one Luna two-file packet; root deterministic and actual committed-response-loss runtime gates PASS.
+- VALIDATE: freeze proof-only exact candidate and fresh ordinary Sol review; no UI publication before PASS.
+- DEPENDENT A8A prepared operations packet waits accepted UI/resource binding; A8B follows. Authentic feed/quality/seven-day/customer gates OPEN.
+- EXTERNAL A7 original PNG/HTML absent; supplemental video cannot satisfy checksums.
 
-Direction REDIRECT. No original-data mutation, paid activation, external sends, merge/deploy or parent completion. Notes/status are not evidence. Current corrected dates use vetted fact identities; previous Reported dates/saved snapshots remain immutable.
+Direction VALIDATE. Preserve UNKNOWN, original/saved evidence and all failed attempts. No provider/alert activation, external sends, merge/deploy or parent completion.

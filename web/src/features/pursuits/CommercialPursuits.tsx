@@ -52,14 +52,19 @@ function checkedCommercialHistory(value: unknown): CommercialTriageHistory {
     if (item.saved_card !== undefined && item.saved_card !== null) {
       if (!isRecord(item.saved_card) || typeof item.saved_card.id !== 'string' || typeof item.saved_card.name !== 'string'
         || typeof item.saved_card.reason !== 'string' || !isRecord(item.saved_card.stage) || typeof item.saved_card.stage.stage !== 'string') throw new Error('A saved card snapshot is incomplete. Retry the history view.')
-      for (const key of ['lifecycle_timeline', 'contacts', 'facts', 'unknowns', 'blockers', 'sources', 'notes']) {
+      for (const key of ['lifecycle_timeline', 'contacts', 'facts', 'unknowns', 'blockers', 'sources', 'notes', 'operator_fact_refs']) {
         if (item.saved_card[key] !== undefined && !Array.isArray(item.saved_card[key])) throw new Error('A saved card snapshot is incomplete. Retry the history view.')
       }
+      const factRefs = item.saved_card.operator_fact_refs
+      if (Array.isArray(factRefs) && factRefs.some((reference) => !isRecord(reference)
+        || typeof reference.need_id !== 'string' || typeof reference.fact_version_id !== 'string'
+        || typeof reference.content_hash !== 'string' || typeof reference.authority !== 'string')) throw new Error('Saved operator fact references are incomplete. Retry the history view.')
     }
     const versions = (item as Record<string, unknown>).versions
     if (versions !== undefined && (!Array.isArray(versions) || versions.some((version) => !isRecord(version)
       || typeof version.version !== 'number' || typeof version.disposition !== 'string'
       || !['saved_as_of', 'metadata_only'].includes(String(version.snapshot_status)) || version.live_status !== 'not_rechecked'
+      || (version.operator_fact_provenance !== undefined && !['recorded', 'legacy_unknown'].includes(String(version.operator_fact_provenance)))
       || (version.saved_card !== null && version.saved_card !== undefined && !isRecord(version.saved_card))))) throw new Error('Saved commercial history versions are incomplete. Retry the history view.')
   }
   return value as unknown as CommercialTriageHistory
@@ -204,8 +209,8 @@ function CommercialHistory({ currentNeedIds }: { currentNeedIds: string[] }) {
   </details>
 }
 
-type CommercialHistoryVersion = { version: number; disposition: string; evaluated_at?: string | null; evaluated_on?: string | null; input_hash?: string | null; snapshot_status: 'saved_as_of' | 'metadata_only'; live_status: 'not_rechecked'; saved_card?: CommercialTriageCard | null }
-function legacyHistoryVersion(item: CommercialTriageHistoryItem): CommercialHistoryVersion { return { version: 1, disposition: item.disposition, evaluated_at: item.evaluated_at ?? null, evaluated_on: item.evaluated_on ?? null, input_hash: item.input_hash ?? null, snapshot_status: item.snapshot_status, live_status: item.live_status, saved_card: item.saved_card ?? null } }
+type CommercialHistoryVersion = { version: number; disposition: string; evaluated_at?: string | null; evaluated_on?: string | null; input_hash?: string | null; operator_fact_provenance?: 'recorded' | 'legacy_unknown'; snapshot_status: 'saved_as_of' | 'metadata_only'; live_status: 'not_rechecked'; saved_card?: CommercialTriageCard | null }
+function legacyHistoryVersion(item: CommercialTriageHistoryItem): CommercialHistoryVersion { return { version: 1, disposition: item.disposition, evaluated_at: item.evaluated_at ?? null, evaluated_on: item.evaluated_on ?? null, input_hash: item.input_hash ?? null, operator_fact_provenance: 'legacy_unknown', snapshot_status: item.snapshot_status, live_status: item.live_status, saved_card: item.saved_card ?? null } }
 
 function HistoricalDetail({ item, version }: { item: CommercialTriageHistoryItem; version: CommercialHistoryVersion }) {
   const [inspectLaterResearch, setInspectLaterResearch] = useState(false)
@@ -213,9 +218,17 @@ function HistoricalDetail({ item, version }: { item: CommercialTriageHistoryItem
   const savedAt = version.evaluated_at ? new Date(version.evaluated_at).toLocaleString() : version.evaluated_on ?? 'date unknown'
   return <div className="commercial-history-detail">
     <p className="commercial-history-asof">Saved version {version.version}: {version.disposition} · as of {savedAt} · current status not rechecked{version.input_hash ? ` · input ${version.input_hash.slice(0, 12)}` : ''}</p>
+    <section><h4>Saved operator fact basis</h4>{version.operator_fact_provenance !== 'recorded'
+      ? <p>Unknown · this legacy evaluation did not record its operator fact basis. Current facts were not reconstructed.</p>
+      : card?.operator_fact_refs?.length
+        ? <><p>User-confirmed fact references saved with this evaluation; these links identify the as-of basis and do not refresh current facts.</p><ul>{card.operator_fact_refs.map((reference) => <li key={`${reference.need_id}-${reference.fact_version_id}-${reference.content_hash}`}>Need {reference.need_id} · fact {reference.fact_version_id} · content reference {reference.content_hash.slice(0, 12)} · {reference.authority}</li>)}</ul></>
+        : <p>Recorded empty · no accepted operator facts were included in this evaluation. Current facts were not reconstructed.</p>}</section>
     {card ? <>
       <section><h4>Saved project and power context</h4><p>{unknown(card.location)} · {enumLabel(card.industry)} · {enumLabel(card.activity)} · Stage {enumLabel(card.stage.stage)} ({unknown(card.stage.date)})</p><p>Required power: {power(card.required_mw)} · Start: {unknown(card.start_window)} · Duration: {unknown(card.duration)} · Supply: {unknown(card.supply)}</p><p>Buying organization: {unknown(card.organization)} · role: {enumLabel(card.organization_role)}</p><p><b>Why this saved state:</b> {card.reason}</p></section>
-      <div className="commercial-evidence-grid"><section><h4>Saved supported facts</h4>{card.facts?.length ? <ul>{card.facts.map((fact, index) => <li key={`${fact.evidence_id}-${index}`}>{fact.text ?? 'Fact text unavailable.'} <Citation fact={fact}/></li>)}</ul> : <p>Unknown · this snapshot contains no supported facts.</p>}</section><section><h4>Saved hypothesis and unknowns</h4><p>{unknown(card.hypothesis)}</p>{card.unknowns?.length ? <ul>{card.unknowns.map((fact) => <li key={fact}>{fact}</li>)}</ul> : <p>No additional unknowns recorded in this snapshot.</p>}</section></div>
+      <div className="commercial-evidence-grid"><section><h4>Saved supported facts</h4>{Array.isArray(card.facts) ? card.facts.length
+        ? <ul>{card.facts.map((fact, index) => <li key={`${fact.evidence_id}-${index}`}>{fact.text ?? 'Fact text unavailable.'} <Citation fact={fact}/></li>)}</ul>
+        : <p>Recorded empty · this saved evaluation contains no supported source facts.</p>
+        : <p>Unknown · this legacy card did not record its supported source facts.</p>}</section><section><h4>Saved hypothesis and unknowns</h4><p>{unknown(card.hypothesis)}</p>{card.unknowns?.length ? <ul>{card.unknowns.map((fact) => <li key={fact}>{fact}</li>)}</ul> : <p>No additional unknowns recorded in this snapshot.</p>}</section></div>
       <section><h4>Saved next step and blockers</h4><p>{card.next_action}</p>{card.blockers?.length ? <ul>{card.blockers.map((blocker) => <li key={blocker}>{blocker}</li>)}</ul> : <p>No blockers recorded in this snapshot.</p>}</section>
       <section><h4>Saved buying-path evidence</h4>{card.contacts?.length ? card.contacts.map((contact, index) => <p key={`${contact.organization}-${contact.person}-${index}`}>{enumLabel(contact.role)} · {unknown(contact.organization)} · {unknown(contact.person)} · {unknown(contact.kind)}: {unknown(contact.value)}{contact.source_url && <> · <a href={contact.source_url} target="_blank" rel="noreferrer">Source ↗</a></>}</p>) : <p>Buying role and direct or intermediary path unknown in this snapshot.</p>}<p>Roles and contact routes do not establish personal purchasing authority.</p></section>
       <section><h4>Saved source citations</h4>{card.sources?.length ? <ul>{card.sources.map((fact, index) => <li key={`${fact.evidence_id}-${index}`}>{fact.text ?? 'Source text unavailable.'} <Citation fact={fact}/></li>)}</ul> : <p>No source citations saved in this snapshot.</p>}</section>

@@ -75,14 +75,24 @@ def test_timing_and_mw_filters_use_effective_summary_only_and_inclusive_overlap(
     assert _filter_opportunity_summaries(rows, _filters(mw_max="0.2999")) == []
 
 
-def test_priority_segment_is_exact_integer_and_status_remains_explicit_unknown():
+def test_priority_segment_and_workflow_status_are_exact_values():
     rows = [_summary(_priority_segment=0), _summary(_priority_segment=8)]
     assert _filter_opportunity_summaries(rows, _filters(priority_segment="0")) == [rows[0]]
     assert _filter_opportunity_summaries(rows, _filters(status="unknown")) == rows
+    for status in ("New", "Investigating", "Contacted", "Qualified", "Won", "Lost", "Closed"):
+        assert _filter_opportunity_summaries(
+            [rows[0] | {"workflow_status": status}, rows[1]], _filters(status=status)
+        ) == [rows[0] | {"workflow_status": status}]
+    assert _filter_opportunity_summaries(
+        [rows[0] | {"workflow_status": "Closed"}, rows[1]], _filters(status="UNKNOWN")
+    ) == [rows[1]]
     for value in ("high", "9", "1.5", "-1"):
         with pytest.raises(HTTPException) as invalid:
             _filters(priority_segment=value)
         assert invalid.value.status_code == 422
+    with pytest.raises(HTTPException) as invalid:
+        _filters(status="ACTIVE")
+    assert invalid.value.status_code == 422
 
 
 def test_canonical_priority_filter_supports_each_existing_segment_without_new_bands():

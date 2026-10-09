@@ -1014,6 +1014,9 @@ export interface components {
             offset: number;
             /** Next Offset */
             next_offset: number | null;
+            /** Current Fact Version */
+            current_fact_version: number;
+            current_reported_timing_correction_target: components["schemas"]["TimingCorrectionTargetOut"];
         };
         /** CallNoteBody */
         CallNoteBody: {
@@ -2606,6 +2609,47 @@ export interface components {
             /** Effective Enabled */
             effective_enabled: boolean;
         };
+        /** TimingCorrectionTargetOut */
+        TimingCorrectionTargetOut: {
+            /** Available */
+            available: boolean;
+            /** Unavailable Reason */
+            unavailable_reason: string | null;
+            /**
+             * Need Id
+             * Format: uuid
+             */
+            need_id: string;
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /** Project Identity Key */
+            project_identity_key: string;
+            /** Activity Key */
+            activity_key: string;
+            /** Facility Identity */
+            facility_identity: string | null;
+            /** Source Semantic Hash */
+            source_semantic_hash: string | null;
+            /** Source Evidence Hash */
+            source_evidence_hash: string | null;
+            /** Retained Evidence Id */
+            retained_evidence_id: string | null;
+            /** Source Id */
+            source_id: string | null;
+            /** Earliest Possible Start */
+            earliest_possible_start: string | null;
+            /** Latest Possible Start */
+            latest_possible_start: string | null;
+            /** Minimum Duration Days */
+            minimum_duration_days: number | null;
+            /** Maximum Duration Days */
+            maximum_duration_days: number | null;
+            /** Current Fact Version */
+            current_fact_version: number;
+        };
         /** ValidationError */
         ValidationError: {
             /** Location */
@@ -2812,7 +2856,7 @@ export interface operations {
                 mw_min?: string | null;
                 mw_max?: string | null;
                 priority_segment?: string | null;
-                status?: string | null;
+                status?: ("UNKNOWN" | "NEW" | "INVESTIGATING" | "CONTACTED" | "QUALIFIED" | "WON" | "LOST" | "CLOSED") | null;
             };
             header?: never;
             path?: never;
@@ -2857,7 +2901,7 @@ export interface operations {
                 mw_min?: string | null;
                 mw_max?: string | null;
                 priority_segment?: string | null;
-                status?: string | null;
+                status?: ("UNKNOWN" | "NEW" | "INVESTIGATING" | "CONTACTED" | "QUALIFIED" | "WON" | "LOST" | "CLOSED") | null;
             };
             header?: never;
             path: {
@@ -2902,7 +2946,7 @@ export interface operations {
                 mw_min?: string | null;
                 mw_max?: string | null;
                 priority_segment?: string | null;
-                status?: string | null;
+                status?: ("UNKNOWN" | "NEW" | "INVESTIGATING" | "CONTACTED" | "QUALIFIED" | "WON" | "LOST" | "CLOSED") | null;
             };
             header?: never;
             path: {
@@ -2948,7 +2992,7 @@ export interface operations {
                 mw_min?: string | null;
                 mw_max?: string | null;
                 priority_segment?: string | null;
-                status?: string | null;
+                status?: ("UNKNOWN" | "NEW" | "INVESTIGATING" | "CONTACTED" | "QUALIFIED" | "WON" | "LOST" | "CLOSED") | null;
             };
             header?: never;
             path?: never;

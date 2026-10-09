@@ -1,0 +1,52 @@
+{
+  "verdict": "PASS",
+  "controller_direction": "VALIDATE_NEXT_DEPENDENT_SLICE",
+  "accepted_scope": "Bounded A6 backend qualification/facts/timing and exact-target saved provenance on this exact local candidate",
+  "parent_complete": false,
+  "candidate": {
+    "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-facts-workflow-20261008",
+    "head": "daedade06adc0dbe18fb09c46a5dcfc2444681f5",
+    "tree": "75e002ec439e8c303bb185dfd9daeafd5c4c4abe",
+    "tested_head": "fd5356654b53f218b95a4533a92e2000d681eb79",
+    "production_source_commit": "a797ebfca5e1a08d68badd848b332f8148ef4348",
+    "git_status": "clean",
+    "post_tested_change": "agent state/proof only; no source/governing input drift"
+  },
+  "audit": {
+    "utc_start": "UNKNOWN: initial timestamp was not captured before review",
+    "first_measured_utc": "2026-10-09T00:04:27Z",
+    "utc_finish": "2026-10-09T00:04:43Z",
+    "duration_seconds": "UNKNOWN because exact start was not captured",
+    "role": "ordinary independent Sol reviewer",
+    "model": "UNKNOWN: runtime identity not independently exposed",
+    "config_identity": "UNKNOWN",
+    "tokens": "UNKNOWN"
+  },
+  "verified_evidence": {
+    "source_and_governing_inputs": 274,
+    "working_git_sha256_mismatches": 0,
+    "root_archive_entries": 566,
+    "root_archive_sha256": "3743d7fa57fe32428635a404e55bf5b683c6bbeac86d1b44ee6753187ad6e7cc",
+    "archive_entry_hash_or_length_mismatches": 0,
+    "full_backend_sealed": "1470 passed, 2 environmental skips, 7 warnings, 239.79 seconds",
+    "browser_sealed": "62 passed, 44.9 seconds",
+    "other_sealed": "Ruff/mypy80/web/locked audits/OpenAPI34/fresh0017 repeat/drift/retained1167 records,1149 groups,17 searches,24 pages,24 original fingerprints and original dump hash PASS",
+    "commercial_public_sql": "135/125 queries; each below 200",
+    "git_diff_check": "PASS",
+    "broad_gates_rerun": false
+  },
+  "independent_checks": [
+    "Reviewed actual selected-interval packet, implementation diff, governing PRD/Finish boundary, focused unit/integration assertions, and current projection consumers.",
+    "Pure provider-off no-DB repro: official Lead Jan 1-Feb 1 2027/31-62 days with accepted Jan 10-Jan 20/40-day compatible timing now returns top-level and nested gap Jan 10-Jan 20/40 days, selected exclusive end Mar 1, source Reported Jan 1-Feb 1/31-62 only in labeled source fields, unchanged 20-25 MW numeric gap, and unmodified original source gap object.",
+    "Prior explicit disjoint correction without applicable supply remains active lower tier with vetted known date and no old Lead gap; full-window 10-15 MW accepted suitable supply yields November/31-day Lead with 5-15 MW gap; adequacy closes only on full interval.",
+    "Tests assert exact timing/supply fact version provenance, current-source semantic/evidence hash correction, stale/unmarked conflicts, replay/retract/expiry, saved-as-of original and new exact-target cards, fact refs, sibling isolation, all-tier selected detail/timing filter and bounded SQL.",
+    "No-fact source-only branch does not invoke the new finalizer, preserving existing source payload shape; original public claims and saved historical cards are not mutated."
+  ],
+  "findings": [],
+  "limits": [
+    "PASS applies only to the bounded A6 backend slice; functional UI and all seven workflow-status filters/read contract remain a dependent A6 task.",
+    "A7 protected original PNG/HTML, A8 operational/authentic feed/quality cycles, customer-reviewed real Lead and launch gates remain OPEN.",
+    "This review did not rerun the full suite or assert production latency/SLO, live provider readiness, publication, merge or deployment.",
+    "Known-private ignored original failed browser trace remains excluded and unchanged; redacted attributed copy sealed. Historical unretained/overwritten bytes remain UNKNOWN."
+  ]
+}
