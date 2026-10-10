@@ -1,0 +1,352 @@
+{
+  "objective": "Stage2 bounded authentic Texas source-quality evidence handoff; no self-grade, qualification/code repair, Stage3, merge, push, or deployment.",
+  "builder_disposition": "HANDOFF_TO_CONTROLLER_FOR_EXACT_CANDIDATE_FREEZE_AND_REVIEW",
+  "candidate_identity": {
+    "repository": "C:\\Users\\nrsan\\Nucleus\\02_Projects\\GridLens\\gl3-stage2-source-quality-20261009",
+    "branch": "acceptance/gl3-stage2-source-quality-20261009",
+    "code_base": "c761e38f6ac00e7d54d6f6b57959cf40cdcf4d79",
+    "working_tree_candidate_frozen": false,
+    "tracked_app_changes_by_builder": 0,
+    "commit_push_merge_by_builder": false
+  },
+  "timing": {
+    "stage2_data_collection_started_utc": "2026-10-09T20:18:05.9950466Z",
+    "builder_session_start_utc": "UNKNOWN",
+    "completion_artifact_written_utc": "2026-10-09T23:36:18.676Z",
+    "planning_build_validation_durations": "UNKNOWN",
+    "tokens_and_model_config": "UNKNOWN"
+  },
+  "builder_owned_public_files": [
+    {
+      "path": "docs/validation/stage2-source-quality-20261009.md",
+      "sha256": "7f2a640f1b877125134684801caf941949c500f27b1af5d073f82dcf196c858d"
+    },
+    {
+      "path": "docs/validation/stage2-review-sample-20261009.json",
+      "sha256": "e4167c44be077b6b06caafee0cfed49a8b51b7ba59e93fe69d00db47a7640dde"
+    },
+    {
+      "path": "docs/validation/stage2-pursuit-shortlist-20261009.md",
+      "sha256": "336cd5abc1b2cbdb874927424b7dbcf28906398b9324f1b446443dabaaf53ec2"
+    },
+    {
+      "path": "docs/validation/procedures/stage2-source-quality-review-20261009.md",
+      "sha256": "e6d23bce65a9852beae4f37e65485b0d22efc8e2d46b4f8f734d91a6b752b7ef"
+    },
+    {
+      "path": "docs/validation/procedures/stage2-priority-supplement-20261009.md",
+      "sha256": "d7292d333372774c48f48d510d26e5f8b1ce75e06e145b8c66a935d6721753c8"
+    },
+    {
+      "path": "docs/validation/procedures/stage2-priority-supplement-final-20261009.md",
+      "sha256": "e7ea4377525fec3080472c55b6ad90d1369129518505d2c32615ce245f9eb144"
+    },
+    {
+      "path": "docs/validation/procedures/stage2-reproducibility-20261009.md",
+      "sha256": "a001ac1c7f945b3cb2d9a6dc2c84293adea4591ef8f2da236a01d6081a393b50"
+    },
+    {
+      "path": "docs/validation/procedures/stage2-build-public-sample-20261009.py",
+      "sha256": "5d123a5e19d899b02ffe91195f97ba35c8e08095a502f87e5553ad7e64a0fbf6"
+    }
+  ],
+  "controller_owned_public_receipts": [
+    {
+      "path": ".agent/artifacts/GL3-STAGE2/CONTROLLER-ARCHIVE.json",
+      "sha256": "6f831eeb1d33cb1343cad0ec3038378574dd473db1f4f628a0ba6f89fda8cffb"
+    },
+    {
+      "path": ".agent/artifacts/GL3-STAGE2/CONTROLLER-BROWSER.json",
+      "sha256": "9a37dc2df7777d76be2beec6b1eed73d360c0ce69dd124ce8cbc21a876c7d5e7"
+    },
+    {
+      "path": ".agent/artifacts/GL3-STAGE2/CONTROLLER-CHANGED-VERSIONS.json",
+      "sha256": "30726e5825ddac50094c46f3c58ccc6b19139a1d81ea54799977722143086efb"
+    },
+    {
+      "path": ".agent/artifacts/GL3-STAGE2/CONTROLLER-CONFIGURATION.json",
+      "sha256": "31d2a9c3c41cd86d0e383d027ff72c07b29125bd1ddc3589956df71fd5d533f5"
+    },
+    {
+      "path": ".agent/artifacts/GL3-STAGE2/CONTROLLER-HISTORY-PRESERVATION.json",
+      "sha256": "62092f006b2ca18cc4f310dc08c2baac5cbde5790916c1727acc8861dc278ae3"
+    },
+    {
+      "path": ".agent/artifacts/GL3-STAGE2/CONTROLLER-ORIGINAL-COMPARISON.json",
+      "sha256": "3eb253370428a5bde45cbfec24bae88c47f80c83af8551f4f77ab84ad3702cc2"
+    },
+    {
+      "path": ".agent/artifacts/GL3-STAGE2/CONTROLLER-PRIORITY-PROJECTION.json",
+      "sha256": "6ce70e0811b85c1bf9645d792026eec8c292c7c2695dbd80938795acf1540fa5"
+    },
+    {
+      "path": ".agent/artifacts/GL3-STAGE2/CONTROLLER-REPLAY.json",
+      "sha256": "89630ff50325869c2a659654b917e2de6f8c22f93764ef24f70d080c95fb86c0"
+    },
+    {
+      "path": ".agent/artifacts/GL3-STAGE2/CONTROLLER-RRC-ORIGINAL-BYTES.json",
+      "sha256": "3eb0541736f22dffa73483a65b9732b43b25e9be13929de5e4aecdd6270d81e8"
+    },
+    {
+      "path": ".agent/artifacts/GL3-STAGE2/CONTROLLER-RUNTIME-API.json",
+      "sha256": "f24d3aa3392c58827d68da91951e754e3abc1d03eab043bad468af3c9058ab27"
+    },
+    {
+      "path": ".agent/artifacts/GL3-STAGE2/CONTROLLER-SELECTION.json",
+      "sha256": "eb0cee6a382545f2b371b3eaab672a9bc3fb1bdbccd6b92bf0508cbd0a5e1156"
+    },
+    {
+      "path": ".agent/artifacts/GL3-STAGE2/STAGE1-MERGE.json",
+      "sha256": "531037bca85f692b8359702ce2926720525b9c7dcb38becd3522f2f1635dccf6"
+    }
+  ],
+  "private_evidence_hashes": [
+    {
+      "path": ".artifacts/STAGE2/evidence/preserved-base.dump",
+      "sha256": "828beace65cd2b06182f30e4713857656a993d3969c8cbecb02e6ee40ff8a886"
+    },
+    {
+      "path": ".artifacts/STAGE2/evidence/pre-migration.dump",
+      "sha256": "bc53a1d65a989fd05b5ac5601a687e64bfdc9ff26cda2a7f59ea585a0ecbbf6c"
+    },
+    {
+      "path": ".artifacts/STAGE2/evidence/after-initial-checks.dump",
+      "sha256": "856e8f4425c827221c005625e6d2539720f8133a0e5533b31d6bab9951a73caf"
+    },
+    {
+      "path": ".artifacts/STAGE2/evidence/after-replay.dump",
+      "sha256": "81ba6d43bc7608b86f8ff1f3a6484baf8218d285b9db065f495460e41ee24ef0"
+    },
+    {
+      "path": ".artifacts/STAGE2/evidence/full-candidate-pool.b854f043bc20aa5d.private.json",
+      "sha256": "b854f043bc20aa5dc1d87af3ecd67eedb6b8173d80022f7bd2cb479e3dead52c"
+    },
+    {
+      "path": ".artifacts/STAGE2/evidence/fixed-sample.6c29be89fc80ebfe.private.json",
+      "sha256": "6c29be89fc80ebfe4779c8e4439cefe6c0457db0c1d58b74ffb59b9f2e633ccc"
+    },
+    {
+      "path": ".artifacts/STAGE2/evidence/priority-supplement-final.private.json",
+      "sha256": "64092165875edfa80ee04ec8bf5b610cba2dad0c0532ad6251bef195a0693824"
+    },
+    {
+      "path": ".artifacts/STAGE2/evidence/priority-original-comparison-final.private.json",
+      "sha256": "d471fe295cb3ebf03caf9f51334edc43fb67d1006380600535ff80cf3fe9ad3d"
+    },
+    {
+      "path": ".artifacts/STAGE2/evidence/original-source-comparison.private.json",
+      "sha256": "fcb6ad69b997df8abb7a577c9a53d4f9ae82d9b7814fac3910d5ba0174d9fe54"
+    },
+    {
+      "path": ".artifacts/STAGE2/evidence/replay-content-fingerprints.private.json",
+      "sha256": "c5578bb3858853a5eda531fc21cb8b064338c4fa04bd8574e9d5fbf678587235"
+    },
+    {
+      "path": ".artifacts/STAGE2/evidence/runtime-api-private.json",
+      "sha256": "6e4e649ca7a9a74d7216bb21b09bcaf6fa9ccc29636d33cb7fe74a669b5ea9c2"
+    },
+    {
+      "path": ".artifacts/STAGE2/evidence/runtime-api-details.private.json",
+      "sha256": "3825cff1a8a15493c73df2c1fba30499589716ec53169cb48aee7387aa9fb9bc"
+    },
+    {
+      "path": ".artifacts/STAGE2/evidence/browser-proof.private.json",
+      "sha256": "7333a15229ecb08feb215e579319b3b6bd1435a7e99c5246568906be38d1cc84"
+    },
+    {
+      "path": ".artifacts/STAGE2/evidence/initial-attempt-manifest.json",
+      "sha256": "7298d733a77cacb4842b3220612bbd4ddddcd6da60f922a0f19b6f51a893e68c"
+    },
+    {
+      "path": ".artifacts/STAGE2/evidence/replay-attempt-manifest.json",
+      "sha256": "7b38d2bb9960c0c95da1768e776fa3eca7103e523d0ca84715f7cf8659c0baee"
+    }
+  ],
+  "baseline": {
+    "original_source_path": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-evidence-shadow/.artifacts/evidence-shadow/preserved-base.dump",
+    "preserved_sha256": "828beace65cd2b06182f30e4713857656a993d3969c8cbecb02e6ee40ff8a886",
+    "isolated_pg": "PostgreSQL 18, loopback 127.0.0.1:55747",
+    "database_names": [
+      "gl3_s2_corpus",
+      "gl3_s2_pre_migration",
+      "gl3_s2_after_initial",
+      "gl3_s2_after_replay",
+      "gl3_s2_app_test",
+      "gl3_s2_unit_test"
+    ],
+    "existing_port_55449": "untouched",
+    "after_initial_dump_sha256": "856E8F4425C827221C005625E6D2539720F8133A0E5533B31D6BAB9951A73CAF",
+    "after_replay_dump_sha256": "81BA6D43BC7608B86F8FF1F3A6484BAF8218D285B9DB065F495460E41EE24EF0",
+    "protected_history": "Controller independently found all original rows retained in 12 selected history/evidence tables; all-column 39-table replay differs only in jobs and sources."
+  },
+  "source_identity_and_pool": {
+    "source_ids": [
+      "austin-building-permits",
+      "dallas-monthly-permits",
+      "houston-weekly-permits",
+      "el-paso-new-commercial-permits",
+      "texas-rrc-drilling-permits",
+      "texas-rrc-flare-vent-exceptions"
+    ],
+    "distinct_observation_pool": 6448,
+    "pool_sha256": "b854f043bc20aa5dc1d87af3ecd67eedb6b8173d80022f7bd2cb479e3dead52c",
+    "fixed_sample_count": 36,
+    "fixed_sample_sha256": "6c29be89fc80ebfe4779c8e4439cefe6c0457db0c1d58b74ffb59b9f2e633ccc",
+    "selection_reproduced_independently": true,
+    "reviewed_original_source_records": 32,
+    "source_field_comparisons_supported": 31,
+    "multi_feature_identity_ambiguous": 1,
+    "original_source_payload_unavailable": 4,
+    "fixed_metrics_denominator": 36,
+    "freshness_by_source": "UNKNOWN for all six"
+  },
+  "attempts": {
+    "ordinary_initial_command": "uv run --project backend --locked python -m gridlens.jobs.runtime check --source <source-id>",
+    "initial_attempts": [
+      {
+        "source_id": "texas-rrc-flare-vent-exceptions",
+        "exit_code": 0,
+        "started_at_utc": "2026-10-09T20:18:05.9950466Z",
+        "result": "69 new records"
+      },
+      {
+        "source_id": "texas-rrc-drilling-permits",
+        "exit_code": 1,
+        "started_at_utc": "2026-10-09T20:18:09.6609753Z",
+        "result": "UnicodeDecodeError; no Oct 9 parse/new rows claimed"
+      },
+      {
+        "source_id": "dallas-monthly-permits",
+        "exit_code": 0,
+        "started_at_utc": "2026-10-09T20:18:13.4703504Z",
+        "result": "20 new records"
+      },
+      {
+        "source_id": "el-paso-new-commercial-permits",
+        "exit_code": 0,
+        "started_at_utc": "2026-10-09T20:18:16.4748238Z",
+        "result": "67 parsed, no new records"
+      },
+      {
+        "source_id": "houston-weekly-permits",
+        "exit_code": 1,
+        "started_at_utc": "2026-10-09T20:18:18.6926239Z",
+        "result": "latest linked report missing or older than 30 days; no Oct 9 rows claimed"
+      },
+      {
+        "source_id": "austin-building-permits",
+        "exit_code": 0,
+        "started_at_utc": "2026-10-09T20:18:20.112813Z",
+        "result": "766 new, 1509 changed, 370 unchanged of 2645 scanned"
+      }
+    ],
+    "ordinary_replay": "Four successful routes replayed; Austin first immediate replay was ineligible and later ran ordinarily after natural eligibility; no failed route retried. Raw outcome logs are under .artifacts/STAGE2/evidence/attempts/.",
+    "source_comparison": "Builder captured 25 response bodies across the bounded 36-record comparison; RRC flare initial index GET was outside capture. Total HTTP request count and numeric status codes UNKNOWN. Final four supplement rows each had one bounded exact Austin source-record response, 4/4 source hashes match persisted evidence. No DB writes/source jobs during comparison."
+  },
+  "budgets_and_authority": {
+    "provider_keys_used": false,
+    "paid_provider_calls": 0,
+    "provider_model_budgets": 0,
+    "autonomous_research": false,
+    "worker_auto_refresh": false,
+    "jev": false,
+    "outreach_or_contact": false,
+    "source_bounds": "Existing native route request bounds; fixed six-source Stage2 packet only; comparison at most one selected payload per record, dedup shared workbook artifacts."
+  },
+  "metrics": {
+    "pipeline_sample_strata": {
+      "admitted_active_need_proxy": 8,
+      "rejected": 28,
+      "ambiguous": 0,
+      "denominator": 36
+    },
+    "ordinary_visible_projection": {
+      "visible_signals": 7,
+      "below_floor_hidden_fixed_35kw_generator": 1,
+      "not_admitted": 28,
+      "denominator": 36
+    },
+    "qualification_correctness": "UNKNOWN for 36/36; mixed intake sample does not estimate overall correctness.",
+    "confirmed_false_positive_visible_admissions": "0/7, narrow claim only; no unsupported identity/activity/current-work/qualification claim proven in inspected cards.",
+    "proven_missed_qualified_need": "0/36; two potential recall/investigation questions (UPS and shell-only garage), not confirmed misses.",
+    "fixed_sample_grouping": "No confirmed duplicate grouping defect; one El Paso feature-key/site ambiguity.",
+    "separate_supplement_grouping": "One same-site linked two-permit project grouping defect/candidate duplicate at 811 Clayton; do not count as two pursuits.",
+    "buyer_authority": "0 confirmed of 36; UNKNOWN for all 36. Source organization roles exist on reviewed originals; title_company/role projection blank for seven visible Signals (7/7 presentation issue).",
+    "power_demand_or_gap": "No confirmed saleable temporary/rental load or utility gap among 36; UNKNOWN for all 36.",
+    "date_metrics": "Persisted event/application attribution present 36/36; source comparison:31 supported,1 ambiguous,4 unavailable. Publisher publication time UNKNOWN 36/36. Stored retrieval/observation timestamp present 36/36; not source freshness."
+  },
+  "final_supplement": {
+    "count": 4,
+    "freeze_utc": "2026-10-09T21:44:14.294067Z",
+    "method": "data-center scope first, explicit commissioning/temporary service second, generic construction third; within class event date descending then stable source/record byte order; source-listed org/role required",
+    "records": [
+      "2026-036762 EP",
+      "2026-036762 BP",
+      "2025-155325 EP",
+      "2026-127192 EP"
+    ],
+    "physical_site_cases": 3,
+    "dc_records_and_sites": "3 records at 2 sites (two 811 Clayton permit records are one site case)",
+    "temporary_service_site_cases": 1,
+    "eligible_pool_after_fixed_sample_exclusion": 1038,
+    "publisher_publication_dates": "UNKNOWN",
+    "suitability": "investigation shortlist only; not qualified pursuits"
+  },
+  "runtime_and_browser": {
+    "API": "Controller verified authenticated API port8073 with unauthenticated health401, login200, authenticated health200, triage200.",
+    "browser": "Controller public receipt CONTROLLER-BROWSER.json proves five authenticated read-only desktop/mobile views, login200, real API GETs200, no page errors, fixtures, saved actions or mutations.",
+    "builder_prior_failure": "Retained unchanged at .artifacts/STAGE2/evidence/browser-proof.private.json; sign-in-only/403 result rejected, not a pass.",
+    "remaining": "Canonical design/owner acceptance, accepted Lead/buyer workflow, Stage4 attributed outcome/restart, live freshness remain OPEN."
+  },
+  "deterministic_checks": [
+    {
+      "command": "uv run --project backend --locked python docs/validation/procedures/stage2-build-public-sample-20261009.py",
+      "exit_code": 0,
+      "result": "Recreated sanitized JSON; helper checked hash-bound pool and fixed-sample inputs."
+    },
+    {
+      "command": "See docs/validation/procedures/stage2-reproducibility-20261009.md for exact sample assertions; run the documented command verbatim.",
+      "exit_code": 0,
+      "result": "36 unique rows, pool 6448, source fidelity 31+1+4, row evidence fields complete, publication UNKNOWN for all 36."
+    },
+    {
+      "command": "uv run --project backend --locked python -c \"import ast,pathlib; ast.parse(pathlib.Path('docs/validation/procedures/stage2-build-public-sample-20261009.py').read_text(encoding='utf-8'))\"",
+      "exit_code": 0,
+      "result": "PASS in-memory syntax validation."
+    },
+    {
+      "command": "python -m py_compile with PYTHONPYCACHEPREFIX under private helper directory",
+      "exit_code": 1,
+      "result": "Attempted twice; Windows py_compile could not create nested temp cache path. No source/docs impact; resolved with in-memory AST parse plus full helper execution."
+    }
+  ],
+  "explicit_open_gates": [
+    "Houston ordinary source freshness/acquisition failed; last success Oct 1.",
+    "RRC drilling ordinary acquisition failed UnicodeDecodeError; retained counters are historical, not this attempt output.",
+    "Freshness UNKNOWN for every route; no seven-day monitoring.",
+    "Four retained flare originals unavailable; absent-vs-missed and source truth UNKNOWN.",
+    "El Paso BCNN25-00099 multi-feature ID/site/date attribution unresolved.",
+    "No confirmed active work, MW, temporary/rental demand, utility deficit, or authorized buyer among the mixed 36.",
+    "PRD39 independent-discovery Signal/Prospect sample and 24-correct target not met by this intake sample.",
+    "PRD38 source breadth not established beyond the six selected Texas routes.",
+    "PRD41 accepted real Lead/buyer workflow and Nick/user acceptance remain OPEN.",
+    "Canonical UI review, Stage4 attributed outcome save/restart, deployment, production, and owner visual acceptance remain OPEN.",
+    "Controller must freeze exact candidate and run full required CI plus independent Sol review; no self-grade or finish-contract closure by builder."
+  ],
+  "resume": "Use same Stage2 worktree and ignored .artifacts/STAGE2 DB/evidence paths. Start from docs/validation/procedures/stage2-reproducibility-20261009.md. Do not rerun live source requests or alter the frozen pool/sample. API/Vite/browser runtime ownership is with controller for its remaining review.",
+  "integration_repair_S2_R1": {
+    "issue": "Trailing blank lines at EOF in public sample helper",
+    "repair": "Trimmed trailing whitespace and retained exactly one terminal newline; sample content unchanged.",
+    "helper_sha256": "5d123a5e19d899b02ffe91195f97ba35c8e08095a502f87e5553ad7e64a0fbf6",
+    "completion_before_repair_private_copy": ".artifacts/STAGE2/evidence/COMPLETION-before-S2-R1.json",
+    "completion_before_repair_sha256": "59ec9ec7a415e4219039061e3e44da30a3153a80c956bfe9fd7b9765ed20af48"
+  },
+  "integration_repair_S2_R2": {
+    "finding": "S2-REVIEW-001",
+    "correction": "Replaced unsupported definite stale-report cause with the observed missing-or-over-30-days-old check result; cause remains UNKNOWN; route freshness remains UNKNOWN.",
+    "report_sha256": "7f2a640f1b877125134684801caf941949c500f27b1af5d073f82dcf196c858d",
+    "prior_completion_private_copy": ".artifacts/STAGE2/evidence/COMPLETION-before-S2-R2.json",
+    "prior_completion_sha256": "93a74841e2774de9d837934be1a55581668e3a0a0bd01148f4b5f5b67a38f911",
+    "independent_review": ".artifacts/CONTROLLER-STAGE2/stage2-independent-review.json"
+  }
+}

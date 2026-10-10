@@ -1,0 +1,91 @@
+{
+  "observed_at_utc": "2026-10-09T21:24:08.7434447Z",
+  "code_base": "c761e38f6ac00e7d54d6f6b57959cf40cdcf4d79",
+  "candidate_frozen": false,
+  "database_baseline": "127.0.0.1:55747/gl3_s2_pre_migration",
+  "database_acceptance": "127.0.0.1:55747/gl3_s2_corpus",
+  "access": "controller comparison transactions READ ONLY",
+  "original_dump_sha256": "828beace65cd2b06182f30e4713857656a993d3969c8cbecb02e6ee40ff8a886",
+  "history_preservation": {
+    "buying_chain_claims": {
+      "original_rows": 49,
+      "current_rows": 49,
+      "missing_original_ids": [],
+      "changed_original_column_rows": []
+    },
+    "buying_chain_evidence": {
+      "original_rows": 41,
+      "current_rows": 41,
+      "missing_original_ids": [],
+      "changed_original_column_rows": []
+    },
+    "buying_chain_runs": {
+      "original_rows": 41,
+      "current_rows": 41,
+      "missing_original_ids": [],
+      "changed_original_column_rows": []
+    },
+    "change_events": {
+      "original_rows": 1170,
+      "current_rows": 1304,
+      "missing_original_ids": [],
+      "changed_original_column_rows": []
+    },
+    "evidence": {
+      "original_rows": 16960,
+      "current_rows": 19326,
+      "missing_original_ids": [],
+      "changed_original_column_rows": []
+    },
+    "lifecycle_events": {
+      "original_rows": 938,
+      "current_rows": 941,
+      "missing_original_ids": [],
+      "changed_original_column_rows": []
+    },
+    "power_need_brief_versions": {
+      "original_rows": 5,
+      "current_rows": 5,
+      "missing_original_ids": [],
+      "changed_original_column_rows": []
+    },
+    "project_match_decisions": {
+      "original_rows": 1451,
+      "current_rows": 1485,
+      "missing_original_ids": [],
+      "changed_original_column_rows": []
+    },
+    "pursuit_call_notes": {
+      "original_rows": 0,
+      "current_rows": 0,
+      "missing_original_ids": [],
+      "changed_original_column_rows": []
+    },
+    "pursuit_documents": {
+      "original_rows": 29,
+      "current_rows": 29,
+      "missing_original_ids": [],
+      "changed_original_column_rows": []
+    },
+    "pursuit_research_runs": {
+      "original_rows": 23,
+      "current_rows": 23,
+      "missing_original_ids": [],
+      "changed_original_column_rows": []
+    },
+    "signal_decisions": {
+      "original_rows": 1170,
+      "current_rows": 1228,
+      "missing_original_ids": [],
+      "changed_original_column_rows": []
+    }
+  },
+  "raw_receipt_path": ".artifacts/CONTROLLER-STAGE2/history-preservation.json",
+  "raw_receipt_sha256": "8bad67a91431959bfa806b35c987fac871b7b46c21fad40a27409b4bcb87c505",
+  "script_path": ".artifacts/CONTROLLER-STAGE2/history.py",
+  "script_sha256": "5b7f8125097e9f40aeae79fad613dff2835cad16e98bdf91f3d73db78b52bfe0",
+  "limitations": [
+    "Covers original columns/IDs in 12 named retained history tables at the recorded checkpoint; other mutable tables intentionally are not certified unchanged after live acquisition.",
+    "Does not certify backup restore, deployment, source correctness, qualification recall, or owner commercial acceptance."
+  ]
+}

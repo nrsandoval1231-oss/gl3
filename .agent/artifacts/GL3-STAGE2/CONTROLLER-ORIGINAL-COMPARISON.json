@@ -1,0 +1,50 @@
+{
+  "observed_at_utc": "2026-10-09T21:44:22.053058+00:00",
+  "code_base": "c761e38f6ac00e7d54d6f6b57959cf40cdcf4d79",
+  "candidate_frozen": false,
+  "method": "Controller directly inspected captured official JSON fields, XLSX worksheet XML cells without the native permit parser, flare HTML/XML table cells, and six retained RRC raw segments. No requests or database writes by this comparison.",
+  "scope": {
+    "fixed_sample_records": 36,
+    "original_records_inspected": 32,
+    "austin": 6,
+    "dallas": 6,
+    "houston": 6,
+    "el_paso": 6,
+    "rrc_drilling_retained_segments": 6,
+    "rrc_flare_current_rows": 2,
+    "rrc_flare_retained_only_original_unavailable": 4
+  },
+  "observations": [
+    "Austin six permit identifiers, sites, descriptions, source issue/status dates and source-listed contractor fields agree with captured original fields. Publication date is not inferred from issue/status dates.",
+    "All twelve Dallas/Houston sampled permit identifiers, sites, scope, row locations and source date cells agree. Dallas ContactType=Applicant and LPBusinessName are organization involvement, not prime contract or purchasing authority.",
+    "El Paso BCNN25-00099 query returns three GIS features at two addresses and two issue dates. Evidence uses a latest-dated address; source identifier uniqueness and cross-site grouping remain ambiguous. This is not missing-record proof.",
+    "Sparse El Paso descriptions/owners/status remain unknown. GISStatus=M is geocoding status, not evidence of permit completion or active work.",
+    "Two fresh flare rows support submitted application, operator, lease/permit and district only. Four retained flare originals were outside the bounded three-day route and could not be corroborated.",
+    "Austin 2026-037732 BP source explicitly describes like-kind UPS replacement in an existing business building; current rejection may miss a continuity investigation candidate. It supplies no MW, confirmed gap or temporary-power demand. 7DAY is not treated as a power duration.",
+    "Raw master-permit identifiers and available coordinates can support subsequent grouping investigation; omission from an abstract alone does not establish a duplicate defect."
+  ],
+  "request_metadata_limit": "Builder comparison captured 25 response payloads; RRC flare initial GET metadata/body were not captured. HTTP numeric status is UNKNOWN because bounded reader returns headers/body without status. No repeated requests to repair metadata.",
+  "private_evidence": [
+    {
+      "path": ".artifacts/CONTROLLER-STAGE2/city-original-fields.private.json",
+      "sha256": "5ff9ceec834964ebd39cf2560b3ccbf0a1bf1a63853accc36cb35a66222fadf2"
+    },
+    {
+      "path": ".artifacts/CONTROLLER-STAGE2/workbook-original-rows.private.json",
+      "sha256": "0eb33232d8ff6056049c917564b2d2ecb09afdde3e32e5bb561fc63fe42687dd"
+    },
+    {
+      "path": ".artifacts/CONTROLLER-STAGE2/flare-original-rows.private.json",
+      "sha256": "5886281ad78082fa203b1108bbeeb996778de3fb746c2de1adafb64d37305b84"
+    },
+    {
+      "path": ".artifacts/CONTROLLER-STAGE2/rrc-original-byte-check.json",
+      "sha256": "33feb5386e2b8e44f4fff9299f973f69d0df3f11d927078ca52151ab629ebf52"
+    },
+    {
+      "path": ".artifacts/CONTROLLER-STAGE2/original-comparison-manifest-as-observed.json",
+      "sha256": "2d8bfcd69b44648be98e9058788d411a696df4145de3f2df66b4289c1b766728"
+    }
+  ],
+  "limits": "Source fidelity observations only, not 32 fully correct commercial opportunities, fresh drilling acquisition, owner acceptance, qualification promotion, deployment or a complete recall denominator. Fixed sample and unknown members remain in the builder report."
+}

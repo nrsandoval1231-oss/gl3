@@ -1,0 +1,18 @@
+{
+  "observed_at_utc": "2026-10-09T21:44:54.436464+00:00",
+  "code_base": "c761e38f6ac00e7d54d6f6b57959cf40cdcf4d79",
+  "before_database": "127.0.0.1:55747/gl3_s2_after_initial",
+  "after_database": "127.0.0.1:55747/gl3_s2_after_replay",
+  "method": "Controller independently canonicalized each all-column row with alphabetically sorted columns; sorted row hashes preserve multiplicity. SQL read-only transactions against two owned snapshot restores.",
+  "tables_compared": 39,
+  "changed_tables": [
+    "jobs",
+    "sources"
+  ],
+  "all_other_tables_identical": 37,
+  "private_receipt": {
+    "path": ".artifacts/CONTROLLER-STAGE2/replay-independent.private.json",
+    "sha256": "8c70878d945298efd59e93cd4bab5d47d7ca8c3cb9962d5966bc5b9683a03a52"
+  },
+  "limits": "Snapshot dump provenance supplied by builder; proves content parity for these restored snapshots, not successful replay on the two failed routes, production scheduling or future unchanged source content."
+}

@@ -1,0 +1,78 @@
+{
+  "observed_at_utc": "2026-10-09T21:36:35.236100+00:00",
+  "code_base": "c761e38f6ac00e7d54d6f6b57959cf40cdcf4d79",
+  "base_url": "http://127.0.0.1:8073",
+  "unauthenticated_health_status": 401,
+  "login_status": 200,
+  "authenticated_health_status": 200,
+  "commercial_triage_status": 200,
+  "source_health": [
+    {
+      "id": "austin-building-permits",
+      "status": "Checked\u2014No Change",
+      "freshness": "UNKNOWN",
+      "last_attempt": "2026-10-09T20:22:52.751497+00:00",
+      "last_success": "2026-10-09T20:22:52.751497+00:00",
+      "error": null
+    },
+    {
+      "id": "dallas-monthly-permits",
+      "status": "Checked\u2014No Change",
+      "freshness": "UNKNOWN",
+      "last_attempt": "2026-10-09T20:19:57.146445+00:00",
+      "last_success": "2026-10-09T20:19:57.146445+00:00",
+      "error": null
+    },
+    {
+      "id": "el-paso-new-commercial-permits",
+      "status": "Checked\u2014No Change",
+      "freshness": "UNKNOWN",
+      "last_attempt": "2026-10-09T20:19:59.038526+00:00",
+      "last_success": "2026-10-09T20:19:59.038526+00:00",
+      "error": null
+    },
+    {
+      "id": "houston-weekly-permits",
+      "status": "Failed",
+      "freshness": "UNKNOWN",
+      "last_attempt": "2026-10-09T20:18:19.584175+00:00",
+      "last_success": "2026-10-01T23:05:48.494222+00:00",
+      "error": "Houston latest linked report is missing or over 30 days old"
+    },
+    {
+      "id": "texas-rrc-drilling-permits",
+      "status": "Failed",
+      "freshness": "UNKNOWN",
+      "last_attempt": "2026-10-09T20:18:10.733510+00:00",
+      "last_success": "2026-10-01T22:58:22.233911+00:00",
+      "error": "UnicodeDecodeError"
+    },
+    {
+      "id": "texas-rrc-flare-vent-exceptions",
+      "status": "Checked\u2014No Change",
+      "freshness": "UNKNOWN",
+      "last_attempt": "2026-10-09T20:20:00.849471+00:00",
+      "last_success": "2026-10-09T20:20:00.849471+00:00",
+      "error": null
+    }
+  ],
+  "triage": {
+    "limit": 50,
+    "offset": 0,
+    "total": 50,
+    "grouped_total": 1142,
+    "cohort_counts": {
+      "action_now": 9,
+      "research": 18,
+      "watch": 23,
+      "reject": 0
+    }
+  },
+  "private_evidence": [
+    {
+      "path": ".artifacts/CONTROLLER-STAGE2/runtime-api.private.json",
+      "sha256": "e7ef5db7fa7bddc788201fd80d70be00691dfae19ee4191a522572aee5691d8a"
+    }
+  ],
+  "limits": "Loopback isolated authentic corpus, read-only GETs after local login. Triage total/cohort_counts describe one page, not the whole corpus. Freshness UNKNOWN is preserved. No paid research, outreach, production deployment, seven daily cycles or owner review."
+}
