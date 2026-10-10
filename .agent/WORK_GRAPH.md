@@ -1,13 +1,13 @@
 # Work graph — sequential commercial acceptance
 
-S1 COMPLETE: exact-reviewed/tested PR47 merged at c761e38 with explicit owner authorization. Historical state archived unchanged.
+S1 COMPLETE: PR47 authorized merge c761e38, exact reviewed/tested tree.
+S2 COMPLETE (bounded diagnostic): PR48 authorized merge76a60fe, exact reviewed head5edd894/tree758a6c29 and fresh fullCI; source/runtime failures and all parent gates retained.
+S3 VALIDATE/IN PROGRESS: [PR49](https://github.com/nrsandoval1231-oss/gl3/pull/49), [GL3-STAGE3](packets/GL3-STAGE3.md), complete active trace and fixed40 comparison; five official RRC operator labels repaired, no parser relaxation/promotions. Controller targeted checks, real browser and history parity pass. PR49 records frozen-candidate fullCI and independent Sol outcomes. Integration needs exact passing gates and Nick authorization before S4. Clayton linked-permit/grouping and commercial gap evidence remain OPEN.
+S4 DEPENDENT on S3: one real end-to-end commercial pursuit, no fabricated calls/facts/promotions; Nick acceptance separate.
+S5 DEPENDENT on S4 and exact original PNG/HTML recovery: canonical journey/browser evidence and separate owner visual acceptance.
+S6 DEPENDENT on S5: remove demonstrated intelligence-to-HTTP coupling with output parity.
+S7 DEPENDENT on S6 and deployment/spending/monitoring authorization: real PC-off scheduling, restore, alerts and seven actual daily cycles plus commercial acceptance.
 
-S2 CANDIDATE, [PR48](https://github.com/nrsandoval1231-oss/gl3/pull/48): one Luna bounded authentic-source quality packet GL3-STAGE2; own isolated cluster/corpus, six existing Texas routes, minimum30 authentic review records and source-backed shortlist. No qualification repairs or unrelated feature nodes. Completion requires controller evidence validation, ordinary Sol review, final gates and separately authorized serial PR integration.
+Parent OPEN. [Current state](CURRENT_STATE.md) is authoritative; prior status Git bytes are archived unchanged. No CI badge or source count closes commercial/operational gates.
 
-S3 DEPENDENT on S2: demonstrated qualification bottlenecks and fixed authentic before/after evaluation.
-S4 DEPENDENT on S3: one real end-to-end commercial pursuit, no fake calls/promotions.
-S5 DEPENDENT on S4 and exact original PNG/HTML recovery: canonical journey/browser proof and separate Nick visual acceptance.
-S6 DEPENDENT on S5: remove demonstrated intelligence→HTTP coupling with parity.
-S7 DEPENDENT on S6 and deployment/spending/monitoring authority: real PC-off operation/restore/alerts/seven real daily cycles and commercial acceptance.
-
-Parent OPEN. See [current state](CURRENT_STATE.md), [Stage2 packet](packets/GL3-STAGE2.md), and [baseline gate report](../docs/validation/stage1-baseline-20261009.md). No source count or CI badge closes authentic or operational gates.
+R1: independentSol rejected7e8ecd despite greenCI for multiline blank-operator attribution. Physical-line repair and new misleading regressions pass controller checks/fixed40/nativeUI/history. Preserve initialFIX; require new frozen fullCI and fresh review on PR49 before authorized integration.

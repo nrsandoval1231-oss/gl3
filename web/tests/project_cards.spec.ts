@@ -1,6 +1,6 @@
 import { expect, test, type Route } from '@playwright/test'
 import type { Opportunity } from '../src/api/client'
-import { projectCards, projectTitle, signalDecisionCards, signalDisplayDecision } from '../src/features/opportunities/projectCards'
+import { projectCards, projectTitle, serverProjectCards, signalDecisionCards, signalDisplayDecision } from '../src/features/opportunities/projectCards'
 
 const apiRoute = `http://127.0.0.1:${process.env.GRIDLENS_WEB_PORT ?? '5173'}/api/**`
 
@@ -1430,6 +1430,61 @@ test('city permit organization labels preserve the source role and role uncertai
   houston.title_company = '*MERICHEM TECHNOLOGIES LLC'
   houston.title_company_role = 'permit-listed owner / occupant'
   expect(projectTitle(houston)).toBe('*MERICHEM TECHNOLOGIES LLC · permit-listed owner / occupant')
+})
+
+test('current official RRC operator labels list and detail titles without buyer authority', () => {
+  const record = permit('0917090', 'Drilling permit', {
+    abstract: 'row: 0917090\noperator: DE CENTRAL OPERATING, LLC',
+  })
+  record.evidence[0].source_id = 'texas-rrc-drilling-permits'
+  const expected = 'DE CENTRAL OPERATING, LLC · RRC permit-listed operator · buyer authority UNKNOWN'
+
+  expect(projectTitle(record)).toBe(expected)
+  record.group_id = 'rrc-group-0917090'
+  record.group_title = projectTitle(record)
+  expect(serverProjectCards([record])[0].title).toBe(expected)
+
+  record.title_company = 'Verified Buyer'
+  record.title_company_role = 'permit-listed owner / occupant'
+  expect(projectTitle(record)).toBe('Verified Buyer · permit-listed owner / occupant')
+})
+
+test('RRC operator parsing stays on its physical line when the operator is blank', () => {
+  const record = permit('rrc-blank-operator', 'Drilling permit', {
+    abstract: 'row: 123\noperator: \noperator_number: 456\nlease: TEST',
+  })
+  record.evidence[0].source_id = 'texas-rrc-drilling-permits'
+  expect(projectTitle(record)).not.toContain('RRC permit-listed operator')
+  expect(projectTitle(record)).not.toContain('456')
+  expect(projectTitle(record)).not.toContain('TEST')
+
+  record.evidence[0].abstract = 'row: 123\noperator:   \nlease:   TEST'
+  expect(projectTitle(record)).not.toContain('RRC permit-listed operator')
+  expect(projectTitle(record)).not.toContain('TEST')
+
+  record.evidence[0].abstract = 'row: 123\r\noperator: \r\noperator_number: 456\r\nlease: TEST'
+  expect(projectTitle(record)).not.toContain('RRC permit-listed operator')
+  expect(projectTitle(record)).not.toContain('456')
+  expect(projectTitle(record)).not.toContain('TEST')
+})
+
+test('RRC operator title requires exact route, current evidence, and one usable name', () => {
+  const record = permit('rrc-near-match', 'Drilling permit', {
+    abstract: 'operator: Example Operator',
+  })
+  record.evidence[0].source_id = 'company-news'
+  expect(projectTitle(record)).not.toContain('Example Operator')
+
+  record.evidence[0].source_id = 'texas-rrc-drilling-permits'
+  record.evidence[0].assessment_current = false
+  expect(projectTitle(record)).not.toContain('Example Operator')
+
+  record.evidence[0].assessment_current = true
+  record.evidence[0].abstract = 'operator: Unknown'
+  expect(projectTitle(record)).not.toContain('buyer authority UNKNOWN')
+
+  record.evidence[0].abstract = 'operator: Example Operator\noperator: Different Operator'
+  expect(projectTitle(record)).not.toContain('Example Operator · RRC')
 })
 
 test('grouped permit members use company-first titles while retaining each permit record', async ({ page }) => {
