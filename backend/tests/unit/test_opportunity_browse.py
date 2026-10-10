@@ -166,6 +166,24 @@ def test_browse_title_displays_only_current_official_rrc_operator_with_unknown_a
 
 
 @pytest.mark.parametrize(
+    "abstract",
+    [
+        "row: 123\noperator: \noperator_number: 456\nlease: TEST",
+        "row: 123\noperator:   \nlease:   TEST",
+        "row: 123\r\noperator: \r\noperator_number: 456\r\nlease: TEST",
+    ],
+)
+def test_browse_title_does_not_read_next_rrc_field_as_blank_operator(abstract):
+    item = _rrc_browse_item()
+    add_browse_evidence(item, _rrc_evidence(abstract))
+
+    title = project_title(item)
+    assert "RRC permit-listed operator" not in title
+    assert "456" not in title
+    assert "TEST" not in title
+
+
+@pytest.mark.parametrize(
     "evidence",
     [
         _rrc_evidence("operator: Example Operator", current=False),

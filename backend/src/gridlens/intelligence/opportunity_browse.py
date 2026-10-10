@@ -146,10 +146,12 @@ def add_browse_evidence(item: dict[str, Any], evidence: dict[str, Any]) -> None:
             candidates = item.setdefault("_browse_company_candidates", {}).setdefault(key, [])
             candidates.append(match.group(2).strip())
         if evidence.get("source_id") == _RRC_SOURCE_ID:
-            for match in re.finditer(r"^\s*operator\s*:\s*(.+?)\s*$", abstract, re.I | re.M):
-                value = match.group(1).strip()
-                if value and normalized(value) not in _RRC_OPERATOR_PLACEHOLDERS:
-                    item.setdefault("_browse_rrc_operator_candidates", []).append(value)
+            for line in abstract.splitlines():
+                operator_match = re.fullmatch(r"\s*operator\s*:\s*(.*?)\s*", line, re.I)
+                if operator_match:
+                    value = operator_match.group(1).strip()
+                    if value and normalized(value) not in _RRC_OPERATOR_PLACEHOLDERS:
+                        item.setdefault("_browse_rrc_operator_candidates", []).append(value)
     candidates = item.setdefault("_browse_action_candidates", [])
     if candidates and any(_permit_work_title(value) for value in candidates if value):
         return

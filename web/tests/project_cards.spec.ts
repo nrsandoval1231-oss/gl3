@@ -1449,6 +1449,25 @@ test('current official RRC operator labels list and detail titles without buyer 
   expect(projectTitle(record)).toBe('Verified Buyer · permit-listed owner / occupant')
 })
 
+test('RRC operator parsing stays on its physical line when the operator is blank', () => {
+  const record = permit('rrc-blank-operator', 'Drilling permit', {
+    abstract: 'row: 123\noperator: \noperator_number: 456\nlease: TEST',
+  })
+  record.evidence[0].source_id = 'texas-rrc-drilling-permits'
+  expect(projectTitle(record)).not.toContain('RRC permit-listed operator')
+  expect(projectTitle(record)).not.toContain('456')
+  expect(projectTitle(record)).not.toContain('TEST')
+
+  record.evidence[0].abstract = 'row: 123\noperator:   \nlease:   TEST'
+  expect(projectTitle(record)).not.toContain('RRC permit-listed operator')
+  expect(projectTitle(record)).not.toContain('TEST')
+
+  record.evidence[0].abstract = 'row: 123\r\noperator: \r\noperator_number: 456\r\nlease: TEST'
+  expect(projectTitle(record)).not.toContain('RRC permit-listed operator')
+  expect(projectTitle(record)).not.toContain('456')
+  expect(projectTitle(record)).not.toContain('TEST')
+})
+
 test('RRC operator title requires exact route, current evidence, and one usable name', () => {
   const record = permit('rrc-near-match', 'Drilling permit', {
     abstract: 'operator: Example Operator',

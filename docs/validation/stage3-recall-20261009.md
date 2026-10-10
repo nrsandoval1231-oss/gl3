@@ -52,3 +52,27 @@ The procedure guard was re-executed on 2026-10-10T00:53:55Z against the owned co
 ## Remaining gates and measurement limits
 
 The linked Clayton relationship/grouping repair, qualified commercial need, a proven buyer or authority, operator acceptance, the Finish Contract's full live retrieval workflow, deployment, and launch/7-day gates remain OPEN. This is a bounded list/detail title improvement, not Stage3 or product completion. No commits, pushes, PRs, merges, deployments, external communications, source fetches, or owner/Stage2 database writes were made. Exact diagnosis-to-handoff timing, model/config identity, and token use are UNKNOWN; no time or token estimate is claimed.
+
+## R1 newline-boundary repair — 2026-10-10
+
+Sol's independent review of candidate 7e8ecd... (tree 252900f...) found that the RRC-specific operator regular expressions used whitespace matching after the colon across multiline text. With a blank operator: followed by operator_number: 456 or lease: TEST, the next structured field could be mislabeled as the permit-listed operator. This is a presentation/source-attribution defect; it does not establish purchasing authority or change qualification.
+
+Both backend add_browse_evidence and frontend currentRrcOperator now split the abstract into physical lines before matching an exact operator: label and its same-line value. The exact source/current-evidence gate, empty and placeholder rejection, conflict handling, verified title-company precedence, and buyer-authority UNKNOWN wording remain in place. General company parsing, qualification, identity, API, and grouping behavior were not changed.
+
+Regression coverage includes empty and whitespace-only operator values followed by operator_number or lease, LF and CRLF records, and the existing valid operator, stale/wrong-source, placeholder, conflict, and verified-title precedence cases. The regressions confirm following fields never appear in the operator title.
+
+R1 checks on the current uncommitted candidate:
+- The first backend pytest attempt without the private runtime helper failed before collection because database/auth settings were absent. The same test then ran with the helper targeting only gl3_s3_app_test and gl3_s3_unit_test: 30 passed. No retained-corpus write occurred.
+- The first mypy attempt flagged an optional-match variable name collision. The local was renamed and the rerun passed.
+- Locked Ruff on the changed backend module and test passed; mypy on the changed backend module passed.
+- npm run typecheck and npm run build passed.
+- With the private helper targeting the isolated app/unit databases, npx playwright test tests/project_cards.spec.ts --reporter=line passed all 35 tests. The test run used only ports 8084/5184; neither port had a listener after exit. No Playwright/browser server was started against the retained corpus for R1.
+- No corpus projection was rerun or overwritten during R1. The prior raw-projection overwrite remains disclosed above; controller pinned raw before/after evidence remains the independent final source comparison.
+
+The controller must re-run its authenticated retained-corpus browser/history checks for this amended candidate, freeze the exact new candidate, run required full CI, and obtain independent review. This R1 handoff is not a self-grade or Stage3 completion.
+
+## Controller R1 verification before freeze
+
+The controller independently reran locked full Ruff, mypy across87 source files,30 focused backend tests,35 focused browser regressions, web typecheck/build and the unchanged authentic40. [R1 evaluation](../../.agent/artifacts/GL3-STAGE3/CONTROLLER-R1-EVALUATION.json) retains unique raw after output SHA `c7e0b48522d9ac285ae24fc6c7a468701ccf5b6686f86aa6bdc696de3f88745c` and the original pinned baseline095f. Exactly five titles change; public detail fields, tier, identity, ordering,1168groups and cohort token remain unchanged. No qualification recall estimate is inferred.
+
+[R1 native browser proof](../../.agent/artifacts/GL3-STAGE3/CONTROLLER-R1-BROWSER.json) passes five real records in11desktop/mobile views, login200, separate unauthenticated health401, no page errors or unexpected mutations. [R1 history](../../.agent/artifacts/GL3-STAGE3/CONTROLLER-R1-HISTORY.json) records only expected authentication changes against its pre-browser snapshot. Original domain/evidence/history tables remain unchanged; no owner/Stage2 mutation or source/provider request. Prior frozen raw/browser/screens and receipts are retained under `.artifacts/CONTROLLER-STAGE3/pre-R1`; the earlier overwritten builder raw remains explicitly unavailable. [R1 validation](../../.agent/artifacts/GL3-STAGE3/CONTROLLER-R1-VALIDATION.json) distinguishes these checks from new required frozen-head CI/review. Initial7e8ecd CI passed1605backend/83browser in both runs but was rejected by Sol; it is never repaired-candidate acceptance evidence. PR49 records subsequent exact-candidate gates and independent outcome. No Stage4 work or merge authorization.

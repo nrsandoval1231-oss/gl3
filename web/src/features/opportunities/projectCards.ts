@@ -35,8 +35,11 @@ const rrcOperatorPlaceholders = new Set(['n/a', 'na', 'none', 'null', 'unknown',
 function currentRrcOperator(item: Opportunity) {
   const operators = item.evidence.flatMap((evidence) => {
     if (!evidence.assessment_current || evidence.source_id !== 'texas-rrc-drilling-permits') return []
-    return [...(evidence.abstract ?? '').matchAll(/^\s*operator\s*:\s*(.+?)\s*$/gim)]
-      .map((match) => match[1].trim())
+    return (evidence.abstract ?? '').split(/\r\n|[\n\r\u2028\u2029]/)
+      .flatMap((line) => {
+        const match = /^\s*operator\s*:\s*(.*?)\s*$/i.exec(line)
+        return match ? [match[1].trim()] : []
+      })
       .filter((name) => name && !rrcOperatorPlaceholders.has(normalized(name)))
   })
   const unique = new Map(operators.map((name) => [normalized(name), name]))
