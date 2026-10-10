@@ -1,0 +1,59 @@
+{
+  "schema": "gl3-independent-review-v1",
+  "reviewer": "Sol",
+  "reviewed_at_utc": "2026-10-10T01:02:41.4652191Z",
+  "verdict": "FIX",
+  "scope": "Stage 3 bounded RRC source-role title repair and authentic diagnostic evidence",
+  "repository": "nrsandoval1231-oss/gl3",
+  "pull_request": 49,
+  "base_sha": "76a60fefef7b29c6588e80945fe47701669bf890",
+  "candidate_sha": "7e8ecd6241b5a9672fdccb5f218b9060a5048038",
+  "candidate_tree": "252900f421434e58d0b43e3981976ec9ae4d9ab2",
+  "synthetic_merge_sha": "9f74231be15b2ad4ff84fe298caa08cf3c95d955",
+  "synthetic_merge_tree": "252900f421434e58d0b43e3981976ec9ae4d9ab2",
+  "findings": [
+    {
+      "id": "S3-REVIEW-001",
+      "severity": "material evidence attribution",
+      "locations": [
+        "backend/src/gridlens/intelligence/opportunity_browse.py:149",
+        "web/src/features/opportunities/projectCards.ts:38"
+      ],
+      "problem": "The new operator-field regex uses \\s* after the colon. In Python and JavaScript this consumes a newline when the official RRC operator value is blank, so the next structured field becomes a supposed operator name.",
+      "reproduction": "For current exact-route evidence with abstract 'row: 123\\noperator: \\noperator_number: 456\\nlease: TEST', backend add_browse_evidence stores _browse_rrc_operator_candidates=['operator_number: 456']; project_title returns 'operator_number: 456 · RRC permit-listed operator · buyer authority UNKNOWN'. The JavaScript regex likewise captures 'operator_number: 456'. Both were executed read-only against the frozen candidate.",
+      "source_feasibility": "The native RRC adapter reads operator with _text(root, 67, 98), emits the operator and following operator_number fields unconditionally, and joins facts as newline-delimited abstract fields (rrc_drilling.py:135,199,220). A blank operator is not excluded by that parser.",
+      "impact": "A missing official operator can be displayed as an attributed permit-listed organization in both server-backed list and detail. This violates the packet's nonempty current-source operator and misleading-near-match guard, despite the five authentic nonblank labels working.",
+      "required_repair": "Parse operator values within one line in both implementations, reject blank values, and add backend/frontend regressions for a blank operator followed by operator_number or lease. Re-run exact 40-record comparison and affected checks on the new candidate."
+    }
+  ],
+  "reviewed_evidence": [
+    "Read owner Stage 3 request, AGENTS, PRD/Finish Contract/UI canon boundaries, Stage 3 packet and diagnosis, actual base-to-head diff, public before/after/report, controller baseline/evaluation/cohort/browser/history/validation, private freeze, and retained Stage 2 fixed36 plus priority4 identities.",
+    "The diff is bounded to four allowed app/test files plus Stage 3 status and evidence. No qualification parser, tier, database schema, source adapter, product/design canon, provider, or deployment change is present. PR 49 is open/draft at this exact head/base; synthetic merge has exact base+head parents and the same tree. Diff whitespace check passes.",
+    "Controller authentic comparison finds five RRC group-title changes among fixed36 plus priority4, 11 visible Signals and 12 details including one below-floor record, all 1,168 ordered cohort Need IDs unchanged, no public detail-field or tier changes, 39-table pre-browser history parity, and only expected auth writes after actual desktop/mobile browser login. This supports the bounded nonblank examples, not the blank-field safety claim.",
+    "Targeted controller checks passed: 27 backend unit tests, 34 focused browser regressions, locked Ruff/mypy, frontend typecheck/build, read-only corpus evaluation, and 11 authenticated native browser views. Initial failed/unhydrated checks are retained as rejected evidence."
+  ],
+  "hosted_ci_at_review": {
+    "push_run": 38011312999,
+    "pull_request_run": 38011316788,
+    "head_sha": "7e8ecd6241b5a9672fdccb5f218b9060a5048038",
+    "status": "BOTH_IN_PROGRESS at 2026-10-10T01:02:41Z",
+    "known_completed_steps": "Web jobs success; backend locked dependency audit, Ruff, mypy, migrations succeeded; full backend pytest and browser jobs pending.",
+    "raw_full_log_sha256": "UNKNOWN; no final logs available at review time",
+    "limit": "CI was not inferred to pass or fail. A repair changes the candidate and requires new exact-head full gates plus independent review."
+  },
+  "open_stage_and_parent_limits": [
+    "No authentic eligible-gap case was independently established in the fixed40; qualification correctness and recall remain UNKNOWN. Stage 3 parser/tier gates were not relaxed and this title repair does not prove commercial qualification recall.",
+    "The Clayton permit parent-link/grouping defect remains OPEN. No source-supported MW, start, duration, unsuitable supply, buyer authority or real Lead is established by five operator titles.",
+    "Stage 4 saved attributed outcome/restart, canonical UI visual acceptance and missing original assets, PRD 38-41, Nick Lead acceptance, deployment, backup/restore and seven PC-off daily cycles remain OPEN. This review does not certify the parent Finish Contract.",
+    "PR 49 merge and Stage 4 start require their separate authority and accepted exact candidate."
+  ],
+  "reviewer_measurements": {
+    "review_started_at_utc": "UNKNOWN",
+    "review_finished_at_utc": "2026-10-10T01:02:41.4652191Z",
+    "audit_duration_seconds": "UNKNOWN",
+    "model": "gpt-6-sol",
+    "reasoning": "medium",
+    "config_identity": "UNKNOWN",
+    "tokens": "UNKNOWN"
+  }
+}

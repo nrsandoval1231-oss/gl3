@@ -9,3 +9,5 @@ S6 DEPENDENT on S5: remove demonstrated intelligence-to-HTTP coupling with outpu
 S7 DEPENDENT on S6 and deployment/spending/monitoring authorization: real PC-off scheduling, restore, alerts and seven actual daily cycles plus commercial acceptance.
 
 Parent OPEN. [Current state](CURRENT_STATE.md) is authoritative; prior status Git bytes are archived unchanged. No CI badge or source count closes commercial/operational gates.
+
+R1: independentSol rejected7e8ecd despite greenCI for multiline blank-operator attribution. Physical-line repair and new misleading regressions pass controller checks/fixed40/nativeUI/history. Preserve initialFIX; require new frozen fullCI and fresh review on PR49 before authorized integration.

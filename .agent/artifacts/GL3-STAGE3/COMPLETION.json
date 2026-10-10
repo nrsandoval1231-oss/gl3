@@ -11,20 +11,20 @@
   },
   "changed_app_test_files": [
     {
-      "sha256": "6FCB7BDAFFD1B82DC5AC5384B771A9ED11512D994EB6AA9745C8CE10E45DDCEC",
-      "path": "backend/src/gridlens/intelligence/opportunity_browse.py"
+      "path": "backend/src/gridlens/intelligence/opportunity_browse.py",
+      "sha256": "4992FF159DE6A01D093C01B409DC99531DE15FDBB9F4346B68F71E0E5F0D6550"
     },
     {
-      "sha256": "14A06AF5D44BA2E0DE8245A4D39F8229BA98C3F98AD0338F0A44FFAFA924868B",
-      "path": "backend/tests/unit/test_opportunity_browse.py"
+      "path": "backend/tests/unit/test_opportunity_browse.py",
+      "sha256": "4402EB86DECE9A9252267E8925378F4E60E61C4EDEC32D23CD360EFF134DE835"
     },
     {
-      "sha256": "E3A037941B5F0B83AAE7FC4A8D974E906ADABB9E22E5B963BD4D285FAFCDA95E",
-      "path": "web/src/features/opportunities/projectCards.ts"
+      "path": "web/src/features/opportunities/projectCards.ts",
+      "sha256": "2932387D30D4C0EB2B95DA359386AA41A83DD39FB35389AC1AF616FDDE238D61"
     },
     {
-      "sha256": "21B31C49D0D0A1D21C1B5627F64D00B6B93CE232765615BDCAF4A6B822CF7320",
-      "path": "web/tests/project_cards.spec.ts"
+      "path": "web/tests/project_cards.spec.ts",
+      "sha256": "D42A925D2CE089B886153AFFD6A82EA406F2C83CE431CCAD2A0814DCC571C85B"
     }
   ],
   "evidence": {
@@ -68,7 +68,7 @@
       "sha256": "694761403836E3F7EA189688B55187178059A362655F9A87CE03C29450F85C91",
       "path": ".artifacts/STAGE3/pre-doc-revision-hashes.private.json"
     },
-    "report_sha256": "D4206A3CBA4375BDD4653463E8368FF5BE1A2317156BF880F27575A947F38A0D",
+    "report_sha256": "53c095ea247fabe45fdb5ef7526d3e79b4acfab0a9035429e6c60466f8f2152b",
     "raw_projection_binding": {
       "current_sha256": "89A82AD1E4EE671B6D72E84C3A6E9EC0BAA2B619F5522095CA23BAAE154BD61C",
       "previous_bytes": "UNAVAILABLE; hash only preserved",
@@ -78,6 +78,10 @@
     "pre_binding_repair_private": {
       "path": ".artifacts/STAGE3/pre-binding-repair/manifest.private.json",
       "sha256": "1E2DB111072DECF886B449802C015769048CE2F5A010295B414BA9C15233411A"
+    },
+    "r1_preserved_baseline": {
+      "path": ".artifacts/STAGE3/repair-R1-baseline/manifest.private.json",
+      "sha256": "ECA15054A12DC2EA7981291229834B33266B99D5C21189C1595AE3FCCB8E860A"
     }
   },
   "checks_run": [
@@ -116,6 +120,22 @@
     {
       "result": "passed identities/source hashes, visibility, detail availability, titles, tiers, source operators, title-company fields, MW/timing/supply, and 1168 cohort/order evidence",
       "command": "PowerShell field-by-field binding assertion: current private raw projection vs all 40 public rows and controller cohort receipts"
+    },
+    {
+      "command": "uv run --project ..\\gl3-stage2-source-quality-20261009\\backend --locked --extra dev python -m pytest backend\\tests\\unit\\test_opportunity_browse.py -q",
+      "result": "30 passed with private helper targeting gl3_s3_app_test/gl3_s3_unit_test"
+    },
+    {
+      "command": "locked Ruff and mypy on changed backend source/test",
+      "result": "passed"
+    },
+    {
+      "command": "npm run typecheck; npm run build",
+      "result": "passed"
+    },
+    {
+      "command": "npx playwright test tests/project_cards.spec.ts --reporter=line; helper configures app_test/unit_test",
+      "result": "35 passed; ports 8084/5184 released after exit; no corpus write"
     }
   ],
   "attempts": [
@@ -137,7 +157,7 @@
     "stage2_and_owner_database_writes": 0,
     "live_requests_or_providers": 0,
     "commits_pushes_pr_merge_deployment": 0,
-    "browser_corpus_proof": "PASS by controller receipt; full CI and independent Sol review pending",
+    "browser_corpus_proof": "R1 focused non-corpus Playwright PASS; controller authenticated corpus proof must rerun for amended candidate",
     "open": [
       "Clayton linked-permit relationship/history-safe presentation",
       "qualified need and buyer authority",
@@ -157,7 +177,30 @@
     "config_identity": "UNKNOWN",
     "token_use": "UNKNOWN",
     "lane": "single Luna",
-    "repair_count": "UNKNOWN"
+    "repair_count": "1 bounded R1 repair; initial mypy local-name fix included"
   },
-  "no_self_grade_note": "Builder handoff only. Controller must rerun focused checks and authentic browser proof, freeze the exact candidate, complete repository CI and independent review, and decide graph/status transitions."
+  "no_self_grade_note": "Builder handoff only. Controller must rerun focused checks and authentic browser proof, freeze the exact candidate, complete repository CI and independent review, and decide graph/status transitions.",
+  "r1": {
+    "regressions": [
+      "empty then operator_number/lease LF",
+      "whitespace-only then lease",
+      "blank CRLF operator then following fields",
+      "existing ordinary valid operator"
+    ],
+    "status": "awaiting controller rerun and independent review",
+    "repair": "backend and frontend split physical lines before exact operator-field matching",
+    "review_finding": "RRC operator regex whitespace crossed physical line boundaries after blank operator:"
+  },
+  "controller_before_freeze_integration": {
+    "builder_report_sha256": "237B5A100F2E7DFBCF6583F235D02BF4C54F7988CAC8D48615F0B57CF7AFB302",
+    "integrated_report_sha256": "53c095ea247fabe45fdb5ef7526d3e79b4acfab0a9035429e6c60466f8f2152b",
+    "reason": "Controller appended separate R1 deterministic/browser/history verification beforefreeze; builderhandoffclaims retained; no independent acceptance asserted",
+    "current_controller_receipts": [
+      "CONTROLLER-R1-EVALUATION.json",
+      "CONTROLLER-R1-BROWSER.json",
+      "CONTROLLER-R1-HISTORY.json",
+      "CONTROLLER-R1-VALIDATION.json"
+    ],
+    "gates": "NEW fullfrozenCI and freshSol required; no merge"
+  }
 }
