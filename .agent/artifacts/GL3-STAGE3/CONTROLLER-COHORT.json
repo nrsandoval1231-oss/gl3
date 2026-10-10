@@ -1,0 +1,9 @@
+{
+  "base": "76a60fefef7b29c6588e80945fe47701669bf890",
+  "cohort_token_before": "131b3252ca31c89e81331d874b12345060740be6d151f77e6ee7501c6505ff2f",
+  "cohort_token_after": "131b3252ca31c89e81331d874b12345060740be6d151f77e6ee7501c6505ff2f",
+  "unchanged": true,
+  "before_sha256": "96417fc3c8a93f2d4b472b67f4d45cd0bfe3cc53e00478372a1f009584ff5a8a",
+  "after_sha256": "259eb6e89ace98e52ca91a36ffdfb6557349592b1177a12fbee958f45b0f5d9f",
+  "scope": "Same fixed corpus/pinned clock; all-cohort unfiltered token; title-derived search is intentionally enriched, cohort invalidation semantics unchanged"
+}

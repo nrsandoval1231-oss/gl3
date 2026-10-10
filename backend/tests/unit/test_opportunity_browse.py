@@ -6,12 +6,14 @@ from fastapi import HTTPException
 
 from gridlens.api.app import _MAX_SAVED_SNAPSHOT_BYTES, _check_saved_history_bounds
 from gridlens.intelligence.opportunity_browse import (
+    add_browse_evidence,
     cohort_token,
     grouped_opportunities,
     grouped_signal_decision,
     matched_opportunity,
     normalized,
     opportunity_group_id,
+    project_title,
 )
 
 
@@ -141,3 +143,57 @@ def test_saved_snapshot_preflight_rejects_one_oversized_nested_value():
 
     assert oversized.value.status_code == 413
     assert oversized.value.detail["resource"] == "saved_snapshot_bytes"
+
+
+def _rrc_browse_item(*, title_company=None, title_company_role=None):
+    item = _item(source="texas-rrc-drilling-permits")
+    item["title_company"] = title_company
+    item["title_company_role"] = title_company_role
+    return item
+
+
+def _rrc_evidence(abstract, *, source="texas-rrc-drilling-permits", current=True):
+    return {"source_id": source, "abstract": abstract, "assessment_current": current}
+
+
+def test_browse_title_displays_only_current_official_rrc_operator_with_unknown_authority():
+    item = _rrc_browse_item()
+    add_browse_evidence(item, _rrc_evidence("row: 0917090\noperator: DE CENTRAL OPERATING, LLC"))
+
+    assert project_title(item) == (
+        "DE CENTRAL OPERATING, LLC · RRC permit-listed operator · buyer authority UNKNOWN"
+    )
+
+
+@pytest.mark.parametrize(
+    "evidence",
+    [
+        _rrc_evidence("operator: Example Operator", current=False),
+        _rrc_evidence("operator: Example Operator", source="company-news"),
+        _rrc_evidence("operator: Unknown"),
+        _rrc_evidence("operator: N/A"),
+        _rrc_evidence("operator: Example Operator\noperator: Other Operator"),
+    ],
+)
+def test_browse_title_rejects_stale_wrong_source_placeholder_and_conflicting_rrc_names(evidence):
+    item = _rrc_browse_item()
+    add_browse_evidence(item, evidence)
+
+    assert project_title(item) == "Facility expansion · Chicago"
+
+
+def test_browse_title_preserves_verified_title_company_precedence_over_rrc_operator():
+    item = _rrc_browse_item(
+        title_company="Verified Buyer", title_company_role="permit-listed owner / occupant"
+    )
+    add_browse_evidence(item, _rrc_evidence("operator: Example Operator"))
+
+    assert project_title(item) == "Verified Buyer · permit-listed owner / occupant"
+
+
+def test_browse_title_leaves_conflicting_current_rrc_evidence_unresolved():
+    item = _rrc_browse_item()
+    add_browse_evidence(item, _rrc_evidence("operator: Example Operator"))
+    add_browse_evidence(item, _rrc_evidence("operator: Different Operator"))
+
+    assert project_title(item) == "Facility expansion · Chicago"
