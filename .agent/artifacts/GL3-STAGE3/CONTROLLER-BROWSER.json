@@ -1,0 +1,138 @@
+{
+  "status": "PASS",
+  "started_at_utc": "2026-10-10T00:50:40.726Z",
+  "finished_at_utc": "2026-10-10T00:51:10.151Z",
+  "login_status": 200,
+  "records_verified": [
+    {
+      "source_id": "texas-rrc-drilling-permits",
+      "stable_record_id": "0917090",
+      "need_id": "03a145b7-848d-47ba-9cae-01c55a7a03cf"
+    },
+    {
+      "source_id": "texas-rrc-drilling-permits",
+      "stable_record_id": "0917987",
+      "need_id": "6a863639-19f1-4095-aa6c-fda8ba496de7"
+    },
+    {
+      "source_id": "texas-rrc-drilling-permits",
+      "stable_record_id": "0909414",
+      "need_id": "e7a7fd44-3077-4da1-9b5d-92d156775f0d"
+    },
+    {
+      "source_id": "texas-rrc-drilling-permits",
+      "stable_record_id": "0918387",
+      "need_id": "6e18668e-c1c5-42be-90d2-1e503c9c697e"
+    },
+    {
+      "source_id": "texas-rrc-drilling-permits",
+      "stable_record_id": "0918094",
+      "need_id": "4b9befca-a98e-4c25-a854-b6b456d9b9d4"
+    }
+  ],
+  "errors": [],
+  "private_report_sha256": "dc5406c8c9b6f73d3a24ffe4cbf574754d62529b7d4c570b6db8f767746f36a8",
+  "harness_sha256": "3201971e08a62bbf9cd9a4b5be433d6f2f6364546c34cf101ce2a2118f8d7b33",
+  "views": [
+    {
+      "name": "desktop-list-0917090",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "screenshot_sha256": "1c8d0423d69dec7a054c4759be0dc345b3bba5f08209c7f8d58684768cf24e8e"
+    },
+    {
+      "name": "desktop-detail-0917090",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "screenshot_sha256": "9b7d8d89c3bed8245afbb7899ddadb8babd176369e822e85c5cd4166c62efd4c"
+    },
+    {
+      "name": "desktop-list-0917987",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "screenshot_sha256": "ef84b2bc841053fc775409e0b866940c38532c61552e275e97f05f906508f0fc"
+    },
+    {
+      "name": "desktop-detail-0917987",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "screenshot_sha256": "52b1187b491353ff9f2f0c059e353b459aae95c99ea6ec2af2ebfb9877206d12"
+    },
+    {
+      "name": "desktop-list-0909414",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "screenshot_sha256": "1d2da4546b61e7358bbc3575685852984c984bc252ca18f2aba68eac3eaa56be"
+    },
+    {
+      "name": "desktop-detail-0909414",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "screenshot_sha256": "ee439bf6f85d8f480d7acd8d772ead83e15ef34aa441c7049713482aee17c319"
+    },
+    {
+      "name": "desktop-list-0918387",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "screenshot_sha256": "36344fdeeab9d007e9899bb13e5756f874e542a36bfd91a3f753f869f46aba6e"
+    },
+    {
+      "name": "desktop-detail-0918387",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "screenshot_sha256": "81a056ff8110737525cba980bf6f3a4f9452b18a106ccca65daa8c0f560d4e40"
+    },
+    {
+      "name": "desktop-list-0918094",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "screenshot_sha256": "3dcad7e5cd2a56799306ee3919db2c1c90379d192edcf3a56978a65cc025d4b7"
+    },
+    {
+      "name": "desktop-detail-0918094",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "screenshot_sha256": "d2385e7006c2d0f48e21bdaf7463b4c01069c4a69a2e5ec84a615d40bbcf919e"
+    },
+    {
+      "name": "mobile-operator-detail",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "screenshot_sha256": "4b28f1a19c90e6331a169379b939d31368728f1360f5b3c5e30a96196a50e8ce"
+    }
+  ],
+  "requests": {
+    "count": 92,
+    "unexpected_mutations": []
+  },
+  "scope": "Actual retained records; native API/UI; no mocks/intercepts/fixtures or acquisition. Existing pre-canonical interface; no visual acceptance. Login writes only expected in owned corpus.",
+  "negative_attempt": "First detail assertion ran before React render; failed screenshot already showed correct title. Retained browser-attempt1 and repaired polling assertion; no app edit.",
+  "unauthenticated_health_status": 401,
+  "actual_listener_pids": {
+    "api": 26824,
+    "web": 47312
+  },
+  "runtime_source": "Stage3 own locked venv and backend/src; actual Vite entry Stage3/web/node_modules/vite/bin/vite.js; own isolated corpus only"
+}

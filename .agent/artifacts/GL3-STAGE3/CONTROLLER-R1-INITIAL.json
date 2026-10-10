@@ -1,0 +1,26 @@
+{
+  "recorded_at_utc": "2026-10-10T01:06:44.859766+00:00",
+  "rejected_head": "7e8ecd6241b5a9672fdccb5f218b9060a5048038",
+  "rejected_tree": "252900f421434e58d0b43e3981976ec9ae4d9ab2",
+  "raw_sol_FIX_sha256": "4433bfc256d39cb8fcc25ca7c0fee605b3c81bfac37b59bd284df812c860258f",
+  "finding": "S3-REVIEW-001: blank source operator consumed next structured field in both new parsers",
+  "initial_push_ci": {
+    "id": 38011312999,
+    "conclusion": "SUCCESS",
+    "log_sha256": "ff2cbc68ee905edcf88b27c21965bd9555b97a27e637cc73fa4a7eddf4887bd6",
+    "backend_passed": 1605,
+    "backend_skipped": 1,
+    "browser_passed": 83,
+    "browser_skipped": 1,
+    "acceptance": "REJECTED by independentreview despite green CI; not repaired-candidate proof"
+  },
+  "initial_pr_ci": {
+    "id": 38011316788,
+    "conclusion": "PENDING at this checkpoint; not final evidence"
+  },
+  "preserved_pre_R1_files": 33,
+  "pre_R1_manifest_sha256": "da87916d4dffcbbdca9c934a61b70290f5aa8d3edf121f1079440e07644c1d21",
+  "repair_scope": "Physical-line operator parsing + blank/whitespace/CRLF misleading regressions in original fourapp/testfiles; qualification unchanged",
+  "controller_direction": "CORRECT then VALIDATE new freeze/fullCI/freshSol; no merge or Stage4",
+  "status": "R1 in progress; later repaired gates indexed in PR49"
+}

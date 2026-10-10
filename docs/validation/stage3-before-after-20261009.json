@@ -1,0 +1,1263 @@
+{
+  "schema": "gl3-stage3-before-after-v1",
+  "measured_at_utc": "2026-10-09T19:46:08.944668-05:00",
+  "candidate_head": "76a60fefef7b29c6588e80945fe47701669bf890",
+  "candidate_tree_status": "working tree uncommitted on base HEAD",
+  "baseline": {
+    "head": "5edd894ebcc95255a4e31624167b34524632209a",
+    "source_modules": {
+      "api": "C:\\Users\\nrsan\\Nucleus\\02_Projects\\GridLens\\gl3-stage2-source-quality-20261009\\backend\\src\\gridlens\\api\\app.py",
+      "service": "C:\\Users\\nrsan\\Nucleus\\02_Projects\\GridLens\\gl3-stage2-source-quality-20261009\\backend\\src\\gridlens\\ingestion\\service.py"
+    },
+    "private_sha256": "095F95128F2EB77342BA5066EF0255BFDC0922B5CD2F74F4B905C69DDA7ABCCE",
+    "retained_db": "gl3_s3_corpus, read only",
+    "evaluation_as_of_utc": "2026-10-10T00:15:00Z",
+    "stage2_evaluator_head": "5edd894ebcc95255a4e31624167b34524632209a",
+    "stage3_base_head": "76a60fefef7b29c6588e80945fe47701669bf890"
+  },
+  "after": {
+    "private_projection_sha256": "89A82AD1E4EE671B6D72E84C3A6E9EC0BAA2B619F5522095CA23BAAE154BD61C",
+    "fixed36_sha256": "6c29be89fc80ebfe4779c8e4439cefe6c0457db0c1d58b74ffb59b9f2e633ccc",
+    "priority4_sha256": "64092165875edfa80ee04ec8bf5b610cba2dad0c0532ad6251bef195a0693824",
+    "all40_denominator": 40,
+    "visible_signals": 11,
+    "details_including_below_floor": 12,
+    "all_group_count": 1168,
+    "ordered_need_ids_equal": true,
+    "ordered_need_id_difference_count": 0,
+    "captured_at_utc": "2026-10-10T00:53:55.156955+00:00",
+    "private_projection_previous_sha256": "11E687D98EA50CF86C8B50294E7B65E6657BB58F624A7A54C9D7E38935C7E1B",
+    "private_projection_previous_bytes": "UNAVAILABLE; overwritten by bounded procedure verification; hash only was preserved"
+  },
+  "counts": {
+    "fixed36": 36,
+    "priority4": 4,
+    "before_visible": 11,
+    "after_visible": 11,
+    "group_title_changes": 5,
+    "unsupported_promotions": 0,
+    "qualified_miss_demonstrated": 0,
+    "qualification_correctness": "UNKNOWN"
+  },
+  "records": [
+    {
+      "set": "fixed36",
+      "sample_id": "S2-01",
+      "source_id": "austin-building-permits",
+      "stable_record_id": "2024-127408 BP",
+      "observation_id": "147c27f6-e21e-4ff3-a069-fa1bdf4a84f5",
+      "source_content_hash": "7d3ced0a1f4d4ddc79deaac7f57de47e26e2dbcf3f1bdbd674c6ba203e15632b",
+      "before_visible": false,
+      "after_visible": false,
+      "before_stored_tier": [],
+      "after_effective_tier": [],
+      "before_group_title": [],
+      "after_group_title": [],
+      "group_title_changed": false,
+      "detail_available_including_below_floor": false,
+      "current_operator_evidence": [],
+      "title_company_api": [],
+      "title_company_role_api": [],
+      "required_mw": [],
+      "start_window": [],
+      "duration": [],
+      "supply": []
+    },
+    {
+      "set": "fixed36",
+      "sample_id": "S2-02",
+      "source_id": "austin-building-permits",
+      "stable_record_id": "2026-126020 EP",
+      "observation_id": "71918d08-cfba-4769-b8b7-54dcdc56464c",
+      "source_content_hash": "fd3e4f6b805b95b8821a1fc873abeca48346010a489ae66b0892a1ab0c12a352",
+      "before_visible": false,
+      "after_visible": false,
+      "before_stored_tier": [],
+      "after_effective_tier": [],
+      "before_group_title": [],
+      "after_group_title": [],
+      "group_title_changed": false,
+      "detail_available_including_below_floor": false,
+      "current_operator_evidence": [],
+      "title_company_api": [],
+      "title_company_role_api": [],
+      "required_mw": [],
+      "start_window": [],
+      "duration": [],
+      "supply": []
+    },
+    {
+      "set": "fixed36",
+      "sample_id": "S2-03",
+      "source_id": "austin-building-permits",
+      "stable_record_id": "2026-083018 EP",
+      "observation_id": "2c000ab3-c43d-42c8-8e84-11d7c8c824f8",
+      "source_content_hash": "cdbb03630f1fe75775b25df0bbd29bccf718af410416ec4d58aaf353c2b5bf29",
+      "before_visible": false,
+      "after_visible": false,
+      "before_stored_tier": [],
+      "after_effective_tier": [],
+      "before_group_title": [],
+      "after_group_title": [],
+      "group_title_changed": false,
+      "detail_available_including_below_floor": false,
+      "current_operator_evidence": [],
+      "title_company_api": [],
+      "title_company_role_api": [],
+      "required_mw": [],
+      "start_window": [],
+      "duration": [],
+      "supply": []
+    },
+    {
+      "set": "fixed36",
+      "sample_id": "S2-04",
+      "source_id": "austin-building-permits",
+      "stable_record_id": "2026-037732 BP",
+      "observation_id": "3e7846cb-8eb8-4667-adbe-ded2e819df12",
+      "source_content_hash": "e87691e31dc93143147ee1c7d7b9b8c9c1543c0d308c183e0ac9e40ef0f543e0",
+      "before_visible": false,
+      "after_visible": false,
+      "before_stored_tier": [],
+      "after_effective_tier": [],
+      "before_group_title": [],
+      "after_group_title": [],
+      "group_title_changed": false,
+      "detail_available_including_below_floor": false,
+      "current_operator_evidence": [],
+      "title_company_api": [],
+      "title_company_role_api": [],
+      "required_mw": [],
+      "start_window": [],
+      "duration": [],
+      "supply": []
+    },
+    {
+      "set": "fixed36",
+      "sample_id": "S2-05",
+      "source_id": "austin-building-permits",
+      "stable_record_id": "2024-000493 BP",
+      "observation_id": "65b09677-d6fb-4614-98db-cfd98c84bdc0",
+      "source_content_hash": "a38464d9d02174d673dceaad97eb9559b9de9ffea97697738fbb69b337e82921",
+      "before_visible": false,
+      "after_visible": false,
+      "before_stored_tier": [],
+      "after_effective_tier": [],
+      "before_group_title": [],
+      "after_group_title": [],
+      "group_title_changed": false,
+      "detail_available_including_below_floor": false,
+      "current_operator_evidence": [],
+      "title_company_api": [],
+      "title_company_role_api": [],
+      "required_mw": [],
+      "start_window": [],
+      "duration": [],
+      "supply": []
+    },
+    {
+      "set": "fixed36",
+      "sample_id": "S2-06",
+      "source_id": "austin-building-permits",
+      "stable_record_id": "2026-026051 EP",
+      "observation_id": "3a94f663-6043-4d6e-94a8-7b17d0d4f82a",
+      "source_content_hash": "d7ff955ebf9311a3bf35fba940ecf074ac61fbba6b310adc1a1fd3db6730e47d",
+      "before_visible": true,
+      "after_visible": true,
+      "before_stored_tier": [
+        "Signal"
+      ],
+      "after_effective_tier": [
+        "Signal"
+      ],
+      "before_group_title": [
+        "CapStar Electric · contractor"
+      ],
+      "after_group_title": [
+        "CapStar Electric · contractor"
+      ],
+      "group_title_changed": false,
+      "detail_available_including_below_floor": true,
+      "current_operator_evidence": [],
+      "title_company_api": [
+        "None"
+      ],
+      "title_company_role_api": [
+        "None"
+      ],
+      "required_mw": [
+        "None"
+      ],
+      "start_window": [
+        "None"
+      ],
+      "duration": [
+        "None"
+      ],
+      "supply": [
+        "Unknown"
+      ]
+    },
+    {
+      "set": "fixed36",
+      "sample_id": "S2-07",
+      "source_id": "dallas-monthly-permits",
+      "stable_record_id": "COM-NEW-26-000210",
+      "observation_id": "c884272c-3e0e-4944-be75-2df02f69b1d6",
+      "source_content_hash": "c8921685d0328ad4eca2bf557079a42b4764b6cfc5831f0f4dd5cb534715db65",
+      "before_visible": false,
+      "after_visible": false,
+      "before_stored_tier": [],
+      "after_effective_tier": [],
+      "before_group_title": [],
+      "after_group_title": [],
+      "group_title_changed": false,
+      "detail_available_including_below_floor": false,
+      "current_operator_evidence": [],
+      "title_company_api": [],
+      "title_company_role_api": [],
+      "required_mw": [],
+      "start_window": [],
+      "duration": [],
+      "supply": []
+    },
+    {
+      "set": "fixed36",
+      "sample_id": "S2-08",
+      "source_id": "dallas-monthly-permits",
+      "stable_record_id": "COM-NEW-25-000306",
+      "observation_id": "de97e3f5-899b-4977-98bb-11bf84c1d80a",
+      "source_content_hash": "d74b73a5bcd0c6526aa5305ee6922443c0f3e5d8bbda5da8e0ae6b2fa2e1028b",
+      "before_visible": false,
+      "after_visible": false,
+      "before_stored_tier": [],
+      "after_effective_tier": [],
+      "before_group_title": [],
+      "after_group_title": [],
+      "group_title_changed": false,
+      "detail_available_including_below_floor": false,
+      "current_operator_evidence": [],
+      "title_company_api": [],
+      "title_company_role_api": [],
+      "required_mw": [],
+      "start_window": [],
+      "duration": [],
+      "supply": []
+    },
+    {
+      "set": "fixed36",
+      "sample_id": "S2-09",
+      "source_id": "dallas-monthly-permits",
+      "stable_record_id": "COM-NEW-25-000161",
+      "observation_id": "ae739bd4-b0ac-439b-83b0-5377ab615101",
+      "source_content_hash": "b9550b084937c756e5466bbf70ca7ff0e397e0648f8ce5c23d42302c264e2359",
+      "before_visible": false,
+      "after_visible": false,
+      "before_stored_tier": [],
+      "after_effective_tier": [],
+      "before_group_title": [],
+      "after_group_title": [],
+      "group_title_changed": false,
+      "detail_available_including_below_floor": false,
+      "current_operator_evidence": [],
+      "title_company_api": [],
+      "title_company_role_api": [],
+      "required_mw": [],
+      "start_window": [],
+      "duration": [],
+      "supply": []
+    },
+    {
+      "set": "fixed36",
+      "sample_id": "S2-10",
+      "source_id": "dallas-monthly-permits",
+      "stable_record_id": "COM-NEW-25-000261",
+      "observation_id": "0254e967-89cd-4a1f-b23e-d9af1234bda8",
+      "source_content_hash": "bea32a07df9e7b1a90d25ce09104c5e11a580d908c7423d26bb17be57d27bad3",
+      "before_visible": false,
+      "after_visible": false,
+      "before_stored_tier": [],
+      "after_effective_tier": [],
+      "before_group_title": [],
+      "after_group_title": [],
+      "group_title_changed": false,
+      "detail_available_including_below_floor": false,
+      "current_operator_evidence": [],
+      "title_company_api": [],
+      "title_company_role_api": [],
+      "required_mw": [],
+      "start_window": [],
+      "duration": [],
+      "supply": []
+    },
+    {
+      "set": "fixed36",
+      "sample_id": "S2-11",
+      "source_id": "dallas-monthly-permits",
+      "stable_record_id": "COM-NEW-26-000071",
+      "observation_id": "ba4ef3ff-67de-45fe-aac2-e168720e41e4",
+      "source_content_hash": "9d9e5dc54222471fe458114f3d1f77fd59677f61145787f8cfda41afb6b25109",
+      "before_visible": false,
+      "after_visible": false,
+      "before_stored_tier": [],
+      "after_effective_tier": [],
+      "before_group_title": [],
+      "after_group_title": [],
+      "group_title_changed": false,
+      "detail_available_including_below_floor": false,
+      "current_operator_evidence": [],
+      "title_company_api": [],
+      "title_company_role_api": [],
+      "required_mw": [],
+      "start_window": [],
+      "duration": [],
+      "supply": []
+    },
+    {
+      "set": "fixed36",
+      "sample_id": "S2-12",
+      "source_id": "dallas-monthly-permits",
+      "stable_record_id": "2210211015_174492520-001",
+      "observation_id": "ea33a046-445a-4923-aeda-39e0ace22c31",
+      "source_content_hash": "340dbba79283491c3877f0d641648e9cd5337bbe1eae529d1b1864392e308d4c",
+      "before_visible": true,
+      "after_visible": true,
+      "before_stored_tier": [
+        "Signal"
+      ],
+      "after_effective_tier": [
+        "Signal"
+      ],
+      "before_group_title": [
+        "TRICORE BUILDERS INC · LP Business Name · role unverified"
+      ],
+      "after_group_title": [
+        "TRICORE BUILDERS INC · LP Business Name · role unverified"
+      ],
+      "group_title_changed": false,
+      "detail_available_including_below_floor": true,
+      "current_operator_evidence": [],
+      "title_company_api": [
+        "None"
+      ],
+      "title_company_role_api": [
+        "None"
+      ],
+      "required_mw": [
+        "None"
+      ],
+      "start_window": [
+        "None"
+      ],
+      "duration": [
+        "None"
+      ],
+      "supply": [
+        "Unknown"
+      ]
+    },
+    {
+      "set": "fixed36",
+      "sample_id": "S2-13",
+      "source_id": "el-paso-new-commercial-permits",
+      "stable_record_id": "BCNN25-00158",
+      "observation_id": "a201243e-ba5b-4e5e-9d22-8e79ec7fb531",
+      "source_content_hash": "f7b03c5796b7806ffb3a7d297762c9b54281a608ffd9d24691e32a34c853dc50",
+      "before_visible": false,
+      "after_visible": false,
+      "before_stored_tier": [],
+      "after_effective_tier": [],
+      "before_group_title": [],
+      "after_group_title": [],
+      "group_title_changed": false,
+      "detail_available_including_below_floor": false,
+      "current_operator_evidence": [],
+      "title_company_api": [],
+      "title_company_role_api": [],
+      "required_mw": [],
+      "start_window": [],
+      "duration": [],
+      "supply": []
+    },
+    {
+      "set": "fixed36",
+      "sample_id": "S2-14",
+      "source_id": "el-paso-new-commercial-permits",
+      "stable_record_id": "BCNN26-00078",
+      "observation_id": "541b6e06-45d6-4a30-b576-530f5398b177",
+      "source_content_hash": "96393cf5f9a63d8861a38e1add523a1fc185c9b91096b8a9825b267c1378fdfa",
+      "before_visible": false,
+      "after_visible": false,
+      "before_stored_tier": [],
+      "after_effective_tier": [],
+      "before_group_title": [],
+      "after_group_title": [],
+      "group_title_changed": false,
+      "detail_available_including_below_floor": false,
+      "current_operator_evidence": [],
+      "title_company_api": [],
+      "title_company_role_api": [],
+      "required_mw": [],
+      "start_window": [],
+      "duration": [],
+      "supply": []
+    },
+    {
+      "set": "fixed36",
+      "sample_id": "S2-15",
+      "source_id": "el-paso-new-commercial-permits",
+      "stable_record_id": "BCNN26-00115",
+      "observation_id": "963013fc-fea3-4396-9b90-3268474ea481",
+      "source_content_hash": "d1ff7cac33270f155ed0a33f31d5262cbe60da0d95e3636f90f749f449eb3013",
+      "before_visible": false,
+      "after_visible": false,
+      "before_stored_tier": [],
+      "after_effective_tier": [],
+      "before_group_title": [],
+      "after_group_title": [],
+      "group_title_changed": false,
+      "detail_available_including_below_floor": false,
+      "current_operator_evidence": [],
+      "title_company_api": [],
+      "title_company_role_api": [],
+      "required_mw": [],
+      "start_window": [],
+      "duration": [],
+      "supply": []
+    },
+    {
+      "set": "fixed36",
+      "sample_id": "S2-16",
+      "source_id": "el-paso-new-commercial-permits",
+      "stable_record_id": "BCSN26-00094",
+      "observation_id": "2aa1d860-16e1-4c27-a996-8a9e5160b891",
+      "source_content_hash": "b288397bed535ac12a6548afc5c70b9a26957c5691014ff756cadbfe7cb7639a",
+      "before_visible": false,
+      "after_visible": false,
+      "before_stored_tier": [],
+      "after_effective_tier": [],
+      "before_group_title": [],
+      "after_group_title": [],
+      "group_title_changed": false,
+      "detail_available_including_below_floor": false,
+      "current_operator_evidence": [],
+      "title_company_api": [],
+      "title_company_role_api": [],
+      "required_mw": [],
+      "start_window": [],
+      "duration": [],
+      "supply": []
+    },
+    {
+      "set": "fixed36",
+      "sample_id": "S2-17",
+      "source_id": "el-paso-new-commercial-permits",
+      "stable_record_id": "BCNN25-00099",
+      "observation_id": "b5b8711d-76ee-4215-8a7c-1bd96ba924eb",
+      "source_content_hash": "3706135bea911dbc49d8c00e4d368dc969e4e1fe5f12409f9d4e3ce0b368605b",
+      "before_visible": false,
+      "after_visible": false,
+      "before_stored_tier": [],
+      "after_effective_tier": [],
+      "before_group_title": [],
+      "after_group_title": [],
+      "group_title_changed": false,
+      "detail_available_including_below_floor": false,
+      "current_operator_evidence": [],
+      "title_company_api": [],
+      "title_company_role_api": [],
+      "required_mw": [],
+      "start_window": [],
+      "duration": [],
+      "supply": []
+    },
+    {
+      "set": "fixed36",
+      "sample_id": "S2-18",
+      "source_id": "el-paso-new-commercial-permits",
+      "stable_record_id": "BCSN26-00080",
+      "observation_id": "3aa25b9e-04f1-4524-8845-48be0f2867e8",
+      "source_content_hash": "e8055e65e18e1956d75abb4a4459822c8b24fdf7e6161314204a6a51e87db5d5",
+      "before_visible": false,
+      "after_visible": false,
+      "before_stored_tier": [],
+      "after_effective_tier": [],
+      "before_group_title": [],
+      "after_group_title": [],
+      "group_title_changed": false,
+      "detail_available_including_below_floor": false,
+      "current_operator_evidence": [],
+      "title_company_api": [],
+      "title_company_role_api": [],
+      "required_mw": [],
+      "start_window": [],
+      "duration": [],
+      "supply": []
+    },
+    {
+      "set": "fixed36",
+      "sample_id": "S2-19",
+      "source_id": "houston-weekly-permits",
+      "stable_record_id": "26065390:Building Pmt:2026-09-11",
+      "observation_id": "37a31e11-c92d-40d7-adb0-3bcbdcde8c12",
+      "source_content_hash": "01126c139000e6561ebecdfd37d029dc9abad19241d39b78d42619c52fa7724a",
+      "before_visible": false,
+      "after_visible": false,
+      "before_stored_tier": [],
+      "after_effective_tier": [],
+      "before_group_title": [],
+      "after_group_title": [],
+      "group_title_changed": false,
+      "detail_available_including_below_floor": false,
+      "current_operator_evidence": [],
+      "title_company_api": [],
+      "title_company_role_api": [],
+      "required_mw": [],
+      "start_window": [],
+      "duration": [],
+      "supply": []
+    },
+    {
+      "set": "fixed36",
+      "sample_id": "S2-20",
+      "source_id": "houston-weekly-permits",
+      "stable_record_id": "26064937:Building Pmt:2026-08-28",
+      "observation_id": "d17f7526-4cd0-42c8-889f-0a0e6bb1227f",
+      "source_content_hash": "214a9ff7da40384838f5eb2800fa332bcbb172361b7a6001094e9e3fdeb53d4c",
+      "before_visible": false,
+      "after_visible": false,
+      "before_stored_tier": [],
+      "after_effective_tier": [],
+      "before_group_title": [],
+      "after_group_title": [],
+      "group_title_changed": false,
+      "detail_available_including_below_floor": false,
+      "current_operator_evidence": [],
+      "title_company_api": [],
+      "title_company_role_api": [],
+      "required_mw": [],
+      "start_window": [],
+      "duration": [],
+      "supply": []
+    },
+    {
+      "set": "fixed36",
+      "sample_id": "S2-21",
+      "source_id": "houston-weekly-permits",
+      "stable_record_id": "26048195:Building Pmt:2026-09-11",
+      "observation_id": "a7d9f90e-4666-4f6e-a5b1-97a2f89b48c6",
+      "source_content_hash": "d229faccb323ebc22ad81cf160b7bf025ede03f49ee134bcbdc01c90d518ef82",
+      "before_visible": false,
+      "after_visible": false,
+      "before_stored_tier": [],
+      "after_effective_tier": [],
+      "before_group_title": [],
+      "after_group_title": [],
+      "group_title_changed": false,
+      "detail_available_including_below_floor": false,
+      "current_operator_evidence": [],
+      "title_company_api": [],
+      "title_company_role_api": [],
+      "required_mw": [],
+      "start_window": [],
+      "duration": [],
+      "supply": []
+    },
+    {
+      "set": "fixed36",
+      "sample_id": "S2-22",
+      "source_id": "houston-weekly-permits",
+      "stable_record_id": "26066413:Building Pmt:2026-09-02",
+      "observation_id": "c0898141-9024-40d2-b74f-a368d4f9816d",
+      "source_content_hash": "b0d8a5595e44797a10dfa8041b8dec0dcf674adfbcb610b0cc924d379718e7a0",
+      "before_visible": false,
+      "after_visible": false,
+      "before_stored_tier": [],
+      "after_effective_tier": [],
+      "before_group_title": [],
+      "after_group_title": [],
+      "group_title_changed": false,
+      "detail_available_including_below_floor": false,
+      "current_operator_evidence": [],
+      "title_company_api": [],
+      "title_company_role_api": [],
+      "required_mw": [],
+      "start_window": [],
+      "duration": [],
+      "supply": []
+    },
+    {
+      "set": "fixed36",
+      "sample_id": "S2-23",
+      "source_id": "houston-weekly-permits",
+      "stable_record_id": "26079896:Building Pmt:2026-09-11",
+      "observation_id": "1b2a735f-5105-4276-a652-17fd0f2cb88d",
+      "source_content_hash": "1edf7c7e06faa388ccab6c8acb24b22eff7996511ad7bce87fc063cf5c6ddc01",
+      "before_visible": false,
+      "after_visible": false,
+      "before_stored_tier": [],
+      "after_effective_tier": [],
+      "before_group_title": [],
+      "after_group_title": [],
+      "group_title_changed": false,
+      "detail_available_including_below_floor": false,
+      "current_operator_evidence": [],
+      "title_company_api": [],
+      "title_company_role_api": [],
+      "required_mw": [],
+      "start_window": [],
+      "duration": [],
+      "supply": []
+    },
+    {
+      "set": "fixed36",
+      "sample_id": "S2-24",
+      "source_id": "houston-weekly-permits",
+      "stable_record_id": "26017927:Building Pmt:2026-09-01",
+      "observation_id": "dcb08768-3fc0-4c87-bc11-e1b0b5d10589",
+      "source_content_hash": "fe419d69ff1a967e197720cd4ef5d7cb6f25748cc2252f3945797c0134e2c11b",
+      "before_visible": false,
+      "after_visible": false,
+      "before_stored_tier": [
+        "Signal"
+      ],
+      "after_effective_tier": [
+        "Signal"
+      ],
+      "before_group_title": [],
+      "after_group_title": [],
+      "group_title_changed": false,
+      "detail_available_including_below_floor": true,
+      "current_operator_evidence": [],
+      "title_company_api": [
+        "*AT&T"
+      ],
+      "title_company_role_api": [
+        "permit-listed owner / occupant"
+      ],
+      "required_mw": [
+        "None"
+      ],
+      "start_window": [
+        "None"
+      ],
+      "duration": [
+        "None"
+      ],
+      "supply": [
+        "Unknown"
+      ]
+    },
+    {
+      "set": "fixed36",
+      "sample_id": "S2-25",
+      "source_id": "texas-rrc-drilling-permits",
+      "stable_record_id": "0917090",
+      "observation_id": "ce88fe37-f4f4-42fd-88e0-3721e5f7f3c4",
+      "source_content_hash": "538f6ed8a20c2fbafa7e3708c63c084ae83dcca473980ded87913cf2ae8887aa",
+      "before_visible": true,
+      "after_visible": true,
+      "before_stored_tier": [
+        "Signal"
+      ],
+      "after_effective_tier": [
+        "Signal"
+      ],
+      "before_group_title": [
+        "Texas W-1 permit 0917090"
+      ],
+      "after_group_title": [
+        "DE CENTRAL OPERATING, LLC · RRC permit-listed operator · buyer authority UNKNOWN"
+      ],
+      "group_title_changed": true,
+      "detail_available_including_below_floor": true,
+      "current_operator_evidence": [
+        {
+          "assessment_current": true,
+          "content_hash": "538f6ed8a20c2fbafa7e3708c63c084ae83dcca473980ded87913cf2ae8887aa",
+          "evidence_id": "92beda31-fb58-43b9-89fb-f82062f468cb",
+          "name": "DE CENTRAL OPERATING, LLC"
+        }
+      ],
+      "title_company_api": [
+        "None"
+      ],
+      "title_company_role_api": [
+        "None"
+      ],
+      "required_mw": [
+        "None"
+      ],
+      "start_window": [
+        "None"
+      ],
+      "duration": [
+        "None"
+      ],
+      "supply": [
+        "Unknown"
+      ]
+    },
+    {
+      "set": "fixed36",
+      "sample_id": "S2-26",
+      "source_id": "texas-rrc-drilling-permits",
+      "stable_record_id": "0917987",
+      "observation_id": "a75f1791-c46b-4cb9-9abb-f5669ac3af64",
+      "source_content_hash": "951642e0b4d66abae55af7f07915fa0e45cbae76df3f1317501b160b032ef180",
+      "before_visible": true,
+      "after_visible": true,
+      "before_stored_tier": [
+        "Signal"
+      ],
+      "after_effective_tier": [
+        "Signal"
+      ],
+      "before_group_title": [
+        "Texas W-1 permit 0917987"
+      ],
+      "after_group_title": [
+        "PIONEER NATURAL RES. USA, INC. · RRC permit-listed operator · buyer authority UNKNOWN"
+      ],
+      "group_title_changed": true,
+      "detail_available_including_below_floor": true,
+      "current_operator_evidence": [
+        {
+          "assessment_current": true,
+          "content_hash": "951642e0b4d66abae55af7f07915fa0e45cbae76df3f1317501b160b032ef180",
+          "evidence_id": "4f0ba6a5-5ee2-4b76-bf0b-077523ab2444",
+          "name": "PIONEER NATURAL RES. USA, INC."
+        }
+      ],
+      "title_company_api": [
+        "None"
+      ],
+      "title_company_role_api": [
+        "None"
+      ],
+      "required_mw": [
+        "None"
+      ],
+      "start_window": [
+        "None"
+      ],
+      "duration": [
+        "None"
+      ],
+      "supply": [
+        "Unknown"
+      ]
+    },
+    {
+      "set": "fixed36",
+      "sample_id": "S2-27",
+      "source_id": "texas-rrc-drilling-permits",
+      "stable_record_id": "0909414",
+      "observation_id": "d73d5d40-68f0-4169-bfe1-9a9dded5d6c2",
+      "source_content_hash": "9a9e9182bd862dc9586fab77a7aceb140b5f525580298e3049de2e1815a7e9a9",
+      "before_visible": true,
+      "after_visible": true,
+      "before_stored_tier": [
+        "Signal"
+      ],
+      "after_effective_tier": [
+        "Signal"
+      ],
+      "before_group_title": [
+        "Texas W-1 permit 0909414"
+      ],
+      "after_group_title": [
+        "DIAMONDBACK E&P LLC · RRC permit-listed operator · buyer authority UNKNOWN"
+      ],
+      "group_title_changed": true,
+      "detail_available_including_below_floor": true,
+      "current_operator_evidence": [
+        {
+          "assessment_current": true,
+          "content_hash": "9a9e9182bd862dc9586fab77a7aceb140b5f525580298e3049de2e1815a7e9a9",
+          "evidence_id": "97d2f84a-318a-4058-824f-ce0d0e2a2691",
+          "name": "DIAMONDBACK E&P LLC"
+        }
+      ],
+      "title_company_api": [
+        "None"
+      ],
+      "title_company_role_api": [
+        "None"
+      ],
+      "required_mw": [
+        "None"
+      ],
+      "start_window": [
+        "None"
+      ],
+      "duration": [
+        "None"
+      ],
+      "supply": [
+        "Unknown"
+      ]
+    },
+    {
+      "set": "fixed36",
+      "sample_id": "S2-28",
+      "source_id": "texas-rrc-drilling-permits",
+      "stable_record_id": "0918387",
+      "observation_id": "87ce5449-8b7a-4756-8151-9ab96574ee58",
+      "source_content_hash": "560663a6a63dc6eefdd591621f84c87b68f55f71238081b51d456d6fe8140cd6",
+      "before_visible": true,
+      "after_visible": true,
+      "before_stored_tier": [
+        "Signal"
+      ],
+      "after_effective_tier": [
+        "Signal"
+      ],
+      "before_group_title": [
+        "Texas W-1 permit 0918387"
+      ],
+      "after_group_title": [
+        "EXCEL OPERATING, LLC · RRC permit-listed operator · buyer authority UNKNOWN"
+      ],
+      "group_title_changed": true,
+      "detail_available_including_below_floor": true,
+      "current_operator_evidence": [
+        {
+          "assessment_current": true,
+          "content_hash": "560663a6a63dc6eefdd591621f84c87b68f55f71238081b51d456d6fe8140cd6",
+          "evidence_id": "6c37d7e6-411e-41c3-923c-01f939b74cf8",
+          "name": "EXCEL OPERATING, LLC"
+        }
+      ],
+      "title_company_api": [
+        "None"
+      ],
+      "title_company_role_api": [
+        "None"
+      ],
+      "required_mw": [
+        "None"
+      ],
+      "start_window": [
+        "None"
+      ],
+      "duration": [
+        "None"
+      ],
+      "supply": [
+        "Unknown"
+      ]
+    },
+    {
+      "set": "fixed36",
+      "sample_id": "S2-29",
+      "source_id": "texas-rrc-drilling-permits",
+      "stable_record_id": "0918094",
+      "observation_id": "e27ea78b-770d-483b-92a6-2b3759243256",
+      "source_content_hash": "1432622d9e9613d76f431b8d3ada85a55cfd540e262421d1a5159c2fce233448",
+      "before_visible": true,
+      "after_visible": true,
+      "before_stored_tier": [
+        "Signal"
+      ],
+      "after_effective_tier": [
+        "Signal"
+      ],
+      "before_group_title": [
+        "Texas W-1 permit 0918094"
+      ],
+      "after_group_title": [
+        "PIONEER NATURAL RES. USA, INC. · RRC permit-listed operator · buyer authority UNKNOWN"
+      ],
+      "group_title_changed": true,
+      "detail_available_including_below_floor": true,
+      "current_operator_evidence": [
+        {
+          "assessment_current": true,
+          "content_hash": "1432622d9e9613d76f431b8d3ada85a55cfd540e262421d1a5159c2fce233448",
+          "evidence_id": "086621e0-2202-4459-b98d-2925689cdbab",
+          "name": "PIONEER NATURAL RES. USA, INC."
+        }
+      ],
+      "title_company_api": [
+        "None"
+      ],
+      "title_company_role_api": [
+        "None"
+      ],
+      "required_mw": [
+        "None"
+      ],
+      "start_window": [
+        "None"
+      ],
+      "duration": [
+        "None"
+      ],
+      "supply": [
+        "Unknown"
+      ]
+    },
+    {
+      "set": "fixed36",
+      "sample_id": "S2-30",
+      "source_id": "texas-rrc-drilling-permits",
+      "stable_record_id": "0918692",
+      "observation_id": "5cfa0bad-88a7-4499-a6e4-24cb503eb455",
+      "source_content_hash": "0155990ab2eefd32b01f16410a5e5c65b0c7761f8ab00f21ad500748bedb8c17",
+      "before_visible": false,
+      "after_visible": false,
+      "before_stored_tier": [],
+      "after_effective_tier": [],
+      "before_group_title": [],
+      "after_group_title": [],
+      "group_title_changed": false,
+      "detail_available_including_below_floor": false,
+      "current_operator_evidence": [],
+      "title_company_api": [],
+      "title_company_role_api": [],
+      "required_mw": [],
+      "start_window": [],
+      "duration": [],
+      "supply": []
+    },
+    {
+      "set": "fixed36",
+      "sample_id": "S2-31",
+      "source_id": "texas-rrc-flare-vent-exceptions",
+      "stable_record_id": "36173",
+      "observation_id": "9119f1f8-4a15-4035-be98-6c10726de513",
+      "source_content_hash": "75c3afa489b4061f70a4265035ffdf8d80e4ae5cc9098d936e348feb723ee995",
+      "before_visible": false,
+      "after_visible": false,
+      "before_stored_tier": [],
+      "after_effective_tier": [],
+      "before_group_title": [],
+      "after_group_title": [],
+      "group_title_changed": false,
+      "detail_available_including_below_floor": false,
+      "current_operator_evidence": [],
+      "title_company_api": [],
+      "title_company_role_api": [],
+      "required_mw": [],
+      "start_window": [],
+      "duration": [],
+      "supply": []
+    },
+    {
+      "set": "fixed36",
+      "sample_id": "S2-32",
+      "source_id": "texas-rrc-flare-vent-exceptions",
+      "stable_record_id": "35906",
+      "observation_id": "87c4ba80-e262-4e87-9b40-25d3108e98a5",
+      "source_content_hash": "a094eae1267f1307efc7a96b16ba4ef298becf2a8c941475c0e61511466a3fc7",
+      "before_visible": false,
+      "after_visible": false,
+      "before_stored_tier": [],
+      "after_effective_tier": [],
+      "before_group_title": [],
+      "after_group_title": [],
+      "group_title_changed": false,
+      "detail_available_including_below_floor": false,
+      "current_operator_evidence": [],
+      "title_company_api": [],
+      "title_company_role_api": [],
+      "required_mw": [],
+      "start_window": [],
+      "duration": [],
+      "supply": []
+    },
+    {
+      "set": "fixed36",
+      "sample_id": "S2-33",
+      "source_id": "texas-rrc-flare-vent-exceptions",
+      "stable_record_id": "35918",
+      "observation_id": "b9aa0aee-69a7-4c2f-9471-d35f277c1c65",
+      "source_content_hash": "1a34ccc2ad9ea36b4734884993c23f734a4827b200d93d85f10149114e48d6fe",
+      "before_visible": false,
+      "after_visible": false,
+      "before_stored_tier": [],
+      "after_effective_tier": [],
+      "before_group_title": [],
+      "after_group_title": [],
+      "group_title_changed": false,
+      "detail_available_including_below_floor": false,
+      "current_operator_evidence": [],
+      "title_company_api": [],
+      "title_company_role_api": [],
+      "required_mw": [],
+      "start_window": [],
+      "duration": [],
+      "supply": []
+    },
+    {
+      "set": "fixed36",
+      "sample_id": "S2-34",
+      "source_id": "texas-rrc-flare-vent-exceptions",
+      "stable_record_id": "36122",
+      "observation_id": "8ea0a859-3424-4551-b3c0-e78d04909051",
+      "source_content_hash": "8c78210cf0af0677a07cea088f5b88b189a8fb3bcef15e8281c0af11cb9b40e5",
+      "before_visible": false,
+      "after_visible": false,
+      "before_stored_tier": [],
+      "after_effective_tier": [],
+      "before_group_title": [],
+      "after_group_title": [],
+      "group_title_changed": false,
+      "detail_available_including_below_floor": false,
+      "current_operator_evidence": [],
+      "title_company_api": [],
+      "title_company_role_api": [],
+      "required_mw": [],
+      "start_window": [],
+      "duration": [],
+      "supply": []
+    },
+    {
+      "set": "fixed36",
+      "sample_id": "S2-35",
+      "source_id": "texas-rrc-flare-vent-exceptions",
+      "stable_record_id": "35915",
+      "observation_id": "ff11ff33-d0e6-4be1-8d8f-81100c4334c3",
+      "source_content_hash": "76c519e5837c3f938c3bd2ae305638f1817dcfae205c5631f41c6623e3d9d5b1",
+      "before_visible": false,
+      "after_visible": false,
+      "before_stored_tier": [],
+      "after_effective_tier": [],
+      "before_group_title": [],
+      "after_group_title": [],
+      "group_title_changed": false,
+      "detail_available_including_below_floor": false,
+      "current_operator_evidence": [],
+      "title_company_api": [],
+      "title_company_role_api": [],
+      "required_mw": [],
+      "start_window": [],
+      "duration": [],
+      "supply": []
+    },
+    {
+      "set": "fixed36",
+      "sample_id": "S2-36",
+      "source_id": "texas-rrc-flare-vent-exceptions",
+      "stable_record_id": "35944",
+      "observation_id": "745bb2ea-f898-4da8-816d-40c4bd6f76e8",
+      "source_content_hash": "d5070955f2ed27cdf8bb6282c83c0958c70add24c69c28c24dc4a1b60532b147",
+      "before_visible": false,
+      "after_visible": false,
+      "before_stored_tier": [],
+      "after_effective_tier": [],
+      "before_group_title": [],
+      "after_group_title": [],
+      "group_title_changed": false,
+      "detail_available_including_below_floor": false,
+      "current_operator_evidence": [],
+      "title_company_api": [],
+      "title_company_role_api": [],
+      "required_mw": [],
+      "start_window": [],
+      "duration": [],
+      "supply": []
+    },
+    {
+      "set": "priority4",
+      "sample_id": null,
+      "source_id": "austin-building-permits",
+      "stable_record_id": "2026-036762 EP",
+      "observation_id": "b64ccdd3-2e6c-492d-9fdf-aff4e19a406b",
+      "source_content_hash": "9729e11f4152c0868e4cb96a7038bbf90b417ec71b5bbebf9a78fd64c2aad7fb",
+      "before_visible": true,
+      "after_visible": true,
+      "before_stored_tier": [
+        "Signal"
+      ],
+      "after_effective_tier": [
+        "Signal"
+      ],
+      "before_group_title": [
+        "Exceed Electrical Contracting · contractor"
+      ],
+      "after_group_title": [
+        "Exceed Electrical Contracting · contractor"
+      ],
+      "group_title_changed": false,
+      "detail_available_including_below_floor": true,
+      "current_operator_evidence": [],
+      "title_company_api": [
+        "None"
+      ],
+      "title_company_role_api": [
+        "None"
+      ],
+      "required_mw": [
+        "None"
+      ],
+      "start_window": [
+        "None"
+      ],
+      "duration": [
+        "None"
+      ],
+      "supply": [
+        "Unknown"
+      ]
+    },
+    {
+      "set": "priority4",
+      "sample_id": null,
+      "source_id": "austin-building-permits",
+      "stable_record_id": "2026-036762 BP",
+      "observation_id": "4230a67e-bfd5-4a20-8a7a-f454b79bcc9b",
+      "source_content_hash": "76daebfd38627cf5445f8ef06a8268eee992004a9ce8964c46e4a31397437847",
+      "before_visible": true,
+      "after_visible": true,
+      "before_stored_tier": [
+        "Signal"
+      ],
+      "after_effective_tier": [
+        "Signal"
+      ],
+      "before_group_title": [
+        "Novo Construction **Main** · applicant"
+      ],
+      "after_group_title": [
+        "Novo Construction **Main** · applicant"
+      ],
+      "group_title_changed": false,
+      "detail_available_including_below_floor": true,
+      "current_operator_evidence": [],
+      "title_company_api": [
+        "None"
+      ],
+      "title_company_role_api": [
+        "None"
+      ],
+      "required_mw": [
+        "None"
+      ],
+      "start_window": [
+        "None"
+      ],
+      "duration": [
+        "None"
+      ],
+      "supply": [
+        "Unknown"
+      ]
+    },
+    {
+      "set": "priority4",
+      "sample_id": null,
+      "source_id": "austin-building-permits",
+      "stable_record_id": "2025-155325 EP",
+      "observation_id": "64c079b2-fedf-43b8-afbb-5d48a3ef2db5",
+      "source_content_hash": "fc2617cf37eb1d7927b4023cd91a54e5ae3c4f5abfb4c4207e588b68f7039d0d",
+      "before_visible": true,
+      "after_visible": true,
+      "before_stored_tier": [
+        "Signal"
+      ],
+      "after_effective_tier": [
+        "Signal"
+      ],
+      "before_group_title": [
+        "Prism Electric Inc · contractor"
+      ],
+      "after_group_title": [
+        "Prism Electric Inc · contractor"
+      ],
+      "group_title_changed": false,
+      "detail_available_including_below_floor": true,
+      "current_operator_evidence": [],
+      "title_company_api": [
+        "None"
+      ],
+      "title_company_role_api": [
+        "None"
+      ],
+      "required_mw": [
+        "None"
+      ],
+      "start_window": [
+        "None"
+      ],
+      "duration": [
+        "None"
+      ],
+      "supply": [
+        "Unknown"
+      ]
+    },
+    {
+      "set": "priority4",
+      "sample_id": null,
+      "source_id": "austin-building-permits",
+      "stable_record_id": "2026-127192 EP",
+      "observation_id": "36bf7027-2329-4b0e-8cfa-b1b6d3a97831",
+      "source_content_hash": "07c5abab019c050160fcf02c993624973e81ea2061efc8bac3cb5655149c6649",
+      "before_visible": true,
+      "after_visible": true,
+      "before_stored_tier": [
+        "Signal"
+      ],
+      "after_effective_tier": [
+        "Signal"
+      ],
+      "before_group_title": [
+        "JLC Electrical Contractor corp · contractor"
+      ],
+      "after_group_title": [
+        "JLC Electrical Contractor corp · contractor"
+      ],
+      "group_title_changed": false,
+      "detail_available_including_below_floor": true,
+      "current_operator_evidence": [],
+      "title_company_api": [
+        "None"
+      ],
+      "title_company_role_api": [
+        "None"
+      ],
+      "required_mw": [
+        "None"
+      ],
+      "start_window": [
+        "None"
+      ],
+      "duration": [
+        "None"
+      ],
+      "supply": [
+        "Unknown"
+      ]
+    }
+  ],
+  "interpretation": "Five current visible Texas RRC title changes. All tiers, size/timing/duration/supply unknowns, buyer authority and API title_company fields remain unchanged/unknown. This read-side proof does not establish real browser acceptance; controller-owned authenticated UI proof remains open.",
+  "controller_evaluation_sha256": "0B759E2FDEF7DDEFB015BCCB7771575112709238662953FCAF0810D09C98F646",
+  "controller_verified_corpus_parity": {
+    "table_count": 39,
+    "public_detail_field_differences": 0,
+    "ordered_need_ids_equal": true,
+    "ordered_groups": 1168,
+    "all_column_row_multisets_equal": true
+  },
+  "controller_browser": {
+    "sha256": "258ABE547B776D33837118BB870FADCF231E266A9C66CD0B783D243BFDE1923E",
+    "receipt": ".agent/artifacts/GL3-STAGE3/CONTROLLER-BROWSER.json",
+    "views": 11,
+    "status": "PASS",
+    "records": 5,
+    "unexpected_mutations": 0
+  },
+  "controller_history": {
+    "receipt": ".agent/artifacts/GL3-STAGE3/CONTROLLER-HISTORY.json",
+    "corpus_evidence_facts_history_changes": 0,
+    "auth_table_changes": [
+      "auth_sessions",
+      "auth_login_buckets"
+    ],
+    "sha256": "929B53DF57000EC5595E2A45081D91182A44C8515F09828CD610BA9B772C29A3"
+  },
+  "controller_pinned_raw_before_sha256": "095F95128F2EB77342BA5066EF0255BFDC0922B5CD2F74F4B905C69DDA7ABCCE",
+  "controller_pinned_raw_after_sha256": "4318F725FB54967DD9D34D945A3408D806FC01605F0906FAB614E4615CBBDD5C"
+}

@@ -1,0 +1,71 @@
+{
+  "observed_at_utc": "2026-10-10T00:52:14.477641+00:00",
+  "base": "76a60fefef7b29c6588e80945fe47701669bf890",
+  "binding": "uncommitted working candidate; freeze afterward includes explanatory receipts; app/test file byte hashes in BuilderCOMPLETION; hosted fullCI and independent review remain required",
+  "controller_steps": [
+    {
+      "command": "uv sync --locked --extra dev (backend)",
+      "exit": 0
+    },
+    {
+      "command": "uv run ruff check src tests (backend locked)",
+      "exit": 0
+    },
+    {
+      "command": "uv run mypy src (backend locked)",
+      "exit": 0,
+      "result": "no issues87source files;1annotation-unchecked note"
+    },
+    {
+      "command": "uv run pytest tests/unit/test_opportunity_browse.py -q",
+      "exit": 0,
+      "passed": 27,
+      "duration_seconds": 0.76
+    },
+    {
+      "command": "npm run typecheck --prefix web",
+      "exit": 0
+    },
+    {
+      "command": "npm run build --prefix web",
+      "exit": 0
+    },
+    {
+      "command": "npx playwright test tests/project_cards.spec.ts --project=regression --workers=2",
+      "exit": 0,
+      "passed": 34,
+      "duration_seconds": 17.1,
+      "log_sha256": "0f4d969b2036c0a654cdf836c177620885acd97c4ec543413e0dd3d255bb369b"
+    },
+    {
+      "command": "evaluate.py old and new source; compare.py same fixed40/time READ ONLY",
+      "exit": 0
+    },
+    {
+      "command": "node browser.mjs actual retained nativeUI; corrected render-poll assertion",
+      "exit": 0,
+      "views": 11,
+      "records": 5
+    },
+    {
+      "command": "receipt.py39table history check; preserve.py other worktrees/originaldump",
+      "exit": 0,
+      "differences": 0
+    }
+  ],
+  "negative_attempts": [
+    "Initial runtime-only venv let uv resolve unpinned globalRuff; import-order failure rejected; mypy absent. Installed exactlockeddev and fullchecks passed",
+    "First baselineRuff path wrongly resolved sibling; corrected absolute-relative path thenPASS",
+    "Controller evaluator missing required privateauth corrected withoutDBwrites",
+    "Unhydrated controller title-evaluation rejected and kept; correctedroute enrichment then5diffs",
+    "Controller history serialization mismatch rejected; same canonical algorithm bothDBs PASS",
+    "Actualbrowser immediateh1check failed beforeReactrender; screenshotalreadycorrect; polling assertion thenPASS"
+  ],
+  "full_ci": "PENDING frozen head",
+  "independent_review": "PENDING frozen head",
+  "lane": "oneLuna builder, controller verification, ordinarySol review next",
+  "model_config_identity": "Builder namedLuna prescribedgpt-6-luna low; host config load and measured tokens UNKNOWN",
+  "planning_build_audit_durations": "UNKNOWN",
+  "elapsed_to_accepted": "UNKNOWN pending independent acceptance",
+  "source_fetches_and_provider_calls": 0
+}

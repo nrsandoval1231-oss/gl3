@@ -1,0 +1,85 @@
+{
+  "observed_at_utc": "2026-10-10T01:11:20.523387+00:00",
+  "working_candidate": "R1 after rejected7e8ecd; freeze follows all explanatory updates",
+  "controller_checks": [
+    {
+      "command": "uv run ruff check src tests",
+      "exit": 0
+    },
+    {
+      "command": "uv run mypy src",
+      "exit": 0,
+      "source_files": 87
+    },
+    {
+      "command": "uv run pytest tests/unit/test_opportunity_browse.py -q",
+      "exit": 0,
+      "passed": 30,
+      "duration_seconds": 0.87
+    },
+    {
+      "command": "npm run typecheck --prefix web",
+      "exit": 0
+    },
+    {
+      "command": "npm run build --prefix web",
+      "exit": 0
+    },
+    {
+      "command": "npx playwright test tests/project_cards.spec.ts --project=regression --workers=2",
+      "exit": 0,
+      "passed": 35,
+      "duration_seconds": 16.8,
+      "log_sha256": "10e56439ff44abdebf60a487526ca35f86d2ca715e25922bce26a5e2ff6de218"
+    },
+    {
+      "command": "evaluate.py r1-final-after.private.json; r1-compare.py",
+      "exit": 0,
+      "records": 40,
+      "label_changes": 5,
+      "unexpected_public_field_changes": 0
+    },
+    {
+      "command": "node browser.mjs correctedsource +r1-receipt.py",
+      "exit": 0,
+      "actual_views": 11,
+      "authentic_records": 5,
+      "unexpected_mutations": 0
+    },
+    {
+      "command": "preserve.py",
+      "exit": 0,
+      "other_worktree_differences": 0
+    }
+  ],
+  "unchanged_app_test_bytes_from_builder": [
+    {
+      "path": "backend/src/gridlens/intelligence/opportunity_browse.py",
+      "sha256": "4992FF159DE6A01D093C01B409DC99531DE15FDBB9F4346B68F71E0E5F0D6550"
+    },
+    {
+      "path": "backend/tests/unit/test_opportunity_browse.py",
+      "sha256": "4402EB86DECE9A9252267E8925378F4E60E61C4EDEC32D23CD360EFF134DE835"
+    },
+    {
+      "path": "web/src/features/opportunities/projectCards.ts",
+      "sha256": "2932387D30D4C0EB2B95DA359386AA41A83DD39FB35389AC1AF616FDDE238D61"
+    },
+    {
+      "path": "web/tests/project_cards.spec.ts",
+      "sha256": "D42A925D2CE089B886153AFFD6A82EA406F2C83CE431CCAD2A0814DCC571C85B"
+    }
+  ],
+  "full_ci": "REQUIRED NEW FROZEN HEAD; earlier7e8ecd push/prSUCCESS1605/83 each do not coverR1",
+  "independent_review": "REQUIRED FRESH REVIEW; initialSolFIX retained",
+  "repair_count": 1,
+  "risk": "Evidence attribution correction; no qualification/identity/source/schema/provider changes",
+  "qualification_recall": "UNKNOWN",
+  "tokens_and_unmeasured_phase_durations": "UNKNOWN",
+  "negative_attempts": [
+    "Builder initial settings absent beforecollection; privatehelper then30PASS",
+    "Builder first mypy variablecollision renamed thenPASS",
+    "Controller PowerShell script LASTEXITCODE check skipped immediate node invocation; startupreceipt neverusedasbrowserproof; separate actualnode runPASS"
+  ],
+  "next_direction": "VALIDATE new frozen candidate/fullCI/Sol; merge needs Nick; noStage4"
+}

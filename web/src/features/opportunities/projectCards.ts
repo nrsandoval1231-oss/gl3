@@ -30,6 +30,22 @@ function source(item: Opportunity) {
   return item.evidence[0]?.source_id ?? ''
 }
 
+const rrcOperatorPlaceholders = new Set(['n/a', 'na', 'none', 'null', 'unknown', 'unavailable'])
+
+function currentRrcOperator(item: Opportunity) {
+  const operators = item.evidence.flatMap((evidence) => {
+    if (!evidence.assessment_current || evidence.source_id !== 'texas-rrc-drilling-permits') return []
+    return (evidence.abstract ?? '').split(/\r\n|[\n\r\u2028\u2029]/)
+      .flatMap((line) => {
+        const match = /^\s*operator\s*:\s*(.*?)\s*$/i.exec(line)
+        return match ? [match[1].trim()] : []
+      })
+      .filter((name) => name && !rrcOperatorPlaceholders.has(normalized(name)))
+  })
+  const unique = new Map(operators.map((name) => [normalized(name), name]))
+  return unique.size === 1 ? [...unique.values()][0] : null
+}
+
 function normalized(value: string) {
   return value.normalize('NFKC').replace(/\s+/g, ' ').trim().toLocaleLowerCase('en-US')
 }
@@ -157,6 +173,8 @@ function supportedCompany(item: Opportunity) {
   if (item.title_company?.trim() && item.title_company_role?.trim()) {
     return { name: item.title_company.trim(), role: item.title_company_role.trim() }
   }
+  const rrcOperator = currentRrcOperator(item)
+  if (rrcOperator) return { name: rrcOperator, role: 'RRC permit-listed operator · buyer authority UNKNOWN' }
   const candidates = item.evidence.flatMap((evidence) => {
     if (!evidence.assessment_current) return []
     const abstract = evidence.abstract ?? ''
