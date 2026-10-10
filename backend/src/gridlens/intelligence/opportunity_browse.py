@@ -29,6 +29,8 @@ _EMPTY_DESCRIPTION = re.compile(
     r"addition\s*/\s*alteration|[-–—])$",
     re.I,
 )
+_RRC_SOURCE_ID = "texas-rrc-drilling-permits"
+_RRC_OPERATOR_PLACEHOLDERS = {"n/a", "na", "none", "null", "unknown", "unavailable"}
 
 
 def normalized(value: Any) -> str:
@@ -143,6 +145,11 @@ def add_browse_evidence(item: dict[str, Any], evidence: dict[str, Any]) -> None:
             key = match.group(1).casefold()
             candidates = item.setdefault("_browse_company_candidates", {}).setdefault(key, [])
             candidates.append(match.group(2).strip())
+        if evidence.get("source_id") == _RRC_SOURCE_ID:
+            for match in re.finditer(r"^\s*operator\s*:\s*(.+?)\s*$", abstract, re.I | re.M):
+                value = match.group(1).strip()
+                if value and normalized(value) not in _RRC_OPERATOR_PLACEHOLDERS:
+                    item.setdefault("_browse_rrc_operator_candidates", []).append(value)
     candidates = item.setdefault("_browse_action_candidates", [])
     if candidates and any(_permit_work_title(value) for value in candidates if value):
         return
@@ -261,6 +268,13 @@ def project_title(item: dict[str, Any]) -> str:
     title_role = str(item.get("title_company_role") or "").strip()
     if title_company and title_role:
         return f"{title_company} · {title_role}"
+    rrc_operators = item.get("_browse_rrc_operator_candidates", [])
+    unique_rrc_operators = {
+        normalized(value): value for value in rrc_operators if normalized(value)
+    }
+    if len(unique_rrc_operators) == 1:
+        operator = next(iter(unique_rrc_operators.values()))
+        return f"{operator} · RRC permit-listed operator · buyer authority UNKNOWN"
     for key in (
         "owner_company_name",
         "operator_company_name",
