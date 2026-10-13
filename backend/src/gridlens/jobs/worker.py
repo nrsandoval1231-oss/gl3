@@ -1,5 +1,6 @@
 import hashlib
 import json
+import logging
 import os
 import socket
 import time
@@ -26,9 +27,16 @@ from gridlens.persistence.models import (
 )
 from gridlens.settings import settings
 
+logger = logging.getLogger(__name__)
 WORKER_ID = f"{socket.gethostname()}-{os.getpid()}"
-SCHEDULE_ZONE = "America/Chicago"
-DAILY_ANCHOR = day_time(3, 0)
+
+
+def _schedule_zone() -> str:
+    return settings.schedule_timezone
+
+
+def _daily_anchor() -> day_time:
+    return day_time.fromisoformat(settings.schedule_anchor_time)
 _SOURCE_CONFIGURATION_FIELDS = (
     "publisher",
     "endpoint",
@@ -74,9 +82,9 @@ def _source_configuration(item: dict) -> dict:
     configuration["schedule_mode"] = item.get(
         "schedule_mode", "utc_hourly" if configuration["cadence_hours"] < 24 else "local_daily"
     )
-    configuration["timezone"] = item.get("timezone", SCHEDULE_ZONE)
+    configuration["timezone"] = item.get("timezone", _schedule_zone())
     configuration["schedule_anchor_time"] = item.get(
-        "schedule_anchor_time", DAILY_ANCHOR.isoformat()
+        "schedule_anchor_time", _daily_anchor().isoformat()
     )
     return configuration
 
@@ -169,13 +177,13 @@ def _append_epoch(
     registry_enabled = bool(item["enabled"])
     config = _source_configuration(item)
     mode = item.get("schedule_mode", "utc_hourly" if source.cadence_hours < 24 else "local_daily")
-    timezone = item.get("timezone", SCHEDULE_ZONE)
+    timezone = item.get("timezone", _schedule_zone())
     if mode == "utc_hourly":
         anchor = {"utc": now.isoformat()}
     else:
         anchor = {
             "local_date": now.astimezone(ZoneInfo(timezone)).date().isoformat(),
-            "local_time": item.get("schedule_anchor_time", DAILY_ANCHOR.isoformat()),
+            "local_time": item.get("schedule_anchor_time", _daily_anchor().isoformat()),
         }
     signature = (
         registry_enabled,
@@ -313,7 +321,7 @@ def _reconcile_due(session, now: datetime) -> int:
                     source_id=epoch.source_id,
                     epoch_id=epoch.id,
                     scheduled_for=scheduled_for,
-                    local_day=scheduled_for.astimezone(ZoneInfo(SCHEDULE_ZONE)).date(),
+                    local_day=scheduled_for.astimezone(ZoneInfo(epoch.timezone)).date(),
                     configuration=epoch.configuration,
                 )
             )
@@ -731,6 +739,7 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
 
 
 def main() -> None:
+    logging.basicConfig(level=logging.INFO)
     next_heartbeat = 0.0
     definitions = {row["id"]: row for row in load_registry()}
     while True:
@@ -748,12 +757,12 @@ def main() -> None:
                     else:
                         heartbeat.last_seen_at = datetime.now(UTC)
             except Exception:
-                # API readiness reports database unavailability separately.
-                pass
+                logger.exception("worker heartbeat update failed")
             next_heartbeat = time.monotonic() + 10
         try:
             did_work = run_one(definitions)
         except Exception:
+            logger.exception("worker job execution failed")
             did_work = False
         if not did_work:
             time.sleep(2)

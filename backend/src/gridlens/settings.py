@@ -1,7 +1,9 @@
+from datetime import time
 from decimal import Decimal
 from pathlib import Path
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import Field, SecretStr
+from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -41,9 +43,53 @@ class Settings(BaseSettings):
     autonomous_research_max_cost_usd: Decimal = Field(default=Decimal("0"), ge=0, le=2)
     firecrawl_search_cost_usd: Decimal | None = Field(default=None, gt=0, le=2)
     firecrawl_scrape_cost_usd: Decimal | None = Field(default=None, gt=0, le=2)
+    schedule_timezone: str = "America/Chicago"
+    schedule_anchor_time: str = "07:00:00"
+
+    @field_validator("schedule_timezone")
+    @classmethod
+    def _valid_schedule_timezone(cls, value: str) -> str:
+        try:
+            ZoneInfo(value)
+        except (ZoneInfoNotFoundError, ValueError) as exc:
+            raise ValueError("schedule timezone must be a valid IANA zone") from exc
+        return value
+
+    @field_validator("schedule_anchor_time")
+    @classmethod
+    def _valid_schedule_anchor(cls, value: str) -> str:
+        try:
+            parsed = time.fromisoformat(value)
+        except ValueError as exc:
+            raise ValueError("schedule anchor must be a local clock time") from exc
+        if parsed.tzinfo is not None:
+            raise ValueError("schedule anchor must not carry a timezone")
+        return parsed.isoformat()
+
     model_config = SettingsConfigDict(
         env_file=Path(__file__).resolve().parents[3] / ".env", extra="ignore"
     )
 
 
-settings = Settings()  # type: ignore[call-arg]  # Environment fields are supplied by local or deployment configuration.
+_settings: Settings | None = None
+
+
+def get_settings() -> Settings:
+    """Build settings on first use so importing this module does not read the environment."""
+    global _settings
+    if _settings is None:
+        _settings = Settings()  # type: ignore[call-arg]  # Required fields come from the environment.
+    return _settings
+
+
+class _SettingsProxy:
+    """Forward attribute access to get_settings() so existing imports stay lazy."""
+
+    def __getattr__(self, name: str):
+        return getattr(get_settings(), name)
+
+    def __setattr__(self, name: str, value: object) -> None:
+        setattr(get_settings(), name, value)
+
+
+settings = _SettingsProxy()

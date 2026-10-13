@@ -73,7 +73,7 @@ def definition(*, enabled=True, endpoint="https://example.invalid/current"):
         "cadence_hours": 24,
         "schedule_mode": "local_daily",
         "timezone": "America/Chicago",
-        "schedule_anchor_time": "03:00:00",
+        "schedule_anchor_time": "07:00:00",
         "enabled": enabled,
     }
 

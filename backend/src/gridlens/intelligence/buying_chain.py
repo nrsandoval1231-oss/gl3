@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
-import json
 import re
 import time
 from collections import Counter, defaultdict
@@ -25,6 +23,7 @@ from gridlens.domain.buying_chain import (
     POLICY_VERSION,
     ROLE_MAX_AGE_DAYS,
 )
+from gridlens.domain.pursuit_research import fingerprint as _hash
 from gridlens.domain.signal_admission import admitted_from_source
 from gridlens.ingestion.adapters.buying_chain_public import (
     CAPTURE_VERSION,
@@ -84,10 +83,6 @@ class BuyingChainViewPreload:
     permit_details: dict[UUID, list[BuyingChainEvidence]] = field(
         default_factory=lambda: defaultdict(list)
     )
-
-
-def _hash(value: object) -> str:
-    return hashlib.sha256(json.dumps(value, sort_keys=True, default=str).encode()).hexdigest()
 
 
 def _accepted_version(interpretation: Interpretation | None, evidence: Evidence) -> bool:

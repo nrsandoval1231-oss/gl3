@@ -4,7 +4,7 @@ GridLens is a clean-sheet, evidence-governed system for discovering nationwide p
 
 ## Current status
 
-The authoritative checkpoint is [.agent/CURRENT_STATE.md](.agent/CURRENT_STATE.md), with detailed evidence in [the Stage 1 baseline report](docs/validation/stage1-baseline-20261009.md). Stage 1 reconciles repository and documentation state only. It does not establish local operation, source readiness, deployment, or commercial acceptance.
+The status page is [delivery milestones](docs/delivery/milestones.md). Current main is `3f55750`, the merge of pull request #49. [.agent/CURRENT_STATE.md](.agent/CURRENT_STATE.md) is a short checkpoint that points there. Stage reports under [validation](docs/validation/) are dated evidence. They do not establish deployment or commercial acceptance.
 
 ## Work areas
 
@@ -16,9 +16,10 @@ The authoritative checkpoint is [.agent/CURRENT_STATE.md](.agent/CURRENT_STATE.m
 - [Validation evidence](docs/validation/)
 
 Historical status narratives and reports are retained under [.agent/archive/STAGE1-20261009/](.agent/archive/STAGE1-20261009/) and existing dated validation records. They are not current state.
+
 ## Run locally
 
-The development entry points below are documented for a configured local environment; Stage 1 found no `.env`, virtual environment, or GL3 runtime in this checkout. Setup requires Python 3.11, uv, Node.js 22+, npm, and PostgreSQL 15 or later. From PowerShell at the repository root:
+The development entry points below are documented for a configured local environment; Stage 1 found no `.env`, virtual environment, or GL3 runtime in this checkout. Setup requires Python 3.11, uv 0.7.13, Node.js 22+, npm, and PostgreSQL 18.6. From PowerShell at the repository root:
 
 ```powershell
 uv sync --project backend --extra dev
@@ -30,8 +31,7 @@ The setup script reads PostgreSQL connection values from ignored `.artifacts/loc
 
 ```powershell
 uv run --directory backend alembic upgrade head
-uv run --project backend uvicorn gridlens.api.app:app --app-dir backend/src --host 127.0.0.1 --port 8000 --no-proxy-headers
-$env:PYTHONPATH = (Join-Path $PWD 'backend/src')
+uv run --project backend uvicorn gridlens.api.app:app --host 127.0.0.1 --port 8000 --no-proxy-headers
 uv run --project backend python -m gridlens.jobs.worker
 npm --prefix web run dev
 ```
@@ -41,16 +41,8 @@ Open http://127.0.0.1:5173 and use the password in `.artifacts/local-auth.txt`. 
 
 ## Validate
 
-Before backend integration tests, configure `TEST_DATABASE_URL` for an isolated disposable database. Keep it separate from the application `DATABASE_URL`; do not use retained or production data. The commands below are the repository's checks, not evidence that Stage 1 ran them.
+Before backend integration tests, configure `TEST_DATABASE_URL` for an isolated disposable database. Keep it separate from the application `DATABASE_URL`; do not use retained or production data.
 
-```powershell
-uv run --directory backend ruff check src tests
-uv run --directory backend mypy src
-uv run --directory backend pytest tests
-npm --prefix web run typecheck
-npm --prefix web run build
-npm --prefix web run test:ci
-npm --prefix web audit --audit-level=high
-```
+`scripts/check.ps1` is the full local check: locked sync, dependency audit, ruff, mypy, Alembic upgrade (twice) and `alembic check`, pytest, one `npm ci`, npm audit, TypeScript check, web build, and the Playwright regression project. It needs `DATABASE_URL`, `TEST_DATABASE_URL`, `APP_PASSWORD_HASH`, and `SESSION_SECRET`. Passing it does not prove a scheduled cloud run.
 
 Cloud scheduling is not established by local validation. The scheduler manifest is preparation only. Production requires separately authorized hosting/secrets, PC-off scheduled ingestion, operational alerts, backup/restore proof, and seven measured daily cycles.

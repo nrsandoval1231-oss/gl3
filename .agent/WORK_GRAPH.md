@@ -2,12 +2,12 @@
 
 S1 COMPLETE: PR47 authorized merge c761e38, exact reviewed/tested tree.
 S2 COMPLETE (bounded diagnostic): PR48 authorized merge76a60fe, exact reviewed head5edd894/tree758a6c29 and fresh fullCI; source/runtime failures and all parent gates retained.
-S3 VALIDATE/IN PROGRESS: [PR49](https://github.com/nrsandoval1231-oss/gl3/pull/49), [GL3-STAGE3](packets/GL3-STAGE3.md), complete active trace and fixed40 comparison; five official RRC operator labels repaired, no parser relaxation/promotions. Controller targeted checks, real browser and history parity pass. PR49 records frozen-candidate fullCI and independent Sol outcomes. Integration needs exact passing gates and Nick authorization before S4. Clayton linked-permit/grouping and commercial gap evidence remain OPEN.
-S4 DEPENDENT on S3: one real end-to-end commercial pursuit, no fabricated calls/facts/promotions; Nick acceptance separate.
+S3 MERGED at `3f55750` ([PR49](https://github.com/nrsandoval1231-oss/gl3/pull/49)): five official RRC operator labels, no parser relaxation or promotions. The merge is not Prospect, Lead, or Milestone A–E acceptance. Clayton linked-permit grouping and commercial gap evidence remain OPEN.
+S4 NOT STARTED. It depends on one real end-to-end commercial pursuit, with no fabricated calls, facts, or promotions. Nick's acceptance is separate.
 S5 DEPENDENT on S4 and exact original PNG/HTML recovery: canonical journey/browser evidence and separate owner visual acceptance.
 S6 DEPENDENT on S5: remove demonstrated intelligence-to-HTTP coupling with output parity.
 S7 DEPENDENT on S6 and deployment/spending/monitoring authorization: real PC-off scheduling, restore, alerts and seven actual daily cycles plus commercial acceptance.
 
-Parent OPEN. [Current state](CURRENT_STATE.md) is authoritative; prior status Git bytes are archived unchanged. No CI badge or source count closes commercial/operational gates.
+Parent OPEN. [Delivery milestones](../docs/delivery/milestones.md) is the status page. [Current state](CURRENT_STATE.md) points there. Prior status Git bytes are archived unchanged. No test count closes commercial or operational gates.
 
-R1: independentSol rejected7e8ecd despite greenCI for multiline blank-operator attribution. Physical-line repair and new misleading regressions pass controller checks/fixed40/nativeUI/history. Preserve initialFIX; require new frozen fullCI and fresh review on PR49 before authorized integration.
+The independent review rejected `7e8ecd6` for multiline blank-operator attribution. The physical-line repair is what merged in pull request #49. That review record stays historical. It is not a new acceptance of S4.

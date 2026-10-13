@@ -6,4 +6,4 @@ Evidence must retain source identity, retrieval/publication/event dates where av
 
 Authentication and writes require server-side authorization. Trusted proxy configuration must be explicit. Durable jobs require bounded retries, leases/fencing, idempotency, and visible partial/failure outcomes. Operations require measured source freshness, scheduler/worker health, alert state, cost/backlog, and recoverable backup evidence; deployment preparation is not deployment.
 
-This describes boundaries, not a claim that the system is running now. See [current status](../../.agent/CURRENT_STATE.md), the [Stage 1 baseline](../validation/stage1-baseline-20261009.md), and [delivery gates](../delivery/milestones.md). The replaced historical overview is preserved [here](../../.agent/archive/STAGE1-20261009/architecture-overview.md).
+This describes boundaries, not a claim that the system is running now. See [delivery milestones](../delivery/milestones.md) for status, and the [Stage 1 baseline](../validation/stage1-baseline-20261009.md) as dated evidence. The replaced historical overview is preserved [here](../../.agent/archive/STAGE1-20261009/architecture-overview.md).

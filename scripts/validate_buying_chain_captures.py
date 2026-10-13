@@ -1,5 +1,5 @@
 """Replay unedited real captures through production GL3-017 code, isolated PostgreSQL schema.
-Run from backend with PYTHONPATH=src and the repository's test env loaded.
+Run with the installed backend project and the repository's test env loaded.
 No org/person claims are seeded. Not a live network or browser acceptance test.
 """
 
@@ -123,7 +123,7 @@ def main():
     assert (
         Path(inspect.getfile(enrich_buying_chain)).resolve()
         == (repo / "backend/src/gridlens/intelligence/buying_chain.py").resolve()
-    ), "PYTHONPATH must load production modules from --repo"
+    ), "The installed package must load production modules from --repo"
     now = datetime.now(UTC)
     output = args.output or repo / "docs/validation/gl3-017-real-acceptance.json"
     manifest = json.loads((args.captures / "manifest.json").read_text())

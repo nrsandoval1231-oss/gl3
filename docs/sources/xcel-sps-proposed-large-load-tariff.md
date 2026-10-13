@@ -10,7 +10,7 @@ it. Keep it separate from the enabled ingestion source registry: this is not an
 active feed. The CLI emits validated JSON without network or database access:
 
 ```bash
-PYTHONPATH=backend/src python -m gridlens.domain.utility_tariff_proposals \
+uv run --project backend python -m gridlens.domain.utility_tariff_proposals \
   config/tariffs/xcel-sps-tx-60332.json
 ```
 

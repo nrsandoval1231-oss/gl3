@@ -35,7 +35,7 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
         except (ZoneInfoNotFoundError, ValueError) as exc:
             raise ValueError("Source timezone must be a valid IANA zone") from exc
         try:
-            time.fromisoformat(source.get("schedule_anchor_time", "03:00:00"))
+            time.fromisoformat(source.get("schedule_anchor_time", "07:00:00"))
         except ValueError as exc:
             raise ValueError("Source schedule anchor must be a local clock time") from exc
         allowed_hosts = {

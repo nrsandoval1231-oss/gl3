@@ -9,6 +9,8 @@ COPY backend/migrations ./backend/migrations
 COPY backend/src ./backend/src
 COPY config ./config
 WORKDIR /app/backend
-ENV PYTHONPATH=/app/backend/src
+# Install the project in editable mode so imports resolve without PYTHONPATH
+# and source-relative config paths stay at /app/config.
+RUN uv sync --locked --no-dev
 ENV UV_NO_SYNC=1
 CMD ["uv", "run", "uvicorn", "gridlens.api.app:app", "--host", "0.0.0.0", "--port", "8000", "--no-proxy-headers"]
