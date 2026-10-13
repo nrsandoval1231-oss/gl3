@@ -4,8 +4,7 @@
 # Prerequisites, which CI used to create on the runner:
 #   - uv 0.7.13 and Python 3.11
 #   - Node.js 22
-#   - PostgreSQL 18.6 (the tested major; the local cluster may be newer or,
-#     if you accept the untested path, older)
+#   - PostgreSQL 18.6, the image in compose.yaml
 #   - DATABASE_URL and TEST_DATABASE_URL pointing at separate databases.
 #     TEST_DATABASE_URL must name a disposable database ending in _test.
 #   - APP_PASSWORD_HASH and SESSION_SECRET set for the API process.

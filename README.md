@@ -18,7 +18,7 @@ The authoritative checkpoint is [.agent/CURRENT_STATE.md](.agent/CURRENT_STATE.m
 Historical status narratives and reports are retained under [.agent/archive/STAGE1-20261009/](.agent/archive/STAGE1-20261009/) and existing dated validation records. They are not current state.
 ## Run locally
 
-The development entry points below are documented for a configured local environment; Stage 1 found no `.env`, virtual environment, or GL3 runtime in this checkout. Setup requires Python 3.11, uv, Node.js 22+, npm, and PostgreSQL 15 or later. From PowerShell at the repository root:
+The development entry points below are documented for a configured local environment; Stage 1 found no `.env`, virtual environment, or GL3 runtime in this checkout. Setup requires Python 3.11, uv 0.7.13, Node.js 22+, npm, and PostgreSQL 18.6. From PowerShell at the repository root:
 
 ```powershell
 uv sync --project backend --extra dev

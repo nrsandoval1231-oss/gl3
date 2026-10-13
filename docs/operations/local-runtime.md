@@ -1,6 +1,6 @@
 # Local runtime isolation
 
-A fresh PostgreSQL 18 cluster was initialized for gl3 at `.artifacts/local-postgres/data`, listening only on 127.0.0.1:55439. The existing Windows PostgreSQL service on 5432 was not changed. The new `gridlens` and `gridlens_test` databases have a generated SCRAM password stored only in the ignored runtime directory. Never add that directory or `.env` to Git.
+Compose pins `postgres:18.6`, the version `scripts/check.ps1` expects. A fresh PostgreSQL 18 cluster was initialized for gl3 at `.artifacts/local-postgres/data`, listening only on 127.0.0.1:55439. The existing Windows PostgreSQL service on 5432 was not changed. The new `gridlens` and `gridlens_test` databases have a generated SCRAM password stored only in the ignored runtime directory. Never add that directory or `.env` to Git.
 
 Start this already-initialized cluster from repository root (PowerShell):
 
