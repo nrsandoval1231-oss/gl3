@@ -6,7 +6,6 @@ organization profile can support a relevant role, never a project assignment.
 
 from __future__ import annotations
 
-import hashlib
 import json
 import re
 from dataclasses import dataclass, field
@@ -18,6 +17,7 @@ from gridlens.domain.buying_chain import (
     current_role,
     person_project_relationship,
 )
+from gridlens.domain.pursuit_research import fingerprint
 from gridlens.ingestion.adapters.buying_chain_public import PublicDocument
 from gridlens.ingestion.adapters.retained_permits import (
     GEORGIA,
@@ -94,7 +94,7 @@ def document_content_hash(doc: PublicDocument) -> str:
         # Identical excerpt text can belong to a different accepted observation
         # version (e.g. changed PDF hash or extraction metadata). Keep its binding.
         content["retained_version"] = doc.retained_version
-    return hashlib.sha256(json.dumps(content, sort_keys=True, default=str).encode()).hexdigest()
+    return fingerprint(content)
 
 
 def document_key(doc: PublicDocument) -> str:

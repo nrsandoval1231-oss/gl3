@@ -6,7 +6,6 @@ Research snapshots/history and owner notes have separate persistence boundaries.
 
 from __future__ import annotations
 
-import hashlib
 import json
 import re
 import time
@@ -19,6 +18,7 @@ from sqlalchemy import Integer, case, func, select
 from sqlalchemy.orm import Session
 
 from gridlens.domain.commercial_presentation import commercial_size_status
+from gridlens.domain.pursuit_research import fingerprint as digest
 from gridlens.domain.pursuit_screening import normalized, screen, work_identity
 from gridlens.domain.pursuits import MAX_BATCH, MAX_FETCHES, MAX_MODELS, POLICY_VERSION, SOURCES
 from gridlens.ingestion.adapters.buying_chain_public import PublicDocument
@@ -46,10 +46,6 @@ from gridlens.settings import settings
 
 CITY_PERMIT_SOURCES = SOURCES[2:]
 PRESENTATION_POLICY_VERSION = "pursuit-company-titles-v2"
-
-
-def digest(value: object) -> str:
-    return hashlib.sha256(json.dumps(value, sort_keys=True, default=str).encode()).hexdigest()
 
 
 class ResearchBudgetExceeded(Exception):
