@@ -336,7 +336,6 @@ def main():
     env = {
         **os.environ,
         "DATABASE_URL": target.render_as_string(hide_password=False),
-        "PYTHONPATH": str(ROOT / "backend" / "src"),
         "WORKER_AUTO_REFRESH": "false",
         "AUTONOMOUS_RESEARCH_ENABLED": "false",
         "OPENAI_API_KEY": "",

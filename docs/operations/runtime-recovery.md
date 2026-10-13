@@ -5,9 +5,9 @@ Recover the configured application database in place. Preserve `.env`, credentia
 From the repository root, first inspect existing listeners and processes. Start the existing PostgreSQL cluster using its established command if needed. Apply pending migrations with `(cd backend && .venv/bin/alembic upgrade head)`; this is additive migration, not database replacement.
 
 ```bash
-PYTHONPATH=backend/src backend/.venv/bin/python -m gridlens.jobs.runtime status
-PYTHONPATH=backend/src backend/.venv/bin/python -m gridlens.jobs.runtime reconcile
-PYTHONPATH=backend/src backend/.venv/bin/python -m gridlens.jobs.runtime check \
+uv run --project backend python -m gridlens.jobs.runtime status
+uv run --project backend python -m gridlens.jobs.runtime reconcile
+uv run --project backend python -m gridlens.jobs.runtime check \
   --source austin-building-permits --source texas-rrc-drilling-permits
 ```
 

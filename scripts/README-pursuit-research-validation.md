@@ -62,7 +62,7 @@ or replace the original archive with a fresh ingestion.
 ## Read-only baseline
 
 ```bash
-PYTHONPATH=backend/src uv run --project backend python scripts/validate_pursuit_research.py baseline \
+uv run --project backend python scripts/validate_pursuit_research.py baseline \
   --manifest .artifacts/autonomous-research/corpus.json \
   --corpus-id YOUR_EXPLICIT_CORPUS_ID \
   --baseline .artifacts/autonomous-research/baseline.json
@@ -78,7 +78,7 @@ baseline. No source request or job is created by `baseline`.
 ## Explicit bounded execution and dry replay
 
 ```bash
-PYTHONPATH=backend/src uv run --project backend python scripts/validate_pursuit_research.py run \
+uv run --project backend python scripts/validate_pursuit_research.py run \
   --manifest .artifacts/autonomous-research/corpus.json \
   --corpus-id YOUR_EXPLICIT_CORPUS_ID \
   --baseline .artifacts/autonomous-research/baseline.json \

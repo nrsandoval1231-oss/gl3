@@ -18,8 +18,8 @@ A native installation uses the existing `.env` and the established PostgreSQL se
 
 ```bash
 (cd backend && uv run alembic upgrade head)
-PYTHONPATH=backend/src uv run --project backend uvicorn gridlens.api.app:app --host 127.0.0.1 --port 8000 --no-proxy-headers
-PYTHONPATH=backend/src uv run --project backend python -m gridlens.jobs.worker
+uv run --project backend uvicorn gridlens.api.app:app --host 127.0.0.1 --port 8000 --no-proxy-headers
+uv run --project backend python -m gridlens.jobs.worker
 npm --prefix web run dev
 ```
 
@@ -126,7 +126,7 @@ requests with uncertain completion are not automatically repeated. Question stat
 never assigns a qualification tier; accepted canonical changes go through the same
 deterministic evaluator and immutable evaluation receipts.
 
-Read-only metrics: `PYTHONPATH=backend/src uv run --project backend python scripts/pursuit_research_metrics.py`.
+Read-only metrics: `uv run --project backend python scripts/pursuit_research_metrics.py`.
 Run against the intended database with its existing environment. Counts are receipt
 measurements, not a claim that an empty or synthetic database is the retained corpus.
 No email, calls, forms, CRM writes, account login or other commercial outreach occurs.

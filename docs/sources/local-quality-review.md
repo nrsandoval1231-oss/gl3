@@ -43,8 +43,7 @@ The ignored sample is `.artifacts/local-review-sample.json` (92 observations,
 it with:
 
 ```powershell
-$env:PYTHONPATH = (Resolve-Path backend/src).Path
-uv run --directory backend python ../scripts/export_review_sample.py --output ../.artifacts/local-review-sample.json
+uv run --project backend python scripts/export_review_sample.py --output .artifacts/local-review-sample.json
 ```
 
 The command refuses to overwrite an existing output. The next useful bounded

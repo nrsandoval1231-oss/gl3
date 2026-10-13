@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "gridlens"
 version = "0.1.0"
@@ -18,6 +22,9 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest==9.1.1", "ruff==0.11.13", "mypy==1.16.0"]
+
+[project.scripts]
+gridlens-worker = "gridlens.jobs.worker:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

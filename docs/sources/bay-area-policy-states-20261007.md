@@ -80,5 +80,5 @@ Run from `backend`:
 python -m pytest -q tests/unit/test_jurisdiction_policy.py
 python -m ruff check src/gridlens/domain/jurisdiction_policy.py tests/unit/test_jurisdiction_policy.py
 python -m mypy src/gridlens/domain/jurisdiction_policy.py
-PYTHONPATH=src python -m gridlens.domain.jurisdiction_policy ../config/policies/oakland-27-0050.json --on 2026-10-07
+uv run python -m gridlens.domain.jurisdiction_policy ../config/policies/oakland-27-0050.json --on 2026-10-07
 ```
