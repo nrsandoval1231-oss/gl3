@@ -1,8 +1,0 @@
-{
-  "historical_artifact": ".agent/artifacts/GL3-029-RESEARCH/VALIDATION.json",
-  "historical_candidate": "15e27bcbbc0163a8af3c22761e2963df3479f73a",
-  "historical_status": "superseded for current acceptance by corrected category-proof candidate",
-  "superseded_by": ".agent/artifacts/GL3-029-ACCEPTANCE-20261005/VALIDATION.json",
-  "current_code_candidate": "7768f2a6e3ec19f29f657c23c2120a392d1c31bf",
-  "preserve_historical_bytes": true
-}

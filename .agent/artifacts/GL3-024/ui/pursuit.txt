@@ -1,3 +1,0 @@
-Browser tab: 2, Title: "GridLens", URL: "http://127.0.0.1:5193/?view=pursuits".
-There has been no change in the accessibility tree.
-The focused UI element is 8 button Today’s pursuits

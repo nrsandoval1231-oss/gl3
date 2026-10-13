@@ -1,7 +1,0 @@
-# A5B page transition — independent FIX, 2026-10-08
-
-Direction: CORRECT the distinct loaded-page/requested-page mismatch using one bounded Luna packet. Frozen candidate 114bb671c32af00839aab4d2b3feac95c6cd3793 / tree f46944739603c385154698e32472fd6bedd0d8ae remains unaccepted despite passing 1,419 backend tests, 53 browser tests and mandatory gates. Its 397-entry ROOT-RAW.zip remains unchanged, SHA256 f0036cd27e0ee334b4c3bbc1d14fb8004249b35a4abd786404c5215106370596.
-
-Fourth independent raw FIX: .artifacts/audit-20261007/a5b-request-state-independent-review.json, SHA256 0e26f86debd5a18857396e8e563630a83636ef70d4bd64e42894d81d0eb12949. App.tsx's offset>0 guard leaves page-two rows and metadata selectable under page-one URL/label on delayed or failed Previous/Back requests. Prior token, selected Back intent and same-key defects are corrected; this new page-transition finding remains an acceptance failure.
-
-Packet: GL3-AUDIT-A5B-PAGE-TRANSITION-REPAIR.md. Test both directions, delayed/failed replacements, metadata/actions, exact selected Back/forward intent, rapid supersession and same-key no-ops. Preserve every negative candidate and available raw log/trace. Root reruns mandatory gates and independent review after freeze. No A5B publication or A6 dispatch yet. Status filter partial; A7 original assets, A8 and real readiness/customer gates remain open. No merge/deploy/providers/external messages/original-data mutation.

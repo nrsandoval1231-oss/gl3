@@ -1,8 +1,0 @@
-Python: 3.11.16
-Application DB: gl3audit_source_migration at 127.0.0.1:55437 (configured only; integration tests patch application sessions to the test factory)
-Test DB: gl3audit_source_test at 127.0.0.1:55437 (exclusive disposable *_test; fixture drops/recreates its schema)
-Provider environment: FIRECRAWL_API_KEY and N8N_GRIDLENS_EDITORIAL_WEBHOOK_TOKEN explicitly blank for final validation commands
-Worker automation: WORKER_AUTO_REFRESH=false for final validation commands
-Application/browser servers: none started by this packet
-Browser ports: none
-Raw pytest diff-check was limited to owned source/test/docs paths; immutable raw logs were not whitespace-rewritten.

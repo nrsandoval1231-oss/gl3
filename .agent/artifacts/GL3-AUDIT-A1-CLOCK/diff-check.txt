@@ -1,5 +1,0 @@
-warning: in the working copy of 'backend/src/gridlens/intelligence/pursuit_questions.py', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'backend/tests/integration/test_autonomous_questions_integration.py', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'backend/tests/integration/test_pursuit_evidence.py', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'backend/tests/integration/test_research_transitions.py', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'backend/tests/integration/test_retained_research_replay.py', LF will be replaced by CRLF the next time Git touches it

@@ -1,5 +1,0 @@
-# GL3-025 independent review contract
-
-Review exact candidate manifest against base ba660ee41ee48dc45ac2dd49ccd2c9502cfb8f7f in gl3-023, branch feat/gl3-023-city-permits. Read PRD/AGENTS/Finish Contract, packet, RECOVERY and raw failed live receipts, final successful LIVE_BRIEFS, CORE_PARITY, VALIDATION and UI screenshot. Verify manifest bytes independently. Treat builder completion and controller summaries as claims.
-
-Inspect provider privacy/secret handling, source-bound fact selection, role/quantity/UNKNOWN semantics, real output quality, no source/tier/decision writes, cache freshness/history/model/policy, explicit paid requests, concurrent dedup/day reservation, crash/retry fencing, authenticated CSRF boundaries, stale/failure display and cross-card races. Ordinary independent Sol review only; no implementation or broad redesign. Write REVIEW.json PASS/FIX/ESCALATE with concrete file/line findings, candidate hash and limitations. Parent launch remains OPEN. No commit/push/deploy by reviewer. Do not certify inferred prose entailment from citation membership alone.

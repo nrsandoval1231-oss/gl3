@@ -1,3 +1,0 @@
-Browser tab: 2, Title: "GridLens", URL: "http://127.0.0.1:5193/?tier=Signals&q=#56429956-f2b2-4436-97fd-65fb15c5ca19".
-There has been no change in the accessibility tree.
-The focused UI element is 0 AXWebArea GridLens, URL: 127.0.0.1:5193/?tier=Signals&q=#56429956-f2b2-4436-97fd-65fb15c5ca19

@@ -1,9 +1,0 @@
-warning: in the working copy of '.env.example', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'backend/src/gridlens/api/app.py', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'backend/src/gridlens/ingestion/service.py', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'backend/src/gridlens/persistence/models.py', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'backend/src/gridlens/settings.py', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'backend/tests/integration/test_ingestion.py', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'docs/architecture/data-model.md', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'docs/operations/power-pursuits.md', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'web/src/api/generated.ts', LF will be replaced by CRLF the next time Git touches it

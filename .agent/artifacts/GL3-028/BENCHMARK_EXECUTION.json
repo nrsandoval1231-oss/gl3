@@ -1,9 +1,0 @@
-{
-  "started_at_utc": "2026-10-02T14:21:23.081920+00:00",
-  "finished_at_utc": "2026-10-02T14:21:28.347560+00:00",
-  "exit_code": 0,
-  "fixture_sha256": "bf7af2633bbebf1b7a2cca6332db2989d445aaf2fce1f5881a17e12dc14029e4",
-  "max_provider_calls": 16,
-  "credentials": "process environment only",
-  "authoritative_db_writes": false
-}

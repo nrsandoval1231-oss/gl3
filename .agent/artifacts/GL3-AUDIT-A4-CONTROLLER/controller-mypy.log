@@ -1,3 +1,0 @@
-backend\src\gridlens\api\app.py:460: note: By default the bodies of untyped functions are not checked, consider using --check-untyped-defs  [annotation-unchecked]
-backend\src\gridlens\api\app.py:1713: note: By default the bodies of untyped functions are not checked, consider using --check-untyped-defs  [annotation-unchecked]
-Success: no issues found in 77 source files

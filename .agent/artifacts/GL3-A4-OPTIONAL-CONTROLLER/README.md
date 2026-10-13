@@ -1,7 +1,0 @@
-# Optional registry declaration final validation
-
-Prior8efa500 FIX and attribution supplement remain preserved. Source386d314 normalizes validator-accepted omitted cadence to24 consistently for persisted Source, epoch signature and comparison. Omitted industries uses[] for nonnull Source storage only; the epoch retains omission, so explicit list/[] removal remains drift with unprovable old interval UNKNOWN. Repeated unchanged omitted declarations are idempotent. Registry admission, cadence policy and schema are unchanged; prior operator-lock/current-registry/sticky-disable/dispatch-fencing protections remain.
-
-Root tested574098f:1300backend passed/2existing skips/3warnings190.59s;36 freshbrowser33.8s at55509/55510. Ruff/mypy, webtype/build, exactOpenAPI, repeated0016upgrade/drift, locked44backend dependency audit andweb audit pass0knownvulnerabilities. Source/docs/packet diffcheck passes; original raw pytest whitespace is immutable evidence. Exact tasksecret scan0matches in candidate text and captures.
-
-RAWZIP/MANIFEST bind original rootcaptures byte-for-byte. Builder red/focused/stageddiffdiagnostics and all previous rejected candidates remain. Independentreview required on the final head. No original/application/corpus changes, provider activation, external message, deployment or parentcompletion claim. Fresh0016 migration lineage is inherited unchanged proof, not fabricated as a new migration.

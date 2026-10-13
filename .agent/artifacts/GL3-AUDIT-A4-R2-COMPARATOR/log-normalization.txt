@@ -1,1 +1,0 @@
-Captured pytest stdout/stderr had only trailing whitespace removed for git diff --check. Diagnostic text, statuses, and assertions were unchanged.

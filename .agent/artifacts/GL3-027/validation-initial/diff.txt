@@ -1,8 +1,0 @@
-warning: in the working copy of 'README.md', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'backend/src/gridlens/domain/signal_admission.py', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'backend/src/gridlens/ingestion/adapters/README.md', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'backend/src/gridlens/ingestion/adapters/__init__.py', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'backend/src/gridlens/ingestion/registry.py', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'backend/src/gridlens/ingestion/service.py', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'config/sources/registry.v1.json', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'docs/product/PRD.md', LF will be replaced by CRLF the next time Git touches it

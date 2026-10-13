@@ -1,7 +1,0 @@
-{
-  "accepted_exact_need_demand_mw": "22",
-  "actual_reason": "Accepted operator demand conflicts with current public source support.",
-  "actual_tier": "Signal",
-  "expected": "22 MW lies within official 20-to-25 MW range, so it is compatible and must not force a conflict demotion",
-  "source_demand": "20 to 25 MW"
-}

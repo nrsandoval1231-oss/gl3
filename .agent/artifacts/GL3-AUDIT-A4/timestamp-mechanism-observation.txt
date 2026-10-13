@@ -1,9 +1,0 @@
-Timestamp mechanism observation (separate from the overwritten failed attempt)
-Captured during a later targeted `pytest -s` reproduction; this excerpt was preserved in the task transcript, but the original raw run log is unavailable:
-
-  before queued 2026-10-07 16:57:57.819394-05:00 2026-10-07 21:57:57.818072+00:00 True True
-  registry_read True
-  run_one_result False
-  job_after queued 0 None
-
-The persisted `available_at` was about 1.3 ms ahead of the Python UTC clock at the lease check, so `lease_one` returned no job. The earlier overwritten test-failure attempt remains unretained and its cause is UNKNOWN; this later observation does not retroactively classify it. The regression fixtures now set due jobs' `available_at` explicitly to at least one second before the Python clock.

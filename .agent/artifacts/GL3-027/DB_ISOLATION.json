@@ -1,8 +1,0 @@
-{
-  "source": "gl3_026_app",
-  "target": "gl3_027_accept",
-  "encoding": "UTF8",
-  "backup": ".artifacts/GL3-027/preserved-base.dump",
-  "original_preserved": true,
-  "runtime_env_unchanged": true
-}

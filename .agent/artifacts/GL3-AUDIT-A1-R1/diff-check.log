@@ -1,4 +1,0 @@
-warning: in the working copy of 'backend/src/gridlens/domain/commercial_triage.py', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'backend/src/gridlens/intelligence/autonomous_research.py', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'backend/src/gridlens/intelligence/commercial_evaluation.py', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'backend/tests/integration/test_autonomous_questions_integration.py', LF will be replaced by CRLF the next time Git touches it

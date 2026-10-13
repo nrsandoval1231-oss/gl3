@@ -1,5 +1,0 @@
-{
-  "archived_sha256": "b581e2510d059e3b2962bbf00cef032769ae0b6f37a8b8c5411ba79dd5dcffc4",
-  "source": ".agent/CURRENT_STATE.md",
-  "purpose": "Archive frozen implementation state before root gate reconciliation"
-}

@@ -1,3 +1,0 @@
-Browser tab: 2, Title: "GridLens", URL: "http://127.0.0.1:5193/?tier=Signals&q=26017927".
-There has been no change in the accessibility tree.
-The focused UI element is 26 text field (settable) Search projects, Value: 26017927

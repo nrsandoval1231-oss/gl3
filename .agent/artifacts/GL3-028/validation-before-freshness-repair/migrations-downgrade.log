@@ -1,6 +1,0 @@
-INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
-INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
-INFO  [alembic.runtime.migration] Will assume transactional DDL.
-INFO  [alembic.runtime.migration] Will assume transactional DDL.
-INFO  [alembic.runtime.migration] Running downgrade 0012_evidence_graph_jev_shadow -> 0011_power_need_briefs, Project scoped material changes and advisory EvidenceJudge shadow records.
-INFO  [alembic.runtime.migration] Running downgrade 0012_evidence_graph_jev_shadow -> 0011_power_need_briefs, Project scoped material changes and advisory EvidenceJudge shadow records.

@@ -1,4 +1,0 @@
-pytest=0
-ruff=0
-mypy=0
-diff_check=0

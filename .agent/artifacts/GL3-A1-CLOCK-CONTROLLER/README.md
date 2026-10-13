@@ -1,9 +1,0 @@
-# A1 clock correction: exact controller evidence
-
-A UTC daily question cap must count timestamps on that same UTC day, even when PostgreSQL returns Chicago-offset timestamps. The scheduling decision now uses one normalized UTC clock for both counting and inserting rows. Explicit Chicago-session regressions prove a cap1 tail-then-page sweep remains1, and created_at equals the injected decision clock. Public fixture publication dates were corrected without weakening production future-date rejection; an explicit future-date unresolved guard passes.
-
-At source f604839 / proof-only d48a644: rootfull1253passed/2skipped/3warnings162.98seconds; freshbrowser36passed37.3seconds; allstatic/web/contracts/repeatedmigrations/drift/currentdependency scans passed. See GATES.json and raw logs. No schema, public API, UI or provider behavior changed. The known prior eight-failure midnight run and two red clock regressions remain in builder artifacts; previous accepted2cd results remain historical receipts rather than current acceptance.
-
-RAW-CAPTURE.zip preserves exact original root capture bytes. RAW-MANIFEST.json binds original sizes/SHA256 before Git text normalization; Readable .log mirrors remain local ignored files; the committed binary archive is the portable raw proof. Exact task-local credential scan found0matches. Original ignored captures remain retained. Final independent review is still required on the frozen head containing this receipt; no overall parent completion, merge, deployment, live-readiness or customer qualification is claimed.
-
-An attempted addition of readable raw logs hit the diff checker on a captured blank line at EOF. Their original bytes were preserved in the archive instead of edited to satisfy formatting; only the archive and manifest are versioned for those captures.

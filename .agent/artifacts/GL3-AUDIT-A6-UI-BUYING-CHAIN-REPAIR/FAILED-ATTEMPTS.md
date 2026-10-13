@@ -1,6 +1,0 @@
-# Preserved failed attempts
-
-- Root's pre-repair browser gate: 68 passed, 1 skipped, 4 failed. All four failed buying-chain cases were attributable to the shared route fallback returning `[]` for the newly added exact-Need facts and workflow-status endpoints; the retained-permit/details and buying-chain content assertions failed because selection could not complete with those DTO shapes. Root log and trace locations plus SHA-256 are recorded in `HANDOFF.md`; root files were not copied or staged.
-- First local Playwright launch failed before test execution because the requested output log path was resolved as `web/.artifacts`, which does not exist. This was a path setup failure; no raw log file was created, and the exact tool error is documented here.
-- Second local launch failed at backend startup because the app's required synthetic database/auth settings were not configured. The log is `.artifacts/a6-ui-buying-chain-repair-focused-20261009.log` outside this artifact directory; its bytes are retained in the workspace but not included as a test result.
-- Corrected launch with providers blank, automation and persisted-test flags disabled, synthetic credentials and builder disposable database: all four buying-chain tests passed. No assertion was removed or weakened.

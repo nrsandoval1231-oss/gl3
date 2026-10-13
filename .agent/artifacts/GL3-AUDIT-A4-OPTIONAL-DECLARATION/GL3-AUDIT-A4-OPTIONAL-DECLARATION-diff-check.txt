@@ -1,3 +1,0 @@
-warning: in the working copy of 'backend/src/gridlens/jobs/worker.py', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'backend/tests/integration/test_source_scheduling.py', LF will be replaced by CRLF the next time Git touches it
-warning: in the working copy of 'docs/operations/source-controls-and-worker-health.md', LF will be replaced by CRLF the next time Git touches it

@@ -1,3 +1,0 @@
-src\gridlens\ingestion\adapters\boston_permits.py:146: error: Unsupported operand types for < ("tuple[datetime, int]" and "tuple[str, int]")  [operator]
-src\gridlens\ingestion\adapters\boston_permits.py:153: error: Incompatible types in assignment (expression has type "tuple[datetime, int]", variable has type "tuple[str, int] | None")  [assignment]
-Found 2 errors in 1 file (checked 58 source files)

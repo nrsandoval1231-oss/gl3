@@ -1,9 +1,0 @@
-# A6 integration fixture disposable-database guard
-
-The retained full backend run at `.artifacts/root-a6-final-full.log` reported 1,423 passed, 3 failed, and 8 setup errors. All eight setup errors originated from the integration fixture's exact-name assertion for `gl3audit_a6_test`, which rejected the root runner's dedicated disposable `gl3audit_a6_final_test` before the test body ran.
-
-The fixture now follows the repository's established guard: destructive setup is allowed only when `TEST_DATABASE_URL` names `test` or ends in `_test`, and the complete `(host, port, database)` endpoint must differ from `DATABASE_URL`. It additionally rejects any database name containing `corpus`, so the retained corpus copy cannot pass this fixture guard even though its name has a `_test` suffix. The test file does not hardcode either builder or root database names.
-
-Only `backend/tests/integration/test_call_fact_workflow_integration.py` changed. No schema, application behavior, source, migration, or product contract changed. The focused file passes against both the builder's assigned disposable `gl3audit_a6_test` and root-designated disposable `gl3audit_a6_final_test`; root owns the final full-suite rerun. Root classified the three remaining failures as auth setup errors caused by sharing the application DB with migration tests and has prepared a separate application DB for the retry; this fixture-only repair does not change that setup.
-
-Both guarded wrappers blanked provider keys before imports, disabled autonomous/worker automation, refused a candidate `.env`, and used synthetic authentication. The final-test database was used only for this focused fixture run. Root final migration databases were not used; `MIGRATION_TEST_DATABASE_URL` remained the separate builder `gl3audit_a6_migration` database.

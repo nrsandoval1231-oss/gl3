@@ -1,8 +1,0 @@
-# Attempt history
-
-1. Exact pre-change repro: both the source Prospect with supported timing and the already-supported source Lead remained open with stale/no gap reconciliation despite accepted full-window suitable supply. Raw result: `.artifacts/a6-adequate-repro-red-20261008T2200267173624Z-67a6b7245b0248c5a71a4e88aa90617d-pytest.log` (exit 1, two failures).
-2. Initial implementation placed reconciliation after the existing tier gate; focused tests exposed that source Leads and Prospect cases could bypass it. The bounded repair moved shared accepted-fact reconciliation ahead of the operator Lead-only gate and used the official Lead's latest possible start plus maximum duration. Domain tests then exposed partial-window fallthrough and closure result shape issues; these were corrected without weakening the assertions.
-3. The first integration run's missing token, history-view field-name mismatch, and case-sensitive rationale check were fixture/assertion corrections. A later integration failure was a real projection gap: the ordinary Prospect recomputation omitted suitable-supply fact ID/hash. That path now emits the same accepted fact provenance and is covered by the green public regression.
-4. Final focused, Ruff, and source mypy runs passed. The first final Ruff and mypy attempts each found a formatting/type issue and are preserved; both were corrected before the recorded final runs.
-
-The current packet's behavioral criteria are covered by the focused suite, including adequate closure, positive and zero-gap boundaries, source Lead interval coverage, unsupported/unknown/partial supply, source replay, correct/retract replay, active public removal, and history preservation. No root full gate or independent acceptance is claimed here.

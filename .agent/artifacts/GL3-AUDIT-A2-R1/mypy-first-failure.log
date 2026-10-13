@@ -1,4 +1,0 @@
-src\gridlens\domain\lifecycle.py:154: error: Argument 1 to "get" of "dict" has incompatible type "str | None"; expected "str"  [arg-type]
-src\gridlens\domain\lifecycle.py:154: error: Argument 2 to "get" of "dict" has incompatible type "tuple[None, None]"; expected "tuple[str, str]"  [arg-type]
-src\gridlens\api\app.py:1536: note: By default the bodies of untyped functions are not checked, consider using --check-untyped-defs  [annotation-unchecked]
-Found 2 errors in 1 file (checked 77 source files)
