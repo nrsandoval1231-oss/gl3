@@ -1,4 +1,6 @@
 # Preparation only. This suspended manifest is not deployed by the repository workflow.
+# The worker's local-daily anchor defaults to 07:00 America/Chicago
+# (SCHEDULE_ANCHOR_TIME and SCHEDULE_TIMEZONE).
 # The worker also schedules due refreshes hourly. The CronJob is a deploy-time
 # alternative; its database URL comes from a cluster Secret.
 # Set WORKER_AUTO_REFRESH=false in that Secret when adopting this scheduler.
