@@ -2901,14 +2901,8 @@ def opportunity_projection(
         )
         for project_id, project in projects_by_id.items()
     }
-    chain_project_ids = {
-        project.id
-        for need, project in rows
-        if not summary_only
-        and (
-            project.source_id == "houston-weekly-permits" or briefs_by_need.get(need.id) is not None
-        )
-    }
+    # Ranking reads every listed project's retained buying chain, not only brief-backed rows.
+    chain_project_ids = {project.id for _, project in rows if not summary_only}
     buying_chains_by_project = buying_chain_views(session, chain_project_ids)
     result = []
     title_company_by_project = {}

@@ -504,9 +504,10 @@ def _assess_tceq_batch(
         reason = (
             f"TCEQ lists a pending temporary concrete batch plant registration "
             f"({permit.get('registration')}) by {applicant} serving {subject} at {location}, "
-            f"submitted {record.get('event_date')}. A temporary batch plant indicates heavy "
-            "construction at the site now. The construction-power question is inferred: required "
-            "MW, duration, utility service date and the buyer are unknown, and the batch plant "
+            f"submitted {record.get('event_date')}. A proposed temporary batch plant indicates "
+            "planned heavy construction at the site; the registration is pending and does not "
+            "show that construction has started. The construction-power question is inferred: "
+            "required MW, duration, utility service date and the buyer are unknown, and the batch plant "
             "supplier is not the project owner or GC."
         )
     elif not (data_center or named_project):
@@ -522,7 +523,9 @@ def _assess_tceq_batch(
         "tier": "Signal" if accepted else None,
         "reason": reason,
         "subject": facility if accepted else None,
-        "action": "temporary concrete batch plant for active construction" if accepted else None,
+        "action": (
+            "proposed temporary concrete batch plant for planned construction" if accepted else None
+        ),
         "location": location,
         "missing_facts": MISSING,
         "source_field_citations": permit.get("source_fields", {}),

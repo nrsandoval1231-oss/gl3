@@ -193,7 +193,8 @@ def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list
             except (httpx.HTTPError, SourceParseError, ValueError):
                 failed += 1
                 records.append(presence)
-        if attempted and failed * 2 > attempted:
+        # Presence-only rows are not ingested, so any failed notice must fail the run visibly.
+        if failed:
             raise SourceParseError(
                 f"TCEQ batch plant notices failed for {failed} of {attempted} registrations"
             )
