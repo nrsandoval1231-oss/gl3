@@ -93,6 +93,7 @@ PERMIT_RETRIEVAL_METHODS = {
     "rrc-flare-exceptions",
     "ma-cultivation-applications",
     "tceq-nsr-pending",
+    "tceq-temporary-batch-plants",
 }
 
 

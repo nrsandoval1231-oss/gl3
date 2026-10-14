@@ -17,6 +17,9 @@ from gridlens.ingestion.adapters.rrc_flare_exceptions import (
 from gridlens.ingestion.adapters.socrata_permits import retrieve as retrieve_socrata_permits
 from gridlens.ingestion.adapters.taylor_newsflash import retrieve as retrieve_taylor_newsflash
 from gridlens.ingestion.adapters.tceq_nsr_pending import retrieve as retrieve_tceq_nsr_pending
+from gridlens.ingestion.adapters.tceq_temporary_batch import (
+    retrieve as retrieve_tceq_temporary_batch,
+)
 
 
 def retrieve_source(
@@ -51,6 +54,8 @@ def retrieve_source(
         return retrieve_georgia_air_permits(source, client)
     if method == "ma-cultivation-applications":
         return retrieve_ma_cultivation(source, client)
+    if method == "tceq-temporary-batch-plants":
+        return retrieve_tceq_temporary_batch(source, client)
     if method == "tceq-nsr-pending":
         return retrieve_tceq_nsr_pending(source, client)
     if method == "taylor-newsflash":

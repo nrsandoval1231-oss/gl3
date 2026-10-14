@@ -467,6 +467,30 @@
       "query": {
         "max_summaries": 30
       }
+    },
+    {
+      "id": "texas-tceq-temporary-batch-plants",
+      "publisher": "Texas Commission on Environmental Quality, Air Permits Division",
+      "endpoint": "https://www.tceq.texas.gov/permitting/air/newsourcereview/airpermits-pendingpermit-apps",
+      "family": "construction-permits",
+      "geography": "Texas",
+      "industries": [
+        "data centers",
+        "construction",
+        "industrial facilities"
+      ],
+      "retrieval_method": "tceq-temporary-batch-plants",
+      "snapshot_complete": true,
+      "cadence_hours": 24,
+      "publication_cadence": "Current pending-permit summaries page; each notice states its submission and issuance dates",
+      "collection_scope": "Temporary concrete batch plant registrations on the statewide pending-permit summaries page; the Notice of Application and Preliminary Decision PDF is fetched for each, bounded per run.",
+      "coverage_limitation": "Only applications still in TCEQ's public notice window. Registrations appear here briefly; earlier notices are not backfilled. The batch plant operator is a materials supplier, not the project owner or GC.",
+      "credential_reference": null,
+      "enabled": true,
+      "retention": "Public summaries-table fields, notice date and site sentence, official links",
+      "query": {
+        "max_notices": 20
+      }
     }
   ]
 }

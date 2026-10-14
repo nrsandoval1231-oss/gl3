@@ -16,6 +16,7 @@ _PERMIT_METHODS = {
     "el-paso-new-commercial-permits",
     "rrc-drilling-permits",
     "tceq-nsr-pending",
+    "tceq-temporary-batch-plants",
 }
 _CULTIVATION_FAMILY = "cultivation-license-applications"
 _CULTIVATION_METHOD = "ma-cultivation-applications"
