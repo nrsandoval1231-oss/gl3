@@ -50,3 +50,85 @@ The managed cluster's own point-in-time backups are a second path. Record each r
 - 08:30 and 18:00 America/Chicago: always one push. "collection healthy" or a list of failed/overdue sources, stale worker, overdue collection, or terminal job/interpretation failures (jobs from the last 48 hours).
 - A failed collection or backup run triggers an immediate alert run.
 - No morning push means the droplet, timer, or ntfy path is down.
+
+## Existing Infisical runtime identity and Jev
+
+The application reads `TYPESAFE_API_KEY` from its process environment through
+`Settings`; it does not contact Infisical. Settings are cached on first use.
+Compose's service `env_file: ../../.env.prod` reads a file, not the invoking
+shell's environment. The explicit backend `environment` mapping now forwards
+an Infisical-injected `TYPESAFE_API_KEY` into API, worker, and migration containers.
+It also preserves an existing Compose `--env-file` value when there is no host
+override. No key belongs in the web image or build arguments.
+
+Use the **existing** authenticated Infisical CLI identity on the deployment host.
+Set `INFISICAL_PROJECT_ID`, `INFISICAL_ENVIRONMENT` (environment slug), and
+`INFISICAL_SECRET_PATH` (folder path) to the actual GL3 binding. These are routing
+metadata, not credentials. The wrapper deliberately has no guessed defaults.
+Confirm in Infisical that this identity can read the existing secret named
+`TYPESAFE_API_KEY` at that binding, including any existing secret reference/import.
+Do not create another key, export secrets to `.env.prod`, or print secret values.
+The existing identity must also be available to the user running Docker/systemd;
+interactive CLI access under a different Unix user does not establish that.
+
+For Jev-enabled installs and **every update/recreation** of backend containers,
+replace the unwrapped Compose startup above with:
+
+```bash
+cd /opt/gridlens
+./deploy/digitalocean/with-infisical.sh \
+  docker compose -f deploy/digitalocean/compose.prod.yaml --env-file .env.prod \
+  up -d --build
+```
+
+Run this as the already-authorized deployment user. Avoid wrapping it in `sudo`
+that discards the injected environment or changes the CLI identity. A restart
+alone does not update a container's environment: recreate API/worker after the
+binding changes. Do not use `docker inspect`, `printenv`, `set -x`, or unredacted
+`docker compose config` to diagnose secrets.
+
+Scheduled source collection only enqueues work; the persistent worker performs
+intelligence using its startup environment. `gridlens-run.sh collect` and `alert`
+now let Compose load `.env.prod` directly, preserving any injected host override.
+Only the backup path sources the file for its existing backup-specific variables.
+For other one-off intelligence commands, use the same wrapper around Compose.
+Infisical unavailability during provisioning fails the wrapper; it does not stop
+already-running ingestion containers. A runtime missing/rejected Jev key or
+provider outage retains evidence and records REVIEW without promoting a tier.
+
+Inspect the **running worker's** injected settings without a provider call:
+
+```bash
+docker compose -f deploy/digitalocean/compose.prod.yaml --env-file .env.prod \
+  exec -T worker uv run python -m gridlens.intelligence.jev_health
+```
+
+Append `--probe` for exactly one authenticated request with a 12-second HTTP
+operation timeout and no retries. This verifies the pinned model and all six
+typed response dimensions; it writes no evidence, decisions, or database rows.
+Repeat in `api` to check that container separately. A CLI subprocess checks its
+container environment, not a previously cached settings object in another process.
+The diagnostic prints only provider/model, credential presence, status, request
+count, and scope. It exits nonzero on failure. Statuses:
+
+| Status | Meaning |
+|---|---|
+| `missing_credentials` | Key absent, empty, or whitespace; no request made |
+| `not_checked` | Key present; no request requested |
+| `available` | Authenticated response and model/dimensions validated |
+| `authentication_failed` | Provider returned 401 or 403; no retry |
+| `provider_unavailable` | Transport failure, timeout, 429, or 5xx |
+| `request_rejected` | Other unsuccessful HTTP status; no retry |
+| `malformed_response` | Invalid JSON/model/typed dimensions; no retry |
+
+Normal adjudication retries transient failures at most three times, retaining
+existing per-attempt research budget accounting. Persisted decisions now carry
+the failure category instead of a combined malformed/unavailable status; the
+existing `missing_api_key` decision status remains compatible. Error bodies,
+credentials, and raw provider exceptions are not recorded. Existing idempotency
+and explicit error retry behavior are unchanged. `JEV_ENABLED` controls the
+separate EvidenceJudge shadow path, not this Signal/pursuit adjudicator.
+
+The repository cannot establish the actual Infisical project/environment/folder,
+identity permissions, or deployed container state. Those must be checked with
+existing host access. Passing local injection tests is not live Jev acceptance.

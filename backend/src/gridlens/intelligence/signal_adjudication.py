@@ -30,8 +30,31 @@ POLICY_VERSION = "signal-display-v2"
 MODEL = "jev-1.13.0"
 
 
+class JevError(RuntimeError):
+    def __init__(self, status: str):
+        self.status = status
+        super().__init__(f"Jev {status}")
+
+
+def failure_status(exc: Exception) -> str:
+    if isinstance(exc, JevError):
+        return exc.status
+    if isinstance(exc, httpx.HTTPStatusError):
+        code = exc.response.status_code
+        if code in {401, 403}:
+            return "authentication_failed"
+        return "provider_unavailable" if code == 429 or code >= 500 else "request_rejected"
+    if isinstance(exc, KeyError | TypeError | ValueError):
+        return "malformed_response"
+    return "provider_unavailable"
+
+
 def _jev_call(
-    state: dict[str, str], api_key: str, *, on_request: Callable[[], None] | None = None
+    state: dict[str, str],
+    api_key: str,
+    *,
+    on_request: Callable[[], None] | None = None,
+    max_attempts: int = 3,
 ) -> dict[str, Any]:
     payload = {
         "state": {
@@ -95,8 +118,11 @@ def _jev_call(
             },
         },
     }
-    last_error: Exception | None = None
-    for attempt in range(3):
+    if not api_key.strip():
+        raise JevError("missing_credentials")
+    if not 1 <= max_attempts <= 3:
+        raise ValueError("Jev allows one to three attempts")
+    for attempt in range(max_attempts):
         try:
             if on_request:
                 on_request()
@@ -106,16 +132,47 @@ def _jev_call(
                 json=payload,
                 timeout=12.0,
             )
-            if response.status_code in {429, 529} and attempt < 2:
-                time.sleep(min(0.25 * (2**attempt), 1.0))
-                continue
             response.raise_for_status()
             return response.json()
         except (httpx.HTTPError, ValueError) as exc:
-            last_error = exc
-            if attempt < 2:
+            status = failure_status(exc)
+            if status == "provider_unavailable" and attempt + 1 < max_attempts:
+                time.sleep(min(0.25 * (2**attempt), 1.0))
                 continue
-    raise RuntimeError("TypeSafe Jev unavailable or returned malformed data") from last_error
+            raise JevError(status) from None
+    raise JevError("provider_unavailable")
+
+
+def validated_dimensions(result: Any) -> dict[str, float]:
+    if not isinstance(result, dict):
+        raise ValueError("invalid Jev response")
+    if result.get("model") != MODEL:
+        raise ValueError("unexpected Jev model")
+    answers = result["answers"]
+    if not isinstance(answers, dict):
+        raise ValueError("invalid Jev answers")
+    dimension_values: dict[str, float] = {}
+    for name in (
+        "physical_project_event",
+        "meaningful_new_activity",
+        "commercial_relevance",
+        "temporary_power_relevance",
+        "routine_maintenance",
+        "transient_event",
+    ):
+        answer = answers[name]
+        if not isinstance(answer, dict):
+            raise ValueError("invalid Jev answer")
+        score = answer.get("noul")
+        if (
+            answer.get("type") != "noul"
+            or isinstance(score, bool)
+            or not isinstance(score, int | float)
+            or not 0 <= score <= 1
+        ):
+            raise ValueError("invalid factual dimension")
+        dimension_values[name] = float(score)
+    return dimension_values
 
 
 def adjudicate(
@@ -142,6 +199,7 @@ def adjudicate(
         if api_key is not None
         else (settings.typesafe_api_key.get_secret_value() if settings.typesafe_api_key else None)
     )
+    key = key.strip() if key else None
     if prior is not None and not (
         (prior.source == "jev_unavailable" and key)
         or (retry_errors and prior.source == "jev_error" and key)
@@ -153,13 +211,6 @@ def adjudicate(
         decision, dims, reason = override
         source, model = "deterministic", None
     else:
-        key = (
-            api_key
-            if api_key is not None
-            else (
-                settings.typesafe_api_key.get_secret_value() if settings.typesafe_api_key else None
-            )
-        )
         if not key:
             pending = SignalDecision(
                 observation_id=observation.id,
@@ -177,34 +228,7 @@ def adjudicate(
         try:
             state = _evidence_state(session, observation, evidence)
             result = caller(state, key)
-            if not isinstance(result, dict):
-                raise ValueError("invalid Jev response")
-            if result.get("model") != MODEL:
-                raise ValueError("unexpected Jev model")
-            answers = result["answers"]
-            if not isinstance(answers, dict):
-                raise ValueError("invalid Jev answers")
-            dimension_values: dict[str, float] = {}
-            for name in (
-                "physical_project_event",
-                "meaningful_new_activity",
-                "commercial_relevance",
-                "temporary_power_relevance",
-                "routine_maintenance",
-                "transient_event",
-            ):
-                answer = answers[name]
-                if not isinstance(answer, dict):
-                    raise ValueError("invalid Jev answer")
-                score = answer.get("noul")
-                if (
-                    answer.get("type") != "noul"
-                    or isinstance(score, bool)
-                    or not isinstance(score, int | float)
-                    or not 0 <= score <= 1
-                ):
-                    raise ValueError("invalid factual dimension")
-                dimension_values[name] = float(score)
+            dimension_values = validated_dimensions(result)
             decision = map_dimensions(
                 dimension_values, title=state["title"], abstract=state["abstract"]
             )
@@ -212,13 +236,13 @@ def adjudicate(
             reason = (
                 "GL3 display policy mapped retained factual Jev dimensions to a display decision."
             )
-        except (KeyError, TypeError, ValueError, RuntimeError, httpx.HTTPError):
+        except (KeyError, TypeError, ValueError, RuntimeError, httpx.HTTPError) as exc:
             decision, source, model, dims, reason = (
                 "REVIEW",
                 "jev_error",
                 None,
-                {"status": "malformed_or_unavailable"},
-                "Jev response was malformed or unavailable; manual review is required.",
+                {"status": failure_status(exc)},
+                f"Jev {failure_status(exc)}; evidence retained and manual review required.",
             )
     row = SignalDecision(
         observation_id=observation.id,

@@ -3,7 +3,6 @@
 set -euo pipefail
 cd /opt/gridlens
 compose=(docker compose -f deploy/digitalocean/compose.prod.yaml --env-file .env.prod)
-set -a; . ./.env.prod; set +a
 
 case "${1:-}" in
   collect)
@@ -11,6 +10,7 @@ case "${1:-}" in
   alert)
     "${compose[@]}" run --rm --no-deps worker uv run python -m gridlens.jobs.alerts ;;
   backup)
+    set -a; . ./.env.prod; set +a
     stamp="$(date -u +%Y%m%dT%H%M%SZ)"
     docker run --rm postgres:18.6 pg_dump --format=custom --no-owner "${BACKUP_DATABASE_URL}" \
       | docker run --rm -i \

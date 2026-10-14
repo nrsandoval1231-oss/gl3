@@ -238,7 +238,7 @@ def test_jev_outage_keeps_ambiguous_evidence_in_review(db):
         )
         assert decision.decision == "REVIEW"
         assert decision.source == "jev_error"
-        assert decision.dimensions == {"status": "malformed_or_unavailable"}
+        assert decision.dimensions == {"status": "provider_unavailable"}
 
 
 def test_backfill_uses_source_evidence_hash_not_material_digest(db):
