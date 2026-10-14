@@ -1,6 +1,6 @@
 """Explainable opportunity ranking (PRD Requirement 27).
 
-DRAFT weights, pending owner approval. The score orders active needs for attention; it is
+Weights approved by the owner on 2026-10-14. The score orders active needs for attention; it is
 not a probability, a confidence, or a qualification. Tier gates stay authoritative and
 are never changed by rank. Weights are published in docs/product/ranking-weights.md.
 """
@@ -14,7 +14,7 @@ from typing import Any
 from gridlens.domain.buying_chain import Category
 from gridlens.domain.commercial_triage import _priority
 
-RANKING_VERSION = "ranking-draft-v1"
+RANKING_VERSION = "ranking-v1"
 
 # Points per factor. They sum to 100.
 WEIGHTS = {

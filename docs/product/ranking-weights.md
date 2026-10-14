@@ -1,8 +1,8 @@
-# Opportunity ranking weights — DRAFT, pending Nick's approval
+# Opportunity ranking weights
 
 Requirement 27: rank active needs by timing, recent material change, evidence strength, product fit and purchasing accessibility; publish the weights; show the principal reasons; never rank solely by campus MW or tier.
 
-Version `ranking-draft-v1` (`backend/src/gridlens/domain/ranking.py`). Score is 0–100 points. It orders attention. It is not a probability or a confidence, and it never changes a tier.
+Version `ranking-v1`, approved by Nick on 2026-10-14 with the weights unchanged from `ranking-draft-v1` (`backend/src/gridlens/domain/ranking.py`). Score is 0–100 points. It orders attention. It is not a probability or a confidence, and it never changes a tier.
 
 | Factor | Points | How points are earned |
 |---|---:|---|
@@ -15,14 +15,10 @@ Version `ranking-draft-v1` (`backend/src/gridlens/domain/ranking.py`). Score is 
 
 Each opportunity shows its score and up to three largest contributing reasons.
 
-## What changes on approval
+## How rank is used
 
-- Today the score and reasons are shown, and the home view features the highest-ranked loaded record. The list order is still most-recently-updated.
-- After approval: the default list order switches to rank, the version becomes `ranking-v1`, and this file drops "DRAFT".
+- Each opportunity shows its score and principal reasons.
+- The home view features the highest-ranked loaded record.
+- Lists default to rank order, highest first. Equal or missing ranks keep most-recently-updated order.
+- Rank orders the records already loaded (the most recently updated, up to 200). It does not re-query the full archive by rank.
 - Weights change only by editing this table and `WEIGHTS` together, with a new version.
-
-## Open questions for Nick
-
-1. Is product fit at 25 right, or should timing lead?
-2. Should a DFW record outrank an otherwise equal Houston record (today they tie)?
-3. Should O&G producing assets sit above data centers whose phase is unknown (today 70% vs 60%)?
