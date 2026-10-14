@@ -116,3 +116,15 @@ The PRD tree names `Dockerfile.api`, `Dockerfile.worker`, `scheduler.yaml`, a ro
 Folder README files stay where a milestone names a module that is not implemented yet. They record ownership. They do not mean the named capability exists. Empty-directory READMEs are not deliverables.
 
 The registry has no separate parser field. Adapter selection is `retrieval_method` in `ingestion/adapters/__init__.py`. Requirement 5's parser attribute is that method, not a second id.
+
+## October 14, 2026 — owner decisions for deployment (Phase 0)
+
+Nick decided:
+
+- **Hosting:** DigitalOcean for compute, managed PostgreSQL and backups; Cloudflare for DNS, TLS and edge access in front of the app.
+- **Source artifacts:** DigitalOcean Spaces (S3-compatible) for permitted documents and snapshots. Resolves audit D4.
+- **Owner alerts:** ntfy push to Nick's phone for overdue daily collection and material processing failures. Resolves the channel choice in audit D3; the sender is still to be built.
+- **AI provider:** fold all model calls into one provider adapter. The shadow evidence-judge client is to be removed or routed through that adapter. Resolves audit D5 direction; the provider itself is still to be confirmed.
+- **First Lead path:** Nick will make 3–5 discovery calls on the strongest current Signals. Facts he confirms enter as attributed User-confirmed evidence (Requirement 30); they do not bypass the Lead gate.
+
+The build sequence is in [delivery/build-plan.md](delivery/build-plan.md).
