@@ -124,7 +124,7 @@ Nick decided:
 - **Hosting:** DigitalOcean for compute, managed PostgreSQL and backups; Cloudflare for DNS, TLS and edge access in front of the app.
 - **Source artifacts:** DigitalOcean Spaces (S3-compatible) for permitted documents and snapshots. Resolves audit D4.
 - **Owner alerts:** ntfy push to Nick's phone for overdue daily collection and material processing failures. Resolves the channel choice in audit D3; the sender is still to be built.
-- **AI provider:** fold all model calls into one provider adapter. The shadow evidence-judge client is to be removed or routed through that adapter. Resolves audit D5 direction; the provider itself is still to be confirmed.
+- **AI provider:** fold all model calls into one provider adapter. The shadow evidence-judge client is to be removed or routed through that adapter. Resolves audit D5 direction; the provider is OpenAI.
 - **First Lead path:** Nick will make 3–5 discovery calls on the strongest current Signals. Facts he confirms enter as attributed User-confirmed evidence (Requirement 30); they do not bypass the Lead gate.
 
 The build sequence is in [delivery/build-plan.md](delivery/build-plan.md).
