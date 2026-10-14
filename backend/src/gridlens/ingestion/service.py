@@ -96,6 +96,7 @@ PERMIT_RETRIEVAL_METHODS = {
     "tceq-temporary-batch-plants",
     "ceqanet-data-centers",
     "fort-worth-permits",
+    "san-antonio-permits",
 }
 
 

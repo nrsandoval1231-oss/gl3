@@ -16,6 +16,9 @@ from gridlens.ingestion.adapters.publisher_rss import retrieve as retrieve_publi
 from gridlens.ingestion.adapters.rrc_flare_exceptions import (
     retrieve as retrieve_rrc_flare_exceptions,
 )
+from gridlens.ingestion.adapters.san_antonio_permits import (
+    retrieve as retrieve_san_antonio_permits,
+)
 from gridlens.ingestion.adapters.socrata_permits import retrieve as retrieve_socrata_permits
 from gridlens.ingestion.adapters.taylor_newsflash import retrieve as retrieve_taylor_newsflash
 from gridlens.ingestion.adapters.tceq_nsr_pending import retrieve as retrieve_tceq_nsr_pending
@@ -56,6 +59,8 @@ def retrieve_source(
         return retrieve_georgia_air_permits(source, client)
     if method == "ma-cultivation-applications":
         return retrieve_ma_cultivation(source, client)
+    if method == "san-antonio-permits":
+        return retrieve_san_antonio_permits(source, client)
     if method == "fort-worth-permits":
         return retrieve_fort_worth_permits(source, client)
     if method == "ceqanet-data-centers":

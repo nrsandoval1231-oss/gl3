@@ -535,6 +535,27 @@
       "query": {
         "window_days": 90
       }
+    },
+    {
+      "id": "san-antonio-development-permits",
+      "publisher": "City of San Antonio Development Services (Open Data SA)",
+      "endpoint": "https://data.sanantonio.gov/api/3/action/datastore_search",
+      "family": "construction-permits",
+      "geography": "San Antonio, Texas",
+      "industries": [
+        "data centers"
+      ],
+      "retrieval_method": "san-antonio-permits",
+      "cadence_hours": 24,
+      "publication_cadence": "Permits issued and applications submitted tables; each row states its submitted and issued dates",
+      "collection_scope": "Issued permits and submitted applications whose project name names a data center, submitted or issued in the last 90 days, grouped per permit number.",
+      "coverage_limitation": "City of San Antonio permits only; unincorporated Bexar County and other cities are not covered. Projects whose permit name never says data center are missed. Valuation is the applicant's estimate.",
+      "credential_reference": null,
+      "enabled": true,
+      "retention": "Public permit table fields for matching permits and the official dataset link",
+      "query": {
+        "window_days": 90
+      }
     }
   ]
 }

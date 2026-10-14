@@ -219,6 +219,8 @@ def evaluator_version(record: dict[str, Any]) -> str:
         return CEQA_EVALUATOR_VERSION
     if isinstance(permit, dict) and permit.get("source_type") == "fort-worth-development-permits":
         return FORT_WORTH_EVALUATOR_VERSION
+    if isinstance(permit, dict) and permit.get("source_type") == "san-antonio-development-permits":
+        return SAN_ANTONIO_EVALUATOR_VERSION
     if isinstance(permit, dict) and permit.get("source_type") == "boston-building-permits":
         return BOSTON_PERMIT_EVALUATOR_VERSION
     return EVALUATOR_VERSION
@@ -566,9 +568,13 @@ FORT_WORTH_EVALUATOR_VERSION = "fort-worth-data-center-permit-v1"
 _RENOVATION = re.compile(r"\b(?:remodel|renovat\w*|interior finish|tenant finish)\b", re.IGNORECASE)
 
 
+SAN_ANTONIO_EVALUATOR_VERSION = "san-antonio-data-center-permit-v1"
+
+
 def _assess_fort_worth(
     record: dict[str, Any], permit: dict[str, Any], as_of: date
 ) -> dict[str, Any]:
+    """City data-center permit rule, shared by Fort Worth and San Antonio."""
     facility = str(permit.get("facility") or "").strip()
     description = str(permit.get("description") or "")
     subtype = str(permit.get("subtype") or "")
@@ -590,13 +596,20 @@ def _assess_fort_worth(
     )
     if accepted:
         subject = "a data-center substation" if substation else "a new or expanded data center"
+        issued = status.casefold() == "issued"
+        stage = (
+            "An issued permit authorizes the work but does not show that construction has "
+            "started."
+            if issued
+            else "A filed permit is not an issued permit and does not show that construction "
+            "has started."
+        )
         reason = (
-            f"Fort Worth {permit.get('permit_type')} {permit.get('row_id', '')[4:]} for {subject} "
-            f"({facility}) at {permit.get('location')}, filed {record.get('event_date')}; "
-            f"current status {status}. A filed permit is not an issued permit and does not "
-            "show that construction has started. Declared job value is the applicant's "
-            "estimate. MW, schedule, utility service date and the buyer are unknown unless "
-            "stated in the description."
+            f"{permit.get('city')} {permit.get('permit_type')} {permit.get('row_id', '')[4:]} "
+            f"for {subject} ({facility}) at {permit.get('location')}; "
+            f"{record.get('event_date_label')}: {record.get('event_date')}; current status "
+            f"{status}. {stage} Declared value is the applicant's estimate. MW, schedule, "
+            "utility service date and the buyer are unknown unless stated in the description."
         )
     elif terminal and named:
         reason = f"Permit status is {status}; a closed or cancelled permit is not an active need."
@@ -939,7 +952,10 @@ def assess_permit(record: dict[str, Any], *, as_of: date | None = None) -> dict[
         return _assess_tceq_batch(record, permit, as_of)
     if permit.get("source_type") == "california-ceqanet-data-centers":
         return _assess_ceqa(record, permit, as_of)
-    if permit.get("source_type") == "fort-worth-development-permits":
+    if permit.get("source_type") in {
+        "fort-worth-development-permits",
+        "san-antonio-development-permits",
+    }:
         return _assess_fort_worth(record, permit, as_of)
     if permit.get("source_type") == "georgia-air-draft-title-v":
         return _assess_georgia_air(record, permit, str(permit.get("current_scope") or ""), as_of)
