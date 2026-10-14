@@ -180,8 +180,17 @@ def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list
                 raise SourceParseError("Houston report date has ambiguous links")
             links[report_date] = href
         chosen = sorted(links, reverse=True)[:4]
-        if not chosen or not 0 <= (today - chosen[0]).days <= 30:
-            raise SourceParseError("Houston latest linked report is missing or over 30 days old")
+        if not chosen:
+            raise SourceParseError("Houston index lists no dated weekly report links")
+        if chosen[0] > today:
+            raise SourceParseError(
+                f"Houston newest report link is dated in the future ({chosen[0].isoformat()})"
+            )
+        if (today - chosen[0]).days > 30:
+            raise SourceParseError(
+                f"Houston publisher has not posted a weekly report since {chosen[0].isoformat()}"
+                " (over 30 days)"
+            )
         output: dict[str, dict[str, Any]] = {}
         for report_date in reversed(chosen):
             href = links[report_date]

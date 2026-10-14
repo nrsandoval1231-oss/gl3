@@ -88,7 +88,12 @@ def test_source_refuses_foreign_download_and_stale_listing():
         (
             today - timedelta(days=31),
             "https://www.houstonpermittingcenter.org/sites/g/files/test.xlsx",
-            "30 days old",
+            "has not posted a weekly report since",
+        ),
+        (
+            today + timedelta(days=3),
+            "https://www.houstonpermittingcenter.org/sites/g/files/test.xlsx",
+            "dated in the future",
         ),
     ):
         calls = []
