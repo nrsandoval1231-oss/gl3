@@ -16,13 +16,13 @@ const names = Object.values(stateCodes).sort((a, b) => b.length - a.length)
 
 export function stateOf(location: string | null | undefined): string | null {
   if (!location) return null
-  const lower = location.toLowerCase()
-  for (const name of names) {
-    if (new RegExp(`\\b${name.toLowerCase()}\\b`).test(lower)) {
-      // "Washington" alone may be the city in DC; prefer an explicit DC match first.
-      return name
-    }
-  }
+  // A trailing postal code is the most explicit signal ("Washington, DC" is not Washington state).
   const code = location.match(/(?:,|\s)\s*([A-Z]{2})(?:\s+\d{5}(?:-\d{4})?)?\s*$/)
-  return code ? stateCodes[code[1]] ?? null : null
+  if (code && stateCodes[code[1]]) return stateCodes[code[1]]
+  const lower = location.toLowerCase()
+  if (/\bdistrict of columbia\b/.test(lower)) return stateCodes.DC
+  for (const name of names) {
+    if (new RegExp(`\\b${name.toLowerCase()}\\b`).test(lower)) return name
+  }
+  return null
 }

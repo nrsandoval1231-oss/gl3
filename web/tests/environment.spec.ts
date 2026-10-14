@@ -27,7 +27,15 @@ async function mock(page: Page, items: Opportunity[], opportunities?: (route: Ro
     const json = (body: unknown, headers: Record<string, string> = {}) =>
       route.fulfill({ contentType: 'application/json', headers, body: JSON.stringify(body) })
     if (path === '/api/auth/session') return json({ authenticated: true })
-    if (path === '/api/opportunities') return json(items, { 'X-Total-Count': String(items.length) })
+    if (path === '/api/opportunities') {
+      const url = new URL(route.request().url())
+      const limit = Number(url.searchParams.get('limit'))
+      if (limit > 50) return route.fulfill({ status: 422, body: 'limit above API maximum' })
+      const offset = Number(url.searchParams.get('offset') ?? 0)
+      const pageItems = items.slice(offset, offset + limit)
+      const next: Record<string, string> = offset + limit < items.length ? { 'X-Next-Offset': String(offset + limit) } : {}
+      return json(pageItems, { 'X-Total-Count': String(items.length), 'X-Cohort-Token': 'c1', ...next })
+    }
     if (path === '/api/health') return json({ sources: [{ id: 's', enabled: true, status: 'Updated' }], backlog: 0, pending_interpretations: 0 })
     if (path.endsWith('/buying-chain')) return json({ project_id: 'a', status: 'complete', policy_version: 'v1', unresolved: [], runs: [], candidates: [] })
     if (path.endsWith('/facts')) {
@@ -109,4 +117,26 @@ test('lens and tier changes query the server and reset to the nation', async ({ 
   await page.getByLabel('Search projects, companies or places').fill('austin')
   await page.getByRole('button', { name: 'Search' }).click()
   await expect.poll(() => queries.at(-1)?.get('search')).toBe('austin')
+})
+
+test('pages within the API limit and maps District of Columbia correctly', async ({ page }) => {
+  const many = Array.from({ length: 60 }, (_, index) => opportunity(`p${index}`, 'Austin, TX'))
+  many.push(opportunity('dc', 'Washington, DC'))
+  await mock(page, many)
+  await page.goto('/')
+  await expect(page.getByText('61 signals · 2 states.', { exact: false })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Texas 60' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'District of Columbia 1' })).toBeVisible()
+  await expect(page.getByRole('button', { name: /^Washington/ })).toHaveCount(0)
+})
+
+test('Back restores the previous lens after a nation-level change', async ({ page }) => {
+  await mock(page, [opportunity('a', 'Austin, TX')])
+  await page.goto('/')
+  const back = page.getByRole('button', { name: 'Back to previous view' })
+  await expect(back).toBeDisabled()
+  await page.getByLabel('Tier').selectOption('Prospects')
+  await expect(back).toBeEnabled()
+  await back.click()
+  await expect(page.getByLabel('Tier')).toHaveValue('Signals')
 })

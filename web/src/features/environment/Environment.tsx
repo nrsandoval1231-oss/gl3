@@ -14,7 +14,7 @@ const tiers = ['Signals', 'Prospects', 'Leads'] as const
 type TierName = typeof tiers[number]
 const modes = ['nation', 'state', 'project', 'power', 'evidence', 'buyers', 'action'] as const
 type Mode = typeof modes[number]
-export type Scene = { mode: Mode; state: string | null; needId: string | null; tier: TierName; lens: string; search: string }
+export type Scene = { mode: Mode; state: string | null; needId: string | null; tier: TierName; lens: string; search: string; depth: number }
 
 const UNMAPPED = 'Unmapped'
 const modeLabel: Record<Mode, string> = {
@@ -39,6 +39,7 @@ export function sceneFromUrl(params: URLSearchParams): Scene {
     tier: tier && tiers.includes(tier) ? tier : 'Signals',
     lens: params.get('lens') ?? '',
     search: params.get('q') ?? '',
+    depth: 0,
   }
 }
 function urlFor(scene: Scene) {
@@ -58,6 +59,22 @@ function evidenceDate(evidence: Opportunity['evidence'][number]) {
   return evidence.published_at ? `Published ${evidence.published_at}` : 'Publication date unknown'
 }
 
+// The API serves at most 50 records per page. Load a bounded number of pages for the map.
+const PAGE_SIZE = 50
+const MAX_PAGES = 4
+async function loadPages(scene: Scene, signal: AbortSignal): Promise<OpportunityPage> {
+  const filters = { industry: scene.lens }
+  const tier = scene.tier.slice(0, -1)
+  const first = await client.opportunityPage(tier, scene.search, 'ALL', PAGE_SIZE, 0, undefined, filters, signal)
+  let page = first
+  const items = [...first.items]
+  for (let n = 1; n < MAX_PAGES && page.nextOffset != null; n += 1) {
+    page = await client.opportunityPage(tier, scene.search, 'ALL', PAGE_SIZE, page.nextOffset, first.cohortToken, filters, signal)
+    items.push(...page.items)
+  }
+  return { ...first, items }
+}
+
 export function Environment({ onSignOut, today }: { onSignOut: () => void; today?: ReactNode }) {
   const [scene, setScene] = useState<Scene>(() => sceneFromUrl(new URLSearchParams(location.search)))
   const [page, setPage] = useState<OpportunityPage | null>(null)
@@ -67,6 +84,7 @@ export function Environment({ onSignOut, today }: { onSignOut: () => void; today
   const [health, setHealth] = useState<{ ok: number; total: number } | null>(null)
   const [draft, setDraft] = useState(scene.search)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [revision, setRevision] = useState(0)
   const headingRef = useRef<HTMLHeadingElement>(null)
 
   // Back is restoration: every transition is a history entry carrying the full scene.
@@ -82,7 +100,7 @@ export function Environment({ onSignOut, today }: { onSignOut: () => void; today
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   function go(next: Partial<Scene>) {
-    const merged = { ...scene, ...next }
+    const merged = { ...scene, ...next, depth: scene.depth + 1 }
     history.pushState({ gl3env: merged }, '', urlFor(merged))
     setScene(merged)
   }
@@ -92,7 +110,7 @@ export function Environment({ onSignOut, today }: { onSignOut: () => void; today
     const controller = new AbortController()
     setLoading(true)
     setError('')
-    client.opportunityPage(scene.tier.slice(0, -1), scene.search, 'ALL', 100, 0, undefined, { industry: scene.lens }, controller.signal)
+    loadPages(scene, controller.signal)
       .then((result) => {
         setPage(result)
         setLensOptions((current) => [...new Set([...current, ...result.items.map((item) => item.asset_type).filter((value): value is string => Boolean(value))])].sort())
@@ -100,12 +118,12 @@ export function Environment({ onSignOut, today }: { onSignOut: () => void; today
       .catch((reason: unknown) => { if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : 'Opportunities are unavailable.') })
       .finally(() => { if (!controller.signal.aborted) setLoading(false) })
     return () => controller.abort()
-  }, [scene.tier, scene.lens, scene.search])
+  }, [scene.tier, scene.lens, scene.search, revision])
 
   useEffect(() => {
     client.health().then((result) => {
       const enabled = result.sources.filter((source) => source.enabled)
-      setHealth({ ok: enabled.filter((source) => source.status !== 'Failed' && source.status !== 'Overdue').length, total: enabled.length })
+      setHealth({ ok: enabled.filter((source) => source.status === 'Updated' || source.status === 'Checked—No Change').length, total: enabled.length })
     }).catch(() => setHealth(null))
   }, [])
 
@@ -171,7 +189,7 @@ export function Environment({ onSignOut, today }: { onSignOut: () => void; today
     </header>
 
     <div className="env-context">
-      <button type="button" className="env-back" onClick={back} disabled={scene.mode === 'nation' && !scene.search} aria-label="Back to previous view">
+      <button type="button" className="env-back" onClick={back} disabled={scene.depth === 0} aria-label="Back to previous view">
         <span aria-hidden="true">←</span> {crumbs[0]}
       </button>
       <span className="env-crumb">{crumbs[1]}</span>
@@ -197,7 +215,7 @@ export function Environment({ onSignOut, today }: { onSignOut: () => void; today
             <h1 ref={headingRef} tabIndex={-1} className="env-display">A wider view.<br/>A sharper focus.</h1>
             <p className="env-lede">{loading ? 'Loading the national picture…' : `${page?.totalCount ?? 0} ${scene.tier.toLowerCase()}${scene.search ? ` matching “${scene.search}”` : ''} · ${mappedStates} states${unmapped ? ` · ${unmapped} unmapped` : ''}.`} {tierNote}</p>
             {featured ? <div className="env-featured">
-              <p className="env-eyebrow"><span className="env-dot"/>Top ranked · {featured.tier}</p>
+              <p className="env-eyebrow"><span className="env-dot"/>Most recently updated · {featured.tier}</p>
               <h2>{projectTitle(featured)}</h2>
               <p className="env-meta">{featured.location ?? 'Location unknown'} · {readable(featured.activity)}</p>
               <dl className="env-facts env-facts-compact">
@@ -218,7 +236,7 @@ export function Environment({ onSignOut, today }: { onSignOut: () => void; today
           </> : !subject ? <>
             <h1 ref={headingRef} tabIndex={-1}>{loading ? 'Loading…' : 'Outside current filters'}</h1>
             {!loading && <p>This record is not in the current result set. Change the lens or tier, or return to the nation.</p>}
-          </> : <Focus mode={scene.mode} item={subject} stateName={subjectState} headingRef={headingRef} go={go}/>}
+          </> : <Focus mode={scene.mode} item={subject} stateName={subjectState} headingRef={headingRef} go={go} onReadback={() => setRevision((value) => value + 1)}/>}
       </section>
 
       <section className={`env-map${inFocus ? ' env-map-recede' : ''}`} aria-label="United States map of current results">
@@ -242,7 +260,7 @@ export function Environment({ onSignOut, today }: { onSignOut: () => void; today
             <button key={name} type="button" aria-pressed={scene.state === name} onClick={() => go({ mode: 'state', state: name, needId: null })}>{name} <span>{group.length}</span></button>)}
           {unmapped > 0 && <button type="button" onClick={() => go({ mode: 'state', state: UNMAPPED, needId: null })}>No mappable state <span>{unmapped}</span></button>}
         </div>
-        <p className="env-map-note">Markers are counts per state from the current results, not load, confidence or coverage. National scope is not a claim of complete source coverage.{page && page.totalCount > items.length ? ` Showing the top ${items.length} of ${page.totalCount}.` : ''}</p>
+        <p className="env-map-note">Markers are counts per state from the current results, not load, confidence or coverage. National scope is not a claim of complete source coverage.{page && page.totalCount > items.length ? ` Showing the ${items.length} most recently updated of ${page.totalCount}.` : ''}</p>
       </section>
     </main>
 
@@ -260,9 +278,10 @@ export function Environment({ onSignOut, today }: { onSignOut: () => void; today
   </div>
 }
 
-function Focus({ mode, item, stateName, headingRef, go }: {
+function Focus({ mode, item, stateName, headingRef, go, onReadback }: {
   mode: Mode; item: Opportunity; stateName: string | null
   headingRef: React.RefObject<HTMLHeadingElement | null>; go: (next: Partial<Scene>) => void
+  onReadback: () => void
 }) {
   const missing = item.missing_facts ?? []
   const prompt: Partial<Record<Mode, string>> = {
@@ -323,7 +342,7 @@ function Focus({ mode, item, stateName, headingRef, go }: {
       <h2>Ask the question that moves this forward.</h2>
       <p>{item.next_action}</p>
       {missing.length > 0 && <ol>{missing.slice(0, 4).map((fact) => <li key={fact}>{fact}</li>)}</ol>}
-      <FactWorkflowPanel key={item.id} item={item} onReadback={() => undefined}/>
+      <FactWorkflowPanel key={item.id} item={item} onReadback={onReadback}/>
       <a href={`/?tier=${item.tier}s#${encodeURIComponent(item.id)}`}>Open the full record</a>
     </div>}
   </>
