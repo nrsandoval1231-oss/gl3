@@ -1,4 +1,4 @@
-import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react'
+import { type ReactNode, type FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { client, type BriefRequest, type CallNoteBody, type CommercialResearchStatus, type CommercialTriage, type CommercialTriageCard, type CommercialTriageHistory, type CommercialTriageHistoryItem } from '../../api/client'
 import { BuyingChain } from '../buyingChain/BuyingChain'
 import { ResearchChanges } from './ResearchChanges'
@@ -70,6 +70,10 @@ function checkedCommercialHistory(value: unknown): CommercialTriageHistory {
   return value as unknown as CommercialTriageHistory
 }
 
+function QueueContext({ compact, children }: { compact: boolean; children: ReactNode }) {
+  return compact ? <details className="env-queue-context" data-context-key="queue-context"><summary>Queue details and research updates</summary>{children}</details> : <>{children}</>
+}
+
 export function CommercialPursuits({ navigation, onNavigate, onInvestigate }: {
   navigation?: CommercialNavigation
   onNavigate?: (next: CommercialNavigation) => void
@@ -138,15 +142,18 @@ export function CommercialPursuits({ navigation, onNavigate, onInvestigate }: {
   }
 
   return <section className="pursuits-view commercial-view" aria-label="Commercial pursuits" data-context-loading={!ready}>
-    <section className="hero commercial-hero"><div><p className="eyebrow">Retained Signals · Commercial work queue</p><h1 tabIndex={-1}>What should we work today?</h1><p>Evidence-backed pursuits with clear next steps. Power, supply, timing and buying roles stay unknown until sources support them.</p></div><button type="button" className="back-button" onClick={() => void evaluate()} disabled={evaluating || loading}>{evaluating ? 'Evaluating…' : 'Evaluate Signals'}</button></section>
+    <section className="hero commercial-hero"><div><p className="eyebrow">Retained Signals · Commercial work queue</p><h1 tabIndex={-1}>What should we work today?</h1><p>{navigation ? 'Choose a pursuit. Follow the next question.' : 'Evidence-backed pursuits with clear next steps. Power, supply, timing and buying roles stay unknown until sources support them.'}</p></div>{!navigation && <button type="button" className="back-button" onClick={() => void evaluate()} disabled={evaluating || loading}>{evaluating ? 'Evaluating…' : 'Evaluate Signals'}</button>}</section>
     {!data && error ? <section className="commercial-unavailable" role="alert"><h2>Commercial pursuits are unavailable</h2><p>{error}</p><button type="button" onClick={() => void refreshTriage()}>Retry commercial pursuits</button></section> : <>
+    <QueueContext compact={!!navigation}>
+    {navigation && <button type="button" onClick={() => void evaluate()} disabled={evaluating || loading}>{evaluating ? 'Evaluating…' : 'Evaluate Signals'}</button>}
     <section className="commercial-summary" aria-label="Current cohort summary">
       <div><span>All eligible groups</span><strong>{data?.grouped_total ?? '—'}</strong></div>
       {dispositions.map((state) => <div key={state}><span>{state} · this page</span><strong>{data?.cohort_counts[state.toLowerCase().replaceAll(' ', '_') as keyof CommercialTriage['cohort_counts']] ?? '—'}</strong></div>)}
       <div className="commercial-daily">Today · {data?.daily.evaluated ?? '—'} evaluated · {data?.daily.surfaced ?? '—'} surfaced · {data?.daily.contacted ?? '—'} contacted · {data?.daily.reached_buyer ?? '—'} buyer reached · {data?.daily.qualified ?? '—'} qualified · {data?.daily.promoted_prospects ?? '—'} Prospects · {data?.daily.promoted_leads ?? '—'} Leads · {data ? unknown(data.daily.supported_mw) : '—'} supported MW <details><summary>{data?.daily.unavailable_metrics?.length ?? '—'} metric limits</summary><span>{[...(data?.daily.metric_scope ?? []), ...(data?.daily.unavailable_metrics ?? [])].join('; ') || 'No additional metric limitations reported.'}</span></details></div>
     </section>
     <ResearchChanges overview={data?.research_overview}/>
-    <div className="list-toolbar commercial-toolbar"><div><h2>{filter} · {visible.length} pursuits on this page</h2><p>Page {data ? Math.floor((data.offset ?? pageOffset) / (data.limit ?? 50)) + 1 : 1} · {data?.total ?? 0} saved cards · {data?.grouped_total ?? 0} eligible groups overall · disposition counts below are page-scoped · {data?.evaluated_at ? `queue refreshed ${new Date(data.evaluated_at).toLocaleString()}` : 'evaluation has not been saved'}</p></div>{!navigation && <label className="search"><span className="sr-only">Search commercial pursuits on this page</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search this page: project, company, site"/></label>}</div>
+    </QueueContext>
+    <div className="list-toolbar commercial-toolbar"><div><h2>{filter} · {visible.length} pursuits on this page</h2><p>{navigation ? `Matching pursuits on this loaded page · ${data?.grouped_total ?? 0} eligible groups overall` : <>Page {data ? Math.floor((data.offset ?? pageOffset) / (data.limit ?? 50)) + 1 : 1} · {data?.total ?? 0} saved cards · {data?.grouped_total ?? 0} eligible groups overall · disposition counts below are page-scoped · {data?.evaluated_at ? `queue refreshed ${new Date(data.evaluated_at).toLocaleString()}` : 'evaluation has not been saved'}</>}</p></div>{!navigation && <label className="search"><span className="sr-only">Search commercial pursuits on this page</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search this page: project, company, site"/></label>}</div>
     <div className="commercial-filters" role="group" aria-label="Filter pursuit state">{dispositions.map((state) => <button type="button" key={state} data-context-key={`disposition:${state}`} className={filter === state ? 'commercial-filter-active' : ''} aria-pressed={filter === state} onClick={() => setFilter(state)}>{state}<span>{data?.cohort_counts[state.toLowerCase().replaceAll(' ', '_') as keyof CommercialTriage['cohort_counts']] ?? '—'}</span></button>)}</div>
     {error && <p className="error-banner" role="alert">{error} Saved findings remain available.</p>}{loading && <p role="status">Loading retained commercial pursuits…</p>}
     {!loading && data && !visible.length && <div className="empty"><h3>{query ? 'No matching pursuits' : `No ${filter.toLowerCase()} pursuits`}</h3><p>{query ? 'Try another project, company or site.' : 'The current retained cohort has no candidates in this state.'}</p></div>}
@@ -285,19 +292,19 @@ function StoredCommercialCard({ item, index, expanded, onToggle, onSaved, onInve
 }) {
   const [draft, update] = useCommercialDraft(item)
   return <>
-    <CommercialCard item={item} index={index} expanded={expanded} draft={draft} onDraftChange={update} onToggle={onToggle} onSaved={onSaved}/>
-    {expanded && onInvestigate && <button className="env-go" data-context-key={`investigate:${item.id}`} onClick={() => onInvestigate(item.id)}>Investigate this need</button>}
+    <CommercialCard item={item} index={index} expanded={expanded} draft={draft} onDraftChange={update} onToggle={onToggle} onSaved={onSaved} onInvestigate={onInvestigate}/>
   </>
 }
 
-function CommercialCard({ item, index, expanded, draft, onDraftChange, onToggle, onSaved }: { item: CommercialTriageCard; index: number; expanded: boolean; draft: CommercialDraft; onDraftChange: (changes: Partial<CommercialDraft>) => void; onToggle: () => void; onSaved: () => void }) {
+function CommercialCard({ item, index, expanded, draft, onDraftChange, onToggle, onSaved, onInvestigate }: { onInvestigate?: (id: string) => void; item: CommercialTriageCard; index: number; expanded: boolean; draft: CommercialDraft; onDraftChange: (changes: Partial<CommercialDraft>) => void; onToggle: () => void; onSaved: () => void }) {
   return <article className="commercial-card" data-commercial-need-id={item.id} data-context-owner={item.id}>
     <button className="commercial-card-heading" data-context-key={`pursuit:${item.id}`} type="button" aria-expanded={expanded} onClick={onToggle}>
-      <span className="pursuit-position">{index + 1}</span><span className="commercial-card-title"><strong>{item.name}</strong><span>{unknown(item.location)} · {enumLabel(item.industry)} · {enumLabel(item.activity)}</span><span>Stage {enumLabel(item.stage.stage)} · {unknown(item.organization)} · {enumLabel(item.organization_role)}</span></span><span className="commercial-card-state"><b>{item.disposition}</b><small>{item.tier} · evidence tier</small></span><span aria-hidden="true">{expanded ? '−' : '+'}</span>
+      <span className="pursuit-position">{index + 1}</span><span className="commercial-card-title"><strong>{item.name}</strong><span>{unknown(item.location)} · {enumLabel(item.industry)} · {enumLabel(item.activity)}</span>{(!onInvestigate || expanded) && <span>Stage {enumLabel(item.stage.stage)} · {unknown(item.organization)} · {enumLabel(item.organization_role)}</span>}</span><span className="commercial-card-state"><b>{item.disposition}</b><small>{item.tier} · evidence tier</small></span><span aria-hidden="true">{expanded ? '−' : '+'}</span>
     </button>
-    <div className="commercial-card-facts"><span><b>Stage</b> {enumLabel(item.stage.stage)} · {unknown(item.stage.date)}</span><span><b>Power</b> {power(item.required_mw)}</span><span><b>Start</b> {unknown(item.start_window)}</span><span><b>Duration</b> {unknown(item.duration)}</span><span><b>Supply</b> {unknown(item.supply)}</span></div>
-    <p className="commercial-why"><b>Why now:</b> {item.reason}</p><p className="commercial-why"><b>Next question:</b> {unknown(item.next_question)}</p>
+    {(!onInvestigate || expanded) && <><div className="commercial-card-facts"><span><b>Stage</b> {enumLabel(item.stage.stage)} · {unknown(item.stage.date)}</span><span><b>Power</b> {power(item.required_mw)}</span><span><b>Start</b> {unknown(item.start_window)}</span><span><b>Duration</b> {unknown(item.duration)}</span><span><b>Supply</b> {unknown(item.supply)}</span></div>
+    <p className="commercial-why"><b>Why now:</b> {item.reason}</p></>}<p className="commercial-why"><b>Next question:</b> {unknown(item.next_question)}</p>
     {(item.blockers?.length ?? 0) > 0 && <p className="commercial-blockers"><b>Blocking:</b> {item.blockers?.join(' · ')}</p>}
+    {expanded && onInvestigate && <button className="env-go" data-context-key={`investigate:${item.id}`} onClick={() => onInvestigate(item.id)}>Investigate this need</button>}
     {expanded && <CommercialDetail item={item} draft={draft} onDraftChange={onDraftChange} onSaved={onSaved}/>}
   </article>
 }

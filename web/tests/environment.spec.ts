@@ -630,6 +630,7 @@ test('delayed commercial research restores each question disclosure and scroll i
 
 for (const width of [1280, 390]) {
   test(`rendered commercial environment at ${width}px`, async ({ page }, testInfo) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' })
     await page.setViewportSize({ width, height: 900 })
     await commercialEnvironment(page)
     await page.goto('/?view=environment&mode=pursuits')
@@ -638,6 +639,15 @@ for (const width of [1280, 390]) {
     const screenshot = testInfo.outputPath(`commercial-${width}-fixture.png`)
     await page.screenshot({ path: screenshot, fullPage: true })
     await testInfo.attach('Synthetic fixture rendering, not live data', { path: screenshot, contentType: 'image/png' })
+    const card = page.getByRole('button', { name: /Commercial fixture A/ })
+    expect((await card.boundingBox())!.y + (await card.boundingBox())!.height).toBeLessThan(800)
+    await page.goto('/')
+    await expect(page.getByRole('heading', { name: /A wider view/ })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'What should we work today?' })).not.toBeVisible()
+    await expect(page.getByRole('button', { name: /Explore this pursuit/ })).toBeVisible()
+    const national = testInfo.outputPath(`national-${width}-fixture.png`)
+    await page.screenshot({ path: national, fullPage: true })
+    await testInfo.attach('National fixture rendering, not live data', { path: national, contentType: 'image/png' })
   })
 }
 
@@ -726,6 +736,7 @@ test('first pursuit link preserves the unlinked note and question without transf
   await page.getByLabel('Exact missing-fact question').fill('Which contractor owns this package?')
   await page.getByRole('button', { name: 'Research this question' }).click()
   await expect(page.getByRole('button', { name: 'Queueing…' })).toBeDisabled()
+  await page.getByText('Queue details and research updates', { exact: true }).click()
   await page.getByRole('button', { name: 'Evaluate Signals' }).click()
   await expect(page.getByRole('button', { name: 'Save note', exact: true })).toBeEnabled()
   await expect(page.getByLabel('Note', { exact: true })).toHaveValue('Unlinked note stays with first pursuit')
@@ -756,7 +767,59 @@ test('authentication rejection clears the currently mounted commercial note', as
   await page.route('**/api/commercial/triage/evaluate*', (route) => route.fulfill({ status: 401 }))
   await page.goto('/?view=environment&mode=pursuits&pursuitNeed=a')
   await page.getByLabel('Note', { exact: true }).fill('Private mounted note')
+  await page.getByText('Queue details and research updates', { exact: true }).click()
   await page.getByRole('button', { name: 'Evaluate Signals' }).click()
   await expect(page.getByText(/Your session ended/).first()).toBeVisible()
   await expect(page.getByLabel('Note', { exact: true })).toHaveValue('')
+})
+
+test('quiet queue keeps supporting context discoverable and restores its disclosure', async ({ page }) => {
+  await commercialEnvironment(page)
+  await page.goto('/?view=environment&mode=pursuits')
+  await expect(page.getByRole('button', { name: /Commercial fixture A/ })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Current cohort summary' })).not.toBeVisible()
+  await expect(page.getByText('Fixture reason', { exact: false })).not.toBeVisible()
+  const summary = page.getByText('Queue details and research updates', { exact: true })
+  await summary.focus()
+  await page.keyboard.press('Enter')
+  await expect(page.getByRole('region', { name: 'Current cohort summary' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Evaluate Signals', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: /Commercial fixture A/ }).click()
+  const investigate = page.getByRole('button', { name: 'Investigate this need' })
+  expect(await investigate.evaluate((el) => !!(el.compareDocumentPosition(document.querySelector('.commercial-detail')!) & Node.DOCUMENT_POSITION_FOLLOWING))).toBe(true)
+  await investigate.click()
+  await page.goBack()
+  await expect(page.locator('[data-context-key="queue-context"]')).toHaveAttribute('open', '')
+  await expect(investigate).toBeFocused()
+})
+
+test('Back waits for the expanded national preview before restoring scroll and focus', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 900 })
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  const item = await commercialEnvironment(page)
+  let delayed = false
+  await page.route('**/api/commercial/triage?*', async (route) => {
+    if (delayed) await new Promise((resolve) => setTimeout(resolve, 900))
+    await route.fulfill({ json: {
+      evaluated_at: stamp, policy_version: 'fixture', total: 1, grouped_total: 1, offset: 0, limit: 50, next_offset: null,
+      cohort_counts: { action_now: 1, research: 0, watch: 0, reject: 0 }, daily: { evaluated: 1, surfaced: 1, contacted: 0 },
+      items: [{ ...item, reason: 'Retained fixture context. '.repeat(80) }],
+    } })
+  })
+  await page.goto('/')
+  await page.getByText('Today’s queue preview', { exact: true }).click()
+  await expect(page.getByRole('heading', { name: /Commercial fixture A/ })).toBeVisible()
+  const open = page.getByRole('button', { name: 'Open full pursuit queue' })
+  await open.scrollIntoViewIfNeeded()
+  await open.focus()
+  const y = await page.evaluate(() => scrollY)
+  expect(y).toBeGreaterThan(800)
+  await open.click()
+  await expect(page.getByRole('button', { name: /Commercial fixture A/ })).toBeVisible()
+  delayed = true
+  await page.goBack()
+  await expect(page.locator('[data-context-key="today-preview"]')).toHaveAttribute('open', '')
+  await expect(page.getByRole('heading', { name: /Commercial fixture A/ })).toBeVisible()
+  await expect(open).toBeFocused()
+  await expect.poll(() => page.evaluate(() => scrollY)).toBeCloseTo(y, 0)
 })

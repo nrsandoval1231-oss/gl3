@@ -121,7 +121,7 @@ function sourceDateLabel(evidence: Opportunity['evidence'][number], showPublicat
   return evidence.published_at ? `Published ${evidence.published_at}` : 'Publication date unknown'
 }
 
-export function CommercialTodayEntry({ onOpen }: { onOpen: () => void }) {
+export function CommercialTodayEntry({ onOpen, compact = false }: { onOpen: () => void; compact?: boolean }) {
   const [triage, setTriage] = useState<Awaited<ReturnType<typeof client.commercialTriage>> | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -142,15 +142,18 @@ export function CommercialTodayEntry({ onOpen }: { onOpen: () => void }) {
   const item = triage?.items.find((candidate) => candidate.disposition === 'ACTION NOW') ?? triage?.items.find((candidate) => candidate.disposition === 'RESEARCH')
   const watchItem = triage?.items.find((candidate) => candidate.disposition === 'WATCH')
   const watchEvent = watchItem?.watch && typeof watchItem.watch.event === 'string' ? watchItem.watch.event : null
-  return <section className="commercial-today-entry" aria-label="Today’s commercial work">
-    <div className="commercial-today-copy"><p className="eyebrow">Evidence-backed · next commercial action</p><h2>What should we work today?</h2>
+  const preview = <div className="commercial-today-copy"><p className="eyebrow">Evidence-backed · next commercial action</p><h2>What should we work today?</h2>
       {loading && <p role="status">Checking retained commercial work…</p>}
-      {error && <div role="alert"><p>Today’s commercial work is unavailable: {error}</p><button type="button" onClick={() => setAttempt((value) => value + 1)}>Retry</button></div>}
+      {!compact && error && <div role="alert"><p>Today’s commercial work is unavailable: {error}</p><button type="button" onClick={() => setAttempt((value) => value + 1)}>Retry</button></div>}
       {!loading && !error && triage && !item && triage.total === 0 && <p>No candidates are currently retained in the commercial queue. Unknown project facts remain unknown.</p>}
       {!loading && !error && triage && !item && triage.total > 0 && <><p>No ACTION NOW or RESEARCH action is currently available. {triage.cohort_counts.watch} WATCH · {triage.cohort_counts.reject} REJECT held in the current cohort.</p>{watchItem && <p><strong>WATCH trigger:</strong> {watchEvent ?? 'Specific trigger unknown'}{watchItem.watch && typeof watchItem.watch.date === 'string' ? ` · ${watchItem.watch.date}` : ''}</p>}</>}
       {!loading && !error && triage && !item && triage.total > 0 && triage.items.length === 0 && <p>The queue summary reports retained candidates, but no card details were returned.</p>}
       {!loading && !error && triage && item && <><h3>{item.name} <span>· {item.disposition}</span></h3><p className="commercial-today-meta">{item.location ?? 'Location unknown'} · {item.industry.replaceAll('_', ' ')} · {item.activity.replaceAll('_', ' ').replaceAll('-', ' ')}</p><p>{item.reason}</p><p><strong>Next action:</strong> {item.next_action}</p><p><strong>Critical unknown:</strong> {item.blockers?.[0] ?? item.unknowns?.[0] ?? (item.required_mw ? 'Activity-specific power basis remains to be verified.' : 'Required power is unknown.')}</p><p><strong>Buying path:</strong> {item.organization ?? 'Organization unknown'} · {item.organization_role ?? 'Role unknown'}</p>{item.facts?.[0]?.url && <a href={item.facts[0].url} target="_blank" rel="noreferrer">Supporting retained evidence ↗</a>}<p className="commercial-today-meta">{triage.cohort_counts.action_now} action now · {triage.cohort_counts.research} research · {triage.cohort_counts.watch} watch · Required power {item.required_mw && !/^unknown$/i.test(item.required_mw) ? (/\bmw\b/i.test(item.required_mw) ? item.required_mw : `${item.required_mw} MW`) : 'Unknown'}</p></>}
-    </div><button type="button" className="commercial-today-open" onClick={onOpen}>Open full pursuit queue →</button>
+    </div>
+  return <section className="commercial-today-entry" aria-label="Today’s commercial work" data-context-loading={compact && loading}>
+    {compact ? <details data-context-key="today-preview"><summary>Today’s queue preview</summary>{preview}</details> : preview}
+    {compact && error && <div role="alert">Today’s commercial work is unavailable: {error} <button type="button" onClick={() => setAttempt((value) => value + 1)}>Retry</button></div>}
+    <button type="button" className="commercial-today-open" onClick={onOpen}>Open full pursuit queue →</button>
   </section>
 }
 
@@ -824,7 +827,7 @@ function EnvironmentRoot() {
   }
   if (authenticated === null) return <main className="loading" aria-live="polite">Loading your private workspace…</main>
   if (!authenticated) return <main className="login-wrap"><form className="login" onSubmit={onLogin}><img src="/brand/lockup-horizontal-navy.svg" alt="GridLens"/><h1>Sign in</h1><p>Your private GridLens workspace.</p><label htmlFor="password">Password</label><input id="password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required/><button className="primary">Continue</button>{error && <p role="alert" className="error">{error}</p>}</form></main>
-  return <Environment today={(onOpen) => <CommercialTodayEntry onOpen={onOpen}/>} onSignOut={() => { void client.logout().finally(() => setAuthenticated(false)) }}/>
+  return <Environment today={(onOpen) => <CommercialTodayEntry compact onOpen={onOpen}/>} onSignOut={() => { void client.logout().finally(() => setAuthenticated(false)) }}/>
 }
 
 export function App() {
