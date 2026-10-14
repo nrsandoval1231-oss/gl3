@@ -45,6 +45,8 @@ class Settings(BaseSettings):
     firecrawl_scrape_cost_usd: Decimal | None = Field(default=None, gt=0, le=2)
     schedule_timezone: str = "America/Chicago"
     schedule_anchor_time: str = "07:00:00"
+    ntfy_url: str = ""
+    ntfy_token: SecretStr | None = None
 
     @field_validator("schedule_timezone")
     @classmethod

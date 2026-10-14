@@ -23,3 +23,4 @@ test-results/
 playwright-report/
 .firecrawl/
 *.egg-info/
+.env.prod
