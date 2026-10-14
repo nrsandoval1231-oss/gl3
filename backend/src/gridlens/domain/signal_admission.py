@@ -18,6 +18,8 @@ _PERMIT_METHODS = {
     "tceq-nsr-pending",
     "tceq-temporary-batch-plants",
 }
+_ENVIRONMENTAL_REVIEW_FAMILY = "environmental-review-filings"
+_ENVIRONMENTAL_REVIEW_METHODS = {"ceqanet-data-centers"}
 _CULTIVATION_FAMILY = "cultivation-license-applications"
 _CULTIVATION_METHOD = "ma-cultivation-applications"
 _UTILITY_FAMILIES = {"official-utility-filings"}
@@ -93,6 +95,11 @@ def source_origin(family: str, retrieval_method: str) -> str:
         return "Official planning context"
     if retrieval_method in _PERMIT_METHODS and family == "construction-permits":
         return "Official permit"
+    if (
+        retrieval_method in _ENVIRONMENTAL_REVIEW_METHODS
+        and family == _ENVIRONMENTAL_REVIEW_FAMILY
+    ):
+        return "Official environmental-review filing"
     if retrieval_method == _CULTIVATION_METHOD and family == _CULTIVATION_FAMILY:
         return "Official cultivation application"
     if family in _UTILITY_FAMILIES and retrieval_method in _UTILITY_METHODS:
@@ -127,6 +134,16 @@ def admit_standalone(
         return Admission(False, origin, "The current source version has no accepted assessment.")
     if retrieval_method in _PERMIT_METHODS and family == "construction-permits":
         return Admission(True, origin, "Accepted evidence from an official permit source.")
+    if (
+        retrieval_method in _ENVIRONMENTAL_REVIEW_METHODS
+        and family == _ENVIRONMENTAL_REVIEW_FAMILY
+    ):
+        return Admission(
+            True,
+            origin,
+            "Accepted an official environmental-review filing that names a project site; "
+            "construction, load and schedule are not established.",
+        )
     if retrieval_method == _CULTIVATION_METHOD and family == _CULTIVATION_FAMILY:
         if (
             activity == "cultivation-license-application"
