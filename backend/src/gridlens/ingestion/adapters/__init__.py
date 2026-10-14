@@ -25,6 +25,7 @@ from gridlens.ingestion.adapters.tceq_nsr_pending import retrieve as retrieve_tc
 from gridlens.ingestion.adapters.tceq_temporary_batch import (
     retrieve as retrieve_tceq_temporary_batch,
 )
+from gridlens.ingestion.adapters.tdlr_tabs import retrieve as retrieve_tdlr_tabs
 
 
 def retrieve_source(
@@ -59,6 +60,8 @@ def retrieve_source(
         return retrieve_georgia_air_permits(source, client)
     if method == "ma-cultivation-applications":
         return retrieve_ma_cultivation(source, client)
+    if method == "tdlr-tabs":
+        return retrieve_tdlr_tabs(source, client)
     if method == "san-antonio-permits":
         return retrieve_san_antonio_permits(source, client)
     if method == "fort-worth-permits":

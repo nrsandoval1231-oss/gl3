@@ -19,6 +19,7 @@ _PERMIT_METHODS = {
     "tceq-temporary-batch-plants",
     "fort-worth-permits",
     "san-antonio-permits",
+    "tdlr-tabs",
 }
 _ENVIRONMENTAL_REVIEW_FAMILY = "environmental-review-filings"
 _ENVIRONMENTAL_REVIEW_METHODS = {"ceqanet-data-centers"}
@@ -95,6 +96,9 @@ def source_origin(family: str, retrieval_method: str) -> str:
         return "News context"
     if family == "municipal-planning-news" or retrieval_method == "taylor-newsflash":
         return "Official planning context"
+    if retrieval_method == "tdlr-tabs" and family == "construction-permits":
+        # An accessibility-review registration, not a building permit.
+        return "Official TDLR project registration"
     if retrieval_method in _PERMIT_METHODS and family == "construction-permits":
         return "Official permit"
     if (

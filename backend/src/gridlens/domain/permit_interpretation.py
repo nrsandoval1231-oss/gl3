@@ -221,6 +221,8 @@ def evaluator_version(record: dict[str, Any]) -> str:
         return FORT_WORTH_EVALUATOR_VERSION
     if isinstance(permit, dict) and permit.get("source_type") == "san-antonio-development-permits":
         return SAN_ANTONIO_EVALUATOR_VERSION
+    if isinstance(permit, dict) and permit.get("source_type") == "texas-tdlr-tabs-data-centers":
+        return TABS_EVALUATOR_VERSION
     if isinstance(permit, dict) and permit.get("source_type") == "boston-building-permits":
         return BOSTON_PERMIT_EVALUATOR_VERSION
     return EVALUATOR_VERSION
@@ -569,6 +571,83 @@ _RENOVATION = re.compile(r"\b(?:remodel|renovat\w*|interior finish|tenant finish
 
 
 SAN_ANTONIO_EVALUATOR_VERSION = "san-antonio-data-center-permit-v1"
+TABS_EVALUATOR_VERSION = "tdlr-tabs-data-center-v1"
+_TABS_IN_SCOPE = {"new construction", "additions to existing building"}
+_TABS_TERMINAL = re.compile(r"\bproject closed\b|\binspection complete(?:d)?\b", re.IGNORECASE)
+
+
+def _assess_tabs(record: dict[str, Any], permit: dict[str, Any], as_of: date) -> dict[str, Any]:
+    facility = str(permit.get("facility") or "").strip()
+    description = str(permit.get("description") or "")
+    work = str(permit.get("subtype") or "")
+    status = str(permit.get("status") or "unknown")
+    completion = permit.get("reported_completion")
+    start = permit.get("reported_start")
+    named = bool(_TCEQ_DATA_CENTER.search(description))
+    in_scope = work.casefold() in _TABS_IN_SCOPE
+    terminal = bool(_TABS_TERMINAL.search(status))
+    finished = bool(completion and completion < as_of.isoformat())
+    accepted = bool(
+        named
+        and in_scope
+        and not terminal
+        and not finished
+        and record.get("event_date")
+        and permit.get("location")
+    )
+    if accepted:
+        reason = (
+            f"TDLR TABS registration {permit.get('row_id', '')[5:]} ({work}) for a data center "
+            f"({facility}) at {permit.get('location')}, registered {record.get('event_date')}; "
+            f"owner {permit.get('applicant') or 'not stated'}. The developer reported a start of "
+            f"{start or 'unknown'} and completion of {completion or 'unknown'}; these are the "
+            "registrant's estimates, not confirmed construction dates. Estimated cost is the "
+            "registrant's figure. MW, utility service date and the buyer are unknown unless "
+            "stated in the scope."
+        )
+    elif not named:
+        reason = "TABS registration does not name a data center."
+    elif not in_scope:
+        reason = f"{work or 'Unstated'} work, not new construction or an addition; not a new load."
+    elif terminal:
+        reason = f"TABS status is {status}; the project is closed or already inspected."
+    elif finished:
+        reason = f"Reported completion {completion} has passed; not a forward-looking need."
+    else:
+        reason = "TABS registration lacks a registration date or location."
+    return {
+        "schema_version": 1,
+        "decision": "accepted" if accepted else "rejected",
+        "tier": "Signal" if accepted else None,
+        "reason": reason,
+        "subject": facility if accepted else None,
+        "action": "data-center construction registered with TDLR" if accepted else None,
+        "location": permit.get("location"),
+        "missing_facts": MISSING,
+        "source_field_citations": permit.get("source_fields", {}),
+        "stable_row_id": permit.get("row_id"),
+        "permit_status": status,
+        "event_date": record.get("event_date"),
+        "event_date_label": record.get("event_date_label"),
+        "issue_date": None,
+        "issue_date_label": None,
+        "project_hint": facility or None,
+        "power_activity": "facility-expansion",
+        "rental_category": "construction-activity-discovery",
+        "reported_claim": facility if accepted else None,
+        "reported_power_facts": _reported_mw_facts(description) if accepted else [],
+        "rental_hypothesis": (
+            "Inferred review question only: will permanent utility service be energized by "
+            "the reported completion date?"
+            if accepted
+            else None
+        ),
+        "activity_end_date": None,
+        "review_after": None,
+        "as_of_date": as_of.isoformat(),
+        "document_links": permit.get("document_links", {}),
+        "coordinates": None,
+    }
 
 
 def _assess_fort_worth(
@@ -952,6 +1031,8 @@ def assess_permit(record: dict[str, Any], *, as_of: date | None = None) -> dict[
         return _assess_tceq_batch(record, permit, as_of)
     if permit.get("source_type") == "california-ceqanet-data-centers":
         return _assess_ceqa(record, permit, as_of)
+    if permit.get("source_type") == "texas-tdlr-tabs-data-centers":
+        return _assess_tabs(record, permit, as_of)
     if permit.get("source_type") in {
         "fort-worth-development-permits",
         "san-antonio-development-permits",
