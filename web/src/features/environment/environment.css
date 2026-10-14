@@ -142,3 +142,10 @@
 .env .commercial-today-entry [role=alert] button { background: none; border-color: rgba(231, 185, 187, .5); color: #e7b9bb; }
 .env-review { margin: 8px 0 0; padding: 8px 12px; border-left: 2px solid var(--gl-mist); background: rgba(213, 222, 229, .06); font-size: 13px; color: var(--gl-ice); }
 .env-rank { margin: 6px 0 0; font-size: 12px; letter-spacing: .02em; color: var(--env-quiet); }
+
+.quick-call fieldset { border: 0; display: grid; gap: 8px 14px; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); margin: 0 0 14px; padding: 0; }
+.quick-call legend { font-size: 12px; letter-spacing: .08em; margin-bottom: 6px; text-transform: uppercase; }
+.quick-call label { display: grid; font-size: 13px; gap: 4px; }
+.quick-call textarea { grid-column: 1 / -1; min-height: 64px; }
+.env-full-facts { margin-top: 16px; }
+.env-full-facts summary { cursor: pointer; font-size: 13px; }
