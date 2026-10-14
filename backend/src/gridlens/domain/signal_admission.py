@@ -18,6 +18,7 @@ _PERMIT_METHODS = {
     "tceq-nsr-pending",
     "tceq-temporary-batch-plants",
     "fort-worth-permits",
+    "san-antonio-permits",
 }
 _ENVIRONMENTAL_REVIEW_FAMILY = "environmental-review-filings"
 _ENVIRONMENTAL_REVIEW_METHODS = {"ceqanet-data-centers"}

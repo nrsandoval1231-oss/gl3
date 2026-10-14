@@ -1,0 +1,53 @@
+{
+ "_comment": "Excerpt of official Open Data SA datastore_search responses (q=data center), retrieved 2026-10-14; records unchanged except the excerpt's total, which equals its record count.",
+ "help": "https://data.sanantonio.gov/api/3/action/help_show?name=datastore_search",
+ "success": true,
+ "result": {
+  "resource_id": "fbb7202e-c6c1-475b-849e-c5c2cfb65833",
+  "q": "data center",
+  "limit": 500,
+  "records": [
+   {
+    "PERMIT TYPE": "MEP Trade Permits Application",
+    "PERMIT #": "MEP-TRD-APP26-33118065",
+    "PROJECT NAME": "Bexar Data Center",
+    "WORK TYPE": null,
+    "ADDRESS": "3463 MAGIC DR, City of San Antonio, TX 78229",
+    "LOCATION": null,
+    "X_COORD": -98.556951,
+    "Y_COORD": 29.502958,
+    "DATE SUBMITTED": "2026-06-30T00:00:00",
+    "DATE ISSUED": null,
+    "DECLARED VALUATION": null,
+    "AREA (SF)": null,
+    "PRIMARY CONTACT": "TRIDENT BLDG SERVICES & TECH",
+    "CD": "1",
+    "NCD": null,
+    "HD": null,
+    "rank": 0.09016734,
+    "_id": 38754
+   },
+   {
+    "PERMIT TYPE": "Commercial Project Application",
+    "PERMIT #": "COM-PRJ-APP26-39801729",
+    "PROJECT NAME": "2020 Babcock Road \u2013 Data Processing Center Adaptive Reuse",
+    "WORK TYPE": null,
+    "ADDRESS": "2020 BABCOCK RD, City of San Antonio, TX 78229",
+    "LOCATION": null,
+    "X_COORD": -98.578922,
+    "Y_COORD": 29.50008,
+    "DATE SUBMITTED": "2026-09-25T00:00:00",
+    "DATE ISSUED": null,
+    "DECLARED VALUATION": null,
+    "AREA (SF)": null,
+    "PRIMARY CONTACT": "John McNair",
+    "CD": "7",
+    "NCD": null,
+    "HD": null,
+    "rank": 0.09016734,
+    "_id": 58490
+   }
+  ],
+  "total": 2
+ }
+}
