@@ -168,3 +168,10 @@ test('state lists default to rank order, highest first', async ({ page }) => {
   await page.goto('/?view=environment&mode=state&state=Texas')
   await expect(page.locator('.env-list li')).toHaveText([/Dallas/, /Houston/, /Austin/])
 })
+
+test('featured rank is qualified when only part of the cohort is loaded', async ({ page }) => {
+  const items = Array.from({ length: 205 }, (_, i) => ({ ...opportunity(`n${i}`, 'Austin, TX'), rank_score: i === 3 ? 90 : 20 } as Opportunity))
+  await mock(page, items)
+  await page.goto('/')
+  await expect(page.getByText(/Highest rank of the 200 most recently updated · 90/)).toBeVisible()
+})

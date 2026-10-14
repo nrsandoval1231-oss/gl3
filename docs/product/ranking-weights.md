@@ -20,5 +20,5 @@ Each opportunity shows its score and up to three largest contributing reasons.
 - Each opportunity shows its score and principal reasons.
 - The home view features the highest-ranked loaded record.
 - Lists default to rank order, highest first. Equal or missing ranks keep most-recently-updated order.
-- Rank orders the records already loaded (the most recently updated, up to 200). It does not re-query the full archive by rank.
+- Rank orders the records already loaded (the most recently updated, up to 200). It does not re-query the full archive by rank; when more records match than are loaded, the home view says "Highest rank of the N most recently updated".
 - Weights change only by editing this table and `WEIGHTS` together, with a new version.

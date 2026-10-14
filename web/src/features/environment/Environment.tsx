@@ -223,7 +223,7 @@ export function Environment({ onSignOut, today }: { onSignOut: () => void; today
             <h1 ref={headingRef} tabIndex={-1} className="env-display">A wider view.<br/>A sharper focus.</h1>
             <p className="env-lede">{loading ? 'Loading the national picture…' : `${page?.totalCount ?? 0} ${scene.tier.toLowerCase()}${scene.search ? ` matching “${scene.search}”` : ''} · ${mappedStates} states${unmapped ? ` · ${unmapped} unmapped` : ''}.`} {tierNote}</p>
             {featured ? <div className="env-featured">
-              <p className="env-eyebrow"><span className="env-dot"/>{featured.rank_score != null ? `Highest rank · ${featured.rank_score}` : 'Most recently updated'} · {featured.tier}</p>
+              <p className="env-eyebrow"><span className="env-dot"/>{featured.rank_score != null ? `${page && page.totalCount > items.length ? `Highest rank of the ${items.length} most recently updated` : 'Highest rank'} · ${featured.rank_score}` : 'Most recently updated'} · {featured.tier}</p>
               {featured.rank_reasons && featured.rank_reasons.length > 0 && <p className="env-meta">{featured.rank_reasons.join(' · ')}</p>}
               <h2>{projectTitle(featured)}</h2>
               <p className="env-meta">{featured.location ?? 'Location unknown'} · {readable(featured.activity)}</p>
