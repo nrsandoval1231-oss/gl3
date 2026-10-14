@@ -2,8 +2,10 @@
 
 - **Publisher:** State Clearinghouse, Governor's Office of Land Use and Climate Innovation (CEQAnet).
 - **Endpoint:** `https://ceqanet.lci.ca.gov/Search` with `DevelopmentType`, `StartRange`, `EndRange`.
-- **Scope:** CEQA documents received in the last 60 days with an Industrial, Power or Other development type. Each search page states its document count, and the adapter fails if the table does not hold exactly that many rows.
+- **Scope:** CEQA documents received in the last 60 days with an Industrial, Power or Other development type. The window is searched in weekly slices because CEQAnet shows at most 100 rows per search. Each page states its document count, and the adapter fails if the table does not hold exactly that many rows, so a slice over the cap fails visibly.
 - **Document pages:** up to 60 per run, with rows whose title names a data center read first. A filing is kept only when its title or description names a data center. The run fails if a page whose title names a data center can't be read, or if more than half of the pages fail.
+- **Family:** `environmental-review-filings`, shown as "Official environmental-review filing", not as a permit.
+- **Fields:** the lead agency is kept separate from the project applicant, which is taken from the contact marked Project Applicant. When the page shows an "Approved On" date, that is the event date; otherwise the received date is used.
 - **Admission (`ceqanet-data-center-v1`):** Signal when the filing names a data center and has a received date, a link and a city or county. Moratoria, ordinances and code or plan updates are rejected. If only the description names a data center, the reason says so, because it may be one design option.
 - **Real-source evidence (retrieved 2026-10-14):**
   - The Industrial search for 2026-08-15 to 2026-10-14 returned 25 documents, and the table held all 25.

@@ -45,6 +45,29 @@ def test_document_page_gives_place_and_coordinates():
     assert (document["cities"], document["counties"]) == ("Lake Elsinore", "Riverside")
     assert (document["latitude"], document["longitude"]) == (33.685447, -117.326358)
     assert "one data center building" in document["description"]
+    assert document["applicant"] == "V22 Investments, LLC"
+    assert document["action_date"] is None
+
+
+def test_lead_agency_is_not_the_applicant_and_origin_is_environmental_review():
+    item = record(elsinore_row(), parse_document(ELSINORE))
+    assert item["permit"]["applicant"] == "V22 Investments, LLC"
+    assert item["permit"]["lead_agency"] == "City of Lake Elsinore"
+    from gridlens.domain.signal_admission import admit_standalone, source_origin
+
+    assert source_origin("environmental-review-filings", "ceqanet-data-centers") == (
+        "Official environmental-review filing"
+    )
+    admission = admit_standalone(
+        source_id=SOURCE_ID,
+        family="environmental-review-filings",
+        retrieval_method="ceqanet-data-centers",
+        accepted=True,
+        activity="facility-expansion",
+        title=item["title"],
+        abstract=item["abstract"],
+    )
+    assert admission.admitted and "not established" in admission.reason
 
 
 def test_description_only_data_center_is_signal_with_caveat():
@@ -71,7 +94,6 @@ def test_retrieve_keeps_only_data_center_documents():
         url = str(request.url)
         seen.append(url)
         if url.startswith(SEARCH_URL):
-            assert "StartRange=2026-08-15" in url and "EndRange=2026-10-14" in url
             return httpx.Response(200, content=LISTING)
         if url.endswith("/2026020574"):
             return httpx.Response(200, content=ELSINORE)
@@ -85,6 +107,11 @@ def test_retrieve_keeps_only_data_center_documents():
     client = httpx.Client(transport=httpx.MockTransport(handler))
     records = retrieve(SOURCE, client, today=TODAY)
     assert [r["permit"]["row_id"] for r in records] == ["CEQA-2026020574-2026020574"]
+    searches = [url for url in seen if url.startswith(SEARCH_URL)]
+    # 2026-08-15..2026-10-14 is read in nine weekly slices to stay under CEQAnet's row cap.
+    assert len(searches) == 9
+    assert "StartRange=2026-08-15&EndRange=2026-08-21" in searches[0]
+    assert "StartRange=2026-10-10&EndRange=2026-10-14" in searches[-1]
 
 
 def test_retrieve_fails_visibly_when_pages_fail():

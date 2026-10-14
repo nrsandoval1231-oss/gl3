@@ -15,6 +15,7 @@ from gridlens.persistence.models import NeedObservation, Observation, Source
 # Research freshness is intentionally distinct from a collector's poll cadence.
 SOURCE_FRESHNESS_HOURS = {
     "construction-permits": 72,
+    "environmental-review-filings": 72,
     "news": 24,
     "oil-gas-regulatory-applications": 24,
     "municipal-planning-news": 72,

@@ -496,7 +496,7 @@
       "id": "california-ceqanet-data-centers",
       "publisher": "California Governor's Office of Land Use and Climate Innovation, State Clearinghouse (CEQAnet)",
       "endpoint": "https://ceqanet.lci.ca.gov/Search",
-      "family": "construction-permits",
+      "family": "environmental-review-filings",
       "geography": "California",
       "industries": [
         "data centers"

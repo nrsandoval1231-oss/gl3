@@ -235,6 +235,7 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
         elif source["retrieval_method"] == "ceqanet-data-centers":
             bounded = (
                 source.get("cadence_hours") == 24
+                and source.get("family") == "environmental-review-filings"
                 and source.get("geography") == "California"
                 and set(query) == {"development_types", "window_days", "max_documents"}
                 and 1 <= query.get("max_documents", 0) <= 60

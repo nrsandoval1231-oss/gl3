@@ -75,6 +75,14 @@ def parse_listing(body: bytes) -> list[dict[str, str]]:
     return rows
 
 
+def _iso_date(value: str) -> str | None:
+    match = re.search(r"(\d{1,2})/(\d{1,2})/(\d{4})", value)
+    if not match:
+        return None
+    month, day, year = (int(part) for part in match.groups())
+    return date(year, month, day).isoformat()
+
+
 def _dms(value: str) -> float | None:
     match = _DMS.search(value)
     if not match:
@@ -86,6 +94,24 @@ def _dms(value: str) -> float | None:
 
 def parse_document(body: bytes) -> dict[str, Any]:
     soup = BeautifulSoup(body, "html.parser")
+    applicant = None
+    contacts = soup.find("h2", string=re.compile("Contact Information"))
+    if isinstance(contacts, Tag):
+        for block in contacts.find_all_next("div", class_="document-padding"):
+            if not isinstance(block, Tag):
+                continue
+            labels: dict[str, str] = {}
+            for row in block.find_all("div", class_="row"):
+                if not isinstance(row, Tag):
+                    continue
+                label, value = row.find("strong"), row.find("div", class_="col-md-9")
+                if isinstance(label, Tag) and isinstance(value, Tag):
+                    labels[_text(label)] = _text(value)
+            if "Agency Name" not in labels:
+                break
+            if "Project Applicant" in labels.get("Contact Types", ""):
+                applicant = labels["Agency Name"]
+                break
     fields: dict[str, str] = {}
     for row in soup.select("div.row"):
         label = row.find("strong")
@@ -105,6 +131,8 @@ def parse_document(body: bytes) -> dict[str, Any]:
         "cities": fields.get("Cities", ""),
         "counties": fields.get("Counties", ""),
         "development_types": fields.get("Development Types", ""),
+        "applicant": applicant,
+        "action_date": _iso_date(fields.get("Approved On", "")),
         "latitude": _dms(str(latitude.get("content"))) if isinstance(latitude, Tag) else None,
         "longitude": _dms(str(longitude.get("content"))) if isinstance(longitude, Tag) else None,
     }
@@ -128,6 +156,7 @@ def record(row: dict[str, str], document: dict[str, Any]) -> dict[str, Any]:
         "abstract": "\n".join(
             [
                 f"Lead agency: {document['lead_agency']}",
+                f"Project applicant: {document.get('applicant') or 'not stated'}",
                 f"Document type: {document['document_type']}",
                 f"Received: {row['received']}",
                 f"Location: {location or 'not stated'}",
@@ -136,8 +165,12 @@ def record(row: dict[str, str], document: dict[str, Any]) -> dict[str, Any]:
             ]
         ),
         "publication_date": row["received"],
-        "event_date": row["received"],
-        "event_date_label": "Received by the State Clearinghouse (CEQAnet)",
+        "event_date": document.get("action_date") or row["received"],
+        "event_date_label": (
+            "Approved On (CEQAnet document)"
+            if document.get("action_date")
+            else "Received by the State Clearinghouse (CEQAnet)"
+        ),
         "html_url": row["url"],
         "extraction_location": "CEQAnet document page: Summary and Location sections",
         "source_hash": hashlib.sha256(
@@ -146,7 +179,8 @@ def record(row: dict[str, str], document: dict[str, Any]) -> dict[str, Any]:
         "permit": {
             "source_type": SOURCE_ID,
             "row_id": row_id,
-            "applicant": document["lead_agency"],
+            "applicant": document.get("applicant"),
+            "lead_agency": document["lead_agency"],
             "facility": document["title"],
             "document_type": document["document_type"],
             "status": document["document_type"],
@@ -195,12 +229,18 @@ def retrieve(
     http = client or httpx.Client(timeout=25, follow_redirects=False)
     try:
         rows: dict[str, dict[str, str]] = {}
+        # CEQAnet shows at most 100 rows per search, so the window is read in weekly slices;
+        # a slice that still exceeds the cap fails the run rather than dropping documents.
         for development_type in types:
-            _, body = read_bounded_response(
-                http, _search_url(development_type, start, end), MAX_LISTING_BYTES
-            )
-            for row in parse_listing(body):
-                rows.setdefault(row["url"], row)
+            slice_start = start
+            while slice_start <= end:
+                slice_end = min(slice_start + timedelta(days=6), end)
+                _, body = read_bounded_response(
+                    http, _search_url(development_type, slice_start, slice_end), MAX_LISTING_BYTES
+                )
+                for row in parse_listing(body):
+                    rows.setdefault(row["url"], row)
+                slice_start = slice_end + timedelta(days=1)
         # Titles that name a data center are read first; the rest are read while the bound
         # allows, because many filings name the data center only in their description.
         ordered = sorted(rows.values(), key=lambda row: not names_data_center(row))

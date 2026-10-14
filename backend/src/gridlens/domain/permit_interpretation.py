@@ -585,8 +585,9 @@ def _assess_ceqa(record: dict[str, Any], permit: dict[str, Any], as_of: date) ->
             else "names a data center only in its description (it may be one design option)"
         )
         reason = (
-            f"A CEQA {permit.get('document_type')} from {permit.get('applicant')}, received "
-            f"{record.get('event_date')}, {mention}, at {location}. The site is in environmental "
+            f"A CEQA {permit.get('document_type')} from lead agency {permit.get('lead_agency')} "
+            f"({record.get('event_date_label')}: {record.get('event_date')}) {mention}, at "
+            f"{location}. The site is in environmental "
             "review, not under construction; MW, schedule, utility service date and the buyer "
             "are unknown."
         )
