@@ -49,9 +49,14 @@ RELEVANT_NAME = re.compile(
     re.IGNORECASE,
 )
 _SITE = re.compile(
-    r"\((RN\d{9})\)\s+(?:will|is)\b.{0,160}?\bat\s+(?P<site>.{3,300}?),\s*"
-    r"(?P<city>[A-Za-z .'\-]{2,60}),\s*(?P<county>[A-Za-z .'\-]{2,60}?)\s+County\b",
+    r"\((RN\d{9})\)\s+(?:will|is)\b.{0,160}?\bat\b[,\s]+(?P<site>.{3,300}?),\s*"
+    r"(?P<city>[A-Za-z .'\-]{2,60}),\s*(?:Texas,\s*)?(?P<county>[A-Za-z .'\-]{2,60}?)\s+County\b",
     re.DOTALL,
+)
+# Alternate wording: "(RN...) site is located in Carson County ... northeast of Amarillo, Texas".
+_SITE_COUNTY = re.compile(
+    r"\((RN\d{9})\)\s+site is located in\s+(?P<county>[A-Z][A-Za-z .'\-]{1,40}?)\s+County\b"
+    r"(?P<site>[^.]{0,200}?(?:of|near|in)\s+(?P<city>[A-Z][A-Za-z .'\-]{1,40}),\s*Texas)?"
 )
 _COORD = re.compile(r"(-?\d{1,3}\.\d{3,}),\s*(-?\d{1,3}\.\d{3,})")
 
@@ -139,6 +144,14 @@ def summary_from_text(text: str, permit: str) -> dict[str, Any]:
         raise SourceParseError("TCEQ summary does not name the listed permit")
     site = _SITE.search(text)
     result: dict[str, Any] = {"text": text[:3000], "site": None, "city": None, "county": None}
+    county_only = None if site else _SITE_COUNTY.search(text)
+    if county_only:
+        result.update(
+            regulated_entity=county_only.group(1),
+            site=" ".join((county_only.group("site") or "").split()) or None,
+            city=county_only.group("city"),
+            county=" ".join(county_only.group("county").split()),
+        )
     if site:
         result.update(
             regulated_entity=site.group(1),
@@ -149,8 +162,16 @@ def summary_from_text(text: str, permit: str) -> dict[str, Any]:
         coords = _COORD.search(site.group("site"))
         if coords:
             result["latitude"], result["longitude"] = float(coords.group(1)), float(coords.group(2))
-    purpose = re.search(r"(This permit will authorize[^.]{5,400}\.)", text)
-    result["purpose"] = purpose.group(1) if purpose else None
+    purpose = re.search(
+        r"((?:This|The)\b[^.]{0,80}?\b(?:permit|registration|application)\b[^.]{0,40}?"
+        r"\bwill authorize[^.]{5,400}\.|[^.]{0,200}\bwill provide electricity to[^.]{3,200}\.)",
+        text,
+    )
+    result["purpose"] = " ".join(purpose.group(1).split()) if purpose else None
+    result["renewal"] = bool(
+        re.search(r"\brenewal\b", text, re.IGNORECASE)
+        and re.search(r"no changes|continued operation", text, re.IGNORECASE)
+    )
     return result
 
 
@@ -159,6 +180,8 @@ def _record(row: dict[str, Any], summary: dict[str, Any] | None) -> dict[str, An
     location = (
         f"{summary['city']}, {summary['county']} County, TX"
         if summary and summary.get("city")
+        else f"{summary['county']} County, TX"
+        if summary and summary.get("county")
         else None
     )
     abstract = "\n".join(
@@ -210,6 +233,7 @@ def _record(row: dict[str, Any], summary: dict[str, Any] | None) -> dict[str, An
                 part for part in (row["facility"], (summary or {}).get("purpose") or "") if part
             ),
             "purpose": (summary or {}).get("purpose"),
+            "renewal_without_change": bool((summary or {}).get("renewal")),
             "summary_text": (summary or {}).get("text"),
             "location": location,
             "city": (summary or {}).get("city"),

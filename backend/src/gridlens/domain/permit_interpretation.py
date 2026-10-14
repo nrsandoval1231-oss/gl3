@@ -365,7 +365,7 @@ TCEQ_NSR_EVALUATOR_VERSION = "tceq-nsr-pending-v1"
 _TCEQ_DATA_CENTER = re.compile(r"\bdata\s*centers?\b|\bhyperscale\b", re.IGNORECASE)
 _TCEQ_ONSITE_LOAD = re.compile(
     r"onsite consumption|on-site consumption|behind[- ]the[- ]meter|"
-    r"serve (?:the )?(?:onsite|on-site)",
+    r"serve (?:the )?(?:onsite|on-site)|on-site data center|does not sell power to the grid",
     re.IGNORECASE,
 )
 _TCEQ_GENERATION = re.compile(
@@ -389,8 +389,14 @@ def _assess_tceq_nsr(record: dict[str, Any], permit: dict[str, Any], as_of: date
     location = permit.get("location")
     citation_ok = bool(record.get("html_url") and permit.get("row_id"))
     dated = bool(record.get("event_date"))
+    renewal = bool(permit.get("renewal_without_change"))
     accepted = bool(
-        facility and location and citation_ok and dated and (data_center or onsite_load)
+        facility
+        and location
+        and citation_ok
+        and dated
+        and (data_center or onsite_load)
+        and not renewal
     )
     # One recognized activity key; the specific event stays in the Signal text.
     activity = "facility-expansion"
@@ -408,6 +414,11 @@ def _assess_tceq_nsr(record: dict[str, Any], permit: dict[str, Any], as_of: date
             "not yet authorized, and its timing relative to construction, commissioning and "
             "utility service is UNKNOWN. This is a discovery Signal; required temporary MW, "
             "start window, duration, buyer and authority remain unknown."
+        )
+    elif renewal:
+        reason = (
+            "Renewal of an existing air permit with no stated change; existing equipment is "
+            "retained as evidence, not a new construction or power Signal."
         )
     elif not (data_center or onsite_load):
         reason = (

@@ -110,3 +110,62 @@ def test_retrieve_bounds_summary_fetches_and_survives_a_missing_pdf():
     assert all(record["permit"]["summary_fetched"] is False for record in records)
     with pytest.raises(SourceParseError):
         retrieve({"id": "other", "endpoint": LISTING_URL})
+
+
+# Excerpts of official Plain Language Summaries retrieved 2026-10-14.
+ALIGNED_RENEWAL = (
+    "Plain Language Summary for New Source Review (NSR) Renewal Certification Application for Air "
+    "New Source Review Permit Number 131651 ... Aligned Data Centers REIT LLC (Aligned) "
+    "(CN606478972) has submitted an application for renewal of permit number 131651. The ADC Plano "
+    "(RN102319506) is a data center at 2800 Summit Avenue, Plano, Texas, Collin County. This "
+    "renewal application will authorize the continued operation of twenty (20) diesel engine "
+    "generators and five (5) diesel tanks. Aligned has certified there will be no changes to the "
+    "permit."
+)
+FERMI = (
+    "Application for Air New Source Review Permit Number 183462, GHGPSDTX271, and PSDTX1704 ... "
+    "Fermi Equipment Holdco LLC (CN606413086) has submitted an initial permit application for "
+    "Permit Numbers 183462,GHGPSDTX271, and PSDTX1704 to authorize construction of a new natural "
+    "gas-fired power plant on their East Campus. The Fermi America Project Matador (RN112258678) "
+    "site is located in Carson County on the north side of US Route 60, approximately 15 miles "
+    "northeast of Amarillo, Texas. The Fermi America Project Matador East Campus will provide "
+    "electricity to an on-site data center campus."
+)
+
+
+def _row(facility: str, applicant: str, permit: str) -> dict:
+    return {
+        "project": "1", "applicant": applicant, "facility": facility, "permits": [permit],
+        "received": date(2026, 3, 27), "application_stage": "Technically Complete Application",
+        "notice_url": "https://www.tceq.texas.gov/x#1",
+        "application_url": "https://www.tceq.texas.gov/x.pdf",
+    }
+
+
+def test_renewal_without_change_is_not_a_signal():
+    summary = summary_from_text(ALIGNED_RENEWAL, "131651")
+    assert summary["renewal"] and summary["city"] == "Plano" and summary["county"] == "Collin"
+    result = assess_permit(
+        _record(_row("ADC PLANO", "ALIGNED DATA CENTERS REIT LLC", "131651"), summary),
+        as_of=TODAY,
+    )
+    assert result["decision"] == "rejected" and "Renewal" in result["reason"]
+
+
+def test_county_wording_and_on_site_data_center_power_plant():
+    summary = summary_from_text(FERMI, "183462")
+    assert summary["county"] == "Carson" and summary["city"] == "Amarillo"
+    assert "on-site data center campus" in summary["purpose"]
+    result = assess_permit(
+        _record(
+            _row(
+                "FERMI AMERICA PROJECT MATADOR EAST CAMPUS",
+                "FERMI EQUIPMENT HOLDCO, LLC",
+                "183462",
+            ),
+            summary,
+        ),
+        as_of=TODAY,
+    )
+    assert result["decision"] == "accepted"
+    assert result["location"] == "Amarillo, Carson County, TX"
