@@ -54,7 +54,23 @@ def test_substation_is_accepted_and_renovation_is_rejected():
     assert substation["decision"] == "accepted"
     assert substation["action"] == "data-center substation permit"
     renovation = assess_permit(record(permits()["PB26-13010"]), as_of=TODAY)
-    assert renovation["decision"] == "rejected" and "Renovation" in renovation["reason"]
+    assert renovation["decision"] == "rejected" and "Remodel permit" in renovation["reason"]
+
+
+def test_terminal_status_and_out_of_scope_subtypes_are_rejected():
+    for status in ("Cancelled", "Void", "Withdrawn", "Expired"):
+        permit = {**permits()["PB26-11109"], "status": status}
+        result = assess_permit(record(permit), as_of=TODAY)
+        assert result["decision"] == "rejected" and status in result["reason"]
+    demolition = {**permits()["PB26-11109"], "subtype": "Demolition"}
+    assert assess_permit(record(demolition), as_of=TODAY)["decision"] == "rejected"
+    assert record(permits()["PB26-11109"])["publication_date"] is None
+
+
+def test_malformed_features_fail_the_run():
+    for bad in ([1], [{"attributes": None}], [{"attributes": {"Permit_No": ""}}]):
+        with pytest.raises(SourceParseError, match="malformed"):
+            parse_rows(json.dumps({"features": bad}).encode())
 
 
 def test_retrieve_queries_the_window_and_fails_on_truncation():

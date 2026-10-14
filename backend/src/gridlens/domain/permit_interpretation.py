@@ -574,12 +574,19 @@ def _assess_fort_worth(
     subtype = str(permit.get("subtype") or "")
     status = str(permit.get("status") or "unknown")
     named = bool(_TCEQ_DATA_CENTER.search(description))
-    renovation = bool(_RENOVATION.search(subtype)) or (
-        subtype.casefold() not in {"new", "addition"} and bool(_RENOVATION.search(description))
-    )
     substation = bool(re.search(r"\bsubstation\b", description, re.IGNORECASE))
+    # Only new or added floor area, or a substation, is a new load; other subtypes are not.
+    in_scope = subtype.casefold() in {"new", "addition"} or substation
+    renovation = not in_scope or bool(_RENOVATION.search(subtype))
+    terminal = bool(_INELIGIBLE_STATUS.search(status)) or bool(
+        re.search(r"\b(?:denied|rejected)\b", status, re.IGNORECASE)
+    )
     accepted = bool(
-        named and not renovation and record.get("event_date") and permit.get("location")
+        named
+        and not renovation
+        and not terminal
+        and record.get("event_date")
+        and permit.get("location")
     )
     if accepted:
         subject = "a data-center substation" if substation else "a new or expanded data center"
@@ -591,8 +598,13 @@ def _assess_fort_worth(
             "estimate. MW, schedule, utility service date and the buyer are unknown unless "
             "stated in the description."
         )
+    elif terminal and named:
+        reason = f"Permit status is {status}; a closed or cancelled permit is not an active need."
     elif renovation:
-        reason = "Renovation of an existing data center; retained as evidence, not a new load."
+        reason = (
+            f"{subtype or 'Unstated'} permit, not new or added data-center floor area or a "
+            "substation; retained as evidence, not a new load."
+        )
     elif not named:
         reason = "Permit does not name a data center."
     else:

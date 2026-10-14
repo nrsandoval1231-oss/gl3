@@ -77,10 +77,14 @@ def parse_rows(body: bytes) -> list[dict[str, Any]]:
     features = payload.get("features")
     if not isinstance(features, list):
         raise SourceParseError("Fort Worth permit query lacks a features list")
-    rows = [f.get("attributes") for f in features if isinstance(f, dict)]
-    if any(not isinstance(row, dict) or not row.get("Permit_No") for row in rows):
-        raise SourceParseError("Fort Worth permit row lacks a permit number")
-    return rows  # type: ignore[return-value]
+    rows: list[dict[str, Any]] = []
+    for feature in features:
+        attributes = feature.get("attributes") if isinstance(feature, dict) else None
+        # Every feature must parse; a dropped row would make a partial run look complete.
+        if not isinstance(attributes, dict) or not attributes.get("Permit_No"):
+            raise SourceParseError("Fort Worth permit feature is malformed or lacks a number")
+        rows.append(attributes)
+    return rows
 
 
 def _address(row: dict[str, Any]) -> str | None:
@@ -156,7 +160,8 @@ def record(permit: dict[str, Any]) -> dict[str, Any]:
                 f"Addresses: {'; '.join(permit['addresses']) or 'not stated'}",
             ]
         ),
-        "publication_date": permit["status_date"],
+        # The table has no publication date; the status date stays in the abstract only.
+        "publication_date": None,
         "event_date": permit["filed"],
         "event_date_label": "Permit application filed (Fort Worth Development Services)",
         "html_url": DATASET_URL,
