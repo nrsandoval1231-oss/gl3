@@ -169,9 +169,18 @@ test('state lists default to rank order, highest first', async ({ page }) => {
   await expect(page.locator('.env-list li')).toHaveText([/Dallas/, /Houston/, /Austin/])
 })
 
-test('featured rank is qualified when only part of the cohort is loaded', async ({ page }) => {
-  const items = Array.from({ length: 205 }, (_, i) => ({ ...opportunity(`n${i}`, 'Austin, TX'), rank_score: i === 3 ? 90 : 20 } as Opportunity))
-  await mock(page, items)
+test('the map requests rank order from the API for every page', async ({ page }) => {
+  const sorts: (string | null)[] = []
+  const items = Array.from({ length: 60 }, (_, i) => ({ ...opportunity(`n${i}`, 'Austin, TX'), rank_score: 60 - i } as Opportunity))
+  await mock(page, items, async (route) => {
+    const url = new URL(route.request().url())
+    sorts.push(url.searchParams.get('sort'))
+    const offset = Number(url.searchParams.get('offset') ?? 0)
+    const next: Record<string, string> = offset + 50 < items.length ? { 'X-Next-Offset': String(offset + 50) } : {}
+    await route.fulfill({ contentType: 'application/json', headers: { 'X-Total-Count': '60', 'X-Cohort-Token': 'c1', ...next }, body: JSON.stringify(items.slice(offset, offset + 50)) })
+  })
   await page.goto('/')
-  await expect(page.getByText(/Highest rank of the 200 most recently updated · 90/)).toBeVisible()
+  await expect(page.getByText(/Highest rank · 60/)).toBeVisible()
+  expect(sorts.length).toBeGreaterThanOrEqual(2)
+  expect(sorts.every((value) => value === 'rank')).toBe(true)
 })

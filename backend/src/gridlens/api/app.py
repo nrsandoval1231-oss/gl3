@@ -380,6 +380,7 @@ _BROWSE_QUERY_NAMES = _BROWSE_FILTER_NAMES | {
     "cohort_token",
     "limit",
     "offset",
+    "sort",
 }
 _PRIORITY_SEGMENT_LABELS = {
     0: "Data center project phase",
@@ -407,7 +408,7 @@ def _opportunity_priority_label(item: dict[str, Any]) -> str | None:
 def _validate_browse_query(request: Request) -> None:
     allowed = _BROWSE_QUERY_NAMES
     if request.url.path == "/api/opportunities/export.csv":
-        allowed = allowed - {"offset"}
+        allowed = allowed - {"offset", "sort"}
     unsupported = sorted(set(request.query_params.keys()) - allowed)
     if unsupported:
         raise HTTPException(
@@ -1553,6 +1554,7 @@ def opportunities(
     mw_max: str | None = None,
     priority_segment: str | None = None,
     status: WorkflowStatusFilter | None = None,
+    sort: Literal["updated", "rank"] = "updated",
 ):
     response = response or Response()
     filters = _normalized_browse_filters(
@@ -1615,9 +1617,16 @@ def opportunities(
         # The canonical record order is preserved across group membership and page slices.
         filtered.sort(key=lambda item: str(item["id"]))
         filtered.sort(key=lambda item: item.get("_updated_at") or datetime.min, reverse=True)
+        rank_by_id: dict[str, dict] = {}
+        if sort == "rank":
+            # Rank the whole filtered cohort before paging; ties keep the updated order.
+            rank_by_id = _cohort_ranks(session, filtered)
+            filtered.sort(key=lambda item: -rank_by_id[str(item["id"])]["rank_score"])
         filtered_keys = [key_by_id[str(item["id"])] for item in filtered]
         token_rows = filtered
-        token = build_opportunity_cohort_token(filters, token_rows, filtered_keys)
+        token = build_opportunity_cohort_token(
+            {**filters, "sort": sort if sort == "rank" else None}, token_rows, filtered_keys
+        )
         if cohort is not None and cohort != token:
             raise HTTPException(409, "Opportunity cohort changed; restart pagination")
         page_summaries = filtered[offset : offset + limit]
@@ -1657,6 +1666,8 @@ def opportunities(
                     "priority_segment": _opportunity_priority_segment(summary),
                     "priority_label": _opportunity_priority_label(summary),
                     "workflow_status": summary.get("workflow_status", "UNKNOWN"),
+                    # The displayed rank is the rank the cohort was ordered by.
+                    **rank_by_id.get(str(item["id"]), {}),
                 }
             )
         response.headers.update(
@@ -1674,6 +1685,20 @@ def opportunities(
         if offset + len(page) < len(filtered):
             response.headers["X-Next-Offset"] = str(offset + len(page))
         return _bounded_opportunity_payload(output)
+
+
+def _cohort_ranks(session, items: list[dict]) -> dict[str, dict]:
+    """Rank summary rows with their retained buying chains, as the detail projection does."""
+    chains = buying_chain_views(session, {UUID(str(item["project_id"])) for item in items})
+    today = chicago_today()
+    ranks = {}
+    for item in items:
+        chain = chains.get(str(item["project_id"]))
+        title_company = item.get("title_company") or _opportunity_title_company(chain or {})[0]
+        ranks[str(item["id"])] = rank_opportunity(
+            {**item, "title_company": title_company}, chain, today
+        )
+    return ranks
 
 
 def _opportunity_evidence_search_matches(
