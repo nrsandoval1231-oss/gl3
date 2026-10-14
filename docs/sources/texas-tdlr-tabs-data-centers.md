@@ -1,5 +1,8 @@
 # TDLR TABS data-center registrations (statewide Texas)
 
+**Status: registered but disabled.** Enable after a live end-to-end run (search, page fetch, parse, persist) and a repeat run succeed from the deployed environment.
+
+
 - **Publisher:** the Texas Department of Licensing and Regulation, Architectural Barriers program (TABS). Commercial projects of $50,000 or more must register, inside or outside city limits, so TABS covers unincorporated county land that city permit tables miss.
 - **Search:** the public project search page posts to `/TABS/Search/SearchProjects`. The form uses the DataTables server-side protocol with `ProjectName` and `RegistrationDateBegin`.
   - The adapter runs one search per configured name term ("data center", "datacenter") over the last 90 days, in pages of 100.
@@ -13,7 +16,7 @@
 
   A project is kept only when its name, facility or scope names a data center. The run fails if any project is registered after the run date.
 - **Admission (`tdlr-tabs-data-center-v1`):** New Construction or Additions to Existing Building becomes a Signal.
-  - Rejected: renovations; "Project Closed" or "Inspection Completed" statuses; and projects whose reported completion date has already passed.
+  - Rejected: renovations; "Project Closed" or "Inspection Complete(d)" statuses; and projects whose reported completion date has already passed.
   - The reason states that start, completion and cost are the registrant's estimates. MW appears only when the scope states it.
 - **Real-source evidence (indexed project pages, retrieved 2026-10-14):**
 
@@ -29,3 +32,4 @@
   - Registration is accessibility review, not a building permit or construction start.
   - Projects named without a data-center term are missed.
   - The live search response shape is taken from the site's own search script (`projectSearchJs`); this development network blocks the host, so the POST has not been called live. The search fixture is constructed from that script's column contract with values from a real registration, and is labelled as such.
+- Signals from this source are labelled "Official TDLR project registration", not "Official permit".

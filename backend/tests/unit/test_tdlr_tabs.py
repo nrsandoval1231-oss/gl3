@@ -65,6 +65,7 @@ def test_renovation_closed_and_finished_projects_are_rejected():
     for change, phrase in (
         ({"work_type": "Renovation/Alteration"}, "not new construction"),
         ({"status": "Project Closed"}, "closed or already inspected"),
+        ({"status": "Inspection Complete"}, "closed or already inspected"),
         ({"completion": "2026-06-30"}, "has passed"),
     ):
         result = assess_permit(record({**project(), **change}), as_of=date(2026, 10, 14))
@@ -108,3 +109,16 @@ def test_search_failures_are_visible():
 
     with pytest.raises(SourceParseError, match="after the run date"):
         retrieve(SOURCE, httpx.Client(transport=httpx.MockTransport(future)), today=TODAY)
+
+
+def test_origin_is_a_registration_and_source_ships_disabled():
+    from gridlens.domain.signal_admission import source_origin
+
+    assert source_origin("construction-permits", "tdlr-tabs") == (
+        "Official TDLR project registration"
+    )
+    registry = json.loads(
+        (Path(__file__).parents[3] / "config" / "sources" / "registry.v1.json").read_text()
+    )
+    entry = next(s for s in registry["sources"] if s["id"] == SOURCE_ID)
+    assert entry["enabled"] is False

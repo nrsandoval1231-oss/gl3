@@ -573,7 +573,7 @@ _RENOVATION = re.compile(r"\b(?:remodel|renovat\w*|interior finish|tenant finish
 SAN_ANTONIO_EVALUATOR_VERSION = "san-antonio-data-center-permit-v1"
 TABS_EVALUATOR_VERSION = "tdlr-tabs-data-center-v1"
 _TABS_IN_SCOPE = {"new construction", "additions to existing building"}
-_TABS_TERMINAL = {"project closed", "inspection completed"}
+_TABS_TERMINAL = re.compile(r"\bproject closed\b|\binspection complete(?:d)?\b", re.IGNORECASE)
 
 
 def _assess_tabs(record: dict[str, Any], permit: dict[str, Any], as_of: date) -> dict[str, Any]:
@@ -585,7 +585,7 @@ def _assess_tabs(record: dict[str, Any], permit: dict[str, Any], as_of: date) ->
     start = permit.get("reported_start")
     named = bool(_TCEQ_DATA_CENTER.search(description))
     in_scope = work.casefold() in _TABS_IN_SCOPE
-    terminal = status.casefold() in _TABS_TERMINAL
+    terminal = bool(_TABS_TERMINAL.search(status))
     finished = bool(completion and completion < as_of.isoformat())
     accepted = bool(
         named
