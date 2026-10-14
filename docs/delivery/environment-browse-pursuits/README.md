@@ -81,3 +81,18 @@ between the full run and this assertion correction.
 
 [Desktop fixture screenshot](desktop-fixture.png) ·
 [Mobile fixture screenshot](mobile-fixture.png)
+
+## Pre-merge review fixes
+
+The first link from an unlinked need to a saved pursuit now moves its note,
+question, and pending research state into that pursuit exactly once. Drafts from
+other linked pursuits remain isolated. Pending responses follow the moved entry;
+authentication rejection clears its mounted input as well as stored snapshots.
+Disposition controls now use count-independent restoration identifiers.
+Both review findings were reproduced with browser regressions before repair.
+The shared expired-session and stale-snapshot fixes from #64 are included.
+
+After these fixes: 61 affected browser regressions passed; web typecheck,
+production build, and diff check passed. The commercial fixture explicitly mocks
+its research read so it does not accidentally exercise an unauthenticated real
+API; a separate 401 regression verifies that mounted private input is cleared.
