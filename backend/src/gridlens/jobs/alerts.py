@@ -5,6 +5,7 @@ missing morning message is itself a signal that collection or alerting stopped.
 """
 
 import sys
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import httpx
@@ -14,8 +15,38 @@ from gridlens.settings import settings
 PROBLEM_STATES = {"Failed", "Overdue", "RegistryUnavailable"}
 
 
-def summarize(health: dict[str, Any]) -> tuple[str, str, bool]:
-    """Return (title, body, has_problems) from the authenticated health payload."""
+FAILURE_WINDOW = timedelta(hours=48)
+
+
+def processing_failures() -> dict[str, int]:
+    """Count terminal failures that health() folds into its backlog totals."""
+    from sqlalchemy import func, select
+
+    from gridlens.persistence.database import SessionLocal
+    from gridlens.persistence.models import Interpretation, Job
+
+    since = datetime.now(UTC) - FAILURE_WINDOW
+    with SessionLocal() as session:
+        jobs = session.execute(
+            select(Job.kind, func.count())
+            .where(Job.status == "failed", Job.created_at >= since)
+            .group_by(Job.kind)
+        ).all()
+        interpretations = session.scalar(
+            select(func.count())
+            .select_from(Interpretation)
+            .where(Interpretation.status == "failed")
+        )
+    counts = {f"{kind} jobs": int(count) for kind, count in jobs}
+    if interpretations:
+        counts["interpretations"] = int(interpretations)
+    return counts
+
+
+def summarize(
+    health: dict[str, Any], failures: dict[str, int] | None = None
+) -> tuple[str, str, bool]:
+    """Return (title, body, has_problems) from the health payload and failure counts."""
     enabled = [source for source in health["sources"] if source.get("enabled")]
     problems = [source for source in enabled if source.get("status") in PROBLEM_STATES]
     lines = [
@@ -27,6 +58,9 @@ def summarize(health: dict[str, Any]) -> tuple[str, str, bool]:
         lines.append(f"Worker liveness: {health.get('worker_liveness')}")
     if health.get("collection_freshness") == "OVERDUE":
         lines.append("Daily collection is overdue for at least one source.")
+    for label, count in sorted((failures or {}).items()):
+        if count:
+            lines.append(f"Failed {label}: {count}")
     ok = len(enabled) - len(problems)
     footer = (
         f"{ok}/{len(enabled)} enabled sources healthy · {health.get('backlog', 0)} jobs queued"
@@ -57,7 +91,7 @@ def main() -> None:
     from gridlens.api.app import health
 
     try:
-        title, body, urgent = summarize(health())
+        title, body, urgent = summarize(health(), processing_failures())
     except Exception as exc:  # health itself failing is the most important alert
         title, body, urgent = "GridLens: health check failed", f"{type(exc).__name__}: {exc}", True
     send(title, body, urgent)

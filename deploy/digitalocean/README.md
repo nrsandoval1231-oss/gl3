@@ -26,7 +26,7 @@ sudo systemctl enable --now gridlens-collect.timer gridlens-alert.timer gridlens
 sudo /opt/gridlens/deploy/digitalocean/gridlens-run.sh alert   # phone should buzz
 ```
 
-`WORKER_AUTO_REFRESH=false` makes the 07:00 America/Chicago timer the only collection planner. The worker still drains the queue continuously.
+`WORKER_AUTO_REFRESH=true` keeps the always-on worker planning each source at its own cadence (hourly news, daily permits anchored to 07:00 America/Chicago) and planning missing-fact research. The 07:00 timer is an independent, idempotent trigger for the same due ledger: if the worker planner stalls, the daily run still happens and a failure alerts.
 
 ## Update
 
@@ -47,6 +47,6 @@ The managed cluster's own point-in-time backups are a second path. Record each r
 
 ## Alerts
 
-- 08:30 and 18:00 America/Chicago: always one push. "collection healthy" or a list of failed/overdue sources, stale worker, or overdue collection.
+- 08:30 and 18:00 America/Chicago: always one push. "collection healthy" or a list of failed/overdue sources, stale worker, overdue collection, or terminal job/interpretation failures (jobs from the last 48 hours).
 - A failed collection or backup run triggers an immediate alert run.
 - No morning push means the droplet, timer, or ntfy path is down.

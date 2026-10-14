@@ -62,3 +62,13 @@ def test_send_requires_configuration(monkeypatch):
     monkeypatch.setattr(settings, "ntfy_url", "")
     with pytest.raises(RuntimeError):
         alerts.send("t", "b", False)
+
+
+def test_terminal_processing_failures_are_urgent():
+    title, body, urgent = alerts.summarize(
+        health(sources=[{"id": "a", "enabled": True, "status": "Updated"}]),
+        {"power_need_brief jobs": 2, "interpretations": 1, "pursuit_question jobs": 0},
+    )
+    assert urgent and title == "GridLens: 2 problem(s)"
+    assert "Failed power_need_brief jobs: 2" in body and "Failed interpretations: 1" in body
+    assert "pursuit_question" not in body
