@@ -270,22 +270,30 @@ def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list
         _, body = read_bounded_response(http, LISTING_URL, MAX_LISTING_BYTES)
         rows = parse_listing(body, today)
         records = []
-        fetched = 0
-        # Newest relevant filings get the bounded summary budget first.
+        attempted = failed = 0
+        # Newest relevant filings get the bounded summary budget first. A relevant row is
+        # emitted only with a successfully parsed summary: emitting it without one would
+        # replace prior enrichment with an unsited version and could retire a valid Signal.
+        # Skipped rows keep their last stored version and are retried on the next run.
         for row in sorted(rows, key=lambda item: item["received"], reverse=True):
-            summary = None
-            relevant = RELEVANT_NAME.search(f"{row['applicant']} {row['facility']}")
-            if relevant and fetched < max_summaries:
-                fetched += 1
-                permit = row["permits"][0]
-                try:
-                    _, pdf = read_bounded_response(
-                        http, SUMMARY_URL.format(permit=permit.lower()), MAX_PDF_BYTES
-                    )
-                    summary = parse_summary(pdf, permit)
-                except (httpx.HTTPError, SourceParseError, ValueError):
-                    summary = None  # The listing row is still retained; location stays unknown.
-            records.append(_record(row, summary))
+            if not RELEVANT_NAME.search(f"{row['applicant']} {row['facility']}"):
+                records.append(_record(row, None))
+                continue
+            if attempted >= max_summaries:
+                continue
+            attempted += 1
+            permit = row["permits"][0]
+            try:
+                _, pdf = read_bounded_response(
+                    http, SUMMARY_URL.format(permit=permit.lower()), MAX_PDF_BYTES
+                )
+                records.append(_record(row, parse_summary(pdf, permit)))
+            except (httpx.HTTPError, SourceParseError, ValueError):
+                failed += 1
+        if attempted and failed * 2 > attempted:
+            raise SourceParseError(
+                f"TCEQ summaries failed for {failed} of {attempted} relevant filings"
+            )
         return records
     finally:
         if client is None:

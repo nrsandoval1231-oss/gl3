@@ -8,6 +8,7 @@ from gridlens.domain.permit_interpretation import assess_permit, evaluator_versi
 from gridlens.ingestion.adapters.federal_register import SourceParseError
 from gridlens.ingestion.adapters.tceq_nsr_pending import (
     LISTING_URL,
+    RELEVANT_NAME,
     SOURCE_ID,
     _record,
     parse_listing,
@@ -92,7 +93,7 @@ def test_unsited_or_non_load_filings_stay_evidence():
     assert rejected["decision"] == "rejected" and "not a load-side" in rejected["reason"]
 
 
-def test_retrieve_bounds_summary_fetches_and_survives_a_missing_pdf():
+def test_retrieve_withholds_unsummarized_filings_and_fails_visibly_when_most_fail():
     requested: list[str] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -101,13 +102,21 @@ def test_retrieve_bounds_summary_fetches_and_survives_a_missing_pdf():
             return httpx.Response(200, content=FIXTURE.read_bytes())
         return httpx.Response(404)
 
+    with pytest.raises(SourceParseError, match="summaries failed for 2 of 2"):
+        retrieve(
+            {"id": SOURCE_ID, "endpoint": LISTING_URL, "query": {"max_summaries": 2}},
+            httpx.Client(transport=httpx.MockTransport(handler)),
+        )
+    assert len(requested) == 3  # listing plus two bounded summary attempts
     records = retrieve(
-        {"id": SOURCE_ID, "endpoint": LISTING_URL, "query": {"max_summaries": 2}},
+        {"id": SOURCE_ID, "endpoint": LISTING_URL, "query": {"max_summaries": 0}},
         httpx.Client(transport=httpx.MockTransport(handler)),
     )
-    assert len(records) >= 20
-    assert len(requested) == 3  # listing plus two bounded summary attempts
-    assert all(record["permit"]["summary_fetched"] is False for record in records)
+    # Relevant filings without a fetched summary are withheld, never emitted unsited.
+    assert records and all(
+        not RELEVANT_NAME.search(r["permit"]["facility"] + " " + r["permit"]["applicant"])
+        for r in records
+    )
     with pytest.raises(SourceParseError):
         retrieve({"id": "other", "endpoint": LISTING_URL})
 

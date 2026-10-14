@@ -19,4 +19,5 @@ Proposed onsite generation is **proposed supply**. It does not answer the power 
 - Pending NSR case-by-case applications only. Permits by rule and standard permits are not listed here.
 - TCEQ began publishing pending applications to its Permit Search Portal on August 31, 2026; this listing may thin out and the portal is the follow-up source.
 - On September 21, 2026 the Governor directed TCEQ to pause issuing permits for data-center infrastructure. Pending filings are still listed; the pause can lengthen the gap before onsite generation is authorized. That is context for the call, not evidence about any one project.
-- Summary PDFs are fetched newest-first, at most `max_summaries` per run. A failed or unparsable summary leaves the row as unsited evidence and does not fail the source.
+- Summary PDFs are fetched newest-first, at most `max_summaries` per run. A data-center or generation filing is stored only with a parsed summary; when its summary fails, the previously stored version stays and the row is retried next run. If more than half of a run's summaries fail, the check fails visibly.
+- Rows that leave the pending listing (issued, denied, withdrawn) are not yet reconciled: the last stored version stays as-is. A snapshot-removal review is an open follow-up.
