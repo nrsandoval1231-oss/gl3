@@ -12,6 +12,8 @@ export function readSession<T>(key: string): T | undefined {
 }
 export function writeSession(key: string, data: unknown) {
   try {
+    // A rejected replacement must not make an older draft look current on refresh.
+    sessionStorage.removeItem(PREFIX + key)
     const value = JSON.stringify({ at: Date.now(), data })
     if (value.length > MAX_BYTES) return false
     // Expire old entries first. Navigation may evict navigation snapshots, never

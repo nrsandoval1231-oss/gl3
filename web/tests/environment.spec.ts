@@ -497,3 +497,28 @@ test('navigation snapshot bounds do not evict an unsaved call draft', async ({ p
   await page.goto('/?view=environment&mode=action&need=a')
   await expect(page.getByLabel('Call note')).toHaveValue('Must outlive navigation snapshots')
 })
+
+test('expired authentication clears private drafts before another sign-in', async ({ page }) => {
+  await mock(page, [opportunity('a', 'Austin, TX')])
+  await page.goto('/?view=environment&mode=action&need=a')
+  await page.getByLabel('Call note').fill('Private previous session note')
+  await page.route('**/api/auth/session', (route) => route.fulfill({ json: { authenticated: false } }))
+  await page.reload()
+  await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
+  expect(await page.evaluate(() => Object.keys(sessionStorage).filter((key) => key.startsWith('gl3-continuity:')))).toEqual([])
+  await page.unroute('**/api/auth/session')
+  await page.goto('/?view=environment&mode=action&need=a')
+  await expect(page.getByLabel('Call note')).toHaveValue('')
+})
+
+test('failed draft persistence invalidates the older snapshot instead of restoring stale input', async ({ page }) => {
+  await mock(page, [opportunity('a', 'Austin, TX')])
+  await page.goto('/?view=environment&mode=action&need=a')
+  await page.getByLabel('Call note').fill('Old snapshot must not return')
+  await page.evaluate(() => {
+    for (let i = 0; i < 39; i += 1) sessionStorage.setItem(`gl3-continuity:call:filler-${i}`, JSON.stringify({ at: Date.now(), data: 'x'.repeat(51_250) }))
+  })
+  await page.getByLabel('Call note').fill('New note '.repeat(400))
+  await page.reload()
+  await expect(page.getByLabel('Call note')).not.toHaveValue('Old snapshot must not return')
+})
