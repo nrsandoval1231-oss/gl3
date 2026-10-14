@@ -1,0 +1,50 @@
+# Production stack for one DigitalOcean droplet.
+# Database: DigitalOcean Managed PostgreSQL (DATABASE_URL in .env.prod, sslmode=require).
+# Ingress: Cloudflare Tunnel only. No ports are published on the droplet.
+# Run from the repository root:
+#   docker compose -f deploy/digitalocean/compose.prod.yaml --env-file .env.prod up -d --build
+name: gridlens
+
+x-backend: &backend
+  build:
+    context: ../..
+    dockerfile: deploy/Dockerfile.backend
+  env_file: ../../.env.prod
+  restart: unless-stopped
+
+services:
+  migrate:
+    <<: *backend
+    command: ["uv", "run", "alembic", "upgrade", "head"]
+    restart: "no"
+
+  api:
+    <<: *backend
+    command: ["uv", "run", "uvicorn", "gridlens.api.app:app", "--host", "0.0.0.0", "--port", "8000", "--no-proxy-headers"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  worker:
+    <<: *backend
+    command: ["uv", "run", "python", "-m", "gridlens.jobs.worker"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  web:
+    build:
+      context: ../..
+      dockerfile: deploy/Dockerfile.web
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  cloudflared:
+    image: cloudflare/cloudflared:2025.9.1
+    command: ["tunnel", "--no-autoupdate", "run"]
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:?set CLOUDFLARE_TUNNEL_TOKEN in .env.prod}
+    depends_on:
+      - web
+    restart: unless-stopped

@@ -1,0 +1,9 @@
+[Unit]
+OnFailure=gridlens-alert.service
+Description=GridLens scheduled backup
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/gridlens/deploy/digitalocean/gridlens-run.sh backup

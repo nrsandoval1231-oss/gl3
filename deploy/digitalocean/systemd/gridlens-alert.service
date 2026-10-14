@@ -1,0 +1,8 @@
+[Unit]
+Description=GridLens scheduled alert
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/opt/gridlens/deploy/digitalocean/gridlens-run.sh alert

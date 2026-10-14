@@ -1,0 +1,10 @@
+[Unit]
+Description=GridLens health push at 08:30 and 18:00 America/Chicago
+
+[Timer]
+OnCalendar=*-*-* 08:30:00 America/Chicago
+OnCalendar=*-*-* 18:00:00 America/Chicago
+Persistent=true
+
+[Install]
+WantedBy=timers.target
