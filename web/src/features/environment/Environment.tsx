@@ -295,6 +295,7 @@ function Focus({ mode, item, stateName, headingRef, go, onReadback }: {
     <p className="env-eyebrow"><span className="env-dot"/>{[stateName ?? 'Location unknown', readable(item.activity), item.tier].join(' / ')}</p>
     <h1 ref={headingRef} tabIndex={-1}>{projectTitle(item)}</h1>
     <p className="env-meta">{item.location ?? 'Location unknown'}{item.title_company_role ? ` · ${readable(item.title_company_role)}` : ''}</p>
+    {item.signal_evidence_state === 'source_listing_absent' && <p role="status" className="env-review">Status review needed: this filing is no longer in the source's current listing. It may have been issued, denied or withdrawn; its evidence is retained.</p>}
     <p className="env-lede">{prompt[mode]}</p>
 
     {(mode === 'project' || mode === 'power') && <dl className="env-facts">

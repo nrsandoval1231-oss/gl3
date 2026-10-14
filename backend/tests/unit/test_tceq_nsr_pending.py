@@ -112,10 +112,14 @@ def test_retrieve_withholds_unsummarized_filings_and_fails_visibly_when_most_fai
         {"id": SOURCE_ID, "endpoint": LISTING_URL, "query": {"max_summaries": 0}},
         httpx.Client(transport=httpx.MockTransport(handler)),
     )
-    # Relevant filings without a fetched summary are withheld, never emitted unsited.
-    assert records and all(
+    # Relevant filings without a fetched summary are withheld, never emitted unsited,
+    # but still reported as listed so snapshot reconciliation does not mark them absent.
+    withheld = [r for r in records if r.get("presence_only")]
+    processed = [r for r in records if not r.get("presence_only")]
+    assert withheld and {r["document_number"] for r in withheld} >= {"TCEQ-400428"}
+    assert processed and all(
         not RELEVANT_NAME.search(r["permit"]["facility"] + " " + r["permit"]["applicant"])
-        for r in records
+        for r in processed
     )
     with pytest.raises(SourceParseError):
         retrieve({"id": "other", "endpoint": LISTING_URL})
