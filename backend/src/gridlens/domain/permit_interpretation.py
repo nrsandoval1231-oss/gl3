@@ -215,6 +215,8 @@ def evaluator_version(record: dict[str, Any]) -> str:
         and permit.get("source_type") == "texas-tceq-temporary-batch-plants"
     ):
         return TCEQ_BATCH_EVALUATOR_VERSION
+    if isinstance(permit, dict) and permit.get("source_type") == "california-ceqanet-data-centers":
+        return CEQA_EVALUATOR_VERSION
     if isinstance(permit, dict) and permit.get("source_type") == "boston-building-permits":
         return BOSTON_PERMIT_EVALUATOR_VERSION
     return EVALUATOR_VERSION
@@ -558,6 +560,81 @@ def _assess_tceq_batch(
     }
 
 
+CEQA_EVALUATOR_VERSION = "ceqanet-data-center-v1"
+_CEQA_POLICY_ONLY = re.compile(
+    r"\bmoratori|\bordinance\b|zoning (?:code|text) amendment|general plan update",
+    re.IGNORECASE,
+)
+
+
+def _assess_ceqa(record: dict[str, Any], permit: dict[str, Any], as_of: date) -> dict[str, Any]:
+    title = str(permit.get("facility") or "").strip()
+    description = str(permit.get("description") or "")
+    location = permit.get("location")
+    in_title = bool(permit.get("title_names_data_center"))
+    named = in_title or bool(_TCEQ_DATA_CENTER.search(description))
+    policy_only = bool(_CEQA_POLICY_ONLY.search(title))
+    accepted = bool(
+        named and not policy_only and location and record.get("event_date")
+        and record.get("html_url")
+    )
+    if accepted:
+        mention = (
+            "names a data center in its title"
+            if in_title
+            else "names a data center only in its description (it may be one design option)"
+        )
+        reason = (
+            f"A CEQA {permit.get('document_type')} from {permit.get('applicant')}, received "
+            f"{record.get('event_date')}, {mention}, at {location}. The site is in environmental "
+            "review, not under construction; MW, schedule, utility service date and the buyer "
+            "are unknown."
+        )
+    elif policy_only:
+        reason = "CEQA filing is a policy, ordinance or moratorium action, not a project site."
+    elif not named:
+        reason = "CEQA filing does not name a data center."
+    else:
+        reason = "CEQA filing lacks a dated event, link or stated city or county."
+    return {
+        "schema_version": 1,
+        "decision": "accepted" if accepted else "rejected",
+        "tier": "Signal" if accepted else None,
+        "reason": reason,
+        "subject": title if accepted else None,
+        "action": "data-center project in CEQA environmental review" if accepted else None,
+        "location": location,
+        "missing_facts": MISSING,
+        "source_field_citations": permit.get("source_fields", {}),
+        "stable_row_id": permit.get("row_id"),
+        "permit_status": permit.get("status"),
+        "event_date": record.get("event_date"),
+        "event_date_label": record.get("event_date_label"),
+        "issue_date": None,
+        "issue_date_label": None,
+        "project_hint": title or None,
+        "power_activity": "facility-expansion",
+        "rental_category": "construction-activity-discovery",
+        "reported_claim": title if accepted else None,
+        "reported_power_facts": _reported_mw_facts(description) if accepted else [],
+        "rental_hypothesis": (
+            "Inferred review question only: will utility service be ready when construction "
+            "ends, and who would carry construction or bridge power?"
+            if accepted
+            else None
+        ),
+        "activity_end_date": None,
+        "review_after": None,
+        "as_of_date": as_of.isoformat(),
+        "document_links": permit.get("document_links", {}),
+        "coordinates": (
+            [permit["latitude"], permit["longitude"]]
+            if permit.get("latitude") is not None
+            else None
+        ),
+    }
+
+
 def _explicit_event_end(description: str) -> date | None:
     """Read explicit full-year dates from event text; permit expiry is not event timing."""
     text = re.sub(
@@ -767,6 +844,8 @@ def assess_permit(record: dict[str, Any], *, as_of: date | None = None) -> dict[
         return _assess_tceq_nsr(record, permit, as_of)
     if permit.get("source_type") == "texas-tceq-temporary-batch-plants":
         return _assess_tceq_batch(record, permit, as_of)
+    if permit.get("source_type") == "california-ceqanet-data-centers":
+        return _assess_ceqa(record, permit, as_of)
     if permit.get("source_type") == "georgia-air-draft-title-v":
         return _assess_georgia_air(record, permit, str(permit.get("current_scope") or ""), as_of)
     if permit.get("source_type") == "texas-rrc-drilling-permits":

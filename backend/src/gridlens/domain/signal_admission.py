@@ -17,6 +17,7 @@ _PERMIT_METHODS = {
     "rrc-drilling-permits",
     "tceq-nsr-pending",
     "tceq-temporary-batch-plants",
+    "ceqanet-data-centers",
 }
 _CULTIVATION_FAMILY = "cultivation-license-applications"
 _CULTIVATION_METHOD = "ma-cultivation-applications"

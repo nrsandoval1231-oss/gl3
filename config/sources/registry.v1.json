@@ -491,6 +491,29 @@
       "query": {
         "max_notices": 20
       }
+    },
+    {
+      "id": "california-ceqanet-data-centers",
+      "publisher": "California Governor's Office of Land Use and Climate Innovation, State Clearinghouse (CEQAnet)",
+      "endpoint": "https://ceqanet.lci.ca.gov/Search",
+      "family": "construction-permits",
+      "geography": "California",
+      "industries": [
+        "data centers"
+      ],
+      "retrieval_method": "ceqanet-data-centers",
+      "cadence_hours": 24,
+      "publication_cadence": "Documents are posted as the State Clearinghouse receives them; each states its received date",
+      "collection_scope": "CEQA documents received in the last 60 days with an Industrial, Power or Other development type; document pages are read (bounded per run) and kept only when the title or description names a data center.",
+      "coverage_limitation": "Only CEQA filings; projects exempt from CEQA or filed under another development type are missed. When more documents arrive than the per-run bound, ones naming a data center only in their description can be missed. A CEQA filing is environmental review, not construction.",
+      "credential_reference": null,
+      "enabled": true,
+      "retention": "Public document-page fields (title, agency, type, received date, description, place, coordinates) and official links",
+      "query": {
+        "development_types": ["Industrial", "Power", "Other"],
+        "window_days": 60,
+        "max_documents": 60
+      }
     }
   ]
 }

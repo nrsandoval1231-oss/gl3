@@ -3,6 +3,7 @@ from typing import Any
 import httpx
 
 from gridlens.ingestion.adapters.boston_permits import retrieve as retrieve_boston_permits
+from gridlens.ingestion.adapters.ceqanet import retrieve as retrieve_ceqanet
 from gridlens.ingestion.adapters.dallas_permits import retrieve as retrieve_dallas_permits
 from gridlens.ingestion.adapters.el_paso_permits import retrieve as retrieve_el_paso_permits
 from gridlens.ingestion.adapters.federal_register import SourceParseError
@@ -54,6 +55,8 @@ def retrieve_source(
         return retrieve_georgia_air_permits(source, client)
     if method == "ma-cultivation-applications":
         return retrieve_ma_cultivation(source, client)
+    if method == "ceqanet-data-centers":
+        return retrieve_ceqanet(source, client)
     if method == "tceq-temporary-batch-plants":
         return retrieve_tceq_temporary_batch(source, client)
     if method == "tceq-nsr-pending":

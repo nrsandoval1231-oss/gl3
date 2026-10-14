@@ -94,6 +94,7 @@ PERMIT_RETRIEVAL_METHODS = {
     "ma-cultivation-applications",
     "tceq-nsr-pending",
     "tceq-temporary-batch-plants",
+    "ceqanet-data-centers",
 }
 
 
