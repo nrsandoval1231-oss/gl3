@@ -507,8 +507,8 @@ def _assess_tceq_batch(
             f"submitted {record.get('event_date')}. A proposed temporary batch plant indicates "
             "planned heavy construction at the site; the registration is pending and does not "
             "show that construction has started. The construction-power question is inferred: "
-            "required MW, duration, utility service date and the buyer are unknown, and the batch plant "
-            "supplier is not the project owner or GC."
+            "required MW, duration, utility service date and the buyer are unknown, and the "
+            "batch plant supplier is not the project owner or GC."
         )
     elif not (data_center or named_project):
         reason = (
