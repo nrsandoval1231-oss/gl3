@@ -1,10 +1,10 @@
-import { useState, type FormEvent } from 'react'
+import { useRef, useState, type FormEvent } from 'react'
 import { client, type CallFact, type Opportunity } from '../../api/client'
 
 // One call, one form: a shared call header and only the facts that were actually said.
 // Each filled section becomes an attributed draft through the normal fact API; nothing is
 // accepted until the operator presses the explicit accept button.
-type Section = 'demand' | 'timing' | 'buyer' | 'supply'
+type Section = 'demand' | 'timing' | 'buyer' | 'suitable_supply' | 'unsuitable_supply'
 
 const nowLocal = () => {
   const now = new Date()
@@ -19,6 +19,17 @@ export function QuickCallLog({ item, onReadback }: { item: Opportunity; onReadba
   const [accepted, setAccepted] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  // Request keys are fixed per exact payload, so a retry after a lost response replays the
+  // server's original draft or decision instead of creating a duplicate.
+  const requestKeys = useRef(new Map<string, string>())
+  const keyFor = (payload: unknown) => {
+    const signature = JSON.stringify(payload)
+    const known = requestKeys.current.get(signature)
+    if (known) return known
+    const fresh = crypto.randomUUID()
+    requestKeys.current.set(signature, fresh)
+    return fresh
+  }
   const set = (key: string) => (event: { target: { value: string } }) => setValues((current) => ({ ...current, [key]: event.target.value }))
   const has = (...keys: string[]) => keys.some((key) => (values[key] ?? '').trim() !== '')
 
@@ -36,7 +47,12 @@ export function QuickCallLog({ item, onReadback }: { item: Opportunity; onReadba
       } })
     }
     if (has('buyer')) facts.push({ section: 'buyer', value: { organization: values.buyer.trim(), role: values.buyerRole ?? '', ...extra } })
-    if (has('supply')) facts.push({ section: 'supply', value: { mw: values.supply.trim(), quality: values.supplyQuality || 'unknown', ...extra } })
+    // Only an unsuitable_supply fact is shortage evidence for the qualification gate.
+    if (has('supply')) {
+      facts.push(values.supplyQuality === 'unsuitable'
+        ? { section: 'unsuitable_supply', value: { mw: values.supply.trim(), ...extra } }
+        : { section: 'suitable_supply', value: { mw: values.supply.trim(), quality: values.supplyQuality || 'unknown', ...extra } })
+    }
     return facts
   }
 
@@ -53,20 +69,20 @@ export function QuickCallLog({ item, onReadback }: { item: Opportunity; onReadba
     }
     if (has('start') && has('end') && values.start > values.end) return setError('Earliest start must be on or before latest start.')
     if (has('buyer') && !values.buyerRole) return setError('Choose the buyer role they reported.')
+    if (has('supply') && values.supplyQuality === 'unsuitable' && !/^\s*\d+(\.\d+)?\s*$/.test(values.supply)) {
+      return setError('Unsuitable supply needs one MW number, not a range.')
+    }
     setBusy(true); setError('')
     const saved: CallFact[] = []
     try {
-      let version = (await client.callFacts(item.id)).current_fact_version
       for (const fact of facts) {
-        const created = await client.createCallFact(item.id, {
-          client_id: crypto.randomUUID(),
+        const payload = {
           project_id: item.project_id,
           pursuit_id: null,
-          expected_version: version,
           predecessor_id: null,
           activity_key: item.activity,
           facility_scope: item.location,
-          fact_type: fact.section === 'supply' ? 'suitable_supply' : fact.section,
+          fact_type: fact.section,
           value: fact.value,
           reporter_name: contact.name.trim(),
           reporter_organization: contact.organization.trim() || null,
@@ -77,9 +93,10 @@ export function QuickCallLog({ item, onReadback }: { item: Opportunity; onReadba
           confirmed_at: new Date(contact.at).toISOString(),
           effective_from: new Date(contact.at).toISOString(),
           effective_until: null,
-        })
-        saved.push(created)
-        version = created.decision_version ?? version + 1
+        }
+        // Read the current version per write; a replayed draft keeps its original version.
+        const version = (await client.callFacts(item.id)).current_fact_version
+        saved.push(await client.createCallFact(item.id, { ...payload, client_id: keyFor(payload), expected_version: version }))
       }
     } catch (failure) {
       setError(`${saved.length} of ${facts.length} drafts saved before an error: ${failure instanceof Error ? failure.message : 'request failed'}. Saved drafts stay unaccepted in the history below.`)
@@ -94,15 +111,10 @@ export function QuickCallLog({ item, onReadback }: { item: Opportunity; onReadba
     setBusy(true); setError('')
     let done = 0
     try {
-      let version = (await client.callFacts(item.id)).current_fact_version
       for (const fact of drafts) {
-        const decision = await client.decideCallFact(item.id, fact.id, {
-          client_id: crypto.randomUUID(),
-          expected_version: version,
-          decision: 'accepted',
-          reason: `Confirmed on a ${contact.channel || 'phone'} call with ${contact.name.trim()}.`,
-        })
-        version = decision.version
+        const decision = { decision: 'accepted', reason: `Confirmed on a ${contact.channel || 'phone'} call with ${contact.name.trim()}.` }
+        const version = (await client.callFacts(item.id)).current_fact_version
+        await client.decideCallFact(item.id, fact.id, { ...decision, client_id: keyFor({ fact: fact.id, ...decision }), expected_version: version })
         done += 1
       }
       setAccepted(true)

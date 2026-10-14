@@ -188,7 +188,8 @@ test('the map requests rank order from the API for every page', async ({ page })
 test('one call logs several facts as drafts, then accepts them in one explicit step', async ({ page }) => {
   await mock(page, [opportunity('a', 'Midlothian, TX')])
   let version = 0
-  const created: { fact_type: string, value: Record<string, unknown>, expected_version: number, facility_scope: string, reporter_name: string }[] = []
+  let failNextCreate = true
+  const created: { client_id: string, fact_type: string, value: Record<string, unknown>, expected_version: number, facility_scope: string, reporter_name: string }[] = []
   const decided: { expected_version: number, decision: string }[] = []
   await page.route('**/api/needs/a/facts**', async (route) => {
     const request = route.request()
@@ -202,27 +203,37 @@ test('one call logs several facts as drafts, then accepts them in one explicit s
     if (request.method() === 'POST') {
       const body = request.postDataJSON()
       created.push(body)
+      if (failNextCreate) { failNextCreate = false; return route.fulfill({ status: 503, body: 'lost' }) }
       version += 1
       return json({ ...body, id: `f${created.length}`, need_id: 'a', decision: 'draft', decision_version: version, content_hash: 'h', authority_label: 'Operator report', recorded_by: 'Nick Sandoval', created_at: '2026-10-14T12:00:00Z', decision_reason: null, decision_actor: null, decided_at: null })
     }
-    return route.fallback()
+    return json({ items: [], total: 0, limit: 50, offset: 0, next_offset: null, current_fact_version: version,
+      current_reported_timing_correction_target: { available: false, unavailable_reason: 'no_current_admitted_lead', need_id: 'a', current_fact_version: version } })
   })
   await page.goto('/?view=environment&mode=action&state=Texas&need=a')
   await page.getByLabel('Contact name').fill('Jordan Example')
   await page.getByLabel('Power needed').fill('8-12')
   await page.getByLabel('Buyer organization').fill('Example GC')
+  await page.getByLabel('Supply MW').fill('3')
+  await page.getByLabel('Supply quality').selectOption('unsuitable')
   await page.getByRole('button', { name: 'Save as drafts' }).click()
   await expect(page.getByRole('alert')).toHaveText(/Choose the buyer role/)
   expect(created).toHaveLength(0)
   await page.getByLabel('Buyer role').selectOption('general contractor')
   await page.getByRole('button', { name: 'Save as drafts' }).click()
-  await expect(page.getByText('2 drafts saved, not yet accepted.')).toBeVisible()
-  expect(created.map((fact) => [fact.fact_type, fact.expected_version, fact.facility_scope, fact.reporter_name])).toEqual([
+  await expect(page.getByRole('alert')).toHaveText(/0 of 3 drafts saved before an error/)
+  // The retry reuses the first request's key, so the server can replay instead of duplicating.
+  await page.getByRole('button', { name: 'Save as drafts' }).click()
+  await expect(page.getByText('3 drafts saved, not yet accepted.')).toBeVisible()
+  expect(created[1].client_id).toBe(created[0].client_id)
+  expect(created.slice(1).map((fact) => [fact.fact_type, fact.expected_version, fact.facility_scope, fact.reporter_name])).toEqual([
     ['demand', 0, 'Midlothian, TX', 'Jordan Example'],
     ['buyer', 1, 'Midlothian, TX', 'Jordan Example'],
+    ['unsuitable_supply', 2, 'Midlothian, TX', 'Jordan Example'],
   ])
+  expect(created[3].value).toEqual({ mw: '3' })
   expect(decided).toHaveLength(0)
-  await page.getByRole('button', { name: /Accept all 2 as confirmed by Jordan Example/ }).click()
-  await expect(page.getByText('2 facts accepted.', { exact: false })).toBeVisible()
-  expect(decided.map((decision) => decision.decision)).toEqual(['accepted', 'accepted'])
+  await page.getByRole('button', { name: /Accept all 3 as confirmed by Jordan Example/ }).click()
+  await expect(page.getByText('3 facts accepted.', { exact: false })).toBeVisible()
+  expect(decided.map((decision) => [decision.decision, decision.expected_version])).toEqual([['accepted', 3], ['accepted', 4], ['accepted', 5]])
 })

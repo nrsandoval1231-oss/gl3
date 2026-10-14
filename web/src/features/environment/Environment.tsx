@@ -294,6 +294,7 @@ function Focus({ mode, item, stateName, headingRef, go, onReadback }: {
   headingRef: React.RefObject<HTMLHeadingElement | null>; go: (next: Partial<Scene>) => void
   onReadback: () => void
 }) {
+  const [factRevision, setFactRevision] = useState(0)
   const missing = item.missing_facts ?? []
   const prompt: Partial<Record<Mode, string>> = {
     project: item.assessment_reason ?? item.rationale,
@@ -355,9 +356,9 @@ function Focus({ mode, item, stateName, headingRef, go, onReadback }: {
       <h2>Ask the question that moves this forward.</h2>
       <p>{item.next_action}</p>
       {missing.length > 0 && <ol>{missing.slice(0, 4).map((fact) => <li key={fact}>{fact}</li>)}</ol>}
-      <QuickCallLog key={`quick-${item.id}`} item={item} onReadback={onReadback}/>
+      <QuickCallLog key={`quick-${item.id}`} item={item} onReadback={() => { setFactRevision((value) => value + 1); onReadback() }}/>
       <details className="env-full-facts"><summary>Full fact history, single-fact entry and corrections</summary>
-        <FactWorkflowPanel key={item.id} item={item} onReadback={onReadback}/>
+        <FactWorkflowPanel key={`${item.id}-${factRevision}`} item={item} onReadback={onReadback}/>
       </details>
       <a href={`/?tier=${item.tier}s#${encodeURIComponent(item.id)}`}>Open the full record</a>
     </div>}
