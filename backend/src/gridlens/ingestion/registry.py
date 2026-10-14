@@ -67,6 +67,7 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
             "tceq-nsr-pending": {"www.tceq.texas.gov"},
             "tceq-temporary-batch-plants": {"www.tceq.texas.gov"},
             "ceqanet-data-centers": {"ceqanet.lci.ca.gov"},
+            "fort-worth-permits": {"services5.arcgis.com"},
         }
         # Only adapters that return every listed row or fail may declare a complete snapshot;
         # absence from such a snapshot is then a reviewable status change.
@@ -231,6 +232,14 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
                 and source.get("geography") == "Texas"
                 and 0 <= query.get("max_notices", -1) <= 40
                 and set(query) == {"max_notices"}
+            )
+        elif source["retrieval_method"] == "fort-worth-permits":
+            bounded = (
+                source.get("cadence_hours") == 24
+                and source.get("family") == "construction-permits"
+                and source.get("geography") == "Fort Worth, Texas"
+                and set(query) == {"window_days"}
+                and 1 <= query.get("window_days", 0) <= 90
             )
         elif source["retrieval_method"] == "ceqanet-data-centers":
             bounded = (

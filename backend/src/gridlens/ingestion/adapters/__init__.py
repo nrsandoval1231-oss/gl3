@@ -7,6 +7,7 @@ from gridlens.ingestion.adapters.ceqanet import retrieve as retrieve_ceqanet
 from gridlens.ingestion.adapters.dallas_permits import retrieve as retrieve_dallas_permits
 from gridlens.ingestion.adapters.el_paso_permits import retrieve as retrieve_el_paso_permits
 from gridlens.ingestion.adapters.federal_register import SourceParseError
+from gridlens.ingestion.adapters.fort_worth_permits import retrieve as retrieve_fort_worth_permits
 from gridlens.ingestion.adapters.georgia_air_permits import retrieve as retrieve_georgia_air_permits
 from gridlens.ingestion.adapters.houston_permits import retrieve as retrieve_houston_permits
 from gridlens.ingestion.adapters.ma_cultivation import retrieve as retrieve_ma_cultivation
@@ -55,6 +56,8 @@ def retrieve_source(
         return retrieve_georgia_air_permits(source, client)
     if method == "ma-cultivation-applications":
         return retrieve_ma_cultivation(source, client)
+    if method == "fort-worth-permits":
+        return retrieve_fort_worth_permits(source, client)
     if method == "ceqanet-data-centers":
         return retrieve_ceqanet(source, client)
     if method == "tceq-temporary-batch-plants":

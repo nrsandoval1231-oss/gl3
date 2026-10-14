@@ -514,6 +514,27 @@
         "window_days": 60,
         "max_documents": 60
       }
+    },
+    {
+      "id": "fort-worth-development-permits",
+      "publisher": "City of Fort Worth Development Services (Fort Worth Open Data)",
+      "endpoint": "https://services5.arcgis.com/3ddLCBXe1bRt7mzj/arcgis/rest/services/CFW_Open_Data_Development_Permits_View/FeatureServer/0/query",
+      "family": "construction-permits",
+      "geography": "Fort Worth, Texas",
+      "industries": [
+        "data centers"
+      ],
+      "retrieval_method": "fort-worth-permits",
+      "cadence_hours": 24,
+      "publication_cadence": "Updated hourly during business hours; each permit states its file and status dates",
+      "collection_scope": "Permits filed in the last 90 days whose work description or project name names a data center, grouped per permit number across parcels.",
+      "coverage_limitation": "City of Fort Worth permits only; neighboring cities and county permits are not covered. Projects that never use the words data center in the permit text are missed. Filed permits may be incomplete submittals; job value is the applicant's estimate.",
+      "credential_reference": null,
+      "enabled": true,
+      "retention": "Public permit table fields for matching permits and the official dataset link",
+      "query": {
+        "window_days": 90
+      }
     }
   ]
 }
