@@ -43,6 +43,7 @@ from gridlens.domain.pursuits import (
     CommercialTriageHistoryOut,
     CommercialTriageOut,
 )
+from gridlens.domain.ranking import rank_opportunity
 from gridlens.domain.signal_admission import admitted_from_source, source_origin
 from gridlens.domain.workflow_status import WORKFLOW_STATUSES
 from gridlens.ingestion.registry import load_registry
@@ -184,6 +185,9 @@ class OpportunityOut(BaseModel):
     supported_subject: str | None = None
     supported_action: str | None = None
     title_company: str | None = None
+    rank_score: int | None = None
+    rank_reasons: list[str] | None = None
+    rank_version: str | None = None
     title_company_role: str | None = None
     demand_quote: str | None = None
     supply_quote: str | None = None
@@ -2897,14 +2901,8 @@ def opportunity_projection(
         )
         for project_id, project in projects_by_id.items()
     }
-    chain_project_ids = {
-        project.id
-        for need, project in rows
-        if not summary_only
-        and (
-            project.source_id == "houston-weekly-permits" or briefs_by_need.get(need.id) is not None
-        )
-    }
+    # Ranking reads every listed project's retained buying chain, not only brief-backed rows.
+    chain_project_ids = {project.id for _, project in rows if not summary_only}
     buying_chains_by_project = buying_chain_views(session, chain_project_ids)
     result = []
     title_company_by_project = {}
@@ -3280,6 +3278,12 @@ def opportunity_projection(
                 ),
             }
         )
+        if not summary_only:
+            result[-1].update(
+                rank_opportunity(
+                    result[-1], buying_chains_by_project.get(str(project.id)), chicago_today()
+                )
+            )
         if include_operator_fact_refs:
             accepted_facts = fact_rows_by_need.get(need.id, [])
             if accepted_facts:

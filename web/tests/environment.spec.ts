@@ -146,3 +146,15 @@ test('a filing that left its source listing shows a status-review notice in the 
   await page.goto('/?view=environment&mode=project&state=Texas&need=a')
   await expect(page.getByText(/Status review needed: this filing is no longer in the source's current listing/)).toBeVisible()
 })
+
+test('featured pursuit is the highest draft rank and its reasons are shown', async ({ page }) => {
+  await mock(page, [
+    { ...opportunity('a', 'Austin, TX'), rank_score: 40, rank_reasons: ['Signal: dated official or published source'] } as Opportunity,
+    { ...opportunity('b', 'Dallas, TX'), rank_score: 82, rank_reasons: ['Data-center construction phase', 'Priority geography: DFW'] } as Opportunity,
+  ])
+  await page.goto('/')
+  await expect(page.getByText(/Highest draft rank · 82/i)).toBeVisible()
+  await expect(page.getByText('Data-center construction phase · Priority geography: DFW')).toBeVisible()
+  await page.getByRole('button', { name: /Explore this pursuit/ }).click()
+  await expect(page.getByText(/Draft rank 82\/100/)).toBeVisible()
+})

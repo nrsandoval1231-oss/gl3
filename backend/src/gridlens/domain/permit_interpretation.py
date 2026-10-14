@@ -210,6 +210,11 @@ def evaluator_version(record: dict[str, Any]) -> str:
         return GEORGIA_AIR_EVALUATOR_VERSION
     if isinstance(permit, dict) and permit.get("source_type") == "texas-tceq-nsr-pending":
         return TCEQ_NSR_EVALUATOR_VERSION
+    if (
+        isinstance(permit, dict)
+        and permit.get("source_type") == "texas-tceq-temporary-batch-plants"
+    ):
+        return TCEQ_BATCH_EVALUATOR_VERSION
     if isinstance(permit, dict) and permit.get("source_type") == "boston-building-permits":
         return BOSTON_PERMIT_EVALUATOR_VERSION
     return EVALUATOR_VERSION
@@ -472,6 +477,87 @@ def _assess_tceq_nsr(record: dict[str, Any], permit: dict[str, Any], as_of: date
     }
 
 
+TCEQ_BATCH_EVALUATOR_VERSION = "tceq-temporary-batch-v1"
+_NAMED_PROJECT = re.compile(r"\bPROJECT\s+[A-Z0-9][A-Z0-9-]+", re.IGNORECASE)
+
+
+def _assess_tceq_batch(
+    record: dict[str, Any], permit: dict[str, Any], as_of: date
+) -> dict[str, Any]:
+    facility = str(permit.get("facility") or "").strip()
+    applicant = str(permit.get("applicant") or "").strip()
+    location = permit.get("location")
+    data_center = bool(_TCEQ_DATA_CENTER.search(facility))
+    named_project = bool(_NAMED_PROJECT.search(facility))
+    dated = bool(record.get("event_date"))
+    accepted = bool(
+        facility
+        and location
+        and dated
+        and record.get("html_url")
+        and (data_center or named_project)
+    )
+    subject = (
+        "a data-center project" if data_center else f"named project ({facility})"
+    )
+    if accepted:
+        reason = (
+            f"TCEQ lists a pending temporary concrete batch plant registration "
+            f"({permit.get('registration')}) by {applicant} serving {subject} at {location}, "
+            f"submitted {record.get('event_date')}. A proposed temporary batch plant indicates "
+            "planned heavy construction at the site; the registration is pending and does not "
+            "show that construction has started. The construction-power question is inferred: "
+            "required MW, duration, utility service date and the buyer are unknown, and the "
+            "batch plant supplier is not the project owner or GC."
+        )
+    elif not (data_center or named_project):
+        reason = (
+            "Temporary batch plant without a named data-center or project site; retained as "
+            "evidence."
+        )
+    else:
+        reason = "Temporary batch plant notice lacks a dated event or site."
+    return {
+        "schema_version": 1,
+        "decision": "accepted" if accepted else "rejected",
+        "tier": "Signal" if accepted else None,
+        "reason": reason,
+        "subject": facility if accepted else None,
+        "action": (
+            "proposed temporary concrete batch plant for planned construction" if accepted else None
+        ),
+        "location": location,
+        "missing_facts": MISSING,
+        "source_field_citations": permit.get("source_fields", {}),
+        "stable_row_id": permit.get("row_id"),
+        "permit_status": permit.get("status"),
+        "event_date": record.get("event_date"),
+        "event_date_label": record.get("event_date_label"),
+        "issue_date": None,
+        "issue_date_label": None,
+        "project_hint": facility or None,
+        "power_activity": "facility-expansion",
+        "rental_category": "construction-activity-discovery",
+        "reported_claim": facility if accepted else None,
+        "reported_power_facts": [],
+        "rental_hypothesis": (
+            "Inferred review question only: who carries temporary construction power on this "
+            "site, and when is permanent service expected?"
+            if accepted
+            else None
+        ),
+        "activity_end_date": None,
+        "review_after": None,
+        "as_of_date": as_of.isoformat(),
+        "document_links": permit.get("document_links", {}),
+        "coordinates": (
+            [permit["latitude"], permit["longitude"]]
+            if permit.get("latitude") is not None
+            else None
+        ),
+    }
+
+
 def _explicit_event_end(description: str) -> date | None:
     """Read explicit full-year dates from event text; permit expiry is not event timing."""
     text = re.sub(
@@ -679,6 +765,8 @@ def assess_permit(record: dict[str, Any], *, as_of: date | None = None) -> dict[
         }
     if permit.get("source_type") == "texas-tceq-nsr-pending":
         return _assess_tceq_nsr(record, permit, as_of)
+    if permit.get("source_type") == "texas-tceq-temporary-batch-plants":
+        return _assess_tceq_batch(record, permit, as_of)
     if permit.get("source_type") == "georgia-air-draft-title-v":
         return _assess_georgia_air(record, permit, str(permit.get("current_scope") or ""), as_of)
     if permit.get("source_type") == "texas-rrc-drilling-permits":

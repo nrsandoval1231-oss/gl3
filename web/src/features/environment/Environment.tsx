@@ -137,7 +137,11 @@ export function Environment({ onSignOut, today }: { onSignOut: () => void; today
     return groups
   }, [items])
   const subject = scene.needId ? items.find((item) => item.id === scene.needId) ?? null : null
-  const featured = items[0] ?? null
+  // Featured = highest draft rank among loaded records; falls back to the newest record.
+  const featured = items.reduce<Opportunity | null>(
+    (best, item) => (best === null || (item.rank_score ?? -1) > (best.rank_score ?? -1) ? item : best),
+    null,
+  )
   const subjectState = subject ? stateOf(subject.location) : scene.state
   const inFocus = scene.mode !== 'nation' && scene.mode !== 'state'
   const stateItems = scene.state ? byState.get(scene.state) ?? [] : []
@@ -215,7 +219,8 @@ export function Environment({ onSignOut, today }: { onSignOut: () => void; today
             <h1 ref={headingRef} tabIndex={-1} className="env-display">A wider view.<br/>A sharper focus.</h1>
             <p className="env-lede">{loading ? 'Loading the national picture…' : `${page?.totalCount ?? 0} ${scene.tier.toLowerCase()}${scene.search ? ` matching “${scene.search}”` : ''} · ${mappedStates} states${unmapped ? ` · ${unmapped} unmapped` : ''}.`} {tierNote}</p>
             {featured ? <div className="env-featured">
-              <p className="env-eyebrow"><span className="env-dot"/>Most recently updated · {featured.tier}</p>
+              <p className="env-eyebrow"><span className="env-dot"/>{featured.rank_score != null ? `Highest draft rank · ${featured.rank_score}` : 'Most recently updated'} · {featured.tier}</p>
+              {featured.rank_reasons && featured.rank_reasons.length > 0 && <p className="env-meta">{featured.rank_reasons.join(' · ')}</p>}
               <h2>{projectTitle(featured)}</h2>
               <p className="env-meta">{featured.location ?? 'Location unknown'} · {readable(featured.activity)}</p>
               <dl className="env-facts env-facts-compact">
@@ -295,6 +300,7 @@ function Focus({ mode, item, stateName, headingRef, go, onReadback }: {
     <p className="env-eyebrow"><span className="env-dot"/>{[stateName ?? 'Location unknown', readable(item.activity), item.tier].join(' / ')}</p>
     <h1 ref={headingRef} tabIndex={-1}>{projectTitle(item)}</h1>
     <p className="env-meta">{item.location ?? 'Location unknown'}{item.title_company_role ? ` · ${readable(item.title_company_role)}` : ''}</p>
+    {item.rank_score != null && <p className="env-rank" title={`Ranking ${item.rank_version ?? ''}: draft weights pending owner approval. Not a probability or confidence.`}>Draft rank {item.rank_score}/100{item.rank_reasons?.length ? ` · ${item.rank_reasons.join(' · ')}` : ''}</p>}
     {item.signal_evidence_state === 'source_listing_absent' && <p role="status" className="env-review">Status review needed: this filing is no longer in the source's current listing. It may have been issued, denied or withdrawn; its evidence is retained.</p>}
     <p className="env-lede">{prompt[mode]}</p>
 

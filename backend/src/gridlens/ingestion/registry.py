@@ -65,12 +65,14 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
             "ma-cultivation-applications": {"masscannabiscontrol.com"},
             "taylor-newsflash": {"taylortx.gov"},
             "tceq-nsr-pending": {"www.tceq.texas.gov"},
+            "tceq-temporary-batch-plants": {"www.tceq.texas.gov"},
         }
         # Only adapters that return every listed row or fail may declare a complete snapshot;
         # absence from such a snapshot is then a reviewable status change.
         if source.get("snapshot_complete") and source["retrieval_method"] not in {
             "georgia-air-permits",
             "tceq-nsr-pending",
+            "tceq-temporary-batch-plants",
         }:
             raise ValueError("Source cannot declare a complete snapshot")
         if source["id"] in ids or urlparse(source["endpoint"]).hostname not in allowed_hosts.get(
@@ -90,6 +92,7 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
             "taylor-newsflash",
             "ma-cultivation-applications",
             "tceq-nsr-pending",
+            "tceq-temporary-batch-plants",
         } or (1 <= query.get("window_days", 0) <= 90)
         if source["retrieval_method"] in {"json-api", "federal-register-json"}:
             bounded = (
@@ -220,6 +223,13 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
                 and urlparse(source["endpoint"]).hostname == "masscannabiscontrol.com"
                 and urlparse(source["endpoint"]).path == "/resource/l_applications_all_details.json"
                 and not urlparse(source["endpoint"]).query
+            )
+        elif source["retrieval_method"] == "tceq-temporary-batch-plants":
+            bounded = (
+                source.get("cadence_hours") == 24
+                and source.get("geography") == "Texas"
+                and 0 <= query.get("max_notices", -1) <= 40
+                and set(query) == {"max_notices"}
             )
         elif source["retrieval_method"] == "tceq-nsr-pending":
             bounded = (

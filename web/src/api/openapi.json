@@ -6219,6 +6219,42 @@
             ],
             "title": "Title Company"
           },
+          "rank_score": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rank Score"
+          },
+          "rank_reasons": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rank Reasons"
+          },
+          "rank_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rank Version"
+          },
           "title_company_role": {
             "anyOf": [
               {

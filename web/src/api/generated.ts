@@ -1946,6 +1946,12 @@ export interface components {
             supported_action?: string | null;
             /** Title Company */
             title_company?: string | null;
+            /** Rank Score */
+            rank_score?: number | null;
+            /** Rank Reasons */
+            rank_reasons?: string[] | null;
+            /** Rank Version */
+            rank_version?: string | null;
             /** Title Company Role */
             title_company_role?: string | null;
             /** Demand Quote */
