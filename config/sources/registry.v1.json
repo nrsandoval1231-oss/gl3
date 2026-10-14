@@ -441,6 +441,31 @@
         "max_application_event_age_days": 120
       },
       "coverage_limitation": "The CCC open-data catalog states that published data is self-reported and has no completeness, accuracy, or timeliness guarantee. Snapshot and application dates are retained separately. Only dated pending/reopened records with applicant and physical Massachusetts site may enter ordinary Signals; application status does not prove construction, current work, operations, load, rental demand, a buyer, or authority."
+    },
+    {
+      "id": "texas-tceq-nsr-pending",
+      "publisher": "Texas Commission on Environmental Quality, Air Permits Division",
+      "endpoint": "https://www.tceq.texas.gov/assets/public/permitting/air/reports/applications/nsr-pending-permits.html",
+      "family": "construction-permits",
+      "geography": "Texas",
+      "industries": [
+        "data centers",
+        "energy",
+        "manufacturing",
+        "industrial facilities",
+        "oil and gas"
+      ],
+      "retrieval_method": "tceq-nsr-pending",
+      "cadence_hours": 24,
+      "publication_cadence": "Current pending New Source Review application listing; publication date unknown; TCEQ received date labeled separately",
+      "collection_scope": "All rows of the statewide pending NSR application listing; Plain Language Summary PDFs fetched only for data-center or power-generation filings, newest first, bounded per run.",
+      "coverage_limitation": "Pending NSR case-by-case applications only; permits by rule and standard permits are not in this listing. TCEQ began moving pending-application publishing to its Permit Search Portal on August 31, 2026, so this listing may thin out. Summaries give site and purpose but rarely MW; proposed onsite generation is proposed supply, not adequate power.",
+      "credential_reference": null,
+      "enabled": true,
+      "retention": "Public listing fields, summary PDF site sentence and purpose excerpt, official links",
+      "query": {
+        "max_summaries": 30
+      }
     }
   ]
 }

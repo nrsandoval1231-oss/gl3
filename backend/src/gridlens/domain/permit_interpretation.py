@@ -208,6 +208,8 @@ def evaluator_version(record: dict[str, Any]) -> str:
         return "rrc-flare-application-evidence-v1"
     if isinstance(permit, dict) and permit.get("source_type") == "georgia-air-draft-title-v":
         return GEORGIA_AIR_EVALUATOR_VERSION
+    if isinstance(permit, dict) and permit.get("source_type") == "texas-tceq-nsr-pending":
+        return TCEQ_NSR_EVALUATOR_VERSION
     if isinstance(permit, dict) and permit.get("source_type") == "boston-building-permits":
         return BOSTON_PERMIT_EVALUATOR_VERSION
     return EVALUATOR_VERSION
@@ -356,6 +358,117 @@ def _assess_georgia_air(
         "as_of_date": as_of.isoformat(),
         "document_links": permit.get("document_links", {}),
         "document_hashes": permit.get("document_hashes", {}),
+    }
+
+
+TCEQ_NSR_EVALUATOR_VERSION = "tceq-nsr-pending-v1"
+_TCEQ_DATA_CENTER = re.compile(r"\bdata\s*centers?\b|\bhyperscale\b", re.IGNORECASE)
+_TCEQ_ONSITE_LOAD = re.compile(
+    r"onsite consumption|on-site consumption|behind[- ]the[- ]meter|"
+    r"serve (?:the )?(?:onsite|on-site)|on-site data center|does not sell power to the grid",
+    re.IGNORECASE,
+)
+_TCEQ_GENERATION = re.compile(
+    r"generat\w* electricity|power generation|electric generating|generating units?|turbines?|"
+    r"reciprocating engines?",
+    re.IGNORECASE,
+)
+_TCEQ_CONSTRUCTION = re.compile(r"\btemporary\b.*\bbatch plant\b|\bconcrete batch\b", re.IGNORECASE)
+
+
+def _assess_tceq_nsr(record: dict[str, Any], permit: dict[str, Any], as_of: date) -> dict[str, Any]:
+    facility = str(permit.get("facility") or "").strip()
+    applicant = str(permit.get("applicant") or "").strip()
+    purpose = str(permit.get("purpose") or "")
+    names = f"{applicant} {facility}"
+    context = f"{names} {purpose}"
+    data_center = bool(_TCEQ_DATA_CENTER.search(context))
+    onsite_load = bool(_TCEQ_ONSITE_LOAD.search(purpose))
+    generation = bool(_TCEQ_GENERATION.search(context))
+    construction = bool(_TCEQ_CONSTRUCTION.search(facility))
+    location = permit.get("location")
+    citation_ok = bool(record.get("html_url") and permit.get("row_id"))
+    dated = bool(record.get("event_date"))
+    renewal = bool(permit.get("renewal_without_change"))
+    accepted = bool(
+        facility
+        and location
+        and citation_ok
+        and dated
+        and (data_center or onsite_load)
+        and not renewal
+    )
+    # One recognized activity key; the specific event stays in the Signal text.
+    activity = "facility-expansion"
+    if construction and data_center:
+        event = "a temporary construction batch plant serving a data-center project"
+    elif generation and (data_center or onsite_load):
+        event = "proposed onsite power generation for on-site load"
+    else:
+        event = "a data-center facility air permit application"
+    if accepted:
+        reason = (
+            f"TCEQ lists a pending air permit application ({permit.get('application_stage')}) "
+            f"from {applicant} for {facility} ({location}) describing {event}. "
+            "Proposed onsite generation is proposed supply, not proof of adequate power: it is "
+            "not yet authorized, and its timing relative to construction, commissioning and "
+            "utility service is UNKNOWN. This is a discovery Signal; required temporary MW, "
+            "start window, duration, buyer and authority remain unknown."
+        )
+    elif renewal:
+        reason = (
+            "Renewal of an existing air permit with no stated change; existing equipment is "
+            "retained as evidence, not a new construction or power Signal."
+        )
+    elif not (data_center or onsite_load):
+        reason = (
+            "TCEQ air application without stated data-center or on-site load context; retained "
+            "as evidence. A generating asset alone is not a load-side rental opportunity."
+        )
+    elif not location:
+        reason = (
+            "Data-center or on-site-load filing, but the plain-language summary did not yield a "
+            "site; retained until a location is established."
+        )
+    else:
+        reason = "TCEQ listing row lacks a dated event or stable citation."
+    return {
+        "schema_version": 1,
+        "decision": "accepted" if accepted else "rejected",
+        "tier": "Signal" if accepted else None,
+        "reason": reason,
+        "subject": (applicant or facility) if accepted else None,
+        "action": event if accepted else None,
+        "location": location,
+        "missing_facts": MISSING,
+        "source_field_citations": permit.get("source_fields", {}),
+        "stable_row_id": permit.get("row_id"),
+        "permit_status": permit.get("application_stage"),
+        "event_date": record.get("event_date"),
+        "event_date_label": record.get("event_date_label"),
+        "issue_date": None,
+        "issue_date_label": None,
+        "application_received_date": record.get("event_date"),
+        "project_hint": facility or None,
+        "power_activity": activity,
+        "rental_category": "air-permit-discovery",
+        "reported_claim": purpose or None,
+        "reported_power_facts": [],
+        "rental_hypothesis": (
+            "Inferred review question only: does construction or commissioning need temporary "
+            "power before permitted onsite generation or utility service is available?"
+            if accepted
+            else None
+        ),
+        "activity_end_date": None,
+        "review_after": None,
+        "as_of_date": as_of.isoformat(),
+        "document_links": permit.get("document_links", {}),
+        "coordinates": (
+            [permit["latitude"], permit["longitude"]]
+            if permit.get("latitude") is not None
+            else None
+        ),
     }
 
 
@@ -564,6 +677,8 @@ def assess_permit(record: dict[str, Any], *, as_of: date | None = None) -> dict[
             "review_after": None,
             "as_of_date": as_of.isoformat(),
         }
+    if permit.get("source_type") == "texas-tceq-nsr-pending":
+        return _assess_tceq_nsr(record, permit, as_of)
     if permit.get("source_type") == "georgia-air-draft-title-v":
         return _assess_georgia_air(record, permit, str(permit.get("current_scope") or ""), as_of)
     if permit.get("source_type") == "texas-rrc-drilling-permits":

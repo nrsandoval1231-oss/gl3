@@ -16,6 +16,7 @@ from gridlens.ingestion.adapters.rrc_flare_exceptions import (
 )
 from gridlens.ingestion.adapters.socrata_permits import retrieve as retrieve_socrata_permits
 from gridlens.ingestion.adapters.taylor_newsflash import retrieve as retrieve_taylor_newsflash
+from gridlens.ingestion.adapters.tceq_nsr_pending import retrieve as retrieve_tceq_nsr_pending
 
 
 def retrieve_source(
@@ -50,6 +51,8 @@ def retrieve_source(
         return retrieve_georgia_air_permits(source, client)
     if method == "ma-cultivation-applications":
         return retrieve_ma_cultivation(source, client)
+    if method == "tceq-nsr-pending":
+        return retrieve_tceq_nsr_pending(source, client)
     if method == "taylor-newsflash":
         return retrieve_taylor_newsflash(source, client)
     raise SourceParseError(f"Unsupported source retrieval method: {method}")
