@@ -507,7 +507,7 @@ export function FactWorkflowPanel({ item, onReadback }: { item: Opportunity; onR
   const editable = !draft.pendingFactId && !busy
   const field = (key: string, label: string, type = 'text') => <label key={key}>{label}<input type={type} value={draft.fields[key] ?? ''} disabled={!editable} onChange={(event) => updateField(key, event.target.value)}/></label>
 
-  return <section className="detail-section" aria-label="Exact-Need facts and operator status">
+  return <section className="detail-section" aria-label="Exact-Need facts and operator status" data-context-loading={loading && !page}>
     <p className="eyebrow">Current exact-Need record · separate from saved evaluation history</p>
     <h3>Attributed facts and live workflow</h3>
     <p>Need {needId} · project {item.project_id} · {item.activity}. Facts and operator status are separate from public evidence; neither a note nor a status is a qualification input.</p>

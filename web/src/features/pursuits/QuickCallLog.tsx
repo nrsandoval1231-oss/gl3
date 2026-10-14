@@ -1,4 +1,5 @@
-import { useRef, useState, type FormEvent } from 'react'
+import { type FormEvent } from 'react'
+import { freshCallDraft, useCallDraft } from './callDrafts'
 import { client, type CallFact, type Opportunity } from '../../api/client'
 
 // One call, one form: a shared call header and only the facts that were actually said.
@@ -6,28 +7,23 @@ import { client, type CallFact, type Opportunity } from '../../api/client'
 // accepted until the operator presses the explicit accept button.
 type Section = 'demand' | 'timing' | 'buyer' | 'suitable_supply' | 'unsuitable_supply'
 
-const nowLocal = () => {
-  const now = new Date()
-  now.setSeconds(0, 0)
-  return new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16)
-}
-
 export function QuickCallLog({ item, onReadback }: { item: Opportunity; onReadback: () => void }) {
-  const [contact, setContact] = useState({ name: '', organization: '', role: '', channel: 'phone', at: nowLocal() })
-  const [values, setValues] = useState<Record<string, string>>({})
-  const [drafts, setDrafts] = useState<CallFact[]>([])
-  const [accepted, setAccepted] = useState(false)
-  const [busy, setBusy] = useState(false)
-  const [error, setError] = useState('')
-  // Request keys are fixed per exact payload, so a retry after a lost response replays the
-  // server's original draft or decision instead of creating a duplicate.
-  const requestKeys = useRef(new Map<string, string>())
+  const [draft, update] = useCallDraft(item.id)
+  const { contact, values, drafts, accepted, busy, error } = draft
+  const setContact = (contact: typeof draft.contact) => update({ contact })
+  const setValues = (fn: (current: typeof values) => typeof values) => update({ values: fn(values) })
+  const setDrafts = (drafts: CallFact[]) => update({ drafts })
+  const setAccepted = (accepted: boolean) => update({ accepted })
+  const setBusy = (busy: boolean) => update({ busy })
+  const setError = (error: string) => update({ error })
+  // Keys belong to the need draft, including after navigation or a lost response.
   const keyFor = (payload: unknown) => {
     const signature = JSON.stringify(payload)
-    const known = requestKeys.current.get(signature)
+    const known = draft.keys[signature]
     if (known) return known
     const fresh = crypto.randomUUID()
-    requestKeys.current.set(signature, fresh)
+    draft.keys[signature] = fresh
+    update({ keys: { ...draft.keys } })
     return fresh
   }
   const set = (key: string) => (event: { target: { value: string } }) => setValues((current) => ({ ...current, [key]: event.target.value }))
@@ -58,6 +54,7 @@ export function QuickCallLog({ item, onReadback }: { item: Opportunity; onReadba
 
   async function saveDrafts(event: FormEvent) {
     event.preventDefault()
+    if (busy) return
     if (!item.project_id) return setError('No project identity is linked yet.')
     if (contact.name.trim().length < 2) return setError('Enter who you spoke with.')
     if (!item.location) return setError('This record has no facility location, so call facts cannot be attached to it.')
@@ -108,6 +105,7 @@ export function QuickCallLog({ item, onReadback }: { item: Opportunity; onReadba
   }
 
   async function acceptAll() {
+    if (busy) return
     setBusy(true); setError('')
     let done = 0
     try {
@@ -130,11 +128,15 @@ export function QuickCallLog({ item, onReadback }: { item: Opportunity; onReadba
 
   return <section className="detail-section quick-call" aria-label="Log this call">
     <h3>Log this call</h3>
+    <p role="status">{busy ? 'Saving…' : error ? 'Failed — review the message below.' : accepted ? 'Accepted facts' : drafts.length ? 'Saved draft — not accepted' : 'Unsaved — no facts accepted'}</p>
+    <p>{draft.refreshSafe ? 'Input survives navigation and refresh in this tab for up to eight hours, within the session storage limit. Sign out clears it.' : 'Session storage is unavailable or full. Input survives this page’s navigation, but may be lost on refresh.'}</p>
     {error && <p className="error" role="alert">{error}</p>}
     {drafts.length > 0 ? <>
       <p role="status">{accepted ? `${drafts.length} facts accepted. Tier re-evaluated from the accepted facts.` : `${drafts.length} drafts saved, not yet accepted. Review them, then accept.`}</p>
       <ul>{drafts.map((fact) => <li key={fact.id}>{describe(fact)}</li>)}</ul>
+      {!error && <><p>Saved facts stay in full fact history. Starting another call does not accept unaccepted drafts.</p><button type="button" disabled={busy} onClick={() => update(freshCallDraft())}>Start another call</button></>}
       {!accepted && <button type="button" disabled={busy} onClick={() => void acceptAll()}>Accept all {drafts.length} as confirmed by {contact.name.trim()}</button>}
+      {error && !accepted && <button type="button" disabled={busy} onClick={(event) => void saveDrafts(event)}>Retry saving drafts</button>}
     </> : <form onSubmit={(event) => void saveDrafts(event)}>
       <fieldset disabled={busy}>
         <legend>Who you spoke with</legend>

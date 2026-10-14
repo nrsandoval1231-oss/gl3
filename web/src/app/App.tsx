@@ -1,3 +1,4 @@
+import { environmentReturnUrl, withEnvironmentReturn } from '../features/environment/navigation'
 import { type FormEvent, useEffect, useRef, useState } from 'react'
 import { client, OpportunityCohortChangedError, OpportunityNeedUnavailableError, workflowStatuses, type Brief, type IngestionItem, type Opportunity, type OpportunityBrowseFilters, type OpportunityPage, type WorkflowStatusFilter } from '../api/client'
 import { projectTitle, serverProjectCards, signalDisplayDecision, type SignalDisplayDecision, type ProjectCard } from '../features/opportunities/projectCards'
@@ -154,6 +155,7 @@ export function CommercialTodayEntry({ onOpen }: { onOpen: () => void }) {
 }
 
 function WorkspaceApp() {
+  const [returnTo] = useState(environmentReturnUrl)
   const [authenticated, setAuthenticated] = useState<boolean | null>(null)
   const [password, setPassword] = useState('')
   const [tier, setTier] = useState<Tier>('Signals')
@@ -175,7 +177,7 @@ function WorkspaceApp() {
   const [sourceFilter, setSourceFilter] = useState('')
   const [verticalFilter, setVerticalFilter] = useState('')
   const [offset, setOffset] = useState(0)
-  const [showHealth, setShowHealth] = useState(false)
+  const [showHealth, setShowHealth] = useState(() => new URLSearchParams(location.search).get('health') === '1')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [pageRevision, setPageRevision] = useState(0)
@@ -385,13 +387,16 @@ function WorkspaceApp() {
     const url = view === 'opportunities'
       ? routeUrl(tier, search, routedSelectionId ? `#${encodeURIComponent(routedSelectionId)}` : '', offset, signalFilter, browseFilters)
       : view === 'pursuits' ? `${location.pathname}?view=pursuits` : ingestionUrl(view, sourceFilter, verticalFilter, offset)
+    const legacyUrl = new URL(url, location.origin)
+    if (returnTo) legacyUrl.searchParams.set('returnTo', returnTo)
+    if (showHealth) legacyUrl.searchParams.set('health', '1')
     const nextHistoryState = { ...(history.state ?? {}), tier, search, view, sourceFilter, verticalFilter, offset, browseFilters, scrollY: window.scrollY } as Record<string, unknown>
     if (routedSelectionId) nextHistoryState.id = routedSelectionId
     else delete nextHistoryState.id
     history.replaceState(
       nextHistoryState,
       '',
-      url,
+      legacyUrl.pathname + legacyUrl.search + legacyUrl.hash,
     )
   }, [authenticated, tier, search, signalFilter, view, sourceFilter, verticalFilter, offset, browseFilters, navigationRevision, serverReadbackRevision])
 
@@ -653,6 +658,7 @@ function WorkspaceApp() {
   const selectedSharesProjectId = Boolean(selectedGroup && selected?.project_id && selectedGroup.members.every((member) => member.project_id === selected.project_id))
   return <div className={`shell${view === 'pursuits' ? ' shell-commercial' : ''}`}>
     <header className="topbar"><a className="brand" href={routeUrl('Signals', '')} aria-label="GridLens home" onClick={(event) => { event.preventDefault(); chooseTier('Signals') }}><img src={view === 'pursuits' ? '/brand/lockup-horizontal-white.svg' : '/brand/lockup-horizontal-navy.svg'} alt="GridLens"/></a><nav aria-label="Workspace views">{tiers.map((name) => <button key={name} className={view === 'opportunities' && tier === name ? 'nav-active' : ''} aria-current={view === 'opportunities' && tier === name ? 'page' : undefined} onClick={() => chooseTier(name)}>{name}</button>)}<button className={view === 'pursuits' ? 'nav-active' : ''} aria-current={view === 'pursuits' ? 'page' : undefined} onClick={() => chooseView('pursuits')}>Today’s pursuits</button><button className={view === 'ingestion' ? 'nav-active' : ''} aria-current={view === 'ingestion' ? 'page' : undefined} onClick={() => chooseView('ingestion')}>Ingestion</button></nav><div className="header-actions"><button className="health-toggle" onClick={() => setShowHealth((value) => !value)} aria-expanded={showHealth}>Source health</button><button className="signout" onClick={() => void signOut()}>Sign out</button></div></header>
+    {returnTo && <a className="back-button" href={returnTo}>Return to environment</a>}
     <main className={`workspace${view === 'pursuits' ? ' workspace-commercial' : ''}`}>
       {authenticated && commercialMounted && <div className="commercial-host" hidden={view !== 'pursuits'}><CommercialPursuits/></div>}
       {!selected && view === 'opportunities' && tier === 'Signals' && defaultTodayEntry && <CommercialTodayEntry onOpen={() => chooseView('pursuits')}/>}
@@ -818,7 +824,7 @@ function EnvironmentRoot() {
   }
   if (authenticated === null) return <main className="loading" aria-live="polite">Loading your private workspace…</main>
   if (!authenticated) return <main className="login-wrap"><form className="login" onSubmit={onLogin}><img src="/brand/lockup-horizontal-navy.svg" alt="GridLens"/><h1>Sign in</h1><p>Your private GridLens workspace.</p><label htmlFor="password">Password</label><input id="password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required/><button className="primary">Continue</button>{error && <p role="alert" className="error">{error}</p>}</form></main>
-  return <Environment today={<CommercialTodayEntry onOpen={() => location.assign('/?view=pursuits')}/>} onSignOut={() => { void client.logout().finally(() => setAuthenticated(false)) }}/>
+  return <Environment today={<CommercialTodayEntry onOpen={() => location.assign(withEnvironmentReturn('/?view=pursuits'))}/>} onSignOut={() => { void client.logout().finally(() => setAuthenticated(false)) }}/>
 }
 
 export function App() {

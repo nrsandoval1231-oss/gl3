@@ -1,3 +1,4 @@
+import { clearContinuity } from '../state/sessionState'
 import type { components } from './generated'
 
 export type PursuitsResult = components['schemas']['PursuitsOut']
@@ -43,7 +44,7 @@ export type OpportunityNeedScope = {
   tier: string
   search: string
   decision: string
-  cohortToken: string
+  cohortToken?: string
   filters?: OpportunityBrowseFilters
 }
 export type OpportunityGroupPage = components['schemas']['OpportunityGroupPageOut']
@@ -134,14 +135,14 @@ export class OpportunityNeedUnavailableError extends Error {
   }
 }
 
-async function opportunityNeed(needId: string, scope: OpportunityNeedScope, signal?: AbortSignal): Promise<Opportunity> {
-  const params = new URLSearchParams({
-    tier: scope.tier,
-    search: scope.search,
-    decision: scope.decision,
-    cohort_token: scope.cohortToken,
-  })
-  addBrowseFilters(params, scope.filters)
+async function opportunityNeed(needId: string, scope?: OpportunityNeedScope, signal?: AbortSignal): Promise<Opportunity> {
+  // Omit scope for identity resolution. The server still enforces authentication and
+  // opportunity eligibility; a map cohort is deliberately not an identity boundary.
+  const params = new URLSearchParams(scope ? {
+    tier: scope.tier, search: scope.search, decision: scope.decision,
+    ...(scope.cohortToken ? { cohort_token: scope.cohortToken } : {}),
+  } : {})
+  addBrowseFilters(params, scope?.filters)
   const response = await fetch(`/api/opportunities/needs/${encodeURIComponent(needId)}?${params}`, {
     credentials: 'same-origin',
     signal,
@@ -171,7 +172,7 @@ export const client = {
   refreshAutonomousResearch: (needId: string, force: boolean, signal?: AbortSignal) => api<AutonomousResearch>(`/api/commercial/triage/${encodeURIComponent(needId)}/autonomous-research`, { method: 'POST', body: JSON.stringify({ force }), signal }, true),
   session: () => api<{ authenticated: boolean }>('/api/auth/session'),
   login: (password: string) => api<{ authenticated: boolean }>('/api/auth/login', { method: 'POST', body: JSON.stringify({ password }) }),
-  logout: () => api('/api/auth/logout', { method: 'POST' }),
+  logout: () => api('/api/auth/logout', { method: 'POST' }).finally(clearContinuity),
   opportunityPage,
   opportunityGroupPage: (groupId: string, tier: string, search: string, decision: string, cohortToken: string, limit: number, offset: number, filters: OpportunityBrowseFilters = {}, signal?: AbortSignal) => {
     const params = new URLSearchParams({ tier, search, decision, cohort_token: cohortToken, limit: String(limit), offset: String(offset) })
