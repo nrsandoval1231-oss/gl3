@@ -97,6 +97,7 @@ PERMIT_RETRIEVAL_METHODS = {
     "ceqanet-data-centers",
     "fort-worth-permits",
     "san-antonio-permits",
+    "tdlr-tabs",
 }
 
 

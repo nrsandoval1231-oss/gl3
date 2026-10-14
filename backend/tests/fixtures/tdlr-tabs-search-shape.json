@@ -1,0 +1,21 @@
+{
+ "_comment": "Constructed in the response shape the TABS search page reads (projectSearchJs DataTables columns: ProjectNumber, ProjectName, ProjectCreatedOn, ProjectStatus, FacilityName, City, County, TypeOfWork, EstimatedCost). Values are from the real registration TABS2026009183; numeric City/County lookup ids are omitted. The live search response could not be captured from the development network.",
+ "draw": 1,
+ "recordsTotal": 1,
+ "recordsFiltered": 1,
+ "data": [
+  {
+   "ProjectId": null,
+   "ProjectNumber": "TABS2026009183",
+   "ProjectName": "Databank Red Oak - DFW13",
+   "ProjectCreatedOn": "2026-01-05T00:00:00",
+   "ProjectStatus": 3008,
+   "FacilityName": "DFW13",
+   "City": null,
+   "County": null,
+   "TypeOfWork": 9001,
+   "EstimatedCost": 325000000,
+   "DataVersionId": 900001
+  }
+ ]
+}

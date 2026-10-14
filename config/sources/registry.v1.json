@@ -556,6 +556,28 @@
       "query": {
         "window_days": 90
       }
+    },
+    {
+      "id": "texas-tdlr-tabs-data-centers",
+      "publisher": "Texas Department of Licensing and Regulation, Architectural Barriers (TABS)",
+      "endpoint": "https://www.tdlr.texas.gov/TABS/Search/SearchProjects",
+      "family": "construction-permits",
+      "geography": "Texas",
+      "industries": [
+        "data centers"
+      ],
+      "retrieval_method": "tdlr-tabs",
+      "cadence_hours": 24,
+      "publication_cadence": "Public project search; each registration states its registration date",
+      "collection_scope": "Statewide TABS registrations in the last 90 days whose project name matches a data-center term, with each project page read for county, developer-reported dates, cost, scope and owner. Covers unincorporated county land.",
+      "coverage_limitation": "Only projects of $50,000 or more registered with TDLR, matched by project name; projects named without a data-center term are missed. Start and completion dates and cost are the registrant's estimates. Registration is accessibility review, not a building permit.",
+      "credential_reference": null,
+      "enabled": true,
+      "retention": "Public TABS project page fields and the official project link",
+      "query": {
+        "window_days": 90,
+        "name_terms": ["data center", "datacenter"]
+      }
     }
   ]
 }
