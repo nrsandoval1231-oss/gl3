@@ -36,6 +36,12 @@ async function mock(page: Page, items: Opportunity[], opportunities?: (route: Ro
       const next: Record<string, string> = offset + limit < items.length ? { 'X-Next-Offset': String(offset + limit) } : {}
       return json(pageItems, { 'X-Total-Count': String(items.length), 'X-Cohort-Token': 'c1', ...next })
     }
+    if (path.startsWith('/api/opportunities/needs/')) {
+      const item = items.find((item) => item.id === path.split('/').at(-1))
+      const tier = new URL(route.request().url()).searchParams.get('tier')
+      return item && (!tier || item.tier === tier) ? json(item) : route.fulfill({ status: 404 })
+    }
+    if (path === '/api/ingestion') return json({ items: [], total: 0, limit: 25, offset: 0, next_offset: null })
     if (path === '/api/health') return json({ sources: [{ id: 's', enabled: true, status: 'Updated' }], backlog: 0, pending_interpretations: 0 })
     if (path.endsWith('/buying-chain')) return json({ project_id: 'a', status: 'complete', policy_version: 'v1', unresolved: [], runs: [], candidates: [] })
     if (path.endsWith('/facts')) {
@@ -102,7 +108,7 @@ test('empty and failed result sets are honest', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Opportunities are unavailable.' })).toBeVisible()
 })
 
-test('lens and tier changes query the server and reset to the nation', async ({ page }) => {
+test('lens and tier changes query the server', async ({ page }) => {
   const queries: URLSearchParams[] = []
   await mock(page, [opportunity('a', 'Austin, TX')])
   page.on('request', (request) => {
@@ -222,7 +228,9 @@ test('one call logs several facts as drafts, then accepts them in one explicit s
   await page.getByLabel('Buyer role').selectOption('general contractor')
   await page.getByRole('button', { name: 'Save as drafts' }).click()
   await expect(page.getByRole('alert')).toHaveText(/0 of 3 drafts saved before an error/)
-  // The retry reuses the first request's key, so the server can replay instead of duplicating.
+  await page.reload()
+  await expect(page.getByLabel('Contact name')).toHaveValue('Jordan Example')
+  // The retry reuses the first request's key, including after refresh.
   await page.getByRole('button', { name: 'Save as drafts' }).click()
   await expect(page.getByText('3 drafts saved, not yet accepted.')).toBeVisible()
   expect(created[1].client_id).toBe(created[0].client_id)
@@ -236,4 +244,281 @@ test('one call logs several facts as drafts, then accepts them in one explicit s
   await page.getByRole('button', { name: /Accept all 3 as confirmed by Jordan Example/ }).click()
   await expect(page.getByText('3 facts accepted.', { exact: false })).toBeVisible()
   expect(decided.map((decision) => [decision.decision, decision.expected_version])).toEqual([['accepted', 3], ['accepted', 4], ['accepted', 5]])
+  await page.getByRole('button', { name: 'Start another call' }).click()
+  await expect(page.getByLabel('Contact name')).toHaveValue('')
+  await expect(page.getByLabel('Power needed')).toHaveValue('')
+})
+
+
+test('selected need beyond 200 resolves independently from bounded map results', async ({ page }) => {
+  await mock(page, Array.from({ length: 205 }, (_, i) => opportunity(`p${i}`, 'Austin, TX')))
+  await page.goto('/?view=environment&mode=project&state=Texas&need=p204')
+  await expect(page.getByRole('heading', { name: 'Test project p204', exact: true })).toBeVisible()
+  await expect(page.getByText(/Showing the 200 highest-ranked of 205/)).toBeVisible()
+})
+
+test('filter exclusion retains action identity and geography', async ({ page }) => {
+  await mock(page, [opportunity('a', 'Austin, TX')], async (route) => {
+    const matches = new URL(route.request().url()).searchParams.get('tier') === 'Signal'
+    await route.fulfill({ json: matches ? [opportunity('a', 'Austin, TX')] : [], headers: { 'X-Total-Count': matches ? '1' : '0' } })
+  })
+  await page.goto('/?view=environment&mode=action&state=Texas&need=a')
+  await page.getByLabel('Contact name').fill('Alex')
+  await page.getByLabel('Tier').selectOption('Leads')
+  await expect(page.getByText('Outside current filters', { exact: true })).toBeVisible()
+  await expect(page.getByLabel('Contact name')).toHaveValue('Alex')
+  await expect(page).toHaveURL(/mode=action&state=Texas&need=a/)
+  await expect(page.getByRole('button', { name: 'Texas 1', exact: true })).toHaveCount(0)
+})
+
+test('Back and Forward restore focus, scroll, disclosure and isolated call input', async ({ page }) => {
+  await mock(page, [opportunity('a', 'Austin, TX'), opportunity('b', 'Austin, TX')])
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Explore this pursuit' }).click()
+  await page.getByRole('button', { name: 'Prepare the call' }).click()
+  await page.getByLabel('Contact name').fill('Alex')
+  await page.getByLabel('Call note').fill('Private unsaved note A')
+  await page.getByText('Full fact history, single-fact entry and corrections', { exact: true }).click()
+  await page.getByLabel('Call note').focus()
+  const y = await page.evaluate(() => scrollY)
+  await page.goBack()
+  await expect(page.getByRole('button', { name: 'Prepare the call' })).toBeVisible()
+  await page.goForward()
+  await expect(page.getByLabel('Call note')).toHaveValue('Private unsaved note A')
+  await expect(page.getByLabel('Call note')).toBeFocused()
+  await expect.poll(() => page.evaluate(() => scrollY)).toBeCloseTo(y, 0)
+  await expect(page.locator('.env-full-facts')).toHaveAttribute('open', '')
+  await page.getByRole('link', { name: 'GridLens home' }).click()
+  await page.getByRole('button', { name: 'Texas 2', exact: true }).click()
+  await page.getByRole('button', { name: /Test project b/ }).click()
+  await page.getByRole('button', { name: 'Prepare the call' }).click()
+  await expect(page.getByLabel('Call note')).toHaveValue('')
+  await page.getByLabel('Call note').fill('Separate note B')
+  await page.goBack(); await page.goBack(); await page.goBack(); await page.goBack()
+  await expect(page.getByLabel('Call note')).toHaveValue('Private unsaved note A')
+})
+
+test('failed map has an actual retry and source-health return path', async ({ page }) => {
+  let fail = true
+  await mock(page, [], async (route) => {
+    await route.fulfill(fail ? { status: 503 } : { json: [], headers: { 'X-Total-Count': '0' } })
+  })
+  await page.goto('/')
+  await expect(page.getByRole('heading', { name: 'Opportunities are unavailable.' })).toBeVisible()
+  fail = false
+  await page.getByRole('button', { name: 'Retry opportunities' }).click()
+  await expect(page.getByRole('heading', { name: /A wider view/ })).toBeVisible()
+  await page.getByRole('button', { name: 'Menu', exact: true }).click()
+  await page.getByRole('link', { name: 'Source health', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Source health', exact: true })).toBeVisible()
+  await page.getByRole('link', { name: 'Return to environment' }).click()
+  await expect(page.getByRole('heading', { name: /A wider view/ })).toBeVisible()
+})
+
+test('draft refresh and legacy full-record round trip retain context without writes; logout clears drafts', async ({ page }) => {
+  await mock(page, [opportunity('a', 'Austin, TX')])
+  const writes: string[] = []
+  page.on('request', (request) => { if (request.method() === 'POST') writes.push(new URL(request.url()).pathname) })
+  await page.goto('/?view=environment&mode=action&state=Texas&need=a')
+  await page.getByLabel('Contact name').fill('Alex')
+  await page.getByLabel('Call note').fill('Keep across refresh')
+  await page.reload()
+  await expect(page.getByLabel('Call note')).toHaveValue('Keep across refresh')
+  await page.getByRole('link', { name: 'Open the full record' }).click()
+  await expect(page.getByRole('heading', { name: 'Test project a', exact: true }).first()).toBeVisible()
+  await page.reload()
+  await page.getByRole('link', { name: 'Return to environment' }).click()
+  await expect(page.getByLabel('Call note')).toHaveValue('Keep across refresh')
+  expect(writes).toEqual([])
+  await page.getByRole('button', { name: 'Menu', exact: true }).click()
+  await page.getByRole('button', { name: 'Sign out', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Sign in', exact: true })).toBeVisible()
+  expect(await page.evaluate(() => Object.keys(sessionStorage).filter((key) => key.startsWith('gl3-continuity:')))).toEqual([])
+  await page.reload()
+  await expect(page.getByLabel('Call note')).toHaveValue('')
+})
+
+test('state-list scroll and selected-record keyboard focus restore on Back', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await mock(page, Array.from({ length: 40 }, (_, i) => opportunity(`p${i}`, 'Austin, TX')))
+  await page.goto('/?view=environment&mode=state&state=Texas&lens=data_center')
+  const chosen = page.getByRole('button', { name: /Test project p30 / })
+  await chosen.focus()
+  await chosen.scrollIntoViewIfNeeded()
+  const scroll = await page.locator('.env-list').evaluate((el) => el.scrollTop)
+  await chosen.press('Enter')
+  await expect(page.getByRole('heading', { name: 'Test project p30', exact: true })).toBeVisible()
+  await page.goBack()
+  await expect(chosen).toBeFocused()
+  await expect.poll(() => page.locator('.env-list').evaluate((el) => el.scrollTop)).toBeCloseTo(scroll, 0)
+  await expect(page.getByLabel('Industry lens')).toHaveValue('data_center')
+})
+
+test('late selected-record and map responses cannot replace newer navigation', async ({ page }) => {
+  await mock(page, [opportunity('a', 'Austin, TX'), opportunity('b', 'Austin, TX')])
+  let release: () => void = () => {}
+  const gate = new Promise<void>((resolve) => { release = resolve })
+  await page.route('**/api/opportunities/needs/a?**', async (route) => {
+    await gate
+    await route.fulfill({ json: opportunity('a', 'Austin, TX') }).catch(() => {})
+  })
+  await page.goto('/?view=environment&mode=state&state=Texas')
+  await page.getByRole('button', { name: /Test project a/ }).click()
+  await page.getByRole('link', { name: 'GridLens home' }).click()
+  await page.getByRole('button', { name: 'Texas 2', exact: true }).click()
+  await page.getByRole('button', { name: /Test project b/ }).click()
+  await expect(page.getByRole('heading', { name: 'Test project b', exact: true })).toBeVisible()
+  release()
+  await expect(page.getByRole('heading', { name: 'Test project a', exact: true })).toHaveCount(0)
+  await page.getByLabel('Tier').selectOption('Leads')
+  await page.getByLabel('Tier').selectOption('Signals')
+  await expect(page.getByRole('heading', { name: 'Test project b', exact: true })).toBeVisible()
+  await expect(page.getByLabel('Tier')).toHaveValue('Signals')
+})
+
+for (const [status, message] of [[404, /unavailable, deleted/], [401, /session ended/], [503, /could not complete this request/]] as const) {
+  test(`selected-record ${status} is distinguished from filter exclusion`, async ({ page }) => {
+    await mock(page, [])
+    await page.route('**/api/opportunities/needs/missing?**', (route) => route.fulfill({ status }))
+    await page.goto('/?view=environment&mode=project&need=missing')
+    await expect(page.getByRole('alert')).toContainText(message)
+    await expect(page.getByText('Outside current filters', { exact: true })).toHaveCount(0)
+    await expect(page.getByRole('button', { name: 'Retry selected opportunity' })).toBeVisible()
+  })
+}
+
+
+test('buying-chain async disclosures restore independently per field after Back', async ({ page }) => {
+  await mock(page, [opportunity('a', 'Austin, TX')])
+  await page.route('**/api/projects/a/buying-chain', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 300))
+    await route.fulfill({ json: { project_id: 'a', status: 'complete', policy_version: 'v1', unresolved: [], runs: [], candidates: [], permit_summaries: [
+      { evidence_id: 'permit-a', title: 'Fixture permit', url: 'https://example.test', facts: [
+        { label: 'Owner', value: 'Fixture owner', quote: 'Fixture quote one' },
+        { label: 'Applicant', value: 'Fixture applicant', quote: 'Fixture quote two' },
+      ] },
+    ] } })
+  })
+  await page.goto('/?view=environment&mode=buyers&need=a')
+  await page.getByText('Field evidence', { exact: true }).first().click()
+  await expect(page.getByText('Fixture quote one', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Prepare the call' }).click()
+  await page.goBack()
+  await expect(page.getByText('Fixture quote one', { exact: true })).toBeVisible()
+  await expect(page.getByText('Fixture quote two', { exact: true })).not.toBeVisible()
+})
+
+test('legacy menu return restores scroll even when departure focus was inside the menu', async ({ page }) => {
+  await mock(page, [opportunity('a', 'Austin, TX')])
+  await page.goto('/?view=environment&mode=action&state=Texas&need=a')
+  await page.getByLabel('Call note').fill('Keep menu return context')
+  await page.getByRole('button', { name: 'Menu', exact: true }).click()
+  const y = await page.evaluate(() => scrollY)
+  await page.getByRole('link', { name: 'All records', exact: true }).click()
+  await page.getByRole('link', { name: 'Return to environment' }).click()
+  await expect(page.getByLabel('Call note')).toHaveValue('Keep menu return context')
+  await expect(page.getByRole('link', { name: 'All records', exact: true })).toBeFocused()
+  await expect.poll(() => page.evaluate(() => scrollY)).toBeCloseTo(y, 0)
+})
+
+test('late map responses do not restore stale filters or counts', async ({ page }) => {
+  let release: () => void = () => {}
+  const gate = new Promise<void>((resolve) => { release = resolve })
+  await mock(page, [opportunity('a', 'Austin, TX')], async (route) => {
+    const tier = new URL(route.request().url()).searchParams.get('tier')
+    if (tier === 'Prospect') await gate
+    await route.fulfill({ json: tier === 'Signal' ? [opportunity('a', 'Austin, TX')] : [], headers: { 'X-Total-Count': tier === 'Signal' ? '1' : '0' } }).catch(() => {})
+  })
+  await page.goto('/')
+  await expect(page.getByRole('button', { name: 'Texas 1', exact: true })).toBeVisible()
+  await page.getByLabel('Tier').selectOption('Prospects')
+  await page.getByLabel('Tier').selectOption('Signals')
+  await expect(page.getByRole('button', { name: 'Texas 1', exact: true })).toBeVisible()
+  release()
+  await expect(page.getByLabel('Tier')).toHaveValue('Signals')
+  await expect(page.getByRole('button', { name: 'Texas 1', exact: true })).toBeVisible()
+})
+
+for (const width of [1280, 390]) {
+  test(`rendered ${width}px keyboard journey with reduced motion`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 844 })
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await mock(page, [opportunity('a', 'Austin, TX')])
+    await page.goto('/')
+    await page.getByRole('button', { name: 'Explore this pursuit' }).focus()
+    await page.keyboard.press('Enter')
+    await page.getByRole('button', { name: 'Reveal the evidence' }).focus()
+    await page.keyboard.press('Enter')
+    await expect(page.getByRole('link', { name: 'Test evidence 1' })).toBeVisible()
+    await page.getByRole('button', { name: 'Follow the buying path' }).click()
+    await page.getByRole('button', { name: 'Prepare the call' }).click()
+    await page.getByLabel('Contact name').fill('Test-only contact')
+    await page.getByLabel('Call note').fill('Unsaved fixture input — no facts accepted.')
+    await page.goBack(); await page.goForward()
+    await expect(page.getByLabel('Call note')).toHaveValue('Unsaved fixture input — no facts accepted.')
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    const screenshot = testInfo.outputPath(`environment-${width}-fixture.png`)
+    await page.screenshot({ path: screenshot, fullPage: true })
+    await testInfo.attach(`Rendered ${width}px fixture journey (not live data)`, { path: screenshot, contentType: 'image/png' })
+  })
+}
+
+test('Back across filters waits for matching list before restoring its scroll', async ({ page }) => {
+  const items = Array.from({ length: 40 }, (_, i) => opportunity(`p${i}`, 'Austin, TX'))
+  await mock(page, items, async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 200))
+    const matches = new URL(route.request().url()).searchParams.get('tier') === 'Signal'
+    await route.fulfill({ json: matches ? items : [], headers: { 'X-Total-Count': matches ? '40' : '0' } })
+  })
+  await page.goto('/?view=environment&mode=state&state=Texas')
+  await expect(page.getByRole('button', { name: /Test project p39 / })).toBeAttached()
+  await page.locator('.env-list').evaluate((el) => { el.scrollTop = 500 })
+  const y = await page.locator('.env-list').evaluate((el) => el.scrollTop)
+  await page.getByLabel('Tier').focus()
+  await page.getByLabel('Tier').selectOption('Leads')
+  await expect(page.getByText('No leads here in the current view.')).toBeVisible()
+  await page.goBack()
+  await expect(page.getByRole('button', { name: /Test project p39 / })).toBeAttached()
+  await expect.poll(() => page.locator('.env-list').evaluate((el) => el.scrollTop)).toBeCloseTo(y, 0)
+  await expect(page.getByLabel('Tier')).toBeFocused()
+})
+
+test('navigation snapshot bounds do not evict an unsaved call draft', async ({ page }) => {
+  test.setTimeout(90_000)
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await mock(page, [opportunity('a', 'Austin, TX')])
+  await page.goto('/?view=environment&mode=action&need=a')
+  await page.getByLabel('Call note').fill('Must outlive navigation snapshots')
+  await page.getByRole('link', { name: 'GridLens home' }).click()
+  for (let i = 0; i < 42; i += 1) {
+    await page.getByLabel('Search projects, companies or places').fill(`fixture search ${i}`)
+    await page.getByRole('button', { name: 'Search', exact: true }).click()
+  }
+  await page.goto('/?view=environment&mode=action&need=a')
+  await expect(page.getByLabel('Call note')).toHaveValue('Must outlive navigation snapshots')
+})
+
+test('expired authentication clears private drafts before another sign-in', async ({ page }) => {
+  await mock(page, [opportunity('a', 'Austin, TX')])
+  await page.goto('/?view=environment&mode=action&need=a')
+  await page.getByLabel('Call note').fill('Private previous session note')
+  await page.route('**/api/auth/session', (route) => route.fulfill({ json: { authenticated: false } }))
+  await page.reload()
+  await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
+  expect(await page.evaluate(() => Object.keys(sessionStorage).filter((key) => key.startsWith('gl3-continuity:')))).toEqual([])
+  await page.unroute('**/api/auth/session')
+  await page.goto('/?view=environment&mode=action&need=a')
+  await expect(page.getByLabel('Call note')).toHaveValue('')
+})
+
+test('failed draft persistence invalidates the older snapshot instead of restoring stale input', async ({ page }) => {
+  await mock(page, [opportunity('a', 'Austin, TX')])
+  await page.goto('/?view=environment&mode=action&need=a')
+  await page.getByLabel('Call note').fill('Old snapshot must not return')
+  await page.evaluate(() => {
+    for (let i = 0; i < 39; i += 1) sessionStorage.setItem(`gl3-continuity:call:filler-${i}`, JSON.stringify({ at: Date.now(), data: 'x'.repeat(51_250) }))
+  })
+  await page.getByLabel('Call note').fill('New note '.repeat(400))
+  await page.reload()
+  await expect(page.getByLabel('Call note')).not.toHaveValue('Old snapshot must not return')
 })

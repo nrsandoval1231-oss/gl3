@@ -39,11 +39,11 @@ export function BuyingChain({ projectId }: { projectId: string }) {
     active.current = true
     const controller = new AbortController()
     client.buyingChain(projectId, controller.signal)
-      .then((data) => { if (active.current) setResult(checkedResult(data, projectId)) })
+      .then((data) => { if (active.current && !controller.signal.aborted) setResult(checkedResult(data, projectId)) })
       .catch((cause: unknown) => {
         if (active.current && !controller.signal.aborted) setError(cause instanceof Error ? cause.message : 'Buying chain could not be loaded.')
       })
-      .finally(() => { if (active.current) setLoading(false) })
+      .finally(() => { if (active.current && !controller.signal.aborted) setLoading(false) })
     return () => { active.current = false; controller.abort() }
   }, [projectId])
 
@@ -68,7 +68,7 @@ export function BuyingChain({ projectId }: { projectId: string }) {
     }
   }
 
-  return <section className="detail-section buying-chain" aria-labelledby="buying-chain-heading">
+  return <section className="detail-section buying-chain" aria-labelledby="buying-chain-heading" data-context-loading={loading}>
     <div className="evidence-heading"><div><p className="eyebrow">Project-specific relationships</p><h3 id="buying-chain-heading">Buying chain</h3></div><button disabled={loading || enriching} onClick={enrich}>{enriching ? 'Checking evidence…' : 'Enrich buying chain'}</button></div>
     <p className="buying-chain-note">Organization involvement, current job role, and a person’s assignment to this project are separate claims. A relevant role does not establish purchasing authority or an open temporary-power package.</p>
     <details className="buying-chain-sources"><summary>Add supporting source links</summary><label>Public project or organization sources (up to four)<textarea value={sourceUrls} onChange={(event) => setSourceUrls(event.target.value)} rows={3} placeholder="https://…" disabled={enriching}/></label><p>Existing project evidence is checked first. Links should support this project’s contractors or their current team.</p></details>
@@ -80,16 +80,16 @@ export function BuyingChain({ projectId }: { projectId: string }) {
         <h4>Retained permit facts</h4>
         <p className="buying-chain-note">Permit dates describe permitting, not the power start date. Listed parties are source roles; employment, purchasing authority and an open power package require separate evidence.</p>
         {(result.permit_summaries ?? []).length === 0 && <p>No supported permit fields retained for this project yet.</p>}
-        {(result.permit_summaries ?? []).map((permit) => <details key={permit.evidence_id} open>
+        {(result.permit_summaries ?? []).map((permit) => <details key={permit.evidence_id} data-context-owner={permit.evidence_id} open>
           <summary>{permit.title}</summary>
-          <dl>{(permit.facts ?? []).map((fact, index) => <div key={index}><dt>{fact.label}</dt><dd><span>{safeUrl(fact.value) ? <a href={safeUrl(fact.value)} target="_blank" rel="noreferrer">{fact.value}</a> : fact.value}</span><details><summary>Field evidence</summary><blockquote>{fact.quote}</blockquote>{fact.role_quote && <blockquote>{fact.role_quote}</blockquote>}</details></dd></div>)}</dl>
+          <dl>{(permit.facts ?? []).map((fact, index) => <div key={index}><dt>{fact.label}</dt><dd><span>{safeUrl(fact.value) ? <a href={safeUrl(fact.value)} target="_blank" rel="noreferrer">{fact.value}</a> : fact.value}</span><details data-context-key={`${permit.evidence_id}:${fact.label}:${index}`}><summary>Field evidence</summary><blockquote>{fact.quote}</blockquote>{fact.role_quote && <blockquote>{fact.role_quote}</blockquote>}</details></dd></div>)}</dl>
           <p className="evidence-meta"><a href={safeUrl(permit.url)} target="_blank" rel="noreferrer">Official permit source</a> · {permit.extraction_location} · Observed {time(permit.observed_at)}</p>
         </details>)}
         <p className="buying-chain-note">Unlisted applicant, operator, GC, electrical contractor, EPC, engineer, named person and business contact fields remain unknown. Permit scope alone does not establish temporary load, fuel suitability, commissioning dates or an unmet supply gap.</p>
       </div>
       <p className="buying-chain-status">Research status: {result.status.replaceAll('_', ' ')}</p>
       {(result.candidates ?? []).length === 0 && <p>No supported buying-chain candidates retained yet. Buyer and project contacts remain unknown.</p>}
-      <ol className="buying-chain-list">{(result.candidates ?? []).map((candidate) => <li key={candidate.id}>
+      <ol className="buying-chain-list">{(result.candidates ?? []).map((candidate) => <li key={candidate.id} data-context-owner={candidate.id}>
         <div className="buying-chain-title"><h4>{candidate.organization}</h4><span>{candidate.category.replaceAll('_', ' ')}</span></div>
         <p><strong>{candidate.person_name ?? 'Named person unknown'}</strong>{candidate.title ? ` · ${candidate.title}` : ' · Current title unknown'}</p>
         <p className="integrity">{candidate.person_name ? (relationshipLabels[candidate.person_project_relationship] ?? relationshipLabels.UNKNOWN) : candidate.organization_relationship === 'DIRECT' ? 'Organization involvement supported · named person unknown' : 'Organization involvement unknown'} · {candidate.evidence_strength} evidence</p>

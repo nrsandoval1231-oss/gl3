@@ -1,14 +1,15 @@
-import { type FormEvent, type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
+import { type FormEvent, type ReactNode, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { geoPath } from 'd3-geo'
 import { feature } from 'topojson-client'
 import type { FeatureCollection, Geometry } from 'geojson'
 import type { GeometryCollection, Topology } from 'topojson-specification'
 import statesTopology from 'us-atlas/states-albers-10m.json'
-import { client, type Opportunity, type OpportunityPage } from '../../api/client'
+import { client, OpportunityNeedUnavailableError, type Opportunity, type OpportunityPage } from '../../api/client'
 import { projectTitle } from '../opportunities/projectCards'
 import { BuyingChain } from '../buyingChain/BuyingChain'
 import { FactWorkflowPanel } from '../pursuits/FactWorkflowPanel'
 import { QuickCallLog } from '../pursuits/QuickCallLog'
+import { useEnvironmentNavigation, withEnvironmentReturn } from './navigation'
 import { stateOf } from './usStates'
 
 const tiers = ['Signals', 'Prospects', 'Leads'] as const
@@ -78,7 +79,7 @@ async function loadPages(scene: Scene, signal: AbortSignal): Promise<Opportunity
 }
 
 export function Environment({ onSignOut, today }: { onSignOut: () => void; today?: ReactNode }) {
-  const [scene, setScene] = useState<Scene>(() => sceneFromUrl(new URLSearchParams(location.search)))
+  const { scene, surface, go, save } = useEnvironmentNavigation(() => sceneFromUrl(new URLSearchParams(location.search)), urlFor)
   const [page, setPage] = useState<OpportunityPage | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -86,38 +87,55 @@ export function Environment({ onSignOut, today }: { onSignOut: () => void; today
   const [health, setHealth] = useState<{ ok: number; total: number } | null>(null)
   const [draft, setDraft] = useState(scene.search)
   const [menuOpen, setMenuOpen] = useState(false)
+  useLayoutEffect(() => setMenuOpen(surface?.menuOpen ?? false), [surface, scene])
   const [revision, setRevision] = useState(0)
   const headingRef = useRef<HTMLHeadingElement>(null)
 
-  // Back is restoration: every transition is a history entry carrying the full scene.
+  const [selection, setSelection] = useState<{ id: string; item?: Opportunity; error?: string }>({ id: '' })
+  const [membership, setMembership] = useState<{ key: string; outside?: boolean; error?: string }>({ key: '' })
+  const filterKey = JSON.stringify([scene.tier, scene.lens, scene.search])
+  const selectionKey = `${scene.needId}:${filterKey}`
+  const [pageKey, setPageKey] = useState('')
+  useEffect(() => setDraft(scene.search), [scene.search])
   useEffect(() => {
-    history.replaceState({ gl3env: scene }, '', urlFor(scene))
-    const onPop = (event: PopStateEvent) => {
-      const restored = (event.state as { gl3env?: Scene } | null)?.gl3env ?? sceneFromUrl(new URLSearchParams(location.search))
-      setScene(restored)
-      setDraft(restored.search)
-    }
-    window.addEventListener('popstate', onPop)
-    return () => window.removeEventListener('popstate', onPop)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-  function go(next: Partial<Scene>) {
-    const merged = { ...scene, ...next, depth: scene.depth + 1 }
-    history.pushState({ gl3env: merged }, '', urlFor(merged))
-    setScene(merged)
-  }
-  useEffect(() => { headingRef.current?.focus({ preventScroll: true }) }, [scene.mode, scene.needId, scene.state])
+    if (!scene.needId) return
+    const id = scene.needId
+    const controller = new AbortController()
+    client.opportunityNeed(id, undefined, controller.signal).then((item) => {
+      if (!controller.signal.aborted) setSelection({ id, item })
+    }).catch((reason: unknown) => {
+      if (!controller.signal.aborted) setSelection({ id, error: reason instanceof OpportunityNeedUnavailableError
+        ? 'This opportunity is unavailable, deleted, or no longer eligible for opportunity views. Retained evidence may still be available in the ingestion inbox.'
+        : reason instanceof Error ? reason.message : 'Could not load the selected opportunity.' })
+    })
+    return () => controller.abort()
+  }, [scene.needId, revision])
+  useEffect(() => {
+    if (!scene.needId) return
+    const controller = new AbortController()
+    client.opportunityNeed(scene.needId, { tier: scene.tier.slice(0, -1), search: scene.search, decision: 'ALL', filters: { industry: scene.lens } }, controller.signal)
+      .then(() => { if (!controller.signal.aborted) setMembership({ key: selectionKey, outside: false }) })
+      .catch((reason: unknown) => {
+        if (!controller.signal.aborted) setMembership(reason instanceof OpportunityNeedUnavailableError
+          ? { key: selectionKey, outside: true }
+          : { key: selectionKey, error: reason instanceof Error ? reason.message : 'Could not check filters.' })
+      })
+    return () => controller.abort()
+  }, [selectionKey, revision])
 
   useEffect(() => {
     const controller = new AbortController()
     setLoading(true)
+    setPage(null)
     setError('')
     loadPages(scene, controller.signal)
       .then((result) => {
+        if (controller.signal.aborted) return
         setPage(result)
+        setPageKey(filterKey)
         setLensOptions((current) => [...new Set([...current, ...result.items.map((item) => item.asset_type).filter((value): value is string => Boolean(value))])].sort())
       })
-      .catch((reason: unknown) => { if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : 'Opportunities are unavailable.') })
+      .catch((reason: unknown) => { if (!controller.signal.aborted) { setPageKey(filterKey); setError(reason instanceof Error ? reason.message : 'Opportunities are unavailable.') } })
       .finally(() => { if (!controller.signal.aborted) setLoading(false) })
     return () => controller.abort()
   }, [scene.tier, scene.lens, scene.search, revision])
@@ -131,8 +149,8 @@ export function Environment({ onSignOut, today }: { onSignOut: () => void; today
 
   // The API already orders by rank; this keeps rank order if records arrive without it.
   const items = useMemo(
-    () => [...(page?.items ?? [])].sort((a, b) => (b.rank_score ?? -1) - (a.rank_score ?? -1)),
-    [page],
+    () => [...(pageKey === filterKey ? page?.items ?? [] : [])].sort((a, b) => (b.rank_score ?? -1) - (a.rank_score ?? -1)),
+    [page, pageKey, filterKey],
   )
   const byState = useMemo(() => {
     const groups = new Map<string, Opportunity[]>()
@@ -142,7 +160,8 @@ export function Environment({ onSignOut, today }: { onSignOut: () => void; today
     }
     return groups
   }, [items])
-  const subject = scene.needId ? items.find((item) => item.id === scene.needId) ?? null : null
+  const subject = selection.id === scene.needId ? selection.item ?? null : null
+  const selectionError = selection.id === scene.needId ? selection.error : undefined
   // Featured = highest rank among loaded records; falls back to the newest record.
   const featured = items.reduce<Opportunity | null>(
     (best, item) => (best === null || (item.rank_score ?? -1) > (best.rank_score ?? -1) ? item : best),
@@ -168,7 +187,7 @@ export function Environment({ onSignOut, today }: { onSignOut: () => void; today
 
   function submitCommand(event: FormEvent) {
     event.preventDefault()
-    go({ search: draft.trim(), mode: 'nation', state: null, needId: null })
+    go({ search: draft.trim() })
   }
   const back = () => history.back()
   const scope = subject ? projectTitle(subject) : scene.state ?? 'United States'
@@ -181,7 +200,7 @@ export function Environment({ onSignOut, today }: { onSignOut: () => void; today
     : scene.tier === 'Prospects' ? 'Prospects have a supported requirement and a separate supply concern.'
       : 'Leads have evidence for MW range, start window, duration and an unresolved supply gap.'
 
-  return <div className={`env env-${scene.mode}`}>
+  return <div className={`env env-${scene.mode}`} onClickCapture={(event) => { if ((event.target as Element).closest('a')) save() }}>
     <header className="env-header">
       <a className="env-brand" href="/" aria-label="GridLens home" onClick={(event) => { event.preventDefault(); go({ mode: 'nation', state: null, needId: null }) }}>
         <img src="/brand/lockup-horizontal-white.svg" alt="GridLens"/>
@@ -190,9 +209,10 @@ export function Environment({ onSignOut, today }: { onSignOut: () => void; today
       <div className="env-menu">
         <button type="button" aria-expanded={menuOpen} aria-controls="env-menu" onClick={() => setMenuOpen((open) => !open)}>Menu</button>
         {menuOpen && <nav id="env-menu" aria-label="Workspace">
-          <a href={`/?tier=${scene.tier}`}>All records</a>
-          <a href="/?view=pursuits">Today’s pursuits</a>
-          <a href="/?view=ingestion">Ingestion inbox</a>
+          <a href={withEnvironmentReturn(`/?tier=${scene.tier}`)}>All records</a>
+          <a href={withEnvironmentReturn("/?view=pursuits")}>Today’s pursuits</a>
+          <a href={withEnvironmentReturn("/?view=ingestion")}>Ingestion inbox</a>
+          <a href={withEnvironmentReturn("/?view=ingestion&health=1")}>Source health</a>
           <button type="button" onClick={onSignOut}>Sign out</button>
         </nav>}
       </div>
@@ -206,24 +226,25 @@ export function Environment({ onSignOut, today }: { onSignOut: () => void; today
       <div className="env-lens">
         <span>Lens</span>
         <label className="sr-only" htmlFor="env-lens">Industry lens</label>
-        <select id="env-lens" value={scene.lens} onChange={(event) => go({ lens: event.target.value, mode: 'nation', state: null, needId: null })}>
+        <select id="env-lens" value={scene.lens} onChange={(event) => go({ lens: event.target.value })}>
           <option value="">All sectors</option>
-          {lensOptions.map((option) => <option key={option} value={option}>{readable(option)}</option>)}
+          {[...new Set([...lensOptions, ...(scene.lens ? [scene.lens] : [])])].map((option) => <option key={option} value={option}>{readable(option)}</option>)}
         </select>
         <label className="sr-only" htmlFor="env-tier">Tier</label>
-        <select id="env-tier" value={scene.tier} onChange={(event) => go({ tier: event.target.value as TierName, mode: 'nation', state: null, needId: null })}>
+        <select id="env-tier" value={scene.tier} onChange={(event) => go({ tier: event.target.value as TierName })}>
           {tiers.map((tier) => <option key={tier}>{tier}</option>)}
         </select>
       </div>
     </div>
 
     <main className="env-stage">
-      <section className="env-subject" aria-live="polite">
-        {error ? <div role="alert"><h1 ref={headingRef} tabIndex={-1}>Opportunities are unavailable.</h1><p>{error}</p><p>Collected evidence is unaffected. Try again or open source health from the menu.</p></div>
+      <section className="env-subject" aria-live="polite" data-context-loading={inFocus ? !subject && !selectionError : loading || pageKey !== filterKey}>
+        {error && inFocus && <p role="alert">Map results unavailable: {error} <button onClick={() => setRevision((value) => value + 1)}>Retry opportunities</button></p>}
+        {error && !inFocus ? <div role="alert"><h1 ref={headingRef} tabIndex={-1}>Opportunities are unavailable.</h1><p>{error}</p><p>Collected evidence is unaffected. Try again or open source health from the menu.</p><button onClick={() => setRevision((value) => value + 1)}>Retry opportunities</button></div>
           : scene.mode === 'nation' ? <>
             <p className="env-eyebrow">See earlier · Predict the power gap</p>
             <h1 ref={headingRef} tabIndex={-1} className="env-display">A wider view.<br/>A sharper focus.</h1>
-            <p className="env-lede">{loading ? 'Loading the national picture…' : `${page?.totalCount ?? 0} ${scene.tier.toLowerCase()}${scene.search ? ` matching “${scene.search}”` : ''} · ${mappedStates} states${unmapped ? ` · ${unmapped} unmapped` : ''}.`} {tierNote}</p>
+            <p className="env-lede">{loading ? 'Loading the national picture…' : `${page?.totalCount ?? 0} ${scene.tier.toLowerCase()}${scene.search ? ` matching “${scene.search}”` : ''} · ${mappedStates} states${unmapped ? ` · ${unmapped} unmapped` : ''}. Map geography counts cover the loaded subset.`} {tierNote}</p>
             {featured ? <div className="env-featured">
               <p className="env-eyebrow"><span className="env-dot"/>{featured.rank_score != null ? `Highest rank · ${featured.rank_score}` : 'Most recently updated'} · {featured.tier}</p>
               {featured.rank_reasons && featured.rank_reasons.length > 0 && <p className="env-meta">{featured.rank_reasons.join(' · ')}</p>}
@@ -237,20 +258,25 @@ export function Environment({ onSignOut, today }: { onSignOut: () => void; today
             </div> : !loading && <p className="env-empty">No {scene.tier.toLowerCase()} match this view. Nothing is invented to fill it.</p>}
             {scene.tier === 'Signals' && !scene.search && !scene.lens && today}
           </> : scene.mode === 'state' ? <>
-            <p className="env-eyebrow">{scene.state} · {stateItems.length} {scene.tier.toLowerCase()} in this view</p>
+            <p className="env-eyebrow">{scene.state} · {stateItems.length} {scene.tier.toLowerCase()} in the loaded subset</p>
             <h1 ref={headingRef} tabIndex={-1}>{scene.state}</h1>
-            {stateItems.length ? <ul className="env-list">{stateItems.map((item) => <li key={item.id}>
-              <button type="button" onClick={() => go({ mode: 'project', needId: item.id })}>
+            {stateItems.length ? <ul className="env-list" data-context-scroll="state-results">{stateItems.map((item) => <li key={item.id}>
+              <button type="button" data-context-key={`need:${item.id}`} onClick={() => go({ mode: 'project', needId: item.id })}>
                 <strong>{projectTitle(item)}</strong><span>{item.location ?? 'Location unknown'} · {readable(item.activity)}</span>
               </button></li>)}</ul>
               : <p className="env-empty">No {scene.tier.toLowerCase()} here in the current view.</p>}
           </> : !subject ? <>
-            <h1 ref={headingRef} tabIndex={-1}>{loading ? 'Loading…' : 'Outside current filters'}</h1>
-            {!loading && <p>This record is not in the current result set. Change the lens or tier, or return to the nation.</p>}
-          </> : <Focus mode={scene.mode} item={subject} stateName={subjectState} headingRef={headingRef} go={go} onReadback={() => setRevision((value) => value + 1)}/>}
+            <h1 ref={headingRef} tabIndex={-1}>{selectionError ? 'Selected opportunity unavailable' : 'Loading selected opportunity…'}</h1>
+            {selectionError && <><p role="alert">{selectionError}</p><button onClick={() => setRevision((value) => value + 1)}>Retry selected opportunity</button></>}
+          </> : <>
+            {membership.key === selectionKey && membership.outside && <aside role="status"><strong>Outside current filters</strong><p>This selected opportunity is retained for context. It is not included in matching results or map counts.</p></aside>}
+            {membership.key === selectionKey && membership.error && <p role="alert">Filter membership unavailable: {membership.error} <button onClick={() => setRevision((value) => value + 1)}>Retry filter check</button></p>}
+            <Focus key={subject.id} mode={scene.mode} item={subject} stateName={subjectState} headingRef={headingRef} go={go} onReadback={() => setRevision((value) => value + 1)}/>
+          </>}
+
       </section>
 
-      <section className={`env-map${inFocus ? ' env-map-recede' : ''}`} aria-label="United States map of current results">
+      <section className={`env-map${inFocus ? ' env-map-recede' : ''}`} aria-label="United States map of current results" inert={inFocus}>
         <svg viewBox="0 0 975 610" role="img" aria-label={`${mappedStates} states with ${scene.tier.toLowerCase()} in this view`}>
           <g style={{ transform: zoom }} className="env-map-layer">
             {states.features.map((f) => <path key={f.properties.name} d={path(f) ?? ''}
@@ -271,7 +297,7 @@ export function Environment({ onSignOut, today }: { onSignOut: () => void; today
             <button key={name} type="button" aria-pressed={scene.state === name} onClick={() => go({ mode: 'state', state: name, needId: null })}>{name} <span>{group.length}</span></button>)}
           {unmapped > 0 && <button type="button" onClick={() => go({ mode: 'state', state: UNMAPPED, needId: null })}>No mappable state <span>{unmapped}</span></button>}
         </div>
-        <p className="env-map-note">Markers are counts per state from the current results, not load, confidence or coverage. National scope is not a claim of complete source coverage.{page && page.totalCount > items.length ? ` Showing the ${items.length} highest-ranked of ${page.totalCount}.` : ''}</p>
+        <p className="env-map-note">Markers are counts per state from the loaded matching subset, not load, confidence or coverage. National scope is not a claim of complete source coverage.{page && page.totalCount > items.length ? ` Showing the ${items.length} highest-ranked of ${page.totalCount}.` : ''}</p>
       </section>
     </main>
 
@@ -279,7 +305,7 @@ export function Environment({ onSignOut, today }: { onSignOut: () => void; today
       <span className="env-scope"><span className="env-dot"/>{scope}</span>
       <label className="sr-only" htmlFor="env-search">Search projects, companies or places</label>
       <input id="env-search" value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Search a project, company, city or permit ID…"/>
-      {scene.search && <button type="button" className="env-clear" onClick={() => { setDraft(''); go({ search: '', mode: 'nation', state: null, needId: null }) }}>Clear</button>}
+      {scene.search && <button type="button" className="env-clear" onClick={() => { setDraft(''); go({ search: '' }) }}>Clear</button>}
       <button type="submit" aria-label="Search">→</button>
     </form>
     <footer className="env-footer">
@@ -346,7 +372,7 @@ function Focus({ mode, item, stateName, headingRef, go, onReadback }: {
     </>}
 
     {mode === 'buyers' && <>
-      <div className="env-surface">{item.project_id ? <BuyingChain projectId={item.project_id}/> : <p>No project identity is linked yet.</p>}</div>
+      <div className="env-surface">{item.project_id ? <BuyingChain key={item.project_id} projectId={item.project_id}/> : <p>No project identity is linked yet.</p>}</div>
       <p className="env-note">No guessed people. No fabricated contact details. No re-renters.</p>
       <button type="button" className="env-go" onClick={() => go({ mode: 'action' })}>Prepare the call <span aria-hidden="true">→</span></button>
     </>}
@@ -360,7 +386,7 @@ function Focus({ mode, item, stateName, headingRef, go, onReadback }: {
       <details className="env-full-facts"><summary>Full fact history, single-fact entry and corrections</summary>
         <FactWorkflowPanel key={`${item.id}-${factRevision}`} item={item} onReadback={onReadback}/>
       </details>
-      <a href={`/?tier=${item.tier}s#${encodeURIComponent(item.id)}`}>Open the full record</a>
+      <a href={withEnvironmentReturn(`/?tier=${item.tier}s#${encodeURIComponent(item.id)}`)}>Open the full record</a>
     </div>}
   </>
 }
