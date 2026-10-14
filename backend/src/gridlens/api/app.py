@@ -1617,16 +1617,19 @@ def opportunities(
         # The canonical record order is preserved across group membership and page slices.
         filtered.sort(key=lambda item: str(item["id"]))
         filtered.sort(key=lambda item: item.get("_updated_at") or datetime.min, reverse=True)
+        filtered_keys = [key_by_id[str(item["id"])] for item in filtered]
+        token_rows = filtered
+        token = build_opportunity_cohort_token(filters, token_rows, filtered_keys)
         rank_by_id: dict[str, dict] = {}
         if sort == "rank":
             # Rank the whole filtered cohort before paging; ties keep the updated order.
-            rank_by_id = _cohort_ranks(session, filtered)
-            filtered.sort(key=lambda item: -rank_by_id[str(item["id"])]["rank_score"])
-        filtered_keys = [key_by_id[str(item["id"])] for item in filtered]
-        token_rows = filtered
-        token = build_opportunity_cohort_token(
-            {**filters, "sort": sort if sort == "rank" else None}, token_rows, filtered_keys
-        )
+            rank_by_id = _cohort_ranks(session, filtered, tier)
+            # Rows the detail projection omits (not displayable) sort last.
+            filtered.sort(
+                key=lambda item: -rank_by_id.get(str(item["id"]), {}).get("rank_score", -1)
+            )
+            filtered_keys = [key_by_id[str(item["id"])] for item in filtered]
+            token = _rank_cohort_token(token, filtered, rank_by_id)
         if cohort is not None and cohort != token:
             raise HTTPException(409, "Opportunity cohort changed; restart pagination")
         page_summaries = filtered[offset : offset + limit]
@@ -1687,17 +1690,51 @@ def opportunities(
         return _bounded_opportunity_payload(output)
 
 
-def _cohort_ranks(session, items: list[dict]) -> dict[str, dict]:
-    """Rank summary rows with their retained buying chains, as the detail projection does."""
-    chains = buying_chain_views(session, {UUID(str(item["project_id"])) for item in items})
-    today = chicago_today()
-    ranks = {}
-    for item in items:
-        chain = chains.get(str(item["project_id"]))
-        title_company = item.get("title_company") or _opportunity_title_company(chain or {})[0]
-        ranks[str(item["id"])] = rank_opportunity(
-            {**item, "title_company": title_company}, chain, today
+_RANK_BATCH_SIZE = 50
+_RANK_TOKEN_MARK = ".rank."
+
+
+def _rank_cohort_token(base: str, ordered: list[dict], ranks: dict[str, dict]) -> str:
+    """A rank cohort token: the membership token plus a digest of the ranked order.
+
+    Group and record endpoints validate membership only, so they accept either form.
+    """
+    digest = hashlib.sha256(
+        json.dumps(
+            [
+                [str(item["id"]), ranks.get(str(item["id"]), {}).get("rank_score")]
+                for item in ordered
+            ],
+            separators=(",", ":"),
+        ).encode()
+    ).hexdigest()[:32]
+    return f"{base}{_RANK_TOKEN_MARK}{digest}"
+
+
+def _membership_token(token: str | None) -> str | None:
+    return token.split(_RANK_TOKEN_MARK, 1)[0] if token else token
+
+
+def _cohort_ranks(session, items: list[dict], tier: str | None) -> dict[str, dict]:
+    """Rank the cohort from the canonical detail projection, in bounded batches.
+
+    Summary rows omit ranking inputs (evidence dates, conflict and listing state, derived
+    timing), so ranks come from the same projection that the page displays.
+    """
+    ranks: dict[str, dict] = {}
+    for start in range(0, len(items), _RANK_BATCH_SIZE):
+        batch = items[start : start + _RANK_BATCH_SIZE]
+        _preflight_opportunity_details(session, batch)
+        details = opportunity_projection(
+            session,
+            tier=tier,
+            selected_need_ids={UUID(str(item["id"])) for item in batch},
+            include_below_floor=False,
         )
+        for detail in details:
+            ranks[str(detail["id"])] = {
+                key: detail[key] for key in ("rank_score", "rank_reasons", "rank_version")
+            }
     return ranks
 
 
@@ -1988,7 +2025,7 @@ def opportunity_group_page(
         keys = [key for _row, key in ordered]
         token_rows = rows
         current_token = build_opportunity_cohort_token(filters, token_rows, keys)
-        if current_token != cohort_token:
+        if current_token != _membership_token(cohort_token):
             raise HTTPException(409, "Opportunity cohort changed; restart pagination")
         target = next(
             (members for key, members in filtered_groups if opportunity_group_id(key) == group_id),
@@ -2111,7 +2148,7 @@ def opportunity_need_detail(
         selected.sort(key=lambda item: item.get("_updated_at") or datetime.min, reverse=True)
         selected_keys = [group_keys_by_id[str(item["id"])] for item in selected]
         current_token = build_opportunity_cohort_token(filters, selected, selected_keys)
-        if cohort_token is not None and cohort_token != current_token:
+        if cohort_token is not None and _membership_token(cohort_token) != current_token:
             raise HTTPException(409, "Opportunity cohort changed; reopen the selected record")
         summary = next((item for item in selected if item["id"] == need_id), None)
         if summary is None:
@@ -2207,7 +2244,7 @@ def export_opportunities_csv(
         selected.sort(key=lambda item: item.get("_updated_at") or datetime.min, reverse=True)
         selected_keys = [key_by_id[str(item["id"])] for item in selected]
         token = build_opportunity_cohort_token(filters, selected, selected_keys)
-        if cohort_token is not None and cohort_token != token:
+        if cohort_token is not None and _membership_token(cohort_token) != token:
             raise HTTPException(409, "Opportunity cohort changed; restart export")
         if len(selected) > limit:
             raise HTTPException(

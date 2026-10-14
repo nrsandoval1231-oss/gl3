@@ -2151,3 +2151,25 @@ def test_rank_sort_orders_the_whole_cohort_before_paging(runtime, monkeypatch):
             response=Response(),
         )
     assert mixed.value.status_code == 409
+    # Record detail validates cohort membership, so it accepts the rank cohort's token.
+    detail = api.opportunity_need_detail(
+        need_id=sibling_id, tier="Signal", cohort_token=ranked_response.headers["X-Cohort-Token"]
+    )
+    assert str(detail["id"]) == str(sibling_id)
+
+
+def test_rank_sort_scores_match_the_displayed_detail_rank(runtime):
+    _factory, _service, (need_id, _evidence_id) = runtime
+    api = import_module("gridlens.api.app")
+    updated = api.opportunities(tier="Signal", limit=50, offset=0, cohort=None, response=Response())
+    ranked = api.opportunities(
+        tier="Signal", limit=50, offset=0, cohort=None, response=Response(), sort="rank"
+    )
+    by_id = {str(item["id"]): item for item in updated}
+    assert ranked and str(need_id) in by_id
+    for item in ranked:
+        canonical = by_id[str(item["id"])]
+        assert (item["rank_score"], item["rank_reasons"]) == (
+            canonical["rank_score"],
+            canonical["rank_reasons"],
+        )
