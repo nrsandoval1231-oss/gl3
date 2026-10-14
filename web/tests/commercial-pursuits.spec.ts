@@ -273,7 +273,8 @@ test('default root previews commercial work with an explicit full queue path', a
   await expect(page.locator('.commercial-today-entry')).toContainText('Required power Unknown')
   await expect(page.getByLabel('Tier')).toHaveValue('Signals')
   await page.getByRole('button', { name: 'Open full pursuit queue' }).click()
-  await expect(page).toHaveURL(/view=pursuits/)
+  await expect(page).toHaveURL(/view=environment&mode=pursuits/)
+  await expect(page.locator('.env')).toBeVisible()
   await expect(page.getByRole('heading', { name: 'What should we work today?' })).toBeVisible()
 })
 

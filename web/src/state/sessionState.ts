@@ -45,3 +45,7 @@ export function clearContinuity() {
   } catch { /* Storage may be disabled. */ }
   window.dispatchEvent(new Event('gl3-clear-continuity'))
 }
+
+export function removeSession(key: string) {
+  try { sessionStorage.removeItem(PREFIX + key) } catch { /* Storage is optional. */ }
+}

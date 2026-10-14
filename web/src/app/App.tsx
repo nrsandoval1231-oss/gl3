@@ -1,4 +1,4 @@
-import { environmentReturnUrl, withEnvironmentReturn } from '../features/environment/navigation'
+import { environmentReturnUrl } from '../features/environment/navigation'
 import { type FormEvent, useEffect, useRef, useState } from 'react'
 import { client, OpportunityCohortChangedError, OpportunityNeedUnavailableError, workflowStatuses, type Brief, type IngestionItem, type Opportunity, type OpportunityBrowseFilters, type OpportunityPage, type WorkflowStatusFilter } from '../api/client'
 import { projectTitle, serverProjectCards, signalDisplayDecision, type SignalDisplayDecision, type ProjectCard } from '../features/opportunities/projectCards'
@@ -824,7 +824,7 @@ function EnvironmentRoot() {
   }
   if (authenticated === null) return <main className="loading" aria-live="polite">Loading your private workspace…</main>
   if (!authenticated) return <main className="login-wrap"><form className="login" onSubmit={onLogin}><img src="/brand/lockup-horizontal-navy.svg" alt="GridLens"/><h1>Sign in</h1><p>Your private GridLens workspace.</p><label htmlFor="password">Password</label><input id="password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required/><button className="primary">Continue</button>{error && <p role="alert" className="error">{error}</p>}</form></main>
-  return <Environment today={<CommercialTodayEntry onOpen={() => location.assign(withEnvironmentReturn('/?view=pursuits'))}/>} onSignOut={() => { void client.logout().finally(() => setAuthenticated(false)) }}/>
+  return <Environment today={(onOpen) => <CommercialTodayEntry onOpen={onOpen}/>} onSignOut={() => { void client.logout().finally(() => setAuthenticated(false)) }}/>
 }
 
 export function App() {

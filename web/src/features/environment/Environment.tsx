@@ -10,18 +10,20 @@ import { BuyingChain } from '../buyingChain/BuyingChain'
 import { FactWorkflowPanel } from '../pursuits/FactWorkflowPanel'
 import { QuickCallLog } from '../pursuits/QuickCallLog'
 import { useEnvironmentNavigation, withEnvironmentReturn } from './navigation'
+import { BrowseRecords } from './BrowseRecords'
+import { CommercialPursuits, defaultCommercialNavigation, type CommercialNavigation, type Disposition } from '../pursuits/CommercialPursuits'
 import { stateOf } from './usStates'
 
 const tiers = ['Signals', 'Prospects', 'Leads'] as const
 type TierName = typeof tiers[number]
-const modes = ['nation', 'state', 'project', 'power', 'evidence', 'buyers', 'action'] as const
+const modes = ['nation', 'state', 'project', 'power', 'evidence', 'buyers', 'action', 'browse', 'pursuits'] as const
 type Mode = typeof modes[number]
-export type Scene = { mode: Mode; state: string | null; needId: string | null; tier: TierName; lens: string; search: string; depth: number }
+export type Scene = { mode: Mode; state: string | null; needId: string | null; tier: TierName; lens: string; search: string; depth: number; browseOffset?: number; commercial?: CommercialNavigation }
 
 const UNMAPPED = 'Unmapped'
 const modeLabel: Record<Mode, string> = {
   nation: 'Nationwide', state: 'State', project: 'Project', power: 'Power need',
-  evidence: 'Evidence', buyers: 'Buying chain', action: 'Call brief',
+  evidence: 'Evidence', buyers: 'Buying chain', action: 'Call brief', browse: 'All records', pursuits: 'Commercial pursuits',
 }
 const states = feature(
   statesTopology as unknown as Topology,
@@ -42,7 +44,13 @@ export function sceneFromUrl(params: URLSearchParams): Scene {
     lens: params.get('lens') ?? '',
     search: params.get('q') ?? '',
     depth: 0,
+    browseOffset: parseOffset(params.get('records')),
+    commercial: { offset: parseOffset(params.get('pursuitPage')), query: params.get('pursuitQuery') ?? '', needId: params.get('pursuitNeed'), disposition: (['ACTION NOW', 'RESEARCH', 'WATCH', 'REJECT'].includes(params.get('disposition') ?? '') ? params.get('disposition') : 'ACTION NOW') as Disposition },
   }
+}
+function parseOffset(value: string | null) {
+  const offset = Number(value)
+  return Number.isSafeInteger(offset) && offset >= 0 && offset <= 100000 ? offset : 0
 }
 function urlFor(scene: Scene) {
   const query = new URLSearchParams({ view: 'environment' })
@@ -52,6 +60,12 @@ function urlFor(scene: Scene) {
   if (scene.tier !== 'Signals') query.set('level', scene.tier)
   if (scene.lens) query.set('lens', scene.lens)
   if (scene.search) query.set('q', scene.search)
+  if (scene.browseOffset) query.set('records', String(scene.browseOffset))
+  const commercial = scene.commercial
+  if (commercial?.offset) query.set('pursuitPage', String(commercial.offset))
+  if (commercial?.query) query.set('pursuitQuery', commercial.query)
+  if (commercial?.needId) query.set('pursuitNeed', commercial.needId)
+  if (commercial && commercial.disposition !== 'ACTION NOW') query.set('disposition', commercial.disposition)
   return `${location.pathname}?${query.toString()}`
 }
 const readable = (value: string | null | undefined) => (value ?? '').replaceAll('_', ' ').replaceAll('-', ' ')
@@ -78,14 +92,15 @@ async function loadPages(scene: Scene, signal: AbortSignal): Promise<Opportunity
   return { ...first, items }
 }
 
-export function Environment({ onSignOut, today }: { onSignOut: () => void; today?: ReactNode }) {
+export function Environment({ onSignOut, today }: { onSignOut: () => void; today?: (onOpen: () => void) => ReactNode }) {
   const { scene, surface, go, save } = useEnvironmentNavigation(() => sceneFromUrl(new URLSearchParams(location.search)), urlFor)
   const [page, setPage] = useState<OpportunityPage | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [lensOptions, setLensOptions] = useState<string[]>([])
   const [health, setHealth] = useState<{ ok: number; total: number } | null>(null)
-  const [draft, setDraft] = useState(scene.search)
+  const commercial = scene.commercial ?? defaultCommercialNavigation
+  const [draft, setDraft] = useState(scene.mode === 'pursuits' ? commercial.query : scene.search)
   const [menuOpen, setMenuOpen] = useState(false)
   useLayoutEffect(() => setMenuOpen(surface?.menuOpen ?? false), [surface, scene])
   const [revision, setRevision] = useState(0)
@@ -96,7 +111,7 @@ export function Environment({ onSignOut, today }: { onSignOut: () => void; today
   const filterKey = JSON.stringify([scene.tier, scene.lens, scene.search])
   const selectionKey = `${scene.needId}:${filterKey}`
   const [pageKey, setPageKey] = useState('')
-  useEffect(() => setDraft(scene.search), [scene.search])
+  useEffect(() => setDraft(scene.mode === 'pursuits' ? commercial.query : scene.search), [scene.mode, scene.search, commercial.query])
   useEffect(() => {
     if (!scene.needId) return
     const id = scene.needId
@@ -168,7 +183,9 @@ export function Environment({ onSignOut, today }: { onSignOut: () => void; today
     null,
   )
   const subjectState = subject ? stateOf(subject.location) : scene.state
+  const collection = scene.mode === 'browse' || scene.mode === 'pursuits'
   const inFocus = scene.mode !== 'nation' && scene.mode !== 'state'
+  const selectedFocus = inFocus && !collection
   const stateItems = scene.state ? byState.get(scene.state) ?? [] : []
   const mappedStates = [...byState.keys()].filter((key) => key !== UNMAPPED).length
   const unmapped = byState.get(UNMAPPED)?.length ?? 0
@@ -187,12 +204,14 @@ export function Environment({ onSignOut, today }: { onSignOut: () => void; today
 
   function submitCommand(event: FormEvent) {
     event.preventDefault()
-    go({ search: draft.trim() })
+    if (scene.mode === 'pursuits') go({ commercial: { ...commercial, query: draft.trim() } })
+    else go({ search: draft.trim(), browseOffset: 0 })
   }
   const back = () => history.back()
-  const scope = subject ? projectTitle(subject) : scene.state ?? 'United States'
+  const scope = scene.mode === 'pursuits' ? 'Commercial pursuits' : scene.mode === 'browse' ? 'All records · national' : subject ? projectTitle(subject) : scene.state ?? 'United States'
   const crumbs = scene.mode === 'nation' ? ['United States', 'National perspective']
     : scene.mode === 'state' ? ['Nationwide', scene.state ?? '']
+      : collection ? ['Previous view', modeLabel[scene.mode]]
       : [scene.mode === 'project' ? 'Nationwide' : modeLabel[modes[modes.indexOf(scene.mode) - 1] ?? 'project'], modeLabel[scene.mode]]
 
   const tierNote = scene.tier === 'Signals'
@@ -209,8 +228,9 @@ export function Environment({ onSignOut, today }: { onSignOut: () => void; today
       <div className="env-menu">
         <button type="button" aria-expanded={menuOpen} aria-controls="env-menu" onClick={() => setMenuOpen((open) => !open)}>Menu</button>
         {menuOpen && <nav id="env-menu" aria-label="Workspace">
-          <a href={withEnvironmentReturn(`/?tier=${scene.tier}`)}>All records</a>
-          <a href={withEnvironmentReturn("/?view=pursuits")}>Today’s pursuits</a>
+          <a href={urlFor({ ...scene, mode: 'browse' })} onClick={(event) => { event.preventDefault(); go({ mode: 'browse' }) }}>All records</a>
+          <a href={urlFor({ ...scene, mode: 'pursuits' })} onClick={(event) => { event.preventDefault(); go({ mode: 'pursuits' }) }}>Today’s pursuits</a>
+          <a href={withEnvironmentReturn(`/?tier=${scene.tier}`)}>Advanced record browser</a>
           <a href={withEnvironmentReturn("/?view=ingestion")}>Ingestion inbox</a>
           <a href={withEnvironmentReturn("/?view=ingestion&health=1")}>Source health</a>
           <button type="button" onClick={onSignOut}>Sign out</button>
@@ -223,24 +243,26 @@ export function Environment({ onSignOut, today }: { onSignOut: () => void; today
         <span aria-hidden="true">←</span> {crumbs[0]}
       </button>
       <span className="env-crumb">{crumbs[1]}</span>
-      <div className="env-lens">
+      {scene.mode !== 'pursuits' ? <div className="env-lens">
         <span>Lens</span>
         <label className="sr-only" htmlFor="env-lens">Industry lens</label>
-        <select id="env-lens" value={scene.lens} onChange={(event) => go({ lens: event.target.value })}>
+        <select id="env-lens" value={scene.lens} onChange={(event) => go({ lens: event.target.value, browseOffset: 0 })}>
           <option value="">All sectors</option>
           {[...new Set([...lensOptions, ...(scene.lens ? [scene.lens] : [])])].map((option) => <option key={option} value={option}>{readable(option)}</option>)}
         </select>
         <label className="sr-only" htmlFor="env-tier">Tier</label>
-        <select id="env-tier" value={scene.tier} onChange={(event) => go({ tier: event.target.value as TierName })}>
+        <select id="env-tier" value={scene.tier} onChange={(event) => go({ tier: event.target.value as TierName, browseOffset: 0 })}>
           {tiers.map((tier) => <option key={tier}>{tier}</option>)}
         </select>
-      </div>
+      </div> : <span className="env-meta">Commercial disposition is separate from evidence tier.</span>}
     </div>
 
     <main className="env-stage">
-      <section className="env-subject" aria-live="polite" data-context-loading={inFocus ? !subject && !selectionError : loading || pageKey !== filterKey}>
-        {error && inFocus && <p role="alert">Map results unavailable: {error} <button onClick={() => setRevision((value) => value + 1)}>Retry opportunities</button></p>}
+      <section className="env-subject" aria-live="polite" data-context-loading={collection ? false : selectedFocus ? !subject && !selectionError : loading || pageKey !== filterKey}>
+        {error && inFocus && scene.mode !== 'pursuits' && <p role="alert">Map results unavailable: {error} <button onClick={() => setRevision((value) => value + 1)}>Retry opportunities</button></p>}
         {error && !inFocus ? <div role="alert"><h1 ref={headingRef} tabIndex={-1}>Opportunities are unavailable.</h1><p>{error}</p><p>Collected evidence is unaffected. Try again or open source health from the menu.</p><button onClick={() => setRevision((value) => value + 1)}>Retry opportunities</button></div>
+          : scene.mode === 'browse' ? <BrowseRecords tier={scene.tier} lens={scene.lens} search={scene.search} offset={scene.browseOffset ?? 0} onPage={(browseOffset) => go({ browseOffset })} onSelect={(item) => go({ mode: 'project', needId: item.id })}/>
+          : scene.mode === 'pursuits' ? <CommercialPursuits navigation={commercial} onNavigate={(commercial) => go({ commercial })} onInvestigate={(needId) => go({ mode: 'project', needId })}/>
           : scene.mode === 'nation' ? <>
             <p className="env-eyebrow">See earlier · Predict the power gap</p>
             <h1 ref={headingRef} tabIndex={-1} className="env-display">A wider view.<br/>A sharper focus.</h1>
@@ -256,7 +278,7 @@ export function Environment({ onSignOut, today }: { onSignOut: () => void; today
               </dl>
               <button type="button" className="env-go" onClick={() => go({ mode: 'project', needId: featured.id, state: stateOf(featured.location) })}>Explore this pursuit <span aria-hidden="true">→</span></button>
             </div> : !loading && <p className="env-empty">No {scene.tier.toLowerCase()} match this view. Nothing is invented to fill it.</p>}
-            {scene.tier === 'Signals' && !scene.search && !scene.lens && today}
+            {scene.tier === 'Signals' && !scene.search && !scene.lens && today?.(() => go({ mode: 'pursuits' }))}
           </> : scene.mode === 'state' ? <>
             <p className="env-eyebrow">{scene.state} · {stateItems.length} {scene.tier.toLowerCase()} in the loaded subset</p>
             <h1 ref={headingRef} tabIndex={-1}>{scene.state}</h1>
@@ -303,13 +325,13 @@ export function Environment({ onSignOut, today }: { onSignOut: () => void; today
 
     <form className="env-command" onSubmit={submitCommand} role="search">
       <span className="env-scope"><span className="env-dot"/>{scope}</span>
-      <label className="sr-only" htmlFor="env-search">Search projects, companies or places</label>
-      <input id="env-search" value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Search a project, company, city or permit ID…"/>
-      {scene.search && <button type="button" className="env-clear" onClick={() => { setDraft(''); go({ search: '' }) }}>Clear</button>}
+      <label className="sr-only" htmlFor="env-search">{scene.mode === 'pursuits' ? 'Search commercial pursuits on this page' : 'Search projects, companies or places'}</label>
+      <input id="env-search" value={draft} onChange={(event) => setDraft(event.target.value)} placeholder={scene.mode === 'pursuits' ? 'Search this commercial page…' : 'Search a project, company, city or permit ID…'}/>
+      {(scene.mode === 'pursuits' ? commercial.query : scene.search) && <button type="button" className="env-clear" onClick={() => { setDraft(''); scene.mode === 'pursuits' ? go({ commercial: { ...commercial, query: '' } }) : go({ search: '', browseOffset: 0 }) }}>Clear</button>}
       <button type="submit" aria-label="Search">→</button>
     </form>
     <footer className="env-footer">
-      <span>{String(modes.indexOf(scene.mode) + 1).padStart(2, '0')} / {modeLabel[scene.mode]}</span>
+      <span>{collection ? modeLabel[scene.mode] : `${String(modes.indexOf(scene.mode) + 1).padStart(2, '0')} / ${modeLabel[scene.mode]}`}</span>
       <span>{health ? `${health.ok}/${health.total} sources healthy` : 'Source health unavailable'}</span>
     </footer>
   </div>

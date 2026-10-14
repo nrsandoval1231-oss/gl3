@@ -414,10 +414,10 @@ test('legacy menu return restores scroll even when departure focus was inside th
   await page.getByLabel('Call note').fill('Keep menu return context')
   await page.getByRole('button', { name: 'Menu', exact: true }).click()
   const y = await page.evaluate(() => scrollY)
-  await page.getByRole('link', { name: 'All records', exact: true }).click()
+  await page.getByRole('link', { name: 'Advanced record browser', exact: true }).click()
   await page.getByRole('link', { name: 'Return to environment' }).click()
   await expect(page.getByLabel('Call note')).toHaveValue('Keep menu return context')
-  await expect(page.getByRole('link', { name: 'All records', exact: true })).toBeFocused()
+  await expect(page.getByRole('link', { name: 'Advanced record browser', exact: true })).toBeFocused()
   await expect.poll(() => page.evaluate(() => scrollY)).toBeCloseTo(y, 0)
 })
 
@@ -498,6 +498,194 @@ test('navigation snapshot bounds do not evict an unsaved call draft', async ({ p
   await expect(page.getByLabel('Call note')).toHaveValue('Must outlive navigation snapshots')
 })
 
+test('all-record browsing stays in the environment and restores its page after investigation', async ({ page }) => {
+  await mock(page, Array.from({ length: 205 }, (_, i) => opportunity(`p${i}`, 'Austin, TX')))
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Menu', exact: true }).click()
+  await page.getByRole('link', { name: 'All records', exact: true }).click()
+  await expect(page.locator('.env')).toBeVisible()
+  for (let i = 0; i < 4; i += 1) await page.getByRole('button', { name: 'Next records' }).click()
+  await page.getByRole('button', { name: /Test project p204 / }).click()
+  await expect(page.getByRole('heading', { name: 'Test project p204', exact: true })).toBeVisible()
+  await page.goBack()
+  await expect(page.getByRole('button', { name: /Test project p204 / })).toBeFocused()
+  await expect(page.getByText('201–205 of 205 matching records', { exact: true })).toBeVisible()
+  await page.reload()
+  await expect(page.getByText('201–205 of 205 matching records', { exact: true })).toBeVisible()
+})
+
+async function commercialEnvironment(page: Page, pursuitId: string | null = 'pursuit-a') {
+  await mock(page, [opportunity('a', 'Austin, TX')])
+  const item = { id: 'a', project_id: 'a', pursuit_id: pursuitId, name: 'Commercial fixture A', location: 'Austin, TX', tier: 'Signal', activity: 'construction-power', industry: 'data_center', disposition: 'ACTION NOW', reason: 'Fixture reason', supply: 'Unknown', next_question: 'What is the activity-specific construction load?', next_action: 'Confirm the package buyer.', stage: { stage: 'construction', date: null }, facts: [], contacts: [], sources: [], notes: [], unknowns: [], blockers: [] }
+  await page.route('**/api/commercial/triage?*', (route) => route.fulfill({ json: {
+    evaluated_at: '2026-10-01T12:00:00Z', policy_version: 'fixture', total: 1, grouped_total: 1, offset: 0, limit: 50, next_offset: null,
+    cohort_counts: { action_now: 1, research: 0, watch: 0, reject: 0 }, daily: { evaluated: 1, surfaced: 1, contacted: 0 }, items: [item],
+  } }))
+  return item
+}
+
+test('commercial pursuit investigation returns to its note and selected need without writes', async ({ page }) => {
+  await commercialEnvironment(page)
+  const writes: string[] = []
+  page.on('request', (request) => { if (request.method() === 'POST') writes.push(request.url()) })
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Menu', exact: true }).click()
+  await page.getByRole('link', { name: 'Today’s pursuits', exact: true }).click()
+  await expect(page.locator('.env')).toBeVisible()
+  await page.getByRole('button', { name: /Commercial fixture A/ }).click()
+  await page.getByLabel('Note', { exact: true }).fill('Unsaved commercial note')
+  await page.getByRole('button', { name: 'Investigate this need' }).click()
+  await expect(page.getByRole('heading', { name: 'Test project a', exact: true })).toBeVisible()
+  await page.goBack()
+  await expect(page.getByLabel('Note', { exact: true })).toHaveValue('Unsaved commercial note')
+  await expect(page.getByRole('button', { name: 'Investigate this need' })).toBeFocused()
+  await page.reload()
+  await expect(page.getByLabel('Note', { exact: true })).toHaveValue('Unsaved commercial note')
+  expect(writes).toEqual([])
+})
+
+test('commercial filters retain the selected pursuit separately and Back restores disposition and focus', async ({ page }) => {
+  await commercialEnvironment(page)
+  await page.goto('/?view=environment&mode=pursuits&pursuitNeed=a')
+  await page.getByLabel('Note', { exact: true }).fill('Keep this note')
+  await page.getByRole('button', { name: 'WATCH 0', exact: true }).click()
+  await expect(page.getByText('Selected pursuit outside current page filters.', { exact: false })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'WATCH · 0 pursuits on this page' })).toBeVisible()
+  await expect(page.getByLabel('Note', { exact: true })).toHaveValue('Keep this note')
+  await page.goBack()
+  await expect(page.getByRole('button', { name: 'WATCH 0', exact: true })).toBeFocused()
+  await page.goForward()
+  await expect(page.getByRole('heading', { name: 'WATCH · 0 pursuits on this page' })).toBeVisible()
+})
+
+test('commercial pending note save survives investigation without duplicate submission', async ({ page }) => {
+  await commercialEnvironment(page)
+  let release!: () => void
+  const gate = new Promise<void>((resolve) => { release = resolve })
+  let posts = 0
+  await page.route('**/api/pursuits/pursuit-a/notes', async (route) => {
+    posts += 1
+    await gate
+    await route.fulfill({ json: {} })
+  })
+  await page.goto('/?view=environment&mode=pursuits&pursuitNeed=a')
+  await page.getByLabel('Note', { exact: true }).fill('Save exactly once')
+  await page.getByRole('button', { name: 'Save note', exact: true }).click()
+  await expect.poll(() => posts).toBe(1)
+  await page.getByRole('button', { name: 'Investigate this need' }).click()
+  await page.goBack()
+  await expect(page.getByRole('button', { name: 'Saving…', exact: true })).toBeDisabled()
+  await expect(page.getByLabel('Note', { exact: true })).toHaveValue('Save exactly once')
+  release()
+  await expect(page.getByText('Note saved to this pursuit. Evidence tier unchanged.')).toBeVisible()
+  await expect(page.getByLabel('Note', { exact: true })).toHaveValue('')
+  expect(posts).toBe(1)
+})
+
+test('environment commercial retry stays in place on mobile with reduced motion', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await commercialEnvironment(page)
+  let failed = true
+  await page.route('**/api/commercial/triage?*', async (route) => {
+    if (failed) return route.fulfill({ status: 503, body: 'Unavailable' })
+    return route.fallback()
+  })
+  await page.goto('/?view=environment&mode=pursuits')
+  const retry = page.getByRole('button', { name: 'Retry commercial pursuits' })
+  await expect(retry).toBeVisible()
+  failed = false
+  await retry.focus()
+  await page.keyboard.press('Enter')
+  await page.getByRole('button', { name: /Commercial fixture A/ }).click()
+  await expect(page.getByLabel('Note', { exact: true })).toBeVisible()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  await page.getByRole('button', { name: 'Investigate this need' }).click()
+  await page.goBack()
+  await expect(page.getByRole('button', { name: 'Investigate this need' })).toBeFocused()
+  expect(await page.locator('.env-subject').evaluate((el) => getComputedStyle(el).animationName)).toBe('none')
+})
+
+test('delayed commercial research restores each question disclosure and scroll independently', async ({ page }) => {
+  await commercialEnvironment(page)
+  let delay = false
+  await page.route('**/api/commercial/triage/a/autonomous-research', async (route) => {
+    if (delay) await new Promise((resolve) => setTimeout(resolve, 350))
+    await route.fulfill({ json: { items: ['one', 'two'].map((id) => ({ id, question: `Fixture question ${id}`, status: 'UNRESOLVED', receipt: {}, context: { known_facts: [{ text: `Known fixture fact ${id}` }] } })) } })
+  })
+  await page.goto('/?view=environment&mode=pursuits&pursuitNeed=a')
+  await page.getByText('What GridLens knew before', { exact: true }).first().click()
+  await expect(page.getByText('Known fixture fact one')).toBeVisible()
+  const investigate = page.getByRole('button', { name: 'Investigate this need' })
+  await investigate.scrollIntoViewIfNeeded()
+  const y = await page.evaluate(() => scrollY)
+  await investigate.click()
+  delay = true
+  await page.goBack()
+  await expect(page.getByText('Known fixture fact one')).toBeVisible()
+  await expect(page.getByText('Known fixture fact two')).not.toBeVisible()
+  await expect(investigate).toBeFocused()
+  await expect.poll(() => page.evaluate(() => scrollY)).toBeCloseTo(y, 0)
+})
+
+for (const width of [1280, 390]) {
+  test(`rendered commercial environment at ${width}px`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 })
+    await commercialEnvironment(page)
+    await page.goto('/?view=environment&mode=pursuits')
+    await expect(page.getByRole('button', { name: /Commercial fixture A/ })).toBeVisible()
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    const screenshot = testInfo.outputPath(`commercial-${width}-fixture.png`)
+    await page.screenshot({ path: screenshot, fullPage: true })
+    await testInfo.attach('Synthetic fixture rendering, not live data', { path: screenshot, contentType: 'image/png' })
+  })
+}
+
+test('pending targeted research stays disabled across investigation and returns its result', async ({ page }) => {
+  await commercialEnvironment(page)
+  let release!: () => void
+  const gate = new Promise<void>((resolve) => { release = resolve })
+  let posts = 0
+  await page.route('**/api/commercial/triage/a/research', async (route) => {
+    posts += 1
+    await gate
+    await route.fulfill({ json: { status: 'ready', job_id: null, stale: false, citations: [], result: { next_step: 'Fixture research result' } } })
+  })
+  await page.goto('/?view=environment&mode=pursuits&pursuitNeed=a')
+  await page.getByRole('button', { name: 'Research this question' }).click()
+  await expect.poll(() => posts).toBe(1)
+  await page.getByRole('button', { name: 'Investigate this need' }).click()
+  await page.goBack()
+  await expect(page.getByRole('button', { name: 'Queueing…' })).toBeDisabled()
+  await expect(page.getByLabel('Exact missing-fact question')).toBeDisabled()
+  release()
+  await expect(page.getByText('Next step: Fixture research result', { exact: true })).toBeVisible()
+  expect(posts).toBe(1)
+})
+
+test('late browse page response cannot replace the restored first page', async ({ page }) => {
+  const items = Array.from({ length: 55 }, (_, i) => opportunity(`p${i}`, 'Austin, TX'))
+  let delay = false
+  let release!: () => void
+  const gate = new Promise<void>((resolve) => { release = resolve })
+  let requested = false
+  await mock(page, items, async (route) => {
+    const offset = Number(new URL(route.request().url()).searchParams.get('offset') ?? 0)
+    if (delay && offset === 50) { requested = true; await gate }
+    await route.fulfill({ json: items.slice(offset, offset + 50), headers: { 'X-Total-Count': '55', 'X-Cohort-Token': 'c1', ...(offset === 0 ? { 'X-Next-Offset': '50' } : {}) } }).catch(() => {})
+  })
+  await page.goto('/?view=environment&mode=browse')
+  await expect(page.getByText('1–50 of 55 matching records', { exact: true })).toBeVisible()
+  delay = true
+  await page.getByRole('button', { name: 'Next records' }).click()
+  await expect.poll(() => requested).toBe(true)
+  await page.goBack()
+  await expect(page.getByText('1–50 of 55 matching records', { exact: true })).toBeVisible()
+  release()
+  await expect(page.getByRole('button', { name: /Test project p0 / })).toBeVisible()
+  await expect(page.getByText('51–55 of 55 matching records', { exact: true })).not.toBeVisible()
+})
+
 test('expired authentication clears private drafts before another sign-in', async ({ page }) => {
   await mock(page, [opportunity('a', 'Austin, TX')])
   await page.goto('/?view=environment&mode=action&need=a')
@@ -521,4 +709,54 @@ test('failed draft persistence invalidates the older snapshot instead of restori
   await page.getByLabel('Call note').fill('New note '.repeat(400))
   await page.reload()
   await expect(page.getByLabel('Call note')).not.toHaveValue('Old snapshot must not return')
+})
+
+test('first pursuit link preserves the unlinked note and question without transferring to another pursuit', async ({ page }) => {
+  const item = await commercialEnvironment(page, null)
+  let release!: () => void
+  const gate = new Promise<void>((resolve) => { release = resolve })
+  await page.route('**/api/commercial/triage/a/research', async (route) => {
+    await gate
+    await route.fulfill({ json: { status: 'ready', job_id: null, stale: false, citations: [], result: { next_step: 'Linked research result' } } })
+  })
+  const result = (id: string) => ({ evaluated_at: stamp, policy_version: 'fixture', total: 1, grouped_total: 1, offset: 0, limit: 50, next_offset: null, cohort_counts: { action_now: 1, research: 0, watch: 0, reject: 0 }, daily: { evaluated: 1, surfaced: 1, contacted: 0 }, items: [{ ...item, pursuit_id: id }] })
+  await page.route('**/api/commercial/triage/evaluate*', (route) => route.fulfill({ json: result('first-pursuit') }))
+  await page.goto('/?view=environment&mode=pursuits&pursuitNeed=a')
+  await page.getByLabel('Note', { exact: true }).fill('Unlinked note stays with first pursuit')
+  await page.getByLabel('Exact missing-fact question').fill('Which contractor owns this package?')
+  await page.getByRole('button', { name: 'Research this question' }).click()
+  await expect(page.getByRole('button', { name: 'Queueing…' })).toBeDisabled()
+  await page.getByRole('button', { name: 'Evaluate Signals' }).click()
+  await expect(page.getByRole('button', { name: 'Save note', exact: true })).toBeEnabled()
+  await expect(page.getByLabel('Note', { exact: true })).toHaveValue('Unlinked note stays with first pursuit')
+  await expect(page.getByLabel('Exact missing-fact question')).toHaveValue('Which contractor owns this package?')
+  release()
+  await expect(page.getByText('Next step: Linked research result', { exact: true })).toBeVisible()
+  await page.route('**/api/commercial/triage?*', (route) => route.fulfill({ json: result('first-pursuit') }))
+  await page.reload()
+  await expect(page.getByLabel('Note', { exact: true })).toHaveValue('Unlinked note stays with first pursuit')
+  await page.route('**/api/commercial/triage?*', (route) => route.fulfill({ json: result('different-pursuit') }))
+  await page.reload()
+  await expect(page.getByLabel('Note', { exact: true })).toHaveValue('')
+})
+
+test('commercial disposition focus survives changed counts on Back', async ({ page }) => {
+  const item = await commercialEnvironment(page)
+  await page.goto('/?view=environment&mode=pursuits')
+  await page.getByRole('button', { name: 'WATCH 0', exact: true }).click()
+  await page.getByRole('link', { name: 'GridLens home' }).click()
+  await page.route('**/api/commercial/triage?*', (route) => route.fulfill({ json: { evaluated_at: stamp, policy_version: 'fixture', total: 1, grouped_total: 1, offset: 0, limit: 50, next_offset: null, cohort_counts: { action_now: 0, research: 0, watch: 1, reject: 0 }, daily: { evaluated: 1, surfaced: 1, contacted: 0 }, items: [{ ...item, disposition: 'WATCH' }] } }))
+  await page.goBack()
+  await page.goBack()
+  await expect(page.getByRole('button', { name: 'WATCH 1', exact: true })).toBeFocused()
+})
+
+test('authentication rejection clears the currently mounted commercial note', async ({ page }) => {
+  await commercialEnvironment(page)
+  await page.route('**/api/commercial/triage/evaluate*', (route) => route.fulfill({ status: 401 }))
+  await page.goto('/?view=environment&mode=pursuits&pursuitNeed=a')
+  await page.getByLabel('Note', { exact: true }).fill('Private mounted note')
+  await page.getByRole('button', { name: 'Evaluate Signals' }).click()
+  await expect(page.getByText(/Your session ended/).first()).toBeVisible()
+  await expect(page.getByLabel('Note', { exact: true })).toHaveValue('')
 })

@@ -1,14 +1,15 @@
-import { type FormEvent, useEffect, useMemo, useState } from 'react'
+import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react'
 import { client, type BriefRequest, type CallNoteBody, type CommercialResearchStatus, type CommercialTriage, type CommercialTriageCard, type CommercialTriageHistory, type CommercialTriageHistoryItem } from '../../api/client'
 import { BuyingChain } from '../buyingChain/BuyingChain'
 import { ResearchChanges } from './ResearchChanges'
 import { AutonomousResearch } from './AutonomousResearch'
 import { Pursuits } from './Pursuits'
 import '../../styles/pursuits.css'
+import { useCommercialDraft, type CommercialDraft } from './commercialDrafts'
 
-type Disposition = 'ACTION NOW' | 'RESEARCH' | 'WATCH' | 'REJECT'
-type ResearchProgress = { question: string; brief: BriefRequest; message: string; failed: boolean }
-type CommercialDraft = { question: string; note: string; outcome: CallNoteBody['outcome']; nextAction: string; clientId?: string; research?: ResearchProgress }
+export type Disposition = 'ACTION NOW' | 'RESEARCH' | 'WATCH' | 'REJECT'
+export type CommercialNavigation = { offset: number; query: string; disposition: Disposition; needId: string | null }
+export const defaultCommercialNavigation: CommercialNavigation = { offset: 0, query: '', disposition: 'ACTION NOW', needId: null }
 const dispositions: Disposition[] = ['ACTION NOW', 'RESEARCH', 'WATCH', 'REJECT']
 const unknown = (value: unknown) => typeof value === 'string' || typeof value === 'number' ? String(value) || 'Unknown' : 'Unknown'
 function enumLabel(value: unknown) {
@@ -17,7 +18,6 @@ function enumLabel(value: unknown) {
   return words.charAt(0).toUpperCase() + words.slice(1)
 }
 const power = (value: string | null) => !value || value.toLowerCase() === 'unknown' ? 'Unknown' : /\bmw\b/i.test(value) ? value : `${value} MW`
-const emptyDraft = (item: CommercialTriageCard): CommercialDraft => ({ question: item.next_question, note: '', outcome: 'Not reached', nextAction: '' })
 const isRecord = (value: unknown): value is Record<string, unknown> => value !== null && typeof value === 'object' && !Array.isArray(value)
 
 function checkedCommercialTriage(value: unknown): CommercialTriage {
@@ -70,60 +70,93 @@ function checkedCommercialHistory(value: unknown): CommercialTriageHistory {
   return value as unknown as CommercialTriageHistory
 }
 
-export function CommercialPursuits() {
-  const [data, setData] = useState<CommercialTriage | null>(null)
-  const [pageOffset, setPageOffset] = useState(0)
+export function CommercialPursuits({ navigation, onNavigate, onInvestigate }: {
+  navigation?: CommercialNavigation
+  onNavigate?: (next: CommercialNavigation) => void
+  onInvestigate?: (needId: string) => void
+} = {}) {
+  const [localNavigation, setLocalNavigation] = useState(defaultCommercialNavigation)
+  const current = navigation ?? localNavigation
+  const navigate = (patch: Partial<CommercialNavigation>) => {
+    const next = { ...current, ...patch }
+    if (onNavigate) onNavigate(next)
+    else setLocalNavigation(next)
+  }
+  const { offset: pageOffset, query, disposition: filter, needId: expanded } = current
+  const setPageOffset = (offset: number) => navigate({ offset, needId: null })
+  const setQuery = (query: string) => navigate({ query })
+  const setFilter = (disposition: Disposition) => navigate({ disposition })
+  const setExpanded = (needId: string | null) => navigate({ needId })
+  const [loadedData, setData] = useState<CommercialTriage | null>(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
-  const [query, setQuery] = useState('')
-  const [filter, setFilter] = useState<Disposition>('ACTION NOW')
-  const [expanded, setExpanded] = useState<string | null>(null)
   const [evaluating, setEvaluating] = useState(false)
   const [legacyOpen, setLegacyOpen] = useState(false)
-  const [drafts, setDrafts] = useState<Record<string, CommercialDraft>>({})
 
+  const [loadedOffset, setLoadedOffset] = useState<number | null>(null)
+  const offsetRef = useRef(pageOffset)
+  offsetRef.current = pageOffset
+  const sequence = useRef(0)
+  const alive = useRef(true)
+  useEffect(() => { alive.current = true; return () => { alive.current = false; sequence.current += 1 } }, [])
   useEffect(() => {
     const controller = new AbortController()
+    const request = ++sequence.current
     setLoading(true)
-    void client.commercialTriage(50, controller.signal, pageOffset).then((result) => { setData(checkedCommercialTriage(result)); setError('') }).catch((cause: unknown) => {
-      if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : 'Commercial pursuits are unavailable.')
-    }).finally(() => { if (!controller.signal.aborted) setLoading(false) })
+    setData(null)
+    void client.commercialTriage(50, controller.signal, pageOffset).then((result) => {
+      if (!controller.signal.aborted && request === sequence.current) { setData(checkedCommercialTriage(result)); setLoadedOffset(pageOffset); setError('') }
+    }).catch((cause: unknown) => {
+      if (!controller.signal.aborted && request === sequence.current) { setLoadedOffset(pageOffset); setError(cause instanceof Error ? cause.message : 'Commercial pursuits are unavailable.') }
+    }).finally(() => { if (!controller.signal.aborted && request === sequence.current) setLoading(false) })
     return () => controller.abort()
   }, [pageOffset])
-
-  const visible = useMemo(() => (data?.items ?? []).filter((item) => item.disposition === filter && `${item.name} ${item.location ?? ''} ${item.industry} ${item.activity} ${item.stage.stage} ${item.organization ?? ''}`.toLowerCase().includes(query.trim().toLowerCase())), [data, filter, query])
+  const data = loadedOffset === pageOffset ? loadedData : null
+  const currentData = data
+  const visible = useMemo(() => (currentData?.items ?? []).filter((item) => item.disposition === filter && `${item.name} ${item.location ?? ''} ${item.industry} ${item.activity} ${item.stage.stage} ${item.organization ?? ''}`.toLowerCase().includes(query.trim().toLowerCase())), [currentData, filter, query])
+  const selectedOutside = navigation && currentData?.items.find((item) => item.id === expanded && !visible.includes(item))
+  const ready = !loading && loadedOffset === pageOffset
   async function evaluate() {
+    if (evaluating) return
+    const request = ++sequence.current
     setEvaluating(true)
-    try { setData(checkedCommercialTriage(await client.evaluateCommercialTriage(50, pageOffset))); setError('') }
-    catch (cause) { setError(cause instanceof Error ? cause.message : 'Evaluation could not be saved.') }
-    finally { setEvaluating(false) }
+    try {
+      const result = checkedCommercialTriage(await client.evaluateCommercialTriage(50, pageOffset))
+      if (alive.current && request === sequence.current) { setData(result); setLoadedOffset(pageOffset); setError('') }
+    } catch (cause) { if (alive.current && request === sequence.current) setError(cause instanceof Error ? cause.message : 'Evaluation could not be saved.') }
+    finally { if (alive.current) setEvaluating(false) }
   }
   async function refreshTriage() {
-    try { setData(checkedCommercialTriage(await client.commercialTriage(50, undefined, pageOffset))); setError('') }
-    catch (cause) { setError(cause instanceof Error ? cause.message : 'Commercial metrics could not refresh.') }
-  }
-  function updateDraft(item: CommercialTriageCard, changes: Partial<CommercialDraft>) {
-    setDrafts((current) => ({ ...current, [item.id]: { ...(current[item.id] ?? emptyDraft(item)), ...changes } }))
+    if (!alive.current || offsetRef.current !== pageOffset) return
+    const request = ++sequence.current
+    setLoading(true)
+    try {
+      const result = checkedCommercialTriage(await client.commercialTriage(50, undefined, pageOffset))
+      if (alive.current && request === sequence.current) { setData(result); setLoadedOffset(pageOffset); setError('') }
+    } catch (cause) { if (alive.current && request === sequence.current) { setLoadedOffset(pageOffset); setError(cause instanceof Error ? cause.message : 'Commercial metrics could not refresh.') } }
+    finally { if (alive.current && request === sequence.current) setLoading(false) }
   }
 
-  return <section className="pursuits-view commercial-view" aria-label="Commercial pursuits">
-    <section className="hero commercial-hero"><div><p className="eyebrow">Retained Signals · Commercial work queue</p><h1>What should we work today?</h1><p>Evidence-backed pursuits with clear next steps. Power, supply, timing and buying roles stay unknown until sources support them.</p></div><button type="button" className="back-button" onClick={() => void evaluate()} disabled={evaluating}>{evaluating ? 'Evaluating…' : 'Evaluate Signals'}</button></section>
-    {!data && error ? <section className="commercial-unavailable" role="alert"><h2>Commercial pursuits are unavailable</h2><p>{error}</p></section> : <>
+  return <section className="pursuits-view commercial-view" aria-label="Commercial pursuits" data-context-loading={!ready}>
+    <section className="hero commercial-hero"><div><p className="eyebrow">Retained Signals · Commercial work queue</p><h1 tabIndex={-1}>What should we work today?</h1><p>Evidence-backed pursuits with clear next steps. Power, supply, timing and buying roles stay unknown until sources support them.</p></div><button type="button" className="back-button" onClick={() => void evaluate()} disabled={evaluating || loading}>{evaluating ? 'Evaluating…' : 'Evaluate Signals'}</button></section>
+    {!data && error ? <section className="commercial-unavailable" role="alert"><h2>Commercial pursuits are unavailable</h2><p>{error}</p><button type="button" onClick={() => void refreshTriage()}>Retry commercial pursuits</button></section> : <>
     <section className="commercial-summary" aria-label="Current cohort summary">
       <div><span>All eligible groups</span><strong>{data?.grouped_total ?? '—'}</strong></div>
       {dispositions.map((state) => <div key={state}><span>{state} · this page</span><strong>{data?.cohort_counts[state.toLowerCase().replaceAll(' ', '_') as keyof CommercialTriage['cohort_counts']] ?? '—'}</strong></div>)}
       <div className="commercial-daily">Today · {data?.daily.evaluated ?? '—'} evaluated · {data?.daily.surfaced ?? '—'} surfaced · {data?.daily.contacted ?? '—'} contacted · {data?.daily.reached_buyer ?? '—'} buyer reached · {data?.daily.qualified ?? '—'} qualified · {data?.daily.promoted_prospects ?? '—'} Prospects · {data?.daily.promoted_leads ?? '—'} Leads · {data ? unknown(data.daily.supported_mw) : '—'} supported MW <details><summary>{data?.daily.unavailable_metrics?.length ?? '—'} metric limits</summary><span>{[...(data?.daily.metric_scope ?? []), ...(data?.daily.unavailable_metrics ?? [])].join('; ') || 'No additional metric limitations reported.'}</span></details></div>
     </section>
     <ResearchChanges overview={data?.research_overview}/>
-    <div className="list-toolbar commercial-toolbar"><div><h2>{filter} · {visible.length} pursuits on this page</h2><p>Page {data ? Math.floor((data.offset ?? pageOffset) / (data.limit ?? 50)) + 1 : 1} · {data?.total ?? 0} saved cards · {data?.grouped_total ?? 0} eligible groups overall · disposition counts below are page-scoped · {data?.evaluated_at ? `queue refreshed ${new Date(data.evaluated_at).toLocaleString()}` : 'evaluation has not been saved'}</p></div><label className="search"><span className="sr-only">Search commercial pursuits on this page</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search this page: project, company, site"/></label></div>
-    <div className="commercial-filters" role="group" aria-label="Filter pursuit state">{dispositions.map((state) => <button type="button" key={state} className={filter === state ? 'commercial-filter-active' : ''} aria-pressed={filter === state} onClick={() => setFilter(state)}>{state}<span>{data?.cohort_counts[state.toLowerCase().replaceAll(' ', '_') as keyof CommercialTriage['cohort_counts']] ?? '—'}</span></button>)}</div>
+    <div className="list-toolbar commercial-toolbar"><div><h2>{filter} · {visible.length} pursuits on this page</h2><p>Page {data ? Math.floor((data.offset ?? pageOffset) / (data.limit ?? 50)) + 1 : 1} · {data?.total ?? 0} saved cards · {data?.grouped_total ?? 0} eligible groups overall · disposition counts below are page-scoped · {data?.evaluated_at ? `queue refreshed ${new Date(data.evaluated_at).toLocaleString()}` : 'evaluation has not been saved'}</p></div>{!navigation && <label className="search"><span className="sr-only">Search commercial pursuits on this page</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search this page: project, company, site"/></label>}</div>
+    <div className="commercial-filters" role="group" aria-label="Filter pursuit state">{dispositions.map((state) => <button type="button" key={state} data-context-key={`disposition:${state}`} className={filter === state ? 'commercial-filter-active' : ''} aria-pressed={filter === state} onClick={() => setFilter(state)}>{state}<span>{data?.cohort_counts[state.toLowerCase().replaceAll(' ', '_') as keyof CommercialTriage['cohort_counts']] ?? '—'}</span></button>)}</div>
     {error && <p className="error-banner" role="alert">{error} Saved findings remain available.</p>}{loading && <p role="status">Loading retained commercial pursuits…</p>}
     {!loading && data && !visible.length && <div className="empty"><h3>{query ? 'No matching pursuits' : `No ${filter.toLowerCase()} pursuits`}</h3><p>{query ? 'Try another project, company or site.' : 'The current retained cohort has no candidates in this state.'}</p></div>}
-    <div className="commercial-list">{visible.map((item, index) => <CommercialCard key={item.id} item={item} index={index + pageOffset} expanded={expanded === item.id} draft={drafts[item.id] ?? emptyDraft(item)} onDraftChange={(changes) => updateDraft(item, changes)} onToggle={() => setExpanded(expanded === item.id ? null : item.id)} onSaved={() => void refreshTriage()}/>)}</div>
+    {selectedOutside && <aside className="commercial-outside"><p role="status">Selected pursuit outside current page filters. It is not included in the matching list count.</p><StoredCommercialCard item={selectedOutside} index={pageOffset} expanded onToggle={() => setExpanded(null)} onSaved={() => void refreshTriage()} onInvestigate={onInvestigate}/></aside>}
+    {expanded && ready && currentData && !currentData.items.some((item) => item.id === expanded) && <p role="status">The selected pursuit is no longer on this page. Its identity is retained; check saved evaluation history or another page.</p>}
+    <div className="commercial-list">{visible.map((item, index) => <StoredCommercialCard key={item.id} item={item} index={index + pageOffset} expanded={expanded === item.id} onToggle={() => setExpanded(expanded === item.id ? null : item.id)} onSaved={() => void refreshTriage()} onInvestigate={onInvestigate}/>)}</div>
     <nav className="opportunity-pagination commercial-pagination" aria-label="Commercial pursuit pages">
-      <button type="button" disabled={loading || pageOffset <= 0} onClick={() => { setExpanded(null); setPageOffset(Math.max(0, pageOffset - (data?.limit ?? 50))) }}>Previous page</button>
+      <button type="button" disabled={loading || pageOffset <= 0} onClick={() => { setPageOffset(Math.max(0, pageOffset - (data?.limit ?? 50))) }}>Previous page</button>
       <span>{data?.total ?? 0} cards on this page · {data?.grouped_total ?? 0} eligible groups overall</span>
-      <button type="button" disabled={loading || data?.next_offset == null} onClick={() => { setExpanded(null); setPageOffset(data?.next_offset ?? pageOffset) }}>Next page</button>
+      <button type="button" disabled={!ready || !currentData || currentData.next_offset == null} onClick={() => { setPageOffset(data?.next_offset ?? pageOffset) }}>Next page</button>
     </nav>
     </>}
     <CommercialHistory currentNeedIds={(data?.items ?? []).map((item) => item.id)}/>
@@ -247,9 +280,19 @@ function HistoricalDetail({ item, version }: { item: CommercialTriageHistoryItem
   </div>
 }
 
+function StoredCommercialCard({ item, index, expanded, onToggle, onSaved, onInvestigate }: {
+  item: CommercialTriageCard; index: number; expanded: boolean; onToggle: () => void; onSaved: () => void; onInvestigate?: (id: string) => void
+}) {
+  const [draft, update] = useCommercialDraft(item)
+  return <>
+    <CommercialCard item={item} index={index} expanded={expanded} draft={draft} onDraftChange={update} onToggle={onToggle} onSaved={onSaved}/>
+    {expanded && onInvestigate && <button className="env-go" data-context-key={`investigate:${item.id}`} onClick={() => onInvestigate(item.id)}>Investigate this need</button>}
+  </>
+}
+
 function CommercialCard({ item, index, expanded, draft, onDraftChange, onToggle, onSaved }: { item: CommercialTriageCard; index: number; expanded: boolean; draft: CommercialDraft; onDraftChange: (changes: Partial<CommercialDraft>) => void; onToggle: () => void; onSaved: () => void }) {
-  return <article className="commercial-card" data-commercial-need-id={item.id}>
-    <button className="commercial-card-heading" type="button" aria-expanded={expanded} onClick={onToggle}>
+  return <article className="commercial-card" data-commercial-need-id={item.id} data-context-owner={item.id}>
+    <button className="commercial-card-heading" data-context-key={`pursuit:${item.id}`} type="button" aria-expanded={expanded} onClick={onToggle}>
       <span className="pursuit-position">{index + 1}</span><span className="commercial-card-title"><strong>{item.name}</strong><span>{unknown(item.location)} · {enumLabel(item.industry)} · {enumLabel(item.activity)}</span><span>Stage {enumLabel(item.stage.stage)} · {unknown(item.organization)} · {enumLabel(item.organization_role)}</span></span><span className="commercial-card-state"><b>{item.disposition}</b><small>{item.tier} · evidence tier</small></span><span aria-hidden="true">{expanded ? '−' : '+'}</span>
     </button>
     <div className="commercial-card-facts"><span><b>Stage</b> {enumLabel(item.stage.stage)} · {unknown(item.stage.date)}</span><span><b>Power</b> {power(item.required_mw)}</span><span><b>Start</b> {unknown(item.start_window)}</span><span><b>Duration</b> {unknown(item.duration)}</span><span><b>Supply</b> {unknown(item.supply)}</span></div>
@@ -278,7 +321,7 @@ function ProjectBuyingChains({ item }: { item: CommercialTriageCard }) {
   const [selected, setSelected] = useState(item.project_id)
   return <div className="commercial-project-chains">
     {projectIds.length > 1 && <div className="commercial-project-chain-select" role="group" aria-label="Project relationship records">{projectIds.map((projectId, index) => <button key={projectId} type="button" aria-pressed={selected === projectId} onClick={() => setSelected(projectId)}>Project {index + 1} · {projectId === item.project_id ? 'primary record' : 'related record'}</button>)}</div>}
-    <div className="commercial-project-chain"><p className="commercial-project-chain-label">{projectIds.length > 1 ? `Project relationship ${projectIds.indexOf(selected) + 1}` : 'Project relationship'} · {selected === item.project_id ? 'primary project record' : 'related project record'} · identities remain separate</p><BuyingChain projectId={selected}/></div>
+    <div className="commercial-project-chain"><p className="commercial-project-chain-label">{projectIds.length > 1 ? `Project relationship ${projectIds.indexOf(selected) + 1}` : 'Project relationship'} · {selected === item.project_id ? 'primary project record' : 'related project record'} · identities remain separate</p><BuyingChain key={selected} projectId={selected}/></div>
   </div>
 }
 
@@ -287,7 +330,8 @@ function Citation({ fact }: { fact: NonNullable<CommercialTriageCard['facts']>[n
 }
 
 function ResearchQuestion({ item, draft, onDraftChange }: { item: CommercialTriageCard; draft: CommercialDraft; onDraftChange: (changes: Partial<CommercialDraft>) => void }) {
-  const [busy, setBusy] = useState(false)
+  const busy = draft.researchSubmitting ?? false
+  const setBusy = (researchSubmitting: boolean) => onDraftChange({ researchSubmitting })
   const progress = draft.research?.question === draft.question ? draft.research : undefined
   useEffect(() => {
     if (!progress || progress.brief.status !== 'pending' || !progress.brief.job_id) return
@@ -322,7 +366,9 @@ function ResearchQuestion({ item, draft, onDraftChange }: { item: CommercialTria
   }, [item.id, progress?.question, progress?.brief.job_id, progress?.brief.status])
   async function submit(event: FormEvent) {
     event.preventDefault()
+    if (busy) return
     setBusy(true)
+    onDraftChange({ researchInterrupted: false })
     try {
       const brief = await client.researchCommercialNeed(item.id, { question: draft.question })
       const message = brief.job_id && brief.status === 'pending' ? 'Research is queued; checking for the exact-question result.' : brief.job_id === null && brief.status === 'ready' ? 'Existing brief unchanged; showing the saved result.' : brief.error ? `Research unavailable: ${brief.error}` : brief.stale ? 'Existing brief is stale; no current result was produced.' : brief.status === 'ready' ? 'Research result' : `Research ${brief.status}`
@@ -331,7 +377,7 @@ function ResearchQuestion({ item, draft, onDraftChange }: { item: CommercialTria
     finally { setBusy(false) }
   }
   const pending = progress?.brief.status === 'pending' && Boolean(progress.brief.job_id)
-  return <section className="commercial-action"><h3>Targeted research</h3><form onSubmit={(event) => void submit(event)}><label>Exact missing-fact question<textarea required minLength={12} maxLength={300} value={draft.question} onChange={(event) => onDraftChange({ question: event.target.value, research: undefined })} disabled={busy || pending}/></label><button className="primary" disabled={busy || pending || draft.question.trim().length < 12}>{busy ? 'Queueing…' : pending ? 'Research in progress…' : 'Research this question'}</button></form>{progress?.message && <p role={progress.failed ? 'alert' : 'status'}>{progress.message}</p>}{progress?.brief.status === 'ready' && progress.brief.result && <ResearchResult brief={progress.brief}/>}</section>
+  return <section className="commercial-action"><h3>Targeted research</h3>{draft.researchInterrupted && <p role="status">Research submission was interrupted by refresh. Submit the same question to check or resume its existing request.</p>}<form onSubmit={(event) => void submit(event)}><label>Exact missing-fact question<textarea aria-label="Exact missing-fact question" data-context-key="research-question" required minLength={12} maxLength={300} value={draft.question} onChange={(event) => onDraftChange({ question: event.target.value, research: undefined })} disabled={busy || pending}/></label><button className="primary" disabled={busy || pending || draft.question.trim().length < 12}>{busy ? 'Queueing…' : pending ? 'Research in progress…' : 'Research this question'}</button></form>{progress?.message && <p role={progress.failed ? 'alert' : 'status'}>{progress.message}</p>}{progress?.brief.status === 'ready' && progress.brief.result && <ResearchResult brief={progress.brief}/>}</section>
 }
 
 function researchBrief(status: CommercialResearchStatus): BriefRequest {
@@ -369,10 +415,13 @@ function ResearchResult({ brief }: { brief: BriefRequest }) {
 }
 
 function PursuitNote({ item, draft, onDraftChange, onSaved }: { item: CommercialTriageCard; draft: CommercialDraft; onDraftChange: (changes: Partial<CommercialDraft>) => void; onSaved: () => void }) {
-  const [saving, setSaving] = useState(false)
-  const [message, setMessage] = useState('')
+  const saving = draft.savingNote ?? false
+  const message = draft.noteMessage ?? ''
+  const setSaving = (savingNote: boolean) => onDraftChange({ savingNote })
+  const setMessage = (noteMessage: string) => onDraftChange({ noteMessage })
   async function save(event: FormEvent) {
     event.preventDefault()
+    if (saving) return
     if (!item.pursuit_id) { setMessage('Save a pursuit snapshot before adding notes.'); return }
     setSaving(true)
     const clientId = draft.clientId ?? crypto.randomUUID()
@@ -382,5 +431,5 @@ function PursuitNote({ item, draft, onDraftChange, onSaved }: { item: Commercial
     catch (cause) { setMessage(cause instanceof Error ? cause.message : 'Note could not be saved.') }
     finally { setSaving(false) }
   }
-  return <section className="commercial-action"><h3>Saved pursuit notes</h3>{item.notes?.length ? item.notes.map((entry) => <article className="commercial-note" key={entry.id}><p><b>{entry.outcome}</b> · {entry.owner} · {new Date(entry.created_at).toLocaleString()}</p><p>{entry.note}</p>{entry.next_action && <p><b>Next action:</b> {entry.next_action}</p>}{entry.follow_up && <p><b>Follow-up:</b> {entry.follow_up}</p>}</article>) : <p>No saved notes yet.</p>}<h3>Add operator note</h3><form onSubmit={(event) => void save(event)}><label>Note<textarea required maxLength={5000} value={draft.note} onChange={(event) => onDraftChange({ note: event.target.value, clientId: draft.clientId ? crypto.randomUUID() : undefined })} disabled={saving}/></label><label>Reported outcome<select value={draft.outcome} onChange={(event) => onDraftChange({ outcome: event.target.value as CallNoteBody['outcome'], clientId: draft.clientId ? crypto.randomUUID() : undefined })} disabled={saving}>{['Not reached', 'Contacted', 'Needs follow-up', 'No requirement', 'Closed', 'Reached buying organization', 'Qualified'].map((value) => <option key={value}>{value}</option>)}</select></label><label>Next action<input maxLength={1000} value={draft.nextAction} onChange={(event) => onDraftChange({ nextAction: event.target.value, clientId: draft.clientId ? crypto.randomUUID() : undefined })} disabled={saving}/></label><button className="primary" disabled={saving || !item.pursuit_id}>{saving ? 'Saving…' : 'Save note'}</button></form>{message && <p role="status">{message}</p>}{!item.pursuit_id && <p>Notes become available after an existing pursuit is linked.</p>}</section>
+  return <section className="commercial-action"><h3>Saved pursuit notes</h3>{item.notes?.length ? item.notes.map((entry) => <article className="commercial-note" key={entry.id}><p><b>{entry.outcome}</b> · {entry.owner} · {new Date(entry.created_at).toLocaleString()}</p><p>{entry.note}</p>{entry.next_action && <p><b>Next action:</b> {entry.next_action}</p>}{entry.follow_up && <p><b>Follow-up:</b> {entry.follow_up}</p>}</article>) : <p>No saved notes yet.</p>}<h3>Add operator note</h3><p>{draft.refreshSafe === false ? "Session storage is unavailable or full; this note may not survive refresh." : "Unsaved note input stays in this tab for up to eight hours. Sign out clears it."}</p><form onSubmit={(event) => void save(event)}><label>Note<textarea aria-label="Note" data-context-key="commercial-note" required maxLength={5000} value={draft.note} onChange={(event) => onDraftChange({ note: event.target.value, clientId: draft.clientId ? crypto.randomUUID() : undefined })} disabled={saving}/></label><label>Reported outcome<select data-context-key="commercial-outcome" value={draft.outcome} onChange={(event) => onDraftChange({ outcome: event.target.value as CallNoteBody['outcome'], clientId: draft.clientId ? crypto.randomUUID() : undefined })} disabled={saving}>{['Not reached', 'Contacted', 'Needs follow-up', 'No requirement', 'Closed', 'Reached buying organization', 'Qualified'].map((value) => <option key={value}>{value}</option>)}</select></label><label>Next action<input data-context-key="commercial-next-action" maxLength={1000} value={draft.nextAction} onChange={(event) => onDraftChange({ nextAction: event.target.value, clientId: draft.clientId ? crypto.randomUUID() : undefined })} disabled={saving}/></label><button className="primary" disabled={saving || !item.pursuit_id}>{saving ? 'Saving…' : 'Save note'}</button></form>{message && <p role="status">{message}</p>}{!item.pursuit_id && <p>Notes become available after an existing pursuit is linked.</p>}</section>
 }
