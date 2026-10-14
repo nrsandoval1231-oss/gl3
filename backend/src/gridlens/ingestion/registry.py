@@ -64,6 +64,7 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
             "georgia-air-permits": {"epd.georgia.gov"},
             "ma-cultivation-applications": {"masscannabiscontrol.com"},
             "taylor-newsflash": {"taylortx.gov"},
+            "tceq-nsr-pending": {"www.tceq.texas.gov"},
         }
         if source["id"] in ids or urlparse(source["endpoint"]).hostname not in allowed_hosts.get(
             source["retrieval_method"], set()
@@ -81,6 +82,7 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
             "georgia-air-permits",
             "taylor-newsflash",
             "ma-cultivation-applications",
+            "tceq-nsr-pending",
         } or (1 <= query.get("window_days", 0) <= 90)
         if source["retrieval_method"] in {"json-api", "federal-register-json"}:
             bounded = (
@@ -211,6 +213,13 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
                 and urlparse(source["endpoint"]).hostname == "masscannabiscontrol.com"
                 and urlparse(source["endpoint"]).path == "/resource/l_applications_all_details.json"
                 and not urlparse(source["endpoint"]).query
+            )
+        elif source["retrieval_method"] == "tceq-nsr-pending":
+            bounded = (
+                source.get("cadence_hours") == 24
+                and source.get("geography") == "Texas"
+                and 0 <= query.get("max_summaries", -1) <= 60
+                and set(query) == {"max_summaries"}
             )
         elif source["retrieval_method"] == "taylor-newsflash":
             bounded = (

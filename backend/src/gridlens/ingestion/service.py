@@ -91,6 +91,7 @@ PERMIT_RETRIEVAL_METHODS = {
     "rrc-drilling-permits",
     "rrc-flare-exceptions",
     "ma-cultivation-applications",
+    "tceq-nsr-pending",
 }
 
 
