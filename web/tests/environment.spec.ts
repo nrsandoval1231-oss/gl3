@@ -184,3 +184,45 @@ test('the map requests rank order from the API for every page', async ({ page })
   expect(sorts.length).toBeGreaterThanOrEqual(2)
   expect(sorts.every((value) => value === 'rank')).toBe(true)
 })
+
+test('one call logs several facts as drafts, then accepts them in one explicit step', async ({ page }) => {
+  await mock(page, [opportunity('a', 'Midlothian, TX')])
+  let version = 0
+  const created: { fact_type: string, value: Record<string, unknown>, expected_version: number, facility_scope: string, reporter_name: string }[] = []
+  const decided: { expected_version: number, decision: string }[] = []
+  await page.route('**/api/needs/a/facts**', async (route) => {
+    const request = route.request()
+    const json = (body: unknown) => route.fulfill({ contentType: 'application/json', body: JSON.stringify(body) })
+    if (request.method() === 'POST' && request.url().endsWith('/decision')) {
+      const body = request.postDataJSON()
+      decided.push(body)
+      version += 1
+      return json({ id: `d${version}`, version, decision: body.decision, reason: body.reason, actor: 'Nick Sandoval', created_at: '2026-10-14T12:00:00Z', fact_version_id: 'x', content_hash: 'h', tier: 'Signal', active: true })
+    }
+    if (request.method() === 'POST') {
+      const body = request.postDataJSON()
+      created.push(body)
+      version += 1
+      return json({ ...body, id: `f${created.length}`, need_id: 'a', decision: 'draft', decision_version: version, content_hash: 'h', authority_label: 'Operator report', recorded_by: 'Nick Sandoval', created_at: '2026-10-14T12:00:00Z', decision_reason: null, decision_actor: null, decided_at: null })
+    }
+    return route.fallback()
+  })
+  await page.goto('/?view=environment&mode=action&state=Texas&need=a')
+  await page.getByLabel('Contact name').fill('Jordan Example')
+  await page.getByLabel('Power needed').fill('8-12')
+  await page.getByLabel('Buyer organization').fill('Example GC')
+  await page.getByRole('button', { name: 'Save as drafts' }).click()
+  await expect(page.getByRole('alert')).toHaveText(/Choose the buyer role/)
+  expect(created).toHaveLength(0)
+  await page.getByLabel('Buyer role').selectOption('general contractor')
+  await page.getByRole('button', { name: 'Save as drafts' }).click()
+  await expect(page.getByText('2 drafts saved, not yet accepted.')).toBeVisible()
+  expect(created.map((fact) => [fact.fact_type, fact.expected_version, fact.facility_scope, fact.reporter_name])).toEqual([
+    ['demand', 0, 'Midlothian, TX', 'Jordan Example'],
+    ['buyer', 1, 'Midlothian, TX', 'Jordan Example'],
+  ])
+  expect(decided).toHaveLength(0)
+  await page.getByRole('button', { name: /Accept all 2 as confirmed by Jordan Example/ }).click()
+  await expect(page.getByText('2 facts accepted.', { exact: false })).toBeVisible()
+  expect(decided.map((decision) => decision.decision)).toEqual(['accepted', 'accepted'])
+})
