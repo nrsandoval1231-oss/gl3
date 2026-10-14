@@ -47,6 +47,7 @@ async function useCommercialFixture(page: import('@playwright/test').Page, resea
   await page.route('**/api/health', (route) => route.fulfill({ json: {} }))
   await page.route(/\/api\/opportunities\?/, (route) => route.fulfill({ json: [] }))
   await page.route('**/api/changes', (route) => route.fulfill({ json: [] }))
+  await page.route('**/api/commercial/triage/*/autonomous-research', (route) => route.fulfill({ json: { items: [] } }))
   await page.route('**/api/projects/*/buying-chain', (route) => {
     const projectId = new URL(route.request().url()).pathname.split('/')[3]
     return route.fulfill({ json: {
