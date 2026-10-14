@@ -51,6 +51,14 @@ def parse(body):
     return parse_snapshot(body, filename="synthetic.dat", today=date(2026, 9, 30))
 
 
+def test_non_ascii_operator_bytes_parse_without_shifting_fields():
+    body = snapshot(operator="PENA OPERATING LLC").replace(b"PENA", b"PE\xd1A", 1)
+    records = records_from_snapshots([parse(body)])
+    assert len(records) == 1
+    assert records[0]["document_number"] == "0999999"
+    assert "PE\u00d1A OPERATING LLC" in str(records[0])
+
+
 def test_byte_exact_children_and_latest_amendment_have_one_identity():
     original, amendment = snapshot(), snapshot(98, amended="20260912")
     records = records_from_snapshots([parse(original), parse(amendment)])

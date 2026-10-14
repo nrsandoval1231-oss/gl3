@@ -23,7 +23,10 @@ def source_today(now: datetime | None = None) -> date:
 
 
 def _text(row: bytes, first: int, last: int) -> str:
-    return row[first - 1 : last].decode("ascii").strip()
+    # The export is fixed-width single-byte text. Names occasionally carry
+    # non-ASCII bytes (for example an accented operator name); latin-1 maps
+    # every byte to one character so field offsets stay exact.
+    return row[first - 1 : last].decode("latin-1").strip()
 
 
 def _date(value: str) -> str | None:
