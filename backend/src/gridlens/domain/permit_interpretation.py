@@ -217,6 +217,8 @@ def evaluator_version(record: dict[str, Any]) -> str:
         return TCEQ_BATCH_EVALUATOR_VERSION
     if isinstance(permit, dict) and permit.get("source_type") == "california-ceqanet-data-centers":
         return CEQA_EVALUATOR_VERSION
+    if isinstance(permit, dict) and permit.get("source_type") == "fort-worth-development-permits":
+        return FORT_WORTH_EVALUATOR_VERSION
     if isinstance(permit, dict) and permit.get("source_type") == "boston-building-permits":
         return BOSTON_PERMIT_EVALUATOR_VERSION
     return EVALUATOR_VERSION
@@ -560,6 +562,96 @@ def _assess_tceq_batch(
     }
 
 
+FORT_WORTH_EVALUATOR_VERSION = "fort-worth-data-center-permit-v1"
+_RENOVATION = re.compile(r"\b(?:remodel|renovat\w*|interior finish|tenant finish)\b", re.IGNORECASE)
+
+
+def _assess_fort_worth(
+    record: dict[str, Any], permit: dict[str, Any], as_of: date
+) -> dict[str, Any]:
+    facility = str(permit.get("facility") or "").strip()
+    description = str(permit.get("description") or "")
+    subtype = str(permit.get("subtype") or "")
+    status = str(permit.get("status") or "unknown")
+    named = bool(_TCEQ_DATA_CENTER.search(description))
+    substation = bool(re.search(r"\bsubstation\b", description, re.IGNORECASE))
+    # Only new or added floor area, or a substation, is a new load; other subtypes are not.
+    in_scope = subtype.casefold() in {"new", "addition"} or substation
+    renovation = not in_scope or bool(_RENOVATION.search(subtype))
+    terminal = bool(_INELIGIBLE_STATUS.search(status)) or bool(
+        re.search(r"\b(?:denied|rejected)\b", status, re.IGNORECASE)
+    )
+    accepted = bool(
+        named
+        and not renovation
+        and not terminal
+        and record.get("event_date")
+        and permit.get("location")
+    )
+    if accepted:
+        subject = "a data-center substation" if substation else "a new or expanded data center"
+        reason = (
+            f"Fort Worth {permit.get('permit_type')} {permit.get('row_id', '')[4:]} for {subject} "
+            f"({facility}) at {permit.get('location')}, filed {record.get('event_date')}; "
+            f"current status {status}. A filed permit is not an issued permit and does not "
+            "show that construction has started. Declared job value is the applicant's "
+            "estimate. MW, schedule, utility service date and the buyer are unknown unless "
+            "stated in the description."
+        )
+    elif terminal and named:
+        reason = f"Permit status is {status}; a closed or cancelled permit is not an active need."
+    elif renovation:
+        reason = (
+            f"{subtype or 'Unstated'} permit, not new or added data-center floor area or a "
+            "substation; retained as evidence, not a new load."
+        )
+    elif not named:
+        reason = "Permit does not name a data center."
+    else:
+        reason = "Permit lacks a filed date or site."
+    return {
+        "schema_version": 1,
+        "decision": "accepted" if accepted else "rejected",
+        "tier": "Signal" if accepted else None,
+        "reason": reason,
+        "subject": facility if accepted else None,
+        "action": (
+            ("data-center substation permit" if substation else "data-center building permit")
+            if accepted
+            else None
+        ),
+        "location": permit.get("location"),
+        "missing_facts": MISSING,
+        "source_field_citations": permit.get("source_fields", {}),
+        "stable_row_id": permit.get("row_id"),
+        "permit_status": status,
+        "event_date": record.get("event_date"),
+        "event_date_label": record.get("event_date_label"),
+        "issue_date": None,
+        "issue_date_label": None,
+        "project_hint": facility or None,
+        "power_activity": "facility-expansion",
+        "rental_category": "construction-activity-discovery",
+        "reported_claim": facility if accepted else None,
+        "reported_power_facts": _reported_mw_facts(description) if accepted else [],
+        "rental_hypothesis": (
+            "Inferred review question only: will permanent utility service be energized when "
+            "construction or commissioning needs power?"
+            if accepted
+            else None
+        ),
+        "activity_end_date": None,
+        "review_after": None,
+        "as_of_date": as_of.isoformat(),
+        "document_links": permit.get("document_links", {}),
+        "coordinates": (
+            [permit["latitude"], permit["longitude"]]
+            if permit.get("latitude") is not None
+            else None
+        ),
+    }
+
+
 CEQA_EVALUATOR_VERSION = "ceqanet-data-center-v1"
 _CEQA_POLICY_ONLY = re.compile(
     r"\bmoratori|\bordinance\b|zoning (?:code|text) amendment|general plan update",
@@ -847,6 +939,8 @@ def assess_permit(record: dict[str, Any], *, as_of: date | None = None) -> dict[
         return _assess_tceq_batch(record, permit, as_of)
     if permit.get("source_type") == "california-ceqanet-data-centers":
         return _assess_ceqa(record, permit, as_of)
+    if permit.get("source_type") == "fort-worth-development-permits":
+        return _assess_fort_worth(record, permit, as_of)
     if permit.get("source_type") == "georgia-air-draft-title-v":
         return _assess_georgia_air(record, permit, str(permit.get("current_scope") or ""), as_of)
     if permit.get("source_type") == "texas-rrc-drilling-permits":

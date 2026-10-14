@@ -17,6 +17,7 @@ _PERMIT_METHODS = {
     "rrc-drilling-permits",
     "tceq-nsr-pending",
     "tceq-temporary-batch-plants",
+    "fort-worth-permits",
 }
 _ENVIRONMENTAL_REVIEW_FAMILY = "environmental-review-filings"
 _ENVIRONMENTAL_REVIEW_METHODS = {"ceqanet-data-centers"}

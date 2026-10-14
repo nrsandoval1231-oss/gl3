@@ -95,6 +95,7 @@ PERMIT_RETRIEVAL_METHODS = {
     "tceq-nsr-pending",
     "tceq-temporary-batch-plants",
     "ceqanet-data-centers",
+    "fort-worth-permits",
 }
 
 
