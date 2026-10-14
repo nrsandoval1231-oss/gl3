@@ -147,14 +147,31 @@ test('a filing that left its source listing shows a status-review notice in the 
   await expect(page.getByText(/Status review needed: this filing is no longer in the source's current listing/)).toBeVisible()
 })
 
-test('featured pursuit is the highest draft rank and its reasons are shown', async ({ page }) => {
+test('featured pursuit is the highest rank and its reasons are shown', async ({ page }) => {
   await mock(page, [
     { ...opportunity('a', 'Austin, TX'), rank_score: 40, rank_reasons: ['Signal: dated official or published source'] } as Opportunity,
     { ...opportunity('b', 'Dallas, TX'), rank_score: 82, rank_reasons: ['Data-center construction phase', 'Priority geography: DFW'] } as Opportunity,
   ])
   await page.goto('/')
-  await expect(page.getByText(/Highest draft rank · 82/i)).toBeVisible()
+  await expect(page.getByText(/Highest rank · 82/i)).toBeVisible()
   await expect(page.getByText('Data-center construction phase · Priority geography: DFW')).toBeVisible()
   await page.getByRole('button', { name: /Explore this pursuit/ }).click()
-  await expect(page.getByText(/Draft rank 82\/100/)).toBeVisible()
+  await expect(page.getByText(/Rank 82\/100/)).toBeVisible()
+})
+
+test('state lists default to rank order, highest first', async ({ page }) => {
+  await mock(page, [
+    { ...opportunity('a', 'Austin, TX'), rank_score: 30 } as Opportunity,
+    { ...opportunity('b', 'Dallas, TX'), rank_score: 75 } as Opportunity,
+    { ...opportunity('c', 'Houston, TX'), rank_score: 50 } as Opportunity,
+  ])
+  await page.goto('/?view=environment&mode=state&state=Texas')
+  await expect(page.locator('.env-list li')).toHaveText([/Dallas/, /Houston/, /Austin/])
+})
+
+test('featured rank is qualified when only part of the cohort is loaded', async ({ page }) => {
+  const items = Array.from({ length: 205 }, (_, i) => ({ ...opportunity(`n${i}`, 'Austin, TX'), rank_score: i === 3 ? 90 : 20 } as Opportunity))
+  await mock(page, items)
+  await page.goto('/')
+  await expect(page.getByText(/Highest rank of the 200 most recently updated · 90/)).toBeVisible()
 })
