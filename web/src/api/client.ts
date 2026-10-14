@@ -90,9 +90,10 @@ function addBrowseFilters(params: URLSearchParams, filters: OpportunityBrowseFil
   for (const [key, value] of entries) if (value) params.set(key, value)
 }
 
-async function opportunityPage(tier: string, search: string, decision: string, limit: number, offset: number, cohortToken?: string, filters: OpportunityBrowseFilters = {}, signal?: AbortSignal): Promise<OpportunityPage> {
+async function opportunityPage(tier: string, search: string, decision: string, limit: number, offset: number, cohortToken?: string, filters: OpportunityBrowseFilters = {}, signal?: AbortSignal, sort?: 'rank'): Promise<OpportunityPage> {
   const params = new URLSearchParams({ tier, search, decision, limit: String(limit), offset: String(offset) })
   if (cohortToken) params.set('cohort_token', cohortToken)
+  if (sort) params.set('sort', sort)
   addBrowseFilters(params, filters)
   const response = await fetch(`/api/opportunities?${params}`, { credentials: 'same-origin', signal })
   if (response.status === 401) throw new Error('Your session ended. Sign in again.')

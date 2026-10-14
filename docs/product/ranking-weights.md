@@ -20,5 +20,5 @@ Each opportunity shows its score and up to three largest contributing reasons.
 - Each opportunity shows its score and principal reasons.
 - The home view features the highest-ranked loaded record.
 - Lists default to rank order, highest first. Equal or missing ranks keep most-recently-updated order.
-- Rank orders the records already loaded (the most recently updated, up to 200). It does not re-query the full archive by rank; when more records match than are loaded, the home view says "Highest rank of the N most recently updated".
+- `GET /api/opportunities?sort=rank` ranks the whole filtered cohort on the server before paging, so the map's bounded pages are the highest-ranked records. Ranks come from the same detail projection the page displays, computed in batches of 50, so the score shown is the score used for ordering. A rank cohort token also works for group and record drill-downs, which check cohort membership only. The default API order (`sort=updated`) is unchanged for other callers.
 - Weights change only by editing this table and `WEIGHTS` together, with a new version.

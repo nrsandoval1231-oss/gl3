@@ -59,17 +59,18 @@ function evidenceDate(evidence: Opportunity['evidence'][number]) {
   return evidence.published_at ? `Published ${evidence.published_at}` : 'Publication date unknown'
 }
 
-// The API serves at most 50 records per page. Load a bounded number of pages for the map.
+// The API serves at most 50 records per page and ranks the whole filtered cohort before paging,
+// so the bounded pages loaded for the map are the highest-ranked records.
 const PAGE_SIZE = 50
 const MAX_PAGES = 4
 async function loadPages(scene: Scene, signal: AbortSignal): Promise<OpportunityPage> {
   const filters = { industry: scene.lens }
   const tier = scene.tier.slice(0, -1)
-  const first = await client.opportunityPage(tier, scene.search, 'ALL', PAGE_SIZE, 0, undefined, filters, signal)
+  const first = await client.opportunityPage(tier, scene.search, 'ALL', PAGE_SIZE, 0, undefined, filters, signal, 'rank')
   let page = first
   const items = [...first.items]
   for (let n = 1; n < MAX_PAGES && page.nextOffset != null; n += 1) {
-    page = await client.opportunityPage(tier, scene.search, 'ALL', PAGE_SIZE, page.nextOffset, first.cohortToken, filters, signal)
+    page = await client.opportunityPage(tier, scene.search, 'ALL', PAGE_SIZE, page.nextOffset, first.cohortToken, filters, signal, 'rank')
     items.push(...page.items)
   }
   return { ...first, items }
@@ -127,7 +128,7 @@ export function Environment({ onSignOut, today }: { onSignOut: () => void; today
     }).catch(() => setHealth(null))
   }, [])
 
-  // Default order is rank (highest first); equal or missing ranks keep the API's most-recent order.
+  // The API already orders by rank; this keeps rank order if records arrive without it.
   const items = useMemo(
     () => [...(page?.items ?? [])].sort((a, b) => (b.rank_score ?? -1) - (a.rank_score ?? -1)),
     [page],
@@ -223,7 +224,7 @@ export function Environment({ onSignOut, today }: { onSignOut: () => void; today
             <h1 ref={headingRef} tabIndex={-1} className="env-display">A wider view.<br/>A sharper focus.</h1>
             <p className="env-lede">{loading ? 'Loading the national picture…' : `${page?.totalCount ?? 0} ${scene.tier.toLowerCase()}${scene.search ? ` matching “${scene.search}”` : ''} · ${mappedStates} states${unmapped ? ` · ${unmapped} unmapped` : ''}.`} {tierNote}</p>
             {featured ? <div className="env-featured">
-              <p className="env-eyebrow"><span className="env-dot"/>{featured.rank_score != null ? `${page && page.totalCount > items.length ? `Highest rank of the ${items.length} most recently updated` : 'Highest rank'} · ${featured.rank_score}` : 'Most recently updated'} · {featured.tier}</p>
+              <p className="env-eyebrow"><span className="env-dot"/>{featured.rank_score != null ? `Highest rank · ${featured.rank_score}` : 'Most recently updated'} · {featured.tier}</p>
               {featured.rank_reasons && featured.rank_reasons.length > 0 && <p className="env-meta">{featured.rank_reasons.join(' · ')}</p>}
               <h2>{projectTitle(featured)}</h2>
               <p className="env-meta">{featured.location ?? 'Location unknown'} · {readable(featured.activity)}</p>
@@ -269,7 +270,7 @@ export function Environment({ onSignOut, today }: { onSignOut: () => void; today
             <button key={name} type="button" aria-pressed={scene.state === name} onClick={() => go({ mode: 'state', state: name, needId: null })}>{name} <span>{group.length}</span></button>)}
           {unmapped > 0 && <button type="button" onClick={() => go({ mode: 'state', state: UNMAPPED, needId: null })}>No mappable state <span>{unmapped}</span></button>}
         </div>
-        <p className="env-map-note">Markers are counts per state from the current results, not load, confidence or coverage. National scope is not a claim of complete source coverage.{page && page.totalCount > items.length ? ` Showing the ${items.length} most recently updated of ${page.totalCount}.` : ''}</p>
+        <p className="env-map-note">Markers are counts per state from the current results, not load, confidence or coverage. National scope is not a claim of complete source coverage.{page && page.totalCount > items.length ? ` Showing the ${items.length} highest-ranked of ${page.totalCount}.` : ''}</p>
       </section>
     </main>
 

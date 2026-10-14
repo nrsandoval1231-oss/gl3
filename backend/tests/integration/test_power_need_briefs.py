@@ -2051,3 +2051,125 @@ def test_missing_provider_key_and_wrong_project_evidence_fail_closed(runtime, mo
         session.flush()
         with pytest.raises(BriefUnavailable, match="no_current_public_evidence"):
             service.brief_input(session, need_id)
+
+
+def test_rank_sort_orders_the_whole_cohort_before_paging(runtime, monkeypatch):
+    factory, _service, (need_id, _evidence_id) = runtime
+    api = import_module("gridlens.api.app")
+    with factory.begin() as session:
+        first = session.get(PowerNeed, need_id)
+        project = session.get(Project, first.project_id)
+        source = session.get(Source, project.source_id)
+        sibling = PowerNeed(
+            project_id=project.id,
+            activity_key="facility-expansion",
+            tier=first.tier,
+            rationale=first.rationale,
+            supply=first.supply,
+        )
+        observation = Observation(
+            source_id=source.id,
+            external_id="record-rank-sibling",
+            title="Related campus construction record",
+            abstract="A related record.",
+            url="https://example.test/permits/rank-sibling",
+            content_hash="d" * 64,
+        )
+        session.add_all([sibling, observation])
+        session.flush()
+        evidence = Evidence(
+            observation_id=observation.id,
+            content_hash=observation.content_hash,
+            title=observation.title,
+            abstract=observation.abstract,
+            url=observation.url,
+            extraction_location="permit description",
+        )
+        interpretation = Interpretation(
+            observation_id=observation.id,
+            content_hash=observation.content_hash,
+            evaluator_version="browse-test",
+            status="accepted",
+            assessment={
+                "semantic_hash": observation.content_hash,
+                "evidence_hash": evidence.content_hash,
+                "project_identity_key": project.identity_key,
+                "power_activity": sibling.activity_key,
+                "decision": "accepted",
+                "subject": project.name,
+                "location": project.location,
+            },
+        )
+        session.add_all([evidence, interpretation])
+        session.flush()
+        session.add(NeedObservation(need_id=sibling.id, observation_id=observation.id))
+        # The sibling is older, so the default order puts it second.
+        first.updated_at = datetime(2026, 10, 7, 12, tzinfo=UTC)
+        sibling.updated_at = datetime(2026, 10, 7, 11, tzinfo=UTC)
+        sibling_id = sibling.id
+
+    scores = {str(sibling_id): 90, str(need_id): 10}
+    seen_chains = []
+
+    def fake_rank(item, chain, today):
+        seen_chains.append(chain)
+        score = scores[str(item["id"])]
+        return {"rank_score": score, "rank_reasons": [f"score {score}"], "rank_version": "t"}
+
+    monkeypatch.setattr(api, "rank_opportunity", fake_rank)
+
+    updated_response = Response()
+    updated = api.opportunities(
+        tier="Signal", limit=1, offset=0, cohort=None, response=updated_response
+    )
+    assert str(updated[0]["id"]) == str(need_id)
+
+    ranked_response = Response()
+    ranked = api.opportunities(
+        tier="Signal", limit=1, offset=0, cohort=None, response=ranked_response, sort="rank"
+    )
+    # The older but higher-ranked record leads, and the shown score is the ordering score.
+    assert str(ranked[0]["id"]) == str(sibling_id)
+    assert ranked[0]["rank_score"] == 90
+    assert ranked_response.headers["X-Cohort-Token"] != updated_response.headers["X-Cohort-Token"]
+
+    second = api.opportunities(
+        tier="Signal",
+        limit=1,
+        offset=1,
+        cohort=ranked_response.headers["X-Cohort-Token"],
+        response=Response(),
+        sort="rank",
+    )
+    assert str(second[0]["id"]) == str(need_id) and second[0]["rank_score"] == 10
+    with pytest.raises(HTTPException) as mixed:
+        api.opportunities(
+            tier="Signal",
+            limit=1,
+            offset=1,
+            cohort=ranked_response.headers["X-Cohort-Token"],
+            response=Response(),
+        )
+    assert mixed.value.status_code == 409
+    # Record detail validates cohort membership, so it accepts the rank cohort's token.
+    detail = api.opportunity_need_detail(
+        need_id=sibling_id, tier="Signal", cohort_token=ranked_response.headers["X-Cohort-Token"]
+    )
+    assert str(detail["id"]) == str(sibling_id)
+
+
+def test_rank_sort_scores_match_the_displayed_detail_rank(runtime):
+    _factory, _service, (need_id, _evidence_id) = runtime
+    api = import_module("gridlens.api.app")
+    updated = api.opportunities(tier="Signal", limit=50, offset=0, cohort=None, response=Response())
+    ranked = api.opportunities(
+        tier="Signal", limit=50, offset=0, cohort=None, response=Response(), sort="rank"
+    )
+    by_id = {str(item["id"]): item for item in updated}
+    assert ranked and str(need_id) in by_id
+    for item in ranked:
+        canonical = by_id[str(item["id"])]
+        assert (item["rank_score"], item["rank_reasons"]) == (
+            canonical["rank_score"],
+            canonical["rank_reasons"],
+        )

@@ -2863,6 +2863,7 @@ export interface operations {
                 mw_max?: string | null;
                 priority_segment?: string | null;
                 status?: ("UNKNOWN" | "NEW" | "INVESTIGATING" | "CONTACTED" | "QUALIFIED" | "WON" | "LOST" | "CLOSED") | null;
+                sort?: "updated" | "rank";
             };
             header?: never;
             path?: never;
