@@ -65,7 +65,7 @@ export function AutonomousResearch({ needId, readOnly = false, readOnlyLabel }: 
     }
   }
   const pending = data?.items.filter(active) ?? []
-  return <section className="commercial-action" aria-label="Autonomous pursuit research">
+  return <section className="commercial-action" aria-label="Autonomous pursuit research" data-context-loading={!data && !error}>
     <h3>Missing facts · autonomous research</h3>
     <p>Bounded public research with evidence admission and deterministic reevaluation. No commercial outreach occurs.</p>
     {readOnly && data && <p>{readOnlyLabel ?? 'Read-only research history for this power need, including attempts after the saved evaluation above.'}</p>}
@@ -86,7 +86,7 @@ function Question({ question }: { question: ResearchQuestion }) {
   const before = record(context.before)
   const facts = Array.isArray(context.known_facts) ? context.known_facts.map(record) : []
   const queries = receipt.queries_generated?.length ? receipt.queries_generated : strings(context.queries)
-  return <article className="commercial-note" aria-label={`Research question: ${question.question}`}>
+  return <article className="commercial-note" aria-label={`Research question: ${question.question}`} data-context-owner={`research:${question.id}`}>
     <h4>{question.question}</h4>
     <p><b>{question.status.replaceAll('_', ' ')}</b> · Attempt {question.attempt_count} · Created {date(question.created_at)}{question.completed_at && ` · Completed ${date(question.completed_at)}`}</p>
     {typeof context.why === 'string' && <p>{context.why}</p>}
