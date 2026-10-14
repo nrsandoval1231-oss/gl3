@@ -30,6 +30,7 @@ RESOURCES = {
 }
 MAX_BYTES = 6_000_000
 MAX_ROWS = 500
+REQUIRED_FIELDS = {"PERMIT #", "PERMIT TYPE", "PROJECT NAME", "DATE SUBMITTED", "DATE ISSUED"}
 DATA_CENTER = re.compile(r"\bdata\s*cent(?:er|re)s?\b|\bhyperscale\b", re.IGNORECASE)
 
 
@@ -78,6 +79,10 @@ def parse_rows(body: bytes) -> list[dict[str, Any]]:
     for row in records:
         if not isinstance(row, dict) or not _text(row.get("PERMIT #")):
             raise SourceParseError("San Antonio permit row is malformed or lacks a number")
+        # A renamed or dropped column would otherwise filter every row out silently.
+        missing = REQUIRED_FIELDS - set(row)
+        if missing:
+            raise SourceParseError(f"San Antonio permit row lacks {sorted(missing)}")
     return records
 
 
@@ -190,7 +195,8 @@ def retrieve(
     window = int(source.get("query", {}).get("window_days", 0))
     if not 1 <= window <= 90:
         raise SourceParseError("San Antonio permit window is invalid")
-    start = ((today or date.today()) - timedelta(days=window)).isoformat()
+    run_day = today or date.today()
+    start = (run_day - timedelta(days=window)).isoformat()
     http = client or httpx.Client(timeout=25, follow_redirects=False)
     try:
         permits: dict[str, dict[str, Any]] = {}
@@ -199,11 +205,18 @@ def retrieve(
             _, body = read_bounded_response(http, search_url(stage), MAX_BYTES)
             for permit in group_permits(parse_rows(body), stage):
                 permits[permit["permit_no"]] = permit
+        matched = [permit for permit in permits.values() if DATA_CENTER.search(permit["project"])]
+        future = [
+            permit["permit_no"]
+            for permit in matched
+            if max(permit["issued"] or "", permit["submitted"] or "") > run_day.isoformat()
+        ]
+        if future:
+            raise SourceParseError(f"San Antonio permits are dated after the run date: {future}")
         return [
             record(permit)
-            for permit in permits.values()
-            if DATA_CENTER.search(permit["project"])
-            and max(permit["issued"] or "", permit["submitted"] or "") >= start
+            for permit in matched
+            if max(permit["issued"] or "", permit["submitted"] or "") >= start
         ]
     finally:
         if client is None:

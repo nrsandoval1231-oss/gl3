@@ -71,3 +71,21 @@ def test_retrieve_keeps_window_and_names_and_fails_on_partial_pages():
         parse_rows(json.dumps(partial).encode())
     with pytest.raises(SourceParseError, match="malformed"):
         parse_rows(json.dumps({"success": True, "result": {"records": [1], "total": 1}}).encode())
+
+
+def test_missing_columns_and_future_dates_fail_the_run():
+    renamed = json.loads(ISSUED)
+    for row in renamed["result"]["records"]:
+        row["PROJECT_NAME"] = row.pop("PROJECT NAME")
+    with pytest.raises(SourceParseError, match="PROJECT NAME"):
+        parse_rows(json.dumps(renamed).encode())
+    future = json.loads(ISSUED)
+    future["result"]["records"][2]["DATE ISSUED"] = "2027-01-01"
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        url = str(request.url)
+        body = json.dumps(future).encode() if RESOURCES["issued"] in url else APPLICATIONS
+        return httpx.Response(200, content=body)
+
+    with pytest.raises(SourceParseError, match="after the run date"):
+        retrieve(SOURCE, httpx.Client(transport=httpx.MockTransport(handler)), today=TODAY)
