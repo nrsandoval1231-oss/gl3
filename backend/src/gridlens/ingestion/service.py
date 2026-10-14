@@ -1756,13 +1756,14 @@ def process_job(
     )
     if source_definition.get("snapshot_complete"):
         assert_fence(session, job_id, worker_id, fence)
-        counts.update(
-            reconcile_snapshot(
-                session,
-                source_definition["id"],
-                {str(record["document_number"]) for record in retrieved},
-            )
+        transitions = reconcile_snapshot(
+            session,
+            source_definition["id"],
+            {str(record["document_number"]) for record in retrieved},
         )
+        counts.update(transitions)
+        # A listing departure or return is a source change; health must not read "No Change".
+        counts["changed"] = counts.get("changed", 0) + sum(transitions.values())
         session.commit()
     return counts
 

@@ -111,6 +111,11 @@ def test_absence_is_recorded_once_and_return_is_recorded(db):
         assert reconcile_snapshot(session, SOURCE, {"a", "b"})["returned_to_snapshot"] == 1
         assert absent_need_ids(session, list(needs.values())) == set()
         assert kinds(session) == [(ABSENT, True), (RETURNED, True)]
+        states = [
+            (event.prior_state["listed"], event.new_state["listed"])
+            for event in session.scalars(select(ChangeEvent).order_by(ChangeEvent.id))
+        ]
+        assert states == [(True, False), (False, True)]
     with factory.begin() as session:
         # A second departure is a new, distinct event.
         assert reconcile_snapshot(session, SOURCE, {"a"})["absent_from_snapshot"] == 1
@@ -133,7 +138,8 @@ def test_process_job_reconciles_only_declared_complete_snapshots(db, monkeypatch
     monkeypatch.setattr(
         service,
         "process_records",
-        lambda _s, _j, _w, _f, _d, records, client=None: seen.append(records) or {"new": 0},
+        lambda _s, _j, _w, _f, _d, records, client=None: seen.append(records)
+        or {"new": 0, "changed": 0},
     )
     definition = {"id": SOURCE, "retrieval_method": "georgia-air-permits"}
     with factory() as session:
@@ -151,5 +157,5 @@ def test_process_job_reconciles_only_declared_complete_snapshots(db, monkeypatch
         counts = service.process_job(
             session, job_id, "test", 1, {**definition, "snapshot_complete": True}
         )
-        assert counts["absent_from_snapshot"] == 1
+        assert counts["absent_from_snapshot"] == 1 and counts["changed"] == 1
         assert absent_need_ids(session, list(needs.values())) == {needs["b"]}

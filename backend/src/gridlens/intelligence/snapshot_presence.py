@@ -92,7 +92,7 @@ def reconcile_snapshot(
                 project_id=project_id,
                 evidence_id=evidence.id if evidence else None,
                 field_name="source_listing",
-                prior_state={"listed": kind == RETURNED},
+                prior_state={"listed": kind == ABSENT},
                 new_state={"listed": kind == RETURNED, "source_id": source_id},
                 material=evidence is not None,
                 replay_key=hashlib.sha256(

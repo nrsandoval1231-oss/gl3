@@ -25,3 +25,18 @@ test('a filing that left its source listing is flagged for status review, not hi
   await page.goto('/?tier=Signals')
   await expect(page.getByText('Signal · status review: no longer listed')).toBeVisible()
 })
+
+test('a grouped card shows the review flag when any member left its listing', async ({ page }) => {
+  const sibling = { ...absent, id: 'listed', name: 'Test filing', signal_evidence_state: 'active_evidence' } as unknown as Opportunity
+  await page.route('**/api/**', async (route) => {
+    const path = new URL(route.request().url()).pathname
+    if (!path.startsWith('/api/')) return route.continue()
+    const body = path === '/api/auth/session' ? { authenticated: true }
+      : path === '/api/opportunities' ? [sibling, absent]
+        : path === '/api/health' ? { sources: [], backlog: 0, pending_interpretations: 0 }
+          : []
+    await route.fulfill({ contentType: 'application/json', body: JSON.stringify(body) })
+  })
+  await page.goto('/?tier=Signals')
+  await expect(page.getByText('Signal · status review: no longer listed')).toBeVisible()
+})
