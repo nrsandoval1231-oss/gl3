@@ -65,6 +65,13 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
             "ma-cultivation-applications": {"masscannabiscontrol.com"},
             "taylor-newsflash": {"taylortx.gov"},
         }
+        # Only adapters that return every listed row or fail may declare a complete snapshot;
+        # absence from such a snapshot is then a reviewable status change.
+        if source.get("snapshot_complete") and source["retrieval_method"] not in {
+            "georgia-air-permits",
+            "tceq-nsr-pending",
+        }:
+            raise ValueError("Source cannot declare a complete snapshot")
         if source["id"] in ids or urlparse(source["endpoint"]).hostname not in allowed_hosts.get(
             source["retrieval_method"], set()
         ):

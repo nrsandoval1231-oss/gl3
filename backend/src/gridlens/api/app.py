@@ -77,6 +77,7 @@ from gridlens.intelligence.opportunity_browse import (
 )
 from gridlens.intelligence.project_state import project_state as read_project_state
 from gridlens.intelligence.signal_adjudication import POLICY_VERSION, adjudicate_current_signals
+from gridlens.intelligence.snapshot_presence import absent_need_ids
 from gridlens.jobs.queue import enqueue
 from gridlens.persistence.database import SessionLocal
 from gridlens.persistence.models import (
@@ -2812,6 +2813,7 @@ def opportunity_projection(
     from gridlens.ingestion.service import load_current_need_operator_inputs
 
     fact_rows_by_need, workflow_by_need = load_current_need_operator_inputs(session, need_ids)
+    absent_needs = absent_need_ids(session, need_ids)
     sources = {source.id: source for source in session.scalars(select(Source))}
     lifecycle_by_project = {
         life.project_id: life
@@ -3165,6 +3167,8 @@ def opportunity_projection(
                     if taylor_withdrawn
                     else "planning_status_unknown"
                     if taylor_identity_conflict
+                    else "source_listing_absent"
+                    if need.id in absent_needs
                     else "active_evidence"
                 ),
                 "required_mw": effective["required_mw"],
@@ -3172,7 +3176,13 @@ def opportunity_projection(
                 "start_window": effective["start_window"],
                 "duration": effective["duration"],
                 "supply": effective["supply"],
-                "next_action": effective.get("qualification_next_action")
+                "next_action": (
+                    "Status review: this filing is no longer in the source's current listing "
+                    "(it may have been issued, denied or withdrawn). Confirm its status first."
+                    if need.id in absent_needs
+                    else None
+                )
+                or effective.get("qualification_next_action")
                 or (
                     "Confirm timing, duration, and remaining suitable supply for this activity."
                     if effective["tier"] == "Prospect"

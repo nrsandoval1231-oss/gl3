@@ -128,3 +128,7 @@ Nick decided:
 - **First Lead path:** Nick will make 3–5 discovery calls on the strongest current Signals. Facts he confirms enter as attributed User-confirmed evidence (Requirement 30); they do not bypass the Lead gate.
 
 The build sequence is in [delivery/build-plan.md](delivery/build-plan.md).
+
+## October 14, 2026 — records that leave a complete source listing
+
+Sources whose adapter returns every listed row or fails may set `snapshot_complete` in the registry (allowed for `georgia-air-permits` and `tceq-nsr-pending`). After each successful run of such a source, a stored record missing from the listing gets a dated `absent_from_source` change event, and `returned_to_source` if it reappears. Evidence, interpretations and needs are not deleted or closed: leaving a pending listing can mean issued, denied or withdrawn. The need is shown with a status-review flag (`signal_evidence_state: source_listing_absent`) and a status-review next action. Rolling-window city permit feeds do not opt in, because aging out of a window is not a status change.

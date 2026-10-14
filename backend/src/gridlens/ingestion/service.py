@@ -62,6 +62,7 @@ from gridlens.intelligence.project_identity import (
 )
 from gridlens.intelligence.signal_adjudication import POLICY_VERSION
 from gridlens.intelligence.signal_adjudication import adjudicate as adjudicate_signal
+from gridlens.intelligence.snapshot_presence import reconcile_snapshot
 from gridlens.jobs.queue import assert_fence
 from gridlens.persistence.models import (
     BuyingChainEvidence,
@@ -1741,14 +1742,28 @@ def process_job(
     source_definition: dict[str, Any],
     client: httpx.Client | None = None,
 ) -> dict[str, Any]:
-    records = retrieve_source(source_definition, client)
+    retrieved = retrieve_source(source_definition, client)
+    # Presence-only rows are listed by the source but withheld from processing this run
+    # (for example, enrichment failed). They still count as present in the snapshot.
+    records = [record for record in retrieved if not record.get("presence_only")]
     if source_definition.get("retrieval_method") == "publisher-rss":
         return _process_collection_only(
             session, job_id, worker_id, fence, source_definition, records
         )
-    return process_records(
+    counts = process_records(
         session, job_id, worker_id, fence, source_definition, records, client=client
     )
+    if source_definition.get("snapshot_complete"):
+        assert_fence(session, job_id, worker_id, fence)
+        counts.update(
+            reconcile_snapshot(
+                session,
+                source_definition["id"],
+                {str(record["document_number"]) for record in retrieved},
+            )
+        )
+        session.commit()
+    return counts
 
 
 def process_records(
