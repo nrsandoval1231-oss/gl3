@@ -24,3 +24,4 @@ playwright-report/
 .firecrawl/
 *.egg-info/
 .env.prod
+web/pw.local.tmp.config.ts
