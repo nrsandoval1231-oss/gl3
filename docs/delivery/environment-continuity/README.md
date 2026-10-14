@@ -84,3 +84,11 @@ Next slice: bring browsing and commercial pursuits into this canonical
 navigation environment, preserving independent tier, rank, disposition, workflow
 status, and retained evidence. Reuse this restoration/draft model rather than
 consolidating the whole shell in one change.
+
+## Pre-merge review fixes
+
+Authenticated-session rejection (including API 401 responses) now clears private
+continuity state, as does explicit logout. Failed snapshot replacements invalidate
+the older stored value so refresh cannot present outdated input as current.
+Both review findings were reproduced before repair. After repair, the environment
+browser suite passed all 30 tests; typecheck, build, and diff check passed.

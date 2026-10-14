@@ -67,7 +67,7 @@ export type CommercialResearchStatus = components['schemas']['CommercialResearch
 
 async function api<T>(path: string, init?: RequestInit, includeSafeDetail = false): Promise<T> {
   const response = await fetch(path, { ...init, credentials: 'same-origin', headers: { 'content-type': 'application/json', ...init?.headers } })
-  if (response.status === 401) throw new Error('Your session ended. Sign in again.')
+  if (response.status === 401) { clearContinuity(); throw new Error('Your session ended. Sign in again.') }
   if (!response.ok) {
     if (includeSafeDetail) {
       try {
@@ -97,7 +97,7 @@ async function opportunityPage(tier: string, search: string, decision: string, l
   if (sort) params.set('sort', sort)
   addBrowseFilters(params, filters)
   const response = await fetch(`/api/opportunities?${params}`, { credentials: 'same-origin', signal })
-  if (response.status === 401) throw new Error('Your session ended. Sign in again.')
+  if (response.status === 401) { clearContinuity(); throw new Error('Your session ended. Sign in again.') }
   if (response.status === 409) throw new OpportunityCohortChangedError()
   if (!response.ok) throw new Error(`GridLens could not complete this request (${response.status}).`)
   const items = await response.json() as Opportunity[]
@@ -147,7 +147,7 @@ async function opportunityNeed(needId: string, scope?: OpportunityNeedScope, sig
     credentials: 'same-origin',
     signal,
   })
-  if (response.status === 401) throw new Error('Your session ended. Sign in again.')
+  if (response.status === 401) { clearContinuity(); throw new Error('Your session ended. Sign in again.') }
   if (response.status === 409) throw new OpportunityCohortChangedError()
   if (response.status === 404) throw new OpportunityNeedUnavailableError()
   if (!response.ok) throw new Error(`GridLens could not complete this request (${response.status}).`)
@@ -170,7 +170,10 @@ export const client = {
   commercialResearchStatus: (needId: string, question: string, signal?: AbortSignal) => api<CommercialResearchStatus>(`/api/commercial/triage/${encodeURIComponent(needId)}/research?${new URLSearchParams({ question }).toString()}`, { signal }, true),
   autonomousResearch: (needId: string, signal?: AbortSignal) => api<AutonomousResearch>(`/api/commercial/triage/${encodeURIComponent(needId)}/autonomous-research`, { signal }, true),
   refreshAutonomousResearch: (needId: string, force: boolean, signal?: AbortSignal) => api<AutonomousResearch>(`/api/commercial/triage/${encodeURIComponent(needId)}/autonomous-research`, { method: 'POST', body: JSON.stringify({ force }), signal }, true),
-  session: () => api<{ authenticated: boolean }>('/api/auth/session'),
+  session: () => api<{ authenticated: boolean }>('/api/auth/session').then((session) => {
+    if (!session.authenticated) clearContinuity()
+    return session
+  }),
   login: (password: string) => api<{ authenticated: boolean }>('/api/auth/login', { method: 'POST', body: JSON.stringify({ password }) }),
   logout: () => api('/api/auth/logout', { method: 'POST' }).finally(clearContinuity),
   opportunityPage,
