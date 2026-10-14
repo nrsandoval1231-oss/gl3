@@ -6,6 +6,8 @@ import { CommercialPursuits } from '../features/pursuits/CommercialPursuits'
 import { FactWorkflowPanel } from '../features/pursuits/FactWorkflowPanel'
 
 import { BuyingChain } from '../features/buyingChain/BuyingChain'
+import { Environment } from '../features/environment/Environment'
+import '../features/environment/environment.css'
 
 const tiers = ['Signals', 'Prospects', 'Leads'] as const
 type Tier = typeof tiers[number]
@@ -118,7 +120,7 @@ function sourceDateLabel(evidence: Opportunity['evidence'][number], showPublicat
   return evidence.published_at ? `Published ${evidence.published_at}` : 'Publication date unknown'
 }
 
-function CommercialTodayEntry({ onOpen }: { onOpen: () => void }) {
+export function CommercialTodayEntry({ onOpen }: { onOpen: () => void }) {
   const [triage, setTriage] = useState<Awaited<ReturnType<typeof client.commercialTriage>> | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -151,7 +153,7 @@ function CommercialTodayEntry({ onOpen }: { onOpen: () => void }) {
   </section>
 }
 
-export function App() {
+function WorkspaceApp() {
   const [authenticated, setAuthenticated] = useState<boolean | null>(null)
   const [password, setPassword] = useState('')
   const [tier, setTier] = useState<Tier>('Signals')
@@ -789,4 +791,37 @@ function OpportunityDetail({ item, onReadback }: { item: Opportunity; onReadback
   const statements = [...(content?.event_summary ?? []), ...(content?.commercial_hypothesis ? [content.commercial_hypothesis] : [])]
   const briefSection = <section className="detail-section brief-panel"><div className="evidence-heading"><div><p className="eyebrow">AI-assisted · source cited</p><h3>Concise evidence brief</h3></div><span>{brief?.status === 'pending' ? 'Generation pending' : brief?.status === 'stale' ? 'Stale evidence' : brief?.status === 'failed' ? 'Latest request failed' : brief?.generated_at ? `Generated ${new Date(brief.generated_at).toLocaleString()}` : 'Not generated'}</span></div>{brief?.status === 'pending' && <p role="status">Generating from retained public evidence…</p>}{briefError && <p className="error" role="alert">{briefError}</p>}{brief?.error && <p className="integrity">The last request could not produce a new brief. Any displayed brief is the last successfully generated version.</p>}{brief?.stale && <p className="integrity">Source evidence or brief settings changed after generation. This cached text is stale.</p>}{statements.map((statement, index) => { const citation = (brief?.citations ?? []).find((item) => item.evidence_id === statement.evidence_id); return <p key={`${statement.evidence_id}-${index}`}>{statement.text} {citation && <a href={citation.url} target="_blank" rel="noreferrer">[{citation.title}]</a>}</p> })}{content?.unknowns && content.unknowns.length > 0 && <><strong>Unknown</strong><ul>{content.unknowns.map((fact) => <li key={fact}>{fact}</li>)}</ul></>}{content?.next_step && <p><strong>Next verification step:</strong> {content.next_step}</p>}{!statements.length && brief?.status !== 'pending' && <p>The brief has not been generated.</p>}<button type="button" disabled={briefBusy || brief?.status === 'pending'} onClick={() => void requestBrief()}>{briefBusy ? 'Requesting…' : brief?.status === 'ready' ? 'Refresh brief' : 'Generate or retry brief'}</button></section>
   return <article className="detail">{briefSection}<FactWorkflowPanel key={item.id} item={item} onReadback={onReadback}/><div className="detail-summary"><div><span className="tier-pill">{item.tier}</span>{item.signal_admission_origin && <p>{item.signal_admission_origin}</p>}<p className="eyebrow">{item.activity.replaceAll('-', ' ')}</p><h2>{projectTitle(item)}</h2><p className="location">{item.location ?? 'Location unknown'}</p></div><div className="unknown-grid"><div><span>Required power</span><strong>{item.required_mw ?? 'Unknown'}</strong></div><div><span>Start</span><strong>{item.start_window ?? 'Unknown'}</strong></div><div><span>Duration</span><strong>{item.duration ?? 'Unknown'}</strong></div><div><span>Suitable supply</span><strong>{item.supply}</strong></div></div></div>{item.lifecycle_state && <section className="detail-section lifecycle"><p className="eyebrow">Asset lifecycle · separate from {item.tier} tier</p><h3>{(item.asset_type ?? 'unknown').replaceAll('_', ' ')} · {item.lifecycle_state.replaceAll('_', ' ')}</h3><p><strong>Expected next milestone:</strong> {item.expected_next_milestone ?? 'Unknown'}</p><p><strong>Expected power event:</strong> {item.expected_power_event ?? 'Unknown'}</p><p><strong>{item.asset_type === 'upstream_well' ? 'Estimated first production window' : 'Estimated lifecycle window'}:</strong> {item.time_to_power_window ?? 'Unknown'}</p>{item.estimate_version && <p className="integrity">Derived estimate · {item.estimate_version} · {String(item.estimate_basis?.confidence ?? 'confidence unknown')}. This is not a reported date, power requirement, or power gap.</p>}{(item.lifecycle_timeline?.length ?? 0) > 0 && <ol>{item.lifecycle_timeline?.map((event, index) => <li key={`${event.event_type}-${index}`}><a href={event.evidence_url} target="_blank" rel="noreferrer">{event.date ?? 'Date unknown'} · {event.state.replaceAll('_', ' ')}</a> <span>({event.value_kind}{event.current ? '' : ', superseded'}{event.published_at ? ` · published ${event.published_at}` : ''})</span></li>)}</ol>}{(item.monitoring_requirements?.length ?? 0) > 0 && <p><strong>Monitoring:</strong> {item.monitoring_requirements?.join(' · ')}</p>}{(item.lifecycle_open_questions?.length ?? 0) > 0 && <p><strong>Lifecycle evidence still missing:</strong> {item.lifecycle_open_questions?.join(' · ')}</p>}</section>}<section className="detail-section"><p className="eyebrow">Evidence-based assessment</p><p>{item.assessment_reason ?? item.rationale}</p>{item.supported_subject && <p>Supported subject: {item.supported_subject}{item.supported_action ? ` · ${item.supported_action}` : ''}</p>}{item.demand_quote && <blockquote>{item.demand_quote}</blockquote>}{item.supply_quote && <blockquote>{item.supply_quote}</blockquote>}{Boolean(item.reported_power_facts?.length) && <><p>Reported power figures (source claims; not rental requirements)</p><ul>{item.reported_power_facts?.map((fact, index) => <li key={`${index}-${fact}`}>{fact}</li>)}</ul></>}{item.tier === 'Signal' && <p className="integrity">Power need is not established. A Signal does not imply a power gap.</p>}</section><>{item.project_id && <BuyingChain key={item.project_id} projectId={item.project_id}/>}</><section className="detail-section"><p className="eyebrow">Next action</p><p>{item.next_action}</p></section><section className="detail-section"><div className="evidence-heading"><div><p className="eyebrow">Source evidence</p><h3>{item.evidence.length} {item.evidence.length === 1 ? 'record' : 'records'}</h3></div><span>Conflicts: {item.conflict_state}</span></div>{item.evidence.map((evidence) => <div className="evidence" key={`${evidence.document_number}-${evidence.content_hash}`}><h4><a href={evidence.url} target="_blank" rel="noreferrer">{evidence.title}</a></h4>{!evidence.assessment_current && <p className="integrity">{evidence.source_id === 'georgia-air-draft-title-v' ? 'Retained filing or supporting document; the current interpretation is bound to its parent filing version.' : 'Historical evidence version; the current assessment is bound to another retained version.'}</p>}<div className="evidence-meta"><span>{evidence.source_id === 'georgia-air-draft-title-v' ? `${evidence.event_date_label}: ${evidence.event_date ?? 'unknown'} · publication date unknown` : evidence.source_id.endsWith('-building-permits') ? `Permit issue date ${evidence.event_date ?? 'unknown'} · source publication time unknown` : evidence.published_at ? `Published ${evidence.published_at}` : 'Publication date unknown'}</span><span>Retrieved {new Date(evidence.retrieved_at).toLocaleString()}</span><span>{evidence.source_id === 'georgia-air-draft-title-v' ? `${evidence.event_date_label}: ${evidence.event_date ?? 'unknown'}` : `${evidence.source_id.endsWith('-building-permits') ? 'Permit event date' : 'Described event'}: ${evidence.source_id.endsWith('-building-permits') ? evidence.event_date ?? 'Unknown' : evidence.event_date_label}`}</span><span>{evidence.source_origin ?? 'Source evidence'} · {evidence.extraction_location}</span><span>{evidence.source_id} · {evidence.document_number} · {evidence.content_hash.slice(0, 12)}</span></div><p>{(evidence.source_id === 'texas-rrc-drilling-permits' ? evidence.abstract?.split('\nOpaque source bytes (base64; not interpreted): ')[0] : evidence.abstract) ?? 'No abstract provided by the source.'}</p></div>)}</section>{stillUnknown.length > 0 && <section className="detail-section missing"><h3>Still unknown</h3><ul>{stillUnknown.map((fact) => <li key={fact}>{missingFactLabels[missingFactCategory(fact)] ?? fact}</li>)}</ul></section>}</article>
+}
+
+function isEnvironmentUrl() {
+  const params = new URLSearchParams(location.search)
+  return params.get('view') === 'environment' || (params.size === 0 && !location.hash)
+}
+
+function EnvironmentRoot() {
+  const [authenticated, setAuthenticated] = useState<boolean | null>(null)
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  useEffect(() => {
+    void client.session().then((value) => setAuthenticated(value.authenticated)).catch(() => setAuthenticated(false))
+  }, [])
+  async function onLogin(event: FormEvent) {
+    event.preventDefault()
+    try {
+      await client.login(password)
+      setPassword('')
+      setError('')
+      setAuthenticated(true)
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Sign-in failed.')
+    }
+  }
+  if (authenticated === null) return <main className="loading" aria-live="polite">Loading your private workspace…</main>
+  if (!authenticated) return <main className="login-wrap"><form className="login" onSubmit={onLogin}><img src="/brand/lockup-horizontal-navy.svg" alt="GridLens"/><h1>Sign in</h1><p>Your private GridLens workspace.</p><label htmlFor="password">Password</label><input id="password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required/><button className="primary">Continue</button>{error && <p role="alert" className="error">{error}</p>}</form></main>
+  return <Environment today={<CommercialTodayEntry onOpen={() => location.assign('/?view=pursuits')}/>} onSignOut={() => { void client.logout().finally(() => setAuthenticated(false)) }}/>
+}
+
+export function App() {
+  const [environment] = useState(isEnvironmentUrl)
+  return environment ? <EnvironmentRoot/> : <WorkspaceApp/>
 }
