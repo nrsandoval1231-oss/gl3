@@ -258,6 +258,11 @@ def _record(row: dict[str, Any], summary: dict[str, Any] | None) -> dict[str, An
     }
 
 
+def _presence_only(row: dict[str, Any]) -> dict[str, Any]:
+    """Listed this run but withheld from processing; keeps snapshot reconciliation exact."""
+    return {"document_number": f"TCEQ-{row['project']}", "presence_only": True}
+
+
 def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list[dict[str, Any]]:
     if source.get("id") != SOURCE_ID or source.get("endpoint") != LISTING_URL:
         raise SourceParseError("TCEQ source ID or endpoint is not configured")
@@ -280,6 +285,7 @@ def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list
                 records.append(_record(row, None))
                 continue
             if attempted >= max_summaries:
+                records.append(_presence_only(row))
                 continue
             attempted += 1
             permit = row["permits"][0]
@@ -290,6 +296,7 @@ def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list
                 records.append(_record(row, parse_summary(pdf, permit)))
             except (httpx.HTTPError, SourceParseError, ValueError):
                 failed += 1
+                records.append(_presence_only(row))
         if attempted and failed * 2 > attempted:
             raise SourceParseError(
                 f"TCEQ summaries failed for {failed} of {attempted} relevant filings"

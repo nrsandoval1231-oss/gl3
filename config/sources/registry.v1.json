@@ -200,6 +200,7 @@
       "geography": "Georgia",
       "industries": ["data centers", "energy", "manufacturing", "industrial facilities"],
       "retrieval_method": "georgia-air-permits",
+      "snapshot_complete": true,
       "cadence_hours": 24,
       "publication_cadence": "Current public draft-permit listing (Title V, SIP, synthetic minor); publication date unknown; source-stated application date or comment deadline labeled separately",
       "collection_scope": "Georgia EPD current draft Title V, SIP and synthetic-minor listing; narratives and draft permits including bounded generator schedule excerpts and draft front-page facility identity; application links retained when present.",
@@ -455,6 +456,7 @@
         "oil and gas"
       ],
       "retrieval_method": "tceq-nsr-pending",
+      "snapshot_complete": true,
       "cadence_hours": 24,
       "publication_cadence": "Current pending New Source Review application listing; publication date unknown; TCEQ received date labeled separately",
       "collection_scope": "All rows of the statewide pending NSR application listing; Plain Language Summary PDFs fetched only for data-center or power-generation filings, newest first, bounded per run.",

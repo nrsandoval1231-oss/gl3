@@ -140,3 +140,9 @@ test('Back restores the previous lens after a nation-level change', async ({ pag
   await back.click()
   await expect(page.getByLabel('Tier')).toHaveValue('Signals')
 })
+
+test('a filing that left its source listing shows a status-review notice in the project view', async ({ page }) => {
+  await mock(page, [{ ...opportunity('a', 'Austin, TX'), signal_evidence_state: 'source_listing_absent' } as Opportunity])
+  await page.goto('/?view=environment&mode=project&state=Texas&need=a')
+  await expect(page.getByText(/Status review needed: this filing is no longer in the source's current listing/)).toBeVisible()
+})
