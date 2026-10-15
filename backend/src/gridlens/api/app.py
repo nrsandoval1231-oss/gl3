@@ -5045,3 +5045,20 @@ def commercial_research_status(need_id: UUID, question: str = Query(..., min_len
             "error": None,
         }
 
+
+
+@app.get("/api/editorial/candidates", dependencies=[Depends(require_session)])
+def editorial_candidates(response: Response):
+    """Only explicitly cleared public evidence; never a pursuit/database dump."""
+    from pathlib import Path
+
+    from gridlens.intelligence.editorial import export_editorial
+
+    response.headers["Cache-Control"] = "private, no-store"
+    if not settings.editorial_reviews_path:
+        raise HTTPException(503, "Editorial clearance file is not configured")
+    try:
+        with SessionLocal() as session:
+            return export_editorial(session, Path(settings.editorial_reviews_path))
+    except (OSError, ValueError, TypeError, KeyError):
+        raise HTTPException(503, "Editorial clearance file is unavailable or invalid") from None

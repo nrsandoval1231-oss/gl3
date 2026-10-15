@@ -2552,6 +2552,23 @@
           }
         }
       }
+    },
+    "/api/editorial/candidates": {
+      "get": {
+        "summary": "Editorial Candidates",
+        "description": "Only explicitly cleared public evidence; never a pursuit/database dump.",
+        "operationId": "editorial_candidates_api_editorial_candidates_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
