@@ -64,42 +64,77 @@ originality, technical relevance), plus evidence (primary 3, reported 1) and age
 (≤7 days 3; ≤14 days 2; otherwise 1). Reader value, specificity and significance
 must each be ≥2; total ≥14, confidence medium/high, top three only. Confidence means
 source support and known limitations, never sales qualification or a probability.
-This is bounded **human editorial judgment**, not an implemented AI judge. Rejection
-reasons remain in the export. `recentIds` suppresses recently used events; automatic
-cross-product publication-history synchronization is not implemented.
+Final selection retains these explicit human judgments. The bounded AI assessment is
+advisory: exact retained factual excerpts and premise quotations, investigative
+questions for implications/angles, citation checks and rejection of new quantitative
+claims. Arbitrary prose cannot be proven true mechanically; an operator must verify
+all reasoning. AI never grants clearance. The existing OpenAI brief credentials/model
+are reused; missing credentials or invalid output produce an explicit unavailable
+state. Assessments are retained against their evidence version in existing PostgreSQL.
+Published PGR metadata supplies coverage when available; unavailable history is
+unknown coverage, never a claim of novelty.
 
 ## Operator use
 
-1. Use the authenticated GridLens evidence view to inspect current retained evidence.
-2. Create a private JSON clearance file outside Git. Top-level keys:
-   `version: "2g-editorial-review/1"`, `reviews: [...]`, `recentIds: [...]`.
-   Each review must match `EditorialReview` in `domain/editorial.py`; its JSON Schema
-   can be printed with `python -c 'from gridlens.domain.editorial import EditorialReview; import json; print(json.dumps(EditorialReview.model_json_schema(), indent=2))'`.
-   The test fixture is historical test material, not a cleared live candidate.
-3. Set `EDITORIAL_REVIEWS_PATH` in the existing private API environment, or run
-   `python scripts/export_editorial.py --reviews /private/reviews.json --output /private/feed.json`
-   using the existing backend runtime. Output must not already exist. No DB writes.
-   `GET /api/editorial/candidates` requires the existing session and returns no-store.
-   Missing/invalid clearance returns 503, never falls back to a private database dump.
-4. Import the same JSON into PGR (`npm run editorial -- import /private/feed.json`)
-   and LinkedIn Desk's Research Inbox. Both independently select candidates.
-5. PGR outlines stay in ignored `.editorial/`; only a human-written, reviewed article
-   moved into the existing content workflow can become a publication PR. LinkedIn
-   drafts keep existing Boss Review/approval and manual-copy posting gates.
+1. Open GridLens → Menu → **Editorial review**. Inspect retained evidence and its
+   original source/date. Ineligible sources cannot enter the review projection.
+2. Request an editorial assessment, then approve, reject or request more evidence.
+   Approval requires source-supported factual excerpts, relevance, public-only and
+   classification attestation. This does not establish a commercial Signal or Lead.
+3. Decisions are append-only in existing PostgreSQL, with an insertion sequence,
+   evidence ID/hash, server timestamp and session fingerprint. Shared-password auth
+   has no named user identity; the fingerprint is not a claim of a named reviewer.
+   Changed evidence invalidates clearance. Rejection and request-more-evidence withdraw it.
+4. PGR's local Research screen and local Hub Research Inbox synchronize automatically
+   through authenticated server connections. They preserve reviewed work during an
+   outage and require current exact-version clearance before creating new content.
+5. Choose **Develop outline** or **Create draft** deliberately. PGR outlines remain
+   outside published Markdown; LinkedIn retains its existing review/approval gates.
+   No article, post or email is sent automatically.
 
-No new database, scraper, publisher or production scheduler is introduced. This is
-an operator-reviewed export slice, not completed autonomous editorial discovery.
-Live approved candidates, bounded AI assistance, a clearance UI, and evidence of
-live end-to-end operation remain acceptance work; do not claim those from fixtures.
+## Runtime and compatibility
 
-## Verification recorded in this branch
+Migration `0019_editorial_decisions` extends the existing database. Applying it to
+production is a deployment action, not performed by this PR. No new database service,
+news scraper, broker or orchestration framework is introduced.
 
-- Full backend suite on isolated PostgreSQL 18.6: 1,678 passed, 1 skipped,
-  7 subtests passed (232.12s). Initial SQLite attempt was unsuitable for DB tests;
-  it is superseded by this PostgreSQL run.
-- Final focused exporter suite after superseded-evidence/URL hardening: 13 passed.
-- Ruff passed; mypy passed across 98 source files.
-- Identical serialized historical fixture accepted by both consumer validators;
-  validator files matched SHA-256 across all three repositories.
-- These tests use isolated databases and retained fixtures. No production DB,
-  live cleared candidate, model provider or deployment acceptance is claimed.
+`GET /api/editorial/candidates` preserves `2g-editorial/1`. The normal transport is
+`GET /api/editorial/sync`, a `2g-editorial-sync/1` envelope around that unchanged feed,
+with exact-version clearances and separately labeled advisory assessments. Resolve
+`GET /api/editorial/clearance/{observation UUID}` before drafting: absence from the
+ranked top three is not revocation. All routes require existing session auth; mutation
+routes also enforce the existing origin check. Responses are private/no-store.
+
+`config/policies/editorial-contract.mjs` and `editorial-sync.mjs` are canonical.
+Consumer copies must remain byte-identical and use the same fixtures. Server-only
+transport uses one configured origin, no redirects, bounded responses/timeouts and
+in-memory session renewal. Passwords never enter consumer browser bundles.
+
+Set `GRIDLENS_ORIGIN` in the local PGR server environment; the Research screen signs
+in using GridLens credentials. Set `GRIDLENS_ORIGIN` and `GRIDLENS_PASSWORD` in the
+local Hub's existing private environment. This is one-time connection setup, not a
+per-story file transfer. No credentials are committed. Hub remains loopback by default.
+
+The legacy CLI export/import remains an emergency inspection/recovery mechanism.
+Schema-valid files alone do not prove authenticated clearance; normal browser draft
+actions resolve against GridLens. `EDITORIAL_REVIEWS_PATH` is no longer the API's
+clearance authority. Do not use the old private clearance file as the operational ledger.
+
+## Verification and acceptance limits
+
+Current public Utility Dive records were acquired with the existing RSS adapter and
+retained through `process_records` in an isolated demo database. The October 13 FERC /
+Duke large-load transmission report was exercised through real browser review,
+version-bound **test-only** clearance, authenticated PGR synchronization and outline,
+authenticated Hub synchronization, deliberate drafting, double-click/refresh dedup,
+and reload persistence. Its original source date and hash remain intact. This is real
+source evidence with an isolated automated review decision, not human production approval.
+
+The environment has no live model or production GridLens credentials. Live AI quality,
+a named human's production clearance and production consumer connectivity remain
+unverified. Missing model access was exercised as an explicit unavailable state;
+synthetic model responses test citation/premise rejection, not provider quality.
+
+Newsletter workflow `29OhUFcCwBmNQOh2` was independently re-read during continuation:
+active version `d9ff3f5b-0df4-4b3b-9125-adde0dedc745`, Beehiiv subscriptions → Resend.
+No email code, workflow, subscriber record, deployment or external publication changed.

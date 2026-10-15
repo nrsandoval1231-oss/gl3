@@ -151,3 +151,22 @@ def test_editorial_judgment_and_classification_are_required():
     review["review"]["classificationVerified"] = True
     review["review"]["significance"] = 1
     assert run(review, record)["rejected"][0]["reason"] == "insufficient_editorial_value"
+
+
+def test_equal_scores_prefer_newer_original_publication_dates():
+    """Synthetic dates/identities isolate ranking; retained text is the same source fixture."""
+    from copy import deepcopy
+
+    reviews, records = [], {}
+    for number, published in enumerate([date(2026, 8, 16), date(2026, 8, 17)]):
+        review, record = deepcopy(example())
+        obs, ev, source = record
+        obs.id = f"test-observation-{number}"
+        ev.id = f"test-evidence-{number}"
+        ev.url = f"https://taylortx.gov/test-only/{number}"
+        ev.published_at = published
+        review["evidenceId"] = ev.id
+        reviews.append(review)
+        records[ev.id] = (obs, ev, source)
+    result = evaluate_feed(reviews, records, now=date(2026, 8, 20))
+    assert [item["publishedAt"] for item in result["items"]] == ["2026-08-17", "2026-08-16"]

@@ -612,13 +612,95 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /**
-         * Editorial Candidates
-         * @description Only explicitly cleared public evidence; never a pursuit/database dump.
-         */
+        /** Editorial Candidates */
         get: operations["editorial_candidates_api_editorial_candidates_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/editorial/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Editorial Sync */
+        get: operations["editorial_sync_api_editorial_sync_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/editorial/clearance/{observation_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Editorial Clearance */
+        get: operations["editorial_clearance_api_editorial_clearance__observation_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/editorial/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Editorial Review Queue */
+        get: operations["editorial_review_queue_api_editorial_review_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/editorial/review/{observation_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Editorial Review Decision */
+        post: operations["editorial_review_decision_api_editorial_review__observation_id__post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/editorial/assessment/{observation_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Editorial Assessment */
+        post: operations["editorial_assessment_api_editorial_assessment__observation_id__post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1488,6 +1570,20 @@ export interface components {
             source_url: string | null;
             /** Evidence Id */
             evidence_id: string | null;
+        };
+        /** EditorialDecisionBody */
+        EditorialDecisionBody: {
+            /** Evidencehash */
+            evidenceHash: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "approved" | "rejected" | "needs-evidence";
+            /** Review */
+            review?: {
+                [key: string]: unknown;
+            } | null;
         };
         /** EvidenceOut */
         EvidenceOut: {
@@ -3944,6 +4040,143 @@ export interface operations {
                 };
                 content: {
                     "application/json": unknown;
+                };
+            };
+        };
+    };
+    editorial_sync_api_editorial_sync_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    editorial_clearance_api_editorial_clearance__observation_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                observation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    editorial_review_queue_api_editorial_review_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+        };
+    };
+    editorial_review_decision_api_editorial_review__observation_id__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                observation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EditorialDecisionBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    editorial_assessment_api_editorial_assessment__observation_id__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                observation_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

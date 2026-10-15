@@ -190,7 +190,7 @@ def evaluate_feed(reviews, records, *, now=None, recent_ids=(), allowed_hosts=No
             items.append(item)
         except ValueError as exc:
             rejected.append({"id": identifier, "reason": str(exc)})
-    items.sort(key=lambda item: (-item["score"], item["publishedAt"], item["id"]))
+    items.sort(key=lambda item: (item["score"], item["publishedAt"], item["id"]), reverse=True)
     rejected.extend({"id": item["id"], "reason": "below_top_candidates"} for item in items[3:])
     return {
         "version": "2g-editorial/1",

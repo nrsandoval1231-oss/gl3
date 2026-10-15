@@ -176,3 +176,24 @@
 .env-pursuits .commercial-pagination { display: flex; align-items: center; gap: 12px; margin: 18px 0; font-size: 13px; }
 .env-pursuits .commercial-pagination button { background: none; border: 1px solid var(--env-line); padding: 8px 12px; border-radius: 6px; cursor: pointer; }
 .env-pursuits .commercial-pagination button:disabled { opacity: .45; cursor: default; }
+
+/* Editorial clearance extends the private environment, retaining its navy field. */
+.env-editorial { display: block; padding-bottom: 48px; }
+.env-editorial > header { flex-wrap: wrap; gap: 16px; }
+.env-editorial > header p { flex-basis: 100%; margin: 0; color: var(--gl-atmosphere); }
+.env-editorial h1 { font-weight: 400; margin: 0; }
+.env-editorial .env-evidence { max-width: 1100px; margin: 0 auto; padding: 28px 0; border-bottom: 1px solid var(--env-line); }
+.env-editorial h2 { font-size: 22px; line-height: 1.3; color: var(--gl-white); }
+.env-editorial a { color: var(--gl-ice); }
+.env-editorial button { background: var(--gl-gridlens-navy); border: 1px solid var(--env-line); padding: 10px 16px; border-radius: 6px; cursor: pointer; margin: 8px 8px 8px 0; }
+.env-editorial button:disabled { opacity: .5; cursor: wait; }
+.env-editorial summary { cursor: pointer; padding: 12px 0; color: var(--gl-ice); }
+.env-editorial form { margin: 16px 0; }
+.env-editorial label { display: grid; gap: 8px; font-size: 14px; }
+.env-editorial input:not([type=checkbox]), .env-editorial select, .env-editorial textarea { width: 100%; box-sizing: border-box; border: 1px solid var(--env-line); background: var(--gl-deep-current); border-radius: 6px; padding: 10px; color: var(--gl-mist); font: inherit; }
+.env-editorial textarea { min-height: 96px; resize: vertical; }
+.env-editorial label:has(input[type=checkbox]) { display: flex; align-items: flex-start; }
+.env-editorial small { display: block; overflow-wrap: anywhere; }
+.env-editorial blockquote { margin: 12px 0; border-left: 2px solid var(--gl-ice); padding-left: 18px; line-height: 1.6; }
+
+.env-editorial .env-evidence > button { display: inline-block; width: auto; }

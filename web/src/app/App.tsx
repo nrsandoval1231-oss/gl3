@@ -1,3 +1,4 @@
+import { EditorialReview } from '../features/editorial/EditorialReview'
 import { environmentReturnUrl } from '../features/environment/navigation'
 import { type FormEvent, useEffect, useRef, useState } from 'react'
 import { client, OpportunityCohortChangedError, OpportunityNeedUnavailableError, workflowStatuses, type Brief, type IngestionItem, type Opportunity, type OpportunityBrowseFilters, type OpportunityPage, type WorkflowStatusFilter } from '../api/client'
@@ -801,7 +802,7 @@ function OpportunityDetail({ item, onReadback }: { item: Opportunity; onReadback
 
 function isEnvironmentUrl() {
   const params = new URLSearchParams(location.search)
-  return params.get('view') === 'environment' || (params.size === 0 && !location.hash)
+  return ['environment', 'editorial'].includes(params.get('view') || '') || (params.size === 0 && !location.hash)
 }
 
 function EnvironmentRoot() {
@@ -824,6 +825,7 @@ function EnvironmentRoot() {
   }
   if (authenticated === null) return <main className="loading" aria-live="polite">Loading your private workspace…</main>
   if (!authenticated) return <main className="login-wrap"><form className="login" onSubmit={onLogin}><img src="/brand/lockup-horizontal-navy.svg" alt="GridLens"/><h1>Sign in</h1><p>Your private GridLens workspace.</p><label htmlFor="password">Password</label><input id="password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required/><button className="primary">Continue</button>{error && <p role="alert" className="error">{error}</p>}</form></main>
+  if (new URLSearchParams(location.search).get('view') === 'editorial') return <EditorialReview/>
   return <Environment today={(onOpen) => <CommercialTodayEntry onOpen={onOpen}/>} onSignOut={() => { void client.logout().finally(() => setAuthenticated(false)) }}/>
 }
 
