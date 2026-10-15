@@ -138,3 +138,67 @@ synthetic model responses test citation/premise rejection, not provider quality.
 Newsletter workflow `29OhUFcCwBmNQOh2` was independently re-read during continuation:
 active version `d9ff3f5b-0df4-4b3b-9125-adde0dedc745`, Beehiiv subscriptions → Resend.
 No email code, workflow, subscriber record, deployment or external publication changed.
+
+## Controlled release and rollback
+
+Production release remains gated on owner authorization and configured credentials.
+The October 15 readiness audit found no provisioned production GridLens or model
+credentials in the engineering environment. Isolated connections are verified;
+production connectivity and live AI editorial quality are not.
+
+1. Record the currently deployed revisions and back up the existing GridLens database.
+   After authorization, merge/deploy GridLens #68 and apply
+   `0019_editorial_decisions` before starting the new API. Existing database, password
+   hash, session secret and HTTPS/origin settings remain required. `OPENAI_API_KEY`
+   and the existing `OPENAI_BRIEF_MODEL` are optional for startup, required for live
+   model assessment. Confirm ingestion health, authenticated review/sync and denied
+   anonymous access before enabling either consumer.
+2. Release PGR #47, including the private-file static-serving protection. Configure
+   the local research server's `GRIDLENS_ORIGIN`; the editor signs in through its
+   Research screen. The public Vercel build contains no private research application.
+   Deploying the public manifest enables GridLens publication-history context;
+   until then GridLens reports unknown coverage, while consumers can read existing
+   RSS metadata. The normal Vercel deployment build also invokes IndexNow; run only
+   `npm run verify` for non-publishing verification. Do not change newsletter workflows.
+3. Update local Hub from #21, build LinkedIn Desk locally, and configure server-only
+   `GRIDLENS_ORIGIN` / `GRIDLENS_PASSWORD` through the existing private environment.
+   Keep its existing dashboard password/session secret and loopback binding. Never
+   deploy this consumer to Cloudflare Pages. Test synchronization and deliberate
+   drafting with an authorized cleared record before regular use.
+
+These connections reuse existing shared-password authentication, not a newly scoped
+service identity. Protect the Hub credential as a full GridLens credential. No new
+access grants or production credentials were created during verification.
+
+Rollback consumers first: stop their local servers, preserve PGR `.editorial` files
+and LinkedIn backups/localStorage, then restore recorded prior application revisions.
+Restore the prior PGR deployment if its public manifest release causes a regression.
+Restore the prior GridLens API/web revision last; leave the additive editorial tables
+in place to preserve review history. Do not run migration downgrade as routine rollback:
+it drops decisions and assessments. Any database restoration requires separate approval.
+
+## Three-source readiness pilot (2026-10-15)
+
+The existing publisher adapters acquired three independently published developments;
+original pages returned HTTP 200 and matched retained titles and publication dates.
+All passed source/date eligibility in the isolated database; that screening is not
+final relevance scoring or editorial clearance. Model assessment returned explicitly
+unavailable for all three. No production decision was recorded.
+
+- [Duke large-load tariff approval, October 13](https://www.utilitydive.com/news/ferc-duke-energy-large-load-tariff-nitsa/832847/):
+  investigate the difference between approval and adequate cost-shift protection.
+  The primary order and financial-security terms remain research gaps. Publication
+  date is not the reported October 9 decision date.
+- [AES Indiana / Google infrastructure approval, October 14](https://www.datacenterdynamics.com/en/news/iurc-approves-aes-indiana-plan-for-13bn-solar-storage-and-transmission-project-for-google-data-center-in-monrovia/):
+  investigate who pays for dedicated infrastructure versus network upgrades.
+  The page's all-costs language and rate-base treatment need reconciliation against
+  the IURC order; do not claim zero ratepayer exposure or an established power gap.
+- [California oil and gas lease sale, October 5](https://www.ogj.com/general-interest/government/news/55409584/us-blm-sets-december-california-oil-gas-lease-sale):
+  watch permitting milestones; a lease-sale announcement does not establish drilling,
+  equipment demand or a rental-power prospect. The announcement date differs from
+  publication date. Reject a power-opportunity angle without further evidence.
+
+These are independent engineering-review observations, not model recommendations or
+human publication approvals. The first two justify additional research, but the
+two-of-three AI editorial-quality threshold remains **unverified**, not passed.
+The model receives retained summaries, not the additional full-page review above.
