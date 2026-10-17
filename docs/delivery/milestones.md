@@ -2,7 +2,24 @@
 
 This is the status page for current main. Other notes link here. Dated validation reports stay evidence for the commit they name.
 
-Current main is `3f55750` (merge of pull request #49, Stage 3 recall, on top of `76a60fe`). Product acceptance is not that merge.
+Current main is `205b8e8` (2026-10-17). It includes pull request #49 (Stage 3 recall, `3f55750`), pull request #66 (environment hierarchy and queue detail UI, `d5deb44`) and pull request #67 (existing Jev runtime secret forwarding and provider-health classification). Product acceptance is not any merge.
+
+Repository security (2026-10-17): secret scanning, push protection and Dependabot security updates are enabled.
+
+Estimated build completion, as judgment and not a measurement: about 55–60% overall (backend about 85%, web about 80%). The gap is operational proof, not code.
+
+## Remaining Milestone E gaps
+
+- Scheduled collection with the owner's PC off: about 25%. The droplet compose file and systemd timers exist in `deploy/digitalocean/`; nothing is confirmed deployed or run.
+- Source breadth: one national source and no California source.
+- Owner alerts: ntfy path is written but not proven live.
+- Backup and restore: no recorded restore drill.
+- Seven consecutive real scheduled daily cycles: not started.
+- A real, independently discovered Lead: none accepted.
+
+## Open decision: pull request #68
+
+Editorial review and sync. Outside the original scope, sends evidence text to OpenAI as a second AI provider, and will conflict with #66 and #67. Merge last, and only if Nick wants it in GL3; `docs/decisions.md` already says model calls should fold into one provider adapter.
 
 ## Owner stages and PRD milestones
 
@@ -12,7 +29,7 @@ The owner's sequence is S1 through S7. The PRD exit gates are A through E. A com
 |---|---|---|---|
 | S1 | Documentation baseline | Not an A–E exit | Complete. Pull request #47. |
 | S2 | Bounded source-quality diagnostic | Evidence toward B. Not the B exit. | Complete as a diagnostic. Pull request #48. Not live-source acceptance. |
-| S3 | Qualification recall and official RRC operator labels | Evidence rules used later by C and D | Merged in pull request #49 at `3f55750`. No Prospect or Lead was accepted. |
+| S3 | Qualification recall and official RRC operator labels | Evidence rules used later by C and D | Merged in pull request #49 at `3f55750` (main has since moved to `205b8e8`). No Prospect or Lead was accepted. |
 | S4 | One real end-to-end commercial pursuit | C and D | Open. Depends on a real pursuit, not on fabricating calls or promotions. |
 | S5 | Canonical journey and owner visual acceptance | Presentation needed for E | Open. |
 | S6 | Remove intelligence-to-HTTP coupling | Folder boundaries | Open. |

@@ -2,6 +2,7 @@
 
 S1 COMPLETE: PR47 authorized merge c761e38, exact reviewed/tested tree.
 S2 COMPLETE (bounded diagnostic): PR48 authorized merge76a60fe, exact reviewed head5edd894/tree758a6c29 and fresh fullCI; source/runtime failures and all parent gates retained.
+Main is now `205b8e8` (PR #66 UI polish and PR #67 Jev secret forwarding merged 2026-10-17). Open decision: PR #68 (editorial review and sync), scope and second-provider question.
 S3 MERGED at `3f55750` ([PR49](https://github.com/nrsandoval1231-oss/gl3/pull/49)): five official RRC operator labels, no parser relaxation or promotions. The merge is not Prospect, Lead, or Milestone A–E acceptance. Clayton linked-permit grouping and commercial gap evidence remain OPEN.
 S4 NOT STARTED. It depends on one real end-to-end commercial pursuit, with no fabricated calls, facts, or promotions. Nick's acceptance is separate.
 S5 DEPENDENT on S4 and exact original PNG/HTML recovery: canonical journey/browser evidence and separate owner visual acceptance.
