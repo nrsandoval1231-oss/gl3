@@ -53,6 +53,12 @@ The managed cluster's own point-in-time backups are a second path. Record each r
 
 ## Existing Infisical runtime identity and Jev
 
+Secrets live in Infisical: project `06ded1a4-5c85-426a-a833-d40358529795`,
+environment slug `dev`, path `/`. Expected secret names are `TYPESAFE_API_KEY`
+and `OPENAI_API_KEY`. Both are forwarded by Compose to the API, worker, and
+migration containers the same way (`${NAME:-}`); neither goes in the web image or
+in any file.
+
 The application reads `TYPESAFE_API_KEY` from its process environment through
 `Settings`; it does not contact Infisical. Settings are cached on first use.
 Compose's service `env_file: ../../.env.prod` reads a file, not the invoking

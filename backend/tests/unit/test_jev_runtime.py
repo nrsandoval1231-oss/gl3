@@ -80,7 +80,7 @@ def test_invalid_json_is_distinct_and_not_retried(monkeypatch):
     assert len(calls) == 1
 
 
-def test_compose_forwards_injected_key_without_a_secret_file(tmp_path):
+def test_compose_forwards_injected_keys_without_a_secret_file(tmp_path):
     if not shutil.which("docker"):
         pytest.skip("Docker Compose unavailable")
     root = Path(__file__).resolve().parents[3]
@@ -92,6 +92,7 @@ def test_compose_forwards_injected_key_without_a_secret_file(tmp_path):
     env = {
         "PATH": os.environ["PATH"],
         "TYPESAFE_API_KEY": "injected-sentinel",
+        "OPENAI_API_KEY": "injected-openai-sentinel",
         "CLOUDFLARE_TUNNEL_TOKEN": "synthetic-tunnel",
     }
     result = subprocess.run(
@@ -115,7 +116,12 @@ def test_compose_forwards_injected_key_without_a_secret_file(tmp_path):
     services = json.loads(result.stdout)["services"]
     for name in ["api", "worker"]:
         assert services[name].get("environment", {}).get("TYPESAFE_API_KEY") == "injected-sentinel"
+        assert (
+            services[name].get("environment", {}).get("OPENAI_API_KEY")
+            == "injected-openai-sentinel"
+        )
     assert "TYPESAFE_API_KEY" not in services["web"].get("environment", {})
+    assert "OPENAI_API_KEY" not in services["web"].get("environment", {})
 
 
 @pytest.mark.parametrize("key", [None, "", "   "])
