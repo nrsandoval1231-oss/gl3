@@ -732,3 +732,42 @@ class EditorialAssessment(Base):
     evidence_hash: Mapped[str] = mapped_column(String(64))
     payload: Mapped[dict] = mapped_column(JSONB)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class MarketNewsletter(Base):
+    """AI-drafted power-market newsletter; never published without human approval."""
+
+    __tablename__ = "market_newsletters"
+    __table_args__ = (
+        Index(
+            "uq_market_newsletter_live_fingerprint",
+            "input_fingerprint",
+            unique=True,
+            postgresql_where=text("status IN ('queued', 'generating', 'draft', 'approved')"),
+        ),
+    )
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    input_fingerprint: Mapped[str] = mapped_column(String(64))
+    # queued -> generating -> draft | failed. Approval states belong to a later change.
+    status: Mapped[str] = mapped_column(String(20), default="queued")
+    window_start: Mapped[date] = mapped_column(Date)
+    window_end: Mapped[date] = mapped_column(Date)
+    policy_version: Mapped[str] = mapped_column(String(60))
+    schema_version: Mapped[str] = mapped_column(String(60))
+    model: Mapped[str] = mapped_column(String(100))
+    result: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    citations: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, default=list)
+    coverage: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
+    input_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    output_tokens: Mapped[int] = mapped_column(Integer, default=0)
+    error: Mapped[str | None] = mapped_column(String(80))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    generated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class MarketNewsletterBudget(Base):
+    """Provider requests reserved per day; separate from the brief budget."""
+
+    __tablename__ = "market_newsletter_budgets"
+    day: Mapped[date] = mapped_column(Date, primary_key=True)
+    reserved_requests: Mapped[int] = mapped_column(Integer, default=0)
