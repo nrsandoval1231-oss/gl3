@@ -11,9 +11,11 @@ x-backend: &backend
     dockerfile: deploy/Dockerfile.backend
   env_file: ../../.env.prod
   # Compose does not forward host environment values into env_file containers.
-  # infisical run injects the existing key into this variable without writing a key file.
+  # infisical run injects the existing keys into these variables without writing a key file.
+  # Backend containers only; never the web image.
   environment:
     TYPESAFE_API_KEY: ${TYPESAFE_API_KEY:-}
+    OPENAI_API_KEY: ${OPENAI_API_KEY:-}
   restart: unless-stopped
 
 services:

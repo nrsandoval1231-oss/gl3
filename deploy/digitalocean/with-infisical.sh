@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
 # Use an existing authenticated Infisical CLI identity. Never export secrets to a file.
+# Secrets live in Infisical (project 06ded1a4-5c85-426a-a833-d40358529795,
+# environment slug `dev`, path `/`). Expected secret names: TYPESAFE_API_KEY and
+# OPENAI_API_KEY. Compose forwards both to the api/worker/migrate containers only.
+# Example: INFISICAL_PROJECT_ID=06ded1a4-5c85-426a-a833-d40358529795 \
+#          INFISICAL_ENVIRONMENT=dev INFISICAL_SECRET_PATH=/ ./with-infisical.sh ...
 set -euo pipefail
 : "${INFISICAL_PROJECT_ID:?set the existing GL3 Infisical project ID}"
 : "${INFISICAL_ENVIRONMENT:?set the existing environment slug}"
