@@ -59,6 +59,10 @@ and `OPENAI_API_KEY`. Both are forwarded by Compose to the API, worker, and
 migration containers the same way (`${NAME:-}`); neither goes in the web image or
 in any file.
 
+`OPENAI_API_KEY` is optional. Without it, editorial assess reports an unavailable state and
+the other features keep working. Migration `0019_editorial_decisions` runs at the next
+redeploy; see [editorial intelligence](../../docs/operations/editorial-intelligence.md#deployment-notes).
+
 The application reads `TYPESAFE_API_KEY` from its process environment through
 `Settings`; it does not contact Infisical. Settings are cached on first use.
 Compose's service `env_file: ../../.env.prod` reads a file, not the invoking

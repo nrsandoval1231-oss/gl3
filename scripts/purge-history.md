@@ -35,7 +35,7 @@ Do not run `git push --force`, `git push --force-with-lease`, or `git push --mir
 
 ## 3. Branches whose tips still contain the directory
 
-As of main `3f55750` (main is now `205b8e8`; re-check before acting), these remote tips contain `.agent/artifacts` in the tree. Shared ancestry means a history rewrite touches their parent commits as well, not only the tip diff.
+As of main `3f55750` (main is now `3af0be9`; re-check before acting), these remote tips contain `.agent/artifacts` in the tree. Shared ancestry means a history rewrite touches their parent commits as well, not only the tip diff.
 
 - `origin/main`
 - `origin/acceptance/gl3-stage2-source-quality-20261009`

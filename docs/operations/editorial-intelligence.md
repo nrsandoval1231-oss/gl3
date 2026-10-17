@@ -120,6 +120,23 @@ Schema-valid files alone do not prove authenticated clearance; normal browser dr
 actions resolve against GridLens. `EDITORIAL_REVIEWS_PATH` is no longer the API's
 clearance authority. Do not use the old private clearance file as the operational ledger.
 
+## Deployment notes
+
+- **Migration `0019_editorial_decisions`** runs at the next redeploy through the one-time
+  Alembic migration container. It only adds two tables (`editorial_decisions`, an
+  append-only table protected by the immutable-history trigger, and
+  `editorial_assessments`) and an index on `editorial_decisions.observation_id`. It does not
+  alter existing tables. Back up the database before redeploying, as for any migration.
+- **Clearance and assessments live in PostgreSQL.** The database backup already covers them;
+  no extra volume or mount is needed.
+- **`editorial_reviews_path` (env `EDITORIAL_REVIEWS_PATH`, default empty)** is a legacy
+  setting. The API no longer reads it: it stores nothing, needs no persistent path, no
+  backup and no Compose mount. Leave it unset in `.env`, `.env.compose` and `.env.prod`.
+- **`OPENAI_API_KEY` is optional for editorial assess.** Without it, assessment returns an
+  explicit unavailable state and the rest of the editorial routes (review, clearance, sync)
+  work normally. With it, assessment sends evidence text to OpenAI. In production the key
+  comes from Infisical (see `deploy/digitalocean/README.md`), never from a committed file.
+
 ## Verification and acceptance limits
 
 Current public Utility Dive records were acquired with the existing RSS adapter and

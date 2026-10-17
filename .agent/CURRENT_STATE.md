@@ -2,7 +2,7 @@
 
 Status lives in [delivery milestones](../docs/delivery/milestones.md). This file is the short checkpoint.
 
-Current main is `205b8e8` (2026-10-17), which includes [pull request #66](https://github.com/nrsandoval1231-oss/gl3/pull/66) (environment hierarchy and queue detail UI, merged as `d5deb44`) and [pull request #67](https://github.com/nrsandoval1231-oss/gl3/pull/67) (forwards the existing Jev runtime secret and classifies provider health failures). Stage 1, the bounded Stage 2 diagnostic and Stage 3 recall (PR #49, `3f55750`) are merged. S4 through S7 have not started.
+Current main is `3af0be9` (2026-10-17), which includes [pull request #66](https://github.com/nrsandoval1231-oss/gl3/pull/66) (environment hierarchy and queue detail UI, merged as `d5deb44`) and [pull request #67](https://github.com/nrsandoval1231-oss/gl3/pull/67) (forwards the existing Jev runtime secret and classifies provider health failures). Stage 1, the bounded Stage 2 diagnostic and Stage 3 recall (PR #49, `3f55750`) are merged. S4 through S7 have not started.
 
 Repository security as of 2026-10-17: secret scanning, push protection and Dependabot security updates are enabled. Open decision: [pull request #68](https://github.com/nrsandoval1231-oss/gl3/pull/68) (editorial review and sync) is outside the original scope, sends evidence text to a second AI provider (OpenAI) and will conflict with #66 and #67. Merge it last, and only if Nick wants the feature.
 
