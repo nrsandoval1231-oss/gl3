@@ -4,7 +4,7 @@ GridLens is a clean-sheet, evidence-governed system for discovering nationwide p
 
 ## Current status
 
-The status page is [delivery milestones](docs/delivery/milestones.md). Current main is `3f55750`, the merge of pull request #49. [.agent/CURRENT_STATE.md](.agent/CURRENT_STATE.md) is a short checkpoint that points there. Stage reports under [validation](docs/validation/) are dated evidence. They do not establish deployment or commercial acceptance.
+The status page is [delivery milestones](docs/delivery/milestones.md). Current main is `205b8e8` (includes pull requests #49, #66 and #67). [.agent/CURRENT_STATE.md](.agent/CURRENT_STATE.md) is a short checkpoint that points there. Stage reports under [validation](docs/validation/) are dated evidence. They do not establish deployment or commercial acceptance.
 
 ## Work areas
 

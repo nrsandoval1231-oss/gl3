@@ -2156,3 +2156,104 @@ def test_interconnection_history_survives_real_rejected_correction(db):
         assert current_interconnection_state(
             session, project_id, today=date(2026, 10, 9)
         )["requests"] == []
+
+
+@pytest.mark.parametrize(
+    "outcome",
+    ["missing_credentials", "authentication_failed", "provider_unavailable", "malformed_response"],
+)
+def test_source_ingestion_survives_jev_failure(db, monkeypatch, outcome):
+    from pydantic import SecretStr
+
+    from gridlens.intelligence import signal_adjudication as jev
+    from gridlens.persistence.models import SignalDecision
+
+    # Force the optional adjudication path independently of the deterministic display policy.
+    monkeypatch.setattr(jev, "deterministic_override", lambda *a: None)
+    monkeypatch.setattr(jev.time, "sleep", lambda _: None)
+    if outcome != "missing_credentials":
+        monkeypatch.setattr(settings, "typesafe_api_key", SecretStr("synthetic-key"))
+
+    def post(url, **kwargs):
+        if outcome == "missing_credentials":
+            pytest.fail("Missing credentials must not call Jev")
+        return httpx.Response(
+            {"authentication_failed": 401, "provider_unavailable": 503}.get(outcome, 200),
+            json={"model": "invalid"},
+            request=httpx.Request("POST", url),
+        )
+
+    monkeypatch.setattr(jev.httpx, "post", post)
+    _, factory, _ = db
+    from datetime import date
+
+    definition = next(row for row in load_registry() if row["id"] == "austin-building-permits")
+    with factory.begin() as session:
+        session.add(
+            Source(
+                id=definition["id"],
+                publisher=definition["publisher"],
+                endpoint=definition["endpoint"],
+                family=definition["family"],
+                geography=definition["geography"],
+                industries=definition["industries"],
+                retrieval_method=definition["retrieval_method"],
+                cadence_hours=24,
+                health={},
+            )
+        )
+        session.flush()
+        job = Job(
+            source_id=definition["id"],
+            status="running",
+            lease_owner="test",
+            fence=1,
+            lease_until=datetime.now(UTC) + timedelta(minutes=10),
+        )
+        session.add(job)
+        session.flush()
+        job_id = job.id
+    row = {
+        "permit_number": "2026-SYN-1",
+        "issue_date": "2020-05-10",
+        "statusdate": date.today().isoformat(),
+        "description": "Replace natural gas generator and ATS at existing telecom shelter.",
+        "permit_class_mapped": "Commercial",
+        "work_class": "New",
+        "permit_type_desc": "Building Permit",
+        "status_current": "Active",
+        "original_address1": "100 Factory Way",
+        "original_city": "AUSTIN",
+        "original_state": "TX",
+        "project_id": "SYN-1",
+        "link": {"url": "https://abc.austintexas.gov/permit/1"},
+    }
+
+    def run():
+        def handler(request):
+            params = dict(request.url.params)
+            assert "statusdate >=" in params["$where"]
+            return httpx.Response(200, json=[{"row_count": "1"}] if "$select" in params else [row])
+
+        with factory() as session:
+            return process_job(
+                session,
+                job_id,
+                "test",
+                1,
+                definition,
+                httpx.Client(transport=httpx.MockTransport(handler)),
+            )
+
+    assert run()["signals"] == 1
+    with factory() as session:
+        decision = session.scalar(select(SignalDecision))
+        assert decision is not None and decision.decision == "REVIEW"
+        assert decision.dimensions["status"] == (
+            "missing_api_key" if outcome == "missing_credentials" else outcome
+        )
+        assert session.scalar(select(func.count()).select_from(Evidence)) == 1
+        assert session.scalar(select(Interpretation.status)) == "accepted"
+        assert session.scalar(select(PowerNeed.tier)) == "Signal"
+        assert session.get(Job, job_id).checkpoint is not None
+    assert run()["unchanged"] == 1
