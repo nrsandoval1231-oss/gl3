@@ -1037,7 +1037,8 @@ def process_research_job(job_id: UUID, worker_id: str, fence: int) -> None:
                         )
                         if decision.source == "jev_error":
                             errors.append(
-                                "Jev interpretation unavailable or malformed; evidence retained "
+                                f"Jev {decision.dimensions.get('status', 'provider_unavailable')}; "
+                                "evidence retained "
                                 "and interpretation deferred for a later bounded research job."
                             )
                         model_states.append(
