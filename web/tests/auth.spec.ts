@@ -11,7 +11,7 @@ test('real session protects the workspace, survives reload, and ends on sign-out
   expect((await page.request.get('/api/health')).status()).toBe(401)
   await page.goto('/?tier=Signals')
   await expect(page.getByRole('heading', { name: 'Sign in', exact: true })).toBeVisible()
-  await page.getByLabel('Password').fill(password)
+  await page.getByLabel('Password', { exact: true }).fill(password)
   await page.getByRole('button', { name: 'Continue', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Signals', exact: true })).toBeVisible()
   expect((await page.request.get('/api/health')).status()).toBe(200)

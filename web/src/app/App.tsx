@@ -1,6 +1,6 @@
 import { EditorialReview } from '../features/editorial/EditorialReview'
 import { environmentReturnUrl } from '../features/environment/navigation'
-import { type FormEvent, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { client, OpportunityCohortChangedError, OpportunityNeedUnavailableError, workflowStatuses, type Brief, type IngestionItem, type Opportunity, type OpportunityBrowseFilters, type OpportunityPage, type WorkflowStatusFilter } from '../api/client'
 import { projectTitle, serverProjectCards, signalDisplayDecision, type SignalDisplayDecision, type ProjectCard } from '../features/opportunities/projectCards'
 
@@ -10,6 +10,7 @@ import { FactWorkflowPanel } from '../features/pursuits/FactWorkflowPanel'
 import { BuyingChain } from '../features/buyingChain/BuyingChain'
 import { Environment } from '../features/environment/Environment'
 import '../features/environment/environment.css'
+import { LoginPage } from '../features/auth/LoginPage'
 
 const tiers = ['Signals', 'Prospects', 'Leads'] as const
 type Tier = typeof tiers[number]
@@ -161,7 +162,6 @@ export function CommercialTodayEntry({ onOpen, compact = false }: { onOpen: () =
 function WorkspaceApp() {
   const [returnTo] = useState(environmentReturnUrl)
   const [authenticated, setAuthenticated] = useState<boolean | null>(null)
-  const [password, setPassword] = useState('')
   const [tier, setTier] = useState<Tier>('Signals')
   const [signalFilter, setSignalFilter] = useState<SignalFilter>('ALL')
   const [view, setView] = useState<View>(initialView)
@@ -478,16 +478,10 @@ function WorkspaceApp() {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [selected])
 
-  async function onLogin(event: FormEvent) {
-    event.preventDefault()
-    try {
-      await client.login(password)
-      setAuthenticated(true)
-      setPassword('')
-      setError('')
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Sign-in failed.')
-    }
+  async function onLogin(password: string) {
+    await client.login(password)
+    setAuthenticated(true)
+    setError('')
   }
 
   async function signOut() {
@@ -643,7 +637,7 @@ function WorkspaceApp() {
   function returnToBrowse() { history.back() }
 
   if (authenticated === null) return <main className="loading" aria-live="polite">Loading your private workspace…</main>
-  if (!authenticated) return <main className="login-wrap"><form className="login" onSubmit={onLogin}><img src="/brand/lockup-horizontal-navy.svg" alt="GridLens"/><h1>Sign in</h1><p>Your private GridLens workspace.</p><label htmlFor="password">Password</label><input id="password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required/><button className="primary">Continue</button>{error && <p role="alert" className="error">{error}</p>}</form></main>
+  if (!authenticated) return <LoginPage onLogin={onLogin}/>
 
   const selectedIndex = selected ? currentOpportunityItems.findIndex((item) => item.id === selected.id) : -1
   const cards: ProjectCard[] = serverProjectCards(currentOpportunityItems).map((card) => ({
@@ -810,24 +804,15 @@ function isEnvironmentUrl() {
 
 function EnvironmentRoot() {
   const [authenticated, setAuthenticated] = useState<boolean | null>(null)
-  const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
   useEffect(() => {
     void client.session().then((value) => setAuthenticated(value.authenticated)).catch(() => setAuthenticated(false))
   }, [])
-  async function onLogin(event: FormEvent) {
-    event.preventDefault()
-    try {
-      await client.login(password)
-      setPassword('')
-      setError('')
-      setAuthenticated(true)
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Sign-in failed.')
-    }
+  async function onLogin(password: string) {
+    await client.login(password)
+    setAuthenticated(true)
   }
   if (authenticated === null) return <main className="loading" aria-live="polite">Loading your private workspace…</main>
-  if (!authenticated) return <main className="login-wrap"><form className="login" onSubmit={onLogin}><img src="/brand/lockup-horizontal-navy.svg" alt="GridLens"/><h1>Sign in</h1><p>Your private GridLens workspace.</p><label htmlFor="password">Password</label><input id="password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} required/><button className="primary">Continue</button>{error && <p role="alert" className="error">{error}</p>}</form></main>
+  if (!authenticated) return <LoginPage onLogin={onLogin}/>
   if (new URLSearchParams(location.search).get('view') === 'editorial') return <EditorialReview/>
   return <Environment today={(onOpen) => <CommercialTodayEntry compact onOpen={onOpen}/>} onSignOut={() => { void client.logout().finally(() => setAuthenticated(false)) }}/>
 }
