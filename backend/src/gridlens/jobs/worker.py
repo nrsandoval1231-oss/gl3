@@ -17,6 +17,7 @@ from gridlens.jobs.queue import assert_fence, lease_one
 from gridlens.persistence.database import SessionLocal
 from gridlens.persistence.models import (
     Job,
+    MarketNewsletter,
     PlannerState,
     PowerNeedBrief,
     Source,
@@ -554,6 +555,38 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
             from gridlens.intelligence.pursuits import process_research_job
 
             process_research_job(job_id, WORKER_ID, fence)
+            return True
+        if kind == "market_newsletter":
+            from gridlens.intelligence.market_newsletter import process_newsletter_job
+
+            try:
+                process_newsletter_job(job_id, WORKER_ID, fence)
+            except Exception as exc:
+                # The job may have reached a billable provider request, so any
+                # unexpected failure is terminal; a new request is an owner action.
+                with SessionLocal.begin() as session:
+                    failed = session.get(Job, job_id)
+                    valid = bool(
+                        failed
+                        and failed.status == "running"
+                        and failed.lease_owner == WORKER_ID
+                        and failed.fence == fence
+                    )
+                    if valid and failed:
+                        newsletter = (
+                            session.get(MarketNewsletter, failed.target_id)
+                            if failed.target_id
+                            else None
+                        )
+                        if newsletter and newsletter.status in {"queued", "generating"}:
+                            newsletter.status = "failed"
+                            newsletter.error = (
+                                "ambiguous_prior_request"
+                                if failed.checkpoint and '"reserved": true' in failed.checkpoint
+                                else "worker_failed"
+                            )
+                        failed.status, failed.error = "failed", type(exc).__name__
+                        failed.lease_owner, failed.lease_until = None, None
             return True
         if kind == "power_need_brief":
             from gridlens.intelligence.briefs import process_brief_job

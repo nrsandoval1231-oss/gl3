@@ -33,6 +33,8 @@ class Settings(BaseSettings):
     openai_api_key: SecretStr | None = None
     openai_brief_model: str = "gpt-4.1-mini"
     briefs_daily_request_limit: int = 8
+    openai_newsletter_model: str = "gpt-4.1-mini"
+    newsletter_daily_request_limit: int = Field(default=30, ge=0, le=500)
     autonomous_research_enabled: bool = True
     autonomous_research_daily_questions: int = Field(default=8, ge=0, le=100)
     autonomous_research_max_searches: int = Field(default=3, ge=0, le=5)
