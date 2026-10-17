@@ -2,7 +2,7 @@
 
 This is the status page for current main. Other notes link here. Dated validation reports stay evidence for the commit they name.
 
-Current main is `3af0be9` (2026-10-17). It includes pull request #49 (Stage 3 recall, `3f55750`), pull request #66 (environment hierarchy and queue detail UI, `d5deb44`) and pull request #67 (existing Jev runtime secret forwarding and provider-health classification). Product acceptance is not any merge.
+Current main is `3af0be9` (2026-10-17). It includes pull request #49 (Stage 3 recall, `3f55750`), pull request #66 (environment hierarchy and queue detail UI, `d5deb44`) pull request #67 (existing Jev runtime secret forwarding and provider-health classification) and pull request #68 (editorial review and sync, migration 0019). Product acceptance is not any merge.
 
 Repository security (2026-10-17): secret scanning, push protection and Dependabot security updates are enabled.
 
