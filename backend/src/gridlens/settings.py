@@ -10,6 +10,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     database_url: str
     test_database_url: str = ""
+    editorial_reviews_path: str = ""
     app_password_hash: str
     session_secret: str
     cookie_secure: bool = True

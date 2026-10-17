@@ -2552,6 +2552,178 @@
           }
         }
       }
+    },
+    "/api/editorial/candidates": {
+      "get": {
+        "summary": "Editorial Candidates",
+        "operationId": "editorial_candidates_api_editorial_candidates_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/editorial/sync": {
+      "get": {
+        "summary": "Editorial Sync",
+        "operationId": "editorial_sync_api_editorial_sync_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/editorial/clearance/{observation_id}": {
+      "get": {
+        "summary": "Editorial Clearance",
+        "operationId": "editorial_clearance_api_editorial_clearance__observation_id__get",
+        "parameters": [
+          {
+            "name": "observation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Observation Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/editorial/review": {
+      "get": {
+        "summary": "Editorial Review Queue",
+        "operationId": "editorial_review_queue_api_editorial_review_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/editorial/review/{observation_id}": {
+      "post": {
+        "summary": "Editorial Review Decision",
+        "operationId": "editorial_review_decision_api_editorial_review__observation_id__post",
+        "parameters": [
+          {
+            "name": "observation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Observation Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EditorialDecisionBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/editorial/assessment/{observation_id}": {
+      "post": {
+        "summary": "Editorial Assessment",
+        "operationId": "editorial_assessment_api_editorial_assessment__observation_id__post",
+        "parameters": [
+          {
+            "name": "observation_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Observation Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -5070,6 +5242,43 @@
           "evidence_id"
         ],
         "title": "CommercialTriageStage"
+      },
+      "EditorialDecisionBody": {
+        "properties": {
+          "evidenceHash": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 64,
+            "title": "Evidencehash"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "approved",
+              "rejected",
+              "needs-evidence"
+            ],
+            "title": "Status"
+          },
+          "review": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Review"
+          }
+        },
+        "type": "object",
+        "required": [
+          "evidenceHash",
+          "status"
+        ],
+        "title": "EditorialDecisionBody"
       },
       "EvidenceOut": {
         "properties": {

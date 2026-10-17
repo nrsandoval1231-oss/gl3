@@ -5045,3 +5045,122 @@ def commercial_research_status(need_id: UUID, question: str = Query(..., min_len
             "error": None,
         }
 
+
+
+@app.get("/api/editorial/candidates", dependencies=[Depends(require_session)])
+def editorial_candidates(response: Response):
+    from gridlens.intelligence.editorial_clearance import approved_feed
+
+    response.headers["Cache-Control"] = "private, no-store"
+    with SessionLocal() as session:
+        return approved_feed(session)["feed"]
+
+
+@app.get("/api/editorial/sync", dependencies=[Depends(require_session)])
+def editorial_sync(response: Response):
+    from gridlens.intelligence.editorial_clearance import approved_feed
+
+    response.headers["Cache-Control"] = "private, no-store"
+    with SessionLocal() as session:
+        return approved_feed(session)
+
+
+@app.get(
+    "/api/editorial/clearance/{observation_id}", dependencies=[Depends(require_session)]
+)
+def editorial_clearance(observation_id: UUID, response: Response):
+    from gridlens.intelligence.editorial_clearance import approved_feed
+
+    response.headers["Cache-Control"] = "private, no-store"
+    with SessionLocal() as session:
+        result = approved_feed(session, observation_id)
+        if not result["feed"]["items"]:
+            raise HTTPException(
+                409, "Clearance unavailable, withdrawn, stale or evidence changed"
+            )
+        return result
+
+
+@app.get("/api/editorial/review", dependencies=[Depends(require_session)])
+def editorial_review_queue(response: Response):
+    from gridlens.intelligence.editorial_clearance import queue
+
+    response.headers["Cache-Control"] = "private, no-store"
+    with SessionLocal() as session:
+        return {"items": queue(session)}
+
+
+class EditorialDecisionBody(BaseModel):
+    evidenceHash: str = Field(min_length=64, max_length=64)
+    status: Literal["approved", "rejected", "needs-evidence"]
+    review: dict | None = None
+
+
+@app.post(
+    "/api/editorial/review/{observation_id}",
+    dependencies=[Depends(require_session), Depends(require_same_origin)],
+)
+def editorial_review_decision(
+    observation_id: UUID, body: EditorialDecisionBody, request: Request
+):
+    import hashlib
+
+    from gridlens.intelligence.editorial_clearance import decide
+
+    # Shared-password authentication has no named accounts. Record a non-reusable
+    # session fingerprint, never trust a browser-supplied reviewer identity.
+    reviewer = (
+        "session:"
+        + hashlib.sha256(request.cookies["gridlens_session"].encode()).hexdigest()[:24]
+    )
+    try:
+        with SessionLocal.begin() as session:
+            return decide(
+                session,
+                observation_id,
+                body.evidenceHash,
+                body.status,
+                body.review,
+                reviewer,
+            )
+    except ValueError:
+        raise HTTPException(
+            409,
+            "Decision rejected: evidence changed, eligibility failed, or review is incomplete",
+        ) from None
+
+
+@app.post(
+    "/api/editorial/assessment/{observation_id}",
+    dependencies=[Depends(require_session), Depends(require_same_origin)],
+)
+def editorial_assessment(observation_id: UUID, response: Response):
+    from gridlens.intelligence.editorial_clearance import (
+        assess,
+        publication_context,
+        queue,
+    )
+    from gridlens.persistence.models import EditorialAssessment
+
+    response.headers["Cache-Control"] = "private, no-store"
+    with SessionLocal() as session:
+        record = next(
+            (r for r in queue(session) if r["id"] == str(observation_id)), None
+        )
+        if not record:
+            raise HTTPException(404, "Eligible public evidence not found")
+        result = assess(
+            record,
+            settings,
+            history=publication_context() if settings.openai_api_key else None,
+        )
+        result["evidenceVersion"] = record["evidenceHash"]
+        session.add(
+            EditorialAssessment(
+                evidence_id=UUID(record["evidenceId"]),
+                evidence_hash=record["evidenceHash"],
+                payload=result,
+            )
+        )
+        session.commit()
+        return result

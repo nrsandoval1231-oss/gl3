@@ -3,10 +3,12 @@ from typing import Any
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
+    BigInteger,
     Boolean,
     Date,
     DateTime,
     ForeignKey,
+    Identity,
     Index,
     Integer,
     String,
@@ -706,3 +708,27 @@ class InterconnectionFactVersion(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+
+
+class EditorialDecision(Base):
+    """Append-only human clearance, scoped to one immutable evidence version."""
+    __tablename__ = 'editorial_decisions'
+    sequence: Mapped[int] = mapped_column(BigInteger, Identity(), unique=True)
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    observation_id: Mapped[UUID] = mapped_column(ForeignKey('observations.id'), index=True)
+    evidence_id: Mapped[UUID] = mapped_column(ForeignKey('evidence.id'))
+    evidence_hash: Mapped[str] = mapped_column(String(64))
+    status: Mapped[str] = mapped_column(String(24))
+    reviewer: Mapped[str] = mapped_column(String(100))
+    payload: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class EditorialAssessment(Base):
+    """Advisory model output; cannot establish clearance."""
+    __tablename__ = 'editorial_assessments'
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    evidence_id: Mapped[UUID] = mapped_column(ForeignKey('evidence.id'), index=True)
+    evidence_hash: Mapped[str] = mapped_column(String(64))
+    payload: Mapped[dict] = mapped_column(JSONB)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
