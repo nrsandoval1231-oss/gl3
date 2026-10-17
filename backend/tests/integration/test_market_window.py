@@ -103,7 +103,14 @@ def test_window_selects_eligible_recent_power_items_and_reports_exclusions(facto
         _source(s, "utility-dive-news", "https://www.utilitydive.com/feeds/news/")
         _source(s, "dcd-news", "https://www.datacenterdynamics.com/en/rss/news/")
         _source(s, "boston-building-permits", "https://data.boston.gov/x", "construction-permits")
-        keep = _item(s, "utility-dive-news", "ERCOT wholesale prices spike", "Texas grid demand.")
+        # Same-day duplicates resolve deterministically: the lowest source id wins.
+        keep = _item(
+            s,
+            "dcd-news",
+            "ERCOT wholesale prices spike",
+            "Texas grid demand.",
+            host="www.datacenterdynamics.com",
+        )
         old = _item(s, "utility-dive-news", "PJM capacity auction clears", "Power prices.", 9)
         undated = _item(s, "utility-dive-news", "PJM grid plan", "Power.", published=False)
         offtopic = _item(s, "utility-dive-news", "Bakery opens", "Fresh bread.")
@@ -113,10 +120,9 @@ def test_window_selects_eligible_recent_power_items_and_reports_exclusions(facto
         )
         dup = _item(
             s,
-            "dcd-news",
+            "utility-dive-news",
             "ERCOT Wholesale Prices Spike!",
             "Power, same story.",
-            host="www.datacenterdynamics.com",
         )
     with factory() as s:
         window = build_window(s, NOW)
@@ -128,7 +134,7 @@ def test_window_selects_eligible_recent_power_items_and_reports_exclusions(facto
         "not_power_market": 1,
         "source_not_authorized": 1,
     }
-    assert window.coverage["by_source"] == {"utility-dive-news": 1}
+    assert window.coverage["by_source"] == {"dcd-news": 1}
     assert all(i not in window.items for i in (old, undated, offtopic, offhost, permit, dup))
     assert window.groups[0]["item_ids"] == [keep]
     assert window.end == TODAY and (window.end - window.start).days == 7
