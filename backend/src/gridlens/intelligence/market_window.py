@@ -78,7 +78,7 @@ def build_window(session: Session, now: datetime | None = None) -> MarketWindow:
                 | ((newer.observed_at == Evidence.observed_at) & (newer.id > Evidence.id)),
             ),
         )
-        .order_by(Evidence.published_at.desc(), Evidence.id.desc())
+        .order_by(Evidence.published_at.desc(), Source.id, Evidence.id.desc())
         .limit(2_000)
     ).all()
     excluded: Counter[str] = Counter()
