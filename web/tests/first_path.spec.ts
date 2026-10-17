@@ -28,7 +28,7 @@ async function openCardMember(
 
 async function signIn(page: import('@playwright/test').Page) {
   await page.goto('/?tier=Signals')
-  await page.getByLabel('Password').fill(requirePassword())
+  await page.getByLabel('Password', { exact: true }).fill(requirePassword())
   await page.getByRole('button', { name: 'Continue' }).click()
   await expect(page.getByRole('heading', { name: 'Signals', exact: true })).toBeVisible()
 }

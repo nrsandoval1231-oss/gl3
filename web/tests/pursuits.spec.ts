@@ -9,7 +9,7 @@ const password = process.env.GRIDLENS_TEST_PASSWORD ?? (existsSync(credentialPat
 async function signIn(page: import('@playwright/test').Page) {
   if (!password) throw new Error('Real database browser verification requires the existing private workspace password')
   await page.goto('/?view=pursuits')
-  await page.getByLabel('Password').fill(password)
+  await page.getByLabel('Password', { exact: true }).fill(password)
   await page.getByRole('button', { name: 'Continue' }).click()
   await expect(page.getByRole('heading', { name: 'What should we work today?' })).toBeVisible()
 }

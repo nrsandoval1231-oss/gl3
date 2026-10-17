@@ -698,7 +698,7 @@ test('synthetic authenticated browser writes persist through the isolated local 
     await route.abort('failed')
   })
   await page.goto('/?tier=Signals')
-  await page.getByLabel('Password').fill(password!)
+  await page.getByLabel('Password', { exact: true }).fill(password!)
   await page.getByRole('button', { name: 'Continue' }).click()
   await page.locator(`[data-opportunity-id="${needId}"]`).click()
   await expect(page.getByText(new RegExp(`Need ${needId} · project ${projectId}`))).toBeVisible()
