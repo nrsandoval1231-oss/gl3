@@ -45,6 +45,16 @@ its full output charge are implemented and verified. Model, contract, policy,
 reference and rates are included in call identity so a changed attestation cannot
 reuse an earlier reservation.
 
+Every TypeSafe/OpenAI response must report the exact configured model ID; aliases
+are not inferred. A missing/different ID or reported usage beyond the enforced
+TypeSafe total-input ceiling / OpenAI output bound quarantines the response before
+semantic parsing. The bounded raw response and usage remain in the logical-call
+audit, the call stays `SENT_OUTCOME_UNKNOWN`, and its active reservation remains
+held. A provider-level guard blocks fresh reservations and already-reserved
+`NOT_SENT` dispatches until an authorized operator reconciles attributable billing
+evidence. Quarantine estimates are conservative exposure only, never an invoiced
+charge; do not retry, refund, or close the call automatically.
+
 The smallest rollout is one already-retained, source-permitted need and its most
 valuable unresolved question, in evaluation/advisory mode with a finite approved
 request count, output-token limit, per-call cost ceiling, daily/monthly USD caps,
@@ -131,6 +141,20 @@ with canonical promotion prohibited and independent verification required.
    providers, collection, monitoring and research switches still OFF/zero. Follow
    the existing deployment command with secret-manager injection; image recreation
    without injection does not prove runtime credentials survived.
+   After deployment, if `SAVED_BROWSE_ENABLED=true`, verify the retained browse
+   cache before readiness claims:
+
+   ```powershell
+   cd backend
+   uv run python -m gridlens.jobs.browse status
+   # If stale or pending, rebuild from retained local data only.
+   uv run python -m gridlens.jobs.browse rebuild
+   uv run python -m gridlens.jobs.browse status
+   ```
+
+   Then smoke authenticated browse/list/map/triage/detail reads. This rebuild uses
+   retained data and makes no provider request. Preserve worker-stop, provider-OFF,
+   and rollback controls throughout this prerequisite.
 4. Verify authenticated reads, unknown states, API/worker identity, source coverage,
    queue visibility and last-good commercial state before the bounded activation.
 5. Enable only the agreed pilot contracts/source/need and finite caps. Capture actual

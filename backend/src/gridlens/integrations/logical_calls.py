@@ -10,7 +10,7 @@ from decimal import ROUND_CEILING, Decimal, InvalidOperation
 from typing import Any
 from uuid import UUID
 
-from sqlalchemy import select, update
+from sqlalchemy import select, text, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -26,6 +26,27 @@ MAX_USD = Decimal("100.000000")
 MAX_BUDGET_USD = Decimal("100000.000000")
 MAX_ACTUAL_USD = Decimal("1000000.000000")
 MAX_RESULT_BYTES = 65_536
+PROVIDER_QUARANTINE_PREFIX = "BILLING_QUARANTINE:"
+
+
+def _provider_lock(session: Session, provider: str) -> None:
+    """Serialize provider reservations, dispatches, quarantine, and reconciliation."""
+    session.execute(
+        text("SELECT pg_advisory_xact_lock(hashtext(:lock_key))"),
+        {"lock_key": f"gridlens:logical-call-provider:{provider}"},
+    )
+
+
+def _provider_quarantined(session: Session, provider: str) -> bool:
+    return session.scalar(
+        select(LogicalCall.id)
+        .where(
+            LogicalCall.provider == provider,
+            LogicalCall.status == "SENT_OUTCOME_UNKNOWN",
+            LogicalCall.blocked_reason.like(f"{PROVIDER_QUARANTINE_PREFIX}%"),
+        )
+        .limit(1)
+    ) is not None
 
 
 @dataclass(frozen=True)
@@ -111,6 +132,10 @@ def reserve_call(
         raise ValueError("estimated call cost exceeds max_cost_usd")
     if fence_token < 0:
         raise ValueError("fence_token must be nonnegative")
+    _provider_lock(session, provider)
+    if _provider_quarantined(session, provider):
+        session.rollback()
+        return ReservationResult(None, False, "BLOCKED", "PROVIDER_BILLING_QUARANTINED")
     if lease_authority == "job":
         if job_id is None or not worker_id:
             raise ValueError("job authority requires job_id and worker_id")
@@ -406,6 +431,14 @@ def mark_dispatched(
     session: Session, call_id: UUID, *, fence_token: int, enabled: bool = False
 ) -> ReservationResult:
     """Commit SENT_OUTCOME_UNKNOWN before a caller starts its network request."""
+    provider = session.scalar(select(LogicalCall.provider).where(LogicalCall.id == call_id))
+    if provider is None:
+        session.rollback()
+        return ReservationResult(call_id, False, "BLOCKED", "CALL_NOT_FOUND")
+    _provider_lock(session, provider)
+    if _provider_quarantined(session, provider):
+        session.rollback()
+        return ReservationResult(call_id, False, "BLOCKED", "PROVIDER_BILLING_QUARANTINED")
     call = session.scalar(select(LogicalCall).where(LogicalCall.id == call_id).with_for_update())
     if call is None:
         session.rollback()
@@ -430,6 +463,137 @@ def mark_dispatched(
     call.dispatched_at = datetime.now(UTC)
     session.commit()
     return ReservationResult(call_id, False, call.status, None, call.fence_token)
+
+
+def quarantine_call(
+    session: Session,
+    call_id: UUID,
+    *,
+    fence_token: int,
+    expected_model: str,
+    actual_model: Any,
+    reason: str,
+    response_payload: dict[str, Any],
+    input_tokens: int | None = None,
+    output_tokens: int | None = None,
+    conservative_exposure_usd: Decimal | str | int | float | None = None,
+    exposure_basis: str | None = None,
+) -> ReservationResult:
+    """Durably quarantine a response without completing or releasing its reservation."""
+    if not expected_model or not expected_model.strip() or len(expected_model) > 200:
+        raise ValueError("expected_model is required and limited to 200 characters")
+    if not reason or not reason.strip():
+        raise ValueError("quarantine reason is required")
+    for name, value in (("input_tokens", input_tokens), ("output_tokens", output_tokens)):
+        if value is not None and (type(value) is not int or value < 0 or value > 2**63 - 1):
+            raise ValueError(f"{name} must be a nonnegative finite integer")
+    provider = session.scalar(select(LogicalCall.provider).where(LogicalCall.id == call_id))
+    if provider is None:
+        session.rollback()
+        return ReservationResult(call_id, False, "BLOCKED", "CALL_NOT_FOUND")
+    _provider_lock(session, provider)
+    call = session.scalar(select(LogicalCall).where(LogicalCall.id == call_id).with_for_update())
+    if call is None:
+        session.rollback()
+        return ReservationResult(call_id, False, "BLOCKED", "CALL_NOT_FOUND")
+    if call.fence_token != fence_token or not _call_fence_is_current(session, call):
+        session.rollback()
+        return ReservationResult(call_id, False, call.status, "STALE_FENCE", call.fence_token)
+    if call.status != "SENT_OUTCOME_UNKNOWN":
+        session.rollback()
+        return ReservationResult(call_id, False, call.status, "NOT_SENT_OR_ALREADY_TERMINAL")
+
+    quarantine_reason = f"{PROVIDER_QUARANTINE_PREFIX}{reason[:120]}"
+    old_payload = call.result_payload if isinstance(call.result_payload, dict) else {}
+    old_quarantine = old_payload.get("billing_quarantine")
+    if isinstance(old_quarantine, dict):
+        # Never replace first-response evidence. The provider remains frozen until
+        # an explicitly authorized reconciliation closes this call.
+        session.commit()
+        return ReservationResult(call_id, True, call.status, call.blocked_reason, call.fence_token)
+
+    exposure = None
+    if conservative_exposure_usd is not None:
+        exposure = _money(
+            conservative_exposure_usd,
+            name="conservative_exposure_usd",
+            maximum=MAX_ACTUAL_USD,
+        )
+    prior_budgeted = call.max_cost_usd
+    if isinstance(old_quarantine, dict):
+        try:
+            prior_budgeted = max(
+                prior_budgeted,
+                _money(
+                    old_quarantine.get("budgeted_exposure_usd", call.max_cost_usd),
+                    name="budgeted_exposure_usd",
+                    maximum=MAX_ACTUAL_USD,
+                ),
+            )
+        except ValueError:
+            prior_budgeted = call.max_cost_usd
+    target_exposure = max(prior_budgeted, exposure or call.max_cost_usd)
+    overage = max(Decimal("0"), target_exposure - call.max_cost_usd)
+    if overage > 0:
+        for scope_period in call.budget_scopes:
+            if scope_period["period"] not in {"daily", "monthly"}:
+                continue
+            updated = session.execute(
+                update(LogicalCallBudget)
+                .where(
+                    LogicalCallBudget.scope == scope_period["scope"],
+                    LogicalCallBudget.period == scope_period["period"],
+                    LogicalCallBudget.period_key == scope_period["period_key"],
+                )
+                .values(cost_usd=LogicalCallBudget.cost_usd + overage)
+            )
+            if updated.rowcount != 1:
+                session.rollback()
+                raise ValueError("original budget row missing during quarantine")
+
+    quarantine = {
+        "reason": reason[:120],
+        "expected_model": expected_model[:200],
+        "actual_model": actual_model[:200] if isinstance(actual_model, str) else None,
+        "usage": {"input_tokens": input_tokens, "output_tokens": output_tokens},
+        "response": response_payload,
+        "conservative_exposure_usd": str(exposure) if exposure is not None else None,
+        "exposure_basis": exposure_basis,
+        "budgeted_exposure_usd": str(target_exposure),
+    }
+    result = {"billing_quarantine": quarantine}
+    encoded = json.dumps(
+        result,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=True,
+        allow_nan=False,
+    ).encode("utf-8")
+    if len(encoded) > MAX_RESULT_BYTES:
+        bounded_response: dict[str, Any] = {
+            "omitted": "MAX_RESULT_BYTES",
+            "sha256": hashlib.sha256(encoded).hexdigest(),
+        }
+        if isinstance(response_payload, dict):
+            for key in ("provider_response_id", "model", "usage"):
+                if key in response_payload:
+                    bounded_response[key] = response_payload[key]
+        quarantine["response"] = bounded_response
+        quarantine["reason"] = "RESPONSE_TOO_LARGE"
+        quarantine["conservative_exposure_usd"] = str(exposure) if exposure is not None else None
+        quarantine_reason = f"{PROVIDER_QUARANTINE_PREFIX}RESPONSE_TOO_LARGE"
+        encoded = json.dumps(
+            result, sort_keys=True, separators=(",", ":"), ensure_ascii=True
+        ).encode("utf-8")
+    call.result_payload = result
+    call.result_digest = hashlib.sha256(encoded).hexdigest()
+    call.input_tokens = input_tokens
+    call.output_tokens = output_tokens
+    call.blocked_reason = quarantine_reason
+    # Keep SENT_OUTCOME_UNKNOWN, finished_at, actual_cost_usd, and active budget
+    # count untouched. Only explicit billing reconciliation may release it.
+    session.commit()
+    return ReservationResult(call_id, False, call.status, quarantine_reason, call.fence_token)
 
 
 def _transition(
@@ -494,12 +658,38 @@ def _transition(
         session.commit()
         return ReservationResult(call_id, False, call.status, "NOT_DISPATCHED", call.fence_token)
     if actual_cost_usd is not None:
-        call.actual_cost_usd = _money(
+        measured_cost = _money(
             actual_cost_usd, name="actual_cost_usd", maximum=MAX_ACTUAL_USD
         )
-        if call.actual_cost_usd > call.max_cost_usd:
-            blocked_reason = "ACTUAL_COST_EXCEEDED_RESERVED_MAXIMUM"
-            delta = call.actual_cost_usd - call.max_cost_usd
+        if allow_reconcile_override and call.actual_cost_usd is not None and (
+            call.actual_cost_usd != measured_cost
+        ):
+            session.rollback()
+            raise ValueError("actual_cost_usd conflicts with previously settled billing evidence")
+        call.actual_cost_usd = measured_cost
+        prior_budgeted = call.max_cost_usd
+        old_quarantine = (
+            call.result_payload.get("billing_quarantine")
+            if isinstance(call.result_payload, dict)
+            else None
+        )
+        if isinstance(old_quarantine, dict):
+            try:
+                prior_budgeted = max(
+                    prior_budgeted,
+                    _money(
+                        old_quarantine.get("budgeted_exposure_usd", call.max_cost_usd),
+                        name="budgeted_exposure_usd",
+                        maximum=MAX_ACTUAL_USD,
+                    ),
+                )
+            except ValueError:
+                prior_budgeted = call.max_cost_usd
+        target_budgeted = max(prior_budgeted, measured_cost)
+        delta = max(Decimal("0"), target_budgeted - prior_budgeted)
+        if measured_cost > call.max_cost_usd:
+            blocked_reason = blocked_reason or "ACTUAL_COST_EXCEEDED_RESERVED_MAXIMUM"
+        if delta > 0:
             for scope_period in call.budget_scopes:
                 if scope_period["period"] in {"daily", "monthly"}:
                     session.execute(
@@ -511,11 +701,49 @@ def _transition(
                         )
                         .values(cost_usd=LogicalCallBudget.cost_usd + delta)
                     )
+        if isinstance(old_quarantine, dict):
+            old_quarantine["budgeted_exposure_usd"] = str(target_budgeted)
+            old_quarantine["reconciled_actual_cost_usd"] = str(measured_cost)
+            if isinstance(call.result_payload, dict):
+                call.result_payload["billing_quarantine"] = old_quarantine
+                call.result_digest = hashlib.sha256(
+                    json.dumps(
+                        call.result_payload,
+                        sort_keys=True,
+                        separators=(",", ":"),
+                        ensure_ascii=True,
+                        allow_nan=False,
+                    ).encode("utf-8")
+                ).hexdigest()
     for name, value in (("input_tokens", input_tokens), ("output_tokens", output_tokens)):
+        if allow_reconcile_override and value is None and getattr(call, name) is not None:
+            continue
         if value is not None and (type(value) is not int or value < 0 or value > 2**63 - 1):
             session.rollback()
             raise ValueError(f"{name} must be a nonnegative finite integer")
         setattr(call, name, value)
+    if allow_reconcile_override and isinstance(call.result_payload, dict):
+        existing_quarantine = call.result_payload.get("billing_quarantine")
+        if isinstance(existing_quarantine, dict):
+            if result_payload is None:
+                result_payload = call.result_payload
+                result_digest = call.result_digest
+            else:
+                result_payload = {
+                    "billing_quarantine": existing_quarantine,
+                    "reconciliation_result": result_payload,
+                }
+                encoded_result = json.dumps(
+                    result_payload,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                    ensure_ascii=True,
+                    allow_nan=False,
+                ).encode("utf-8")
+                if len(encoded_result) > MAX_RESULT_BYTES:
+                    session.rollback()
+                    raise ValueError("reconciled result exceeds logical-call result bound")
+                result_digest = hashlib.sha256(encoded_result).hexdigest()
     call.result_digest = result_digest
     call.result_payload = result_payload
     call.reconciled_by = reconciliation_actor
@@ -626,6 +854,23 @@ def reconcile_call(
         raise ValueError("reconciliation_actor is required and limited to 120 characters")
     if not reconciliation_ref.strip() or len(reconciliation_ref) > 200:
         raise ValueError("reconciliation_ref is required and limited to 200 characters")
+    provider = session.scalar(select(LogicalCall.provider).where(LogicalCall.id == call_id))
+    if provider is None:
+        session.rollback()
+        raise ValueError("logical call not found")
+    _provider_lock(session, provider)
+    quarantined_call = session.scalar(
+        select(LogicalCall).where(LogicalCall.id == call_id).with_for_update()
+    )
+    if (
+        quarantined_call is not None
+        and isinstance(quarantined_call.result_payload, dict)
+        and isinstance(quarantined_call.result_payload.get("billing_quarantine"), dict)
+        and actual_cost_usd is None
+        and quarantined_call.actual_cost_usd is None
+    ):
+        session.rollback()
+        raise ValueError("billing quarantine requires attributable actual-cost evidence")
     return _transition(
         session,
         call_id,
@@ -672,6 +917,11 @@ def settle_call(
         if value is not None and (type(value) is not int or value < 0 or value > 2**63 - 1):
             raise ValueError(f"{name} must be a nonnegative finite integer")
 
+    provider = session.scalar(select(LogicalCall.provider).where(LogicalCall.id == call_id))
+    if provider is None:
+        session.rollback()
+        raise ValueError("logical call not found")
+    _provider_lock(session, provider)
     call = session.scalar(select(LogicalCall).where(LogicalCall.id == call_id).with_for_update())
     if call is None:
         session.rollback()
@@ -713,11 +963,29 @@ def settle_call(
         output_tokens=output_tokens,
     )
     session.add(receipt)
-    old_cost = call.actual_cost_usd
-    if cost is not None and old_cost is None:
+    if cost is not None and call.actual_cost_usd is None:
         call.actual_cost_usd = cost
-        if cost > call.max_cost_usd:
-            delta = cost - call.max_cost_usd
+        prior_budgeted = call.max_cost_usd
+        quarantine = (
+            call.result_payload.get("billing_quarantine")
+            if isinstance(call.result_payload, dict)
+            else None
+        )
+        if isinstance(quarantine, dict):
+            try:
+                prior_budgeted = max(
+                    prior_budgeted,
+                    _money(
+                        quarantine.get("budgeted_exposure_usd", call.max_cost_usd),
+                        name="budgeted_exposure_usd",
+                        maximum=MAX_ACTUAL_USD,
+                    ),
+                )
+            except ValueError:
+                prior_budgeted = call.max_cost_usd
+        target_budgeted = max(prior_budgeted, cost)
+        delta = max(Decimal("0"), target_budgeted - prior_budgeted)
+        if delta > 0:
             for scope_period in call.budget_scopes:
                 if scope_period["period"] not in {"daily", "monthly"}:
                     continue
@@ -733,6 +1001,20 @@ def settle_call(
                 if updated.rowcount != 1:
                     session.rollback()
                     raise ValueError("original budget row missing during overage settlement")
+        if isinstance(quarantine, dict):
+            quarantine["budgeted_exposure_usd"] = str(target_budgeted)
+            quarantine["reconciled_actual_cost_usd"] = str(cost)
+            if isinstance(call.result_payload, dict):
+                call.result_payload["billing_quarantine"] = quarantine
+                call.result_digest = hashlib.sha256(
+                    json.dumps(
+                        call.result_payload,
+                        sort_keys=True,
+                        separators=(",", ":"),
+                        ensure_ascii=True,
+                        allow_nan=False,
+                    ).encode("utf-8")
+                ).hexdigest()
     if input_tokens is not None and call.input_tokens is None:
         call.input_tokens = input_tokens
     if output_tokens is not None and call.output_tokens is None:

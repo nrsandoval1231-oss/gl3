@@ -10,13 +10,20 @@ from decimal import Decimal
 from typing import Any
 from uuid import UUID
 
-from gridlens.integrations.logical_calls import complete_call, mark_dispatched, reserve_call
+from gridlens.integrations.logical_calls import (
+    complete_call,
+    mark_dispatched,
+    quarantine_call,
+    reserve_call,
+)
 from gridlens.intelligence.intelligence_jobs import (
     _billing_policy_identity,
     _caps,
     _cost_bound,
     _dispatch_policy,
     _enabled,
+    _provider_audit_exceeds_bound,
+    _safe_provider_audit,
 )
 from gridlens.persistence.database import SessionLocal
 from gridlens.persistence.models import LogicalCall
@@ -154,6 +161,67 @@ def perform_legacy_call(
     result, input_tokens, output_tokens = invoke()
     if not isinstance(result, dict):
         raise ValueError("Legacy provider result must be a JSON object")
+    if provider in {"typesafe", "openai"}:
+        actual_model = result.get("actual_model", result.get("model"))
+        quarantine_reason: str | None = (
+            "MODEL_IDENTITY_MISMATCH" if actual_model != model else None
+        )
+        if quarantine_reason is None and _provider_audit_exceeds_bound(result):
+            quarantine_reason = "RESPONSE_TOO_LARGE"
+        if quarantine_reason is None and any(
+            value is not None and (type(value) is not int or value < 0)
+            for value in (input_tokens, output_tokens)
+        ):
+            quarantine_reason = "INVALID_REPORTED_USAGE"
+        if (
+            quarantine_reason is None
+            and provider == "typesafe"
+            and input_tokens is not None
+            and input_tokens > settings.intelligence_typesafe_max_total_billable_input_tokens
+        ):
+            quarantine_reason = "TOTAL_BILLABLE_INPUT_CEILING_EXCEEDED"
+        output_bound = None
+        if provider == "openai":
+            prefix = "fast" if task_type == "GROUNDED_EXTRACTION" else "reasoning"
+            output_bound = getattr(settings, f"intelligence_openai_{prefix}_max_output_tokens")
+            if output_tokens is not None and output_tokens > output_bound:
+                quarantine_reason = "ENFORCED_OUTPUT_BOUND_EXCEEDED"
+        if quarantine_reason:
+            from gridlens.intelligence.intelligence_jobs import _estimated_cost_from_usage
+
+            exposure = None
+            if actual_model == model and type(input_tokens) is int and input_tokens >= 0:
+                if provider == "typesafe":
+                    exposure = _estimated_cost_from_usage(provider, task_type, input_tokens, 0)
+                elif type(output_tokens) is int and output_tokens >= 0:
+                    exposure = _estimated_cost_from_usage(
+                        provider, task_type, input_tokens, output_tokens
+                    )
+            with SessionLocal() as session:
+                quarantined = quarantine_call(
+                    session,
+                    call_id,
+                    fence_token=fence_token,
+                    expected_model=model,
+                    actual_model=actual_model,
+                    reason=quarantine_reason,
+                    response_payload=_safe_provider_audit(result),
+                    input_tokens=(
+                        input_tokens
+                        if type(input_tokens) is int and input_tokens >= 0
+                        else None
+                    ),
+                    output_tokens=output_tokens
+                    if type(output_tokens) is int and output_tokens >= 0
+                    else None,
+                    conservative_exposure_usd=exposure,
+                    exposure_basis=(
+                        "reported_same_model_usage_at_pinned_rates"
+                        if exposure is not None
+                        else None
+                    ),
+                )
+            raise LegacyCallUnknown(quarantined.blocked_reason or quarantine_reason)
     with SessionLocal() as session:
         completed = complete_call(
             session,

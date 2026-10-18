@@ -408,6 +408,14 @@ def test_typesafe_missing_billing_attestation_fails_closed_and_identity_tracks_p
         settings, "intelligence_typesafe_billing_policy_id", "typesafe-total-input-ceiling-v1"
     )
     before = _billing_policy_identity("typesafe", "pinned-fixture-model")
+    assert before and before["response_guard_policy"] == "exact-model-usage-v1"
+    assert _billing_policy_identity("openai", "pinned-openai-model") == {
+        "response_guard_policy": "exact-model-usage-v1",
+        "provider_model": "pinned-openai-model",
+    }
+    assert _billing_policy_identity("openai", "other-openai-model") != _billing_policy_identity(
+        "openai", "pinned-openai-model"
+    )
     monkeypatch.setattr(
         settings, "intelligence_typesafe_billing_reference", "synthetic://fixture/changed-proof"
     )

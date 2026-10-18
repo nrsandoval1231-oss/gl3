@@ -629,7 +629,9 @@ def brief_request_payload(
     }
 
 
-def _provider(payload: dict, facts: dict[str, dict]) -> tuple[dict, int | None, int | None]:
+def _provider(
+    payload: dict, facts: dict[str, dict]
+) -> tuple[dict, int | None, int | None, str | None]:
     if not settings.openai_api_key:
         raise BriefUnavailable("provider_not_configured")
     request = brief_request_payload(payload, facts)
@@ -641,7 +643,13 @@ def _provider(payload: dict, facts: dict[str, dict]) -> tuple[dict, int | None, 
     raw = body.get("output")
     if not isinstance(raw, dict):
         raise BriefUnavailable("provider_refusal_or_empty")
-    return raw, body.get("input_tokens"), body.get("output_tokens")
+    actual_model = body.get("model")
+    return (
+        raw,
+        body.get("input_tokens"),
+        body.get("output_tokens"),
+        actual_model if isinstance(actual_model, str) else None,
+    )
 
 
 def process_brief_job(job_id: UUID, worker_id: str, fence: int) -> None:
@@ -706,8 +714,8 @@ def process_brief_job(job_id: UUID, worker_id: str, fence: int) -> None:
                 job.checkpoint = json.dumps(checkpoint)
 
         def invoke_provider() -> tuple[dict, int | None, int | None]:
-            value, input_count, output_count = _provider(payload, facts)
-            return {"raw": value}, input_count, output_count
+            value, input_count, output_count, actual_model = _provider(payload, facts)
+            return {"raw": value, "model": actual_model}, input_count, output_count
 
         call_result = perform_legacy_call(
             task_type="POWER_NEED_BRIEF",

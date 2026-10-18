@@ -1813,6 +1813,7 @@ def test_rejected_provider_output_keeps_usage_and_safe_reason(runtime, monkeypat
             },
             123,
             45,
+            settings.openai_brief_model,
         )
 
     monkeypatch.setattr(service, "_provider", rejected)
@@ -1826,7 +1827,12 @@ def test_rejected_provider_output_keeps_usage_and_safe_reason(runtime, monkeypat
 
 def _valid_model_result(_payload, facts):
     fact_id = next(iter(facts))
-    return {"selected_fact_ids": [fact_id], "hypothesis_fact_id": fact_id}, 120, 40
+    return (
+        {"selected_fact_ids": [fact_id], "hypothesis_fact_id": fact_id},
+        120,
+        40,
+        settings.openai_brief_model,
+    )
 
 
 def _request_due_brief(session, service, need_id):

@@ -54,6 +54,10 @@ def test_blocked_acquisition_does_not_block_planners_or_heartbeat(worker_db, mon
     import gridlens.ingestion.service as ingestion
     import gridlens.jobs.worker as worker
 
+    # Alembic's fileConfig disables previously imported loggers by default.
+    # Restore this application's logger for the duration of this test so the
+    # caplog assertion observes the real planner failure record.
+    monkeypatch.setattr(worker.logger, "disabled", False)
     caplog.set_level(logging.ERROR, logger=worker.__name__)
     planner_failure_logged = threading.Event()
     original_exception = worker.logger.exception

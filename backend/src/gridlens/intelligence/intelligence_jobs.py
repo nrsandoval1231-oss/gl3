@@ -21,10 +21,12 @@ from gridlens.integrations.intelligence_provider import (
     openai_request_payload,
 )
 from gridlens.integrations.logical_calls import (
+    MAX_RESULT_BYTES,
     cancel_call,
     complete_call,
     fail_call,
     mark_dispatched,
+    quarantine_call,
     reserve_call,
 )
 from gridlens.intelligence.grounded_candidates import validate_grounded_candidates
@@ -754,10 +756,14 @@ def _typesafe_billing_block_reason(model: str) -> str:
 
 
 def _billing_policy_identity(provider: str, model: str) -> dict[str, str] | None:
-    """Return the proof/config identity that must participate in call deduplication."""
-    if provider != "typesafe":
+    """Return response/billing policy identity used for call freshness and dispatch."""
+    if provider not in {"typesafe", "openai"}:
         return None
+    response_policy = {"response_guard_policy": "exact-model-usage-v1", "provider_model": model}
+    if provider == "openai":
+        return response_policy
     return {
+        **response_policy,
         "mode": settings.intelligence_typesafe_billing_mode,
         "verified": str(settings.intelligence_typesafe_billing_verified).lower(),
         "model_id": settings.intelligence_typesafe_billing_model_id,
@@ -774,7 +780,6 @@ def _billing_policy_identity(provider: str, model: str) -> dict[str, str] | None
         "priced_model_id": settings.intelligence_typesafe_priced_model_id,
         "input_rate": str(settings.intelligence_typesafe_input_usd_per_million),
         "output_rate": str(settings.intelligence_typesafe_output_usd_per_million),
-        "provider_model": model,
     }
 
 
@@ -927,6 +932,46 @@ def _estimated_cost_from_usage(
     return (Decimal(input_tokens) * input_price + Decimal(output_tokens) * output_price) / Decimal(
         1_000_000
     )
+
+
+def _safe_provider_audit(value: Any) -> Any:
+    """Bounded JSON-compatible provider evidence with credential-shaped fields removed."""
+    secret_keys = {"authorization", "api_key", "apikey", "access_token", "secret", "credential"}
+    if isinstance(value, dict):
+        return {
+            str(key): (
+                "[REDACTED]"
+                if str(key).casefold().replace("-", "_") in secret_keys
+                or str(key).casefold().endswith("_secret")
+                else _safe_provider_audit(item)
+            )
+            for key, item in value.items()
+        }
+    if isinstance(value, list):
+        return [_safe_provider_audit(item) for item in value[:1000]]
+    if isinstance(value, float) and not math.isfinite(value):
+        return str(value)
+    if isinstance(value, str | int | float | bool) or value is None:
+        return value
+    return str(value)[:2000]
+
+
+def _provider_audit_exceeds_bound(value: Any) -> bool:
+    try:
+        encoded = json.dumps(
+            _safe_provider_audit(value),
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=True,
+            allow_nan=False,
+        ).encode("utf-8")
+    except (TypeError, ValueError, RecursionError):
+        return True
+    return len(encoded) > MAX_RESULT_BYTES
+
+
+def _valid_reported_tokens(value: Any) -> bool:
+    return value is None or (type(value) is int and 0 <= value <= 2**63 - 1)
 
 
 def _serialized_request_bytes(request: dict[str, Any]) -> int:
@@ -1317,6 +1362,8 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
     output_tokens: int | None = None
     provider_response_id: str | None = None
     provider_response_complete = False
+    billing_quarantined = False
+    error: str | None = None
     # Prepare bounded input and the ledger identity while holding only the job
     # fence. reserve_call commits its own transaction, so never pass it this
     # session or retain a job row lock across that call.
@@ -1499,9 +1546,68 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
             )
             provider_response_complete = True
             provider_response_id = data.get("provider_response_id")
-            parsed, actual_model, input_tokens, output_tokens = _type_safe_result(
-                data, task_type, payload
-            )
+            usage_value = data.get("usage")
+            response_usage = usage_value if isinstance(usage_value, dict) else {}
+            actual_model = data.get("model")
+            input_tokens = response_usage.get("input_tokens")
+            output_tokens = response_usage.get("output_tokens")
+            quarantine_reason = None
+            if actual_model != model:
+                quarantine_reason = "MODEL_IDENTITY_MISMATCH"
+            elif not _valid_reported_tokens(input_tokens) or not _valid_reported_tokens(
+                output_tokens
+            ):
+                quarantine_reason = "INVALID_REPORTED_USAGE"
+            elif (
+                input_tokens is not None
+                and input_tokens > settings.intelligence_typesafe_max_total_billable_input_tokens
+            ):
+                quarantine_reason = "TOTAL_BILLABLE_INPUT_CEILING_EXCEEDED"
+            elif _provider_audit_exceeds_bound(data):
+                quarantine_reason = "RESPONSE_TOO_LARGE"
+            if quarantine_reason:
+                safe_data = _safe_provider_audit(data)
+                safe_usage = _safe_provider_audit(response_usage)
+                exposure = (
+                    _estimated_cost_from_usage(provider, task_type, input_tokens, 0)
+                    if isinstance(input_tokens, int) and input_tokens >= 0
+                    and actual_model == model
+                    and quarantine_reason == "TOTAL_BILLABLE_INPUT_CEILING_EXCEEDED"
+                    else None
+                )
+                with SessionLocal() as session:
+                    quarantined = quarantine_call(
+                        session,
+                        call_id,
+                        fence_token=fence_token,
+                        expected_model=model,
+                        actual_model=actual_model,
+                        reason=quarantine_reason,
+                        response_payload=safe_data,
+                        input_tokens=input_tokens if _valid_reported_tokens(input_tokens) else None,
+                        output_tokens=output_tokens
+                        if _valid_reported_tokens(output_tokens)
+                        else None,
+                        conservative_exposure_usd=exposure,
+                        exposure_basis=(
+                            "reported_same_model_input_tokens_at_pinned_input_rate"
+                            if exposure is not None
+                            else None
+                        ),
+                    )
+                billing_quarantined = True
+                status = "unknown"
+                error = quarantined.blocked_reason or quarantine_reason
+                call_result = {
+                    "provider": provider,
+                    "actual_model": actual_model,
+                    "usage": safe_usage,
+                    "billing_quarantine": quarantine_reason,
+                }
+            else:
+                parsed, actual_model, input_tokens, output_tokens = _type_safe_result(
+                    data, task_type, payload
+                )
         else:
             key = settings.openai_api_key.get_secret_value() if settings.openai_api_key else ""
             instructions = GROUNDED_INSTRUCTIONS
@@ -1519,50 +1625,106 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
             )
             provider_response_complete = True
             provider_response_id = data.get("provider_response_id")
-            parsed = validate_grounded_candidates(data["output"], payload["evidence"])
             response_model = data.get("model")
             input_tokens, output_tokens = data.get("input_tokens"), data.get("output_tokens")
-            if not isinstance(response_model, str) or not response_model:
-                raise ValueError("Provider response omitted actual model")
             actual_model = response_model
-        call_result = {
-            **parsed,
-            "provider": provider,
-            "actual_model": actual_model,
-            "latency_ms": data.get("latency_ms", data.get("provider_latency_ms")),
-        }
-        estimated_cost = _estimated_cost_from_usage(
-            provider, task_type, input_tokens, output_tokens
-        )
-        call_result["usage"] = {
-            "input_tokens": input_tokens,
-            "output_tokens": output_tokens,
-            "actual_cost_usd": None,
-            "estimated_cost_usd": str(estimated_cost) if estimated_cost is not None else None,
-            "cost_basis": (
-                "derived_from_verified_usage_and_pinned_rates"
-                if estimated_cost is not None
-                else None
-            ),
-        }
-        result_digest = _digest(call_result)
-        with SessionLocal() as session:
-            complete_call(
-                session,
-                call_id,
-                fence_token=fence_token,
-                input_tokens=input_tokens,
-                output_tokens=output_tokens,
-                result_digest=result_digest,
-                result_payload=call_result,
+            quarantine_reason = None
+            if actual_model != model:
+                quarantine_reason = "MODEL_IDENTITY_MISMATCH"
+            elif not _valid_reported_tokens(input_tokens) or not _valid_reported_tokens(
+                output_tokens
+            ):
+                quarantine_reason = "INVALID_REPORTED_USAGE"
+            elif output_tokens is not None and output_tokens > output_limit:
+                quarantine_reason = "ENFORCED_OUTPUT_BOUND_EXCEEDED"
+            elif _provider_audit_exceeds_bound(data):
+                quarantine_reason = "RESPONSE_TOO_LARGE"
+            if quarantine_reason:
+                safe_data = _safe_provider_audit(data)
+                exposure = (
+                    _estimated_cost_from_usage(provider, task_type, input_tokens, output_tokens)
+                    if actual_model == model
+                    and _valid_reported_tokens(input_tokens)
+                    and _valid_reported_tokens(output_tokens)
+                    and input_tokens is not None
+                    and output_tokens is not None
+                    else None
+                )
+                with SessionLocal() as session:
+                    quarantined = quarantine_call(
+                        session,
+                        call_id,
+                        fence_token=fence_token,
+                        expected_model=model,
+                        actual_model=actual_model,
+                        reason=quarantine_reason,
+                        response_payload=safe_data,
+                        input_tokens=input_tokens if _valid_reported_tokens(input_tokens) else None,
+                        output_tokens=output_tokens
+                        if _valid_reported_tokens(output_tokens)
+                        else None,
+                        conservative_exposure_usd=exposure,
+                        exposure_basis=(
+                            "reported_same_model_usage_at_pinned_rates"
+                            if exposure is not None
+                            else None
+                        ),
+                    )
+                billing_quarantined = True
+                status = "unknown"
+                error = quarantined.blocked_reason or quarantine_reason
+                call_result = {
+                    "provider": provider,
+                    "actual_model": actual_model,
+                    "usage": {
+                        "input_tokens": input_tokens,
+                        "output_tokens": output_tokens,
+                    },
+                    "billing_quarantine": quarantine_reason,
+                }
+        if not billing_quarantined:
+            if provider == "openai":
+                parsed = validate_grounded_candidates(data["output"], payload["evidence"])
+            call_result = {
+                **parsed,
+                "provider": provider,
+                "actual_model": actual_model,
+                "latency_ms": data.get("latency_ms", data.get("provider_latency_ms")),
+            }
+            estimated_cost = _estimated_cost_from_usage(
+                provider, task_type, input_tokens, output_tokens
             )
-        status = "completed"
-        error = None
+            call_result["usage"] = {
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "actual_cost_usd": None,
+                "estimated_cost_usd": str(estimated_cost) if estimated_cost is not None else None,
+                "cost_basis": (
+                    "derived_from_verified_usage_and_pinned_rates"
+                    if estimated_cost is not None
+                    else None
+                ),
+            }
+            result_digest = _digest(call_result)
+            with SessionLocal() as session:
+                complete_call(
+                    session,
+                    call_id,
+                    fence_token=fence_token,
+                    input_tokens=input_tokens,
+                    output_tokens=output_tokens,
+                    result_digest=result_digest,
+                    result_payload=call_result,
+                )
+            status = "completed"
+            error = None
     except Exception as exc:
         provider_response_id = provider_response_id or getattr(exc, "request_id", None)
         response_ref = f"response:{provider_response_id}" if provider_response_id else None
         terminal_failure = False
-        if response_ref and (getattr(exc, "conclusive", False) or provider_response_complete):
+        if not billing_quarantined and response_ref and (
+            getattr(exc, "conclusive", False) or provider_response_complete
+        ):
             with SessionLocal() as session:
                 failure = fail_call(
                     session,

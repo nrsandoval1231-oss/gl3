@@ -31,6 +31,8 @@ Owner full-build request 2026-10-18; prior graph archived unchanged.
 | G2 | G1 builder slot release | LOCALLY VERIFIED | 304062d; complete metric coverage; paid routes NOT_RUN; proposed labels not acceptance |
 | F | E,F1,F3 | INTEGRATED CANDIDATE | Combined authenticated commercial/ops/feedback; frozen runtime/browser receipt governs acceptance |
 | G | B–F | INTEGRATED CANDIDATE | Frozen evaluation, activation/rollback/restore/cycle tooling; final gate/review receipt governs acceptance |
+| B7 | independent8c FIX, bounded accounting design | INTEGRATED CANDIDATE | Provider response quarantine, exact model and usage-bound validation across queued/legacy routes; durable exposure and reservation/dispatch guard |
+| TEST-R2 | full8c failure | LOCALLY VERIFIED | Reproduce and repair suite-order log capture without weakening liveness assertions |
 | LIVE | G, authority/access/budget/time | OPEN | Real journey, PC-off/seven daily cycles/owner acceptance |
 
 At most two disjoint READY builders; serialized integration and controller gates.
@@ -43,3 +45,5 @@ allowed a synthetic-key auth-rejected provider request; actual suite-wide networ
 count was not instrumented. No real key or successful model response. Final local acceptance requires a matching immutable
 `.artifacts/INTELLIGENCE-20261018/final/release-manifest.json`; no missing receipt,
 pending provider comparison, or absent operational proof becomes success.
+
+Direction VALIDATE repaired B7 candidate. Builder combined147 tests pass; controller V5 restore and three-test logging predecessor proof pass. Final full suite/runtime/independent review remain decisive.

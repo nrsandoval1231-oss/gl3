@@ -13,8 +13,10 @@ from gridlens.integrations.logical_calls import (
     cancel_call,
     complete_call,
     mark_dispatched,
+    quarantine_call,
     reconcile_call,
     reserve_call,
+    settle_call,
 )
 from gridlens.persistence.database import Base
 from gridlens.persistence.models import (
@@ -113,6 +115,195 @@ def test_reservation_reuse_unknown_dispatch_and_fences(sessions):
         )
         assert budget and budget.call_count == 1 and budget.active_count == 0
         assert budget.cost_usd == Decimal("0.050000")
+
+
+def test_billing_quarantine_holds_exposure_blocks_provider_and_is_idempotent(sessions):
+    sent = _reserve(sessions, "quarantine-sent")
+    already_reserved = _reserve(sessions, "quarantine-pre-reserved")
+    with sessions() as session:
+        assert mark_dispatched(session, sent.call_id, fence_token=7, enabled=True).status == (
+            "SENT_OUTCOME_UNKNOWN"
+        )
+    evidence = {
+        "model": "fixture-model",
+        "usage": {"input_tokens": 50_000, "output_tokens": 3},
+        "output": {"fixture": "raw provider response"},
+    }
+    with sessions() as session:
+        quarantined = quarantine_call(
+            session,
+            sent.call_id,
+            fence_token=7,
+            expected_model="fixture-model",
+            actual_model="fixture-model",
+            reason="TOTAL_BILLABLE_INPUT_CEILING_EXCEEDED",
+            response_payload=evidence,
+            input_tokens=50_000,
+            output_tokens=3,
+            conservative_exposure_usd="0.100000",
+            exposure_basis="synthetic-fixture-input-rate",
+        )
+    assert quarantined.status == "SENT_OUTCOME_UNKNOWN"
+    assert quarantined.blocked_reason == (
+        "BILLING_QUARANTINE:TOTAL_BILLABLE_INPUT_CEILING_EXCEEDED"
+    )
+    with sessions() as session:
+        row = session.get(LogicalCall, sent.call_id)
+        global_daily = session.scalar(
+            select(LogicalCallBudget).where(
+                LogicalCallBudget.scope == "global:global",
+                LogicalCallBudget.period == "daily",
+            )
+        )
+        assert row and row.actual_cost_usd is None and row.finished_at is None
+        assert row.result_payload["billing_quarantine"]["response"] == evidence
+        assert global_daily and global_daily.active_count == 2
+        assert global_daily.cost_usd == Decimal("0.120000")
+    with sessions() as session, pytest.raises(
+        ValueError, match="requires attributable actual-cost evidence"
+    ):
+        reconcile_call(
+            session,
+            sent.call_id,
+            fence_token=7,
+            reconciliation_actor="synthetic operator",
+            reconciliation_ref="not billing evidence",
+        )
+    with sessions() as session:
+        repeated = quarantine_call(
+            session,
+            sent.call_id,
+            fence_token=7,
+            expected_model="fixture-model",
+            actual_model="fixture-model",
+            reason="TOTAL_BILLABLE_INPUT_CEILING_EXCEEDED",
+            response_payload=evidence,
+            input_tokens=50_000,
+            output_tokens=3,
+            conservative_exposure_usd="0.100000",
+            exposure_basis="synthetic-fixture-input-rate",
+        )
+    assert repeated.reused
+    with sessions() as session:
+        blocked_dispatch = mark_dispatched(
+            session, already_reserved.call_id, fence_token=7, enabled=True
+        )
+    assert blocked_dispatch.blocked_reason == "PROVIDER_BILLING_QUARANTINED"
+    new_call = _reserve(sessions, "quarantine-new-call")
+    assert new_call.call_id is None and new_call.blocked_reason == "PROVIDER_BILLING_QUARANTINED"
+
+    with sessions() as session:
+        _receipt, replayed = settle_call(
+            session,
+            sent.call_id,
+            actor="synthetic-fixture",
+            receipt_ref="synthetic-invoice-1",
+            actual_cost_usd="0.040000",
+            input_tokens=50_000,
+        )
+    assert not replayed
+    with sessions() as session:
+        _receipt, replayed = settle_call(
+            session,
+            sent.call_id,
+            actor="synthetic-fixture",
+            receipt_ref="synthetic-invoice-1",
+            actual_cost_usd="0.040000",
+            input_tokens=50_000,
+        )
+    assert replayed
+    with sessions() as session:
+        row = session.get(LogicalCall, sent.call_id)
+        global_daily = session.scalar(
+            select(LogicalCallBudget).where(
+                LogicalCallBudget.scope == "global:global",
+                LogicalCallBudget.period == "daily",
+            )
+        )
+        assert row and row.status == "SENT_OUTCOME_UNKNOWN"
+        assert row.actual_cost_usd == Decimal("0.040000")
+        assert global_daily and global_daily.cost_usd == Decimal("0.120000")
+    still_blocked = _reserve(sessions, "quarantine-settled-still-blocked")
+    assert still_blocked.call_id is None
+    assert still_blocked.blocked_reason == "PROVIDER_BILLING_QUARANTINED"
+    with sessions() as session:
+        reconciled = reconcile_call(
+            session,
+            sent.call_id,
+            fence_token=7,
+            actual_cost_usd="0.040000",
+            reconciliation_actor="synthetic operator",
+            reconciliation_ref="synthetic invoice review",
+        )
+    assert reconciled.status == "RECONCILED"
+    with sessions() as session:
+        row = session.get(LogicalCall, sent.call_id)
+        global_daily = session.scalar(
+            select(LogicalCallBudget).where(
+                LogicalCallBudget.scope == "global:global",
+                LogicalCallBudget.period == "daily",
+            )
+        )
+        assert row and row.result_payload["billing_quarantine"]["response"] == evidence
+        assert global_daily and global_daily.active_count == 1
+        assert global_daily.cost_usd == Decimal("0.120000")
+    after_reconcile = _reserve(sessions, "quarantine-reconciled-provider-unfrozen")
+    assert after_reconcile.call_id is not None and after_reconcile.status == "NOT_SENT"
+
+
+def test_billing_quarantine_rejects_stale_fence_without_mutation(sessions):
+    call = _reserve(sessions, "quarantine-stale-fence")
+    with sessions() as session:
+        mark_dispatched(session, call.call_id, fence_token=7, enabled=True)
+    with sessions() as session:
+        stale = quarantine_call(
+            session,
+            call.call_id,
+            fence_token=6,
+            expected_model="fixture-model",
+            actual_model="other-model",
+            reason="MODEL_IDENTITY_MISMATCH",
+            response_payload={"model": "other-model"},
+        )
+    assert stale.blocked_reason == "STALE_FENCE"
+    with sessions() as session:
+        row = session.get(LogicalCall, call.call_id)
+        assert row and row.status == "SENT_OUTCOME_UNKNOWN"
+        assert row.blocked_reason is None and row.result_payload is None
+
+
+def test_provider_lock_serializes_quarantine_against_new_reservation(sessions):
+    from threading import Event
+
+    from gridlens.integrations.logical_calls import _provider_lock
+
+    dispatched = _reserve(sessions, "quarantine-lock-dispatched")
+    with sessions() as session:
+        mark_dispatched(session, dispatched.call_id, fence_token=7, enabled=True)
+    started = Event()
+
+    def competing_reservation():
+        started.set()
+        return _reserve(sessions, "quarantine-lock-race")
+
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        with sessions() as session:
+            _provider_lock(session, "typesafe")
+            future = pool.submit(competing_reservation)
+            assert started.wait(timeout=5)
+            quarantined = quarantine_call(
+                session,
+                dispatched.call_id,
+                fence_token=7,
+                expected_model="fixture-model",
+                actual_model="other-model",
+                reason="MODEL_IDENTITY_MISMATCH",
+                response_payload={"model": "other-model"},
+            )
+            assert quarantined.status == "SENT_OUTCOME_UNKNOWN"
+        raced = future.result(timeout=5)
+    assert raced.call_id is None
+    assert raced.blocked_reason == "PROVIDER_BILLING_QUARANTINED"
 
 
 def test_completed_result_payload_is_canonical_bounded_and_self_consistent(sessions):

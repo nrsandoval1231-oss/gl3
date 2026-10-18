@@ -19,6 +19,7 @@ from gridlens.persistence.models import (
     Interpretation,
     Job,
     LogicalCall,
+    LogicalCallBudget,
     NeedObservation,
     Observation,
     PowerNeed,
@@ -472,6 +473,253 @@ def test_catalog_worker_applies_per_call_cap_to_full_input_ceiling(sessions, mon
     assert calls == []
     assert history[0]["status"] == "blocked"
     assert history[0]["error"] == "FINITE_BUDGET_REQUIRED"
+
+
+@pytest.mark.parametrize(
+    ("response", "expected_reason"),
+    [
+        (
+            {
+                "model": "unconfigured-alias",
+                "provider_response_id": "fixture-model-mismatch",
+                "usage": {"input_tokens": 10, "output_tokens": 1},
+                "answers": {"invalid": "semantic payload must not be parsed"},
+                "api_key": "synthetic-secret-must-not-persist",
+            },
+            "MODEL_IDENTITY_MISMATCH",
+        ),
+        (
+            {
+                "provider_response_id": "fixture-model-missing",
+                "usage": {"input_tokens": 10, "output_tokens": 1},
+                "answers": {"invalid": "semantic payload must not be parsed"},
+            },
+            "MODEL_IDENTITY_MISMATCH",
+        ),
+        (
+            {
+                "model": "pinned-fixture-model",
+                "provider_response_id": "fixture-input-overage",
+                "usage": {"input_tokens": 20_001, "output_tokens": 1},
+                "answers": {"invalid": "semantic payload must not be parsed"},
+            },
+            "TOTAL_BILLABLE_INPUT_CEILING_EXCEEDED",
+        ),
+        (
+            {
+                "model": "pinned-fixture-model",
+                "provider_response_id": "fixture-oversized-response",
+                "usage": {"input_tokens": 10, "output_tokens": 1},
+                "large_untrusted_output": "x" * 70_000,
+            },
+            "RESPONSE_TOO_LARGE",
+        ),
+    ],
+)
+def test_catalog_quarantines_type_safe_identity_and_input_bound_breaches_before_parse(
+    sessions, monkeypatch, response, expected_reason
+):
+    _enable_bounded_typesafe(monkeypatch)
+    need_id, _evidence_id, job_id = _seed_job(sessions)
+    worker = _wire_worker(sessions, monkeypatch)
+    monkeypatch.setattr(worker, "WORKER_ID", "fixture-billing-quarantine-worker")
+    from gridlens.intelligence import intelligence_jobs
+
+    provider_calls = []
+
+    def fake_response(**_kwargs):
+        provider_calls.append(True)
+        return response
+
+    monkeypatch.setattr(intelligence_jobs, "call_typesafe", fake_response)
+    assert worker.run_one({}, job_ids=[job_id]) is True
+    with sessions() as session:
+        call = session.scalar(select(LogicalCall))
+        history = intelligence_history(session, need_id)
+        budget = session.scalar(
+            select(LogicalCallBudget).where(
+                LogicalCallBudget.scope == "global:global",
+                LogicalCallBudget.period == "daily",
+            )
+        )
+    assert provider_calls == [True]
+    assert call and call.status == "SENT_OUTCOME_UNKNOWN"
+    assert call.blocked_reason == f"BILLING_QUARANTINE:{expected_reason}"
+    assert call.actual_cost_usd is None and call.finished_at is None
+    quarantine = call.result_payload["billing_quarantine"]
+    assert quarantine["response"].get("provider_response_id")
+    assert quarantine["reason"] == expected_reason
+    assert "synthetic-secret-must-not-persist" not in json.dumps(call.result_payload)
+    if expected_reason == "MODEL_IDENTITY_MISMATCH":
+        assert quarantine["response"].get("model") in {None, "unconfigured-alias"}
+    elif expected_reason == "TOTAL_BILLABLE_INPUT_CEILING_EXCEEDED":
+        assert quarantine["usage"]["input_tokens"] == 20_001
+        assert Decimal(quarantine["conservative_exposure_usd"]) > call.max_cost_usd
+    else:
+        assert quarantine["reason"] == "RESPONSE_TOO_LARGE"
+        assert quarantine["response"]["omitted"] == "MAX_RESULT_BYTES"
+    assert budget and budget.active_count == 1
+    assert history[0]["status"] == "unknown" and history[0]["uncertain"] is True
+    assert history[0]["result"]["billing_quarantine"] == expected_reason
+
+
+def test_catalog_quarantines_openai_output_bound_breach_before_semantic_parse(
+    sessions, monkeypatch
+):
+    for name, value in {
+        "intelligence_enabled": True,
+        "intelligence_mode": "advisory",
+        "intelligence_openai_enabled": True,
+        "intelligence_research_enabled": True,
+        "intelligence_enabled_contracts": "TEMP_LOAD_MW",
+        "openai_api_key": SecretStr("fixture-only"),
+        "intelligence_openai_reasoning_model": "pinned-openai-fixture",
+        "intelligence_openai_reasoning_priced_model_id": "pinned-openai-fixture",
+        "intelligence_openai_reasoning_pricing_verified": True,
+        "intelligence_openai_reasoning_input_usd_per_million": Decimal("1"),
+        "intelligence_openai_reasoning_output_usd_per_million": Decimal("1"),
+        "intelligence_openai_reasoning_max_output_tokens": 1,
+        "intelligence_max_active_calls": 2,
+        "intelligence_max_call_usd": Decimal("0.1"),
+    }.items():
+        monkeypatch.setattr(settings, name, value)
+    for scope in ("global", "provider", "model", "source", "project"):
+        for period in ("daily", "monthly"):
+            monkeypatch.setattr(settings, f"intelligence_{scope}_{period}_calls", 10)
+            monkeypatch.setattr(settings, f"intelligence_{scope}_{period}_usd", Decimal("10"))
+    need_id, _evidence_id, job_id = _seed_job(
+        sessions,
+        task_type="GROUNDED_DOSSIER",
+        question_id="TEMP_LOAD_MW",
+        link_pursuit=True,
+    )
+    worker = _wire_worker(sessions, monkeypatch)
+    monkeypatch.setattr(worker, "WORKER_ID", "fixture-openai-quarantine-worker")
+    from gridlens.intelligence import intelligence_jobs
+
+    provider_calls = []
+
+    def fake_response(**_kwargs):
+        provider_calls.append(True)
+        return {
+            "model": "pinned-openai-fixture",
+            "provider_response_id": "fixture-output-bound-breach",
+            "input_tokens": 10,
+            "output_tokens": 2,
+            "output": {"invalid": "must not parse"},
+        }
+
+    monkeypatch.setattr(intelligence_jobs, "call_openai", fake_response)
+    assert worker.run_one({}, job_ids=[job_id]) is True
+    with sessions() as session:
+        call = session.scalar(select(LogicalCall))
+        history = intelligence_history(session, need_id)
+    assert provider_calls == [True]
+    assert call and call.status == "SENT_OUTCOME_UNKNOWN"
+    assert call.blocked_reason == "BILLING_QUARANTINE:ENFORCED_OUTPUT_BOUND_EXCEEDED"
+    assert call.actual_cost_usd is None and call.output_tokens == 2
+    assert call.result_payload["billing_quarantine"]["response"]["output"] == {
+        "invalid": "must not parse"
+    }
+    assert history[0]["status"] == "unknown" and history[0]["uncertain"] is True
+
+
+@pytest.mark.parametrize(
+    ("off_case", "changed_setting"),
+    [
+        ("master_off", ("intelligence_enabled", False)),
+        ("provider_off", ("intelligence_typesafe_enabled", False)),
+        ("zero_global_call_cap", ("intelligence_global_daily_calls", 0)),
+    ],
+)
+def test_synthetic_key_present_off_zero_first_entry_has_no_ledger_or_budget_effect(
+    sessions, monkeypatch, off_case, changed_setting
+):
+    _enable_bounded_typesafe(monkeypatch)
+    # A fixture-only key is deliberately present, proving the guards independently
+    # of missing credentials. No real provider is called.
+    assert settings.typesafe_api_key is not None
+    setting_name, value = changed_setting
+    monkeypatch.setattr(settings, setting_name, value)
+    need_id, _evidence_id, job_id = _seed_job(sessions)
+    worker = _wire_worker(sessions, monkeypatch)
+    monkeypatch.setattr(worker, "WORKER_ID", f"fixture-{off_case}")
+    from gridlens.intelligence import intelligence_jobs
+
+    provider_calls = []
+    monkeypatch.setattr(
+        intelligence_jobs, "call_typesafe", lambda **_kwargs: provider_calls.append(True)
+    )
+    assert worker.run_one({}, job_ids=[job_id]) is True
+    with sessions() as session:
+        calls = list(session.scalars(select(LogicalCall)))
+        budgets = list(session.scalars(select(LogicalCallBudget)))
+        history = intelligence_history(session, need_id)
+    assert provider_calls == []
+    assert calls == [] and budgets == []
+    assert history[0]["status"] == "blocked"
+    assert history[0]["error"]
+
+
+def test_legacy_typesafe_model_mismatch_quarantines_and_blocks_reuse(sessions, monkeypatch):
+    _enable_bounded_typesafe(monkeypatch)
+    monkeypatch.setattr(settings, "intelligence_enabled_contracts", "SIGNAL_ADJUDICATION")
+    from gridlens.integrations import legacy_calls
+
+    monkeypatch.setattr(legacy_calls, "SessionLocal", sessions)
+    state = {
+        "title": "Fixture project",
+        "abstract": "Fixture abstract",
+        "url": "https://example.invalid",
+        "published_at": "2026-10-01",
+        "source_id": "fixture-source",
+        "source_family": "permit",
+        "publisher": "Fixture Publisher",
+        "event_date": "",
+        "event_date_label": "",
+        "project_name": "Fixture project",
+        "location": "Austin, TX",
+        "asset_type": "facility",
+        "lifecycle_state": "planned",
+    }
+    provider_calls = []
+
+    def mismatched_result():
+        provider_calls.append(True)
+        return (
+            {
+                "model": "unconfigured-alias",
+                "provider_response_id": "fixture-legacy-model-mismatch",
+                "usage": {"input_tokens": 50, "output_tokens": 5},
+                "answers": {"raw": "retained"},
+            },
+            50,
+            5,
+        )
+
+    args = {
+        "task_type": "SIGNAL_ADJUDICATION",
+        "task_key": "fixture-legacy-model-mismatch",
+        "payload": {"state": state},
+        "source_id": None,
+        "project_id": None,
+        "job_id": None,
+        "worker_id": None,
+        "fence_token": 7,
+    }
+    with pytest.raises(legacy_calls.LegacyCallUnknown, match="BILLING_QUARANTINE"):
+        legacy_calls.perform_legacy_call(**args, invoke=mismatched_result)
+    with sessions() as session:
+        call = session.scalar(select(LogicalCall))
+    assert provider_calls == [True]
+    assert call and call.status == "SENT_OUTCOME_UNKNOWN"
+    assert call.actual_cost_usd is None
+    assert call.result_payload["billing_quarantine"]["response"]["provider_response_id"] == (
+        "fixture-legacy-model-mismatch"
+    )
+    with pytest.raises(legacy_calls.LegacyCallBlocked, match="PROVIDER_BILLING_QUARANTINED"):
+        legacy_calls.perform_legacy_call(**args, invoke=mismatched_result)
+    assert provider_calls == [True]
 
 
 def test_catalog_worker_rechecks_exact_billing_proof_before_dispatch(sessions, monkeypatch):

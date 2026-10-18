@@ -531,12 +531,21 @@ def process_evidence_shadow_job(job_id: UUID, worker_id: str, fence: int) -> Non
     judge = TypesafeEvidenceJudge(api_key, model=model)
 
     def invoke() -> tuple[dict, int | None, int | None]:
-        result, meta = judge.judge(payload["project"], payload["evidence"], payload["candidates"])
-        return (
-            result.model_dump(mode="json"),
-            meta.get("input_tokens"),
-            meta.get("output_tokens"),
+        from gridlens.integrations.intelligence_provider import call_typesafe
+
+        request = judge.build_request(
+            payload["project"], payload["evidence"], payload["candidates"], model=model
         )
+        # Preserve raw response identity for the shared ledger guard before the
+        # semantic parser can reject or normalize provider output.
+        result = call_typesafe(
+            api_key=api_key,
+            model=model,
+            payload={key: value for key, value in request.items() if key != "model"},
+        )
+        usage_value = result.get("usage")
+        usage = usage_value if isinstance(usage_value, dict) else {}
+        return result, usage.get("input_tokens"), usage.get("output_tokens")
 
     def record_call_id(call_id: UUID) -> None:
         with SessionLocal.begin() as session:
@@ -568,11 +577,15 @@ def process_evidence_shadow_job(job_id: UUID, worker_id: str, fence: int) -> Non
             invoke=invoke,
             before_dispatch=record_call_id,
         )
-        judgment = call.result
+        from gridlens.integrations.typesafe_evidence_judge import parse_typesafe_response
+
+        parsed_judgment, _actual_model, _input_tokens, _output_tokens = parse_typesafe_response(
+            call.result, expected_model=model
+        )
         from gridlens.intelligence.evidence_judge import Judgment
         from gridlens.intelligence.research_recommendation import recommend_from_context
 
-        validated = Judgment.model_validate(judgment)
+        validated = Judgment.model_validate(parsed_judgment)
         result = {
             **validated.model_dump(mode="json"),
             "advisory": {
