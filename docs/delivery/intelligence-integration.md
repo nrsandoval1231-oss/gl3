@@ -24,6 +24,12 @@ its original Packet-A-only instruction is superseded by this owner request.
 - Production SHA, actual flags, budgets, credential propagation and live health
   are UNKNOWN. Earlier records say live collection/research/Jev/scheduling OFF,
   zero budgets. No direct runtime verification has occurred in this initiative.
+- Current read-only DigitalOcean inventory confirms `gridlens-production`
+  (609407604) active in nyc1, four vCPU/8 GB, droplet backup enabled weekly Sunday
+  04:00 UTC with 28-day retention. Inventory lists one backup image; this is not a
+  database/evidence restore or scheduler/provider receipt. The connector exposes
+  no host command channel; local SSH configuration has no trusted production
+  binding. No runtime secret values, flags, SHA or budgets were inspected.
 - Local process and primary local env have no OpenAI key entry. No credentials
   were copied or printed. New isolated configuration uses no provider keys,
   collection/research OFF and zero model budgets. Account/model compatibility
@@ -37,12 +43,12 @@ its original Packet-A-only instruction is superseded by this owner request.
 | Packet | Existing implementation | Required integration / evidence | State |
 |---|---|---|---|
 | A | canonical docs, `.agent`, Git/CI/deploy definitions | exact state, dependency map, frozen historical sample, checklist | audit recorded |
-| B | `signal_adjudication.py`, `evidence_shadow.py`, `typesafe_evidence_judge.py`, `briefs.py`, jobs | shared durable calls/caps, eight advisory contracts, strict provider transports, mode/kill switches | B1 building |
-| C | `ingestion/service.py`, adapters, registry; source schedule epochs/due receipts; `worker.py`, `queue.py` | explicit watch sets, incremental monitoring, reprocessing identity, bounded fairness/recovery, no model calls unchanged | pending integration |
-| D | immutable Observation/Evidence, matching, `research_evidence.py`, material-state/change services | exact span/unit/date validation; candidate/source-authority separation; extraction job/result | pending |
-| E | `pursuit_questions.py`, `autonomous_research.py`, buying-chain claims/runs, `power_qualification.py` | versioned six commercial questions, bounded reasoning/retrieval, citations/outcomes/backoff/context freshness | pending |
-| F | authenticated API, project state/changes, pursuits and source screens, owner fact/workflow history | persisted intelligence candidates/questions/receipts, bounded request/retry, ops measurements, feedback attribution | pending |
-| G | `evidence_evaluation.py`, research metrics, tests, DigitalOcean compose/systemd, backup runbooks | frozen four-route evaluation, receipts/reporting, runtime secret metadata/activation diff, restore/recovery, rollback | independent evaluation tooling building |
+| B | `signal_adjudication.py`, `evidence_shadow.py`, `typesafe_evidence_judge.py`, `briefs.py`, jobs | shared durable calls/caps, eight advisory contracts, strict provider transports, mode/kill switches | B2/D locally verified; E integration active |
+| C | `ingestion/service.py`, adapters, registry; source schedule epochs/due receipts; `worker.py`, `queue.py` | explicit watch sets, incremental monitoring, reprocessing identity, bounded fairness/recovery, no model calls unchanged | C locally verified; C2 conditional retrieval/schema parity queued |
+| D | immutable Observation/Evidence, matching, `research_evidence.py`, material-state/change services | exact span/unit/date validation; candidate/source-authority separation; extraction job/result | B2 verified; D2 page/unit/precision refinement queued |
+| E | `pursuit_questions.py`, `autonomous_research.py`, buying-chain claims/runs, `power_qualification.py` | versioned six commercial questions, bounded reasoning/retrieval, citations/outcomes/backoff/context freshness | E active |
+| F | authenticated API, project state/changes, pursuits and source screens, owner fact/workflow history | persisted intelligence candidates/questions/receipts, bounded request/retry, ops measurements, feedback attribution | F integration tests active |
+| G | `evidence_evaluation.py`, research metrics, tests, DigitalOcean compose/systemd, backup runbooks | frozen four-route evaluation, receipts/reporting, runtime secret metadata/activation diff, restore/recovery, rollback | G0 verified; restore drill local; G1 collection/alerts queued |
 | LIVE | no new proof | authorized real changed-source journey; PC-off, alerts/restore, seven actual daily cycles, owner commercial review | OPEN |
 
 Existing modules are capabilities to verify, not blanket acceptance. New work
@@ -102,14 +108,63 @@ At `2026-10-18T15:51:37.710167Z`, froze 90 cases: three per source ordered by ha
 plus 36 power/utility/withdrawal text cases. Exact sample SHA256:
 `da9665a186fd495cb917569d1075c03965afeef9f521772f71acf12beb6e3a54`.
 Data and manifest remain ignored in `.artifacts/INTELLIGENCE-20261018/`.
-Independent labels/representative-class review are PENDING; candidate outputs were
-not consulted. No recall/precision/economic improvement is claimed.
+Separate agent-proposed labels were authored from frozen evidence without candidate
+outputs: 21 SHOW, 18 REVIEW, 51 HOLD; relevance YES 40/NO 50; identity-pair safety
+UNKNOWN 90, promotion unsupported 90. These are excerpt-only proposed labels, not owner
+review or accepted benchmark truth; 26 cases are RRC drilling, so composition is biased.
+The reproducible deterministic-display-only baseline uses the current explicit rules
+and REVIEW fallback: 89 UNKNOWN relevance, one bounded negative, 19/90 proposed
+display labels matched. Its numerical quality gate fails; no improvement is claimed.
+Three paid-model routes remain NOT_RUN, with cost/usefulness comparisons UNKNOWN.
 
 Initial baseline `uv run pytest tests/unit -q`: 1,235 passed, 2 skipped, 4 failed,
 7 subtests passed in 11.58 seconds. Failures are existing `test_jev_runtime.py`
 Windows subprocess execution/environment assumptions. They precede product edits;
 full-suite acceptance still requires repair or exact platform-qualified reporting.
 Baseline migration `0001 → 0024` succeeded on the dedicated application DB.
+
+Controller repaired the existing Windows test harness by preserving required OS
+paths and invoking Linux deployment scripts through Git Bash. Its original
+assertions remain; all 18 affected tests pass. G0 evaluation tooling has nine
+focused tests, controller rerun passing alongside those 18 tests, Ruff and mypy.
+The canonical evaluation manifest uses its own canonical-JSON hash
+`2fd9b6dd4d977b3acfc0c905c5bf960242dc78b8c90dd5f4a89b07c49387a594`;
+the upstream export-file hash above remains separately recorded.
+
+Controller reran B2/D's 39 focused tests at 9aa3117: durable reservations, actual worker
+dispatch with fake transports, strict schemas, stale fences and crash recovery.
+The builder's broader legacy test attempt collided on a shared destructive fixture
+database and is inconclusive (65 failed/54 passed/19 errors), not a product/full-suite
+result. Every builder now has an exclusive test database; final full-suite gates
+remain required. C's 12 controller tests pass at eb2dcf0.
+
+A fresh retained copy upgrades 0018→0027 with all original core fields preserved.
+Schema drift found a monitoring index missing in ORM metadata and watch-source
+Integer versus migration BIGINT Identity; C2 must repair before acceptance. A local
+PostgreSQL18 dump/restore rehearsal preserved 19,326 evidence versions, 95 jobs,
+two synthetic logical calls and 12 budget rows byte-for-byte in row digests. NOT_SENT
+reuses its ID; SENT_OUTCOME_UNKNOWN remains reserved and rejects repeat dispatch.
+This is local technical proof with zero provider calls, not a cloud restore receipt.
+
+Current registry configuration contains 26 sources, 25 registry-enabled, spanning
+eight declared families, including a California CEQAnet definition. These are
+configuration counts, not verified live coverage or production enablement.
+This corrects the dated milestone statement that no California source exists.
+
+On an independently copied historical database, migrations through the new watch
+schema preserve every original field/digest in all 17,776 observations, 19,326
+evidence versions, 1,190 projects and 1,190 needs. Original backup and frozen corpus
+remain untouched. Authenticated local read baselines (five samples, saved-browse
+disabled): health median 19.31 ms/max 55.25 ms; 20-Signal opportunity page median
+1,277.95 ms/max 1,311.88 ms; changes median 3.25 ms/max 5.93 ms. No production SLO,
+concurrent-ingestion result or model economics is established by those samples.
+
+First code commit `5daeb72212cf1493a714457e9be4e3b4bfe8235d` passed eight
+controller-focused tests/Ruff/mypy. Independent Sol review returned **FIX** for
+five ledger/migration issues; it is not accepted completion. B2 repairs are part
+of the next exact candidate. Evaluation/audit checkpoint is `98d7019`. The source
+strategy copy's Markdown hard-break whitespace is normalized for final diff gates;
+the original Downloads file remains unchanged.
 
 ## Finish and activation boundary
 

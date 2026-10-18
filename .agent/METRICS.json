@@ -1,31 +1,29 @@
 {
-  "lane": "full-new-implementation",
-  "controller_model": "inherited",
+  "initiative": "intelligence-integration-20261018",
+  "lane": "full-integration",
+  "controller_model": "inherited; exact active identity UNKNOWN",
   "builder_model": "gpt-6-luna",
+  "builder_reasoning": "low",
   "review_model": "gpt-6-sol",
-  "config_identity": "user engineering controls + repository AGENTS.md + agent-harness skill",
-  "opening_tribunal": "completed once; Luna/Terra/Sol",
+  "review_reasoning": "medium",
+  "config_identity": "owner full A-G prompt + Nick engineering controls + repository AGENTS + agent-harness",
+  "opening_tribunal": "completed exactly once Luna/Terra/Sol",
+  "started_utc": null,
+  "finished_utc": null,
   "planning_seconds": null,
   "build_seconds": null,
-  "validation_seconds": 57,
-  "audit_seconds": 204,
+  "validation_seconds": null,
+  "audit_seconds": null,
   "elapsed_to_accepted_seconds": null,
-  "tokens": "UNKNOWN",
+  "tokens": null,
   "repair_count": null,
-  "formal_review_repair_packets": 1,
-  "acceptance": "PASS: immediate local ingestion slice only",
-  "timing_note": "Uninstrumented durations, development repair count and token use are UNKNOWN; no speedup claim. Builder/review handoffs record their observed UTC times. Formal review repair packets are counted separately.",
-  "validation_started_at_utc": "2026-09-25T20:04:36Z",
-  "validation_finished_at_utc": "2026-09-25T20:05:33Z",
-  "validation_scope": "Measured final frozen-candidate gate window only; earlier development/runtime validation duration UNKNOWN.",
-  "audit_attempts": [
+  "formal_reviews": [
     {
+      "candidate": "5daeb72212cf1493a714457e9be4e3b4bfe8235d",
       "verdict": "FIX",
-      "seconds": 153
-    },
-    {
-      "verdict": "PASS",
-      "seconds": 51
+      "duration_seconds": null
     }
-  ]
+  ],
+  "acceptance": "PENDING integrated exact-candidate gates and independent review",
+  "timing_note": "Uninstrumented timing, usage and total repairs UNKNOWN. Per-command elapsed output and observed UTC handoffs in ignored artifacts. No speedup claim. Historical metrics archived unchanged."
 }

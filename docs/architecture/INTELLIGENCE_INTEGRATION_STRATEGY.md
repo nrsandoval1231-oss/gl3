@@ -1,10 +1,10 @@
 # GridLens — Jev + LLM Intelligence Integration Strategy
 
-**Status:** Proposed implementation strategy; subordinate to existing GL3 canonical PRD, approved evidence architecture, security boundaries and owner decisions  
-**Prepared:** October 18, 2026  
-**Repository:** [`nrsandoval1231-oss/gl3`](https://github.com/nrsandoval1231-oss/gl3)  
-**Suggested repo destination:** `docs/architecture/INTELLIGENCE_INTEGRATION_STRATEGY.md`  
-**Decision owner:** GridLens product owner  
+**Status:** Proposed implementation strategy; subordinate to existing GL3 canonical PRD, approved evidence architecture, security boundaries and owner decisions
+**Prepared:** October 18, 2026
+**Repository:** [`nrsandoval1231-oss/gl3`](https://github.com/nrsandoval1231-oss/gl3)
+**Suggested repo destination:** `docs/architecture/INTELLIGENCE_INTEGRATION_STRATEGY.md`
+**Decision owner:** GridLens product owner
 
 > **Executive decision:** GridLens should be an evidence-governed commercial timing engine, not an LLM-powered lead scraper. Use deterministic software to acquire and preserve facts; **Jev to make bounded categorical judgments about ambiguity, relevance and research allocation**; fast structured-extraction LLMs to recover source-attributed facts from difficult documents; and **OpenAI reasoning models** for selective deep research, reconciliation and commercial synthesis. No model independently admits a Lead, merges uncertain entities, fabricates MW or timing, or authorizes outreach.
 

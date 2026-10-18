@@ -1,0 +1,31 @@
+{
+  "lane": "full-new-implementation",
+  "controller_model": "inherited",
+  "builder_model": "gpt-6-luna",
+  "review_model": "gpt-6-sol",
+  "config_identity": "user engineering controls + repository AGENTS.md + agent-harness skill",
+  "opening_tribunal": "completed once; Luna/Terra/Sol",
+  "planning_seconds": null,
+  "build_seconds": null,
+  "validation_seconds": 57,
+  "audit_seconds": 204,
+  "elapsed_to_accepted_seconds": null,
+  "tokens": "UNKNOWN",
+  "repair_count": null,
+  "formal_review_repair_packets": 1,
+  "acceptance": "PASS: immediate local ingestion slice only",
+  "timing_note": "Uninstrumented durations, development repair count and token use are UNKNOWN; no speedup claim. Builder/review handoffs record their observed UTC times. Formal review repair packets are counted separately.",
+  "validation_started_at_utc": "2026-09-25T20:04:36Z",
+  "validation_finished_at_utc": "2026-09-25T20:05:33Z",
+  "validation_scope": "Measured final frozen-candidate gate window only; earlier development/runtime validation duration UNKNOWN.",
+  "audit_attempts": [
+    {
+      "verdict": "FIX",
+      "seconds": 153
+    },
+    {
+      "verdict": "PASS",
+      "seconds": 51
+    }
+  ]
+}
