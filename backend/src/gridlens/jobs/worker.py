@@ -2,8 +2,11 @@ import hashlib
 import json
 import logging
 import os
+import signal
 import socket
+import threading
 import time
+from collections.abc import Callable
 from datetime import UTC, date, datetime, timedelta
 from datetime import time as day_time
 from uuid import UUID
@@ -57,6 +60,10 @@ _REGISTRY_CONFIGURATION_FIELDS = (
 _MISSING_CONFIGURATION = object()
 _PLANNER_RETRY_MONOTONIC: dict[str, float] = {}
 _PLANNER_FAILURES: dict[str, int] = {}
+_HEARTBEAT_INTERVAL_SECONDS = 10
+_PLANNER_POLL_SECONDS = 5
+_IDLE_JOB_POLL_SECONDS = 2
+_SHUTDOWN_JOIN_SECONDS = 5
 
 
 def _effective_enabled(source: Source) -> bool:
@@ -792,34 +799,108 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
 
 def main() -> None:
     logging.basicConfig(level=logging.INFO)
-    next_heartbeat = 0.0
     definitions = {row["id"]: row for row in load_registry()}
-    while True:
-        if settings.worker_auto_refresh:
-            _run_planner("sources", refresh_due)
-            _run_planner("pursuit_questions", plan_pursuit_questions)
-        if settings.monitoring_enabled:
-            _run_planner("project_monitoring", plan_monitoring_jobs)
-        if time.monotonic() >= next_heartbeat:
-            try:
-                with SessionLocal.begin() as session:
-                    heartbeat = session.get(WorkerHeartbeat, WORKER_ID)
-                    if heartbeat is None:
-                        session.add(
-                            WorkerHeartbeat(worker_id=WORKER_ID, last_seen_at=datetime.now(UTC))
-                        )
-                    else:
-                        heartbeat.last_seen_at = datetime.now(UTC)
-            except Exception:
-                logger.exception("worker heartbeat update failed")
-            next_heartbeat = time.monotonic() + 10
+    stop_event = threading.Event()
+
+    def request_shutdown(_signum, _frame) -> None:
+        logger.info("worker shutdown requested")
+        stop_event.set()
+
+    previous_handlers = {
+        signum: signal.signal(signum, request_shutdown)
+        for signum in (signal.SIGINT, signal.SIGTERM)
+    }
+    try:
+        _run_worker_lanes(stop_event, definitions)
+    finally:
+        for signum, handler in previous_handlers.items():
+            signal.signal(signum, handler)
+
+
+def _worker_lane_specs(
+    stop_event: threading.Event, definitions: dict[str, dict]
+) -> list[tuple[str, Callable[..., None], tuple[object, ...]]]:
+    lanes: list[tuple[str, Callable[..., None], tuple[object, ...]]] = [
+        ("gridlens-heartbeat", _heartbeat_lane, (stop_event,)),
+        ("gridlens-job-execution", _job_execution_lane, (stop_event, definitions)),
+    ]
+    if settings.worker_auto_refresh:
+        lanes.append(
+            ("gridlens-planner-sources", _planner_lane, (stop_event, "sources", refresh_due))
+        )
+        if settings.autonomous_research_enabled:
+            lanes.append(
+                (
+                    "gridlens-planner-pursuit-questions",
+                    _planner_lane,
+                    (stop_event, "pursuit_questions", plan_pursuit_questions),
+                )
+            )
+    if settings.monitoring_enabled:
+        lanes.append(
+            (
+                "gridlens-planner-project-monitoring",
+                _planner_lane,
+                (stop_event, "project_monitoring", plan_monitoring_jobs),
+            )
+        )
+    return lanes
+
+
+def _run_worker_lanes(stop_event: threading.Event, definitions: dict[str, dict]) -> None:
+    """Run fixed scheduler lanes and stop/join them within a finite bound."""
+    threads = [
+        threading.Thread(name=name, target=target, args=args, daemon=True)
+        for name, target, args in _worker_lane_specs(stop_event, definitions)
+    ]
+    try:
+        for thread in threads:
+            thread.start()
+        stop_event.wait()
+    finally:
+        stop_event.set()
+        deadline = time.monotonic() + _SHUTDOWN_JOIN_SECONDS
+        for thread in threads:
+            remaining = max(0.0, deadline - time.monotonic())
+            thread.join(timeout=remaining)
+            if thread.is_alive():
+                logger.warning("worker lane %s did not stop before the shutdown bound", thread.name)
+
+
+def _heartbeat_lane(stop_event: threading.Event) -> None:
+    while not stop_event.is_set():
+        try:
+            with SessionLocal.begin() as session:
+                heartbeat = session.get(WorkerHeartbeat, WORKER_ID)
+                now = datetime.now(UTC)
+                if heartbeat is None:
+                    session.add(WorkerHeartbeat(worker_id=WORKER_ID, last_seen_at=now))
+                else:
+                    heartbeat.last_seen_at = now
+        except Exception:
+            logger.exception("worker heartbeat update failed")
+        if stop_event.wait(_HEARTBEAT_INTERVAL_SECONDS):
+            return
+
+
+def _planner_lane(
+    stop_event: threading.Event, planner_key: str, action: Callable[[], object]
+) -> None:
+    while not stop_event.is_set():
+        _run_planner(planner_key, action)
+        if stop_event.wait(_PLANNER_POLL_SECONDS):
+            return
+
+
+def _job_execution_lane(stop_event: threading.Event, definitions: dict[str, dict]) -> None:
+    while not stop_event.is_set():
         try:
             did_work = run_one(definitions)
         except Exception:
             logger.exception("worker job execution failed")
             did_work = False
-        if not did_work:
-            time.sleep(2)
+        if not did_work and stop_event.wait(_IDLE_JOB_POLL_SECONDS):
+            return
 
 
 def _run_planner(planner_key: str, action) -> bool:
@@ -845,6 +926,9 @@ def _run_planner(planner_key: str, action) -> bool:
         _PLANNER_RETRY_MONOTONIC.pop(planner_key, None)
         _PLANNER_FAILURES.pop(planner_key, None)
     except Exception as exc:
+        logger.exception(
+            "planner %s failed; retry state will control the next attempt", planner_key
+        )
         failures = _PLANNER_FAILURES.get(planner_key, 0) + 1
         _PLANNER_FAILURES[planner_key] = failures
         delay = min(3600, 30 * (2 ** min(failures - 1, 7)))
