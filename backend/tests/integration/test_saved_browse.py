@@ -270,7 +270,10 @@ def test_all_declared_input_tables_have_transactional_statement_triggers(saved_d
         revision = session.scalar(select(BrowseState.input_revision))
         for table in INPUT_TABLES:
             session.execute(text(f"DELETE FROM {table} WHERE false"))
-        assert session.scalar(select(BrowseState.input_revision)) == revision + len(INPUT_TABLES)
+        # Note row DML is live-only; its TRUNCATE trigger remains conservative.
+        assert (
+            session.scalar(select(BrowseState.input_revision)) == revision + len(INPUT_TABLES) - 1
+        )
         session.rollback()
 
 
@@ -1313,3 +1316,423 @@ def test_commercial_prepared_generation_retains_exact_group_selection(saved_db, 
         groups, _projects, total = browse.commercial_selection(session, 50, 0)
     assert groups == expected
     assert total == len(expected)
+
+
+def test_receipt_and_note_save_readback_does_not_invalidate(saved_db, monkeypatch):
+    from gridlens.intelligence.commercial_evaluation import save_evaluations
+    from gridlens.persistence.models import Pursuit, PursuitCallNote
+
+    factory = saved_db
+    seed(factory, count=2, histories=1)
+    assert rebuild(factory)["status"] == "published"
+    monkeypatch.setattr(settings, "saved_browse_enabled", True)
+    with factory.begin() as session:
+        before = current_generation(session).id
+        cards = api._commercial_triage_cards(session, 50)
+        save_evaluations(session, cards)
+        session.flush()
+        assert current_generation(session).id == before
+        receipt = session.scalar(select(Pursuit))
+        session.add(
+            PursuitCallNote(
+                pursuit_id=receipt.id,
+                client_id=uuid4(),
+                note="Synthetic saved note",
+                outcome="Contacted",
+                next_action="Synthetic follow-up",
+            )
+        )
+        session.flush()
+        assert current_generation(session).id == before
+        payload = api._commercial_triage_payload(session, 50, saved_selection=True)
+        assert any(
+            note["note"] == "Synthetic saved note"
+            for card in payload["items"]
+            for note in card["notes"]
+        )
+    with factory() as session:
+        assert current_generation(session).id == before
+        assert session.scalar(select(PursuitCallNote.note)) == "Synthetic saved note"
+
+
+def test_commercial_card_reuses_canonical_detail_buying_chain(saved_db, monkeypatch):
+    factory = saved_db
+    seed(factory, count=2, histories=1)
+    assert rebuild(factory)["status"] == "published"
+    monkeypatch.setattr(settings, "saved_browse_enabled", True)
+    with factory() as session:
+        expected = api._commercial_triage_payload(session, 50, saved_selection=True)
+    calls = []
+    original = api.buying_chain_views
+
+    def counted(session, project_ids, **kwargs):
+        calls.append(project_ids)
+        return original(session, project_ids, **kwargs)
+
+    monkeypatch.setattr(api, "buying_chain_views", counted)
+    with factory() as session:
+        actual = api._commercial_triage_payload(session, 50, saved_selection=True)
+    expected.pop("evaluated_at")
+    actual.pop("evaluated_at")
+    assert actual == expected
+    assert len(calls) == 1
+
+
+def _saved_receipt_fixture(factory):
+    from gridlens.intelligence.commercial_evaluation import save_evaluations
+    from gridlens.persistence.models import Pursuit
+
+    seed(factory, count=2, histories=1)
+    assert rebuild(factory)["status"] == "published"
+    with factory.begin() as session:
+        cards = api._commercial_triage_cards(session, 50)
+        save_evaluations(session, cards)
+        session.flush()
+        return session.scalar(select(Pursuit.id)), cards
+
+
+@pytest.mark.parametrize("mutation", ["unknown_root", "scope", "identity", "research", "malformed"])
+def test_unknown_receipt_changes_remain_full_pending(saved_db, mutation):
+    from gridlens.persistence.models import Pursuit
+
+    receipt_id, _cards = _saved_receipt_fixture(saved_db)
+    with saved_db() as session:
+        prior_revision = session.get(BrowseState, 1).input_revision
+    with saved_db.begin() as session:
+        row = session.get(Pursuit, receipt_id)
+        if mutation == "unknown_root":
+            row.snapshot = {**row.snapshot, "research_state": {"phase": "changed"}}
+        elif mutation == "scope":
+            row.project_id = session.scalar(select(Project.id).where(Project.id != row.project_id))
+        elif mutation == "identity":
+            row.identity_key = "unrecognized-workspace"
+        elif mutation == "research":
+            row.research_status = "completed"
+        else:
+            row.snapshot = {"commercial_triage": None}
+    with saved_db() as session, pytest.raises(HTTPException):
+        current_generation(session)
+    with saved_db() as session:
+        state = session.get(BrowseState, 1)
+        assert state.full_revision == state.input_revision == prior_revision + 1
+
+
+@pytest.mark.parametrize("prepared", [False, True])
+def test_concurrent_receipt_note_saves_during_generation_publication(
+    saved_db, prepared, monkeypatch
+):
+    from concurrent.futures import ThreadPoolExecutor
+    from copy import deepcopy
+
+    from gridlens.intelligence.commercial_evaluation import save_evaluations
+    from gridlens.persistence.models import Pursuit, PursuitCallNote
+
+    receipt_id, cards = _saved_receipt_fixture(saved_db)
+    with saved_db() as session:
+        prior = current_generation(session)
+        prior_revision, boundary = prior.input_revision, prior.valid_until
+
+    def save(index):
+        with saved_db.begin() as writer:
+            save_evaluations(writer, deepcopy(cards))
+            receipt = writer.get(Pursuit, receipt_id)
+            receipt.snapshot = {
+                **receipt.snapshot,
+                "commercial_triage": {
+                    **receipt.snapshot["commercial_triage"],
+                    "saved_at": datetime.now(UTC).isoformat(),
+                },
+            }
+            writer.add(
+                PursuitCallNote(
+                    pursuit_id=receipt_id,
+                    client_id=uuid4(),
+                    note=f"Concurrent synthetic {index}",
+                    outcome="Contacted",
+                    next_action="Synthetic follow-up",
+                )
+            )
+            writer.flush()
+            assert current_generation(writer).input_revision == prior_revision
+
+    def race():
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            list(pool.map(save, range(4)))
+
+    result = rebuild(saved_db, _prepare_at=boundary if prepared else None, before_publish=race)
+    assert result["status"] == ("prepared" if prepared else "published")
+    with saved_db() as reader:
+        assert current_generation(reader).input_revision == prior_revision
+        assert len(list(reader.scalars(select(PursuitCallNote)))) == 4
+        assert len(reader.get(Pursuit, receipt_id).snapshot["commercial_triage"]["versions"]) == 1
+        state = reader.get(BrowseState, 1)
+        if prepared:
+            assert state.prepared_generation_id is not None
+            ready_id = state.prepared_generation_id
+    if prepared:
+        save(4)
+        with saved_db() as reader:
+            assert reader.get(BrowseState, 1).prepared_generation_id == ready_id
+        from gridlens.intelligence import saved_browse as browse
+
+        class AtBoundary(datetime):
+            @classmethod
+            def now(cls, tz=None):
+                return boundary
+
+        monkeypatch.setattr(browse, "datetime", AtBoundary)
+        with saved_db() as reader:
+            assert current_generation(reader).id == ready_id
+
+
+def test_receipt_rollback_and_failed_preparation_leave_current_state(saved_db):
+    from gridlens.persistence.models import Pursuit, PursuitCallNote
+
+    receipt_id, _cards = _saved_receipt_fixture(saved_db)
+    with saved_db() as session:
+        prior = current_generation(session)
+        before_id, boundary = prior.id, prior.valid_until
+    with pytest.raises(RuntimeError), saved_db.begin() as session:
+        session.add(
+            PursuitCallNote(
+                pursuit_id=receipt_id,
+                client_id=uuid4(),
+                note="Rolled back",
+                outcome="Contacted",
+                next_action="Synthetic",
+            )
+        )
+        session.flush()
+        raise RuntimeError("Synthetic rollback")
+
+    def save_then_fail():
+        with saved_db.begin() as session:
+            row = session.get(Pursuit, receipt_id)
+            row.snapshot = {
+                **row.snapshot,
+                "commercial_triage": {
+                    **row.snapshot["commercial_triage"],
+                    "saved_at": datetime.now(UTC).isoformat(),
+                },
+            }
+        raise RuntimeError("Synthetic publication failure")
+
+    with pytest.raises(RuntimeError):
+        rebuild(saved_db, _prepare_at=boundary, before_publish=save_then_fail)
+    with saved_db() as session:
+        assert current_generation(session).id == before_id
+        assert list(session.scalars(select(PursuitCallNote))) == []
+        assert session.get(BrowseState, 1).prepared_generation_id is None
+        assert session.get(Pursuit, receipt_id).snapshot["commercial_triage"]["saved_at"]
+
+
+def test_receipt_exemption_never_hides_canonical_change_or_expiry(saved_db, monkeypatch):
+    from gridlens.intelligence import saved_browse as browse
+    from gridlens.persistence.models import Pursuit
+
+    receipt_id, _cards = _saved_receipt_fixture(saved_db)
+    with saved_db() as session:
+        boundary = current_generation(session).valid_until
+
+    def canonical_change():
+        with saved_db.begin() as session:
+            row = session.get(Pursuit, receipt_id)
+            row.snapshot = {**row.snapshot, "commercial_triage": {"saved_at": "Synthetic"}}
+            session.execute(text("UPDATE sources SET publisher = 'Canonical correction'"))
+
+    assert (
+        rebuild(saved_db, _prepare_at=boundary, before_publish=canonical_change)["status"]
+        == "superseded"
+    )
+    with saved_db() as session, pytest.raises(HTTPException):
+        current_generation(session)
+    assert rebuild(saved_db)["status"] == "published"
+
+    class Expired(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return boundary
+
+    monkeypatch.setattr(browse, "datetime", Expired)
+    with saved_db.begin() as session:
+        row = session.get(Pursuit, receipt_id)
+        row.project_ids = []
+    with saved_db() as session, pytest.raises(HTTPException):
+        current_generation(session)
+
+
+def test_note_bulk_update_delete_and_truncate_contract(saved_db, monkeypatch):
+    from gridlens.persistence.models import PursuitCallNote
+
+    receipt_id, _cards = _saved_receipt_fixture(saved_db)
+    monkeypatch.setattr(settings, "saved_browse_enabled", True)
+    with saved_db.begin() as session:
+        session.add(
+            PursuitCallNote(
+                pursuit_id=receipt_id,
+                client_id=uuid4(),
+                note="Synthetic",
+                outcome="Contacted",
+                next_action="Synthetic",
+            )
+        )
+    with saved_db.begin() as session:
+        session.execute(text("UPDATE pursuit_call_notes SET note = 'Corrected synthetic'"))
+    with saved_db() as session:
+        payload = api._commercial_triage_payload(session, 50, saved_selection=True)
+        assert any(
+            note["note"] == "Corrected synthetic"
+            for card in payload["items"]
+            for note in card["notes"]
+        )
+    with saved_db.begin() as session:
+        session.execute(text("DELETE FROM pursuit_call_notes"))
+    with saved_db() as session:
+        assert current_generation(session)
+        payload = api._commercial_triage_payload(session, 50, saved_selection=True)
+        assert not any(card["notes"] for card in payload["items"])
+    with saved_db.begin() as session:
+        session.execute(text("TRUNCATE pursuit_call_notes"))
+    with saved_db() as session, pytest.raises(HTTPException):
+        current_generation(session)
+
+
+@pytest.mark.parametrize("kind", ["unknown_root", "research_fields", "unknown_identity"])
+def test_unrecognized_pursuit_insert_stays_full(saved_db, kind):
+    from gridlens.persistence.models import Pursuit
+
+    ids = seed(saved_db, count=1, histories=1)
+    assert rebuild(saved_db)["status"] == "published"
+    with saved_db.begin() as session:
+        need = session.get(PowerNeed, ids[0])
+        row = Pursuit(
+            identity_key="commercial-need:" + str(need.id), project_id=need.project_id, snapshot={}
+        )
+        if kind == "unknown_root":
+            row.snapshot = {"research_state": {}}
+        elif kind == "research_fields":
+            row.research_status = "completed"
+        else:
+            row.identity_key = "unrecognized-insert"
+        session.add(row)
+    with saved_db() as session, pytest.raises(HTTPException):
+        current_generation(session)
+
+
+def test_mixed_receipt_bulk_update_fails_closed_once(saved_db):
+    from gridlens.persistence.models import Pursuit
+
+    receipt_id, _cards = _saved_receipt_fixture(saved_db)
+    with saved_db() as session:
+        assert len(list(session.scalars(select(Pursuit)))) == 2
+        revision = current_generation(session).input_revision
+    with saved_db.begin() as session:
+        session.execute(
+            text(
+                "UPDATE pursuits SET snapshot = CASE WHEN id = :id "
+                "THEN snapshot || jsonb_build_object('unknown_root', true) "
+                "ELSE jsonb_set(snapshot, '{commercial_triage,saved_at}', "
+                "'\"Synthetic receipt update\"'::jsonb) END"
+            ),
+            {"id": receipt_id},
+        )
+    with saved_db() as session, pytest.raises(HTTPException):
+        current_generation(session)
+    with saved_db() as session:
+        assert session.get(BrowseState, 1).input_revision == revision + 1
+
+
+@pytest.mark.parametrize("unsafe", [False, True])
+def test_receipt_rollback_preserves_ready_generation(saved_db, unsafe):
+    from gridlens.persistence.models import Pursuit, PursuitCallNote
+
+    receipt_id, _cards = _saved_receipt_fixture(saved_db)
+    with saved_db() as session:
+        boundary = current_generation(session).valid_until
+    assert rebuild(saved_db, _prepare_at=boundary)["status"] == "prepared"
+    with saved_db() as session:
+        ready = session.get(BrowseState, 1).prepared_generation_id
+        revision = current_generation(session).input_revision
+    with pytest.raises(RuntimeError), saved_db.begin() as session:
+        row = session.get(Pursuit, receipt_id)
+        row.snapshot = (
+            {**row.snapshot, "unknown_root": True}
+            if unsafe
+            else {**row.snapshot, "commercial_triage": {"saved_at": "Synthetic rollback"}}
+        )
+        session.add(
+            PursuitCallNote(
+                pursuit_id=receipt_id,
+                client_id=uuid4(),
+                note="Rollback",
+                outcome="Contacted",
+                next_action="Synthetic",
+            )
+        )
+        session.flush()
+        raise RuntimeError("Synthetic rollback")
+    with saved_db() as session:
+        assert current_generation(session).input_revision == revision
+        assert session.get(BrowseState, 1).prepared_generation_id == ready
+        assert list(session.scalars(select(PursuitCallNote))) == []
+
+
+def test_receipt_bucket_cannot_promote_current_qualification(saved_db, monkeypatch):
+    from gridlens.persistence.models import Pursuit
+
+    receipt_id, _cards = _saved_receipt_fixture(saved_db)
+    monkeypatch.setattr(settings, "saved_browse_enabled", True)
+    with saved_db.begin() as session:
+        row = session.get(Pursuit, receipt_id)
+        # This is stored presentation/history, never accepted evidence or call facts.
+        row.snapshot = {**row.snapshot, "commercial_triage": {"saved_card": {"tier": "Lead"}}}
+    with saved_db() as session:
+        payload = api._commercial_triage_payload(session, 50, saved_selection=True)
+    assert all(card["tier"] == "Signal" for card in payload["items"])
+
+
+def test_positive_chain_collector_equals_fresh_canonical_fallback(saved_db, monkeypatch):
+    """Synthetic canonical nonempty chain preserves organization and full payload."""
+    from gridlens.ingestion.adapters.buying_chain_public import PublicDocument
+    from gridlens.intelligence.buying_chain import buying_chain_view, enrich_buying_chain
+
+    ids = seed(saved_db, count=1, histories=1)
+    now = datetime.now(UTC)
+    with saved_db.begin() as s:
+        project = s.get(Project, s.get(PowerNeed, ids[0]).project_id)
+        project.name = "Orion Data Center"
+        project.location = "Austin, TX"
+        s.flush()
+        view = enrich_buying_chain(
+            s,
+            project.id,
+            fetcher=lambda url: PublicDocument(
+                url,
+                "Orion Data Center, Austin, TX",
+                "Acme is the general contractor for Orion Data Center in Austin, TX.",
+                now.date(),
+                now,
+            ),
+            now=now,
+        )
+        assert any(c["organization"] == "Acme" for c in view["candidates"])
+        pid = project.id
+    assert rebuild(saved_db)["status"] == "published"
+    monkeypatch.setattr(settings, "saved_browse_enabled", True)
+    original = api.opportunity_projection
+
+    def suppress_output(s, **kwargs):
+        kwargs.pop("buying_chain_results", None)
+        return original(s, **kwargs)
+
+    monkeypatch.setattr(api, "opportunity_projection", suppress_output)
+    with saved_db() as s:
+        expected = api._commercial_triage_payload(s, 50, saved_selection=True)
+        assert any(c["organization"] == "Acme" for c in buying_chain_view(s, pid)["candidates"])
+    monkeypatch.setattr(api, "opportunity_projection", original)
+    with saved_db() as s:
+        actual = api._commercial_triage_payload(s, 50, saved_selection=True)
+    expected.pop("evaluated_at")
+    actual.pop("evaluated_at")
+    assert actual == expected
+    assert any(c["organization"] == "Acme" for c in actual["items"])

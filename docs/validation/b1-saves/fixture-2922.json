@@ -1,0 +1,81 @@
+{
+  "projects": 2922,
+  "evidence": 31748,
+  "policy_version": "browse-b1-v1/ranking-v1/ad047f83d7c67455c5edfd0f319e10edcd2aa01ac5f2e340d001e67857cbf9cc",
+  "limitations": [
+    "Synthetic dated Signal histories with unique synthetic addresses",
+    "Synthetic prior receipt history is metadata-only, not fabricated qualified cards",
+    "Server functions including pool/transactions; no HTTP/auth/network",
+    "Warm PostgreSQL cache; shared host; driver BEGIN excluded",
+    "SQL group selection still scans saved Signal scalars",
+    "Persistence+readback excludes canonical evaluation POST selection/auth/network",
+    "Legacy pending reproduces old trigger wiring on this runtime",
+    "Date preparation remains future-only; no real production clock boundary tested",
+    "Card/history budgets and canonical selected detail unchanged"
+  ],
+  "evidence_before": [
+    31748,
+    "7eaa335656f31b1f0fdfecaebbb0b898"
+  ],
+  "legacy_pending_rebuild_seconds": 23.545155543000874,
+  "receipt_workspaces": 50,
+  "prior_metadata_only_versions_per_receipt": 40,
+  "duplicate_chain_reads": {
+    "samples": 5,
+    "p50": 0.26243441100086784,
+    "p95": 0.29607609899903764,
+    "max": 0.29607609899903764,
+    "queries": [
+      45
+    ]
+  },
+  "reused_chain_reads": {
+    "samples": 20,
+    "p50": 0.21791388100064069,
+    "p95": 0.3402911960001802,
+    "max": 0.3402911960001802,
+    "queries": [
+      38
+    ]
+  },
+  "sequential": {
+    "save": {
+      "samples": 10,
+      "p50": 0.003279512999142753,
+      "p95": 0.005056185998910223,
+      "max": 0.005056185998910223
+    },
+    "save_and_readback": {
+      "samples": 10,
+      "p50": 0.24229180600013933,
+      "p95": 0.40435769599935156,
+      "max": 0.40435769599935156
+    },
+    "queries": [
+      41
+    ]
+  },
+  "four_writers": {
+    "save": {
+      "samples": 20,
+      "p50": 0.011254138000367675,
+      "p95": 0.02482047500052431,
+      "max": 0.02482047500052431
+    },
+    "save_and_readback": {
+      "samples": 20,
+      "p50": 0.6578331599994272,
+      "p95": 0.7802037169985852,
+      "max": 0.7802037169985852
+    },
+    "queries": [
+      41
+    ]
+  },
+  "preparation_with_save_seconds": 28.068135060000714,
+  "final_payload_parity": true,
+  "evidence_after": [
+    31748,
+    "7eaa335656f31b1f0fdfecaebbb0b898"
+  ]
+}

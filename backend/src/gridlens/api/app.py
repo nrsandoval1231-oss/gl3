@@ -3147,6 +3147,7 @@ def opportunity_projection(
     include_operator_fact_refs: bool = False,
     summary_only: bool = False,
     summary_diagnostics: dict[str, int] | None = None,
+    buying_chain_results: dict[str, dict] | None = None,
 ):
     if summary_only:
         return _opportunity_summary_projection(
@@ -3262,6 +3263,8 @@ def opportunity_projection(
     # Ranking reads every listed project's retained buying chain, not only brief-backed rows.
     chain_project_ids = {project.id for _, project in rows if not summary_only}
     buying_chains_by_project = buying_chain_views(session, chain_project_ids)
+    if buying_chain_results is not None:
+        buying_chain_results.update(buying_chains_by_project)
     result = []
     title_company_by_project = {}
     lifecycle_timeline_by_state = {}
@@ -4690,14 +4693,19 @@ def _commercial_triage_page(
         )
         if note_count > _MAX_COMMERCIAL_CARD_NOTES:
             raise _commercial_bound_error(identity, note_count, _MAX_COMMERCIAL_CARD_NOTES, "notes")
+    chains: dict[str, dict] = {}
     selected = opportunity_projection(
         session,
         tier="Signal",
         selected_need_ids=selected_ids,
         include_operator_fact_refs=True,
+        buying_chain_results=chains,
     )
-    project_ids = {item["project_id"] for item in selected}
-    chains = buying_chain_views(session, project_ids)
+    missing_chains = {
+        item["project_id"] for item in selected if str(item["project_id"]) not in chains
+    }
+    if missing_chains:
+        chains.update(buying_chain_views(session, missing_chains))
     cards = make_commercial_cards(selected, chains, chicago_today(), limit)
     encoded_size = len(json.dumps(cards, default=str, separators=(",", ":")).encode("utf-8"))
     if encoded_size > _MAX_COMMERCIAL_CARD_BYTES:

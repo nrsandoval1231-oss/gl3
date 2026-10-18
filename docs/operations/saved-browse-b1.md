@@ -177,3 +177,21 @@ Use the final image with the switch false for runtime rollback. Keep0023 in
 place. If reverting an older image, stop maintenance and recreate API/web only
 with `--no-deps`; do not execute older migration containers against0023. The PC
 task owns production rollout/live QA; fixture results do not establish live SLOs.
+
+## Live commercial saves (0024)
+
+Migration `0024_browse_live_receipts` changes triggers only; it deletes no evidence
+or workspace history. Recognized receipt-only changes and note row DML affect live
+presentation, not saved canonical inputs, so they preserve both generation pointers
+and revisions. Unknown root/scope/research changes, receipt deletes, document writes
+and truncation remain full pending cases. Opaque receipt fields never qualify a need;
+reviewed facts/evidence retain their own invalidators. Notes/history/counts/budgets
+remain live reads. The canonical chain computed for selected detail is reused within
+that one card request. Evaluation/research POST cohort selection stays canonical.
+
+PC rollout: existing backup/disabled-provider gates, stop maintenance, switch false,
+upgrade0024/repeat/check, final-runtime rebuild and retained-corpus parity, restart
+maintenance and activate. Verify save/readback/rollback/limits/concurrency on an
+isolated retained copy and real authenticated GET latency after deployment. Runtime
+rollback is the final image with the switch false. Retain0024; if reverting an image,
+stop maintenance and recreate API/web only with `--no-deps`, without older migrations.

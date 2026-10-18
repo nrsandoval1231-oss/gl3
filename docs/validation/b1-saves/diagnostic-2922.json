@@ -1,0 +1,78 @@
+{
+  "projects": 2922,
+  "evidence": 31748,
+  "policy_version": "browse-b1-v1/ranking-v1/ad047f83d7c67455c5edfd0f319e10edcd2aa01ac5f2e340d001e67857cbf9cc",
+  "limitations": [
+    "Synthetic dated Signal histories with unique synthetic addresses",
+    "Server functions including pool/transactions; no HTTP/auth/network",
+    "Warm PostgreSQL cache; shared host; driver BEGIN excluded",
+    "SQL group selection still scans saved Signal scalars",
+    "Persistence+readback excludes canonical evaluation POST selection/auth/network",
+    "Legacy pending reproduces old trigger wiring on this runtime",
+    "Date preparation remains future-only; no real production clock boundary tested",
+    "Card/history budgets and canonical selected detail unchanged"
+  ],
+  "evidence_before": [
+    31748,
+    "78e4acb3203fc697408ff9dd7b6361d0"
+  ],
+  "legacy_pending_rebuild_seconds": 33.14307960100086,
+  "duplicate_chain_reads": {
+    "samples": 5,
+    "p50": 0.4259078919985768,
+    "p95": 0.5921467530006339,
+    "max": 0.5921467530006339,
+    "queries": [
+      45
+    ]
+  },
+  "reused_chain_reads": {
+    "samples": 20,
+    "p50": 0.24563755599956494,
+    "p95": 0.306351805000304,
+    "max": 0.306351805000304,
+    "queries": [
+      38
+    ]
+  },
+  "sequential": {
+    "save": {
+      "samples": 10,
+      "p50": 0.006360982999467524,
+      "p95": 0.008722699998543249,
+      "max": 0.008722699998543249
+    },
+    "save_and_readback": {
+      "samples": 10,
+      "p50": 0.22971587499887391,
+      "p95": 0.33437918500021624,
+      "max": 0.33437918500021624
+    },
+    "queries": [
+      41
+    ]
+  },
+  "four_writers": {
+    "save": {
+      "samples": 20,
+      "p50": 0.017405920998498914,
+      "p95": 0.04211883400057559,
+      "max": 0.04211883400057559
+    },
+    "save_and_readback": {
+      "samples": 20,
+      "p50": 0.823970494000605,
+      "p95": 0.9710738649991981,
+      "max": 0.9710738649991981
+    },
+    "queries": [
+      41
+    ]
+  },
+  "preparation_with_save_seconds": 29.540952778001156,
+  "final_payload_parity": true,
+  "evidence_after": [
+    31748,
+    "78e4acb3203fc697408ff9dd7b6361d0"
+  ]
+}
