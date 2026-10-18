@@ -207,6 +207,16 @@ the original Downloads file remains unchanged.
 
 ## Finish and activation boundary
 
+Additional bounded integration repairs: C3 separates acquisition from source/database
+transactions and rechecks source policy/fences;54 controller tests pass. C4 separates
+source/watch/pursuit planning and heartbeat lanes;67 controller tests pass. E3 adapts
+legacy research tests to the controlled acquisition boundary and bounded retry jitter;
+91 builder tests pass. D3 at7187de2 adds dormant exact GovInfo PDF capture, retained
+OCR_UNVERIFIED transcript and separately grounded follow-on, with45 builder tests.
+Its history reads are batched. These are development results, awaiting the combined
+exact-candidate full gates and independent review. C5 finite acquisition/planner
+contention and F3 durable buying-chain acquisition are the remaining active slices.
+
 Implement all unblocked A–G first; freeze exact code/config/docs, run mandatory
 checks and independent review. Record commands/results, migration compatibility,
 responsiveness and costs as measured or UNKNOWN. Then prepare a concrete activation

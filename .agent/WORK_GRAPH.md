@@ -15,11 +15,13 @@ Owner full-build request 2026-10-18; prior graph archived unchanged.
 | B4 | E,G1 slot release | LOCALLY VERIFIED | 057899f; late billing audit; combined88 controller tests after harness repairs |
 | B4-H | B4,G2 ownership | LOCALLY VERIFIED | 304062d; portable actual0028 trigger on TEST DB; restore summary MATCH |
 | C3 | C2,B3 | LOCALLY VERIFIED | cad2e19; controller54 tests; non-RSS/companion transactions/source/fence rechecks |
-| C4 | C3 | BUILDING | Fixed planner/heartbeat lanes independent of slow job in existing runtime |
-| C5 | C4,D3 shared release | WAIT | Killable finite acquisition, fenced renewal and shared public admission |
-| D3 | E,D2,B3 | BUILDING | Dormant source-permitted scanned-PDF capture/count/extraction; service/API serialization waits C3 release |
+| C4 | C3 | LOCALLY VERIFIED | 228a5ce/30670dc; controller67 scheduler/monitor/queue tests |
+| C5 | C4,D3 shared release | BUILDING | Killable finite acquisition, fenced renewal and shared public admission |
+| D3 | E,D2,B3 | BUILDER VERIFIED; CONTROLLER WAIT | 7187de2;45 focused tests; dormant capture/count/OCR_UNVERIFIED; dispatch joins C5 |
 | F1 | B2/D,C frozen interfaces | LOCALLY VERIFIED | c4d0eb6; controller3 offlinejourney/APItests; builder14 browsertests |
 | E | C,B2/D | LOCALLY VERIFIED | 3779042; controller170 focused tests; B3 owns actual routing effect |
+| E3 | C4 broad regression | LOCALLY VERIFIED | a95a6d3; builder91 current research-interface/jitter tests; final controller gate pending |
+| F3 | D3 API/UI release,C5 public helper | BUILDING | Durable buying-chain acquisition outside API and Project locks; worker integration waits C5 release |
 | G1 | C2 slot release | LOCALLY VERIFIED | 938c243; controller19 focused tests; final v2/0028 restore replay required |
 | G2 | G1 builder slot release | LOCALLY VERIFIED | 304062d; complete metric coverage; paid routes NOT_RUN; proposed labels not acceptance |
 | F | E,F1 | WAIT | Combined authenticated commercial/ops journey and owner feedback proof |
