@@ -143,7 +143,19 @@ def test_refresh_due_advances_other_sources_while_ingestion_holds_source_lock(
             worker.run_one, {item["id"]: item for item in definitions}, job_ids=[job_id]
         )
         try:
-            assert entered.wait(5), "ingestion did not enter the mocked retrieval"
+            if not entered.wait(5):
+                completed = active.done()
+                outcome = active.result(timeout=0) if completed else "still running"
+                with factory() as session:
+                    failed = session.get(Job, job_id)
+                    details = {
+                        "done": completed,
+                        "outcome": outcome,
+                        "status": failed.status if failed else None,
+                        "error": failed.error if failed else None,
+                        "checkpoint": failed.checkpoint if failed else None,
+                    }
+                pytest.fail(f"ingestion did not enter mocked retrieval: {details}")
             refresh = pool.submit(worker.refresh_due)
             assert refresh.result(timeout=3) >= 1
             with factory() as session:

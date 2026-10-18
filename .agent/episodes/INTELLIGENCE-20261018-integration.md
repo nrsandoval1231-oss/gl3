@@ -64,3 +64,17 @@ advice or advisory result grants canonical authority.
 NEXT DIRECTION: CONTINUE C3 acquisition locks, C4 independent planner/liveness and
 dormant OCR, then freeze, final deterministic gates and Sol review. Real provider,
 cloud, owner and seven-day evidence remain OPEN.
+
+Later outcome: C3/C4/D3/C5/F3 integrated. Source planning now defers a busy source
+without hiding its due denominator; acquisition is finite and job-fenced. Buying
+chain enqueue performs no network; retrieval releases project locks and rejects
+stale context before writes. C5 first controller combined run:134 passes/1 event
+timeout before mocked retrieval; cause UNKNOWN. Preserve that negative evidence.
+Diagnostic-only test change retains the five-second bound; isolated and repeated
+135-test batch pass. Do not attribute the timeout to product code or claim it fixed.
+
+Candidate lesson: blocked-work tests should retain future result and persisted job
+state at the first missed synchronization boundary. Metric: actionable timeout
+diagnostics present for every missed event; direction increase. Reversible test-only
+change. Promotion requires final deterministic gates and independent acceptance;
+no global memory edit or speedup claim. Direction VALIDATE the frozen candidate.

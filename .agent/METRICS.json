@@ -24,6 +24,6 @@
       "duration_seconds": null
     }
   ],
-  "acceptance": "PENDING integrated exact-candidate gates and independent review",
+  "acceptance": "Governed by matching final/release-manifest.json and independent-review.json under initiative artifacts; absent or mismatched receipt is not acceptance. Parent live proof remains OPEN.",
   "timing_note": "Uninstrumented timing, usage and total repairs UNKNOWN. Per-command elapsed output and observed UTC handoffs in ignored artifacts. No speedup claim. Historical metrics archived unchanged."
 }

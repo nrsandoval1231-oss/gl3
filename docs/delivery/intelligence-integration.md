@@ -44,10 +44,10 @@ its original Packet-A-only instruction is superseded by this owner request.
 |---|---|---|---|
 | A | canonical docs, `.agent`, Git/CI/deploy definitions | exact state, dependency map, frozen historical sample, checklist | audit recorded |
 | B | `signal_adjudication.py`, `evidence_shadow.py`, `typesafe_evidence_judge.py`, `briefs.py`, jobs | shared durable calls/caps, eight advisory contracts, strict provider transports, mode/kill switches | B2/E/B3/B4 locally verified; final review pending |
-| C | `ingestion/service.py`, adapters, registry; source schedule epochs/due receipts; `worker.py`, `queue.py` | explicit watch sets, incremental monitoring, reprocessing identity, bounded fairness/recovery, no model calls unchanged | C/C2 locally verified; C3 acquisition locks and C4 planning/liveness in progress |
-| D | immutable Observation/Evidence, matching, `research_evidence.py`, material-state/change services | exact span/unit/date validation; candidate/source-authority separation; extraction job/result | B2/D2 locally verified; dormant OCR in progress |
-| E | `pursuit_questions.py`, `autonomous_research.py`, buying-chain claims/runs, `power_qualification.py` | versioned six commercial questions, bounded reasoning/retrieval, citations/outcomes/backoff/context freshness | E local3779042; controller170 focused tests |
-| F | authenticated API, project state/changes, pursuits and source screens, owner fact/workflow history | persisted intelligence candidates/questions/receipts, bounded request/retry, ops measurements, feedback attribution | F1 locally verified; final combined runtime proof pending |
+| C | `ingestion/service.py`, adapters, registry; source schedule epochs/due receipts; `worker.py`, `queue.py` | explicit watch sets, incremental monitoring, reprocessing identity, bounded recovery, no model calls unchanged | C–C5 integrated; final combined gates govern acceptance |
+| D | immutable Observation/Evidence, matching, `research_evidence.py`, material-state/change services | exact span/unit/date validation; candidate/source-authority separation; extraction job/result | B2/D2/D3 integrated; OCR dormant and unverified by design |
+| E | `pursuit_questions.py`, `autonomous_research.py`, buying-chain claims/runs, `power_qualification.py` | versioned six commercial questions, bounded reasoning/retrieval, citations/outcomes/backoff/context freshness | E/E3 and F3 durable buying-chain jobs integrated |
+| F | authenticated API, project state/changes, pursuits and source screens, owner fact/workflow history | persisted intelligence candidates/questions/receipts, bounded request/retry, ops measurements, feedback attribution | F1/F3 integrated; exact-candidate runtime receipts govern acceptance |
 | G | `evidence_evaluation.py`, research metrics, tests, DigitalOcean compose/systemd, backup runbooks | frozen four-route evaluation, receipts/reporting, runtime secret metadata/activation diff, restore/recovery, rollback | G0/G1/G2 locally verified;0028 full restore MATCH; final candidate gates pending |
 | LIVE | no new proof | authorized real changed-source journey; PC-off, alerts/restore, seven actual daily cycles, owner commercial review | OPEN |
 
@@ -214,8 +214,23 @@ legacy research tests to the controlled acquisition boundary and bounded retry j
 91 builder tests pass. D3 at7187de2 adds dormant exact GovInfo PDF capture, retained
 OCR_UNVERIFIED transcript and separately grounded follow-on, with45 builder tests.
 Its history reads are batched. These are development results, awaiting the combined
-exact-candidate full gates and independent review. C5 finite acquisition/planner
-contention and F3 durable buying-chain acquisition are the remaining active slices.
+exact-candidate full gates and independent review. C5 atbf24b07 adds finite
+acquisition, shared admission and nonblocking per-source planning. The controller's
+first combined run had134 passes and one pre-retrieval event timeout; the original
+receipt is retained. Diagnostic-only improvement preserved the same five-second
+bound. The isolated test and repeated135-test batch pass; the timeout's cause
+remains UNKNOWN. No product repair or deterministic explanation is claimed.
+F3 at59f4a80 moves buying-chain acquisition into fenced durable jobs and makes
+authenticated enqueue network-free, with context revalidation before writes.
+Builder42 PostgreSQL and5 browser tests pass; controller full gates cover it.
+
+All unblocked A–G implementation is now integrated as a local candidate. Final
+validation and independent review are separately bound to the immutable commit
+in `.artifacts/INTELLIGENCE-20261018/final/release-manifest.json`; absence of a
+matching accepted receipt means this document grants no acceptance. The receipt
+includes gate commands, runtime/browser evidence, measured limitations, and the
+review identity. It does not authorize deployment, spend or outreach. This
+execution record and explanatory configuration are frozen before those gates.
 
 Implement all unblocked A–G first; freeze exact code/config/docs, run mandatory
 checks and independent review. Record commands/results, migration compatibility,
