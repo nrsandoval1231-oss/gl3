@@ -72,3 +72,21 @@ def test_terminal_processing_failures_are_urgent():
     assert urgent and title == "GridLens: 2 problem(s)"
     assert "Failed power_need_brief jobs: 2" in body and "Failed interpretations: 1" in body
     assert "pursuit_question" not in body
+
+
+def test_operational_alert_summary_includes_persisted_intelligence_counts():
+    title, body, urgent = alerts.summarize(
+        health(sources=[{"id": "a", "enabled": True, "status": "Updated"}]),
+        {"uncertain logical calls": 2, "old queued jobs": 3, "monitor quarantines": 1},
+    )
+    assert urgent and title == "GridLens: 3 problem(s)"
+    assert "Failed uncertain logical calls: 2" in body
+    assert "old queued jobs" in body and "monitor quarantines" in body
+
+
+def test_alerts_unknown_operational_counts_are_silent():
+    _, _, urgent = alerts.summarize(
+        health(sources=[{"id": "a", "enabled": True, "status": "Updated"}]),
+        {"uncertain logical calls": 0, "old queued jobs": 0, "monitor quarantines": 0},
+    )
+    assert not urgent

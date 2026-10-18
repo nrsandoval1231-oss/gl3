@@ -116,6 +116,7 @@ class Settings(BaseSettings):
     schedule_anchor_time: str = "07:00:00"
     ntfy_url: str = ""
     ntfy_token: SecretStr | None = None
+    operational_receipt_file: str = ""
 
     @field_validator("schedule_timezone")
     @classmethod

@@ -6,6 +6,7 @@ from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 
 import gridlens.ingestion.service as service
+from gridlens.intelligence.snapshot_compare import compare
 from gridlens.intelligence.snapshot_presence import (
     ABSENT,
     RETURNED,
@@ -45,28 +46,41 @@ def db():
     with factory.begin() as session:
         session.add(
             Source(
-                id=SOURCE, publisher="Georgia EPD", endpoint="https://epd.georgia.gov/x",
-                family="construction-permits", geography="Georgia", industries=["data centers"],
-                retrieval_method="georgia-air-permits", cadence_hours=24, health={},
+                id=SOURCE,
+                publisher="Georgia EPD",
+                endpoint="https://epd.georgia.gov/x",
+                family="construction-permits",
+                geography="Georgia",
+                industries=["data centers"],
+                retrieval_method="georgia-air-permits",
+                cadence_hours=24,
+                health={},
             )
         )
         session.flush()
         needs = {}
         for key in ("a", "b"):
             observation = Observation(
-                source_id=SOURCE, external_id=key, title=f"Filing {key}",
-                url=f"https://epd.georgia.gov/{key}", content_hash=f"hash-{key}",
+                source_id=SOURCE,
+                external_id=key,
+                title=f"Filing {key}",
+                url=f"https://epd.georgia.gov/{key}",
+                content_hash=f"hash-{key}",
             )
             session.add(observation)
             session.flush()
             session.add(
                 Evidence(
-                    observation_id=observation.id, content_hash=f"hash-{key}",
-                    title=f"Filing {key}", url=f"https://epd.georgia.gov/{key}",
+                    observation_id=observation.id,
+                    content_hash=f"hash-{key}",
+                    title=f"Filing {key}",
+                    url=f"https://epd.georgia.gov/{key}",
                 )
             )
             project = Project(
-                identity_key=f"{SOURCE}:{key}", name=f"Project {key}", source_id=SOURCE,
+                identity_key=f"{SOURCE}:{key}",
+                name=f"Project {key}",
+                source_id=SOURCE,
                 external_id=key,
             )
             session.add(project)
@@ -79,7 +93,10 @@ def db():
             session.add(NeedObservation(need_id=need.id, observation_id=observation.id))
             needs[key] = need.id
         job = Job(
-            source_id=SOURCE, status="running", lease_owner="test", fence=1,
+            source_id=SOURCE,
+            status="running",
+            lease_owner="test",
+            fence=1,
             lease_until=datetime.now(UTC) + timedelta(minutes=10),
         )
         session.add(job)
@@ -97,6 +114,77 @@ def kinds(session):
     ]
 
 
+def test_snapshot_compare_fails_closed_on_missing_identity_or_changed_exposure():
+    from gridlens.intelligence.snapshot_compare import REQUIRED_TABLES
+
+    before = {
+        "version": 2,
+        "tool_version": "intelligence-snapshot-v2",
+        "tables": {name: {"count": 0, "digest": "a"} for name in REQUIRED_TABLES},
+        "logical_call_exposure": [{"status": "SENT_OUTCOME_UNKNOWN", "count": 1}],
+        "migration_head": "0027",
+    }
+    assert compare(before, before)["result"] == "MATCH"
+    after = {
+        **before,
+        "tables": {**before["tables"], "evidence": {"count": 1, "digest": "b"}},
+    }
+    assert compare(before, after)["result"] == "MISMATCH"
+    missing = {
+        "version": 2,
+        "tool_version": "intelligence-snapshot-v2",
+        "tables": {},
+        "logical_call_exposure": before["logical_call_exposure"],
+        "migration_head": "UNKNOWN",
+    }
+    assert compare(before, missing)["result"] == "MISMATCH"
+
+
+def test_snapshot_covers_retained_text_job_recovery_and_call_intent(db):
+    import runpy
+
+    from gridlens.persistence.models import LogicalCall
+
+    factory, _, job_id = db
+    snapshot = runpy.run_path("scripts/intelligence_snapshot.py")["snapshot"]
+    with factory.begin() as session:
+        evidence = session.scalars(select(Evidence)).first()
+        evidence.abstract = "retained source excerpt"
+        session.add(
+            LogicalCall(
+                fingerprint="f" * 64,
+                task_type="extract",
+                task_key="need-1",
+                evidence_digest="e" * 64,
+                context_digest="c" * 64,
+                prompt_contract="contract-v1",
+                provider="openai",
+                model="model-a",
+                policy_version="policy-v1",
+                source_id=SOURCE,
+                lease_authority="job",
+                job_id=job_id,
+                status="NOT_SENT",
+                estimated_cost_usd=0,
+                max_cost_usd=1,
+                actual_cost_usd=None,
+                result_payload={"safe": "persisted result context"},
+                budget_scopes=[],
+            )
+        )
+    with factory() as session:
+        before = snapshot(session)
+        evidence = session.scalars(select(Evidence)).first()
+        evidence.abstract = "edited retained source excerpt"
+        job = session.get(Job, job_id)
+        job.checkpoint = "resume-from-here"
+        call = session.scalars(select(LogicalCall)).one()
+        call.task_key = "different-semantic-intent"
+        session.commit()
+        after = snapshot(session)
+    assert compare(before, after)["result"] == "MISMATCH"
+
+
 def test_absence_is_recorded_once_and_return_is_recorded(db):
     factory, needs, _ = db
     with factory.begin() as session:
@@ -105,7 +193,8 @@ def test_absence_is_recorded_once_and_return_is_recorded(db):
     with factory.begin() as session:
         # Replaying the same snapshot adds nothing.
         assert reconcile_snapshot(session, SOURCE, {"a"}) == {
-            "absent_from_snapshot": 0, "returned_to_snapshot": 0,
+            "absent_from_snapshot": 0,
+            "returned_to_snapshot": 0,
         }
     with factory.begin() as session:
         assert reconcile_snapshot(session, SOURCE, {"a", "b"})["returned_to_snapshot"] == 1

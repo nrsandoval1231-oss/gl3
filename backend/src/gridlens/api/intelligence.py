@@ -75,6 +75,10 @@ class CandidateReviewRef(BaseModel):
     field: str
     value: str
     unit: str | None = None
+    original_value: str | None = None
+    original_unit: str | None = None
+    precision: int | None = None
+    date_precision: str | None = None
     evidence_id: UUID
     evidence_hash: str = Field(pattern=r"^[a-f0-9]{64}$")
     quote: str
@@ -84,6 +88,9 @@ class CandidateReviewRef(BaseModel):
     span_end: int
     publisher: str
     published_date: str | None = None
+    speaker: str | None = None
+    speaker_organization: str | None = None
+    speaker_role: str | None = None
     support: str
     status: str
     source_url: str
@@ -155,6 +162,10 @@ class IntelligenceOperationsOut(BaseModel):
     independent_leads: int | None
     backup: str
     restore: str
+    last_verified_restore_at: datetime | None
+    last_reported_restore_at: datetime | None
+    operational_receipt: dict[str, Any]
+    commercial_review_receipt: dict[str, Any]
     owner_review_notes_30d: int
 
 
@@ -227,10 +238,11 @@ def _job_view(job: Job) -> dict[str, Any]:
 def _history_view(session, need_id: UUID, limit: int) -> list[dict[str, Any]]:
     items = intelligence_history(session, need_id, limit)
     job_ids = [UUID(item["job_id"]) for item in items]
-    jobs = {
-        str(job.id): job
-        for job in session.scalars(select(Job).where(Job.id.in_(job_ids))).all()
-    } if job_ids else {}
+    jobs = (
+        {str(job.id): job for job in session.scalars(select(Job).where(Job.id.in_(job_ids))).all()}
+        if job_ids
+        else {}
+    )
     checkpoints: dict[str, dict[str, Any]] = {}
     source_candidates: dict[str, dict[str, Any]] = {}
     for item in items:
@@ -632,7 +644,7 @@ def save_owner_feedback(need_id: UUID, body: OwnerFeedback, request: Request):
             raise HTTPException(
                 409, "Save the commercial pursuit workspace before recording a review note"
             )
-        prior = session.scalar(
+        prior_note: PursuitCallNote | None = session.scalar(
             select(PursuitCallNote)
             .where(
                 PursuitCallNote.pursuit_id == pursuit.id,
@@ -650,25 +662,25 @@ def save_owner_feedback(need_id: UUID, body: OwnerFeedback, request: Request):
             "evidence_refs": cited,
             "review_state": "pending_independent_review",
         }
-        if prior:
+        if prior_note:
             if (
-                prior.intelligence_review != metadata
-                or prior.note != body.note
-                or prior.next_action != body.next_action
-                or (prior.follow_up.isoformat() if prior.follow_up else None)
+                prior_note.intelligence_review != metadata
+                or prior_note.note != body.note
+                or prior_note.next_action != body.next_action
+                or (prior_note.follow_up.isoformat() if prior_note.follow_up else None)
                 != (body.follow_up.isoformat() if body.follow_up else None)
             ):
                 raise HTTPException(
                     409, "This feedback id was already saved with different content"
                 )
             return {
-                "id": str(prior.id),
-                "client_id": str(prior.client_id),
-                "metadata": prior.intelligence_review,
-                "note": prior.note,
-                "created_at": prior.created_at,
+                "id": str(prior_note.id),
+                "client_id": str(prior_note.client_id),
+                "metadata": prior_note.intelligence_review,
+                "note": prior_note.note,
+                "created_at": prior_note.created_at,
             }
-        row = PursuitCallNote(
+        note_row = PursuitCallNote(
             pursuit_id=pursuit.id,
             client_id=body.client_id,
             owner="Nick Sandoval",
@@ -678,12 +690,12 @@ def save_owner_feedback(need_id: UUID, body: OwnerFeedback, request: Request):
             follow_up=body.follow_up,
             intelligence_review=metadata,
         )
-        session.add(row)
+        session.add(note_row)
         session.flush()
         return {
-            "id": str(row.id),
-            "client_id": str(row.client_id),
-            "metadata": row.intelligence_review,
-            "note": row.note,
-            "created_at": row.created_at,
+            "id": str(note_row.id),
+            "client_id": str(note_row.client_id),
+            "metadata": note_row.intelligence_review,
+            "note": note_row.note,
+            "created_at": note_row.created_at,
         }
