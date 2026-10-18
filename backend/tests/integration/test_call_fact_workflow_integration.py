@@ -1891,3 +1891,75 @@ def test_current_fact_preflight_fails_closed_before_fact_orm_hydration(runtime, 
             .where(CallFactVersion.need_id == need_id)
         ) == number_of_rows
 
+
+def test_saved_browse_parity_through_real_fact_accept_correct_reject_and_source_changes(
+    runtime, monkeypatch
+):
+    """Compare saved reads throughout the complete source-backed operator workflow."""
+    from urllib.parse import parse_qs, urlsplit
+
+    from gridlens.intelligence.saved_browse import page, rebuild
+    from gridlens.persistence.browse_invalidation import install
+
+    client, factory, *_scope = runtime
+    with factory.kw["bind"].begin() as connection:
+        install(connection)
+    original_get = client.get
+    api = import_module("gridlens.api.app")
+    comparisons = []
+
+    def compare_get(url, **kwargs):
+        response = original_get(url, **kwargs)
+        parsed = urlsplit(str(url))
+        if parsed.path != "/api/opportunities" or response.status_code != 200:
+            return response
+        query = {key: values[0] for key, values in parse_qs(parsed.query).items()}
+        names = (
+            "tier",
+            "search",
+            "decision",
+            "geography",
+            "industry",
+            "activity",
+            "timing",
+            "mw_status",
+            "mw_min",
+            "mw_max",
+            "priority_segment",
+            "status",
+        )
+        filters = api._normalized_browse_filters(**{name: query.get(name) for name in names})
+        assert rebuild(factory)["status"] == "published"
+        with factory() as session:
+            saved = page(
+                session,
+                filters,
+                limit=int(query.get("limit", 50)),
+                offset=int(query.get("offset", 0)),
+                ranked=query.get("sort") == "rank",
+            )
+        expected = response.json()
+        assert [item["id"] for item in saved["items"]] == [item["id"] for item in expected]
+        for actual, canonical in zip(saved["items"], expected, strict=True):
+            for key in (
+                "tier",
+                "required_mw",
+                "start_window",
+                "duration",
+                "supply",
+                "rank_score",
+                "rank_reasons",
+                "signal_display_decision",
+                "conflict_state",
+                "priority_segment",
+                "workflow_status",
+                "group_id",
+                "group_total_filtered",
+            ):
+                assert actual.get(key) == canonical.get(key), key
+        comparisons.append(len(expected))
+        return response
+
+    monkeypatch.setattr(client, "get", compare_get)
+    test_current_public_support_bounds_fact_qualification_and_reassessment(runtime)
+    assert len(comparisons) >= 5

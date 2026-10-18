@@ -16,6 +16,7 @@ x-backend: &backend
   environment:
     TYPESAFE_API_KEY: ${TYPESAFE_API_KEY:-}
     OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    SAVED_BROWSE_ENABLED: ${SAVED_BROWSE_ENABLED:-false}
   restart: unless-stopped
 
 services:
@@ -34,6 +35,24 @@ services:
   worker:
     <<: *backend
     command: ["uv", "run", "python", "-m", "gridlens.jobs.worker"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  browse:
+    <<: *backend
+    profiles: ["saved-browse"]
+    command: ["uv", "run", "python", "-m", "gridlens.jobs.browse", "maintain"]
+    environment:
+      TYPESAFE_API_KEY: ""
+      OPENAI_API_KEY: ""
+      FIRECRAWL_API_KEY: ""
+      WORKER_AUTO_REFRESH: "false"
+      AUTONOMOUS_RESEARCH_ENABLED: "false"
+      BRIEFS_DAILY_REQUEST_LIMIT: "0"
+      PURSUITS_DAILY_FETCH_LIMIT: "0"
+      PURSUITS_DAILY_MODEL_LIMIT: "0"
+      JEV_SHADOW_DAILY_LIMIT: "0"
     depends_on:
       migrate:
         condition: service_completed_successfully

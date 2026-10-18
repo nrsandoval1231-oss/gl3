@@ -11,6 +11,7 @@ from sqlalchemy import (
     Identity,
     Index,
     Integer,
+    Numeric,
     String,
     Text,
     UniqueConstraint,
@@ -735,3 +736,73 @@ class EditorialAssessment(Base):
     evidence_hash: Mapped[str] = mapped_column(String(64))
     payload: Mapped[dict] = mapped_column(JSONB)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class BrowseState(Base):
+    """Transactional input revision and atomically published generation pointer."""
+
+    __tablename__ = "browse_state"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    input_revision: Mapped[int] = mapped_column(BigInteger, server_default="0")
+    generation_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
+
+
+class BrowseGeneration(Base):
+    __tablename__ = "browse_generations"
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True)
+    input_revision: Mapped[int] = mapped_column(BigInteger)
+    policy_version: Mapped[str] = mapped_column(String(100))
+    built_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    valid_until: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    row_count: Mapped[int] = mapped_column(Integer)
+    digest: Mapped[str] = mapped_column(String(64))
+    counts: Mapped[dict] = mapped_column(JSONB)
+
+
+class BrowseRow(Base):
+    """Saved canonical inputs and compact output; never a qualification authority."""
+
+    __tablename__ = "browse_rows"
+    __table_args__ = (
+        Index(
+            "ix_browse_rank",
+            "generation_id",
+            "tier",
+            text("rank_score DESC"),
+            text("updated_at DESC"),
+            "need_id",
+        ),
+        Index(
+            "ix_browse_global_rank",
+            "generation_id",
+            text("rank_score DESC"),
+            text("updated_at DESC"),
+            "need_id",
+        ),
+        Index("ix_browse_updated", "generation_id", "tier", text("updated_at DESC"), "need_id"),
+        Index("ix_browse_project", "generation_id", "project_id", "tier"),
+        Index("ix_browse_dimensions", "generation_id", "location", "industry", "activity"),
+    )
+    generation_id: Mapped[UUID] = mapped_column(
+        ForeignKey("browse_generations.id", ondelete="CASCADE"), primary_key=True
+    )
+    need_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True)
+    project_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True))
+    tier: Mapped[str] = mapped_column(String(20))
+    location: Mapped[str] = mapped_column(Text)
+    industry: Mapped[str] = mapped_column(Text)
+    activity: Mapped[str] = mapped_column(Text)
+    has_timing: Mapped[bool] = mapped_column(Boolean)
+    mw_low: Mapped[Any | None] = mapped_column(Numeric)
+    mw_high: Mapped[Any | None] = mapped_column(Numeric)
+    priority_segment: Mapped[int] = mapped_column(Integer)
+    workflow_status: Mapped[str] = mapped_column(String(30))
+    signal_decision: Mapped[str] = mapped_column(String(10))
+    project_group: Mapped[str] = mapped_column(String(43))
+    single_group: Mapped[str] = mapped_column(String(43))
+    rank_score: Mapped[int] = mapped_column(Integer)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    search_text: Mapped[str] = mapped_column(Text)
+    display_title: Mapped[str] = mapped_column(Text)
+    summary: Mapped[dict] = mapped_column(JSONB)
+    compact: Mapped[dict] = mapped_column(JSONB)

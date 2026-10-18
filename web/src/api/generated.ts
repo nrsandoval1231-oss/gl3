@@ -2186,6 +2186,10 @@ export interface components {
             priority_segment?: number | null;
             /** Priority Label */
             priority_label?: string | null;
+            /** Browse Title */
+            browse_title?: string | null;
+            /** Evidence Count */
+            evidence_count?: number | null;
         };
         /** PermitFactOut */
         PermitFactOut: {

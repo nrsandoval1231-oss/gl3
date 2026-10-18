@@ -40,7 +40,8 @@ def evaluate_targets(
             return found
     else:
         items = opportunity_projection(
-            session, include_below_floor=True, include_operator_fact_refs=True
+            session, include_below_floor=True, include_operator_fact_refs=True,
+            selected_need_ids={UUID(identity) for identity in wanted},
         )
         exact_items = {str(item["id"]): item for item in items if str(item["id"]) in wanted}
         chains = {
