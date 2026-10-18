@@ -60,7 +60,7 @@ def historical_records(monkeypatch):
                 geography="Fixture City",
                 industries=["construction"],
                 retrieval_method="fixture",
-                health={},
+                health={"status": "Updated"},
             )
         )
         session.flush()

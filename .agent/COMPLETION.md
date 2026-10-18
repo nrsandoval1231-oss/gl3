@@ -47,7 +47,8 @@ commercial acceptance gates remain open.
   at 2026-10-18 13:35:14 UTC.
 - Finish of this implementation pass: 2026-10-18 13:45:58 UTC.
 - Model: gpt-6-luna / high (per execution assignment).
-- Material repair attempts: 1 (test module filename collision; no application behavior changed).
+- Material repair attempts: 2 bounded fixture/test-harness repairs; no production
+  API behavior changed.
 - Token count and elapsed implementation duration: UNKNOWN; not instrumented.
 - Candidate source identity: see `.agent/packets/remove-editorial.md` and
   `git diff` at the controller's eventual freeze. The hashes below identify the
@@ -59,7 +60,7 @@ commercial acceptance gates remain open.
 | `backend/src/gridlens/persistence/models.py` | `c6a8ffdaa22da606b527d1011007bfcefb4574d615aba65c19b2b043114059dd` |
 | `backend/src/gridlens/settings.py` | `3be284b632f122ec8b33944287664840fc835531f44ef70af11f5f8443b322d1` |
 | `backend/tests/unit/test_editorial_removal.py` | `bbac9e411b86fc3765441459eced4299cc5caca4b06724177ce20a011ab365f1` |
-| `backend/tests/integration/test_editorial_removal_retention.py` | `8a3e56b3f63b6571386f87ea3a7f34555510fac9009b2a4f7b46d6ce5d1e1931` |
+| `backend/tests/integration/test_editorial_removal_retention.py` | `9ccdb56f46f025aaf1b11ea4a5b30877d474cea24aec30280c79b2f50aba5edf` |
 | `web/src/api/openapi.json` | `2d234551168cdbef0f12251e15ed5e722ed2a06240a7f6b3cef759dbc3c6bd41` |
 | `web/src/api/generated.ts` | `8d409e10a798150f97d81700f41ef12dfd3ad6272be21c6b9b2e0441cef0e151` |
 | `web/src/app/App.tsx` | `a8d7985a1d4e882126e07e287d13b3b2dd7e31cac296da0451caa8a96f46af9d` |
