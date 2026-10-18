@@ -5,7 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from typing import Any
 from urllib.parse import urlencode, urlparse
 
@@ -165,6 +165,196 @@ def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list
         if len(confirm) != 1 or int(confirm[0].get("row_count", -1)) != expected:
             raise SourceParseError("Boston permit row count changed during pagination")
         return output
+    finally:
+        if client is None:
+            http.close()
+
+
+def retrieve_collection_segment(
+    source: dict[str, Any],
+    lane: str,
+    window_start: date,
+    window_end: date,
+    cursor: dict[str, Any],
+    client: httpx.Client | None = None,
+) -> dict[str, Any]:
+    """Fetch one Boston issue-date segment with an _id keyset cursor."""
+    if lane not in {"issue_recent", "issue_history"}:
+        raise SourceParseError("Boston collection lane is unsupported")
+    parsed = urlparse(str(source.get("endpoint") or ""))
+    if (
+        source.get("id") != SOURCE_ID
+        or parsed.scheme != "https"
+        or parsed.hostname != HOST
+        or parsed.path != "/api/3/action/datastore_search_sql"
+        or parsed.query
+    ):
+        raise SourceParseError("Boston endpoint is outside the configured official CKAN SQL API")
+    query = source.get("query", {})
+    if (
+        query.get("window_days") != 90
+        or query.get("page_size") != PAGE_SIZE
+        or query.get("max_pages") != MAX_PAGES
+        or query.get("max_records") != MAX_RECORDS
+        or query.get("max_response_bytes") != MAX_RESPONSE_BYTES
+        or query.get("max_run_bytes") != MAX_RUN_BYTES
+    ):
+        raise SourceParseError("Boston collection bounds differ from reviewed configuration")
+    if window_end < window_start or (window_end - window_start).days >= 7:
+        raise SourceParseError("Boston collection window exceeds seven days")
+    if window_end > datetime.now(UTC).date():
+        raise SourceParseError("Boston collection window extends into the future")
+    try:
+        day = date.fromisoformat(str(cursor.get("day", window_start.isoformat())))
+    except ValueError as exc:
+        raise SourceParseError("Boston collection cursor has an invalid date") from exc
+    if not window_start <= day <= window_end:
+        raise SourceParseError("Boston collection cursor escaped its date window")
+    after_id = cursor.get("after_id")
+    if after_id is not None and (type(after_id) is not int or after_id < 0):
+        raise SourceParseError("Boston collection cursor has an invalid row key")
+    scanned = cursor.get("scanned", 0)
+    if type(scanned) is not int or scanned < 0:
+        raise SourceParseError("Boston collection cursor has an invalid row count")
+    start = day.isoformat()
+    where = (
+        f"issued_date >= '{start}T00:00:00' "
+        f"AND issued_date <= '{start}T23:59:59.999'"
+    )
+    relation = f'"{RESOURCE_ID}"'
+    http = client or httpx.Client(
+        timeout=20, follow_redirects=False, headers={"Accept": "application/json"}
+    )
+    state = {"bytes": 0}
+
+    def count_day() -> int:
+        rows = _response(
+            http,
+            source["endpoint"],
+            f"SELECT COUNT(*) AS row_count, "
+            f"COUNT(DISTINCT permitnumber) AS unique_permit_numbers "
+            f"FROM {relation} WHERE {where}",
+            state,
+        )["records"]
+        if len(rows) != 1:
+            raise SourceParseError("Boston issue-date completeness count is missing")
+        try:
+            count = int(rows[0].get("row_count", -1))
+            unique_numbers = int(rows[0].get("unique_permit_numbers", -1))
+        except (ValueError, TypeError) as exc:
+            raise SourceParseError("Boston issue-date count is malformed") from exc
+        if count < 0 or unique_numbers != count:
+            raise SourceParseError(
+                "Boston issue-date count is negative or permit numbers are not unique"
+            )
+        return count
+
+    def reset_cursor(expected: int) -> dict[str, Any]:
+        return {"day": day.isoformat(), "expected": expected, "scanned": 0}
+
+    try:
+        expected = count_day()
+        prior_expected = cursor.get("expected")
+        if prior_expected is not None and (
+            type(prior_expected) is not int or prior_expected != expected
+        ):
+            return {
+                "records": [],
+                "cursor": reset_cursor(expected),
+                "partial": True,
+                "error_class": "ResultCountChanged",
+                "window_complete": False,
+                "expected_count": expected,
+                "observed_count": scanned,
+            }
+        expected = expected if prior_expected is None else prior_expected
+        if expected == 0:
+            next_day = day + timedelta(days=1)
+            return {
+                "records": [],
+                "cursor": {"day": next_day.isoformat()} if next_day <= window_end else {},
+                "partial": False,
+                "window_complete": next_day > window_end,
+                "expected_count": 0,
+                "observed_count": 0,
+            }
+        if scanned >= expected:
+            raise SourceParseError("Boston collection cursor exceeds declared row count")
+        page_where = where + (f" AND _id > {after_id}" if after_id is not None else "")
+        sql = (
+            f"SELECT {FIELDS} FROM {relation} WHERE {page_where} "
+            f"ORDER BY issued_date ASC, _id ASC LIMIT {PAGE_SIZE}"
+        )
+        rows = _response(http, source["endpoint"], sql, state)["records"]
+        if not rows or len(rows) > PAGE_SIZE:
+            raise SourceParseError("Boston issue-date page is empty or exceeds its row bound")
+        records: list[dict[str, Any]] = []
+        seen_ids: set[int] = set()
+        seen_numbers: set[str] = set()
+        previous_id = after_id
+        for row in rows:
+            if not isinstance(row, dict):
+                raise SourceParseError("Boston permit row has invalid shape")
+            required = ("_id", "permitnumber", "issued_date", "status", "address", "city", "state")
+            if any(key not in row for key in required):
+                raise SourceParseError("Boston permit row lacks stable identity or site fields")
+            try:
+                if isinstance(row["_id"], bool):
+                    raise ValueError("Boolean ID")
+                row_id = int(row["_id"])
+                issued = datetime.fromisoformat(str(row["issued_date"]).replace("Z", "+00:00"))
+            except (ValueError, TypeError) as exc:
+                raise SourceParseError("Boston permit row has malformed ID or issue date") from exc
+            permit_number = " ".join(str(row.get("permitnumber") or "").split())
+            if (
+                row_id < 0
+                or issued.date() != day
+                or not permit_number
+                or row_id in seen_ids
+                or permit_number in seen_numbers
+                or (previous_id is not None and row_id <= previous_id)
+            ):
+                raise SourceParseError("Boston permit rows have duplicate identity or bad order")
+            seen_ids.add(row_id)
+            seen_numbers.add(permit_number)
+            previous_id = row_id
+            records.append(render_record(row))
+        after_count = count_day()
+        page_total = scanned + len(rows)
+        if after_count != expected or page_total > expected:
+            return {
+                "records": records,
+                "cursor": reset_cursor(after_count),
+                "partial": True,
+                "error_class": "ResultCountChanged",
+                "window_complete": False,
+                "expected_count": after_count,
+                "observed_count": page_total,
+            }
+        day_complete = page_total == expected
+        if not day_complete and len(rows) != PAGE_SIZE:
+            raise SourceParseError("Boston issue-date pages ended before the declared count")
+        next_cursor: dict[str, Any]
+        if day_complete:
+            next_day = day + timedelta(days=1)
+            next_cursor = {"day": next_day.isoformat()} if next_day <= window_end else {}
+            window_complete = next_day > window_end
+        else:
+            next_cursor = {
+                "day": day.isoformat(),
+                "expected": expected,
+                "scanned": page_total,
+                "after_id": int(rows[-1]["_id"]),
+            }
+            window_complete = False
+        return {
+            "records": records,
+            "cursor": next_cursor,
+            "partial": False,
+            "window_complete": window_complete,
+            "expected_count": expected,
+            "observed_count": page_total,
+        }
     finally:
         if client is None:
             http.close()

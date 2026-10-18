@@ -330,6 +330,349 @@ def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list
             http.close()
 
 
+def retrieve_collection_segment(
+    source: dict[str, Any],
+    lane: str,
+    window_start: date,
+    window_end: date,
+    cursor: dict[str, Any],
+    client: httpx.Client | None = None,
+) -> dict[str, Any]:
+    """Fetch at most one date/page segment for durable ingestion recovery."""
+    source_id = source.get("id")
+    if not isinstance(source_id, str) or source_id not in HOSTS:
+        raise SourceParseError("Permit source ID is not configured")
+    expected_host = HOSTS[source_id]
+    parsed = urlparse(str(source.get("endpoint") or ""))
+    if parsed.scheme != "https" or parsed.hostname != expected_host or parsed.query:
+        raise SourceParseError("Permit endpoint is outside its configured official host")
+    fields = MAPS[source_id]
+    modified_field = fields.get("modified_date")
+    is_modified = lane.startswith("modified_")
+    if (is_modified and not modified_field) or lane not in {
+        "issue_recent",
+        "issue_history",
+        "issue_backfill",
+        "modified_recent",
+        "modified_history",
+    }:
+        raise SourceParseError("Permit collection lane is unsupported")
+    if window_end < window_start or (window_end - window_start).days >= 7:
+        raise SourceParseError("Permit collection window exceeds seven days")
+    if window_end > datetime.now(UTC).date():
+        raise SourceParseError("Permit collection window extends into the future")
+    query = source.get("query", {})
+    if (
+        query.get("per_page") != PAGE_SIZE
+        or not 1 <= query.get("max_pages", 0) <= MAX_PAGES
+        or query.get("max_response_bytes") != MAX_RESPONSE
+        or query.get("max_run_bytes") != MAX_RUN
+    ):
+        raise SourceParseError("Permit collection bounds differ from the reviewed configuration")
+    day_value = cursor.get("day", window_start.isoformat())
+    try:
+        day = date.fromisoformat(str(day_value))
+    except ValueError as exc:
+        raise SourceParseError("Permit collection cursor has an invalid date") from exc
+    if not window_start <= day <= window_end:
+        raise SourceParseError("Permit collection cursor escaped its date window")
+
+    row_field = fields["row"]
+    date_field = modified_field if is_modified else fields["date"]
+    class_filters = {
+        "austin-building-permits": (
+            "permit_class_mapped='Commercial' "
+            "AND permit_type_desc IN ('Building Permit','Electrical Permit')"
+        ),
+        "seattle-building-permits": (
+            "permitclassmapped='Non-Residential' AND permittypemapped='Building'"
+        ),
+        "chicago-building-permits": (
+            "(permit_type IN ('PERMIT - NEW CONSTRUCTION','PERMIT - RENOVATION/ALTERATION') "
+            "OR (permit_type='PERMIT – EXPRESS PERMIT PROGRAM' "
+            "AND work_type='Electrical Work'))"
+        ),
+    }
+    suffix = "Z" if source_id == "chicago-building-permits" and is_modified else ""
+    lower = f"{day.isoformat()}T00:00:00.000{suffix}"
+    upper = f"{day.isoformat()}T23:59:59.999{suffix}"
+    if lane == "issue_backfill":
+        backfill = query.get("data_center_backfill")
+        if source_id != "austin-building-permits" or not isinstance(backfill, dict):
+            raise SourceParseError("Permit backfill lane is not configured for this source")
+        try:
+            backfill_start = date.fromisoformat(backfill["start"])
+            backfill_end = date.fromisoformat(backfill["end"])
+        except (ValueError, KeyError, TypeError) as exc:
+            raise SourceParseError("Permit backfill dates are malformed") from exc
+        if (
+            not backfill_start <= day <= backfill_end <= datetime.now(UTC).date()
+            or (backfill_end - backfill_start).days > 365
+        ):
+            raise SourceParseError("Permit backfill window exceeds its configured bound")
+        terms = ["data center", "data centre"]
+        if backfill.get("include_explicit_power") is True:
+            terms.extend(("construction power", "temporary service", "t-pole"))
+        predicate = " OR ".join(
+            f"lower({fields['description']}) LIKE '%{term}%'" for term in terms
+        )
+        base_where = (
+            f"{fields['date']} >= '{lower}' AND {fields['date']} <= '{upper}' "
+            f"AND ({class_filters[source_id]}) AND ({predicate})"
+        )
+    elif is_modified:
+        base_where = (
+            f"{fields['date']} IS NOT NULL AND {fields['date']} <= "
+            f"'{datetime.now(UTC).date().isoformat()}T23:59:59.999' "
+            f"AND {date_field} >= '{lower}' AND {date_field} <= '{upper}' "
+            f"AND ({class_filters[source_id]})"
+        )
+    else:
+        base_where = (
+            f"{date_field} >= '{lower}' AND {date_field} <= '{upper}' "
+            f"AND ({class_filters[source_id]})"
+        )
+    where = base_where
+    after_value = cursor.get("after_value") if is_modified else day.isoformat()
+    after_id = cursor.get("after_id")
+    if after_id is not None:
+        if not isinstance(after_id, str) or not after_id:
+            raise SourceParseError("Permit collection cursor has an invalid row key")
+        if len(after_id) > 256:
+            raise SourceParseError("Permit collection cursor row key is too long")
+        if source_id == "chicago-building-permits":
+            if not after_id.isdigit():
+                raise SourceParseError("Chicago permit cursor row key is not numeric")
+            row_literal = after_id
+        else:
+            row_literal = "'" + after_id.replace("'", "''") + "'"
+        if is_modified:
+            if not isinstance(after_value, str):
+                raise SourceParseError("Permit modification cursor has no timestamp key")
+            escaped = after_value.replace("'", "''")
+            where += (
+                f" AND ({date_field} > '{escaped}' OR ({date_field} = '{escaped}' "
+                f"AND {row_field} > {row_literal}))"
+            )
+        else:
+            where += f" AND {row_field} > {row_literal}"
+
+    select_fields = SYSTEM_FIELD_SELECTS.get(source_id)
+    params_rows: dict[str, str | int] = {
+        "$where": where,
+        "$order": f"{date_field} ASC,{row_field} ASC",
+        "$limit": PAGE_SIZE,
+    }
+    if select_fields:
+        params_rows["$select"] = select_fields
+    http = client or httpx.Client(
+        timeout=20, follow_redirects=False, headers={"Accept": "application/json"}
+    )
+    run_bytes = 0
+
+    def count_rows(count_where: str) -> int:
+        nonlocal run_bytes
+        try:
+            headers, body = read_bounded_response(
+                http,
+                source["endpoint"],
+                MAX_RESPONSE,
+                {"$select": "count(*) AS row_count", "$where": count_where},
+            )
+        except (httpx.HTTPError, ResponseTooLarge) as exc:
+            raise SourceParseError(
+                f"Permit segment count failed: {type(exc).__name__}"
+            ) from exc
+        run_bytes += len(body)
+        if run_bytes > MAX_RUN or "json" not in headers.get("content-type", "").lower():
+            raise SourceParseError("Permit segment count exceeded bounds or was non-JSON")
+        try:
+            payload = json.loads(body)
+            count = int(payload[0]["row_count"])
+        except (ValueError, TypeError, KeyError, IndexError) as exc:
+            raise SourceParseError("Permit segment count response is malformed") from exc
+        if count < 0:
+            raise SourceParseError("Permit segment count is negative")
+        return count
+
+    def reset_cursor(expected: int) -> dict[str, Any]:
+        return {"day": day.isoformat(), "expected": expected, "scanned": 0}
+
+    try:
+        expected = count_rows(base_where)
+        prior_expected = cursor.get("expected")
+        scanned = cursor.get("scanned", 0)
+        if type(scanned) is not int or scanned < 0:
+            raise SourceParseError("Permit collection cursor has an invalid count")
+        count_where = base_where
+        if prior_expected is not None and (
+            type(prior_expected) is not int or prior_expected != expected
+        ):
+            return {
+                "records": [],
+                "cursor": reset_cursor(expected),
+                "partial": True,
+                "error_class": "ResultCountChanged",
+                "window_complete": False,
+                "expected_count": expected,
+                "observed_count": scanned,
+            }
+        expected = expected if prior_expected is None else prior_expected
+        if expected == 0:
+            next_day = day + timedelta(days=1)
+            return {
+                "records": [],
+                "cursor": {"day": next_day.isoformat()} if next_day <= window_end else {},
+                "partial": False,
+                "window_complete": next_day > window_end,
+                "expected_count": 0,
+                "observed_count": 0,
+            }
+        if scanned >= expected:
+            raise SourceParseError("Permit collection cursor exceeds the declared row count")
+        try:
+            headers, body = read_bounded_response(
+                http, source["endpoint"], MAX_RESPONSE, params_rows
+            )
+        except (httpx.HTTPError, ResponseTooLarge) as exc:
+            raise SourceParseError(
+                f"Permit segment page failed: {type(exc).__name__}"
+            ) from exc
+        run_bytes += len(body)
+        if run_bytes > MAX_RUN or "json" not in headers.get("content-type", "").lower():
+            raise SourceParseError("Permit segment exceeded bounds or returned non-JSON")
+        try:
+            rows = json.loads(body)
+        except (ValueError, UnicodeDecodeError) as exc:
+            raise SourceParseError("Permit segment returned malformed JSON") from exc
+        if not isinstance(rows, list) or not rows or len(rows) > PAGE_SIZE:
+            raise SourceParseError("Permit segment page is empty or exceeds its row bound")
+        records: list[dict[str, Any]] = []
+        seen: set[str] = set()
+        previous: tuple[str, int | str] | None = None
+        for row in rows:
+            if not isinstance(row, dict):
+                raise SourceParseError("Permit segment row has invalid shape")
+            missing = [fields[key] for key in ("row", "date", "description") if fields[key]]
+            if any(name not in row for name in missing):
+                raise SourceParseError("Permit segment response schema changed")
+            row_id = _field(row, row_field)
+            issue_day = _date(_field(row, fields["date"]))
+            modified_value = _field(row, modified_field)
+            sort_date = _date(modified_value) if is_modified else issue_day
+            if not row_id or row_id in seen or issue_day > datetime.now(UTC).date():
+                raise SourceParseError("Permit segment has invalid or duplicate row identity")
+            if source_id == "austin-building-permits":
+                class_valid = (
+                    _field(row, fields["class"]) == "Commercial"
+                    and _field(row, fields["type"])
+                    in {"Building Permit", "Electrical Permit"}
+                )
+            elif source_id == "seattle-building-permits":
+                class_valid = (
+                    _field(row, fields["class"]) == "Non-Residential"
+                    and _field(row, fields["work"]) == "Building"
+                )
+            else:
+                permit_type = _field(row, fields["type"])
+                class_valid = (
+                    permit_type in {
+                        "PERMIT - NEW CONSTRUCTION",
+                        "PERMIT - RENOVATION/ALTERATION",
+                    }
+                    or (
+                        permit_type == "PERMIT – EXPRESS PERMIT PROGRAM"
+                        and _field(row, fields["work"]) == "Electrical Work"
+                    )
+                )
+            if not class_valid:
+                raise SourceParseError("Permit segment row escaped the reviewed class filter")
+            if lane == "issue_backfill":
+                backfill = query.get("data_center_backfill", {})
+                terms = ["data center", "data centre"]
+                if backfill.get("include_explicit_power") is True:
+                    terms.extend(("construction power", "temporary service", "t-pole"))
+                description = _field(row, fields["description"]).lower()
+                if not any(term in description for term in terms):
+                    raise SourceParseError("Permit segment row escaped the backfill keyword filter")
+            if sort_date != day:
+                raise SourceParseError("Permit segment row escaped its date window")
+            try:
+                stable_row_id: int | str = (
+                    int(row_id) if source_id == "chicago-building-permits" else row_id
+                )
+            except ValueError as exc:
+                raise SourceParseError("Chicago permit row key is not numeric") from exc
+            sort_key = (
+                modified_value if is_modified else issue_day.isoformat(),
+                stable_row_id,
+            )
+            if previous is not None and sort_key < previous:
+                raise SourceParseError("Permit segment rows are out of stable key order")
+            if after_id is not None:
+                prior_key = (
+                    (
+                        str(after_value),
+                        int(after_id)
+                        if source_id == "chicago-building-permits"
+                        else after_id,
+                    )
+                    if is_modified
+                    else (
+                        day.isoformat(),
+                        int(after_id)
+                        if source_id == "chicago-building-permits"
+                        else after_id,
+                    )
+                )
+                if sort_key <= prior_key:
+                    raise SourceParseError("Permit segment row did not advance its keyset")
+            seen.add(row_id)
+            previous = sort_key
+            records.append(render_record(source, row))
+        after_count = count_rows(count_where)
+        page_total = scanned + len(rows)
+        if after_count != expected or page_total > expected:
+            return {
+                "records": records,
+                "cursor": reset_cursor(after_count),
+                "partial": True,
+                "error_class": "ResultCountChanged",
+                "window_complete": False,
+                "expected_count": after_count,
+                "observed_count": page_total,
+            }
+        day_complete = page_total == expected
+        if not day_complete and len(rows) != PAGE_SIZE:
+            raise SourceParseError("Permit segment ended before the declared count")
+        next_cursor: dict[str, Any]
+        if day_complete:
+            next_day = day + timedelta(days=1)
+            next_cursor = {"day": next_day.isoformat()} if next_day <= window_end else {}
+            window_complete = next_day > window_end
+        else:
+            last_row = rows[-1]
+            next_cursor = {
+                "day": day.isoformat(),
+                "expected": expected,
+                "scanned": page_total,
+                "after_id": _field(last_row, row_field),
+                **({"after_value": _field(last_row, modified_field)} if is_modified else {}),
+            }
+            window_complete = False
+        return {
+            "records": records,
+            "cursor": next_cursor,
+            "partial": False,
+            "window_complete": window_complete,
+            "expected_count": expected,
+            "observed_count": page_total,
+        }
+    finally:
+        if client is None:
+            http.close()
+
+
 def render_record(source: dict[str, Any], row: dict[str, Any]) -> dict[str, Any]:
     """Render a validated official row identically for ingestion and exact research."""
     source_id = source["id"]

@@ -32,6 +32,31 @@ from gridlens.security import token_for
 from gridlens.settings import settings
 
 
+@pytest.fixture(autouse=True)
+def synthetic_structured_segment_for_collection_semantics(monkeypatch):
+    """Supply declared synthetic segments while testing downstream collection logic."""
+    import gridlens.ingestion.service as service
+
+    original_segment = service.retrieve_collection_segment
+
+    def synthetic_segment(source, lane, start, end, cursor, client=None, *, deadline=None):
+        if source.get("retrieval_method") not in {"socrata-permits", "boston-ckan-permits"}:
+            return original_segment(
+                source, lane, start, end, cursor, client, deadline=deadline
+            )
+        records = service.retrieve_source(source, client)
+        return {
+            "records": records,
+            "cursor": {},
+            "partial": False,
+            "window_complete": True,
+            "expected_count": len(records),
+            "observed_count": len(records),
+        }
+
+    monkeypatch.setattr(service, "retrieve_collection_segment", synthetic_segment)
+
+
 def test_reported_mw_uses_structured_domain_match_not_first_quote_number():
     assessment = {
         "demand_quote": "Campus capacity is 200 MW, but construction requires about 42 MW.",

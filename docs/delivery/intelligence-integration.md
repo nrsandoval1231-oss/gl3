@@ -179,8 +179,9 @@ fake-provider UNKNOWN result, persists it after reload, and keeps disabled resea
 controls unavailable. Desktop/mobile screenshots show no horizontal page overflow
 or JavaScript errors. No Lead or accepted claim was generated. In that disposable
 clone,300 mocked RSS items ingested in27.151s; identical replay took1.569s, created
-no extra facts/material changes and made zero provider calls. Eight concurrent
-read samples: health p50/p95 7.46/26.51ms; operations76.41/120.89ms; changes25.16/
+no extra facts/material changes and made zero provider calls. Eight samples per
+endpoint, with reads alongside ingestion: health p50/p95 7.46/26.51ms;
+operations76.41/120.89ms; changes25.16/
 39.51ms;20-record opportunity page3005.69/3119.63ms. The opportunity-page latency is
 a measured local limitation, not an accepted production SLO. Actual provider
 usage, cost and commercial benefit remain UNKNOWN.
@@ -229,9 +230,15 @@ findings. B5 adds verified total billable-input bounds (2d6a89d); C6/B6 reuses e
 completed signal judgments and denies external test networking (7f69e75). Controller
 focused runs pass46 and133 tests respectively. C7a adds bounded schedule progress,
 truthful acquisition timing and current-window assignment (1a6249d); controller58
-tests pass. C7b structured-source continuation remains in implementation. The0029
+tests pass. C7b implements bounded durable issue/modification collection, evidence-before-cursor commits and transactional continuation. Controller128 tests pass, including nine adversarial PostgreSQL cases. Two checkpoint races were reproduced and repaired with fresh locked reads and a full immutable progress snapshot; earlier failure receipts are retained. The0029
 local restore preserves all52 tables, including synthetic nonempty progress rows,
 and retains UNKNOWN-call exposure without redispatch. These are development proofs.
+The rejected6d88 full suite recorded2000 passed,12 failed,12 setup errors,3 skipped
+and7 subtests; it was not a pass. An obsolete mock allowed at least one TypeSafe
+authentication request using a synthetic key and synthetic text. No real key or
+successful model response was involved; total request count and billing remain
+UNKNOWN. Later fixtures deny external HTTPX, DNS and TCP. Earlier receipts remain
+retained rather than being replaced by the repaired runs.
 Final
 validation and independent review are separately bound to the immutable commit
 in `.artifacts/INTELLIGENCE-20261018/final/release-manifest.json`; absence of a

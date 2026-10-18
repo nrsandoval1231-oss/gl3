@@ -58,6 +58,29 @@ gate as PASS/FAIL/UNKNOWN from separately authored `decision` labels and route
 outputs. A controller must bind thresholds and independent review to the exact
 artifact before any gate can be recorded as accepted.
 
+## Proposed performance comparison
+
+The local cloned-corpus baseline during300 mocked RSS records used eight samples
+per endpoint, with sequential reads alongside a separate ingestion thread. Its p95
+values were health26.51ms, operations120.89ms,
+changes39.51ms and the20-record opportunity page3119.63ms. These are local fixture
+measurements, with no accepted production SLO or claim that eight samples are a
+stable population estimate.
+
+Proposed investigation thresholds are a p95 exceeding the matching endpoint's
+recorded baseline above, measured with the same corpus,300-record workload and
+configuration. Collect at least30 samples per endpoint before judging a regression;
+preserve both runs and report variability. These thresholds are proposed comparison
+triggers, not owner acceptance or a production latency promise. In particular, the
+opportunity-page baseline is already a visible performance limitation.
+
+Safety comparisons require no unsupported promotions, fabricated accepted claims,
+or false identity merges under the existing canonical rules. Model precision,
+recall, validity, resolved-question yield and cost per useful result remain UNKNOWN
+for unrun paid routes. Propose numerical quality/economic promotion thresholds only
+after authorized measurements and independent labels exist; do not invent provider
+usage, an owner budget or acceptance from an empty report.
+
 ## Seven daily operating cycles
 
 Receipt input contains `{"receipts":[...]}` with exactly seven unique consecutive

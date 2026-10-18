@@ -83,6 +83,31 @@ def db():
     engine.dispose()
 
 
+@pytest.fixture(autouse=True)
+def synthetic_structured_segment_for_ingestion_semantics(monkeypatch):
+    """Keep permit-domain tests on explicit synthetic rows, not adapter HTTP behavior."""
+    import gridlens.ingestion.service as service
+
+    original_segment = service.retrieve_collection_segment
+
+    def synthetic_segment(source, lane, start, end, cursor, client=None, *, deadline=None):
+        if source.get("retrieval_method") not in {"socrata-permits", "boston-ckan-permits"}:
+            return original_segment(
+                source, lane, start, end, cursor, client, deadline=deadline
+            )
+        records = service.retrieve_source(source, client)
+        return {
+            "records": records,
+            "cursor": {},
+            "partial": False,
+            "window_complete": True,
+            "expected_count": len(records),
+            "observed_count": len(records),
+        }
+
+    monkeypatch.setattr(service, "retrieve_collection_segment", synthetic_segment)
+
+
 def response_for(row: dict):
     return {"total_pages": 1, "count": 1, "results": [row]}
 

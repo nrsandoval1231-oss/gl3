@@ -161,24 +161,48 @@ Buying-chain public research uses the existing `jobs` table with kind
 relationship extraction remains available. Preserve job checkpoints and retained
 buying-chain evidence during rollback.
 
-Before running a pre-integration worker, park the new job kinds so older code cannot
-mistake them for source ingestion. After worker stop, the reviewed operation is:
+Structured permit recovery continuations use the existing `ingestion` job kind and
+the `source_collection_progress` table. To roll back to code that predates C7b,
+stop the entire worker process first; turning off `WORKER_AUTO_REFRESH` stops
+planning but does not stop already queued continuation execution. After stopping,
+record the IDs, statuses, and raw checkpoints of every queued or running
+`ingestion` job and park those jobs in the same transaction. This includes
+continuations even when their checkpoint was replaced by an ingestion record
+checkpoint while running. Preserve each progress row and its cursor. The baseline
+`49121eb` API/web readiness on the forward schema does not prove that an older
+worker is safe. A fallback to that baseline keeps all ingestion/research workers
+stopped, provider credentials absent and controls OFF, and queued, new-kind, and
+continuation jobs preserved until a safe worker is independently verified. Skip
+old Alembic startup and preserve additive ledgers, recovery rows, and history.
+Disable affected sources through the supported registry/operator control and
+retain UNKNOWN freshness and any ambiguous acquisition exposure. Resume only on
+code that understands the frozen progress contract, after checking preserved job
+IDs and cursors; do not replay a provider call merely because the worker version
+changed.
+
+After worker stop, record every queued/running job in the rollback receipt and
+park the full set in one transaction. This includes ordinary source-ingestion
+jobs because the older worker's behavior is not yet independently proven safe.
+The reviewed operation is:
 
 ```sql
 BEGIN;
 SELECT id, kind, status, checkpoint FROM jobs
-WHERE kind IN ('intelligence_process', 'project_monitor', 'signal_adjudication', 'evidence_shadow', 'buying_chain_research')
+WHERE kind IN ('ingestion', 'intelligence_process', 'project_monitor', 'signal_adjudication', 'evidence_shadow', 'buying_chain_research')
   AND status IN ('queued', 'running') FOR UPDATE;
 -- Preserve the returned job identities/statuses in the rollback receipt first.
 UPDATE jobs SET status = 'paused', lease_owner = NULL, lease_until = NULL,
   error = 'INTELLIGENCE_ROLLBACK_PAUSED'
-WHERE kind IN ('intelligence_process', 'project_monitor', 'signal_adjudication', 'evidence_shadow', 'buying_chain_research')
+WHERE kind IN ('ingestion', 'intelligence_process', 'project_monitor', 'signal_adjudication', 'evidence_shadow', 'buying_chain_research')
   AND status IN ('queued', 'running');
 COMMIT;
 ```
 
 Restore the prior accepted API/web/worker images with automatic migration execution
 skipped; first verify that code's forward-schema compatibility on a restored copy.
+Keep all workers stopped until the older worker's safety and forward-schema
+compatibility are independently proven; parking jobs alone does not establish
+either condition.
 An older Alembic tree may not recognize new revision IDs, so an unconditional old
 `upgrade head` is not a rollback. Do not downgrade/drop the call ledger or watch
 tables in production. If code compatibility is unproven, keep providers/planners

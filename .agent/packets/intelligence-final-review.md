@@ -25,3 +25,23 @@ inspected, material limits, and a finish-contract-qualified conclusion. PASS may
 accept the local implementation candidate while parent operational proof remains
 OPEN. Never rewrite missing proof as completion. Root records the raw review and
 one graph direction; any repair requires a new candidate and applicable revalidation.
+
+Prior6d88 review returned FIX: TypeSafe output/input billing assumptions, historical
+schedule replay/backdated success, and missing structured continuation. Inspect
+B5's exact attested total billable-input ceiling and full reservation, C7's bounded
+current-window scheduling and durable issue/modification recovery, evidence-before-
+checkpoint ordering and continuation rollback. Disabled/unknown source history must
+not starve eligible work or inflate success. Check that legacy pursuit research
+reuses only exact completed Signal judgments and cannot bypass its budget by
+queuing paid adjudication. Preserve the documented synthetic-key authentication
+escape on the rejected test run; later network denial does not rewrite that history.
+
+The local0029 restore contains nonempty synthetic scheduling/collection checkpoints
+and original retained evidence. Confirm full-table digests and ambiguous-call
+non-replay. Financial proof, source recovery and all final results must be bound to
+the final candidate, not the earlier focused passing slices or rejected archive.
+
+C7b controller128 tests include nine independent adversarial PG cases. Review full
+checkpoint identity across recurring empty cursors/window rollover, fresh locked
+reads, evidence-before-checkpoint crash recovery, modified-history catch-up and
+transactional continuation. The test lane owns no production code.

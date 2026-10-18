@@ -37,10 +37,21 @@ from gridlens.domain.signal_admission import (
     admitted_from_source,
 )
 from gridlens.domain.taylor_planning import interpret_taylor_planning
-from gridlens.ingestion.adapters import retrieve_companion, retrieve_source
+from gridlens.ingestion.adapters import (
+    retrieve_collection_segment,
+    retrieve_companion,
+    retrieve_source,
+)
 from gridlens.ingestion.adapters.acquisition_runtime import remaining_seconds
 from gridlens.ingestion.adapters.federal_register import SourceParseError
 from gridlens.ingestion.adapters.govinfo_pdf import MAX_PDFS_PER_RUN
+from gridlens.ingestion.structured_collection import (
+    apply_segment_result,
+    collection_continuation_needed,
+    collection_policy_digest,
+    collection_status,
+    prepare_collection_progress,
+)
 from gridlens.intelligence.change_detection import (
     lock_project,
     record_material_diff,
@@ -84,6 +95,7 @@ from gridlens.persistence.models import (
     ProjectMatchDecision,
     SignalDecision,
     Source,
+    SourceCollectionProgress,
 )
 
 PERMIT_RETRIEVAL_METHODS = {
@@ -1794,6 +1806,20 @@ def process_job(
     deadline: float | None = None,
     lease_expiry: datetime | None = None,
 ) -> dict[str, Any]:
+    if source_definition.get("retrieval_method") in {
+        "socrata-permits",
+        "boston-ckan-permits",
+    }:
+        return _process_structured_collection_segment(
+            session,
+            job_id,
+            worker_id,
+            fence,
+            source_definition,
+            client,
+            deadline=deadline,
+            lease_expiry=lease_expiry,
+        )
     if source_definition.get("retrieval_method") == "publisher-rss":
         retrieved = _retrieve_publisher_rss_conditionally(
             session, job_id, worker_id, fence, source_definition, client, deadline=deadline
@@ -1874,6 +1900,262 @@ def process_job(
         # A listing departure or return is a source change; health must not read "No Change".
         counts["changed"] = counts.get("changed", 0) + sum(transitions.values())
         session.commit()
+    return counts
+
+
+def _collection_progress_checkpoint(
+    progress: SourceCollectionProgress,
+) -> tuple[
+    str,
+    str,
+    str,
+    datetime | None,
+    datetime | None,
+    datetime | None,
+    str,
+    str | None,
+    datetime | None,
+    datetime,
+    str,
+]:
+    """Return immutable progress identity captured before public acquisition."""
+    serialized_cursor = json.dumps(
+        progress.cursor or {}, sort_keys=True, separators=(",", ":")
+    )
+    return (
+        progress.source_id,
+        progress.lane,
+        progress.policy_digest,
+        progress.window_start,
+        progress.window_end,
+        progress.completed_through,
+        progress.status,
+        progress.error_class,
+        progress.last_attempt_at,
+        progress.updated_at,
+        serialized_cursor,
+    )
+
+
+def _process_structured_collection_segment(
+    session: Session,
+    job_id: Any,
+    worker_id: str,
+    fence: int,
+    source_definition: dict[str, Any],
+    client: httpx.Client | None,
+    *,
+    deadline: float | None,
+    lease_expiry: datetime | None,
+) -> dict[str, Any]:
+    progress, digest, lanes = prepare_collection_progress(session, source_definition)
+    lane = progress.lane
+    window_start = progress.window_start
+    window_end = progress.window_end
+    if window_start is None or window_end is None:
+        raise SourceParseError("Structured collection progress has no date window")
+    start_day = window_start.astimezone(UTC).date()
+    end_day = window_end.astimezone(UTC).date()
+    cursor = dict(progress.cursor or {})
+    expected_progress_state = _collection_progress_checkpoint(progress)
+    progress_id = progress.id
+    # Persist the attempt before releasing the database session for public I/O.
+    session.commit()
+    _prepare_acquisition_network(session, job_id, worker_id, fence, source_definition)
+    result: dict[str, Any]
+    acquisition_started_at = None
+    acquisition_completed_at = None
+    from gridlens.ingestion.registry import load_registry
+
+    try:
+        preflight_definition = next(
+            (item for item in load_registry() if item.get("id") == source_definition["id"]),
+            None,
+        )
+        if preflight_definition is None or collection_policy_digest(preflight_definition) != digest:
+            result = {
+                "records": [],
+                "cursor": cursor,
+                "partial": True,
+                "error_class": "CollectionPolicyChanged",
+                "window_complete": False,
+                "expected_count": None,
+                "observed_count": 0,
+            }
+        else:
+            remaining_seconds(deadline)
+            acquisition_started_at = session.scalar(text("SELECT clock_timestamp()"))
+            session.commit()
+            result = retrieve_collection_segment(
+                source_definition,
+                lane,
+                start_day,
+                end_day,
+                cursor,
+                client,
+                deadline=deadline,
+            )
+            remaining_seconds(deadline)
+    except SourceParseError as exc:
+        result = {
+            "records": [],
+            "cursor": cursor,
+            "partial": True,
+            "error_class": type(exc).__name__,
+            "window_complete": False,
+            "expected_count": None,
+            "observed_count": 0,
+        }
+
+    source = _lock_current_acquisition_source(
+        session, job_id, worker_id, fence, source_definition
+    )
+    try:
+        live_definition = next(
+            (item for item in load_registry() if item.get("id") == source.id), None
+        )
+    except Exception:
+        live_definition = None
+    if live_definition is None or collection_policy_digest(live_definition) != digest:
+        result = {
+            "records": [],
+            "cursor": cursor,
+            "partial": True,
+            "error_class": "CollectionPolicyChanged",
+            "window_complete": False,
+            "expected_count": result.get("expected_count"),
+            "observed_count": 0,
+        }
+    records = result.get("records", [])
+    if not isinstance(records, list) or len(records) > 1000 or any(
+        not isinstance(record, dict) for record in records
+    ):
+        raise SourceParseError("Structured source segment exceeded its record bound")
+    current_progress = session.scalar(
+        select(SourceCollectionProgress)
+        .where(SourceCollectionProgress.id == progress_id)
+        .execution_options(populate_existing=True)
+        .with_for_update()
+    )
+    if (
+        current_progress is None
+        or _collection_progress_checkpoint(current_progress) != expected_progress_state
+    ):
+        # A duplicate/stale worker may retain useful fetched rows, but cannot
+        # checkpoint or claim completeness after another worker advanced it.
+        result = {
+            **result,
+            "partial": True,
+            "error_class": "CollectionCheckpointChanged",
+            "cursor": cursor,
+            "window_complete": False,
+        }
+    counts = process_records(
+        session,
+        job_id,
+        worker_id,
+        fence,
+        source_definition,
+        records,
+        client=client,
+        commit=False,
+        deadline=deadline,
+        lease_expiry=lease_expiry,
+    )
+    # Evidence is durable before the progress checkpoint. A crash between these
+    # commits safely replays the same source rows and deduplicates evidence.
+    segment_job = assert_fence(session, job_id, worker_id, fence)
+    if records:
+        last_external_id = str(records[-1]["document_number"])
+        try:
+            prior_checkpoint = json.loads(segment_job.checkpoint or "{}")
+        except (TypeError, ValueError):
+            prior_checkpoint = None
+        if isinstance(prior_checkpoint, dict) and prior_checkpoint.get(
+            "collection_continuation"
+        ) is True:
+            segment_job.checkpoint = json.dumps(
+                {
+                    **prior_checkpoint,
+                    "last_record_external_id": last_external_id,
+                },
+                sort_keys=True,
+            )
+        else:
+            segment_job.checkpoint = last_external_id
+    session.commit()
+    acquisition_completed_at = session.scalar(text("SELECT clock_timestamp()"))
+
+    source = _lock_current_acquisition_source(
+        session, job_id, worker_id, fence, source_definition
+    )
+    try:
+        latest_definition = next(
+            (item for item in load_registry() if item.get("id") == source.id), None
+        )
+    except Exception:
+        latest_definition = None
+    latest_progress = session.scalar(
+        select(SourceCollectionProgress)
+        .where(SourceCollectionProgress.id == progress_id)
+        .execution_options(populate_existing=True)
+        .with_for_update()
+    )
+    if (
+        latest_definition is None
+        or collection_policy_digest(latest_definition) != digest
+        or latest_progress is None
+        or _collection_progress_checkpoint(latest_progress) != expected_progress_state
+    ):
+        result = {
+            **result,
+            "partial": True,
+            "error_class": "CollectionCheckpointChanged",
+            "cursor": cursor,
+            "window_complete": False,
+        }
+        progress_partial = True
+        current_complete = all_complete = False
+        continuation = False
+    else:
+        progress_partial = bool(result.get("partial"))
+        completed_at = session.scalar(text("SELECT clock_timestamp()"))
+        apply_segment_result(latest_progress, result, now=completed_at)
+        current_complete, all_complete = collection_status(
+            session, source.id, digest, lanes
+        )
+        continuation = not progress_partial and collection_continuation_needed(
+            session,
+            source.id,
+            digest,
+            lanes,
+            source=source_definition,
+        )
+        if progress_partial:
+            current_complete = all_complete = False
+    counts.update(
+        {
+            "collection_lane": lane,
+            "collection_status": "COMPLETE" if all_complete else "PARTIAL",
+            "collection_current_complete": current_complete,
+            "collection_continuation": continuation,
+            "collection_window_start": start_day.isoformat(),
+            "collection_window_end": end_day.isoformat(),
+            "collection_expected_count": result.get("expected_count"),
+            "collection_observed_count": result.get("observed_count", len(records)),
+            "collection_error_class": result.get("error_class"),
+            "acquisition_started_at": acquisition_started_at.isoformat()
+            if acquisition_started_at
+            else None,
+            "acquisition_completed_at": acquisition_completed_at.isoformat()
+            if acquisition_completed_at
+            else None,
+            "partial": not all_complete,
+        }
+    )
+    if result.get("partial"):
+        counts["parse_failures"] = int(counts.get("parse_failures", 0)) + 1
+    session.commit()
     return counts
 
 

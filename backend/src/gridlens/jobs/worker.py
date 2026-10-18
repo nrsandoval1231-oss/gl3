@@ -942,60 +942,105 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
                 finished_job.lease_owner,
                 finished_job.error,
             ) = "succeeded", None, None, None
-            source.health = {
-                **source.health,
-                "status": "Updated" if counts["new"] or counts["changed"] else "Checked—No Change",
-                "last_attempt": attempted,
-                "last_success": attempted,
-                "new_records": counts["new"],
-                "changed_records": counts["changed"],
-                "unchanged_records": counts["unchanged"],
-                "parse_failures": 0,
-                "error": None,
-                "latest_publication_date": counts["latest_publication_date"],
-                "collection_scope": definition.get("collection_scope"),
-                "coverage_limitation": definition.get("coverage_limitation"),
-                **{
-                    key: counts[key]
-                    for key in (
-                        "retrieved_records",
-                        "parsed_records",
-                        "snapshot_item_count",
-                        "snapshot_oldest_publication_date",
-                        "snapshot_newest_publication_date",
-                        "latest_permit_issue_date",
-                        "latest_public_comment_deadline",
-                        "earliest_public_comment_deadline",
-                        "records_scanned",
-                        "permit_accepted",
-                        "permit_rejected",
-                        "documents_extracted",
-                        "unextracted_public_notice_references",
-                        "generator_facts",
-                        "generator_excerpts_omitted",
-                        "missing_application_documents",
-                    )
-                    if key in counts
-                },
-                "pdf_candidates": counts.get("pdf_candidates", 0),
-                "pdf_eligible": counts.get("pdf_eligible", 0),
-                "pdf_enriched": counts.get("pdf_enriched", 0),
-                "pdf_skipped_not_signal": counts.get("pdf_skipped_not_signal", 0),
-                "pdf_skipped_limit": counts.get("pdf_skipped_limit", 0),
-            }
+            if counts.get("collection_status") == "PARTIAL":
+                source.health = {
+                    **source.health,
+                    "status": "Partial",
+                    "last_attempt": attempted,
+                    "parse_failures": max(
+                        int(source.health.get("parse_failures", 0)),
+                        int(counts.get("parse_failures", 0)),
+                    ),
+                    "error": counts.get("collection_error_class") or "Collection incomplete",
+                    "collection_status": "PARTIAL",
+                    "collection_lane": counts.get("collection_lane"),
+                    "collection_current_complete": counts.get(
+                        "collection_current_complete", False
+                    ),
+                    "collection_window_start": counts.get("collection_window_start"),
+                    "collection_window_end": counts.get("collection_window_end"),
+                    "collection_scope": definition.get("collection_scope"),
+                    "coverage_limitation": definition.get("coverage_limitation"),
+                }
+            else:
+                source.health = {
+                    **source.health,
+                    "status": "Updated"
+                    if counts["new"] or counts["changed"]
+                    else "Checked—No Change",
+                    "last_attempt": attempted,
+                    "last_success": attempted,
+                    "new_records": counts["new"],
+                    "changed_records": counts["changed"],
+                    "unchanged_records": counts["unchanged"],
+                    "parse_failures": 0,
+                    "error": None,
+                    "latest_publication_date": counts["latest_publication_date"],
+                    "collection_status": counts.get("collection_status"),
+                    "collection_current_complete": counts.get(
+                        "collection_current_complete", True
+                    ),
+                    "collection_scope": definition.get("collection_scope"),
+                    "coverage_limitation": definition.get("coverage_limitation"),
+                    **{
+                        key: counts[key]
+                        for key in (
+                            "retrieved_records",
+                            "parsed_records",
+                            "snapshot_item_count",
+                            "snapshot_oldest_publication_date",
+                            "snapshot_newest_publication_date",
+                            "latest_permit_issue_date",
+                            "latest_public_comment_deadline",
+                            "earliest_public_comment_deadline",
+                            "records_scanned",
+                            "permit_accepted",
+                            "permit_rejected",
+                            "documents_extracted",
+                            "unextracted_public_notice_references",
+                            "generator_facts",
+                            "generator_excerpts_omitted",
+                            "missing_application_documents",
+                        )
+                        if key in counts
+                    },
+                    "pdf_candidates": counts.get("pdf_candidates", 0),
+                    "pdf_eligible": counts.get("pdf_eligible", 0),
+                    "pdf_enriched": counts.get("pdf_enriched", 0),
+                    "pdf_skipped_not_signal": counts.get("pdf_skipped_not_signal", 0),
+                    "pdf_skipped_limit": counts.get("pdf_skipped_limit", 0),
+                }
             disposition = (
                 "partial" if counts.get("parse_failures") or counts.get("partial") else "succeeded"
             )
             counts = {
                 **counts,
                 "schedule_proof_version": SCHEDULE_PROOF_VERSION,
-                "acquisition_started_at": acquisition_started_at.isoformat()
-                if acquisition_started_at
-                else None,
-                "acquisition_completed_at": acquisition_completed_at.isoformat(),
+                "acquisition_started_at": counts.get("acquisition_started_at")
+                or (acquisition_started_at.isoformat() if acquisition_started_at else None),
+                "acquisition_completed_at": counts.get("acquisition_completed_at")
+                or acquisition_completed_at.isoformat(),
             }
             _append_attempt_receipt(session, finished_job, fence, disposition, counts)
-            if source_id in {
+            if kind == "ingestion" and counts.get("collection_continuation"):
+                from gridlens.jobs.queue import enqueue
+
+                continuation_id = enqueue(session, source_id)
+                if continuation_id != job_id:
+                    continuation_job = session.scalar(
+                        select(Job).where(Job.id == continuation_id).with_for_update()
+                    )
+                    if continuation_job and continuation_job.status == "queued":
+                        try:
+                            checkpoint = json.loads(continuation_job.checkpoint or "{}")
+                        except (TypeError, ValueError):
+                            checkpoint = {"prior_checkpoint": continuation_job.checkpoint}
+                        if not isinstance(checkpoint, dict):
+                            checkpoint = {"prior_checkpoint": checkpoint}
+                        continuation_job.checkpoint = json.dumps(
+                            {**checkpoint, "collection_continuation": True}, sort_keys=True
+                        )
+            if not counts.get("partial") and source_id in {
                 "austin-building-permits",
                 "texas-rrc-drilling-permits",
                 "houston-weekly-permits",
