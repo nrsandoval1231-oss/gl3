@@ -92,6 +92,7 @@ export function Environment({ onSignOut, today }: { onSignOut: () => void; today
   const [selection, setSelection] = useState<{ id: string; item?: Opportunity; error?: string }>({ id: '' })
   const [membership, setMembership] = useState<{ key: string; outside?: boolean; error?: string }>({ key: '' })
   const filterKey = JSON.stringify([scene.tier, scene.lens, scene.search])
+  const mapWindowRequired = scene.mode !== 'browse' && scene.mode !== 'pursuits'
   const selectionKey = `${scene.needId}:${filterKey}`
   const [pageKey, setPageKey] = useState('')
   useEffect(() => setDraft(scene.mode === 'pursuits' ? commercial.query : scene.search), [scene.mode, scene.search, commercial.query])
@@ -122,28 +123,33 @@ export function Environment({ onSignOut, today }: { onSignOut: () => void; today
   }, [selectionKey, revision])
 
   useEffect(() => {
-    const controller = new AbortController()
-    if (scene.mode === 'browse' || scene.mode === 'pursuits') {
+    if (!mapWindowRequired) {
       setPage(null)
       setPageKey('')
       setLoading(false)
       setError('')
-      return () => controller.abort()
+      return
     }
+    const controller = new AbortController()
     setLoading(true)
     setPage(null)
     setError('')
-    client.opportunityMapWindow(scene.tier.slice(0, -1), scene.search, { industry: scene.lens }, controller.signal)
-      .then((result) => {
-        if (controller.signal.aborted) return
-        setPage(result)
-        setPageKey(filterKey)
-        setLensOptions((current) => [...new Set([...current, ...result.items.map((item) => item.asset_type).filter((value): value is string => Boolean(value))])].sort())
-      })
-      .catch((reason: unknown) => { if (!controller.signal.aborted) { setPageKey(filterKey); setError(reason instanceof Error ? reason.message : 'Opportunities are unavailable.') } })
-      .finally(() => { if (!controller.signal.aborted) setLoading(false) })
+    // React StrictMode immediately cleans up its first development effect. Defer the
+    // request one microtask so an already-aborted setup never reaches the network.
+    queueMicrotask(() => {
+      if (controller.signal.aborted) return
+      void client.opportunityMapWindow(scene.tier.slice(0, -1), scene.search, { industry: scene.lens }, controller.signal)
+        .then((result) => {
+          if (controller.signal.aborted) return
+          setPage(result)
+          setPageKey(filterKey)
+          setLensOptions((current) => [...new Set([...current, ...result.items.map((item) => item.asset_type).filter((value): value is string => Boolean(value))])].sort())
+        })
+        .catch((reason: unknown) => { if (!controller.signal.aborted) { setPageKey(filterKey); setError(reason instanceof Error ? reason.message : 'Opportunities are unavailable.') } })
+        .finally(() => { if (!controller.signal.aborted) setLoading(false) })
+    })
     return () => controller.abort()
-  }, [scene.mode, scene.tier, scene.lens, scene.search, revision])
+  }, [mapWindowRequired, scene.tier, scene.lens, scene.search, revision])
 
   useEffect(() => {
     client.health().then((result) => {

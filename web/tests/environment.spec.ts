@@ -110,7 +110,7 @@ test('empty and failed result sets are honest', async ({ page }) => {
   await expect(page.getByText('No leads match this view. Nothing is invented to fill it.')).toBeVisible()
 
   await page.unroute('**/api/**')
-  await mock(page, [], (route) => route.fulfill({ status: 503, body: 'down' }))
+  await mock(page, [], undefined, (route) => route.fulfill({ status: 503, body: 'down' }))
   await page.goto('/')
   await expect(page.getByRole('heading', { name: 'Opportunities are unavailable.' })).toBeVisible()
 })
@@ -191,16 +191,16 @@ test('state lists default to rank order, highest first', async ({ page }) => {
 
 test('the map makes one ranked-window request and discloses its loaded subset', async ({ page }) => {
   const requests: URL[] = []
-  const items = Array.from({ length: 60 }, (_, i) => ({ ...opportunity(`n${i}`, 'Austin, TX'), rank_score: 60 - i } as Opportunity))
+  const items = Array.from({ length: 200 }, (_, i) => ({ ...opportunity(`n${i}`, 'Austin, TX'), rank_score: 200 - i } as Opportunity))
   await mock(page, items, undefined, async (route) => {
     requests.push(new URL(route.request().url()))
-    await route.fulfill({ json: { items, total_count: 260, loaded_count: items.length,
+    await route.fulfill({ json: { items, total_count: 260, loaded_count: 200,
       is_subset: true, window_limit: 200, group_total_count: 260, cohort_token: 'map-cohort',
       decision_counts: { SHOW: 0, REVIEW: 0, HOLD: 0 } } })
   })
   await page.goto('/')
   await expect(page.getByText(/Highest rank/)).toBeVisible()
-  await expect(page.getByText(/Showing the 60 highest-ranked of 260/)).toBeVisible()
+  await expect(page.getByText(/Showing the 200 highest-ranked of 260/)).toBeVisible()
   expect(requests).toHaveLength(1)
   expect(requests[0].pathname).toBe('/api/opportunities/map-window')
   expect(requests[0].searchParams.get('tier')).toBe('Signal')
@@ -229,6 +229,40 @@ test('collection scenes skip map ranking and Back reloads the current map window
   await page.goto('/?view=environment&mode=pursuits')
   await expect(page.getByRole('heading', { name: 'What should we work today?' })).toBeVisible()
   expect(mapRequests).toBe(2)
+})
+
+test('a late failed map request cannot block All records or commercial pursuits', async ({ page }) => {
+  let releaseMap!: () => void
+  let mapStarted!: () => void
+  let mapSettled!: () => void
+  const mapGate = new Promise<void>((resolve) => { releaseMap = resolve })
+  const started = new Promise<void>((resolve) => { mapStarted = resolve })
+  const settled = new Promise<void>((resolve) => { mapSettled = resolve })
+  await mock(page, [opportunity('a', 'Austin, TX')], undefined, async (route) => {
+    mapStarted()
+    await mapGate
+    try { await route.fulfill({ status: 503, body: 'late map failure' }) }
+    catch { /* Navigation may already have aborted the browser request. */ }
+    finally { mapSettled() }
+  })
+  await page.route('**/api/commercial/triage?limit=50', (route) => route.fulfill({ json: {
+    evaluated_at: stamp, policy_version: 'fixture', total: 0, grouped_total: 0, offset: 0,
+    limit: 50, next_offset: null, cohort_counts: { action_now: 0, research: 0, watch: 0, reject: 0 },
+    daily: { evaluated: 0, surfaced: 0, contacted: 0, metric_scope: [], unavailable_metrics: [] }, items: [],
+  } }))
+  await page.goto('/')
+  await started
+  await page.getByRole('button', { name: 'Menu', exact: true }).click()
+  await page.getByRole('link', { name: 'All records', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Browse signals' })).toBeVisible()
+  releaseMap()
+  await settled
+  await expect(page.getByRole('heading', { name: 'Browse signals' })).toBeVisible()
+  await expect(page.getByText(/Map results unavailable/)).toHaveCount(0)
+  await page.getByRole('button', { name: 'Menu', exact: true }).click()
+  await page.getByRole('link', { name: "Today's pursuits", exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'What should we work today?' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Commercial pursuits are unavailable' })).toHaveCount(0)
 })
 test('one call logs several facts as drafts, then accepts them in one explicit step', async ({ page }) => {
   await mock(page, [opportunity('a', 'Midlothian, TX')])
@@ -297,9 +331,10 @@ test('selected need beyond 200 resolves independently from bounded map results',
 })
 
 test('filter exclusion retains action identity and geography', async ({ page }) => {
-  await mock(page, [opportunity('a', 'Austin, TX')], async (route) => {
+  await mock(page, [opportunity('a', 'Austin, TX')], undefined, async (route) => {
     const matches = new URL(route.request().url()).searchParams.get('tier') === 'Signal'
-    await route.fulfill({ json: matches ? [opportunity('a', 'Austin, TX')] : [], headers: { 'X-Total-Count': matches ? '1' : '0' } })
+    const matching = matches ? [opportunity('a', 'Austin, TX')] : []
+    await route.fulfill({ json: { items: matching, total_count: matching.length, loaded_count: matching.length, is_subset: false, window_limit: 200, group_total_count: matching.length, cohort_token: 'map', decision_counts: { SHOW: 0, REVIEW: 0, HOLD: 0 } } })
   })
   await page.goto('/?view=environment&mode=action&state=Texas&need=a')
   await page.getByLabel('Contact name').fill('Alex')
@@ -505,10 +540,11 @@ for (const width of [1280, 390]) {
 
 test('Back across filters waits for matching list before restoring its scroll', async ({ page }) => {
   const items = Array.from({ length: 40 }, (_, i) => opportunity(`p${i}`, 'Austin, TX'))
-  await mock(page, items, async (route) => {
+  await mock(page, items, undefined, async (route) => {
     await new Promise((resolve) => setTimeout(resolve, 200))
     const matches = new URL(route.request().url()).searchParams.get('tier') === 'Signal'
-    await route.fulfill({ json: matches ? items : [], headers: { 'X-Total-Count': matches ? '40' : '0' } })
+    const matching = matches ? items : []
+    await route.fulfill({ json: { items: matching, total_count: matching.length, loaded_count: matching.length, is_subset: false, window_limit: 200, group_total_count: matching.length, cohort_token: 'map', decision_counts: { SHOW: 0, REVIEW: 0, HOLD: 0 } } })
   })
   await page.goto('/?view=environment&mode=state&state=Texas')
   await expect(page.getByRole('button', { name: /Test project p39 / })).toBeAttached()

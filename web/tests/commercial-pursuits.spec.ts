@@ -1,6 +1,12 @@
 import { expect, test } from '@playwright/test'
 import type { CommercialTriage, CommercialTriageCard } from '../src/api/client'
 
+const emptyMapWindow = {
+  items: [], total_count: 0, loaded_count: 0, is_subset: false, window_limit: 200,
+  group_total_count: 0, cohort_token: 'fixture-map-window',
+  decision_counts: { SHOW: 0, REVIEW: 0, HOLD: 0 },
+}
+
 const base: CommercialTriage = {
   evaluated_at: '2026-10-03T14:00:00Z', policy_version: 'v1', total: 2,
   cohort_counts: { action_now: 1, research: 1, watch: 0, reject: 0 },
@@ -249,7 +255,8 @@ test('explicit Signals entry does not request or mount hidden commercial triage'
   await page.route('**/api/auth/session', (route) => route.fulfill({ json: { authenticated: true } }))
   await page.route('**/api/health', (route) => route.fulfill({ json: { sources: [], backlog: 0, pending_interpretations: 0 } }))
   await page.route('**/api/changes', (route) => route.fulfill({ json: [] }))
-  await page.route('**/api/opportunities*', (route) => route.fulfill({ json: [] }))
+  await page.route('**/api/opportunities/map-window', (route) => route.fulfill({ json: emptyMapWindow }))
+  await page.route(/\/api\/opportunities\?/, (route) => route.fulfill({ json: [] }))
   await page.route('**/api/commercial/triage*', async (route) => {
     triageRequests += 1
     await route.fulfill({ json: [] })
@@ -265,7 +272,8 @@ test('default root reveals commercial preview on demand with an explicit full qu
   await page.route('**/api/auth/session', (route) => route.fulfill({ json: { authenticated: true } }))
   await page.route('**/api/health', (route) => route.fulfill({ json: { sources: [], backlog: 0, pending_interpretations: 0 } }))
   await page.route('**/api/changes', (route) => route.fulfill({ json: [] }))
-  await page.route('**/api/opportunities*', (route) => route.fulfill({ json: [] }))
+  await page.route('**/api/opportunities/map-window', (route) => route.fulfill({ json: emptyMapWindow }))
+  await page.route(/\/api\/opportunities\?/, (route) => route.fulfill({ json: [] }))
   await page.route('**/api/commercial/triage?limit=50', (route) => route.fulfill({ json: base }))
   await page.goto('/')
   await expect(page.getByRole('heading', { name: 'What should we work today?' })).not.toBeVisible()
@@ -288,7 +296,8 @@ test('watch-only commercial cohort is not described as empty or actionable', asy
   await page.route('**/api/auth/session', (route) => route.fulfill({ json: { authenticated: true } }))
   await page.route('**/api/health', (route) => route.fulfill({ json: { sources: [], backlog: 0, pending_interpretations: 0 } }))
   await page.route('**/api/changes', (route) => route.fulfill({ json: [] }))
-  await page.route('**/api/opportunities*', (route) => route.fulfill({ json: [] }))
+  await page.route('**/api/opportunities/map-window', (route) => route.fulfill({ json: emptyMapWindow }))
+  await page.route(/\/api\/opportunities\?/, (route) => route.fulfill({ json: [] }))
   await page.route('**/api/commercial/triage?limit=50', (route) => route.fulfill({ json: watchOnly }))
   await page.goto('/')
   await expect(page.getByRole('heading', { name: 'What should we work today?' })).not.toBeVisible()
@@ -305,7 +314,8 @@ test('malformed default commercial preview fails visibly without a false empty c
   await page.route('**/api/auth/session', (route) => route.fulfill({ json: { authenticated: true } }))
   await page.route('**/api/health', (route) => route.fulfill({ json: { sources: [], backlog: 0, pending_interpretations: 0 } }))
   await page.route('**/api/changes', (route) => route.fulfill({ json: [] }))
-  await page.route('**/api/opportunities*', (route) => route.fulfill({ json: [] }))
+  await page.route('**/api/opportunities/map-window', (route) => route.fulfill({ json: emptyMapWindow }))
+  await page.route(/\/api\/opportunities\?/, (route) => route.fulfill({ json: [] }))
   await page.route('**/api/commercial/triage?limit=50', (route) => route.fulfill({ json: {} }))
   await page.goto('/')
   await expect(page.getByRole('heading', { name: 'What should we work today?' })).not.toBeVisible()
