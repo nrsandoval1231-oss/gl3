@@ -19,6 +19,7 @@ from gridlens.persistence.models import (
     Source,
     SourceCheckReceipt,
     SourceDueCheck,
+    SourceScheduleEpoch,
 )
 from gridlens.settings import settings
 
@@ -28,6 +29,9 @@ def operations_view(session: Session) -> dict[str, Any]:
     now = datetime.now(UTC)
     since = now - timedelta(days=30)
     sources = session.scalars(select(Source).order_by(Source.id).limit(200)).all()
+    from gridlens.jobs.source_schedule_proof import verified_schedule_success
+    from gridlens.jobs.worker import _due_key, _scheduled_instants, _source_registry_drift
+
     latest_fence = (
         select(
             SourceCheckReceipt.due_key.label("due_key"),
@@ -36,71 +40,83 @@ def operations_view(session: Session) -> dict[str, Any]:
         .group_by(SourceCheckReceipt.due_key)
         .subquery()
     )
-    receipts = aliased(SourceCheckReceipt)
-    due_receipts = (
-        select(SourceDueCheck, receipts)
+    receipt_alias = aliased(SourceCheckReceipt)
+    due_status_by_source: dict[str, dict[str, tuple[Any, Any, Any, Any, bool]]] = {}
+    schedule_rows = session.execute(
+        select(SourceDueCheck, SourceScheduleEpoch, receipt_alias, Job)
+        .join(SourceScheduleEpoch, SourceScheduleEpoch.id == SourceDueCheck.epoch_id)
         .outerjoin(latest_fence, latest_fence.c.due_key == SourceDueCheck.due_key)
         .outerjoin(
-            receipts,
-            (receipts.due_key == SourceDueCheck.due_key)
-            & (receipts.fence == latest_fence.c.max_fence),
+            receipt_alias,
+            (receipt_alias.due_key == SourceDueCheck.due_key)
+            & (receipt_alias.fence == latest_fence.c.max_fence),
         )
+        .outerjoin(Job, Job.id == receipt_alias.job_id)
         .where(SourceDueCheck.scheduled_for >= since)
-        .subquery()
-    )
-    source_due_totals = session.execute(
-        select(
-            due_receipts.c.source_id,
-            func.count(),
-            func.sum(case((due_receipts.c.id.is_not(None), 1), else_=0)),
-            func.sum(case((due_receipts.c.disposition.in_(["failed", "error"]), 1), else_=0)),
-            func.sum(case((due_receipts.c.disposition == "partial", 1), else_=0)),
-            func.sum(func.coalesce(due_receipts.c.check_counts["parse_failures"].as_integer(), 0)),
-            func.sum(
-                case(
-                    (
-                        due_receipts.c.check_counts.has_key("parse_failures")
-                        & (due_receipts.c.disposition == "succeeded")
-                        & (
-                            func.coalesce(
-                                due_receipts.c.check_counts["parse_failures"].as_integer(), 0
-                            )
-                            == 0
-                        ),
-                        1,
-                    ),
-                    else_=0,
-                )
-            ),
-            func.sum(case((due_receipts.c.check_counts.has_key("parse_failures"), 1), else_=0)),
-        ).group_by(due_receipts.c.source_id)
+        .order_by(SourceDueCheck.scheduled_for)
+        .limit(20_000)
     ).all()
-    latest_due = (
-        select(
-            SourceDueCheck.source_id,
-            SourceDueCheck.scheduled_for,
-            receipts.disposition,
-            func.row_number()
-            .over(
-                partition_by=SourceDueCheck.source_id,
-                order_by=SourceDueCheck.scheduled_for.desc(),
+    source_due_totals: dict[str, dict[str, int]] = {}
+    for due, epoch, receipt_row, job in schedule_rows:
+        metrics = source_due_totals.setdefault(
+            due.source_id,
+            {
+                "due": 0,
+                "checked": 0,
+                "failed": 0,
+                "partial": 0,
+                "parse_failures": 0,
+                "parse_success": 0,
+                "parse_supported": 0,
+                "verified_success": 0,
+                "unverified": 0,
+            },
+        )
+        metrics["due"] += 1
+        disposition = receipt_row.disposition if receipt_row is not None else None
+        counts = receipt_row.check_counts if receipt_row is not None else {}
+        if disposition:
+            metrics["checked"] += 1
+            metrics["failed"] += int(disposition in {"failed", "error"})
+            metrics["partial"] += int(disposition == "partial")
+            metrics["parse_failures"] += int(counts.get("parse_failures", 0) or 0)
+            metrics["parse_supported"] += int("parse_failures" in counts)
+        next_due = None
+        try:
+            horizon = epoch.effective_until or (due.scheduled_for + timedelta(days=400))
+            next_due = next(
+                _scheduled_instants(
+                    epoch, horizon, not_before=due.scheduled_for + timedelta(microseconds=1)
+                ),
+                None,
             )
-            .label("row_num"),
+            if epoch.effective_until and (next_due is None or epoch.effective_until < next_due):
+                next_due = epoch.effective_until
+        except (AttributeError, KeyError, TypeError, ValueError, OverflowError):
+            pass
+        verified = bool(
+            receipt_row is not None
+            and verified_schedule_success(
+                due=due,
+                receipt=receipt_row,
+                job=job,
+                next_scheduled_for=next_due,
+            )
         )
-        .outerjoin(latest_fence, latest_fence.c.due_key == SourceDueCheck.due_key)
-        .outerjoin(
-            receipts,
-            (receipts.due_key == SourceDueCheck.due_key)
-            & (receipts.fence == latest_fence.c.max_fence),
+        if disposition == "succeeded":
+            if verified:
+                metrics["verified_success"] += 1
+                if "parse_failures" in counts and not counts.get("parse_failures"):
+                    metrics["parse_success"] += 1
+            else:
+                metrics["unverified"] += 1
+        due_status_by_source.setdefault(due.source_id, {})[due.due_key] = (
+            due,
+            epoch,
+            receipt_row,
+            job,
+            verified,
         )
-        .where(SourceDueCheck.scheduled_for >= since)
-        .subquery()
-    )
-    latest_due_rows = session.execute(
-        select(latest_due.c.source_id, latest_due.c.scheduled_for, latest_due.c.disposition).where(
-            latest_due.c.row_num == 1
-        )
-    ).all()
     source_cycle: dict[str, dict[str, Any]] = {}
     for source in sources:
         source_cycle[source.id] = {
@@ -115,50 +131,111 @@ def operations_view(session: Session) -> dict[str, Any]:
             "parse_failures_30d": 0,
             "parse_success_30d": None,
             "due_30d": 0,
+            "schedule_history_30d": "UNKNOWN",
+            "verified_success_30d": 0,
+            "unverified_30d": 0,
             "freshness_30d": "UNKNOWN",
         }
-    for (
-        source_id,
-        due,
-        checked,
-        failed,
-        partial,
-        parse_failures,
-        parse_success,
-        parse_supported,
-    ) in source_due_totals:
+    for source_id, totals in source_due_totals.items():
         item = source_cycle.get(source_id)
         if item is None:
             continue
-        item["due_30d"] = int(due)
-        item["checked_30d"] = int(checked or 0)
-        item["failed_30d"] = int(failed or 0)
-        item["partial_30d"] = int(partial or 0)
-        item["parse_failures_30d"] = int(parse_failures or 0)
-        item["parse_success_30d"] = int(parse_success or 0) if parse_supported else None
-    sources_by_id = {source.id: source for source in sources}
-    for source_id, scheduled_for, disposition in latest_due_rows:
-        item = source_cycle.get(source_id)
-        source_record = sources_by_id.get(source_id)
-        if item is None or source_record is None:
-            continue
-        status = str(disposition or "unknown").lower()
-        if status in {"failed", "error"}:
-            item["freshness_30d"] = "FAILED"
-        elif status == "partial":
-            item["freshness_30d"] = "PARTIAL"
-        elif status not in {"succeeded", "success", "complete", "completed"}:
-            item["freshness_30d"] = (
-                "UNKNOWN"
-                if scheduled_for >= now - timedelta(hours=source_record.cadence_hours)
-                else "OVERDUE"
+        item["checked_30d"] = totals["checked"]
+        item["failed_30d"] = totals["failed"]
+        item["partial_30d"] = totals["partial"]
+        item["parse_failures_30d"] = totals["parse_failures"]
+        item["parse_success_30d"] = totals["parse_success"] if totals["parse_supported"] else None
+        item["verified_success_30d"] = totals["verified_success"]
+        item["unverified_30d"] = totals["unverified"]
+    from gridlens.ingestion.registry import load_registry
+
+    definitions = {entry["id"]: entry for entry in load_registry()}
+    expected_since = now - timedelta(days=30)
+    for source in sources:
+        item = source_cycle[source.id]
+        epochs = session.scalars(
+            select(SourceScheduleEpoch)
+            .where(
+                SourceScheduleEpoch.source_id == source.id,
+                SourceScheduleEpoch.effective_from < now,
+                (SourceScheduleEpoch.effective_until.is_(None))
+                | (SourceScheduleEpoch.effective_until > expected_since),
             )
-        else:
-            item["freshness_30d"] = (
-                "FRESH"
-                if scheduled_for >= now - timedelta(hours=source_record.cadence_hours)
-                else "OVERDUE"
-            )
+            .order_by(SourceScheduleEpoch.effective_from)
+        ).all()
+        definition = definitions.get(source.id)
+        history_known = bool(epochs and definition)
+        covered_until = expected_since
+        expected: dict[str, tuple[SourceScheduleEpoch, datetime]] = {}
+        if epochs and definition:
+            latest_epoch = max(epochs, key=lambda epoch: epoch.effective_from)
+            try:
+                if (
+                    latest_epoch.effective_until is None
+                    and latest_epoch.history_known
+                    and _source_registry_drift(definition, source, latest_epoch)
+                ):
+                    history_known = False
+            except (AttributeError, KeyError, TypeError, ValueError):
+                history_known = False
+            for epoch in epochs:
+                epoch_start = max(epoch.effective_from, expected_since)
+                epoch_end = min(epoch.effective_until or now, now)
+                if epoch_start > covered_until or not epoch.history_known:
+                    history_known = False
+                if epoch_start <= covered_until and epoch_end > covered_until:
+                    covered_until = epoch_end
+                if not (epoch.history_known and epoch.registry_enabled and epoch.operator_enabled):
+                    continue
+                try:
+                    for scheduled_for in _scheduled_instants(epoch, now, not_before=expected_since):
+                        expected[_due_key(epoch, scheduled_for)] = (epoch, scheduled_for)
+                except (AttributeError, KeyError, OverflowError, TypeError, ValueError):
+                    history_known = False
+        if covered_until < now:
+            history_known = False
+        item["due_30d"] = len(expected)
+        item["schedule_history_30d"] = "KNOWN" if history_known else "UNKNOWN"
+        failed = partial = missing = invalid = unverified = False
+        source_statuses = due_status_by_source.get(source.id, {})
+        for due_key, (epoch, scheduled_for) in expected.items():
+            status_entry = source_statuses.get(due_key)
+            if status_entry is None:
+                missing = True
+                continue
+            due, stored_epoch, receipt, job, verified = status_entry
+            if (
+                due.source_id != source.id
+                or due.epoch_id != epoch.id
+                or due.scheduled_for != scheduled_for
+                or due.configuration != epoch.configuration
+                or stored_epoch.id != epoch.id
+            ):
+                invalid = True
+                continue
+            if receipt is None:
+                missing = True
+            elif receipt.disposition in {"failed", "error"}:
+                failed = True
+            elif receipt.disposition == "partial":
+                partial = True
+            elif receipt.disposition == "succeeded" and not verified:
+                unverified = True
+            elif receipt.disposition not in {"succeeded", "success", "complete", "completed"}:
+                missing = True
+        item["freshness_30d"] = (
+            "UNKNOWN"
+            if not history_known or invalid or unverified
+            else "FAILED"
+            if failed
+            else "PARTIAL"
+            if partial
+            else "OVERDUE"
+            if missing
+            else "FRESH"
+            if expected
+            else "UNKNOWN"
+        )
 
     queue_rows = session.execute(
         select(Job.kind, Job.status, func.count())
@@ -202,9 +279,7 @@ def operations_view(session: Session) -> dict[str, Any]:
                         LogicalCall.actual_cost_usd.is_(None),
                         case(
                             (
-                                LogicalCall.status.in_(
-                                    ["COMPLETED", "FAILED", "RECONCILED"]
-                                ),
+                                LogicalCall.status.in_(["COMPLETED", "FAILED", "RECONCILED"]),
                                 func.coalesce(
                                     LogicalCall.max_cost_usd, LogicalCall.estimated_cost_usd, 0
                                 ),
@@ -242,21 +317,21 @@ def operations_view(session: Session) -> dict[str, Any]:
     ).all()
     overage_by_provider: dict[str, Any] = {}
     for provider, overage in session.execute(
-            select(
-                LogicalCall.provider,
-                func.sum(
-                    case(
-                        (
-                            LogicalCall.actual_cost_usd > LogicalCall.max_cost_usd,
-                            LogicalCall.actual_cost_usd - LogicalCall.max_cost_usd,
-                        ),
-                        else_=0,
-                    )
-                ),
-            )
-            .where(LogicalCall.actual_cost_usd.is_not(None))
-            .group_by(LogicalCall.provider)
-        ).all():
+        select(
+            LogicalCall.provider,
+            func.sum(
+                case(
+                    (
+                        LogicalCall.actual_cost_usd > LogicalCall.max_cost_usd,
+                        LogicalCall.actual_cost_usd - LogicalCall.max_cost_usd,
+                    ),
+                    else_=0,
+                )
+            ),
+        )
+        .where(LogicalCall.actual_cost_usd.is_not(None))
+        .group_by(LogicalCall.provider)
+    ).all():
         overage_by_provider[provider] = overage
     daily_calls = session.execute(
         select(
@@ -408,8 +483,7 @@ def operations_view(session: Session) -> dict[str, Any]:
         else:
             stat["usage_unknown_calls"] += 1
         if call.status in {"NOT_SENT", "SENT_OUTCOME_UNKNOWN"} or (
-            call.status in {"COMPLETED", "FAILED", "RECONCILED"}
-            and call.actual_cost_usd is None
+            call.status in {"COMPLETED", "FAILED", "RECONCILED"} and call.actual_cost_usd is None
         ):
             amount = float(call.max_cost_usd or call.estimated_cost_usd or 0)
         latency = None
@@ -451,7 +525,7 @@ def operations_view(session: Session) -> dict[str, Any]:
     outstanding_uncertain = sum(int(item["uncertain"] or 0) for item in all_provider_stats.values())
     # Replace financial counters with complete all-time aggregates; detail
     # metrics (models, latency, recent usage) remain explicitly windowed.
-    for provider, totals in all_provider_stats.items():
+    for provider, provider_totals in all_provider_stats.items():
         stat = provider_stats.setdefault(
             provider,
             {
@@ -476,8 +550,8 @@ def operations_view(session: Session) -> dict[str, Any]:
                 "measured_latency_ms": [],
             },
         )
-        stat.update(totals)
-        if totals["reserved_unknown"]:
+        stat.update(provider_totals)
+        if provider_totals["reserved_unknown"]:
             stat["reserved_cost_usd"] = None
     known_cost_total = sum(
         float(item["actual_cost_usd"] or 0) for item in all_provider_stats.values()

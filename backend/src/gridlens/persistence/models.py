@@ -99,6 +99,57 @@ class SourceCheckReceipt(Base):
     )
 
 
+class SourceScheduleProgress(Base):
+    """Durable bounded materialization progress for one immutable schedule epoch."""
+
+    __tablename__ = "source_schedule_progress"
+    epoch_id: Mapped[UUID] = mapped_column(
+        ForeignKey("source_schedule_epochs.id", ondelete="CASCADE"), primary_key=True
+    )
+    recent_cursor: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    history_cursor: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_planned_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class SourceCollectionProgress(Base):
+    """Frozen checkpoint contract for resumable structured source collection."""
+
+    __tablename__ = "source_collection_progress"
+    __table_args__ = (
+        UniqueConstraint(
+            "source_id", "lane", "policy_digest", name="uq_source_collection_progress_key"
+        ),
+        CheckConstraint("length(policy_digest) = 64", name="ck_source_collection_progress_digest"),
+        CheckConstraint(
+            "length(CAST(cursor AS TEXT)) <= 8192",
+            name="ck_source_collection_progress_cursor_size",
+        ),
+        CheckConstraint(
+            "status IN ('incomplete', 'complete', 'partial', 'error')",
+            name="ck_source_collection_progress_status",
+        ),
+    )
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    source_id: Mapped[str] = mapped_column(ForeignKey("sources.id"), index=True)
+    lane: Mapped[str] = mapped_column(String(80))
+    policy_digest: Mapped[str] = mapped_column(String(64))
+    window_start: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    window_end: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    cursor: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, default=dict, server_default=text("'{}'::jsonb")
+    )
+    completed_through: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    status: Mapped[str] = mapped_column(
+        String(20), default="incomplete", server_default="incomplete"
+    )
+    error_class: Mapped[str | None] = mapped_column(String(80))
+    last_attempt_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.clock_timestamp()
+    )
+
+
 class PlannerState(Base):
     """Bounded retry and last-outcome state for an independent planner cycle."""
 

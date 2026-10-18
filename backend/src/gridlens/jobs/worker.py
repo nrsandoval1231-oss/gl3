@@ -12,7 +12,7 @@ from datetime import time as day_time
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import select, text
+from sqlalchemy import or_, select, text
 
 from gridlens.ingestion.adapters.acquisition_runtime import (
     FencedLeaseRenewer,
@@ -22,6 +22,7 @@ from gridlens.ingestion.adapters.acquisition_runtime import (
 from gridlens.ingestion.registry import load_registry
 from gridlens.ingestion.service import process_job
 from gridlens.jobs.queue import assert_fence, lease_one
+from gridlens.jobs.source_schedule_proof import SCHEDULE_PROOF_VERSION
 from gridlens.persistence.database import SessionLocal
 from gridlens.persistence.models import (
     Job,
@@ -31,6 +32,7 @@ from gridlens.persistence.models import (
     SourceCheckReceipt,
     SourceDueCheck,
     SourceScheduleEpoch,
+    SourceScheduleProgress,
     WorkerHeartbeat,
 )
 from gridlens.settings import settings
@@ -69,6 +71,11 @@ _HEARTBEAT_INTERVAL_SECONDS = 10
 _PLANNER_POLL_SECONDS = 5
 _IDLE_JOB_POLL_SECONDS = 2
 _SHUTDOWN_JOIN_SECONDS = 5
+_SCHEDULE_RECENT_DAYS = 7
+_SCHEDULE_RECENT_CAP = 256
+_SCHEDULE_HISTORY_CAP = 256
+_SCHEDULE_EPOCH_CAP = 64
+_DUE_ASSIGNMENT_CAP = 100
 
 
 def _effective_enabled(source: Source) -> bool:
@@ -308,31 +315,92 @@ def _scheduled_instants(
         cursor += timedelta(days=day_step)
 
 
+def _next_scheduled_after(
+    epoch: SourceScheduleEpoch, scheduled_for: datetime
+) -> datetime | None:
+    horizon = scheduled_for + timedelta(hours=epoch.cadence_hours + 25)
+    return next(
+        _scheduled_instants(
+            epoch,
+            horizon,
+            not_before=scheduled_for + timedelta(microseconds=1),
+        ),
+        None,
+    )
+
+
 def _reconcile_due(session, now: datetime) -> int:
     created = 0
+    last_planned = (
+        select(SourceScheduleProgress.last_planned_at)
+        .where(SourceScheduleProgress.epoch_id == SourceScheduleEpoch.id)
+        .scalar_subquery()
+    )
     epochs = session.scalars(
         select(SourceScheduleEpoch)
-        .order_by(SourceScheduleEpoch.source_id, SourceScheduleEpoch.effective_from)
+        .where(
+            SourceScheduleEpoch.history_known.is_(True),
+            SourceScheduleEpoch.registry_enabled.is_(True),
+            SourceScheduleEpoch.operator_enabled.is_(True),
+            SourceScheduleEpoch.effective_from < now,
+        )
+        .order_by(last_planned.asc().nullsfirst(), SourceScheduleEpoch.source_id)
         .with_for_update(skip_locked=True)
+        .limit(_SCHEDULE_EPOCH_CAP)
     ).all()
+    recent_start = now - timedelta(days=_SCHEDULE_RECENT_DAYS)
     for epoch in epochs:
         if not (epoch.history_known and epoch.registry_enabled and epoch.operator_enabled):
             continue
-        for scheduled_for in _scheduled_instants(epoch, now):
+        progress = session.get(SourceScheduleProgress, epoch.id, with_for_update=True)
+        if progress is None:
+            progress = SourceScheduleProgress(epoch_id=epoch.id)
+            session.add(progress)
+            session.flush()
+        recent_cursor = progress.recent_cursor
+        # Revisit the overlap so a commit/restart race cannot lose recent obligations.
+        recent_floor = max(epoch.effective_from, recent_start)
+        if recent_cursor is not None:
+            recent_floor = max(recent_floor, recent_cursor - timedelta(days=1))
+        recent_slots = []
+        for scheduled_for in _scheduled_instants(epoch, now, not_before=recent_floor):
+            if scheduled_for >= now - timedelta(days=_SCHEDULE_RECENT_DAYS):
+                recent_slots.append(scheduled_for)
+                if len(recent_slots) >= _SCHEDULE_RECENT_CAP:
+                    break
+        history_slots = []
+        history_ceiling = min(recent_start, epoch.effective_until or now)
+        history_floor = max(epoch.effective_from, progress.history_cursor or epoch.effective_from)
+        if history_floor < history_ceiling:
+            for scheduled_for in _scheduled_instants(
+                epoch, history_ceiling, not_before=history_floor
+            ):
+                history_slots.append(scheduled_for)
+                if len(history_slots) >= _SCHEDULE_HISTORY_CAP:
+                    break
+        slots = sorted(set(recent_slots + history_slots))
+        for scheduled_for in slots:
             due_key = _due_key(epoch, scheduled_for)
-            if session.get(SourceDueCheck, due_key):
-                continue
-            session.add(
-                SourceDueCheck(
-                    due_key=due_key,
-                    source_id=epoch.source_id,
-                    epoch_id=epoch.id,
-                    scheduled_for=scheduled_for,
-                    local_day=scheduled_for.astimezone(ZoneInfo(epoch.timezone)).date(),
-                    configuration=epoch.configuration,
+            existing = session.get(SourceDueCheck, due_key)
+            if existing is None:
+                session.add(
+                    SourceDueCheck(
+                        due_key=due_key,
+                        source_id=epoch.source_id,
+                        epoch_id=epoch.id,
+                        scheduled_for=scheduled_for,
+                        local_day=scheduled_for.astimezone(ZoneInfo(epoch.timezone)).date(),
+                        configuration=epoch.configuration,
+                    )
                 )
+                created += 1
+        if recent_slots:
+            progress.recent_cursor = max(
+                progress.recent_cursor or recent_slots[-1], recent_slots[-1]
             )
-            created += 1
+        if history_slots:
+            progress.history_cursor = history_slots[-1] + timedelta(microseconds=1)
+        progress.last_planned_at = now
     session.flush()
     return created
 
@@ -342,11 +410,76 @@ def _assign_due_jobs(session) -> int:
 
     assigned = 0
     registry = {item["id"]: item for item in load_registry()}
+    eligible_registry_ids = [
+        source_id for source_id, item in registry.items() if item.get("enabled") is True
+    ]
+    if not eligible_registry_ids:
+        return 0
+    now = session.scalar(text("SELECT clock_timestamp()"))
+    candidates = session.scalars(
+        select(Source)
+        .join(SourceScheduleEpoch, SourceScheduleEpoch.source_id == Source.id)
+        .where(
+            Source.id.in_(eligible_registry_ids),
+            Source.enabled.is_(True),
+            Source.registry_enabled.is_(True),
+            SourceScheduleEpoch.effective_from <= now,
+            or_(
+                SourceScheduleEpoch.effective_until.is_(None),
+                SourceScheduleEpoch.effective_until > now,
+            ),
+            SourceScheduleEpoch.history_known.is_(True),
+            SourceScheduleEpoch.registry_enabled.is_(True),
+            SourceScheduleEpoch.operator_enabled.is_(True),
+        )
+        .order_by(Source.id)
+    ).all()
+    eligible_ids = []
+    for source in candidates:
+        item = registry[source.id]
+        epoch = session.scalar(
+            select(SourceScheduleEpoch)
+            .where(
+                SourceScheduleEpoch.source_id == source.id,
+                SourceScheduleEpoch.effective_from <= now,
+                or_(
+                    SourceScheduleEpoch.effective_until.is_(None),
+                    SourceScheduleEpoch.effective_until > now,
+                ),
+            )
+            .order_by(SourceScheduleEpoch.effective_from.desc())
+            .limit(1)
+        )
+        if not _source_registry_drift(item, source, epoch):
+            eligible_ids.append(source.id)
+    if not eligible_ids:
+        return 0
     rows = session.scalars(
         select(SourceDueCheck)
-        .where(SourceDueCheck.job_id.is_(None))
-        .order_by(SourceDueCheck.scheduled_for, SourceDueCheck.source_id)
-        .with_for_update(skip_locked=True)
+        .join(SourceScheduleEpoch, SourceScheduleEpoch.id == SourceDueCheck.epoch_id)
+        .join(Source, Source.id == SourceDueCheck.source_id)
+        .where(
+            SourceDueCheck.job_id.is_(None),
+            SourceDueCheck.source_id.in_(eligible_ids),
+            Source.enabled.is_(True),
+            Source.registry_enabled.is_(True),
+            SourceScheduleEpoch.effective_from <= now,
+            or_(
+                SourceScheduleEpoch.effective_until.is_(None),
+                SourceScheduleEpoch.effective_until > now,
+            ),
+            SourceScheduleEpoch.history_known.is_(True),
+            SourceScheduleEpoch.registry_enabled.is_(True),
+            SourceScheduleEpoch.operator_enabled.is_(True),
+            SourceDueCheck.scheduled_for <= now,
+            SourceDueCheck.scheduled_for
+            + (SourceScheduleEpoch.cadence_hours * text("INTERVAL '1 hour'"))
+            + timedelta(hours=1)
+            > now,
+        )
+        .order_by(SourceDueCheck.scheduled_for.desc(), SourceDueCheck.source_id)
+        .with_for_update(of=SourceDueCheck, skip_locked=True)
+        .limit(_DUE_ASSIGNMENT_CAP)
     ).all()
     for due in rows:
         source = session.scalar(
@@ -354,21 +487,44 @@ def _assign_due_jobs(session) -> int:
         )
         if source is None or not _effective_enabled(source):
             continue
-        item = registry.get(source.id)
+        due_definition = registry.get(source.id)
         epoch = session.scalar(
             select(SourceScheduleEpoch)
-            .where(
-                SourceScheduleEpoch.source_id == source.id,
-                SourceScheduleEpoch.effective_until.is_(None),
-            )
-            .order_by(SourceScheduleEpoch.effective_from.desc())
-            .limit(1)
+            .where(SourceScheduleEpoch.id == due.epoch_id)
+            .with_for_update(skip_locked=True)
         )
+        if epoch is None or not (
+            epoch.effective_from <= now
+            and (epoch.effective_until is None or now < epoch.effective_until)
+        ):
+            continue
         # Keep the due row pending while a source configuration is held by an
         # active acquisition. Never enqueue work against a stale enabled/config.
-        if item is None or _source_registry_drift(item, source, epoch):
+        if due_definition is None or epoch is None or _source_registry_drift(
+            due_definition, source, epoch
+        ):
+            continue
+        canonical_due = next(
+            _scheduled_instants(
+                epoch,
+                due.scheduled_for + timedelta(microseconds=1),
+                not_before=due.scheduled_for,
+            ),
+            None,
+        )
+        if canonical_due != due.scheduled_for:
+            continue
+        next_scheduled_for = _next_scheduled_after(epoch, due.scheduled_for)
+        if epoch.effective_until is not None and (
+            next_scheduled_for is None or epoch.effective_until < next_scheduled_for
+        ):
+            next_scheduled_for = epoch.effective_until
+        if next_scheduled_for is None or not (due.scheduled_for <= now < next_scheduled_for):
             continue
         job_id = enqueue(session, due.source_id)
+        job = session.scalar(select(Job).where(Job.id == job_id).with_for_update())
+        if job is None or job.status != "queued":
+            continue
         already_linked = session.scalar(
             select(SourceDueCheck.due_key).where(SourceDueCheck.job_id == job_id)
         )
@@ -420,6 +576,7 @@ def _append_attempt_receipt(session, job: Job, fence: int, disposition: str, cou
             disposition=disposition,
             check_counts=counts,
             digest=hashlib.sha256(canonical.encode()).hexdigest(),
+            recorded_at=session.scalar(text("SELECT clock_timestamp()")),
         )
     )
 
@@ -563,6 +720,7 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
             if _park_if_disabled(session, job, source, current_definitions.get(source_id)):
                 return True
     attempted = datetime.now(UTC).isoformat()
+    acquisition_started_at: datetime | None = None
     try:
         public_acquisition_kinds = {
             "ingestion",
@@ -735,6 +893,7 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
             # the Source row lock or a database transaction across provider HTTP.
             session.commit()
             session.expire_all()
+            acquisition_started_at = session.scalar(text("SELECT clock_timestamp()"))
             counts = process_job(
                 session,
                 job_id,
@@ -747,6 +906,7 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
             # Commit retained ingestion/admission work, then reacquire fresh rows
             # before recording health so operator changes during retrieval win.
             session.commit()
+            acquisition_completed_at = session.scalar(text("SELECT clock_timestamp()"))
             session.expire_all()
             source = session.scalar(select(Source).where(Source.id == source_id).with_for_update())
             finished_job = session.get(Job, job_id)
@@ -826,6 +986,14 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
             disposition = (
                 "partial" if counts.get("parse_failures") or counts.get("partial") else "succeeded"
             )
+            counts = {
+                **counts,
+                "schedule_proof_version": SCHEDULE_PROOF_VERSION,
+                "acquisition_started_at": acquisition_started_at.isoformat()
+                if acquisition_started_at
+                else None,
+                "acquisition_completed_at": acquisition_completed_at.isoformat(),
+            }
             _append_attempt_receipt(session, finished_job, fence, disposition, counts)
             if source_id in {
                 "austin-building-permits",

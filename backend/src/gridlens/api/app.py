@@ -1214,7 +1214,12 @@ def health():
             for state in session.scalars(select(PlannerState))
         }
         freshness_states = []
-        from gridlens.jobs.worker import _due_key, _scheduled_instants, _source_registry_drift
+        from gridlens.jobs.source_schedule_proof import verified_schedule_success
+        from gridlens.jobs.worker import (
+            _due_key,
+            _scheduled_instants,
+            _source_registry_drift,
+        )
 
         for row in rows:
             definition = definitions.get(row.id, {})
@@ -1347,7 +1352,30 @@ def health():
                     ):
                         invalid_receipt = True
                         continue
-                    successes += 1
+                    next_scheduled_for = None
+                    try:
+                        next_cursor = scheduled_for + timedelta(microseconds=1)
+                        next_slots = _scheduled_instants(
+                            epoch,
+                            epoch.effective_until or checked_at + timedelta(days=400),
+                            not_before=next_cursor,
+                        )
+                        next_scheduled_for = next(next_slots, None)
+                        if epoch.effective_until is not None and (
+                            next_scheduled_for is None or epoch.effective_until < next_scheduled_for
+                        ):
+                            next_scheduled_for = epoch.effective_until
+                    except (AttributeError, KeyError, TypeError, ValueError, OverflowError):
+                        next_scheduled_for = None
+                    if verified_schedule_success(
+                        due=due,
+                        receipt=receipt,
+                        job=job,
+                        next_scheduled_for=next_scheduled_for,
+                    ):
+                        successes += 1
+                    else:
+                        invalid_receipt = True
                 elif receipt.disposition in {"failed", "partial", "unknown"}:
                     if job.status not in {"queued", "failed", "succeeded"}:
                         invalid_receipt = True
