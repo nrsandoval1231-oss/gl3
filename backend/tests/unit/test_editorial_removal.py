@@ -20,5 +20,3 @@ def test_historical_editorial_tables_and_migration_remain_intact():
     migration = Path(__file__).parents[2] / "migrations/versions/0019_editorial_decisions.py"
     assert migration.is_file()
     assert 'revision = "0019_editorial_decisions"' in migration.read_text(encoding="utf-8")
-
-
