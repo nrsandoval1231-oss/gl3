@@ -56,10 +56,37 @@ def runtime(monkeypatch):
     service = import_module("gridlens.intelligence.briefs")
     api = import_module("gridlens.api.app")
     worker = import_module("gridlens.jobs.worker")
+    legacy_calls = import_module("gridlens.integrations.legacy_calls")
     monkeypatch.setattr(service, "SessionLocal", factory)
     monkeypatch.setattr(api, "SessionLocal", factory)
     monkeypatch.setattr(worker, "SessionLocal", factory)
+    monkeypatch.setattr(legacy_calls, "SessionLocal", factory)
     monkeypatch.setattr(settings, "openai_api_key", SecretStr("synthetic-key"))
+    monkeypatch.setattr(settings, "intelligence_enabled", True)
+    monkeypatch.setattr(settings, "intelligence_mode", "advisory")
+    monkeypatch.setattr(settings, "intelligence_enabled_contracts", "POWER_NEED_BRIEF")
+    monkeypatch.setattr(settings, "intelligence_openai_enabled", True)
+    monkeypatch.setattr(settings, "intelligence_research_enabled", True)
+    monkeypatch.setattr(
+        settings, "intelligence_openai_reasoning_model", settings.openai_brief_model
+    )
+    monkeypatch.setattr(
+        settings,
+        "intelligence_openai_reasoning_priced_model_id",
+        settings.openai_brief_model,
+    )
+    monkeypatch.setattr(settings, "intelligence_openai_reasoning_pricing_verified", True)
+    monkeypatch.setattr(settings, "intelligence_openai_reasoning_max_output_tokens", 700)
+    monkeypatch.setattr(settings, "intelligence_openai_reasoning_input_usd_per_million", 1)
+    monkeypatch.setattr(settings, "intelligence_openai_reasoning_output_usd_per_million", 1)
+    monkeypatch.setattr(settings, "intelligence_max_call_usd", 1)
+    monkeypatch.setattr(settings, "intelligence_max_active_calls", 5)
+    monkeypatch.setattr(settings, "briefs_daily_request_limit", 100)
+    for scope in ("global", "provider", "model", "source", "project"):
+        monkeypatch.setattr(settings, f"intelligence_{scope}_daily_calls", 100)
+        monkeypatch.setattr(settings, f"intelligence_{scope}_monthly_calls", 1000)
+        monkeypatch.setattr(settings, f"intelligence_{scope}_daily_usd", 100)
+        monkeypatch.setattr(settings, f"intelligence_{scope}_monthly_usd", 1000)
     with factory.begin() as session:
         source = Source(
             id="brief-test-permits",

@@ -517,6 +517,16 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
 
             process_monitor_job(job_id, WORKER_ID, fence, enabled=settings.monitoring_enabled)
             return True
+        if kind == "signal_adjudication":
+            from gridlens.intelligence.signal_adjudication import process_signal_adjudication_job
+
+            process_signal_adjudication_job(job_id, WORKER_ID, fence)
+            return True
+        if kind == "evidence_shadow":
+            from gridlens.intelligence.evidence_shadow import process_evidence_shadow_job
+
+            process_evidence_shadow_job(job_id, WORKER_ID, fence)
+            return True
         if kind == "pursuit_question":
             from gridlens.intelligence.autonomous_research import (
                 _retry_deadline,
@@ -616,9 +626,43 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
                 _release_dispatch_lock(dispatch_connection, source_id)
                 dispatch_connection = None
                 return True
+            # The dispatch advisory lock serializes this source without keeping
+            # the Source row lock or a database transaction across provider HTTP.
+            session.commit()
+            session.expire_all()
             counts = process_job(session, job_id, WORKER_ID, fence, definition)
+            # Commit retained ingestion/admission work, then reacquire fresh rows
+            # before recording health so operator changes during retrieval win.
+            session.commit()
+            session.expire_all()
+            source = session.scalar(select(Source).where(Source.id == source_id).with_for_update())
+            finished_job = session.get(Job, job_id)
+            if source is None or finished_job is None:
+                raise RuntimeError("Ingestion source disappeared after processing")
             assert finished_job and source
             assert_fence(session, job_id, WORKER_ID, fence)
+            try:
+                current_definition = next(
+                    (item for item in load_registry() if item["id"] == source_id), None
+                )
+            except Exception as exc:
+                _defer_registry_unavailable(finished_job, source, exc)
+                session.commit()
+                _release_dispatch_lock(dispatch_connection, source_id)
+                dispatch_connection = None
+                return True
+            if current_definition is None:
+                _park_if_disabled(session, finished_job, source, None)
+                session.commit()
+                _release_dispatch_lock(dispatch_connection, source_id)
+                dispatch_connection = None
+                return True
+            if _park_if_disabled(session, finished_job, source, current_definition):
+                session.commit()
+                _release_dispatch_lock(dispatch_connection, source_id)
+                dispatch_connection = None
+                return True
+            definition = current_definition
             (
                 finished_job.status,
                 finished_job.lease_until,
@@ -700,9 +744,15 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
             )
             if failed_job and valid_owner:
                 failed_job.status = "queued" if failed_job.attempts < 5 else "failed"
-                failed_job.available_at = datetime.now(UTC) + timedelta(
-                    seconds=min(3600, 30 * (2**failed_job.attempts))
+                from gridlens.jobs.retry import jittered_delay_seconds
+
+                delay_seconds = jittered_delay_seconds(
+                    str(failed_job.id),
+                    failed_job.attempts,
+                    min(3600, 30 * (2**failed_job.attempts)),
+                    ceiling_seconds=3600,
                 )
+                failed_job.available_at = datetime.now(UTC) + timedelta(seconds=delay_seconds)
                 failed_job.lease_until, failed_job.lease_owner = None, None
                 from gridlens.ingestion.adapters.federal_register import SourceParseError
 

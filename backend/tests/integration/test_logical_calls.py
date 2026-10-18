@@ -107,6 +107,51 @@ def test_reservation_reuse_unknown_dispatch_and_fences(sessions):
         assert budget.cost_usd == Decimal("0.050000")
 
 
+def test_completed_result_payload_is_canonical_bounded_and_self_consistent(sessions):
+    import hashlib
+    import json
+
+    first = _reserve(sessions, "canonical-result")
+    with sessions() as session:
+        assert mark_dispatched(session, first.call_id, fence_token=7, enabled=True).status == (
+            "SENT_OUTCOME_UNKNOWN"
+        )
+    with pytest.raises(ValueError, match="result_digest"):
+        with sessions() as session:
+            complete_call(
+                session,
+                first.call_id,
+                fence_token=7,
+                result_digest="0" * 64,
+                result_payload={"answer": "valid"},
+            )
+    with pytest.raises(ValueError, match="exceeds"):
+        with sessions() as session:
+            complete_call(
+                session,
+                first.call_id,
+                fence_token=7,
+                result_payload={"answer": "x" * 65_537},
+            )
+    payload = {"answer": "valid"}
+    with sessions() as session:
+        assert complete_call(
+            session, first.call_id, fence_token=7, result_payload=payload
+        ).status == "COMPLETED"
+    with sessions() as session:
+        row = session.scalar(select(LogicalCall).where(LogicalCall.id == first.call_id))
+        assert row is not None
+        assert row.result_digest == hashlib.sha256(
+            json.dumps(
+                payload,
+                sort_keys=True,
+                separators=(",", ":"),
+                ensure_ascii=True,
+                allow_nan=False,
+            ).encode("utf-8")
+        ).hexdigest()
+
+
 def test_concurrent_reservations_do_not_oversubscribe_daily_cap(sessions):
     with ThreadPoolExecutor(max_workers=8) as pool:
         results = list(pool.map(lambda i: _reserve(sessions, f"parallel-{i}", daily=2), range(8)))

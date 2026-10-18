@@ -602,6 +602,7 @@ def note_view(note: PursuitCallNote) -> dict:
             "next_action",
             "follow_up",
             "owner",
+            "intelligence_review",
             "created_at",
         )
     }
@@ -1024,16 +1025,11 @@ def process_research_job(job_id: UUID, worker_id: str, fence: int) -> None:
                         obs = session.get(Observation, UUID(record["observation_id"]))
                         evidence = session.get(Evidence, UUID(record["evidence_id"]))
                         assert obs and evidence
-                        from gridlens.intelligence.signal_adjudication import _jev_call
-
                         decision = adjudicate(
                             session,
                             obs,
                             evidence,
                             retry_errors=True,
-                            caller=lambda state, key: _jev_call(
-                                state, key, on_request=lambda: debit(model=True)
-                            ),
                         )
                         if decision.source == "jev_error":
                             errors.append(

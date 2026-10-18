@@ -1,5 +1,6 @@
 from datetime import date
 
+from gridlens.integrations import intelligence_provider
 from gridlens.intelligence.signal_adjudication import (
     MODEL,
     _jev_call,
@@ -11,21 +12,13 @@ from gridlens.intelligence.signal_adjudication import (
 def test_jev_uses_pinned_model_one_call_and_typed_dimensions(monkeypatch):
     captured = {}
 
-    class Response:
-        status_code = 200
+    def post(*, api_key, model, payload, **_kwargs):
+        captured["api_key"] = api_key
+        captured["model"] = model
+        captured["payload"] = payload
+        return {"model": MODEL, "answers": {}}
 
-        def raise_for_status(self):
-            return None
-
-        def json(self):
-            return {"model": MODEL, "answers": {}}
-
-    def post(url, **kwargs):
-        captured["url"] = url
-        captured.update(kwargs)
-        return Response()
-
-    monkeypatch.setattr("gridlens.intelligence.signal_adjudication.httpx.post", post)
+    monkeypatch.setattr(intelligence_provider, "call_typesafe", post)
     state = {
         "title": "A retained event",
         "abstract": "An excerpt",
@@ -44,9 +37,8 @@ def test_jev_uses_pinned_model_one_call_and_typed_dimensions(monkeypatch):
     result = _jev_call(state, "test-secret")
 
     assert result["model"] == MODEL
-    assert captured["url"] == "https://api.typesafe.ai/v1/systemone"
-    assert captured["headers"] == {"Authorization": "Bearer test-secret"}
-    assert captured["json"]["model"] == "jev-1.13.0"
+    assert captured["api_key"] == "test-secret"
+    assert captured["model"] == "jev-1.13.0"
     expected = {
         "physical_project_event",
         "meaningful_new_activity",
@@ -55,10 +47,10 @@ def test_jev_uses_pinned_model_one_call_and_typed_dimensions(monkeypatch):
         "routine_maintenance",
         "transient_event",
     }
-    assert set(captured["json"]["questions"]) == expected
-    assert all(q["type"] == "noul" for q in captured["json"]["questions"].values())
-    assert "display" not in captured["json"]["questions"]
-    assert captured["json"]["state"]["publisher"] == "Test publisher"
+    assert set(captured["payload"]["questions"]) == expected
+    assert all(q["type"] == "noul" for q in captured["payload"]["questions"].values())
+    assert "display" not in captured["payload"]["questions"]
+    assert captured["payload"]["state"]["publisher"] == "Test publisher"
 
 
 def test_gl3_policy_holds_transient_or_routine_items_and_shows_supported_activity():
@@ -89,9 +81,7 @@ def test_gl3_policy_uses_source_context_for_generic_buildings_and_power_relevant
         "routine_maintenance": 0.05,
         "transient_event": 0.02,
     }
-    assert (
-        map_dimensions(base, title="New construction of office warehouse") == "REVIEW"
-    )
+    assert map_dimensions(base, title="New construction of office warehouse") == "REVIEW"
     assert map_dimensions(base, title="Addition and remodel to existing hospital") == "REVIEW"
     assert (
         map_dimensions(

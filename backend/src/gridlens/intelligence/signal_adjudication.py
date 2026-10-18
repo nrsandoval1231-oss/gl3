@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 import time
 from collections.abc import Callable
@@ -13,9 +14,11 @@ import httpx
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from gridlens.integrations import intelligence_provider
 from gridlens.persistence.models import (
     Evidence,
     Interpretation,
+    Job,
     NeedObservation,
     Observation,
     PowerNeed,
@@ -40,23 +43,32 @@ def failure_status(exc: Exception) -> str:
     if isinstance(exc, JevError):
         return exc.status
     if isinstance(exc, httpx.HTTPStatusError):
-        code = exc.response.status_code
-        if code in {401, 403}:
+        status_code = exc.response.status_code
+        if status_code in {401, 403}:
             return "authentication_failed"
-        return "provider_unavailable" if code == 429 or code >= 500 else "request_rejected"
+        return (
+            "provider_unavailable"
+            if status_code == 429 or status_code >= 500
+            else "request_rejected"
+        )
+    if isinstance(exc, intelligence_provider.ProviderResponseError):
+        provider_code = exc.status_code
+        if provider_code in {401, 403}:
+            return "authentication_failed"
+        if provider_code is not None:
+            return (
+                "provider_unavailable"
+                if provider_code == 429 or provider_code >= 500
+                else "request_rejected"
+            )
+        return "malformed_response" if exc.conclusive else "provider_unavailable"
     if isinstance(exc, KeyError | TypeError | ValueError):
         return "malformed_response"
     return "provider_unavailable"
 
 
-def _jev_call(
-    state: dict[str, str],
-    api_key: str,
-    *,
-    on_request: Callable[[], None] | None = None,
-    max_attempts: int = 3,
-) -> dict[str, Any]:
-    payload = {
+def jev_request_payload(state: dict[str, str], *, model: str = MODEL) -> dict[str, Any]:
+    return {
         "state": {
             "title": state["title"][:300],
             "abstract": state["abstract"][:1500],
@@ -72,7 +84,7 @@ def _jev_call(
             "asset_type": state["asset_type"],
             "lifecycle_state": state["lifecycle_state"],
         },
-        "model": MODEL,
+        "model": model,
         "questions": {
             "physical_project_event": {
                 "type": "noul",
@@ -118,6 +130,17 @@ def _jev_call(
             },
         },
     }
+
+
+def _jev_call(
+    state: dict[str, str],
+    api_key: str,
+    *,
+    model: str = MODEL,
+    on_request: Callable[[], None] | None = None,
+    max_attempts: int = 3,
+) -> dict[str, Any]:
+    payload = jev_request_payload(state, model=model)
     if not api_key.strip():
         raise JevError("missing_credentials")
     if not 1 <= max_attempts <= 3:
@@ -126,15 +149,13 @@ def _jev_call(
         try:
             if on_request:
                 on_request()
-            response = httpx.post(
-                "https://api.typesafe.ai/v1/systemone",
-                headers={"Authorization": f"Bearer {api_key}"},
-                json=payload,
-                timeout=12.0,
+            return intelligence_provider.call_typesafe(
+                api_key=api_key,
+                model=model,
+                payload={"state": payload["state"], "questions": payload["questions"]},
+                timeout_seconds=12.0,
             )
-            response.raise_for_status()
-            return response.json()
-        except (httpx.HTTPError, ValueError) as exc:
+        except (httpx.HTTPError, ValueError, intelligence_provider.ProviderResponseError) as exc:
             status = failure_status(exc)
             if status == "provider_unavailable" and attempt + 1 < max_attempts:
                 time.sleep(min(0.25 * (2**attempt), 1.0))
@@ -143,10 +164,10 @@ def _jev_call(
     raise JevError("provider_unavailable")
 
 
-def validated_dimensions(result: Any) -> dict[str, float]:
+def validated_dimensions(result: Any, *, expected_model: str = MODEL) -> dict[str, float]:
     if not isinstance(result, dict):
         raise ValueError("invalid Jev response")
-    if result.get("model") != MODEL:
+    if result.get("model") != expected_model:
         raise ValueError("unexpected Jev model")
     answers = result["answers"]
     if not isinstance(answers, dict):
@@ -203,6 +224,7 @@ def adjudicate(
     if prior is not None and not (
         (prior.source == "jev_unavailable" and key)
         or (retry_errors and prior.source == "jev_error" and key)
+        or (prior.source == "jev_pending" and caller is _jev_call and key)
     ):
         return prior
     text = f"{evidence.title}\n{evidence.abstract or ''}"
@@ -225,6 +247,8 @@ def adjudicate(
             session.add(pending)
             session.flush()
             return pending
+        if caller is _jev_call:
+            return queue_adjudication(session, observation, evidence, policy_version)
         try:
             state = _evidence_state(session, observation, evidence)
             result = caller(state, key)
@@ -257,6 +281,173 @@ def adjudicate(
     session.add(row)
     session.flush()
     return row
+
+
+def queue_adjudication(
+    session: Session,
+    observation: Observation,
+    evidence: Evidence,
+    policy_version: str = POLICY_VERSION,
+) -> SignalDecision:
+    """Persist an explicit REVIEW and enqueue an exact retained-evidence worker job."""
+    from sqlalchemy import select
+
+    prior = session.scalar(
+        select(SignalDecision)
+        .where(
+            SignalDecision.observation_id == observation.id,
+            SignalDecision.content_hash == evidence.content_hash,
+            SignalDecision.policy_version == policy_version,
+        )
+        .order_by(SignalDecision.id.desc())
+    )
+    row = prior
+    if row is None:
+        row = SignalDecision(
+            observation_id=observation.id,
+            content_hash=evidence.content_hash,
+            policy_version=policy_version,
+            decision="REVIEW",
+            source="jev_pending",
+            model_version=None,
+            dimensions={"status": "queued_for_shared_ledger"},
+            reason="Ambiguous evidence awaits bounded evidence-bound adjudication.",
+        )
+        session.add(row)
+    job = session.scalar(
+        select(Job).where(
+            Job.kind == "signal_adjudication",
+            Job.target_id == observation.id,
+            Job.status.in_(["queued", "running"]),
+        )
+    )
+    if job is None:
+        session.add(
+            Job(
+                source_id=observation.source_id,
+                kind="signal_adjudication",
+                target_id=observation.id,
+                checkpoint=json.dumps(
+                    {
+                        "evidence_id": str(evidence.id),
+                        "content_hash": evidence.content_hash,
+                        "policy_version": policy_version,
+                    }
+                ),
+            )
+        )
+    session.flush()
+    return row
+
+
+def process_signal_adjudication_job(job_id: UUID, worker_id: str, fence: int) -> None:
+    """Run one exact Jev request outside the transaction and append its display result."""
+    import json
+
+    from gridlens.integrations.legacy_calls import perform_legacy_call
+    from gridlens.jobs.queue import assert_fence
+    from gridlens.persistence.database import SessionLocal
+
+    with SessionLocal.begin() as session:
+        job = assert_fence(session, job_id, worker_id, fence)
+        checkpoint = json.loads(job.checkpoint or "{}")
+        observation = session.get(Observation, job.target_id)
+        evidence = session.get(Evidence, UUID(checkpoint["evidence_id"]))
+        if (
+            observation is None
+            or evidence is None
+            or evidence.observation_id != observation.id
+            or evidence.content_hash != checkpoint.get("content_hash")
+        ):
+            job.status, job.error = "succeeded", "STALE_EVIDENCE"
+            job.lease_owner, job.lease_until = None, None
+            return
+        state = _evidence_state(session, observation, evidence)
+        source_id = observation.source_id
+        project = session.scalar(
+            select(Project).where(
+                Project.source_id == observation.source_id,
+                Project.external_id == observation.external_id,
+            )
+        )
+        project_id = project.id if project else None
+        from gridlens.intelligence.intelligence_jobs import _enabled
+
+        enabled, _provider, model, reason = _enabled("SIGNAL_ADJUDICATION")
+        if not enabled:
+            raise RuntimeError(reason)
+        payload = {"state": state, "model": model, "contract": "signal-display-v2"}
+    api_key = settings.typesafe_api_key.get_secret_value() if settings.typesafe_api_key else ""
+
+    def invoke() -> tuple[dict[str, Any], int | None, int | None]:
+        result = _jev_call(state, api_key, model=model, max_attempts=1)
+        usage_value = result.get("usage")
+        usage = usage_value if isinstance(usage_value, dict) else {}
+        return result, usage.get("input_tokens"), usage.get("output_tokens")
+
+    try:
+        call = perform_legacy_call(
+            task_type="SIGNAL_ADJUDICATION",
+            task_key=f"{observation.id}:{evidence.content_hash}:{checkpoint['policy_version']}",
+            payload=payload,
+            source_id=source_id,
+            project_id=project_id,
+            job_id=job_id,
+            worker_id=worker_id,
+            fence_token=fence,
+            invoke=invoke,
+            before_dispatch=lambda call_id: _save_signal_call_id(job_id, worker_id, fence, call_id),
+        )
+        dimensions = validated_dimensions(call.result, expected_model=model)
+        decision = map_dimensions(dimensions, title=state["title"], abstract=state["abstract"])
+        model_version = str(call.result["model"])
+        source = "jev"
+        reason = "GL3 display policy mapped retained factual Jev dimensions to a display decision."
+        dims: dict[str, Any] = dimensions
+    except Exception as exc:
+        decision, source, model_version = "REVIEW", "jev_error", None
+        status = failure_status(exc)
+        dims = {"status": status}
+        reason = f"Jev {status}; evidence retained and manual review required."
+    with SessionLocal.begin() as session:
+        job = assert_fence(session, job_id, worker_id, fence)
+        current_observation = session.get(Observation, observation.id)
+        current_evidence = session.get(Evidence, evidence.id)
+        if (
+            current_observation is None
+            or current_evidence is None
+            or current_evidence.content_hash != evidence.content_hash
+            or current_observation.content_hash != evidence.content_hash
+        ):
+            job.status, job.error = "succeeded", "STALE_EVIDENCE_AFTER_PROVIDER"
+        else:
+            session.add(
+                SignalDecision(
+                    observation_id=observation.id,
+                    content_hash=evidence.content_hash,
+                    policy_version=checkpoint["policy_version"],
+                    decision=decision,
+                    source=source,
+                    model_version=model_version,
+                    dimensions=dims,
+                    reason=reason,
+                )
+            )
+            job.status, job.error = "succeeded", None
+        job.lease_owner, job.lease_until = None, None
+
+
+def _save_signal_call_id(job_id: UUID, worker_id: str, fence: int, call_id: UUID) -> None:
+    import json
+
+    from gridlens.jobs.queue import assert_fence
+    from gridlens.persistence.database import SessionLocal
+
+    with SessionLocal.begin() as session:
+        job = assert_fence(session, job_id, worker_id, fence)
+        checkpoint = json.loads(job.checkpoint or "{}")
+        checkpoint["logical_call_id"] = str(call_id)
+        job.checkpoint = json.dumps(checkpoint)
 
 
 def deterministic_override(

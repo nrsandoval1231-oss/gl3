@@ -20,6 +20,7 @@ from gridlens.persistence.models import Job, LogicalCall, LogicalCallBudget
 MAX_USD = Decimal("100.000000")
 MAX_BUDGET_USD = Decimal("100000.000000")
 MAX_ACTUAL_USD = Decimal("1000000.000000")
+MAX_RESULT_BYTES = 65_536
 
 
 @dataclass(frozen=True)
@@ -150,6 +151,7 @@ def reserve_call(
         if (
             prior.status == "NOT_SENT"
             and lease_authority == "job"
+            and job_id is not None
             and prior.job_id == job_id
             and _assert_job_fence(session, job_id, worker_id or "", fence_token)
         ):
@@ -335,6 +337,7 @@ def reserve_call(
             if (
                 duplicate.status == "NOT_SENT"
                 and lease_authority == "job"
+                and job_id is not None
                 and duplicate.job_id == job_id
                 and _assert_job_fence(session, job_id, worker_id or "", fence_token)
             ):
@@ -440,6 +443,25 @@ def _transition(
     reconciliation_actor: str | None = None,
     reconciliation_ref: str | None = None,
 ) -> ReservationResult:
+    if result_payload is not None:
+        if not isinstance(result_payload, dict):
+            raise ValueError("result_payload must be a JSON object")
+        try:
+            encoded_result = json.dumps(
+                result_payload,
+                sort_keys=True,
+                separators=(",", ":"),
+                ensure_ascii=True,
+                allow_nan=False,
+            ).encode("utf-8")
+        except (TypeError, ValueError) as exc:
+            raise ValueError("result_payload must contain finite JSON values") from exc
+        if len(encoded_result) > MAX_RESULT_BYTES:
+            raise ValueError(f"result_payload exceeds {MAX_RESULT_BYTES} bytes")
+        canonical_digest = hashlib.sha256(encoded_result).hexdigest()
+        if result_digest is not None and result_digest != canonical_digest:
+            raise ValueError("result_digest does not match canonical result_payload")
+        result_digest = canonical_digest
     call = session.scalar(select(LogicalCall).where(LogicalCall.id == call_id).with_for_update())
     if call is None:
         session.rollback()

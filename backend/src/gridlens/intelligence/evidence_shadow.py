@@ -23,6 +23,7 @@ from gridlens.persistence.models import (
     EvidenceJudgeRun,
     EvidenceJudgeScanCheckpoint,
     Interpretation,
+    Job,
     NeedObservation,
     Observation,
     PowerNeed,
@@ -102,6 +103,27 @@ def _release_scan_connection(connection, acquired: bool) -> None:
         connection.close()
 
 
+def _current_admitted_evidence(session: Session, project: Project, evidence: Evidence) -> bool:
+    """Match companion evidence by canonical semantic assessment, not raw hash."""
+    observation = session.get(Observation, evidence.observation_id)
+    if observation is None:
+        return False
+    interpretation = session.scalar(
+        select(Interpretation).where(Interpretation.observation_id == observation.id)
+    )
+    assessment = interpretation.assessment if interpretation else None
+    return bool(
+        observation.source_id == project.source_id
+        and interpretation
+        and interpretation.status == "accepted"
+        and interpretation.content_hash == observation.content_hash
+        and isinstance(assessment, dict)
+        and assessment.get("semantic_hash") == observation.content_hash
+        and assessment.get("evidence_hash") == evidence.content_hash
+        and assessment.get("project_identity_key") == project.identity_key
+    )
+
+
 def _advance_checkpoint(
     session: Session,
     checkpoint: EvidenceJudgeScanCheckpoint,
@@ -126,17 +148,9 @@ def run_shadow(
     limit = min(max(1, limit), settings.jev_shadow_batch_limit, 20)
     if not settings.jev_enabled or not settings.jev_shadow_mode:
         return {"status": "disabled", "attempted": 0, "valid": 0, "failed": 0}
-    from gridlens.intelligence.intelligence_jobs import legacy_paid_path_block_reason
-
-    if legacy_paid_path_block_reason():
-        return {
-            "status": "blocked",
-            "reason": legacy_paid_path_block_reason(),
-            "attempted": 0,
-            "valid": 0,
-            "failed": 0,
-        }
     api_key = settings.typesafe_api_key.get_secret_value() if settings.typesafe_api_key else None
+    queue_worker = judge is None
+    model = settings.intelligence_typesafe_model or "jev-latest"
     if judge is None and not api_key:
         return {
             "status": "unavailable",
@@ -145,7 +159,19 @@ def run_shadow(
             "valid": 0,
             "failed": 0,
         }
-    judge = judge or TypesafeEvidenceJudge(api_key or "")
+    if queue_worker:
+        from gridlens.intelligence.intelligence_jobs import _enabled
+
+        allowed, _provider, model, reason = _enabled("EVIDENCE_SHADOW")
+        if not allowed:
+            return {
+                "status": "blocked",
+                "reason": reason,
+                "attempted": 0,
+                "valid": 0,
+                "failed": 0,
+            }
+    judge = judge or TypesafeEvidenceJudge(api_key or "", model=model)
     statement = (
         select(Project, Evidence, Observation, Interpretation)
         .join(PowerNeed, PowerNeed.project_id == Project.id)
@@ -311,7 +337,7 @@ def run_shadow(
                 "candidates": candidates,
                 "deterministic": deterministic,
                 "schema": SCHEMA_VERSION,
-                "model": "jev-latest",
+                "model": model,
             }
             input_key = hashlib.sha256(
                 json.dumps(request_context, sort_keys=True, default=str).encode()
@@ -366,7 +392,7 @@ def run_shadow(
                 else None,
                 input_key=input_key,
                 schema_version=SCHEMA_VERSION,
-                model="jev-latest",
+                model=model,
                 status="pending",
                 deterministic=deterministic,
                 result=None,
@@ -376,6 +402,40 @@ def run_shadow(
             session.commit()
             reserved += 1
             attempted += 1
+            if queue_worker:
+                from gridlens.intelligence.intelligence_jobs import _digest
+
+                job = Job(
+                    source_id=observation.source_id,
+                    kind="evidence_shadow",
+                    target_id=attempt.id,
+                    checkpoint=json.dumps(
+                        {
+                            "evidence_judge_run_id": str(attempt.id),
+                            "input_key": input_key,
+                            "request_context": request_context,
+                            "request_digest": _digest(request_context),
+                            "project_id": str(project.id),
+                            "evidence_id": str(evidence.id),
+                            "contract_version": SCHEMA_VERSION,
+                        },
+                        default=str,
+                        separators=(",", ":"),
+                    ),
+                )
+                session.add(job)
+                session.flush()
+                attempt.deterministic = {
+                    **deterministic,
+                    "logical_call_id": None,
+                    "job_id": str(job.id),
+                    "contract_version": SCHEMA_VERSION,
+                    "status": "queued",
+                }
+                session.commit()
+                if checkpoint:
+                    _advance_checkpoint(session, checkpoint, project, evidence)
+                continue
             status, result, meta, error_class = "valid", None, {}, None
             provider_started = time.monotonic()
             try:
@@ -420,3 +480,153 @@ def run_shadow(
         if scan_connection is not None:
             _release_scan_connection(scan_connection, scan_acquired)
     return {"status": "complete", "attempted": attempted, "valid": valid, "failed": failed}
+
+
+def process_evidence_shadow_job(job_id: UUID, worker_id: str, fence: int) -> None:
+    """Run one queued EvidenceJudge attempt through the shared logical-call ledger."""
+    from gridlens.integrations.legacy_calls import perform_legacy_call
+    from gridlens.integrations.typesafe_evidence_judge import TypesafeEvidenceJudge
+    from gridlens.jobs.queue import assert_fence
+    from gridlens.persistence.database import SessionLocal
+
+    with SessionLocal.begin() as session:
+        job = assert_fence(session, job_id, worker_id, fence)
+        checkpoint = json.loads(job.checkpoint or "{}")
+        attempt = session.get(EvidenceJudgeRun, job.target_id)
+        evidence = session.get(Evidence, UUID(checkpoint["evidence_id"]))
+        observation = session.get(Observation, evidence.observation_id) if evidence else None
+        project = session.get(Project, UUID(checkpoint["project_id"]))
+        request_context = checkpoint.get("request_context")
+        if (
+            attempt is None
+            or evidence is None
+            or observation is None
+            or project is None
+            or attempt.input_key != checkpoint.get("input_key")
+            or not _current_admitted_evidence(session, project, evidence)
+            or not isinstance(request_context, dict)
+        ):
+            job.status, job.error = "succeeded", "STALE_SHADOW_INPUT"
+            job.lease_owner, job.lease_until = None, None
+            if attempt:
+                attempt.status, attempt.error_class = "failed", "StaleInput"
+                attempt.finished_at = datetime.now(UTC)
+            return
+        payload = request_context
+        project_id, evidence_id, source_id = project.id, evidence.id, observation.source_id
+    api_key = settings.typesafe_api_key.get_secret_value() if settings.typesafe_api_key else ""
+    from gridlens.intelligence.intelligence_jobs import _enabled
+
+    enabled, _provider, model, reason = _enabled("EVIDENCE_SHADOW")
+    if not enabled:
+        with SessionLocal.begin() as session:
+            job = assert_fence(session, job_id, worker_id, fence)
+            attempt = session.get(EvidenceJudgeRun, job.target_id)
+            if attempt:
+                attempt.status, attempt.error_class = "failed", reason
+                attempt.finished_at = datetime.now(UTC)
+            job.status, job.error = "succeeded", reason
+            job.lease_owner, job.lease_until = None, None
+        return
+    judge = TypesafeEvidenceJudge(api_key, model=model)
+
+    def invoke() -> tuple[dict, int | None, int | None]:
+        result, meta = judge.judge(payload["project"], payload["evidence"], payload["candidates"])
+        return (
+            result.model_dump(mode="json"),
+            meta.get("input_tokens"),
+            meta.get("output_tokens"),
+        )
+
+    def record_call_id(call_id: UUID) -> None:
+        with SessionLocal.begin() as session:
+            job = assert_fence(session, job_id, worker_id, fence)
+            attempt = session.get(EvidenceJudgeRun, job.target_id)
+            if attempt is None:
+                raise LookupError("EvidenceJudgeRun disappeared before dispatch")
+            attempt.deterministic = {
+                **attempt.deterministic,
+                "logical_call_id": str(call_id),
+                "job_id": str(job_id),
+                "contract_version": SCHEMA_VERSION,
+                "status": "dispatching",
+            }
+            checkpoint = json.loads(job.checkpoint or "{}")
+            checkpoint["logical_call_id"] = str(call_id)
+            job.checkpoint = json.dumps(checkpoint, separators=(",", ":"))
+
+    try:
+        call = perform_legacy_call(
+            task_type="EVIDENCE_SHADOW",
+            task_key=f"{attempt.input_key}:{checkpoint['contract_version']}",
+            payload=payload,
+            source_id=source_id,
+            project_id=project_id,
+            job_id=job_id,
+            worker_id=worker_id,
+            fence_token=fence,
+            invoke=invoke,
+            before_dispatch=record_call_id,
+        )
+        judgment = call.result
+        from gridlens.intelligence.evidence_judge import Judgment
+        from gridlens.intelligence.research_recommendation import recommend_from_context
+
+        validated = Judgment.model_validate(judgment)
+        result = {
+            **validated.model_dump(mode="json"),
+            "advisory": {
+                "research_recommended": recommend_from_context(
+                    validated.model_dump(mode="json"), payload["project"]
+                )
+            },
+        }
+        status, error_class = "valid", None
+    except Exception as exc:
+        result = None
+        status, error_class = "failed", type(exc).__name__
+    with SessionLocal.begin() as session:
+        job = assert_fence(session, job_id, worker_id, fence)
+        attempt = session.get(EvidenceJudgeRun, job.target_id)
+        evidence = session.get(Evidence, evidence_id)
+        observation = session.get(Observation, evidence.observation_id) if evidence else None
+        project = session.get(Project, project_id)
+        if attempt is None:
+            job.status, job.error = "failed", "MISSING_SHADOW_ATTEMPT"
+        elif (
+            evidence is None
+            or observation is None
+            or project is None
+            or not _current_admitted_evidence(session, project, evidence)
+        ):
+            attempt.status, attempt.error_class = "failed", "StaleInputAfterProvider"
+            attempt.finished_at = datetime.now(UTC)
+            attempt.deterministic = {
+                **attempt.deterministic,
+                "logical_call_id": attempt.deterministic.get("logical_call_id"),
+                "job_id": str(job_id),
+                "contract_version": SCHEMA_VERSION,
+                "status": "stale_after_provider",
+            }
+            job.status, job.error = "succeeded", "STALE_SHADOW_INPUT_AFTER_PROVIDER"
+        else:
+            attempt.status = status
+            attempt.result = result
+            attempt.error_class = error_class
+            attempt.finished_at = datetime.now(UTC)
+            attempt.model = model
+            attempt.input_tokens = call.input_tokens if "call" in locals() else None
+            attempt.output_tokens = call.output_tokens if "call" in locals() else None
+            attempt.deterministic = {
+                **attempt.deterministic,
+                "logical_call_id": (
+                    str(call.logical_call_id)
+                    if "call" in locals()
+                    else attempt.deterministic.get("logical_call_id")
+                ),
+                "job_id": str(job_id),
+                "contract_version": SCHEMA_VERSION,
+                "status": "completed" if status == "valid" else "failed",
+            }
+            job.status, job.error = "succeeded", error_class
+        job.lease_owner, job.lease_until = None, None

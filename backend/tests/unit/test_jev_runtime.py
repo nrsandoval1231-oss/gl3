@@ -7,6 +7,7 @@ from pathlib import Path
 import httpx
 import pytest
 
+from gridlens.integrations import intelligence_provider
 from gridlens.intelligence import signal_adjudication as jev
 
 STATE = dict.fromkeys(
@@ -65,19 +66,19 @@ def _shell_environment(tmp_path, **overrides):
 def test_provider_failure_is_safe_classified_and_bounded(monkeypatch, code, status, attempts):
     calls = []
 
-    def post(*args, **kwargs):
+    def post(*, api_key, model, payload, **_kwargs):
         calls.append(1)
-        return httpx.Response(
+        response = httpx.Response(
             code,
             text="secret-must-not-leak",
             request=httpx.Request(
                 "POST",
                 "https://api.typesafe.ai/v1/systemone",
-                headers={"Authorization": "Bearer secret-must-not-leak"},
             ),
         )
+        raise httpx.HTTPStatusError("fixture", request=response.request, response=response)
 
-    monkeypatch.setattr(jev.httpx, "post", post)
+    monkeypatch.setattr(intelligence_provider, "call_typesafe", post)
     monkeypatch.setattr(jev.time, "sleep", lambda _: None)
     with pytest.raises(RuntimeError) as raised:
         jev._jev_call(STATE, "secret-must-not-leak")
@@ -90,13 +91,13 @@ def test_provider_failure_is_safe_classified_and_bounded(monkeypatch, code, stat
 def test_invalid_json_is_distinct_and_not_retried(monkeypatch):
     calls = []
 
-    def post(*args, **kwargs):
+    def post(*, api_key, model, payload, **_kwargs):
         calls.append(1)
-        return httpx.Response(
-            200, text="not-json", request=httpx.Request("POST", "https://api.typesafe.ai")
+        raise intelligence_provider.ProviderResponseError(
+            "Provider response was invalid JSON", conclusive=True
         )
 
-    monkeypatch.setattr(jev.httpx, "post", post)
+    monkeypatch.setattr(intelligence_provider, "call_typesafe", post)
     with pytest.raises(RuntimeError) as raised:
         jev._jev_call(STATE, "synthetic-key")
     assert getattr(raised.value, "status", None) == "malformed_response"
@@ -115,6 +116,7 @@ def test_compose_forwards_injected_keys_without_a_secret_file(tmp_path):
     env = _process_environment(
         TYPESAFE_API_KEY="injected-sentinel",
         OPENAI_API_KEY="injected-openai-sentinel",
+        FIRECRAWL_API_KEY="injected-firecrawl-sentinel",
         CLOUDFLARE_TUNNEL_TOKEN="synthetic-tunnel",
     )
     result = subprocess.run(
@@ -142,8 +144,64 @@ def test_compose_forwards_injected_keys_without_a_secret_file(tmp_path):
             services[name].get("environment", {}).get("OPENAI_API_KEY")
             == "injected-openai-sentinel"
         )
+        assert (
+            services[name].get("environment", {}).get("FIRECRAWL_API_KEY")
+            == "injected-firecrawl-sentinel"
+        )
+        assert services[name].get("environment", {}).get("OPERATIONAL_RECEIPT_FILE") == ""
+        assert any(
+            mount.get("target") == "/run/gridlens/operational-receipt.json"
+            and mount.get("read_only") is True
+            for mount in services[name].get("volumes", [])
+        )
     assert "TYPESAFE_API_KEY" not in services["web"].get("environment", {})
     assert "OPENAI_API_KEY" not in services["web"].get("environment", {})
+    assert "FIRECRAWL_API_KEY" not in services["web"].get("environment", {})
+
+
+def test_typesafe_transport_enforces_cooperative_total_deadline(monkeypatch):
+    monkeypatch.setattr(intelligence_provider, "TIMEOUT_SECONDS", 0.005)
+    monkeypatch.setattr(intelligence_provider, "READ_PHASE_TIMEOUT_SECONDS", 0.005)
+
+    class SlowResponse:
+        status_code = 200
+        headers = {}
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return None
+
+        def iter_bytes(self):
+            yield b"{}"
+
+    class Client:
+        def __init__(self, *, timeout):
+            assert timeout.read == 0.005
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return None
+
+        def stream(self, *_args, **_kwargs):
+            return SlowResponse()
+
+    monkeypatch.setattr(intelligence_provider.httpx, "Client", Client)
+    clock_calls = 0
+
+    def monotonic():
+        nonlocal clock_calls
+        clock_calls += 1
+        return 0.0 if clock_calls == 1 else 0.001 if clock_calls <= 3 else 0.01
+
+    monkeypatch.setattr(intelligence_provider.time, "monotonic", monotonic)
+    with pytest.raises(intelligence_provider.ProviderResponseError, match="total request deadline"):
+        intelligence_provider._post_json(
+            "https://provider.invalid", headers={}, payload={}, timeout_seconds=0.005
+        )
 
 
 @pytest.mark.parametrize("key", [None, "", "   "])
@@ -164,18 +222,37 @@ def test_health_without_credentials_never_calls_provider(monkeypatch, key):
     "outcome", ["available", "authentication_failed", "provider_unavailable", "malformed_response"]
 )
 def test_health_probe_is_authenticated_single_request_and_redacted(monkeypatch, outcome):
+    from types import SimpleNamespace
+
     from pydantic import SecretStr
 
+    from gridlens.integrations import legacy_calls
+    from gridlens.intelligence import intelligence_jobs
     from gridlens.intelligence.jev_health import diagnostic
     from gridlens.settings import settings
 
     monkeypatch.setattr(settings, "typesafe_api_key", SecretStr("synthetic-probe-key"))
+    monkeypatch.setattr(
+        intelligence_jobs,
+        "_enabled",
+        lambda _task: (True, "typesafe", jev.MODEL, ""),
+    )
+
+    def perform(**kwargs):
+        value, input_tokens, output_tokens = kwargs["invoke"]()
+        return SimpleNamespace(
+            result=value,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+        )
+
+    monkeypatch.setattr(legacy_calls, "perform_legacy_call", perform)
     calls = []
 
-    def post(url, **kwargs):
+    def post(*, api_key, model, payload, **_kwargs):
         calls.append(1)
-        assert kwargs["headers"]["Authorization"] == "Bearer synthetic-probe-key"
-        assert kwargs["timeout"] == 12.0
+        assert api_key == "synthetic-probe-key"
+        assert model == jev.MODEL
         if outcome == "provider_unavailable":
             raise httpx.ReadTimeout("synthetic-probe-key")
         payload = {
@@ -194,13 +271,12 @@ def test_health_probe_is_authenticated_single_request_and_redacted(monkeypatch, 
         }
         if outcome == "malformed_response":
             payload["answers"] = {"unexpected": "synthetic-probe-key"}
-        return httpx.Response(
-            401 if outcome == "authentication_failed" else 200,
-            json=payload,
-            request=httpx.Request("POST", url),
-        )
+        if outcome == "authentication_failed":
+            response = httpx.Response(401, request=httpx.Request("POST", "https://api.typesafe.ai"))
+            raise httpx.HTTPStatusError("fixture", request=response.request, response=response)
+        return payload
 
-    monkeypatch.setattr(jev.httpx, "post", post)
+    monkeypatch.setattr(intelligence_provider, "call_typesafe", post)
     assert diagnostic()["status"] == "not_checked"
     assert not calls
     result = diagnostic(probe=True)
@@ -247,15 +323,28 @@ def test_module_cli_preserves_auth_failure_classification(monkeypatch, capsys):
 
     from pydantic import SecretStr
 
+    from gridlens.integrations import legacy_calls
+    from gridlens.intelligence import intelligence_jobs
     from gridlens.settings import settings
 
     monkeypatch.setattr(settings, "typesafe_api_key", SecretStr("synthetic-cli-key"))
+    monkeypatch.setattr(
+        intelligence_jobs,
+        "_enabled",
+        lambda _task: (True, "typesafe", jev.MODEL, ""),
+    )
+    monkeypatch.setattr(
+        legacy_calls,
+        "perform_legacy_call",
+        lambda **kwargs: (_ for _ in ()).throw(kwargs["invoke"]()[0]),
+    )
     monkeypatch.setattr(sys, "argv", ["jev_health", "--probe"])
 
-    def post(url, **kwargs):
-        return httpx.Response(401, request=httpx.Request("POST", url))
+    def post(*, api_key, model, payload, **_kwargs):
+        response = httpx.Response(401, request=httpx.Request("POST", "https://api.typesafe.ai"))
+        raise httpx.HTTPStatusError("fixture", request=response.request, response=response)
 
-    monkeypatch.setattr(jev.httpx, "post", post)
+    monkeypatch.setattr(intelligence_provider, "call_typesafe", post)
     monkeypatch.delitem(sys.modules, "gridlens.intelligence.jev_health", raising=False)
     with pytest.raises(SystemExit) as raised:
         runpy.run_module("gridlens.intelligence.jev_health", run_name="__main__")

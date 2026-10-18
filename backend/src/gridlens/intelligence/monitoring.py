@@ -23,6 +23,7 @@ from gridlens.ingestion.adapters.pursuit_acquisition import (
 from gridlens.ingestion.registry import load_registry
 from gridlens.intelligence.question_contracts import QUESTION_CONTRACTS, question_contract
 from gridlens.jobs.queue import assert_fence
+from gridlens.jobs.retry import jittered_delay_seconds
 from gridlens.persistence.database import SessionLocal
 from gridlens.persistence.models import (
     Evidence,
@@ -761,7 +762,13 @@ def record_monitor_outcome(
     elif disposition in {"failed", "blocked", "partial"}:
         source_cursor.consecutive_failures += 1
         delay_index = min(max(source_cursor.consecutive_failures - 1, 0), len(RETRY_HOURS) - 1)
-        source_cursor.next_due_at = now + timedelta(hours=RETRY_HOURS[delay_index])
+        delay_seconds = jittered_delay_seconds(
+            source_cursor.source_id,
+            source_cursor.consecutive_failures,
+            RETRY_HOURS[delay_index] * 3600,
+            ceiling_seconds=24 * 3600,
+        )
+        source_cursor.next_due_at = now + timedelta(seconds=delay_seconds)
         if source_cursor.consecutive_failures >= MAX_CONSECUTIVE_FAILURES:
             source_cursor.status = "quarantined"
             source_cursor.error_class = error_class or "REPEATED_MONITOR_FAILURE"

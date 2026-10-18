@@ -6,6 +6,7 @@ from pydantic import SecretStr
 
 from gridlens.integrations import intelligence_provider
 from gridlens.intelligence.intelligence_jobs import (
+    _cost_bound,
     _enabled,
     _type_safe_result,
     legacy_paid_path_block_reason,
@@ -142,11 +143,14 @@ def test_openai_noncompleted_response_is_conclusive_not_a_valid_result(monkeypat
     assert error.value.conclusive is True
 
 
-def test_legacy_paid_routes_stay_blocked_until_migrated(monkeypatch):
+def test_legacy_paid_gate_tracks_global_disabled_state(monkeypatch):
     monkeypatch.setattr(settings, "intelligence_enabled", False)
     assert legacy_paid_path_block_reason() == "INTELLIGENCE_DISABLED"
     monkeypatch.setattr(settings, "intelligence_enabled", True)
-    assert legacy_paid_path_block_reason() == "SHARED_LEDGER_MIGRATION_REQUIRED"
+    monkeypatch.setattr(settings, "intelligence_mode", "advisory")
+    monkeypatch.setattr(settings, "intelligence_max_active_calls", 1)
+    monkeypatch.setattr(settings, "intelligence_max_call_usd", 1)
+    assert legacy_paid_path_block_reason() is None
 
 
 def test_bounded_routing_requires_evaluated_policy_authorization_and_contract(monkeypatch):
@@ -165,14 +169,64 @@ def test_bounded_routing_requires_evaluated_policy_authorization_and_contract(mo
         "intelligence_typesafe_pricing_verified": True,
         "intelligence_typesafe_input_usd_per_million": 1,
         "intelligence_typesafe_output_usd_per_million": 0,
-        "intelligence_typesafe_max_output_tokens": 100,
-        "intelligence_typesafe_output_limit_verified": True,
+        "intelligence_typesafe_max_output_tokens": 0,
+        "intelligence_typesafe_output_limit_verified": False,
     }.items():
         monkeypatch.setattr(settings, name, value)
     assert _enabled("LLM_ROUTE_V1")[0] is True
     assert _enabled("SOURCE_RELEVANCE_V1")[3] == "CONTRACT_DISABLED"
     monkeypatch.setattr(settings, "intelligence_typesafe_input_usd_per_million", 0)
-    assert _enabled("LLM_ROUTE_V1")[3] == "TYPESAFE_OUTPUT_BOUND_OR_MODEL_PRICING_MISSING"
+    assert _enabled("LLM_ROUTE_V1")[3] == "TYPESAFE_INPUT_PRICING_OR_MODEL_MISSING"
     monkeypatch.setattr(settings, "intelligence_typesafe_input_usd_per_million", 1)
     monkeypatch.setattr(settings, "intelligence_routing_policy_evaluated", False)
     assert _enabled("LLM_ROUTE_V1")[3] == "ROUTING_POLICY_NOT_EVALUATED_OR_AUTHORIZED"
+
+
+def test_pairwise_match_dispatch_is_disabled_without_candidate_context(monkeypatch):
+    monkeypatch.setattr(settings, "intelligence_enabled_contracts", "MATCH_ADVISORY_V1")
+    assert _enabled("MATCH_ADVISORY_V1")[3] == "MATCH_CONTEXT_INCOMPLETE"
+
+
+def test_typesafe_cost_bound_prices_exact_jev_request_input_only(monkeypatch):
+    from decimal import Decimal
+
+    from gridlens.intelligence.signal_adjudication import jev_request_payload
+
+    monkeypatch.setattr(settings, "intelligence_typesafe_model", "pinned-fixture-model")
+    monkeypatch.setattr(settings, "intelligence_typesafe_input_usd_per_million", Decimal("2"))
+    monkeypatch.setattr(settings, "intelligence_typesafe_output_usd_per_million", Decimal("99"))
+    state = dict.fromkeys(
+        [
+            "title",
+            "abstract",
+            "url",
+            "published_at",
+            "source_id",
+            "source_family",
+            "publisher",
+            "event_date",
+            "event_date_label",
+            "project_name",
+            "location",
+            "asset_type",
+            "lifecycle_state",
+        ],
+        "Bounded fixture",
+    )
+    state["title"] = "Fixture"
+    request = jev_request_payload(state, model="pinned-fixture-model")
+    expected_bytes = len(
+        json.dumps(
+            request,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=True,
+            allow_nan=False,
+        ).encode("utf-8")
+    )
+    actual = _cost_bound(
+        "typesafe",
+        "SIGNAL_ADJUDICATION",
+        {"state": state, "model": "pinned-fixture-model", "contract": "signal-display-v2"},
+    )
+    assert actual == Decimal(expected_bytes * 2) / Decimal(1_000_000)

@@ -210,6 +210,28 @@ def test_leased_worker_runs_retained_need_through_shared_ledger(sessions, monkey
     assert call and call.status == "COMPLETED" and call.result_payload
 
 
+def test_typesafe_dispatch_preserves_bounded_need_and_identity_context(sessions, monkeypatch):
+    _enable_bounded_typesafe(monkeypatch)
+    _need_id, _evidence_id, job_id = _seed_job(sessions)
+    worker = _wire_worker(sessions, monkeypatch)
+    from gridlens.intelligence import intelligence_jobs
+
+    captured = {}
+
+    def inspect_payload(**kwargs):
+        captured.update(kwargs["payload"])
+        return _fake_call()
+
+    monkeypatch.setattr(intelligence_jobs, "call_typesafe", inspect_payload)
+    monkeypatch.setattr(worker, "WORKER_ID", "fixture-context-worker")
+    assert worker.run_one({}, job_ids=[job_id]) is True
+    assert captured["state"]["task_type"] == "SOURCE_RELEVANCE_V1"
+    assert captured["state"]["schema_version"]
+    assert captured["state"]["need"]["project_identity_key"] == "fixture-project"
+    assert "state_version_digest" in captured["state"]["need"]
+    assert captured["state"]["evidence"][0]["content_hash"] == "a" * 64
+
+
 def test_leased_worker_runs_grounded_question_and_retains_advisory_dossier(sessions, monkeypatch):
     values = {
         "intelligence_enabled": True,
