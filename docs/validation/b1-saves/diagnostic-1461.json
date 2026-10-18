@@ -1,0 +1,78 @@
+{
+  "projects": 1461,
+  "evidence": 15874,
+  "policy_version": "browse-b1-v1/ranking-v1/ad047f83d7c67455c5edfd0f319e10edcd2aa01ac5f2e340d001e67857cbf9cc",
+  "limitations": [
+    "Synthetic dated Signal histories with unique synthetic addresses",
+    "Server functions including pool/transactions; no HTTP/auth/network",
+    "Warm PostgreSQL cache; shared host; driver BEGIN excluded",
+    "SQL group selection still scans saved Signal scalars",
+    "Persistence+readback excludes canonical evaluation POST selection/auth/network",
+    "Legacy pending reproduces old trigger wiring on this runtime",
+    "Date preparation remains future-only; no real production clock boundary tested",
+    "Card/history budgets and canonical selected detail unchanged"
+  ],
+  "evidence_before": [
+    15874,
+    "d8538a269e3d6e21ed2112beac6c0ed4"
+  ],
+  "legacy_pending_rebuild_seconds": 19.66163471300024,
+  "duplicate_chain_reads": {
+    "samples": 5,
+    "p50": 0.3693522430003213,
+    "p95": 0.4862786369994865,
+    "max": 0.4862786369994865,
+    "queries": [
+      45
+    ]
+  },
+  "reused_chain_reads": {
+    "samples": 20,
+    "p50": 0.2748936079988198,
+    "p95": 0.41298103500048455,
+    "max": 0.41298103500048455,
+    "queries": [
+      38
+    ]
+  },
+  "sequential": {
+    "save": {
+      "samples": 10,
+      "p50": 0.011963171999013866,
+      "p95": 0.09198178600126994,
+      "max": 0.09198178600126994
+    },
+    "save_and_readback": {
+      "samples": 10,
+      "p50": 0.3819551769993268,
+      "p95": 1.0995791450004617,
+      "max": 1.0995791450004617
+    },
+    "queries": [
+      41
+    ]
+  },
+  "four_writers": {
+    "save": {
+      "samples": 20,
+      "p50": 0.021921349998592632,
+      "p95": 0.04045140000016545,
+      "max": 0.04045140000016545
+    },
+    "save_and_readback": {
+      "samples": 20,
+      "p50": 1.0269369249999727,
+      "p95": 1.172028943999976,
+      "max": 1.172028943999976
+    },
+    "queries": [
+      41
+    ]
+  },
+  "preparation_with_save_seconds": 20.698642883999128,
+  "final_payload_parity": true,
+  "evidence_after": [
+    15874,
+    "d8538a269e3d6e21ed2112beac6c0ed4"
+  ]
+}
