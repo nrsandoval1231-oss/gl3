@@ -118,6 +118,7 @@ class Settings(BaseSettings):
     openai_brief_model: str = "gpt-4.1-mini"
     briefs_daily_request_limit: int = 8
     autonomous_research_enabled: bool = True
+    buying_chain_public_research_enabled: bool = False
     autonomous_research_daily_questions: int = Field(default=8, ge=0, le=100)
     autonomous_research_max_searches: int = Field(default=3, ge=0, le=5)
     autonomous_research_max_urls: int = Field(default=10, ge=1, le=15)

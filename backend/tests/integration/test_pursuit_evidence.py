@@ -1,6 +1,8 @@
 """Transactional research admission against an isolated PostgreSQL test schema."""
 
+import json
 from datetime import UTC, date, datetime, timedelta
+from importlib import import_module
 from uuid import uuid4
 
 import pytest
@@ -19,6 +21,8 @@ from gridlens.intelligence.research_evidence import (
 )
 from gridlens.persistence.database import Base
 from gridlens.persistence.models import (
+    BuyingChainEvidence,
+    BuyingChainRun,
     Evidence,
     Job,
     NeedObservation,
@@ -87,6 +91,149 @@ def official_record(source, status="Active"):
             "link": {"url": "https://abc.austintexas.gov/permit/123"},
         },
     )
+
+
+def test_buying_chain_enrich_api_only_enqueues_and_reuses_job(research_db, monkeypatch):
+    from fastapi.testclient import TestClient
+
+    from gridlens.intelligence import buying_chain
+    from gridlens.security import token_for
+
+    factory, source, _job_id = research_db
+    api = import_module("gridlens.api.app")
+    monkeypatch.setattr(api, "SessionLocal", factory)
+
+    def unexpected_retrieval(*_args, **_kwargs):
+        raise AssertionError("HTTP retrieval must run only in the worker")
+
+    monkeypatch.setattr(buying_chain, "retrieve", unexpected_retrieval)
+    with factory.begin() as session:
+        project = Project(
+            source_id=source["id"],
+            external_id="buying-chain-async-test",
+            name="Synthetic Orion Data Center",
+            location="Austin, TX",
+            identity_key="synthetic-orion-async-test",
+        )
+        session.add(project)
+        session.flush()
+        project_id = project.id
+
+    client = TestClient(api.app, base_url="https://testserver")
+    client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
+    headers = {"origin": "https://testserver"}
+    path = f"/api/projects/{project_id}/buying-chain/enrich"
+    first = client.post(path, json={"source_urls": []}, headers=headers)
+    second = client.post(path, json={"source_urls": []}, headers=headers)
+    assert first.status_code == second.status_code == 200
+    assert first.json()["research_job"]["status"] == "queued"
+    assert first.json()["research_job"]["id"] == second.json()["research_job"]["id"]
+    fetched = client.get(f"/api/projects/{project_id}/buying-chain")
+    assert fetched.status_code == 200
+    assert fetched.json()["research_job"]["id"] == first.json()["research_job"]["id"]
+    assert fetched.json()["candidates"] == []
+
+
+def test_buying_chain_worker_keeps_retained_path_when_public_research_disabled(
+    research_db, monkeypatch
+):
+    from gridlens.intelligence import buying_chain
+    from gridlens.jobs import worker
+
+    factory, source, _job_id = research_db
+    monkeypatch.setattr(buying_chain, "SessionLocal", factory)
+    monkeypatch.setattr(worker, "SessionLocal", factory)
+    monkeypatch.setattr(worker, "WORKER_ID", "buying-chain-disabled-test")
+    monkeypatch.setattr(settings, "buying_chain_public_research_enabled", False)
+
+    def unexpected_retrieval(*_args, **_kwargs):
+        raise AssertionError("disabled public research must not retrieve URLs")
+
+    monkeypatch.setattr(buying_chain, "retrieve", unexpected_retrieval)
+    with factory.begin() as session:
+        project = Project(
+            source_id=source["id"],
+            external_id="buying-chain-disabled-test",
+            name="Synthetic Orion Data Center",
+            location="Austin, TX",
+            identity_key="synthetic-orion-disabled-test",
+        )
+        session.add(project)
+        session.flush()
+        project_id = project.id
+        job = buying_chain.enqueue_buying_chain_research(
+            session, project_id, ["https://example.com/project-team"]
+        )
+        job_id = job.id
+    assert worker.run_one({}) is True
+    with factory() as session:
+        completed = session.get(Job, job_id)
+        assert completed.status == "succeeded"
+        assert json.loads(completed.checkpoint)["detail_status"] == "disabled"
+        assert session.scalar(select(func.count()).select_from(BuyingChainRun)) == 1
+
+
+def test_buying_chain_worker_does_not_hold_project_lock_during_acquisition(
+    research_db, monkeypatch
+):
+    import time
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Event
+
+    from gridlens.intelligence import buying_chain
+    from gridlens.jobs.queue import lease_one
+
+    factory, source, _job_id = research_db
+    monkeypatch.setattr(buying_chain, "SessionLocal", factory)
+    monkeypatch.setattr(settings, "buying_chain_public_research_enabled", True)
+    entered, release = Event(), Event()
+    with factory.begin() as session:
+        project = Project(
+            source_id=source["id"],
+            external_id="buying-chain-concurrent-test",
+            name="Synthetic Orion Data Center",
+            location="Austin, TX",
+            identity_key="synthetic-orion-concurrent-test",
+        )
+        session.add(project)
+        session.flush()
+        project_id = project.id
+        job = buying_chain.enqueue_buying_chain_research(
+            session, project_id, ["https://example.com/project-team"]
+        )
+        job_id = job.id
+    with factory.begin() as session:
+        leased, fence = lease_one(session, "buying-chain-concurrent-test")
+        assert leased.id == job_id
+        lease_expiry = leased.lease_until
+
+    def blocked_retrieval(url, *, deadline=None):
+        entered.set()
+        assert release.wait(timeout=10)
+        return PublicDocument(url, "Synthetic project team", "No supported relationship.")
+
+    monkeypatch.setattr(buying_chain, "retrieve", blocked_retrieval)
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        result_future = pool.submit(
+            buying_chain.run_buying_chain_research,
+            job_id,
+            "buying-chain-concurrent-test",
+            fence,
+            deadline=time.monotonic() + 30,
+            lease_expiry=lease_expiry,
+        )
+        assert entered.wait(timeout=5)
+        with factory.begin() as session:
+            project = session.get(Project, project_id)
+            project.location = "Updated project site, Austin, TX"
+        release.set()
+        result = result_future.result(timeout=10)
+    assert result["status"] == "stale"
+    with factory() as session:
+        completed = session.get(Job, job_id)
+        assert json.loads(completed.checkpoint)["status"] == "stale"
+        assert session.scalar(select(func.count()).select_from(BuyingChainRun)) == 0
+        assert session.scalar(select(func.count()).select_from(BuyingChainEvidence)) == 0
 
 
 def seed(factory, source, job_id):

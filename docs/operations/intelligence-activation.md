@@ -9,7 +9,8 @@ Cloudflare and Infisical arrangement remains the deployment substrate.
 
 The concrete safe overlay is
 [`intelligence.disabled.env.example`](../../deploy/digitalocean/intelligence.disabled.env.example).
-All model caps and enable controls are zero/OFF. Model IDs are empty. Credentials
+All model caps and enable controls are zero/OFF, including
+`BUYING_CHAIN_PUBLIC_RESEARCH_ENABLED`. Model IDs are empty. Credentials
 stay in the existing secret manager and backend runtime environment; never put
 keys in the web image, logs, Git or the reviewable configuration diff.
 
@@ -132,18 +133,23 @@ private write-once capture and OCR call history. The explicit overlay clears OCR
 flags, pricing, source IDs, and retention reference. Do not delete captured bytes or
 retry uncertain preflight/response calls as part of rollback.
 
+Buying-chain public research uses the existing `jobs` table with kind
+`buying_chain_research`. Its public acquisition switch defaults OFF; retained-only
+relationship extraction remains available. Preserve job checkpoints and retained
+buying-chain evidence during rollback.
+
 Before running a pre-integration worker, park the new job kinds so older code cannot
 mistake them for source ingestion. After worker stop, the reviewed operation is:
 
 ```sql
 BEGIN;
 SELECT id, kind, status, checkpoint FROM jobs
-WHERE kind IN ('intelligence_process', 'project_monitor', 'signal_adjudication', 'evidence_shadow')
+WHERE kind IN ('intelligence_process', 'project_monitor', 'signal_adjudication', 'evidence_shadow', 'buying_chain_research')
   AND status IN ('queued', 'running') FOR UPDATE;
 -- Preserve the returned job identities/statuses in the rollback receipt first.
 UPDATE jobs SET status = 'paused', lease_owner = NULL, lease_until = NULL,
   error = 'INTELLIGENCE_ROLLBACK_PAUSED'
-WHERE kind IN ('intelligence_process', 'project_monitor', 'signal_adjudication', 'evidence_shadow')
+WHERE kind IN ('intelligence_process', 'project_monitor', 'signal_adjudication', 'evidence_shadow', 'buying_chain_research')
   AND status IN ('queued', 'running');
 COMMIT;
 ```

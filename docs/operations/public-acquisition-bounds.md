@@ -1,7 +1,8 @@
 # Public acquisition runtime bounds
 
-Ingestion, project monitoring, pursuit questions, pursuit research, and OCR
-extraction share a nonblocking PostgreSQL public-acquisition session lock. The
+Ingestion, project monitoring, pursuit questions, pursuit research, buying-chain
+research, and OCR extraction share a nonblocking PostgreSQL public-acquisition
+session lock. The
 workers sharing this PostgreSQL database therefore run at most one of these
 jobs at a time, including documents discovered on a different host. The lock remains held for
 the whole job handler; OCR's ledger-governed provider phase can therefore keep
@@ -10,6 +11,14 @@ their durable ledger and are never killed or retried by this boundary.
 Contention requeues the job with a short deterministic delay and restores the
 leased attempt; it does not mark a request as sent. The source advisory lock
 remains in place for source identity and configuration coordination.
+
+Buying-chain public research joins this admission boundary only when
+`BUYING_CHAIN_PUBLIC_RESEARCH_ENABLED=true`; the setting defaults OFF. With it
+OFF, the durable buying-chain job skips public acquisition and can still process
+retained project evidence. Its worker snapshots the bounded URLs and current
+project context, closes the read session before retrieval, then locks the current
+project and rechecks context plus the job fence before writing citations or roles.
+The authenticated API only enqueues or reuses a job and returns its status.
 
 Each acquisition uses the original job lease as one monotonic per-attempt
 deadline. Normal source retrieval and GovInfo companion retrieval run in a

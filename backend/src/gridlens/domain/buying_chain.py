@@ -94,6 +94,13 @@ class PermitSummaryOut(BaseModel):
     facts: list[PermitFactOut] = Field(default_factory=list)
 
 
+class BuyingChainResearchJobOut(BaseModel):
+    id: UUID
+    status: str
+    detail_status: str | None = None
+    created_at: datetime
+
+
 class BuyingChainOut(BaseModel):
     project_id: UUID
     status: str
@@ -102,6 +109,7 @@ class BuyingChainOut(BaseModel):
     runs: list[BuyingRunOut] = Field(default_factory=list)
     permit_summaries: list[PermitSummaryOut] = Field(default_factory=list)
     policy_version: str = POLICY_VERSION
+    research_job: BuyingChainResearchJobOut | None = None
 
 
 class BuyingEnrichBody(BaseModel):

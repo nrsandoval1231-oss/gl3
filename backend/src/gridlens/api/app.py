@@ -61,9 +61,10 @@ from gridlens.intelligence.briefs import (
     request_brief,
 )
 from gridlens.intelligence.buying_chain import (
+    buying_chain_job_status,
     buying_chain_view,
     buying_chain_views,
-    enrich_buying_chain,
+    enqueue_buying_chain_research,
 )
 from gridlens.intelligence.lifecycle_service import lifecycle_event_supported
 from gridlens.intelligence.opportunity_browse import (
@@ -3851,7 +3852,9 @@ def set_source_enabled_endpoint(source_id: str, body: SourceEnabledIn, request: 
 def project_buying_chain(project_id: UUID, history: bool = False):
     with SessionLocal() as session:
         try:
-            return buying_chain_view(session, project_id, history=history)
+            result = buying_chain_view(session, project_id, history=history)
+            result["research_job"] = buying_chain_job_status(session, project_id)
+            return result
         except LookupError as exc:
             raise HTTPException(404, "Project not found") from exc
 
@@ -3900,9 +3903,10 @@ def enrich_project_buying_chain(
     require_same_origin(request)
     with SessionLocal.begin() as session:
         try:
-            return enrich_buying_chain(
-                session, project_id, source_urls=body.source_urls if body else []
-            )
+            enqueue_buying_chain_research(session, project_id, body.source_urls if body else [])
+            result = buying_chain_view(session, project_id)
+            result["research_job"] = buying_chain_job_status(session, project_id)
+            return result
         except LookupError as exc:
             raise HTTPException(404, "Project not found") from exc
         except ValueError as exc:

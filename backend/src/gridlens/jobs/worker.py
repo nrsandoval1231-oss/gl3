@@ -569,10 +569,12 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
             "project_monitor",
             "pursuit_question",
             "pursuit_research",
+            "buying_chain_research",
         }
-        uses_public_acquisition = kind in public_acquisition_kinds or (
-            kind == "intelligence_process" and intelligence_task_type == "OCR_EXTRACTION"
-        )
+        uses_public_acquisition = (
+            kind in public_acquisition_kinds
+            and (kind != "buying_chain_research" or settings.buying_chain_public_research_enabled)
+        ) or (kind == "intelligence_process" and intelligence_task_type == "OCR_EXTRACTION")
         if uses_public_acquisition:
             if source_id is None or lease_expiry is None or deadline is None:
                 raise RuntimeError("Public acquisition requires a source and finite job lease")
@@ -619,6 +621,17 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
             from gridlens.intelligence.evidence_shadow import process_evidence_shadow_job
 
             process_evidence_shadow_job(job_id, WORKER_ID, fence)
+            return True
+        if kind == "buying_chain_research":
+            from gridlens.intelligence.buying_chain import run_buying_chain_research
+
+            run_buying_chain_research(
+                job_id,
+                WORKER_ID,
+                fence,
+                deadline=deadline,
+                lease_expiry=lease_expiry,
+            )
             return True
         if kind == "pursuit_question":
             from gridlens.intelligence.autonomous_research import (

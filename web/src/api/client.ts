@@ -211,7 +211,7 @@ export const client = {
   refreshPursuits: (force = false) => api<components['schemas']['PursuitJobOut']>(`/api/pursuits/refresh${force ? '?force=true' : ''}`, { method: 'POST' }),
   savePursuitNote: (pursuitId: string, body: CallNoteBody) => api<components['schemas']['CallNoteOut']>(`/api/pursuits/${encodeURIComponent(pursuitId)}/notes`, { method: 'POST', body: JSON.stringify(body) }),
   buyingChain: (projectId: string, signal?: AbortSignal) => api<BuyingChainResult>(`/api/projects/${encodeURIComponent(projectId)}/buying-chain`, { signal }),
-  enrichBuyingChain: (projectId: string, sourceUrls: string[]) => api<BuyingChainResult>(`/api/projects/${encodeURIComponent(projectId)}/buying-chain/enrich`, { method: 'POST', body: JSON.stringify({ source_urls: sourceUrls }) }),
+  enrichBuyingChain: (projectId: string, sourceUrls: string[], signal?: AbortSignal) => api<BuyingChainResult>(`/api/projects/${encodeURIComponent(projectId)}/buying-chain/enrich`, { method: 'POST', body: JSON.stringify({ source_urls: sourceUrls }), signal }),
   brief: (needId: string) => api<Brief>(`/api/power-needs/${encodeURIComponent(needId)}/brief`),
   requestBrief: (needId: string) => api<BriefRequest>(`/api/power-needs/${encodeURIComponent(needId)}/brief`, { method: 'POST', body: '{}' }),
   commercialTriage: (limit = 50, signal?: AbortSignal, offset = 0) => api<CommercialTriage>(`/api/commercial/triage?limit=${limit}${offset ? `&offset=${offset}` : ''}`, { signal }),
