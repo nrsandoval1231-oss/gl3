@@ -34,6 +34,9 @@ def main():
                 result = {
                     "status": "current",
                     "generation_id": str(generation.id),
+                    "input_revision": generation.input_revision,
+                    "policy_version": generation.policy_version,
+                    "built_at": generation.built_at.isoformat(),
                     "row_count": generation.row_count,
                     "valid_until": generation.valid_until.isoformat(),
                 }

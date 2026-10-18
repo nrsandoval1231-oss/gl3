@@ -262,6 +262,9 @@ def rebuild(factory, *, before_publish=None) -> dict:
                     row_count += len(values)
                 generation.row_count = row_count
                 generation.digest = digest.hexdigest()
+                # Fresh backfills must not depend on a later autovacuum pass for
+                # usable filter/group plans. This is outside the request path.
+                session.execute(text("ANALYZE browse_rows"))
                 generation.counts = _publish_group_metadata(session, generation_id)
                 session.commit()
             if before_publish is not None:
