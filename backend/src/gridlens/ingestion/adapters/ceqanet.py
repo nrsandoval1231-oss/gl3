@@ -15,7 +15,7 @@ import json
 import re
 from datetime import date, timedelta
 from typing import Any
-from urllib.parse import urlencode, urlparse
+from urllib.parse import urlencode, urljoin, urlparse
 
 import httpx
 from bs4 import BeautifulSoup, Tag
@@ -52,17 +52,37 @@ def parse_listing(body: bytes) -> list[dict[str, str]]:
             raise SourceParseError("CEQAnet result row does not have five columns")
         link = cells[1].find("a", href=True)
         received = cells[3].find("time")
-        url = str(link["href"]) if isinstance(link, Tag) else ""
-        if urlparse(url).hostname != HOST or not isinstance(received, Tag):
+        href = str(link["href"]) if isinstance(link, Tag) else ""
+        if any(ord(char) < 0x20 or ord(char) == 0x7F for char in href):
+            raise SourceParseError("CEQAnet document link contains an invalid control character")
+        raw_path = urlparse(href).path
+        if any(segment in {".", ".."} for segment in raw_path.split("/")):
+            raise SourceParseError("CEQAnet document link contains a traversal segment")
+        url = urljoin(f"https://{HOST}/", href)
+        parsed = urlparse(url)
+        date_value = str(received.get("datetime") or "") if isinstance(received, Tag) else ""
+        if (
+            parsed.scheme != "https"
+            or parsed.hostname != HOST
+            or parsed.username is not None
+            or parsed.password is not None
+            or parsed.port not in (None, 443)
+            or not re.fullmatch(r"/\d{10}(?:/\d+)?", parsed.path)
+            or parsed.query
+            or parsed.fragment
+            or not isinstance(received, Tag)
+            or not _valid_received_date(date_value)
+        ):
             raise SourceParseError("CEQAnet result row lacks a document link or received date")
         rows.append(
             {
                 "sch": _text(cells[0]),
                 "document_type": _text(cells[1]),
                 "lead_agency": _text(cells[2]),
-                "received": str(received.get("datetime") or ""),
+                "received": date_value,
                 "title": _text(cells[4]),
                 "url": url,
+                "source_href": href,
             }
         )
     if len(rows) != expected:
@@ -73,6 +93,14 @@ def parse_listing(body: bytes) -> list[dict[str, str]]:
     if len(rows) > MAX_ROWS_PER_TYPE:
         raise SourceParseError("CEQAnet result count exceeds its bound")
     return rows
+
+
+def _valid_received_date(value: str) -> bool:
+    try:
+        date.fromisoformat(value)
+        return True
+    except ValueError:
+        return False
 
 
 def _iso_date(value: str) -> str | None:
@@ -149,7 +177,7 @@ def record(row: dict[str, str], document: dict[str, Any]) -> dict[str, Any]:
     place = ", ".join(part for part in [city, f"{county} County" if county else ""] if part)
     location = f"{place}, CA" if place else None
     row_id = f"CEQA-{row['sch']}-{urlparse(row['url']).path.strip('/').replace('/', '-')}"
-    semantic = {**row, **document}
+    semantic = {**{key: value for key, value in row.items() if key != "source_href"}, **document}
     return {
         "document_number": row_id,
         "title": f"{document['title']} — CEQA {row['document_type']} ({document['lead_agency']})",
@@ -192,6 +220,7 @@ def record(row: dict[str, str], document: dict[str, Any]) -> dict[str, Any]:
             "latitude": document["latitude"],
             "longitude": document["longitude"],
             "document_links": {"CEQAnet document": row["url"]},
+            "source_link_hrefs": {"CEQAnet document": row.get("source_href", row["url"])},
             "source_fields": {
                 "facility": "Document Title",
                 "received": "Received",
