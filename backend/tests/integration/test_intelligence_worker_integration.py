@@ -12,6 +12,7 @@ from gridlens.intelligence.intelligence_jobs import enqueue_intelligence, intell
 from gridlens.persistence.database import Base
 from gridlens.persistence.models import (
     Evidence,
+    Interpretation,
     Job,
     LogicalCall,
     NeedObservation,
@@ -158,6 +159,207 @@ def _seed_job(sessions, *, task_type="SOURCE_RELEVANCE_V1", question_id=None, li
     return need_id, evidence_id, job_id
 
 
+def test_retained_context_uses_accepted_supplement_hashes_independently(sessions):
+    from gridlens.intelligence.intelligence_jobs import _retained_context
+
+    need_id, _evidence_id, _job_id = _seed_job(sessions)
+    semantic_hash = "b" * 64
+    evidence_hash = "c" * 64
+    with sessions.begin() as session:
+        need = session.get(PowerNeed, need_id)
+        project = session.get(Project, need.project_id)
+        session.add(
+            Source(
+                id="research-public-fixture",
+                publisher="Research Supplement",
+                endpoint="https://example.invalid/research",
+                family="public-research",
+                geography="fixture",
+                industries=["power"],
+                retrieval_method="fixture",
+                enabled=False,
+                registry_enabled=False,
+                health={},
+            )
+        )
+        session.flush()
+        observation = Observation(
+            source_id="research-public-fixture",
+            external_id="accepted-supplement",
+            title="Supplement page 4",
+            abstract="Later page quote proves the retained distinction.",
+            published_at=date(2026, 10, 2),
+            url="https://example.invalid/research/accepted",
+            content_hash=semantic_hash,
+        )
+        session.add(observation)
+        session.flush()
+        evidence = Evidence(
+            observation_id=observation.id,
+            content_hash=evidence_hash,
+            title=observation.title,
+            abstract=observation.abstract,
+            url=observation.url,
+            published_at=observation.published_at,
+            extraction_location="PDF pages 1-4 (inline page markers)",
+        )
+        session.add(evidence)
+        session.flush()
+        session.add(NeedObservation(need_id=need_id, observation_id=observation.id))
+        session.add(
+            Interpretation(
+                observation_id=observation.id,
+                content_hash=semantic_hash,
+                status="accepted",
+                assessment={
+                    "admission_status": "project_research_supplement",
+                    "semantic_hash": semantic_hash,
+                    "evidence_hash": evidence_hash,
+                    "target_need_id": str(need_id),
+                    "project_identity_key": project.identity_key,
+                },
+            )
+        )
+        rejected = Observation(
+            source_id="research-public-fixture",
+            external_id="quarantine-supplement",
+            title="Quarantined text",
+            abstract="This text must never enter context.",
+            published_at=date(2026, 10, 3),
+            url="https://example.invalid/research/quarantine",
+            content_hash="d" * 64,
+        )
+        session.add(rejected)
+        session.flush()
+        session.add(
+            Evidence(
+                observation_id=rejected.id,
+                content_hash="e" * 64,
+                title=rejected.title,
+                abstract=rejected.abstract,
+                url=rejected.url,
+                published_at=rejected.published_at,
+            )
+        )
+        session.add(NeedObservation(need_id=need_id, observation_id=rejected.id))
+        session.add(
+            Interpretation(
+                observation_id=rejected.id,
+                content_hash=rejected.content_hash,
+                status="quarantined",
+                assessment={"admission_status": "project_research_supplement"},
+            )
+        )
+    with sessions() as session:
+        _need, _project, _source, retained = _retained_context(session, need_id)
+    by_hash = {row["content_hash"]: row for row in retained}
+    assert evidence_hash in by_hash
+    assert semantic_hash != by_hash[evidence_hash]["content_hash"]
+    assert "e" * 64 not in by_hash
+
+
+def test_retained_context_marks_scanned_text_unavailable_without_ocr_provenance(sessions):
+    from gridlens.intelligence.intelligence_jobs import _retained_context
+
+    need_id, _evidence_id, _job_id = _seed_job(sessions)
+    with sessions.begin() as session:
+        for external_id, digest, provenance in (
+            ("scan-unavailable", "f" * 64, {"scan_detected": True}),
+            (
+                "ocr-retained-unreviewed",
+                "9" * 64,
+                {
+                    "scan_detected": True,
+                    "ocr": {
+                        "original_document_hash": "9" * 64,
+                        "method": "tesseract",
+                        "version": "5.3.0",
+                        "review_status": "unreviewed",
+                        "transcript_hash": "8" * 64,
+                    },
+                },
+            ),
+        ):
+            observation = Observation(
+                source_id="intelligence-fixture-source",
+                external_id=external_id,
+                title="Scanned filing page 2",
+                abstract="Page 2: Recognized transcript text from the source image.",
+                published_at=date(2026, 10, 2),
+                url=f"https://example.invalid/{external_id}",
+                content_hash=digest,
+            )
+            session.add(observation)
+            session.flush()
+            session.add(
+                Evidence(
+                    observation_id=observation.id,
+                    content_hash=digest,
+                    title=observation.title,
+                    abstract=observation.abstract,
+                    url=observation.url,
+                    published_at=observation.published_at,
+                    extraction_location="scanned PDF page 2",
+                    provenance=provenance,
+                )
+            )
+            session.add(NeedObservation(need_id=need_id, observation_id=observation.id))
+    with sessions() as session:
+        _need, _project, _source, retained = _retained_context(session, need_id)
+    unavailable = next(row for row in retained if row["retained_text_status"] == "unavailable_ocr")
+    accepted_ocr = next(
+        row for row in retained if row["retained_text_status"] == "retained_ocr_unreviewed"
+    )
+    assert unavailable["abstract"] == ""
+    assert accepted_ocr["abstract"].startswith("Page 2:")
+    assert accepted_ocr["ocr_provenance"]["original_document_hash"] == "9" * 64
+
+
+def test_retained_context_omits_opaque_binary_tail_with_original_offsets(sessions):
+    from gridlens.intelligence.intelligence_jobs import _retained_context
+
+    need_id, _evidence_id, _job_id = _seed_job(sessions)
+    marker = "\nOpaque source bytes (base64; not interpreted): "
+    text = "Page 2: Exact retained sentence supports a cited fact." + marker + "QUJDREVGRw=="
+    with sessions.begin() as session:
+        need = session.get(PowerNeed, need_id)
+        project = session.get(Project, need.project_id)
+        observation = Observation(
+            source_id=project.source_id,
+            external_id="opaque-tail-fixture",
+            title="RRC filing page 2",
+            abstract=text,
+            published_at=date(2026, 10, 2),
+            url="https://example.invalid/rrc/opaque-tail",
+            content_hash="b" * 64,
+        )
+        session.add(observation)
+        session.flush()
+        evidence = Evidence(
+            observation_id=observation.id,
+            content_hash="b" * 64,
+            title=observation.title,
+            abstract=text,
+            url=observation.url,
+            published_at=observation.published_at,
+            extraction_location="PDF page 2",
+        )
+        session.add(evidence)
+        session.flush()
+        session.add(NeedObservation(need_id=need_id, observation_id=observation.id))
+        evidence_id = evidence.id
+    with sessions() as session:
+        _need, _project, _source, retained = _retained_context(session, need_id)
+        immutable = session.get(Evidence, evidence_id)
+        row = next(item for item in retained if item["content_hash"] == "b" * 64)
+    assert immutable.abstract == text
+    assert row["abstract"] == text[: text.index(marker)]
+    assert row["text_truncated"] is True
+    assert row["retained_text_status"] == "partial_retained_excerpt"
+    assert row["omitted_text_start"] == len(row["abstract"])
+    assert row["omitted_text_end"] == len(text)
+
+
 def _fake_call(**_kwargs):
     return {
         "model": "pinned-fixture-model",
@@ -232,7 +434,10 @@ def test_typesafe_dispatch_preserves_bounded_need_and_identity_context(sessions,
     assert captured["state"]["evidence"][0]["content_hash"] == "a" * 64
 
 
-def test_leased_worker_runs_grounded_question_and_retains_advisory_dossier(sessions, monkeypatch):
+@pytest.mark.parametrize("mid_call_change", [None, "source_permission", "accepted_fact"])
+def test_leased_worker_rechecks_grounded_context_after_provider_response(
+    sessions, monkeypatch, mid_call_change
+):
     values = {
         "intelligence_enabled": True,
         "intelligence_mode": "advisory",
@@ -270,6 +475,10 @@ def test_leased_worker_runs_grounded_question_and_retains_advisory_dossier(sessi
                 "field": "temporary_load_mw",
                 "value": "12",
                 "unit": "MW",
+                "original_value": "12",
+                "original_unit": "MW",
+                "precision": 0,
+                "date_precision": None,
                 "evidence_id": str(evidence_id),
                 "evidence_hash": "a" * 64,
                 "quote": "Temporary load of 12 MW is requested in the utility service application.",
@@ -280,6 +489,9 @@ def test_leased_worker_runs_grounded_question_and_retains_advisory_dossier(sessi
                 + len("Temporary load of 12 MW is requested in the utility service application."),
                 "publisher": "Fixture Utility",
                 "published_date": "2026-10-01",
+                "speaker": None,
+                "speaker_organization": None,
+                "speaker_role": None,
                 "support": "direct",
                 "status": "candidate",
             }
@@ -291,37 +503,99 @@ def test_leased_worker_runs_grounded_question_and_retains_advisory_dossier(sessi
         "proposed_queries": ["utility temporary service load MW"],
         "suggested_pursuit": None,
     }
-    monkeypatch.setattr(
-        intelligence_jobs,
-        "call_openai",
-        lambda **_kwargs: {
+
+    def fake_openai(**_kwargs):
+        if mid_call_change == "source_permission":
+            with sessions.begin() as session:
+                source = session.get(Source, "intelligence-fixture-source")
+                source.enabled = False
+        elif mid_call_change == "accepted_fact":
+            from datetime import UTC, datetime, timedelta
+
+            from gridlens.persistence.models import CallFactDecision, CallFactVersion
+
+            now = datetime.now(UTC)
+            fact_id = uuid4()
+            with sessions.begin() as session:
+                session.add(
+                    CallFactVersion(
+                        id=fact_id,
+                        need_id=need_id,
+                        project_id=session.scalar(
+                            select(PowerNeed.project_id).where(PowerNeed.id == need_id)
+                        ),
+                        pursuit_id=None,
+                        predecessor_id=None,
+                        client_id=uuid4(),
+                        activity_key="fixture-construction",
+                        facility_scope="fixture facility",
+                        fact_type="buyer",
+                        value={"organization": "Fixture Buyer", "role": "project owner"},
+                        reporter_name="Fixture Owner",
+                        reporter_organization="Fixture Buyer",
+                        reporter_role="owner",
+                        confirmation_channel="call",
+                        source_reference=None,
+                        source_date=None,
+                        confirmed_at=now,
+                        effective_from=now - timedelta(minutes=1),
+                        effective_until=None,
+                        content_hash="9" * 64,
+                        recorded_by="test",
+                    )
+                )
+                session.flush()
+                session.add(
+                    CallFactDecision(
+                        need_id=need_id,
+                        fact_version_id=fact_id,
+                        version=1,
+                        client_id=uuid4(),
+                        decision="accepted",
+                        expected_version=0,
+                        reason="fixture context change",
+                        content_hash="8" * 64,
+                        actor="fixture owner",
+                    )
+                )
+        return {
             "model": "pinned-reasoning-fixture",
             "provider_response_id": "fixture-grounded-response",
             "latency_ms": 19,
             "input_tokens": 300,
             "output_tokens": 80,
             "output": output,
-        },
-    )
+        }
+
+    monkeypatch.setattr(intelligence_jobs, "call_openai", fake_openai)
     monkeypatch.setattr(worker, "WORKER_ID", "fixture-openai-worker")
     assert worker.run_one({}, job_ids=[job_id]) is True
     with sessions() as session:
         history = intelligence_history(session, need_id)
         call = session.scalar(select(LogicalCall))
         question = session.scalar(select(PursuitResearchQuestion))
-    assert history[0]["status"] == "completed"
-    assert history[0]["evidence_ids"] == [str(evidence_id)]
-    assert history[0]["result"]["schema_version"] == "grounded-candidates-v1"
-    assert history[0]["result"]["candidates"][0]["value"] == "12"
-    assert history[0]["result"]["unresolved_questions"] == output["unresolved_questions"]
-    assert history[0]["result"]["actual_model"] == "pinned-reasoning-fixture"
-    assert history[0]["result"]["latency_ms"] == 19
-    assert history[0]["usage"]["actual_cost_usd"] is None
-    assert history[0]["usage"]["estimated_cost_usd"] == "0.0003"
-    assert history[0]["usage"]["cost_basis"] == "derived_from_verified_usage_and_pinned_rates"
+    original = next(item for item in history if item["job_id"] == str(job_id))
+    expected_status = "stale" if mid_call_change else "completed"
+    assert original["status"] == expected_status
+    assert original["evidence_ids"] == [str(evidence_id)]
+    assert original["result"]["schema_version"] == "grounded-candidates-v2"
+    assert original["result"]["candidates"][0]["value"] == "12"
+    assert original["result"]["unresolved_questions"] == output["unresolved_questions"]
+    assert original["result"]["actual_model"] == "pinned-reasoning-fixture"
+    assert original["result"]["latency_ms"] == 19
+    assert original["usage"]["actual_cost_usd"] is None
+    assert original["usage"]["estimated_cost_usd"] == "0.0003"
+    assert original["usage"]["cost_basis"] == "derived_from_verified_usage_and_pinned_rates"
     assert call and call.status == "COMPLETED" and call.input_tokens == 300
     assert question and question.category == "load" and question.status == "UNRESOLVED"
     assert question.receipt["intelligence_job"]["logical_call_id"] == str(call.id)
+    if mid_call_change:
+        assert original["result_status"] == "stale_context"
+        assert original["error"] == "INPUT_CHANGED_DURING_PROVIDER_CALL"
+        if mid_call_change == "accepted_fact":
+            assert original["reassessment_job_id"]
+    else:
+        assert history[0]["status"] == "completed"
 
 
 def test_worker_recovers_not_sent_reservation_after_lease_turnover(sessions, monkeypatch):

@@ -4,6 +4,8 @@ import { client, type IntelligenceHistoryItem, type IntelligenceTasks, type Owne
 type Candidate = Record<string, unknown> & {
   field?: string; value?: string; unit?: string | null; evidence_id?: string; evidence_hash?: string
   quote?: string; section?: string; page?: number | null; publisher?: string; published_date?: string | null
+  original_value?: string | null; original_unit?: string | null; precision?: number | null; date_precision?: string | null
+  speaker?: string | null; speaker_organization?: string | null; speaker_role?: string | null
   source_url?: string; support?: string; status?: string
 }
 
@@ -92,8 +94,11 @@ export function IntelligenceResearch({ needId }: { needId: string }) {
 function Candidates({ needId, job }: { needId: string; job: IntelligenceHistoryItem }) {
   const result = job.result as Record<string, unknown> | null
   const candidates = (Array.isArray(result?.candidates) ? result.candidates : []) as Candidate[]
-  if (!candidates.length) return result && Array.isArray(result.candidates) ? <p>No source-supported candidate was returned. Unknowns remain unresolved.</p> : null
-  return <div><h4>Unaccepted source candidates</h4>{candidates.map((candidate, index) => <CandidateReview key={`${job.job_id}-${index}`} needId={needId} job={job} candidate={candidate}/>)}
+  if (!result || !Array.isArray(result.candidates)) return null
+  return <div>
+    {job.status === 'stale' && <p role="status">This response is retained for audit, but its source context changed while the review was running. It is stale and cannot support a current decision.</p>}
+    {candidates.length > 0 && <><h4>Unaccepted source candidates</h4>{candidates.map((candidate, index) => <CandidateReview key={`${job.job_id}-${index}`} needId={needId} job={job} candidate={candidate}/>)}</>}
+    {candidates.length === 0 && <p>No source-supported candidate was returned. Unknowns remain unresolved.</p>}
     {list(result?.unresolved_questions).length > 0 && <><b>Still unknown</b><ul>{list(result?.unresolved_questions).map((value) => <li key={value}>{value}</li>)}</ul></>}
     {list(result?.contradictions).length > 0 && <><b>Conflicts requiring review</b><ul>{list(result?.contradictions).map((value) => <li key={value}>{value}</li>)}</ul></>}
     {list(result?.hypotheses).length > 0 && <><b>Advisory hypotheses</b><ul>{list(result?.hypotheses).map((value) => <li key={value}>{value}</li>)}</ul></>}
@@ -107,7 +112,7 @@ function CandidateReview({ needId, job, candidate }: { needId: string; job: Inte
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
   const clientId = useRef(crypto.randomUUID())
-  const exactCitation = Boolean(candidate.evidence_id && candidate.evidence_hash && candidate.source_url && candidate.quote)
+  const exactCitation = Boolean(job.status === 'completed' && candidate.evidence_id && candidate.evidence_hash && candidate.source_url && candidate.quote)
   async function save(event: React.FormEvent) {
     event.preventDefault()
     if (!job.logical_call_id || !exactCitation || !note.trim()) return
@@ -118,6 +123,10 @@ function CandidateReview({ needId, job, candidate }: { needId: string; job: Inte
         decision, note: note.trim(), next_action: nextAction,
         candidate: {
           field: text(candidate.field, ''), value: text(candidate.value, ''), unit: candidate.unit,
+          original_value: candidate.original_value, original_unit: candidate.original_unit,
+          precision: candidate.precision, date_precision: candidate.date_precision,
+          speaker: candidate.speaker, speaker_organization: candidate.speaker_organization,
+          speaker_role: candidate.speaker_role,
           evidence_id: text(candidate.evidence_id, ''), evidence_hash: text(candidate.evidence_hash, ''),
           quote: text(candidate.quote, ''), section: text(candidate.section, ''), page: candidate.page,
           span_start: typeof candidate.span_start === 'number' ? candidate.span_start : 0,

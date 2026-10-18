@@ -556,6 +556,11 @@ def save_owner_feedback(need_id: UUID, body: OwnerFeedback, request: Request):
             checkpoint = json.loads(job.checkpoint or "{}")
         except (ValueError, TypeError):
             checkpoint = {}
+        if (
+            checkpoint.get("status") != "completed"
+            or checkpoint.get("result_status") == "stale_context"
+        ):
+            raise HTTPException(409, "Only a current completed candidate can be reviewed")
         if checkpoint.get("logical_call_id") != str(body.logical_call_id):
             raise HTTPException(409, "Logical call does not match the candidate job")
         logical_call = session.get(LogicalCall, body.logical_call_id)
@@ -607,6 +612,16 @@ def save_owner_feedback(need_id: UUID, body: OwnerFeedback, request: Request):
             "source_url": source_row.get("url"),
             "source_id": cited_source_ids.get(str(body.candidate.evidence_id)),
         }
+        for optional_field in (
+            "original_value",
+            "original_unit",
+            "precision",
+            "date_precision",
+            "speaker",
+            "speaker_organization",
+            "speaker_role",
+        ):
+            canonical_snapshot.setdefault(optional_field, None)
         if body.candidate.model_dump(mode="json") != canonical_snapshot:
             raise HTTPException(
                 422, "Candidate details changed; reload the saved evidence candidate"

@@ -1,3 +1,4 @@
+import json
 from datetime import UTC, date, datetime
 from importlib import import_module
 from uuid import UUID, uuid4
@@ -207,6 +208,7 @@ def test_authenticated_bounded_intelligence_tasks_and_off_request(intelligence_a
     assert operations.json()["providers"]["accepted"] is None
     assert operations.json()["material_changes_30d"] is not None
     assert "outstanding_uncertain_calls_all_time" in operations.json()["providers"]
+    assert operations.json()["providers"]["utc_day"]["timezone"] == "UTC"
     assert client.get(f"/api/intelligence/needs/{need_id}/history?limit=51").status_code == 422
     assert client.get(f"/api/intelligence/needs/{uuid4()}/history").status_code == 404
     assert (
@@ -302,6 +304,15 @@ def test_owner_feedback_replay_is_exact_attributed_and_pending_review(intelligen
         client.post(path, json=tampered, headers={"origin": "https://testserver"}).status_code
         == 422
     )
+    with factory.begin() as session:
+        job = session.get(Job, job_id)
+        checkpoint = json.loads(job.checkpoint)
+        checkpoint.update(status="stale", result_status="stale_context")
+        job.checkpoint = json.dumps(checkpoint)
+    stale_feedback = {**body, "client_id": str(uuid4())}
+    rejected = client.post(path, json=stale_feedback, headers={"origin": "https://testserver"})
+    assert rejected.status_code == 409
+    assert "current completed candidate" in rejected.json()["detail"]
     with factory() as session:
         notes = session.scalars(select(PursuitCallNote)).all()
         assert len(notes) == 1
@@ -360,8 +371,12 @@ def test_offline_worker_candidate_to_owner_review_is_persisted_and_exported(
         "candidates": [
             {
                 "field": "temporary_load_mw",
-                "value": "2.0",
+                "value": "2",
                 "unit": "MW",
+                "original_value": "2.0",
+                "original_unit": "MW",
+                "precision": 1,
+                "date_precision": None,
                 "evidence_id": str(evidence_id),
                 "evidence_hash": "a" * 64,
                 "quote": quote,
@@ -371,6 +386,9 @@ def test_offline_worker_candidate_to_owner_review_is_persisted_and_exported(
                 "span_end": span_start + len(quote),
                 "publisher": "Synthetic test source",
                 "published_date": "2026-10-01",
+                "speaker": None,
+                "speaker_organization": None,
+                "speaker_role": None,
                 "support": "direct",
                 "status": "candidate",
             }
@@ -407,17 +425,20 @@ def test_offline_worker_candidate_to_owner_review_is_persisted_and_exported(
         )
         assert leased is not None
         job_id = leased.id
-        assert session.scalar(
-            select(PursuitResearchQuestion).where(
-                PursuitResearchQuestion.need_id == need_id,
+        assert (
+            session.scalar(
+                select(PursuitResearchQuestion).where(
+                    PursuitResearchQuestion.need_id == need_id,
+                )
             )
-        ) is not None
+            is not None
+        )
     running = client.get(f"/api/intelligence/needs/{need_id}/history").json()["items"]
     assert next(item for item in running if item["job_id"] == str(job_id))["status"] == "running"
     result = intelligence_jobs.process_intelligence_job(
         job_id, "offline-intelligence-worker", fence
     )
-    assert result["status"] == "completed"
+    assert result["status"] == "completed", result
     history = client.get(f"/api/intelligence/needs/{need_id}/history").json()["items"]
     completed = next(item for item in history if item["job_id"] == str(job_id))
     assert completed["status"] == "completed"

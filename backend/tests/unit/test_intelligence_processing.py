@@ -6,6 +6,8 @@ from pydantic import SecretStr
 
 from gridlens.integrations import intelligence_provider
 from gridlens.intelligence.intelligence_jobs import (
+    MAX_CONTEXT_BYTES,
+    _bound_grounded_payload,
     _cost_bound,
     _enabled,
     _type_safe_result,
@@ -230,3 +232,45 @@ def test_typesafe_cost_bound_prices_exact_jev_request_input_only(monkeypatch):
         {"state": state, "model": "pinned-fixture-model", "contract": "signal-display-v2"},
     )
     assert actual == Decimal(expected_bytes * 2) / Decimal(1_000_000)
+
+
+def test_grounding_context_keeps_four_kb_and_marks_bounded_thirty_kb_partial():
+    evidence = {
+        "id": str(uuid4()),
+        "content_hash": "a" * 64,
+        "title": "Retained source",
+        "abstract": "x" * 4000,
+        "publisher": "Fixture",
+    }
+    base = {"task_type": "GROUNDED_DOSSIER", "need": {}, "question": {}, "evidence": [evidence]}
+    small = _bound_grounded_payload(base)
+    assert small["evidence"][0]["abstract"] == evidence["abstract"]
+    assert small["context_truncation"] == {"partial": False, "text_bytes_removed": 0}
+
+    large = {
+        **base,
+        "evidence": [{**evidence, "abstract": "y" * 30_000}],
+        "need": {"accepted_source_claims": "z" * 20_000},
+    }
+    bounded = _bound_grounded_payload(large)
+    encoded = json.dumps(bounded, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode()
+    assert len(encoded) <= MAX_CONTEXT_BYTES
+    assert bounded["evidence"][0]["text_truncated"] is True
+    assert bounded["evidence"][0]["retained_text_status"] == "partial_retained_excerpt"
+    assert bounded["context_truncation"]["partial"] is True
+    assert 0 < len(bounded["evidence"][0]["abstract"]) < 30_000
+
+
+def test_grounded_response_schema_requires_explicit_unit_date_and_attribution_fields():
+    schema = intelligence_provider._grounded_schema()
+    candidate = schema["properties"]["candidates"]["items"]
+    assert {
+        "original_value",
+        "original_unit",
+        "precision",
+        "date_precision",
+        "speaker",
+        "speaker_organization",
+        "speaker_role",
+    } <= set(candidate["required"])
+    assert candidate["additionalProperties"] is False

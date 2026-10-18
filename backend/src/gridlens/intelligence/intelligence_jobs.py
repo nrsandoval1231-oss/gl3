@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import re
 from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
@@ -45,12 +46,14 @@ from gridlens.persistence.models import (
     PursuitResearchQuestion,
     Source,
 )
+from gridlens.persistence.watch_models import ProjectMonitorWatch
 from gridlens.settings import settings
 
 JOB_KIND = "intelligence_process"
 POLICY_VERSION = "bounded-intelligence-v1"
 SCHEMA_VERSION = "intelligence-request-v1"
 MAX_CONTEXT_BYTES = 45_000
+MAX_EVIDENCE_DOCUMENTS = 24
 MAX_PROVIDER_RESPONSE_BYTES = 65_536
 GROUND_TASKS = {"GROUNDED_EXTRACTION", "GROUNDED_DOSSIER"}
 LEGACY_BRIEF_OUTPUT_TOKENS = 700
@@ -98,35 +101,85 @@ def _retained_context(
         .outerjoin(Interpretation, Interpretation.observation_id == Observation.id)
         .where(NeedObservation.need_id == need_id)
         .order_by(Evidence.observed_at.desc(), Evidence.id)
-        .limit(24)
+        .limit(MAX_EVIDENCE_DOCUMENTS)
     ).all()
-    evidence = [
-        {
-            "id": str(ev.id),
-            "content_hash": ev.content_hash,
-            "title": ev.title[:600],
-            "abstract": (ev.abstract or "")[:1800],
-            "url": ev.url[:1200],
-            "published_at": ev.published_at.isoformat() if ev.published_at else None,
-            "publisher": evidence_source.publisher,
-        }
-        for ev, observation, evidence_source, interpretation in rows
-        if (evidence_source.enabled and evidence_source.registry_enabled)
-        or (
+    evidence = []
+    for ev, observation, evidence_source, interpretation in rows:
+        actual_source = evidence_source.enabled and evidence_source.registry_enabled
+        assessment = interpretation.assessment if interpretation is not None else None
+        accepted_supplement = bool(
             not evidence_source.enabled
             and not evidence_source.registry_enabled
-            and observation.content_hash == ev.content_hash
             and interpretation is not None
             and interpretation.status == "accepted"
             and interpretation.content_hash == observation.content_hash
-            and interpretation.assessment is not None
-            and interpretation.assessment.get("admission_status") == "project_research_supplement"
-            and interpretation.assessment.get("semantic_hash") == observation.content_hash
-            and interpretation.assessment.get("evidence_hash") == ev.content_hash
-            and interpretation.assessment.get("target_need_id") == str(need.id)
-            and interpretation.assessment.get("project_identity_key") == project.identity_key
+            and assessment
+            and assessment.get("admission_status") == "project_research_supplement"
+            and assessment.get("semantic_hash") == observation.content_hash
+            and assessment.get("evidence_hash") == ev.content_hash
+            and assessment.get("target_need_id") == str(need.id)
+            and assessment.get("project_identity_key") == project.identity_key
         )
-    ]
+        if not (actual_source or accepted_supplement):
+            continue
+        provenance = ev.provenance if isinstance(ev.provenance, dict) else {}
+        ocr = provenance.get("ocr") if isinstance(provenance.get("ocr"), dict) else None
+        scanned = bool(
+            provenance.get("scan_detected")
+            or provenance.get("document_type") == "scanned"
+            or ("ocr" in ev.extraction_location.casefold())
+        )
+        valid_ocr = bool(
+            ocr
+            and ocr.get("original_document_hash") == ev.content_hash
+            and isinstance(ocr.get("method"), str)
+            and ocr.get("method")
+            and isinstance(ocr.get("version"), str)
+            and ocr.get("version")
+            and ocr.get("review_status") == "unreviewed"
+            and re.fullmatch(r"[0-9a-f]{64}", str(ocr.get("transcript_hash", "")))
+        )
+        retained_abstract = ev.abstract or ""
+        omitted_text_start: int | None = None
+        if scanned and not valid_ocr:
+            retained_abstract = ""
+        else:
+            # RRC keeps opaque source bytes in the immutable Evidence abstract
+            # for audit, but binary/base64 tails are not readable passages.
+            marker = "\nOpaque source bytes (base64; not interpreted): "
+            opaque_tail = retained_abstract.find(marker)
+            if opaque_tail >= 0:
+                omitted_text_start = opaque_tail
+                retained_abstract = retained_abstract[:opaque_tail]
+        evidence.append(
+            {
+                "id": str(ev.id),
+                "content_hash": ev.content_hash,
+                "title": ev.title,
+                "abstract": retained_abstract,
+                "url": ev.url,
+                "published_at": ev.published_at.isoformat() if ev.published_at else None,
+                "publisher": evidence_source.publisher,
+                "extraction_location": ev.extraction_location,
+                "event_date": ev.event_date.isoformat() if ev.event_date else None,
+                "event_date_label": ev.event_date_label,
+                "ocr_provenance": ocr if valid_ocr else None,
+                "text_truncated": omitted_text_start is not None,
+                "omitted_text_start": omitted_text_start,
+                "omitted_text_end": len(ev.abstract or "")
+                if omitted_text_start is not None
+                else None,
+                "retained_text_status": (
+                    "partial_retained_excerpt"
+                    if omitted_text_start is not None
+                    else "retained_ocr_unreviewed"
+                    if valid_ocr
+                    else "unavailable_ocr"
+                    if scanned
+                    else "retained_excerpt"
+                ),
+            }
+        )
     if not evidence:
         raise ValueError("No retained evidence is attached to this need")
     from gridlens.domain.call_facts import current_accepted_facts
@@ -147,7 +200,11 @@ def _retained_context(
         }
         for row in current_accepted_facts(list(versions), list(decisions))
     ]
+    from gridlens.intelligence.project_state import current_research_state
+
+    accepted_source_claims = current_research_state(session, project.id, need.id, project=project)
     need._intelligence_accepted_facts = accepted_facts  # type: ignore[attr-defined]
+    need._intelligence_accepted_source_claims = accepted_source_claims  # type: ignore[attr-defined]
     return need, project, source, evidence
 
 
@@ -166,6 +223,14 @@ def _request_payload(
         "project_identity_key": project.identity_key,
         "project_identity_facts": project.identity_facts,
     }
+    if task_type in GROUND_TASKS:
+        from gridlens.domain.project_research import VERSION as PROJECT_RESEARCH_VERSION
+
+        current_state["accepted_source_claims"] = getattr(
+            need, "_intelligence_accepted_source_claims", {}
+        )
+        current_state["project_research_policy_version"] = PROJECT_RESEARCH_VERSION
+        current_state["grounding_policy_version"] = "retained-grounding-v2"
     state_version_digest = _digest(current_state)
     if task_type in CONTRACTS:
         contract = CONTRACTS[task_type]
@@ -216,6 +281,7 @@ def _request_payload(
                 "updated_at": need.updated_at.isoformat() if need.updated_at else None,
                 "admission_basis": need.admission_basis,
                 "accepted_operator_facts": getattr(need, "_intelligence_accepted_facts", []),
+                "accepted_source_claims": getattr(need, "_intelligence_accepted_source_claims", {}),
                 "project_identity_key": project.identity_key,
                 "project_identity_facts": project.identity_facts,
                 "state_version_digest": state_version_digest,
@@ -223,6 +289,80 @@ def _request_payload(
             "evidence": evidence,
         }
     raise ValueError("Unknown intelligence task type")
+
+
+def _watch_context(session: Session, need_id: UUID, origin: str) -> dict[str, Any] | None:
+    if origin != "monitoring":
+        return None
+    watch = session.scalar(
+        select(ProjectMonitorWatch).where(ProjectMonitorWatch.need_id == need_id)
+    )
+    if watch is None:
+        return None
+    return {"version": watch.version, "reprocess_revision": watch.reprocess_revision}
+
+
+def _bound_grounded_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    """Retain exact UTF-8 spans under the request cap and mark clipped excerpts."""
+    if payload.get("task_type") not in GROUND_TASKS:
+        return payload
+    result = json.loads(json.dumps(payload, ensure_ascii=True))
+    result["context_truncation"] = {"partial": False, "text_bytes_removed": 0}
+
+    def encoded() -> bytes:
+        return json.dumps(result, sort_keys=True, separators=(",", ":"), ensure_ascii=True).encode(
+            "utf-8"
+        )
+
+    if len(encoded()) <= MAX_CONTEXT_BYTES:
+        return result
+    # Clip only a suffix of retained abstract text. Its original prefix offsets
+    # remain exact, and the response receives explicit partial-context metadata.
+    for evidence in reversed(result.get("evidence", [])):
+        text = evidence.get("abstract", "")
+        while text and len(encoded()) > MAX_CONTEXT_BYTES:
+            excess = max(1, len(encoded()) - MAX_CONTEXT_BYTES)
+            remove_chars = min(len(text), excess)
+            before_bytes = len(text.encode("utf-8"))
+            text = text[:-remove_chars]
+            evidence["abstract"] = text
+            evidence["text_truncated"] = True
+            evidence["retained_text_status"] = "partial_retained_excerpt"
+            result["context_truncation"]["partial"] = True
+            result["context_truncation"]["text_bytes_removed"] += before_bytes - len(
+                text.encode("utf-8")
+            )
+    if len(encoded()) > MAX_CONTEXT_BYTES:
+        raise ValueError("Grounded metadata exceeds context size limit")
+    return result
+
+
+def _current_payload(session: Session, checkpoint: dict[str, Any], need_id: UUID) -> dict[str, Any]:
+    task_type = checkpoint["task_type"]
+    need, project, _source, evidence = _retained_context(session, need_id)
+    payload = _request_payload(task_type, checkpoint.get("question_id"), need, project, evidence)
+    payload = _bound_grounded_payload(payload)
+    watch_context = _watch_context(session, need_id, checkpoint.get("origin", ""))
+    if watch_context is not None:
+        payload["watch_context"] = watch_context
+        payload = _bound_grounded_payload(payload)
+    return payload
+
+
+def _queue_stale_reassessment(
+    session: Session, checkpoint: dict[str, Any], need_id: UUID
+) -> str | None:
+    question_id = checkpoint.get("question_id")
+    if checkpoint.get("task_type") not in GROUND_TASKS or not question_id:
+        return None
+    job = enqueue_intelligence(
+        session,
+        need_id=need_id,
+        task_type="GROUNDED_DOSSIER",
+        question_id=question_id,
+        origin="stale_reassessment",
+    )
+    return str(job.id)
 
 
 def enqueue_intelligence(
@@ -236,6 +376,11 @@ def enqueue_intelligence(
     """Queue one exact need/evidence request; active unchanged jobs are reused."""
     need, project, source, evidence = _retained_context(session, need_id)
     payload = _request_payload(task_type, question_id, need, project, evidence)
+    payload = _bound_grounded_payload(payload)
+    watch_context = _watch_context(session, need_id, origin)
+    if watch_context is not None:
+        payload["watch_context"] = watch_context
+        payload = _bound_grounded_payload(payload)
     encoded = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=True)
     if len(encoded.encode("utf-8")) > MAX_CONTEXT_BYTES:
         raise ValueError("Bounded intelligence context exceeds size limit")
@@ -754,9 +899,13 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
             if job.target_id is None:
                 raise ValueError("Intelligence job has no target need")
             need, project, source, evidence = _retained_context(session, job.target_id)
-            current = _request_payload(
-                task_type, checkpoint.get("question_id"), need, project, evidence
+            current = _bound_grounded_payload(
+                _request_payload(task_type, checkpoint.get("question_id"), need, project, evidence)
             )
+            watch_context = _watch_context(session, job.target_id, checkpoint.get("origin", ""))
+            if watch_context is not None:
+                current["watch_context"] = watch_context
+                current = _bound_grounded_payload(current)
             if _digest(current) != checkpoint.get("request_digest"):
                 checkpoint.update(status="stale", error="INPUT_CHANGED_BEFORE_DISPATCH")
                 job.checkpoint = json.dumps(checkpoint, separators=(",", ":"))
@@ -978,6 +1127,52 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
     with SessionLocal.begin() as session:
         job = assert_fence(session, job_id, worker_id, fence_token)
         checkpoint = json.loads(job.checkpoint or "{}")
+        fresh = False
+        if status == "completed" and job.target_id is not None:
+            try:
+                fresh = _digest(
+                    _current_payload(session, checkpoint, job.target_id)
+                ) == checkpoint.get("request_digest")
+            except (ValueError, KeyError, TypeError):
+                fresh = False
+        if status == "completed" and not fresh:
+            checkpoint.update(
+                status="stale",
+                result=call_result,
+                result_status="stale_context",
+                error="INPUT_CHANGED_DURING_PROVIDER_CALL",
+                usage={
+                    "input_tokens": input_tokens,
+                    "output_tokens": output_tokens,
+                    "actual_cost_usd": None,
+                    "estimated_cost_usd": call_result.get("usage", {}).get("estimated_cost_usd")
+                    if call_result
+                    else None,
+                    "cost_basis": call_result.get("usage", {}).get("cost_basis")
+                    if call_result
+                    else None,
+                },
+            )
+            try:
+                reassessment_id = (
+                    _queue_stale_reassessment(session, checkpoint, job.target_id)
+                    if job.target_id is not None
+                    else None
+                )
+            except (ValueError, KeyError, TypeError):
+                reassessment_id = None
+            if reassessment_id:
+                checkpoint["reassessment_job_id"] = reassessment_id
+            checkpoint["completed_at"] = datetime.now(UTC).isoformat()
+            job.checkpoint = json.dumps(checkpoint, separators=(",", ":"), default=str)
+            _record_research_receipt(session, checkpoint)
+            job.status, job.lease_owner, job.lease_until = "succeeded", None, None
+            return {
+                "status": "stale",
+                "result": call_result,
+                "error": "INPUT_CHANGED_DURING_PROVIDER_CALL",
+                "job_id": str(job_id),
+            }
         checkpoint.update(
             status=status,
             completed_at=datetime.now(UTC).isoformat(),
@@ -1052,7 +1247,9 @@ def intelligence_history(session: Session, need_id: UUID, limit: int = 50) -> li
                 "need_id": str(need_id),
                 "status": status,
                 "result": checkpoint.get("result"),
+                "result_status": checkpoint.get("result_status"),
                 "error": checkpoint.get("error"),
+                "reassessment_job_id": checkpoint.get("reassessment_job_id"),
                 "evidence_ids": [
                     item.get("id") for item in checkpoint.get("payload", {}).get("evidence", [])
                 ],
