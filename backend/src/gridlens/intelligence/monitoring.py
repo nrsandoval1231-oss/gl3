@@ -127,8 +127,7 @@ def configure_watch(
             not isinstance(record_ids, list)
             or len(record_ids) > MAX_DOCUMENTS
             or any(
-                not isinstance(value, str)
-                or not re.fullmatch(r"[A-Za-z0-9 /_.-]{1,100}", value)
+                not isinstance(value, str) or not re.fullmatch(r"[A-Za-z0-9 /_.-]{1,100}", value)
                 for value in record_ids
             )
             or len(record_ids) != len(set(record_ids))
@@ -175,9 +174,8 @@ def configure_watch(
     )
     now = datetime.now(UTC)
     new_watch = watch is None
-    effective_reprocess_revision = (
-        reprocess_revision
-        or (watch.reprocess_revision if watch is not None else "watch-policy-v1")
+    effective_reprocess_revision = reprocess_revision or (
+        watch.reprocess_revision if watch is not None else "watch-policy-v1"
     )
     if watch is None:
         watch = ProjectMonitorWatch(
@@ -355,7 +353,8 @@ def watch_view(session: Session, need_id: UUID) -> dict[str, Any] | None:
         "status": watch.status,
         "checkpoint": dict(watch.checkpoint),
         "fresh_at": watch.fresh_at,
-        "revision_history": list(watch.revision_history),
+        "revision_history": list(watch.revision_history[-10:]),
+        "revision_history_total_count": len(watch.revision_history),
         "sources": [
             {
                 "source_id": row.source_id,
@@ -407,9 +406,7 @@ def provision_watch_from_evidence(
 def _provision_missing_watch_page(session: Session, limit: int) -> int:
     """Provision a small keyset page from exact accepted evidence only."""
     cursor = session.scalar(
-        select(ProjectMonitorWatch.need_id)
-        .order_by(ProjectMonitorWatch.need_id.desc())
-        .limit(1)
+        select(ProjectMonitorWatch.need_id).order_by(ProjectMonitorWatch.need_id.desc()).limit(1)
     )
     has_current_registered_evidence = exists(
         select(1)
@@ -424,19 +421,14 @@ def _provision_missing_watch_page(session: Session, limit: int) -> int:
             Source.registry_enabled.is_(True),
             Source.id.in_(SUPPORTED_SOURCES),
             Source.endpoint.in_(
-                [
-                    _registry_source(source_id)["endpoint"]
-                    for source_id in sorted(SUPPORTED_SOURCES)
-                ]
+                [_registry_source(source_id)["endpoint"] for source_id in sorted(SUPPORTED_SOURCES)]
             ),
             Interpretation.status == "accepted",
             Interpretation.assessment["evidence_hash"].astext == Evidence.content_hash,
             Observation.content_hash == Evidence.content_hash,
         )
     )
-    unconfigured = ~exists(
-        select(1).where(ProjectMonitorWatch.need_id == PowerNeed.id)
-    )
+    unconfigured = ~exists(select(1).where(ProjectMonitorWatch.need_id == PowerNeed.id))
 
     def next_page(after):
         statement = select(PowerNeed.id).where(
@@ -446,9 +438,7 @@ def _provision_missing_watch_page(session: Session, limit: int) -> int:
         )
         if after is not None:
             statement = statement.where(PowerNeed.id > after)
-        return list(
-            session.scalars(statement.order_by(PowerNeed.id).limit(limit))
-        )
+        return list(session.scalars(statement.order_by(PowerNeed.id).limit(limit)))
 
     need_ids = next_page(cursor)
     if not need_ids and cursor is not None:
@@ -1037,9 +1027,7 @@ def _retrieve_registered_records(request: MonitorRequest, factory) -> dict[str, 
     return {
         "disposition": "updated" if changed else "checked_no_change",
         "cursor": {
-            "record_hashes": {
-                item["external_id"]: item["content_hash"] for item in accepted_refs
-            }
+            "record_hashes": {item["external_id"]: item["content_hash"] for item in accepted_refs}
         },
         "evidence_refs": accepted_refs,
         "unresolved_questions": list(request.question_ids),

@@ -695,6 +695,7 @@ class PursuitCallNote(Base):
     outcome: Mapped[str] = mapped_column(String(40))
     next_action: Mapped[str] = mapped_column(Text)
     follow_up: Mapped[date | None] = mapped_column(Date)
+    intelligence_review: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

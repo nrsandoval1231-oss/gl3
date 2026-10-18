@@ -48,12 +48,40 @@ async function useCommercialFixture(page: import('@playwright/test').Page, resea
   let researchCalls = 0
   let statusCalls = 0
   let evaluationCalls = 0
+  let intelligenceFeedback: Record<string, unknown> | null = null
+  const intelligenceNeedRequests: string[] = []
   const noteIds: string[] = []
   await page.route('**/api/auth/session', (route) => route.fulfill({ json: { authenticated: true } }))
   await page.route('**/api/health', (route) => route.fulfill({ json: {} }))
   await page.route(/\/api\/opportunities\?/, (route) => route.fulfill({ json: [] }))
   await page.route('**/api/changes', (route) => route.fulfill({ json: [] }))
   await page.route('**/api/commercial/triage/*/autonomous-research', (route) => route.fulfill({ json: { items: [] } }))
+  await page.route('**/api/intelligence/tasks', (route) => route.fulfill({ json: {
+    items: [{ task_type: 'GROUNDED_DOSSIER', question_id: 'TEMP_LOAD_MW', eligible: false, reason: 'INTELLIGENCE_DISABLED', provider: null, pinned_model: null }],
+    mode: 'disabled', enabled: false, provider_configuration: { openai_key_present: false, typesafe_key_present: false }, note: 'Configuration metadata only.',
+  } }))
+  await page.route('**/api/intelligence/needs/*/history?limit=20', async (route) => {
+    const needId = new URL(route.request().url()).pathname.split('/')[4]
+    intelligenceNeedRequests.push(needId)
+    if (needId === 'need-a') await new Promise((resolve) => setTimeout(resolve, 250))
+    const candidate = {
+      field: 'temporary_load_mw', value: '2.0', unit: 'MW', evidence_id: 'ev-intel', evidence_hash: 'a'.repeat(64),
+      quote: 'Synthetic filing states an activity-specific 2.0 MW load.', section: 'abstract', page: null,
+      span_start: 0, span_end: 'Synthetic filing states an activity-specific 2.0 MW load.'.length,
+      publisher: 'Synthetic utility filing', published_date: '2026-10-10', support: 'direct', status: 'candidate',
+      source_url: 'https://example.test/intelligence-evidence', source_id: 'utility-filings',
+    }
+    await route.fulfill({ json: { items: needId === 'need-a' ? [{
+      job_id: 'job-intel-a', task_type: 'GROUNDED_DOSSIER', need_id: needId, status: 'completed',
+      result: { candidates: [candidate], hypotheses: ['Potential temporary need'], contradictions: [], unresolved_questions: ['Utility service date'], candidate_orgs: [], proposed_queries: [], suggested_pursuit: null },
+      error: null, evidence_ids: ['ev-intel'], logical_call_id: 'call-intel-a', usage: { input_tokens: 18, output_tokens: 24, cost_usd: null },
+      reserved: true, uncertain: false, created_at: '2026-10-10T12:00:00Z', completed_at: '2026-10-10T12:00:01Z',
+    }] : [] } })
+  })
+  await page.route('**/api/intelligence/needs/need-a/feedback', async (route) => {
+    intelligenceFeedback = route.request().postDataJSON() as Record<string, unknown>
+    await route.fulfill({ json: { id: 'review-note-a', client_id: (intelligenceFeedback as { client_id: string }).client_id, metadata: { review_state: 'pending_independent_review' }, note: 'Owner review saved', created_at: '2026-10-10T12:01:00Z' } })
+  })
   await page.route('**/api/projects/*/buying-chain', (route) => {
     const projectId = new URL(route.request().url()).pathname.split('/')[3]
     return route.fulfill({ json: {
@@ -93,8 +121,47 @@ async function useCommercialFixture(page: import('@playwright/test').Page, resea
       : { status: 'ready', job_id: 'job-a', input_hash: 'fingerprint-a', generated_at: '2026-10-03T14:05:00Z', result: { event_summary: [{ text: 'Source review confirms the filing stage.', evidence_id: 'ev-1' }], commercial_hypothesis: { text: 'Timing needs confirmation.', evidence_id: 'ev-1' }, unknowns: ['Need-specific MW remains unknown.'], next_step: 'Confirm the activity load schedule.' }, citations: [{ evidence_id: 'ev-1', url: 'https://example.test/fact', title: 'Retained filing' }], error: null } })
   })
   await page.goto('/?view=pursuits')
-  return { get savedNote() { return savedNote }, get receivedQuestion() { return receivedQuestion }, get statusQuestion() { return statusQuestion }, get researchCalls() { return researchCalls }, get statusCalls() { return statusCalls }, get evaluationCalls() { return evaluationCalls }, noteIds }
+  return { get savedNote() { return savedNote }, get receivedQuestion() { return receivedQuestion }, get statusQuestion() { return statusQuestion }, get researchCalls() { return researchCalls }, get statusCalls() { return statusCalls }, get evaluationCalls() { return evaluationCalls }, get intelligenceFeedback() { return intelligenceFeedback }, intelligenceNeedRequests, noteIds }
 }
+
+test('advisory candidates cite the exact source, preserve UNKNOWNs, and save pending owner review', async ({ page }) => {
+  const captured = await useCommercialFixture(page)
+  await page.locator('.commercial-card-heading').click()
+  const research = page.getByRole('region', { name: 'Advisory intelligence research' })
+  await expect(research).toContainText('Unaccepted source candidates')
+  await expect(research).toContainText('Synthetic filing states an activity-specific 2.0 MW load.')
+  await expect(research.getByRole('link', { name: 'open source' })).toHaveAttribute('href', 'https://example.test/intelligence-evidence')
+  await expect(research).toContainText('Utility service date')
+  await expect(research.getByRole('button', { name: 'Research retained evidence' })).toBeDisabled()
+  await research.getByLabel('Owner review').selectOption('CONFLICT')
+  await research.getByLabel('Review note').fill('The quoted load is not confirmed for this activity.')
+  await research.getByRole('button', { name: 'Save attributed review' }).click()
+  await expect(research).toContainText('pending-review material')
+  const review = captured.intelligenceFeedback as { decision: string; logical_call_id: string; candidate: { evidence_hash: string; source_url: string }; evidence_refs: { evidence_id: string }[] }
+  expect(review.decision).toBe('CONFLICT')
+  expect(review.logical_call_id).toBe('call-intel-a')
+  expect(review.candidate.evidence_hash).toBe('a'.repeat(64))
+  expect(review.candidate.source_url).toBe('https://example.test/intelligence-evidence')
+  expect(review.evidence_refs[0].evidence_id).toBe('ev-intel')
+  await page.setViewportSize({ width: 390, height: 844 })
+  await expect(research.getByLabel('Review note')).toBeVisible()
+  await research.getByLabel('Review note').focus()
+  await expect(research.getByLabel('Review note')).toBeFocused()
+})
+
+test('switching exact need aborts stale intelligence history and clears prior candidates', async ({ page }) => {
+  const captured = await useCommercialFixture(page)
+  await page.locator('.commercial-card-heading').click()
+  await expect(page.locator('.intelligence-research')).toBeVisible()
+  await page.locator('.commercial-filters button').nth(1).click()
+  await expect(page.locator('.commercial-card-heading')).toContainText('South Ridge Works')
+  await page.locator('.commercial-card-heading').click()
+  const research = page.getByRole('region', { name: 'Advisory intelligence research' })
+  await expect(research).toContainText('No saved intelligence jobs for this need.')
+  await expect(research).not.toContainText('Synthetic filing states an activity-specific 2.0 MW load.')
+  expect(captured.intelligenceNeedRequests).toContain('need-a')
+  expect(captured.intelligenceNeedRequests).toContain('need-b')
+})
 
 test('commercial queue filters backend states, exposes UNKNOWN, and saves targeted research and linked notes', async ({ page }) => {
   const captured = await useCommercialFixture(page, 200, true)

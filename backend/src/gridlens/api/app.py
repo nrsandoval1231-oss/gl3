@@ -18,6 +18,7 @@ from sqlalchemy import Date, Text, and_, cast, func, or_, select
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import joinedload
 
+from gridlens.api.intelligence import router as intelligence_router
 from gridlens.api.verticals import vertical_source_tags
 from gridlens.domain.buying_chain import BuyingChainOut, BuyingEnrichBody
 from gridlens.domain.call_facts import (
@@ -121,6 +122,7 @@ from gridlens.security import (
 from gridlens.settings import settings
 
 app = FastAPI(title="GridLens API", version="1.0.0", openapi_url=None)
+app.include_router(intelligence_router)
 WorkflowStatusFilter = Literal[
     "UNKNOWN", "NEW", "INVESTIGATING", "CONTACTED", "QUALIFIED", "WON", "LOST", "CLOSED"
 ]
@@ -5113,6 +5115,9 @@ def commercial_triage_history(
                             func.octet_length(PursuitCallNote.note)
                             + func.octet_length(PursuitCallNote.outcome)
                             + func.octet_length(PursuitCallNote.next_action)
+                            + func.octet_length(
+                                func.coalesce(cast(PursuitCallNote.intelligence_review, Text), "")
+                            )
                         ),
                     )
                     .where(PursuitCallNote.pursuit_id.in_(history_ids))
@@ -5282,6 +5287,9 @@ def commercial_triage_history_detail(pursuit_id: UUID):
                             func.octet_length(PursuitCallNote.note)
                             + func.octet_length(PursuitCallNote.outcome)
                             + func.octet_length(PursuitCallNote.next_action)
+                            + func.octet_length(
+                                func.coalesce(cast(PursuitCallNote.intelligence_review, Text), "")
+                            )
                         ),
                         0,
                     )

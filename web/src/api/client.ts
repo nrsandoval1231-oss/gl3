@@ -15,6 +15,24 @@ export type CallFactDecisionBody = components['schemas']['CallFactDecisionBody']
 export type NeedWorkflowStatus = components['schemas']['NeedWorkflowStatusOut']
 export type NeedWorkflowStatusBody = components['schemas']['NeedWorkflowStatusBody']
 
+export type IntelligenceHistoryItem = {
+  job_id: string; task_type: string | null; need_id: string; status: string
+  result: Record<string, unknown> | null; error: string | null; evidence_ids: string[]
+  logical_call_id: string | null; usage: { input_tokens?: number | null; output_tokens?: number | null; cost_usd?: string | number | null } | null
+  reserved: boolean; uncertain: boolean; created_at: string | null; completed_at: string | null
+}
+export type IntelligenceTasks = {
+  items: { task_type: string; question_id: string | null; eligible: boolean; reason: string | null; provider: string | null; pinned_model: string | null }[]
+  mode: string; enabled: boolean; provider_configuration: { openai_key_present: boolean; typesafe_key_present: boolean }; note: string
+}
+export type IntelligenceOperations = {
+  window_days: number; sources: { source_id: string; enabled: boolean; last_attempt_at: string | null; last_success_at: string | null; last_good_preserved: boolean; checked_30d: number; failed_30d: number; partial_30d: number; parse_failures_30d: number; due_30d: number }[]
+  queue: { by_kind_status: Record<string, Record<string, number>>; oldest_queued_at: string | null; retried_jobs_30d: number; failed_after_three_attempts_30d: number }
+  providers: { configured: Record<string, boolean>; enabled: Record<string, boolean>; by_provider: { provider: string; called: number; completed: number; accepted: number | null; models: Record<string, unknown>; actual_cost_usd: number | null; reserved_cost_usd: number; uncertain: number; failed: number; input_tokens: number; output_tokens: number; usage_known_calls: number; usage_unknown_calls: number; unknown_cost_calls: number; latency_p50_ms: number | null; latency_p95_ms: number | null }[]; reserved_cost_usd: number; known_cost_usd: number | null; known_cost_calls: number; unknown_cost_calls_30d: number; outstanding_uncertain_calls_all_time: number; uncertain_calls: number; accepted: number | null; accepted_reason: string }
+  questions: { outcomes_30d: Record<string, number> }; material_changes_30d: number | null; reviewed_signals: number | null; independent_leads: number | null; backup: string; restore: string; owner_review_notes_30d: number
+}
+export type OwnerFeedbackBody = { client_id: string; job_id: string; logical_call_id: string; decision: 'SUPPORTED' | 'CONFLICT' | 'UNRESOLVED' | 'OTHER'; note: string; next_action?: string; follow_up?: string | null; candidate: { field: string; value: string; unit?: string | null; evidence_id: string; evidence_hash: string; quote: string; section: string; page?: number | null; span_start: number; span_end: number; publisher: string; published_date?: string | null; support: string; status: string; source_url: string; source_id?: string | null }; evidence_refs: { evidence_id: string; content_hash: string; source_url: string }[] }
+
 export type BuyingChainResult = components['schemas']['BuyingChainOut']
 export type Opportunity = components['schemas']['OpportunityOut']
 export type OpportunityBrowseFilters = {
@@ -203,6 +221,11 @@ export const client = {
   researchCommercialNeed: (needId: string, body: CommercialResearchBody) => api<BriefRequest>(`/api/commercial/triage/${encodeURIComponent(needId)}/research`, { method: 'POST', body: JSON.stringify(body) }, true),
   commercialResearchStatus: (needId: string, question: string, signal?: AbortSignal) => api<CommercialResearchStatus>(`/api/commercial/triage/${encodeURIComponent(needId)}/research?${new URLSearchParams({ question }).toString()}`, { signal }, true),
   autonomousResearch: (needId: string, signal?: AbortSignal) => api<AutonomousResearch>(`/api/commercial/triage/${encodeURIComponent(needId)}/autonomous-research`, { signal }, true),
+  intelligenceTasks: (signal?: AbortSignal) => api<IntelligenceTasks>('/api/intelligence/tasks', { signal }),
+  intelligenceOperations: (signal?: AbortSignal) => api<IntelligenceOperations>('/api/intelligence/operations', { signal }),
+  intelligenceHistory: (needId: string, signal?: AbortSignal) => api<{ items: IntelligenceHistoryItem[] }>(`/api/intelligence/needs/${encodeURIComponent(needId)}/history?limit=20`, { signal }),
+  requestIntelligence: (needId: string, taskType: string, questionId?: string) => api<IntelligenceHistoryItem>(`/api/intelligence/needs/${encodeURIComponent(needId)}/jobs`, { method: 'POST', body: JSON.stringify({ task_type: taskType, ...(questionId ? { question_id: questionId } : {}) }) }),
+  saveIntelligenceFeedback: (needId: string, body: OwnerFeedbackBody) => api<{ id: string; metadata: Record<string, unknown>; note: string }>(`/api/intelligence/needs/${encodeURIComponent(needId)}/feedback`, { method: 'POST', body: JSON.stringify(body) }),
   refreshAutonomousResearch: (needId: string, force: boolean, signal?: AbortSignal) => api<AutonomousResearch>(`/api/commercial/triage/${encodeURIComponent(needId)}/autonomous-research`, { method: 'POST', body: JSON.stringify({ force }), signal }, true),
   session: () => api<{ authenticated: boolean }>('/api/auth/session').then((session) => {
     if (!session.authenticated) clearContinuity()
