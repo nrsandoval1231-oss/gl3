@@ -888,3 +888,7 @@ class LogicalCallBudget(Base):
     call_count: Mapped[int] = mapped_column(Integer, default=0)
     cost_usd: Mapped[Any] = mapped_column(Numeric(14, 6), default=0)
     active_count: Mapped[int] = mapped_column(Integer, default=0)
+
+
+# Register the bounded monitoring tables with the same declarative metadata.
+from gridlens.persistence import watch_models as watch_models  # noqa: E402,F401
