@@ -27,10 +27,16 @@ exact configured model and `systemone-v1` contract: set
 `INTELLIGENCE_TYPESAFE_BILLING_VERIFIED=true`,
 `INTELLIGENCE_TYPESAFE_BILLING_MODE=input_only`, matching
 `INTELLIGENCE_TYPESAFE_BILLING_MODEL_ID`, a reviewed
-`INTELLIGENCE_TYPESAFE_BILLING_POLICY_ID`, and a nonempty
-`INTELLIGENCE_TYPESAFE_BILLING_REFERENCE`. The reference must document that the
-exact model/contract is input-only billed; current official API schema evidence
-does not establish pricing semantics, so the default remains unknown and blocked.
+`INTELLIGENCE_TYPESAFE_BILLING_POLICY_ID=typesafe-total-input-ceiling-v1`, and a nonempty
+`INTELLIGENCE_TYPESAFE_BILLING_REFERENCE`. That evidence must document both
+input-only billing and a finite maximum total billable input token count including
+the provider wrapper. Set that count in
+`INTELLIGENCE_TYPESAFE_MAX_TOTAL_BILLABLE_INPUT_TOKENS` and set
+`INTELLIGENCE_TYPESAFE_TOTAL_INPUT_BOUND_VERIFIED=true` only for that exact
+model/contract/policy. Every TypeSafe reservation charges the full configured
+ceiling. The serialized client request cannot bound the opaque wrapper. Current
+official API schema evidence does not establish billing semantics or a total
+input ceiling, so the default remains unknown and blocked.
 Any positive TypeSafe output rate blocks dispatch. The client has no documented
 and enforced output-token bound; a configured token number or USD cap does not
 prove one. Do not add or assume an undocumented transport field. If TypeSafe

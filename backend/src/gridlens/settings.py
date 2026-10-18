@@ -116,6 +116,10 @@ class Settings(BaseSettings):
     intelligence_typesafe_billing_policy_id: str = ""
     intelligence_typesafe_billing_reference: str = ""
     intelligence_typesafe_billing_verified: bool = False
+    intelligence_typesafe_max_total_billable_input_tokens: int = Field(
+        default=0, ge=0, le=10_000_000
+    )
+    intelligence_typesafe_total_input_bound_verified: bool = False
     jev_shadow_mode: bool = True
     jev_shadow_batch_limit: int = 20
     jev_shadow_daily_limit: int = 20

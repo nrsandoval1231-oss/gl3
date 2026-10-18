@@ -65,9 +65,11 @@ def _enable_bounded_typesafe(monkeypatch):
         "intelligence_typesafe_billing_mode": "input_only",
         "intelligence_typesafe_billing_model_id": "pinned-fixture-model",
         "intelligence_typesafe_billing_contract_id": "systemone-v1",
-        "intelligence_typesafe_billing_policy_id": "synthetic-input-only-policy-v1",
-        "intelligence_typesafe_billing_reference": "synthetic://fixture/typesafe-input-only",
+        "intelligence_typesafe_billing_policy_id": "typesafe-total-input-ceiling-v1",
+        "intelligence_typesafe_billing_reference": "synthetic://fixture/typesafe-input-only-total-input-ceiling-20000",
         "intelligence_typesafe_billing_verified": True,
+        "intelligence_typesafe_max_total_billable_input_tokens": 20_000,
+        "intelligence_typesafe_total_input_bound_verified": True,
         "intelligence_max_active_calls": 2,
         "intelligence_max_call_usd": Decimal("0.1"),
     }
@@ -421,11 +423,14 @@ def test_leased_worker_runs_retained_need_through_shared_ledger(sessions, monkey
         "cost_basis": None,
     }
     assert call and call.status == "COMPLETED" and call.result_payload
+    assert call.max_cost_usd == Decimal("0.020000")
 
 
-def test_catalog_worker_blocks_without_billing_proof_before_provider_call(sessions, monkeypatch):
+def test_catalog_worker_blocks_without_total_input_bound_before_provider_call(
+    sessions, monkeypatch
+):
     _enable_bounded_typesafe(monkeypatch)
-    monkeypatch.setattr(settings, "intelligence_typesafe_billing_verified", False)
+    monkeypatch.setattr(settings, "intelligence_typesafe_total_input_bound_verified", False)
     need_id, _evidence_id, job_id = _seed_job(sessions)
     worker = _wire_worker(sessions, monkeypatch)
     monkeypatch.setattr(worker, "WORKER_ID", "fixture-proof-missing-worker")
@@ -443,7 +448,30 @@ def test_catalog_worker_blocks_without_billing_proof_before_provider_call(sessio
     assert provider_calls == []
     assert calls == []
     assert history[0]["status"] == "blocked"
-    assert history[0]["error"] == "TYPESAFE_BILLING_PROOF_MISSING_OR_MISMATCHED"
+    assert history[0]["error"] == "TYPESAFE_BILLING_OR_INPUT_BOUND_PROOF_MISSING_OR_MISMATCHED"
+
+
+def test_catalog_worker_applies_per_call_cap_to_full_input_ceiling(sessions, monkeypatch):
+    _enable_bounded_typesafe(monkeypatch)
+    monkeypatch.setattr(settings, "intelligence_max_call_usd", Decimal("0.01"))
+    need_id, _evidence_id, job_id = _seed_job(sessions)
+    worker = _wire_worker(sessions, monkeypatch)
+    monkeypatch.setattr(worker, "WORKER_ID", "fixture-full-ceiling-cap-worker")
+    provider_calls = []
+
+    from gridlens.intelligence import intelligence_jobs
+
+    monkeypatch.setattr(
+        intelligence_jobs, "call_typesafe", lambda **_kwargs: provider_calls.append(True)
+    )
+    assert worker.run_one({}, job_ids=[job_id]) is True
+    with sessions() as session:
+        calls = list(session.scalars(select(LogicalCall)))
+        history = intelligence_history(session, need_id)
+    assert provider_calls == []
+    assert calls == []
+    assert history[0]["status"] == "blocked"
+    assert history[0]["error"] == "FINITE_BUDGET_REQUIRED"
 
 
 def test_catalog_worker_rechecks_exact_billing_proof_before_dispatch(sessions, monkeypatch):

@@ -53,6 +53,7 @@ from gridlens.settings import settings
 JOB_KIND = "intelligence_process"
 POLICY_VERSION = "bounded-intelligence-v1"
 TYPESAFE_BILLING_CONTRACT_ID = "systemone-v1"
+TYPESAFE_BILLING_POLICY_ID = "typesafe-total-input-ceiling-v1"
 SCHEMA_VERSION = "intelligence-request-v1"
 MAX_CONTEXT_BYTES = 45_000
 MAX_EVIDENCE_DOCUMENTS = 24
@@ -729,10 +730,11 @@ def _enabled(
 
 
 def _typesafe_billing_block_reason(model: str) -> str:
-    """Require explicit model/contract/policy proof of input-only billing.
+    """Require explicit model/contract/policy proof and a total input ceiling.
 
     The current SystemOne transport has no documented, enforced output bound, so
-    billable output cannot be reserved safely. A numeric cap alone is not proof.
+    billable output cannot be reserved safely. Input proof must include all
+    provider-wrapper tokens; client JSON size and a numeric cap alone are not proof.
     """
     if (
         not settings.intelligence_typesafe_billing_verified
@@ -740,10 +742,12 @@ def _typesafe_billing_block_reason(model: str) -> str:
         or not model
         or settings.intelligence_typesafe_billing_model_id != model
         or settings.intelligence_typesafe_billing_contract_id != TYPESAFE_BILLING_CONTRACT_ID
-        or not settings.intelligence_typesafe_billing_policy_id.strip()
+        or settings.intelligence_typesafe_billing_policy_id != TYPESAFE_BILLING_POLICY_ID
         or not settings.intelligence_typesafe_billing_reference.strip()
+        or not settings.intelligence_typesafe_total_input_bound_verified
+        or settings.intelligence_typesafe_max_total_billable_input_tokens <= 0
     ):
-        return "TYPESAFE_BILLING_PROOF_MISSING_OR_MISMATCHED"
+        return "TYPESAFE_BILLING_OR_INPUT_BOUND_PROOF_MISSING_OR_MISMATCHED"
     if settings.intelligence_typesafe_output_usd_per_million != 0:
         return "TYPESAFE_OUTPUT_BOUND_UNVERIFIED"
     return ""
@@ -760,6 +764,12 @@ def _billing_policy_identity(provider: str, model: str) -> dict[str, str] | None
         "contract_id": settings.intelligence_typesafe_billing_contract_id,
         "policy_id": settings.intelligence_typesafe_billing_policy_id,
         "reference": settings.intelligence_typesafe_billing_reference,
+        "max_total_billable_input_tokens": str(
+            settings.intelligence_typesafe_max_total_billable_input_tokens
+        ),
+        "total_input_bound_verified": str(
+            settings.intelligence_typesafe_total_input_bound_verified
+        ).lower(),
         "pricing_verified": str(settings.intelligence_typesafe_pricing_verified).lower(),
         "priced_model_id": settings.intelligence_typesafe_priced_model_id,
         "input_rate": str(settings.intelligence_typesafe_input_usd_per_million),
@@ -866,8 +876,9 @@ def _cost_bound(provider: str, task_type: str, payload: dict[str, Any]) -> Decim
         if _typesafe_billing_block_reason(settings.intelligence_typesafe_model):
             return Decimal("0")
         input_price = settings.intelligence_typesafe_input_usd_per_million
-        # The accepted policy is explicitly input-only. Output remains UNKNOWN and
-        # is never silently priced at zero when the configured rate is positive.
+        input_tokens = settings.intelligence_typesafe_max_total_billable_input_tokens
+        # Reserve the attested maximum for all billable input, including opaque
+        # SystemOne wrapper tokens. Client serialization cannot bound that wrapper.
         output_price = Decimal("0")
         output_tokens = 0
         from gridlens.integrations.typesafe_evidence_judge import TypesafeEvidenceJudge
@@ -886,7 +897,11 @@ def _cost_bound(provider: str, task_type: str, payload: dict[str, Any]) -> Decim
             # Until a transport-specific request builder exists, unknown wrappers
             # are not activated under a fabricated byte estimate.
             return Decimal("0")
-        request_bytes = _serialized_request_bytes(request)
+        if not request:
+            return Decimal("0")
+        return (
+            Decimal(input_tokens) * input_price + Decimal(output_tokens) * output_price
+        ) / Decimal(1_000_000)
     # One byte per token is a conservative bound over the complete serialized request.
     return (Decimal(request_bytes) * input_price + Decimal(output_tokens) * output_price) / Decimal(
         1_000_000
