@@ -819,12 +819,18 @@ def test_legacy_invalid_reported_usage_quarantines_without_ledger_overflow(
     assert call.output_tokens == expected_output
 
 
-def test_legacy_valid_null_usage_can_complete(sessions, monkeypatch):
+@pytest.mark.parametrize("usage_field", [{}, {"usage": None}])
+def test_legacy_valid_null_usage_can_complete(sessions, monkeypatch, usage_field):
     _enable_bounded_typesafe(monkeypatch)
     monkeypatch.setattr(settings, "intelligence_enabled_contracts", "SIGNAL_ADJUDICATION")
     from gridlens.integrations import legacy_calls
 
     monkeypatch.setattr(legacy_calls, "SessionLocal", sessions)
+    response = {
+        "model": "pinned-fixture-model",
+        "answers": {"raw": "retained"},
+        **usage_field,
+    }
     result = legacy_calls.perform_legacy_call(
         task_type="SIGNAL_ADJUDICATION",
         task_key="fixture-null-usage",
@@ -834,16 +840,91 @@ def test_legacy_valid_null_usage_can_complete(sessions, monkeypatch):
         job_id=None,
         worker_id=None,
         fence_token=7,
-        invoke=lambda: (
-            {"model": "pinned-fixture-model", "answers": {"raw": "retained"}},
-            None,
-            None,
-        ),
+        invoke=lambda: (response, None, None),
     )
     assert result.input_tokens is None and result.output_tokens is None
     with sessions() as session:
         call = session.get(LogicalCall, result.logical_call_id)
     assert call and call.status == "COMPLETED"
+
+
+@pytest.mark.parametrize("usage", ["invalid", [], 0, False])
+def test_legacy_present_nondict_raw_usage_quarantines(sessions, monkeypatch, usage):
+    _enable_bounded_typesafe(monkeypatch)
+    monkeypatch.setattr(settings, "intelligence_enabled_contracts", "SIGNAL_ADJUDICATION")
+    from gridlens.integrations import legacy_calls
+
+    monkeypatch.setattr(legacy_calls, "SessionLocal", sessions)
+    with pytest.raises(legacy_calls.LegacyCallUnknown, match="INVALID_REPORTED_USAGE"):
+        legacy_calls.perform_legacy_call(
+            task_type="SIGNAL_ADJUDICATION",
+            task_key=f"fixture-raw-usage-{type(usage).__name__}",
+            payload={"state": _legacy_signal_state()},
+            source_id=None,
+            project_id=None,
+            job_id=None,
+            worker_id=None,
+            fence_token=7,
+            invoke=lambda: (
+                {"model": "pinned-fixture-model", "usage": usage, "answers": {}},
+                None,
+                None,
+            ),
+        )
+    with sessions() as session:
+        call = session.scalar(select(LogicalCall))
+    assert call and call.status == "SENT_OUTCOME_UNKNOWN"
+    assert call.blocked_reason == "BILLING_QUARANTINE:INVALID_REPORTED_USAGE"
+
+
+def test_jev_wrapper_preserves_received_error_for_legacy_quarantine(sessions, monkeypatch):
+    _enable_bounded_typesafe(monkeypatch)
+    monkeypatch.setattr(settings, "intelligence_enabled_contracts", "SIGNAL_ADJUDICATION")
+    from gridlens.integrations import legacy_calls
+    from gridlens.intelligence import signal_adjudication
+
+    monkeypatch.setattr(legacy_calls, "SessionLocal", sessions)
+    provider_calls = []
+    raw = {
+        "id": "resp-jev-invalid",
+        "model": "pinned-fixture-model",
+        "usage": {"input_tokens": 17, "output_tokens": 2},
+        "output": [],
+    }
+
+    def provider_error(**_kwargs):
+        provider_calls.append(True)
+        raise signal_adjudication.intelligence_provider.ProviderResponseError(
+            "synthetic received semantic error",
+            request_id="req-jev-invalid",
+            response_received=True,
+            raw_response=raw,
+            reported_model=raw["model"],
+            reported_usage=raw["usage"],
+        )
+
+    monkeypatch.setattr(signal_adjudication.intelligence_provider, "call_typesafe", provider_error)
+    with pytest.raises(legacy_calls.LegacyCallUnknown, match="BILLING_QUARANTINE"):
+        legacy_calls.perform_legacy_call(
+            task_type="SIGNAL_ADJUDICATION",
+            task_key="fixture-jev-wrapper-error",
+            payload={"state": _legacy_signal_state()},
+            source_id=None,
+            project_id=None,
+            job_id=None,
+            worker_id=None,
+            fence_token=7,
+            invoke=lambda: signal_adjudication._jev_call(
+                _legacy_signal_state(), "fixture-only", model="pinned-fixture-model", max_attempts=1
+            ),
+        )
+    with sessions() as session:
+        call = session.scalar(select(LogicalCall))
+    assert provider_calls == [True]
+    assert call and call.status == "SENT_OUTCOME_UNKNOWN"
+    assert call.result_payload["billing_quarantine"]["response"]["provider_request_id"] == (
+        "req-jev-invalid"
+    )
 
 
 def test_catalog_worker_rechecks_exact_billing_proof_before_dispatch(sessions, monkeypatch):

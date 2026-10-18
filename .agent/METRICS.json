@@ -34,11 +34,15 @@
   "acceptance": "Governed by matching final/release-manifest.json and independent-review.json under initiative artifacts; absent or mismatched receipt is not acceptance. Parent live proof remains OPEN.",
   "timing_note": "Uninstrumented timing, usage and total repairs UNKNOWN. Per-command elapsed output and observed UTC handoffs in ignored artifacts. No speedup claim. Historical metrics archived unchanged.",
   "latest_aborted_validation": {
-    "candidate_sha": "f47f151973ffc430aee5587c83bf1bf666d3c41c",
-    "reason": "Independent review FIX; controller stopped pytest",
-    "pytest_elapsed_seconds": 53.786,
+    "candidate_sha": "9391984ea3899318df7eab5c2946e075cc48d6c9",
+    "reason": "Independent adapter-boundary FIX; controller stopped already-failed pytest",
+    "pytest_elapsed_seconds": 394.137,
     "full_suite_pass": false,
-    "artifact": ".artifacts/INTELLIGENCE-20261018/final-attempt5-f47f151",
+    "artifact": ".artifacts/INTELLIGENCE-20261018/final-attempt6-9391984",
+    "browser_passed": 136,
+    "browser_failed": 10,
+    "browser_skipped": 1,
+    "browser_elapsed_seconds": 313.306,
     "accepted": false
   },
   "latest_rejected_full_run": {

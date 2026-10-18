@@ -271,3 +271,5 @@ usage under independently verified conservative reservations; missing usage is
 not itself a proven billing breach. The rejected f47 full run was stopped after
 53.786 seconds upon review FIX, so it provides no full-suite pass. Final matching
 receipts remain required.
+
+9391984 was rejected during final verification. Additional shared-transport and legacy-wrapper repairs preserve billing metadata before semantic rejection and distinguish malformed usage from legitimate NULL measurements. The stopped backend run is not a pass; browser136 passes/10 failures/1 skip are retained. Browser failures were traced to schema-invalid synthetic health and newly unmocked intelligence GETs in navigation fixtures; these are repaired without changing product navigation. Complete final receipts remain required.

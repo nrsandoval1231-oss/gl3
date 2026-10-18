@@ -274,6 +274,66 @@ def test_openai_structured_output_recursion_error_keeps_received_response_metada
     assert error.value.reported_usage == raw["usage"]
 
 
+@pytest.mark.parametrize("usage", ["invalid", [], 0, False])
+def test_openai_present_nondict_usage_is_received_metadata_error(monkeypatch, usage):
+    raw = {
+        "id": "resp-invalid-usage",
+        "status": "completed",
+        "model": "fixture",
+        "usage": usage,
+        "output": [{"content": [{"type": "output_text", "text": "{}"}]}],
+    }
+    monkeypatch.setattr(
+        intelligence_provider,
+        "_post_json",
+        lambda *args, **kwargs: (raw, "req-invalid-usage", 2),
+    )
+    with pytest.raises(intelligence_provider.ProviderResponseError) as error:
+        intelligence_provider.call_openai_request(
+            api_key="fixture-only", request={"model": "fixture"}
+        )
+    assert error.value.response_received is True
+    assert error.value.raw_response is raw
+    assert error.value.reported_usage is None
+
+
+@pytest.mark.parametrize("usage_field", [{}, {"usage": None}])
+def test_openai_missing_or_null_usage_keeps_valid_structured_result(monkeypatch, usage_field):
+    raw = {
+        "status": "completed",
+        "model": "fixture",
+        "output": [{"content": [{"type": "output_text", "text": "{}"}]}],
+        **usage_field,
+    }
+    monkeypatch.setattr(
+        intelligence_provider, "_post_json", lambda *args, **kwargs: (raw, "req-null-usage", 2)
+    )
+    result = intelligence_provider.call_openai_request(
+        api_key="fixture-only", request={"model": "fixture"}
+    )
+    assert result["output"] == {}
+    assert result["input_tokens"] is None and result["output_tokens"] is None
+
+
+def test_openai_nondict_structured_output_is_received_metadata_error(monkeypatch):
+    raw = {
+        "status": "completed",
+        "model": "fixture",
+        "usage": {"input_tokens": 17, "output_tokens": 2},
+        "output": [{"content": [{"type": "output_text", "text": "[]"}]}],
+    }
+    monkeypatch.setattr(
+        intelligence_provider, "_post_json", lambda *args, **kwargs: (raw, "req-list-output", 2)
+    )
+    with pytest.raises(intelligence_provider.ProviderResponseError) as error:
+        intelligence_provider.call_openai_request(
+            api_key="fixture-only", request={"model": "fixture"}
+        )
+    assert error.value.response_received is True
+    assert error.value.reported_model == "fixture"
+    assert error.value.reported_usage == raw["usage"]
+
+
 def test_oversized_received_response_retains_raw_and_request_identity_metadata():
     raw = {
         "id": "resp-oversized",

@@ -286,8 +286,12 @@ def call_openai_request(*, api_key: str, request: dict[str, Any]) -> dict[str, A
         output = json.loads("".join(parts))
     except (json.JSONDecodeError, TypeError, AttributeError, RecursionError) as exc:
         raise invalid_response("OpenAI structured output was invalid") from exc
-    usage = data.get("usage") or {}
-    if not isinstance(usage, dict):
+    if not isinstance(output, dict):
+        raise invalid_response("OpenAI structured output must be a JSON object")
+    usage = data.get("usage")
+    if usage is not None and not isinstance(usage, dict):
+        raise invalid_response("OpenAI response usage was invalid")
+    if usage is None:
         usage = {}
     return {
         "model": data.get("model"),

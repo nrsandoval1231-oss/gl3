@@ -109,7 +109,12 @@ def _add_source_and_due_epoch(factory, item: dict, *, job: bool) -> UUID | None:
         )
         if not job:
             return None
-        row = Job(source_id=item["id"], kind="ingestion", status="queued")
+        row = Job(
+            source_id=item["id"],
+            kind="ingestion",
+            status="queued",
+            available_at=datetime.now(UTC) - timedelta(seconds=1),
+        )
         session.add(row)
         session.flush()
         return row.id
@@ -322,6 +327,7 @@ def test_ocr_public_capture_defers_on_shared_admission_before_capture_or_provide
             source_id=source["id"],
             kind="intelligence_process",
             status="queued",
+            available_at=datetime.now(UTC) - timedelta(seconds=1),
             checkpoint=json.dumps({"task_type": "OCR_EXTRACTION", "capture_id": "fixture"}),
         )
         session.add(job)

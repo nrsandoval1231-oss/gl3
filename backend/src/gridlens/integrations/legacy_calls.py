@@ -214,11 +214,20 @@ def perform_legacy_call(
         raise ValueError("Legacy provider result must be a JSON object")
     if provider in {"typesafe", "openai"}:
         actual_model = result.get("actual_model", result.get("model"))
+        raw_usage_present = "usage" in result
+        raw_usage = result.get("usage")
         quarantine_reason: str | None = (
             "MODEL_IDENTITY_MISMATCH" if actual_model != model else None
         )
         if quarantine_reason is None and _provider_audit_exceeds_bound(result):
             quarantine_reason = "RESPONSE_TOO_LARGE"
+        if (
+            quarantine_reason is None
+            and raw_usage_present
+            and raw_usage is not None
+            and not isinstance(raw_usage, dict)
+        ):
+            quarantine_reason = "INVALID_REPORTED_USAGE"
         if quarantine_reason is None and any(
             value is not None and (type(value) is not int or value < 0 or value > 2**63 - 1)
             for value in (input_tokens, output_tokens)

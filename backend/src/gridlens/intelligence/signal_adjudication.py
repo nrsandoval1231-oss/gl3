@@ -34,8 +34,22 @@ MODEL = "jev-1.13.0"
 
 
 class JevError(RuntimeError):
-    def __init__(self, status: str):
+    def __init__(self, status: str, *, provider_error: Exception | None = None):
         self.status = status
+        if provider_error is not None:
+            for attribute in (
+                "request_id",
+                "conclusive",
+                "status_code",
+                "response_status",
+                "response_received",
+                "raw_response",
+                "reported_model",
+                "reported_usage",
+                "raw_response_sha256",
+                "raw_response_size",
+            ):
+                setattr(self, attribute, getattr(provider_error, attribute, None))
         super().__init__(f"Jev {status}")
 
 
@@ -160,7 +174,12 @@ def _jev_call(
             if status == "provider_unavailable" and attempt + 1 < max_attempts:
                 time.sleep(min(0.25 * (2**attempt), 1.0))
                 continue
-            raise JevError(status) from None
+            raise JevError(
+                status,
+                provider_error=(
+                    exc if isinstance(exc, intelligence_provider.ProviderResponseError) else None
+                ),
+            ) from None
     raise JevError("provider_unavailable")
 
 

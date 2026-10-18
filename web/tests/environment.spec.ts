@@ -50,6 +50,8 @@ async function mock(page: Page, items: Opportunity[], opportunities?: (route: Ro
     }
     if (path === '/api/ingestion') return json({ items: [], total: 0, limit: 25, offset: 0, next_offset: null })
     if (path === '/api/health') return json({ sources: [{ id: 's', enabled: true, status: 'Updated' }], backlog: 0, pending_interpretations: 0 })
+    if (route.request().method() === 'GET' && path === '/api/intelligence/tasks') return json({ items: [] })
+    if (route.request().method() === 'GET' && /^\/api\/intelligence\/needs\/[^/]+\/history$/.test(path)) return json({ items: [] })
     if (path.endsWith('/buying-chain')) return json({ project_id: 'a', status: 'complete', policy_version: 'v1', unresolved: [], runs: [], candidates: [] })
     if (path.endsWith('/facts')) {
       return json({
