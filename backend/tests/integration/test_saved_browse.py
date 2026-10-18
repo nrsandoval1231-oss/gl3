@@ -1324,8 +1324,7 @@ def test_evaluation_saved_receipt_matches_canonical_payload(saved_db, monkeypatc
                     )
                 )
                 captured = {
-                    row.identity_key: deepcopy(row.snapshot["commercial_triage"])
-                    for row in rows
+                    row.identity_key: deepcopy(row.snapshot["commercial_triage"]) for row in rows
                 }
                 for value in captured.values():
                     value["saved_card"].pop("pursuit_id", None)
@@ -1377,9 +1376,7 @@ def test_evaluation_selection_uses_request_clock_across_generation_boundary(save
     original_selection = browse.commercial_selection
 
     def inspect_generation(session, limit, offset, **kwargs):
-        selected_generation_ids.append(
-            current_generation(session, now=kwargs.get("now")).id
-        )
+        selected_generation_ids.append(current_generation(session, now=kwargs.get("now")).id)
         assert kwargs.get("now") == boundary - timedelta(microseconds=1)
         return original_selection(session, limit, offset, **kwargs)
 
@@ -1417,16 +1414,885 @@ def test_evaluation_post_retries_only_complete_serialization_failure(saved_db, m
 
     monkeypatch.setattr(commercial_evaluation, "save_evaluations", fail_once)
     client = TestClient(api.app, base_url="https://testserver")
-    client.cookies.set(
-        "gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300)
+    client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
+    response = client.post(
+        "/api/commercial/triage/evaluate", headers={"origin": "https://testserver"}
     )
-    response = client.post("/api/commercial/triage/evaluate", headers={"origin": "https://testserver"})
     assert response.status_code == 200, response.text
     assert len(calls) == 2
     with factory() as session:
         assert session.scalar(select(func.count()).select_from(Pursuit)) == len(
             response.json()["items"]
         )
+
+
+@pytest.mark.parametrize("boundary_kind", ["effective_from", "effective_until"])
+def test_authenticated_evaluation_post_reselects_canonical_fact_at_boundary(
+    saved_db, monkeypatch, boundary_kind
+):
+    """A retried POST persists canonical fact provenance at the new instant."""
+    from fastapi.testclient import TestClient
+
+    from gridlens.persistence.models import CallFactDecision, CallFactVersion, Pursuit
+    from gridlens.security import token_for
+
+    factory = saved_db
+    need_ids = seed(factory, count=2, histories=1)
+    boundary = datetime.now(UTC) + timedelta(minutes=10)
+    fact_id = uuid4()
+    need_id = need_ids[0]
+    with factory.begin() as session:
+        need = session.get(PowerNeed, need_id)
+        effective_from = (
+            boundary if boundary_kind == "effective_from" else boundary - timedelta(days=1)
+        )
+        effective_until = boundary if boundary_kind == "effective_until" else None
+        session.add(
+            CallFactVersion(
+                id=fact_id,
+                need_id=need.id,
+                project_id=need.project_id,
+                client_id=uuid4(),
+                activity_key="clock-boundary-test",
+                facility_scope="synthetic facility",
+                fact_type="demand",
+                value={"detail": "confirmed demand"},
+                reporter_name="Fixture Operator",
+                confirmation_channel="phone",
+                confirmed_at=boundary - timedelta(days=1),
+                effective_from=effective_from,
+                effective_until=effective_until,
+                content_hash=("a" * 64),
+                recorded_by="fixture",
+            )
+        )
+        session.flush()
+        session.add(
+            CallFactDecision(
+                need_id=need.id,
+                fact_version_id=fact_id,
+                version=1,
+                client_id=uuid4(),
+                decision="accepted",
+                expected_version=0,
+                reason="clock-boundary regression fixture",
+                content_hash="b" * 64,
+                actor="fixture",
+            )
+        )
+
+    before = boundary - timedelta(microseconds=1)
+    after = boundary + timedelta(microseconds=1)
+    later_deadline = boundary + timedelta(hours=1)
+    clock_values = iter(
+        [before, boundary, after, after + timedelta(microseconds=1), after + timedelta(seconds=1)]
+    )
+    monkeypatch.setattr(api, "_evaluation_real_now", lambda: next(clock_values))
+    from gridlens.intelligence import saved_browse
+
+    monkeypatch.setattr(
+        saved_browse,
+        "clock_deadline",
+        lambda _session, now: boundary if now < boundary else later_deadline,
+    )
+    monkeypatch.setattr(settings, "saved_browse_enabled", False)
+    observed_fact_refs = []
+    original_projection = api.opportunity_projection
+
+    def record_canonical_fact_refs(session, **kwargs):
+        result = original_projection(session, **kwargs)
+        if kwargs.get("selected_need_ids"):
+            item = next((row for row in result if str(row["id"]) == str(need_id)), None)
+            observed_fact_refs.append(bool(item and item.get("operator_fact_refs")))
+        return result
+
+    monkeypatch.setattr(api, "opportunity_projection", record_canonical_fact_refs)
+    token = token_for(int(datetime.now(UTC).timestamp()) + 300)
+    with TestClient(api.app, base_url="https://testserver") as client:
+        client.cookies.set("gridlens_session", token)
+        response = client.post(
+            "/api/commercial/triage/evaluate", headers={"origin": "https://testserver"}
+        )
+    assert response.status_code == 200, response.text
+    assert observed_fact_refs == (
+        [False, True] if boundary_kind == "effective_from" else [True, False]
+    )
+    persisted = next(card for card in response.json()["items"] if card["id"] == str(need_id))
+    assert bool(persisted.get("operator_fact_refs")) is (boundary_kind == "effective_from")
+    with factory() as session:
+        receipt = session.scalar(
+            select(Pursuit).where(Pursuit.identity_key == f"commercial-need:{need_id}")
+        )
+        assert receipt is not None
+        triage = receipt.snapshot["commercial_triage"]
+        persisted_saved_card = dict(persisted)
+        if not persisted_saved_card.get("operator_fact_refs"):
+            persisted_saved_card.pop("operator_fact_refs", None)
+        assert triage["saved_card"] == persisted_saved_card
+        assert len(triage["versions"]) == 1
+        assert datetime.fromisoformat(triage["saved_at"]) > boundary
+        assert session.scalar(select(func.count()).select_from(Pursuit)) == len(
+            response.json()["items"]
+        )
+
+
+def test_authenticated_post_never_saves_pre_boundary_fact_with_post_boundary_timestamp(
+    saved_db, monkeypatch
+):
+    """Before-fix route regression: decision and durable timestamp must share interval."""
+    from fastapi.testclient import TestClient
+
+    from gridlens.intelligence import commercial_evaluation
+    from gridlens.persistence.models import CallFactDecision, CallFactVersion, Pursuit
+    from gridlens.security import token_for
+
+    factory = saved_db
+    need_ids = seed(factory, count=2, histories=1)
+    need_id = need_ids[0]
+    boundary = datetime.now(UTC) + timedelta(minutes=10)
+    before = boundary - timedelta(microseconds=1)
+    after = boundary + timedelta(microseconds=1)
+    with factory.begin() as session:
+        need = session.get(PowerNeed, need_id)
+        fact_id = uuid4()
+        session.add(
+            CallFactVersion(
+                id=fact_id,
+                need_id=need.id,
+                project_id=need.project_id,
+                client_id=uuid4(),
+                activity_key="before-fix-clock-regression",
+                facility_scope="synthetic facility",
+                fact_type="demand",
+                value={"detail": "expires at the request boundary"},
+                reporter_name="Fixture Operator",
+                confirmation_channel="phone",
+                confirmed_at=before - timedelta(days=1),
+                effective_from=before - timedelta(days=1),
+                effective_until=boundary,
+                content_hash="c" * 64,
+                recorded_by="fixture",
+            )
+        )
+        session.flush()
+        session.add(
+            CallFactDecision(
+                need_id=need.id,
+                fact_version_id=fact_id,
+                version=1,
+                client_id=uuid4(),
+                decision="accepted",
+                expected_version=0,
+                reason="before-fix clock regression fixture",
+                content_hash="d" * 64,
+                actor="fixture",
+            )
+        )
+
+    clock = {"now": before, "crossed": False}
+
+    class ControlledDateTime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            value = clock["now"]
+            return value.replace(tzinfo=None) if tz is None else value.astimezone(tz)
+
+    monkeypatch.setattr(api, "datetime", ControlledDateTime)
+    monkeypatch.setattr(commercial_evaluation, "datetime", ControlledDateTime)
+    monkeypatch.setattr(settings, "saved_browse_enabled", False)
+    original_payload = api._commercial_triage_evaluation_payload
+
+    def cross_after_payload(*args, **kwargs):
+        payload = original_payload(*args, **kwargs)
+        if not clock["crossed"]:
+            clock["now"] = after
+            clock["crossed"] = True
+        return payload
+
+    monkeypatch.setattr(api, "_commercial_triage_evaluation_payload", cross_after_payload)
+    with TestClient(api.app, base_url="https://testserver") as client:
+        client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
+        response = client.post(
+            "/api/commercial/triage/evaluate", headers={"origin": "https://testserver"}
+        )
+    assert response.status_code == 200, response.text
+    assert clock["crossed"]
+    persisted_card = next(
+        card for card in response.json()["items"] if str(need_id) in card["related_need_ids"]
+    )
+    assert datetime.fromisoformat(response.json()["evaluated_at"]) > boundary
+    with factory() as session:
+        receipt = session.scalar(
+            select(Pursuit).where(Pursuit.identity_key == f"commercial-need:{persisted_card['id']}")
+        )
+        assert receipt is not None
+        triage = receipt.snapshot["commercial_triage"]
+        assert datetime.fromisoformat(triage["saved_at"]) > boundary
+        # ecf55a4 fails here: the old card still contains the fact that expired
+        # between canonical detail and save. The fixed route retries the whole POST.
+        assert not triage["saved_card"].get("operator_fact_refs")
+
+
+@pytest.mark.parametrize("boundary_kind", ["utc_midnight", "chicago_midnight", "host_midnight"])
+def test_authenticated_post_calendar_boundary_retry_and_receipt_dates(
+    saved_db, monkeypatch, boundary_kind
+):
+    """Calendar deadline retry keeps save dates aligned and preserves idempotent history."""
+    import os
+    import time
+    from zoneinfo import ZoneInfo
+
+    from fastapi.testclient import TestClient
+
+    from gridlens.intelligence import commercial_evaluation, saved_browse
+    from gridlens.persistence.models import Pursuit
+    from gridlens.security import token_for
+
+    if boundary_kind == "host_midnight" and not hasattr(time, "tzset"):
+        pytest.skip("host TZ override requires time.tzset")
+    old_tz = os.environ.get("TZ")
+    if boundary_kind == "host_midnight":
+        os.environ["TZ"] = "America/New_York"
+        time.tzset()
+    try:
+        if boundary_kind == "utc_midnight":
+            boundary = datetime(2027, 1, 2, 0, tzinfo=UTC)
+        elif boundary_kind == "chicago_midnight":
+            boundary = datetime(2027, 1, 2, 0, tzinfo=ZoneInfo("America/Chicago")).astimezone(UTC)
+        else:
+            boundary = datetime(2027, 1, 1, 0, tzinfo=ZoneInfo("America/New_York")).astimezone(UTC)
+
+        factory = saved_db
+        seed(factory, count=3, histories=1)
+        before = boundary - timedelta(seconds=1)
+        after = boundary + timedelta(seconds=1)
+        expected_save_at = after + timedelta(microseconds=1)
+        with factory.begin() as session:
+            assert saved_browse.clock_deadline(session, before) == boundary
+            canonical = api._commercial_triage_evaluation_payload(session, 50, 0, instant=after)
+            historical = datetime(2020, 1, 2, 12, tzinfo=UTC)
+            commercial_evaluation.save_evaluations(
+                session, [dict(canonical["items"][0])], now=historical
+            )
+
+        clock_values = iter(
+            (
+                before,
+                boundary,
+                after,
+                expected_save_at,
+                expected_save_at + timedelta(microseconds=1),
+            )
+        )
+        monkeypatch.setattr(api, "_evaluation_real_now", lambda: next(clock_values))
+        monkeypatch.setattr(settings, "saved_browse_enabled", False)
+        with TestClient(api.app, base_url="https://testserver") as client:
+            client.cookies.set(
+                "gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300)
+            )
+            response = client.post(
+                "/api/commercial/triage/evaluate", headers={"origin": "https://testserver"}
+            )
+        assert response.status_code == 200, response.text
+        assert datetime.fromisoformat(response.json()["evaluated_at"]) == expected_save_at
+        current_chicago_day = expected_save_at.astimezone(ZoneInfo("America/Chicago")).date()
+        with factory() as session:
+            receipts = list(session.scalars(select(Pursuit)))
+            assert len(receipts) == len(response.json()["items"])
+            old_receipt_count = 0
+            new_receipt_count = 0
+            for row in receipts:
+                triage = row.snapshot["commercial_triage"]
+                if triage["saved_at"] == historical.isoformat():
+                    old_receipt_count += 1
+                    assert len(triage["versions"]) == 1
+                    assert (
+                        triage["evaluated_on"]
+                        == historical.astimezone(ZoneInfo("America/Chicago")).date().isoformat()
+                    )
+                else:
+                    new_receipt_count += 1
+                    assert triage["saved_at"] == expected_save_at.isoformat()
+                    assert triage["evaluated_on"] == current_chicago_day.isoformat()
+                    assert len(triage["versions"]) == 1
+            assert old_receipt_count == 1
+            assert new_receipt_count == len(receipts) - 1
+            assert response.json()["daily"]["evaluated"] == new_receipt_count
+    finally:
+        if old_tz is None:
+            os.environ.pop("TZ", None)
+        else:
+            os.environ["TZ"] = old_tz
+        if hasattr(time, "tzset"):
+            time.tzset()
+
+
+def test_evaluation_post_rolls_back_flushed_receipts_when_final_fence_expires(
+    saved_db, monkeypatch
+):
+    """The final pre-commit fence rolls back a real flushed batch before recomputing."""
+    from fastapi.testclient import TestClient
+
+    from gridlens.intelligence import commercial_evaluation, saved_browse
+    from gridlens.persistence.models import Pursuit
+    from gridlens.security import token_for
+
+    factory = saved_db
+    seed(factory, count=3, histories=1)
+    boundary = datetime.now(UTC) + timedelta(minutes=10)
+    after = boundary + timedelta(seconds=1)
+    later_deadline = boundary + timedelta(hours=1)
+    clock_values = iter(
+        [
+            boundary - timedelta(seconds=1),
+            boundary - timedelta(milliseconds=1),
+            boundary,
+            after,
+            after + timedelta(milliseconds=1),
+            after + timedelta(seconds=1),
+        ]
+    )
+    monkeypatch.setattr(api, "_evaluation_real_now", lambda: next(clock_values))
+    monkeypatch.setattr(
+        saved_browse,
+        "clock_deadline",
+        lambda _session, now: boundary if now < boundary else later_deadline,
+    )
+    monkeypatch.setattr(settings, "saved_browse_enabled", False)
+    actual_save = commercial_evaluation.save_evaluations
+    saved_batches = []
+
+    def observe_save(session, cards, **kwargs):
+        saved_batches.append((len(cards), kwargs["now"]))
+        return actual_save(session, cards, **kwargs)
+
+    monkeypatch.setattr(commercial_evaluation, "save_evaluations", observe_save)
+    with TestClient(api.app, base_url="https://testserver") as client:
+        client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
+        response = client.post(
+            "/api/commercial/triage/evaluate", headers={"origin": "https://testserver"}
+        )
+    assert response.status_code == 200, response.text
+    assert len(saved_batches) == 2
+    assert saved_batches[0][1] < boundary < saved_batches[1][1]
+    with factory() as session:
+        receipts = list(session.scalars(select(Pursuit)))
+        assert len(receipts) == len(response.json()["items"])
+        assert all(len(row.snapshot["commercial_triage"]["versions"]) == 1 for row in receipts)
+        assert all(
+            datetime.fromisoformat(row.snapshot["commercial_triage"]["saved_at"]) > boundary
+            for row in receipts
+        )
+
+
+def test_evaluation_post_expiry_exhaustion_commits_no_receipts(saved_db, monkeypatch):
+    from fastapi.testclient import TestClient
+
+    from gridlens.intelligence import saved_browse
+    from gridlens.persistence.models import Pursuit
+    from gridlens.security import token_for
+
+    factory = saved_db
+    seed(factory, count=2, histories=1)
+    base = datetime.now(UTC) + timedelta(minutes=10)
+    samples = []
+    for attempt in range(4):
+        t0 = base + timedelta(seconds=attempt)
+        samples.extend((t0, t0 + timedelta(microseconds=1)))
+    clock_values = iter(samples)
+    monkeypatch.setattr(api, "_evaluation_real_now", lambda: next(clock_values))
+    monkeypatch.setattr(
+        saved_browse, "clock_deadline", lambda _session, now: now + timedelta(microseconds=1)
+    )
+    monkeypatch.setattr(settings, "saved_browse_enabled", False)
+    with TestClient(api.app, base_url="https://testserver") as client:
+        client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
+        response = client.post(
+            "/api/commercial/triage/evaluate", headers={"origin": "https://testserver"}
+        )
+    assert response.status_code == 503
+    with factory() as session:
+        assert session.scalar(select(func.count()).select_from(Pursuit)) == 0
+
+
+def test_evaluation_post_boundary_after_final_fence_keeps_truthful_single_receipt(
+    saved_db, monkeypatch
+):
+    """A commit after the last fence keeps its real historical saved_as_of time."""
+    from fastapi.testclient import TestClient
+
+    from gridlens.intelligence import saved_browse
+    from gridlens.persistence.models import Pursuit
+    from gridlens.security import token_for
+
+    factory = saved_db
+    seed(factory, count=2, histories=1)
+    boundary = datetime.now(UTC) + timedelta(minutes=10)
+    t0 = boundary - timedelta(seconds=2)
+    save_at = boundary - timedelta(seconds=1)
+    observed = iter((t0, save_at, boundary - timedelta(microseconds=1)))
+    commit_clock = {"now": None, "crossed": False, "events": [], "fences": []}
+
+    def read_clock():
+        if commit_clock["now"] is not None:
+            value = commit_clock["now"]
+        else:
+            value = next(observed)
+        commit_clock["events"].append(("clock", value))
+        return value
+
+    actual_fence = api._require_evaluation_interval
+
+    def record_fence(started, deadline, current):
+        commit_clock["fences"].append((started, deadline, current))
+        return actual_fence(started, deadline, current)
+
+    monkeypatch.setattr(api, "_evaluation_real_now", read_clock)
+    monkeypatch.setattr(api, "_require_evaluation_interval", record_fence)
+    monkeypatch.setattr(saved_browse, "clock_deadline", lambda _session, _now: boundary)
+    monkeypatch.setattr(settings, "saved_browse_enabled", False)
+    actual_payload = api._commercial_triage_evaluation_payload
+
+    def mark_evaluation_session(session, *args, **kwargs):
+        session.info["evaluation_post_clock_test"] = True
+        return actual_payload(session, *args, **kwargs)
+
+    monkeypatch.setattr(api, "_commercial_triage_evaluation_payload", mark_evaluation_session)
+
+    from sqlalchemy import event
+    from sqlalchemy.orm import Session, sessionmaker
+
+    class EvaluationCommitSession(Session):
+        pass
+
+    def cross_after_fence(_session):
+        if not _session.info.get("evaluation_post_clock_test"):
+            return
+        commit_clock["events"].append(
+            (
+                "before_commit",
+                type(_session).__name__,
+                _session.in_transaction(),
+                _session.in_nested_transaction(),
+            )
+        )
+        commit_clock["now"] = boundary
+        commit_clock["crossed"] = True
+
+    event.listen(EvaluationCommitSession, "before_commit", cross_after_fence)
+    route_factory = sessionmaker(**factory.kw, class_=EvaluationCommitSession)
+    try:
+        with TestClient(api.app, base_url="https://testserver") as client:
+            original_factory = api.SessionLocal
+            api.SessionLocal = route_factory
+            try:
+                client.cookies.set(
+                    "gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300)
+                )
+                response = client.post(
+                    "/api/commercial/triage/evaluate", headers={"origin": "https://testserver"}
+                )
+            finally:
+                api.SessionLocal = original_factory
+    finally:
+        event.remove(EvaluationCommitSession, "before_commit", cross_after_fence)
+    assert response.status_code == 200, (
+        f"{response.text}; events={commit_clock['events']!r}; fences={commit_clock['fences']!r}"
+    )
+    assert commit_clock["crossed"], commit_clock
+    with factory() as session:
+        receipts = list(session.scalars(select(Pursuit)))
+        assert len(receipts) == len(response.json()["items"])
+        for row in receipts:
+            triage = row.snapshot["commercial_triage"]
+            assert triage["saved_at"] == save_at.isoformat()
+            assert len(triage["versions"]) == 1
+
+
+def test_evaluation_post_does_not_retry_ambiguous_commit_result(saved_db, monkeypatch):
+    """A commit-result error is surfaced once, never retried as a fresh POST attempt."""
+    from fastapi.testclient import TestClient
+    from sqlalchemy import event
+    from sqlalchemy.exc import DBAPIError
+    from sqlalchemy.orm import Session, sessionmaker
+
+    from gridlens.intelligence import saved_browse
+    from gridlens.persistence.models import Pursuit
+    from gridlens.security import token_for
+
+    factory = saved_db
+    seed(factory, count=2, histories=1)
+    boundary = datetime.now(UTC) + timedelta(minutes=10)
+    samples = iter(
+        (
+            boundary - timedelta(seconds=2),
+            boundary - timedelta(seconds=1),
+            boundary - timedelta(microseconds=1),
+        )
+    )
+    monkeypatch.setattr(api, "_evaluation_real_now", lambda: next(samples))
+    monkeypatch.setattr(saved_browse, "clock_deadline", lambda _session, _now: boundary)
+    monkeypatch.setattr(settings, "saved_browse_enabled", False)
+    attempts = {"count": 0}
+    actual_payload = api._commercial_triage_evaluation_payload
+
+    def mark_evaluation_session(session, *args, **kwargs):
+        session.info["evaluation_post_ambiguous_test"] = True
+        return actual_payload(session, *args, **kwargs)
+
+    monkeypatch.setattr(api, "_commercial_triage_evaluation_payload", mark_evaluation_session)
+
+    class AmbiguousEvaluationSession(Session):
+        pass
+
+    def fail_after_evaluation_commit(session):
+        if session.info.get("evaluation_post_ambiguous_test"):
+            attempts["count"] += 1
+            raise DBAPIError("simulated ambiguous commit result", None, None)
+
+    event.listen(AmbiguousEvaluationSession, "after_commit", fail_after_evaluation_commit)
+    route_factory = sessionmaker(**factory.kw, class_=AmbiguousEvaluationSession)
+    with TestClient(
+        api.app, base_url="https://testserver", raise_server_exceptions=False
+    ) as client:
+        original_factory = api.SessionLocal
+        api.SessionLocal = route_factory
+        try:
+            client.cookies.set(
+                "gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300)
+            )
+            response = client.post(
+                "/api/commercial/triage/evaluate", headers={"origin": "https://testserver"}
+            )
+        finally:
+            api.SessionLocal = original_factory
+            event.remove(AmbiguousEvaluationSession, "after_commit", fail_after_evaluation_commit)
+    assert response.status_code == 500
+    assert attempts["count"] == 1
+    with factory() as session:
+        assert session.scalar(select(func.count()).select_from(Pursuit)) > 0
+
+
+@pytest.mark.parametrize("fallback", ["missing", "stale_revision", "policy", "expired", "disabled"])
+def test_authenticated_evaluation_post_fallback_persists_canonical_cards(
+    saved_db, monkeypatch, fallback
+):
+    from fastapi.testclient import TestClient
+
+    from gridlens.domain.pursuits import CommercialTriageCard
+    from gridlens.intelligence import saved_browse
+    from gridlens.persistence.models import BrowseGeneration, BrowseState, Pursuit
+    from gridlens.security import token_for
+
+    factory = saved_db
+    need_ids = seed(factory, count=4, histories=1)
+    if fallback != "missing":
+        assert rebuild(factory)["status"] == "published"
+    enabled = fallback != "disabled"
+    monkeypatch.setattr(settings, "saved_browse_enabled", enabled)
+    with factory.begin() as session:
+        state = session.get(BrowseState, 1)
+        if fallback == "stale_revision":
+            need = session.get(PowerNeed, need_ids[0])
+            session.get(Project, need.project_id).name = "Changed before fallback POST"
+        elif fallback == "policy":
+            generation = session.get(BrowseGeneration, state.generation_id)
+            generation.policy_version = "old-policy"
+        elif fallback == "expired":
+            generation = session.get(BrowseGeneration, state.generation_id)
+            generation.valid_until = datetime.now(UTC) - timedelta(seconds=1)
+
+    with factory.begin() as session:
+        expected = api._commercial_triage_payload(session, 50, 0, saved_selection=False)["items"]
+    summary_calls = []
+    original_projection = api.opportunity_projection
+
+    def track_summary(session, *, summary_only=False, **kwargs):
+        if summary_only:
+            summary_calls.append(True)
+        return original_projection(session, summary_only=summary_only, **kwargs)
+
+    monkeypatch.setattr(api, "opportunity_projection", track_summary)
+    monkeypatch.setattr(
+        saved_browse, "clock_deadline", lambda _session, now: now + timedelta(hours=1)
+    )
+    with TestClient(api.app, base_url="https://testserver") as client:
+        client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
+        response = client.post(
+            "/api/commercial/triage/evaluate", headers={"origin": "https://testserver"}
+        )
+    assert response.status_code == 200, response.text
+    assert summary_calls
+
+    def normalized_card(card):
+        result = CommercialTriageCard.model_validate(card).model_dump(mode="json")
+        result.pop("pursuit_id", None)
+        return result
+
+    actual = [normalized_card(card) for card in response.json()["items"]]
+    assert actual == [normalized_card(card) for card in expected]
+    with factory() as session:
+        rows = list(session.scalars(select(Pursuit)))
+        assert len(rows) == len(expected)
+        for row in rows:
+            saved_card = row.snapshot["commercial_triage"]["saved_card"]
+            response_card = next(
+                card for card in response.json()["items"] if card["id"] == saved_card["id"]
+            )
+            assert normalized_card(saved_card) == normalized_card(response_card)
+
+
+def test_evaluation_post_fences_selected_generation_deadline_and_falls_back(saved_db, monkeypatch):
+    from fastapi.testclient import TestClient
+
+    from gridlens.intelligence import saved_browse
+    from gridlens.persistence.models import BrowseGeneration, BrowseState, Pursuit
+    from gridlens.security import token_for
+
+    factory = saved_db
+    seed(factory, count=3, histories=1)
+    assert rebuild(factory)["status"] == "published"
+    boundary = datetime.now(UTC) + timedelta(minutes=10)
+    with factory.begin() as session:
+        state = session.get(BrowseState, 1)
+        generation = session.get(BrowseGeneration, state.generation_id)
+        generation.valid_until = boundary
+    later_deadline = boundary + timedelta(hours=1)
+    samples = iter(
+        (
+            boundary - timedelta(microseconds=1),
+            boundary,
+            boundary + timedelta(microseconds=1),
+            boundary + timedelta(milliseconds=1),
+            boundary + timedelta(seconds=1),
+        )
+    )
+    monkeypatch.setattr(api, "_evaluation_real_now", lambda: next(samples))
+    monkeypatch.setattr(saved_browse, "clock_deadline", lambda _session, _now: later_deadline)
+    monkeypatch.setattr(settings, "saved_browse_enabled", True)
+    population_calls = []
+    original_projection = api.opportunity_projection
+
+    def count_population(session, *, summary_only=False, **kwargs):
+        if summary_only:
+            population_calls.append(True)
+        return original_projection(session, summary_only=summary_only, **kwargs)
+
+    monkeypatch.setattr(api, "opportunity_projection", count_population)
+    with TestClient(api.app, base_url="https://testserver") as client:
+        client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
+        response = client.post(
+            "/api/commercial/triage/evaluate", headers={"origin": "https://testserver"}
+        )
+    assert response.status_code == 200, response.text
+    assert population_calls
+    with factory() as session:
+        receipts = list(session.scalars(select(Pursuit)))
+        assert len(receipts) == len(response.json()["items"])
+        assert all(
+            datetime.fromisoformat(row.snapshot["commercial_triage"]["saved_at"]) > boundary
+            for row in receipts
+        )
+        assert all(len(row.snapshot["commercial_triage"]["versions"]) == 1 for row in receipts)
+
+
+def test_evaluation_post_backward_clock_sample_rolls_back_and_retries(saved_db, monkeypatch):
+    from fastapi.testclient import TestClient
+
+    from gridlens.intelligence import saved_browse
+    from gridlens.persistence.models import Pursuit
+    from gridlens.security import token_for
+
+    factory = saved_db
+    seed(factory, count=2, histories=1)
+    boundary = datetime.now(UTC) + timedelta(minutes=10)
+    t0 = boundary - timedelta(seconds=10)
+    after = boundary + timedelta(seconds=1)
+    samples = iter(
+        (
+            t0,
+            t0 - timedelta(microseconds=1),
+            after,
+            after + timedelta(microseconds=1),
+            after + timedelta(seconds=1),
+        )
+    )
+    monkeypatch.setattr(api, "_evaluation_real_now", lambda: next(samples))
+    monkeypatch.setattr(
+        saved_browse, "clock_deadline", lambda _session, _now: boundary + timedelta(hours=1)
+    )
+    monkeypatch.setattr(settings, "saved_browse_enabled", False)
+    with TestClient(api.app, base_url="https://testserver") as client:
+        client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
+        response = client.post(
+            "/api/commercial/triage/evaluate", headers={"origin": "https://testserver"}
+        )
+    assert response.status_code == 200, response.text
+    with factory() as session:
+        receipts = list(session.scalars(select(Pursuit)))
+        assert len(receipts) == len(response.json()["items"])
+        assert all(
+            datetime.fromisoformat(row.snapshot["commercial_triage"]["saved_at"]) > boundary
+            for row in receipts
+        )
+
+
+def test_evaluation_post_retry_observes_canonical_mutation_between_attempts(saved_db, monkeypatch):
+    from fastapi.testclient import TestClient
+
+    from gridlens.intelligence import saved_browse
+    from gridlens.persistence.models import Pursuit
+    from gridlens.security import token_for
+
+    factory = saved_db
+    need_ids = seed(factory, count=2, histories=1)
+    assert rebuild(factory)["status"] == "published"
+    boundary = datetime.now(UTC) + timedelta(minutes=10)
+    later_deadline = boundary + timedelta(hours=1)
+    samples = iter(
+        (
+            boundary - timedelta(microseconds=1),
+            boundary,
+            boundary + timedelta(microseconds=1),
+            boundary + timedelta(milliseconds=1),
+            boundary + timedelta(seconds=1),
+        )
+    )
+    monkeypatch.setattr(api, "_evaluation_real_now", lambda: next(samples))
+    monkeypatch.setattr(
+        saved_browse,
+        "clock_deadline",
+        lambda _session, now: boundary if now < boundary else later_deadline,
+    )
+    monkeypatch.setattr(settings, "saved_browse_enabled", True)
+
+    class MutationBetweenAttemptsFactory:
+        attempts = 0
+
+        def begin(self):
+            self.attempts += 1
+            if self.attempts == 2:
+                with factory.begin() as writer:
+                    need = writer.get(PowerNeed, need_ids[0])
+                    writer.get(Project, need.project_id).name = "Canonical change between retries"
+            return factory.begin()
+
+    monkeypatch.setattr(api, "SessionLocal", MutationBetweenAttemptsFactory())
+    with TestClient(api.app, base_url="https://testserver") as client:
+        client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
+        response = client.post(
+            "/api/commercial/triage/evaluate", headers={"origin": "https://testserver"}
+        )
+    assert response.status_code == 200, response.text
+    changed_card = next(
+        card for card in response.json()["items"] if str(need_ids[0]) in card["related_need_ids"]
+    )
+    assert changed_card["name"] == "Canonical change between retries"
+    with factory() as session:
+        receipt = session.scalar(
+            select(Pursuit).where(Pursuit.identity_key == f"commercial-need:{changed_card['id']}")
+        )
+        assert receipt is not None
+        assert (
+            receipt.snapshot["commercial_triage"]["saved_card"]["name"]
+            == "Canonical change between retries"
+        )
+
+
+def test_evaluation_post_lock_wait_crossing_flushes_then_rolls_back_whole_batch(
+    saved_db, monkeypatch
+):
+    """A confirmed advisory-lock wait crosses the deadline; its flushed batch is retried."""
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Event
+
+    from fastapi.testclient import TestClient
+    from sqlalchemy import text
+
+    from gridlens.intelligence import commercial_evaluation, saved_browse
+    from gridlens.persistence.models import Pursuit
+    from gridlens.security import token_for
+
+    factory = saved_db
+    seed(factory, count=2, histories=1)
+    with factory.begin() as session:
+        canonical = api._commercial_triage_evaluation_payload(session, 50, 0)
+        identity = "commercial-need:" + canonical["items"][0]["id"]
+
+    boundary = datetime.now(UTC) + timedelta(minutes=10)
+    after = boundary + timedelta(seconds=1)
+    clock = {"now": boundary - timedelta(seconds=10), "samples": 0}
+
+    def controlled_now():
+        clock["samples"] += 1
+        if clock["samples"] == 1:
+            return boundary - timedelta(seconds=10)
+        if clock["samples"] == 2:
+            return boundary - timedelta(seconds=5)
+        return clock["now"]
+
+    monkeypatch.setattr(api, "_evaluation_real_now", controlled_now)
+    monkeypatch.setattr(
+        saved_browse,
+        "clock_deadline",
+        lambda _session, now: boundary if now < boundary else boundary + timedelta(hours=1),
+    )
+    monkeypatch.setattr(settings, "saved_browse_enabled", False)
+    actual_save = commercial_evaluation.save_evaluations
+    backend_ready = Event()
+    backend_pid = {"value": None}
+    save_calls = []
+
+    def observe_and_save(session, cards, **kwargs):
+        save_calls.append(kwargs["now"])
+        if len(save_calls) == 1:
+            backend_pid["value"] = session.scalar(text("SELECT pg_backend_pid()"))
+            backend_ready.set()
+        return actual_save(session, cards, **kwargs)
+
+    monkeypatch.setattr(commercial_evaluation, "save_evaluations", observe_and_save)
+    token = token_for(int(datetime.now(UTC).timestamp()) + 300)
+
+    def post():
+        with TestClient(api.app, base_url="https://testserver") as client:
+            client.cookies.set("gridlens_session", token)
+            return client.post(
+                "/api/commercial/triage/evaluate", headers={"origin": "https://testserver"}
+            )
+
+    executor = ThreadPoolExecutor(max_workers=1)
+    future = None
+    try:
+        with factory.begin() as holder:
+            holder_pid = holder.scalar(text("SELECT pg_backend_pid()"))
+            holder.execute(
+                text("SELECT pg_advisory_xact_lock(hashtextextended(:identity, 29))"),
+                {"identity": identity},
+            )
+            future = executor.submit(post)
+            assert backend_ready.wait(timeout=10)
+            blocked_by = []
+            for _ in range(1000):
+                with factory() as observer:
+                    blocked_by = observer.scalar(
+                        text("SELECT pg_blocking_pids(:pid)"), {"pid": backend_pid["value"]}
+                    )
+                if blocked_by:
+                    break
+            assert blocked_by, "POST never entered a PostgreSQL lock wait"
+            assert holder_pid in blocked_by
+            clock["now"] = after
+        # Releasing the holder transaction lets the POST continue; only then join it.
+        response = future.result(timeout=30)
+    finally:
+        executor.shutdown(wait=True, cancel_futures=True)
+    assert response.status_code == 200, response.text
+    assert len(save_calls) == 2
+    assert save_calls[0] < boundary < save_calls[1]
+    with factory() as session:
+        receipts = list(session.scalars(select(Pursuit)))
+        assert len(receipts) == len(response.json()["items"])
+        assert all(len(row.snapshot["commercial_triage"]["versions"]) == 1 for row in receipts)
 
 
 def test_concurrent_evaluation_posts_commit_complete_receipts(saved_db, monkeypatch):
@@ -1459,9 +2325,7 @@ def test_concurrent_evaluation_posts_commit_complete_receipts(saved_db, monkeypa
         assert session.scalar(select(func.count()).select_from(Pursuit)) == item_count
 
 
-def test_concurrent_first_insert_and_existing_receipt_updates_are_retried(
-    saved_db, monkeypatch
-):
+def test_concurrent_first_insert_and_existing_receipt_updates_are_retried(saved_db, monkeypatch):
     from concurrent.futures import ThreadPoolExecutor
     from threading import Barrier, Lock
 
@@ -1490,6 +2354,7 @@ def test_concurrent_first_insert_and_existing_receipt_updates_are_retried(
         barrier = Barrier(2)
         guard = Lock()
         state = {"calls": 0, "insert_conflicts": 0, "serialization_conflicts": 0}
+
         def synchronized_save(session, cards, **kwargs):
             with guard:
                 state["calls"] += 1

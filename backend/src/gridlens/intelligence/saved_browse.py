@@ -834,7 +834,12 @@ def restore_generation(factory, generation_id: UUID) -> bool:
 
 
 def commercial_selection(
-    session, limit: int, offset: int, *, now: datetime | None = None
+    session,
+    limit: int,
+    offset: int,
+    *,
+    now: datetime | None = None,
+    selection_metadata: dict | None = None,
 ) -> tuple[list[tuple[str, list[str]]], dict, int]:
     """Select canonical commercial groups from saved scalars, then bounded members.
 
@@ -843,6 +848,8 @@ def commercial_selection(
     """
     selection_instant = now or evaluation_now(datetime.now(UTC))
     generation = current_generation(session, now=selection_instant)
+    if selection_metadata is not None:
+        selection_metadata["generation_valid_until"] = generation.valid_until
     rows = (
         session.execute(
             text("""
@@ -864,9 +871,10 @@ def commercial_selection(
                 project_id, need_id
         """),
             {
-            "generation": generation.id, "limit": limit,
-            "offset": min(offset, generation.row_count),
-        },
+                "generation": generation.id,
+                "limit": limit,
+                "offset": min(offset, generation.row_count),
+            },
         )
         .mappings()
         .all()
@@ -886,8 +894,7 @@ def commercial_selection(
                     "group_member_count": row["members"],
                     "max_group_members": 50,
                     "message": (
-                        "This work group exceeds the supported card size; "
-                        "no evaluation was saved."
+                        "This work group exceeds the supported card size; no evaluation was saved."
                     ),
                 },
             )

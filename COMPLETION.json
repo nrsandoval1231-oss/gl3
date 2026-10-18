@@ -3,38 +3,41 @@
   "status": "READY_FOR_REVIEW",
   "created_at_utc": "2026-10-18T08:27:39Z",
   "model": "gpt-6-luna",
-  "materially_distinct_repairs": 2,
+  "materially_distinct_repairs": 3,
   "token_count": "UNKNOWN",
   "elapsed_build_time": "UNKNOWN",
   "base_commit": "a57fca9f11114cd016d5e036ac44810050580429",
-  "candidate_commit_record": "Controller commit receipt after freeze; omitted here to avoid self-reference",
   "source_sha256": {
-    "backend/src/gridlens/api/app.py": "56b36ff88637783cc1f1206ce62f3232cf79b4caaac9c60ba0ca87dceff133d8",
-    "backend/src/gridlens/intelligence/saved_browse.py": "f82aca56ebf34c9f01457750c04535e0523a6835639707baa024ba20488bb87f",
-    "backend/tests/integration/test_saved_browse.py": "1dab61e60c297be355c5a282dcece8528b0249c0e47616439c3e311dd460c923",
-    "docs/operations/saved-browse-b1.md": "02992f5f2480c40cc16d409a14b94c9cb7ea3872bb7f93c6ba8ad547dfaedc05"
+    "backend/tests/integration/test_saved_browse.py": "944b5d6292a6e9079dc713f6aadebb2e37ee3f6b5ecee6146c1281b91065abec",
+    "backend/src/gridlens/api/app.py": "128d0db550d979486b3dfba32fd62e0ba4c126357934a98c1de2b0f05711235d",
+    ".agent/packets/evaluation-post-boundary.md": "0d93b6bb483f70a6346d1dd4335abc9cdd6ad6ce86ada75ef88e453ff101402d",
+    ".agent/CURRENT_STATE.md": "36a618a2f4a4b25466bf9d9bdfa8b38ea5406e8ea2c72354ca2e3c54d6e55eff",
+    "docs/operations/saved-browse-b1.md": "30f65841eab21c9d482f06da1f10367da728246c42a3ff6bfb576347e372ad84",
+    "backend/src/gridlens/intelligence/saved_browse.py": "a2b848be08e0eb424acf93184bb2021ed1bc36c18047ddda98e550ae9a8d2b29"
   },
   "checks": {
     "ruff": "PASS",
     "mypy": "PASS",
     "git_diff_check": "PASS",
-    "focused_postgres_suite": "PASS on gamma: 98 passed, 5 warnings; final authenticated route regression delta pending exact-head rerun",
-    "before_fix_route_regression": "CONFIRMED against original a57 source: failed at the population-summary guard",
-    "full_ci_and_exact_head_review": "PENDING_CONTROLLER"
+    "focused_postgres_suite": "Clock7 affected authenticated POST subset: 25 passed, 93 deselected, 5 warnings; final exact-head complete suite pending",
+    "before_fix_route_regression": "CONFIRMED against exact ecf55a4: failed at persisted expired User-confirmed fact reference assertion",
+    "full_ci_and_exact_head_review": "PENDING_CONTROLLER",
+    "test_fixture_history": "clock1/clock3/clock4/clock5/clock6 had harness failures; lock wait deadlock and auth-session commit-hook interference corrected; raw attempts retained"
   },
   "measurements": {
     "baseline_http_handler_seconds": 8.376,
     "baseline_population_summary_seconds": 7.139,
     "baseline_save_seconds": 0.281,
-    "candidate_http_post_median_seconds_interim": 0.719,
-    "candidate_http_post_max_seconds_interim": 0.780,
-    "candidate_post_plus_read_median_seconds_interim": 1.179,
-    "candidate_benchmark_status": "INTERIM_NOT_FINAL_HEAD"
+    "candidate_http_post_median_seconds_interim": "UNKNOWN_FINAL_HEAD",
+    "candidate_http_post_max_seconds_interim": "UNKNOWN_FINAL_HEAD",
+    "candidate_post_plus_read_median_seconds_interim": "UNKNOWN_FINAL_HEAD",
+    "candidate_benchmark_status": "FINAL_HEAD_PROFILE_PENDING"
   },
   "known_limitations": [
-    "Cold, stale, missing, disabled, or policy-mismatched selector generations use the canonical population fallback and retain its higher latency.",
-    "Whole-transaction retry is bounded to three retries and is limited to SQLSTATE 40001 or the exact pursuits_identity_key_key SQLSTATE 23505 race; sustained contention may still fail the request.",
-    "Final exact-head runtime benchmark, complete CI, and independent review remain pending."
+    "Missing, stale, disabled, policy-mismatched, or expired selector generations use the canonical population fallback and retain its higher latency.",
+    "The four-attempt budget (initial attempt plus up to three retries) is shared across SQLSTATE 40001, the exact pursuits_identity_key_key SQLSTATE 23505 first-insert race, and clock-boundary restarts; sustained contention or repeated boundary crossings can still fail the request.",
+    "After the final reversible fence, commit-crossing preserves one receipt with its truthful in-interval saved_as_of timestamp; commit outcomes are never retried.",
+    "Final exact-head HTTP profile, full CI, and independent review remain pending."
   ],
   "production_changes": false
 }
