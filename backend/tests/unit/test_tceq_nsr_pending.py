@@ -53,6 +53,51 @@ def test_listing_changes_fail_visibly():
         parse_listing(body, TODAY)
 
 
+def test_relative_and_wrapped_application_link_resolves_to_official_pdf():
+    body = FIXTURE.read_bytes().replace(
+        b'https://www.tceq.texas.gov/assets/public/permitting/air/reports/applications/407086-tc.pdf',
+        b'/assets/public/permitting/air/reports/applications/407086-tc.\r\npdf',
+        1,
+    )
+    row = parse_listing(body, TODAY)[0]
+    assert row["application_url"] == (
+        "https://www.tceq.texas.gov/assets/public/permitting/air/reports/applications/407086-tc.pdf"
+    )
+
+
+def test_tceq_href_format_alias_preserves_project_identity_and_hash():
+    row = rows()["LONGHORN DATA CENTER"]
+    alias = {
+        **row,
+        "notice_href": "/permitting/air/newsourcereview/airpermits-pendingpermit-apps#400428",
+        "application_href": "/assets/public/permitting/air/reports/applications/400428-tc.\r\npdf",
+    }
+    equivalent = {
+        **row,
+        "notice_url": "https://www.tceq.texas.gov/permitting/air/newsourcereview/airpermits-pendingpermit-apps#400428",
+        "application_url": "https://www.tceq.texas.gov/assets/public/permitting/air/reports/applications/400428-tc.pdf",
+    }
+    first, second = _record(equivalent, None), _record(alias, None)
+    assert first["document_number"] == second["document_number"]
+    assert first["source_hash"] == second["source_hash"]
+    assert second["permit"]["source_link_hrefs"]["application"].endswith(".\r\npdf")
+
+
+@pytest.mark.parametrize("href", [
+    "//attacker.example/assets/public/permitting/air/reports/applications/a.pdf",
+    "https://user@www.tceq.texas.gov/assets/public/permitting/air/reports/applications/a.pdf",
+    "http://www.tceq.texas.gov/assets/public/permitting/air/reports/applications/a.pdf",
+    "/private",
+    "/assets/public/permitting/air/reports/applications/%2fprivate.pdf",
+    "/assets/public/permitting/air/reports/applications/../../private.pdf",
+])
+def test_tceq_application_link_rejects_foreign_or_unsafe_urls(href: str):
+    from gridlens.ingestion.adapters.tceq_nsr_pending import _official
+
+    with pytest.raises(SourceParseError):
+        _official(href)
+
+
 def test_summary_site_and_purpose():
     summary = summary_from_text(LONGHORN_SUMMARY, "182126")
     assert summary["city"] == "Abilene" and summary["county"] == "Taylor"

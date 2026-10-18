@@ -39,6 +39,44 @@ def test_listing_rows_and_count_check():
         parse_listing(LISTING.replace(b"3 document(s) found", b"4 document(s) found"))
 
 
+def test_relative_ceqanet_document_link_resolves_without_changing_identity():
+    body = LISTING.replace(
+        b'href="https://ceqanet.lci.ca.gov/2024100855/2"',
+        b'href="/2024100855/2"',
+    )
+    row = next(item for item in parse_listing(body) if item["sch"] == "2024100855")
+    assert row["url"] == "https://ceqanet.lci.ca.gov/2024100855/2"
+    assert row["received"] == "2026-10-01"
+
+
+def test_ceqanet_alias_href_does_not_change_record_identity_or_hash():
+    row = elsinore_row()
+    document = parse_document(ELSINORE)
+    alias = {**row, "source_href": "/2026020574", "url": row["url"]}
+    first, second = record(row, document), record(alias, document)
+    assert first["document_number"] == second["document_number"]
+    assert first["source_hash"] == second["source_hash"]
+    assert second["permit"]["source_link_hrefs"]["CEQAnet document"] == "/2026020574"
+
+
+@pytest.mark.parametrize("href", [
+    "//attacker.example/2026080888",
+    "https://user@ceqanet.lci.ca.gov/2026080888",
+    "/2026080888?redirect=https://attacker.example",
+    "/2026080888/../../private",
+    "/raw/a/../2026100400",
+    "/2026100400\n",
+    "/2026100400\t",
+])
+def test_ceqanet_rejects_foreign_or_malformed_document_links(href: str):
+    body = LISTING.replace(
+        b'href="https://ceqanet.lci.ca.gov/2026100400"',
+        f'href="{href}"'.encode(),
+    )
+    with pytest.raises(SourceParseError):
+        parse_listing(body)
+
+
 def test_document_page_gives_place_and_coordinates():
     document = parse_document(ELSINORE)
     assert document["lead_agency"] == "City of Lake Elsinore"

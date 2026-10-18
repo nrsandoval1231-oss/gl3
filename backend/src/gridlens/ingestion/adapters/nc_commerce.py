@@ -6,7 +6,7 @@ import hashlib
 import re
 from datetime import date, datetime, timedelta
 from typing import Any
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urljoin, urlparse, urlunsplit
 
 import httpx
 from bs4 import BeautifulSoup
@@ -22,9 +22,16 @@ _MAX_ARTICLE_EXCERPT = 700
 
 def _allowed_url(url: str, path: str | None = None) -> bool:
     parsed = urlparse(url)
+    try:
+        port = parsed.port
+    except ValueError:
+        return False
     return (
         parsed.scheme == "https"
         and parsed.hostname == _HOST
+        and parsed.username is None
+        and parsed.password is None
+        and port in (None, 443)
         and (path is None or parsed.path == path)
     )
 
@@ -53,7 +60,35 @@ def _listing_rows(soup: BeautifulSoup) -> list[dict[str, str]]:
         if anchor is None or when is None:
             raise SourceParseError("NC Commerce listing row lacks title URL or publication date")
         title, href = anchor.get_text(" ", strip=True), str(anchor["href"])
-        if not title or not _ARTICLE_PATH.fullmatch(urlparse(href).path):
+        # Drupal's listing occasionally exposes this one encoded front-controller
+        # prefix. Strip only that exact known prefix; do not unquote arbitrary paths.
+        if any(ord(char) < 0x20 or ord(char) == 0x7F for char in href):
+            raise SourceParseError("NC Commerce listing has a malformed article")
+        raw_parts = urlparse(href)
+        path = raw_parts.path
+        prefix = "/index%2ephp/news/press-releases/"
+        if path.startswith(prefix):
+            path = "/news/press-releases/" + path[len(prefix):]
+        normalized_href = (
+            urlunsplit(
+                (raw_parts.scheme, raw_parts.netloc, path, raw_parts.query, raw_parts.fragment)
+            )
+            if raw_parts.netloc or raw_parts.scheme
+            else path
+        )
+        resolved = urljoin(f"https://{_HOST}/", normalized_href)
+        parsed = urlparse(resolved)
+        if (
+            not title
+            or raw_parts.query
+            or raw_parts.fragment
+            or any(segment in {".", ".."} for segment in raw_parts.path.split("/"))
+            or not _ARTICLE_PATH.fullmatch(path)
+            or not _allowed_url(resolved)
+            or parsed.query
+            or parsed.fragment
+            or re.search(r"%(?:2f|5c|2e|0[0-9a-f]|1[0-9a-f])", path, re.IGNORECASE)
+        ):
             raise SourceParseError("NC Commerce listing has a malformed article")
         try:
             published = date.fromisoformat(str(when.get("content")))
@@ -63,7 +98,8 @@ def _listing_rows(soup: BeautifulSoup) -> list[dict[str, str]]:
         result.append(
             {
                 "title": title,
-                "url": urljoin(f"https://{_HOST}", href),
+                "url": resolved,
+                "source_href": href,
                 "publication_date": published.isoformat(),
                 "listing_excerpt": intro.get_text(" ", strip=True) if intro else "",
             }
@@ -130,6 +166,8 @@ def _parse_article(html: bytes, expected: dict[str, str], url: str) -> dict[str,
         "abstract": excerpt,
         "publication_date": published_date.isoformat(),
         "html_url": canonical_url,
+        # Keep the publisher's exact href alongside the normalized fetch URL.
+        "source_url": expected.get("source_href", url),
         "source_hash": source_hash,
         "extraction_location": "article body paragraphs 1-2",
     }

@@ -15,7 +15,7 @@ import json
 import re
 from datetime import date, datetime
 from typing import Any
-from urllib.parse import urlsplit
+from urllib.parse import urljoin, urlsplit
 from zoneinfo import ZoneInfo
 
 import httpx
@@ -40,6 +40,11 @@ MAX_PDF_BYTES = 2_000_000
 MAX_PDF_PAGES = 4
 MIN_ROWS = 20
 MAX_ROWS = 2000
+_NOTICE_PATH = "/permitting/air/newsourcereview/airpermits-pendingpermit-apps"
+_APPLICATION_PATH = re.compile(
+    r"^/assets/public/permitting/air/reports/applications/\d+-[a-z0-9-]+\.pdf$",
+    re.IGNORECASE,
+)
 
 # Names that make a filing worth the bounded summary fetch. Admission is stricter.
 RELEVANT_NAME = re.compile(
@@ -76,10 +81,33 @@ def _received(value: str, today: date) -> date:
 
 
 def _official(url: str) -> str:
-    parts = urlsplit(url)
-    if parts.scheme != "https" or parts.hostname != HOST:
+    # TCEQ wraps long hrefs at line boundaries in its HTML. Remove only those
+    # line breaks, then resolve relative links against the fixed official page.
+    if any(ord(char) < 0x20 and char not in "\r\n" for char in url) or "\x7f" in url:
+        raise SourceParseError("TCEQ link contains an invalid control character")
+    raw_path = urlsplit(url).path
+    if any(segment in {".", ".."} for segment in raw_path.split("/")):
+        raise SourceParseError("TCEQ link contains a traversal segment")
+    # One observed publisher wrap splits the hostname at the omitted dot before
+    # gov; repair that exact known form as well as ordinary filename wrapping.
+    normalized = url.replace("www.tceq.texas\r\ngov", "www.tceq.texas.gov")
+    normalized = normalized.replace("\r", "").replace("\n", "")
+    normalized = urljoin(LISTING_URL, normalized)
+    parts = urlsplit(normalized)
+    if (
+        parts.scheme != "https"
+        or parts.hostname != HOST
+        or parts.username is not None
+        or parts.password is not None
+        or parts.port not in (None, 443)
+        or parts.query
+        or not (
+            (_APPLICATION_PATH.fullmatch(parts.path) and not parts.fragment)
+            or (parts.path == _NOTICE_PATH and parts.fragment.isdigit())
+        )
+    ):
         raise SourceParseError("TCEQ link is outside the official host")
-    return url
+    return normalized
 
 
 def parse_listing(body: bytes, today: date) -> list[dict[str, Any]]:
@@ -118,6 +146,8 @@ def parse_listing(body: bytes, today: date) -> list[dict[str, Any]]:
                 "facility": facility,
                 "permits": permits,
                 "received": _received(_text(date_cell), today),
+                "notice_href": str(notice["href"]),
+                "application_href": str(application["href"]),
                 "notice_url": _official(str(notice["href"])),
                 "application_url": _official(str(application["href"])),
                 "application_stage": _text(application),
@@ -246,6 +276,10 @@ def _record(row: dict[str, Any], summary: dict[str, Any] | None) -> dict[str, An
                 "plain language notice": row["notice_url"],
                 "application": row["application_url"],
                 "plain language summary": SUMMARY_URL.format(permit=permit.lower()),
+            },
+            "source_link_hrefs": {
+                "plain language notice": row.get("notice_href", row["notice_url"]),
+                "application": row.get("application_href", row["application_url"]),
             },
             "source_fields": {
                 "applicant": "Applicant Name",
