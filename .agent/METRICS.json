@@ -32,5 +32,17 @@
     }
   ],
   "acceptance": "Governed by matching final/release-manifest.json and independent-review.json under initiative artifacts; absent or mismatched receipt is not acceptance. Parent live proof remains OPEN.",
-  "timing_note": "Uninstrumented timing, usage and total repairs UNKNOWN. Per-command elapsed output and observed UTC handoffs in ignored artifacts. No speedup claim. Historical metrics archived unchanged."
+  "timing_note": "Uninstrumented timing, usage and total repairs UNKNOWN. Per-command elapsed output and observed UTC handoffs in ignored artifacts. No speedup claim. Historical metrics archived unchanged.",
+  "latest_rejected_full_run": {
+    "candidate_sha": "2101510d514e85315c4207a2644e75d1e8176387",
+    "passed": 2054,
+    "failed": 2,
+    "setup_errors": 9,
+    "skipped": 3,
+    "subtests_passed": 7,
+    "pytest_elapsed_seconds": 452.37,
+    "artifact": ".artifacts/INTELLIGENCE-20261018/final-attempt3-2101510/pytest-full.log",
+    "tokens": "UNKNOWN",
+    "accepted": false
+  }
 }

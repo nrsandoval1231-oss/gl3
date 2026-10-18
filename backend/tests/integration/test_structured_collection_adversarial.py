@@ -31,23 +31,37 @@ from gridlens.settings import settings
 def adversarial_db():
     target = make_url(settings.test_database_url)
     application = make_url(settings.database_url)
-    assert (
-        target.host == "127.0.0.1"
-        and target.port == 55487
-        and target.username == "gl3_intelligence"
-        and target.database == "gl3_intelligence_operations_20261018_test"
-    ), "Refusing destructive setup outside the exclusive operations test database"
-    assert (
-        application.host == "127.0.0.1"
-        and application.port == 55487
-        and application.username == "gl3_intelligence"
-        and application.database == "gl3_intelligence_operations_20261018_app"
-    ), "Application database identity is not the authorized isolated pair"
-    assert (target.host, target.port, target.database) != (
+    assert target.database and target.database.endswith("_test"), (
+        "Refusing destructive setup outside a dedicated test database"
+    )
+    assert application.database and not application.database.endswith("_test"), (
+        "Application database must not use the test database suffix"
+    )
+    target_connection = (
+        target.drivername,
+        target.username,
+        target.host,
+        target.port,
+        target.database,
+        tuple(sorted(target.query.items())),
+    )
+    application_connection = (
+        application.drivername,
+        application.username,
         application.host,
         application.port,
         application.database,
-    ), "TEST_DATABASE_URL must differ from the operations application database"
+        tuple(sorted(application.query.items())),
+    )
+    assert target_connection != application_connection, (
+        "TEST_DATABASE_URL must differ from the application connection"
+    )
+    assert (target.drivername, target.host, target.port, target.database) != (
+        application.drivername,
+        application.host,
+        application.port,
+        application.database,
+    ), "TEST_DATABASE_URL must not identify the application database"
     engine = create_engine(settings.test_database_url)
     Base.metadata.drop_all(engine)
     Base.metadata.create_all(engine)

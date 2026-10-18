@@ -126,6 +126,12 @@ def test_refresh_due_advances_other_sources_while_ingestion_holds_source_lock(
     source_b = _definition("c5-independent-source")
     job_id = _add_source_and_due_epoch(factory, source_a, job=True)
     _add_source_and_due_epoch(factory, source_b, job=False)
+    # Keep the intended job immediately eligible despite test-process/database
+    # clock skew; this is not a timeout or a change to worker behavior.
+    with factory.begin() as session:
+        job = session.get(Job, job_id)
+        assert job is not None
+        job.available_at = datetime.now(UTC) - timedelta(minutes=1)
     definitions = [source_a, source_b]
     monkeypatch.setattr(worker, "load_registry", lambda: definitions)
     entered, release = Event(), Event()
@@ -169,16 +175,51 @@ def test_refresh_due_advances_other_sources_while_ingestion_holds_source_lock(
                         select(SourceDueCheck).where(SourceDueCheck.source_id == source_b["id"])
                     )
                 )
-                assert a_due and any(row.job_id is not None for row in a_due)
+                assert a_due and all(row.job_id is None for row in a_due)
                 assert b_due and any(row.job_id is not None for row in b_due)
                 assert session.scalar(select(func.count()).select_from(SourceCheckReceipt)) == 0
                 b_job = session.get(Job, next(row.job_id for row in b_due if row.job_id))
                 assert b_job and b_job.status == "queued"
+            # The running A job began before this due occurrence was linked. A
+            # later terminal result for that job must not be retroactively
+            # treated as evidence for the still-unassigned due check.
             assert network_calls == ["source-a"]
         finally:
             release.set()
         assert active.result(timeout=6) is True
 
+    with factory() as session:
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(SourceCheckReceipt)
+                .join(Job)
+                .where(Job.source_id == source_a["id"])
+            )
+            == 0
+        )
+
+    # Once A is no longer running, a refresh links its pending occurrence to a
+    # new queued job. Only that later acquisition can produce its receipt.
+    assert worker.refresh_due() >= 1
+    with factory() as session:
+        a_due = list(
+            session.scalars(
+                select(SourceDueCheck).where(SourceDueCheck.source_id == source_a["id"])
+            )
+        )
+        linked_due = next((row for row in a_due if row.job_id is not None), None)
+        assert linked_due is not None
+        assert linked_due.job_id != job_id
+        followup_job_id = linked_due.job_id
+        followup_job = session.get(Job, followup_job_id)
+        assert followup_job and followup_job.status == "queued"
+        assert session.scalar(select(func.count()).select_from(SourceCheckReceipt)) == 0
+
+    assert worker.run_one(
+        {item["id"]: item for item in definitions}, job_ids=[followup_job_id]
+    ) is True
+    assert network_calls == ["source-a", "source-a"]
     worker.sync_registry()
     with factory() as session:
         open_a = list(
@@ -190,15 +231,25 @@ def test_refresh_due_advances_other_sources_while_ingestion_holds_source_lock(
             )
         )
         assert len(open_a) == 1
-        assert (
-            session.scalar(
-                select(func.count())
-                .select_from(SourceCheckReceipt)
+        receipts = list(
+            session.scalars(
+                select(SourceCheckReceipt)
                 .join(Job)
                 .where(Job.source_id == source_a["id"])
             )
-            == 1
         )
+        assert len(receipts) == 1
+        receipt = receipts[0]
+        assert receipt.job_id == followup_job_id
+        assert receipt.due_key == linked_due.due_key
+        assert receipt.disposition == "succeeded"
+        acquisition_started = datetime.fromisoformat(
+            receipt.check_counts["acquisition_started_at"]
+        )
+        acquisition_completed = datetime.fromisoformat(
+            receipt.check_counts["acquisition_completed_at"]
+        )
+        assert acquisition_started <= acquisition_completed <= receipt.recorded_at
 
 
 def test_source_lock_contention_defers_without_consuming_attempt_or_request(
@@ -305,6 +356,10 @@ def test_registry_disable_during_active_source_defers_config_and_new_http(
         session.add(second)
         session.flush()
         second_id = second.id
+        for job_id in (first_id, second_id):
+            job = session.get(Job, job_id)
+            assert job is not None
+            job.available_at = datetime.now(UTC) - timedelta(minutes=1)
     current_registry = [enabled]
     monkeypatch.setattr(worker, "load_registry", lambda: current_registry)
     entered, release = Event(), Event()

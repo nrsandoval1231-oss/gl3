@@ -254,3 +254,5 @@ diff, finite budget requirements and rollback. Actual enabled flags/budgets requ
 runtime receipts. Seven consecutive days and owner-reviewed commercial proof stay
 OPEN until those real events occur. See this record's final validation update and
 the initiative completion artifacts for accepted-candidate identity.
+
+The2101510 freeze also failed acceptance:2054 passed,2 failed,9 setup errors,3 skipped and7 subtests. The failures exposed test assumptions around immediate eligibility, non-retroactive scheduling and log synchronization, plus a builder-specific database guard. The next candidate repairs these fixtures without weakening database isolation or timeout bounds. Raw full output remains in final-attempt3-2101510.

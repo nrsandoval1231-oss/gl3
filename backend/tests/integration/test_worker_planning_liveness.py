@@ -59,9 +59,9 @@ def test_blocked_acquisition_does_not_block_planners_or_heartbeat(worker_db, mon
     original_exception = worker.logger.exception
 
     def observe_planner_failure(message, *args, **kwargs):
+        original_exception(message, *args, **kwargs)
         if message.startswith("planner %s failed") and args and args[0] == "sources":
             planner_failure_logged.set()
-        original_exception(message, *args, **kwargs)
 
     monkeypatch.setattr(worker.logger, "exception", observe_planner_failure)
 
