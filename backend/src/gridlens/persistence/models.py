@@ -5,6 +5,7 @@ from uuid import UUID, uuid4
 from sqlalchemy import (
     BigInteger,
     Boolean,
+    CheckConstraint,
     Date,
     DateTime,
     ForeignKey,
@@ -896,6 +897,27 @@ class LogicalCallBudget(Base):
     call_count: Mapped[int] = mapped_column(Integer, default=0)
     cost_usd: Mapped[Any] = mapped_column(Numeric(14, 6), default=0)
     active_count: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class LogicalCallSettlement(Base):
+    """Append-only operator supplied billing/usage receipt for a logical call."""
+
+    __tablename__ = "logical_call_settlements"
+    __table_args__ = (
+        UniqueConstraint("call_id", "receipt_ref", name="uq_call_settlement_receipt"),
+        CheckConstraint(
+            "actual_cost_usd IS NOT NULL OR input_tokens IS NOT NULL OR output_tokens IS NOT NULL",
+            name="ck_call_settlement_has_measurement",
+        ),
+    )
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    call_id: Mapped[UUID] = mapped_column(ForeignKey("logical_calls.id"), index=True)
+    actor: Mapped[str] = mapped_column(String(120))
+    receipt_ref: Mapped[str] = mapped_column(String(200))
+    settled_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    actual_cost_usd: Mapped[Any | None] = mapped_column(Numeric(14, 6))
+    input_tokens: Mapped[int | None] = mapped_column(BigInteger)
+    output_tokens: Mapped[int | None] = mapped_column(BigInteger)
 
 
 # Register the bounded monitoring tables with the same declarative metadata.

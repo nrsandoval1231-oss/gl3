@@ -16,12 +16,18 @@ from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
 
 from gridlens.intelligence.snapshot_compare import compare
-from gridlens.persistence.models import Evidence, Job, LogicalCall, LogicalCallBudget
+from gridlens.persistence.models import (
+    Evidence,
+    Job,
+    LogicalCall,
+    LogicalCallBudget,
+    LogicalCallSettlement,
+)
 from gridlens.persistence.watch_models import ProjectMonitorWatch, ProjectMonitorWatchSource
 from gridlens.settings import settings
 
-SNAPSHOT_VERSION = 2
-TOOL_VERSION = "intelligence-snapshot-v2"
+SNAPSHOT_VERSION = 3
+TOOL_VERSION = "intelligence-snapshot-v3"
 
 
 def _digest(rows: Any) -> str:
@@ -118,6 +124,19 @@ def snapshot(session: Session) -> dict[str, Any]:
                 LogicalCallBudget.active_count,
             ],
         ),
+        "settlements": (
+            LogicalCallSettlement,
+            [
+                LogicalCallSettlement.id,
+                LogicalCallSettlement.call_id,
+                LogicalCallSettlement.actor,
+                LogicalCallSettlement.receipt_ref,
+                LogicalCallSettlement.settled_at,
+                LogicalCallSettlement.actual_cost_usd,
+                LogicalCallSettlement.input_tokens,
+                LogicalCallSettlement.output_tokens,
+            ],
+        ),
         "monitor_watches": (
             ProjectMonitorWatch,
             [
@@ -199,6 +218,7 @@ def snapshot(session: Session) -> dict[str, Any]:
             text("SELECT version_num FROM alembic_version")
         ).scalar_one()
     except Exception:
+        session.rollback()
         result["migration_head"] = "UNKNOWN"
     return result
 

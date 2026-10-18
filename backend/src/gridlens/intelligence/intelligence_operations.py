@@ -202,7 +202,9 @@ def operations_view(session: Session) -> dict[str, Any]:
                         LogicalCall.actual_cost_usd.is_(None),
                         case(
                             (
-                                LogicalCall.status.in_(["COMPLETED", "FAILED"]),
+                                LogicalCall.status.in_(
+                                    ["COMPLETED", "FAILED", "RECONCILED"]
+                                ),
                                 func.coalesce(
                                     LogicalCall.max_cost_usd, LogicalCall.estimated_cost_usd, 0
                                 ),
@@ -220,7 +222,13 @@ def operations_view(session: Session) -> dict[str, Any]:
                 case(
                     (
                         LogicalCall.status.in_(
-                            ["NOT_SENT", "SENT_OUTCOME_UNKNOWN", "COMPLETED", "FAILED"]
+                            [
+                                "NOT_SENT",
+                                "SENT_OUTCOME_UNKNOWN",
+                                "COMPLETED",
+                                "FAILED",
+                                "RECONCILED",
+                            ]
                         )
                         & LogicalCall.actual_cost_usd.is_(None)
                         & LogicalCall.max_cost_usd.is_(None)
@@ -232,6 +240,24 @@ def operations_view(session: Session) -> dict[str, Any]:
             ),
         ).group_by(LogicalCall.provider)
     ).all()
+    overage_by_provider: dict[str, Any] = {}
+    for provider, overage in session.execute(
+            select(
+                LogicalCall.provider,
+                func.sum(
+                    case(
+                        (
+                            LogicalCall.actual_cost_usd > LogicalCall.max_cost_usd,
+                            LogicalCall.actual_cost_usd - LogicalCall.max_cost_usd,
+                        ),
+                        else_=0,
+                    )
+                ),
+            )
+            .where(LogicalCall.actual_cost_usd.is_not(None))
+            .group_by(LogicalCall.provider)
+        ).all():
+        overage_by_provider[provider] = overage
     daily_calls = session.execute(
         select(
             func.date(func.timezone("UTC", func.now())),
@@ -284,6 +310,7 @@ def operations_view(session: Session) -> dict[str, Any]:
             "unknown_cost_calls": int(unknown_count or 0),
             "uncertain": int(uncertain or 0),
             "failed": int(failed or 0),
+            "overage_cost_usd": round(float(overage_by_provider.get(provider) or 0), 6),
         }
         for (
             provider,
@@ -327,6 +354,10 @@ def operations_view(session: Session) -> dict[str, Any]:
                 "unknown_cost_calls": 0,
                 "input_tokens": 0,
                 "output_tokens": 0,
+                "input_token_known_calls": 0,
+                "output_token_known_calls": 0,
+                "input_token_unknown_calls": 0,
+                "output_token_unknown_calls": 0,
                 "usage_known_calls": 0,
                 "usage_unknown_calls": 0,
                 "measured_latency_ms": [],
@@ -354,16 +385,31 @@ def operations_view(session: Session) -> dict[str, Any]:
         if call.actual_cost_usd is not None:
             amount = float(call.actual_cost_usd)
             stat["actual_cost_usd"] = (stat["actual_cost_usd"] or 0.0) + amount
-        elif call.status in {"COMPLETED", "SENT_OUTCOME_UNKNOWN", "NOT_SENT"}:
+        elif call.status in {
+            "COMPLETED",
+            "FAILED",
+            "RECONCILED",
+            "SENT_OUTCOME_UNKNOWN",
+            "NOT_SENT",
+        }:
             stat["unknown_cost_calls"] += 1
-        if call.input_tokens is not None and call.output_tokens is not None:
+        if call.input_tokens is not None:
             stat["input_tokens"] += int(call.input_tokens)
+            stat["input_token_known_calls"] += 1
+        else:
+            stat["input_token_unknown_calls"] += 1
+        if call.output_tokens is not None:
             stat["output_tokens"] += int(call.output_tokens)
+            stat["output_token_known_calls"] += 1
+        else:
+            stat["output_token_unknown_calls"] += 1
+        if call.input_tokens is not None and call.output_tokens is not None:
             stat["usage_known_calls"] += 1
         else:
             stat["usage_unknown_calls"] += 1
         if call.status in {"NOT_SENT", "SENT_OUTCOME_UNKNOWN"} or (
-            call.status == "COMPLETED" and call.actual_cost_usd is None
+            call.status in {"COMPLETED", "FAILED", "RECONCILED"}
+            and call.actual_cost_usd is None
         ):
             amount = float(call.max_cost_usd or call.estimated_cost_usd or 0)
         latency = None
@@ -421,6 +467,10 @@ def operations_view(session: Session) -> dict[str, Any]:
                 "unknown_cost_calls": 0,
                 "input_tokens": 0,
                 "output_tokens": 0,
+                "input_token_known_calls": 0,
+                "output_token_known_calls": 0,
+                "input_token_unknown_calls": 0,
+                "output_token_unknown_calls": 0,
                 "usage_known_calls": 0,
                 "usage_unknown_calls": 0,
                 "measured_latency_ms": [],
@@ -434,6 +484,9 @@ def operations_view(session: Session) -> dict[str, Any]:
     )
     known_cost_calls = sum(
         int(item["known_cost_calls"] or 0) for item in all_provider_stats.values()
+    )
+    overage_cost_total = sum(
+        float(item["overage_cost_usd"] or 0) for item in all_provider_stats.values()
     )
     unknown_cost_calls = sum(
         int(item["unknown_cost_calls"] or 0) for item in all_provider_stats.values()
@@ -504,6 +557,7 @@ def operations_view(session: Session) -> dict[str, Any]:
             "reserved_known_subtotal_usd": round(reserved_total, 6),
             "known_cost_usd": known_cost,
             "known_cost_calls": known_cost_calls,
+            "overage_cost_usd": round(overage_cost_total, 6),
             "unknown_cost_calls_all_time": unknown_cost_calls,
             "total_cost_status": "UNKNOWN" if unknown_cost_calls else "KNOWN",
             "detail_rows_30d": len(calls),

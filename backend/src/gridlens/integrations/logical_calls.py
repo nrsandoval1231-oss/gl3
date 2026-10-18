@@ -15,7 +15,12 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from gridlens.persistence.models import Job, LogicalCall, LogicalCallBudget
+from gridlens.persistence.models import (
+    Job,
+    LogicalCall,
+    LogicalCallBudget,
+    LogicalCallSettlement,
+)
 
 MAX_USD = Decimal("100.000000")
 MAX_BUDGET_USD = Decimal("100000.000000")
@@ -635,3 +640,103 @@ def reconcile_call(
         reconciliation_actor=reconciliation_actor,
         reconciliation_ref=reconciliation_ref,
     )
+
+
+def settle_call(
+    session: Session,
+    call_id: UUID,
+    *,
+    actor: str,
+    receipt_ref: str,
+    actual_cost_usd: Decimal | str | int | float | None = None,
+    input_tokens: int | None = None,
+    output_tokens: int | None = None,
+) -> tuple[LogicalCallSettlement, bool]:
+    """Append billing evidence and fill only previously unknown call measurements."""
+    if not actor.strip() or len(actor) > 120:
+        raise ValueError("actor is required and limited to 120 characters")
+    if not receipt_ref.strip() or len(receipt_ref) > 200:
+        raise ValueError("receipt_ref is required and limited to 200 characters")
+    if all(value is None for value in (actual_cost_usd, input_tokens, output_tokens)):
+        raise ValueError("at least one measured field is required")
+    cost = None
+    if actual_cost_usd is not None:
+        try:
+            exact_cost = Decimal(str(actual_cost_usd))
+        except (InvalidOperation, ValueError) as exc:
+            raise ValueError("actual_cost_usd must be a finite decimal") from exc
+        if not exact_cost.is_finite() or exact_cost.quantize(Decimal("0.000001")) != exact_cost:
+            raise ValueError("actual_cost_usd must have at most six decimal places")
+        cost = _money(exact_cost, name="actual_cost_usd", maximum=MAX_ACTUAL_USD)
+    for name, value in (("input_tokens", input_tokens), ("output_tokens", output_tokens)):
+        if value is not None and (type(value) is not int or value < 0 or value > 2**63 - 1):
+            raise ValueError(f"{name} must be a nonnegative finite integer")
+
+    call = session.scalar(select(LogicalCall).where(LogicalCall.id == call_id).with_for_update())
+    if call is None:
+        session.rollback()
+        raise ValueError("logical call not found")
+    if call.status not in {"SENT_OUTCOME_UNKNOWN", "COMPLETED", "FAILED", "RECONCILED"}:
+        session.rollback()
+        raise ValueError("settlement requires a dispatched logical call")
+    prior = session.scalar(
+        select(LogicalCallSettlement).where(
+            LogicalCallSettlement.call_id == call_id,
+            LogicalCallSettlement.receipt_ref == receipt_ref,
+        )
+    )
+    values = (cost, input_tokens, output_tokens)
+    if prior is not None:
+        prior_values = (prior.actual_cost_usd, prior.input_tokens, prior.output_tokens)
+        if prior.actor != actor or prior_values != values:
+            session.rollback()
+            raise ValueError("receipt reference already exists with different settlement data")
+        session.commit()
+        return prior, True
+
+    for name, settlement_value in (
+        ("actual_cost_usd", cost),
+        ("input_tokens", input_tokens),
+        ("output_tokens", output_tokens),
+    ):
+        known = getattr(call, name)
+        if settlement_value is not None and known is not None and known != settlement_value:
+            session.rollback()
+            raise ValueError(f"{name} is already settled with a different value")
+
+    receipt = LogicalCallSettlement(
+        call_id=call_id,
+        actor=actor,
+        receipt_ref=receipt_ref,
+        actual_cost_usd=cost,
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
+    )
+    session.add(receipt)
+    old_cost = call.actual_cost_usd
+    if cost is not None and old_cost is None:
+        call.actual_cost_usd = cost
+        if cost > call.max_cost_usd:
+            delta = cost - call.max_cost_usd
+            for scope_period in call.budget_scopes:
+                if scope_period["period"] not in {"daily", "monthly"}:
+                    continue
+                updated = session.execute(
+                    update(LogicalCallBudget)
+                    .where(
+                        LogicalCallBudget.scope == scope_period["scope"],
+                        LogicalCallBudget.period == scope_period["period"],
+                        LogicalCallBudget.period_key == scope_period["period_key"],
+                    )
+                    .values(cost_usd=LogicalCallBudget.cost_usd + delta)
+                )
+                if updated.rowcount != 1:
+                    session.rollback()
+                    raise ValueError("original budget row missing during overage settlement")
+    if input_tokens is not None and call.input_tokens is None:
+        call.input_tokens = input_tokens
+    if output_tokens is not None and call.output_tokens is None:
+        call.output_tokens = output_tokens
+    session.commit()
+    session.refresh(receipt)
+    return receipt, False

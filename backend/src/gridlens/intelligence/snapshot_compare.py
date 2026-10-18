@@ -9,12 +9,13 @@ REQUIRED_TABLES = {
     "evidence",
     "jobs",
     "logical_calls",
+    "settlements",
     "budgets",
     "monitor_watches",
     "monitor_sources",
 }
-SNAPSHOT_VERSION = 2
-TOOL_VERSION = "intelligence-snapshot-v2"
+SNAPSHOT_VERSION = 3
+TOOL_VERSION = "intelligence-snapshot-v3"
 
 
 def compare(before: dict[str, Any], after: dict[str, Any], reference: str = "") -> dict[str, Any]:

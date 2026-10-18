@@ -48,7 +48,7 @@ def test_all_time_exposure_includes_terminal_null_cost_after_detail_cap(factory)
                     model="test-model",
                     policy_version="test",
                     lease_authority="job",
-                    status="COMPLETED",
+                    status="RECONCILED" if i == 0 else "COMPLETED",
                     fence_token=1,
                     estimated_cost_usd=0.1,
                     max_cost_usd=0.2,
@@ -77,3 +77,70 @@ def test_all_time_exposure_includes_terminal_null_cost_after_detail_cap(factory)
     assert result["reserved_known_subtotal_usd"] == 1000.2
     assert result["total_cost_status"] == "UNKNOWN"
     assert result["utc_day"]["timezone"] == "UTC"
+
+
+def test_reconciled_null_cost_and_partial_tokens_remain_visible(factory):
+    now = datetime.now(UTC)
+    with factory.begin() as session:
+        session.add(
+            LogicalCall(
+                id=uuid4(),
+                fingerprint="a" * 64,
+                task_type="TEST",
+                task_key="partial-token-receipt",
+                evidence_digest="e" * 64,
+                context_digest="c" * 64,
+                prompt_contract="test",
+                provider="test-provider",
+                model="test-model",
+                policy_version="test",
+                lease_authority="job",
+                status="RECONCILED",
+                fence_token=1,
+                estimated_cost_usd=0.1,
+                max_cost_usd=0.2,
+                actual_cost_usd=None,
+                input_tokens=17,
+                output_tokens=None,
+                created_at=now,
+                budget_scopes=[],
+            )
+        )
+    with factory() as session:
+        providers = operations_view(session)["providers"]
+    provider = next(
+        item for item in providers["by_provider"] if item["provider"] == "test-provider"
+    )
+    assert provider["unknown_cost_calls"] == 1
+    assert provider["input_tokens"] == 17 and provider["input_token_known_calls"] == 1
+    assert provider["output_tokens"] == 0 and provider["output_token_unknown_calls"] == 1
+    assert provider["usage_unknown_calls"] == 1
+
+
+def test_measured_overage_is_exposed(factory):
+    with factory.begin() as session:
+        session.add(
+            LogicalCall(
+                id=uuid4(),
+                fingerprint="b" * 64,
+                task_type="TEST",
+                task_key="visible-overage",
+                evidence_digest="e" * 64,
+                context_digest="c" * 64,
+                prompt_contract="test",
+                provider="test-provider",
+                model="test-model",
+                policy_version="test",
+                lease_authority="job",
+                status="RECONCILED",
+                fence_token=1,
+                estimated_cost_usd=0.01,
+                max_cost_usd=0.02,
+                actual_cost_usd=0.05,
+                created_at=datetime.now(UTC),
+                budget_scopes=[],
+            )
+        )
+    with factory() as session:
+        providers = operations_view(session)["providers"]
+    assert providers["overage_cost_usd"] == 0.03

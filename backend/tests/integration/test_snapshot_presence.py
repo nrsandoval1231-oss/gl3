@@ -18,6 +18,7 @@ from gridlens.persistence.models import (
     ChangeEvent,
     Evidence,
     Job,
+    LogicalCallSettlement,
     NeedObservation,
     Observation,
     PowerNeed,
@@ -118,8 +119,8 @@ def test_snapshot_compare_fails_closed_on_missing_identity_or_changed_exposure()
     from gridlens.intelligence.snapshot_compare import REQUIRED_TABLES
 
     before = {
-        "version": 2,
-        "tool_version": "intelligence-snapshot-v2",
+        "version": 3,
+        "tool_version": "intelligence-snapshot-v3",
         "tables": {name: {"count": 0, "digest": "a"} for name in REQUIRED_TABLES},
         "logical_call_exposure": [{"status": "SENT_OUTCOME_UNKNOWN", "count": 1}],
         "migration_head": "0027",
@@ -131,8 +132,8 @@ def test_snapshot_compare_fails_closed_on_missing_identity_or_changed_exposure()
     }
     assert compare(before, after)["result"] == "MISMATCH"
     missing = {
-        "version": 2,
-        "tool_version": "intelligence-snapshot-v2",
+        "version": 3,
+        "tool_version": "intelligence-snapshot-v3",
         "tables": {},
         "logical_call_exposure": before["logical_call_exposure"],
         "migration_head": "UNKNOWN",
@@ -146,7 +147,7 @@ def test_snapshot_covers_retained_text_job_recovery_and_call_intent(db):
     from gridlens.persistence.models import LogicalCall
 
     factory, _, job_id = db
-    snapshot = runpy.run_path("scripts/intelligence_snapshot.py")["snapshot"]
+    snapshot = runpy.run_path("backend/scripts/intelligence_snapshot.py")["snapshot"]
     with factory.begin() as session:
         evidence = session.scalars(select(Evidence)).first()
         evidence.abstract = "retained source excerpt"
@@ -172,8 +173,19 @@ def test_snapshot_covers_retained_text_job_recovery_and_call_intent(db):
                 budget_scopes=[],
             )
         )
+        session.flush()
+        call = session.scalars(select(LogicalCall)).one()
+        session.add(
+            LogicalCallSettlement(
+                call_id=call.id,
+                actor="host-operator",
+                receipt_ref="restore-rehearsal-receipt",
+                input_tokens=4,
+            )
+        )
     with factory() as session:
         before = snapshot(session)
+        assert before["tables"]["settlements"]["count"] == 1
         evidence = session.scalars(select(Evidence)).first()
         evidence.abstract = "edited retained source excerpt"
         job = session.get(Job, job_id)
@@ -183,6 +195,13 @@ def test_snapshot_covers_retained_text_job_recovery_and_call_intent(db):
         session.commit()
         after = snapshot(session)
     assert compare(before, after)["result"] == "MISMATCH"
+    omitted = {
+        **before,
+        "tables": {
+            key: value for key, value in before["tables"].items() if key != "settlements"
+        },
+    }
+    assert "required_table_metadata_missing" in compare(omitted, before)["issues"]
 
 
 def test_absence_is_recorded_once_and_return_is_recorded(db):

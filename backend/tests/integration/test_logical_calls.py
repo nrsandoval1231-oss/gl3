@@ -1,10 +1,12 @@
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
+from uuid import uuid4
 
 import pytest
 from sqlalchemy import create_engine, select, update
 from sqlalchemy.engine import make_url
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import sessionmaker
 
 from gridlens.integrations.logical_calls import (
@@ -15,7 +17,13 @@ from gridlens.integrations.logical_calls import (
     reserve_call,
 )
 from gridlens.persistence.database import Base
-from gridlens.persistence.models import Job, LogicalCall, LogicalCallBudget, Source
+from gridlens.persistence.models import (
+    Job,
+    LogicalCall,
+    LogicalCallBudget,
+    LogicalCallSettlement,
+    Source,
+)
 from gridlens.settings import settings
 
 
@@ -491,3 +499,253 @@ def test_ambiguous_failure_keeps_unknown_reservation(sessions):
         )
     assert row and row.status == "SENT_OUTCOME_UNKNOWN"
     assert budget and budget.active_count == 1
+
+
+def test_late_settlement_preserves_unknown_outcome_and_charges_only_overage(sessions):
+    from gridlens.integrations.logical_calls import settle_call
+
+    call = _reserve(sessions, "late-settlement")
+    with sessions() as session:
+        mark_dispatched(session, call.call_id, fence_token=7, enabled=True)
+    with sessions() as session:
+        receipt, replayed = settle_call(
+            session,
+            call.call_id,
+            actor="host-operator",
+            receipt_ref="invoice:one",
+            actual_cost_usd="0.05",
+            input_tokens=12,
+        )
+    assert not replayed and receipt.actual_cost_usd == Decimal("0.050000")
+    with sessions() as session:
+        row = session.get(LogicalCall, call.call_id)
+        daily = session.scalar(
+            select(LogicalCallBudget).where(
+                LogicalCallBudget.scope == "global:global", LogicalCallBudget.period == "daily"
+            )
+        )
+        active = session.scalar(
+            select(LogicalCallBudget).where(
+                LogicalCallBudget.scope == "global:global", LogicalCallBudget.period == "active"
+            )
+        )
+        assert row and row.status == "SENT_OUTCOME_UNKNOWN"
+        assert row.actual_cost_usd == Decimal("0.050000") and row.input_tokens == 12
+        assert row.output_tokens is None and row.result_payload is None and row.finished_at is None
+        assert daily and daily.cost_usd == Decimal("0.050000")
+        assert active and active.active_count == 1
+    with pytest.raises(ValueError, match="six decimal places"):
+        with sessions() as session:
+            settle_call(
+                session,
+                call.call_id,
+                actor="host-operator",
+                receipt_ref="invoice:excess-precision",
+                actual_cost_usd="0.0000001",
+            )
+
+
+def test_settlement_replay_conflict_and_concurrent_receipts_charge_once(sessions):
+    from gridlens.integrations.logical_calls import settle_call
+
+    call = _reserve(sessions, "settlement-replay")
+    with sessions() as session:
+        mark_dispatched(session, call.call_id, fence_token=7, enabled=True)
+
+    def settle(ref: str):
+        with sessions() as session:
+            return settle_call(
+                session,
+                call.call_id,
+                actor="operator",
+                receipt_ref=ref,
+                actual_cost_usd="0.05",
+            )[1]
+
+    with ThreadPoolExecutor(max_workers=4) as pool:
+        results = list(pool.map(settle, ["receipt-a", "receipt-b", "receipt-a", "receipt-b"]))
+    assert results.count(False) == 2 and results.count(True) == 2
+    with sessions() as session:
+        assert len(
+            session.scalars(
+                select(LogicalCallSettlement).where(
+                    LogicalCallSettlement.call_id == call.call_id
+                )
+            ).all()
+        ) == 2
+        daily = session.scalar(
+            select(LogicalCallBudget).where(
+                LogicalCallBudget.scope == "global:global", LogicalCallBudget.period == "daily"
+            )
+        )
+        assert daily and daily.cost_usd == Decimal("0.050000")
+    with pytest.raises(ValueError, match="different settlement data"):
+        with sessions() as session:
+            settle_call(
+                session,
+                call.call_id,
+                actor="operator",
+                receipt_ref="receipt-a",
+                actual_cost_usd="0.06",
+            )
+
+
+def test_reconciled_metadata_survives_late_measurement(sessions):
+    from gridlens.integrations.logical_calls import reconcile_call, settle_call
+
+    call = _reserve(sessions, "settle-reconciled")
+    with sessions() as session:
+        mark_dispatched(session, call.call_id, fence_token=7, enabled=True)
+    with sessions() as session:
+        reconcile_call(
+            session,
+            call.call_id,
+            fence_token=7,
+            reconciliation_actor="operator",
+            reconciliation_ref="outcome:confirmed",
+        )
+    with sessions() as session:
+        row = session.get(LogicalCall, call.call_id)
+        before = (row.result_digest, row.result_payload, row.finished_at, row.fence_token)
+        settle_call(
+            session,
+            call.call_id,
+            actor="operator",
+            receipt_ref="billing:confirmed",
+            output_tokens=8,
+        )
+    with sessions() as session:
+        row = session.get(LogicalCall, call.call_id)
+        assert row and row.status == "RECONCILED"
+        assert (row.result_digest, row.result_payload, row.finished_at, row.fence_token) == before
+        assert row.output_tokens == 8 and row.input_tokens is None
+
+
+def test_host_cli_requires_fresh_digest_and_applies_only_after_preview(
+    sessions, monkeypatch, capsys
+):
+    import json
+    import runpy
+    import sys
+
+    from gridlens.integrations.logical_calls import complete_call
+
+    call = _reserve(sessions, "cli-settlement")
+    with sessions() as session:
+        mark_dispatched(session, call.call_id, fence_token=7, enabled=True)
+    with sessions() as session:
+        complete_call(session, call.call_id, fence_token=7, result_payload={"safe": True})
+    monkeypatch.setattr(settings, "database_url", settings.test_database_url)
+    cli = runpy.run_path("backend/scripts/reconcile_logical_call.py")
+    base_args = [
+        str(call.call_id),
+        "--action",
+        "settle",
+        "--actor",
+        "host-operator",
+        "--receipt-ref",
+        "cli-invoice-1",
+        "--expected-status",
+        "COMPLETED",
+        "--actual-cost-usd",
+        "0.01",
+        "--input-tokens",
+        "23",
+    ]
+    monkeypatch.setattr(sys, "argv", ["reconcile_logical_call.py", *base_args])
+    assert cli["main"]() == 0
+    digest = json.loads(capsys.readouterr().out)["digest"]
+    with sessions.begin() as session:
+        session.execute(
+            update(LogicalCall)
+            .where(LogicalCall.id == call.call_id)
+            .values(result_digest="f" * 64)
+        )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        ["reconcile_logical_call.py", *base_args, "--apply", "--expect-digest", digest],
+    )
+    with pytest.raises(SystemExit):
+        cli["main"]()
+    with sessions() as session:
+        assert session.scalar(
+            select(LogicalCallSettlement).where(
+                LogicalCallSettlement.call_id == call.call_id
+            )
+        ) is None
+    monkeypatch.setattr(sys, "argv", ["reconcile_logical_call.py", *base_args])
+    assert cli["main"]() == 0
+    fresh_digest = json.loads(capsys.readouterr().out)["digest"]
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "reconcile_logical_call.py",
+            *base_args,
+            "--apply",
+            "--expect-digest",
+            fresh_digest,
+        ],
+    )
+    assert cli["main"]() == 0
+    receipt = json.loads(capsys.readouterr().out)
+    assert receipt["mode"] == "applied" and receipt["status"] == "COMPLETED"
+
+
+def test_0028_database_trigger_rejects_settlement_edits():
+    from sqlalchemy import func
+
+    target = make_url(settings.database_url)
+    assert target.database == "gl3_intelligence_settlement_20261018_app"
+    engine = create_engine(settings.database_url)
+    factory = sessionmaker(engine, expire_on_commit=False)
+    call_id = uuid4()
+    try:
+        with factory() as session:
+            session.add(
+                LogicalCall(
+                    id=call_id,
+                    fingerprint="d" * 64,
+                    task_type="TEST",
+                    task_key="append-only-trigger",
+                    evidence_digest="e" * 64,
+                    context_digest="c" * 64,
+                    prompt_contract="test",
+                    provider="local-fixture",
+                    model="fixture",
+                    policy_version="test",
+                    lease_authority="standalone",
+                    status="COMPLETED",
+                    fence_token=0,
+                    estimated_cost_usd=Decimal("0.01"),
+                    max_cost_usd=Decimal("0.02"),
+                    actual_cost_usd=None,
+                    budget_scopes=[],
+                )
+            )
+            session.flush()
+            session.add(
+                LogicalCallSettlement(
+                    call_id=call_id,
+                    actor="test-operator",
+                    receipt_ref="trigger-check",
+                    input_tokens=1,
+                )
+            )
+            session.flush()
+            with pytest.raises(DBAPIError, match="append-only"):
+                session.execute(
+                    update(LogicalCallSettlement)
+                    .where(LogicalCallSettlement.call_id == call_id)
+                    .values(actor="rewritten")
+                )
+            session.rollback()
+        with factory() as session:
+            assert session.scalar(
+                select(func.count()).select_from(LogicalCallSettlement).where(
+                    LogicalCallSettlement.call_id == call_id
+                )
+            ) == 0
+    finally:
+        engine.dispose()
