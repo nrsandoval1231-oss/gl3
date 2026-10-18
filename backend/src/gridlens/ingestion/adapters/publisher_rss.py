@@ -27,6 +27,23 @@ RSS_HOSTS = {
 MAX_SUMMARY = 500
 
 
+class RSSSnapshot(list[dict[str, Any]]):
+    """List-compatible RSS result carrying only response cache metadata."""
+
+    def __init__(
+        self,
+        records: list[dict[str, Any]] | None = None,
+        *,
+        not_modified: bool = False,
+        etag: str | None = None,
+        last_modified: str | None = None,
+    ) -> None:
+        super().__init__(records or [])
+        self.not_modified = not_modified
+        self.etag = etag
+        self.last_modified = last_modified
+
+
 class _Text(HTMLParser):
     def __init__(self) -> None:
         super().__init__(convert_charrefs=True)
@@ -121,7 +138,7 @@ def _items(root: ElementTree.Element) -> list[ElementTree.Element]:
     return entries
 
 
-def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list[dict[str, Any]]:
+def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> RSSSnapshot:
     source_id = source["id"]
     host = RSS_HOSTS.get(source_id)
     endpoint = source["endpoint"]
@@ -132,7 +149,23 @@ def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list
     client = client or httpx.Client(timeout=25.0, follow_redirects=False)
     try:
         try:
-            headers, body = read_bounded_response(client, endpoint, query["max_response_bytes"])
+            conditional = bool(
+                client.headers.get("If-None-Match") or client.headers.get("If-Modified-Since")
+            )
+            headers, body, status = read_bounded_response(
+                client,
+                endpoint,
+                query["max_response_bytes"],
+                allow_not_modified=True,
+            )
+            if status == 304:
+                if not conditional:
+                    raise SourceParseError("RSS returned 304 without a conditional request")
+                return RSSSnapshot(
+                    not_modified=True,
+                    etag=headers.get("etag"),
+                    last_modified=headers.get("last-modified"),
+                )
         except ResponseTooLarge as exc:
             raise SourceParseError(str(exc)) from exc
         except httpx.HTTPError as exc:
@@ -203,7 +236,11 @@ def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list
             if prior is not None and prior != record:
                 raise SourceParseError("RSS feed contains conflicting duplicate item identities")
             results[identity] = record
-        return list(results.values())
+        return RSSSnapshot(
+            list(results.values()),
+            etag=headers.get("etag"),
+            last_modified=headers.get("last-modified"),
+        )
     finally:
         if own_client:
             client.close()

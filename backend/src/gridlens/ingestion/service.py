@@ -38,6 +38,7 @@ from gridlens.domain.signal_admission import (
 )
 from gridlens.domain.taylor_planning import interpret_taylor_planning
 from gridlens.ingestion.adapters import retrieve_source
+from gridlens.ingestion.adapters.federal_register import SourceParseError
 from gridlens.ingestion.adapters.govinfo_pdf import MAX_PDFS_PER_RUN, retrieve_companion
 from gridlens.intelligence.change_detection import (
     lock_project,
@@ -72,6 +73,7 @@ from gridlens.persistence.models import (
     ChangeEvent,
     Evidence,
     Interpretation,
+    Job,
     LifecycleEvent,
     NeedObservation,
     NeedWorkflowStatusEvent,
@@ -1791,14 +1793,62 @@ def process_job(
     source_definition: dict[str, Any],
     client: httpx.Client | None = None,
 ) -> dict[str, Any]:
+    if source_definition.get("retrieval_method") == "publisher-rss":
+        retrieved = _retrieve_publisher_rss_conditionally(
+            session, job_id, worker_id, fence, source_definition, client
+        )
+        if getattr(retrieved, "not_modified", False):
+            source = _current_rss_source(session, source_definition)
+            cached = (source.health or {}).get("publisher_rss_conditional", {})
+            assert_fence(session, job_id, worker_id, fence)
+            source.health = {
+                **(source.health or {}),
+                _RSS_CONDITIONAL_NAMESPACE: {
+                    **cached,
+                    "complete": True,
+                    "last_checked_at": datetime.now(UTC).isoformat(),
+                    "etag": getattr(retrieved, "etag", None) or cached.get("etag"),
+                    "last_modified": getattr(retrieved, "last_modified", None)
+                    or cached.get("last_modified"),
+                },
+            }
+            # Keep the last complete snapshot facts; a 304 is a successful check,
+            # not an empty snapshot and never a withdrawal signal.
+            return {
+                "new": 0,
+                "changed": 0,
+                "unchanged": 0,
+                "signals": 0,
+                "retrieved_records": 0,
+                "parsed_records": 0,
+                "records_scanned": 0,
+                "latest_publication_date": cached.get("latest_publication_date"),
+                "snapshot_item_count": cached.get("snapshot_item_count", 0),
+                "snapshot_oldest_publication_date": cached.get(
+                    "snapshot_oldest_publication_date"
+                ),
+                "snapshot_newest_publication_date": cached.get(
+                    "snapshot_newest_publication_date"
+                ),
+                "conditional_checked": True,
+            }
+        counts = _process_collection_only(
+            session,
+            job_id,
+            worker_id,
+            fence,
+            source_definition,
+            [record for record in retrieved if not record.get("presence_only")],
+        )
+        _store_publisher_rss_checkpoint(
+            session, job_id, worker_id, fence, source_definition, retrieved, counts
+        )
+        return counts
+
     retrieved = retrieve_source(source_definition, client)
     # Presence-only rows are listed by the source but withheld from processing this run
     # (for example, enrichment failed). They still count as present in the snapshot.
     records = [record for record in retrieved if not record.get("presence_only")]
-    if source_definition.get("retrieval_method") == "publisher-rss":
-        return _process_collection_only(
-            session, job_id, worker_id, fence, source_definition, records
-        )
     counts = process_records(
         session, job_id, worker_id, fence, source_definition, records, client=client
     )
@@ -1814,6 +1864,173 @@ def process_job(
         counts["changed"] = counts.get("changed", 0) + sum(transitions.values())
         session.commit()
     return counts
+
+
+_RSS_CONDITIONAL_NAMESPACE = "publisher_rss_conditional"
+_RSS_PARSER_VERSION = "publisher-rss-v2"
+
+
+def _rss_policy_digest(source_definition: dict[str, Any]) -> str:
+    policy = {
+        "id": source_definition.get("id"),
+        "endpoint": source_definition.get("endpoint"),
+        "query": source_definition.get("query"),
+        "retrieval_method": source_definition.get("retrieval_method"),
+        "publisher": source_definition.get("publisher"),
+        "parser_version": _RSS_PARSER_VERSION,
+        "evaluator_version": EVALUATOR_VERSION,
+        "admission_policy_version": ADMISSION_POLICY_VERSION,
+    }
+    return hashlib.sha256(
+        json.dumps(policy, sort_keys=True, separators=(",", ":"), default=str).encode()
+    ).hexdigest()
+
+
+def _retrieve_publisher_rss_conditionally(
+    session: Session,
+    job_id: Any,
+    worker_id: str,
+    fence: int,
+    source_definition: dict[str, Any],
+    client: httpx.Client | None,
+) -> list[dict[str, Any]]:
+    if session.new or session.dirty or session.deleted or session.in_nested_transaction():
+        raise RuntimeError("RSS network retrieval requires a clean, non-nested session")
+    source = session.get(Source, source_definition["id"])
+    assert source is not None
+    if (
+        not source.enabled
+        or not source.registry_enabled
+        or source.retrieval_method != "publisher-rss"
+    ):
+        raise SourceParseError("RSS source is currently disabled")
+    if source_definition.get("endpoint") and source.endpoint != source_definition["endpoint"]:
+        raise SourceParseError("RSS source endpoint changed before retrieval")
+    cache = (source.health or {}).get(_RSS_CONDITIONAL_NAMESPACE, {})
+    job = session.get(Job, job_id)
+    if job is None:
+        raise SourceParseError("RSS job disappeared before retrieval")
+    checkpoint = job.checkpoint
+    in_progress = False
+    forced = False
+    if checkpoint:
+        try:
+            checkpoint_value = json.loads(checkpoint)
+        except (TypeError, ValueError):
+            in_progress = True
+        else:
+            if isinstance(checkpoint_value, dict):
+                forced = checkpoint_value.get("force") is True
+                in_progress = any(key != "force" for key in checkpoint_value)
+            else:
+                in_progress = True
+    eligible = bool(
+        not forced
+        and not in_progress
+        and source.enabled is True
+        and source.registry_enabled is True
+        and cache.get("complete") is True
+        and cache.get("endpoint") == source_definition.get("endpoint")
+        and cache.get("parser_version") == _RSS_PARSER_VERSION
+        and cache.get("policy_digest") == _rss_policy_digest(source_definition)
+        and (cache.get("etag") or cache.get("last_modified"))
+    )
+    owned_client = client is None
+    http_client = client or httpx.Client(timeout=25.0, follow_redirects=False)
+    original_etag = http_client.headers.get("If-None-Match")
+    original_modified = http_client.headers.get("If-Modified-Since")
+    try:
+        if session.in_transaction():
+            # Release caller-held row locks before bounded network I/O. Callers
+            # with pending writes must commit them before entering this path.
+            session.commit()
+        http_client.headers.pop("If-None-Match", None)
+        http_client.headers.pop("If-Modified-Since", None)
+        if eligible:
+            if cache.get("etag"):
+                http_client.headers["If-None-Match"] = cache["etag"]
+            if cache.get("last_modified"):
+                http_client.headers["If-Modified-Since"] = cache["last_modified"]
+        else:
+            http_client.headers.pop("If-None-Match", None)
+            http_client.headers.pop("If-Modified-Since", None)
+        retrieved = retrieve_source(source_definition, http_client)
+        _current_rss_source(session, source_definition)
+        return retrieved
+    finally:
+        if owned_client:
+            http_client.close()
+        else:
+            if original_etag is None:
+                http_client.headers.pop("If-None-Match", None)
+            else:
+                http_client.headers["If-None-Match"] = original_etag
+            if original_modified is None:
+                http_client.headers.pop("If-Modified-Since", None)
+            else:
+                http_client.headers["If-Modified-Since"] = original_modified
+
+
+def _current_rss_source(session: Session, source_definition: dict[str, Any]) -> Source:
+    source = session.scalar(
+        select(Source)
+        .where(Source.id == source_definition["id"])
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    if (
+        source is None
+        or not source.enabled
+        or not source.registry_enabled
+        or source.retrieval_method != "publisher-rss"
+    ):
+        raise SourceParseError("RSS source was disabled during retrieval")
+    if source_definition.get("endpoint") and source.endpoint != source_definition["endpoint"]:
+        raise SourceParseError("RSS source endpoint changed during retrieval")
+    return source
+
+
+def _store_publisher_rss_checkpoint(
+    session: Session,
+    job_id: Any,
+    worker_id: str,
+    fence: int,
+    source_definition: dict[str, Any],
+    retrieved: list[dict[str, Any]],
+    counts: dict[str, Any],
+) -> None:
+    source = session.get(Source, source_definition["id"])
+    assert source is not None
+    job = assert_fence(session, job_id, worker_id, fence)
+    previous_health = source.health or {}
+    current = {
+        "complete": True,
+        "endpoint": source_definition.get("endpoint"),
+        "parser_version": _RSS_PARSER_VERSION,
+        "policy_digest": _rss_policy_digest(source_definition),
+        "etag": getattr(retrieved, "etag", None),
+        "last_modified": getattr(retrieved, "last_modified", None),
+        "snapshot_item_count": counts.get("snapshot_item_count", 0),
+        "snapshot_oldest_publication_date": counts.get("snapshot_oldest_publication_date"),
+        "snapshot_newest_publication_date": counts.get("snapshot_newest_publication_date"),
+        "latest_publication_date": counts.get("latest_publication_date"),
+        "snapshot_digest": hashlib.sha256(
+            "\n".join(
+                sorted(
+                    f"{record.get('document_number')}:{record.get('source_hash', '')}"
+                    for record in retrieved
+                )
+            ).encode()
+        ).hexdigest(),
+        "completed_at": datetime.now(UTC).isoformat(),
+    }
+    # A full 200 without validators invalidates old validators instead of reusing
+    # a token for a representation/policy that the origin did not identify.
+    source.health = {**previous_health, _RSS_CONDITIONAL_NAMESPACE: current}
+    job.checkpoint = json.dumps(
+        {"rss_snapshot_complete": True, "snapshot_digest": current["snapshot_digest"]},
+        sort_keys=True,
+    )
 
 
 def process_records(
@@ -3248,8 +3465,21 @@ def _process_collection_only(
         counts["latest_publication_date"] = max(publications)
     for record in records:
         assert_fence(session, job_id, worker_id, fence)
-        source = session.get(Source, source_definition["id"])
+        source = session.scalar(
+            select(Source)
+            .where(Source.id == source_definition["id"])
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
         assert source is not None
+        if (
+            not source.enabled
+            or not source.registry_enabled
+            or source.retrieval_method != "publisher-rss"
+        ):
+            raise SourceParseError("RSS source was disabled during retained processing")
+        if source_definition.get("endpoint") and source.endpoint != source_definition["endpoint"]:
+            raise SourceParseError("RSS source endpoint changed during retained processing")
         external_id = record["document_number"]
         digest = _hash(record)
         evidence_digest = record.get("source_hash") or _source_version_hash(record)

@@ -8,7 +8,7 @@ import multiprocessing
 import os
 import time
 from collections.abc import Iterator
-from typing import Any
+from typing import Any, Literal, overload
 
 import httpx
 
@@ -269,6 +269,7 @@ class _DeadlineStream(httpx.SyncByteStream):
         self.stream.close()
 
 
+@overload
 def read_bounded_response(
     client: httpx.Client,
     url: str,
@@ -277,7 +278,33 @@ def read_bounded_response(
     *,
     extensions: dict | None = None,
     deadline: float | None = None,
-) -> tuple[httpx.Headers, bytes]:
+    allow_not_modified: Literal[False] = False,
+) -> tuple[httpx.Headers, bytes]: ...
+
+
+@overload
+def read_bounded_response(
+    client: httpx.Client,
+    url: str,
+    max_bytes: int,
+    params: dict[str, str | int] | None = None,
+    *,
+    extensions: dict | None = None,
+    deadline: float | None = None,
+    allow_not_modified: Literal[True],
+) -> tuple[httpx.Headers, bytes, int]: ...
+
+
+def read_bounded_response(
+    client: httpx.Client,
+    url: str,
+    max_bytes: int,
+    params: dict[str, str | int] | None = None,
+    *,
+    extensions: dict | None = None,
+    deadline: float | None = None,
+    allow_not_modified: bool = False,
+) -> tuple[httpx.Headers, bytes] | tuple[httpx.Headers, bytes, int]:
     """Read within byte limits and, optionally, a shared monotonic deadline.
 
     The deadline is cooperative: HTTPX's synchronous transport cannot preempt
@@ -300,6 +327,8 @@ def read_bounded_response(
             assert deadline is not None
             assert isinstance(response.stream, httpx.SyncByteStream)
             response.stream = _DeadlineStream(response.stream, deadline)
+        if allow_not_modified and response.status_code == 304:
+            return response.headers, b"", 304
         response.raise_for_status()
         declared = response.headers.get("content-length")
         if declared:
@@ -318,4 +347,7 @@ def read_bounded_response(
                 raise ResponseTooLarge(f"Response exceeds {max_bytes} bytes")
             parts.append(part)
         remaining_seconds(deadline)
-        return response.headers, b"".join(parts)
+        body = b"".join(parts)
+        if allow_not_modified:
+            return response.headers, body, response.status_code
+        return response.headers, body

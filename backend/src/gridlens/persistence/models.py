@@ -141,6 +141,13 @@ class AuthLoginBucket(Base):
 
 class Job(Base):
     __tablename__ = "jobs"
+    __table_args__ = (
+        Index(
+            "ix_jobs_project_monitor_active_source",
+            "source_id",
+            postgresql_where=text("kind = 'project_monitor' AND status IN ('queued', 'running')"),
+        ),
+    )
     id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
     source_id: Mapped[str] = mapped_column(ForeignKey("sources.id"))
     kind: Mapped[str] = mapped_column(String(30), default="ingestion", server_default="ingestion")

@@ -5,9 +5,11 @@ from typing import Any
 from uuid import UUID, uuid4
 
 from sqlalchemy import (
+    BigInteger,
     Boolean,
     DateTime,
     ForeignKey,
+    Identity,
     Index,
     Integer,
     String,
@@ -70,7 +72,7 @@ class ProjectMonitorWatchSource(Base):
         Index("ix_monitor_watch_source_due", "enabled", "next_due_at", "watch_id", "source_id"),
     )
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
     watch_id: Mapped[UUID] = mapped_column(
         ForeignKey("project_monitor_watches.id", ondelete="CASCADE"), nullable=False
     )
