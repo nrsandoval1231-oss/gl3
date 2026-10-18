@@ -17,8 +17,9 @@ from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
 
 from fastapi import HTTPException
-from sqlalchemy import delete, func, insert, literal, select, text, update
+from sqlalchemy import delete, func, insert, literal, or_, select, text, union, update
 
+from gridlens.domain.evaluation_clock import evaluate_at
 from gridlens.domain.ranking import RANKING_VERSION
 from gridlens.intelligence.opportunity_browse import (
     normalized,
@@ -82,13 +83,26 @@ def current_generation(session, *, now: datetime | None = None) -> BrowseGenerat
     now = now or datetime.now(UTC)
     generation = session.scalar(
         select(BrowseGeneration)
-        .join(BrowseState, BrowseState.generation_id == BrowseGeneration.id)
+        .join(
+            BrowseState,
+            or_(
+                BrowseState.generation_id == BrowseGeneration.id,
+                BrowseState.prepared_generation_id == BrowseGeneration.id,
+            ),
+        )
         .where(
             BrowseState.id == 1,
             BrowseState.input_revision == BrowseGeneration.input_revision,
             BrowseGeneration.policy_version == POLICY_VERSION,
+            BrowseGeneration.valid_from <= now,
             BrowseGeneration.valid_until > now,
         )
+        .order_by(
+            BrowseGeneration.valid_from.desc(),
+            BrowseGeneration.built_at.desc(),
+            BrowseGeneration.id,
+        )
+        .limit(1)
     )
     if generation is None:
         raise HTTPException(
@@ -248,6 +262,7 @@ def refresh_project_changes(session) -> dict | None:
     if (
         previous is None
         or previous.policy_version != POLICY_VERSION
+        or previous.valid_from > now
         or previous.valid_until <= now
         or state.full_revision > previous.input_revision
     ):
@@ -277,6 +292,7 @@ def refresh_project_changes(session) -> dict | None:
         input_revision=state.input_revision,
         policy_version=POLICY_VERSION,
         built_at=now,
+        valid_from=now,
         valid_until=deadline,
         row_count=0,
         digest="",
@@ -299,8 +315,11 @@ def refresh_project_changes(session) -> dict | None:
             ),
         )
     )
-    summaries = api.opportunity_projection(session, summary_only=True, selected_need_ids=need_ids)
-    _, changed_digest = _write_rows(session, generation.id, summaries)
+    with evaluate_at(now):
+        summaries = api.opportunity_projection(
+            session, summary_only=True, selected_need_ids=need_ids
+        )
+        _, changed_digest = _write_rows(session, generation.id, summaries)
     generation.row_count = session.scalar(
         select(func.count()).select_from(BrowseRow).where(BrowseRow.generation_id == generation.id)
     )
@@ -343,7 +362,14 @@ def _prune_generations(session):
         .order_by(BrowseGeneration.built_at.desc(), BrowseGeneration.id)
         .limit(3)
     )
-    active = select(BrowseState.generation_id).where(BrowseState.id == 1)
+    active = union(
+        select(BrowseState.generation_id).where(
+            BrowseState.id == 1, BrowseState.generation_id.is_not(None)
+        ),
+        select(BrowseState.prepared_generation_id).where(
+            BrowseState.id == 1, BrowseState.prepared_generation_id.is_not(None)
+        ),
+    )
     session.execute(
         delete(BrowseGeneration).where(
             BrowseGeneration.id.not_in(keep), BrowseGeneration.id.not_in(active)
@@ -351,13 +377,54 @@ def _prune_generations(session):
     )
 
 
+def prepare_next(factory, *, lead_seconds=120, before_publish=None) -> dict:
+    """Prepare exactly the next canonical clock interval, never expose it early."""
+    try:
+        with factory() as session:
+            generation = current_generation(session)
+            state = session.get(BrowseState, 1)
+            candidate = (
+                session.get(BrowseGeneration, state.prepared_generation_id)
+                if state.prepared_generation_id
+                else None
+            )
+            if (
+                candidate is not None
+                and candidate.input_revision == generation.input_revision
+                and candidate.policy_version == POLICY_VERSION
+                and candidate.valid_from == generation.valid_until
+            ):
+                return {"status": "ready", "generation_id": str(candidate.id)}
+            boundary = generation.valid_until
+            if (boundary - datetime.now(UTC)).total_seconds() > lead_seconds:
+                return {"status": "current"}
+    except HTTPException:
+        return {"status": "pending"}
+    return rebuild(factory, before_publish=before_publish, _prepare_at=boundary)
+
+
 def maintain_once(factory) -> dict:
+    # Promotion is optional for reads (they select the ready interval directly),
+    # but makes it the base for subsequent maintenance and the next preparation.
     with factory.begin() as session:
+        state = session.scalar(select(BrowseState).where(BrowseState.id == 1).with_for_update())
+        if state is not None and state.prepared_generation_id is not None:
+            try:
+                selected = current_generation(session)
+            except HTTPException:
+                selected = None
+            if selected is not None and selected.id == state.prepared_generation_id:
+                state.generation_id = selected.id
+                state.prepared_generation_id = None
+                session.flush()
         result = refresh_project_changes(session)
-    return result if result is not None else rebuild(factory)
+    if result is None:
+        return rebuild(factory)
+    prepared = prepare_next(factory)
+    return prepared if prepared["status"] in {"prepared", "ready"} else result
 
 
-def rebuild(factory, *, before_publish=None) -> dict:
+def rebuild(factory, *, before_publish=None, _prepare_at: datetime | None = None) -> dict:
     """Build without blocking input writers; publish a fully fenced canonical snapshot.
 
     A crash rolls back the unpublished generation. The advisory lock excludes other
@@ -379,12 +446,14 @@ def rebuild(factory, *, before_publish=None) -> dict:
                 if revision is None:
                     raise RuntimeError("saved browse migration is required")
                 now = datetime.now(UTC)
-                deadline = clock_deadline(session, now)
+                evaluated_at = _prepare_at or now
+                deadline = clock_deadline(session, evaluated_at)
                 generation = BrowseGeneration(
                     id=generation_id,
                     input_revision=revision,
                     policy_version=POLICY_VERSION,
                     built_at=now,
+                    valid_from=evaluated_at,
                     valid_until=deadline,
                     row_count=0,
                     digest="",
@@ -392,8 +461,9 @@ def rebuild(factory, *, before_publish=None) -> dict:
                 )
                 session.add(generation)
                 session.flush()
-                summaries = api.opportunity_projection(session, summary_only=True)
-                row_count, digest = _write_rows(session, generation_id, summaries)
+                with evaluate_at(evaluated_at):
+                    summaries = api.opportunity_projection(session, summary_only=True)
+                    row_count, digest = _write_rows(session, generation_id, summaries)
                 generation.row_count = row_count
                 generation.digest = digest
                 # Fresh backfills must not depend on a later autovacuum pass for
@@ -409,9 +479,28 @@ def rebuild(factory, *, before_publish=None) -> dict:
                 )
                 published = False
                 if state.input_revision == revision and datetime.now(UTC) < deadline:
-                    state.generation_id = generation_id
+                    if _prepare_at is None:
+                        state.generation_id = generation_id
+                    else:
+                        prior = (
+                            publication.get(BrowseGeneration, state.prepared_generation_id)
+                            if state.prepared_generation_id
+                            else None
+                        )
+                        if (
+                            prior is not None
+                            and prior.input_revision == revision
+                            and prior.policy_version == POLICY_VERSION
+                            and prior.valid_from <= datetime.now(UTC) < prior.valid_until
+                        ):
+                            state.generation_id = prior.id
+                        state.prepared_generation_id = generation_id
                     published = True
-                elif state.full_revision <= revision and datetime.now(UTC) < deadline:
+                elif (
+                    _prepare_at is None
+                    and state.full_revision <= revision
+                    and datetime.now(UTC) < deadline
+                ):
                     # Rebase a bounded ordinary-write tail under the publication
                     # lock. Repeated local edits cannot continually discard a long
                     # full build; readers see neither the intermediate pointer nor
@@ -431,12 +520,14 @@ def rebuild(factory, *, before_publish=None) -> dict:
                 # Retain current plus two prior snapshots. This removes only derived
                 # summary generations, never canonical evidence or accepted history.
                 _prune_generations(publication)
-                if published:
+                if published and _prepare_at is None:
                     publication.execute(
                         delete(BrowseDirtyProject).where(BrowseDirtyProject.revision <= revision)
                     )
             return {
-                "status": "published" if published else "superseded",
+                "status": ("prepared" if _prepare_at is not None else "published")
+                if published
+                else "superseded",
                 "generation_id": str(generation_id),
                 "input_revision": revision,
                 "row_count": row_count,
@@ -728,6 +819,7 @@ def restore_generation(factory, generation_id: UUID) -> bool:
                 .where(
                     BrowseState.id == 1,
                     BrowseState.input_revision == generation.input_revision,
+                    literal(generation.valid_from) <= datetime.now(UTC),
                     literal(generation.valid_until) > datetime.now(UTC),
                 )
                 .values(generation_id=generation_id)

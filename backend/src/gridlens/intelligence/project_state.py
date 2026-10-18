@@ -12,6 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from gridlens.domain.commercial_presentation import canonical_mw_claim
+from gridlens.domain.evaluation_clock import evaluation_now, evaluation_today
 from gridlens.domain.project_research import (
     VERSION,
     _project_claim_accumulator,
@@ -131,7 +132,10 @@ def current_research_state(
             ):
                 continue
             claims[str(need.id)].append({**claim, "evidence": _provenance(evidence)})
-    return {key: project_claim_state(rows, today=date.today()) for key, rows in claims.items()}
+    return {
+        key: project_claim_state(rows, today=evaluation_today(date.today()))
+        for key, rows in claims.items()
+    }
 
 
 class ResearchSummaryAccumulator:
@@ -140,7 +144,7 @@ class ResearchSummaryAccumulator:
     def __init__(self, need: PowerNeed, project: Project, *, today: date | None = None) -> None:
         self.need = need
         self.project = project
-        self.today = today or date.today()
+        self.today = today or evaluation_today(date.today())
         self._claims = _project_claim_accumulator(today=self.today)
 
     def add(
@@ -380,7 +384,9 @@ def project_state(
         "temporary_power_demand": _unknown(),
         "buyer_authority": _unknown(),
         "large_load_interconnection": current_interconnection_state(
-            session, project_id, today=today or datetime.now(ZoneInfo("America/Chicago")).date()
+            session,
+            project_id,
+            today=today or evaluation_now(datetime.now(ZoneInfo("America/Chicago"))).date(),
         ),
     }
     chain = buying_chain_view(session, project_id)
@@ -413,7 +419,7 @@ def project_state(
         "policy_context": texas_permitting_context(
             asset_type=project.asset_type if accepted_lifecycle else "unknown",
             site=state["site"],
-            as_of=today or datetime.now(ZoneInfo("America/Chicago")).date(),
+            as_of=today or evaluation_now(datetime.now(ZoneInfo("America/Chicago"))).date(),
         ),
         "organizations_and_roles": parties,
         "lifecycle_events": [

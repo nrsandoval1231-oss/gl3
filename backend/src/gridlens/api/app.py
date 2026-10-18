@@ -34,6 +34,7 @@ from gridlens.domain.commercial_triage import (
 from gridlens.domain.commercial_triage import (
     grouped_need_groups,
 )
+from gridlens.domain.evaluation_clock import evaluation_now
 from gridlens.domain.pursuits import (
     AutonomousResearchBody,
     AutonomousResearchOut,
@@ -131,7 +132,7 @@ async def current_operator_input_bound_error(
 
 
 def chicago_today(now: datetime | None = None) -> date:
-    current = now or datetime.now(UTC)
+    current = now or evaluation_now(datetime.now(UTC))
     return current.astimezone(ZoneInfo("America/Chicago")).date()
 
 

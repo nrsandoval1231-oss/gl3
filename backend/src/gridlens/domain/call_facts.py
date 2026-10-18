@@ -10,6 +10,7 @@ from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from gridlens.domain.commercial_presentation import exact_mw_interval
+from gridlens.domain.evaluation_clock import evaluation_now
 from gridlens.domain.power_qualification import VERSION as POWER_QUALIFICATION_VERSION
 
 FACT_TYPES = frozenset(
@@ -209,7 +210,7 @@ def current_accepted_facts(
     versions: list[Any], decisions: list[Any], *, now: datetime | None = None
 ) -> list[Any]:
     """Select latest decision per immutable version, then filter to live accepted facts."""
-    current = now or datetime.now(UTC)
+    current = now or evaluation_now(datetime.now(UTC))
     by_fact: dict[str, Any] = {}
     for event in decisions:
         key = str(event.fact_version_id)

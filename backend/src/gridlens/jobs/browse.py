@@ -4,6 +4,7 @@ import argparse
 import json
 import logging
 import time
+from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import HTTPException
@@ -50,12 +51,17 @@ def main():
         if args.action == "status":
             print(json.dumps(result))
             return 0 if result["status"] == "current" else 1
-        if result["status"] == "pending":
+        if (
+            result["status"] == "pending"
+            or (generation.valid_until - datetime.now(UTC)).total_seconds() <= 120
+        ):
             try:
-                print(json.dumps(maintain_once(SessionLocal)), flush=True)
+                maintenance = maintain_once(SessionLocal)
+                if maintenance["status"] not in {"current", "ready"}:
+                    print(json.dumps(maintenance), flush=True)
             except Exception:
-                # Do not emit DB exception details, which can include private input parameters.
-                logging.error("Browse rebuild failed; qualification remains pending")
+                # Do not emit private SQL parameters in exception details.
+                logging.error("Browse maintenance failed; freshness fences remain active")
         time.sleep(0.25)
 
 

@@ -23,6 +23,7 @@ from gridlens.domain.buying_chain import (
     POLICY_VERSION,
     ROLE_MAX_AGE_DAYS,
 )
+from gridlens.domain.evaluation_clock import evaluation_now
 from gridlens.domain.pursuit_research import fingerprint as _hash
 from gridlens.domain.signal_admission import admitted_from_source
 from gridlens.ingestion.adapters.buying_chain_public import (
@@ -1080,7 +1081,7 @@ def buying_chain_view(
     history: bool = False,
     preload: BuyingChainViewPreload | None = None,
 ) -> dict:
-    now = now or datetime.now(UTC)
+    now = now or evaluation_now(datetime.now(UTC))
     project = session.get(Project, project_id)
     if project is None:
         raise LookupError("Project not found")

@@ -12,6 +12,7 @@ from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from typing import Any
 
+from gridlens.domain.evaluation_clock import evaluation_now
 from gridlens.domain.news_interpretation import prospect_power_activity, validated_demand_mw
 
 VERSION = "official-power-qualification-v2"
@@ -56,7 +57,7 @@ def qualify_official_power(
     clauses = [c.strip() for c in re.split(r"(?<=[.!?])\s+", text) if c.strip()]
     # A dated historical header cannot lend present authority to exact clauses
     # below it. The explicit start-window clause is checked separately for Lead.
-    year = datetime.now(UTC).year
+    year = evaluation_now(datetime.now(UTC)).year
     if any(
         any(int(value) < year for value in re.findall(r"\b(?:19|20)\d{2}\b", clause))
         for clause in clauses
@@ -187,7 +188,7 @@ def qualify_official_power(
         latest_end = last + timedelta(days=int(duration[2]))
     except (OverflowError, ValueError):
         return result
-    if latest_end < datetime.now(UTC).date():
+    if latest_end < evaluation_now(datetime.now(UTC)).date():
         return result
     start_window = f"{first.isoformat()} to {last.isoformat()}"
     duration_range = f"{duration[1]} to {duration[2]} days"

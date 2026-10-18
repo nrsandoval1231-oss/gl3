@@ -731,3 +731,397 @@ def test_long_repeatable_read_cohort_survives_pruning_without_blocking_writers(s
         with saved_db() as fresh:
             assert not page(fresh, filters())["items"]
             assert fresh.get(BrowseGeneration, original) is None
+
+
+def test_expiry_without_preparation_has_explicit_pending_window(saved_db):
+    seed(saved_db, count=1)
+    assert rebuild(saved_db)["status"] == "published"
+    with saved_db() as session:
+        deadline = current_generation(session).valid_until
+        with pytest.raises(HTTPException) as failure:
+            current_generation(session, now=deadline)
+        assert failure.value.status_code == 503
+        assert failure.value.headers["X-Qualification-State"] == "pending"
+
+
+def test_prepared_clock_snapshot_is_not_early_and_matches_future_canonical(saved_db, monkeypatch):
+    from gridlens.domain.evaluation_clock import evaluate_at
+    from gridlens.intelligence.saved_browse import prepare_next, restore_generation
+    from gridlens.persistence.models import BrowseGeneration
+
+    seed(saved_db)
+    rebuild(saved_db)
+    with saved_db() as session:
+        old = current_generation(session)
+        boundary = old.valid_until
+        old_id = old.id
+    assert prepare_next(saved_db, lead_seconds=90000)["status"] == "prepared"
+    with saved_db() as session:
+        state = session.get(BrowseState, 1)
+        prepared_id = state.prepared_generation_id
+        prepared = session.get(BrowseGeneration, prepared_id)
+        assert prepared.valid_from == boundary
+        assert prepared.built_at < boundary
+        assert current_generation(session, now=boundary - timedelta(microseconds=1)).id == old_id
+        assert current_generation(session, now=boundary).id == prepared_id
+        with pytest.raises(HTTPException):
+            current_generation(session, now=prepared.valid_until)
+    assert not restore_generation(saved_db, prepared_id)
+    monkeypatch.setattr(settings, "saved_browse_enabled", False)
+    with evaluate_at(boundary):
+        expected = api.opportunities(limit=50, offset=0, cohort=None, sort="rank")
+    # Simulate only the reader's real clock at B; canonical future evaluation has
+    # already completed and is no longer active in this thread.
+    from gridlens.intelligence import saved_browse
+
+    class AtBoundary(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return boundary
+
+    monkeypatch.setattr(saved_browse, "datetime", AtBoundary)
+    with saved_db() as session:
+        actual = page(session, filters(), ranked=True)["items"]
+    for left, right in zip(actual, expected, strict=True):
+        for field in ("id", "tier", "required_mw", "rank_score", "rank_reasons", "group_id"):
+            assert str(left[field]) == str(right[field]), field
+
+
+def test_preparation_write_race_discard_and_rollback_safety(saved_db):
+    from gridlens.intelligence.saved_browse import prepare_next
+
+    ids = seed(saved_db)
+    rebuild(saved_db)
+
+    def mutate():
+        with saved_db.begin() as writer:
+            writer.get(PowerNeed, ids[0]).active = False
+
+    assert (
+        prepare_next(saved_db, lead_seconds=90000, before_publish=mutate)["status"] == "superseded"
+    )
+    with saved_db() as session:
+        assert session.get(BrowseState, 1).prepared_generation_id is None
+        with pytest.raises(HTTPException):
+            current_generation(session)
+    rebuild(saved_db)
+    assert prepare_next(saved_db, lead_seconds=90000)["status"] == "prepared"
+    with saved_db() as writer:
+        writer.execute(text("UPDATE sources SET publisher=publisher"))
+        writer.rollback()
+    with saved_db() as session:
+        assert session.get(BrowseState, 1).prepared_generation_id is not None
+    with saved_db.begin() as writer:
+        writer.execute(text("UPDATE sources SET publisher=publisher"))
+    with saved_db() as session:
+        assert session.get(BrowseState, 1).prepared_generation_id is None
+        with pytest.raises(HTTPException):
+            current_generation(session)
+
+
+def test_boundary_write_promotes_ready_base_before_invalidation(saved_db):
+    from gridlens.intelligence.saved_browse import prepare_next, refresh_project_changes
+    from gridlens.persistence.models import BrowseGeneration
+
+    ids = seed(saved_db)
+    rebuild(saved_db)
+    prepare_next(saved_db, lead_seconds=90000)
+    # Simulate wall time reaching the candidate interval in persisted metadata;
+    # the PostgreSQL trigger uses real database time, not a Python test clock.
+    with saved_db.begin() as session:
+        state = session.get(BrowseState, 1)
+        old = session.get(BrowseGeneration, state.generation_id)
+        ready = session.get(BrowseGeneration, state.prepared_generation_id)
+        old.valid_until = datetime.now(UTC) - timedelta(seconds=1)
+        ready.valid_from = datetime.now(UTC) - timedelta(seconds=1)
+    with saved_db.begin() as writer:
+        writer.get(PowerNeed, ids[0]).active = False
+        result = refresh_project_changes(writer)
+        assert result["mode"] == "projects"
+    with saved_db() as reader:
+        assert str(ids[0]) not in {str(row["id"]) for row in page(reader, filters())["items"]}
+        assert reader.get(BrowseState, 1).prepared_generation_id is None
+
+
+def test_preparation_failure_and_policy_mismatch_fail_closed(saved_db, monkeypatch):
+    from gridlens.intelligence import saved_browse
+
+    seed(saved_db)
+    rebuild(saved_db)
+    with saved_db() as session:
+        old = current_generation(session).id
+        boundary = current_generation(session).valid_until
+    original = saved_browse._write_rows
+
+    def fail(*args):
+        raise RuntimeError("synthetic preparation failure")
+
+    monkeypatch.setattr(saved_browse, "_write_rows", fail)
+    with pytest.raises(RuntimeError):
+        saved_browse.prepare_next(saved_db, lead_seconds=90000)
+    with saved_db() as session:
+        assert current_generation(session).id == old
+        assert session.get(BrowseState, 1).prepared_generation_id is None
+        with pytest.raises(HTTPException):
+            current_generation(session, now=boundary)
+    monkeypatch.setattr(saved_browse, "_write_rows", original)
+    saved_browse.prepare_next(saved_db, lead_seconds=90000)
+    monkeypatch.setattr(saved_browse, "POLICY_VERSION", "different-runtime")
+    with saved_db() as session, pytest.raises(HTTPException):
+        current_generation(session, now=boundary)
+
+
+def test_prepared_pointer_survives_pruning_and_new_pool_restart(saved_db):
+    from gridlens.intelligence.saved_browse import prepare_next
+    from gridlens.persistence.models import BrowseGeneration
+
+    seed(saved_db)
+    rebuild(saved_db)
+    prepare_next(saved_db, lead_seconds=90000)
+    with saved_db() as session:
+        prepared_id = session.get(BrowseState, 1).prepared_generation_id
+        boundary = session.get(BrowseGeneration, prepared_id).valid_from
+    for _ in range(4):
+        assert rebuild(saved_db)["status"] == "published"
+    saved_db.kw["bind"].dispose()
+    with saved_db() as restarted:
+        assert current_generation(restarted, now=boundary).id == prepared_id
+        assert restarted.get(BrowseGeneration, prepared_id) is not None
+
+
+def test_future_fact_start_and_end_use_same_prepared_instant(saved_db, monkeypatch):
+    from gridlens.domain.evaluation_clock import evaluate_at
+    from gridlens.ingestion.service import load_current_need_operator_inputs
+    from gridlens.intelligence import saved_browse
+    from gridlens.intelligence.saved_browse import prepare_next
+    from gridlens.persistence.models import CallFactDecision, CallFactVersion
+
+    fixed = datetime(2026, 10, 18, 12, tzinfo=UTC)
+
+    class Clock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return fixed
+
+    monkeypatch.setattr(saved_browse, "datetime", Clock)
+    ids = seed(saved_db, count=1)
+    start = fixed + timedelta(minutes=10)
+    end = start + timedelta(minutes=10)
+    with saved_db.begin() as session:
+        need = session.get(PowerNeed, ids[0])
+        fact = CallFactVersion(
+            need_id=need.id,
+            project_id=need.project_id,
+            client_id=uuid4(),
+            activity_key=need.activity_key,
+            facility_scope="California",
+            fact_type="demand",
+            value={"mw": "20"},
+            reporter_name="Synthetic",
+            confirmation_channel="call",
+            confirmed_at=datetime.now(UTC),
+            effective_from=start,
+            effective_until=end,
+            content_hash="e" * 64,
+            recorded_by="Synthetic",
+        )
+        session.add(fact)
+        session.flush()
+        session.add(
+            CallFactDecision(
+                need_id=need.id,
+                fact_version_id=fact.id,
+                version=1,
+                client_id=uuid4(),
+                decision="accepted",
+                expected_version=0,
+                reason="Synthetic",
+                content_hash="d" * 64,
+                actor="Synthetic",
+            )
+        )
+    rebuild(saved_db)
+    prepare_next(saved_db, lead_seconds=90000)
+    with saved_db() as session:
+        with evaluate_at(fixed):
+            before, _ = load_current_need_operator_inputs(session, ids)
+            assert not before
+        with evaluate_at(start):
+            after, _ = load_current_need_operator_inputs(session, ids)
+            assert len(after[ids[0]]) == 1
+        with evaluate_at(end):
+            expired, _ = load_current_need_operator_inputs(session, ids)
+            assert not expired
+        candidate = current_generation(session, now=start)
+        assert candidate.valid_from == start
+        assert candidate.valid_until == end
+
+
+def test_prepared_boundary_adds_and_expires_real_qualified_lead(saved_db, monkeypatch):
+    """Retained official clauses + accepted exact-need facts change qualification."""
+    from gridlens.intelligence import saved_browse
+    from gridlens.persistence.models import CallFactDecision, CallFactVersion
+
+    ids = seed(saved_db, count=1, histories=1)
+    boundary = datetime(2027, 1, 1, 0, tzinfo=UTC)
+    instant = boundary - timedelta(minutes=10)
+    expiry = datetime(2027, 3, 4, 0, tzinfo=UTC)
+
+    class Clock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return instant
+
+    monkeypatch.setattr(saved_browse, "datetime", Clock)
+    with saved_db.begin() as session:
+        need = session.get(PowerNeed, ids[0])
+        project = session.get(Project, need.project_id)
+        observation = session.scalar(select(Observation))
+        evidence = session.scalar(select(Evidence))
+        interpretation = session.scalar(select(Interpretation))
+        observation.abstract = evidence.abstract = (
+            "description: California construction requires 20 to 25 MW. "
+            "Power supply for California construction is insufficient.\naddress: California"
+        )
+        observation.published_at = evidence.published_at = instant.date()
+        interpretation.assessment = {
+            "decision": "accepted",
+            "semantic_hash": observation.content_hash,
+            "evidence_hash": evidence.content_hash,
+            "project_identity_key": project.identity_key,
+            "power_activity": "construction",
+            "tier": "Prospect",
+            "demand_mw": "20 to 25 MW",
+            "demand_quote": "California construction requires 20 to 25 MW.",
+            "supply_quote": "Power supply for California construction is insufficient.",
+            "reason": "Current retained exact-site permit support.",
+            "subject": project.name,
+            "location": project.location,
+        }
+        values = [
+            ("timing", {"start_date": "2027-01-01", "end_date": "2027-02-01", "duration_days": 31}),
+            ("suitable_supply", {"mw": "5", "quality": "suitable"}),
+            ("buyer", {"organization": "Synthetic Owner", "role": "project owner"}),
+        ]
+        for index, (kind, value) in enumerate(values):
+            fact = CallFactVersion(
+                need_id=need.id,
+                project_id=project.id,
+                client_id=uuid4(),
+                activity_key=need.activity_key,
+                facility_scope=project.location,
+                fact_type=kind,
+                value=value,
+                reporter_name="Synthetic",
+                confirmation_channel="customer_call",
+                confirmed_at=instant,
+                effective_from=boundary,
+                effective_until=expiry,
+                content_hash=str(index) * 64,
+                recorded_by="Synthetic",
+            )
+            session.add(fact)
+            session.flush()
+            session.add(
+                CallFactDecision(
+                    need_id=need.id,
+                    fact_version_id=fact.id,
+                    version=index + 1,
+                    client_id=uuid4(),
+                    decision="accepted",
+                    expected_version=index,
+                    reason="Synthetic exact-need accepted fact",
+                    content_hash=str(index + 3) * 64,
+                    actor="Synthetic",
+                )
+            )
+    rebuild(saved_db)
+    with saved_db() as session:
+        assert page(session, filters())["items"][0]["tier"] == "Prospect"
+    assert saved_browse.prepare_next(saved_db, lead_seconds=90000)["status"] == "prepared"
+    instant = boundary
+    with saved_db() as session:
+        lead = page(session, filters())["items"][0]
+        assert lead["tier"] == "Lead"
+        assert lead["required_mw"] == "20 to 25 MW"
+    # Move through the later calendar intervals using normal rebuilds, then
+    # prepare the exact accepted-fact expiry. Expired facts cannot carry a Lead.
+    instant = expiry - timedelta(minutes=10)
+    rebuild(saved_db)
+    with saved_db() as session:
+        assert page(session, filters())["items"][0]["tier"] == "Lead"
+    assert saved_browse.prepare_next(saved_db, lead_seconds=90000)["status"] == "prepared"
+    instant = expiry
+    with saved_db() as session:
+        assert page(session, filters())["items"][0]["tier"] == "Prospect"
+
+
+def test_maintenance_promotes_persisted_preparation_without_rebuild(saved_db, monkeypatch):
+    from gridlens.intelligence import saved_browse
+
+    seed(saved_db)
+    rebuild(saved_db)
+    saved_browse.prepare_next(saved_db, lead_seconds=90000)
+    with saved_db() as session:
+        boundary = current_generation(session).valid_until
+        prepared_id = session.get(BrowseState, 1).prepared_generation_id
+
+    class Clock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return boundary
+
+    monkeypatch.setattr(saved_browse, "datetime", Clock)
+
+    def unexpected_build(*args):
+        raise AssertionError("promotion must not reconstruct canonical rows")
+
+    monkeypatch.setattr(saved_browse, "_write_rows", unexpected_build)
+    assert saved_browse.maintain_once(saved_db)["status"] == "current"
+    with saved_db() as restarted:
+        state = restarted.get(BrowseState, 1)
+        assert state.generation_id == prepared_id
+        assert state.prepared_generation_id is None
+        assert current_generation(restarted).id == prepared_id
+
+
+def test_preparing_subsequent_interval_preserves_now_effective_preparation(saved_db, monkeypatch):
+    from gridlens.intelligence import saved_browse
+
+    seed(saved_db)
+    rebuild(saved_db)
+    saved_browse.prepare_next(saved_db, lead_seconds=90000)
+    with saved_db() as session:
+        boundary = current_generation(session).valid_until
+        prepared_id = session.get(BrowseState, 1).prepared_generation_id
+
+    class Clock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return boundary
+
+    monkeypatch.setattr(saved_browse, "datetime", Clock)
+    assert saved_browse.prepare_next(saved_db, lead_seconds=90000)["status"] == "prepared"
+    with saved_db() as session:
+        state = session.get(BrowseState, 1)
+        assert state.generation_id == prepared_id
+        assert state.prepared_generation_id != prepared_id
+        assert current_generation(session).id == prepared_id
+
+
+def test_incremental_refresh_never_blesses_future_base_if_clocks_disagree(saved_db):
+    from gridlens.intelligence.saved_browse import prepare_next, refresh_project_changes
+
+    ids = seed(saved_db)
+    rebuild(saved_db)
+    prepare_next(saved_db, lead_seconds=90000)
+    # Simulate DB-clock-ahead promotion while application time is still before B.
+    with saved_db.begin() as session:
+        state = session.get(BrowseState, 1)
+        state.generation_id = state.prepared_generation_id
+        state.prepared_generation_id = None
+    with saved_db.begin() as writer:
+        writer.get(PowerNeed, ids[0]).active = False
+        assert refresh_project_changes(writer) is None
+    with saved_db() as reader, pytest.raises(HTTPException):
+        current_generation(reader)

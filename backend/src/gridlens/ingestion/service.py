@@ -17,6 +17,7 @@ from gridlens.domain.call_facts import (
     CurrentOperatorInputBoundExceeded,
     qualification_from_facts,
 )
+from gridlens.domain.evaluation_clock import evaluation_now
 from gridlens.domain.lifecycle import classify_event
 from gridlens.domain.news_interpretation import (
     EVALUATOR_VERSION,
@@ -770,7 +771,7 @@ def load_current_need_operator_inputs(
     """Bulk-load only current accepted fact versions and the latest status event."""
     if not need_ids:
         return {}, {}
-    current = now or datetime.now(UTC)
+    current = now or evaluation_now(datetime.now(UTC))
     ranked_decisions = (
         select(
             CallFactDecision,
