@@ -1,0 +1,51 @@
+{
+  "projects": 1461,
+  "evidence": 15874,
+  "policy_version": "browse-b1-v1/ranking-v1/5ebca23233ac5da14c624ca639b6a1c5e94a551b5f212832368c1278ca36c316",
+  "limitations": [
+    "Synthetic dated Signal histories, not a production copy",
+    "Boundary reader/publication clock simulated; preparation runs before real deadline",
+    "Server functions, no HTTP/auth/network; shared local PostgreSQL; warm database cache",
+    "Repeated writes may discard preparation; fallback is explicit pending/full rebuild"
+  ],
+  "evidence_before": [
+    15874,
+    "7e4de732914081efb39dd38a6e59bd67"
+  ],
+  "initial_build_seconds": 25.156473538000682,
+  "unprepared_expiry_pending_seconds": 16.60361367600035,
+  "prepare_seconds": 15.141335833000085,
+  "reads_during_preparation_seconds": {
+    "samples": 421,
+    "p50": 0.013200006000261055,
+    "p95": 0.06522284299990133,
+    "max": 0.14487449700027355
+  },
+  "reads_during_preparation_statements": [
+    2
+  ],
+  "reads_during_preparation_errors": [],
+  "first_boundary_read_seconds": 0.012491559000409325,
+  "prepared_boundary_sequential_seconds": {
+    "samples": 60,
+    "p50": 0.0059780040000987356,
+    "p95": 0.00980643599996256,
+    "max": 0.011087662000136334
+  },
+  "prepared_boundary_concurrent_seconds": {
+    "samples": 60,
+    "p50": 0.01578165400042053,
+    "p95": 0.15791247299966926,
+    "max": 0.1759529509999993
+  },
+  "prepared_boundary_statements": [
+    2
+  ],
+  "invalidated_prepare_seconds": 14.679172942999685,
+  "invalidated_prepare_status": "superseded",
+  "quiet_retry_prepare_seconds": 12.439339714000198,
+  "evidence_after": [
+    15874,
+    "7e4de732914081efb39dd38a6e59bd67"
+  ]
+}

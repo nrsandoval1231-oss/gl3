@@ -746,6 +746,7 @@ class BrowseState(Base):
     input_revision: Mapped[int] = mapped_column(BigInteger, server_default="0")
     generation_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
     full_revision: Mapped[int] = mapped_column(BigInteger, server_default="0")
+    prepared_generation_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
 
 
 class BrowseDirtyProject(Base):
@@ -762,6 +763,7 @@ class BrowseGeneration(Base):
     input_revision: Mapped[int] = mapped_column(BigInteger)
     policy_version: Mapped[str] = mapped_column(String(100))
     built_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    valid_from: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     valid_until: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     row_count: Mapped[int] = mapped_column(Integer)
     digest: Mapped[str] = mapped_column(String(64))

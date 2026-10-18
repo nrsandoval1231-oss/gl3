@@ -6,6 +6,8 @@ import re
 from datetime import date, datetime
 from typing import Any
 
+from gridlens.domain.evaluation_clock import evaluation_today
+
 EVALUATOR_VERSION = "permit-project-v8"
 GEORGIA_AIR_EVALUATOR_VERSION = "georgia-air-discovery-v2"
 MISSING = [
@@ -924,7 +926,7 @@ def assess_permit(record: dict[str, Any], *, as_of: date | None = None) -> dict[
     if not isinstance(permit, dict):
         raise ValueError("Permit fields are missing")
     description = str(permit.get("description") or "")
-    as_of = as_of or date.today()
+    as_of = as_of or evaluation_today(date.today())
     if permit.get("source_type") == "ma-ccc-cultivation-applications":
         status = str(permit.get("application_status") or "").strip().upper()
         license_status = str(permit.get("license_status") or "").strip().upper()

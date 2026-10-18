@@ -48,7 +48,13 @@ INVALIDATE_SQL = """
     CREATE OR REPLACE FUNCTION invalidate_browse_generation() RETURNS trigger
     LANGUAGE plpgsql AS $$
     BEGIN
-        UPDATE browse_state SET
+        UPDATE browse_state s SET
+            generation_id = CASE WHEN EXISTS (
+                SELECT 1 FROM browse_generations g WHERE g.id = s.prepared_generation_id
+                AND g.input_revision = s.input_revision
+                AND g.valid_from <= clock_timestamp() AND g.valid_until > clock_timestamp()
+            ) THEN prepared_generation_id ELSE generation_id END,
+            prepared_generation_id = NULL,
             full_revision = CASE WHEN TG_OP = 'TRUNCATE' OR TG_ARGV[0] = 'full'
                 THEN input_revision + 1 ELSE full_revision END,
             input_revision = input_revision + 1 WHERE id = 1;
