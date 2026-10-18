@@ -26,6 +26,31 @@ class Settings(BaseSettings):
     pursuits_daily_model_limit: int = 8
     typesafe_api_key: SecretStr | None = None
     jev_enabled: bool = False
+    intelligence_enabled: bool = False
+    intelligence_global_daily_calls: int = Field(default=0, ge=0, le=1_000_000)
+    intelligence_global_monthly_calls: int = Field(default=0, ge=0, le=1_000_000)
+    intelligence_global_daily_usd: Decimal = Field(default=Decimal("0"), ge=0, le=100000)
+    intelligence_global_monthly_usd: Decimal = Field(default=Decimal("0"), ge=0, le=100000)
+    intelligence_provider_daily_calls: int = Field(default=0, ge=0, le=1_000_000)
+    intelligence_provider_monthly_calls: int = Field(default=0, ge=0, le=1_000_000)
+    intelligence_provider_daily_usd: Decimal = Field(default=Decimal("0"), ge=0, le=100000)
+    intelligence_provider_monthly_usd: Decimal = Field(default=Decimal("0"), ge=0, le=100000)
+    intelligence_model_daily_calls: int = Field(default=0, ge=0, le=1_000_000)
+    intelligence_model_monthly_calls: int = Field(default=0, ge=0, le=1_000_000)
+    intelligence_model_daily_usd: Decimal = Field(default=Decimal("0"), ge=0, le=100000)
+    intelligence_model_monthly_usd: Decimal = Field(default=Decimal("0"), ge=0, le=100000)
+    intelligence_source_daily_calls: int = Field(default=0, ge=0, le=1_000_000)
+    intelligence_source_monthly_calls: int = Field(default=0, ge=0, le=1_000_000)
+    intelligence_source_daily_usd: Decimal = Field(default=Decimal("0"), ge=0, le=100000)
+    intelligence_source_monthly_usd: Decimal = Field(default=Decimal("0"), ge=0, le=100000)
+    intelligence_project_daily_calls: int = Field(default=0, ge=0, le=1_000_000)
+    intelligence_project_monthly_calls: int = Field(default=0, ge=0, le=1_000_000)
+    intelligence_project_daily_usd: Decimal = Field(default=Decimal("0"), ge=0, le=100000)
+    intelligence_project_monthly_usd: Decimal = Field(default=Decimal("0"), ge=0, le=100000)
+    intelligence_max_active_calls: int = Field(default=0, ge=0, le=100_000)
+    intelligence_max_call_usd: Decimal = Field(default=Decimal("0"), ge=0, le=100)
+    intelligence_openai_model: str = ""
+    intelligence_typesafe_model: str = ""
     jev_shadow_mode: bool = True
     jev_shadow_batch_limit: int = 20
     jev_shadow_daily_limit: int = 20
