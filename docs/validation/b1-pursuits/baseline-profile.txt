@@ -1,0 +1,39 @@
+{"seconds": 5.347274785999616, "queries": 163, "database_seconds": 0.9275609460037231, "groups": 1461, "cards": 50}
+         7589348 function calls (7572877 primitive calls) in 5.336 seconds
+
+   Ordered by: cumulative time
+   List reduced from 1658 to 30 due to restriction <30>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        1    0.002    0.002    5.346    5.346 /workspace/gl3/backend/src/gridlens/api/app.py:4710(_commercial_triage_payload)
+        1    0.003    0.003    5.328    5.328 /workspace/gl3/backend/src/gridlens/api/app.py:4532(_commercial_triage_page)
+        2    0.007    0.004    5.080    2.540 /workspace/gl3/backend/src/gridlens/api/app.py:3140(opportunity_projection)
+        1    0.186    0.186    4.827    4.827 /workspace/gl3/backend/src/gridlens/api/app.py:2653(_opportunity_summary_projection)
+      163    0.002    0.000    1.242    0.008 /workspace/gl3/backend/.venv/lib/python3.11/site-packages/sqlalchemy/orm/session.py:2138(_execute_internal)
+      163    0.001    0.000    1.233    0.008 /workspace/gl3/backend/.venv/lib/python3.11/site-packages/sqlalchemy/orm/context.py:296(orm_execute_statement)
+      456    0.035    0.000    1.218    0.003 /workspace/gl3/backend/.venv/lib/python3.11/site-packages/sqlalchemy/orm/loading.py:207(chunks)
+      163    0.001    0.000    1.211    0.007 /workspace/gl3/backend/.venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py:1371(execute)
+      163    0.000    0.000    1.210    0.007 /workspace/gl3/backend/.venv/lib/python3.11/site-packages/sqlalchemy/sql/elements.py:514(_execute_on_connection)
+      163    0.002    0.000    1.210    0.007 /workspace/gl3/backend/.venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py:1587(_execute_clauseelement)
+    19166    0.016    0.000    1.183    0.000 /workspace/gl3/backend/.venv/lib/python3.11/site-packages/sqlalchemy/engine/result.py:526(iterrows)
+      125    0.000    0.000    1.144    0.009 /workspace/gl3/backend/.venv/lib/python3.11/site-packages/sqlalchemy/orm/session.py:2305(execute)
+    63496    0.053    0.000    1.040    0.000 /workspace/gl3/backend/src/gridlens/api/app.py:2673(release_streamed_row)
+      163    0.001    0.000    1.039    0.006 /workspace/gl3/backend/.venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py:1787(_execute_context)
+      185    0.719    0.004    0.993    0.005 /workspace/gl3/backend/.venv/lib/python3.11/site-packages/psycopg/connection.py:406(wait)
+      163    0.003    0.000    0.956    0.006 /workspace/gl3/backend/.venv/lib/python3.11/site-packages/sqlalchemy/engine/base.py:1846(_exec_single_context)
+      163    0.000    0.000    0.924    0.006 /workspace/gl3/backend/.venv/lib/python3.11/site-packages/sqlalchemy/engine/default.py:942(do_execute)
+      159    0.001    0.000    0.911    0.006 /workspace/gl3/backend/.venv/lib/python3.11/site-packages/psycopg/cursor.py:80(execute)
+    47622    0.091    0.000    0.869    0.000 /workspace/gl3/backend/.venv/lib/python3.11/site-packages/sqlalchemy/orm/session.py:3297(expunge)
+    15924    0.225    0.000    0.830    0.000 /workspace/gl3/backend/src/gridlens/ingestion/service.py:495(_current_need_claims)
+    15874    0.022    0.000    0.829    0.000 /workspace/gl3/backend/src/gridlens/ingestion/service.py:668(add_link)
+      233    0.010    0.000    0.690    0.003 /workspace/gl3/backend/.venv/lib/python3.11/site-packages/sqlalchemy/orm/loading.py:225(<listcomp>)
+    21098    0.027    0.000    0.680    0.000 /workspace/gl3/backend/.venv/lib/python3.11/site-packages/sqlalchemy/orm/loading.py:226(<listcomp>)
+    73679    0.123    0.000    0.653    0.000 /workspace/gl3/backend/.venv/lib/python3.11/site-packages/sqlalchemy/orm/loading.py:1067(_instance)
+      158    0.000    0.000    0.437    0.003 /workspace/gl3/backend/.venv/lib/python3.11/site-packages/sqlalchemy/engine/result.py:1346(fetchmany)
+      158    0.001    0.000    0.436    0.003 /workspace/gl3/backend/.venv/lib/python3.11/site-packages/sqlalchemy/engine/result.py:705(manyrows)
+    47622    0.293    0.000    0.413    0.000 /workspace/gl3/backend/.venv/lib/python3.11/site-packages/sqlalchemy/orm/mapper.py:3915(cascade_iterator)
+      158    0.000    0.000    0.377    0.002 /workspace/gl3/backend/.venv/lib/python3.11/site-packages/sqlalchemy/engine/cursor.py:2137(_fetchmany_impl)
+    47622    0.076    0.000    0.358    0.000 /workspace/gl3/backend/.venv/lib/python3.11/site-packages/sqlalchemy/orm/session.py:3318(_expunge_states)
+    53955    0.062    0.000    0.341    0.000 /workspace/gl3/backend/.venv/lib/python3.11/site-packages/sqlalchemy/orm/instrumentation.py:502(new_instance)
+
+

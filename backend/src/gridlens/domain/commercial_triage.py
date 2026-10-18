@@ -937,20 +937,25 @@ def grouped_need_ids(
     ]
 
 
-def grouped_need_groups(items: list[dict[str, Any]]) -> list[tuple[str, list[str]]]:
-    """Return canonical work identities and members in canonical priority order."""
+def work_group_identity(item: dict[str, Any]) -> str:
+    """Canonical commercial identity from the first current supporting evidence."""
     from gridlens.domain.pursuit_screening import work_identity
 
+    supporting = _supporting_evidence(item)
+    first = supporting[0] if supporting else {}
+    return work_identity(
+        str(first.get("source_id") or ""),
+        str(first.get("document_number") or first.get("id") or ""),
+        str(item.get("location") or ""),
+    )
+
+
+def grouped_need_groups(items: list[dict[str, Any]]) -> list[tuple[str, list[str]]]:
+    """Return canonical work identities and members in canonical priority order."""
     prepared = sorted(items, key=lambda item: (_priority(item), str(item["id"])))
     grouped: dict[str, list[str]] = {}
     for item in prepared:
-        supporting = _supporting_evidence(item)
-        first = supporting[0] if supporting else {}
-        identity = work_identity(
-            str(first.get("source_id") or ""),
-            str(first.get("document_number") or first.get("id") or ""),
-            str(item.get("location") or ""),
-        )
+        identity = work_group_identity(item)
         grouped.setdefault(identity, []).append(str(item["id"]))
     return [(identity, sorted(need_ids)) for identity, need_ids in grouped.items()]
 

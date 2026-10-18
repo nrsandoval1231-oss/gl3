@@ -155,3 +155,25 @@ The runtime rollback remains the final image with the browse switch false. Keep
 the additive0022 schema in place. If reverting to any older image, stop maintenance
 and recreate only API/web with `--no-deps`; do not run an older migration container
 against0022 or remove canonical evidence/history.
+
+## Commercial pursuits selection (0023)
+
+Migration `0023_browse_commercial_selection` adds four nullable derived scalar
+columns and their index to existing browse rows. Stop retained maintenance and
+keep `SAVED_BROWSE_ENABLED=false` during upgrade/repeat/check and rebuilding with
+the final runtime. The runtime policy fingerprint refuses older generations.
+Compare canonical/saved commercial work groups, priority and complete page
+payloads on the retained corpus before activating the existing switch. No new
+flag, provider, worker or scheduler is introduced.
+
+GET commercial triage selects groups/members from saved canonical scalars, then
+runs the existing targeted canonical detail/card evaluator and budgets. Commercial
+groups differ from browse groups. SQL may scan all saved Signal scalar rows;
+selected evidence work is bounded by existing group/card budgets. Research and
+evaluation writes retain their original canonical selection. Stale enabled GET
+reads return explicit pending. Switch-false behavior remains canonical.
+
+Use the final image with the switch false for runtime rollback. Keep0023 in
+place. If reverting an older image, stop maintenance and recreate API/web only
+with `--no-deps`; do not execute older migration containers against0023. The PC
+task owns production rollout/live QA; fixture results do not establish live SLOs.
