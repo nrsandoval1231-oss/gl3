@@ -57,5 +57,17 @@
     "independent_review": "FIX",
     "tokens": "UNKNOWN",
     "accepted": false
+  },
+  "latest_completed_backend_run": {
+    "candidate_sha": "e4fa7402f420af289837763d89787359af4414f9",
+    "passed": 2108,
+    "skipped": 3,
+    "subtests_passed": 7,
+    "elapsed_seconds": 636.58,
+    "browser_passed": 146,
+    "browser_skipped": 1,
+    "accepted": false,
+    "reason": "Independent visual contrast FIX; point-in-time restore comparison correction documented",
+    "artifact": ".artifacts/INTELLIGENCE-20261018/final-attempt7-e4fa740"
   }
 }

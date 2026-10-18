@@ -257,6 +257,20 @@ test('commercial queue filters backend states, exposes UNKNOWN, and saves target
   await expect(page.locator('.commercial-card-heading')).toContainText('Northstar Campus')
 })
 
+test('source health operations disclosure keeps readable contrast in the commercial workspace', async ({ page }) => {
+  await useCommercialFixture(page)
+  await page.route('**/api/health', (route) => route.fulfill({ json: { sources: [], backlog: 0, pending_interpretations: 0 } }))
+  await page.goto('/?view=pursuits&health=1')
+
+  const panel = page.locator('.health-panel')
+  await expect(panel.getByRole('heading', { name: 'Source health' })).toBeVisible()
+  const operations = panel.locator('.intelligence-operations')
+  await expect(operations.locator('summary')).toBeVisible()
+  await expect(operations.locator('p')).toContainText('Read-only status for saved jobs')
+  expect(await contrastRatio(operations.locator('summary'))).toBeGreaterThanOrEqual(4.5)
+  expect(await contrastRatio(operations.locator('p'))).toBeGreaterThanOrEqual(4.5)
+})
+
 test('commercial pages report all-group totals and preserve note drafts while traversing', async ({ page }) => {
   await useCommercialFixture(page)
   const firstPage: CommercialTriage = {
