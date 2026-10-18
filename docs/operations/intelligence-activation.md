@@ -40,6 +40,63 @@ propagation still requires safe presence-only inspection on the deployment host.
 A present key does not prove provider health or account/model compatibility. A paid
 probe is a bounded logical call and needs the same authorization and reservation.
 
+### Scanned Federal Register PDF OCR
+
+OCR remains unavailable with the example overlay: its feature, vision, and exact
+input-token preflight switches are false; source/retention references and model
+pricing are empty or zero; and the OCR task is absent from the contract allowlist.
+It also requires a separately verified finite upper cost bound for the input-token
+count endpoint and a nonempty reference documenting that bound. A positive cap
+alone does not establish the count endpoint's maximum charge; do not dispatch until
+the count contract, pinned model, policy, and bound reference are reviewed together.
+Set INTELLIGENCE_OCR_PREFLIGHT_COST_BOUND_VERIFIED=true only with that evidence and
+record its reference in INTELLIGENCE_OCR_PREFLIGHT_COST_REFERENCE. Both values are
+bound to the exact count body, model, contract version, and policy in the durable
+preflight intent; measured cost remains UNKNOWN unless provider accounting supplies it.
+Enabling it requires a separately approved finite upper bound for both the token
+count preflight and the response, plus exact account-supported model and verified
+input/output rates. The preflight itself transfers the same inline PDF and reserves
+its own shared-ledger intent before dispatch. Its counted input tokens are not
+billable usage. A timeout after dispatch is UNKNOWN and cannot trigger a blind
+second count or response.
+
+The authenticated same-origin request accepts only a need UUID and an Evidence UUID
+already linked to that exact need. It cannot accept a URL or bytes. The worker only
+supports an exact Federal Register GovInfo PDF path with the FR document number
+matching its parent Observation external ID; it checks public DNS, disables
+redirects, caps the PDF at 750,000 bytes and five pages, uses a finite isolated
+parser, and requires the original PDF Evidence hash. The semantic Observation hash
+is separately bound as stale-context state and is not expected to equal the
+alternate PDF's byte hash.
+
+When source and retention allowlists and a nonempty retention reference explicitly
+permit capture, the byte envelope is write-once under Evidence provenance before
+the model call. The full source bytes remain private to that provenance field.
+Public Evidence serialization boundaries reviewed for this feature are:
+`intelligence/project_state.py::_provenance` (a six-field metadata allowlist),
+`api/app.py::EvidenceOut` (no provenance field), and
+`api/app.py::export_opportunities` (CSV includes evidence URLs and hashes, not
+provenance). `api/intelligence.py::_history_view` applies the strict transcript
+and follow-on serializers; job views expose identifiers/status only. OCR history
+exposes a bounded page transcript from the LogicalCall result, never the capture
+envelope. The transcript carries `OCR_UNVERIFIED` and `ADVISORY_ONLY`; it does not
+alter accepted facts or Leads. An optional grounded follow-on must be a separate
+ledger call and quotes remain unverified until an independent source check.
+
+The worker state sequence is deliberately narrow: queue an exact need/evidence
+intent; fetch and validate GovInfo bytes outside the acquisition transaction;
+commit the immutable capture; reserve and dispatch the bounded input-token count;
+revalidate the source, capture, request digest, and current policy; reserve and
+dispatch the response; validate every page and the 64 KiB result bound; then
+publish only its LogicalCall pointer into Evidence provenance. The count intent
+binds the exact count-body digest, model, contract version, policy, and verified
+upper-cost reference. A completed count can be reused only when all bindings
+match. A stale source/context ends as stale; missing or invalid bytes fail closed;
+unknown outcomes after dispatch remain unknown and are never blindly retried.
+Grounded follow-on repeats its own request, count, response, context, and transcript
+version checks in separate ledger calls, then stores candidates as `OCR_UNVERIFIED`
+with canonical promotion prohibited and independent verification required.
+
 ## Migration and release
 
 1. Obtain a fresh backup and preserve outstanding logical-call statuses, reserved
@@ -68,6 +125,12 @@ and monitoring planner. Keep canonical evidence, prior accepted claims, model-ca
 history and all reserved/uncertain exposure. `SENT_OUTCOME_UNKNOWN` is never refunded
 or retried merely because a worker stopped. Reconcile only with an attributable
 operator decision and supporting provider evidence.
+
+OCR uses the existing `intelligence_process` kind and shared logical-call ledger;
+park/checkpoint it with other intelligence jobs during rollback. Preserve its
+private write-once capture and OCR call history. The explicit overlay clears OCR
+flags, pricing, source IDs, and retention reference. Do not delete captured bytes or
+retry uncertain preflight/response calls as part of rollback.
 
 Before running a pre-integration worker, park the new job kinds so older code cannot
 mistake them for source ingestion. After worker stop, the reviewed operation is:

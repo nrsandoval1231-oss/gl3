@@ -149,6 +149,17 @@ test('advisory candidates cite the exact source, preserve UNKNOWNs, and save pen
   await expect(research.getByLabel('Review note')).toBeFocused()
 })
 
+test('all ineligible intelligence tasks retain a real selection and explain why requests are unavailable', async ({ page }) => {
+  await useCommercialFixture(page)
+  await page.locator('.commercial-card-heading').click()
+  const research = page.getByRole('region', { name: 'Advisory intelligence research' })
+  const task = research.getByLabel('Research task')
+  await expect(task).toHaveValue('GROUNDED_DOSSIER|TEMP_LOAD_MW')
+  await expect(task.locator('option:checked')).toHaveText('Temporary electrical load')
+  await expect(research.getByRole('button', { name: 'Research retained evidence' })).toBeDisabled()
+  await expect(research.getByRole('status')).toContainText('Research is unavailable for Temporary electrical load: INTELLIGENCE_DISABLED.')
+})
+
 test('switching exact need aborts stale intelligence history and clears prior candidates', async ({ page }) => {
   const captured = await useCommercialFixture(page)
   await page.locator('.commercial-card-heading').click()

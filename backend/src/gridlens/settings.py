@@ -83,6 +83,22 @@ class Settings(BaseSettings):
         default=Decimal("0"), ge=0, le=100000
     )
     intelligence_openai_reasoning_max_output_tokens: int = Field(default=0, ge=0, le=100000)
+    intelligence_ocr_enabled: bool = False
+    intelligence_ocr_preflight_enabled: bool = False
+    intelligence_ocr_preflight_cost_bound_verified: bool = False
+    intelligence_ocr_preflight_cost_reference: str = ""
+    intelligence_ocr_vision_enabled: bool = False
+    intelligence_ocr_retention_source_ids: str = ""
+    intelligence_ocr_retention_reference: str = ""
+    intelligence_ocr_model: str = ""
+    intelligence_ocr_priced_model_id: str = ""
+    intelligence_ocr_pricing_verified: bool = False
+    intelligence_ocr_input_usd_per_million: Decimal = Field(default=Decimal("0"), ge=0, le=100000)
+    intelligence_ocr_output_usd_per_million: Decimal = Field(default=Decimal("0"), ge=0, le=100000)
+    intelligence_ocr_max_output_tokens: int = Field(default=0, ge=0, le=100000)
+    intelligence_ocr_detail: str = "auto"
+    intelligence_ocr_preflight_max_cost_usd: Decimal = Field(default=Decimal("0"), ge=0, le=100)
+    intelligence_ocr_max_call_usd: Decimal = Field(default=Decimal("0"), ge=0, le=100)
     intelligence_typesafe_priced_model_id: str = ""
     intelligence_typesafe_pricing_verified: bool = False
     intelligence_typesafe_input_usd_per_million: Decimal = Field(

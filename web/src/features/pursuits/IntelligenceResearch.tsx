@@ -7,6 +7,7 @@ type Candidate = Record<string, unknown> & {
   original_value?: string | null; original_unit?: string | null; precision?: number | null; date_precision?: string | null
   speaker?: string | null; speaker_organization?: string | null; speaker_role?: string | null
   source_url?: string; support?: string; status?: string
+  verification_status?: string
 }
 
 const text = (value: unknown, fallback = 'Unknown') => typeof value === 'string' && value ? value : fallback
@@ -53,7 +54,8 @@ export function IntelligenceResearch({ needId }: { needId: string }) {
   }, [needId, revision])
 
   const choices = tasks?.items.filter((item) => item.question_id && questionTitles[item.question_id]) ?? []
-  const selected = choices.find((item) => `${item.task_type}|${item.question_id ?? ''}` === choice) ?? choices.find((item) => item.eligible)
+  const selected = choices.find((item) => `${item.task_type}|${item.question_id ?? ''}` === choice) ?? choices.find((item) => item.eligible) ?? choices[0]
+  const selectedKey = selected ? `${selected.task_type}|${selected.question_id ?? ''}` : ''
   async function request() {
     if (!selected?.eligible || busy) return
     setBusy(true); setError(''); setNotice('')
@@ -71,12 +73,12 @@ export function IntelligenceResearch({ needId }: { needId: string }) {
     {!tasks && !error && <p role="status">Loading task availability…</p>}
     {error && <p role="alert">{error}</p>}
     {tasks && <div className="intelligence-controls">
-      <label>Research task<select value={choice || (selected ? `${selected.task_type}|${selected.question_id ?? ''}` : '')} onChange={(event) => setChoice(event.target.value)}>
+      <label>Research task<select value={selectedKey} onChange={(event) => setChoice(event.target.value)}>
         {choices.map((item) => <option key={`${item.task_type}|${item.question_id ?? ''}`} value={`${item.task_type}|${item.question_id ?? ''}`}>{questionTitles[item.question_id!]}</option>)}
       </select></label>
       <button type="button" disabled={busy || !selected?.eligible} onClick={() => void request()}>{busy ? 'Requesting…' : 'Research retained evidence'}</button>
     </div>}
-    {tasks && selected && !selected.eligible && <p>Research is currently unavailable because provider configuration or budget controls are incomplete.</p>}
+    {tasks && selected && !selected.eligible && <p role="status">Research is unavailable for {questionTitles[selected.question_id!]}: {selected.reason || 'provider configuration or budget controls are incomplete'}.</p>}
     {tasks && choices.length === 0 && <p>No commercial research questions are available.</p>}
     {notice && <p role="status">{notice}</p>}
     {history.length === 0 && tasks && <p>No saved intelligence jobs for this need.</p>}
@@ -96,6 +98,7 @@ function Candidates({ needId, job }: { needId: string; job: IntelligenceHistoryI
   const candidates = (Array.isArray(result?.candidates) ? result.candidates : []) as Candidate[]
   if (!result || !Array.isArray(result.candidates)) return null
   return <div>
+    {job.result_status === 'OCR_UNVERIFIED' && <p role="status">OCR-derived candidates remain unverified and cannot be accepted or promoted. Independently check each quote against the original source.</p>}
     {job.status === 'stale' && <p role="status">This response is retained for audit, but its source context changed while the review was running. It is stale and cannot support a current decision.</p>}
     {candidates.length > 0 && <><h4>Unaccepted source candidates</h4>{candidates.map((candidate, index) => <CandidateReview key={`${job.job_id}-${index}`} needId={needId} job={job} candidate={candidate}/>)}</>}
     {candidates.length === 0 && <p>No source-supported candidate was returned. Unknowns remain unresolved.</p>}
@@ -112,7 +115,7 @@ function CandidateReview({ needId, job, candidate }: { needId: string; job: Inte
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
   const clientId = useRef(crypto.randomUUID())
-  const exactCitation = Boolean(job.status === 'completed' && candidate.evidence_id && candidate.evidence_hash && candidate.source_url && candidate.quote)
+  const exactCitation = Boolean(job.status === 'completed' && job.result_status !== 'OCR_UNVERIFIED' && candidate.evidence_id && candidate.evidence_hash && candidate.source_url && candidate.quote)
   async function save(event: React.FormEvent) {
     event.preventDefault()
     if (!job.logical_call_id || !exactCitation || !note.trim()) return

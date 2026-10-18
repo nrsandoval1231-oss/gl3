@@ -23,7 +23,18 @@ from gridlens.intelligence.intelligence_jobs import (
 from gridlens.intelligence.intelligence_operations import operations_view
 from gridlens.intelligence.jev_contracts import CONTRACTS
 from gridlens.intelligence.monitoring import upsert_watch, watch_view
+from gridlens.intelligence.ocr_transcript import (
+    public_ocr_grounded_result,
+    public_ocr_transcript,
+)
 from gridlens.intelligence.question_contracts import QUESTION_CONTRACTS
+from gridlens.intelligence.scanned_pdf_ocr import (
+    OCR_FOLLOWON_TASK,
+    OCR_TASK,
+    _ocr_configuration_ready,
+    enqueue_ocr_grounded_followon,
+    enqueue_scanned_pdf_ocr,
+)
 from gridlens.persistence.models import (
     Evidence,
     Job,
@@ -116,6 +127,7 @@ class IntelligenceHistoryOut(BaseModel):
     need_id: UUID
     status: str
     result: dict[str, Any] | None
+    result_status: str | None = None
     error: str | None
     evidence_ids: list[str]
     logical_call_id: UUID | None
@@ -217,15 +229,17 @@ def _job_view(job: Job) -> dict[str, Any]:
     usage = checkpoint.get("usage")
     return {
         "job_id": str(job.id),
-        "task_type": checkpoint.get("task_type"),
+        "task_type": checkpoint.get("request_kind", checkpoint.get("task_type")),
         "need_id": str(job.target_id) if job.target_id else None,
         "status": _job_status(job, checkpoint),
         "result": checkpoint.get("result"),
         "error": checkpoint.get("error")
         or ("CANCELLED_BEFORE_DISPATCH" if checkpoint.get("status") == "cancelled" else None),
-        "evidence_ids": [
-            item.get("id") for item in checkpoint.get("payload", {}).get("evidence", [])
-        ],
+        "evidence_ids": (
+            [checkpoint["evidence_id"]]
+            if checkpoint.get("task_type") == OCR_TASK and checkpoint.get("evidence_id")
+            else [item.get("id") for item in checkpoint.get("payload", {}).get("evidence", [])]
+        ),
         "logical_call_id": checkpoint.get("logical_call_id"),
         "usage": usage,
         "reserved": bool(checkpoint.get("logical_call_id")),
@@ -253,10 +267,66 @@ def _history_view(session, need_id: UUID, limit: int) -> list[dict[str, Any]]:
             except (ValueError, TypeError):
                 job_checkpoint = {}
             item["status"] = _job_status(job_row, job_checkpoint)
+            item["task_type"] = job_checkpoint.get("request_kind", item.get("task_type"))
             if job_checkpoint.get("status") == "cancelled":
                 item["error"] = "CANCELLED_BEFORE_DISPATCH"
             checkpoints[str(item["job_id"])] = job_checkpoint
+    logical_call_ids: set[UUID] = set()
+    for item in items:
+        if item.get("task_type") in {OCR_TASK, OCR_FOLLOWON_TASK} and item.get("logical_call_id"):
+            try:
+                logical_call_ids.add(UUID(item["logical_call_id"]))
+            except (TypeError, ValueError):
+                pass
+    logical_calls = (
+        {
+            str(call.id): call
+            for call in session.scalars(
+                select(LogicalCall).where(LogicalCall.id.in_(logical_call_ids))
+            ).all()
+        }
+        if logical_call_ids
+        else {}
+    )
+    for item in items:
         result = item.get("result")
+        if item.get("task_type") == OCR_TASK and item.get("logical_call_id"):
+            call = logical_calls.get(item["logical_call_id"])
+            if call is not None and call.status == "COMPLETED":
+                safe_result = public_ocr_transcript(call.result_payload)
+                item["result"] = safe_result
+                item["result_status"] = (
+                    "OCR_UNVERIFIED" if safe_result is not None else "OCR_RESULT_UNAVAILABLE"
+                )
+                result = item["result"]
+        if item.get("task_type") == OCR_FOLLOWON_TASK and item.get("logical_call_id"):
+            call = logical_calls.get(item["logical_call_id"])
+            safe_result = (
+                public_ocr_grounded_result(call.result_payload)
+                if call is not None and call.status == "COMPLETED"
+                else None
+            )
+            item["result"] = safe_result
+            item["result_status"] = (
+                "OCR_UNVERIFIED" if safe_result is not None else "OCR_RESULT_UNAVAILABLE"
+            )
+            result = safe_result
+            checkpoint = checkpoints.get(str(item["job_id"]), {})
+            evidence_id = checkpoint.get("evidence_id")
+            if evidence_id:
+                item["evidence_ids"] = [evidence_id]
+                evidence = session.get(Evidence, UUID(evidence_id))
+                if evidence is not None:
+                    source_candidates[str(evidence.id)] = {
+                        "id": str(evidence.id),
+                        "url": evidence.url,
+                        "content_hash": evidence.content_hash,
+                    }
+        if item.get("task_type") == OCR_TASK:
+            checkpoint = checkpoints.get(str(item["job_id"]), {})
+            evidence_id = checkpoint.get("evidence_id")
+            if evidence_id and evidence_id not in item.get("evidence_ids", []):
+                item["evidence_ids"] = [evidence_id]
         if not isinstance(result, dict) or not isinstance(result.get("candidates"), list):
             continue
         checkpoint = checkpoints.get(str(item["job_id"]), {})
@@ -297,6 +367,10 @@ def _history_view(session, need_id: UUID, limit: int) -> list[dict[str, Any]]:
                 for source in checkpoint.get("payload", {}).get("evidence", [])
                 if isinstance(source, dict)
             }
+            if checkpoint.get("request_kind") == OCR_FOLLOWON_TASK:
+                source = source_candidates.get(checkpoint.get("evidence_id", ""))
+                if source:
+                    sources[str(source["id"])] = source
             for candidate in result["candidates"]:
                 source = sources.get(str(candidate.get("evidence_id")))
                 if source:
@@ -344,6 +418,28 @@ def intelligence_tasks():
                 "pinned_model": model or None,
             }
         )
+    ocr_enabled, ocr_reason = _ocr_configuration_ready()
+    task_rows.append(
+        {
+            "task_type": OCR_TASK,
+            "question_id": None,
+            "eligible": ocr_enabled,
+            "reason": ocr_reason or None,
+            "provider": "openai" if ocr_enabled else None,
+            "pinned_model": settings.intelligence_ocr_model if ocr_enabled else None,
+        }
+    )
+    followon_enabled, followon_reason = _ocr_configuration_ready(OCR_FOLLOWON_TASK)
+    task_rows.append(
+        {
+            "task_type": OCR_FOLLOWON_TASK,
+            "question_id": None,
+            "eligible": followon_enabled,
+            "reason": followon_reason or None,
+            "provider": "openai" if followon_enabled else None,
+            "pinned_model": settings.intelligence_ocr_model if followon_enabled else None,
+        }
+    )
     return {
         "items": task_rows,
         "mode": settings.intelligence_mode,
@@ -433,6 +529,55 @@ def request_intelligence_job(need_id: UUID, body: JobRequest, request: Request):
 
 
 @router.post(
+    "/needs/{need_id}/evidence/{evidence_id}/ocr",
+    response_model=IntelligenceJobOut,
+    dependencies=[Depends(require_session)],
+)
+def request_scanned_pdf_ocr(need_id: UUID, evidence_id: UUID, request: Request):
+    """Queue OCR only for one already-linked source Evidence; never fetch in the API."""
+    require_same_origin(request)
+    with _session_factory().begin() as session:
+        need = session.get(PowerNeed, need_id)
+        if need is None or not need.active:
+            raise HTTPException(404, "Active power need not found")
+        try:
+            job = enqueue_scanned_pdf_ocr(session, need_id=need_id, evidence_id=evidence_id)
+        except ValueError as exc:
+            raise HTTPException(409, str(exc)) from exc
+        session.flush()
+        return _job_view(job)
+
+
+@router.post(
+    "/needs/{need_id}/evidence/{evidence_id}/ocr-followon",
+    response_model=IntelligenceJobOut,
+    dependencies=[Depends(require_session)],
+)
+def request_ocr_grounded_followon(
+    need_id: UUID, evidence_id: UUID, body: JobRequest, request: Request
+):
+    """Queue a separate OCR_UNVERIFIED candidate extraction over an existing transcript."""
+    require_same_origin(request)
+    if body.task_type != OCR_FOLLOWON_TASK or body.question_id not in QUESTION_CONTRACTS:
+        raise HTTPException(422, "A supported OCR grounded question contract is required")
+    with _session_factory().begin() as session:
+        need = session.get(PowerNeed, need_id)
+        if need is None or not need.active:
+            raise HTTPException(404, "Active power need not found")
+        try:
+            job = enqueue_ocr_grounded_followon(
+                session,
+                need_id=need_id,
+                evidence_id=evidence_id,
+                question_id=body.question_id,
+            )
+        except ValueError as exc:
+            raise HTTPException(409, str(exc)) from exc
+        session.flush()
+        return _job_view(job)
+
+
+@router.post(
     "/needs/{need_id}/jobs/{job_id}/cancel",
     response_model=IntelligenceJobOut,
     dependencies=[Depends(require_session)],
@@ -486,6 +631,14 @@ def retry_intelligence_job(need_id: UUID, job_id: UUID, request: Request):
             raise HTTPException(409, "A reserved or uncertain provider call cannot be retried")
         if status != "failed":
             raise HTTPException(409, "Only a conclusive failed request can be retried")
+        if (
+            checkpoint.get("task_type") == OCR_TASK
+            or checkpoint.get("request_kind") == OCR_FOLLOWON_TASK
+        ):
+            raise HTTPException(
+                409,
+                "Queue a new exact OCR request after reviewing the source and prior ledger outcome",
+            )
         task_type = checkpoint.get("task_type")
         question_id = checkpoint.get("question_id")
         eligible, _provider, _model, reason = _enabled(task_type, question_id)
@@ -567,6 +720,11 @@ def save_owner_feedback(need_id: UUID, body: OwnerFeedback, request: Request):
             or checkpoint.get("result_status") == "stale_context"
         ):
             raise HTTPException(409, "Only a current completed candidate can be reviewed")
+        if checkpoint.get("request_kind") == OCR_FOLLOWON_TASK:
+            raise HTTPException(
+                409,
+                "OCR_UNVERIFIED candidates require an independent source check before owner review",
+            )
         if checkpoint.get("logical_call_id") != str(body.logical_call_id):
             raise HTTPException(409, "Logical call does not match the candidate job")
         logical_call = session.get(LogicalCall, body.logical_call_id)

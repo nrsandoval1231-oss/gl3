@@ -235,12 +235,44 @@ def test_authenticated_bounded_intelligence_tasks_and_off_request(intelligence_a
         ).status_code
         == 403
     )
+    assert (
+        client.post(
+            f"/api/intelligence/needs/{need_id}/evidence/{ids[3]}/ocr",
+            headers={"origin": "https://testserver"},
+        ).status_code
+        == 409
+    )
+    assert (
+        client.post(
+            f"/api/intelligence/needs/{need_id}/evidence/{ids[3]}/ocr-followon",
+            json={"task_type": "OCR_GROUNDED_FOLLOWON", "question_id": "TEMP_LOAD_MW"},
+            headers={"origin": "https://testserver"},
+        ).status_code
+        == 409
+    )
     with factory() as session:
         assert (
             session.scalar(
                 select(func.count()).select_from(Job).where(Job.kind == "intelligence_process")
             )
             == 1
+        )
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(LogicalCall)
+                .where(
+                    LogicalCall.task_type.in_(
+                        {
+                            "OCR_EXTRACTION",
+                            "OCR_INPUT_PREFLIGHT",
+                            "OCR_GROUNDED_FOLLOWON",
+                            "OCR_FOLLOWON_INPUT_PREFLIGHT",
+                        }
+                    )
+                )
+            )
+            == 0
         )
 
 

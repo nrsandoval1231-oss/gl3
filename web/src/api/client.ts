@@ -17,7 +17,7 @@ export type NeedWorkflowStatusBody = components['schemas']['NeedWorkflowStatusBo
 
 export type IntelligenceHistoryItem = {
   job_id: string; task_type: string | null; need_id: string; status: string
-  result: Record<string, unknown> | null; error: string | null; evidence_ids: string[]
+  result: Record<string, unknown> | null; result_status?: string | null; error: string | null; evidence_ids: string[]
   logical_call_id: string | null; usage: { input_tokens?: number | null; output_tokens?: number | null; cost_usd?: string | number | null } | null
   reserved: boolean; uncertain: boolean; created_at: string | null; completed_at: string | null
 }

@@ -5,7 +5,7 @@ from uuid import uuid4
 
 import pytest
 from pydantic import SecretStr
-from sqlalchemy import create_engine, select
+from sqlalchemy import create_engine, event, select
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 
@@ -415,6 +415,292 @@ def test_leased_worker_runs_retained_need_through_shared_ledger(sessions, monkey
         "cost_basis": None,
     }
     assert call and call.status == "COMPLETED" and call.result_payload
+
+
+def test_leased_scanned_pdf_job_commits_capture_then_counts_and_keeps_transcript_private(
+    sessions, monkeypatch
+):
+    import base64
+    import hashlib
+    import io
+
+    from pypdf import PdfWriter
+
+    from gridlens.intelligence import scanned_pdf_ocr
+    from gridlens.intelligence.scanned_pdf_ocr import enqueue_scanned_pdf_ocr
+    from gridlens.jobs import worker
+
+    source_id = "federal-register-eis"
+    document_id = "2026-18765"
+    source_url = "https://www.govinfo.gov/content/pkg/FR-2026-09-14/pdf/2026-18765.pdf"
+    pdf_buffer = io.BytesIO()
+    pdf_writer = PdfWriter()
+    pdf_writer.add_blank_page(width=612, height=792)
+    pdf_writer.write(pdf_buffer)
+    pdf_bytes = pdf_buffer.getvalue()
+    pdf_hash = hashlib.sha256(pdf_bytes).hexdigest()
+    need_id, project_id, observation_id, evidence_id = uuid4(), uuid4(), uuid4(), uuid4()
+    semantic_hash = hashlib.sha256(b"Federal Register semantic record").hexdigest()
+
+    values = {
+        "intelligence_enabled": True,
+        "intelligence_mode": "advisory",
+        "intelligence_openai_enabled": True,
+        "intelligence_research_enabled": True,
+        "intelligence_enabled_contracts": "OCR_EXTRACTION,OCR_GROUNDED_FOLLOWON",
+        "openai_api_key": SecretStr("fixture-only"),
+        "intelligence_ocr_enabled": True,
+        "intelligence_ocr_vision_enabled": True,
+        "intelligence_ocr_preflight_enabled": True,
+        "intelligence_ocr_preflight_cost_bound_verified": True,
+        "intelligence_ocr_preflight_cost_reference": "fixture-verified-count-bound",
+        "intelligence_ocr_preflight_max_cost_usd": Decimal("0.01"),
+        "intelligence_ocr_retention_source_ids": source_id,
+        "intelligence_ocr_retention_reference": "fixture-retention-policy",
+        "intelligence_ocr_model": "pinned-ocr-fixture-model",
+        "intelligence_ocr_priced_model_id": "pinned-ocr-fixture-model",
+        "intelligence_ocr_pricing_verified": True,
+        "intelligence_ocr_input_usd_per_million": Decimal("1"),
+        "intelligence_ocr_output_usd_per_million": Decimal("1"),
+        "intelligence_ocr_detail": "low",
+        "intelligence_ocr_max_output_tokens": 100,
+        "intelligence_ocr_max_call_usd": Decimal("0.1"),
+        "intelligence_max_call_usd": Decimal("0.1"),
+        "intelligence_max_active_calls": 2,
+    }
+    for name, value in values.items():
+        monkeypatch.setattr(settings, name, value)
+    for scope in ("global", "provider", "model", "source", "project"):
+        for period in ("daily", "monthly"):
+            monkeypatch.setattr(settings, f"intelligence_{scope}_{period}_calls", 10)
+            monkeypatch.setattr(settings, f"intelligence_{scope}_{period}_usd", Decimal("1"))
+
+    with sessions.begin() as session:
+        session.add(
+            Source(
+                id=source_id,
+                publisher="Federal Register",
+                endpoint="https://www.govinfo.gov/content/pkg/FR",
+                family="federal-register-eis",
+                geography="United States",
+                industries=["power"],
+                retrieval_method="GovInfo Federal Register API",
+                enabled=True,
+                registry_enabled=True,
+                health={},
+            )
+        )
+        session.flush()
+        session.add(
+            Project(
+                id=project_id,
+                identity_key="fr-ocr-fixture",
+                name="Federal Register OCR fixture",
+                source_id=source_id,
+                external_id=document_id,
+            )
+        )
+        session.flush()
+        session.add(
+            PowerNeed(
+                id=need_id,
+                project_id=project_id,
+                activity_key="fr-ocr-fixture",
+                rationale="Fixture-only OCR job.",
+                supply="Unknown",
+            )
+        )
+        session.add(
+            Observation(
+                id=observation_id,
+                source_id=source_id,
+                external_id=document_id,
+                title="Federal Register semantic record",
+                abstract="The semantic record is distinct from the companion PDF bytes.",
+                url="https://www.federalregister.gov/documents/2026/09/14/2026-18765/example",
+                content_hash=semantic_hash,
+            )
+        )
+        session.flush()
+        session.add(
+            Evidence(
+                id=evidence_id,
+                observation_id=observation_id,
+                content_hash=pdf_hash,
+                title="Original Federal Register PDF",
+                url=source_url,
+                provenance={"preserved": "existing provenance"},
+            )
+        )
+        session.flush()
+        session.add(NeedObservation(need_id=need_id, observation_id=observation_id))
+        job = enqueue_scanned_pdf_ocr(session, need_id=need_id, evidence_id=evidence_id)
+        job_id = job.id
+
+    monkeypatch.setattr(worker, "SessionLocal", sessions)
+    monkeypatch.setattr(scanned_pdf_ocr, "SessionLocal", sessions)
+    monkeypatch.setattr(worker, "WORKER_ID", "fixture-ocr-worker")
+
+    def fake_capture(url, expected_hash):
+        assert url == source_url
+        assert expected_hash == pdf_hash
+        return {
+            "document_id": document_id,
+            "content_hash": pdf_hash,
+            "page_count": 1,
+            "scanned_pages": [1],
+            "data_base64": base64.b64encode(pdf_bytes).decode("ascii"),
+            "source_url": source_url,
+        }
+
+    count_errors = []
+
+    def fake_count(**kwargs):
+        try:
+            with sessions() as session:
+                evidence = session.get(Evidence, evidence_id)
+                assert (
+                    evidence
+                    and evidence.provenance["govinfo_ocr_capture_v1"]["content_hash"] == pdf_hash
+                )
+                preflight = session.scalar(
+                    select(LogicalCall)
+                    .where(
+                        LogicalCall.task_type.in_(
+                            {"OCR_INPUT_PREFLIGHT", "OCR_FOLLOWON_INPUT_PREFLIGHT"}
+                        ),
+                        LogicalCall.status == "SENT_OUTCOME_UNKNOWN",
+                    )
+                    .limit(1)
+                )
+                assert preflight is not None
+                assert preflight.max_cost_usd <= Decimal("0.01")
+                assert preflight.result_payload is None
+        except Exception as exc:
+            count_errors.append(f"{type(exc).__name__}: {exc}")
+            raise
+        return 321
+
+    def fake_response(**kwargs):
+        request = kwargs["request"]
+        assert request["model"] == "pinned-ocr-fixture-model"
+        assert request["store"] is False and request["tools"] == []
+        if isinstance(request["input"], str):
+            assert "ocr-grounded-followon-v1" in request["input"]
+            return {
+                "model": "pinned-ocr-fixture-model",
+                "provider_response_id": "fixture-grounded-response-id",
+                "input_tokens": 26,
+                "output_tokens": 4,
+                "output": {
+                    "candidates": [],
+                    "hypotheses": [],
+                    "contradictions": [],
+                    "unresolved_questions": [],
+                    "candidate_orgs": [],
+                    "proposed_queries": [],
+                    "suggested_pursuit": None,
+                },
+            }
+        return {
+            "model": "pinned-ocr-fixture-model",
+            "provider_response_id": "fixture-response-id",
+            "input_tokens": 18,
+            "output_tokens": 7,
+            "output": {"pages": [{"page": 1, "text": "Fixture scanned page text."}]},
+        }
+
+    monkeypatch.setattr(scanned_pdf_ocr, "capture_govinfo_pdf", fake_capture)
+    monkeypatch.setattr(scanned_pdf_ocr, "call_openai_input_token_count", fake_count)
+    monkeypatch.setattr(scanned_pdf_ocr, "call_openai_request", fake_response)
+    assert worker.run_one({}, job_ids=[job_id]) is True
+    assert not count_errors, count_errors
+
+    with sessions.begin() as session:
+        followon_job = scanned_pdf_ocr.enqueue_ocr_grounded_followon(
+            session,
+            need_id=need_id,
+            evidence_id=evidence_id,
+            question_id="TEMP_LOAD_MW",
+        )
+        followon_job_id = followon_job.id
+    assert worker.run_one({}, job_ids=[followon_job_id]) is True
+    assert not count_errors, count_errors
+
+    from gridlens.api.intelligence import _history_view
+
+    with sessions() as session:
+        logical_call_selects = []
+
+        def count_logical_call_select(_conn, _cursor, statement, _parameters, _context, _many):
+            normalized = statement.lstrip().casefold()
+            if normalized.startswith("select") and "from logical_calls" in normalized:
+                logical_call_selects.append(statement)
+
+        engine = session.get_bind()
+        event.listen(engine, "before_cursor_execute", count_logical_call_select)
+        try:
+            history = _history_view(session, need_id, 10)
+        finally:
+            event.remove(engine, "before_cursor_execute", count_logical_call_select)
+        assert len(logical_call_selects) == 1
+        ocr_history = next(item for item in history if item["task_type"] == "OCR_EXTRACTION")
+        followon_history = next(
+            item for item in history if item["task_type"] == "OCR_GROUNDED_FOLLOWON"
+        )
+        assert ocr_history["result_status"] == "OCR_UNVERIFIED"
+        assert ocr_history["result"]["pages"] == [{"page": 1, "text": "Fixture scanned page text."}]
+        assert "data_base64" not in str(ocr_history)
+        assert followon_history["result_status"] == "OCR_UNVERIFIED"
+        assert followon_history["result"]["authority"] == "ADVISORY_ONLY"
+        assert followon_history["result"]["canonical_promotion"] == "PROHIBITED"
+        assert "data_base64" not in str(followon_history)
+        evidence = session.get(Evidence, evidence_id)
+        job = session.get(Job, job_id)
+        calls = session.scalars(
+            select(LogicalCall).where(LogicalCall.job_id == job_id).order_by(LogicalCall.created_at)
+        ).all()
+        assert evidence and job
+        capture = evidence.provenance["govinfo_ocr_capture_v1"]
+        assert capture["content_hash"] == pdf_hash
+        assert base64.b64decode(capture["data_base64"]) == pdf_bytes
+        assert evidence.provenance["preserved"] == "existing provenance"
+        assert evidence.provenance["ocr"]["original_document_hash"] == pdf_hash
+        assert job.status == "succeeded"
+        assert job.checkpoint and json.loads(job.checkpoint)["result_status"] == "OCR_UNVERIFIED"
+        assert len(calls) == 2
+        count_call, response_call = calls
+        assert count_call.task_type == "OCR_INPUT_PREFLIGHT"
+        assert count_call.status == "COMPLETED"
+        assert count_call.result_payload["counted_input_tokens"] == 321
+        assert count_call.result_payload["counted_input_tokens_are_billable_usage"] is False
+        assert count_call.result_payload["actual_cost_usd"] is None
+        assert response_call.task_type == "OCR_EXTRACTION"
+        assert response_call.status == "COMPLETED"
+        assert response_call.actual_cost_usd is None
+        assert response_call.result_payload["status"] == "OCR_UNVERIFIED"
+        assert response_call.result_payload["original_document_hash"] == pdf_hash
+        assert response_call.result_payload["pages"] == [
+            {"page": 1, "text": "Fixture scanned page text."}
+        ]
+        assert "data_base64" not in response_call.result_payload
+        followon_call = session.scalar(
+            select(LogicalCall).where(LogicalCall.task_type == "OCR_GROUNDED_FOLLOWON")
+        )
+        followon_job = session.get(Job, followon_job_id)
+        assert followon_job and followon_job.status == "succeeded"
+        followon_checkpoint = json.loads(followon_job.checkpoint or "{}")
+        assert followon_checkpoint.get("result_status") == "OCR_UNVERIFIED", (
+            followon_checkpoint.get("status"),
+            followon_checkpoint.get("error"),
+            list(followon_checkpoint),
+        )
+        assert followon_call and followon_call.status == "COMPLETED"
+        assert followon_call.result_payload["status"] == "OCR_UNVERIFIED"
+        assert followon_call.result_payload["authority"] == "ADVISORY_ONLY"
+        assert followon_call.result_payload["canonical_promotion"] == "PROHIBITED"
+        assert followon_call.result_payload["independent_source_check"] == "REQUIRED"
+        assert followon_call.result_payload["candidates"] == []
 
 
 def test_typesafe_dispatch_preserves_bounded_need_and_identity_context(sessions, monkeypatch):
