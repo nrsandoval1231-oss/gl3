@@ -715,7 +715,7 @@ class InterconnectionFactVersion(Base):
 
 
 class EditorialDecision(Base):
-    """Append-only human clearance, scoped to one immutable evidence version."""
+    """Historical, append-only clearance record; no active workflow reads or writes it."""
     __tablename__ = 'editorial_decisions'
     sequence: Mapped[int] = mapped_column(BigInteger, Identity(), unique=True)
     id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
@@ -729,7 +729,7 @@ class EditorialDecision(Base):
 
 
 class EditorialAssessment(Base):
-    """Advisory model output; cannot establish clearance."""
+    """Historical assessment record retained for recovery; no active workflow uses it."""
     __tablename__ = 'editorial_assessments'
     id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
     evidence_id: Mapped[UUID] = mapped_column(ForeignKey('evidence.id'), index=True)

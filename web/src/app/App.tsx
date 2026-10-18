@@ -1,4 +1,3 @@
-import { EditorialReview } from '../features/editorial/EditorialReview'
 import { environmentReturnUrl } from '../features/environment/navigation'
 import { useEffect, useRef, useState } from 'react'
 import { client, OpportunityCohortChangedError, OpportunityNeedUnavailableError, workflowStatuses, type Brief, type IngestionItem, type Opportunity, type OpportunityBrowseFilters, type OpportunityPage, type WorkflowStatusFilter } from '../api/client'
@@ -813,7 +812,6 @@ function EnvironmentRoot() {
   }
   if (authenticated === null) return <main className="loading" aria-live="polite">Loading your private workspace…</main>
   if (!authenticated) return <LoginPage onLogin={onLogin}/>
-  if (new URLSearchParams(location.search).get('view') === 'editorial') return <EditorialReview/>
   return <Environment today={(onOpen) => <CommercialTodayEntry compact onOpen={onOpen}/>} onSignOut={() => { void client.logout().finally(() => setAuthenticated(false)) }}/>
 }
 
