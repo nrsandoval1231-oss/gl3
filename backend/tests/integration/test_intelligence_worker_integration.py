@@ -475,6 +475,18 @@ def test_catalog_worker_applies_per_call_cap_to_full_input_ceiling(sessions, mon
     assert history[0]["error"] == "FINITE_BUDGET_REQUIRED"
 
 
+def _deep_provider_response():
+    nested = "leaf"
+    for _ in range(1_500):
+        nested = {"nested": nested}
+    return {
+        "model": "pinned-fixture-model",
+        "provider_response_id": "fixture-recursive-response",
+        "usage": {"input_tokens": 10, "output_tokens": 1},
+        "nested": nested,
+    }
+
+
 @pytest.mark.parametrize(
     ("response", "expected_reason"),
     [
@@ -508,12 +520,31 @@ def test_catalog_worker_applies_per_call_cap_to_full_input_ceiling(sessions, mon
         (
             {
                 "model": "pinned-fixture-model",
+                "provider_response_id": "fixture-unrepresentable-input-overage",
+                "usage": {"input_tokens": 2**63 - 1, "output_tokens": 1},
+                "answers": {"invalid": "semantic payload must not be parsed"},
+            },
+            "TOTAL_BILLABLE_INPUT_CEILING_EXCEEDED",
+        ),
+        (
+            {
+                "model": "pinned-fixture-model",
                 "provider_response_id": "fixture-oversized-response",
                 "usage": {"input_tokens": 10, "output_tokens": 1},
                 "large_untrusted_output": "x" * 70_000,
             },
             "RESPONSE_TOO_LARGE",
         ),
+        (
+            {
+                "model": "pinned-fixture-model",
+                "provider_response_id": "fixture-oversized-tail-response",
+                "usage": {"input_tokens": 10, "output_tokens": 1},
+                "items": [""] * 1000 + ["x" * 65_000],
+            },
+            "RESPONSE_TOO_LARGE",
+        ),
+        (_deep_provider_response(), "RESPONSE_TOO_LARGE"),
     ],
 )
 def test_catalog_quarantines_type_safe_identity_and_input_bound_breaches_before_parse(
@@ -553,8 +584,11 @@ def test_catalog_quarantines_type_safe_identity_and_input_bound_breaches_before_
     if expected_reason == "MODEL_IDENTITY_MISMATCH":
         assert quarantine["response"].get("model") in {None, "unconfigured-alias"}
     elif expected_reason == "TOTAL_BILLABLE_INPUT_CEILING_EXCEEDED":
-        assert quarantine["usage"]["input_tokens"] == 20_001
-        assert Decimal(quarantine["conservative_exposure_usd"]) > call.max_cost_usd
+        assert quarantine["usage"]["input_tokens"] > 20_000
+        if quarantine["exposure_status"] == "UNBOUNDED":
+            assert quarantine["conservative_exposure_usd"] is None
+        else:
+            assert Decimal(quarantine["conservative_exposure_usd"]) > call.max_cost_usd
     else:
         assert quarantine["reason"] == "RESPONSE_TOO_LARGE"
         assert quarantine["response"]["omitted"] == "MAX_RESULT_BYTES"
@@ -722,6 +756,96 @@ def test_legacy_typesafe_model_mismatch_quarantines_and_blocks_reuse(sessions, m
     assert provider_calls == [True]
 
 
+def _legacy_signal_state():
+    return {
+        "title": "Fixture project",
+        "abstract": "Fixture abstract",
+        "url": "https://example.invalid",
+        "published_at": "2026-10-01",
+        "source_id": "fixture-source",
+        "source_family": "permit",
+        "publisher": "Fixture Publisher",
+        "event_date": "",
+        "event_date_label": "",
+        "project_name": "Fixture project",
+        "location": "Austin, TX",
+        "asset_type": "facility",
+        "lifecycle_state": "planned",
+    }
+
+
+@pytest.mark.parametrize("input_tokens, output_tokens", [("50", 5), (2**63, 5), (50, 2**63)])
+def test_legacy_invalid_reported_usage_quarantines_without_ledger_overflow(
+    sessions, monkeypatch, input_tokens, output_tokens
+):
+    _enable_bounded_typesafe(monkeypatch)
+    monkeypatch.setattr(settings, "intelligence_enabled_contracts", "SIGNAL_ADJUDICATION")
+    from gridlens.integrations import legacy_calls
+
+    monkeypatch.setattr(legacy_calls, "SessionLocal", sessions)
+    args = {
+        "task_type": "SIGNAL_ADJUDICATION",
+        "task_key": f"fixture-invalid-usage-{type(input_tokens).__name__}-{output_tokens}",
+        "payload": {"state": _legacy_signal_state()},
+        "source_id": None,
+        "project_id": None,
+        "job_id": None,
+        "worker_id": None,
+        "fence_token": 7,
+    }
+
+    def invalid_usage_result():
+        return (
+            {
+                "model": "pinned-fixture-model",
+                "provider_response_id": "fixture-legacy-invalid-usage",
+                "answers": {"raw": "retained"},
+            },
+            input_tokens,
+            output_tokens,
+        )
+
+    with pytest.raises(legacy_calls.LegacyCallUnknown, match="INVALID_REPORTED_USAGE"):
+        legacy_calls.perform_legacy_call(**args, invoke=invalid_usage_result)
+    with sessions() as session:
+        call = session.scalar(select(LogicalCall))
+    assert call and call.status == "SENT_OUTCOME_UNKNOWN"
+    assert call.actual_cost_usd is None
+    expected_input = input_tokens if type(input_tokens) is int and input_tokens < 2**63 else None
+    expected_output = (
+        output_tokens if type(output_tokens) is int and output_tokens < 2**63 else None
+    )
+    assert call.input_tokens == expected_input
+    assert call.output_tokens == expected_output
+
+
+def test_legacy_valid_null_usage_can_complete(sessions, monkeypatch):
+    _enable_bounded_typesafe(monkeypatch)
+    monkeypatch.setattr(settings, "intelligence_enabled_contracts", "SIGNAL_ADJUDICATION")
+    from gridlens.integrations import legacy_calls
+
+    monkeypatch.setattr(legacy_calls, "SessionLocal", sessions)
+    result = legacy_calls.perform_legacy_call(
+        task_type="SIGNAL_ADJUDICATION",
+        task_key="fixture-null-usage",
+        payload={"state": _legacy_signal_state()},
+        source_id=None,
+        project_id=None,
+        job_id=None,
+        worker_id=None,
+        fence_token=7,
+        invoke=lambda: (
+            {"model": "pinned-fixture-model", "answers": {"raw": "retained"}},
+            None,
+            None,
+        ),
+    )
+    assert result.input_tokens is None and result.output_tokens is None
+    with sessions() as session:
+        call = session.get(LogicalCall, result.logical_call_id)
+    assert call and call.status == "COMPLETED"
+
+
 def test_catalog_worker_rechecks_exact_billing_proof_before_dispatch(sessions, monkeypatch):
     _enable_bounded_typesafe(monkeypatch)
     need_id, _evidence_id, job_id = _seed_job(sessions)
@@ -757,8 +881,19 @@ def test_catalog_worker_rechecks_exact_billing_proof_before_dispatch(sessions, m
     assert history[0]["error"] == "TYPESAFE_BILLING_POLICY_CHANGED"
 
 
+@pytest.mark.parametrize(
+    "failure_case",
+    [
+        None,
+        "semantic_followon",
+        "followon_input_overbound",
+        "followon_output_overbound",
+        "ocr_input_overbound",
+        "ocr_output_overbound",
+    ],
+)
 def test_leased_scanned_pdf_job_commits_capture_then_counts_and_keeps_transcript_private(
-    sessions, monkeypatch
+    sessions, monkeypatch, failure_case
 ):
     import base64
     import hashlib
@@ -894,6 +1029,7 @@ def test_leased_scanned_pdf_job_commits_capture_then_counts_and_keeps_transcript
         }
 
     count_errors = []
+    fail_followon_response = []
 
     def fake_count(**kwargs):
         try:
@@ -927,11 +1063,28 @@ def test_leased_scanned_pdf_job_commits_capture_then_counts_and_keeps_transcript
         assert request["store"] is False and request["tools"] == []
         if isinstance(request["input"], str):
             assert "ocr-grounded-followon-v1" in request["input"]
+            if failure_case == "semantic_followon":
+                raw = {
+                    "status": "incomplete",
+                    "model": "pinned-ocr-fixture-model",
+                    "usage": {"input_tokens": 26, "output_tokens": 4},
+                    "output": [],
+                }
+                raise scanned_pdf_ocr.ProviderResponseError(
+                    "synthetic incomplete semantic response",
+                    request_id="fixture-followon-semantic-error",
+                    conclusive=True,
+                    status_code=200,
+                    response_received=True,
+                    raw_response=raw,
+                    reported_model=raw["model"],
+                    reported_usage=raw["usage"],
+                )
             return {
                 "model": "pinned-ocr-fixture-model",
                 "provider_response_id": "fixture-grounded-response-id",
-                "input_tokens": 26,
-                "output_tokens": 4,
+                "input_tokens": 322 if failure_case == "followon_input_overbound" else 26,
+                "output_tokens": 101 if failure_case == "followon_output_overbound" else 4,
                 "output": {
                     "candidates": [],
                     "hypotheses": [],
@@ -945,8 +1098,8 @@ def test_leased_scanned_pdf_job_commits_capture_then_counts_and_keeps_transcript
         return {
             "model": "pinned-ocr-fixture-model",
             "provider_response_id": "fixture-response-id",
-            "input_tokens": 18,
-            "output_tokens": 7,
+            "input_tokens": 322 if failure_case == "ocr_input_overbound" else 18,
+            "output_tokens": 101 if failure_case == "ocr_output_overbound" else 7,
             "output": {"pages": [{"page": 1, "text": "Fixture scanned page text."}]},
         }
 
@@ -956,6 +1109,23 @@ def test_leased_scanned_pdf_job_commits_capture_then_counts_and_keeps_transcript
     assert worker.run_one({}, job_ids=[job_id]) is True
     assert not count_errors, count_errors
 
+    if failure_case and failure_case.startswith("ocr_"):
+        expected_reason = (
+            "REPORTED_INPUT_EXCEEDS_PREFLIGHT_COUNT"
+            if failure_case == "ocr_input_overbound"
+            else "ENFORCED_OUTPUT_BOUND_EXCEEDED"
+        )
+        with sessions() as session:
+            failed_call = session.scalar(
+                select(LogicalCall).where(
+                    LogicalCall.task_type == "OCR_EXTRACTION",
+                    LogicalCall.status == "SENT_OUTCOME_UNKNOWN",
+                )
+            )
+        assert failed_call and failed_call.actual_cost_usd is None
+        assert failed_call.blocked_reason == f"BILLING_QUARANTINE:{expected_reason}"
+        return
+
     with sessions.begin() as session:
         followon_job = scanned_pdf_ocr.enqueue_ocr_grounded_followon(
             session,
@@ -964,8 +1134,37 @@ def test_leased_scanned_pdf_job_commits_capture_then_counts_and_keeps_transcript
             question_id="TEMP_LOAD_MW",
         )
         followon_job_id = followon_job.id
+    if failure_case == "semantic_followon":
+        fail_followon_response.append(True)
     assert worker.run_one({}, job_ids=[followon_job_id]) is True
     assert not count_errors, count_errors
+
+    if failure_case:
+        with sessions() as session:
+            failed_followon = session.scalar(
+                select(LogicalCall).where(
+                    LogicalCall.task_type == "OCR_GROUNDED_FOLLOWON",
+                    LogicalCall.status == "SENT_OUTCOME_UNKNOWN",
+                )
+            )
+            failed_job = session.get(Job, followon_job_id)
+        assert failed_followon and failed_followon.actual_cost_usd is None
+        assert failed_followon.blocked_reason.startswith("BILLING_QUARANTINE:")
+        reason = failed_followon.result_payload["billing_quarantine"]["reason"]
+        if failure_case == "semantic_followon":
+            assert failed_followon.result_payload["billing_quarantine"]["response"]["status"] == (
+                "incomplete"
+            )
+        elif failure_case == "followon_input_overbound":
+            assert reason == "REPORTED_INPUT_EXCEEDS_PREFLIGHT_COUNT"
+        else:
+            assert reason == "ENFORCED_OUTPUT_BOUND_EXCEEDED"
+        assert failed_job and failed_job.status == "succeeded"
+        checkpoint = json.loads(failed_job.checkpoint)
+        assert checkpoint["status"] == "unknown"
+        assert checkpoint["error"] == "OCR_FOLLOWON_OUTCOME_UNKNOWN"
+        assert failed_job.lease_owner is None and failed_job.lease_until is None
+        return
 
     from gridlens.api.intelligence import _history_view
 
@@ -1041,6 +1240,7 @@ def test_leased_scanned_pdf_job_commits_capture_then_counts_and_keeps_transcript
         assert followon_call.result_payload["canonical_promotion"] == "PROHIBITED"
         assert followon_call.result_payload["independent_source_check"] == "REQUIRED"
         assert followon_call.result_payload["candidates"] == []
+
 
 
 def test_typesafe_dispatch_preserves_bounded_need_and_identity_context(sessions, monkeypatch):

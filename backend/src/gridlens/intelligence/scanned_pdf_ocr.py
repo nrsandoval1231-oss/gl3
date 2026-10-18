@@ -23,6 +23,7 @@ from gridlens.ingestion.adapters.govinfo_scan import (
 )
 from gridlens.integrations.intelligence_provider import (
     GROUNDED_INSTRUCTIONS,
+    ProviderResponseError,
     call_openai_input_token_count,
     call_openai_request,
     ocr_request_payload,
@@ -33,9 +34,11 @@ from gridlens.integrations.logical_calls import (
     complete_call,
     fail_call,
     mark_dispatched,
+    quarantine_call,
     reserve_call,
 )
 from gridlens.intelligence.grounded_candidates import validate_grounded_candidates
+from gridlens.intelligence.intelligence_jobs import _provider_error_quarantine_details
 from gridlens.intelligence.ocr_transcript import public_ocr_transcript, validate_ocr_transcript
 from gridlens.jobs.queue import assert_fence
 from gridlens.persistence.database import SessionLocal
@@ -57,6 +60,69 @@ OCR_FOLLOWON_TASK = "OCR_GROUNDED_FOLLOWON"
 OCR_POLICY_VERSION = "source-permitted-pdf-ocr-v1"
 OCR_SCHEMA_VERSION = "scanned-pdf-ocr-request-v1"
 OCR_PREFLIGHT_CONTRACT_VERSION = "responses-input-tokens-count-v1"
+
+
+def _quarantine_ocr_response(
+    *, call_id: UUID, fence_token: int, task_type: str, model: str,
+    error: Exception | None = None, response: dict[str, Any] | None = None,
+    input_token_limit: int | None = None,
+) -> bool:
+    """Keep received OCR response billing unknown until explicit reconciliation."""
+    if error is None:
+        assert response is not None
+        error = ProviderResponseError(
+            "OCR response failed local validation",
+            request_id=response.get("provider_response_id"),
+            response_received=True,
+            raw_response=response,
+            reported_model=response.get("model"),
+            reported_usage={
+                "input_tokens": response.get("input_tokens"),
+                "output_tokens": response.get("output_tokens"),
+            },
+        )
+    details = _provider_error_quarantine_details(
+        error,
+        provider="openai",
+        task_type=task_type,
+        expected_model=model,
+        input_token_limit=input_token_limit,
+    )
+    if details is None:
+        return False
+    with SessionLocal() as session:
+        outcome = quarantine_call(
+            session,
+            call_id,
+            fence_token=fence_token,
+            expected_model=model,
+            actual_model=details["actual_model"],
+            reason=details["reason"],
+            response_payload=details["response_payload"],
+            input_tokens=details["input_tokens"],
+            output_tokens=details["output_tokens"],
+            conservative_exposure_usd=details["conservative_exposure_usd"],
+            exposure_basis=details["exposure_basis"],
+            exposure_status=details["exposure_status"],
+        )
+    return outcome.status == "SENT_OUTCOME_UNKNOWN" and bool(
+        outcome.blocked_reason and outcome.blocked_reason.startswith("BILLING_QUARANTINE:")
+    )
+
+
+def _validate_ocr_response_usage(
+    response: dict[str, Any], *, counted_input_tokens: int, max_output_tokens: int
+) -> None:
+    """Reject unrepresentable or over-reservation usage before ledger completion."""
+    for value in (response.get("input_tokens"), response.get("output_tokens")):
+        if value is not None and (type(value) is not int or value < 0 or value > 2**63 - 1):
+            raise ValueError("OCR response reported invalid token usage")
+    input_tokens = response.get("input_tokens")
+    output_tokens = response.get("output_tokens")
+    if input_tokens is not None and input_tokens > counted_input_tokens:
+        raise ValueError("OCR response input tokens exceed the preflight count")
+    if output_tokens is not None and output_tokens > max_output_tokens:
+        raise ValueError("OCR response output tokens exceed the enforced bound")
 
 
 def _digest(value: Any) -> str:
@@ -1070,6 +1136,11 @@ def _process_grounded_followon(job_id: UUID, worker_id: str, fence_token: int) -
         response = call_openai_request(api_key=key, request=request)
         if response.get("model") != model:
             raise ValueError("Provider response model does not match the pinned model")
+        _validate_ocr_response_usage(
+            response,
+            counted_input_tokens=counted_tokens,
+            max_output_tokens=max_output,
+        )
         parsed = validate_grounded_candidates(response["output"], request_payload["evidence"])
         for candidate in parsed["candidates"]:
             candidate["verification_status"] = "OCR_UNVERIFIED"
@@ -1109,6 +1180,29 @@ def _process_grounded_followon(job_id: UUID, worker_id: str, fence_token: int) -
                 result_payload=result,
             )
     except Exception as exc:
+        if _quarantine_ocr_response(
+            call_id=call_id,
+            fence_token=reservation.fence_token or fence_token,
+            task_type=OCR_FOLLOWON_TASK,
+            model=model,
+            error=exc,
+            input_token_limit=counted_tokens,
+        ):
+            return _finish_without_call(
+                job_id, worker_id, fence_token, "unknown", "OCR_FOLLOWON_OUTCOME_UNKNOWN"
+            )
+        if isinstance(locals().get("response"), dict) and response:
+            if _quarantine_ocr_response(
+                call_id=call_id,
+                fence_token=reservation.fence_token or fence_token,
+                task_type=OCR_FOLLOWON_TASK,
+                model=model,
+                response=response,
+                input_token_limit=counted_tokens,
+            ):
+                return _finish_without_call(
+                    job_id, worker_id, fence_token, "unknown", "OCR_FOLLOWON_OUTCOME_UNKNOWN"
+                )
         response_id = getattr(exc, "request_id", None)
         complete_response = locals().get("response", {}).get("provider_response_id")
         if response_id and (getattr(exc, "conclusive", False) or complete_response):
@@ -1522,6 +1616,11 @@ def process_scanned_pdf_ocr(job_id: UUID, worker_id: str, fence_token: int) -> d
         response = call_openai_request(api_key=api_key, request=request)
         if response.get("model") != model:
             raise ValueError("Provider response model does not match the pinned model")
+        _validate_ocr_response_usage(
+            response,
+            counted_input_tokens=counted_tokens,
+            max_output_tokens=payload["max_output_tokens"],
+        )
         result = validate_ocr_transcript(
             response["output"],
             expected_pages=expected_pages,
@@ -1551,6 +1650,29 @@ def process_scanned_pdf_ocr(job_id: UUID, worker_id: str, fence_token: int) -> d
                 result_payload=result,
             )
     except Exception as exc:
+        if _quarantine_ocr_response(
+            call_id=call_id,
+            fence_token=response_reservation.fence_token or fence_token,
+            task_type=OCR_TASK,
+            model=model,
+            error=exc,
+            input_token_limit=counted_tokens,
+        ):
+            return _finish_without_call(
+                job_id, worker_id, fence_token, "unknown", "OCR_OUTCOME_UNKNOWN"
+            )
+        if response:
+            if _quarantine_ocr_response(
+                call_id=call_id,
+                fence_token=response_reservation.fence_token or fence_token,
+                task_type=OCR_TASK,
+                model=model,
+                response=response,
+                input_token_limit=counted_tokens,
+            ):
+                return _finish_without_call(
+                    job_id, worker_id, fence_token, "unknown", "OCR_OUTCOME_UNKNOWN"
+                )
         response_id = getattr(exc, "request_id", None)
         if response_id and (
             getattr(exc, "conclusive", False) or response.get("provider_response_id")

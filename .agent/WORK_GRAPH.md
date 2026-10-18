@@ -33,6 +33,7 @@ Owner full-build request 2026-10-18; prior graph archived unchanged.
 | G | B–F | INTEGRATED CANDIDATE | Frozen evaluation, activation/rollback/restore/cycle tooling; final gate/review receipt governs acceptance |
 | B7 | independent8c FIX, bounded accounting design | INTEGRATED CANDIDATE | Provider response quarantine, exact model and usage-bound validation across queued/legacy routes; durable exposure and reservation/dispatch guard |
 | TEST-R2 | full8c failure | LOCALLY VERIFIED | Reproduce and repair suite-order log capture without weakening liveness assertions |
+| B7b | consolidated f47 independent FIX | INTEGRATED CANDIDATE | Nonthrowing numeric/audit quarantine and strict raw/fallback byte bounds; no schema changes |
 | LIVE | G, authority/access/budget/time | OPEN | Real journey, PC-off/seven daily cycles/owner acceptance |
 
 At most two disjoint READY builders; serialized integration and controller gates.

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import time
 from typing import Any
@@ -41,11 +42,24 @@ class ProviderResponseError(RuntimeError):
         request_id: str | None = None,
         conclusive: bool = False,
         status_code: int | None = None,
+        response_received: bool = False,
+        raw_response: Any = None,
+        reported_model: Any = None,
+        reported_usage: Any = None,
+        raw_response_sha256: str | None = None,
+        raw_response_size: int | None = None,
     ):
         super().__init__(message)
         self.request_id = request_id
         self.conclusive = conclusive
         self.status_code = status_code
+        self.response_status = status_code
+        self.response_received = response_received
+        self.raw_response = raw_response
+        self.reported_model = reported_model
+        self.reported_usage = reported_usage
+        self.raw_response_sha256 = raw_response_sha256
+        self.raw_response_size = raw_response_size
 
 
 def _post_json(
@@ -60,6 +74,11 @@ def _post_json(
         raise ValueError("Provider timeout must be positive")
     deadline = started + timeout_seconds
     request_id = None
+    response_received = False
+    response_status = None
+    body = bytearray()
+    body_digest = hashlib.sha256()
+    body_size = 0
     try:
         phase_timeout = min(READ_PHASE_TIMEOUT_SECONDS, timeout_seconds)
         timeout = httpx.Timeout(
@@ -70,10 +89,15 @@ def _post_json(
         )
         with httpx.Client(timeout=timeout) as client:
             with client.stream("POST", url, headers=headers, json=payload) as response:
+                response_received = True
+                response_status = response.status_code
                 request_id = response.headers.get("x-request-id")
                 if time.monotonic() >= deadline:
                     raise ProviderResponseError(
-                        "Provider total request deadline exceeded", request_id=request_id
+                        "Provider total request deadline exceeded",
+                        request_id=request_id,
+                        response_received=True,
+                        status_code=response_status,
                     )
                 if response.status_code >= 400:
                     raise ProviderResponseError(
@@ -81,41 +105,83 @@ def _post_json(
                         request_id=request_id,
                         conclusive=response.status_code < 500,
                         status_code=response.status_code,
+                        response_received=True,
                     )
                 length = response.headers.get("content-length")
                 if length and int(length) > MAX_RESPONSE_BYTES:
                     raise ProviderResponseError(
-                        "Provider response exceeds byte limit", request_id=request_id
+                        "Provider response exceeds byte limit",
+                        request_id=request_id,
+                        response_received=True,
+                        status_code=response_status,
+                        raw_response_size=int(length),
                     )
-                body = bytearray()
                 for chunk in response.iter_bytes():
                     if time.monotonic() >= deadline:
                         raise ProviderResponseError(
-                            "Provider total request deadline exceeded", request_id=request_id
+                            "Provider total request deadline exceeded",
+                            request_id=request_id,
+                            response_received=True,
+                            status_code=response_status,
+                            raw_response_sha256=body_digest.hexdigest(),
+                            raw_response_size=body_size,
                         )
-                    body.extend(chunk)
-                    if len(body) > MAX_RESPONSE_BYTES:
+                    body_digest.update(chunk)
+                    body_size += len(chunk)
+                    remaining = max(0, MAX_RESPONSE_BYTES + 1 - len(body))
+                    body.extend(chunk[:remaining])
+                    if body_size > MAX_RESPONSE_BYTES:
                         raise ProviderResponseError(
-                            "Provider response exceeds byte limit", request_id=request_id
+                            "Provider response exceeds byte limit",
+                            request_id=request_id,
+                            response_received=True,
+                            status_code=response_status,
+                            raw_response_sha256=body_digest.hexdigest(),
+                            raw_response_size=body_size,
                         )
                 if time.monotonic() >= deadline:
                     raise ProviderResponseError(
-                        "Provider total request deadline exceeded", request_id=request_id
+                        "Provider total request deadline exceeded",
+                        request_id=request_id,
+                        response_received=True,
+                        status_code=response_status,
+                        raw_response_sha256=body_digest.hexdigest(),
+                        raw_response_size=body_size,
                     )
         data = json.loads(body)
         if not isinstance(data, dict):
             raise ProviderResponseError(
-                "Provider response must be a JSON object", request_id=request_id, conclusive=True
+                "Provider response must be a JSON object",
+                request_id=request_id,
+                conclusive=True,
+                response_received=True,
+                status_code=response_status,
+                raw_response=data,
+                raw_response_sha256=body_digest.hexdigest(),
+                raw_response_size=body_size,
             )
         request_id = request_id or (data.get("id") if isinstance(data.get("id"), str) else None)
         return data, request_id, int((time.monotonic() - started) * 1000)
     except ProviderResponseError:
         raise
     except (httpx.TimeoutException, httpx.TransportError) as exc:
-        raise ProviderResponseError(type(exc).__name__) from exc
-    except (ValueError, json.JSONDecodeError) as exc:
         raise ProviderResponseError(
-            "Provider response was invalid JSON", request_id=request_id, conclusive=True
+            type(exc).__name__,
+            request_id=request_id,
+            response_received=response_received,
+            status_code=response_status,
+            raw_response_sha256=body_digest.hexdigest() if body_size else None,
+            raw_response_size=body_size or None,
+        ) from exc
+    except (ValueError, json.JSONDecodeError, RecursionError) as exc:
+        raise ProviderResponseError(
+            "Provider response was invalid JSON",
+            request_id=request_id,
+            conclusive=True,
+            response_received=response_received,
+            status_code=response_status,
+            raw_response_sha256=body_digest.hexdigest() if body_size else None,
+            raw_response_size=body_size or None,
         ) from exc
 
 
@@ -169,41 +235,60 @@ def call_openai_request(*, api_key: str, request: dict[str, Any]) -> dict[str, A
         headers={"Authorization": f"Bearer {api_key}"},
         payload=request,
     )
-    if data.get("status") != "completed":
-        raise ProviderResponseError(
-            f"OpenAI response status {data.get('status', 'missing')}",
+
+    def invalid_response(message: str) -> ProviderResponseError:
+        try:
+            encoded = json.dumps(
+                data, sort_keys=True, separators=(",", ":"), ensure_ascii=True, allow_nan=False
+            ).encode("utf-8")
+            raw_digest = hashlib.sha256(encoded).hexdigest()
+            raw_size = len(encoded)
+        except (TypeError, ValueError, RecursionError):
+            raw_digest = None
+            raw_size = None
+        usage_value = data.get("usage")
+        return ProviderResponseError(
+            message,
             request_id=request_id,
             conclusive=True,
+            response_received=True,
+            raw_response=data,
+            reported_model=data.get("model"),
+            reported_usage=usage_value if isinstance(usage_value, dict) else None,
+            raw_response_sha256=raw_digest,
+            raw_response_size=raw_size,
         )
+
+    if data.get("status") != "completed":
+        raise invalid_response(f"OpenAI response status {data.get('status', 'missing')}")
     if not isinstance(data.get("output"), list):
-        raise ProviderResponseError(
-            "OpenAI Responses output is missing", request_id=request_id, conclusive=True
-        )
-    if any(
-        isinstance(item, dict)
-        and any(
-            isinstance(part, dict) and part.get("type") == "refusal"
-            for part in item.get("content", [])
-        )
-        for item in data["output"]
-    ):
-        raise ProviderResponseError(
-            "OpenAI refused the request", request_id=request_id, conclusive=True
-        )
-    parts = [
-        item.get("text", "")
-        for block in data["output"]
-        if isinstance(block, dict)
-        for item in block.get("content", [])
-        if isinstance(item, dict) and item.get("type") == "output_text"
-    ]
+        raise invalid_response("OpenAI Responses output is missing")
     try:
+        if any(
+            isinstance(item, dict)
+            and isinstance(item.get("content"), list)
+            and any(
+                isinstance(part, dict) and part.get("type") == "refusal"
+                for part in item.get("content", [])
+            )
+            for item in data["output"]
+        ):
+            raise invalid_response("OpenAI refused the request")
+        parts = [
+            item.get("text", "")
+            for block in data["output"]
+            if isinstance(block, dict)
+            and isinstance(block.get("content"), list)
+            for item in block.get("content", [])
+            if isinstance(item, dict)
+            and item.get("type") == "output_text"
+        ]
         output = json.loads("".join(parts))
-    except json.JSONDecodeError as exc:
-        raise ProviderResponseError(
-            "OpenAI structured output was invalid JSON", request_id=request_id, conclusive=True
-        ) from exc
+    except (json.JSONDecodeError, TypeError, AttributeError, RecursionError) as exc:
+        raise invalid_response("OpenAI structured output was invalid") from exc
     usage = data.get("usage") or {}
+    if not isinstance(usage, dict):
+        usage = {}
     return {
         "model": data.get("model"),
         "provider_response_id": request_id,

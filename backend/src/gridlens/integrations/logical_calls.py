@@ -478,6 +478,7 @@ def quarantine_call(
     output_tokens: int | None = None,
     conservative_exposure_usd: Decimal | str | int | float | None = None,
     exposure_basis: str | None = None,
+    exposure_status: str | None = None,
 ) -> ReservationResult:
     """Durably quarantine a response without completing or releasing its reservation."""
     if not expected_model or not expected_model.strip() or len(expected_model) > 200:
@@ -503,7 +504,8 @@ def quarantine_call(
         session.rollback()
         return ReservationResult(call_id, False, call.status, "NOT_SENT_OR_ALREADY_TERMINAL")
 
-    quarantine_reason = f"{PROVIDER_QUARANTINE_PREFIX}{reason[:120]}"
+    reason = reason[:120]
+    quarantine_reason = f"{PROVIDER_QUARANTINE_PREFIX}{reason}"
     old_payload = call.result_payload if isinstance(call.result_payload, dict) else {}
     old_quarantine = old_payload.get("billing_quarantine")
     if isinstance(old_quarantine, dict):
@@ -513,12 +515,25 @@ def quarantine_call(
         return ReservationResult(call_id, True, call.status, call.blocked_reason, call.fence_token)
 
     exposure = None
+    measured_exposure_status = exposure_status or (
+        "BOUNDED" if conservative_exposure_usd is not None else "UNKNOWN"
+    )
+    if measured_exposure_status not in {"BOUNDED", "UNBOUNDED", "UNKNOWN"}:
+        measured_exposure_status = "UNKNOWN"
+    if exposure_basis is not None:
+        exposure_basis = exposure_basis[:200]
     if conservative_exposure_usd is not None:
-        exposure = _money(
-            conservative_exposure_usd,
-            name="conservative_exposure_usd",
-            maximum=MAX_ACTUAL_USD,
-        )
+        try:
+            exposure = _money(
+                conservative_exposure_usd,
+                name="conservative_exposure_usd",
+                maximum=MAX_ACTUAL_USD,
+            )
+        except (ValueError, ArithmeticError):
+            # Retain the provider freeze and original reservation. Never clamp a
+            # larger estimate into a misleading bounded amount.
+            exposure = None
+            measured_exposure_status = "UNBOUNDED"
     prior_budgeted = call.max_cost_usd
     if isinstance(old_quarantine, dict):
         try:
@@ -559,32 +574,65 @@ def quarantine_call(
         "response": response_payload,
         "conservative_exposure_usd": str(exposure) if exposure is not None else None,
         "exposure_basis": exposure_basis,
+        "exposure_status": measured_exposure_status,
         "budgeted_exposure_usd": str(target_exposure),
     }
     result = {"billing_quarantine": quarantine}
-    encoded = json.dumps(
-        result,
-        sort_keys=True,
-        separators=(",", ":"),
-        ensure_ascii=True,
-        allow_nan=False,
-    ).encode("utf-8")
-    if len(encoded) > MAX_RESULT_BYTES:
-        bounded_response: dict[str, Any] = {
-            "omitted": "MAX_RESULT_BYTES",
-            "sha256": hashlib.sha256(encoded).hexdigest(),
-        }
+    def encode_result() -> bytes | None:
+        try:
+            return json.dumps(
+                result,
+                sort_keys=True,
+                separators=(",", ":"),
+                ensure_ascii=True,
+                allow_nan=False,
+            ).encode("utf-8")
+        except (TypeError, ValueError, RecursionError, OverflowError):
+            return None
+
+    encoded = encode_result()
+    if encoded is None or len(encoded) > MAX_RESULT_BYTES:
+        safe_identity: dict[str, Any] = {}
         if isinstance(response_payload, dict):
-            for key in ("provider_response_id", "model", "usage"):
-                if key in response_payload:
-                    bounded_response[key] = response_payload[key]
+            for key, limit in (("provider_response_id", 256), ("model", 200)):
+                scalar = response_payload.get(key)
+                if isinstance(scalar, str):
+                    safe_identity[key] = scalar[:limit]
+        safe_identity["usage"] = {"input_tokens": input_tokens, "output_tokens": output_tokens}
+        identity_bytes = json.dumps(
+            safe_identity, sort_keys=True, separators=(",", ":"), allow_nan=False
+        ).encode("utf-8")
+        bounded_response: dict[str, Any] = {
+            "omitted": "UNSAFE_OR_OVERSIZED_RESPONSE",
+            "identity_sha256": hashlib.sha256(identity_bytes).hexdigest(),
+            **safe_identity,
+        }
         quarantine["response"] = bounded_response
         quarantine["reason"] = "RESPONSE_TOO_LARGE"
-        quarantine["conservative_exposure_usd"] = str(exposure) if exposure is not None else None
+        quarantine["expected_model"] = expected_model[:200]
+        quarantine["actual_model"] = actual_model[:200] if isinstance(actual_model, str) else None
+        quarantine["exposure_basis"] = exposure_basis[:200] if exposure_basis else None
         quarantine_reason = f"{PROVIDER_QUARANTINE_PREFIX}RESPONSE_TOO_LARGE"
-        encoded = json.dumps(
-            result, sort_keys=True, separators=(",", ":"), ensure_ascii=True
-        ).encode("utf-8")
+        encoded = encode_result()
+        if encoded is None or len(encoded) > MAX_RESULT_BYTES:
+            # Scalar evidence and token fields have strict bounds; this minimal
+            # payload must remain serializable even for hostile direct callers.
+            result = {
+                "billing_quarantine": {
+                    "reason": "RESPONSE_TOO_LARGE",
+                    "expected_model": expected_model[:200],
+                    "actual_model": actual_model[:200] if isinstance(actual_model, str) else None,
+                    "usage": {"input_tokens": input_tokens, "output_tokens": output_tokens},
+                    "response": {"omitted": "UNSAFE_OR_OVERSIZED_RESPONSE"},
+                    "conservative_exposure_usd": str(exposure) if exposure is not None else None,
+                    "exposure_basis": exposure_basis[:200] if exposure_basis else None,
+                    "exposure_status": measured_exposure_status,
+                    "budgeted_exposure_usd": str(target_exposure),
+                }
+            }
+            encoded = json.dumps(
+                result, sort_keys=True, separators=(",", ":"), ensure_ascii=True, allow_nan=False
+            ).encode("utf-8")
     call.result_payload = result
     call.result_digest = hashlib.sha256(encoded).hexdigest()
     call.input_tokens = input_tokens
@@ -612,6 +660,11 @@ def _transition(
     reconciliation_actor: str | None = None,
     reconciliation_ref: str | None = None,
 ) -> ReservationResult:
+    provider = session.scalar(select(LogicalCall.provider).where(LogicalCall.id == call_id))
+    if provider is None:
+        session.rollback()
+        return ReservationResult(call_id, False, "BLOCKED", "CALL_NOT_FOUND")
+    _provider_lock(session, provider)
     if result_payload is not None:
         if not isinstance(result_payload, dict):
             raise ValueError("result_payload must be a JSON object")
@@ -645,6 +698,19 @@ def _transition(
         session.rollback()
         return ReservationResult(
             call_id, False, call.status, "RECONCILE_ONLY_OVERRIDE", call.fence_token
+        )
+    has_billing_quarantine = (
+        isinstance(call.result_payload, dict)
+        and isinstance(call.result_payload.get("billing_quarantine"), dict)
+    )
+    if has_billing_quarantine and not allow_reconcile_override:
+        session.rollback()
+        return ReservationResult(
+            call_id,
+            False,
+            call.status,
+            "BILLING_QUARANTINE_RECONCILIATION_REQUIRED",
+            call.fence_token,
         )
     if call.status in {"CANCELLED", "COMPLETED", "FAILED", "RECONCILED"}:
         session.commit()
@@ -702,13 +768,16 @@ def _transition(
                         .values(cost_usd=LogicalCallBudget.cost_usd + delta)
                     )
         if isinstance(old_quarantine, dict):
-            old_quarantine["budgeted_exposure_usd"] = str(target_budgeted)
-            old_quarantine["reconciled_actual_cost_usd"] = str(measured_cost)
             if isinstance(call.result_payload, dict):
-                call.result_payload["billing_quarantine"] = old_quarantine
+                updated_quarantine = dict(old_quarantine)
+                updated_quarantine["budgeted_exposure_usd"] = str(target_budgeted)
+                updated_quarantine["reconciled_actual_cost_usd"] = str(measured_cost)
+                updated_payload = dict(call.result_payload)
+                updated_payload["billing_quarantine"] = updated_quarantine
+                call.result_payload = updated_payload
                 call.result_digest = hashlib.sha256(
                     json.dumps(
-                        call.result_payload,
+                        updated_payload,
                         sort_keys=True,
                         separators=(",", ":"),
                         ensure_ascii=True,
@@ -1002,13 +1071,16 @@ def settle_call(
                     session.rollback()
                     raise ValueError("original budget row missing during overage settlement")
         if isinstance(quarantine, dict):
-            quarantine["budgeted_exposure_usd"] = str(target_budgeted)
-            quarantine["reconciled_actual_cost_usd"] = str(cost)
             if isinstance(call.result_payload, dict):
-                call.result_payload["billing_quarantine"] = quarantine
+                updated_quarantine = dict(quarantine)
+                updated_quarantine["budgeted_exposure_usd"] = str(target_budgeted)
+                updated_quarantine["reconciled_actual_cost_usd"] = str(cost)
+                updated_payload = dict(call.result_payload)
+                updated_payload["billing_quarantine"] = updated_quarantine
+                call.result_payload = updated_payload
                 call.result_digest = hashlib.sha256(
                     json.dumps(
-                        call.result_payload,
+                        updated_payload,
                         sort_keys=True,
                         separators=(",", ":"),
                         ensure_ascii=True,

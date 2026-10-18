@@ -260,3 +260,14 @@ The2101510 freeze also failed acceptance:2054 passed,2 failed,9 setup errors,3 s
 Independent8c review returned FIX for returned-model identity and reported usage beyond billing bounds across queued and legacy calls. B7 adds durable provider-response quarantine, conservative exposure accounting and reservation/dispatch blocking until explicit attributable reconciliation; no schema change. Its policy version prevents older completions bypassing response checks. The local V5 restore retains this quarantine and pre-reserved call, all52tables match, and no paid call is replayed. Full8c output (2064 passed,1 failed,3 skipped,7 subtests) and review remain preserved. Its last test failure was reproduced as Alembic disabling an already-imported logger; a scoped test restoration passes the predecessor sequence. Matching final receipts still govern acceptance.
 
 B7 focused builder validation:147 tests pass, including ledger concurrency, queued worker OFF/zero-cap guards, exact-model/usage quarantine, legacy evidence-shadow and briefs. Controller V5 backup/restore checks pass; these do not substitute for the matching final full-suite, browser, runtime and independent-review receipts. No production activation or budget authority was added.
+
+B7b closes exception paths identified by the f47f151 review: unrepresentable
+exposure retains an UNKNOWN/unbounded hold; hostile response auditing stays
+bounded; ordinary completion/failure cannot release quarantine; reconciliation
+persists copied audit JSON and its digest. Parsed OpenAI error envelopes retain
+available billing metadata across queued, legacy and OCR paths. Pricing and output
+limits participate in context identity. Valid exact-model results may retain NULL
+usage under independently verified conservative reservations; missing usage is
+not itself a proven billing breach. The rejected f47 full run was stopped after
+53.786 seconds upon review FIX, so it provides no full-suite pass. Final matching
+receipts remain required.

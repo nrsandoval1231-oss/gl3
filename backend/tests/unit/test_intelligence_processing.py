@@ -1,4 +1,5 @@
 import json
+from decimal import Decimal
 from uuid import uuid4
 
 import pytest
@@ -11,6 +12,7 @@ from gridlens.intelligence.intelligence_jobs import (
     _bound_grounded_payload,
     _cost_bound,
     _enabled,
+    _provider_error_quarantine_details,
     _type_safe_result,
     legacy_paid_path_block_reason,
 )
@@ -185,21 +187,124 @@ def test_openai_transport_uses_bounded_completed_structured_output(monkeypatch):
 
 
 def test_openai_noncompleted_response_is_conclusive_not_a_valid_result(monkeypatch):
+    raw = {
+        "status": "incomplete",
+        "model": "fixture",
+        "usage": {"input_tokens": 17, "output_tokens": 2},
+        "output": [],
+    }
     monkeypatch.setattr(
         intelligence_provider,
         "_post_json",
-        lambda *args, **kwargs: ({"status": "incomplete", "output": []}, "req-incomplete", 2),
+        lambda *args, **kwargs: (raw, "req-incomplete", 2),
     )
     with pytest.raises(intelligence_provider.ProviderResponseError) as error:
-        intelligence_provider.call_openai(
-            api_key="fixture-only",
-            model="fixture",
-            instructions="Do not browse.",
-            input_payload={},
-            max_output_tokens=100,
+        intelligence_provider.call_openai_request(
+            api_key="fixture-only", request={"model": "fixture"}
         )
     assert error.value.request_id == "req-incomplete"
     assert error.value.conclusive is True
+    assert error.value.response_received is True
+    assert error.value.response_status is None
+    assert error.value.raw_response is raw
+    assert error.value.reported_model == "fixture"
+    assert error.value.reported_usage == raw["usage"]
+
+
+def test_provider_transport_recursion_error_keeps_received_response_metadata(monkeypatch):
+    class Response:
+        status_code = 200
+        headers = {"x-request-id": "req-recursive-raw"}
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return None
+
+        def iter_bytes(self):
+            yield b"{}"
+
+    class Client:
+        def __init__(self, *, timeout):
+            del timeout
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_args):
+            return None
+
+        def stream(self, *_args, **_kwargs):
+            return Response()
+
+    monkeypatch.setattr(intelligence_provider.httpx, "Client", Client)
+    monkeypatch.setattr(
+        intelligence_provider.json, "loads", lambda _body: (_ for _ in ()).throw(RecursionError())
+    )
+    with pytest.raises(intelligence_provider.ProviderResponseError) as error:
+        intelligence_provider._post_json("https://provider.invalid", headers={}, payload={})
+    assert error.value.response_received is True
+    assert error.value.response_status == 200
+    assert error.value.request_id == "req-recursive-raw"
+    assert error.value.raw_response_size == 2
+    assert error.value.raw_response_sha256 is not None
+
+
+def test_openai_structured_output_recursion_error_keeps_received_response_metadata(monkeypatch):
+    raw = {
+        "id": "resp-recursive-structured",
+        "status": "completed",
+        "model": "fixture",
+        "usage": {"input_tokens": 17, "output_tokens": 2},
+        "output": [{"content": [{"type": "output_text", "text": "[" * 1500}]}],
+    }
+    monkeypatch.setattr(
+        intelligence_provider,
+        "_post_json",
+        lambda *args, **kwargs: (raw, "req-recursive-structured", 2),
+    )
+    with pytest.raises(intelligence_provider.ProviderResponseError) as error:
+        intelligence_provider.call_openai_request(
+            api_key="fixture-only", request={"model": "fixture"}
+        )
+    assert error.value.response_received is True
+    assert error.value.raw_response is raw
+    assert error.value.reported_model == "fixture"
+    assert error.value.reported_usage == raw["usage"]
+
+
+def test_oversized_received_response_retains_raw_and_request_identity_metadata():
+    raw = {
+        "id": "resp-oversized",
+        "model": "pinned-openai-fixture",
+        "usage": {"input_tokens": 17, "output_tokens": 2},
+        "output": "x" * 70_000,
+    }
+    error = intelligence_provider.ProviderResponseError(
+        "synthetic oversized response",
+        request_id="req-oversized",
+        response_received=True,
+        raw_response=raw,
+        reported_model=raw["model"],
+        reported_usage=raw["usage"],
+        raw_response_sha256="a" * 64,
+        raw_response_size=70_100,
+    )
+    details = _provider_error_quarantine_details(
+        error,
+        provider="openai",
+        task_type="OCR_EXTRACTION",
+        expected_model="pinned-openai-fixture",
+    )
+    assert details and details["reason"] == "RESPONSE_TOO_LARGE"
+    response = details["response_payload"]
+    assert response["omitted"] == "MAX_RESULT_BYTES"
+    assert response["provider_response_id"] == "resp-oversized"
+    assert response["provider_request_id"] == "req-oversized"
+    assert response["raw_response_sha256"] == "a" * 64
+    assert response["raw_response_bytes"] == 70_100
+    assert "identity_sha256" in response
 
 
 def test_legacy_paid_gate_tracks_global_disabled_state(monkeypatch):
@@ -255,7 +360,6 @@ def test_pairwise_match_dispatch_is_disabled_without_candidate_context(monkeypat
 
 
 def test_typesafe_cost_bound_reserves_full_attested_total_input_ceiling(monkeypatch):
-    from decimal import Decimal
 
     monkeypatch.setattr(settings, "intelligence_typesafe_model", "pinned-fixture-model")
     monkeypatch.setattr(settings, "intelligence_typesafe_input_usd_per_million", Decimal("2"))
@@ -306,7 +410,6 @@ def test_typesafe_cost_bound_reserves_full_attested_total_input_ceiling(monkeypa
 def test_typesafe_output_charge_and_numeric_output_cap_do_not_pass_without_transport_bound(
     monkeypatch,
 ):
-    from decimal import Decimal
 
     monkeypatch.setattr(settings, "intelligence_enabled", True)
     monkeypatch.setattr(settings, "intelligence_mode", "advisory")
@@ -342,7 +445,6 @@ def test_typesafe_output_charge_and_numeric_output_cap_do_not_pass_without_trans
 
 
 def test_typesafe_missing_billing_attestation_fails_closed_and_identity_tracks_proof(monkeypatch):
-    from decimal import Decimal
 
     for name, value in {
         "intelligence_enabled": True,
@@ -409,12 +511,28 @@ def test_typesafe_missing_billing_attestation_fails_closed_and_identity_tracks_p
     )
     before = _billing_policy_identity("typesafe", "pinned-fixture-model")
     assert before and before["response_guard_policy"] == "exact-model-usage-v1"
-    assert _billing_policy_identity("openai", "pinned-openai-model") == {
-        "response_guard_policy": "exact-model-usage-v1",
-        "provider_model": "pinned-openai-model",
-    }
+    openai_identity = _billing_policy_identity("openai", "pinned-openai-model")
+    assert openai_identity and openai_identity["response_guard_policy"] == "exact-model-usage-v1"
+    assert openai_identity["provider_model"] == "pinned-openai-model"
+    assert openai_identity["priced_model_id"] == (
+        settings.intelligence_openai_reasoning_priced_model_id
+    )
+    assert openai_identity["max_output_tokens"] == str(
+        settings.intelligence_openai_reasoning_max_output_tokens
+    )
     assert _billing_policy_identity("openai", "other-openai-model") != _billing_policy_identity(
         "openai", "pinned-openai-model"
+    )
+    openai_before_rate_change = _billing_policy_identity(
+        "openai", "pinned-openai-model", "GROUNDED_DOSSIER"
+    )
+    monkeypatch.setattr(
+        settings,
+        "intelligence_openai_reasoning_input_usd_per_million",
+        settings.intelligence_openai_reasoning_input_usd_per_million + Decimal("0.01"),
+    )
+    assert openai_before_rate_change != _billing_policy_identity(
+        "openai", "pinned-openai-model", "GROUNDED_DOSSIER"
     )
     monkeypatch.setattr(
         settings, "intelligence_typesafe_billing_reference", "synthetic://fixture/changed-proof"

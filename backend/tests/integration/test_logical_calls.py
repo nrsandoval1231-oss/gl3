@@ -1,3 +1,5 @@
+import hashlib
+import json
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -140,7 +142,7 @@ def test_billing_quarantine_holds_exposure_blocks_provider_and_is_idempotent(ses
             response_payload=evidence,
             input_tokens=50_000,
             output_tokens=3,
-            conservative_exposure_usd="0.100000",
+            conservative_exposure_usd="0.030000",
             exposure_basis="synthetic-fixture-input-rate",
         )
     assert quarantined.status == "SENT_OUTCOME_UNKNOWN"
@@ -158,7 +160,33 @@ def test_billing_quarantine_holds_exposure_blocks_provider_and_is_idempotent(ses
         assert row and row.actual_cost_usd is None and row.finished_at is None
         assert row.result_payload["billing_quarantine"]["response"] == evidence
         assert global_daily and global_daily.active_count == 2
-        assert global_daily.cost_usd == Decimal("0.120000")
+        assert global_daily.cost_usd == Decimal("0.050000")
+    from gridlens.integrations.logical_calls import fail_call
+
+    for terminalize in (
+        lambda session: complete_call(
+            session, sent.call_id, fence_token=7, result_payload={"answer": "must not complete"}
+        ),
+        lambda session: fail_call(
+            session,
+            sent.call_id,
+            fence_token=7,
+            blocked_reason="conclusive",
+            conclusive_response_ref="synthetic-response",
+        ),
+    ):
+        with sessions() as session:
+            blocked_terminal = terminalize(session)
+        assert blocked_terminal.blocked_reason == "BILLING_QUARANTINE_RECONCILIATION_REQUIRED"
+    with sessions() as session:
+        row = session.get(LogicalCall, sent.call_id)
+        budget = session.scalar(
+            select(LogicalCallBudget).where(
+                LogicalCallBudget.scope == "global:global", LogicalCallBudget.period == "daily"
+            )
+        )
+    assert row and row.status == "SENT_OUTCOME_UNKNOWN" and row.finished_at is None
+    assert budget and budget.active_count == 2 and budget.cost_usd == Decimal("0.050000")
     with sessions() as session, pytest.raises(
         ValueError, match="requires attributable actual-cost evidence"
     ):
@@ -180,7 +208,7 @@ def test_billing_quarantine_holds_exposure_blocks_provider_and_is_idempotent(ses
             response_payload=evidence,
             input_tokens=50_000,
             output_tokens=3,
-            conservative_exposure_usd="0.100000",
+            conservative_exposure_usd="0.030000",
             exposure_basis="synthetic-fixture-input-rate",
         )
     assert repeated.reused
@@ -222,7 +250,15 @@ def test_billing_quarantine_holds_exposure_blocks_provider_and_is_idempotent(ses
         )
         assert row and row.status == "SENT_OUTCOME_UNKNOWN"
         assert row.actual_cost_usd == Decimal("0.040000")
-        assert global_daily and global_daily.cost_usd == Decimal("0.120000")
+        assert global_daily and global_daily.cost_usd == Decimal("0.060000")
+        canonical = json.dumps(
+            row.result_payload,
+            sort_keys=True,
+            separators=(",", ":"),
+            ensure_ascii=True,
+            allow_nan=False,
+        ).encode("utf-8")
+        assert row.result_digest == hashlib.sha256(canonical).hexdigest()
     still_blocked = _reserve(sessions, "quarantine-settled-still-blocked")
     assert still_blocked.call_id is None
     assert still_blocked.blocked_reason == "PROVIDER_BILLING_QUARANTINED"
@@ -246,9 +282,43 @@ def test_billing_quarantine_holds_exposure_blocks_provider_and_is_idempotent(ses
         )
         assert row and row.result_payload["billing_quarantine"]["response"] == evidence
         assert global_daily and global_daily.active_count == 1
-        assert global_daily.cost_usd == Decimal("0.120000")
+        assert global_daily.cost_usd == Decimal("0.060000")
     after_reconcile = _reserve(sessions, "quarantine-reconciled-provider-unfrozen")
     assert after_reconcile.call_id is not None and after_reconcile.status == "NOT_SENT"
+
+
+def test_quarantine_unrepresentable_estimate_keeps_unknown_provider_freeze(sessions):
+    call = _reserve(sessions, "unrepresentable-quarantine-cost")
+    with sessions() as session:
+        mark_dispatched(session, call.call_id, fence_token=7, enabled=True)
+    with sessions() as session:
+        quarantined = quarantine_call(
+            session,
+            call.call_id,
+            fence_token=7,
+            expected_model="fixture-model",
+            actual_model="fixture-model",
+            reason="UNBOUNDED_USAGE_COST",
+            response_payload={"model": "fixture-model"},
+            input_tokens=2**63 - 1,
+            conservative_exposure_usd="999999999999999999999999999",
+            exposure_basis="x" * 100_000,
+            exposure_status="UNBOUNDED" + "x" * 100_000,
+        )
+    assert quarantined.status == "SENT_OUTCOME_UNKNOWN"
+    with sessions() as session:
+        row = session.get(LogicalCall, call.call_id)
+        budget = session.scalar(
+            select(LogicalCallBudget).where(
+                LogicalCallBudget.scope == "global:global", LogicalCallBudget.period == "daily"
+            )
+        )
+    assert row and row.actual_cost_usd is None and row.finished_at is None
+    quarantine = row.result_payload["billing_quarantine"]
+    assert quarantine["exposure_status"] == "UNBOUNDED"
+    assert quarantine["conservative_exposure_usd"] is None
+    assert len(quarantine["exposure_basis"]) <= 200
+    assert budget and budget.active_count == 1
 
 
 def test_billing_quarantine_rejects_stale_fence_without_mutation(sessions):

@@ -55,6 +55,14 @@ held. A provider-level guard blocks fresh reservations and already-reserved
 evidence. Quarantine estimates are conservative exposure only, never an invoiced
 charge; do not retry, refund, or close the call automatically.
 
+Malformed usage and unsafe response envelopes also retain this provider hold.
+An exposure exceeding the ledger's representable range remains UNBOUNDED/UNKNOWN;
+it is never clamped into a fabricated invoice. Valid exact-model responses may
+retain NULL measured usage when a verified conservative reservation bounds the
+call. For OCR and its grounded follow-on, reported input must not exceed the
+preflight count used for the reservation, and output must not exceed the enforced
+request limit. Any breach requires explicit billing reconciliation before reuse.
+
 The smallest rollout is one already-retained, source-permitted need and its most
 valuable unresolved question, in evaluation/advisory mode with a finite approved
 request count, output-token limit, per-call cost ceiling, daily/monthly USD caps,
