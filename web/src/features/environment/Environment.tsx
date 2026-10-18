@@ -4,7 +4,7 @@ import { feature } from 'topojson-client'
 import type { FeatureCollection, Geometry } from 'geojson'
 import type { GeometryCollection, Topology } from 'topojson-specification'
 import statesTopology from 'us-atlas/states-albers-10m.json'
-import { client, OpportunityNeedUnavailableError, type Opportunity, type OpportunityPage } from '../../api/client'
+import { client, OpportunityNeedUnavailableError, type Opportunity, type OpportunityMapWindow } from '../../api/client'
 import { projectTitle } from '../opportunities/projectCards'
 import { BuyingChain } from '../buyingChain/BuyingChain'
 import { FactWorkflowPanel } from '../pursuits/FactWorkflowPanel'
@@ -75,26 +75,9 @@ function evidenceDate(evidence: Opportunity['evidence'][number]) {
   return evidence.published_at ? `Published ${evidence.published_at}` : 'Publication date unknown'
 }
 
-// The API serves at most 50 records per page and ranks the whole filtered cohort before paging,
-// so the bounded pages loaded for the map are the highest-ranked records.
-const PAGE_SIZE = 50
-const MAX_PAGES = 4
-async function loadPages(scene: Scene, signal: AbortSignal): Promise<OpportunityPage> {
-  const filters = { industry: scene.lens }
-  const tier = scene.tier.slice(0, -1)
-  const first = await client.opportunityPage(tier, scene.search, 'ALL', PAGE_SIZE, 0, undefined, filters, signal, 'rank')
-  let page = first
-  const items = [...first.items]
-  for (let n = 1; n < MAX_PAGES && page.nextOffset != null; n += 1) {
-    page = await client.opportunityPage(tier, scene.search, 'ALL', PAGE_SIZE, page.nextOffset, first.cohortToken, filters, signal, 'rank')
-    items.push(...page.items)
-  }
-  return { ...first, items }
-}
-
 export function Environment({ onSignOut, today }: { onSignOut: () => void; today?: (onOpen: () => void) => ReactNode }) {
   const { scene, surface, go, save } = useEnvironmentNavigation(() => sceneFromUrl(new URLSearchParams(location.search)), urlFor)
-  const [page, setPage] = useState<OpportunityPage | null>(null)
+  const [page, setPage] = useState<OpportunityMapWindow | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [lensOptions, setLensOptions] = useState<string[]>([])
@@ -140,10 +123,17 @@ export function Environment({ onSignOut, today }: { onSignOut: () => void; today
 
   useEffect(() => {
     const controller = new AbortController()
+    if (scene.mode === 'browse' || scene.mode === 'pursuits') {
+      setPage(null)
+      setPageKey('')
+      setLoading(false)
+      setError('')
+      return () => controller.abort()
+    }
     setLoading(true)
     setPage(null)
     setError('')
-    loadPages(scene, controller.signal)
+    client.opportunityMapWindow(scene.tier.slice(0, -1), scene.search, { industry: scene.lens }, controller.signal)
       .then((result) => {
         if (controller.signal.aborted) return
         setPage(result)
@@ -153,7 +143,7 @@ export function Environment({ onSignOut, today }: { onSignOut: () => void; today
       .catch((reason: unknown) => { if (!controller.signal.aborted) { setPageKey(filterKey); setError(reason instanceof Error ? reason.message : 'Opportunities are unavailable.') } })
       .finally(() => { if (!controller.signal.aborted) setLoading(false) })
     return () => controller.abort()
-  }, [scene.tier, scene.lens, scene.search, revision])
+  }, [scene.mode, scene.tier, scene.lens, scene.search, revision])
 
   useEffect(() => {
     client.health().then((result) => {
@@ -320,7 +310,7 @@ export function Environment({ onSignOut, today }: { onSignOut: () => void; today
             <button key={name} type="button" aria-pressed={scene.state === name} onClick={() => go({ mode: 'state', state: name, needId: null })}>{name} <span>{group.length}</span></button>)}
           {unmapped > 0 && <button type="button" onClick={() => go({ mode: 'state', state: UNMAPPED, needId: null })}>No mappable state <span>{unmapped}</span></button>}
         </div>
-        <p className="env-map-note">Markers are counts per state from the loaded matching subset, not load, confidence or coverage. National scope is not a claim of complete source coverage.{page && page.totalCount > items.length ? ` Showing the ${items.length} highest-ranked of ${page.totalCount}.` : ''}</p>
+        <p className="env-map-note">Markers are counts per state from the loaded matching subset, not load, confidence or coverage. National scope is not a claim of complete source coverage.{page?.isSubset ? ` Showing the ${page.loadedCount} highest-ranked of ${page.totalCount}.` : ''}</p>
       </section>
     </main>
 

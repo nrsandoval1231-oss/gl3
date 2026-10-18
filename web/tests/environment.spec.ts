@@ -19,11 +19,12 @@ const opportunity = (id: string, location: string | null): Opportunity => ({
   missing_facts: ['Activity-specific load (MW)'], asset_type: 'data_center', evidence: [evidence(1), evidence(2)],
 } as Opportunity)
 
-async function mock(page: Page, items: Opportunity[], opportunities?: (route: Route) => Promise<void>) {
+async function mock(page: Page, items: Opportunity[], opportunities?: (route: Route) => Promise<void>, mapWindow?: (route: Route) => Promise<void>) {
   await page.route('**/api/**', async (route) => {
     const path = new URL(route.request().url()).pathname
     if (!path.startsWith('/api/')) return route.continue()
     if (path === '/api/opportunities' && opportunities) return opportunities(route)
+    if (path === '/api/opportunities/map-window' && mapWindow) return mapWindow(route)
     const json = (body: unknown, headers: Record<string, string> = {}) =>
       route.fulfill({ contentType: 'application/json', headers, body: JSON.stringify(body) })
     if (path === '/api/auth/session') return json({ authenticated: true })
@@ -35,6 +36,12 @@ async function mock(page: Page, items: Opportunity[], opportunities?: (route: Ro
       const pageItems = items.slice(offset, offset + limit)
       const next: Record<string, string> = offset + limit < items.length ? { 'X-Next-Offset': String(offset + limit) } : {}
       return json(pageItems, { 'X-Total-Count': String(items.length), 'X-Cohort-Token': 'c1', ...next })
+    }
+    if (path === '/api/opportunities/map-window') {
+      const loaded = items.slice(0, 200)
+      return json({ items: loaded, total_count: items.length, loaded_count: loaded.length,
+        is_subset: loaded.length < items.length, window_limit: 200, group_total_count: items.length,
+        cohort_token: 'map-cohort', decision_counts: { SHOW: 0, REVIEW: 0, HOLD: 0 } })
     }
     if (path.startsWith('/api/opportunities/needs/')) {
       const item = items.find((item) => item.id === path.split('/').at(-1))
@@ -113,7 +120,7 @@ test('lens and tier changes query the server', async ({ page }) => {
   await mock(page, [opportunity('a', 'Austin, TX')])
   page.on('request', (request) => {
     const url = new URL(request.url())
-    if (url.pathname === '/api/opportunities') queries.push(url.searchParams)
+    if (url.pathname === '/api/opportunities/map-window') queries.push(url.searchParams)
   })
   await page.goto('/')
   await page.getByLabel('Industry lens').selectOption('data_center')
@@ -125,11 +132,18 @@ test('lens and tier changes query the server', async ({ page }) => {
   await expect.poll(() => queries.at(-1)?.get('search')).toBe('austin')
 })
 
-test('pages within the API limit and maps District of Columbia correctly', async ({ page }) => {
+test('one bounded map-window request maps its subset and District of Columbia correctly', async ({ page }) => {
   const many = Array.from({ length: 60 }, (_, index) => opportunity(`p${index}`, 'Austin, TX'))
   many.push(opportunity('dc', 'Washington, DC'))
-  await mock(page, many)
+  let mapRequests = 0
+  await mock(page, many, undefined, async (route) => {
+    mapRequests += 1
+    await route.fulfill({ json: { items: many, total_count: many.length, loaded_count: many.length,
+      is_subset: false, window_limit: 200, group_total_count: many.length,
+      cohort_token: 'map-cohort', decision_counts: { SHOW: 0, REVIEW: 0, HOLD: 0 } } })
+  })
   await page.goto('/')
+  await expect.poll(() => mapRequests).toBe(1)
   await expect(page.getByText('61 signals · 2 states.', { exact: false })).toBeVisible()
   await expect(page.getByRole('button', { name: 'Texas 60' })).toBeVisible()
   await expect(page.getByRole('button', { name: 'District of Columbia 1' })).toBeVisible()
@@ -175,22 +189,47 @@ test('state lists default to rank order, highest first', async ({ page }) => {
   await expect(page.locator('.env-list li')).toHaveText([/Dallas/, /Houston/, /Austin/])
 })
 
-test('the map requests rank order from the API for every page', async ({ page }) => {
-  const sorts: (string | null)[] = []
+test('the map makes one ranked-window request and discloses its loaded subset', async ({ page }) => {
+  const requests: URL[] = []
   const items = Array.from({ length: 60 }, (_, i) => ({ ...opportunity(`n${i}`, 'Austin, TX'), rank_score: 60 - i } as Opportunity))
-  await mock(page, items, async (route) => {
-    const url = new URL(route.request().url())
-    sorts.push(url.searchParams.get('sort'))
-    const offset = Number(url.searchParams.get('offset') ?? 0)
-    const next: Record<string, string> = offset + 50 < items.length ? { 'X-Next-Offset': String(offset + 50) } : {}
-    await route.fulfill({ contentType: 'application/json', headers: { 'X-Total-Count': '60', 'X-Cohort-Token': 'c1', ...next }, body: JSON.stringify(items.slice(offset, offset + 50)) })
+  await mock(page, items, undefined, async (route) => {
+    requests.push(new URL(route.request().url()))
+    await route.fulfill({ json: { items, total_count: 260, loaded_count: items.length,
+      is_subset: true, window_limit: 200, group_total_count: 260, cohort_token: 'map-cohort',
+      decision_counts: { SHOW: 0, REVIEW: 0, HOLD: 0 } } })
   })
   await page.goto('/')
-  await expect(page.getByText(/Highest rank · 60/)).toBeVisible()
-  expect(sorts.length).toBeGreaterThanOrEqual(2)
-  expect(sorts.every((value) => value === 'rank')).toBe(true)
+  await expect(page.getByText(/Highest rank/)).toBeVisible()
+  await expect(page.getByText(/Showing the 60 highest-ranked of 260/)).toBeVisible()
+  expect(requests).toHaveLength(1)
+  expect(requests[0].pathname).toBe('/api/opportunities/map-window')
+  expect(requests[0].searchParams.get('tier')).toBe('Signal')
+  expect(requests[0].searchParams.has('offset')).toBe(false)
+  expect(requests[0].searchParams.has('limit')).toBe(false)
 })
 
+test('collection scenes skip map ranking and Back reloads the current map window', async ({ page }) => {
+  let mapRequests = 0
+  await mock(page, [opportunity('a', 'Austin, TX')], undefined, async (route) => {
+    mapRequests += 1
+    await route.fulfill({ json: {
+      items: [opportunity('a', 'Austin, TX')], total_count: 1, loaded_count: 1,
+      is_subset: false, window_limit: 200, group_total_count: 1, cohort_token: 'map',
+      decision_counts: { SHOW: 0, REVIEW: 0, HOLD: 0 },
+    } })
+  })
+  await page.goto('/')
+  await expect.poll(() => mapRequests).toBe(1)
+  await page.getByRole('link', { name: 'Advanced record browser' }).click()
+  await expect(page.getByRole('heading', { name: 'Browse signals' })).toBeVisible()
+  expect(mapRequests).toBe(1)
+  await page.goBack()
+  await expect(page.getByRole('heading', { name: /A wider view/ })).toBeVisible()
+  await expect.poll(() => mapRequests).toBe(2)
+  await page.goto('/?view=environment&mode=pursuits')
+  await expect(page.getByRole('heading', { name: 'What should we work today?' })).toBeVisible()
+  expect(mapRequests).toBe(2)
+})
 test('one call logs several facts as drafts, then accepts them in one explicit step', async ({ page }) => {
   await mock(page, [opportunity('a', 'Midlothian, TX')])
   let version = 0
@@ -300,8 +339,8 @@ test('Back and Forward restore focus, scroll, disclosure and isolated call input
 
 test('failed map has an actual retry and source-health return path', async ({ page }) => {
   let fail = true
-  await mock(page, [], async (route) => {
-    await route.fulfill(fail ? { status: 503 } : { json: [], headers: { 'X-Total-Count': '0' } })
+  await mock(page, [], undefined, async (route) => {
+    await route.fulfill(fail ? { status: 503 } : { json: { items: [], total_count: 0, loaded_count: 0, is_subset: false, window_limit: 200, group_total_count: 0, cohort_token: 'empty', decision_counts: { SHOW: 0, REVIEW: 0, HOLD: 0 } } })
   })
   await page.goto('/')
   await expect(page.getByRole('heading', { name: 'Opportunities are unavailable.' })).toBeVisible()
@@ -424,10 +463,11 @@ test('legacy menu return restores scroll even when departure focus was inside th
 test('late map responses do not restore stale filters or counts', async ({ page }) => {
   let release: () => void = () => {}
   const gate = new Promise<void>((resolve) => { release = resolve })
-  await mock(page, [opportunity('a', 'Austin, TX')], async (route) => {
+  await mock(page, [opportunity('a', 'Austin, TX')], undefined, async (route) => {
     const tier = new URL(route.request().url()).searchParams.get('tier')
     if (tier === 'Prospect') await gate
-    await route.fulfill({ json: tier === 'Signal' ? [opportunity('a', 'Austin, TX')] : [], headers: { 'X-Total-Count': tier === 'Signal' ? '1' : '0' } }).catch(() => {})
+    const matching = tier === 'Signal' ? [opportunity('a', 'Austin, TX')] : []
+    await route.fulfill({ json: { items: matching, total_count: matching.length, loaded_count: matching.length, is_subset: false, window_limit: 200, group_total_count: matching.length, cohort_token: 'map', decision_counts: { SHOW: 0, REVIEW: 0, HOLD: 0 } } }).catch(() => {})
   })
   await page.goto('/')
   await expect(page.getByRole('button', { name: 'Texas 1', exact: true })).toBeVisible()

@@ -2173,3 +2173,141 @@ def test_rank_sort_scores_match_the_displayed_detail_rank(runtime):
             canonical["rank_score"],
             canonical["rank_reasons"],
         )
+
+
+def test_map_window_matches_ranked_pages_and_keeps_detail_reads_bounded(runtime, monkeypatch):
+    _factory, _service, (need_id, _evidence_id) = runtime
+    api = import_module("gridlens.api.app")
+    original_ranks = api._cohort_ranks
+    original_preflight = api._preflight_opportunity_details
+    rank_calls = 0
+    detail_batches = []
+
+    def counted_ranks(session, items, tier):
+        nonlocal rank_calls
+        rank_calls += 1
+        return original_ranks(session, items, tier)
+
+    def counted_preflight(session, rows):
+        detail_batches.append(len(rows))
+        return original_preflight(session, rows)
+
+    monkeypatch.setattr(api, "_cohort_ranks", counted_ranks)
+    monkeypatch.setattr(api, "_preflight_opportunity_details", counted_preflight)
+    result = api.opportunity_map_window(tier="Signal", search="", decision="ALL")
+    assert result["loaded_count"] == len(result["items"]) == 1
+    assert result["total_count"] == 1
+    assert result["is_subset"] is False
+    assert result["window_limit"] == 200
+    assert rank_calls == 1
+    assert detail_batches and all(0 < batch <= 50 for batch in detail_batches)
+
+    # The map's globally ranked first window is byte-for-byte aligned on the fields
+    # that define identity, score, explanations, and the rank policy with legacy pages.
+    page_response = Response()
+    pages = api.opportunities(
+        tier="Signal", search="", decision="ALL", limit=50, offset=0,
+        cohort=None, response=page_response, sort="rank",
+    )
+    assert result["cohort_token"] == page_response.headers["X-Cohort-Token"]
+    by_id = {str(item["id"]): item for item in pages}
+    assert [str(item["id"]) for item in result["items"]] == [str(item["id"]) for item in pages]
+    for item in result["items"]:
+        legacy = by_id[str(item["id"])]
+        assert (item["rank_score"], item["rank_reasons"], item["rank_version"]) == (
+            legacy["rank_score"], legacy["rank_reasons"], legacy["rank_version"]
+        )
+    assert str(need_id) in by_id
+
+
+def test_ranked_map_window_keeps_global_winners_and_stable_ties_past_boundaries():
+    api = import_module("gridlens.api.app")
+    rows = [{"id": f"need-{index:03}", "updated_order": index} for index in range(205)]
+    ranks = {
+        row["id"]: {"rank_score": 10, "rank_reasons": ["baseline"], "rank_version": "v"}
+        for row in rows
+    }
+    # The winner is outside the newest 200. Equal scores cross both the legacy page
+    # boundary and the 200-item window boundary; source order remains the tie-breaker.
+    ranks["need-200"]["rank_score"] = 100
+    ranks["need-199"]["rank_score"] = 99
+    ranks["need-049"]["rank_score"] = 98
+    ranks["need-050"]["rank_score"] = 98
+    ranks["need-198"]["rank_score"] = 11
+    ranked = api._rank_opportunity_summaries(rows, ranks)
+    window = ranked[:200]
+    assert ranked[0]["id"] == "need-200"
+    assert [row["id"] for row in ranked[2:4]] == ["need-049", "need-050"]
+    assert [row["id"] for row in ranked[48:52]] == [
+        "need-043", "need-044", "need-045", "need-046"
+    ]
+    assert len(window) == 200
+    assert window[-1]["id"] == "need-196"
+    assert all(row["id"] != "need-197" for row in window)
+
+
+def test_map_window_http_auth_query_and_payload_bounds(runtime, monkeypatch):
+    _factory, _service, _need = runtime
+    api = import_module("gridlens.api.app")
+    client = TestClient(api.app)
+    assert client.get("/api/opportunities/map-window").status_code == 401
+    client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
+    response = client.get("/api/opportunities/map-window", params={"tier": "Signal"})
+    assert response.status_code == 200
+    assert response.json()["window_limit"] == 200
+    assert response.json()["loaded_count"] == len(response.json()["items"])
+    for params in (
+        {"unknown": "1"},
+        {"tier": "candidate"},
+        {"decision": "MAYBE"},
+        {"search": "x" * 251},
+    ):
+        assert client.get("/api/opportunities/map-window", params=params).status_code == 422
+
+    # A complete response exceeding the established aggregate byte budget fails closed.
+    monkeypatch.setattr(api, "_MAX_OPPORTUNITY_PAGE_BYTES", 1)
+    oversized = client.get("/api/opportunities/map-window", params={"tier": "Signal"})
+    assert oversized.status_code == 413
+
+
+@pytest.mark.parametrize("resource", ["evidence", "lifecycle"])
+def test_map_window_rejects_rows_over_existing_per_record_caps(runtime, resource):
+    factory, _service, (need_id, evidence_id) = runtime
+    api = import_module("gridlens.api.app")
+    with factory.begin() as session:
+        need = session.get(PowerNeed, need_id)
+        observation_id = session.scalar(
+            select(NeedObservation.observation_id).where(NeedObservation.need_id == need_id)
+        )
+        if resource == "evidence":
+            session.add_all(
+                [
+                    Evidence(
+                        observation_id=observation_id,
+                        content_hash=f"{index + 1000:064x}",
+                        title=f"Synthetic retained version {index}",
+                        abstract="Bound test evidence.",
+                        url=f"https://example.test/versions/{index}",
+                        extraction_location="test",
+                    )
+                    for index in range(api._MAX_OPPORTUNITY_EVIDENCE_ROWS)
+                ]
+            )
+        else:
+            session.add_all(
+                [
+                    LifecycleEvent(
+                        project_id=need.project_id,
+                        observation_id=observation_id,
+                        evidence_id=evidence_id,
+                        event_type=f"bounded-test-{index}",
+                        state="construction",
+                    )
+                    for index in range(api._MAX_OPPORTUNITY_LIFECYCLE_ROWS + 1)
+                ]
+            )
+    with pytest.raises(HTTPException) as oversized:
+        api.opportunity_map_window(tier="Signal", search="", decision="ALL")
+    assert oversized.value.status_code == 413
+    expected = "evidence" if resource == "evidence" else "lifecycle"
+    assert expected in oversized.value.detail.lower()

@@ -506,6 +506,239 @@
         }
       }
     },
+    "/api/opportunities/map-window": {
+      "get": {
+        "summary": "Opportunity Map Window",
+        "description": "Return the exact globally ranked, bounded map window in one authenticated read.",
+        "operationId": "opportunity_map_window_api_opportunities_map_window_get",
+        "parameters": [
+          {
+            "name": "tier",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tier"
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search"
+            }
+          },
+          {
+            "name": "decision",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Decision"
+            }
+          },
+          {
+            "name": "geography",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Geography"
+            }
+          },
+          {
+            "name": "industry",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Industry"
+            }
+          },
+          {
+            "name": "activity",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Activity"
+            }
+          },
+          {
+            "name": "timing",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Timing"
+            }
+          },
+          {
+            "name": "mw_status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Mw Status"
+            }
+          },
+          {
+            "name": "mw_min",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Mw Min"
+            }
+          },
+          {
+            "name": "mw_max",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Mw Max"
+            }
+          },
+          {
+            "name": "priority_segment",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Priority Segment"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "UNKNOWN",
+                    "NEW",
+                    "INVESTIGATING",
+                    "CONTACTED",
+                    "QUALIFIED",
+                    "WON",
+                    "LOST",
+                    "CLOSED"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Status"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpportunityMapWindowOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/opportunity-groups/{group_id}": {
       "get": {
         "summary": "Opportunity Group Page",
@@ -6292,6 +6525,60 @@
           "cohort_token"
         ],
         "title": "OpportunityGroupPageOut"
+      },
+      "OpportunityMapWindowOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/OpportunityOut"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total_count": {
+            "type": "integer",
+            "title": "Total Count"
+          },
+          "loaded_count": {
+            "type": "integer",
+            "title": "Loaded Count"
+          },
+          "is_subset": {
+            "type": "boolean",
+            "title": "Is Subset"
+          },
+          "window_limit": {
+            "type": "integer",
+            "title": "Window Limit"
+          },
+          "group_total_count": {
+            "type": "integer",
+            "title": "Group Total Count"
+          },
+          "cohort_token": {
+            "type": "string",
+            "title": "Cohort Token"
+          },
+          "decision_counts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object",
+            "title": "Decision Counts"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total_count",
+          "loaded_count",
+          "is_subset",
+          "window_limit",
+          "group_total_count",
+          "cohort_token",
+          "decision_counts"
+        ],
+        "title": "OpportunityMapWindowOut"
       },
       "OpportunityOut": {
         "properties": {
