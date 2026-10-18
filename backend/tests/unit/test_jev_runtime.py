@@ -29,6 +29,29 @@ STATE = dict.fromkeys(
 )
 
 
+def _process_environment(**overrides):
+    # Windows executable/plugin discovery needs its OS paths even for a
+    # deliberately isolated subprocess environment. Never inherit provider keys.
+    names = ("PATH", "SystemRoot", "ComSpec", "USERPROFILE", "APPDATA", "LOCALAPPDATA")
+    return {**{key: os.environ[key] for key in names if key in os.environ}, **overrides}
+
+
+def _shell_command(path, *args):
+    if os.name != "nt":
+        return [str(path), *args]
+    git = shutil.which("git")
+    bash = Path(git).resolve().parents[1] / "bin" / "bash.exe" if git else None
+    if bash is None or not bash.is_file():
+        pytest.skip("Git Bash is required to exercise Linux deployment scripts on Windows")
+    return [str(bash), str(path), *args]
+
+
+def _shell_environment(tmp_path, **overrides):
+    if os.name == "nt":
+        return _process_environment(PATH=f"{tmp_path}{os.pathsep}{os.environ['PATH']}", **overrides)
+    return {"PATH": f"{tmp_path}:/usr/bin:/bin", **overrides}
+
+
 @pytest.mark.parametrize(
     ("code", "status", "attempts"),
     [
@@ -89,12 +112,11 @@ def test_compose_forwards_injected_keys_without_a_secret_file(tmp_path):
     compose = tmp_path / "deploy/digitalocean/compose.prod.yaml"
     compose.parent.mkdir(parents=True)
     compose.write_text((root / "deploy/digitalocean/compose.prod.yaml").read_text())
-    env = {
-        "PATH": os.environ["PATH"],
-        "TYPESAFE_API_KEY": "injected-sentinel",
-        "OPENAI_API_KEY": "injected-openai-sentinel",
-        "CLOUDFLARE_TUNNEL_TOKEN": "synthetic-tunnel",
-    }
+    env = _process_environment(
+        TYPESAFE_API_KEY="injected-sentinel",
+        OPENAI_API_KEY="injected-openai-sentinel",
+        CLOUDFLARE_TUNNEL_TOKEN="synthetic-tunnel",
+    )
     result = subprocess.run(
         [
             "docker",
@@ -192,17 +214,17 @@ def test_infisical_wrapper_uses_explicit_existing_binding(tmp_path):
     stub = tmp_path / "infisical"
     stub.write_text('#!/bin/sh\nprintf "%s\\n" "$@"\n')
     stub.chmod(0o700)
-    env = {
-        "PATH": f"{tmp_path}:/usr/bin:/bin",
-        "INFISICAL_PROJECT_ID": "existing-project",
-        "INFISICAL_ENVIRONMENT": "existing-environment",
-        "INFISICAL_SECRET_PATH": "/existing-folder",
-    }
-    command = [
-        str(root / "deploy/digitalocean/with-infisical.sh"),
+    env = _shell_environment(
+        tmp_path,
+        INFISICAL_PROJECT_ID="existing-project",
+        INFISICAL_ENVIRONMENT="existing-environment",
+        INFISICAL_SECRET_PATH="/existing-folder",
+    )
+    command = _shell_command(
+        root / "deploy/digitalocean/with-infisical.sh",
         "worker-command",
         "arg with spaces",
-    ]
+    )
     result = subprocess.run(command, env=env, text=True, capture_output=True, check=True)
     assert result.stdout.splitlines() == [
         "run",
@@ -258,8 +280,8 @@ def test_scheduled_commands_preserve_injected_environment(tmp_path, job):
     docker.write_text('#!/bin/sh\nprintf "%s" "$TYPESAFE_API_KEY"\n')
     docker.chmod(0o700)
     result = subprocess.run(
-        [str(script), job],
-        env={"PATH": f"{tmp_path}:/usr/bin:/bin", "TYPESAFE_API_KEY": "injected-sentinel"},
+        _shell_command(script, job),
+        env=_shell_environment(tmp_path, TYPESAFE_API_KEY="injected-sentinel"),
         capture_output=True,
         text=True,
         check=True,

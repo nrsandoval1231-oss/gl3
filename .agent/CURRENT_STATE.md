@@ -1,7 +1,11 @@
 # Current state
 
-Base/currentmain/live9947b21029acacbc3cd03ed411674b86163a1baa (PR82),schema0024. Priorstatebytesarchivedunchanged inarchive/pre-editorial-removal-*. New explicitowner2026-10-18T13:32:31Z "I want to completely remove the editorial part" authorizes [P-REMOVE-EDITORIAL](packets/remove-editorial.md). [PRD](../docs/product/PRD.md)/[FinishContract](FINISH_CONTRACT.md)/opportunityengine/UIcanonotherwiseunchanged.
+Owner request 2026-10-18: implement intelligence integration A–G; audit then continue without routine approval. Strategy section 17 Packet-A-only limit superseded. PRD, evidence architecture, Finish Contract and editorial removal remain binding.
 
-Isolatedremove/editorial branch: Luna soleimplementation,Solindependentreview,controllergates/PR/guardedmerge/deploy. RemoveeditorialUI/routes/review/assessment/export/config,retainhistoricalmigrations/tables/records andallsharedcanonicalsource/grounding/auth/speedlogic. No datapurges/schema/infra/security/provideractivation. PR71superseded;72/73newsletterseparate/unmerged/dependenciesreported. Nextimplementandmeaningfulregressiontests,thenfreeze/fullCI/review beforeanypromotion. No acceptanceclaimyet.
+Isolated branch feat/intelligence-integration-20261018; base 49121eb14f5d090abbbbc8ebcd4bea6a4be62b21. Primary recovery checkout and unrelated files preserved. Prior agent state archived unchanged in archive/intelligence-20261018/. Requested (2) strategy absent; original copied to docs/architecture/INTELLIGENCE_INTEGRATION_STRATEGY.md as proposed strategy.
 
-Livecontrolscollection/research/Jev/shadow/schedulingOFF,budgetsZERO;testbusinesswritesisolatedonly. BrowsercurrentlySign in:authenticatedliveQAunavailableunlessownerlogsbackin;neverclaimitfromtestauth. ExistingdeploymentdatahashesbackupsreportsoutsideGit. Provider/realmidnight/sourcequality/realLead/sustainedSLOgatesremainOPEN. Token/durationUNKNOWNunlessmeasured.
+A audited; B1 READY. See WORK_GRAPH.md, TRIBUNAL.md, packets/intelligence-foundation.md. Existing evidence/queue/scheduling/research/brief/UI reused. No model changes facts, identity, gates or outreach authority.
+
+Production SHA/flags/budgets currently UNKNOWN; earlier records say live features OFF and budgets ZERO. No local OpenAI key found. No provider activation, spending, production writes, push, merge, deployment or outreach under this task. Local PostgreSQL 18 running; exclusive test databases being prepared.
+
+Next CONTINUE: one Luna builds logical calls and advisory contracts; all unblocked A–G follow. Seven real daily cycles, owner review, paid/live evidence, PC-off operation and parent Finish Contract remain OPEN.

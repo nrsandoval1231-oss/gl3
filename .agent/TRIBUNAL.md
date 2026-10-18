@@ -1,11 +1,12 @@
-# Opening Tribunal — 2026-09-25
-Exactly one opening Tribunal; Luna Simplifier, Terra Engineer, Sol Architect read actual repository and PRD.
-Decision: MODIFY then PROCEED with one vertical path before expansion.
-Objective: useful evidence-backed authenticated Signal application.
-Build Now: registry -> PostgreSQL leased durable job -> bounded source adapter -> immutable evidence -> conservative project and distinct power need -> FastAPI auth -> frozen React browse/detail and health.
-Do Not Build Yet: LLM-dependent collection, speculative promotion, n8n, broad feed-count expansion before proof.
-Architecture: React/TS, Python FastAPI API + separate worker in same package, SQLAlchemy/Alembic/PostgreSQL. Managed scheduler enqueue seam, local excerpts/artifacts pending cloud authority.
-Assumptions: access-tested feeds must still prove useful discovery, retention, persistence and replay. No unknown dates or power quantities invented.
-Risks: accessible feeds may not yield useful records; parser false success; stale leases; loose project matching; blocked cloud gate.
-Sequence: GL3-001 structured vertical path; GL3-002 web/PDF contract extension; GL3-003 combined exact-candidate acceptance and Sol review; later milestone nodes only after dependencies.
-Safety minimums: private route auth, strict registry/network bounds, immutable evidence/dates, transactionally fenced checkpoints, unique identities, visible failures/overdue, no unsupported promotion.
+# Intelligence initiative opening decision — 2026-10-18
+
+Exactly one initiative tribunal. Prior project tribunal archived. Luna Simplifier, Terra Engineer and Sol Architect independently audited base 49121eb.
+
+Objective: working evidence-governed intelligence in existing app.
+Build Now: logical-call ledger/finite reservations; eight owner-specified advisory Jev contracts; grounded extraction; question research; monitoring; existing UI/ops/evaluation.
+Do Not Build Yet: paid/provider activation, cloud changes, outreach, new platform or AI admission/identity authority.
+Architecture: existing PostgreSQL jobs/evidence. Minimal call/budget persistence; preserve judge/brief/question history. Network outside transactions; commit uncertain-send status before dispatch.
+Key Assumptions: account/model compatibility and budgets unset until verified; source authority and domain gates remain binding.
+Major Risks: concurrent cap oversubscription, ambiguous effects, stale results, duplicate paths, injection, quote validity versus source authority.
+Execution Sequence: A → B1 → B2/D and independent C → E → F → G → authorized LIVE. One initial Luna; independent integration review.
+Decision: MODIFY to reuse, then PROCEED locally. No recurring tribunal. Timings/tokens UNKNOWN unless measured.
