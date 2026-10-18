@@ -248,7 +248,7 @@ def test_concurrent_input_change_prevents_publication_and_restart_recovers(saved
 
     def mutate():
         with saved_db.begin() as session:
-            session.execute(text("UPDATE power_needs SET rationale = 'Changed fixture'"))
+            session.execute(text("UPDATE sources SET publisher = 'Changed fixture'"))
 
     assert rebuild(saved_db, before_publish=mutate)["status"] == "superseded"
     with saved_db() as session:
@@ -381,7 +381,8 @@ def test_exact_fact_boundary_and_policy_expiry_fail_closed(saved_db, monkeypatch
     rebuild(saved_db)
     with saved_db() as session:
         generation = current_generation(session)
-        assert generation.valid_until == boundary
+        assert generation.valid_until == saved_browse.clock_deadline(session, generation.built_at)
+        assert generation.valid_until <= boundary
         with pytest.raises(HTTPException):
             current_generation(session, now=boundary)
         assert (
@@ -541,3 +542,192 @@ def test_offset_beyond_database_integer_range_is_a_valid_empty_page(saved_db, se
         result = page(session, filters(**selection), offset=10**100)
     assert result["items"] == []
     assert result["total_count"] == 1
+
+
+def test_incremental_refresh_is_atomic_and_rebuilds_only_dirty_project(saved_db, monkeypatch):
+    from gridlens.intelligence.saved_browse import refresh_project_changes
+
+    ids = seed(saved_db)
+    rebuild(saved_db)
+    with saved_db() as reader:
+        original = current_generation(reader).id
+    calls = []
+    canonical = api.opportunity_projection
+
+    def track(session, **kwargs):
+        calls.append(kwargs.get("selected_need_ids"))
+        return canonical(session, **kwargs)
+
+    monkeypatch.setattr(api, "opportunity_projection", track)
+    with saved_db.begin() as writer:
+        need = writer.get(PowerNeed, ids[0])
+        need.active = False
+        writer.flush()
+        result = refresh_project_changes(writer)
+        assert result["mode"] == "projects"
+        assert result["needs"] == 1
+        with saved_db() as reader:
+            assert current_generation(reader).id == original
+            assert len(page(reader, filters())["items"]) == len(ids)
+    assert calls and all(value == {ids[0]} for value in calls)
+    with saved_db() as reader:
+        assert current_generation(reader).id != original
+        assert str(ids[0]) not in {str(item["id"]) for item in page(reader, filters())["items"]}
+    monkeypatch.setattr(settings, "saved_browse_enabled", False)
+    baseline = api.opportunities(limit=50, offset=0, cohort=None)
+    with saved_db() as reader:
+        actual = page(reader, filters())["items"]
+    assert [str(item["id"]) for item in actual] == [str(item["id"]) for item in baseline]
+
+
+def test_incremental_rollback_unknown_write_and_expiry_fail_closed(saved_db):
+    from gridlens.intelligence.saved_browse import refresh_project_changes
+    from gridlens.persistence.models import BrowseGeneration
+
+    ids = seed(saved_db)
+    rebuild(saved_db)
+    with saved_db() as reader:
+        original = current_generation(reader).id
+    with saved_db() as writer:
+        writer.get(PowerNeed, ids[0]).active = False
+        assert refresh_project_changes(writer)["status"] == "published"
+        writer.rollback()
+    with saved_db() as reader:
+        assert current_generation(reader).id == original
+    with saved_db.begin() as writer:
+        writer.execute(text("UPDATE sources SET publisher = publisher"))
+        assert refresh_project_changes(writer) is None
+    with saved_db() as reader, pytest.raises(HTTPException):
+        current_generation(reader)
+    rebuild(saved_db)
+    with saved_db.begin() as writer:
+        generation = current_generation(writer)
+        generation.valid_until = datetime.now(UTC) - timedelta(seconds=1)
+    with saved_db.begin() as writer:
+        writer.get(PowerNeed, ids[0]).active = False
+        assert refresh_project_changes(writer) is None
+    with saved_db() as reader, pytest.raises(HTTPException):
+        current_generation(reader)
+    with saved_db() as reader:
+        assert reader.scalar(select(BrowseGeneration.id).limit(1)) is not None
+
+
+def test_multiple_refreshes_in_one_transaction_keep_latest_revision(saved_db):
+    from gridlens.intelligence.saved_browse import refresh_project_changes
+
+    ids = seed(saved_db)
+    rebuild(saved_db)
+    with saved_db.begin() as writer:
+        writer.get(PowerNeed, ids[0]).active = False
+        assert refresh_project_changes(writer)["status"] == "published"
+        writer.get(PowerNeed, ids[1]).active = False
+        assert refresh_project_changes(writer)["status"] == "published"
+    with saved_db() as reader:
+        assert len(page(reader, filters())["items"]) == len(ids) - 2
+
+
+def test_failed_derived_refresh_retains_canonical_change_as_pending(saved_db, monkeypatch):
+    from gridlens.intelligence import saved_browse
+
+    ids = seed(saved_db)
+    rebuild(saved_db)
+    monkeypatch.setattr(settings, "saved_browse_enabled", True)
+
+    def fail(*args, **kwargs):
+        raise RuntimeError("synthetic derived failure")
+
+    monkeypatch.setattr(saved_browse, "_write_rows", fail)
+    with saved_db.begin() as writer:
+        writer.get(PowerNeed, ids[0]).active = False
+        api._refresh_saved_operator_change(writer)
+    with saved_db() as reader:
+        assert reader.get(PowerNeed, ids[0]).active is False
+        with pytest.raises(HTTPException):
+            current_generation(reader)
+    monkeypatch.undo()
+    assert rebuild(saved_db)["status"] == "published"
+
+
+def test_incremental_expiring_during_construction_never_serves_current(saved_db, monkeypatch):
+    from gridlens.intelligence import saved_browse
+    from gridlens.persistence.models import BrowseGeneration
+
+    ids = seed(saved_db)
+    rebuild(saved_db)
+    canonical = saved_browse._write_rows
+
+    def cross_boundary(session, generation_id, summaries):
+        result = canonical(session, generation_id, summaries)
+        after_deadline = session.get(BrowseGeneration, generation_id).valid_until + timedelta(
+            seconds=1
+        )
+
+        class AdvancedClock(datetime):
+            @classmethod
+            def now(cls, tz=None):
+                return after_deadline
+
+        monkeypatch.setattr(saved_browse, "datetime", AdvancedClock)
+        return result
+
+    monkeypatch.setattr(saved_browse, "_write_rows", cross_boundary)
+    with saved_db.begin() as writer:
+        writer.get(PowerNeed, ids[0]).active = False
+        assert saved_browse.refresh_project_changes(writer) is None
+    with saved_db() as reader, pytest.raises(HTTPException):
+        current_generation(reader)
+
+
+def test_full_build_rebases_repeated_scoped_writes_before_publication(saved_db):
+    ids = seed(saved_db)
+
+    def repeated_writes():
+        for index in range(8):
+            with saved_db.begin() as writer:
+                writer.get(PowerNeed, ids[index % len(ids)]).active = False
+
+    result = rebuild(saved_db, before_publish=repeated_writes)
+    assert result["status"] == "published"
+    assert result["row_count"] == 0
+    with saved_db() as reader:
+        assert (
+            current_generation(reader).input_revision == reader.get(BrowseState, 1).input_revision
+        )
+        assert not page(reader, filters())["items"]
+
+
+def test_full_build_rebase_keeps_concurrent_already_published_operator_edit(saved_db):
+    from gridlens.intelligence.saved_browse import refresh_project_changes
+
+    ids = seed(saved_db)
+    rebuild(saved_db)
+
+    def atomic_operator_write():
+        with saved_db.begin() as writer:
+            writer.get(PowerNeed, ids[0]).active = False
+            assert refresh_project_changes(writer)["status"] == "published"
+
+    assert rebuild(saved_db, before_publish=atomic_operator_write)["status"] == "published"
+    with saved_db() as reader:
+        assert str(ids[0]) not in {str(item["id"]) for item in page(reader, filters())["items"]}
+        current_generation(reader)
+
+
+def test_long_repeatable_read_cohort_survives_pruning_without_blocking_writers(saved_db):
+    from gridlens.intelligence.saved_browse import refresh_project_changes
+    from gridlens.persistence.models import BrowseGeneration
+
+    ids = seed(saved_db)
+    rebuild(saved_db)
+    with saved_db() as reader:
+        api._begin_consistent_read(reader)
+        original = current_generation(reader).id
+        for need_id in ids:
+            with saved_db.begin() as writer:
+                writer.get(PowerNeed, need_id).active = False
+                assert refresh_project_changes(writer)["status"] == "published"
+        assert current_generation(reader).id == original
+        assert len(page(reader, filters())["items"]) == len(ids)
+        with saved_db() as fresh:
+            assert not page(fresh, filters())["items"]
+            assert fresh.get(BrowseGeneration, original) is None

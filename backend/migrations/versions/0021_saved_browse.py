@@ -46,6 +46,7 @@ def upgrade():
             id SERIAL NOT NULL,
             input_revision BIGINT DEFAULT '0' NOT NULL,
             generation_id UUID,
+            full_revision BIGINT DEFAULT '0' NOT NULL,
             PRIMARY KEY (id)
         )
     """
@@ -117,21 +118,81 @@ def upgrade():
         CREATE INDEX ix_browse_updated ON browse_rows (generation_id, tier, updated_at DESC, need_id)
     """
     )
+    op.execute(
+        "CREATE TABLE browse_dirty_projects (project_id UUID PRIMARY KEY, revision BIGINT NOT NULL)"
+    )
     op.execute("INSERT INTO browse_state (id) VALUES (1)")
-    op.execute("""CREATE FUNCTION invalidate_browse_generation() RETURNS trigger
-        LANGUAGE plpgsql AS $$ BEGIN
-        UPDATE browse_state SET input_revision = input_revision + 1 WHERE id = 1;
-        RETURN NULL; END $$""")
+    op.execute("""
+    CREATE OR REPLACE FUNCTION invalidate_browse_generation() RETURNS trigger
+    LANGUAGE plpgsql AS $$
+    BEGIN
+        UPDATE browse_state SET
+            full_revision = CASE WHEN TG_OP = 'TRUNCATE' OR TG_ARGV[0] = 'full'
+                THEN input_revision + 1 ELSE full_revision END,
+            input_revision = input_revision + 1 WHERE id = 1;
+        RETURN NULL;
+    END $$
+""")
+    op.execute("""
+    CREATE OR REPLACE FUNCTION dirty_browse_project() RETURNS trigger
+    LANGUAGE plpgsql AS $$
+    DECLARE payload jsonb; pid uuid; next_revision bigint;
+    BEGIN
+        SELECT input_revision + 1 INTO next_revision FROM browse_state WHERE id = 1 FOR UPDATE;
+        FOR payload IN SELECT value FROM jsonb_array_elements(
+            CASE WHEN TG_OP = 'INSERT' THEN jsonb_build_array(to_jsonb(NEW))
+                 WHEN TG_OP = 'DELETE' THEN jsonb_build_array(to_jsonb(OLD))
+                 ELSE jsonb_build_array(to_jsonb(OLD), to_jsonb(NEW)) END)
+        LOOP
+            IF TG_TABLE_NAME = 'power_needs' THEN
+                pid := (payload->>'project_id')::uuid;
+            ELSE
+                SELECT project_id INTO pid FROM power_needs WHERE id = (payload->>'need_id')::uuid;
+            END IF;
+            IF pid IS NULL THEN
+                UPDATE browse_state SET full_revision = next_revision WHERE id = 1;
+            ELSE
+                INSERT INTO browse_dirty_projects(project_id, revision) VALUES(pid, next_revision)
+                ON CONFLICT (project_id) DO UPDATE SET revision = EXCLUDED.revision;
+            END IF;
+        END LOOP;
+        RETURN NULL;
+    END $$
+""")
     for table in INPUT_TABLES:
-        op.execute(
-            f"CREATE TRIGGER invalidate_browse AFTER INSERT OR UPDATE OR DELETE OR TRUNCATE ON {table} FOR EACH STATEMENT EXECUTE FUNCTION invalidate_browse_generation()"
+        scope = (
+            "scoped"
+            if table
+            in (
+                "power_needs",
+                "call_fact_versions",
+                "call_fact_decisions",
+                "need_workflow_status_events",
+            )
+            else "full"
         )
+        op.execute(
+            f"CREATE TRIGGER invalidate_browse AFTER INSERT OR UPDATE OR DELETE OR TRUNCATE ON {table} FOR EACH STATEMENT EXECUTE FUNCTION invalidate_browse_generation('{scope}')"
+        )
+        if scope == "scoped":
+            op.execute(
+                f"CREATE TRIGGER dirty_browse AFTER INSERT OR UPDATE OR DELETE ON {table} FOR EACH ROW EXECUTE FUNCTION dirty_browse_project()"
+            )
 
 
 def downgrade():
     for table in INPUT_TABLES:
         op.execute(f"DROP TRIGGER invalidate_browse ON {table}")
+        if table in (
+            "power_needs",
+            "call_fact_versions",
+            "call_fact_decisions",
+            "need_workflow_status_events",
+        ):
+            op.execute(f"DROP TRIGGER dirty_browse ON {table}")
+    op.execute("DROP FUNCTION dirty_browse_project()")
     op.execute("DROP FUNCTION invalidate_browse_generation()")
+    op.drop_table("browse_dirty_projects")
     op.drop_table("browse_rows")
     op.drop_table("browse_generations")
     op.drop_table("browse_state")

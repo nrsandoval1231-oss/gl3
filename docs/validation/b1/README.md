@@ -132,12 +132,79 @@ the outlier/build measurements above.
 
 Build 29.7 s; cold process 0.045 s; evidence checksum unchanged. [Raw result](final-fixture-2922-search.json).
 
+## Mutation availability and expiry acceptance gate
+
+Ordinary operator edits initially invalidated every browse read until a full
+rebuild. The measured full-rebuild pending window was unacceptable for ordinary
+work. The revised implementation publishes project-scoped canonical refreshes in
+the same transaction as supported operator edits. Broad/unknown writes, policy
+changes, derived failures, oversized dirty sets and clock expiry remain explicit
+pending/full-build cases.
+
+The following final runs use the same fabricated dated histories and evidence
+sizes, 12 sequential workflow edits, 12 edits in four-writer bursts, continuous
+repeatable-read ranked-page calls, and four each actual fact draft/accept/retract
+handler calls. They time server functions plus committed fresh-read verification;
+HTTP/authentication/network are excluded. Writer timings include serialized
+publication contention. The background read includes an extra qualification probe
+before the ordinary two-query saved page. Connection wait and database CPU are not
+separately measured. Empirical p95 at these small write sample counts equals max.
+
+| Path | 1,461 projects p50 / p95 / max (s) | 2,922 projects p50 / p95 / max (s) |
+|---|---:|---:|
+| Sequential workflow | 0.208 / 0.292 / 0.292 | 0.384 / 0.446 / 0.446 |
+| Four-writer workflow | 0.493 / 0.927 / 0.927 | 0.882 / 1.748 / 1.748 |
+| Concurrent ranked read | 0.005 / 0.010 / 0.031 | 0.005 / 0.009 / 0.060 |
+| Fact draft | 0.212 / 0.470 / 0.470 | 0.402 / 0.567 / 0.567 |
+| Fact accepted | 0.210 / 0.347 / 0.347 | 0.450 / 0.556 / 0.556 |
+| Fact retracted | 0.227 / 0.308 / 0.308 | 0.444 / 0.526 / 0.526 |
+
+Both runs observed **zero pending/errors during ordinary workflow writes**, across
+442 and 911 background reads. Workflow handler + fresh probe used
+[62] / [62] instrumented SQL statements (writes/ANALYZE included, not read-only
+query counts). Fact statement counts were captured in the 2× raw run; the 1× fact
+phase records time only. The ordinary saved read path remains two statements.
+
+Without incremental publication, an ordinary committed write followed by a full
+rebuild left qualification pending for 16.116 / 23.799 s.
+External scoped SQL commit plus immediate maintenance refresh took
+0.207 / 0.455 s; add the maintenance process's nominal
+250ms polling interval (and scheduling/load delay) in real operation.
+
+Full initial builds took 18.775 / 26.341 s. Forced stored-clock expiry required
+12.374 / 22.267 s of pending before publication. Each expiry rebuild overlapped
+eight actual workflow edits at 250ms spacing; all eight saved successfully, and
+the builder published once after canonically rebasing their bounded tail. All eight API calls succeeded and publication completed rather than being
+superseded; regression tests separately verify these edits survive rebasing. No
+stale generation was served as current. This simulates a
+stored expiry crossing rather than waiting for a real date rollover; focused
+PostgreSQL tests separately exercise future fact boundaries, calendar deadlines
+and a clock advancing during incremental/full construction.
+
+Evidence counts/checksums matched before/after both runs, and only three derived
+generations remained. [1× raw result](mutation-fixture-1461.json),
+[2× raw result](mutation-fixture-2922.json).
+
+A prior incremental candidate kept browse available but had slow publication
+plans: workflow p95 4.057 s sequential / 13.275 s four-writer.
+The final code analyzes the newly copied generation before global metadata work,
+skips unchanged compact group metadata and aggregates counts directly from groups.
+[Retained diagnostic](mutation-planner-diagnostic-1461.json).
+
+**Limits:** SQL cloning/pruning still copies population-sized presentation payloads;
+canonical evidence reconstruction is limited to dirty projects. Four competing
+writers can exceed one second, and clock/broad invalidations still interrupt browse
+for a full build. These fixture improvements do not establish a production-wide
+sub-second API SLO or eliminate the earlier 71.5-second contended rebuild outlier.
+The rollout switch remains false until production backup/parity/access gates pass.
+
 ## Review and automated checks
 
-Independent source review approved the runtime changes, including policy/input
-fencing, expiry clocks, compact pages, group/offset edge cases and Decimal bounds.
-The final focused PostgreSQL suite passes **44 tests**. The full local suite passed
-**1,780 tests / 1 skipped** before the final boundary cases were added; GitHub CI
-on the initial implementation passed **1,786 backend / 1 skipped** and
-**141 browser / 1 skipped**, including real disposable authentication. Exact final
-head CI is required before merge; its source-of-truth status is linked in PR77.
+Independent review found and reproduced a stale-tail rebase race; retained dirty
+revisions and a regression test prevent already-published corrections from being
+lost. Final independent focused PostgreSQL validation passed **52 tests**. Full
+local regression passed **1,803 / 1 skipped** before the final reader/clock cases;
+final focused validation passed **52**. Ruff, mypy (103 source files), migration
+upgrade/repeat/downgrade/upgrade/schema-drift checks pass. Earlier browser CI passed
+**141 / 1 skipped** with disposable authentication. Final exact-head CI is linked
+in PR77 and remains a separate merge gate; no production deployment is claimed.

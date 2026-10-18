@@ -8,7 +8,12 @@ from uuid import UUID
 
 from fastapi import HTTPException
 
-from gridlens.intelligence.saved_browse import current_generation, rebuild, restore_generation
+from gridlens.intelligence.saved_browse import (
+    current_generation,
+    maintain_once,
+    rebuild,
+    restore_generation,
+)
 from gridlens.persistence.database import SessionLocal
 
 
@@ -47,11 +52,11 @@ def main():
             return 0 if result["status"] == "current" else 1
         if result["status"] == "pending":
             try:
-                print(json.dumps(rebuild(SessionLocal)), flush=True)
+                print(json.dumps(maintain_once(SessionLocal)), flush=True)
             except Exception:
                 # Do not emit DB exception details, which can include private input parameters.
                 logging.error("Browse rebuild failed; qualification remains pending")
-        time.sleep(2)
+        time.sleep(0.25)
 
 
 if __name__ == "__main__":

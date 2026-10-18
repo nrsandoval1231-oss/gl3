@@ -1898,7 +1898,9 @@ def test_saved_browse_parity_through_real_fact_accept_correct_reject_and_source_
     """Compare saved reads throughout the complete source-backed operator workflow."""
     from urllib.parse import parse_qs, urlsplit
 
-    from gridlens.intelligence.saved_browse import page, rebuild
+    from fastapi import HTTPException
+
+    from gridlens.intelligence.saved_browse import current_generation, maintain_once, page
     from gridlens.persistence.browse_invalidation import install
 
     client, factory, *_scope = runtime
@@ -1907,9 +1909,12 @@ def test_saved_browse_parity_through_real_fact_accept_correct_reject_and_source_
     original_get = client.get
     api = import_module("gridlens.api.app")
     comparisons = []
+    monkeypatch.setattr(settings, "saved_browse_enabled", True)
 
     def compare_get(url, **kwargs):
-        response = original_get(url, **kwargs)
+        with monkeypatch.context() as canonical_read:
+            canonical_read.setattr(settings, "saved_browse_enabled", False)
+            response = original_get(url, **kwargs)
         parsed = urlsplit(str(url))
         if parsed.path != "/api/opportunities" or response.status_code != 200:
             return response
@@ -1929,7 +1934,11 @@ def test_saved_browse_parity_through_real_fact_accept_correct_reject_and_source_
             "status",
         )
         filters = api._normalized_browse_filters(**{name: query.get(name) for name in names})
-        assert rebuild(factory)["status"] == "published"
+        with factory() as session:
+            try:
+                current_generation(session)
+            except HTTPException:
+                assert maintain_once(factory)["status"] == "published"
         with factory() as session:
             saved = page(
                 session,

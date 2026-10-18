@@ -745,6 +745,15 @@ class BrowseState(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     input_revision: Mapped[int] = mapped_column(BigInteger, server_default="0")
     generation_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True))
+    full_revision: Mapped[int] = mapped_column(BigInteger, server_default="0")
+
+
+class BrowseDirtyProject(Base):
+    """Transactional tombstones; deliberately no FK to removable canonical projects."""
+
+    __tablename__ = "browse_dirty_projects"
+    project_id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True)
+    revision: Mapped[int] = mapped_column(BigInteger)
 
 
 class BrowseGeneration(Base):

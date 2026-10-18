@@ -4140,6 +4140,24 @@ def list_need_call_facts(
         }
 
 
+def _refresh_saved_operator_change(session):
+    if settings.saved_browse_enabled:
+        from gridlens.intelligence.saved_browse import refresh_project_changes
+
+        # Canonical facts/corrections must remain writable when a derived build
+        # fails. The committed revision still fences the previous generation.
+        session.flush()
+        try:
+            with session.begin_nested():
+                refresh_project_changes(session)
+        except Exception:
+            import logging
+
+            logging.getLogger(__name__).warning(
+                "Saved browse refresh failed; canonical change retained, qualification pending"
+            )
+
+
 @app.post(
     "/api/needs/{need_id}/facts",
     response_model=CallFactOut,
@@ -4247,6 +4265,7 @@ def create_need_call_fact(need_id: UUID, body: CallFactDraftBody, request: Reque
         )
         session.add(event)
         session.flush()
+        _refresh_saved_operator_change(session)
         return _fact_version_view(row, event)
 
 
@@ -4340,6 +4359,7 @@ def decide_need_call_fact(
             from gridlens.ingestion.service import _apply_current_qualification
 
             _apply_current_qualification(session, need, project)
+        _refresh_saved_operator_change(session)
         return {
             "id": event.id,
             "version": event.version,
@@ -4434,6 +4454,7 @@ def set_need_workflow_status(need_id: UUID, body: NeedWorkflowStatusBody, reques
         )
         session.add(event)
         session.flush()
+        _refresh_saved_operator_change(session)
         return _workflow_event_view(event)
 
 

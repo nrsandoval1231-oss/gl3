@@ -28,6 +28,7 @@ from gridlens.intelligence.opportunity_browse import (
     project_title,
 )
 from gridlens.persistence.models import (
+    BrowseDirtyProject,
     BrowseGeneration,
     BrowseRow,
     BrowseState,
@@ -35,6 +36,7 @@ from gridlens.persistence.models import (
     Evidence,
     NeedObservation,
     Observation,
+    PowerNeed,
 )
 
 
@@ -140,11 +142,227 @@ def _search_texts(session, summaries: list[dict]) -> dict[str, str]:
     return streams
 
 
+def _write_rows(session, generation_id, summaries):
+    from gridlens.api import app as api
+
+    digest = hashlib.sha256()
+    row_count = 0
+    for start in range(0, len(summaries), 50):
+        batch = [
+            {
+                **item,
+                "_browse_first_evidence": {},
+                "_browse_action_candidates": list(item.get("_browse_action_candidates", [])),
+            }
+            for item in summaries[start : start + 50]
+        ]
+        api._opportunity_evidence_search_matches(session, batch, None)
+        searches = _search_texts(session, batch)
+        details = api.opportunity_projection(
+            session, selected_need_ids={item["id"] for item in batch}
+        )
+        by_id = {str(item["id"]): item for item in details}
+        values = []
+        for summary in batch:
+            detail = by_id.get(str(summary["id"]))
+            if detail is None:
+                # Canonical summary/detail disagreement must never silently omit rows.
+                raise RuntimeError("canonical summary/detail eligibility differs")
+            low_high = api.exact_mw_interval(summary.get("required_mw"))
+            compact = {
+                key: value
+                for key, value in detail.items()
+                if key not in {"evidence", "lifecycle_timeline", "estimate_basis"}
+            }
+            compact.update(
+                evidence=[],
+                lifecycle_timeline=[],
+                browse_title=project_title(summary),
+                evidence_count=len(detail.get("evidence", [])),
+                priority_segment=api._opportunity_priority_segment(summary),
+                priority_label=api._opportunity_priority_label(summary),
+                workflow_status=summary.get("workflow_status", "UNKNOWN"),
+            )
+            # Round-trip converts UUID/date/Decimal values for JSONB serialization.
+            compact = json.loads(canonical_json(compact))
+            saved_summary = json.loads(canonical_json(summary))
+            values.append(
+                dict(
+                    generation_id=generation_id,
+                    need_id=summary["id"],
+                    project_id=summary["project_id"],
+                    tier=summary["tier"],
+                    location=normalized_dimension(summary.get("location")),
+                    industry=normalized_dimension(summary.get("asset_type")),
+                    activity=normalized_dimension(summary.get("activity")),
+                    has_timing=bool(
+                        summary.get("start_window")
+                        and str(summary["start_window"]).strip()
+                        and normalized_dimension(summary["start_window"]) != "unknown"
+                    ),
+                    mw_low=low_high[0] if low_high else None,
+                    mw_high=low_high[1] if low_high else None,
+                    priority_segment=summary.get("_priority_segment", 8),
+                    workflow_status=str(summary.get("workflow_status", "UNKNOWN")).upper(),
+                    signal_decision=summary.get("signal_display_decision") or "REVIEW",
+                    project_group=opportunity_group_id(opportunity_group_key(summary, True)),
+                    single_group=opportunity_group_id(opportunity_group_key(summary, False)),
+                    rank_score=detail["rank_score"],
+                    updated_at=summary["_updated_at"],
+                    search_text=searches[str(summary["id"])],
+                    summary=saved_summary,
+                    compact=compact,
+                    display_title=project_title(summary),
+                )
+            )
+            digest.update(
+                canonical_json([saved_summary, compact, searches[str(summary["id"])]]).encode()
+            )
+        if values:
+            session.execute(insert(BrowseRow), values)
+        row_count += len(values)
+    return row_count, digest.hexdigest()
+
+
+def refresh_project_changes(session) -> dict | None:
+    """Publish scoped operator changes in their canonical write transaction.
+
+    The singleton lock serializes writers/publication; pre-commit readers keep the
+    previous complete generation, post-commit readers see the new one. Unknown
+    writes, policy changes and clock expiry stay pending for the full builder.
+    Cloning is SQL-only population work; canonical reconstruction is project-bound.
+    """
+    from gridlens.api import app as api
+
+    session.flush()
+    state = session.scalar(
+        select(BrowseState)
+        .where(BrowseState.id == 1)
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    if state is None or state.generation_id is None:
+        return None
+    previous = session.get(BrowseGeneration, state.generation_id)
+    now = datetime.now(UTC)
+    if (
+        previous is None
+        or previous.policy_version != POLICY_VERSION
+        or previous.valid_until <= now
+        or state.full_revision > previous.input_revision
+    ):
+        return None
+    if previous.input_revision == state.input_revision:
+        return {"status": "current"}
+    projects = list(
+        session.scalars(
+            select(BrowseDirtyProject.project_id)
+            .where(
+                BrowseDirtyProject.revision > previous.input_revision,
+                BrowseDirtyProject.revision <= state.input_revision,
+            )
+            .limit(101)
+        )
+    )
+    # Bulk writes remain offline work; do not hide an unbounded canonical replay
+    # in a mutation request. The maintenance command can run the full builder.
+    if len(projects) > 100:
+        return None
+    need_ids = set(session.scalars(select(PowerNeed.id).where(PowerNeed.project_id.in_(projects))))
+    if len(need_ids) > 100:
+        return None
+    deadline = min(previous.valid_until, clock_deadline(session, now))
+    generation = BrowseGeneration(
+        id=uuid4(),
+        input_revision=state.input_revision,
+        policy_version=POLICY_VERSION,
+        built_at=now,
+        valid_until=deadline,
+        row_count=0,
+        digest="",
+        counts={},
+    )
+    session.add(generation)
+    session.flush()
+    columns = list(BrowseRow.__table__.columns)
+    session.execute(
+        insert(BrowseRow).from_select(
+            [column.name for column in columns],
+            select(
+                *[
+                    literal(generation.id) if column.name == "generation_id" else column
+                    for column in columns
+                ]
+            ).where(
+                BrowseRow.generation_id == previous.id,
+                BrowseRow.project_id.not_in(projects),
+            ),
+        )
+    )
+    summaries = api.opportunity_projection(session, summary_only=True, selected_need_ids=need_ids)
+    _, changed_digest = _write_rows(session, generation.id, summaries)
+    generation.row_count = session.scalar(
+        select(func.count()).select_from(BrowseRow).where(BrowseRow.generation_id == generation.id)
+    )
+    generation.digest = hashlib.sha256(
+        canonical_json(
+            [
+                previous.digest,
+                generation.input_revision,
+                changed_digest,
+            ]
+        ).encode()
+    ).hexdigest()
+    # A new generation otherwise looks empty to stale statistics, allowing
+    # quadratic nested-loop plans in the global metadata update.
+    session.execute(text("ANALYZE browse_rows"))
+    generation.counts = _publish_group_metadata(session, generation.id)
+    if datetime.now(UTC) >= deadline:
+        # Never turn an expired construction into a claimed fresh publication.
+        # Its canonical write remains committed/pending; maintenance rebuilds it.
+        _prune_generations(session)
+        return None
+    state.generation_id = generation.id
+    session.flush()
+    _prune_generations(session)
+    # Keep latest dirty revisions until a full build publishes: an older full
+    # snapshot may still need to replay this transaction even after this local
+    # generation has become current. One journal row per project stays bounded.
+    return {
+        "status": "published",
+        "mode": "projects",
+        "projects": len(projects),
+        "needs": len(need_ids),
+        "generation_id": str(generation.id),
+    }
+
+
+def _prune_generations(session):
+    keep = (
+        select(BrowseGeneration.id)
+        .order_by(BrowseGeneration.built_at.desc(), BrowseGeneration.id)
+        .limit(3)
+    )
+    active = select(BrowseState.generation_id).where(BrowseState.id == 1)
+    session.execute(
+        delete(BrowseGeneration).where(
+            BrowseGeneration.id.not_in(keep), BrowseGeneration.id.not_in(active)
+        )
+    )
+
+
+def maintain_once(factory) -> dict:
+    with factory.begin() as session:
+        result = refresh_project_changes(session)
+    return result if result is not None else rebuild(factory)
+
+
 def rebuild(factory, *, before_publish=None) -> dict:
-    """Build without blocking input writers; atomically publish only unchanged inputs.
+    """Build without blocking input writers; publish a fully fenced canonical snapshot.
 
     A crash rolls back the unpublished generation. The advisory lock excludes other
-    builders, not canonical writes. A competing mutation discards the build safely.
+    builders, not canonical writes. Broad changes discard the build; a bounded
+    project-local tail is canonically rebased under the publication lock.
     """
     from gridlens.api import app as api
 
@@ -175,94 +393,9 @@ def rebuild(factory, *, before_publish=None) -> dict:
                 session.add(generation)
                 session.flush()
                 summaries = api.opportunity_projection(session, summary_only=True)
-                digest = hashlib.sha256()
-                row_count = 0
-                for start in range(0, len(summaries), 50):
-                    batch = [
-                        {
-                            **item,
-                            "_browse_first_evidence": {},
-                            "_browse_action_candidates": list(
-                                item.get("_browse_action_candidates", [])
-                            ),
-                        }
-                        for item in summaries[start : start + 50]
-                    ]
-                    api._opportunity_evidence_search_matches(session, batch, None)
-                    searches = _search_texts(session, batch)
-                    details = api.opportunity_projection(
-                        session, selected_need_ids={item["id"] for item in batch}
-                    )
-                    by_id = {str(item["id"]): item for item in details}
-                    values = []
-                    for summary in batch:
-                        detail = by_id.get(str(summary["id"]))
-                        if detail is None:
-                            # Canonical summary/detail disagreement must never silently omit rows.
-                            raise RuntimeError("canonical summary/detail eligibility differs")
-                        low_high = api.exact_mw_interval(summary.get("required_mw"))
-                        compact = {
-                            key: value
-                            for key, value in detail.items()
-                            if key not in {"evidence", "lifecycle_timeline", "estimate_basis"}
-                        }
-                        compact.update(
-                            evidence=[],
-                            lifecycle_timeline=[],
-                            browse_title=project_title(summary),
-                            evidence_count=len(detail.get("evidence", [])),
-                            priority_segment=api._opportunity_priority_segment(summary),
-                            priority_label=api._opportunity_priority_label(summary),
-                            workflow_status=summary.get("workflow_status", "UNKNOWN"),
-                        )
-                        # Round-trip converts UUID/date/Decimal values for JSONB serialization.
-                        compact = json.loads(canonical_json(compact))
-                        saved_summary = json.loads(canonical_json(summary))
-                        values.append(
-                            dict(
-                                generation_id=generation_id,
-                                need_id=summary["id"],
-                                project_id=summary["project_id"],
-                                tier=summary["tier"],
-                                location=normalized_dimension(summary.get("location")),
-                                industry=normalized_dimension(summary.get("asset_type")),
-                                activity=normalized_dimension(summary.get("activity")),
-                                has_timing=bool(
-                                    summary.get("start_window")
-                                    and str(summary["start_window"]).strip()
-                                    and normalized_dimension(summary["start_window"]) != "unknown"
-                                ),
-                                mw_low=low_high[0] if low_high else None,
-                                mw_high=low_high[1] if low_high else None,
-                                priority_segment=summary.get("_priority_segment", 8),
-                                workflow_status=str(
-                                    summary.get("workflow_status", "UNKNOWN")
-                                ).upper(),
-                                signal_decision=summary.get("signal_display_decision") or "REVIEW",
-                                project_group=opportunity_group_id(
-                                    opportunity_group_key(summary, True)
-                                ),
-                                single_group=opportunity_group_id(
-                                    opportunity_group_key(summary, False)
-                                ),
-                                rank_score=detail["rank_score"],
-                                updated_at=summary["_updated_at"],
-                                search_text=searches[str(summary["id"])],
-                                summary=saved_summary,
-                                compact=compact,
-                                display_title=project_title(summary),
-                            )
-                        )
-                        digest.update(
-                            canonical_json(
-                                [saved_summary, compact, searches[str(summary["id"])]]
-                            ).encode()
-                        )
-                    if values:
-                        session.execute(insert(BrowseRow), values)
-                    row_count += len(values)
+                row_count, digest = _write_rows(session, generation_id, summaries)
                 generation.row_count = row_count
-                generation.digest = digest.hexdigest()
+                generation.digest = digest
                 # Fresh backfills must not depend on a later autovacuum pass for
                 # usable filter/group plans. This is outside the request path.
                 session.execute(text("ANALYZE browse_rows"))
@@ -271,30 +404,37 @@ def rebuild(factory, *, before_publish=None) -> dict:
             if before_publish is not None:
                 before_publish()
             with factory.begin() as publication:
-                published = publication.execute(
-                    update(BrowseState)
-                    .where(
-                        BrowseState.id == 1,
-                        BrowseState.input_revision == revision,
-                        literal(datetime.now(UTC)) < deadline,
-                    )
-                    .values(generation_id=generation_id)
-                ).rowcount
+                state = publication.scalar(
+                    select(BrowseState).where(BrowseState.id == 1).with_for_update()
+                )
+                published = False
+                if state.input_revision == revision and datetime.now(UTC) < deadline:
+                    state.generation_id = generation_id
+                    published = True
+                elif state.full_revision <= revision and datetime.now(UTC) < deadline:
+                    # Rebase a bounded ordinary-write tail under the publication
+                    # lock. Repeated local edits cannot continually discard a long
+                    # full build; readers see neither the intermediate pointer nor
+                    # a mixed revision because both publications commit together.
+                    previous_pointer = state.generation_id
+                    state.generation_id = generation_id
+                    publication.flush()
+                    rebased = refresh_project_changes(publication)
+                    if rebased is not None and rebased["status"] == "published":
+                        generation_id = UUID(rebased["generation_id"])
+                        generation = publication.get(BrowseGeneration, generation_id)
+                        revision, row_count = generation.input_revision, generation.row_count
+                        published = True
+                    else:
+                        state.generation_id = previous_pointer
+                publication.flush()
                 # Retain current plus two prior snapshots. This removes only derived
                 # summary generations, never canonical evidence or accepted history.
-                keep = (
-                    select(BrowseGeneration.id)
-                    .order_by(BrowseGeneration.built_at.desc(), BrowseGeneration.id)
-                    .limit(3)
-                )
-                active = select(BrowseState.generation_id).where(
-                    BrowseState.id == 1, BrowseState.generation_id.is_not(None)
-                )
-                publication.execute(
-                    delete(BrowseGeneration).where(
-                        BrowseGeneration.id.not_in(keep), BrowseGeneration.id.not_in(active)
+                _prune_generations(publication)
+                if published:
+                    publication.execute(
+                        delete(BrowseDirtyProject).where(BrowseDirtyProject.revision <= revision)
                     )
-                )
             return {
                 "status": "published" if published else "superseded",
                 "generation_id": str(generation_id),
@@ -402,6 +542,9 @@ def _publish_group_metadata(session, generation_id: UUID) -> dict:
             'group_id', s.gid, 'group_title', s.title,
             'group_total_filtered', s.group_count, 'matched_search', true
         ) FROM selected s WHERE b.generation_id=:generation AND b.need_id=s.need_id
+        AND (b.compact->>'group_id' IS DISTINCT FROM s.gid
+          OR b.compact->>'group_title' IS DISTINCT FROM s.title
+          OR (b.compact->>'group_total_filtered')::bigint IS DISTINCT FROM s.group_count)
     """
         ),
         params,
@@ -415,11 +558,11 @@ def _publish_group_metadata(session, generation_id: UUID) -> dict:
                 text(
                     tier_sql
                     + """
-            SELECT (SELECT count(*) FROM selected) AS total,
-                (SELECT count(*) FROM groups) AS groups,
-                (SELECT count(*) FROM groups WHERE decision='SHOW') AS show,
-                (SELECT count(*) FROM groups WHERE decision='REVIEW') AS review,
-                (SELECT count(*) FROM groups WHERE decision='HOLD') AS hold
+            SELECT coalesce(sum(group_count), 0)::bigint AS total,
+                count(*) AS groups,
+                count(*) FILTER (WHERE decision='SHOW') AS show,
+                count(*) FILTER (WHERE decision='REVIEW') AS review,
+                count(*) FILTER (WHERE decision='HOLD') AS hold FROM groups
         """
                 ),
                 tier_params,
@@ -442,6 +585,8 @@ def page(
     group_id=None,
     need_id=None,
 ) -> dict:
+    # API callers use _begin_consistent_read's repeatable-read transaction. MVCC
+    # keeps this immutable cohort visible even after concurrent retention pruning.
     generation = current_generation(session)
     # Offsets larger than the entire generation are necessarily empty. Clamping
     # also preserves Python-slice semantics beyond PostgreSQL's bigint range.
@@ -568,7 +713,12 @@ def restore_generation(factory, generation_id: UUID) -> bool:
     with factory.begin() as session:
         # Serialize against publication and derived-generation retention before
         # testing the target; a retained generation cannot disappear mid-rollback.
-        session.scalar(select(BrowseState).where(BrowseState.id == 1).with_for_update())
+        session.scalar(
+            select(BrowseState)
+            .where(BrowseState.id == 1)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
         generation = session.get(BrowseGeneration, generation_id)
         if generation is None or generation.policy_version != POLICY_VERSION:
             return False

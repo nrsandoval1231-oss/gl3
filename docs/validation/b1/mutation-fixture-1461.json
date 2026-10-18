@@ -1,0 +1,116 @@
+{
+  "policy_version": "browse-b1-v1/ranking-v1/1fb3c699d6fb31caa04629e6e033d15427c429fe980fa4e11f8fcfeb55d90e87",
+  "projects": 1461,
+  "evidence": 15874,
+  "fixture": "synthetic dated Signal histories, not production copy",
+  "limitations": [
+    "server functions, no HTTP/network/auth latency",
+    "shared local PostgreSQL host",
+    "clock expiry forced via stored valid_until; not an actual date rollover",
+    "SQL generation clone/prune is population-sized work"
+  ],
+  "evidence_before": [
+    15874,
+    "3ffd3b31c292982fa26ca555f37b126d"
+  ],
+  "full_build_seconds": 18.77495253799998,
+  "full_rebuild_pending_seconds": 16.115953878000255,
+  "atomic_operator_sequential_seconds": {
+    "samples": 12,
+    "p50": 0.20783412500031773,
+    "p95": 0.29150549100040735,
+    "max": 0.29150549100040735
+  },
+  "atomic_operator_concurrent_seconds": {
+    "samples": 12,
+    "p50": 0.49271030499994595,
+    "p95": 0.9270491679999395,
+    "max": 0.9270491679999395
+  },
+  "mutation_statement_counts": [
+    62
+  ],
+  "concurrent_read_seconds": {
+    "samples": 442,
+    "p50": 0.005464428999857773,
+    "p95": 0.010190564999902563,
+    "max": 0.0313763399999516
+  },
+  "concurrent_read_pending_or_errors": [],
+  "fact_handler_seconds": {
+    "draft": {
+      "samples": 4,
+      "p50": 0.2117296050000732,
+      "p95": 0.4700469519998478,
+      "max": 0.4700469519998478
+    },
+    "accepted": {
+      "samples": 4,
+      "p50": 0.21049104199983049,
+      "p95": 0.3466734529997666,
+      "max": 0.3466734529997666
+    },
+    "retracted": {
+      "samples": 4,
+      "p50": 0.22707000900027197,
+      "p95": 0.30804429199997685,
+      "max": 0.30804429199997685
+    }
+  },
+  "external_refresh": {
+    "status": "published",
+    "mode": "projects",
+    "projects": 1,
+    "needs": 1,
+    "generation_id": "95a50c07-3435-4799-8b1b-97fbe58bea51"
+  },
+  "external_commit_to_fresh_seconds": 0.2074769250002646,
+  "expired_refresh": {
+    "status": "published",
+    "generation_id": "c7152f99-cec2-442e-be02-15aa6b1425d1",
+    "input_revision": 66470,
+    "row_count": 1461,
+    "digest": "22cd24bbec4244058f0eaa3df63e6d2b37626f291d057036100e39e6a67dd10b"
+  },
+  "clock_expiry_pending_seconds": 12.374050566999813,
+  "writes_during_expired_full_build": [
+    {
+      "seconds": 0.01182211900004404,
+      "statements": 9
+    },
+    {
+      "seconds": 0.12403285699974731,
+      "statements": 9
+    },
+    {
+      "seconds": 0.1573648239996146,
+      "statements": 9
+    },
+    {
+      "seconds": 0.1404750370002148,
+      "statements": 9
+    },
+    {
+      "seconds": 0.0178979590000381,
+      "statements": 9
+    },
+    {
+      "seconds": 0.10546521299966116,
+      "statements": 9
+    },
+    {
+      "seconds": 0.011693498000113323,
+      "statements": 9
+    },
+    {
+      "seconds": 0.0858119810000062,
+      "statements": 9
+    }
+  ],
+  "writes_during_expired_full_build_errors": [],
+  "retained_generations": 3,
+  "evidence_after": [
+    15874,
+    "3ffd3b31c292982fa26ca555f37b126d"
+  ]
+}

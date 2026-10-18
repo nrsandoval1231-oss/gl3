@@ -15,20 +15,43 @@ statement triggers invalidate on relevant committed SQL writes, including bulk
 updates, corrections, accepted/rejected facts and relationship changes. Rolled
 back writes do not invalidate. Queue/auth/budget writes are excluded.
 
-The first implementation uses a conservative global revision. It serializes the
-revision update and rebuilds the complete generation after a relevant mutation.
-This is an explicit update-availability tradeoff, not per-project incremental
-maintenance. Rebuild lag and write contention need production measurement before
-activation. During a rebuild, browse returns HTTP 503 with qualification pending,
-`Retry-After: 5` and `X-Qualification-State: pending`; no stale Lead is returned as
-current. Unscoped detail still reads current canonical inputs directly.
+The global revision still fences every read. Ordinary operator fact capture,
+accept/reject/correct/retract and workflow changes now refresh all needs in the
+affected project **inside the canonical write transaction**. Unchanged rows are
+copied by PostgreSQL into a new immutable generation; canonical evidence work is
+limited to the changed projects. Global scalar grouping/counts are recomputed.
+Readers see the previous complete generation before commit and the new complete
+generation after commit, without an ordinary-edit pending interval. This still
+copies population-sized JSON payloads and serializes publication; measure write
+latency and contention as well as read latency.
+
+The proven incremental whitelist is `power_needs`, `call_fact_versions`,
+`call_fact_decisions`, and `need_workflow_status_events`. Row triggers journal both
+old/new project scopes transactionally; every other relevant table and TRUNCATE
+forces a full build. More than 100 dirty projects or 100 selected needs also falls
+back to the full builder. Direct SQL scoped writes can commit pending until the
+retained maintenance process (250ms poll plus work) refreshes them. Dirty revisions
+are retained through local publications so a concurrent full builder can rebase a
+bounded ordinary-write tail without losing already-published corrections. Only a
+successful serialized full publication clears its covered journal entries.
+
+A derived refresh error rolls back its savepoint while retaining the canonical
+operator write and its invalidation. Unknown/broad writes, policy changes and
+clock expiry require full rebuilding. During these periods browse returns HTTP
+503 with qualification pending, `Retry-After: 5` and
+`X-Qualification-State: pending`; no stale Lead is returned as current. An edit
+crossing a clock boundary may commit with qualification pending. Unscoped detail
+still reads current canonical inputs directly. These fallbacks have a materially
+longer availability window than ordinary successful edits.
 
 Expiry is the earliest UTC, Chicago or host-local date rollover, or a future
 operator fact start/end instant. A build crossing its expiry cannot publish.
-Publication compares the captured input revision atomically. A separate advisory
+Publication compares the captured input revision atomically, or canonically
+rebases a bounded scoped tail while holding the singleton publication lock. A separate advisory
 lock permits one builder per database. Retention keeps the latest three derived
 generations plus the published pointer if it is older; canonical evidence/history
-is never deleted by maintenance.
+is never deleted by maintenance. API browse transactions use repeatable read, so MVCC retains their immutable
+cohort across statements while concurrent pruning and publication proceed.
 
 Ordinary ranked pages/maps use saved counts and an ordered index page read.
 Arbitrary dimension/search/decision combinations aggregate compact scalar rows to

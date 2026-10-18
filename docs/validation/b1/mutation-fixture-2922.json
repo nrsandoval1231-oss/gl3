@@ -1,0 +1,136 @@
+{
+  "policy_version": "browse-b1-v1/ranking-v1/1fb3c699d6fb31caa04629e6e033d15427c429fe980fa4e11f8fcfeb55d90e87",
+  "projects": 2922,
+  "evidence": 31748,
+  "fixture": "synthetic dated Signal histories, not production copy",
+  "limitations": [
+    "server functions, no HTTP/network/auth latency",
+    "shared local PostgreSQL host",
+    "clock expiry forced via stored valid_until; not an actual date rollover",
+    "SQL generation clone/prune is population-sized work"
+  ],
+  "evidence_before": [
+    31748,
+    "15cd42b7333790e30da19821ba6d553a"
+  ],
+  "full_build_seconds": 26.34135227800016,
+  "full_rebuild_pending_seconds": 23.798862753999856,
+  "atomic_operator_sequential_seconds": {
+    "samples": 12,
+    "p50": 0.38440132300002006,
+    "p95": 0.4459002549997422,
+    "max": 0.4459002549997422
+  },
+  "atomic_operator_concurrent_seconds": {
+    "samples": 12,
+    "p50": 0.8823228470000686,
+    "p95": 1.7480106400003024,
+    "max": 1.7480106400003024
+  },
+  "mutation_statement_counts": [
+    62
+  ],
+  "concurrent_read_seconds": {
+    "samples": 911,
+    "p50": 0.005316538999977638,
+    "p95": 0.009407874999851629,
+    "max": 0.060386246999769355
+  },
+  "concurrent_read_pending_or_errors": [],
+  "fact_handler_seconds": {
+    "draft": {
+      "samples": 4,
+      "p50": 0.4022514730004332,
+      "p95": 0.5674196719996871,
+      "max": 0.5674196719996871
+    },
+    "accepted": {
+      "samples": 4,
+      "p50": 0.45008478099998683,
+      "p95": 0.5557932479996452,
+      "max": 0.5557932479996452
+    },
+    "retracted": {
+      "samples": 4,
+      "p50": 0.4435911619998478,
+      "p95": 0.5260897379998823,
+      "max": 0.5260897379998823
+    }
+  },
+  "fact_handler_statement_counts": {
+    "draft": [
+      63,
+      63,
+      63,
+      63
+    ],
+    "accepted": [
+      78,
+      77,
+      77,
+      77
+    ],
+    "retracted": [
+      77,
+      77,
+      77,
+      77
+    ]
+  },
+  "external_refresh": {
+    "status": "published",
+    "mode": "projects",
+    "projects": 1,
+    "needs": 1,
+    "generation_id": "fdcff31d-1367-47d9-b862-33d3aa4fff77"
+  },
+  "external_commit_to_fresh_seconds": 0.4549001599998519,
+  "expired_refresh": {
+    "status": "published",
+    "generation_id": "278a9975-bd8d-430c-a0ea-88538f68e3fe",
+    "input_revision": 132888,
+    "row_count": 2922,
+    "digest": "d70cc3a091a1b9e71f281f56c5eb31d4fccf9ae7c02541bf47ce1538db1eaab1"
+  },
+  "clock_expiry_pending_seconds": 22.267385030999776,
+  "writes_during_expired_full_build": [
+    {
+      "seconds": 0.011105748999852949,
+      "statements": 9
+    },
+    {
+      "seconds": 0.04378524499998093,
+      "statements": 9
+    },
+    {
+      "seconds": 0.0066848430001300585,
+      "statements": 9
+    },
+    {
+      "seconds": 0.006510401000014099,
+      "statements": 9
+    },
+    {
+      "seconds": 0.07994882499997402,
+      "statements": 9
+    },
+    {
+      "seconds": 0.007402428000204964,
+      "statements": 9
+    },
+    {
+      "seconds": 0.04207388800023182,
+      "statements": 9
+    },
+    {
+      "seconds": 0.006591286000002583,
+      "statements": 9
+    }
+  ],
+  "writes_during_expired_full_build_errors": [],
+  "retained_generations": 3,
+  "evidence_after": [
+    31748,
+    "15cd42b7333790e30da19821ba6d553a"
+  ]
+}

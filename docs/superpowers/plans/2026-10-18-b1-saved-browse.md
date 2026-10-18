@@ -12,7 +12,7 @@
 
 - Preserve canonical evidence, operator acceptance/rejection, correction/withdrawal, tier, buying roles, global rank and exact normalized substring search.
 - Group after dimension filters, before search and decision filters. Store both project and singleton group identities; do not freeze one global grouping.
-- A conservative global input revision invalidates every generation. This favors correctness over update availability; measure rebuild lag before enabling. No hidden stale Lead fallback.
+- Preserve global revision fencing. Ordinary fact/workflow transactions publish a new generation atomically using a four-table dirty-project whitelist; copy unchanged rows in SQL, canonically reconstruct all changed-project needs, recompute global scalar groups/counts. Unknown/bulk/policy/clock changes remain full-build pending. No hidden stale Lead fallback.
 - Expire at the earliest UTC/local date rollover or operator fact effective boundary. A generation crossing a clock boundary during construction cannot publish.
 - Retain previous generations for reversible publication only when their input revision, policy and clocks remain current. Old application image remains the deployment rollback path.
 - Add migration 0021 after main's provenance 0020; leave PR72/73 untouched.
@@ -30,4 +30,15 @@
 
 ## Review focus
 
-Rejected or superseded facts must not support current qualification. Group membership must change correctly when filters remove siblings. Search must preserve cross-field/history substring behavior and Unicode normalization. Changes committed during a build must prevent publication. No endpoint may label an expired generation as current.
+Rejected or superseded facts must not support current qualification. Group membership must change correctly when filters remove siblings. Search must preserve cross-field/history substring behavior and Unicode normalization. Broad changes committed during a build must prevent publication; bounded scoped tails must be canonically rebased, including edits already published incrementally. No endpoint may label an expired generation as current.
+
+## Availability repair after PR77 review
+
+Measured initial full rebuild availability was unacceptable for ordinary edits.
+The owner explicitly required mutation-to-fresh, repeated-write and expiry
+measurements before merge. Added transactional incremental publication for the
+proven four-table operator scope, savepoint failure isolation, conservative full
+fallback, retained dirty history across concurrent builds and fenced bounded tail
+rebase. Independent review reproduced and the regression now prevents a lost-edit
+rebase bug. SQL cloning/pruning remains population-sized; calendar expiry still
+requires full canonical rebuilding and is an explicit availability limitation.
