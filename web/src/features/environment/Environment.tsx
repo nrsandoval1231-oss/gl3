@@ -227,7 +227,6 @@ export function Environment({ onSignOut, today }: { onSignOut: () => void; today
           <a href={urlFor({ ...scene, mode: 'browse' })} onClick={(event) => { event.preventDefault(); go({ mode: 'browse' }) }}>All records</a>
           <a href={urlFor({ ...scene, mode: 'pursuits' })} onClick={(event) => { event.preventDefault(); go({ mode: 'pursuits' }) }}>Today’s pursuits</a>
           <a href={withEnvironmentReturn(`/?tier=${scene.tier}`)}>Advanced record browser</a>
-          <a href="/?view=editorial">Editorial review</a>
           <a href={withEnvironmentReturn("/?view=ingestion")}>Ingestion inbox</a>
           <a href={withEnvironmentReturn("/?view=ingestion&health=1")}>Source health</a>
           <button type="button" onClick={onSignOut}>Sign out</button>

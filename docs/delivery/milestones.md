@@ -17,9 +17,19 @@ Estimated build completion, as judgment and not a measurement: about 55–60% ov
 - Seven consecutive real scheduled daily cycles: not started.
 - A real, independently discovered Lead: none accepted.
 
-## Open decision: pull request #68
+## Owner decision: remove the editorial workflow
 
-Editorial review and sync. Outside the original scope, sends evidence text to OpenAI as a second AI provider, and will conflict with #66 and #67. Merge last, and only if Nick wants it in GL3; `docs/decisions.md` already says model calls should fold into one provider adapter.
+Nick requested complete removal of the editorial part on October 18, 2026. The
+review page, routes, assessment/export workflow, and external feed contract are
+removed. Historical editorial decision and assessment rows remain in their
+existing tables under migration `0019_editorial_decisions`; no migration or data
+purge accompanies this change. See [retained-records note](../operations/retained-editorial-records.md).
+
+Pull request #71 is superseded and must not be merged. Separate newsletter PRs
+#72 and #73 remain unmerged and unchanged; they depend on the removed
+`domain.editorial` and `editorial_clearance` modules and #72's `0020` migration
+conflicts with main's existing `0020`. Any future newsletter work needs separate
+scope and a rebase that removes this coupling.
 
 ## Owner stages and PRD milestones
 

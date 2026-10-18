@@ -104,6 +104,15 @@ test('deep link restores a project scene and the call brief stays unsent', async
   await expect(page.getByText(/call brief · nothing is sent/i)).toBeVisible()
 })
 
+test('the retired editorial URL opens the ordinary environment home without a review menu entry', async ({ page }) => {
+  await mock(page, [opportunity('a', 'Austin, TX')])
+  await page.goto('/?view=editorial')
+  await expect(page.getByRole('heading', { name: /A wider view/ })).toBeVisible()
+  await page.getByRole('button', { name: 'Menu' }).click()
+  await expect(page.getByRole('navigation', { name: 'Workspace' }).getByText('Editorial review')).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: 'Editorial review' })).toHaveCount(0)
+})
+
 test('empty and failed result sets are honest', async ({ page }) => {
   await mock(page, [])
   await page.goto('/?view=environment&level=Leads')
