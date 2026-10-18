@@ -194,6 +194,9 @@ class Evidence(Base):
     extraction_location: Mapped[str] = mapped_column(String(100), default="title and abstract")
     event_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     event_date_label: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    provenance: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, default=dict, server_default=text("'{}'::jsonb"), nullable=False
+    )
     observation: Mapped[Observation] = relationship(back_populates="evidence")
 
 

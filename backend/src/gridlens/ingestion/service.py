@@ -123,6 +123,48 @@ def _source_version_hash(record: dict[str, Any]) -> str:
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
 
+def _source_link_provenance(record: dict[str, Any], source_id: str) -> dict[str, Any]:
+    """Return explicit publisher hrefs as inert provenance metadata."""
+    links: dict[str, list[str]] = {}
+    if source_id == "nc-commerce":
+        source_url = record.get("source_url")
+        if isinstance(source_url, str) and source_url:
+            links["article"] = [source_url]
+    raw_links = None
+    if source_id in {"texas-tceq-nsr-pending", "california-ceqanet-data-centers"}:
+        permit = record.get("permit")
+        raw_links = permit.get("source_link_hrefs") if isinstance(permit, dict) else None
+    if isinstance(raw_links, dict):
+        for label, value in raw_links.items():
+            if isinstance(label, str) and label and isinstance(value, str) and value:
+                links[label] = [value]
+    return {"raw_source_links": links} if links else {}
+
+
+def _merge_source_link_provenance(
+    current: dict[str, Any] | None, incoming: dict[str, Any]
+) -> dict[str, Any]:
+    """Union raw href aliases while preserving unrelated retained provenance."""
+    merged = dict(current) if isinstance(current, dict) else {}
+    old_links = merged.get("raw_source_links")
+    old_links = old_links if isinstance(old_links, dict) else {}
+    new_links = incoming.get("raw_source_links")
+    if not isinstance(new_links, dict):
+        return merged
+    combined: dict[str, list[str]] = {}
+    for label in set(old_links) | set(new_links):
+        values: list[str] = []
+        for candidate in (old_links.get(label), new_links.get(label)):
+            candidates = candidate if isinstance(candidate, list) else [candidate]
+            for value in candidates:
+                if isinstance(value, str) and value and value not in values:
+                    values.append(value)
+        if values:
+            combined[str(label)] = values
+    merged["raw_source_links"] = combined
+    return merged
+
+
 def _taylor_article_identity_conflict(
     records: list[Observation | Evidence | dict[str, Any]],
 ) -> bool:
@@ -1833,6 +1875,7 @@ def process_records(
             else _hash(record)
         )
         evidence_digest = record.get("source_hash") or _source_version_hash(record)
+        source_provenance = _source_link_provenance(record, source.id)
         if record.get("publication_date"):
             counts["latest_publication_date"] = max(
                 counts["latest_publication_date"] or "0000-00-00", record["publication_date"]
@@ -1934,15 +1977,13 @@ def process_records(
             observation.content_hash = digest
             counts["changed"] += 1
         assert observation is not None
-        if (
-            session.scalar(
-                select(Evidence.id).where(
-                    Evidence.observation_id == observation.id,
-                    Evidence.content_hash == evidence_digest,
-                )
+        existing_evidence = session.scalar(
+            select(Evidence).where(
+                Evidence.observation_id == observation.id,
+                Evidence.content_hash == evidence_digest,
             )
-            is None
-        ):
+        )
+        if existing_evidence is None:
             session.add(
                 Evidence(
                     observation_id=observation.id,
@@ -1959,7 +2000,14 @@ def process_records(
                         record.get("event_date_label")
                         or ("Permit issue date" if is_permit_source else None)
                     ),
+                    provenance=source_provenance,
                 )
+            )
+        elif source_provenance:
+            # Reassignment is required for SQLAlchemy JSONB change tracking and
+            # happens before the early evidence commit, even if later assessment fails.
+            existing_evidence.provenance = _merge_source_link_provenance(
+                existing_evidence.provenance, source_provenance
             )
         # Ordinary ingestion keeps evidence durable across enrichment failure.
         session.commit() if commit else session.flush()
