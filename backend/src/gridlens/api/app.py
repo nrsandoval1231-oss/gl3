@@ -221,6 +221,8 @@ class OpportunityOut(BaseModel):
     matched_search: bool | None = None
     priority_segment: int | None = None
     priority_label: str | None = None
+    browse_title: str | None = None
+    evidence_count: int | None = None
 
 
 class CallFactDraftBody(BaseModel):
@@ -1595,6 +1597,32 @@ def opportunities(
         raise HTTPException(422, "cohort_token is required when offset is greater than zero")
     tier = filters["tier"]
     decision = filters["decision"]
+    if settings.saved_browse_enabled:
+        from gridlens.intelligence.saved_browse import page as saved_page
+
+        with SessionLocal() as session:
+            _begin_consistent_read(session)
+            saved = saved_page(
+                session, filters, limit=limit, offset=offset, ranked=sort == "rank", token=cohort
+            )
+            response.headers.update(
+                {
+                    "X-Total-Count": str(saved["total_count"]),
+                    "X-Group-Total-Count": str(saved["group_total_count"]),
+                    "X-Page-Record-Count": str(len(saved["items"])),
+                    "X-Page-Group-Count": str(len({row["group_id"] for row in saved["items"]})),
+                    "X-Limit": str(limit),
+                    "X-Offset": str(offset),
+                    "X-Cohort-Token": saved["cohort_token"],
+                    "X-Decision-Counts": json.dumps(
+                        saved["decision_counts"], separators=(",", ":")
+                    ),
+                    "X-Qualification-State": "current",
+                }
+            )
+            if offset + len(saved["items"]) < saved["total_count"]:
+                response.headers["X-Next-Offset"] = str(offset + len(saved["items"]))
+            return _bounded_opportunity_payload(saved["items"])
     with SessionLocal() as session:
         _begin_consistent_read(session)
         summaries = opportunity_projection(session, tier=tier, summary_only=True)
@@ -1748,6 +1776,20 @@ def opportunity_map_window(
     )
     tier = filters["tier"]
     decision = filters["decision"]
+    if settings.saved_browse_enabled:
+        from gridlens.intelligence.saved_browse import page as saved_page
+
+        with SessionLocal() as session:
+            _begin_consistent_read(session)
+            saved = saved_page(session, filters, limit=_OPPORTUNITY_MAP_WINDOW_LIMIT, ranked=True)
+            return _bounded_opportunity_map_window_payload(
+                {
+                    **saved,
+                    "loaded_count": len(saved["items"]),
+                    "is_subset": len(saved["items"]) < saved["total_count"],
+                    "window_limit": _OPPORTUNITY_MAP_WINDOW_LIMIT,
+                }
+            )
     with SessionLocal() as session:
         _begin_consistent_read(session)
         summaries = opportunity_projection(session, tier=tier, summary_only=True)
@@ -1844,16 +1886,18 @@ def opportunity_map_window(
         # The whole map payload is budgeted together; individual detail reads stay in
         # bounded batches, and any over-budget answer fails closed rather than truncating.
         output = _bounded_opportunity_payload(output)
-        return _bounded_opportunity_map_window_payload({
-            "items": output,
-            "total_count": len(filtered),
-            "loaded_count": len(output),
-            "is_subset": len(output) < len(filtered),
-            "window_limit": _OPPORTUNITY_MAP_WINDOW_LIMIT,
-            "group_total_count": len(filtered_groups),
-            "cohort_token": cohort_token,
-            "decision_counts": decision_counts,
-        })
+        return _bounded_opportunity_map_window_payload(
+            {
+                "items": output,
+                "total_count": len(filtered),
+                "loaded_count": len(output),
+                "is_subset": len(output) < len(filtered),
+                "window_limit": _OPPORTUNITY_MAP_WINDOW_LIMIT,
+                "group_total_count": len(filtered_groups),
+                "cohort_token": cohort_token,
+                "decision_counts": decision_counts,
+            }
+        )
 
 
 _RANK_BATCH_SIZE = 50
@@ -2163,6 +2207,33 @@ def opportunity_group_page(
     )
     tier = filters["tier"]
     decision = filters["decision"]
+    if settings.saved_browse_enabled:
+        from gridlens.intelligence.saved_browse import page as saved_page
+
+        with SessionLocal() as session:
+            _begin_consistent_read(session)
+            saved = saved_page(
+                session, filters, limit=limit, offset=offset, token=cohort_token, group_id=group_id
+            )
+            target = saved["items"]
+            if not target and offset > 0:
+                # An existing group's page beyond its end is empty, not missing.
+                target = saved_page(
+                    session, filters, limit=1, offset=0, token=cohort_token, group_id=group_id
+                )["items"]
+            if not target:
+                raise HTTPException(404, "Opportunity group not found or page is empty")
+            total = target[0]["group_total_filtered"]
+            return {
+                "items": _bounded_opportunity_payload(saved["items"]),
+                "total": total,
+                "limit": limit,
+                "offset": offset,
+                "next_offset": offset + len(saved["items"])
+                if offset + len(saved["items"]) < total
+                else None,
+                "cohort_token": saved["cohort_token"],
+            }
     with SessionLocal() as session:
         _begin_consistent_read(session)
         summaries = opportunity_projection(session, tier=tier, summary_only=True)
@@ -2289,6 +2360,43 @@ def opportunity_need_detail(
     )
     tier = filters["tier"]
     decision = filters["decision"]
+    if settings.saved_browse_enabled:
+        from gridlens.intelligence.saved_browse import page as saved_page
+
+        with SessionLocal() as session:
+            _begin_consistent_read(session)
+            # Identity reads are targeted canonical reads, usable even during a rebuild.
+            scoped = (
+                any(value is not None for value in filters.values()) or cohort_token is not None
+            )
+            summary = None
+            if scoped:
+                saved = saved_page(session, filters, need_id=need_id, token=cohort_token)
+                if not saved["items"]:
+                    raise HTTPException(404, "Opportunity is outside the requested filtered cohort")
+                summary = saved["items"][0]
+                _preflight_opportunity_details(session, [summary])
+            else:
+                candidates = opportunity_projection(
+                    session, summary_only=True, selected_need_ids={need_id}
+                )
+                if not candidates:
+                    raise HTTPException(404, "Opportunity not found")
+                _preflight_opportunity_details(session, candidates)
+                candidate = candidates[0]
+                summary = {
+                    "priority_segment": _opportunity_priority_segment(candidate),
+                    "priority_label": _opportunity_priority_label(candidate),
+                    "workflow_status": candidate.get("workflow_status", "UNKNOWN"),
+                }
+            details = opportunity_projection(session, selected_need_ids={need_id})
+            if not details:
+                raise HTTPException(404, "Opportunity not found")
+            detail = _bounded_opportunity_payload(details)[0]
+            if summary:
+                for key in ("priority_segment", "priority_label", "workflow_status"):
+                    detail[key] = summary[key]
+            return detail
     with SessionLocal() as session:
         _begin_consistent_read(session)
         summaries = _filter_opportunity_summaries(
@@ -2384,48 +2492,59 @@ def export_opportunities_csv(
     decision = filters["decision"]
     with SessionLocal() as session:
         _begin_consistent_read(session)
-        summaries = opportunity_projection(session, tier=tier, summary_only=True)
-        items = _filter_opportunity_summaries(
-            [
-                {
-                    **item,
-                    "_browse_first_evidence": {},
-                    "_browse_action_candidates": item.get("_browse_action_candidates", []),
-                }
-                for item in summaries
-            ],
-            filters,
-        )
-        evidence_matches = _opportunity_evidence_search_matches(session, items, search)
-        matches = {
-            str(item["id"]): matched_opportunity(
-                item, search or "", evidence_matches.get(str(item["id"]), False)
+        if settings.saved_browse_enabled:
+            from gridlens.intelligence.saved_browse import page as saved_page
+
+            saved = saved_page(session, filters, limit=limit + 1, token=cohort_token)
+            selected = [
+                {**item, "_priority_segment": item["priority_segment"]} for item in saved["items"]
+            ]
+            token = saved["cohort_token"]
+            total_selected = saved["total_count"]
+        else:
+            summaries = opportunity_projection(session, tier=tier, summary_only=True)
+            items = _filter_opportunity_summaries(
+                [
+                    {
+                        **item,
+                        "_browse_first_evidence": {},
+                        "_browse_action_candidates": item.get("_browse_action_candidates", []),
+                    }
+                    for item in summaries
+                ],
+                filters,
             )
-            for item in items
-        }
-        groups = grouped_opportunities(items)
-        selected_groups = [
-            (key, members)
-            for key, members in groups
-            if any(matches[str(member["id"])] for member in members)
-            and (decision in {None, "ALL"} or grouped_signal_decision(members) == decision)
-        ]
-        key_by_id = {
-            str(member["id"]): key for key, members in selected_groups for member in members
-        }
-        selected = [member for _key, members in selected_groups for member in members]
-        selected.sort(key=lambda item: str(item["id"]))
-        selected.sort(key=lambda item: item.get("_updated_at") or datetime.min, reverse=True)
-        selected_keys = [key_by_id[str(item["id"])] for item in selected]
-        token = build_opportunity_cohort_token(filters, selected, selected_keys)
-        if cohort_token is not None and _membership_token(cohort_token) != token:
-            raise HTTPException(409, "Opportunity cohort changed; restart export")
-        if len(selected) > limit:
+            evidence_matches = _opportunity_evidence_search_matches(session, items, search)
+            matches = {
+                str(item["id"]): matched_opportunity(
+                    item, search or "", evidence_matches.get(str(item["id"]), False)
+                )
+                for item in items
+            }
+            groups = grouped_opportunities(items)
+            selected_groups = [
+                (key, members)
+                for key, members in groups
+                if any(matches[str(member["id"])] for member in members)
+                and (decision in {None, "ALL"} or grouped_signal_decision(members) == decision)
+            ]
+            key_by_id = {
+                str(member["id"]): key for key, members in selected_groups for member in members
+            }
+            selected = [member for _key, members in selected_groups for member in members]
+            selected.sort(key=lambda item: str(item["id"]))
+            selected.sort(key=lambda item: item.get("_updated_at") or datetime.min, reverse=True)
+            selected_keys = [key_by_id[str(item["id"])] for item in selected]
+            token = build_opportunity_cohort_token(filters, selected, selected_keys)
+            if cohort_token is not None and _membership_token(cohort_token) != token:
+                raise HTTPException(409, "Opportunity cohort changed; restart export")
+            total_selected = len(selected)
+        if total_selected > limit:
             raise HTTPException(
                 413,
                 {
                     "code": "opportunity_export_row_limit",
-                    "total": len(selected),
+                    "total": total_selected,
                     "max_rows": limit,
                     "message": "Narrow filters before exporting; no rows were omitted silently.",
                 },
@@ -4021,6 +4140,24 @@ def list_need_call_facts(
         }
 
 
+def _refresh_saved_operator_change(session):
+    if settings.saved_browse_enabled:
+        from gridlens.intelligence.saved_browse import refresh_project_changes
+
+        # Canonical facts/corrections must remain writable when a derived build
+        # fails. The committed revision still fences the previous generation.
+        session.flush()
+        try:
+            with session.begin_nested():
+                refresh_project_changes(session)
+        except Exception:
+            import logging
+
+            logging.getLogger(__name__).warning(
+                "Saved browse refresh failed; canonical change retained, qualification pending"
+            )
+
+
 @app.post(
     "/api/needs/{need_id}/facts",
     response_model=CallFactOut,
@@ -4128,6 +4265,7 @@ def create_need_call_fact(need_id: UUID, body: CallFactDraftBody, request: Reque
         )
         session.add(event)
         session.flush()
+        _refresh_saved_operator_change(session)
         return _fact_version_view(row, event)
 
 
@@ -4221,6 +4359,7 @@ def decide_need_call_fact(
             from gridlens.ingestion.service import _apply_current_qualification
 
             _apply_current_qualification(session, need, project)
+        _refresh_saved_operator_change(session)
         return {
             "id": event.id,
             "version": event.version,
@@ -4315,6 +4454,7 @@ def set_need_workflow_status(need_id: UUID, body: NeedWorkflowStatusBody, reques
         )
         session.add(event)
         session.flush()
+        _refresh_saved_operator_change(session)
         return _workflow_event_view(event)
 
 
@@ -5220,7 +5360,6 @@ def commercial_research_status(need_id: UUID, question: str = Query(..., min_len
             "citations": [],
             "error": None,
         }
-
 
 
 @app.get("/api/editorial/candidates", dependencies=[Depends(require_session)])

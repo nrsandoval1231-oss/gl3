@@ -1,0 +1,60 @@
+{
+  "projects": 1461,
+  "evidence": 15874,
+  "fixture": "synthetic dated Signal histories, not production copy",
+  "limitations": [
+    "server functions, no HTTP/network/auth latency",
+    "shared local PostgreSQL host",
+    "clock expiry forced via stored valid_until; not an actual date rollover",
+    "SQL generation clone/prune is population-sized work"
+  ],
+  "evidence_before": [
+    15874,
+    "915438f6600498a821cbef93d70a129d"
+  ],
+  "full_build_seconds": 22.25240009199979,
+  "full_rebuild_pending_seconds": 18.36807512300038,
+  "atomic_operator_sequential_seconds": {
+    "samples": 12,
+    "p50": 2.764283550000073,
+    "p95": 4.057306715999857,
+    "max": 4.057306715999857
+  },
+  "atomic_operator_concurrent_seconds": {
+    "samples": 12,
+    "p50": 6.513609344999622,
+    "p95": 13.275288614999681,
+    "max": 13.275288614999681
+  },
+  "mutation_statement_counts": [
+    62
+  ],
+  "concurrent_read_seconds": {
+    "samples": 5124,
+    "p50": 0.006959978999930172,
+    "p95": 0.020496300000104384,
+    "max": 0.16970001000026969
+  },
+  "concurrent_read_pending_or_errors": [],
+  "external_refresh": {
+    "status": "published",
+    "mode": "projects",
+    "projects": 1,
+    "needs": 1,
+    "generation_id": "9ef6762a-ad87-4406-bccb-c7dc17a36f7f"
+  },
+  "external_commit_to_fresh_seconds": 2.5091553719998956,
+  "expired_refresh": {
+    "status": "published",
+    "generation_id": "eb27f8e2-d6cc-410e-9547-416c1b726988",
+    "input_revision": 66445,
+    "row_count": 1461,
+    "digest": "94a46b50e77fb231b25666a3b950be97bf78d2304933c78fff9c85b4920fbf80"
+  },
+  "clock_expiry_pending_seconds": 16.165878235000037,
+  "retained_generations": 3,
+  "evidence_after": [
+    15874,
+    "915438f6600498a821cbef93d70a129d"
+  ]
+}

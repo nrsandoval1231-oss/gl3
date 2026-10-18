@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     login_global_limit: int = Field(default=500, ge=10, le=10000)
     login_client_bucket_cap: int = Field(default=10000, ge=100, le=100000)
     worker_auto_refresh: bool = True
+    saved_browse_enabled: bool = False
     pursuits_daily_fetch_limit: int = 160
     pursuits_daily_model_limit: int = 8
     typesafe_api_key: SecretStr | None = None

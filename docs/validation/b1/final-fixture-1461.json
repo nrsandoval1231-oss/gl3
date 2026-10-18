@@ -1,0 +1,219 @@
+{
+  "kind": "synthetic-local-postgresql-server-function",
+  "projects": 1461,
+  "evidence": 15874,
+  "active_needs": 1461,
+  "limitations": [
+    "Fabricated Signal histories; not a production data copy or HTTP/browser latency",
+    "No live ingestion or external AI; concurrent reads only",
+    "Connection wait, database CPU, and production network not separately measured"
+  ],
+  "seed_seconds": 14.036513711999987,
+  "evidence_before": {
+    "count": 15874,
+    "checksum": "b12345452a75878e266204447962eaad"
+  },
+  "build": {
+    "status": "published",
+    "generation_id": "b8e8202d-82f1-45f1-a345-cab90e9c056e",
+    "input_revision": 66419,
+    "row_count": 1461,
+    "digest": "d952b07a0f0801aa9c9addf70b291463b00bbede4d4507591f0120eecf6f2e74"
+  },
+  "build_seconds": 22.59379647600008,
+  "evidence_after": {
+    "count": 15874,
+    "checksum": "b12345452a75878e266204447962eaad"
+  },
+  "legacy_baseline": {
+    "ranked_page": {
+      "sequential": {
+        "samples": 3,
+        "p50_seconds": 33.349125383,
+        "p95_seconds": 34.737780346000136,
+        "max_seconds": 34.737780346000136,
+        "max_selects": 807,
+        "max_bytes": 909338,
+        "semantic_fingerprints": [
+          "bfe24a3dca48b0b50e1f72f896fb12495b2d67521c4ac950d8b3ab2ef8881b79"
+        ]
+      },
+      "concurrent": {
+        "samples": 3,
+        "p50_seconds": 51.98969357500005,
+        "p95_seconds": 52.06777660400007,
+        "max_seconds": 52.06777660400007,
+        "max_selects": 807,
+        "max_bytes": 909338,
+        "semantic_fingerprints": [
+          "bfe24a3dca48b0b50e1f72f896fb12495b2d67521c4ac950d8b3ab2ef8881b79"
+        ]
+      }
+    },
+    "map": {
+      "sequential": {
+        "samples": 3,
+        "p50_seconds": 16.374169989999928,
+        "p95_seconds": 22.922730471000023,
+        "max_seconds": 22.922730471000023,
+        "max_selects": 873,
+        "max_bytes": 3648763,
+        "semantic_fingerprints": [
+          "9437ed903e826c900d3c57dd369a2eeb6c3a27527cc21d4361e160d6c0f0e0e9"
+        ]
+      },
+      "concurrent": {
+        "samples": 3,
+        "p50_seconds": 61.68803490800019,
+        "p95_seconds": 62.274908489000154,
+        "max_seconds": 62.274908489000154,
+        "max_selects": 873,
+        "max_bytes": 3648763,
+        "semantic_fingerprints": [
+          "9437ed903e826c900d3c57dd369a2eeb6c3a27527cc21d4361e160d6c0f0e0e9"
+        ]
+      }
+    },
+    "detail": {
+      "sequential": {
+        "samples": 3,
+        "p50_seconds": 7.14250844199978,
+        "p95_seconds": 8.771816270000045,
+        "max_seconds": 8.771816270000045,
+        "max_selects": 147,
+        "max_bytes": 16662,
+        "semantic_fingerprints": [
+          "04ef1dc03195a8582f033d393ce4ba5cd6e572db5ac7fb41aa5618379b4ca2b3"
+        ]
+      },
+      "concurrent": {
+        "samples": 3,
+        "p50_seconds": 26.79068009299999,
+        "p95_seconds": 27.567354438999928,
+        "max_seconds": 27.567354438999928,
+        "max_selects": 147,
+        "max_bytes": 16662,
+        "semantic_fingerprints": [
+          "04ef1dc03195a8582f033d393ce4ba5cd6e572db5ac7fb41aa5618379b4ca2b3"
+        ]
+      }
+    }
+  },
+  "measurements": {
+    "ranked_page": {
+      "sequential": {
+        "samples": 30,
+        "p50_seconds": 0.007100471000057951,
+        "p95_seconds": 0.03168128200013598,
+        "max_seconds": 0.03992027000003873,
+        "max_selects": 2,
+        "max_bytes": 102493,
+        "semantic_fingerprints": [
+          "bfe24a3dca48b0b50e1f72f896fb12495b2d67521c4ac950d8b3ab2ef8881b79"
+        ]
+      },
+      "concurrent": {
+        "samples": 30,
+        "p50_seconds": 0.026564222999923004,
+        "p95_seconds": 0.2203212250001343,
+        "max_seconds": 0.23025218800012226,
+        "max_selects": 2,
+        "max_bytes": 102493,
+        "semantic_fingerprints": [
+          "bfe24a3dca48b0b50e1f72f896fb12495b2d67521c4ac950d8b3ab2ef8881b79"
+        ]
+      }
+    },
+    "filtered": {
+      "sequential": {
+        "samples": 30,
+        "p50_seconds": 0.028350124500093443,
+        "p95_seconds": 0.054884074000028704,
+        "max_seconds": 0.0658918840001661,
+        "max_selects": 3,
+        "max_bytes": 102469,
+        "semantic_fingerprints": [
+          "827fdf0dc0d661aab7276ed4a2965ee4151c9d81c0aa6ff90509b25e826d7846"
+        ]
+      },
+      "concurrent": {
+        "samples": 30,
+        "p50_seconds": 0.04208646300003238,
+        "p95_seconds": 0.1947492639999382,
+        "max_seconds": 0.2121973910000179,
+        "max_selects": 3,
+        "max_bytes": 102469,
+        "semantic_fingerprints": [
+          "827fdf0dc0d661aab7276ed4a2965ee4151c9d81c0aa6ff90509b25e826d7846"
+        ]
+      }
+    },
+    "map": {
+      "sequential": {
+        "samples": 30,
+        "p50_seconds": 0.018177927500005353,
+        "p95_seconds": 0.05663122900000417,
+        "max_seconds": 0.06298897200008469,
+        "max_selects": 2,
+        "max_bytes": 410955,
+        "semantic_fingerprints": [
+          "9437ed903e826c900d3c57dd369a2eeb6c3a27527cc21d4361e160d6c0f0e0e9"
+        ]
+      },
+      "concurrent": {
+        "samples": 30,
+        "p50_seconds": 0.13522686750002322,
+        "p95_seconds": 0.4023899290000372,
+        "max_seconds": 0.4694914819999667,
+        "max_selects": 2,
+        "max_bytes": 410955,
+        "semantic_fingerprints": [
+          "9437ed903e826c900d3c57dd369a2eeb6c3a27527cc21d4361e160d6c0f0e0e9"
+        ]
+      }
+    },
+    "detail": {
+      "sequential": {
+        "samples": 30,
+        "p50_seconds": 0.08160997850006879,
+        "p95_seconds": 0.4355249609998282,
+        "max_seconds": 0.4650564129999566,
+        "max_selects": 33,
+        "max_bytes": 16662,
+        "semantic_fingerprints": [
+          "04ef1dc03195a8582f033d393ce4ba5cd6e572db5ac7fb41aa5618379b4ca2b3"
+        ]
+      },
+      "concurrent": {
+        "samples": 30,
+        "p50_seconds": 0.33460837350003203,
+        "p95_seconds": 0.5637246490000507,
+        "max_seconds": 0.5654384729998583,
+        "max_selects": 33,
+        "max_bytes": 16662,
+        "semantic_fingerprints": [
+          "04ef1dc03195a8582f033d393ce4ba5cd6e572db5ac7fb41aa5618379b4ca2b3"
+        ]
+      }
+    }
+  },
+  "fresh_process_ranked_page": {
+    "seconds": 0.08326772499981416,
+    "returned": 50,
+    "statements": 2,
+    "scope": "fresh Python process/pool; warm PostgreSQL cache"
+  },
+  "runtime_policy": "browse-b1-v1/ranking-v1/11427333598d084e1c29b06759e8318756c8a167dff9f148698ad6232d187e57",
+  "rank_page_explain": [
+    "Limit  (cost=0.28..44.73 rows=50 width=48) (actual time=0.027..0.227 rows=50 loops=1)",
+    "  Buffers: shared hit=52",
+    "  ->  Index Scan using ix_browse_global_rank on browse_rows  (cost=0.28..1299.18 rows=1461 width=48) (actual time=0.026..0.221 rows=50 loops=1)",
+    "        Index Cond: (generation_id = 'b8e8202d-82f1-45f1-a345-cab90e9c056e'::uuid)",
+    "        Filter: ((tier)::text = 'Signal'::text)",
+    "        Buffers: shared hit=52",
+    "Planning Time: 0.211 ms",
+    "Execution Time: 0.249 ms"
+  ],
+  "postgres_version": "PostgreSQL 17.11 (Debian 17.11-0+deb13u1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit",
+  "max_process_rss_kib": 277028
+}

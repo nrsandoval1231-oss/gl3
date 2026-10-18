@@ -192,6 +192,7 @@ function supportedCompany(item: Opportunity) {
 }
 
 export function projectTitle(item: Opportunity) {
+  if (item.browse_title) return item.browse_title
   const company = supportedCompany(item)
   if (company) return `${company.name} · ${company.role}`
   if (source(item) === 'georgia-air-draft-title-v') return georgiaActivityTitle(item)
