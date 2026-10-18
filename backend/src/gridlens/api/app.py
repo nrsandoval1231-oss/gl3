@@ -1,6 +1,7 @@
 import hashlib
 import io
 import json
+import time
 from collections import defaultdict
 from csv import DictWriter
 from datetime import UTC, date, datetime, timedelta
@@ -14,6 +15,7 @@ from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field, SecretStr
 from sqlalchemy import Date, Text, and_, cast, func, or_, select
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import joinedload
 
 from gridlens.api.verticals import vertical_source_tags
@@ -34,7 +36,7 @@ from gridlens.domain.commercial_triage import (
 from gridlens.domain.commercial_triage import (
     grouped_need_groups,
 )
-from gridlens.domain.evaluation_clock import evaluation_now
+from gridlens.domain.evaluation_clock import evaluate_at, evaluation_now
 from gridlens.domain.pursuits import (
     AutonomousResearchBody,
     AutonomousResearchOut,
@@ -4568,7 +4570,7 @@ def _commercial_triage_page(
         from gridlens.intelligence.saved_browse import commercial_selection
 
         selected_keyed_groups, project_ids_by_need, grouped_total = commercial_selection(
-            session, limit, offset
+            session, limit, offset, now=evaluation_now(datetime.now(UTC))
         )
     else:
         summaries = opportunity_projection(session, tier="Signal", summary_only=True)
@@ -4837,6 +4839,28 @@ def _commercial_triage_payload(
             identity, size, _MAX_COMMERCIAL_CARD_BYTES, "triage_page_bytes"
         )
     return payload
+
+
+def _commercial_triage_evaluation_payload(session, limit: int, offset: int) -> dict:
+    """Use freshness-fenced scalar selection for writes, retaining canonical fallback.
+
+    The payload pins a REPEATABLE READ snapshot before either selector runs. Thus a
+    stale/missing saved generation can fall back inside the same input cohort, while
+    selected cards and all persisted decisions still come from canonical detail.
+    """
+    instant = evaluation_now(datetime.now(UTC))
+    with evaluate_at(instant):
+        if not settings.saved_browse_enabled:
+            return _commercial_triage_payload(session, limit, offset)
+        try:
+            return _commercial_triage_payload(session, limit, offset, saved_selection=True)
+        except HTTPException as exc:
+            if (
+                exc.status_code != 503
+                or (exc.headers or {}).get("X-Qualification-State") != "pending"
+            ):
+                raise
+            return _commercial_triage_payload(session, limit, offset, saved_selection=False)
 
 
 @app.get(
@@ -5246,26 +5270,42 @@ def evaluate_commercial_triage(
     offset: Annotated[int, Query(ge=0)] = 0,
 ):
     require_same_origin(request)
-    with SessionLocal.begin() as session:
-        payload = _commercial_triage_payload(session, limit, offset)
-        today = chicago_today().isoformat()
-        saved_at = datetime.now(UTC).isoformat()
-        payload["evaluated_at"] = saved_at
-        from gridlens.intelligence.commercial_evaluation import save_evaluations
+    for attempt in range(4):
+        try:
+            with SessionLocal.begin() as session:
+                payload = _commercial_triage_evaluation_payload(session, limit, offset)
+                today = chicago_today().isoformat()
+                payload["evaluated_at"] = datetime.now(UTC).isoformat()
+                from gridlens.intelligence.commercial_evaluation import save_evaluations
 
-        save_evaluations(session, payload["items"])
-        receipts = list(
-            session.scalars(select(Pursuit).where(Pursuit.identity_key.like("commercial-need:%")))
-        )
-        payload["daily"]["evaluated"] = sum(
-            (row.snapshot or {}).get("commercial_triage", {}).get("evaluated_on") == today
-            for row in receipts
-        )
-        payload["daily"]["surfaced"] = sum(
-            (row.snapshot or {}).get("commercial_triage", {}).get("surfaced_on") == today
-            for row in receipts
-        )
-        return payload
+                save_evaluations(session, payload["items"])
+                receipts = list(
+                    session.scalars(
+                        select(Pursuit).where(Pursuit.identity_key.like("commercial-need:%"))
+                    )
+                )
+                payload["daily"]["evaluated"] = sum(
+                    (row.snapshot or {}).get("commercial_triage", {}).get("evaluated_on") == today
+                    for row in receipts
+                )
+                payload["daily"]["surfaced"] = sum(
+                    (row.snapshot or {}).get("commercial_triage", {}).get("surfaced_on") == today
+                    for row in receipts
+                )
+            return payload
+        except DBAPIError as exc:
+            # REPEATABLE READ can reject a receipt/note race with SQLSTATE 40001.
+            # Retry the whole transaction up to three times so selection, canonical detail and saves
+            # all use a fresh cohort; never retry a partial write or arbitrary failure.
+            sqlstate = getattr(exc.orig, "sqlstate", None)
+            constraint_name = getattr(getattr(exc.orig, "diag", None), "constraint_name", None)
+            retryable_insert_race = (
+                sqlstate == "23505" and constraint_name == "pursuits_identity_key_key"
+            )
+            if attempt == 3 or (sqlstate != "40001" and not retryable_insert_race):
+                raise
+            time.sleep(0.025 * (attempt + 1))
+    raise RuntimeError("unreachable evaluation retry state")
 
 
 @app.post(

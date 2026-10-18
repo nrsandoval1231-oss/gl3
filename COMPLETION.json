@@ -1,0 +1,40 @@
+{
+  "task": "P-EVAL-POST",
+  "status": "READY_FOR_REVIEW",
+  "created_at_utc": "2026-10-18T08:27:39Z",
+  "model": "gpt-6-luna",
+  "materially_distinct_repairs": 2,
+  "token_count": "UNKNOWN",
+  "elapsed_build_time": "UNKNOWN",
+  "base_commit": "a57fca9f11114cd016d5e036ac44810050580429",
+  "candidate_commit_record": "Controller commit receipt after freeze; omitted here to avoid self-reference",
+  "source_sha256": {
+    "backend/src/gridlens/api/app.py": "56b36ff88637783cc1f1206ce62f3232cf79b4caaac9c60ba0ca87dceff133d8",
+    "backend/src/gridlens/intelligence/saved_browse.py": "f82aca56ebf34c9f01457750c04535e0523a6835639707baa024ba20488bb87f",
+    "backend/tests/integration/test_saved_browse.py": "1dab61e60c297be355c5a282dcece8528b0249c0e47616439c3e311dd460c923",
+    "docs/operations/saved-browse-b1.md": "02992f5f2480c40cc16d409a14b94c9cb7ea3872bb7f93c6ba8ad547dfaedc05"
+  },
+  "checks": {
+    "ruff": "PASS",
+    "mypy": "PASS",
+    "git_diff_check": "PASS",
+    "focused_postgres_suite": "PASS on gamma: 98 passed, 5 warnings; final authenticated route regression delta pending exact-head rerun",
+    "before_fix_route_regression": "CONFIRMED against original a57 source: failed at the population-summary guard",
+    "full_ci_and_exact_head_review": "PENDING_CONTROLLER"
+  },
+  "measurements": {
+    "baseline_http_handler_seconds": 8.376,
+    "baseline_population_summary_seconds": 7.139,
+    "baseline_save_seconds": 0.281,
+    "candidate_http_post_median_seconds_interim": 0.719,
+    "candidate_http_post_max_seconds_interim": 0.780,
+    "candidate_post_plus_read_median_seconds_interim": 1.179,
+    "candidate_benchmark_status": "INTERIM_NOT_FINAL_HEAD"
+  },
+  "known_limitations": [
+    "Cold, stale, missing, disabled, or policy-mismatched selector generations use the canonical population fallback and retain its higher latency.",
+    "Whole-transaction retry is bounded to three retries and is limited to SQLSTATE 40001 or the exact pursuits_identity_key_key SQLSTATE 23505 race; sustained contention may still fail the request.",
+    "Final exact-head runtime benchmark, complete CI, and independent review remain pending."
+  ],
+  "production_changes": false
+}

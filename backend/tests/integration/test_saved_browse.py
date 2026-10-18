@@ -1,12 +1,13 @@
 """Disposable PostgreSQL parity and publication safety; no external calls."""
 
+from copy import deepcopy
 from datetime import UTC, date, datetime, timedelta
 from importlib import import_module
 from uuid import UUID, uuid4
 
 import pytest
 from fastapi import HTTPException, Response
-from sqlalchemy import create_engine, event, select, text
+from sqlalchemy import create_engine, event, func, select, text
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 
@@ -1156,6 +1157,382 @@ def test_saved_commercial_page_avoids_population_projection(saved_db, monkeypatc
     assert actual == expected
 
 
+def test_evaluation_post_uses_fresh_saved_selector_and_canonical_details(saved_db, monkeypatch):
+    """POST avoids population summaries but evaluates selected groups canonically."""
+    factory = saved_db
+    seed(factory, count=6, histories=2)
+    assert rebuild(factory)["status"] == "published"
+    cases = ((1, 0), (2, 1), (50, 0), (2, 10_000), (2, 10**30))
+    expected_payloads = {}
+    for limit, offset in cases:
+        with factory() as session:
+            expected_payloads[(limit, offset)] = api._commercial_triage_payload(
+                session, limit, offset, saved_selection=False
+            )
+    monkeypatch.setattr(settings, "saved_browse_enabled", True)
+    original = api.opportunity_projection
+    calls = []
+
+    def targeted_only(session, *, summary_only=False, **kwargs):
+        calls.append((summary_only, kwargs.get("selected_need_ids")))
+        assert not summary_only, "evaluation POST rebuilt the full population summary"
+        assert kwargs.get("selected_need_ids") is not None
+        return original(session, **kwargs)
+
+    monkeypatch.setattr(api, "opportunity_projection", targeted_only)
+    actual_payloads = {}
+    for limit, offset in cases:
+        with factory.begin() as session:
+            actual_payloads[(limit, offset)] = api._commercial_triage_evaluation_payload(
+                session, limit, offset
+            )
+    assert calls and all(not summary for summary, _ids in calls)
+    for case, actual in actual_payloads.items():
+        expected = expected_payloads[case]
+        expected.pop("evaluated_at")
+        actual.pop("evaluated_at")
+        assert actual == expected
+        # Selected cards contain canonical details and every group member.
+        assert all(card["related_need_ids"] for card in actual["items"])
+        assert all(card["sources"] is not None for card in actual["items"])
+        assert all(card["facts"] is not None for card in actual["items"])
+
+
+def test_authenticated_evaluation_post_avoids_population_summary(saved_db, monkeypatch):
+    from fastapi.testclient import TestClient
+
+    from gridlens.security import token_for
+
+    factory = saved_db
+    seed(factory, count=4, histories=1)
+    assert rebuild(factory)["status"] == "published"
+    monkeypatch.setattr(settings, "saved_browse_enabled", True)
+    original = api.opportunity_projection
+    calls = []
+
+    def guard_population(session, *, summary_only=False, **kwargs):
+        calls.append((summary_only, kwargs.get("selected_need_ids")))
+        assert not summary_only, "evaluation POST materialized population summaries"
+        assert kwargs.get("selected_need_ids") is not None
+        return original(session, **kwargs)
+
+    monkeypatch.setattr(api, "opportunity_projection", guard_population)
+    client = TestClient(api.app, base_url="https://testserver")
+    client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
+    response = client.post(
+        "/api/commercial/triage/evaluate", headers={"origin": "https://testserver"}
+    )
+    assert response.status_code == 200, response.text
+    assert calls and all(not summary for summary, _selected in calls)
+    assert response.json()["items"]
+
+
+def test_evaluation_post_falls_back_to_canonical_when_generation_is_stale(saved_db, monkeypatch):
+    factory = saved_db
+    ids = seed(factory, count=2, histories=1)
+    assert rebuild(factory)["status"] == "published"
+    monkeypatch.setattr(settings, "saved_browse_enabled", True)
+    with factory.begin() as session:
+        project_id = session.get(PowerNeed, ids[0]).project_id
+        session.get(Project, project_id).name = "Fresh canonical name"
+    with factory() as session:
+        payload = api._commercial_triage_evaluation_payload(session, 50, 0)
+    assert any(card["name"] == "Fresh canonical name" for card in payload["items"])
+
+
+def test_evaluation_post_does_not_swallow_unrelated_503(saved_db, monkeypatch):
+    factory = saved_db
+    monkeypatch.setattr(settings, "saved_browse_enabled", True)
+
+    def unavailable(*_args, **_kwargs):
+        raise HTTPException(503, "Unrelated service failure")
+
+    monkeypatch.setattr(api, "_commercial_triage_payload", unavailable)
+    with factory() as session, pytest.raises(HTTPException) as caught:
+        api._commercial_triage_evaluation_payload(session, 50, 0)
+    assert caught.value.detail == "Unrelated service failure"
+
+
+def test_evaluation_selection_detail_and_receipt_share_snapshot_during_mutation(
+    saved_db, monkeypatch
+):
+    from gridlens.intelligence.commercial_evaluation import save_evaluations
+    from gridlens.persistence.models import Pursuit
+
+    factory = saved_db
+    ids = seed(factory, count=2, histories=1)
+    assert rebuild(factory)["status"] == "published"
+    monkeypatch.setattr(settings, "saved_browse_enabled", True)
+    original = api.opportunity_projection
+    changed = []
+
+    def mutate_after_selection(session, *, summary_only=False, **kwargs):
+        if kwargs.get("selected_need_ids") and not changed:
+            with factory.begin() as writer:
+                project_id = writer.get(PowerNeed, ids[0]).project_id
+                writer.get(Project, project_id).name = "Concurrent newer name"
+            changed.append(True)
+        return original(session, summary_only=summary_only, **kwargs)
+
+    monkeypatch.setattr(api, "opportunity_projection", mutate_after_selection)
+    with factory.begin() as session:
+        payload = api._commercial_triage_evaluation_payload(session, 50, 0)
+        save_evaluations(session, payload["items"])
+    assert changed
+    assert all(card["name"] != "Concurrent newer name" for card in payload["items"])
+    with factory() as session:
+        receipt = session.scalar(
+            select(Pursuit).where(Pursuit.identity_key == "commercial-need:" + str(ids[0]))
+        )
+        assert receipt is not None
+        assert receipt.snapshot["commercial_triage"]["saved_card"]["name"] != (
+            "Concurrent newer name"
+        )
+        assert session.get(Project, session.get(PowerNeed, ids[0]).project_id).name == (
+            "Concurrent newer name"
+        )
+
+
+def test_evaluation_saved_receipt_matches_canonical_payload(saved_db, monkeypatch):
+    from gridlens.intelligence.commercial_evaluation import save_evaluations
+    from gridlens.persistence.models import Pursuit
+
+    factory = saved_db
+    seed(factory, count=5, histories=2)
+    assert rebuild(factory)["status"] == "published"
+    monkeypatch.setattr(settings, "saved_browse_enabled", True)
+    with factory() as session:
+        canonical = api._commercial_triage_payload(session, 2, 1, saved_selection=False)
+    with factory() as session:
+        accelerated = api._commercial_triage_evaluation_payload(session, 2, 1)
+    assert accelerated["items"] == canonical["items"]
+    fixed_now = datetime(2026, 10, 18, 12, tzinfo=UTC)
+
+    class RollbackProbe(Exception):
+        pass
+
+    def snapshot_after_rollback(cards):
+        captured = {}
+        try:
+            with factory.begin() as session:
+                save_evaluations(session, deepcopy(cards), now=fixed_now)
+                rows = session.scalars(
+                    select(Pursuit).where(
+                        Pursuit.identity_key.in_(
+                            ["commercial-need:" + card["id"] for card in cards]
+                        )
+                    )
+                )
+                captured = {
+                    row.identity_key: deepcopy(row.snapshot["commercial_triage"])
+                    for row in rows
+                }
+                for value in captured.values():
+                    value["saved_card"].pop("pursuit_id", None)
+                    for version in value["versions"]:
+                        saved_card = version.get("saved_card")
+                        if saved_card:
+                            saved_card.pop("pursuit_id", None)
+                raise RollbackProbe
+        except RollbackProbe:
+            return captured
+        raise AssertionError("rollback probe did not abort the transaction")
+
+    assert snapshot_after_rollback(canonical["items"]) == snapshot_after_rollback(
+        accelerated["items"]
+    )
+    with factory() as session:
+        assert session.scalar(select(func.count()).select_from(Pursuit)) == 0
+
+
+def test_evaluation_selection_uses_request_clock_across_generation_boundary(saved_db, monkeypatch):
+    from gridlens.intelligence import saved_browse as browse
+    from gridlens.persistence.models import BrowseGeneration
+
+    factory = saved_db
+    seed(factory, count=3, histories=1)
+    assert rebuild(factory)["status"] == "published"
+    with factory() as session:
+        previous = current_generation(session)
+        boundary = previous.valid_until
+        previous_id = previous.id
+    assert rebuild(factory, _prepare_at=boundary)["status"] == "prepared"
+
+    class BeforeInApiThenAfterInBrowse(datetime):
+        calls = 0
+
+        @classmethod
+        def now(cls, tz=None):
+            cls.calls += 1
+            if cls.calls == 1:
+                return boundary - timedelta(microseconds=1)
+            return boundary
+
+    # The helper captures just-before-boundary; subsequent clock reads in the saved
+    # selector observe just-after. The request-scoped evaluation clock must win.
+    monkeypatch.setattr(api, "datetime", BeforeInApiThenAfterInBrowse)
+    monkeypatch.setattr(browse, "datetime", BeforeInApiThenAfterInBrowse)
+    monkeypatch.setattr(settings, "saved_browse_enabled", True)
+    selected_generation_ids = []
+    original_selection = browse.commercial_selection
+
+    def inspect_generation(session, limit, offset, **kwargs):
+        selected_generation_ids.append(
+            current_generation(session, now=kwargs.get("now")).id
+        )
+        assert kwargs.get("now") == boundary - timedelta(microseconds=1)
+        return original_selection(session, limit, offset, **kwargs)
+
+    monkeypatch.setattr(browse, "commercial_selection", inspect_generation)
+    with factory() as session:
+        payload = api._commercial_triage_evaluation_payload(session, 50, 0)
+    assert selected_generation_ids == [previous_id]
+    assert payload["items"]
+    with factory() as session:
+        assert session.get(BrowseGeneration, previous_id).valid_until == boundary
+
+
+def test_evaluation_post_retries_only_complete_serialization_failure(saved_db, monkeypatch):
+    from types import SimpleNamespace
+
+    from fastapi.testclient import TestClient
+    from sqlalchemy.exc import DBAPIError
+
+    from gridlens.intelligence import commercial_evaluation
+    from gridlens.persistence.models import Pursuit
+    from gridlens.security import token_for
+
+    factory = saved_db
+    seed(factory, count=2, histories=1)
+    assert rebuild(factory)["status"] == "published"
+    monkeypatch.setattr(settings, "saved_browse_enabled", True)
+    calls = []
+    original_save = commercial_evaluation.save_evaluations
+
+    def fail_once(session, cards, **kwargs):
+        calls.append(len(cards))
+        if len(calls) == 1:
+            raise DBAPIError("forced serialization test", None, SimpleNamespace(sqlstate="40001"))
+        return original_save(session, cards, **kwargs)
+
+    monkeypatch.setattr(commercial_evaluation, "save_evaluations", fail_once)
+    client = TestClient(api.app, base_url="https://testserver")
+    client.cookies.set(
+        "gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300)
+    )
+    response = client.post("/api/commercial/triage/evaluate", headers={"origin": "https://testserver"})
+    assert response.status_code == 200, response.text
+    assert len(calls) == 2
+    with factory() as session:
+        assert session.scalar(select(func.count()).select_from(Pursuit)) == len(
+            response.json()["items"]
+        )
+
+
+def test_concurrent_evaluation_posts_commit_complete_receipts(saved_db, monkeypatch):
+    from concurrent.futures import ThreadPoolExecutor
+
+    from fastapi.testclient import TestClient
+
+    from gridlens.persistence.models import Pursuit
+    from gridlens.security import token_for
+
+    factory = saved_db
+    seed(factory, count=3, histories=1)
+    assert rebuild(factory)["status"] == "published"
+    monkeypatch.setattr(settings, "saved_browse_enabled", True)
+    token = token_for(int(datetime.now(UTC).timestamp()) + 300)
+
+    def evaluate():
+        with TestClient(api.app, base_url="https://testserver") as client:
+            client.cookies.set("gridlens_session", token)
+            return client.post(
+                "/api/commercial/triage/evaluate", headers={"origin": "https://testserver"}
+            )
+
+    with ThreadPoolExecutor(max_workers=4) as executor:
+        responses = list(executor.map(lambda _index: evaluate(), range(4)))
+    assert [response.status_code for response in responses] == [200] * 4
+    item_count = len(responses[0].json()["items"])
+    assert item_count > 0
+    with factory() as session:
+        assert session.scalar(select(func.count()).select_from(Pursuit)) == item_count
+
+
+def test_concurrent_first_insert_and_existing_receipt_updates_are_retried(
+    saved_db, monkeypatch
+):
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Barrier, Lock
+
+    from fastapi.testclient import TestClient
+    from sqlalchemy.exc import DBAPIError
+
+    from gridlens.intelligence import commercial_evaluation
+    from gridlens.persistence.models import Pursuit
+    from gridlens.security import token_for
+
+    factory = saved_db
+    ids = seed(factory, count=2, histories=1)
+    assert rebuild(factory)["status"] == "published"
+    monkeypatch.setattr(settings, "saved_browse_enabled", True)
+    token = token_for(int(datetime.now(UTC).timestamp()) + 300)
+    actual_save = commercial_evaluation.save_evaluations
+
+    def post():
+        with TestClient(api.app, base_url="https://testserver") as client:
+            client.cookies.set("gridlens_session", token)
+            return client.post(
+                "/api/commercial/triage/evaluate", headers={"origin": "https://testserver"}
+            )
+
+    def race_two_saves():
+        barrier = Barrier(2)
+        guard = Lock()
+        state = {"calls": 0, "insert_conflicts": 0, "serialization_conflicts": 0}
+        def synchronized_save(session, cards, **kwargs):
+            with guard:
+                state["calls"] += 1
+                wait = state["calls"] <= 2
+            if wait:
+                barrier.wait(timeout=15)
+            try:
+                return actual_save(session, cards, **kwargs)
+            except DBAPIError as exc:
+                with guard:
+                    if getattr(exc.orig, "sqlstate", None) == "23505":
+                        state["insert_conflicts"] += 1
+                    if getattr(exc.orig, "sqlstate", None) == "40001":
+                        state["serialization_conflicts"] += 1
+                raise
+
+        monkeypatch.setattr(commercial_evaluation, "save_evaluations", synchronized_save)
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            responses = list(executor.map(lambda _index: post(), range(2)))
+        assert all(response.status_code == 200 for response in responses), [
+            response.text for response in responses
+        ]
+        return state, responses
+
+    insert_state, inserted = race_two_saves()
+    assert insert_state["insert_conflicts"] == 1
+    expected_count = len(inserted[0].json()["items"])
+    with factory() as session:
+        assert session.scalar(select(func.count()).select_from(Pursuit)) == expected_count
+
+    with factory.begin() as session:
+        project_id = session.get(PowerNeed, ids[0]).project_id
+        session.get(Project, project_id).name = "Changed canonical evaluation input"
+    update_state, updated = race_two_saves()
+    assert update_state["serialization_conflicts"] >= 1
+    assert all(response.json()["items"] for response in updated)
+    with factory() as session:
+        row = session.scalar(
+            select(Pursuit).where(Pursuit.identity_key == "commercial-need:" + str(ids[0]))
+        )
+        assert len(row.snapshot["commercial_triage"]["versions"]) == 2
+
+
 def test_commercial_selection_matches_canonical_complete_group_priority(saved_db):
     """Tuple minima, Austin cross-project work, UUID ties and all page offsets."""
     from gridlens.domain.commercial_triage import (
@@ -1186,9 +1563,9 @@ def test_commercial_selection_matches_canonical_complete_group_priority(saved_db
                 "activity": "construction",
                 "asset_type": "data_center" if index % 2 else None,
                 "_priority_features": {
-                    "latest_date": "2026-10-31" if index == 2 else (
-                        "2026-10-10" if index >= 5 else f"2026-10-{index + 1:02}"
-                    ),
+                    "latest_date": "2026-10-31"
+                    if index == 2
+                    else ("2026-10-10" if index >= 5 else f"2026-10-{index + 1:02}"),
                     "evidence_construction": True,
                 },
                 "evidence": [

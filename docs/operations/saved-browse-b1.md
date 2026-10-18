@@ -169,14 +169,28 @@ flag, provider, worker or scheduler is introduced.
 GET commercial triage selects groups/members from saved canonical scalars, then
 runs the existing targeted canonical detail/card evaluator and budgets. Commercial
 groups differ from browse groups. SQL may scan all saved Signal scalar rows;
-selected evidence work is bounded by existing group/card budgets. Research and
-evaluation writes retain their original canonical selection. Stale enabled GET
-reads return explicit pending. Switch-false behavior remains canonical.
+selected evidence work is bounded by existing group/card budgets. Research callers
+remain canonical. Stale enabled GET reads return explicit pending. Switch-false
+behavior remains canonical.
 
-Use the final image with the switch false for runtime rollback. Keep0023 in
-place. If reverting an older image, stop maintenance and recreate API/web only
-with `--no-deps`; do not execute older migration containers against0023. The PC
-task owns production rollout/live QA; fixture results do not establish live SLOs.
+Evaluation POST uses this selector when the saved browse switch is enabled. The
+request pins a PostgreSQL `REPEATABLE READ` snapshot and one explicit evaluation
+instant before selecting groups. Selected cards are still freshly reconstructed
+from canonical detail in that same snapshot and at that instant; the existing
+receipt save locks, history, and idempotency remain authoritative. If the generation
+is missing, stale, policy-mismatched, or outside its clock window, POST falls back
+to canonical population selection in the same snapshot so a read acceleration
+outage does not disable evaluation writes. PostgreSQL serialization failures
+(SQLSTATE 40001) and the first-receipt race on the exact `pursuits_identity_key_key`
+unique constraint (SQLSTATE 23505) retry the complete transaction up to three times
+with short backoff; other integrity errors propagate. No partial receipt writes are
+retained. Receipt and note mutations continue to leave the generation current
+under0024; other invalidating writes continue to require a rebuild.
+
+At the 0023 rollout stage, runtime rollback used the final image with the switch
+false and retained0023. Current rollback instructions are in the0024 section below.
+The PC task owns production rollout/live QA; fixture results do not establish live
+SLOs.
 
 ## Live commercial saves (0024)
 
@@ -187,7 +201,8 @@ and revisions. Unknown root/scope/research changes, receipt deletes, document wr
 and truncation remain full pending cases. Opaque receipt fields never qualify a need;
 reviewed facts/evidence retain their own invalidators. Notes/history/counts/budgets
 remain live reads. The canonical chain computed for selected detail is reused within
-that one card request. Evaluation/research POST cohort selection stays canonical.
+that one card request. Evaluation POST uses the fresh saved selector with canonical
+detail and same-snapshot fallback; research POST cohort selection stays canonical.
 
 PC rollout: existing backup/disabled-provider gates, stop maintenance, switch false,
 upgrade0024/repeat/check, final-runtime rebuild and retained-corpus parity, restart
