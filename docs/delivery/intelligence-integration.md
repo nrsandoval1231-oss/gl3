@@ -224,7 +224,15 @@ F3 at59f4a80 moves buying-chain acquisition into fenced durable jobs and makes
 authenticated enqueue network-free, with context revalidation before writes.
 Builder42 PostgreSQL and5 browser tests pass; controller full gates cover it.
 
-All unblocked A–G implementation is now integrated as a local candidate. Final
+The prior candidate was superseded by full-suite failures and independent review
+findings. B5 adds verified total billable-input bounds (2d6a89d); C6/B6 reuses exact
+completed signal judgments and denies external test networking (7f69e75). Controller
+focused runs pass46 and133 tests respectively. C7a adds bounded schedule progress,
+truthful acquisition timing and current-window assignment (1a6249d); controller58
+tests pass. C7b structured-source continuation remains in implementation. The0029
+local restore preserves all52 tables, including synthetic nonempty progress rows,
+and retains UNKNOWN-call exposure without redispatch. These are development proofs.
+Final
 validation and independent review are separately bound to the immutable commit
 in `.artifacts/INTELLIGENCE-20261018/final/release-manifest.json`; absence of a
 matching accepted receipt means this document grants no acceptance. The receipt

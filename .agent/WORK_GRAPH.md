@@ -14,9 +14,13 @@ Owner full-build request 2026-10-18; prior graph archived unchanged.
 | B3 | E,D2 | LOCALLY VERIFIED | 2c8f9c3; combined controller88 tests; API compatibility site repaired in C3 |
 | B4 | E,G1 slot release | LOCALLY VERIFIED | 057899f; late billing audit; combined88 controller tests after harness repairs |
 | B4-H | B4,G2 ownership | LOCALLY VERIFIED | 304062d; portable actual0028 trigger on TEST DB; restore summary MATCH |
+| B5 | Independent6d88 FIX | LOCALLY VERIFIED | 2d6a89d; full verified billable-input ceiling; controller46 tests; defaults blocked |
 | C3 | C2,B3 | LOCALLY VERIFIED | cad2e19; controller54 tests; non-RSS/companion transactions/source/fence rechecks |
 | C4 | C3 | LOCALLY VERIFIED | 228a5ce/30670dc; controller67 scheduler/monitor/queue tests |
 | C5 | C4,D3 shared release | INTEGRATED CANDIDATE | bf24b07;135 focused repeat passes; one prior event timeout UNKNOWN retained |
+| C6/B6 | Full6d88 backend failure | LOCALLY VERIFIED | 7f69e75; controller133 tests; external test guard and exact completed Signal-decision reuse |
+| C7a | Independent6d88 follow-up FIX | LOCALLY VERIFIED | 1a6249d; controller58 tests; bounded historical planning/current-window assignment;0029 restore52tables MATCH |
+| C7b | C7a frozen schema/worker | BUILDING | Durable structured issue/modification continuation, bounded segments and truthful partial recovery |
 | D3 | E,D2,B3 | BUILDER VERIFIED; CONTROLLER WAIT | 7187de2;45 focused tests; dormant capture/count/OCR_UNVERIFIED; dispatch joins C5 |
 | F1 | B2/D,C frozen interfaces | LOCALLY VERIFIED | c4d0eb6; controller3 offlinejourney/APItests; builder14 browsertests |
 | E | C,B2/D | LOCALLY VERIFIED | 3779042; controller170 focused tests; B3 owns actual routing effect |
@@ -32,6 +36,9 @@ At most two disjoint READY builders; serialized integration and controller gates
 Independent Sol review covers the final repaired financial/authority/integration candidate.
 Green slices do not complete this graph. F1 builds against frozen pure service/result
 interfaces without shared schema/provider/worker ownership; F requires integrated proof.
-Direction VALIDATE. Final local acceptance requires a matching immutable
+Direction CORRECT B5/C6/C7;6d88 is superseded, not accepted. Full suite recorded
+2000 passed/12 failed/12 setup errors/3 skipped/7 subtests. One stale test mock
+allowed a synthetic-key auth-rejected provider request; actual suite-wide network
+count was not instrumented. No real key or successful model response. Final local acceptance requires a matching immutable
 `.artifacts/INTELLIGENCE-20261018/final/release-manifest.json`; no missing receipt,
 pending provider comparison, or absent operational proof becomes success.

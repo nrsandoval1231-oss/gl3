@@ -90,3 +90,35 @@ Final export uses command-local core.autocrlf=false/core.eol=lf, without changin
 repository/global settings, and verifies every archive blob/mode against the
 committed Git tree. Metric: exported blob/mode mismatches target zero; reversible
 packaging-only procedure. Prior mismatched export is superseded, not deleted.
+
+Freeze6d88: audits/Ruff/fullmypy/migration-repeat/schema PASS. Full backend2000
+passed/12 failed/12 setup errors/3 skipped/7 subtests in452.09s. Never report that
+as a pass. Independent Sol FIX: TypeSafe output billing was omitted; common guard
+must fail closed without verifiable full billing semantics. Follow-up FIX: source
+planner has unbounded historical replay and can attach today's success to missed
+old due occurrences; structured date windows lack durable recovery continuation.
+B5/C6/C7 preserve these requirements and repair, rather than reducing acceptance.
+
+An obsolete retry test mocked httpx.post while the shared adapter used Client.stream.
+At least one real TypeSafe authentication request escaped using only a synthetic
+key and synthetic text; no real key or successful response. Suite-wide external
+count is UNKNOWN. Preserve this negative evidence; fix actual mock boundary and
+install test-only external transport denial before rerun. Candidate lesson: mock
+the active transport and independently deny real provider egress in fixture suites.
+Metric: unexpected real provider requests target zero; reversibility test-only.
+No financial/live readiness or zero-call claim is inferred from the failed run.
+
+Repair checkpoints: C6/B6 at7f69e75 controller133 tests pass; legacy pursuit work
+reuses exact completed Signal decisions without creating duplicate paid intents.
+B5 at2d6a89d controller46 pass; TypeSafe requires a verified model/contract/policy-
+bound ceiling for all billable input including provider wrapper, reserves the full
+ceiling and remains OFF absent proof. C7a at1a6249d controller58 pass after correcting
+disabled/historical rows occupying bounded execution batches. Historical misses
+remain obligations; current retrieval cannot certify an old scheduled cycle.
+
+The0029 local restore rehearsal matches all52 tables with nonempty synthetic
+schedule/collection checkpoints, original core corpus preserved and UNKNOWN-call
+redispatch rejected. No cloud/elapsed-day claim follows. An intermittent immediate
+lease test had a very small cross-clock due margin; explicitly making its fixture
+due isolates stale-context behavior. Prior failures remain retained. C7b structured
+continuation is the remaining implementation slice before a fresh full freeze.

@@ -1,11 +1,11 @@
 import json
-from datetime import date
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from uuid import uuid4
 
 import pytest
 from pydantic import SecretStr
-from sqlalchemy import create_engine, event, select
+from sqlalchemy import create_engine, event, func, select
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 
@@ -937,7 +937,28 @@ def test_match_candidate_change_stales_context_before_provider_dispatch(sessions
         lambda **_: pytest.fail("stale candidate context must not dispatch"),
     )
     with sessions.begin() as session:
+        row = session.execute(
+            select(
+                Job.kind,
+                Job.status,
+                Job.available_at,
+                Job.lease_until,
+                Job.target_id,
+                Job.attempts,
+                Job.fence,
+            ).where(Job.id == job_id)
+        ).one()
+        app_now = datetime.now(UTC)
+        database_now = session.scalar(select(func.clock_timestamp()))
+        queued = session.get(Job, job_id)
+        assert queued is not None
+        queued.available_at = datetime.now(UTC) - timedelta(seconds=1)
         leased, fence = lease_one(session, "match-stale-worker", job_ids=[job_id])
+        assert leased is not None, (
+            "Expected explicitly-due advisory job to be leaseable; "
+            f"row={row!r}, app_now={app_now!r}, database_now={database_now!r}, "
+            f"lease_available_at={queued.available_at!r}"
+        )
         assert leased.id == job_id
     with sessions.begin() as session:
         candidate = session.get(Project, candidate_id)
