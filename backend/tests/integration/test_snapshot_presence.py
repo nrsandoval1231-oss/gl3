@@ -143,11 +143,13 @@ def test_snapshot_compare_fails_closed_on_missing_identity_or_changed_exposure()
 
 def test_snapshot_covers_retained_text_job_recovery_and_call_intent(db):
     import runpy
+    from pathlib import Path
 
     from gridlens.persistence.models import LogicalCall
 
     factory, _, job_id = db
-    snapshot = runpy.run_path("backend/scripts/intelligence_snapshot.py")["snapshot"]
+    script = Path(__file__).resolve().parents[2] / "scripts" / "intelligence_snapshot.py"
+    snapshot = runpy.run_path(str(script))["snapshot"]
     with factory.begin() as session:
         evidence = session.scalars(select(Evidence)).first()
         evidence.abstract = "retained source excerpt"
@@ -202,6 +204,46 @@ def test_snapshot_covers_retained_text_job_recovery_and_call_intent(db):
         },
     }
     assert "required_table_metadata_missing" in compare(omitted, before)["issues"]
+
+
+def test_snapshot_logical_call_exposure_has_stable_status_order(db):
+    import runpy
+    from pathlib import Path
+
+    from gridlens.persistence.models import LogicalCall
+
+    factory, _, job_id = db
+    script = Path(__file__).resolve().parents[2] / "scripts" / "intelligence_snapshot.py"
+    snapshot = runpy.run_path(str(script))["snapshot"]
+    fields = {
+        "task_type": "ordering-test",
+        "evidence_digest": "a" * 64,
+        "context_digest": "b" * 64,
+        "prompt_contract": "v1",
+        "provider": "fixture",
+        "model": "fixture-model",
+        "policy_version": "test-v1",
+        "lease_authority": "job",
+        "job_id": job_id,
+        "fence_token": 0,
+        "estimated_cost_usd": 0,
+        "max_cost_usd": 1,
+        "budget_scopes": [],
+    }
+    statuses = ["SENT_OUTCOME_UNKNOWN", "COMPLETED", "NOT_SENT"]
+    with factory.begin() as session:
+        for index, status in enumerate(statuses):
+            session.add(
+                LogicalCall(
+                    fingerprint=str(index).zfill(64),
+                    task_key=f"ordering-{index}",
+                    status=status,
+                    **fields,
+                )
+            )
+    with factory() as session:
+        result = snapshot(session)
+    assert [row["status"] for row in result["logical_call_exposure"]] == sorted(statuses)
 
 
 def test_absence_is_recorded_once_and_return_is_recorded(db):

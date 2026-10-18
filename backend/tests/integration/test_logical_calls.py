@@ -627,6 +627,7 @@ def test_host_cli_requires_fresh_digest_and_applies_only_after_preview(
     import json
     import runpy
     import sys
+    from pathlib import Path
 
     from gridlens.integrations.logical_calls import complete_call
 
@@ -636,7 +637,8 @@ def test_host_cli_requires_fresh_digest_and_applies_only_after_preview(
     with sessions() as session:
         complete_call(session, call.call_id, fence_token=7, result_payload={"safe": True})
     monkeypatch.setattr(settings, "database_url", settings.test_database_url)
-    cli = runpy.run_path("backend/scripts/reconcile_logical_call.py")
+    script = Path(__file__).resolve().parents[2] / "scripts" / "reconcile_logical_call.py"
+    cli = runpy.run_path(str(script))
     base_args = [
         str(call.call_id),
         "--action",
@@ -693,16 +695,35 @@ def test_host_cli_requires_fresh_digest_and_applies_only_after_preview(
     assert receipt["mode"] == "applied" and receipt["status"] == "COMPLETED"
 
 
-def test_0028_database_trigger_rejects_settlement_edits():
-    from sqlalchemy import func
+def test_0028_database_trigger_rejects_settlement_edits(monkeypatch):
+    from pathlib import Path
 
-    target = make_url(settings.database_url)
-    assert target.database == "gl3_intelligence_settlement_20261018_app"
-    engine = create_engine(settings.database_url)
+    from alembic import command
+    from alembic.config import Config
+    from sqlalchemy import func, text
+    from sqlalchemy.orm import Session
+
+    target = make_url(settings.test_database_url)
+    assert target.database and target.database.endswith("_test")
+    assert target != make_url(settings.database_url)
+    schema = "settlement_trigger_" + uuid4().hex
+    admin = create_engine(settings.test_database_url)
+    with admin.begin() as connection:
+        connection.execute(text(f'CREATE SCHEMA "{schema}"'))
+    isolated_url = target.set(query={"options": f"-csearch_path={schema}"})
+    monkeypatch.setattr(
+        settings, "database_url", isolated_url.render_as_string(hide_password=False)
+    )
+    config = Config(str(Path(__file__).resolve().parents[2] / "alembic.ini"))
+    config.set_main_option(
+        "script_location", str(Path(__file__).resolve().parents[2] / "migrations")
+    )
+    command.upgrade(config, "head")
+    engine = create_engine(isolated_url)
     factory = sessionmaker(engine, expire_on_commit=False)
     call_id = uuid4()
     try:
-        with factory() as session:
+        with factory.begin() as session:
             session.add(
                 LogicalCall(
                     id=call_id,
@@ -734,18 +755,33 @@ def test_0028_database_trigger_rejects_settlement_edits():
                 )
             )
             session.flush()
+        with Session(engine) as session:
             with pytest.raises(DBAPIError, match="append-only"):
-                session.execute(
-                    update(LogicalCallSettlement)
-                    .where(LogicalCallSettlement.call_id == call_id)
-                    .values(actor="rewritten")
-                )
-            session.rollback()
+                with session.begin_nested():
+                    session.execute(
+                        update(LogicalCallSettlement)
+                        .where(LogicalCallSettlement.call_id == call_id)
+                        .values(actor="rewritten")
+                    )
+        with Session(engine) as session:
+            with pytest.raises(DBAPIError, match="append-only"):
+                with session.begin_nested():
+                    session.execute(
+                        LogicalCallSettlement.__table__.delete().where(
+                            LogicalCallSettlement.call_id == call_id
+                        )
+                    )
         with factory() as session:
-            assert session.scalar(
-                select(func.count()).select_from(LogicalCallSettlement).where(
-                    LogicalCallSettlement.call_id == call_id
+            assert (
+                session.scalar(
+                    select(func.count())
+                    .select_from(LogicalCallSettlement)
+                    .where(LogicalCallSettlement.call_id == call_id)
                 )
-            ) == 0
+                == 1
+            )
     finally:
         engine.dispose()
+        with admin.begin() as connection:
+            connection.execute(text(f'DROP SCHEMA "{schema}" CASCADE'))
+        admin.dispose()

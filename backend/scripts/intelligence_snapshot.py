@@ -202,7 +202,9 @@ def snapshot(session: Session) -> dict[str, Any]:
             func.count(),
             func.sum(LogicalCall.actual_cost_usd),
             func.sum(LogicalCall.max_cost_usd),
-        ).group_by(LogicalCall.status)
+        )
+        .group_by(LogicalCall.status)
+        .order_by(LogicalCall.status)
     ).all()
     result["logical_call_exposure"] = [
         {
