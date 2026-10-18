@@ -258,6 +258,10 @@ def main():
                     cohort=None,
                     sort="rank",
                 )
+            elif kind == "search":
+                payload = api.opportunities(
+                    tier="Signal", search="history 9", limit=50, offset=0, cohort=None, sort="rank"
+                )
             else:
                 payload = api.opportunities(
                     tier="Signal", limit=50, offset=0, cohort=None, sort="rank"
@@ -326,7 +330,7 @@ def main():
                 )
             settings.saved_browse_enabled = True
         measurements = {}
-        for kind in ("ranked_page", "filtered", "map", "detail"):
+        for kind in ("ranked_page", "filtered", "search", "map", "detail"):
             request(kind)
             sequential = [request(kind) for _ in range(args.samples)]
             with ThreadPoolExecutor(max_workers=args.concurrency) as executor:

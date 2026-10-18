@@ -2215,9 +2215,15 @@ def opportunity_group_page(
             saved = saved_page(
                 session, filters, limit=limit, offset=offset, token=cohort_token, group_id=group_id
             )
-            if not saved["items"]:
+            target = saved["items"]
+            if not target and offset > 0:
+                # An existing group's page beyond its end is empty, not missing.
+                target = saved_page(
+                    session, filters, limit=1, offset=0, token=cohort_token, group_id=group_id
+                )["items"]
+            if not target:
                 raise HTTPException(404, "Opportunity group not found or page is empty")
-            total = saved["items"][0]["group_total_filtered"]
+            total = target[0]["group_total_filtered"]
             return {
                 "items": _bounded_opportunity_payload(saved["items"]),
                 "total": total,

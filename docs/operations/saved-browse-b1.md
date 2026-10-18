@@ -91,3 +91,6 @@ For runtime rollback, set the switch false and recreate the API (or use the
 recorded previous image). Leave the additive tables/migration in place. Stop the
 profile's maintenance process if reverting the image. Do not downgrade/drop
 canonical evidence, change network access, enable timers or spend providers.
+When reverting to an older image, recreate only the API with `--no-deps`; do not
+run an older migration container against the newer 0021 revision. The simplest
+rollback is the current image with the switch false.

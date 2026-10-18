@@ -443,6 +443,9 @@ def page(
     need_id=None,
 ) -> dict:
     generation = current_generation(session)
+    # Offsets larger than the entire generation are necessarily empty. Clamping
+    # also preserves Python-slice semantics beyond PostgreSQL's bigint range.
+    offset = min(offset, generation.row_count)
     current_token = cohort_token(generation, filters, ranked=ranked)
     if token is not None and token.split(".rank.", 1)[0] != current_token.split(".rank.", 1)[0]:
         raise HTTPException(409, "Opportunity cohort changed; restart pagination")

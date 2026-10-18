@@ -468,6 +468,11 @@ def test_map_group_detail_and_export_accept_saved_tokens(saved_db, monkeypatch):
         item["group_id"], saved["cohort_token"], tier="Signal", limit=50, offset=0
     )
     assert group["items"][0]["id"] == item["id"]
+    empty_page = api.opportunity_group_page(
+        item["group_id"], saved["cohort_token"], tier="Signal", limit=50, offset=999
+    )
+    assert empty_page["items"] == []
+    assert empty_page["total"] == group["total"]
     from uuid import UUID
 
     detail = api.opportunity_need_detail(
@@ -492,3 +497,47 @@ def test_unscoped_detail_keeps_canonical_priority_metadata(saved_db, monkeypatch
     actual = api.opportunity_need_detail(ids[0])
     for key in ("priority_segment", "priority_label", "workflow_status", "tier", "rank_score"):
         assert actual[key] == expected[key]
+
+
+@pytest.mark.parametrize(
+    "selection",
+    [
+        {"mw_min": "1e1000000"},
+        {"mw_max": "1e1000000"},
+        {"mw_min": "1e-1000000"},
+        {"mw_max": "1e-1000000"},
+    ],
+)
+def test_extreme_bounds_match_decimal_comparisons_for_known_and_zero_ranges(saved_db, selection):
+    from decimal import Decimal
+
+    from gridlens.persistence.models import BrowseRow
+
+    seed(saved_db, count=3)
+    rebuild(saved_db)
+    canonical = []
+    # Test the SQL filter against canonical interval arithmetic independently of
+    # qualification. Zero lower bounds can occur in visible uncertain ranges.
+    with saved_db.begin() as session:
+        rows = session.scalars(select(BrowseRow).order_by(BrowseRow.need_id)).all()
+        for row, interval in zip(rows, ("0 to 2 MW", "1 to 3 MW", None), strict=True):
+            parsed = api.exact_mw_interval(interval)
+            row.mw_low = parsed[0] if parsed else None
+            row.mw_high = parsed[1] if parsed else None
+            canonical.append({"id": str(row.need_id), "required_mw": interval})
+        assert rows[0].mw_low == Decimal("0")
+    selected_filters = filters(**selection)
+    expected = api._filter_opportunity_summaries(canonical, selected_filters)
+    with saved_db() as session:
+        actual = page(session, selected_filters)["items"]
+    assert {row["id"] for row in actual} == {row["id"] for row in expected}
+
+
+@pytest.mark.parametrize("selection", [{}, {"search": "full history"}])
+def test_offset_beyond_database_integer_range_is_a_valid_empty_page(saved_db, selection):
+    seed(saved_db, count=1)
+    rebuild(saved_db)
+    with saved_db() as session:
+        result = page(session, filters(**selection), offset=10**100)
+    assert result["items"] == []
+    assert result["total_count"] == 1

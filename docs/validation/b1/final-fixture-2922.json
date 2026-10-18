@@ -1,0 +1,145 @@
+{
+  "kind": "synthetic-local-postgresql-server-function",
+  "projects": 2922,
+  "evidence": 31748,
+  "active_needs": 2922,
+  "limitations": [
+    "Fabricated Signal histories; not a production data copy or HTTP/browser latency",
+    "No live ingestion or external AI; concurrent reads only",
+    "Connection wait, database CPU, and production network not separately measured"
+  ],
+  "seed_seconds": 35.91891618900013,
+  "evidence_before": {
+    "count": 31748,
+    "checksum": "b5bf58331f6d6722acf0d6d5a2e5b7df"
+  },
+  "build": {
+    "status": "published",
+    "generation_id": "41edaf1d-6f1a-4be1-9b9d-dec13fbe6dea",
+    "input_revision": 132837,
+    "row_count": 2922,
+    "digest": "71fa8d89b4c9538292b46b5b42f9a610b95b8aa348b79e6d07d9ee48b84aa70d"
+  },
+  "build_seconds": 71.50352011799987,
+  "evidence_after": {
+    "count": 31748,
+    "checksum": "b5bf58331f6d6722acf0d6d5a2e5b7df"
+  },
+  "measurements": {
+    "ranked_page": {
+      "sequential": {
+        "samples": 30,
+        "p50_seconds": 0.006439826000018911,
+        "p95_seconds": 0.021392249999962587,
+        "max_seconds": 0.03351799699998992,
+        "max_selects": 2,
+        "max_bytes": 102493,
+        "semantic_fingerprints": [
+          "7c822c1a4b496b0d5f1e51712fad55965c2381635ae4a3f3aa97882bfc1991fd"
+        ]
+      },
+      "concurrent": {
+        "samples": 30,
+        "p50_seconds": 0.025160830999993777,
+        "p95_seconds": 0.10098156300000483,
+        "max_seconds": 0.10957798000004004,
+        "max_selects": 2,
+        "max_bytes": 102493,
+        "semantic_fingerprints": [
+          "7c822c1a4b496b0d5f1e51712fad55965c2381635ae4a3f3aa97882bfc1991fd"
+        ]
+      }
+    },
+    "filtered": {
+      "sequential": {
+        "samples": 30,
+        "p50_seconds": 0.012728186000003916,
+        "p95_seconds": 0.04155965599989031,
+        "max_seconds": 0.17801930999985416,
+        "max_selects": 3,
+        "max_bytes": 102469,
+        "semantic_fingerprints": [
+          "2c9de85826c461833f9c0d347213a0ac40c979745109822f22fcf827d22fa934"
+        ]
+      },
+      "concurrent": {
+        "samples": 30,
+        "p50_seconds": 0.02489587450008912,
+        "p95_seconds": 0.07401879899998676,
+        "max_seconds": 0.08194506199993157,
+        "max_selects": 3,
+        "max_bytes": 102469,
+        "semantic_fingerprints": [
+          "2c9de85826c461833f9c0d347213a0ac40c979745109822f22fcf827d22fa934"
+        ]
+      }
+    },
+    "map": {
+      "sequential": {
+        "samples": 30,
+        "p50_seconds": 0.01111506399990958,
+        "p95_seconds": 0.01855395799998405,
+        "max_seconds": 0.02625114400007078,
+        "max_selects": 2,
+        "max_bytes": 410955,
+        "semantic_fingerprints": [
+          "ea19aa57c6d20a754cbd024874f3392dcc0d1ec8849ac59f99cc82c7461e4837"
+        ]
+      },
+      "concurrent": {
+        "samples": 30,
+        "p50_seconds": 0.03867513099999087,
+        "p95_seconds": 0.06797570599997016,
+        "max_seconds": 0.08638808299997436,
+        "max_selects": 2,
+        "max_bytes": 410955,
+        "semantic_fingerprints": [
+          "ea19aa57c6d20a754cbd024874f3392dcc0d1ec8849ac59f99cc82c7461e4837"
+        ]
+      }
+    },
+    "detail": {
+      "sequential": {
+        "samples": 30,
+        "p50_seconds": 0.06643170549989463,
+        "p95_seconds": 0.4382488410001315,
+        "max_seconds": 0.4849316849999923,
+        "max_selects": 33,
+        "max_bytes": 16616,
+        "semantic_fingerprints": [
+          "93f2c41c1290798cdb8ae1ca047f74000f3a8e99ec71f847307275cb495e1411"
+        ]
+      },
+      "concurrent": {
+        "samples": 30,
+        "p50_seconds": 0.16904364949994033,
+        "p95_seconds": 0.8743117879998863,
+        "max_seconds": 2.4824653919999946,
+        "max_selects": 33,
+        "max_bytes": 16616,
+        "semantic_fingerprints": [
+          "93f2c41c1290798cdb8ae1ca047f74000f3a8e99ec71f847307275cb495e1411"
+        ]
+      }
+    }
+  },
+  "fresh_process_ranked_page": {
+    "seconds": 0.2264691570001105,
+    "returned": 50,
+    "statements": 2,
+    "scope": "fresh Python process/pool; warm PostgreSQL cache"
+  },
+  "runtime_policy": "browse-b1-v1/ranking-v1/22e4e8e3fc4f6fdcc1876069bd2ab1003dc356f519f525b5b4a806e3a9f45311",
+  "rank_page_explain": [
+    "Limit  (cost=0.28..32.33 rows=50 width=1239) (actual time=0.042..0.280 rows=50 loops=1)",
+    "  Buffers: shared hit=82",
+    "  ->  Index Scan using ix_browse_global_rank on browse_rows  (cost=0.28..2623.83 rows=4093 width=1239) (actual time=0.041..0.275 rows=50 loops=1)",
+    "        Index Cond: (generation_id = '41edaf1d-6f1a-4be1-9b9d-dec13fbe6dea'::uuid)",
+    "        Filter: ((tier)::text = 'Signal'::text)",
+    "        Buffers: shared hit=82",
+    "Planning Time: 0.109 ms",
+    "Execution Time: 0.301 ms"
+  ],
+  "postgres_version": "PostgreSQL 17.11 (Debian 17.11-0+deb13u1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 14.2.0-19) 14.2.0, 64-bit",
+  "max_process_rss_kib": 127240
+}
