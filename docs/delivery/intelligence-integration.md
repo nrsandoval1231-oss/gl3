@@ -43,12 +43,12 @@ its original Packet-A-only instruction is superseded by this owner request.
 | Packet | Existing implementation | Required integration / evidence | State |
 |---|---|---|---|
 | A | canonical docs, `.agent`, Git/CI/deploy definitions | exact state, dependency map, frozen historical sample, checklist | audit recorded |
-| B | `signal_adjudication.py`, `evidence_shadow.py`, `typesafe_evidence_judge.py`, `briefs.py`, jobs | shared durable calls/caps, eight advisory contracts, strict provider transports, mode/kill switches | B2/D locally verified; E integration active |
-| C | `ingestion/service.py`, adapters, registry; source schedule epochs/due receipts; `worker.py`, `queue.py` | explicit watch sets, incremental monitoring, reprocessing identity, bounded fairness/recovery, no model calls unchanged | C locally verified; C2 conditional retrieval/schema parity queued |
-| D | immutable Observation/Evidence, matching, `research_evidence.py`, material-state/change services | exact span/unit/date validation; candidate/source-authority separation; extraction job/result | B2 verified; D2 page/unit/precision refinement queued |
-| E | `pursuit_questions.py`, `autonomous_research.py`, buying-chain claims/runs, `power_qualification.py` | versioned six commercial questions, bounded reasoning/retrieval, citations/outcomes/backoff/context freshness | E active |
-| F | authenticated API, project state/changes, pursuits and source screens, owner fact/workflow history | persisted intelligence candidates/questions/receipts, bounded request/retry, ops measurements, feedback attribution | F integration tests active |
-| G | `evidence_evaluation.py`, research metrics, tests, DigitalOcean compose/systemd, backup runbooks | frozen four-route evaluation, receipts/reporting, runtime secret metadata/activation diff, restore/recovery, rollback | G0 verified; restore drill local; G1 collection/alerts queued |
+| B | `signal_adjudication.py`, `evidence_shadow.py`, `typesafe_evidence_judge.py`, `briefs.py`, jobs | shared durable calls/caps, eight advisory contracts, strict provider transports, mode/kill switches | B2/E locally verified; B3 routing and B4 late settlement pending |
+| C | `ingestion/service.py`, adapters, registry; source schedule epochs/due receipts; `worker.py`, `queue.py` | explicit watch sets, incremental monitoring, reprocessing identity, bounded fairness/recovery, no model calls unchanged | C/C2 locally verified; conditional RSS and metadata parity repaired |
+| D | immutable Observation/Evidence, matching, `research_evidence.py`, material-state/change services | exact span/unit/date validation; candidate/source-authority separation; extraction job/result | B2 verified; D2 page/unit/precision and D3 dormant OCR pending |
+| E | `pursuit_questions.py`, `autonomous_research.py`, buying-chain claims/runs, `power_qualification.py` | versioned six commercial questions, bounded reasoning/retrieval, citations/outcomes/backoff/context freshness | E local3779042; controller170 focused tests |
+| F | authenticated API, project state/changes, pursuits and source screens, owner fact/workflow history | persisted intelligence candidates/questions/receipts, bounded request/retry, ops measurements, feedback attribution | F1 locally verified; final combined runtime proof pending |
+| G | `evidence_evaluation.py`, research metrics, tests, DigitalOcean compose/systemd, backup runbooks | frozen four-route evaluation, receipts/reporting, runtime secret metadata/activation diff, restore/recovery, rollback | G0/G1 locally verified; final v2/0028 restore and G2 metrics pending |
 | LIVE | no new proof | authorized real changed-source journey; PC-off, alerts/restore, seven actual daily cycles, owner commercial review | OPEN |
 
 Existing modules are capabilities to verify, not blanket acceptance. New work
@@ -140,7 +140,8 @@ remain required. C's 12 controller tests pass at eb2dcf0.
 
 A fresh retained copy upgrades 0018→0027 with all original core fields preserved.
 Schema drift found a monitoring index missing in ORM metadata and watch-source
-Integer versus migration BIGINT Identity; C2 must repair before acceptance. A local
+Integer versus migration BIGINT Identity; C2 repaired both and controller reran
+58 focused tests plus `alembic check` with no drift. A local
 PostgreSQL18 dump/restore rehearsal preserved 19,326 evidence versions, 95 jobs,
 two synthetic logical calls and 12 budget rows byte-for-byte in row digests. NOT_SENT
 reuses its ID; SENT_OUTCOME_UNKNOWN remains reserved and rejects repeat dispatch.

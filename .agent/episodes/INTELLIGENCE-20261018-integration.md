@@ -21,5 +21,26 @@ target zero; cross-lane destructive-database overlap target zero. Validation and
 promotion wait final gates/independent review. No canonical requirement or global
 memory changed. Failed checks remain evidence, not success.
 
-NEXT DIRECTION: CONTINUE E/F, C2/D2/task contexts/operational tooling, then freeze,
-deterministic gates and Sol review. Missing provider/cloud/time proof stays OPEN.
+C2 repaired both mismatches; controller58 focused tests and schema check pass at
+15de356. E handoff committed3779042; controller170 focused tests pass. D2/G1 work
+remains active; these checkpoints are not final exact-candidate acceptance.
+
+STATE: completed calls can have measured responses but unknown cost. Existing
+outcome reconciliation rejects terminal calls, leaving no late billing audit path.
+DECISION: Sol narrow architecture MODIFY; separate append-only settlement receipts
+from provider outcomes. ACTION: bounded B4 packet, additive0028 planned; no runtime
+reconciliation or provider call. OUTCOME/EVALUATION: pending implementation/tests.
+ATTRIBUTION: remote effect and financial observation have independent lifecycles.
+CANDIDATE LESSON: test delayed usage receipts as well as ambiguous dispatch. Metric:
+measured late receipts retained without overwritten results or duplicate charges;
+target all bounded cases. Not promoted until deterministic and independent checks.
+
+G1's failed stdout-redirection export temporarily truncated tracked OpenAPI before
+an in-progress shared import failed. The schema was regenerated after import
+repair using an atomic output path. Candidate execution rule: generate to temporary
+output, validate, then replace; metric failed-generation truncations target zero.
+Reversibility: discard temporary artifact; prior accepted tracked artifact survives.
+Validation/promotion awaits final API consistency gate. No global memory changed.
+
+NEXT DIRECTION: CONTINUE D2/G1, B4, task contexts, OCR and complete evaluation metrics,
+then freeze, deterministic gates and Sol review. Provider/cloud/time proof stays OPEN.

@@ -12,9 +12,12 @@ Owner full-build request 2026-10-18; prior graph archived unchanged.
 | C2 | C,F1 slot release | LOCALLY VERIFIED | 15de356; controller58 tests and schema check no drift |
 | D2 | E shared dispatcher release | WAIT | Exact retained document passages/pages, units/date precision and attribution |
 | B3 | E,D2 | WAIT | Task-specific catalog inputs and per-candidate identity advice |
+| B4 | E,G1 slot release | BUILDING | Append-only late billing settlement, immutable outcome and operator reconciliation preview |
+| D3 | E,D2,B3 | WAIT | Dormant source-permitted scanned-PDF capture/count/extraction with unverified OCR provenance |
 | F1 | B2/D,C frozen interfaces | LOCALLY VERIFIED | c4d0eb6; controller3 offlinejourney/APItests; builder14 browsertests |
-| E | C,B2/D | BUILDING | Legacy accounting and controlled question/retrieval continuation |
-| G1 | C2 slot release | BUILDING | Read-only restore snapshots/operational receipts and alert plumbing |
+| E | C,B2/D | LOCALLY VERIFIED | 3779042; controller170 focused tests; B3 owns actual routing effect |
+| G1 | C2 slot release | LOCALLY VERIFIED | 938c243; controller19 focused tests; final v2/0028 restore replay required |
+| G2 | G1 builder slot release | READY | Complete measurement coverage and unknown handling in four-route comparison |
 | F | E,F1 | WAIT | Combined authenticated commercial/ops journey and owner feedback proof |
 | G | B–F | WAIT | Frozen evaluation, activation/rollback/restore/cycle tooling |
 | LIVE | G, authority/access/budget/time | OPEN | Real journey, PC-off/seven daily cycles/owner acceptance |

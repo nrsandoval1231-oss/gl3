@@ -25,6 +25,15 @@ model URL or upload from request path. Commit capture before advancing work.
 Official verified docs (2026-10-18):
 https://developers.openai.com/api/docs/guides/file-inputs
 https://developers.openai.com/api/docs/guides/token-counting
+https://developers.openai.com/api/reference/resources/responses/subresources/input_tokens/methods/count
+Controller refreshed official count reference18:20UTC; ignored copies under
+.artifacts/INTELLIGENCE-20261018/openai-count-reference.{html,txt} and guide.md.
+Count body documents model/input/instructions/text/tools (plus other optional
+context fields); store/max_output_tokens are not count-body fields. Build count
+request from the exact effective input/config/schema whitelist; omit response-only
+parameters while binding their output cap in reservation policy. No conversation,
+previous response, hosted tools, file URL/ID or external fetch. Inline input_file
+detail auto|low|high is supported; bind the same exact detail in count and response.
 Responses input_file supports filename + data:application/pdf;base64,..., optional
 detail; PDF context includes page images, so serializedbytes tokenbound IS INVALID.
 Use exact input-token count preflight for the same pinned model/request/detail or

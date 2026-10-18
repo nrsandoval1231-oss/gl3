@@ -10,10 +10,25 @@ bytes must not accidentally reuse an old completed model result; normal unchange
 checks still avoid calls. Parser/question/policy/accepted fact versions likewise
 govern freshness. No arbitrary caller-supplied cache-bypass token or unknown retry.
 
+Revalidate full relevant context AFTER provider response and before publishing a
+current result/question effect, not merely during prepare. Owner facts, source
+withdrawal/permissions, exact evidence versions, watchpolicy may change in flight.
+Keep old response in immutable ledger/audit; mark job result stale and block effects.
+Enqueue at most one deduplicated bounded reassessment for genuinely new context;
+never re-send original ambiguous intent. Add mid-call acceptedfact/source-change
+tests proving no current result/route effect from stale context.
+
 Own intelligence_jobs.py context projection, grounded_candidates.py,
 intelligence_provider.py strict schema, tests/test_grounded_candidates.py,
 test_intelligence_processing.py, test_intelligence_worker_integration.py and concise
 grounding documentation. F owns API/UI; C2 owns source retrieval/monitoring parity.
+
+F has released; this packet may narrowly update IntelligenceResearch.tsx and the
+candidate-feedback API schema/types to preserve new grounded metadata. Current
+Candidates component returns early when candidates empty, hiding specific unresolved
+questions/contradictions/hypotheses. Show useful UNKNOWN/conflict/next-question output
+even with no candidates. Do not display model suggested_pursuit as a direct prospect
+recommendation or override deterministic commercial next action/buying-chain filters.
 
 Use <=45k byte bounded worker-only retained passage context from immutable Evidence
 text, exact version hash/extraction_location and page/section metadata. Current
