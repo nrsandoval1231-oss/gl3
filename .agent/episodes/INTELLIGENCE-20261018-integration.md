@@ -78,3 +78,15 @@ state at the first missed synchronization boundary. Metric: actionable timeout
 diagnostics present for every missed event; direction increase. Reversible test-only
 change. Promotion requires final deterministic gates and independent acceptance;
 no global memory edit or speedup claim. Direction VALIDATE the frozen candidate.
+
+First integrated freeze0eeab3b passed dependency audits/Ruff but full mypy found
+two invariant-list argument errors in F3. The candidate was explicitly superseded;
+failed gate evidence and original export remain retained. Explicit retained-list
+annotations repair typing without behavior change; full source mypy121 files and
+42 affected PostgreSQL tests pass. Final combined gates must run on the new freeze.
+
+Independent export verification found Windows archive line-ending conversion.
+Final export uses command-local core.autocrlf=false/core.eol=lf, without changing
+repository/global settings, and verifies every archive blob/mode against the
+committed Git tree. Metric: exported blob/mode mismatches target zero; reversible
+packaging-only procedure. Prior mismatched export is superseded, not deleted.

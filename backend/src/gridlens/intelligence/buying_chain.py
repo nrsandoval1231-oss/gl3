@@ -218,7 +218,7 @@ def enqueue_buying_chain_research(
             continue
         if checkpoint.get("request_digest") == request_digest:
             return active
-    retained_documents = [
+    retained_documents: list[tuple[PublicDocument, bool, str, UUID | None]] = [
         (
             PublicDocument(
                 evidence.url,
@@ -314,7 +314,7 @@ def run_buying_chain_research(
             return {"status": "stale", "job_id": str(job_id)}
         source = session.get(Source, job.source_id)
         source_enabled = bool(source and source.enabled and source.registry_enabled)
-        retained_documents = [
+        retained_documents: list[tuple[PublicDocument, bool, str, UUID | None]] = [
             (
                 PublicDocument(
                     evidence.url,
