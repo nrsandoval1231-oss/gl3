@@ -12,7 +12,7 @@ from typing import Any
 from urllib.parse import parse_qs, urlencode, urlsplit
 from uuid import UUID
 
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import and_, func, or_, select, union
 from sqlalchemy.orm import Session
 
 from gridlens.domain.buying_chain import (
@@ -978,24 +978,41 @@ def buying_chain_views(
     ):
         preload.permit_details[detail_row.project_id].append(detail_row)
 
-    need_observations = (
-        select(NeedObservation.observation_id)
+    linked_project_observations = (
+        select(
+            PowerNeed.project_id.label("project_id"),
+            NeedObservation.observation_id.label("observation_id"),
+        )
+        .select_from(NeedObservation)
         .join(PowerNeed, PowerNeed.id == NeedObservation.need_id)
-        .where(PowerNeed.project_id == Project.id)
+        .where(PowerNeed.project_id.in_(project_ids))
     )
+    direct_project_observations = (
+        select(
+            Project.id.label("project_id"),
+            Observation.id.label("observation_id"),
+        )
+        .select_from(Project)
+        .join(
+            Observation,
+            and_(
+                Observation.source_id == Project.source_id,
+                Observation.external_id == Project.external_id,
+            ),
+        )
+        .where(Project.id.in_(project_ids))
+    )
+    selected_project_observations = union(
+        linked_project_observations, direct_project_observations
+    ).subquery()
     retained_query = (
         select(Project, Evidence, Observation, Interpretation, Source)
         .select_from(Project)
         .join(
-            Observation,
-            or_(
-                Observation.id.in_(need_observations),
-                and_(
-                    Observation.source_id == Project.source_id,
-                    Observation.external_id == Project.external_id,
-                ),
-            ),
+            selected_project_observations,
+            selected_project_observations.c.project_id == Project.id,
         )
+        .join(Observation, Observation.id == selected_project_observations.c.observation_id)
         .join(Evidence, Evidence.observation_id == Observation.id)
         .outerjoin(Interpretation, Interpretation.observation_id == Observation.id)
         .join(Source, Source.id == Observation.source_id)

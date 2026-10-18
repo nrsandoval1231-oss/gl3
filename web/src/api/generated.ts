@@ -146,6 +146,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/opportunities/map-window": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Opportunity Map Window
+         * @description Return the exact globally ranked, bounded map window in one authenticated read.
+         */
+        get: operations["opportunity_map_window_api_opportunities_map_window_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/opportunity-groups/{group_id}": {
         parameters: {
             query?: never;
@@ -2008,6 +2028,27 @@ export interface components {
             /** Cohort Token */
             cohort_token: string;
         };
+        /** OpportunityMapWindowOut */
+        OpportunityMapWindowOut: {
+            /** Items */
+            items: components["schemas"]["OpportunityOut"][];
+            /** Total Count */
+            total_count: number;
+            /** Loaded Count */
+            loaded_count: number;
+            /** Is Subset */
+            is_subset: boolean;
+            /** Window Limit */
+            window_limit: number;
+            /** Group Total Count */
+            group_total_count: number;
+            /** Cohort Token */
+            cohort_token: string;
+            /** Decision Counts */
+            decision_counts: {
+                [key: string]: number;
+            };
+        };
         /** OpportunityOut */
         OpportunityOut: {
             /**
@@ -2994,6 +3035,48 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OpportunityOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    opportunity_map_window_api_opportunities_map_window_get: {
+        parameters: {
+            query?: {
+                tier?: string | null;
+                search?: string | null;
+                decision?: string | null;
+                geography?: string | null;
+                industry?: string | null;
+                activity?: string | null;
+                timing?: string | null;
+                mw_status?: string | null;
+                mw_min?: string | null;
+                mw_max?: string | null;
+                priority_segment?: string | null;
+                status?: ("UNKNOWN" | "NEW" | "INVESTIGATING" | "CONTACTED" | "QUALIFIED" | "WON" | "LOST" | "CLOSED") | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpportunityMapWindowOut"];
                 };
             };
             /** @description Validation Error */

@@ -1,3 +1,4 @@
+from collections import Counter
 from datetime import UTC, date, datetime, timedelta
 from importlib import import_module
 
@@ -20,6 +21,7 @@ from gridlens.persistence.models import (
     BuyingChainRun,
     Evidence,
     Interpretation,
+    NeedObservation,
     Observation,
     PowerNeed,
     Project,
@@ -158,6 +160,200 @@ def test_batched_buying_chain_view_matches_single_project_projection(db):
         actual = buying_chain_views(session, {project.id}, now=NOW)[str(project.id)]
 
         assert actual == expected
+
+
+def test_batched_retained_query_deduplicates_pairs_and_keeps_all_versions(db, monkeypatch):
+    with db.begin() as session:
+        project = seed(session)
+        linked_need = session.scalar(select(PowerNeed).where(PowerNeed.project_id == project.id))
+        direct_observation = session.scalar(
+            select(Observation).where(Observation.external_id == project.external_id)
+        )
+        direct_evidence = session.scalar(
+            select(Evidence).where(Evidence.observation_id == direct_observation.id)
+        )
+        assert (
+            linked_need is not None
+            and direct_observation is not None
+            and direct_evidence is not None
+        )
+
+        shared_observation = Observation(
+            source_id="test",
+            external_id="shared-record",
+            title="Shared project evidence",
+            url="https://news.example/shared-record",
+            abstract="A shared retained observation.",
+            published_at=date(2026, 9, 20),
+            content_hash="shared-v5",
+        )
+        other_project = Project(
+            source_id="test",
+            external_id="99",
+            name="Other Data Center",
+            location="Dallas, TX",
+            identity_key="other-project",
+            identity_facts={},
+        )
+        session.add_all([shared_observation, other_project])
+        session.flush()
+        second_need = PowerNeed(
+            project_id=project.id,
+            activity_key="commissioning",
+            tier="Signal",
+            rationale="Synthetic second need",
+        )
+        other_need = PowerNeed(
+            project_id=other_project.id,
+            activity_key="construction",
+            tier="Signal",
+            rationale="Synthetic other-project need",
+        )
+        session.add_all([second_need, other_need])
+        session.flush()
+        # The direct project match also appears through multiple need links;
+        # the shared observation is linked through multiple needs and projects.
+        session.add_all(
+            [
+                NeedObservation(need_id=linked_need.id, observation_id=direct_observation.id),
+                NeedObservation(need_id=second_need.id, observation_id=direct_observation.id),
+                NeedObservation(need_id=linked_need.id, observation_id=shared_observation.id),
+                NeedObservation(need_id=second_need.id, observation_id=shared_observation.id),
+                NeedObservation(need_id=other_need.id, observation_id=shared_observation.id),
+            ]
+        )
+        session.add(
+            Interpretation(
+                observation_id=shared_observation.id,
+                content_hash=shared_observation.content_hash,
+                status="accepted",
+                assessment={
+                    "evidence_hash": shared_observation.content_hash,
+                    "decision": "accepted",
+                    "project_identity_key": project.identity_key,
+                    "admission_status": "supplemental",
+                },
+            )
+        )
+        shared_evidence = []
+        for index in range(6):
+            evidence = Evidence(
+                observation_id=shared_observation.id,
+                title=shared_observation.title,
+                abstract=shared_observation.abstract,
+                url=shared_observation.url,
+                content_hash=f"shared-v{index}",
+                observed_at=NOW + timedelta(minutes=index),
+            )
+            session.add(evidence)
+            shared_evidence.append(evidence)
+        session.flush()
+        shared_evidence_ids = [evidence.id for evidence in shared_evidence]
+
+        other_direct_observation = Observation(
+            source_id="test",
+            external_id=other_project.external_id,
+            title=other_project.name,
+            url="https://news.example/other-direct",
+            abstract="Other project's direct evidence.",
+            published_at=date(2026, 9, 21),
+            content_hash="other-direct-v1",
+        )
+        session.add(other_direct_observation)
+        session.flush()
+        other_direct_evidence = Evidence(
+            observation_id=other_direct_observation.id,
+            title=other_direct_observation.title,
+            abstract=other_direct_observation.abstract,
+            url=other_direct_observation.url,
+            content_hash=other_direct_observation.content_hash,
+            observed_at=NOW + timedelta(minutes=8),
+        )
+        session.add_all(
+            [
+                other_direct_evidence,
+                Interpretation(
+                    observation_id=other_direct_observation.id,
+                    content_hash=other_direct_observation.content_hash,
+                    status="accepted",
+                    assessment={
+                        "evidence_hash": other_direct_observation.content_hash,
+                        "decision": "accepted",
+                        "project_identity_key": other_project.identity_key,
+                        "admission_status": "supplemental",
+                    },
+                ),
+            ]
+        )
+        session.flush()
+
+        project_ids = {project.id, other_project.id}
+        expected = {
+            str(project_id): buying_chain_view(session, project_id, now=NOW)
+            for project_id in project_ids
+        }
+
+        from gridlens.intelligence import buying_chain as service
+
+        original_current_check = service._retained_evidence_current_for_project
+        visited_pairs = []
+        visited_current = []
+
+        def record_current_check(*args, **kwargs):
+            project_id, evidence_id = args[1].id, args[2].id
+            current = original_current_check(*args, **kwargs)
+            visited_pairs.append((project_id, evidence_id))
+            visited_current.append((project_id, evidence_id, current))
+            return current
+
+        monkeypatch.setattr(service, "_retained_evidence_current_for_project", record_current_check)
+        actual = buying_chain_views(session, project_ids, now=NOW)
+
+        expected_pairs = Counter(
+            [
+                (project.id, direct_evidence.id),
+                *((project.id, evidence_id) for evidence_id in shared_evidence_ids),
+                *((other_project.id, evidence_id) for evidence_id in shared_evidence_ids),
+                (other_project.id, other_direct_evidence.id),
+            ]
+        )
+        expected_current = Counter(
+            [
+                (project.id, direct_evidence.id, True),
+                *(
+                    (project.id, evidence_id, evidence_id == shared_evidence_ids[-1])
+                    for evidence_id in shared_evidence_ids
+                ),
+                *((other_project.id, evidence_id, False) for evidence_id in shared_evidence_ids),
+                (other_project.id, other_direct_evidence.id, True),
+            ]
+        )
+        evidence_by_id = {
+            evidence.id: evidence
+            for evidence in [direct_evidence, *shared_evidence, other_direct_evidence]
+        }
+        expected_order = []
+        for project_id in sorted(project_ids):
+            project_evidence_ids = [
+                evidence_id
+                for candidate_project_id, evidence_id in expected_pairs
+                if candidate_project_id == project_id
+            ]
+            expected_order.extend(
+                (project_id, evidence_id)
+                for evidence_id in sorted(
+                    project_evidence_ids,
+                    key=lambda evidence_id: (
+                        -evidence_by_id[evidence_id].observed_at.timestamp(),
+                        evidence_id,
+                    ),
+                )
+            )
+        assert actual == expected
+        assert Counter(visited_pairs) == expected_pairs
+        assert Counter(visited_current) == expected_current
+        assert visited_pairs == expected_order
+        assert len(visited_pairs) == 14
 
 
 def test_same_url_retained_and_full_page_quotes_bind_exact_versions(db):

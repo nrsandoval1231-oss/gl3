@@ -362,6 +362,17 @@ class OpportunityGroupPageOut(BaseModel):
     cohort_token: str
 
 
+class OpportunityMapWindowOut(BaseModel):
+    items: list[OpportunityOut]
+    total_count: int
+    loaded_count: int
+    is_subset: bool
+    window_limit: int
+    group_total_count: int
+    cohort_token: str
+    decision_counts: dict[str, int]
+
+
 _BROWSE_FILTER_NAMES = {
     "geography",
     "industry",
@@ -409,6 +420,8 @@ def _validate_browse_query(request: Request) -> None:
     allowed = _BROWSE_QUERY_NAMES
     if request.url.path == "/api/opportunities/export.csv":
         allowed = allowed - {"offset", "sort"}
+    elif request.url.path == "/api/opportunities/map-window":
+        allowed = _BROWSE_FILTER_NAMES | {"tier", "search", "decision"}
     unsupported = sorted(set(request.query_params.keys()) - allowed)
     if unsupported:
         raise HTTPException(
@@ -696,6 +709,13 @@ def _bounded_opportunity_payload(items: list[dict]) -> list[dict]:
         if len(item.get("lifecycle_timeline", [])) > _MAX_OPPORTUNITY_LIFECYCLE_ROWS:
             raise HTTPException(413, "Opportunity has too many lifecycle rows for one response")
     return items
+
+
+def _bounded_opportunity_map_window_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    encoded_size = len(json.dumps(payload, default=str, separators=(",", ":")).encode("utf-8"))
+    if encoded_size > _MAX_OPPORTUNITY_PAGE_BYTES:
+        raise HTTPException(413, "Opportunity map window exceeds the complete response byte budget")
+    return payload
 
 
 def _begin_consistent_read(session) -> None:
@@ -1625,9 +1645,7 @@ def opportunities(
             # Rank the whole filtered cohort before paging; ties keep the updated order.
             rank_by_id = _cohort_ranks(session, filtered, tier)
             # Rows the detail projection omits (not displayable) sort last.
-            filtered.sort(
-                key=lambda item: -rank_by_id.get(str(item["id"]), {}).get("rank_score", -1)
-            )
+            filtered = _rank_opportunity_summaries(filtered, rank_by_id)
             filtered_keys = [key_by_id[str(item["id"])] for item in filtered]
             token = _rank_cohort_token(token, filtered, rank_by_id)
         if cohort is not None and cohort != token:
@@ -1690,8 +1708,164 @@ def opportunities(
         return _bounded_opportunity_payload(output)
 
 
+_OPPORTUNITY_MAP_WINDOW_LIMIT = 200
+
+
+@app.get(
+    "/api/opportunities/map-window",
+    response_model=OpportunityMapWindowOut,
+    dependencies=[Depends(require_session), Depends(_validate_browse_query)],
+)
+def opportunity_map_window(
+    tier: str | None = None,
+    search: str | None = None,
+    decision: str | None = None,
+    *,
+    geography: str | None = None,
+    industry: str | None = None,
+    activity: str | None = None,
+    timing: str | None = None,
+    mw_status: str | None = None,
+    mw_min: str | None = None,
+    mw_max: str | None = None,
+    priority_segment: str | None = None,
+    status: WorkflowStatusFilter | None = None,
+):
+    """Return the exact globally ranked, bounded map window in one authenticated read."""
+    filters = _normalized_browse_filters(
+        tier=tier,
+        decision=decision,
+        geography=geography,
+        industry=industry,
+        activity=activity,
+        timing=timing,
+        mw_status=mw_status,
+        mw_min=mw_min,
+        mw_max=mw_max,
+        priority_segment=priority_segment,
+        status=status,
+        search=search,
+    )
+    tier = filters["tier"]
+    decision = filters["decision"]
+    with SessionLocal() as session:
+        _begin_consistent_read(session)
+        summaries = opportunity_projection(session, tier=tier, summary_only=True)
+        items = _filter_opportunity_summaries(
+            [
+                {
+                    **item,
+                    "_browse_first_evidence": {},
+                    "_browse_action_candidates": item.get("_browse_action_candidates", []),
+                }
+                for item in summaries
+            ],
+            filters,
+        )
+        evidence_matches = _opportunity_evidence_search_matches(session, items, search)
+        items.sort(key=lambda item: str(item["id"]))
+        items.sort(key=lambda item: item.get("_updated_at") or datetime.min, reverse=True)
+        groups = grouped_opportunities(items)
+        key_by_id = {str(member["id"]): key for key, members in groups for member in members}
+        matched_by_id = {
+            str(item["id"]): matched_opportunity(
+                item, search or "", evidence_matches.get(str(item["id"]), False)
+            )
+            for item in items
+        }
+        matching_group_keys = {
+            key_by_id[str(item["id"])] for item in items if matched_by_id[str(item["id"])]
+        }
+        search_groups = [(key, members) for key, members in groups if key in matching_group_keys]
+        decision_counts = {
+            value: sum(grouped_signal_decision(members) == value for _key, members in search_groups)
+            for value in ("SHOW", "REVIEW", "HOLD")
+        }
+        filtered_groups = [
+            (key, members)
+            for key, members in search_groups
+            if decision in {None, "ALL"} or grouped_signal_decision(members) == decision
+        ]
+        filtered = [member for _key, members in filtered_groups for member in members]
+        filtered.sort(key=lambda item: str(item["id"]))
+        filtered.sort(key=lambda item: item.get("_updated_at") or datetime.min, reverse=True)
+        filtered_keys = [key_by_id[str(item["id"])] for item in filtered]
+        cohort_token = build_opportunity_cohort_token(filters, filtered, filtered_keys)
+
+        # Rank every filtered candidate from the canonical detail projection. This preserves
+        # the rank of a winner beyond the loaded window and keeps ties in updated order.
+        rank_by_id = _cohort_ranks(session, filtered, tier)
+        filtered = _rank_opportunity_summaries(filtered, rank_by_id)
+        cohort_token = _rank_cohort_token(cohort_token, filtered, rank_by_id)
+        selected = filtered[:_OPPORTUNITY_MAP_WINDOW_LIMIT]
+        selected_ids = {UUID(str(item["id"])) for item in selected}
+        details_by_id: dict[str, dict] = {}
+        for start in range(0, len(selected), _RANK_BATCH_SIZE):
+            batch = selected[start : start + _RANK_BATCH_SIZE]
+            _preflight_opportunity_details(session, batch)
+            details = opportunity_projection(
+                session,
+                tier=tier,
+                selected_need_ids={UUID(str(item["id"])) for item in batch},
+                include_below_floor=False,
+            )
+            details_by_id.update({str(item["id"]): item for item in details})
+        if set(details_by_id) != {str(value) for value in selected_ids}:
+            raise HTTPException(409, "Opportunity map window changed while loading details")
+
+        total_by_key: dict[str, int] = {}
+        loaded_by_key: dict[str, int] = {}
+        for item in filtered:
+            key = key_by_id[str(item["id"])]
+            total_by_key[key] = total_by_key.get(key, 0) + 1
+        for item in selected:
+            key = key_by_id[str(item["id"])]
+            loaded_by_key[key] = loaded_by_key.get(key, 0) + 1
+        group_title_by_key = {key: opportunity_project_title(members[0]) for key, members in groups}
+        output = []
+        for summary in selected:
+            item_id = str(summary["id"])
+            key = key_by_id[item_id]
+            output.append(
+                {
+                    **details_by_id[item_id],
+                    "group_id": opportunity_group_id(key),
+                    "group_title": group_title_by_key[key],
+                    "group_total_filtered": total_by_key[key],
+                    "group_loaded_on_page": loaded_by_key[key],
+                    "group_complete_on_page": loaded_by_key[key] == total_by_key[key],
+                    "matched_search": matched_by_id[item_id],
+                    "priority_segment": _opportunity_priority_segment(summary),
+                    "priority_label": _opportunity_priority_label(summary),
+                    "workflow_status": summary.get("workflow_status", "UNKNOWN"),
+                    **rank_by_id.get(item_id, {}),
+                }
+            )
+        # The whole map payload is budgeted together; individual detail reads stay in
+        # bounded batches, and any over-budget answer fails closed rather than truncating.
+        output = _bounded_opportunity_payload(output)
+        return _bounded_opportunity_map_window_payload({
+            "items": output,
+            "total_count": len(filtered),
+            "loaded_count": len(output),
+            "is_subset": len(output) < len(filtered),
+            "window_limit": _OPPORTUNITY_MAP_WINDOW_LIMIT,
+            "group_total_count": len(filtered_groups),
+            "cohort_token": cohort_token,
+            "decision_counts": decision_counts,
+        })
+
+
 _RANK_BATCH_SIZE = 50
 _RANK_TOKEN_MARK = ".rank."
+
+
+def _rank_opportunity_summaries(items: list[dict], ranks: dict[str, dict]) -> list[dict]:
+    """Apply canonical descending rank with the input order as the stable tie-breaker."""
+    return sorted(
+        items,
+        key=lambda item: -ranks.get(str(item["id"]), {}).get("rank_score", -1),
+    )
 
 
 def _rank_cohort_token(base: str, ordered: list[dict], ranks: dict[str, dict]) -> str:
@@ -2519,13 +2693,14 @@ def _opportunity_summary_projection(
                 lifecycle_interpretation,
             ):
                 release_streamed_row(orm_row)
-            metrics["max_resident_lifecycle_orm_rows"] = max(
-                metrics["max_resident_lifecycle_orm_rows"],
-                sum(
-                    isinstance(row, LifecycleEvent | Evidence | Observation | Interpretation)
-                    for row in session.identity_map.values()
-                ),
-            )
+            if diagnostics is not None:
+                metrics["max_resident_lifecycle_orm_rows"] = max(
+                    metrics["max_resident_lifecycle_orm_rows"],
+                    sum(
+                        isinstance(row, LifecycleEvent | Evidence | Observation | Interpretation)
+                        for row in session.identity_map.values()
+                    ),
+                )
 
         need_states: dict[UUID, dict[str, Any]] = {}
         for need, project in batch:
@@ -2687,13 +2862,14 @@ def _opportunity_summary_projection(
                     state["first_non_taylor_admitted"] = action
             for orm_row in (signal_decision, interpretation, evidence, observation):
                 release_streamed_row(orm_row)
-            metrics["max_resident_link_orm_rows"] = max(
-                metrics["max_resident_link_orm_rows"],
-                sum(
-                    isinstance(row, SignalDecision | Evidence | Observation | Interpretation)
-                    for row in session.identity_map.values()
-                ),
-            )
+            if diagnostics is not None:
+                metrics["max_resident_link_orm_rows"] = max(
+                    metrics["max_resident_link_orm_rows"],
+                    sum(
+                        isinstance(row, SignalDecision | Evidence | Observation | Interpretation)
+                        for row in session.identity_map.values()
+                    ),
+                )
         metrics["max_current_link_rows_per_batch"] = max(
             metrics["max_current_link_rows_per_batch"], current_link_rows
         )

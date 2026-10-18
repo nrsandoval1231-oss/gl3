@@ -40,6 +40,16 @@ export type OpportunityPage = {
   cohortToken: string
   decisionCounts: Record<'SHOW' | 'REVIEW' | 'HOLD', number>
 }
+export type OpportunityMapWindow = {
+  items: Opportunity[]
+  totalCount: number
+  loadedCount: number
+  isSubset: boolean
+  windowLimit: number
+  groupTotalCount: number
+  cohortToken: string
+  decisionCounts: Record<'SHOW' | 'REVIEW' | 'HOLD', number>
+}
 export type OpportunityNeedScope = {
   tier: string
   search: string
@@ -121,6 +131,30 @@ async function opportunityPage(tier: string, search: string, decision: string, l
   }
 }
 
+async function opportunityMapWindow(tier: string, search: string, filters: OpportunityBrowseFilters = {}, signal?: AbortSignal): Promise<OpportunityMapWindow> {
+  const params = new URLSearchParams({ tier, search, decision: 'ALL' })
+  addBrowseFilters(params, filters)
+  const response = await fetch(`/api/opportunities/map-window?${params}`, { credentials: 'same-origin', signal })
+  if (response.status === 401) { clearContinuity(); throw new Error('Your session ended. Sign in again.') }
+  if (response.status === 409) throw new OpportunityCohortChangedError()
+  if (!response.ok) throw new Error(`GridLens could not complete this request (${response.status}).`)
+  const result = await response.json() as components['schemas']['OpportunityMapWindowOut']
+  return {
+    items: result.items,
+    totalCount: result.total_count,
+    loadedCount: result.loaded_count,
+    isSubset: result.is_subset,
+    windowLimit: result.window_limit,
+    groupTotalCount: result.group_total_count,
+    cohortToken: result.cohort_token,
+    decisionCounts: {
+      SHOW: result.decision_counts.SHOW ?? 0,
+      REVIEW: result.decision_counts.REVIEW ?? 0,
+      HOLD: result.decision_counts.HOLD ?? 0,
+    },
+  }
+}
+
 export class OpportunityCohortChangedError extends Error {
   constructor() {
     super('Opportunity cohort changed; restart pagination from the first page.')
@@ -177,6 +211,7 @@ export const client = {
   login: (password: string) => api<{ authenticated: boolean }>('/api/auth/login', { method: 'POST', body: JSON.stringify({ password }) }),
   logout: () => api('/api/auth/logout', { method: 'POST' }).finally(clearContinuity),
   opportunityPage,
+  opportunityMapWindow,
   opportunityGroupPage: (groupId: string, tier: string, search: string, decision: string, cohortToken: string, limit: number, offset: number, filters: OpportunityBrowseFilters = {}, signal?: AbortSignal) => {
     const params = new URLSearchParams({ tier, search, decision, cohort_token: cohortToken, limit: String(limit), offset: String(offset) })
     addBrowseFilters(params, filters)
