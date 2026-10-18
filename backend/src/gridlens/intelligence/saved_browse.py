@@ -10,6 +10,7 @@ import hashlib
 import json
 from collections import Counter
 from datetime import UTC, datetime, time, timedelta
+from decimal import Decimal
 from pathlib import Path
 from typing import Any
 from uuid import UUID, uuid4
@@ -351,8 +352,17 @@ def _filtered_cte(filters: dict) -> tuple[str, dict]:
         ("mw_max", "mw_low <= CAST(:mw_max AS numeric)"),
     ):
         if filters.get(field) is not None:
-            predicates.append(expression)
-            params[field] = filters[field]
+            bound = Decimal(filters[field])
+            # Canonical MW strings are capped at 128 characters, but query
+            # decimals may have arbitrarily large exponents. Preserve Decimal
+            # comparison semantics without overflowing PostgreSQL numeric.
+            if bound and bound.adjusted() > 512:
+                predicates.append("false" if field == "mw_min" else "mw_low IS NOT NULL")
+            elif bound and bound.adjusted() < -512:
+                predicates.append("mw_high > 0" if field == "mw_min" else "mw_low = 0")
+            else:
+                predicates.append(expression)
+                params[field] = filters[field]
     sql = f"""
         WITH dimensions AS (
             SELECT need_id, tier, project_id, project_group, single_group, rank_score,

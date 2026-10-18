@@ -7,6 +7,7 @@ No external sources/models, production copies, credentials or app accounts.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import math
 import os
@@ -31,6 +32,7 @@ from gridlens.intelligence.saved_browse import rebuild
 from gridlens.persistence.browse_invalidation import install
 from gridlens.persistence.database import Base
 from gridlens.persistence.models import (
+    BrowseGeneration,
     BrowseState,
     Evidence,
     Interpretation,
@@ -221,6 +223,7 @@ def main():
         start = time.perf_counter()
         result["build"] = rebuild(factory)
         result["build_seconds"] = time.perf_counter() - start
+        print(json.dumps({"stage": "built", "seconds": result["build_seconds"]}), flush=True)
         result["evidence_after"] = evidence_fingerprint()
         assert result["evidence_before"] == result["evidence_after"]
         if (
@@ -259,10 +262,33 @@ def main():
                 payload = api.opportunities(
                     tier="Signal", limit=50, offset=0, cohort=None, sort="rank"
                 )
+            elapsed = time.perf_counter() - start
+            records = payload if isinstance(payload, list) else payload.get("items", [payload])
+            fields = (
+                "id",
+                "tier",
+                "required_mw",
+                "start_window",
+                "duration",
+                "supply",
+                "rank_score",
+                "rank_reasons",
+                "rank_version",
+                "priority_segment",
+                "priority_label",
+                "workflow_status",
+                "group_id",
+                "group_total_filtered",
+            )
+            semantic = [{key: row.get(key) for key in fields} for row in records]
+            fingerprint = hashlib.sha256(
+                json.dumps(semantic, default=str, sort_keys=True, separators=(",", ":")).encode()
+            ).hexdigest()
             return {
-                "seconds": time.perf_counter() - start,
+                "seconds": elapsed,
                 "selects": local.queries,
                 "bytes": len(json.dumps(payload, default=str).encode()),
+                "semantic_fingerprint": fingerprint,
             }
 
         def summarize(samples):
@@ -274,6 +300,7 @@ def main():
                 "max_seconds": max(times),
                 "max_selects": max(s["selects"] for s in samples),
                 "max_bytes": max(s["bytes"] for s in samples),
+                "semantic_fingerprints": sorted({s["semantic_fingerprint"] for s in samples}),
             }
 
         if args.baseline_samples:
@@ -287,6 +314,16 @@ def main():
                     "sequential": summarize(sequential),
                     "concurrent": summarize(concurrent),
                 }
+                print(
+                    json.dumps(
+                        {
+                            "stage": "baseline",
+                            "kind": kind,
+                            "result": result["legacy_baseline"][kind],
+                        }
+                    ),
+                    flush=True,
+                )
             settings.saved_browse_enabled = True
         measurements = {}
         for kind in ("ranked_page", "filtered", "map", "detail"):
@@ -297,6 +334,15 @@ def main():
             measurements[kind] = {}
             for label, samples in (("sequential", sequential), ("concurrent", concurrent)):
                 measurements[kind][label] = summarize(samples)
+                if kind in result.get("legacy_baseline", {}):
+                    assert (
+                        measurements[kind][label]["semantic_fingerprints"]
+                        == (result["legacy_baseline"][kind][label]["semantic_fingerprints"])
+                    ), f"Saved/canonical semantic mismatch: {kind}/{label}"
+            print(
+                json.dumps({"stage": "saved", "kind": kind, "result": measurements[kind]}),
+                flush=True,
+            )
         result["measurements"] = measurements
         cold_code = """
 import json, os, time
@@ -327,6 +373,9 @@ print(json.dumps({'seconds': time.perf_counter()-start, 'returned': len(items),
         )
         with factory() as session:
             state = session.get(BrowseState, 1)
+            result["runtime_policy"] = session.get(
+                BrowseGeneration, state.generation_id
+            ).policy_version
             result["rank_page_explain"] = session.scalars(
                 text("""
                 EXPLAIN (ANALYZE, BUFFERS, FORMAT TEXT) SELECT compact FROM browse_rows

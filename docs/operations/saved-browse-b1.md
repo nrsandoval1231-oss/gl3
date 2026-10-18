@@ -26,8 +26,9 @@ current. Unscoped detail still reads current canonical inputs directly.
 Expiry is the earliest UTC, Chicago or host-local date rollover, or a future
 operator fact start/end instant. A build crossing its expiry cannot publish.
 Publication compares the captured input revision atomically. A separate advisory
-lock permits one builder per database. Three derived generations are retained;
-canonical evidence/history is never deleted by maintenance.
+lock permits one builder per database. Retention keeps the latest three derived
+generations plus the published pointer if it is older; canonical evidence/history
+is never deleted by maintenance.
 
 Ordinary ranked pages/maps use saved counts and an ordered index page read.
 Arbitrary dimension/search/decision combinations aggregate compact scalar rows to
@@ -57,10 +58,12 @@ published pointer and leaves qualification pending if canonical inputs changed.
 ## Production activation gate
 
 No production activation has been performed from the saved cloud environment.
-It has GitHub access but no SSH directory/agent, DigitalOcean/Infisical token,
-production database URL or production environment file. No credentials or access
-were created. No production checksum or authenticated live-page verification can
-be claimed from these local fixtures.
+It has GitHub access and connected DigitalOcean inventory access, which confirms
+the active production droplet. That connector exposes no host command channel.
+There is no SSH directory/agent, local DigitalOcean/Infisical token, production
+database URL or production environment file. No credentials or access were
+created. No production checksum or authenticated live-page verification can be
+claimed from these local fixtures.
 
 With the existing legitimate deployment identity available:
 
