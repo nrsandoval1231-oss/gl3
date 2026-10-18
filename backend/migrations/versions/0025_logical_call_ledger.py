@@ -12,7 +12,7 @@ def upgrade():
     op.execute("""
         CREATE TABLE logical_calls (
             id UUID PRIMARY KEY,
-            fingerprint VARCHAR(64) NOT NULL UNIQUE,
+            fingerprint VARCHAR(64) NOT NULL,
             task_type VARCHAR(80) NOT NULL,
             task_key VARCHAR(200) NOT NULL,
             evidence_digest VARCHAR(64) NOT NULL,
@@ -50,6 +50,7 @@ def upgrade():
             CHECK ((status = 'RECONCILED') =
                 (reconciled_by IS NOT NULL AND reconciliation_ref IS NOT NULL))
         );
+        CREATE UNIQUE INDEX ix_logical_calls_fingerprint ON logical_calls(fingerprint);
         CREATE INDEX ix_logical_calls_provider ON logical_calls(provider);
         CREATE INDEX ix_logical_calls_model ON logical_calls(model);
         CREATE INDEX ix_logical_calls_source_id ON logical_calls(source_id);

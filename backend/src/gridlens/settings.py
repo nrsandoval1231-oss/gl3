@@ -21,12 +21,25 @@ class Settings(BaseSettings):
     login_global_limit: int = Field(default=500, ge=10, le=10000)
     login_client_bucket_cap: int = Field(default=10000, ge=100, le=100000)
     worker_auto_refresh: bool = True
+    monitoring_enabled: bool = False
+    monitoring_plan_batch_limit: int = Field(default=20, ge=1, le=100)
+    monitoring_max_active_jobs: int = Field(default=4, ge=1, le=100)
+    monitoring_max_active_per_host: int = Field(default=2, ge=1, le=20)
+    monitoring_max_active_per_source: int = Field(default=1, ge=1, le=20)
     saved_browse_enabled: bool = False
     pursuits_daily_fetch_limit: int = 160
     pursuits_daily_model_limit: int = 8
     typesafe_api_key: SecretStr | None = None
     jev_enabled: bool = False
     intelligence_enabled: bool = False
+    intelligence_mode: str = "disabled"
+    intelligence_routing_policy_id: str = ""
+    intelligence_routing_policy_evaluated: bool = False
+    intelligence_bounded_routing_authorized: bool = False
+    intelligence_openai_enabled: bool = False
+    intelligence_typesafe_enabled: bool = False
+    intelligence_research_enabled: bool = False
+    intelligence_enabled_contracts: str = ""
     intelligence_global_daily_calls: int = Field(default=0, ge=0, le=1_000_000)
     intelligence_global_monthly_calls: int = Field(default=0, ge=0, le=1_000_000)
     intelligence_global_daily_usd: Decimal = Field(default=Decimal("0"), ge=0, le=100000)
@@ -50,6 +63,36 @@ class Settings(BaseSettings):
     intelligence_max_active_calls: int = Field(default=0, ge=0, le=100_000)
     intelligence_max_call_usd: Decimal = Field(default=Decimal("0"), ge=0, le=100)
     intelligence_openai_model: str = ""
+    intelligence_openai_fast_model: str = ""
+    intelligence_openai_reasoning_model: str = ""
+    intelligence_openai_fast_priced_model_id: str = ""
+    intelligence_openai_fast_pricing_verified: bool = False
+    intelligence_openai_fast_input_usd_per_million: Decimal = Field(
+        default=Decimal("0"), ge=0, le=100000
+    )
+    intelligence_openai_fast_output_usd_per_million: Decimal = Field(
+        default=Decimal("0"), ge=0, le=100000
+    )
+    intelligence_openai_fast_max_output_tokens: int = Field(default=0, ge=0, le=100000)
+    intelligence_openai_reasoning_priced_model_id: str = ""
+    intelligence_openai_reasoning_pricing_verified: bool = False
+    intelligence_openai_reasoning_input_usd_per_million: Decimal = Field(
+        default=Decimal("0"), ge=0, le=100000
+    )
+    intelligence_openai_reasoning_output_usd_per_million: Decimal = Field(
+        default=Decimal("0"), ge=0, le=100000
+    )
+    intelligence_openai_reasoning_max_output_tokens: int = Field(default=0, ge=0, le=100000)
+    intelligence_typesafe_priced_model_id: str = ""
+    intelligence_typesafe_pricing_verified: bool = False
+    intelligence_typesafe_input_usd_per_million: Decimal = Field(
+        default=Decimal("0"), ge=0, le=100000
+    )
+    intelligence_typesafe_output_usd_per_million: Decimal = Field(
+        default=Decimal("0"), ge=0, le=100000
+    )
+    intelligence_typesafe_max_output_tokens: int = Field(default=0, ge=0, le=100000)
+    intelligence_typesafe_output_limit_verified: bool = False
     intelligence_typesafe_model: str = ""
     jev_shadow_mode: bool = True
     jev_shadow_batch_limit: int = 20
@@ -81,6 +124,13 @@ class Settings(BaseSettings):
             ZoneInfo(value)
         except (ZoneInfoNotFoundError, ValueError) as exc:
             raise ValueError("schedule timezone must be a valid IANA zone") from exc
+        return value
+
+    @field_validator("intelligence_mode")
+    @classmethod
+    def _valid_intelligence_mode(cls, value: str) -> str:
+        if value not in {"disabled", "evaluation", "advisory", "bounded_routing"}:
+            raise ValueError("intelligence_mode must be a supported operating mode")
         return value
 
     @field_validator("schedule_anchor_time")

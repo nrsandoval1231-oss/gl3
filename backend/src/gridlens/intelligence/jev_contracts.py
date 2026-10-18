@@ -102,6 +102,6 @@ def validate_answer(contract_id: str, payload: dict[str, object]) -> JevChoiceAn
     if answer.probabilities is not None:
         if any(not 0 <= value <= 1 for value in answer.probabilities.values()):
             raise ValueError("probabilities must be in [0, 1]")
-        if abs(sum(answer.probabilities.values()) - 1.0) > 1e-6:
-            raise ValueError("probabilities must sum to one")
+        if not 0.98 <= sum(answer.probabilities.values()) <= 1.02:
+            raise ValueError("probabilities must approximately sum to one")
     return answer

@@ -126,6 +126,16 @@ def run_shadow(
     limit = min(max(1, limit), settings.jev_shadow_batch_limit, 20)
     if not settings.jev_enabled or not settings.jev_shadow_mode:
         return {"status": "disabled", "attempted": 0, "valid": 0, "failed": 0}
+    from gridlens.intelligence.intelligence_jobs import legacy_paid_path_block_reason
+
+    if legacy_paid_path_block_reason():
+        return {
+            "status": "blocked",
+            "reason": legacy_paid_path_block_reason(),
+            "attempted": 0,
+            "valid": 0,
+            "failed": 0,
+        }
     api_key = settings.typesafe_api_key.get_secret_value() if settings.typesafe_api_key else None
     if judge is None and not api_key:
         return {

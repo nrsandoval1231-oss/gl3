@@ -139,6 +139,27 @@ def reserve_call(
             return ReservationResult(
                 prior.id, True, prior.status, "INTELLIGENCE_DISABLED", prior.fence_token
             )
+        # A completed semantic call is immutable reusable output. A fresh job
+        # may read its result without inheriting the old job lease or reserving
+        # budget again; only the original lease can mutate the call.
+        if prior.status == "COMPLETED":
+            session.commit()
+            return ReservationResult(
+                prior.id, True, prior.status, prior.blocked_reason, prior.fence_token
+            )
+        if (
+            prior.status == "NOT_SENT"
+            and lease_authority == "job"
+            and prior.job_id == job_id
+            and _assert_job_fence(session, job_id, worker_id or "", fence_token)
+        ):
+            # The current lease is the only live fence for this job. Rebinding a
+            # never-dispatched reservation is safe and preserves its budget
+            # reservation; a sent/unknown call can never take this path.
+            prior.worker_id = worker_id
+            prior.fence_token = fence_token
+            session.commit()
+            return ReservationResult(prior.id, True, prior.status, None, prior.fence_token)
         if (
             prior.lease_authority != lease_authority
             or prior.job_id != job_id
@@ -290,9 +311,52 @@ def reserve_call(
     except IntegrityError:
         session.rollback()
         duplicate = session.scalar(
-            select(LogicalCall).where(LogicalCall.fingerprint == fingerprint)
+            select(LogicalCall).where(LogicalCall.fingerprint == fingerprint).with_for_update()
         )
         if duplicate is not None:
+            if duplicate.source_id != source_id or duplicate.project_id != project_id:
+                session.rollback()
+                return ReservationResult(
+                    duplicate.id,
+                    True,
+                    duplicate.status,
+                    "IDENTITY_SCOPE_MISMATCH",
+                    duplicate.fence_token,
+                )
+            if not enabled:
+                session.rollback()
+                return ReservationResult(
+                    duplicate.id,
+                    True,
+                    duplicate.status,
+                    "INTELLIGENCE_DISABLED",
+                    duplicate.fence_token,
+                )
+            if (
+                duplicate.status == "NOT_SENT"
+                and lease_authority == "job"
+                and duplicate.job_id == job_id
+                and _assert_job_fence(session, job_id, worker_id or "", fence_token)
+            ):
+                duplicate.worker_id = worker_id
+                duplicate.fence_token = fence_token
+                session.commit()
+                return ReservationResult(
+                    duplicate.id, True, duplicate.status, None, duplicate.fence_token
+                )
+            if duplicate.status != "COMPLETED" and (
+                duplicate.lease_authority != lease_authority
+                or duplicate.job_id != job_id
+                or duplicate.worker_id != worker_id
+            ):
+                session.rollback()
+                return ReservationResult(
+                    duplicate.id,
+                    True,
+                    duplicate.status,
+                    "IDENTITY_LEASE_MISMATCH",
+                    duplicate.fence_token,
+                )
             session.commit()
             return ReservationResult(
                 duplicate.id,
@@ -421,7 +485,7 @@ def _transition(
                         .values(cost_usd=LogicalCallBudget.cost_usd + delta)
                     )
     for name, value in (("input_tokens", input_tokens), ("output_tokens", output_tokens)):
-        if value is not None and (isinstance(value, bool) or value < 0 or value > 2**63 - 1):
+        if value is not None and (type(value) is not int or value < 0 or value > 2**63 - 1):
             session.rollback()
             raise ValueError(f"{name} must be a nonnegative finite integer")
         setattr(call, name, value)
@@ -480,7 +544,20 @@ def fail_call(
     fence_token: int,
     blocked_reason: str | None = None,
     actual_cost_usd: Decimal | str | int | float | None = None,
+    conclusive_response_ref: str | None = None,
 ) -> ReservationResult:
+    # A sent request without a conclusive provider response remains UNKNOWN;
+    # releasing its active budget slot would permit an unsafe blind retry.
+    if conclusive_response_ref is not None and not conclusive_response_ref.strip():
+        raise ValueError("conclusive_response_ref must be nonempty")
+    if conclusive_response_ref is not None and len(conclusive_response_ref) > 200:
+        raise ValueError("conclusive_response_ref is limited to 200 characters")
+    call = session.get(LogicalCall, call_id)
+    if call is not None and call.status == "SENT_OUTCOME_UNKNOWN" and not conclusive_response_ref:
+        session.rollback()
+        return ReservationResult(
+            call_id, False, call.status, "CONCLUSIVE_RESPONSE_REQUIRED", call.fence_token
+        )
     return _transition(
         session,
         call_id,
@@ -488,6 +565,11 @@ def fail_call(
         status="FAILED",
         blocked_reason=blocked_reason,
         actual_cost_usd=actual_cost_usd,
+        result_payload=(
+            {"provider_response_ref": conclusive_response_ref}
+            if conclusive_response_ref is not None
+            else None
+        ),
     )
 
 

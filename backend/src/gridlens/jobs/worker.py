@@ -37,6 +37,8 @@ def _schedule_zone() -> str:
 
 def _daily_anchor() -> day_time:
     return day_time.fromisoformat(settings.schedule_anchor_time)
+
+
 _SOURCE_CONFIGURATION_FIELDS = (
     "publisher",
     "endpoint",
@@ -96,9 +98,7 @@ def _normalized_registry_configuration(item: dict) -> dict:
 def _source_storage_configuration(item: dict) -> dict:
     declaration = _normalized_registry_configuration(item)
     configuration = {
-        field: declaration[field]
-        for field in _SOURCE_CONFIGURATION_FIELDS
-        if field in declaration
+        field: declaration[field] for field in _SOURCE_CONFIGURATION_FIELDS if field in declaration
     }
     configuration["industries"] = item.get("industries", [])
     return configuration
@@ -130,20 +130,15 @@ def _configuration_differs(left: dict, right: dict, fields: tuple[str, ...]) -> 
     )
 
 
-def _source_registry_drift(
-    item: dict, source: Source, epoch: SourceScheduleEpoch | None
-) -> bool:
+def _source_registry_drift(item: dict, source: Source, epoch: SourceScheduleEpoch | None) -> bool:
     live_configuration = _normalized_registry_configuration(item)
     storage_configuration = _source_storage_configuration(item)
     persisted_configuration = {
         field: getattr(source, field, _MISSING_CONFIGURATION)
         for field in _SOURCE_CONFIGURATION_FIELDS
     }
-    changed = (
-        source.registry_enabled != bool(item["enabled"])
-        or _configuration_differs(
-            storage_configuration, persisted_configuration, _SOURCE_CONFIGURATION_FIELDS
-        )
+    changed = source.registry_enabled != bool(item["enabled"]) or _configuration_differs(
+        storage_configuration, persisted_configuration, _SOURCE_CONFIGURATION_FIELDS
     )
     if epoch is not None:
         changed = changed or epoch.registry_enabled != bool(item["enabled"])
@@ -373,8 +368,7 @@ def _defer_registry_unavailable(job: Job, source: Source, error: Exception) -> N
     job.attempts = max(0, job.attempts - 1)
     job.available_at = datetime.now(UTC) + timedelta(minutes=5)
     job.error = (
-        "Source registry unavailable; no provider request was made ("
-        f"{type(error).__name__})"
+        f"Source registry unavailable; no provider request was made ({type(error).__name__})"
     )
     job.lease_owner, job.lease_until = None, None
     source.health = {
@@ -430,9 +424,7 @@ def sync_registry() -> list[dict]:
                 text("SELECT pg_advisory_xact_lock(hashtextextended(:source_id, 0))"),
                 {"source_id": item["id"]},
             )
-            row = session.scalar(
-                select(Source).where(Source.id == item["id"]).with_for_update()
-            )
+            row = session.scalar(select(Source).where(Source.id == item["id"]).with_for_update())
             values = _source_storage_configuration(item)
             if row is None:
                 row = Source(
@@ -515,6 +507,16 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
             }
     attempted = datetime.now(UTC).isoformat()
     try:
+        if kind == "intelligence_process":
+            from gridlens.intelligence.intelligence_jobs import process_intelligence_job
+
+            process_intelligence_job(job_id, WORKER_ID, fence)
+            return True
+        if kind == "project_monitor":
+            from gridlens.intelligence.monitoring import process_monitor_job
+
+            process_monitor_job(job_id, WORKER_ID, fence, enabled=settings.monitoring_enabled)
+            return True
         if kind == "pursuit_question":
             from gridlens.intelligence.autonomous_research import (
                 _retry_deadline,
@@ -746,6 +748,8 @@ def main() -> None:
         if settings.worker_auto_refresh:
             _run_planner("sources", refresh_due)
             _run_planner("pursuit_questions", plan_pursuit_questions)
+        if settings.monitoring_enabled:
+            _run_planner("project_monitoring", plan_monitoring_jobs)
         if time.monotonic() >= next_heartbeat:
             try:
                 with SessionLocal.begin() as session:
@@ -822,6 +826,25 @@ def plan_pursuit_questions() -> int:
     cards = planning_cards()
     with SessionLocal.begin() as session:
         return len(schedule_questions(session, cards, grouped=True))
+
+
+def plan_monitoring_jobs() -> int:
+    """Plan explicitly configured watches independently of source auto-refresh."""
+    if not settings.monitoring_enabled:
+        return 0
+    from gridlens.intelligence.monitoring import plan_monitoring
+
+    with SessionLocal.begin() as session:
+        return len(
+            plan_monitoring(
+                session,
+                enabled=True,
+                limit=settings.monitoring_plan_batch_limit,
+                max_active_jobs=settings.monitoring_max_active_jobs,
+                max_active_per_host=settings.monitoring_max_active_per_host,
+                max_active_per_source=settings.monitoring_max_active_per_source,
+            )
+        )
 
 
 if __name__ == "__main__":

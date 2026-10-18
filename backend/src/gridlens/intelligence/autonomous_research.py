@@ -108,6 +108,8 @@ def current_card(need_id: UUID) -> dict | None:
 
 def process_question_job(job_id: UUID, worker_id: str, fence: int) -> None:
     started = time.monotonic()
+    from gridlens.intelligence.intelligence_jobs import legacy_paid_path_block_reason
+
     with SessionLocal.begin() as session:
         job = assert_fence(session, job_id, worker_id, fence)
         row = session.get(PursuitResearchQuestion, job.target_id)
@@ -116,6 +118,19 @@ def process_question_job(job_id: UUID, worker_id: str, fence: int) -> None:
         question_id, need_id = row.id, row.need_id
         if row.status not in ACTIVE:
             job.status, job.lease_owner, job.lease_until = "succeeded", None, None
+            return
+        blocked = legacy_paid_path_block_reason()
+        if blocked:
+            row.status = "FAILED"
+            row.completed_at = datetime.now(UTC)
+            row.receipt = {
+                **row.receipt,
+                "result_disposition": "BLOCKED",
+                "error": blocked,
+                "reevaluation_status": "NOT_STARTED",
+            }
+            job.status, job.error = "succeeded", blocked
+            job.lease_owner, job.lease_until = None, None
             return
         row.attempt_count += 1
         ambiguous = bool(row.receipt.get("inflight_url"))
@@ -732,9 +747,10 @@ def _current_support(session, question, evidence, observation, result) -> bool:
     need = session.get(PowerNeed, question.need_id)
     source = session.get(Source, observation.source_id)
     assessment = interpretation.assessment if interpretation else None
-    if observation.source_id.startswith("research-public-") and (assessment or {}).get(
-        "acquisition_capture_version"
-    ) != CAPTURE_VERSION:
+    if (
+        observation.source_id.startswith("research-public-")
+        and (assessment or {}).get("acquisition_capture_version") != CAPTURE_VERSION
+    ):
         return False
     if not (
         interpretation
@@ -798,14 +814,18 @@ def _finish(
             save_evaluations(session, [card])
         now = datetime.now(UTC)
         row.status, row.completed_at = status, now
-        checked_route = any(
-            route.get("status") == "CHECKED" and route.get("kind") != "retained"
-            for route in row.receipt.get("route_results", [])
-        ) or any(
-            check.get("acquisition") != "retained"
-            and check.get("disposition") in {"ACCEPTED", "REJECTED", "UNRESOLVED"}
-            for check in row.receipt.get("source_checks", [])
-        ) or bool(row.receipt.get("queries_searched"))
+        checked_route = (
+            any(
+                route.get("status") == "CHECKED" and route.get("kind") != "retained"
+                for route in row.receipt.get("route_results", [])
+            )
+            or any(
+                check.get("acquisition") != "retained"
+                and check.get("disposition") in {"ACCEPTED", "REJECTED", "UNRESOLVED"}
+                for check in row.receipt.get("source_checks", [])
+            )
+            or bool(row.receipt.get("queries_searched"))
+        )
         failed_external_check = any(
             check.get("acquisition") != "retained" and check.get("disposition") == "FAILED"
             for check in row.receipt.get("source_checks", [])

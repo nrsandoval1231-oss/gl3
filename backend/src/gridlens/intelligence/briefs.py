@@ -448,6 +448,11 @@ def brief_view(row: PowerNeedBrief | None, fingerprint: str | None = None) -> di
 
 
 def request_brief(session: Session, need_id: UUID, question: str | None = None) -> dict:
+    from gridlens.intelligence.intelligence_jobs import legacy_paid_path_block_reason
+
+    blocked = legacy_paid_path_block_reason()
+    if blocked:
+        raise BriefUnavailable(blocked)
     payload, _ = brief_input(session, need_id, question)
     fingerprint = _digest(payload)
     need = session.scalar(select(PowerNeed).where(PowerNeed.id == need_id).with_for_update())
@@ -555,6 +560,11 @@ def _validate_result(
 
 
 def _provider(payload: dict, facts: dict[str, dict]) -> tuple[dict, int, int]:
+    from gridlens.intelligence.intelligence_jobs import legacy_paid_path_block_reason
+
+    blocked = legacy_paid_path_block_reason()
+    if blocked:
+        raise BriefUnavailable(blocked)
     if not settings.openai_api_key:
         raise BriefUnavailable("provider_not_configured")
     schema = _response_schema(facts)
@@ -648,11 +658,21 @@ def _provider(payload: dict, facts: dict[str, dict]) -> tuple[dict, int, int]:
 
 
 def process_brief_job(job_id: UUID, worker_id: str, fence: int) -> None:
+    from gridlens.intelligence.intelligence_jobs import legacy_paid_path_block_reason
+
     with SessionLocal.begin() as session:
         job = assert_fence(session, job_id, worker_id, fence)
         need_id = job.target_id
         if need_id is None:
             job.status, job.error = "failed", "missing_target"
+            return
+        blocked = legacy_paid_path_block_reason()
+        if blocked:
+            brief = session.get(PowerNeedBrief, need_id)
+            if brief:
+                brief.status, brief.error = "unavailable", blocked
+            job.status, job.error = "failed", blocked
+            job.lease_owner, job.lease_until = None, None
             return
         checkpoint = json.loads(job.checkpoint) if job.checkpoint else {}
         question = checkpoint.get("commercial_question")

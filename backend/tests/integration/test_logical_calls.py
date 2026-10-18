@@ -58,7 +58,7 @@ def _reserve(factory, key: str, *, daily: int = 10, max_active: int = 10):
                     "daily_usd": "1.00",
                     "monthly_usd": "10.00",
                 }
-                for scope in ("global", "provider", "model")
+                for scope in ("global", "provider", "model") + ("source",)
             },
             max_active=max_active,
             fence_token=7,
@@ -264,3 +264,185 @@ def test_job_turnover_fences_old_worker(sessions):
         row = session.scalar(select(LogicalCall).where(LogicalCall.id == reserved.call_id))
         assert row and row.reconciled_by == "operator@example.test"
         assert row.reconciliation_ref == "incident-123"
+
+
+def test_not_sent_reservation_rebinds_to_new_fence_without_double_budget(sessions):
+    with sessions.begin() as session:
+        session.add(
+            Source(
+                id="takeover-source",
+                publisher="test",
+                endpoint="https://example.invalid",
+                family="test",
+                geography="test",
+                industries=[],
+                retrieval_method="test",
+                health={},
+            )
+        )
+        session.flush()
+        job = Job(
+            source_id="takeover-source",
+            kind="intelligence",
+            status="running",
+            lease_owner="worker-a",
+            fence=4,
+            lease_until=datetime.now(UTC) + timedelta(minutes=5),
+        )
+        session.add(job)
+        session.flush()
+        job_id = job.id
+    scope_caps = {
+        scope: {"daily": 4, "monthly": 4, "daily_usd": "1", "monthly_usd": "5"}
+        for scope in ("global", "provider", "model")
+    }
+    identity = {
+        "task_type": "job-task",
+        "task_key": "recovery",
+        "evidence_digest": "c" * 64,
+        "context_digest": "d" * 64,
+        "prompt_contract": "v1",
+        "provider": "typesafe",
+        "model": "m",
+        "policy_version": "p",
+        "enabled": True,
+        "estimated_cost_usd": "0.01",
+        "max_cost_usd": "0.02",
+        "caps": scope_caps,
+        "lease_authority": "job",
+        "job_id": job_id,
+    }
+    with sessions() as session:
+        first = reserve_call(session, worker_id="worker-a", fence_token=4, **identity)
+    with sessions.begin() as session:
+        session.execute(
+            update(Job)
+            .where(Job.id == job_id)
+            .values(
+                lease_owner="worker-b",
+                fence=5,
+                lease_until=datetime.now(UTC) + timedelta(minutes=5),
+            )
+        )
+    with sessions() as session:
+        recovered = reserve_call(session, worker_id="worker-b", fence_token=5, **identity)
+    assert recovered.call_id == first.call_id
+    assert recovered.reused and recovered.status == "NOT_SENT"
+    with sessions() as session:
+        sent = mark_dispatched(session, first.call_id, fence_token=5, enabled=True)
+    assert sent.status == "SENT_OUTCOME_UNKNOWN"
+    with sessions() as session:
+        row = session.scalar(select(LogicalCall).where(LogicalCall.id == first.call_id))
+        budget = session.scalar(
+            select(LogicalCallBudget).where(
+                LogicalCallBudget.scope == "global:global", LogicalCallBudget.period == "daily"
+            )
+        )
+    assert row and row.worker_id == "worker-b" and row.fence_token == 5
+    assert budget and budget.call_count == 1 and budget.active_count == 1
+
+
+def test_completed_call_is_readable_by_new_job_fence_without_rebilling(sessions):
+    # Completed semantic output is immutable and may be read by a new worker,
+    # but all mutating transitions remain pinned to the original lease.
+    with sessions.begin() as session:
+        session.add(
+            Source(
+                id="cache-source",
+                publisher="test",
+                endpoint="https://example.invalid",
+                family="test",
+                geography="test",
+                industries=[],
+                retrieval_method="test",
+                health={},
+            )
+        )
+        session.flush()
+        job = Job(
+            source_id="cache-source",
+            kind="intelligence",
+            status="running",
+            lease_owner="worker-a",
+            fence=1,
+            lease_until=datetime.now(UTC) + timedelta(minutes=5),
+        )
+        session.add(job)
+        session.flush()
+        job_id = job.id
+    common = {
+        "task_type": "job-task",
+        "task_key": "cache",
+        "evidence_digest": "e" * 64,
+        "context_digest": "f" * 64,
+        "prompt_contract": "v1",
+        "provider": "typesafe",
+        "model": "m",
+        "policy_version": "p",
+        "source_id": "cache-source",
+        "enabled": True,
+        "estimated_cost_usd": "0.01",
+        "max_cost_usd": "0.02",
+        "caps": {
+            scope: {"daily": 4, "monthly": 4, "daily_usd": "1", "monthly_usd": "5"}
+            for scope in ("global", "provider", "model", "source")
+        },
+        "lease_authority": "job",
+        "job_id": job_id,
+    }
+    with sessions() as session:
+        first = reserve_call(session, worker_id="worker-a", fence_token=1, **common)
+    with sessions() as session:
+        assert mark_dispatched(session, first.call_id, fence_token=1, enabled=True).status == (
+            "SENT_OUTCOME_UNKNOWN"
+        )
+    with sessions() as session:
+        complete_call(session, first.call_id, fence_token=1, result_payload={"answer": "cached"})
+    with sessions.begin() as session:
+        session.execute(
+            update(Job)
+            .where(Job.id == job_id)
+            .values(
+                lease_owner="worker-b",
+                fence=2,
+                lease_until=datetime.now(UTC) + timedelta(minutes=5),
+            )
+        )
+    with sessions() as session:
+        cached = reserve_call(session, worker_id="worker-b", fence_token=2, **common)
+    assert cached.call_id == first.call_id and cached.status == "COMPLETED"
+    with sessions() as session:
+        row = session.scalar(select(LogicalCall).where(LogicalCall.id == first.call_id))
+        budget = session.scalar(
+            select(LogicalCallBudget).where(
+                LogicalCallBudget.scope == "global:global", LogicalCallBudget.period == "daily"
+            )
+        )
+    assert row and row.result_payload == {"answer": "cached"}
+    assert budget and budget.call_count == 1 and budget.active_count == 0
+
+
+def test_ambiguous_failure_keeps_unknown_reservation(sessions):
+    from gridlens.integrations.logical_calls import fail_call
+
+    call = _reserve(sessions, "ambiguous-failure")
+    with sessions() as session:
+        mark_dispatched(session, call.call_id, fence_token=7, enabled=True)
+    with sessions() as session:
+        result = fail_call(
+            session,
+            call.call_id,
+            fence_token=7,
+            blocked_reason="timeout",
+        )
+    assert result.status == "SENT_OUTCOME_UNKNOWN"
+    assert result.blocked_reason == "CONCLUSIVE_RESPONSE_REQUIRED"
+    with sessions() as session:
+        row = session.scalar(select(LogicalCall).where(LogicalCall.id == call.call_id))
+        budget = session.scalar(
+            select(LogicalCallBudget).where(
+                LogicalCallBudget.scope == "global:global", LogicalCallBudget.period == "active"
+            )
+        )
+    assert row and row.status == "SENT_OUTCOME_UNKNOWN"
+    assert budget and budget.active_count == 1

@@ -77,6 +77,10 @@ def schedule_questions(
     now: datetime | None = None,
 ) -> list[PursuitResearchQuestion]:
     """Serialize planning/caps. Changed inputs never overwrite a running attempt."""
+    from gridlens.intelligence.intelligence_jobs import legacy_paid_path_block_reason
+
+    if legacy_paid_path_block_reason():
+        return []
     if origin not in {"automatic", "manual", "follow_up", "validation"}:
         raise ValueError("Unknown research scheduling origin")
     now = now or datetime.now(UTC)
