@@ -1,6 +1,7 @@
 import hashlib
 import io
 import json
+import time
 from collections import defaultdict
 from csv import DictWriter
 from datetime import UTC, date, datetime, timedelta
@@ -14,6 +15,7 @@ from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field, SecretStr
 from sqlalchemy import Date, Text, and_, cast, func, or_, select
+from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import joinedload
 
 from gridlens.api.verticals import vertical_source_tags
@@ -34,7 +36,7 @@ from gridlens.domain.commercial_triage import (
 from gridlens.domain.commercial_triage import (
     grouped_need_groups,
 )
-from gridlens.domain.evaluation_clock import evaluation_now
+from gridlens.domain.evaluation_clock import evaluate_at, evaluation_now
 from gridlens.domain.pursuits import (
     AutonomousResearchBody,
     AutonomousResearchOut,
@@ -4533,7 +4535,12 @@ def save_pursuit_note(pursuit_id: UUID, body: CallNoteBody, request: Request):
 
 
 def _commercial_triage_page(
-    session, limit: int, offset: int = 0, *, saved_selection: bool = False
+    session,
+    limit: int,
+    offset: int = 0,
+    *,
+    saved_selection: bool = False,
+    selection_metadata: dict | None = None,
 ) -> tuple[list[dict], int]:
     history_count = int(
         session.scalar(
@@ -4568,7 +4575,11 @@ def _commercial_triage_page(
         from gridlens.intelligence.saved_browse import commercial_selection
 
         selected_keyed_groups, project_ids_by_need, grouped_total = commercial_selection(
-            session, limit, offset
+            session,
+            limit,
+            offset,
+            now=evaluation_now(datetime.now(UTC)),
+            selection_metadata=selection_metadata,
         )
     else:
         summaries = opportunity_projection(session, tier="Signal", summary_only=True)
@@ -4723,11 +4734,22 @@ def _commercial_triage_cards(session, limit: int) -> list[dict]:
 
 
 def _commercial_triage_payload(
-    session, limit: int, offset: int = 0, *, saved_selection: bool = False
+    session,
+    limit: int,
+    offset: int = 0,
+    *,
+    saved_selection: bool = False,
+    selection_metadata: dict | None = None,
+    snapshot_started: bool = False,
 ) -> dict:
-    _begin_consistent_read(session)
+    if not snapshot_started:
+        _begin_consistent_read(session)
     cards, grouped_total = _commercial_triage_page(
-        session, limit, offset, saved_selection=saved_selection
+        session,
+        limit,
+        offset,
+        saved_selection=saved_selection,
+        selection_metadata=selection_metadata,
     )
     today = chicago_today().isoformat()
     identities = ["commercial-need:" + item["id"] for item in cards]
@@ -4837,6 +4859,70 @@ def _commercial_triage_payload(
             identity, size, _MAX_COMMERCIAL_CARD_BYTES, "triage_page_bytes"
         )
     return payload
+
+
+def _commercial_triage_evaluation_payload(
+    session,
+    limit: int,
+    offset: int,
+    *,
+    instant: datetime | None = None,
+    selection_metadata: dict | None = None,
+    snapshot_started: bool = False,
+) -> dict:
+    """Use freshness-fenced scalar selection for writes, retaining canonical fallback.
+
+    The payload pins a REPEATABLE READ snapshot before either selector runs. Thus a
+    stale/missing saved generation can fall back inside the same input cohort, while
+    selected cards and all persisted decisions still come from canonical detail.
+    """
+    instant = instant or datetime.now(UTC)
+    with evaluate_at(instant):
+        if not settings.saved_browse_enabled:
+            return _commercial_triage_payload(
+                session,
+                limit,
+                offset,
+                selection_metadata=selection_metadata,
+                snapshot_started=snapshot_started,
+            )
+        try:
+            return _commercial_triage_payload(
+                session,
+                limit,
+                offset,
+                saved_selection=True,
+                selection_metadata=selection_metadata,
+                snapshot_started=snapshot_started,
+            )
+        except HTTPException as exc:
+            if (
+                exc.status_code != 503
+                or (exc.headers or {}).get("X-Qualification-State") != "pending"
+            ):
+                raise
+            return _commercial_triage_payload(
+                session,
+                limit,
+                offset,
+                saved_selection=False,
+                selection_metadata=selection_metadata,
+                snapshot_started=snapshot_started,
+            )
+
+
+class _EvaluationAttemptExpired(Exception):
+    """The request crossed its canonical clock interval before commit."""
+
+
+def _evaluation_real_now() -> datetime:
+    """Read wall time without consulting the canonical evaluation context."""
+    return datetime.now(UTC)
+
+
+def _require_evaluation_interval(t0: datetime, deadline: datetime, observed: datetime) -> None:
+    if observed < t0 or observed >= deadline:
+        raise _EvaluationAttemptExpired
 
 
 @app.get(
@@ -5246,26 +5332,74 @@ def evaluate_commercial_triage(
     offset: Annotated[int, Query(ge=0)] = 0,
 ):
     require_same_origin(request)
-    with SessionLocal.begin() as session:
-        payload = _commercial_triage_payload(session, limit, offset)
-        today = chicago_today().isoformat()
-        saved_at = datetime.now(UTC).isoformat()
-        payload["evaluated_at"] = saved_at
-        from gridlens.intelligence.commercial_evaluation import save_evaluations
+    for attempt in range(4):
+        try:
+            with SessionLocal.begin() as session:
+                # Set transaction isolation before any query; every deadline and
+                # selection read below belongs to this one repeatable snapshot.
+                _begin_consistent_read(session)
+                t0 = _evaluation_real_now()
+                from gridlens.intelligence.saved_browse import clock_deadline
 
-        save_evaluations(session, payload["items"])
-        receipts = list(
-            session.scalars(select(Pursuit).where(Pursuit.identity_key.like("commercial-need:%")))
-        )
-        payload["daily"]["evaluated"] = sum(
-            (row.snapshot or {}).get("commercial_triage", {}).get("evaluated_on") == today
-            for row in receipts
-        )
-        payload["daily"]["surfaced"] = sum(
-            (row.snapshot or {}).get("commercial_triage", {}).get("surfaced_on") == today
-            for row in receipts
-        )
-        return payload
+                deadline = clock_deadline(session, t0)
+                selection_metadata: dict = {}
+                payload = _commercial_triage_evaluation_payload(
+                    session,
+                    limit,
+                    offset,
+                    instant=t0,
+                    selection_metadata=selection_metadata,
+                    snapshot_started=True,
+                )
+                selected_generation_deadline = selection_metadata.get("generation_valid_until")
+                if selected_generation_deadline is not None:
+                    deadline = min(deadline, selected_generation_deadline)
+
+                save_at = _evaluation_real_now()
+                _require_evaluation_interval(t0, deadline, save_at)
+                today = chicago_today(save_at).isoformat()
+                payload["evaluated_at"] = save_at.isoformat()
+                from gridlens.intelligence.commercial_evaluation import save_evaluations
+
+                save_evaluations(session, payload["items"], now=save_at)
+                # Flush before the final fence so ORM writes and lock waits are covered.
+                session.flush()
+                receipts = list(
+                    session.scalars(
+                        select(Pursuit).where(Pursuit.identity_key.like("commercial-need:%"))
+                    )
+                )
+                payload["daily"]["evaluated"] = sum(
+                    (row.snapshot or {}).get("commercial_triage", {}).get("evaluated_on") == today
+                    for row in receipts
+                )
+                payload["daily"]["surfaced"] = sum(
+                    (row.snapshot or {}).get("commercial_triage", {}).get("surfaced_on") == today
+                    for row in receipts
+                )
+                _require_evaluation_interval(t0, deadline, _evaluation_real_now())
+            return payload
+        except _EvaluationAttemptExpired:
+            if attempt == 3:
+                raise HTTPException(
+                    503,
+                    "Evaluation interval expired before the receipt could be committed; "
+                    "retry the request",
+                    headers={"Retry-After": "1", "X-Qualification-State": "pending"},
+                ) from None
+        except DBAPIError as exc:
+            # REPEATABLE READ can reject a receipt/note race with SQLSTATE 40001.
+            # Retry the whole transaction up to three times so selection, canonical detail and saves
+            # all use a fresh cohort; never retry a partial write or arbitrary failure.
+            sqlstate = getattr(exc.orig, "sqlstate", None)
+            constraint_name = getattr(getattr(exc.orig, "diag", None), "constraint_name", None)
+            retryable_insert_race = (
+                sqlstate == "23505" and constraint_name == "pursuits_identity_key_key"
+            )
+            if attempt == 3 or (sqlstate != "40001" and not retryable_insert_race):
+                raise
+            time.sleep(0.025 * (attempt + 1))
+    raise RuntimeError("unreachable evaluation retry state")
 
 
 @app.post(
@@ -5400,9 +5534,7 @@ def editorial_sync(response: Response):
         return approved_feed(session)
 
 
-@app.get(
-    "/api/editorial/clearance/{observation_id}", dependencies=[Depends(require_session)]
-)
+@app.get("/api/editorial/clearance/{observation_id}", dependencies=[Depends(require_session)])
 def editorial_clearance(observation_id: UUID, response: Response):
     from gridlens.intelligence.editorial_clearance import approved_feed
 
@@ -5410,9 +5542,7 @@ def editorial_clearance(observation_id: UUID, response: Response):
     with SessionLocal() as session:
         result = approved_feed(session, observation_id)
         if not result["feed"]["items"]:
-            raise HTTPException(
-                409, "Clearance unavailable, withdrawn, stale or evidence changed"
-            )
+            raise HTTPException(409, "Clearance unavailable, withdrawn, stale or evidence changed")
         return result
 
 
@@ -5435,9 +5565,7 @@ class EditorialDecisionBody(BaseModel):
     "/api/editorial/review/{observation_id}",
     dependencies=[Depends(require_session), Depends(require_same_origin)],
 )
-def editorial_review_decision(
-    observation_id: UUID, body: EditorialDecisionBody, request: Request
-):
+def editorial_review_decision(observation_id: UUID, body: EditorialDecisionBody, request: Request):
     import hashlib
 
     from gridlens.intelligence.editorial_clearance import decide
@@ -5445,8 +5573,7 @@ def editorial_review_decision(
     # Shared-password authentication has no named accounts. Record a non-reusable
     # session fingerprint, never trust a browser-supplied reviewer identity.
     reviewer = (
-        "session:"
-        + hashlib.sha256(request.cookies["gridlens_session"].encode()).hexdigest()[:24]
+        "session:" + hashlib.sha256(request.cookies["gridlens_session"].encode()).hexdigest()[:24]
     )
     try:
         with SessionLocal.begin() as session:
@@ -5479,9 +5606,7 @@ def editorial_assessment(observation_id: UUID, response: Response):
 
     response.headers["Cache-Control"] = "private, no-store"
     with SessionLocal() as session:
-        record = next(
-            (r for r in queue(session) if r["id"] == str(observation_id)), None
-        )
+        record = next((r for r in queue(session) if r["id"] == str(observation_id)), None)
         if not record:
             raise HTTPException(404, "Eligible public evidence not found")
         result = assess(

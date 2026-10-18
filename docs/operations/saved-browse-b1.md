@@ -169,14 +169,38 @@ flag, provider, worker or scheduler is introduced.
 GET commercial triage selects groups/members from saved canonical scalars, then
 runs the existing targeted canonical detail/card evaluator and budgets. Commercial
 groups differ from browse groups. SQL may scan all saved Signal scalar rows;
-selected evidence work is bounded by existing group/card budgets. Research and
-evaluation writes retain their original canonical selection. Stale enabled GET
-reads return explicit pending. Switch-false behavior remains canonical.
+selected evidence work is bounded by existing group/card budgets. Research callers
+remain canonical. Stale enabled GET reads return explicit pending. Switch-false
+behavior remains canonical.
 
-Use the final image with the switch false for runtime rollback. Keep0023 in
-place. If reverting an older image, stop maintenance and recreate API/web only
-with `--no-deps`; do not execute older migration containers against0023. The PC
-task owns production rollout/live QA; fixture results do not establish live SLOs.
+Evaluation POST uses this selector when the saved browse switch is enabled. Each
+attempt pins PostgreSQL `REPEATABLE READ` before SQL, samples a real UTC `t0`, and
+derives the earliest canonical clock deadline in that snapshot. If the saved
+selector is eligible, its actual generation expiry also bounds the attempt.
+Selected cards are freshly reconstructed from canonical detail at `t0`; saved
+scalars never replace qualification or complete group membership. If the generation
+is missing, stale, policy-mismatched, disabled, or outside its clock window, POST
+falls back to canonical population selection in the same snapshot.
+
+Before writes, the route checks that real time is still in `[t0, deadline)` and
+passes that in-interval save instant to receipt persistence. After saving it flushes
+all receipt writes, completes daily reads, and checks the interval again immediately
+before commit. A clock crossing or backwards sample rolls back the whole attempt;
+the route then starts a new transaction and recomputes selection, canonical detail,
+and cards. The four-attempt budget is shared with PostgreSQL serialization failures
+(SQLSTATE 40001) and the first-receipt race on the exact
+`pursuits_identity_key_key` constraint (SQLSTATE 23505). Other integrity failures
+and ambiguous commit results propagate; successful commits are never retried. If
+time crosses after the final reversible check during commit, the one receipt keeps
+its truthful historical `saved_as_of` timestamp. No partial receipt writes from a
+rolled-back attempt remain. Receipt and note mutations continue to leave the
+generation current under0024; other invalidating writes continue to require a
+rebuild.
+
+At the 0023 rollout stage, runtime rollback used the final image with the switch
+false and retained0023. Current rollback instructions are in the0024 section below.
+The PC task owns production rollout/live QA; fixture results do not establish live
+SLOs.
 
 ## Live commercial saves (0024)
 
@@ -187,7 +211,9 @@ and revisions. Unknown root/scope/research changes, receipt deletes, document wr
 and truncation remain full pending cases. Opaque receipt fields never qualify a need;
 reviewed facts/evidence retain their own invalidators. Notes/history/counts/budgets
 remain live reads. The canonical chain computed for selected detail is reused within
-that one card request. Evaluation/research POST cohort selection stays canonical.
+that one card request. Evaluation POST uses the interval-fenced saved selector with
+fresh canonical detail, full-attempt rollback/reselection, and same-snapshot fallback;
+research POST cohort selection stays canonical.
 
 PC rollout: existing backup/disabled-provider gates, stop maintenance, switch false,
 upgrade0024/repeat/check, final-runtime rebuild and retained-corpus parity, restart

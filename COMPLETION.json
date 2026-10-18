@@ -1,0 +1,43 @@
+{
+  "task": "P-EVAL-POST",
+  "status": "READY_FOR_REVIEW",
+  "created_at_utc": "2026-10-18T08:27:39Z",
+  "model": "gpt-6-luna",
+  "materially_distinct_repairs": 3,
+  "token_count": "UNKNOWN",
+  "elapsed_build_time": "UNKNOWN",
+  "base_commit": "a57fca9f11114cd016d5e036ac44810050580429",
+  "source_sha256": {
+    "backend/tests/integration/test_saved_browse.py": "944b5d6292a6e9079dc713f6aadebb2e37ee3f6b5ecee6146c1281b91065abec",
+    "backend/src/gridlens/api/app.py": "128d0db550d979486b3dfba32fd62e0ba4c126357934a98c1de2b0f05711235d",
+    ".agent/packets/evaluation-post-boundary.md": "0d93b6bb483f70a6346d1dd4335abc9cdd6ad6ce86ada75ef88e453ff101402d",
+    ".agent/CURRENT_STATE.md": "36a618a2f4a4b25466bf9d9bdfa8b38ea5406e8ea2c72354ca2e3c54d6e55eff",
+    "docs/operations/saved-browse-b1.md": "30f65841eab21c9d482f06da1f10367da728246c42a3ff6bfb576347e372ad84",
+    "backend/src/gridlens/intelligence/saved_browse.py": "a2b848be08e0eb424acf93184bb2021ed1bc36c18047ddda98e550ae9a8d2b29"
+  },
+  "checks": {
+    "ruff": "PASS",
+    "mypy": "PASS",
+    "git_diff_check": "PASS",
+    "focused_postgres_suite": "Clock7 affected authenticated POST subset: 25 passed, 93 deselected, 5 warnings; final exact-head complete suite pending",
+    "before_fix_route_regression": "CONFIRMED against exact ecf55a4: failed at persisted expired User-confirmed fact reference assertion",
+    "full_ci_and_exact_head_review": "PENDING_CONTROLLER",
+    "test_fixture_history": "clock1/clock3/clock4/clock5/clock6 had harness failures; lock wait deadlock and auth-session commit-hook interference corrected; raw attempts retained"
+  },
+  "measurements": {
+    "baseline_http_handler_seconds": 8.376,
+    "baseline_population_summary_seconds": 7.139,
+    "baseline_save_seconds": 0.281,
+    "candidate_http_post_median_seconds_interim": "UNKNOWN_FINAL_HEAD",
+    "candidate_http_post_max_seconds_interim": "UNKNOWN_FINAL_HEAD",
+    "candidate_post_plus_read_median_seconds_interim": "UNKNOWN_FINAL_HEAD",
+    "candidate_benchmark_status": "FINAL_HEAD_PROFILE_PENDING"
+  },
+  "known_limitations": [
+    "Missing, stale, disabled, policy-mismatched, or expired selector generations use the canonical population fallback and retain its higher latency.",
+    "The four-attempt budget (initial attempt plus up to three retries) is shared across SQLSTATE 40001, the exact pursuits_identity_key_key SQLSTATE 23505 first-insert race, and clock-boundary restarts; sustained contention or repeated boundary crossings can still fail the request.",
+    "After the final reversible fence, commit-crossing preserves one receipt with its truthful in-interval saved_as_of timestamp; commit outcomes are never retried.",
+    "Final exact-head HTTP profile, full CI, and independent review remain pending."
+  ],
+  "production_changes": false
+}

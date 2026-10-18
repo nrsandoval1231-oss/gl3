@@ -20,7 +20,7 @@ from fastapi import HTTPException
 from sqlalchemy import delete, func, insert, literal, or_, select, text, union, update
 
 from gridlens.domain.commercial_triage import _priority, work_group_identity
-from gridlens.domain.evaluation_clock import evaluate_at
+from gridlens.domain.evaluation_clock import evaluate_at, evaluation_now
 from gridlens.domain.ranking import RANKING_VERSION
 from gridlens.intelligence.opportunity_browse import (
     normalized,
@@ -834,14 +834,22 @@ def restore_generation(factory, generation_id: UUID) -> bool:
 
 
 def commercial_selection(
-    session, limit: int, offset: int
+    session,
+    limit: int,
+    offset: int,
+    *,
+    now: datetime | None = None,
+    selection_metadata: dict | None = None,
 ) -> tuple[list[tuple[str, list[str]]], dict, int]:
     """Select canonical commercial groups from saved scalars, then bounded members.
 
     SQL scans scalar Signal rows to find each group's first complete priority tuple.
     Only selected groups' IDs cross into Python; evidence is read for those IDs later.
     """
-    generation = current_generation(session)
+    selection_instant = now or evaluation_now(datetime.now(UTC))
+    generation = current_generation(session, now=selection_instant)
+    if selection_metadata is not None:
+        selection_metadata["generation_valid_until"] = generation.valid_until
     rows = (
         session.execute(
             text("""
@@ -863,9 +871,10 @@ def commercial_selection(
                 project_id, need_id
         """),
             {
-            "generation": generation.id, "limit": limit,
-            "offset": min(offset, generation.row_count),
-        },
+                "generation": generation.id,
+                "limit": limit,
+                "offset": min(offset, generation.row_count),
+            },
         )
         .mappings()
         .all()
@@ -885,8 +894,7 @@ def commercial_selection(
                     "group_member_count": row["members"],
                     "max_group_members": 50,
                     "message": (
-                        "This work group exceeds the supported card size; "
-                        "no evaluation was saved."
+                        "This work group exceeds the supported card size; no evaluation was saved."
                     ),
                 },
             )
