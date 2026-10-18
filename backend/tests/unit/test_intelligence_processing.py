@@ -7,6 +7,7 @@ from pydantic import SecretStr
 from gridlens.integrations import intelligence_provider
 from gridlens.intelligence.intelligence_jobs import (
     MAX_CONTEXT_BYTES,
+    _billing_policy_identity,
     _bound_grounded_payload,
     _cost_bound,
     _enabled,
@@ -229,6 +230,12 @@ def test_bounded_routing_requires_evaluated_policy_authorization_and_contract(mo
         "intelligence_typesafe_output_usd_per_million": 0,
         "intelligence_typesafe_max_output_tokens": 0,
         "intelligence_typesafe_output_limit_verified": False,
+        "intelligence_typesafe_billing_mode": "input_only",
+        "intelligence_typesafe_billing_model_id": "pinned-fixture-model",
+        "intelligence_typesafe_billing_contract_id": "systemone-v1",
+        "intelligence_typesafe_billing_policy_id": "synthetic-input-only-policy-v1",
+        "intelligence_typesafe_billing_reference": "synthetic://fixture/typesafe-input-only",
+        "intelligence_typesafe_billing_verified": True,
     }.items():
         monkeypatch.setattr(settings, name, value)
     assert _enabled("LLM_ROUTE_V1")[0] is True
@@ -252,7 +259,19 @@ def test_typesafe_cost_bound_prices_exact_jev_request_input_only(monkeypatch):
 
     monkeypatch.setattr(settings, "intelligence_typesafe_model", "pinned-fixture-model")
     monkeypatch.setattr(settings, "intelligence_typesafe_input_usd_per_million", Decimal("2"))
-    monkeypatch.setattr(settings, "intelligence_typesafe_output_usd_per_million", Decimal("99"))
+    monkeypatch.setattr(settings, "intelligence_typesafe_output_usd_per_million", Decimal("0"))
+    monkeypatch.setattr(settings, "intelligence_typesafe_billing_mode", "input_only")
+    monkeypatch.setattr(settings, "intelligence_typesafe_billing_model_id", "pinned-fixture-model")
+    monkeypatch.setattr(settings, "intelligence_typesafe_billing_contract_id", "systemone-v1")
+    monkeypatch.setattr(
+        settings, "intelligence_typesafe_billing_policy_id", "synthetic-input-only-policy-v1"
+    )
+    monkeypatch.setattr(
+        settings,
+        "intelligence_typesafe_billing_reference",
+        "synthetic://fixture/typesafe-input-only",
+    )
+    monkeypatch.setattr(settings, "intelligence_typesafe_billing_verified", True)
     state = dict.fromkeys(
         [
             "title",
@@ -288,6 +307,118 @@ def test_typesafe_cost_bound_prices_exact_jev_request_input_only(monkeypatch):
         {"state": state, "model": "pinned-fixture-model", "contract": "signal-display-v2"},
     )
     assert actual == Decimal(expected_bytes * 2) / Decimal(1_000_000)
+
+
+def test_typesafe_output_charge_and_numeric_output_cap_do_not_pass_without_transport_bound(
+    monkeypatch,
+):
+    from decimal import Decimal
+
+    monkeypatch.setattr(settings, "intelligence_enabled", True)
+    monkeypatch.setattr(settings, "intelligence_mode", "advisory")
+    monkeypatch.setattr(settings, "intelligence_enabled_contracts", "SIGNAL_ADJUDICATION")
+    monkeypatch.setattr(settings, "jev_enabled", True)
+    monkeypatch.setattr(settings, "intelligence_typesafe_enabled", True)
+    monkeypatch.setattr(settings, "typesafe_api_key", SecretStr("synthetic-fixture-only"))
+    monkeypatch.setattr(settings, "intelligence_typesafe_model", "pinned-fixture-model")
+    monkeypatch.setattr(settings, "intelligence_typesafe_priced_model_id", "pinned-fixture-model")
+    monkeypatch.setattr(settings, "intelligence_typesafe_pricing_verified", True)
+    monkeypatch.setattr(settings, "intelligence_typesafe_input_usd_per_million", Decimal("2"))
+    monkeypatch.setattr(settings, "intelligence_typesafe_output_usd_per_million", Decimal("99"))
+    monkeypatch.setattr(settings, "intelligence_typesafe_max_output_tokens", 500)
+    monkeypatch.setattr(settings, "intelligence_typesafe_output_limit_verified", True)
+    monkeypatch.setattr(settings, "intelligence_typesafe_billing_mode", "input_only")
+    monkeypatch.setattr(settings, "intelligence_typesafe_billing_model_id", "pinned-fixture-model")
+    monkeypatch.setattr(settings, "intelligence_typesafe_billing_contract_id", "systemone-v1")
+    monkeypatch.setattr(
+        settings, "intelligence_typesafe_billing_policy_id", "synthetic-input-only-policy-v1"
+    )
+    monkeypatch.setattr(
+        settings,
+        "intelligence_typesafe_billing_reference",
+        "synthetic://fixture/typesafe-input-only",
+    )
+    monkeypatch.setattr(settings, "intelligence_typesafe_billing_verified", True)
+    assert _enabled("SIGNAL_ADJUDICATION")[3] == "TYPESAFE_OUTPUT_BOUND_UNVERIFIED"
+    assert _cost_bound("typesafe", "SIGNAL_ADJUDICATION", {"state": {}}) == 0
+
+
+def test_typesafe_missing_billing_attestation_fails_closed_and_identity_tracks_proof(monkeypatch):
+    from decimal import Decimal
+
+    for name, value in {
+        "intelligence_enabled": True,
+        "intelligence_mode": "advisory",
+        "intelligence_enabled_contracts": "SIGNAL_ADJUDICATION",
+        "jev_enabled": True,
+        "intelligence_typesafe_enabled": True,
+        "typesafe_api_key": SecretStr("synthetic-fixture-only"),
+        "intelligence_typesafe_model": "pinned-fixture-model",
+        "intelligence_typesafe_priced_model_id": "pinned-fixture-model",
+        "intelligence_typesafe_pricing_verified": True,
+        "intelligence_typesafe_input_usd_per_million": Decimal("2"),
+        "intelligence_typesafe_output_usd_per_million": Decimal("0"),
+        "intelligence_typesafe_billing_mode": "unknown",
+        "intelligence_typesafe_billing_model_id": "",
+        "intelligence_typesafe_billing_contract_id": "",
+        "intelligence_typesafe_billing_policy_id": "",
+        "intelligence_typesafe_billing_reference": "",
+        "intelligence_typesafe_billing_verified": False,
+        "intelligence_typesafe_max_output_tokens": 500,
+        "intelligence_typesafe_output_limit_verified": True,
+    }.items():
+        monkeypatch.setattr(settings, name, value)
+    assert _enabled("SIGNAL_ADJUDICATION")[3] == "TYPESAFE_BILLING_PROOF_MISSING_OR_MISMATCHED"
+
+    monkeypatch.setattr(settings, "intelligence_typesafe_billing_mode", "input_only")
+    monkeypatch.setattr(settings, "intelligence_typesafe_billing_model_id", "pinned-fixture-model")
+    monkeypatch.setattr(settings, "intelligence_typesafe_billing_contract_id", "systemone-v1")
+    monkeypatch.setattr(
+        settings, "intelligence_typesafe_billing_policy_id", "synthetic-input-only-policy-v1"
+    )
+    monkeypatch.setattr(
+        settings,
+        "intelligence_typesafe_billing_reference",
+        "synthetic://fixture/typesafe-input-only",
+    )
+    monkeypatch.setattr(settings, "intelligence_typesafe_billing_verified", True)
+    before = _billing_policy_identity("typesafe", "pinned-fixture-model")
+    monkeypatch.setattr(
+        settings, "intelligence_typesafe_billing_reference", "synthetic://fixture/changed-proof"
+    )
+    after = _billing_policy_identity("typesafe", "pinned-fixture-model")
+    assert before != after
+
+
+def test_missing_typesafe_proof_blocks_legacy_call_before_provider_invocation(monkeypatch):
+    from gridlens.integrations.legacy_calls import LegacyCallBlocked, perform_legacy_call
+
+    monkeypatch.setattr(settings, "intelligence_enabled", True)
+    monkeypatch.setattr(settings, "intelligence_mode", "advisory")
+    monkeypatch.setattr(settings, "intelligence_enabled_contracts", "SIGNAL_ADJUDICATION")
+    monkeypatch.setattr(settings, "jev_enabled", True)
+    monkeypatch.setattr(settings, "intelligence_typesafe_enabled", True)
+    monkeypatch.setattr(settings, "typesafe_api_key", SecretStr("synthetic-fixture-only"))
+    monkeypatch.setattr(settings, "intelligence_typesafe_model", "pinned-fixture-model")
+    monkeypatch.setattr(settings, "intelligence_typesafe_priced_model_id", "pinned-fixture-model")
+    monkeypatch.setattr(settings, "intelligence_typesafe_pricing_verified", True)
+    monkeypatch.setattr(settings, "intelligence_typesafe_input_usd_per_million", 2)
+    monkeypatch.setattr(settings, "intelligence_typesafe_output_usd_per_million", 0)
+    monkeypatch.setattr(settings, "intelligence_typesafe_billing_verified", False)
+    called = []
+    with pytest.raises(LegacyCallBlocked, match="TYPESAFE_BILLING_PROOF_MISSING_OR_MISMATCHED"):
+        perform_legacy_call(
+            task_type="SIGNAL_ADJUDICATION",
+            task_key="synthetic-test",
+            payload={"state": {}},
+            source_id=None,
+            project_id=None,
+            job_id=None,
+            worker_id=None,
+            fence_token=1,
+            invoke=lambda: called.append(True),
+        )
+    assert called == []
 
 
 def test_grounding_context_keeps_four_kb_and_marks_bounded_thirty_kb_partial():

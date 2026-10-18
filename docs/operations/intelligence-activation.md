@@ -22,6 +22,23 @@ model/contract. Verify pricing and output bounds for those exact IDs. Missing
 pricing or an unverifiable worst-case reservation blocks dispatch. An unknown
 measurement remains unknown; a configured estimate is not a measured charge.
 
+TypeSafe dispatch also requires an explicit billing attestation bound to the
+exact configured model and `systemone-v1` contract: set
+`INTELLIGENCE_TYPESAFE_BILLING_VERIFIED=true`,
+`INTELLIGENCE_TYPESAFE_BILLING_MODE=input_only`, matching
+`INTELLIGENCE_TYPESAFE_BILLING_MODEL_ID`, a reviewed
+`INTELLIGENCE_TYPESAFE_BILLING_POLICY_ID`, and a nonempty
+`INTELLIGENCE_TYPESAFE_BILLING_REFERENCE`. The reference must document that the
+exact model/contract is input-only billed; current official API schema evidence
+does not establish pricing semantics, so the default remains unknown and blocked.
+Any positive TypeSafe output rate blocks dispatch. The client has no documented
+and enforced output-token bound; a configured token number or USD cap does not
+prove one. Do not add or assume an undocumented transport field. If TypeSafe
+documents output billing, keep dispatch blocked until an enforceable bound and
+its full output charge are implemented and verified. Model, contract, policy,
+reference and rates are included in call identity so a changed attestation cannot
+reuse an earlier reservation.
+
 The smallest rollout is one already-retained, source-permitted need and its most
 valuable unresolved question, in evaluation/advisory mode with a finite approved
 request count, output-token limit, per-call cost ceiling, daily/monthly USD caps,

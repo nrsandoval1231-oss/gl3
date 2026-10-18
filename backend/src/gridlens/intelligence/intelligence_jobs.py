@@ -52,6 +52,7 @@ from gridlens.settings import settings
 
 JOB_KIND = "intelligence_process"
 POLICY_VERSION = "bounded-intelligence-v1"
+TYPESAFE_BILLING_CONTRACT_ID = "systemone-v1"
 SCHEMA_VERSION = "intelligence-request-v1"
 MAX_CONTEXT_BYTES = 45_000
 MAX_EVIDENCE_DOCUMENTS = 24
@@ -701,9 +702,11 @@ def _enabled(
             return False, "", "", "TYPESAFE_DISABLED"
         if not settings.typesafe_api_key:
             return False, "", "", "TYPESAFE_KEY_OR_PINNED_MODEL_MISSING"
+        billing_reason = _typesafe_billing_block_reason(expected_model)
+        if billing_reason:
+            return False, "", "", billing_reason
         if (
             not settings.intelligence_typesafe_pricing_verified
-            or not expected_model
             or settings.intelligence_typesafe_priced_model_id != expected_model
             or settings.intelligence_typesafe_input_usd_per_million <= 0
         ):
@@ -713,6 +716,9 @@ def _enabled(
         return False, "", "", "TYPESAFE_DISABLED"
     if not settings.typesafe_api_key or not settings.intelligence_typesafe_model:
         return False, "", "", "TYPESAFE_KEY_OR_PINNED_MODEL_MISSING"
+    billing_reason = _typesafe_billing_block_reason(settings.intelligence_typesafe_model)
+    if billing_reason:
+        return False, "", "", billing_reason
     if (
         not settings.intelligence_typesafe_pricing_verified
         or settings.intelligence_typesafe_priced_model_id != settings.intelligence_typesafe_model
@@ -720,6 +726,46 @@ def _enabled(
     ):
         return False, "", "", "TYPESAFE_INPUT_PRICING_OR_MODEL_MISSING"
     return True, "typesafe", settings.intelligence_typesafe_model, ""
+
+
+def _typesafe_billing_block_reason(model: str) -> str:
+    """Require explicit model/contract/policy proof of input-only billing.
+
+    The current SystemOne transport has no documented, enforced output bound, so
+    billable output cannot be reserved safely. A numeric cap alone is not proof.
+    """
+    if (
+        not settings.intelligence_typesafe_billing_verified
+        or settings.intelligence_typesafe_billing_mode != "input_only"
+        or not model
+        or settings.intelligence_typesafe_billing_model_id != model
+        or settings.intelligence_typesafe_billing_contract_id != TYPESAFE_BILLING_CONTRACT_ID
+        or not settings.intelligence_typesafe_billing_policy_id.strip()
+        or not settings.intelligence_typesafe_billing_reference.strip()
+    ):
+        return "TYPESAFE_BILLING_PROOF_MISSING_OR_MISMATCHED"
+    if settings.intelligence_typesafe_output_usd_per_million != 0:
+        return "TYPESAFE_OUTPUT_BOUND_UNVERIFIED"
+    return ""
+
+
+def _billing_policy_identity(provider: str, model: str) -> dict[str, str] | None:
+    """Return the proof/config identity that must participate in call deduplication."""
+    if provider != "typesafe":
+        return None
+    return {
+        "mode": settings.intelligence_typesafe_billing_mode,
+        "verified": str(settings.intelligence_typesafe_billing_verified).lower(),
+        "model_id": settings.intelligence_typesafe_billing_model_id,
+        "contract_id": settings.intelligence_typesafe_billing_contract_id,
+        "policy_id": settings.intelligence_typesafe_billing_policy_id,
+        "reference": settings.intelligence_typesafe_billing_reference,
+        "pricing_verified": str(settings.intelligence_typesafe_pricing_verified).lower(),
+        "priced_model_id": settings.intelligence_typesafe_priced_model_id,
+        "input_rate": str(settings.intelligence_typesafe_input_usd_per_million),
+        "output_rate": str(settings.intelligence_typesafe_output_usd_per_million),
+        "provider_model": model,
+    }
 
 
 def _caps() -> dict[str, dict[str, int | Decimal]]:
@@ -747,10 +793,16 @@ def _dispatch_policy(
     model: str,
     payload: dict[str, Any],
     reserved_cost: Decimal,
+    expected_billing_policy: dict[str, str] | None = None,
 ) -> tuple[bool, str]:
     enabled, current_provider, current_model, reason = _enabled(task_type, question_id, payload)
     if not enabled or current_provider != provider or current_model != model:
         return False, reason or "PROVIDER_POLICY_CHANGED"
+    if (
+        expected_billing_policy is not None
+        and _billing_policy_identity(provider, model) != expected_billing_policy
+    ):
+        return False, "TYPESAFE_BILLING_POLICY_CHANGED"
     if settings.intelligence_max_call_usd <= 0 or settings.intelligence_max_active_calls <= 0:
         return False, "FINITE_BUDGET_REQUIRED"
     current_cost = _cost_bound(provider, task_type, payload)
@@ -811,9 +863,11 @@ def _cost_bound(provider: str, task_type: str, payload: dict[str, Any]) -> Decim
         )
         request_bytes = _serialized_request_bytes(request)
     else:
+        if _typesafe_billing_block_reason(settings.intelligence_typesafe_model):
+            return Decimal("0")
         input_price = settings.intelligence_typesafe_input_usd_per_million
-        # TypeSafe's documented client exposes no output-token cap. Price a
-        # conservative full-request input bound only; retain actual usage as NULL.
+        # The accepted policy is explicitly input-only. Output remains UNKNOWN and
+        # is never silently priced at zero when the configured rate is positive.
         output_price = Decimal("0")
         output_tokens = 0
         from gridlens.integrations.typesafe_evidence_judge import TypesafeEvidenceJudge
@@ -1302,7 +1356,14 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
                 }
                 checkpoint["routing_approval"] = routing_approval
                 job.checkpoint = json.dumps(checkpoint, separators=(",", ":"))
-            context_digest = _digest({"payload": payload, "routing_approval": routing_approval})
+            billing_policy = _billing_policy_identity(provider, model)
+            context_digest = _digest(
+                {
+                    "payload": payload,
+                    "routing_approval": routing_approval,
+                    "billing_policy": billing_policy,
+                }
+            )
             max_cost = _cost_bound(provider, task_type, payload)
             if (
                 max_cost <= 0
@@ -1390,6 +1451,7 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
         model,
         payload,
         max_cost,
+        billing_policy,
     )
     with SessionLocal() as session:
         dispatched = mark_dispatched(

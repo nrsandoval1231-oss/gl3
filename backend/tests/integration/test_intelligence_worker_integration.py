@@ -62,6 +62,12 @@ def _enable_bounded_typesafe(monkeypatch):
         "intelligence_typesafe_output_usd_per_million": Decimal("0"),
         "intelligence_typesafe_max_output_tokens": 100,
         "intelligence_typesafe_output_limit_verified": True,
+        "intelligence_typesafe_billing_mode": "input_only",
+        "intelligence_typesafe_billing_model_id": "pinned-fixture-model",
+        "intelligence_typesafe_billing_contract_id": "systemone-v1",
+        "intelligence_typesafe_billing_policy_id": "synthetic-input-only-policy-v1",
+        "intelligence_typesafe_billing_reference": "synthetic://fixture/typesafe-input-only",
+        "intelligence_typesafe_billing_verified": True,
         "intelligence_max_active_calls": 2,
         "intelligence_max_call_usd": Decimal("0.1"),
     }
@@ -415,6 +421,64 @@ def test_leased_worker_runs_retained_need_through_shared_ledger(sessions, monkey
         "cost_basis": None,
     }
     assert call and call.status == "COMPLETED" and call.result_payload
+
+
+def test_catalog_worker_blocks_without_billing_proof_before_provider_call(sessions, monkeypatch):
+    _enable_bounded_typesafe(monkeypatch)
+    monkeypatch.setattr(settings, "intelligence_typesafe_billing_verified", False)
+    need_id, _evidence_id, job_id = _seed_job(sessions)
+    worker = _wire_worker(sessions, monkeypatch)
+    monkeypatch.setattr(worker, "WORKER_ID", "fixture-proof-missing-worker")
+    provider_calls = []
+
+    from gridlens.intelligence import intelligence_jobs
+
+    monkeypatch.setattr(
+        intelligence_jobs, "call_typesafe", lambda **_kwargs: provider_calls.append(True)
+    )
+    assert worker.run_one({}, job_ids=[job_id]) is True
+    with sessions() as session:
+        calls = list(session.scalars(select(LogicalCall)))
+        history = intelligence_history(session, need_id)
+    assert provider_calls == []
+    assert calls == []
+    assert history[0]["status"] == "blocked"
+    assert history[0]["error"] == "TYPESAFE_BILLING_PROOF_MISSING_OR_MISMATCHED"
+
+
+def test_catalog_worker_rechecks_exact_billing_proof_before_dispatch(sessions, monkeypatch):
+    _enable_bounded_typesafe(monkeypatch)
+    need_id, _evidence_id, job_id = _seed_job(sessions)
+    worker = _wire_worker(sessions, monkeypatch)
+    monkeypatch.setattr(worker, "WORKER_ID", "fixture-proof-changed-worker")
+    provider_calls = []
+
+    from gridlens.intelligence import intelligence_jobs
+
+    original_reserve = intelligence_jobs.reserve_call
+
+    def reserve_then_change_proof(*args, **kwargs):
+        result = original_reserve(*args, **kwargs)
+        monkeypatch.setattr(
+            settings,
+            "intelligence_typesafe_billing_reference",
+            "synthetic://fixture/changed-after-reservation",
+        )
+        return result
+
+    monkeypatch.setattr(intelligence_jobs, "reserve_call", reserve_then_change_proof)
+    monkeypatch.setattr(
+        intelligence_jobs, "call_typesafe", lambda **_kwargs: provider_calls.append(True)
+    )
+    assert worker.run_one({}, job_ids=[job_id]) is True
+    with sessions() as session:
+        calls = list(session.scalars(select(LogicalCall)))
+        history = intelligence_history(session, need_id)
+    assert provider_calls == []
+    assert len(calls) == 1
+    assert calls[0].status != "SENT_OUTCOME_UNKNOWN"
+    assert history[0]["status"] == "blocked"
+    assert history[0]["error"] == "TYPESAFE_BILLING_POLICY_CHANGED"
 
 
 def test_leased_scanned_pdf_job_commits_capture_then_counts_and_keeps_transcript_private(

@@ -11,7 +11,13 @@ from typing import Any
 from uuid import UUID
 
 from gridlens.integrations.logical_calls import complete_call, mark_dispatched, reserve_call
-from gridlens.intelligence.intelligence_jobs import _caps, _cost_bound, _dispatch_policy, _enabled
+from gridlens.intelligence.intelligence_jobs import (
+    _billing_policy_identity,
+    _caps,
+    _cost_bound,
+    _dispatch_policy,
+    _enabled,
+)
 from gridlens.persistence.database import SessionLocal
 from gridlens.persistence.models import LogicalCall
 from gridlens.settings import settings
@@ -77,7 +83,8 @@ def perform_legacy_call(
         raise LegacyCallBlocked("FINITE_BUDGET_REQUIRED")
     digest = _digest(payload)
     evidence_digest = _digest(payload.get("evidence", payload.get("evidence_id", digest)))
-    context_digest = _digest(payload)
+    billing_policy = _billing_policy_identity(provider, model)
+    context_digest = _digest({"payload": payload, "billing_policy": billing_policy})
     call_caps: dict[str, dict[str, int | Decimal | str | float]] = {
         scope: {name: value for name, value in limits.items()} for scope, limits in _caps().items()
     }
@@ -129,7 +136,16 @@ def perform_legacy_call(
     enabled, current_provider, current_model, reason = _enabled(task_type)
     policy_ok = bool(enabled and provider == current_provider and model == current_model)
     policy_ok = (
-        policy_ok and not _dispatch_policy(task_type, None, provider, model, payload, max_cost)[1]
+        policy_ok
+        and not _dispatch_policy(
+            task_type,
+            None,
+            provider,
+            model,
+            payload,
+            max_cost,
+            billing_policy,
+        )[1]
     )
     with SessionLocal() as session:
         dispatched = mark_dispatched(session, call_id, fence_token=fence_token, enabled=policy_ok)
