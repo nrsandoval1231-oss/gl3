@@ -19,6 +19,7 @@ from zoneinfo import ZoneInfo
 from fastapi import HTTPException
 from sqlalchemy import delete, func, insert, literal, or_, select, text, union, update
 
+from gridlens.domain.commercial_triage import _priority, work_group_identity
 from gridlens.domain.evaluation_clock import evaluate_at
 from gridlens.domain.ranking import RANKING_VERSION
 from gridlens.intelligence.opportunity_browse import (
@@ -182,6 +183,7 @@ def _write_rows(session, generation_id, summaries):
             if detail is None:
                 # Canonical summary/detail disagreement must never silently omit rows.
                 raise RuntimeError("canonical summary/detail eligibility differs")
+            commercial_priority = _priority(summary)
             low_high = api.exact_mw_interval(summary.get("required_mw"))
             compact = {
                 key: value
@@ -224,6 +226,10 @@ def _write_rows(session, generation_id, summaries):
                     rank_score=detail["rank_score"],
                     updated_at=summary["_updated_at"],
                     search_text=searches[str(summary["id"])],
+                    commercial_group=work_group_identity(summary),
+                    commercial_segment=commercial_priority[0],
+                    commercial_geography=commercial_priority[1],
+                    commercial_date=commercial_priority[2],
                     summary=saved_summary,
                     compact=compact,
                     display_title=project_title(summary),
@@ -825,3 +831,77 @@ def restore_generation(factory, generation_id: UUID) -> bool:
                 .values(generation_id=generation_id)
             ).rowcount
         )
+
+
+def commercial_selection(
+    session, limit: int, offset: int
+) -> tuple[list[tuple[str, list[str]]], dict, int]:
+    """Select canonical commercial groups from saved scalars, then bounded members.
+
+    SQL scans scalar Signal rows to find each group's first complete priority tuple.
+    Only selected groups' IDs cross into Python; evidence is read for those IDs later.
+    """
+    generation = current_generation(session)
+    rows = (
+        session.execute(
+            text("""
+            WITH heads AS (
+                SELECT DISTINCT ON (commercial_group)
+                    commercial_group, commercial_segment, commercial_geography,
+                    commercial_date, project_id, need_id,
+                    count(*) OVER (PARTITION BY commercial_group) AS members
+                FROM browse_rows WHERE generation_id = :generation AND tier = 'Signal'
+                ORDER BY commercial_group, commercial_segment, commercial_geography,
+                    commercial_date, project_id, need_id
+            ), selected AS (
+                SELECT * FROM heads ORDER BY commercial_segment, commercial_geography,
+                    commercial_date, project_id, need_id LIMIT :limit OFFSET :offset
+            )
+            SELECT selected.*, totals.total FROM (SELECT count(*) AS total FROM heads) totals
+            LEFT JOIN selected ON true
+            ORDER BY commercial_segment, commercial_geography, commercial_date,
+                project_id, need_id
+        """),
+            {
+            "generation": generation.id, "limit": limit,
+            "offset": min(offset, generation.row_count),
+        },
+        )
+        .mappings()
+        .all()
+    )
+    total = int(rows[0]["total"])
+    groups: dict[str, list[str]] = {}
+    for row in rows:
+        identity = row["commercial_group"]
+        if identity is None:
+            continue
+        if row["members"] > 50:
+            raise HTTPException(
+                413,
+                {
+                    "code": "commercial_group_too_large",
+                    "group_id": "cg_" + hashlib.sha256(identity.encode()).hexdigest()[:32],
+                    "group_member_count": row["members"],
+                    "max_group_members": 50,
+                    "message": (
+                        "This work group exceeds the supported card size; "
+                        "no evaluation was saved."
+                    ),
+                },
+            )
+        groups[identity] = []
+    projects = {}
+    if groups:
+        for identity, need_id, project_id in session.execute(
+            select(BrowseRow.commercial_group, BrowseRow.need_id, BrowseRow.project_id)
+            .where(
+                BrowseRow.generation_id == generation.id,
+                BrowseRow.tier == "Signal",
+                BrowseRow.commercial_group.in_(groups),
+            )
+            .order_by(BrowseRow.need_id)
+        ):
+            groups[identity].append(str(need_id))
+            projects[need_id] = project_id
+    return list(groups.items()), projects, total

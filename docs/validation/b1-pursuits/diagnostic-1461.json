@@ -1,0 +1,55 @@
+{
+  "projects": 1461,
+  "evidence": 15874,
+  "policy_version": "browse-b1-v1/ranking-v1/8691c80aa637f523d7c995a5e7de698f9d47e32c038d2feec6f0e95405ba9acb",
+  "limitations": [
+    "Synthetic dated Signal histories with unique synthetic addresses",
+    "Server functions including pool/transactions; no HTTP/auth/network",
+    "Warm PostgreSQL cache; shared host; driver BEGIN excluded",
+    "SQL group selection still scans saved Signal scalars",
+    "Card/history budgets and canonical selected detail unchanged"
+  ],
+  "evidence_before": [
+    15874,
+    "c1e3a96daf1b41c1e492f9e2ac848f78"
+  ],
+  "canonical": {
+    "samples": 5,
+    "p50": 4.663788590999502,
+    "p95": 5.348343164000653,
+    "max": 5.348343164000653,
+    "queries": [
+      163
+    ]
+  },
+  "build_seconds": 14.489534387000276,
+  "saved": {
+    "samples": 30,
+    "p50": 0.3148349950006377,
+    "p95": 0.47901859800003876,
+    "max": 0.5068333279996295,
+    "queries": [
+      44
+    ]
+  },
+  "saved_four_readers": {
+    "samples": 40,
+    "p50": 1.0127247099999295,
+    "p95": 1.5563517919999867,
+    "max": 1.6503443530000368,
+    "queries": [
+      44
+    ]
+  },
+  "offset_parity": {
+    "50": true,
+    "1460": true,
+    "1461": true,
+    "1511": true
+  },
+  "evidence_after": [
+    15874,
+    "c1e3a96daf1b41c1e492f9e2ac848f78"
+  ],
+  "canonical_payload_sha256": "a6f30f2b614bd20878d2fc3037e046551e65be54e49c90b6f65e05888ea3d5db"
+}

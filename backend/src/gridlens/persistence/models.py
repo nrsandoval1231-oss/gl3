@@ -793,6 +793,17 @@ class BrowseRow(Base):
         Index("ix_browse_updated", "generation_id", "tier", text("updated_at DESC"), "need_id"),
         Index("ix_browse_project", "generation_id", "project_id", "tier"),
         Index("ix_browse_dimensions", "generation_id", "location", "industry", "activity"),
+        Index(
+            "ix_browse_commercial",
+            "generation_id",
+            "tier",
+            "commercial_group",
+            "commercial_segment",
+            "commercial_geography",
+            "commercial_date",
+            "project_id",
+            "need_id",
+        ),
     )
     generation_id: Mapped[UUID] = mapped_column(
         ForeignKey("browse_generations.id", ondelete="CASCADE"), primary_key=True
@@ -815,5 +826,10 @@ class BrowseRow(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     search_text: Mapped[str] = mapped_column(Text)
     display_title: Mapped[str] = mapped_column(Text)
+    # NULL only in pre-0023 derived generations; policy fencing requires rebuilding.
+    commercial_group: Mapped[str | None] = mapped_column(Text)
+    commercial_segment: Mapped[int | None] = mapped_column(Integer)
+    commercial_geography: Mapped[int | None] = mapped_column(Integer)
+    commercial_date: Mapped[int | None] = mapped_column(Integer)
     summary: Mapped[dict] = mapped_column(JSONB)
     compact: Mapped[dict] = mapped_column(JSONB)

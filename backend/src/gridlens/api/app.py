@@ -4529,7 +4529,9 @@ def save_pursuit_note(pursuit_id: UUID, body: CallNoteBody, request: Request):
         return note_view(note)
 
 
-def _commercial_triage_page(session, limit: int, offset: int = 0) -> tuple[list[dict], int]:
+def _commercial_triage_page(
+    session, limit: int, offset: int = 0, *, saved_selection: bool = False
+) -> tuple[list[dict], int]:
     history_count = int(
         session.scalar(
             select(func.count())
@@ -4559,9 +4561,20 @@ def _commercial_triage_page(session, limit: int, offset: int = 0) -> tuple[list[
         raise HTTPException(
             413, "Commercial research history exceeds the triage overview row budget"
         )
-    summaries = opportunity_projection(session, tier="Signal", summary_only=True)
-    all_keyed_groups = grouped_need_groups(summaries)
-    selected_keyed_groups = all_keyed_groups[offset : offset + limit]
+    if saved_selection and settings.saved_browse_enabled:
+        from gridlens.intelligence.saved_browse import commercial_selection
+
+        selected_keyed_groups, project_ids_by_need, grouped_total = commercial_selection(
+            session, limit, offset
+        )
+    else:
+        summaries = opportunity_projection(session, tier="Signal", summary_only=True)
+        all_keyed_groups = grouped_need_groups(summaries)
+        selected_keyed_groups = all_keyed_groups[offset : offset + limit]
+        grouped_total = len(all_keyed_groups)
+        project_ids_by_need = {
+            UUID(str(item["id"])): UUID(str(item["project_id"])) for item in summaries
+        }
     for identity, group in selected_keyed_groups:
         if len(group) > 50:
             raise HTTPException(
@@ -4578,7 +4591,6 @@ def _commercial_triage_page(session, limit: int, offset: int = 0) -> tuple[list[
             )
     selected_groups = [need_ids for _identity, need_ids in selected_keyed_groups]
     selected_ids = {UUID(need_id) for group in selected_groups for need_id in group}
-    summary_by_id = {str(item["id"]): item for item in summaries}
 
     evidence_counts_by_need = dict(
         session.execute(
@@ -4597,12 +4609,7 @@ def _commercial_triage_page(session, limit: int, offset: int = 0) -> tuple[list[
             .group_by(NeedObservation.need_id)
         ).all()
     )
-    project_ids_by_need = {
-        UUID(need_id): UUID(str(summary_by_id[need_id]["project_id"]))
-        for group in selected_groups
-        for need_id in group
-    }
-    selected_project_ids = set(project_ids_by_need.values())
+    selected_project_ids = {project_ids_by_need[need_id] for need_id in selected_ids}
     lifecycle_counts_by_project = dict(
         session.execute(
             select(LifecycleEvent.project_id, func.count(LifecycleEvent.id))
@@ -4698,7 +4705,7 @@ def _commercial_triage_page(session, limit: int, offset: int = 0) -> tuple[list[
         raise _commercial_bound_error(
             identity, encoded_size, _MAX_COMMERCIAL_CARD_BYTES, "card_bytes"
         )
-    return cards, len(all_keyed_groups)
+    return cards, grouped_total
 
 
 def _commercial_triage_cards(session, limit: int) -> list[dict]:
@@ -4707,9 +4714,13 @@ def _commercial_triage_cards(session, limit: int) -> list[dict]:
     return cards
 
 
-def _commercial_triage_payload(session, limit: int, offset: int = 0) -> dict:
+def _commercial_triage_payload(
+    session, limit: int, offset: int = 0, *, saved_selection: bool = False
+) -> dict:
     _begin_consistent_read(session)
-    cards, grouped_total = _commercial_triage_page(session, limit, offset)
+    cards, grouped_total = _commercial_triage_page(
+        session, limit, offset, saved_selection=saved_selection
+    )
     today = chicago_today().isoformat()
     identities = ["commercial-need:" + item["id"] for item in cards]
     workspaces = (
@@ -4830,7 +4841,7 @@ def commercial_triage(
     offset: Annotated[int, Query(ge=0)] = 0,
 ):
     with SessionLocal() as session:
-        return _commercial_triage_payload(session, limit, offset)
+        return _commercial_triage_payload(session, limit, offset, saved_selection=True)
 
 
 @app.get(

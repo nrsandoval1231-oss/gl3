@@ -2,7 +2,7 @@
 
 from datetime import UTC, date, datetime, timedelta
 from importlib import import_module
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from fastapi import HTTPException, Response
@@ -1125,3 +1125,191 @@ def test_incremental_refresh_never_blesses_future_base_if_clocks_disagree(saved_
         assert refresh_project_changes(writer) is None
     with saved_db() as reader, pytest.raises(HTTPException):
         current_generation(reader)
+
+
+def test_saved_commercial_page_avoids_population_projection(saved_db, monkeypatch):
+    """Saved selection must keep the canonical cards without replaying all summaries."""
+    factory = saved_db
+    ids = seed(factory, count=6, histories=3)
+    with factory.begin() as session:
+        for index, need_id in enumerate(ids):
+            project = session.get(Project, session.get(PowerNeed, need_id).project_id)
+            project.location = f"{index} Synthetic Road, Dallas, TX"
+    with factory() as session:
+        expected = api._commercial_triage_payload(session, 2, 2)
+    assert rebuild(factory)["status"] == "published"
+    original = api.opportunity_projection
+
+    def targeted_only(session, *, summary_only=False, **kwargs):
+        assert not summary_only, "pursuits replayed population canonical summaries"
+        assert kwargs.get("selected_need_ids") is not None
+        return original(session, **kwargs)
+
+    monkeypatch.setattr(settings, "saved_browse_enabled", True)
+    monkeypatch.setattr(api, "opportunity_projection", targeted_only)
+    actual = api.commercial_triage(limit=2, offset=2)
+    expected.pop("evaluated_at")
+    actual.pop("evaluated_at")
+    assert actual == expected
+
+
+def test_commercial_selection_matches_canonical_complete_group_priority(saved_db):
+    """Tuple minima, Austin cross-project work, UUID ties and all page offsets."""
+    from gridlens.domain.commercial_triage import (
+        _priority,
+        grouped_need_groups,
+        work_group_identity,
+    )
+    from gridlens.intelligence.saved_browse import commercial_selection
+    from gridlens.persistence.models import BrowseRow
+
+    factory = saved_db
+    seed(factory, count=8, histories=1)
+    assert rebuild(factory)["status"] == "published"
+    with factory.begin() as session:
+        generation = current_generation(session)
+        rows = list(
+            session.scalars(select(BrowseRow).where(BrowseRow.generation_id == generation.id))
+        )
+        items = []
+        for index, row in enumerate(rows):
+            item = {
+                "id": row.need_id,
+                "project_id": row.project_id,
+                "name": "Synthetic data center" if index % 2 else "Synthetic oil well",
+                "location": "100 Synthetic Road, Dallas, TX"
+                if index < 3
+                else f"{index} Austin, TX",
+                "activity": "construction",
+                "asset_type": "data_center" if index % 2 else None,
+                "_priority_features": {
+                    "latest_date": "2026-10-31" if index == 2 else (
+                        "2026-10-10" if index >= 5 else f"2026-10-{index + 1:02}"
+                    ),
+                    "evidence_construction": True,
+                },
+                "evidence": [
+                    {
+                        "source_id": "austin-building-permits",
+                        "document_number": "2026-123456 BP" if index % 2 else "2026-123456 EP",
+                        "assessment_current": True,
+                    }
+                ],
+            }
+            if index == 2:
+                item["evidence"].insert(0, {"source_id": "stale", "assessment_current": False})
+            priority = _priority(item)
+            row.commercial_group = work_group_identity(item)
+            row.commercial_segment, row.commercial_geography, row.commercial_date = priority[:3]
+            items.append(item)
+        # A non-Signal must not enter commercial groups even if it ranks first.
+        rows[4].tier = "Lead"
+        items = [item for item in items if item["id"] != rows[4].need_id]
+    expected = grouped_need_groups(items)
+    assert any(len(members) == 3 for _identity, members in expected)
+    for limit, offset in ((1, 0), (2, 1), (50, 0), (2, len(expected)), (2, 10_000), (2, 10**100)):
+        with factory() as session:
+            groups, projects, total = commercial_selection(session, limit, offset)
+        assert groups == expected[offset : offset + limit]
+        assert total == len(expected)
+        assert set(projects) == {UUID(need) for _, group in groups for need in group}
+
+
+def test_commercial_saved_selection_pending_and_write_callers_remain_canonical(
+    saved_db, monkeypatch
+):
+    factory = saved_db
+    ids = seed(factory, count=2, histories=1)
+    assert rebuild(factory)["status"] == "published"
+    monkeypatch.setattr(settings, "saved_browse_enabled", True)
+    with factory.begin() as session:
+        session.get(Project, session.get(PowerNeed, ids[0]).project_id).name = "Corrected synthetic"
+    with factory() as session, pytest.raises(HTTPException) as caught:
+        api._commercial_triage_payload(session, 50, saved_selection=True)
+    assert caught.value.status_code == 503
+    with factory() as session:
+        cards = api._commercial_triage_cards(session, 50)
+    assert any(card["name"] == "Corrected synthetic" for card in cards)
+
+
+def test_saved_commercial_group_budget_keeps_all_members(saved_db, monkeypatch):
+    factory = saved_db
+    ids = seed(factory, count=52, histories=1)
+    from gridlens.domain.commercial_triage import grouped_need_groups
+
+    with factory.begin() as session:
+        session.execute(
+            text("UPDATE projects SET location = '100 Synthetic Test Road, Dallas, TX'")
+        )
+        session.get(
+            Project, session.get(PowerNeed, ids[-1]).project_id
+        ).location = "Other synthetic site"
+    with factory() as session:
+        groups = grouped_need_groups(
+            api.opportunity_projection(session, tier="Signal", summary_only=True)
+        )
+    large_offset = next(i for i, (_key, group) in enumerate(groups) if len(group) == 51)
+    small_offset = 1 - large_offset
+    with factory() as session, pytest.raises(HTTPException) as canonical:
+        api._commercial_triage_page(session, 1, large_offset)
+    assert canonical.value.status_code == 413
+    assert canonical.value.detail["group_member_count"] == 51
+    assert rebuild(factory)["status"] == "published"
+    monkeypatch.setattr(settings, "saved_browse_enabled", True)
+    with factory() as session, pytest.raises(HTTPException) as saved:
+        api._commercial_triage_page(session, 1, large_offset, saved_selection=True)
+    assert saved.value.detail == canonical.value.detail
+    with factory() as session:
+        canonical_cards = api._commercial_triage_page(session, 1, small_offset)
+        saved_cards = api._commercial_triage_page(session, 1, small_offset, saved_selection=True)
+    assert saved_cards == canonical_cards
+
+
+def test_commercial_scalar_selection_refreshes_transactionally(saved_db):
+    from gridlens.domain.commercial_triage import grouped_need_groups
+    from gridlens.intelligence.saved_browse import commercial_selection, refresh_project_changes
+
+    factory = saved_db
+    ids = seed(factory, count=4, histories=1)
+    assert rebuild(factory)["status"] == "published"
+    with factory.begin() as session:
+        session.get(PowerNeed, ids[0]).active = False
+        assert refresh_project_changes(session)["status"] == "published"
+        expected = grouped_need_groups(
+            api.opportunity_projection(session, tier="Signal", summary_only=True)
+        )
+        actual, _projects, total = commercial_selection(session, 50, 0)
+        assert actual == expected
+        assert total == len(expected)
+    # Restart/read from a new session; no prepared data or Python cache is required.
+    with factory() as session:
+        actual, _projects, total = commercial_selection(session, 50, 0)
+    assert actual == expected
+    assert total == len(expected)
+
+
+def test_commercial_prepared_generation_retains_exact_group_selection(saved_db, monkeypatch):
+    from gridlens.domain.commercial_triage import grouped_need_groups
+    from gridlens.domain.evaluation_clock import evaluate_at
+    from gridlens.intelligence import saved_browse as browse
+
+    factory = saved_db
+    seed(factory, count=4, histories=2)
+    assert rebuild(factory)["status"] == "published"
+    with factory() as session:
+        boundary = current_generation(session).valid_until
+    assert rebuild(factory, _prepare_at=boundary)["status"] == "prepared"
+
+    class AtBoundary(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return boundary
+
+    monkeypatch.setattr(browse, "datetime", AtBoundary)
+    with factory() as session, evaluate_at(boundary):
+        expected = grouped_need_groups(
+            api.opportunity_projection(session, tier="Signal", summary_only=True)
+        )
+        groups, _projects, total = browse.commercial_selection(session, 50, 0)
+    assert groups == expected
+    assert total == len(expected)
