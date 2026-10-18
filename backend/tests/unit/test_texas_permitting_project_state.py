@@ -2,10 +2,11 @@
 
 from datetime import UTC, date, datetime
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import Session
+from sqlalchemy.sql.elements import TextClause
 
 from gridlens.intelligence.project_state import project_state
 from gridlens.persistence.database import Base
@@ -27,8 +28,21 @@ def sqlite_jsonb(element, compiler, **kw):
     return "JSON"
 
 
+@compiles(TextClause, "sqlite")
+def sqlite_jsonb_default(element, compiler, **kw):
+    sql = compiler.visit_textclause(element, **kw)
+    return sql[:-7] if sql in {"'[]'::jsonb", "'{}'::jsonb"} else sql
+
+
+def install_sqlite_pg_cast_compat(engine):
+    @event.listens_for(engine, "before_cursor_execute", retval=True)
+    def replace_postgres_text_cast(connection, cursor, statement, parameters, context, executemany):
+        return statement.replace("cursor::text", "CAST(cursor AS TEXT)"), parameters
+
+
 def test_policy_context_preserves_project_lifecycle_need_and_utility_unknown():
     engine = create_engine("sqlite://")
+    install_sqlite_pg_cast_compat(engine)
     Base.metadata.create_all(engine)
     with Session(engine) as session:
         source = Source(

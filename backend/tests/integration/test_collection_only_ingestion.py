@@ -1997,12 +1997,19 @@ def test_rss_fence_loss_after_durable_evidence_is_retryable(db, monkeypatch):
 
     monkeypatch.setattr(service, "retrieve_source", lambda *_args: [_project_record()])
     original_fence = service.assert_fence
-    calls = 0
+    fence_lost_after_commit = False
 
     def lose_after_evidence(session, current_job_id, worker_id, fence):
-        nonlocal calls
-        calls += 1
-        if calls == 3:
+        nonlocal fence_lost_after_commit
+        with factory() as observer:
+            committed_evidence = observer.scalar(
+                select(func.count())
+                .select_from(Evidence)
+                .join(Observation, Observation.id == Evidence.observation_id)
+                .where(Observation.source_id == "dcd-news")
+            )
+        if committed_evidence:
+            fence_lost_after_commit = True
             raise RuntimeError("Worker lease fence lost")
         return original_fence(session, current_job_id, worker_id, fence)
 
@@ -2011,6 +2018,7 @@ def test_rss_fence_loss_after_durable_evidence_is_retryable(db, monkeypatch):
         service.process_job(
             session, job_id, "test", 1, {"id": "dcd-news", "retrieval_method": "publisher-rss"}
         )
+    assert fence_lost_after_commit
     with factory() as session:
         assert session.scalar(select(func.count()).select_from(Observation)) == 1
         assert session.scalar(select(func.count()).select_from(Evidence)) == 1

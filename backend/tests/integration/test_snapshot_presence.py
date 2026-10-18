@@ -288,7 +288,7 @@ def test_process_job_reconciles_only_declared_complete_snapshots(db, monkeypatch
     monkeypatch.setattr(
         service,
         "process_records",
-        lambda _s, _j, _w, _f, _d, records, client=None: seen.append(records)
+        lambda _s, _j, _w, _f, _d, records, client=None, **_kwargs: seen.append(records)
         or {"new": 0, "changed": 0},
     )
     definition = {"id": SOURCE, "retrieval_method": "georgia-air-permits"}

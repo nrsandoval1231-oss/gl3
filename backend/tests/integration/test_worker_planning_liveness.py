@@ -1,3 +1,4 @@
+import logging
 import threading
 import time
 from datetime import UTC, datetime
@@ -52,6 +53,17 @@ def _await(predicate, timeout=5):
 def test_blocked_acquisition_does_not_block_planners_or_heartbeat(worker_db, monkeypatch, caplog):
     import gridlens.ingestion.service as ingestion
     import gridlens.jobs.worker as worker
+
+    caplog.set_level(logging.ERROR, logger=worker.__name__)
+    planner_failure_logged = threading.Event()
+    original_exception = worker.logger.exception
+
+    def observe_planner_failure(message, *args, **kwargs):
+        if message.startswith("planner %s failed") and args and args[0] == "sources":
+            planner_failure_logged.set()
+        original_exception(message, *args, **kwargs)
+
+    monkeypatch.setattr(worker.logger, "exception", observe_planner_failure)
 
     factory = worker_db
     source_id = "c4-liveness-source"
@@ -135,6 +147,7 @@ def test_blocked_acquisition_does_not_block_planners_or_heartbeat(worker_db, mon
         assert failed_source_planner.error_class == "ValueError"
         assert failed_source_planner.next_retry_at > datetime.now(UTC)
         assert active_pursuit_planner.last_success_at is not None
+        assert planner_failure_logged.wait(5), "source planner failure was not logged"
         assert "planner sources failed" in caplog.text
 
         job_thread = next(

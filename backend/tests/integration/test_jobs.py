@@ -499,7 +499,7 @@ def test_runtime_recovery_honors_backoff_and_reports_failure_then_recovery(db, m
     runtime, worker, definition = _runtime_fixture(factory, monkeypatch)
     from gridlens.ingestion.adapters.federal_register import SourceParseError
 
-    def fail(*args):
+    def fail(*args, **kwargs):
         raise SourceParseError("synthetic incomplete snapshot")
 
     monkeypatch.setattr(worker, "process_job", fail)
@@ -524,7 +524,7 @@ def test_runtime_recovery_honors_backoff_and_reports_failure_then_recovery(db, m
     monkeypatch.setattr(
         worker,
         "process_job",
-        lambda *args: {
+        lambda *args, **kwargs: {
             "new": 0,
             "changed": 0,
             "unchanged": 1,

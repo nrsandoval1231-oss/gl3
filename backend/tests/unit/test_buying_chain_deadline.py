@@ -5,7 +5,7 @@ import gzip
 import httpx
 import pytest
 
-from gridlens.ingestion.adapters import bounded_http, buying_chain_public
+from gridlens.ingestion.adapters import acquisition_runtime, buying_chain_public
 from gridlens.ingestion.adapters.bounded_http import ResponseTooLarge, read_bounded_response
 
 
@@ -20,7 +20,7 @@ class Clock:
 @pytest.fixture
 def clock(monkeypatch):
     clock = Clock()
-    monkeypatch.setattr(bounded_http.time, "monotonic", lambda: clock.now)
+    monkeypatch.setattr(acquisition_runtime.time, "monotonic", lambda: clock.now)
     return clock
 
 

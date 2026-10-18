@@ -6,10 +6,11 @@ from importlib import import_module
 from uuid import uuid4
 
 import pytest
-from sqlalchemy import create_engine, func, select
+from sqlalchemy import create_engine, event, func, select
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import Session
+from sqlalchemy.sql.elements import TextClause
 
 from gridlens.persistence.models import (
     Evidence,
@@ -26,9 +27,22 @@ def sqlite_jsonb(element, compiler, **kw):
     return "JSON"
 
 
+@compiles(TextClause, "sqlite")
+def sqlite_jsonb_default(element, compiler, **kw):
+    sql = compiler.visit_textclause(element, **kw)
+    return sql[:-7] if sql in {"'[]'::jsonb", "'{}'::jsonb"} else sql
+
+
+def install_sqlite_pg_cast_compat(engine):
+    @event.listens_for(engine, "before_cursor_execute", retval=True)
+    def replace_postgres_text_cast(connection, cursor, statement, parameters, context, executemany):
+        return statement.replace("cursor::text", "CAST(cursor AS TEXT)"), parameters
+
+
 @pytest.fixture
 def retained():
     engine = create_engine("sqlite://")
+    install_sqlite_pg_cast_compat(engine)
     tables = [
         Source.__table__,
         Observation.__table__,
