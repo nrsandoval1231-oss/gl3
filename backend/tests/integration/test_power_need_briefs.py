@@ -2270,6 +2270,32 @@ def test_map_window_http_auth_query_and_payload_bounds(runtime, monkeypatch):
     assert oversized.status_code == 413
 
 
+def test_map_window_http_byte_cap_includes_envelope_metadata(runtime, monkeypatch):
+    _factory, _service, _need = runtime
+    api = import_module("gridlens.api.app")
+    client = TestClient(api.app)
+    client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
+    params = {"tier": "Signal"}
+    payload = api.opportunity_map_window(tier="Signal", search="", decision="ALL")
+    encoded_items = json.dumps(payload["items"], default=str, separators=(",", ":")).encode("utf-8")
+    encoded_window = json.dumps(payload, default=str, separators=(",", ":")).encode("utf-8")
+    items_size = len(encoded_items)
+    window_size = len(encoded_window)
+    assert window_size > items_size
+
+    # Exact equality is accepted by the same full-envelope helper the route uses.
+    monkeypatch.setattr(api, "_MAX_OPPORTUNITY_PAGE_BYTES", window_size)
+    assert api._bounded_opportunity_map_window_payload(payload) is payload
+
+    # This cap accepts the old list-only check, but cannot hold the envelope too.
+    between_sizes = items_size + (window_size - items_size) // 2
+    assert items_size < between_sizes < window_size
+    monkeypatch.setattr(api, "_MAX_OPPORTUNITY_PAGE_BYTES", between_sizes)
+    assert api._bounded_opportunity_payload(payload["items"]) is payload["items"]
+    response = client.get("/api/opportunities/map-window", params=params)
+    assert response.status_code == 413
+
+
 @pytest.mark.parametrize("resource", ["evidence", "lifecycle"])
 def test_map_window_rejects_rows_over_existing_per_record_caps(runtime, resource):
     factory, _service, (need_id, evidence_id) = runtime

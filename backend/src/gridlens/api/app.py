@@ -711,6 +711,13 @@ def _bounded_opportunity_payload(items: list[dict]) -> list[dict]:
     return items
 
 
+def _bounded_opportunity_map_window_payload(payload: dict[str, Any]) -> dict[str, Any]:
+    encoded_size = len(json.dumps(payload, default=str, separators=(",", ":")).encode("utf-8"))
+    if encoded_size > _MAX_OPPORTUNITY_PAGE_BYTES:
+        raise HTTPException(413, "Opportunity map window exceeds the complete response byte budget")
+    return payload
+
+
 def _begin_consistent_read(session) -> None:
     """Pin multi-query reads to one PostgreSQL cohort snapshot."""
     session.connection(execution_options={"isolation_level": "REPEATABLE READ"})
@@ -1837,7 +1844,7 @@ def opportunity_map_window(
         # The whole map payload is budgeted together; individual detail reads stay in
         # bounded batches, and any over-budget answer fails closed rather than truncating.
         output = _bounded_opportunity_payload(output)
-        return {
+        return _bounded_opportunity_map_window_payload({
             "items": output,
             "total_count": len(filtered),
             "loaded_count": len(output),
@@ -1846,7 +1853,7 @@ def opportunity_map_window(
             "group_total_count": len(filtered_groups),
             "cohort_token": cohort_token,
             "decision_counts": decision_counts,
-        }
+        })
 
 
 _RANK_BATCH_SIZE = 50
