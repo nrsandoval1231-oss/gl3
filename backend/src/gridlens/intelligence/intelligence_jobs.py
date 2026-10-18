@@ -29,6 +29,7 @@ from gridlens.integrations.logical_calls import (
 )
 from gridlens.intelligence.grounded_candidates import validate_grounded_candidates
 from gridlens.intelligence.jev_contracts import CONTRACTS, validate_answer
+from gridlens.intelligence.jev_task_context import build_task_context
 from gridlens.intelligence.question_contracts import QUESTION_CONTRACTS, question_contract
 from gridlens.jobs.queue import assert_fence
 from gridlens.persistence.database import SessionLocal
@@ -154,6 +155,7 @@ def _retained_context(
         evidence.append(
             {
                 "id": str(ev.id),
+                "observation_id": str(observation.id),
                 "content_hash": ev.content_hash,
                 "title": ev.title,
                 "abstract": retained_abstract,
@@ -178,6 +180,10 @@ def _retained_context(
                     if scanned
                     else "retained_excerpt"
                 ),
+                "source_id": evidence_source.id,
+                "source_enabled": evidence_source.enabled,
+                "source_registry_enabled": evidence_source.registry_enabled,
+                "retrieval_method": evidence_source.retrieval_method,
             }
         )
     if not evidence:
@@ -209,10 +215,12 @@ def _retained_context(
 
 
 def _request_payload(
+    session: Session,
     task_type: str,
     question_id: str | None,
     need: PowerNeed,
     project: Project,
+    source: Source,
     evidence: list[dict[str, Any]],
 ) -> dict[str, Any]:
     current_state = {
@@ -234,17 +242,40 @@ def _request_payload(
     state_version_digest = _digest(current_state)
     if task_type in CONTRACTS:
         contract = CONTRACTS[task_type]
-        questions = {
-            "answer": {
-                "type": "choice",
-                "instructions": (
-                    f"Choose exactly one advisory answer for {task_type} "
-                    "using only the retained evidence."
-                ),
-                "criteria": {choice: choice for choice in contract.choices},
+        context = build_task_context(session, task_type, need, project, source, evidence)
+        if task_type in {"MATCH_ADVISORY_V1", "BUYER_ROLE_HINT_V1"}:
+            candidates = (
+                context["deterministic_candidates"]
+                if task_type == "MATCH_ADVISORY_V1"
+                else context["party_candidates"]
+            )
+            key = "candidate_id" if task_type == "MATCH_ADVISORY_V1" else "party_id"
+            questions = {
+                str(candidate[key]): {
+                    "type": "choice",
+                    "instructions": (
+                        "For this exact candidate UUID, select SAME, DIFFERENT, or UNRESOLVED. "
+                        "Do not compare it with another candidate or create/merge identity."
+                    )
+                    if task_type == "MATCH_ADVISORY_V1"
+                    else (
+                        "For this exact named party UUID, classify only the role supported by "
+                        "its listed citations. Do not substitute another party or treat an "
+                        "applicant as buyer."
+                    ),
+                    "criteria": {choice: choice for choice in contract.choices},
+                }
+                for candidate in candidates
             }
-        }
-        return {
+        else:
+            questions = {
+                "answer": {
+                    "type": "choice",
+                    "instructions": context["contract_instructions"],
+                    "criteria": {choice: choice for choice in contract.choices},
+                }
+            }
+        request: dict[str, Any] = {
             "schema_version": SCHEMA_VERSION,
             "task_type": task_type,
             "need": {
@@ -261,11 +292,14 @@ def _request_payload(
                 "accepted_operator_facts": getattr(need, "_intelligence_accepted_facts", []),
                 "project_identity_key": project.identity_key,
                 "project_identity_facts": project.identity_facts,
-                "state_version_digest": state_version_digest,
+                "state_version_digest": "",
             },
+            "task_context": context,
             "evidence": evidence,
             "questions": questions,
         }
+        request["need"]["state_version_digest"] = _digest(request)
+        return request
     if task_type in GROUND_TASKS:
         question_spec = question_contract(question_id or "TEMP_LOAD_MW")
         return {
@@ -339,8 +373,10 @@ def _bound_grounded_payload(payload: dict[str, Any]) -> dict[str, Any]:
 
 def _current_payload(session: Session, checkpoint: dict[str, Any], need_id: UUID) -> dict[str, Any]:
     task_type = checkpoint["task_type"]
-    need, project, _source, evidence = _retained_context(session, need_id)
-    payload = _request_payload(task_type, checkpoint.get("question_id"), need, project, evidence)
+    need, project, source, evidence = _retained_context(session, need_id)
+    payload = _request_payload(
+        session, task_type, checkpoint.get("question_id"), need, project, source, evidence
+    )
     payload = _bound_grounded_payload(payload)
     watch_context = _watch_context(session, need_id, checkpoint.get("origin", ""))
     if watch_context is not None:
@@ -375,7 +411,7 @@ def enqueue_intelligence(
 ) -> Job:
     """Queue one exact need/evidence request; active unchanged jobs are reused."""
     need, project, source, evidence = _retained_context(session, need_id)
-    payload = _request_payload(task_type, question_id, need, project, evidence)
+    payload = _request_payload(session, task_type, question_id, need, project, source, evidence)
     payload = _bound_grounded_payload(payload)
     watch_context = _watch_context(session, need_id, origin)
     if watch_context is not None:
@@ -407,6 +443,24 @@ def enqueue_intelligence(
             continue
         if checkpoint.get("request_digest") == identity and job.status in {"queued", "running"}:
             return job
+    no_subject_result: dict[str, Any] | None = None
+    no_subject_status: str | None = None
+    if task_type == "MATCH_ADVISORY_V1" and not payload["task_context"]["deterministic_candidates"]:
+        no_subject_status = "not_applicable"
+        no_subject_result = {
+            "schema_version": "jev-advisory-v1",
+            "match_advisories": [],
+            "disposition": "UNRESOLVED_NO_ELIGIBLE_CANDIDATE",
+            "authority": "ADVISORY_ONLY",
+        }
+    elif task_type == "BUYER_ROLE_HINT_V1" and not payload["task_context"]["party_candidates"]:
+        no_subject_status = "advisory_unknown"
+        no_subject_result = {
+            "schema_version": "jev-advisory-v1",
+            "answer": {"choice": "UNKNOWN", "confidence": None, "probabilities": None},
+            "disposition": "UNRESOLVED_NO_NAMED_PARTY_CANDIDATE",
+            "authority": "ADVISORY_ONLY",
+        }
     research_question_id, created_research_question = _linked_research_question(
         session, need_id, question_id, payload, identity
     )
@@ -422,7 +476,8 @@ def enqueue_intelligence(
                 "origin": origin[:40],
                 "request_digest": identity,
                 "payload": payload,
-                "status": "queued",
+                "status": no_subject_status or "queued",
+                "result": no_subject_result,
                 "research_question_id": research_question_id,
                 "research_question_created": created_research_question,
             },
@@ -430,6 +485,8 @@ def enqueue_intelligence(
         ),
     )
     session.add(job)
+    if no_subject_status:
+        job.status = "succeeded"
     session.flush()
     checkpoint = json.loads(job.checkpoint or "{}")
     checkpoint["job_id"] = str(job.id)
@@ -552,13 +609,23 @@ def enqueue_missing_intelligence(
     ]
 
 
-def _enabled(task_type: str, question_id: str | None = None) -> tuple[bool, str, str, str]:
+def _enabled(
+    task_type: str,
+    question_id: str | None = None,
+    payload: dict[str, Any] | None = None,
+) -> tuple[bool, str, str, str]:
     mode = settings.intelligence_mode
     allowlist = {v.strip() for v in settings.intelligence_enabled_contracts.split(",") if v.strip()}
     if (question_id if task_type in GROUND_TASKS else task_type) not in allowlist:
         return False, "", "", "CONTRACT_DISABLED"
-    if task_type == "MATCH_ADVISORY_V1":
+    if task_type == "MATCH_ADVISORY_V1" and not (
+        payload and payload.get("task_context", {}).get("deterministic_candidates")
+    ):
         return False, "", "", "MATCH_CONTEXT_INCOMPLETE"
+    if task_type == "BUYER_ROLE_HINT_V1" and not (
+        payload and payload.get("task_context", {}).get("party_candidates")
+    ):
+        return False, "", "", "BUYER_SUBJECT_UNRESOLVED"
     if not settings.intelligence_enabled or mode not in {
         "evaluation",
         "advisory",
@@ -566,7 +633,7 @@ def _enabled(task_type: str, question_id: str | None = None) -> tuple[bool, str,
     }:
         return False, "", "", "INTELLIGENCE_DISABLED"
     if mode == "bounded_routing":
-        if task_type not in {"RESEARCH_PRIORITY_V1", "LLM_ROUTE_V1"}:
+        if task_type not in {"RESEARCH_PRIORITY_V1", "LLM_ROUTE_V1", *GROUND_TASKS}:
             return False, "", "", "ROUTING_TASK_NOT_AUTHORIZED"
         if not (
             settings.intelligence_routing_policy_id
@@ -681,7 +748,7 @@ def _dispatch_policy(
     payload: dict[str, Any],
     reserved_cost: Decimal,
 ) -> tuple[bool, str]:
-    enabled, current_provider, current_model, reason = _enabled(task_type, question_id)
+    enabled, current_provider, current_model, reason = _enabled(task_type, question_id, payload)
     if not enabled or current_provider != provider or current_model != model:
         return False, reason or "PROVIDER_POLICY_CHANGED"
     if settings.intelligence_max_call_usd <= 0 or settings.intelligence_max_active_calls <= 0:
@@ -818,16 +885,62 @@ def typesafe_request_payload(
             "task_type": task_type,
             "need": payload["need"],
             "evidence": payload["evidence"],
+            "task_context": payload.get("task_context", {}),
         },
         "questions": payload["questions"],
     }
 
 
 def _type_safe_result(
-    data: dict[str, Any], task_type: str
+    data: dict[str, Any], task_type: str, payload: dict[str, Any] | None = None
 ) -> tuple[dict[str, Any], str, int | None, int | None]:
     if not isinstance(data.get("model"), str) or not data["model"]:
         raise ValueError("Provider response omitted actual model")
+    if task_type in {"MATCH_ADVISORY_V1", "BUYER_ROLE_HINT_V1"}:
+        candidate_key = (
+            "deterministic_candidates" if task_type == "MATCH_ADVISORY_V1" else "party_candidates"
+        )
+        candidates = (payload or {}).get("task_context", {}).get(candidate_key)
+        if not isinstance(candidates, list):
+            raise ValueError("Multi-subject response is missing exact candidate context")
+        id_key = "candidate_id" if task_type == "MATCH_ADVISORY_V1" else "party_id"
+        expected_ids = {str(item[id_key]) for item in candidates}
+        answers = data.get("answers")
+        if not expected_ids or not isinstance(answers, dict) or set(answers) != expected_ids:
+            raise ValueError("Answer keys must exactly match subject UUIDs")
+        advisories = []
+        for candidate_id in sorted(expected_ids):
+            answer = answers[candidate_id]
+            _validate_typesafe_choice(answer, CONTRACTS[task_type])
+            validated = validate_answer(
+                task_type, {key: value for key, value in answer.items() if key != "type"}
+            )
+            result_id_key = (
+                "candidate_project_id" if task_type == "MATCH_ADVISORY_V1" else "party_id"
+            )
+            advisories.append({result_id_key: candidate_id, **validated.model_dump()})
+        usage_value = data.get("usage")
+        match_usage = usage_value if isinstance(usage_value, dict) else {}
+        counts = []
+        for key in ("input_tokens", "output_tokens"):
+            value = match_usage.get(key)
+            if value is not None and (type(value) is not int or value < 0):
+                raise ValueError("Provider token usage is invalid")
+            counts.append(value)
+        return (
+            {
+                "schema_version": "jev-advisory-v1",
+                (
+                    "match_advisories"
+                    if task_type == "MATCH_ADVISORY_V1"
+                    else "buyer_role_advisories"
+                ): advisories,
+                "authority": "ADVISORY_ONLY",
+            },
+            data["model"],
+            counts[0],
+            counts[1],
+        )
     answer = data.get("answers", {}).get("answer")
     if not isinstance(answer, dict) or set(answer) != {
         "type",
@@ -839,25 +952,7 @@ def _type_safe_result(
     if answer.get("type") != "choice":
         raise ValueError("TypeSafe answer type must be choice")
     contract = CONTRACTS[task_type]
-    confidence = answer.get("confidence")
-    probabilities = answer.get("probabilities")
-    if (
-        not isinstance(confidence, int | float)
-        or isinstance(confidence, bool)
-        or not math.isfinite(confidence)
-        or not 0 <= confidence <= 1
-        or not isinstance(probabilities, dict)
-        or set(probabilities) != set(contract.choices)
-        or any(
-            not isinstance(value, int | float)
-            or isinstance(value, bool)
-            or not math.isfinite(value)
-            or not 0 <= value <= 1
-            for value in probabilities.values()
-        )
-        or not 0.98 <= sum(probabilities.values()) <= 1.02
-    ):
-        raise ValueError("TypeSafe confidence or probabilities are invalid")
+    _validate_typesafe_choice(answer, contract)
     validated = validate_answer(
         task_type,
         {key: value for key, value in answer.items() if key != "type"},
@@ -882,6 +977,272 @@ def _type_safe_result(
     )
 
 
+def _validate_typesafe_choice(answer: Any, contract: Any) -> None:
+    if not isinstance(answer, dict) or set(answer) != {
+        "type",
+        "choice",
+        "confidence",
+        "probabilities",
+    }:
+        raise ValueError("TypeSafe answer shape mismatch")
+    confidence, probabilities = answer.get("confidence"), answer.get("probabilities")
+    if (
+        answer.get("type") != "choice"
+        or not isinstance(confidence, int | float)
+        or isinstance(confidence, bool)
+        or not math.isfinite(confidence)
+        or not 0 <= confidence <= 1
+        or not isinstance(probabilities, dict)
+        or set(probabilities) != set(contract.choices)
+        or any(
+            not isinstance(value, int | float)
+            or isinstance(value, bool)
+            or not math.isfinite(value)
+            or not 0 <= value <= 1
+            for value in probabilities.values()
+        )
+        or not 0.98 <= sum(probabilities.values()) <= 1.02
+    ):
+        raise ValueError("TypeSafe confidence or probabilities are invalid")
+
+
+def _active_routing_reference(reference: dict[str, Any] | None) -> bool:
+    if not reference or settings.intelligence_mode != "bounded_routing":
+        return False
+    if not (
+        reference.get("policy_id")
+        and reference.get("policy_id") == settings.intelligence_routing_policy_id
+        and reference.get("evaluated") is True
+        and settings.intelligence_routing_policy_evaluated is True
+        and reference.get("authorized") is True
+        and settings.intelligence_bounded_routing_authorized is True
+        and settings.intelligence_max_active_calls > 0
+        and settings.intelligence_max_call_usd > 0
+    ):
+        return False
+    return all(
+        type(limits[period]) is int and limits[period] > 0 and limits[f"{period}_usd"] > 0
+        for limits in _caps().values()
+        for period in ("daily", "monthly")
+    )
+
+
+def _apply_bounded_routing_effect(
+    session: Session,
+    *,
+    checkpoint: dict[str, Any],
+    result: dict[str, Any],
+    need_id: UUID,
+) -> dict[str, Any] | None:
+    """Apply an authorized advisory only to already queued bounded work."""
+    task_type = checkpoint.get("task_type")
+    if task_type not in {"RESEARCH_PRIORITY_V1", "LLM_ROUTE_V1"}:
+        return None
+    reference = checkpoint.get("routing_approval")
+    if not _active_routing_reference(reference):
+        return None
+    if not isinstance(reference, dict):
+        return None
+    answer = result.get("answer") if isinstance(result, dict) else None
+    choice = answer.get("choice") if isinstance(answer, dict) else None
+    if task_type == "RESEARCH_PRIORITY_V1":
+        if choice not in {"1", "2", "3", "4", "5"}:
+            return None
+        rank = 6 - int(choice)
+        route = "RESEARCH_PRIORITY"
+    else:
+        if choice not in {"NONE", "FAST_EXTRACT", "DEEP_RESEARCH", "HUMAN_REVIEW"}:
+            return None
+        route = choice
+        if choice == "NONE":
+            return {"status": "NO_FOLLOW_ON", "route": route, "policy_id": reference["policy_id"]}
+        if choice == "HUMAN_REVIEW":
+            return {
+                "status": "HUMAN_REVIEW_REQUIRED",
+                "route": route,
+                "policy_id": reference["policy_id"],
+            }
+        return _enqueue_routed_grounding(
+            session,
+            checkpoint=checkpoint,
+            need_id=need_id,
+            route=choice,
+            reference=reference,
+        )
+
+    eligible: list[Job] = []
+    for queued in session.scalars(
+        select(Job)
+        .where(
+            Job.kind == JOB_KIND,
+            Job.target_id == need_id,
+            Job.status == "queued",
+        )
+        .order_by(Job.created_at, Job.id)
+        .with_for_update(skip_locked=True)
+        .limit(20)
+    ):
+        try:
+            queued_checkpoint = json.loads(queued.checkpoint or "{}")
+        except (ValueError, TypeError):
+            continue
+        queued_type = queued_checkpoint.get("task_type")
+        queued_question = queued_checkpoint.get("question_id")
+        queued_payload = queued_checkpoint.get("payload")
+        if not isinstance(queued_payload, dict) or queued_checkpoint.get("status") != "queued":
+            continue
+        try:
+            fresh_payload = _current_payload(session, queued_checkpoint, need_id)
+            if _digest(fresh_payload) != queued_checkpoint.get("request_digest"):
+                continue
+            enabled, provider, model, _reason = _enabled(
+                queued_type, queued_question, fresh_payload
+            )
+            if not enabled:
+                continue
+            cost = _cost_bound(provider, queued_type, fresh_payload)
+            if not _dispatch_policy(
+                queued_type, queued_question, provider, model, fresh_payload, cost
+            )[0]:
+                continue
+        except (ValueError, KeyError, TypeError):
+            continue
+        eligible.append(queued)
+    if not eligible:
+        return {
+            "status": "NO_ELIGIBLE_QUEUED_WORK",
+            "route": route,
+            "policy_id": reference["policy_id"],
+        }
+    applied_to: list[str] = []
+    for queued in eligible:
+        queued_checkpoint = json.loads(queued.checkpoint or "{}")
+        queued_checkpoint["routing_priority"] = {
+            "rank": rank,
+            "route": route,
+            "policy_id": reference["policy_id"],
+            "evaluated": True,
+            "authorized": True,
+            "evaluation_job_id": checkpoint.get("job_id"),
+            "evaluation_call_id": checkpoint.get("logical_call_id"),
+            "request_digest": checkpoint.get("request_digest"),
+        }
+        queued.checkpoint = json.dumps(queued_checkpoint, separators=(",", ":"))
+        applied_to.append(str(queued.id))
+    return {
+        "status": "QUEUED_WORK_RANKED",
+        "route": route,
+        "policy_id": reference["policy_id"],
+        "job_ids": applied_to,
+    }
+
+
+def _enqueue_routed_grounding(
+    session: Session,
+    *,
+    checkpoint: dict[str, Any],
+    need_id: UUID,
+    route: str,
+    reference: dict[str, Any],
+) -> dict[str, Any]:
+    payload = checkpoint.get("payload")
+    unresolved = (
+        payload.get("task_context", {}).get("unresolved_questions", [])
+        if isinstance(payload, dict)
+        else []
+    )
+    categories = {
+        item.get("category")
+        for item in unresolved
+        if isinstance(item, dict) and item.get("category")
+    }
+    configured = {
+        value.strip()
+        for value in settings.intelligence_enabled_contracts.split(",")
+        if value.strip()
+    }
+    ordered_questions = (
+        "TEMP_LOAD_MW",
+        "UTILITY_ONLINE_DATE",
+        "COMMISSIONING_WINDOW",
+        "CONSTRUCTION_START",
+        "DIRECT_BUYER_AUTHORITY",
+        "NATURAL_GAS_AVAILABILITY",
+    )
+    question_id = next(
+        (
+            candidate
+            for candidate in ordered_questions
+            if candidate in configured and QUESTION_CONTRACTS[candidate]["category"] in categories
+        ),
+        None,
+    )
+    if question_id is None:
+        return {
+            "status": "NO_AUTHORIZED_UNRESOLVED_QUESTION",
+            "route": route,
+            "policy_id": reference["policy_id"],
+        }
+    need, project, source, evidence = _retained_context(session, need_id)
+    target_kind = "GROUNDED_EXTRACTION" if route == "FAST_EXTRACT" else "GROUNDED_DOSSIER"
+    target_payload = _request_payload(
+        session, target_kind, question_id, need, project, source, evidence
+    )
+    enabled, provider, model, reason = _enabled(target_kind, question_id, target_payload)
+    if not enabled:
+        return {
+            "status": "FOLLOW_ON_BLOCKED",
+            "route": route,
+            "reason": reason,
+            "policy_id": reference["policy_id"],
+        }
+    cost = _cost_bound(provider, target_kind, target_payload)
+    allowed, reason = _dispatch_policy(
+        target_kind, question_id, provider, model, target_payload, cost
+    )
+    if not allowed:
+        return {
+            "status": "FOLLOW_ON_BLOCKED",
+            "route": route,
+            "reason": reason,
+            "policy_id": reference["policy_id"],
+        }
+    job = enqueue_intelligence(
+        session,
+        need_id=need_id,
+        task_type=target_kind,
+        question_id=question_id,
+        origin="bounded_route",
+    )
+    if job.status != "queued":
+        return {
+            "status": "FOLLOW_ON_ALREADY_ACTIVE",
+            "route": route,
+            "job_id": str(job.id),
+            "policy_id": reference["policy_id"],
+        }
+    follow_on = json.loads(job.checkpoint or "{}")
+    follow_on["routing_priority"] = {
+        "rank": 1 if route == "FAST_EXTRACT" else 2,
+        "route": route,
+        "policy_id": reference["policy_id"],
+        "evaluated": True,
+        "authorized": True,
+        "evaluation_job_id": checkpoint.get("job_id"),
+        "evaluation_call_id": checkpoint.get("logical_call_id"),
+        "request_digest": checkpoint.get("request_digest"),
+    }
+    job.checkpoint = json.dumps(follow_on, separators=(",", ":"))
+    return {
+        "status": "ROUTED_JOB_ENQUEUED",
+        "route": route,
+        "job_id": str(job.id),
+        "task_type": target_kind,
+        "question_id": question_id,
+        "policy_id": reference["policy_id"],
+    }
+
+
 def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> dict[str, Any]:
     input_tokens: int | None = None
     output_tokens: int | None = None
@@ -900,7 +1261,15 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
                 raise ValueError("Intelligence job has no target need")
             need, project, source, evidence = _retained_context(session, job.target_id)
             current = _bound_grounded_payload(
-                _request_payload(task_type, checkpoint.get("question_id"), need, project, evidence)
+                _request_payload(
+                    session,
+                    task_type,
+                    checkpoint.get("question_id"),
+                    need,
+                    project,
+                    source,
+                    evidence,
+                )
             )
             watch_context = _watch_context(session, job.target_id, checkpoint.get("origin", ""))
             if watch_context is not None:
@@ -912,7 +1281,9 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
                 _record_research_receipt(session, checkpoint)
                 job.status, job.lease_owner, job.lease_until = "succeeded", None, None
                 return {"status": "stale", "job_id": str(job_id)}
-            enabled, provider, model, reason = _enabled(task_type, checkpoint.get("question_id"))
+            enabled, provider, model, reason = _enabled(
+                task_type, checkpoint.get("question_id"), payload
+            )
             if not enabled:
                 checkpoint.update(status="blocked", error=reason)
                 job.checkpoint = json.dumps(checkpoint, separators=(",", ":"))
@@ -927,6 +1298,7 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
                     "policy_id": settings.intelligence_routing_policy_id,
                     "evaluated": settings.intelligence_routing_policy_evaluated,
                     "authorized": settings.intelligence_bounded_routing_authorized,
+                    "reference_type": "configured_policy_id",
                 }
                 checkpoint["routing_approval"] = routing_approval
                 job.checkpoint = json.dumps(checkpoint, separators=(",", ":"))
@@ -1050,7 +1422,9 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
             )
             provider_response_complete = True
             provider_response_id = data.get("provider_response_id")
-            parsed, actual_model, input_tokens, output_tokens = _type_safe_result(data, task_type)
+            parsed, actual_model, input_tokens, output_tokens = _type_safe_result(
+                data, task_type, payload
+            )
         else:
             key = settings.openai_api_key.get_secret_value() if settings.openai_api_key else ""
             instructions = GROUNDED_INSTRUCTIONS
@@ -1173,6 +1547,16 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
                 "error": "INPUT_CHANGED_DURING_PROVIDER_CALL",
                 "job_id": str(job_id),
             }
+        routing_effect = (
+            _apply_bounded_routing_effect(
+                session,
+                checkpoint=checkpoint,
+                result=call_result,
+                need_id=job.target_id,
+            )
+            if status == "completed" and fresh and job.target_id is not None and call_result
+            else None
+        )
         checkpoint.update(
             status=status,
             completed_at=datetime.now(UTC).isoformat(),
@@ -1192,6 +1576,8 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
             if status == "completed"
             else None,
         )
+        if routing_effect is not None:
+            checkpoint["routing_effect"] = routing_effect
         job.checkpoint = json.dumps(checkpoint, separators=(",", ":"), default=str)
         _record_research_receipt(session, checkpoint)
         job.status = "succeeded" if status in {"completed", "unknown"} else "failed"

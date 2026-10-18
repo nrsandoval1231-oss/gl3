@@ -21,23 +21,53 @@ from gridlens.settings import settings
 def test_typesafe_choice_results_require_exact_typed_probabilities(contract_id):
     choices = CONTRACTS[contract_id].choices
     probabilities = {choice: 1 / len(choices) for choice in choices}
+    subject_key = (
+        "candidate_id"
+        if contract_id == "MATCH_ADVISORY_V1"
+        else "party_id"
+        if contract_id == "BUYER_ROLE_HINT_V1"
+        else None
+    )
+    subject_id = str(uuid4())
+    answer = {
+        "type": "choice",
+        "choice": choices[0],
+        "confidence": 1 / len(choices),
+        "probabilities": probabilities,
+    }
+    task_payload = None
+    answers = {"answer": answer}
+    if subject_key:
+        answers = {subject_id: answer}
+        context_key = (
+            "deterministic_candidates" if contract_id == "MATCH_ADVISORY_V1" else "party_candidates"
+        )
+        task_payload = {"task_context": {context_key: [{subject_key: subject_id}]}}
     result, actual_model, input_tokens, output_tokens = _type_safe_result(
         {
             "model": "pinned-fixture-model",
-            "answers": {
-                "answer": {
-                    "type": "choice",
-                    "choice": choices[0],
-                    "confidence": 1 / len(choices),
-                    "probabilities": probabilities,
-                }
-            },
+            "answers": answers,
             "usage": {"input_tokens": 9, "output_tokens": 4},
         },
         contract_id,
+        task_payload,
     )
     assert result["authority"] == "ADVISORY_ONLY"
-    assert result["answer"]["choice"] == choices[0]
+    if subject_key:
+        key = "match_advisories" if contract_id == "MATCH_ADVISORY_V1" else "buyer_role_advisories"
+        result_subject_key = (
+            "candidate_project_id" if contract_id == "MATCH_ADVISORY_V1" else "party_id"
+        )
+        assert result[key] == [
+            {
+                result_subject_key: subject_id,
+                "choice": choices[0],
+                "confidence": 1 / len(choices),
+                "probabilities": probabilities,
+            }
+        ]
+    else:
+        assert result["answer"]["choice"] == choices[0]
     assert (actual_model, input_tokens, output_tokens) == ("pinned-fixture-model", 9, 4)
 
 
@@ -45,7 +75,7 @@ def test_typesafe_choice_rejects_wrong_keys_and_missing_usage():
     with pytest.raises(ValueError, match="shape"):
         _type_safe_result(
             {"model": "m", "answers": {"answer": {"type": "choice", "choice": "SAME"}}},
-            "MATCH_ADVISORY_V1",
+            "SOURCE_RELEVANCE_V1",
         )
     with pytest.raises(ValueError, match="probabilities"):
         _type_safe_result(
@@ -61,8 +91,34 @@ def test_typesafe_choice_rejects_wrong_keys_and_missing_usage():
                 },
                 "usage": {},
             },
-            "MATCH_ADVISORY_V1",
+            "SOURCE_RELEVANCE_V1",
         )
+
+
+def test_match_advisory_requires_exact_uuid_answer_set_and_keeps_negative_candidate():
+    first, second = str(uuid4()), str(uuid4())
+    candidates = [
+        {"candidate_id": first, "deterministic_decision": "REJECTED"},
+        {"candidate_id": second, "deterministic_decision": "CANDIDATE"},
+    ]
+    payload = {"task_context": {"deterministic_candidates": candidates}}
+    answer = {
+        "type": "choice",
+        "choice": "DIFFERENT",
+        "confidence": 0.8,
+        "probabilities": {"SAME": 0.1, "DIFFERENT": 0.8, "UNRESOLVED": 0.1},
+    }
+    good = {"model": "m", "answers": {first: answer, second: answer}}
+    result, *_ = _type_safe_result(good, "MATCH_ADVISORY_V1", payload)
+    assert [item["candidate_project_id"] for item in result["match_advisories"]] == sorted(
+        (first, second)
+    )
+    for malformed in (
+        {"model": "m", "answers": {first: answer}},
+        {"model": "m", "answers": {first: answer, second: answer, str(uuid4()): answer}},
+    ):
+        with pytest.raises(ValueError, match="exactly match"):
+            _type_safe_result(malformed, "MATCH_ADVISORY_V1", payload)
 
 
 def test_typesafe_probabilities_accept_official_rounded_approximation():

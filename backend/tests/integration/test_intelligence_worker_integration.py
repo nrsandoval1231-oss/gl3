@@ -1,3 +1,4 @@
+import json
 from datetime import date
 from decimal import Decimal
 from uuid import uuid4
@@ -8,7 +9,10 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 
-from gridlens.intelligence.intelligence_jobs import enqueue_intelligence, intelligence_history
+from gridlens.intelligence.intelligence_jobs import (
+    enqueue_intelligence,
+    intelligence_history,
+)
 from gridlens.persistence.database import Base
 from gridlens.persistence.models import (
     Evidence,
@@ -19,6 +23,7 @@ from gridlens.persistence.models import (
     Observation,
     PowerNeed,
     Project,
+    ProjectMatchDecision,
     Pursuit,
     PursuitResearchQuestion,
     Source,
@@ -432,6 +437,291 @@ def test_typesafe_dispatch_preserves_bounded_need_and_identity_context(sessions,
     assert captured["state"]["need"]["project_identity_key"] == "fixture-project"
     assert "state_version_digest" in captured["state"]["need"]
     assert captured["state"]["evidence"][0]["content_hash"] == "a" * 64
+
+
+def test_match_context_keeps_exact_nearby_candidate_ids_and_negative_decisions(sessions):
+    from gridlens.intelligence.intelligence_jobs import _request_payload, _retained_context
+
+    need_id, evidence_id, _job_id = _seed_job(sessions, task_type="MATCH_ADVISORY_V1")
+    candidate_ids = [uuid4(), uuid4()]
+    with sessions.begin() as session:
+        need = session.get(PowerNeed, need_id)
+        project = session.get(Project, need.project_id)
+        evidence = session.get(Evidence, evidence_id)
+        assert need and project and evidence
+        for index, candidate_id in enumerate(candidate_ids):
+            session.add(
+                Project(
+                    id=candidate_id,
+                    identity_key=f"candidate-{index}",
+                    name="Northstar Data Center",
+                    location=f"{100 + index} Test Road, Austin, TX",
+                    source_id=project.source_id,
+                    external_id=f"candidate-{index}",
+                    identity_facts={"site_address": f"{100 + index} Test Road"},
+                )
+            )
+        session.flush()
+        session.add_all(
+            [
+                ProjectMatchDecision(
+                    observation_id=evidence.observation_id,
+                    candidate_project_id=candidate_ids[0],
+                    evidence_id=evidence.id,
+                    decision="REJECTED",
+                    reason="Different parcel despite similar project name.",
+                    matched_facts=["project_name"],
+                ),
+                ProjectMatchDecision(
+                    observation_id=evidence.observation_id,
+                    candidate_project_id=candidate_ids[1],
+                    evidence_id=evidence.id,
+                    decision="CANDIDATE",
+                    reason="Same metro, distinct street address; exact site unresolved.",
+                    matched_facts=["city"],
+                ),
+            ]
+        )
+        session.flush()
+        need, project, source, retained = _retained_context(session, need_id)
+        payload = _request_payload(
+            session, "MATCH_ADVISORY_V1", None, need, project, source, retained
+        )
+    expected = {str(value) for value in candidate_ids}
+    assert set(payload["questions"]) == expected
+    assert payload["need"]["state_version_digest"]
+    facts = {
+        item["candidate_id"]: item for item in payload["task_context"]["deterministic_candidates"]
+    }
+    assert set(facts) == expected
+    assert facts[str(candidate_ids[0])]["deterministic_decision"] == "REJECTED"
+    assert "Different parcel" in facts[str(candidate_ids[0])]["deterministic_reason"]
+    assert facts[str(candidate_ids[1])]["deterministic_decision"] == "CANDIDATE"
+
+
+def test_match_without_existing_candidate_is_not_applicable_and_never_calls_provider(sessions):
+    from gridlens.persistence.models import LogicalCall
+
+    _need_id, _evidence_id, job_id = _seed_job(sessions, task_type="MATCH_ADVISORY_V1")
+    with sessions() as session:
+        job = session.get(Job, job_id)
+        calls = session.query(LogicalCall).count()
+        assert job and job.status == "succeeded"
+        checkpoint = json.loads(job.checkpoint or "{}")
+    assert calls == 0
+    assert checkpoint["status"] == "not_applicable"
+    assert checkpoint["result"]["disposition"] == "UNRESOLVED_NO_ELIGIBLE_CANDIDATE"
+
+
+def test_match_candidate_change_stales_context_before_provider_dispatch(sessions, monkeypatch):
+    from gridlens.intelligence import intelligence_jobs
+    from gridlens.jobs.queue import lease_one
+
+    _enable_bounded_typesafe(monkeypatch)
+    _wire_worker(sessions, monkeypatch)
+    need_id, evidence_id, _initial_job_id = _seed_job(sessions, task_type="MATCH_ADVISORY_V1")
+    candidate_id = uuid4()
+    with sessions.begin() as session:
+        need = session.get(PowerNeed, need_id)
+        project = session.get(Project, need.project_id)
+        evidence = session.get(Evidence, evidence_id)
+        assert need and project and evidence
+        session.add(
+            Project(
+                id=candidate_id,
+                identity_key="stale-candidate",
+                name="Northstar Data Center",
+                location="200 Test Road, Austin, TX",
+                source_id=project.source_id,
+                external_id="stale-candidate",
+                identity_facts={"site_address": "200 Test Road"},
+            )
+        )
+        session.flush()
+        session.add(
+            ProjectMatchDecision(
+                observation_id=evidence.observation_id,
+                candidate_project_id=candidate_id,
+                evidence_id=evidence.id,
+                decision="CANDIDATE",
+                reason="Same metro; verify exact site.",
+                matched_facts=["city"],
+            )
+        )
+        session.flush()
+        job = enqueue_intelligence(
+            session, need_id=need_id, task_type="MATCH_ADVISORY_V1", origin="test"
+        )
+        job_id = job.id
+    monkeypatch.setattr(
+        intelligence_jobs,
+        "call_typesafe",
+        lambda **_: pytest.fail("stale candidate context must not dispatch"),
+    )
+    with sessions.begin() as session:
+        leased, fence = lease_one(session, "match-stale-worker", job_ids=[job_id])
+        assert leased.id == job_id
+    with sessions.begin() as session:
+        candidate = session.get(Project, candidate_id)
+        assert candidate
+        candidate.identity_facts = {"site_address": "201 Test Road"}
+    result = intelligence_jobs.process_intelligence_job(job_id, "match-stale-worker", fence)
+    assert result["status"] == "stale"
+
+
+def test_authorized_research_priority_changes_only_fresh_queued_job_order(sessions, monkeypatch):
+    from gridlens.intelligence.intelligence_jobs import _apply_bounded_routing_effect
+
+    _enable_bounded_typesafe(monkeypatch)
+    for name, value in {
+        "intelligence_mode": "bounded_routing",
+        "intelligence_enabled_contracts": "RESEARCH_PRIORITY_V1,LLM_ROUTE_V1",
+        "intelligence_routing_policy_id": "evaluated-policy-v1",
+        "intelligence_routing_policy_evaluated": True,
+        "intelligence_bounded_routing_authorized": True,
+    }.items():
+        monkeypatch.setattr(settings, name, value)
+    need_id, _evidence_id, original_job_id = _seed_job(sessions, task_type="RESEARCH_PRIORITY_V1")
+    with sessions.begin() as session:
+        original = session.get(Job, original_job_id)
+        assert original
+        queued = original
+        evaluation = {
+            "task_type": "RESEARCH_PRIORITY_V1",
+            "job_id": str(uuid4()),
+            "logical_call_id": str(uuid4()),
+            "request_digest": "d" * 64,
+            "routing_approval": {
+                "policy_id": "evaluated-policy-v1",
+                "evaluated": True,
+                "authorized": True,
+                "reference_type": "configured_policy_id",
+            },
+        }
+        effect = _apply_bounded_routing_effect(
+            session,
+            checkpoint=evaluation,
+            result={"answer": {"choice": "5"}},
+            need_id=need_id,
+        )
+        queued_id = queued.id
+    with sessions() as session:
+        queued = session.get(Job, queued_id)
+        applied = json.loads(queued.checkpoint or "{}")["routing_priority"]
+    assert effect and effect["status"] == "QUEUED_WORK_RANKED"
+    assert effect["job_ids"] == [str(queued_id)]
+    assert applied == {
+        "rank": 1,
+        "route": "RESEARCH_PRIORITY",
+        "policy_id": "evaluated-policy-v1",
+        "evaluated": True,
+        "authorized": True,
+        "evaluation_job_id": evaluation["job_id"],
+        "evaluation_call_id": evaluation["logical_call_id"],
+        "request_digest": "d" * 64,
+    }
+
+
+@pytest.mark.parametrize(
+    ("route", "expected_task", "expected_rank"),
+    [
+        ("FAST_EXTRACT", "GROUNDED_EXTRACTION", 1),
+        ("DEEP_RESEARCH", "GROUNDED_DOSSIER", 2),
+    ],
+)
+def test_authorized_llm_route_enqueues_bounded_grounding_under_same_caps(
+    sessions, monkeypatch, route, expected_task, expected_rank
+):
+    from gridlens.intelligence.intelligence_jobs import _apply_bounded_routing_effect
+
+    _enable_bounded_typesafe(monkeypatch)
+    grounded_values = {
+        "intelligence_mode": "bounded_routing",
+        "intelligence_enabled_contracts": "LLM_ROUTE_V1,TEMP_LOAD_MW",
+        "intelligence_routing_policy_id": "evaluated-policy-v1",
+        "intelligence_routing_policy_evaluated": True,
+        "intelligence_bounded_routing_authorized": True,
+        "intelligence_openai_enabled": True,
+        "intelligence_research_enabled": True,
+        "openai_api_key": SecretStr("fixture-only"),
+        "intelligence_openai_fast_model": "fast-fixture-model",
+        "intelligence_openai_fast_priced_model_id": "fast-fixture-model",
+        "intelligence_openai_fast_pricing_verified": True,
+        "intelligence_openai_fast_input_usd_per_million": Decimal("1"),
+        "intelligence_openai_fast_output_usd_per_million": Decimal("0"),
+        "intelligence_openai_fast_max_output_tokens": 600,
+        "intelligence_openai_reasoning_model": "reasoning-fixture-model",
+        "intelligence_openai_reasoning_priced_model_id": "reasoning-fixture-model",
+        "intelligence_openai_reasoning_pricing_verified": True,
+        "intelligence_openai_reasoning_input_usd_per_million": Decimal("1"),
+        "intelligence_openai_reasoning_output_usd_per_million": Decimal("0"),
+        "intelligence_openai_reasoning_max_output_tokens": 1200,
+    }
+    for name, value in grounded_values.items():
+        monkeypatch.setattr(settings, name, value)
+    need_id, _evidence_id, _ = _seed_job(sessions, task_type="SOURCE_RELEVANCE_V1")
+    with sessions.begin() as session:
+        need = session.get(PowerNeed, need_id)
+        assert need
+        project = session.get(Project, need.project_id)
+        assert project
+        pursuit = Pursuit(
+            identity_key=f"route-pursuit-{uuid4()}",
+            project_id=project.id,
+            project_ids=[str(project.id)],
+            snapshot={},
+            research_status="not_researched",
+        )
+        session.add(pursuit)
+        session.flush()
+        session.add(
+            PursuitResearchQuestion(
+                pursuit_id=pursuit.id,
+                project_id=project.id,
+                need_id=need_id,
+                parent_id=None,
+                category="load",
+                question="What exact temporary load remains unresolved?",
+                status="QUEUED",
+                attempt_count=0,
+                query_fingerprint="a" * 64,
+                evidence_fingerprint="b" * 64,
+                context={},
+                budget={},
+                receipt={},
+            )
+        )
+        session.flush()
+        route_job = enqueue_intelligence(
+            session, need_id=need_id, task_type="LLM_ROUTE_V1", origin="test"
+        )
+        checkpoint = json.loads(route_job.checkpoint or "{}")
+        checkpoint.update(
+            job_id=str(route_job.id),
+            logical_call_id=str(uuid4()),
+            routing_approval={
+                "policy_id": "evaluated-policy-v1",
+                "evaluated": True,
+                "authorized": True,
+                "reference_type": "configured_policy_id",
+            },
+        )
+        effect = _apply_bounded_routing_effect(
+            session,
+            checkpoint=checkpoint,
+            result={"answer": {"choice": route}},
+            need_id=need_id,
+        )
+        follow_on_id = effect["job_id"] if effect else None
+    assert effect and effect["status"] == "ROUTED_JOB_ENQUEUED"
+    assert effect["task_type"] == expected_task
+    assert effect["question_id"] == "TEMP_LOAD_MW"
+    with sessions() as session:
+        follow_on = session.get(Job, follow_on_id)
+        follow_on_checkpoint = json.loads(follow_on.checkpoint or "{}")
+    assert follow_on.status == "queued"
+    assert follow_on_checkpoint["routing_priority"]["rank"] == expected_rank
+    assert follow_on_checkpoint["routing_priority"]["policy_id"] == "evaluated-policy-v1"
 
 
 @pytest.mark.parametrize("mid_call_change", [None, "source_permission", "accepted_fact"])
