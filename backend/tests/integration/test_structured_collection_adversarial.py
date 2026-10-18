@@ -789,4 +789,3 @@ def test_invalid_or_changed_segment_stays_partial_and_retains_last_good_evidence
         assert retained is not None and retained.abstract == "Previously retained fact"
         assert retained_evidence is not None
     assert _evidence_count(factory) == (2 if expected_error == "ResultCountChanged" else 1)
-
