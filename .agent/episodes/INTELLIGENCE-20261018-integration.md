@@ -42,5 +42,25 @@ output, validate, then replace; metric failed-generation truncations target zero
 Reversibility: discard temporary artifact; prior accepted tracked artifact survives.
 Validation/promotion awaits final API consistency gate. No global memory changed.
 
-NEXT DIRECTION: CONTINUE D2/G1, B4, task contexts, OCR and complete evaluation metrics,
-then freeze, deterministic gates and Sol review. Provider/cloud/time proof stays OPEN.
+B4 outcome: append-only settlement0028 implemented at057899f. Controller initially
+recorded19pass/3 harness failures; B4-H repairs file-relative paths and proves the
+actual trigger in an isolated temporary schema. Combined controller88 tests pass.
+Restored evidence/jobs/reservations/settlement preserve all50 application-table
+digests. Unknown dispatch still blocks replay; no measured provider charge inferred.
+
+STATE: restore table hashes matched but summary comparison failed. ATTRIBUTION:
+GROUP BY status lacked deterministic ORDER BY. ACTION: add stable ordering and
+regression; preserve failed receipt. EVALUATION: new comparison MATCH, all50-table
+proof separately PASS. CANDIDATE LESSON: order aggregates before hashing comparable
+snapshots. Metric: ordering-only restore false mismatches target zero; reversible
+diagnostic-only change. Promotion awaits final independent acceptance.
+
+STATE: all eight Jev task IDs existed but generic contexts lacked exact candidate
+subjects. ACTION: B3 task-specific bounded contexts and authorized deterministic
+routing at2c8f9c3. Integration probe found API internal signature mismatch; C3
+repairs the exact caller and regression journey, without changing schema. No paid
+advice or advisory result grants canonical authority.
+
+NEXT DIRECTION: CONTINUE C3 acquisition locks, C4 independent planner/liveness and
+dormant OCR, then freeze, final deterministic gates and Sol review. Real provider,
+cloud, owner and seven-day evidence remain OPEN.

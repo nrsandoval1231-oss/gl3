@@ -1,7 +1,8 @@
 # B3 — Task-specific Jev contexts and per-candidate identity advice
 
 READY after E and D2 release shared dispatcher; one Luna, exact existing schema.
-Own jev_contracts.py/task context helper, intelligence_jobs.py narrow request/parser,
+Own intelligence/jev_contracts.py/task context helper, intelligence_jobs.py narrow
+request/parser, jobs/queue.py narrow deterministic scheduling integration if needed,
 focused unit/integration tests and docs. No automatic merges, canonical writes,
 provider activation or UI redesign. Initial/evaluation/advisory authority unchanged.
 
@@ -42,6 +43,10 @@ current mode guard permits only two Jev contracts and would block all routed wor
 Do not broaden legacyauthority or enable other catalogeffects. Tests prove actual
 enqueue/priority effect only with exact evaluation+authorizationref, no off/zero
 fallbackcalls, deterministicqueuefairness, stale results and bounded cardinality.
+Do not fake timestamps or invent a new priority column/platform. If a queue hint
+is used, retain age/domain fairness and exact evaluated/authorized policy references;
+freshcheck before effect/enqueue and again before any provider dispatch. Subsequent
+changed canonical inputs must supersede stale question work without a paid retry.
 
 Use existing TypeSafe multi-question shape, shared durable reservations, policy
 and kill controls. No unsupportedresult combinations or inventedproviderendpoint.

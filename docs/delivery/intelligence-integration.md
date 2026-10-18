@@ -43,12 +43,12 @@ its original Packet-A-only instruction is superseded by this owner request.
 | Packet | Existing implementation | Required integration / evidence | State |
 |---|---|---|---|
 | A | canonical docs, `.agent`, Git/CI/deploy definitions | exact state, dependency map, frozen historical sample, checklist | audit recorded |
-| B | `signal_adjudication.py`, `evidence_shadow.py`, `typesafe_evidence_judge.py`, `briefs.py`, jobs | shared durable calls/caps, eight advisory contracts, strict provider transports, mode/kill switches | B2/E locally verified; B3 routing and B4 late settlement pending |
-| C | `ingestion/service.py`, adapters, registry; source schedule epochs/due receipts; `worker.py`, `queue.py` | explicit watch sets, incremental monitoring, reprocessing identity, bounded fairness/recovery, no model calls unchanged | C/C2 locally verified; conditional RSS and metadata parity repaired |
-| D | immutable Observation/Evidence, matching, `research_evidence.py`, material-state/change services | exact span/unit/date validation; candidate/source-authority separation; extraction job/result | B2 verified; D2 page/unit/precision and D3 dormant OCR pending |
+| B | `signal_adjudication.py`, `evidence_shadow.py`, `typesafe_evidence_judge.py`, `briefs.py`, jobs | shared durable calls/caps, eight advisory contracts, strict provider transports, mode/kill switches | B2/E/B3/B4 locally verified; final review pending |
+| C | `ingestion/service.py`, adapters, registry; source schedule epochs/due receipts; `worker.py`, `queue.py` | explicit watch sets, incremental monitoring, reprocessing identity, bounded fairness/recovery, no model calls unchanged | C/C2 locally verified; C3 acquisition locks and C4 planning/liveness in progress |
+| D | immutable Observation/Evidence, matching, `research_evidence.py`, material-state/change services | exact span/unit/date validation; candidate/source-authority separation; extraction job/result | B2/D2 locally verified; dormant OCR in progress |
 | E | `pursuit_questions.py`, `autonomous_research.py`, buying-chain claims/runs, `power_qualification.py` | versioned six commercial questions, bounded reasoning/retrieval, citations/outcomes/backoff/context freshness | E local3779042; controller170 focused tests |
 | F | authenticated API, project state/changes, pursuits and source screens, owner fact/workflow history | persisted intelligence candidates/questions/receipts, bounded request/retry, ops measurements, feedback attribution | F1 locally verified; final combined runtime proof pending |
-| G | `evidence_evaluation.py`, research metrics, tests, DigitalOcean compose/systemd, backup runbooks | frozen four-route evaluation, receipts/reporting, runtime secret metadata/activation diff, restore/recovery, rollback | G0/G1 locally verified; final v2/0028 restore and G2 metrics pending |
+| G | `evidence_evaluation.py`, research metrics, tests, DigitalOcean compose/systemd, backup runbooks | frozen four-route evaluation, receipts/reporting, runtime secret metadata/activation diff, restore/recovery, rollback | G0/G1/G2 locally verified;0028 full restore MATCH; final candidate gates pending |
 | LIVE | no new proof | authorized real changed-source journey; PC-off, alerts/restore, seven actual daily cycles, owner commercial review | OPEN |
 
 Existing modules are capabilities to verify, not blanket acceptance. New work
@@ -117,6 +117,18 @@ and REVIEW fallback: 89 UNKNOWN relevance, one bounded negative, 19/90 proposed
 display labels matched. Its numerical quality gate fails; no improvement is claimed.
 Three paid-model routes remain NOT_RUN, with cost/usefulness comparisons UNKNOWN.
 
+Before evaluating candidate answers, a separate25-case retained addendum was frozen
+at2026-10-18T18:28:06.215959Z:16 narrow identity pairs,7 actual evidence-version
+pairs and2 source failures. Canonical sample digest
+`951db93639543464a2d5f7b5ec14f454101592b96bdfe904c4b36453c48d754a`;
+whole manifest-file digest
+`70db9d69eecc664d9781897e85521a8e8560fa017434d1e65fdba5074f1e0e85`.
+Independent Sol proposed labels retain unknown identity outcomes where location
+evidence is insufficient; these remain proposed labels, not owner acceptance.
+All four evaluation route templates remain NOT_RUN until actual observations are
+provided. Missing claim reviews, usage, cost, latency and queue receipts cannot
+become zero errors or a passing quality gate.
+
 Initial baseline `uv run pytest tests/unit -q`: 1,235 passed, 2 skipped, 4 failed,
 7 subtests passed in 11.58 seconds. Failures are existing `test_jev_runtime.py`
 Windows subprocess execution/environment assumptions. They precede product edits;
@@ -146,6 +158,32 @@ PostgreSQL18 dump/restore rehearsal preserved 19,326 evidence versions, 95 jobs,
 two synthetic logical calls and 12 budget rows byte-for-byte in row digests. NOT_SENT
 reuses its ID; SENT_OUTCOME_UNKNOWN remains reserved and rejects repeat dispatch.
 This is local technical proof with zero provider calls, not a cloud restore receipt.
+
+The later0028 migration and append-only settlement trigger pass on an isolated
+copy. A fresh dump/restore preserved all50 public application tables by streamed
+counts/SHA256, including19,326 evidence versions,98 jobs,5 synthetic logical calls,
+18 budget rows and one explicitly synthetic settlement. Unknown dispatch and
+settlement idempotency checks issue zero provider calls. The first summary-only
+comparison falsely mismatched because SQL aggregate ordering differed; the failed
+receipt is retained. Explicit status ordering repaired that diagnostic and the
+new v3 comparison reports MATCH. No cloud restore has been claimed.
+
+After B3 and G2/B4-H integration, the controller ran88 focused tests in40.30s
+against its exclusive PostgreSQL test database. This includes actual0028 trigger
+UPDATE/DELETE denial, reservation/crash paths, task-specific contexts, adversarial
+authority, evaluation coverage and authenticated offline research/feedback. These
+are development checkpoints; full final gates and independent review still apply.
+
+An actual React/authenticated API/PostgreSQL cloned-corpus journey displays a saved
+fake-provider UNKNOWN result, persists it after reload, and keeps disabled research
+controls unavailable. Desktop/mobile screenshots show no horizontal page overflow
+or JavaScript errors. No Lead or accepted claim was generated. In that disposable
+clone,300 mocked RSS items ingested in27.151s; identical replay took1.569s, created
+no extra facts/material changes and made zero provider calls. Eight concurrent
+read samples: health p50/p95 7.46/26.51ms; operations76.41/120.89ms; changes25.16/
+39.51ms;20-record opportunity page3005.69/3119.63ms. The opportunity-page latency is
+a measured local limitation, not an accepted production SLO. Actual provider
+usage, cost and commercial benefit remain UNKNOWN.
 
 Current registry configuration contains 26 sources, 25 registry-enabled, spanning
 eight declared families, including a California CEQAnet definition. These are

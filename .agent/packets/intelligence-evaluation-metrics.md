@@ -27,5 +27,15 @@ No need to run paid routes. Do not invent runtime/model/cost data or infer usage
 from latency. Explicitly distinguish synthetically supplied fixture metrics from
 real measured exports. Preserve structural-only seven-cycle receipt semantics.
 
+Required negative integration coverage: add one focused real-PostgreSQL fixture
+journey if existing tests do not already prove it: two retained syndicated copies
+of the same announcement cannot bootstrap independent corroboration or unsupported
+Lead promotion. Reuse canonical admission/qualification, fake retrieval and the
+dedicated evaluation DB; do not merely assert scorer labels. New file ownership
+tests/integration/test_intelligence_authority_boundaries.py. If a real source or
+qualification defect appears, report for a bounded controller repair packet rather
+than silently changing gates. Existing rental-intermediary, applicant, campusMW,
+unknown-utility and flare safeguards remain binding.
+
 Focused tests, Ruff, mypy; completion artifact with exact changed files,
 commands/exit codes, UTC and measured/UNKNOWN limits. No push/deploy/activation.
