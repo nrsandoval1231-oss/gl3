@@ -172,6 +172,57 @@ def test_stale_fence_after_acquisition_blocks_all_retrieved_records(
         assert session.scalar(select(func.count()).select_from(Evidence)) == 0
 
 
+def test_deadline_expiry_after_retrieval_preserves_last_good_evidence_and_checkpoint(
+    acquisition_db, monkeypatch
+):
+    factory, definition, job_id = acquisition_db
+    import gridlens.ingestion.service as service
+
+    last_good = _row("LAST-GOOD-DEADLINE", "Previously retained evidence remains current.")
+    monkeypatch.setattr(service, "retrieve_source", lambda *_args, **_kwargs: [last_good])
+    with factory() as session:
+        process_job(session, job_id, "test-acquisition", 1, definition)
+        session.commit()
+    with factory.begin() as session:
+        job = session.get(Job, job_id)
+        assert job
+        job.checkpoint = "last-good-checkpoint"
+
+    replacement = _row("UNCOMMITTED-NEW-RECORD", "Must remain unretained after deadline.")
+    calls = []
+
+    def retrieved(*_args, **_kwargs):
+        calls.append("retrieved")
+        return [replacement]
+
+    def deadline_check(_deadline):
+        calls.append("deadline")
+        if calls.count("deadline") == 2:
+            raise TimeoutError("synthetic monotonic deadline expired")
+
+    monkeypatch.setattr(service, "retrieve_source", retrieved)
+    monkeypatch.setattr(service, "remaining_seconds", deadline_check)
+    with factory() as session:
+        with pytest.raises(TimeoutError, match="deadline expired"):
+            process_job(
+                session,
+                job_id,
+                "test-acquisition",
+                1,
+                definition,
+                deadline=10.0,
+                lease_expiry=datetime.now(UTC) + timedelta(minutes=10),
+            )
+
+    with factory() as session:
+        observation = session.scalar(select(Observation))
+        assert observation and observation.external_id == "LAST-GOOD-DEADLINE"
+        assert session.scalar(select(func.count()).select_from(Observation)) == 1
+        assert session.scalar(select(func.count()).select_from(Evidence)) == 1
+        assert session.get(Job, job_id).checkpoint == "last-good-checkpoint"
+    assert calls == ["deadline", "retrieved", "deadline"]
+
+
 def test_source_update_succeeds_during_companion_retrieval_and_stale_pdf_is_discarded(
     acquisition_db, monkeypatch
 ):

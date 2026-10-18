@@ -91,7 +91,7 @@ def test_blocked_acquisition_does_not_block_planners_or_heartbeat(worker_db, mon
     entered = threading.Event()
     release = threading.Event()
 
-    def blocked_retrieval(*_args):
+    def blocked_retrieval(*_args, **_kwargs):
         entered.set()
         assert release.wait(5), "test did not release blocked acquisition"
         return []

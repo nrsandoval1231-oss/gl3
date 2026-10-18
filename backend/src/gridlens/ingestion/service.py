@@ -37,9 +37,10 @@ from gridlens.domain.signal_admission import (
     admitted_from_source,
 )
 from gridlens.domain.taylor_planning import interpret_taylor_planning
-from gridlens.ingestion.adapters import retrieve_source
+from gridlens.ingestion.adapters import retrieve_companion, retrieve_source
+from gridlens.ingestion.adapters.acquisition_runtime import remaining_seconds
 from gridlens.ingestion.adapters.federal_register import SourceParseError
-from gridlens.ingestion.adapters.govinfo_pdf import MAX_PDFS_PER_RUN, retrieve_companion
+from gridlens.ingestion.adapters.govinfo_pdf import MAX_PDFS_PER_RUN
 from gridlens.intelligence.change_detection import (
     lock_project,
     record_material_diff,
@@ -1247,6 +1248,7 @@ def assess_retained_news(
     worker_id: str | None = None,
     fence: int | None = None,
     rejection_reason: str | None = None,
+    lease_expiry: datetime | None = None,
 ) -> bool:
     """Evaluate one durable RSS version; return True when a new decision was stored."""
     interpretation = session.scalar(
@@ -1776,7 +1778,7 @@ def assess_retained_news(
         assert worker_id is not None and fence is not None
         job = assert_fence(session, job_id, worker_id, fence)
         job.checkpoint = observation.external_id
-        job.lease_until = datetime.now(UTC) + timedelta(seconds=90)
+        _advance_job_lease(job, lease_expiry)
     session.flush()
     return True
 
@@ -1788,10 +1790,13 @@ def process_job(
     fence: int,
     source_definition: dict[str, Any],
     client: httpx.Client | None = None,
+    *,
+    deadline: float | None = None,
+    lease_expiry: datetime | None = None,
 ) -> dict[str, Any]:
     if source_definition.get("retrieval_method") == "publisher-rss":
         retrieved = _retrieve_publisher_rss_conditionally(
-            session, job_id, worker_id, fence, source_definition, client
+            session, job_id, worker_id, fence, source_definition, client, deadline=deadline
         )
         if getattr(retrieved, "not_modified", False):
             source = _current_rss_source(session, source_definition)
@@ -1831,22 +1836,34 @@ def process_job(
             fence,
             source_definition,
             [record for record in retrieved if not record.get("presence_only")],
+            deadline=deadline,
+            lease_expiry=lease_expiry,
         )
+        remaining_seconds(deadline)
         _store_publisher_rss_checkpoint(
             session, job_id, worker_id, fence, source_definition, retrieved, counts
         )
         return counts
 
     retrieved = _retrieve_source_outside_transaction(
-        session, job_id, worker_id, fence, source_definition, client
+        session, job_id, worker_id, fence, source_definition, client, deadline=deadline
     )
     # Presence-only rows are listed by the source but withheld from processing this run
     # (for example, enrichment failed). They still count as present in the snapshot.
     records = [record for record in retrieved if not record.get("presence_only")]
     counts = process_records(
-        session, job_id, worker_id, fence, source_definition, records, client=client
+        session,
+        job_id,
+        worker_id,
+        fence,
+        source_definition,
+        records,
+        client=client,
+        deadline=deadline,
+        lease_expiry=lease_expiry,
     )
     if source_definition.get("snapshot_complete"):
+        remaining_seconds(deadline)
         assert_fence(session, job_id, worker_id, fence)
         transitions = reconcile_snapshot(
             session,
@@ -1864,6 +1881,15 @@ _RSS_CONDITIONAL_NAMESPACE = "publisher_rss_conditional"
 _RSS_PARSER_VERSION = "publisher-rss-v2"
 
 
+def _advance_job_lease(job: Job, original_expiry: datetime | None) -> None:
+    now = datetime.now(UTC)
+    extension = now + timedelta(seconds=90)
+    if original_expiry is not None:
+        extension = min(extension, original_expiry + timedelta(seconds=5))
+    if job.lease_until is None or extension > job.lease_until:
+        job.lease_until = extension
+
+
 def _require_clean_acquisition_session(session: Session) -> None:
     if session.new or session.dirty or session.deleted or session.in_nested_transaction():
         raise RuntimeError(
@@ -1879,6 +1905,8 @@ def _lock_current_acquisition_source(
     fence: int,
     source_definition: dict[str, Any],
 ) -> Source:
+    session.execute(text("SET LOCAL lock_timeout = '500ms'"))
+    session.execute(text("SET LOCAL statement_timeout = '2500ms'"))
     job = assert_fence(session, job_id, worker_id, fence)
     source = session.scalar(
         select(Source)
@@ -1921,9 +1949,17 @@ def _retrieve_source_outside_transaction(
     fence: int,
     source_definition: dict[str, Any],
     client: httpx.Client | None,
+    *,
+    deadline: float | None = None,
 ) -> list[dict[str, Any]]:
     _prepare_acquisition_network(session, job_id, worker_id, fence, source_definition)
-    records = retrieve_source(source_definition, client)
+    remaining_seconds(deadline)
+    records = (
+        retrieve_source(source_definition, client)
+        if deadline is None
+        else retrieve_source(source_definition, client, deadline=deadline)
+    )
+    remaining_seconds(deadline)
     _lock_current_acquisition_source(session, job_id, worker_id, fence, source_definition)
     return records
 
@@ -1936,9 +1972,17 @@ def _retrieve_companion_outside_transaction(
     source_definition: dict[str, Any],
     record: dict[str, Any],
     client: httpx.Client | None,
+    *,
+    deadline: float | None = None,
 ) -> list[dict[str, str]]:
     _prepare_acquisition_network(session, job_id, worker_id, fence, source_definition)
-    citations = retrieve_companion(record, client)
+    remaining_seconds(deadline)
+    citations = (
+        retrieve_companion(record, client)
+        if deadline is None
+        else retrieve_companion(record, client, deadline=deadline)
+    )
+    remaining_seconds(deadline)
     _lock_current_acquisition_source(session, job_id, worker_id, fence, source_definition)
     return citations
 
@@ -1966,6 +2010,8 @@ def _retrieve_publisher_rss_conditionally(
     fence: int,
     source_definition: dict[str, Any],
     client: httpx.Client | None,
+    *,
+    deadline: float | None = None,
 ) -> list[dict[str, Any]]:
     _require_clean_acquisition_session(session)
     source = _lock_current_acquisition_source(session, job_id, worker_id, fence, source_definition)
@@ -1998,6 +2044,22 @@ def _retrieve_publisher_rss_conditionally(
         and cache.get("policy_digest") == _rss_policy_digest(source_definition)
         and (cache.get("etag") or cache.get("last_modified"))
     )
+    if client is None and deadline is not None:
+        request_headers = {}
+        if eligible and cache.get("etag"):
+            request_headers["If-None-Match"] = cache["etag"]
+        if eligible and cache.get("last_modified"):
+            request_headers["If-Modified-Since"] = cache["last_modified"]
+        if session.in_transaction():
+            session.commit()
+        remaining_seconds(deadline)
+        retrieved = retrieve_source(
+            source_definition, deadline=deadline, request_headers=request_headers
+        )
+        remaining_seconds(deadline)
+        _current_rss_source(session, source_definition)
+        assert_fence(session, job_id, worker_id, fence)
+        return retrieved
     owned_client = client is None
     http_client = client or httpx.Client(timeout=25.0, follow_redirects=False)
     original_etag = http_client.headers.get("If-None-Match")
@@ -2015,7 +2077,13 @@ def _retrieve_publisher_rss_conditionally(
         else:
             http_client.headers.pop("If-None-Match", None)
             http_client.headers.pop("If-Modified-Since", None)
-        retrieved = retrieve_source(source_definition, http_client)
+        remaining_seconds(deadline)
+        retrieved = (
+            retrieve_source(source_definition, http_client)
+            if deadline is None
+            else retrieve_source(source_definition, http_client, deadline=deadline)
+        )
+        remaining_seconds(deadline)
         _current_rss_source(session, source_definition)
         assert_fence(session, job_id, worker_id, fence)
         return retrieved
@@ -2106,6 +2174,8 @@ def process_records(
     *,
     commit: bool = True,
     allow_model: bool = True,
+    deadline: float | None = None,
+    lease_expiry: datetime | None = None,
 ) -> dict[str, Any]:
     """Apply canonical source records; targeted research owns its enclosing transaction."""
     if commit and (
@@ -2153,6 +2223,7 @@ def process_records(
         )
     pdf_documents = 0
     for record in records:
+        remaining_seconds(deadline)
         assert_fence(session, job_id, worker_id, fence)
         source = session.get(Source, source_definition["id"])
         assert source is not None
@@ -2222,7 +2293,8 @@ def process_records(
                 job = assert_fence(session, job_id, worker_id, fence)
                 if commit:
                     job.checkpoint = external_id
-                    job.lease_until = datetime.now(UTC) + timedelta(seconds=90)
+                    _advance_job_lease(job, lease_expiry)
+                remaining_seconds(deadline)
                 session.commit() if commit else session.flush()
                 continue
         is_new = observation is None
@@ -2298,6 +2370,7 @@ def process_records(
                 existing_evidence.provenance, source_provenance
             )
         # Ordinary ingestion keeps evidence durable across enrichment failure.
+        remaining_seconds(deadline)
         session.commit() if commit else session.flush()
         companions = record.get("companions", [])
         if not isinstance(companions, list):
@@ -2331,7 +2404,8 @@ def process_records(
                     )
                 )
         if companions:
-            session.commit() if commit else session.flush()
+            remaining_seconds(deadline)
+        session.commit() if commit else session.flush()
         # The PDF is an alternate representation of the FR record. Attach its
         # content hash and page citation to this observation only.
         if record.get("pdf_url"):
@@ -2363,6 +2437,7 @@ def process_records(
                         source_definition,
                         record,
                         client,
+                        deadline=deadline,
                     )
                     counts["pdf_enriched"] += 1
                     # Network retrieval can outlast this worker's lease. Reclaim
@@ -2391,6 +2466,7 @@ def process_records(
                             event_date=None,
                         )
                     )
+                    remaining_seconds(deadline)
                     session.commit() if commit else session.flush()
         # PDF evidence has its own commit boundary. Reacquire the current fence
         # before creating or updating the durable interpretation backlog.
@@ -2469,7 +2545,8 @@ def process_records(
             job = assert_fence(session, job_id, worker_id, fence)
             if commit:
                 job.checkpoint = external_id
-                job.lease_until = datetime.now(UTC) + timedelta(seconds=90)
+                _advance_job_lease(job, lease_expiry)
+            remaining_seconds(deadline)
             session.commit() if commit else session.flush()
             continue
         if interpretation is None:
@@ -2483,6 +2560,7 @@ def process_records(
             interpretation.attempts += 1
         session.flush()
         # Research admission instead owns the enclosing savepoint.
+        remaining_seconds(deadline)
         session.commit() if commit else session.flush()
 
         try:
@@ -2504,6 +2582,7 @@ def process_records(
         except Exception as exc:
             assert_fence(session, job_id, worker_id, fence)
             interpretation.status, interpretation.error = "failed", type(exc).__name__
+            remaining_seconds(deadline)
             session.commit() if commit else session.flush()
             continue
         assert_fence(session, job_id, worker_id, fence)
@@ -2566,7 +2645,8 @@ def process_records(
                 job = assert_fence(session, job_id, worker_id, fence)
                 if commit:
                     job.checkpoint = external_id
-                    job.lease_until = datetime.now(UTC) + timedelta(seconds=90)
+                    _advance_job_lease(job, lease_expiry)
+                remaining_seconds(deadline)
                 session.commit() if commit else session.flush()
                 counts["context_only"] = counts.get("context_only", 0) + 1
                 continue
@@ -3514,7 +3594,8 @@ def process_records(
         job = assert_fence(session, job_id, worker_id, fence)
         if commit:
             job.checkpoint = external_id
-            job.lease_until = datetime.now(UTC) + timedelta(seconds=90)
+            _advance_job_lease(job, lease_expiry)
+        remaining_seconds(deadline)
         session.commit() if commit else session.flush()
     return counts
 
@@ -3526,6 +3607,9 @@ def _process_collection_only(
     fence: int,
     source_definition: dict[str, Any],
     records: list[dict[str, Any]],
+    *,
+    deadline: float | None = None,
+    lease_expiry: datetime | None = None,
 ) -> dict[str, Any]:
     """Retain each RSS version, then run the shared deterministic project evaluator."""
     counts: dict[str, Any] = {
@@ -3547,6 +3631,7 @@ def _process_collection_only(
         counts["snapshot_newest_publication_date"] = max(publications)
         counts["latest_publication_date"] = max(publications)
     for record in records:
+        remaining_seconds(deadline)
         assert_fence(session, job_id, worker_id, fence)
         source = session.scalar(
             select(Source)
@@ -3661,12 +3746,18 @@ def _process_collection_only(
             )
         job = assert_fence(session, job_id, worker_id, fence)
         job.checkpoint = external_id
-        job.lease_until = datetime.now(UTC) + timedelta(seconds=90)
+        _advance_job_lease(job, lease_expiry)
         session.commit()  # Evidence and a retryable pending row survive evaluator failure.
 
         assert_fence(session, job_id, worker_id, fence)
         changed_decision = assess_retained_news(
-            session, observation, evidence, job_id=job_id, worker_id=worker_id, fence=fence
+            session,
+            observation,
+            evidence,
+            job_id=job_id,
+            worker_id=worker_id,
+            fence=fence,
+            lease_expiry=lease_expiry,
         )
         if interpretation.status == "accepted" and interpretation.assessment:
             current_source = session.get(Source, observation.source_id)
@@ -3686,6 +3777,6 @@ def _process_collection_only(
         if not changed_decision:
             job = assert_fence(session, job_id, worker_id, fence)
             job.checkpoint = external_id
-            job.lease_until = datetime.now(UTC) + timedelta(seconds=90)
+            _advance_job_lease(job, lease_expiry)
         session.commit()
     return counts

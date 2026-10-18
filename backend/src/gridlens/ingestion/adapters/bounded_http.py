@@ -6,11 +6,14 @@ import ctypes
 import importlib
 import multiprocessing
 import os
-import time
+import pickle
 from collections.abc import Iterator
+from threading import Thread
 from typing import Any, Literal, overload
 
 import httpx
+
+from gridlens.ingestion.adapters.acquisition_runtime import remaining_seconds
 
 
 class ResponseTooLarge(ValueError):
@@ -59,6 +62,7 @@ class _JobExtendedLimitInformation(ctypes.Structure):
 _WINDOWS_JOB_LIMIT = 0x100
 _WINDOWS_JOB_EXTENDED_LIMIT_INFORMATION = 9
 _ACQUISITION_MEMORY_LIMIT = 512 * 1024**2
+MAX_ISOLATED_RESULT_BYTES = 8 * 1024**2
 _windows_job_handle: int | None = None
 
 
@@ -71,9 +75,7 @@ def _configure_memory_limit() -> None:
         resource = importlib.import_module("resource")
     except ImportError as exc:
         raise AcquisitionFailure("resource_limits_unavailable") from exc
-    resource.setrlimit(
-        resource.RLIMIT_AS, (_ACQUISITION_MEMORY_LIMIT, _ACQUISITION_MEMORY_LIMIT)
-    )
+    resource.setrlimit(resource.RLIMIT_AS, (_ACQUISITION_MEMORY_LIMIT, _ACQUISITION_MEMORY_LIMIT))
 
 
 def _install_windows_memory_limit() -> None:
@@ -161,26 +163,12 @@ def _isolated_entry(connection, function_path: str, args: tuple, kwargs: dict) -
         _configure_memory_limit()
         module, name = function_path.split(":", 1)
         result = getattr(importlib.import_module(module), name)(*args, **kwargs)
-        connection.send((True, result))
+        _send_bounded_result(connection, True, result)
     except BaseException as exc:
         # Exceptions contain no HTTP authorization headers in retained receipts.
         # Transport exceptions can reference unpicklable streams; use a safe
         # class/code representation instead of serializing the request object.
-        import httpx
-
-        error: BaseException
-        if isinstance(exc, httpx.HTTPStatusError):
-            error = AcquisitionFailure(f"http_status_{exc.response.status_code}")
-        elif isinstance(exc, httpx.TimeoutException):
-            error = TimeoutError("Acquisition transport timeout")
-        elif isinstance(exc, httpx.RequestError):
-            error = AcquisitionFailure("network_error")
-        else:
-            error = exc
-        try:
-            connection.send((False, error))
-        except Exception:
-            connection.send((False, AcquisitionFailure(type(exc).__name__)))
+        _send_bounded_result(connection, False, _safe_acquisition_error(exc))
     finally:
         connection.close()
 
@@ -189,35 +177,97 @@ class AcquisitionFailure(ValueError):
     """Safe acquisition error code; never includes a credential-bearing request."""
 
 
-def run_isolated(
-    function_path: str, args: tuple, kwargs: dict, *, deadline: float
-) -> Any:
+def _safe_acquisition_error(exc: BaseException) -> BaseException:
+    """Keep useful error classes while dropping potentially sensitive messages."""
+    if isinstance(exc, httpx.HTTPStatusError):
+        return AcquisitionFailure(f"http_status_{exc.response.status_code}")
+    if isinstance(exc, httpx.TimeoutException | TimeoutError):
+        return TimeoutError("Acquisition transport timeout")
+    if isinstance(exc, httpx.RequestError):
+        return AcquisitionFailure("network_error")
+    if isinstance(exc, AcquisitionFailure):
+        code = str(exc)
+        if code and all(char.islower() or char.isdigit() or char == "_" for char in code):
+            return AcquisitionFailure(code[:80])
+        return AcquisitionFailure("acquisition_failed")
+    if isinstance(exc, ResponseTooLarge):
+        return ResponseTooLarge("Acquisition response exceeded its configured byte bound")
+    try:
+        from gridlens.ingestion.adapters.buying_chain_public import PublicExtractionUnavailable
+        from gridlens.ingestion.adapters.federal_register import SourceParseError
+
+        if isinstance(exc, PublicExtractionUnavailable):
+            return PublicExtractionUnavailable("Public page requires configured extraction")
+        if isinstance(exc, SourceParseError):
+            return SourceParseError("Acquisition source response could not be parsed")
+    except ImportError:
+        pass
+    return AcquisitionFailure(type(exc).__name__.casefold()[:80] or "acquisition_failed")
+
+
+def _send_bounded_result(connection, success: bool, result: Any) -> None:
+    try:
+        payload = pickle.dumps((success, result), protocol=5)
+    except Exception:
+        payload = pickle.dumps(
+            (False, AcquisitionFailure("acquisition_result_not_serializable")), protocol=5
+        )
+    if len(payload) > MAX_ISOLATED_RESULT_BYTES:
+        payload = pickle.dumps(
+            (False, AcquisitionFailure("acquisition_result_too_large")), protocol=5
+        )
+    connection.send_bytes(payload)
+
+
+def run_isolated(function_path: str, args: tuple, kwargs: dict, *, deadline: float) -> Any:
     """Killable, single-operation boundary for synchronous DNS/HTTP and parsing.
 
     The caller persists its budget reservation before entering. Spawn avoids
     inheriting database connections; only a bounded result returns to the parent,
     where all canonical writes and lease checks occur. This is not a job runner.
     """
-    remaining_seconds(deadline)
+    remaining = remaining_seconds(deadline)
     context = multiprocessing.get_context("spawn")
     receiver, sender = context.Pipe(duplex=False)
     process = context.Process(
         target=_isolated_entry, args=(sender, function_path, args, kwargs), daemon=True
     )
+    receiver_thread: Thread | None = None
     try:
         process.start()
         sender.close()
-        remaining = remaining_seconds(deadline)
-        if not receiver.poll(remaining):
+        receive_state: list[bytes | BaseException] = []
+
+        def receive_bounded_message() -> None:
+            try:
+                receive_state.append(receiver.recv_bytes(MAX_ISOLATED_RESULT_BYTES))
+            except BaseException as exc:
+                receive_state.append(exc)
+
+        receiver_thread = Thread(
+            target=receive_bounded_message, name="gridlens-acquisition-ipc-receiver", daemon=True
+        )
+        receiver_thread.start()
+        receiver_thread.join(remaining)
+        if receiver_thread.is_alive():
             raise TimeoutError("Acquisition wall-clock deadline exhausted")
+        if not receive_state:
+            raise AcquisitionFailure("acquisition_process_failed")
+        message = receive_state[0]
+        if isinstance(message, BaseException):
+            if isinstance(message, EOFError | OSError):
+                raise AcquisitionFailure("acquisition_result_too_large_or_truncated") from None
+            raise AcquisitionFailure("acquisition_process_failed") from None
         try:
-            success, result = receiver.recv()
-        except EOFError as exc:
-            raise AcquisitionFailure("acquisition_process_failed") from exc
+            success, result = pickle.loads(message)
+        except Exception as exc:
+            raise AcquisitionFailure("acquisition_result_invalid") from exc
         remaining_seconds(deadline)
         if not success:
             raise result
         return result
+    except EOFError as exc:
+        raise AcquisitionFailure("acquisition_process_failed") from exc
     finally:
         receiver.close()
         sender.close()
@@ -227,16 +277,8 @@ def run_isolated(
             process.join(timeout=0.2)
             if not process.is_alive():
                 process.close()
-
-
-def remaining_seconds(deadline: float | None) -> float | None:
-    """Check an absolute monotonic deadline shared by a whole research pass."""
-    if deadline is None:
-        return None
-    remaining = deadline - time.monotonic()
-    if remaining <= 0:
-        raise TimeoutError("Public-source research deadline exhausted")
-    return remaining
+        if receiver_thread is not None and receiver_thread.is_alive():
+            receiver_thread.join(timeout=0.2)
 
 
 def _clamp_timeouts(timeouts: dict, remaining: float) -> dict:

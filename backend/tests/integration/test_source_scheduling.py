@@ -1218,7 +1218,7 @@ def test_worker_uses_fresh_registry_and_records_success_for_one_due_slot(source_
     monkeypatch.setattr(worker, "load_registry", lambda: [current])
     received = []
 
-    def process(session, job_id, worker_id, fence, source_definition):
+    def process(session, job_id, worker_id, fence, source_definition, **_bounds):
         received.append(source_definition["endpoint"])
         return {"new": 1, "changed": 0, "unchanged": 0, "latest_publication_date": None}
 

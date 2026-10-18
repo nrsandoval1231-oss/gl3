@@ -14,6 +14,11 @@ from zoneinfo import ZoneInfo
 
 from sqlalchemy import select, text
 
+from gridlens.ingestion.adapters.acquisition_runtime import (
+    FencedLeaseRenewer,
+    acquisition_deadline,
+    try_public_acquisition_admission,
+)
 from gridlens.ingestion.registry import load_registry
 from gridlens.ingestion.service import process_job
 from gridlens.jobs.queue import assert_fence, lease_one
@@ -336,6 +341,7 @@ def _assign_due_jobs(session) -> int:
     from gridlens.jobs.queue import enqueue
 
     assigned = 0
+    registry = {item["id"]: item for item in load_registry()}
     rows = session.scalars(
         select(SourceDueCheck)
         .where(SourceDueCheck.job_id.is_(None))
@@ -343,8 +349,24 @@ def _assign_due_jobs(session) -> int:
         .with_for_update(skip_locked=True)
     ).all()
     for due in rows:
-        source = session.scalar(select(Source).where(Source.id == due.source_id).with_for_update())
+        source = session.scalar(
+            select(Source).where(Source.id == due.source_id).with_for_update(skip_locked=True)
+        )
         if source is None or not _effective_enabled(source):
+            continue
+        item = registry.get(source.id)
+        epoch = session.scalar(
+            select(SourceScheduleEpoch)
+            .where(
+                SourceScheduleEpoch.source_id == source.id,
+                SourceScheduleEpoch.effective_until.is_(None),
+            )
+            .order_by(SourceScheduleEpoch.effective_from.desc())
+            .limit(1)
+        )
+        # Keep the due row pending while a source configuration is held by an
+        # active acquisition. Never enqueue work against a stale enabled/config.
+        if item is None or _source_registry_drift(item, source, epoch):
             continue
         job_id = enqueue(session, due.source_id)
         already_linked = session.scalar(
@@ -402,50 +424,76 @@ def _append_attempt_receipt(session, job: Job, fence: int, disposition: str, cou
     )
 
 
-def _acquire_dispatch_lock(source_id: str):
-    """Hold a PostgreSQL session lock across provider work and internal commits."""
-    connection = SessionLocal.kw["bind"].connect()
-    connection.execute(
-        text("SELECT pg_advisory_lock(hashtextextended(:source_id, 0))"),
-        {"source_id": source_id},
-    )
-    connection.commit()
-    return connection
+def _defer_public_acquisition(job_id: UUID, worker_id: str, fence: int) -> None:
+    """Requeue admission contention without charging an attempt or marking I/O."""
+    from gridlens.jobs.retry import jittered_delay_seconds
+
+    now = datetime.now(UTC)
+    with SessionLocal.begin() as session:
+        job = assert_fence(session, job_id, worker_id, fence)
+        job.attempts = max(0, job.attempts - 1)
+        job.status = "queued"
+        job.available_at = now + timedelta(
+            seconds=jittered_delay_seconds(
+                str(job.id), job.fence, 3, ceiling_seconds=5, jitter_percent=50
+            )
+        )
+        job.lease_owner = job.lease_until = None
+        job.error = "PUBLIC_ACQUISITION_SLOT_BUSY; deferred before request"
 
 
-def _release_dispatch_lock(connection, source_id: str) -> None:
-    connection.execute(
-        text("SELECT pg_advisory_unlock(hashtextextended(:source_id, 0))"),
-        {"source_id": source_id},
-    )
-    connection.commit()
-    connection.close()
+def _release_admission(admission_context) -> None:
+    if admission_context is not None:
+        try:
+            admission_context.__exit__(None, None, None)
+        except Exception:
+            logger.exception("Failed to release public acquisition admission")
 
 
 def sync_registry() -> list[dict]:
     definitions = load_registry()
     now = datetime.now(UTC)
-    with SessionLocal.begin() as session:
-        for item in definitions:
-            session.execute(
-                text("SELECT pg_advisory_xact_lock(hashtextextended(:source_id, 0))"),
-                {"source_id": item["id"]},
-            )
-            row = session.scalar(select(Source).where(Source.id == item["id"]).with_for_update())
-            values = _source_storage_configuration(item)
-            if row is None:
-                row = Source(
-                    id=item["id"],
-                    **values,
-                    enabled=True,
-                    registry_enabled=bool(item["enabled"]),
-                    health={"status": "Overdue"},
+    for item in definitions:
+        # Do not let one active source request stall reconciliation for every
+        # other source. A busy source retains its existing epoch/configuration
+        # and is reconciled on the next pass.
+        try:
+            with SessionLocal.begin() as session:
+                session.execute(text("SET LOCAL lock_timeout = '250ms'"))
+                session.execute(text("SET LOCAL statement_timeout = '1500ms'"))
+                acquired = session.scalar(
+                    text("SELECT pg_try_advisory_xact_lock(hashtextextended(:source_id, 0))"),
+                    {"source_id": item["id"]},
                 )
-                session.add(row)
-            else:
-                _sync_source_configuration(row, item)
-            session.flush()
-            _append_epoch(session, row, item, now)
+                if not acquired:
+                    logger.info(
+                        "source registry synchronization deferred for active acquisition: %s; "
+                        "persisted schedule epoch retained",
+                        item["id"],
+                    )
+                    continue
+                row = session.scalar(
+                    select(Source).where(Source.id == item["id"]).with_for_update(skip_locked=True)
+                )
+                values = _source_storage_configuration(item)
+                if row is None:
+                    row_exists = session.scalar(select(Source.id).where(Source.id == item["id"]))
+                    if row_exists is not None:
+                        continue
+                    row = Source(
+                        id=item["id"],
+                        **values,
+                        enabled=True,
+                        registry_enabled=bool(item["enabled"]),
+                        health={"status": "Overdue"},
+                    )
+                    session.add(row)
+                else:
+                    _sync_source_configuration(row, item)
+                session.flush()
+                _append_epoch(session, row, item, now)
+        except Exception:
+            logger.exception("source registry reconciliation deferred for %s", item["id"])
     return definitions
 
 
@@ -490,13 +538,21 @@ def set_source_enabled(source_id: str, enabled: bool) -> None:
 
 
 def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) -> bool:
-    dispatch_connection = None
+    admission_context = None
+    lease_renewer = None
     with SessionLocal.begin() as session:
         leased = lease_one(session, WORKER_ID, lease_seconds=600, job_ids=job_ids)
         if leased is None:
             return False
         job, fence = leased
         job_id, source_id, kind = job.id, job.source_id, job.kind
+        lease_expiry = job.lease_until
+        deadline = acquisition_deadline(lease_expiry) if lease_expiry is not None else None
+        try:
+            job_checkpoint = json.loads(job.checkpoint or "{}")
+        except (ValueError, TypeError):
+            job_checkpoint = {}
+        intelligence_task_type = job_checkpoint.get("task_type")
         source = session.get(Source, source_id)
         if source and kind == "ingestion":
             try:
@@ -506,15 +562,45 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
                 return True
             if _park_if_disabled(session, job, source, current_definitions.get(source_id)):
                 return True
-        if source and kind == "ingestion":
-            source.health = {
-                **source.health,
-                "status": "Running",
-                "last_attempt": datetime.now(UTC).isoformat(),
-            }
     attempted = datetime.now(UTC).isoformat()
     try:
+        public_acquisition_kinds = {
+            "ingestion",
+            "project_monitor",
+            "pursuit_question",
+            "pursuit_research",
+        }
+        uses_public_acquisition = kind in public_acquisition_kinds or (
+            kind == "intelligence_process" and intelligence_task_type == "OCR_EXTRACTION"
+        )
+        if uses_public_acquisition:
+            if source_id is None or lease_expiry is None or deadline is None:
+                raise RuntimeError("Public acquisition requires a source and finite job lease")
+            admission_context = try_public_acquisition_admission(SessionLocal.kw["bind"], source_id)
+            admitted = admission_context.__enter__()
+            if not admitted:
+                _release_admission(admission_context)
+                admission_context = None
+                _defer_public_acquisition(job_id, WORKER_ID, fence)
+                return True
+            lease_renewer = FencedLeaseRenewer(
+                SessionLocal, job_id, WORKER_ID, fence, lease_expiry
+            ).start()
+            if kind == "ingestion":
+                with SessionLocal.begin() as session:
+                    source = session.get(Source, source_id)
+                    if source is not None:
+                        source.health = {
+                            **source.health,
+                            "status": "Running",
+                            "last_attempt": datetime.now(UTC).isoformat(),
+                        }
         if kind == "intelligence_process":
+            if intelligence_task_type == "OCR_EXTRACTION":
+                from gridlens.intelligence.scanned_pdf_ocr import process_scanned_pdf_ocr
+
+                process_scanned_pdf_ocr(job_id, WORKER_ID, fence)
+                return True
             from gridlens.intelligence.intelligence_jobs import process_intelligence_job
 
             process_intelligence_job(job_id, WORKER_ID, fence)
@@ -607,7 +693,6 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
                         failed.lease_owner, failed.lease_until = None, None
             return True
         with SessionLocal() as session:
-            dispatch_connection = _acquire_dispatch_lock(source_id)
             source = session.scalar(select(Source).where(Source.id == source_id).with_for_update())
             finished_job = session.get(Job, job_id)
             if source is None or finished_job is None:
@@ -619,25 +704,33 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
             except Exception as exc:
                 _defer_registry_unavailable(finished_job, source, exc)
                 session.commit()
-                _release_dispatch_lock(dispatch_connection, source_id)
-                dispatch_connection = None
+                _release_admission(admission_context)
+                admission_context = None
                 return True
             if definition is None:
                 _park_if_disabled(session, finished_job, source, None)
                 session.commit()
-                _release_dispatch_lock(dispatch_connection, source_id)
-                dispatch_connection = None
+                _release_admission(admission_context)
+                admission_context = None
                 return True
             if _park_if_disabled(session, finished_job, source, definition):
                 session.commit()
-                _release_dispatch_lock(dispatch_connection, source_id)
-                dispatch_connection = None
+                _release_admission(admission_context)
+                admission_context = None
                 return True
             # The dispatch advisory lock serializes this source without keeping
             # the Source row lock or a database transaction across provider HTTP.
             session.commit()
             session.expire_all()
-            counts = process_job(session, job_id, WORKER_ID, fence, definition)
+            counts = process_job(
+                session,
+                job_id,
+                WORKER_ID,
+                fence,
+                definition,
+                deadline=deadline,
+                lease_expiry=lease_expiry,
+            )
             # Commit retained ingestion/admission work, then reacquire fresh rows
             # before recording health so operator changes during retrieval win.
             session.commit()
@@ -655,19 +748,19 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
             except Exception as exc:
                 _defer_registry_unavailable(finished_job, source, exc)
                 session.commit()
-                _release_dispatch_lock(dispatch_connection, source_id)
-                dispatch_connection = None
+                _release_admission(admission_context)
+                admission_context = None
                 return True
             if current_definition is None:
                 _park_if_disabled(session, finished_job, source, None)
                 session.commit()
-                _release_dispatch_lock(dispatch_connection, source_id)
-                dispatch_connection = None
+                _release_admission(admission_context)
+                admission_context = None
                 return True
             if _park_if_disabled(session, finished_job, source, current_definition):
                 session.commit()
-                _release_dispatch_lock(dispatch_connection, source_id)
-                dispatch_connection = None
+                _release_admission(admission_context)
+                admission_context = None
                 return True
             definition = current_definition
             (
@@ -735,8 +828,8 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
                 if research_anchor and research_anchor.enabled:
                     enqueue(session, research_anchor.id, kind="pursuit_research")
             session.commit()
-            _release_dispatch_lock(dispatch_connection, source_id)
-            dispatch_connection = None
+            _release_admission(admission_context)
+            admission_context = None
     except Exception as exc:
         with SessionLocal.begin() as session:
             failed_job = session.get(Job, job_id)
@@ -789,11 +882,13 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
                     "error": str(exc)[:250] if is_parse_error else type(exc).__name__,
                 }
     finally:
-        if dispatch_connection is not None:
+        if admission_context is not None:
             try:
-                _release_dispatch_lock(dispatch_connection, source_id)
+                _release_admission(admission_context)
             except Exception:
-                dispatch_connection.close()
+                logger.exception("Failed to release public acquisition admission")
+        if lease_renewer is not None:
+            lease_renewer.stop()
     return True
 
 

@@ -13,7 +13,11 @@ from xml.etree import ElementTree
 
 import httpx
 
-from gridlens.ingestion.adapters.bounded_http import ResponseTooLarge, read_bounded_response
+from gridlens.ingestion.adapters.bounded_http import (
+    ResponseTooLarge,
+    read_bounded_response,
+    remaining_seconds,
+)
 from gridlens.ingestion.adapters.federal_register import SourceParseError
 
 RSS_HOSTS = {
@@ -138,7 +142,9 @@ def _items(root: ElementTree.Element) -> list[ElementTree.Element]:
     return entries
 
 
-def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> RSSSnapshot:
+def retrieve(
+    source: dict[str, Any], client: httpx.Client | None = None, *, deadline: float | None = None
+) -> RSSSnapshot:
     source_id = source["id"]
     host = RSS_HOSTS.get(source_id)
     endpoint = source["endpoint"]
@@ -146,7 +152,11 @@ def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> RSSS
         raise SourceParseError("RSS endpoint is outside the exact publisher allowlist")
     query = source["query"]
     own_client = client is None
-    client = client or httpx.Client(timeout=25.0, follow_redirects=False)
+    remaining = remaining_seconds(deadline)
+    client = client or httpx.Client(
+        timeout=min(25.0, remaining) if remaining is not None else 25.0,
+        follow_redirects=False,
+    )
     try:
         try:
             conditional = bool(
@@ -156,6 +166,7 @@ def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> RSSS
                 client,
                 endpoint,
                 query["max_response_bytes"],
+                deadline=deadline,
                 allow_not_modified=True,
             )
             if status == 304:
