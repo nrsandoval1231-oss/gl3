@@ -1079,7 +1079,7 @@ def test_identity_match_requires_corroborated_site_and_keeps_ambiguous_candidate
             Source(
                 id="second-source",
                 publisher="Test Publisher",
-                endpoint="https://example.test",
+                endpoint=definition["endpoint"],
                 family="test",
                 geography="US",
                 industries=["industrial"],
@@ -2159,10 +2159,10 @@ def test_interconnection_history_survives_real_rejected_correction(db):
 
 
 @pytest.mark.parametrize(
-    "outcome",
-    ["missing_credentials", "authentication_failed", "provider_unavailable", "malformed_response"],
+    "provider_response",
+    ["authentication_failed", "provider_unavailable", "malformed_response"],
 )
-def test_source_ingestion_survives_jev_failure(db, monkeypatch, outcome):
+def test_source_ingestion_queues_jev_without_calling_provider(db, monkeypatch, provider_response):
     from pydantic import SecretStr
 
     from gridlens.intelligence import signal_adjudication as jev
@@ -2171,14 +2171,13 @@ def test_source_ingestion_survives_jev_failure(db, monkeypatch, outcome):
     # Force the optional adjudication path independently of the deterministic display policy.
     monkeypatch.setattr(jev, "deterministic_override", lambda *a: None)
     monkeypatch.setattr(jev.time, "sleep", lambda _: None)
-    if outcome != "missing_credentials":
-        monkeypatch.setattr(settings, "typesafe_api_key", SecretStr("synthetic-key"))
+    monkeypatch.setattr(settings, "typesafe_api_key", SecretStr("synthetic-key"))
+    provider_calls = []
 
     def post(url, **kwargs):
-        if outcome == "missing_credentials":
-            pytest.fail("Missing credentials must not call Jev")
+        provider_calls.append((url, kwargs))
         return httpx.Response(
-            {"authentication_failed": 401, "provider_unavailable": 503}.get(outcome, 200),
+            {"authentication_failed": 401, "provider_unavailable": 503}.get(provider_response, 200),
             json={"model": "invalid"},
             request=httpx.Request("POST", url),
         )
@@ -2249,11 +2248,23 @@ def test_source_ingestion_survives_jev_failure(db, monkeypatch, outcome):
     with factory() as session:
         decision = session.scalar(select(SignalDecision))
         assert decision is not None and decision.decision == "REVIEW"
-        assert decision.dimensions["status"] == (
-            "missing_api_key" if outcome == "missing_credentials" else outcome
+        assert decision.dimensions["status"] == "queued_for_shared_ledger"
+        assert decision.source == "jev_pending"
+        queued = session.scalar(select(Job).where(Job.kind == "signal_adjudication"))
+        assert queued is not None and queued.status == "queued"
+        checkpoint = json.loads(queued.checkpoint)
+        assert checkpoint["content_hash"] == decision.content_hash
+        assert checkpoint["evidence_id"]
+        assert checkpoint["policy_version"]
+        assert (
+            session.scalar(
+                select(func.count()).select_from(Job).where(Job.kind == "signal_adjudication")
+            )
+            == 1
         )
         assert session.scalar(select(func.count()).select_from(Evidence)) == 1
         assert session.scalar(select(Interpretation.status)) == "accepted"
         assert session.scalar(select(PowerNeed.tier)) == "Signal"
         assert session.get(Job, job_id).checkpoint is not None
+    assert provider_calls == []
     assert run()["unchanged"] == 1

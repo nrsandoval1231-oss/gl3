@@ -399,9 +399,15 @@ def request_intelligence_job(need_id: UUID, body: JobRequest, request: Request):
         if need is None or not need.active:
             raise HTTPException(404, "Active power need not found")
         try:
-            retained_need, project, _source, evidence = _retained_context(session, need_id)
+            retained_need, project, source, evidence = _retained_context(session, need_id)
             payload = _request_payload(
-                body.task_type, body.question_id, retained_need, project, evidence
+                session,
+                body.task_type,
+                body.question_id,
+                retained_need,
+                project,
+                source,
+                evidence,
             )
             max_cost = _cost_bound(_provider, body.task_type, payload)
             if (

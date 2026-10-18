@@ -454,9 +454,7 @@ def _effective_qualification_from_claim(claim: dict[str, Any]) -> dict[str, Any]
         # Only an explicit accepted-demand intersection may override the source
         # claim for calculation. Source-only claims keep the original projection.
         "required_mw": (
-            None
-            if closed_by_fact
-            else claim.get("fact_derived_required_mw") or _reported_mw(claim)
+            None if closed_by_fact else claim.get("fact_derived_required_mw") or _reported_mw(claim)
         ),
         "start_window": (
             claim.get("start_window")
@@ -792,9 +790,7 @@ def load_current_need_operator_inputs(
         ranked_decisions.c.decision.in_(["accepted", "corrected"]),
         CallFactVersion.need_id.in_(need_ids),
         CallFactVersion.effective_from <= current,
-        or_(
-            CallFactVersion.effective_until.is_(None), CallFactVersion.effective_until > current
-        ),
+        or_(CallFactVersion.effective_until.is_(None), CallFactVersion.effective_until > current),
     )
     fact_bytes = sum(
         (
@@ -1824,12 +1820,8 @@ def process_job(
                 "records_scanned": 0,
                 "latest_publication_date": cached.get("latest_publication_date"),
                 "snapshot_item_count": cached.get("snapshot_item_count", 0),
-                "snapshot_oldest_publication_date": cached.get(
-                    "snapshot_oldest_publication_date"
-                ),
-                "snapshot_newest_publication_date": cached.get(
-                    "snapshot_newest_publication_date"
-                ),
+                "snapshot_oldest_publication_date": cached.get("snapshot_oldest_publication_date"),
+                "snapshot_newest_publication_date": cached.get("snapshot_newest_publication_date"),
                 "conditional_checked": True,
             }
         counts = _process_collection_only(
@@ -1845,7 +1837,9 @@ def process_job(
         )
         return counts
 
-    retrieved = retrieve_source(source_definition, client)
+    retrieved = _retrieve_source_outside_transaction(
+        session, job_id, worker_id, fence, source_definition, client
+    )
     # Presence-only rows are listed by the source but withheld from processing this run
     # (for example, enrichment failed). They still count as present in the snapshot.
     records = [record for record in retrieved if not record.get("presence_only")]
@@ -1868,6 +1862,85 @@ def process_job(
 
 _RSS_CONDITIONAL_NAMESPACE = "publisher_rss_conditional"
 _RSS_PARSER_VERSION = "publisher-rss-v2"
+
+
+def _require_clean_acquisition_session(session: Session) -> None:
+    if session.new or session.dirty or session.deleted or session.in_nested_transaction():
+        raise RuntimeError(
+            "Acquisition network retrieval requires a clean, non-nested session; "
+            "commit caller changes before retrieval"
+        )
+
+
+def _lock_current_acquisition_source(
+    session: Session,
+    job_id: Any,
+    worker_id: str,
+    fence: int,
+    source_definition: dict[str, Any],
+) -> Source:
+    job = assert_fence(session, job_id, worker_id, fence)
+    source = session.scalar(
+        select(Source)
+        .where(Source.id == source_definition["id"])
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    if (
+        source is None
+        or not source.enabled
+        or not source.registry_enabled
+        or source.retrieval_method != source_definition.get("retrieval_method")
+    ):
+        raise SourceParseError("Acquisition source is currently disabled or changed")
+    if source_definition.get("endpoint") and source.endpoint != source_definition["endpoint"]:
+        raise SourceParseError("Acquisition source endpoint changed")
+    if job.source_id != source.id:
+        raise SourceParseError("Acquisition lease belongs to a different source")
+    return source
+
+
+def _prepare_acquisition_network(
+    session: Session,
+    job_id: Any,
+    worker_id: str,
+    fence: int,
+    source_definition: dict[str, Any],
+) -> None:
+    _require_clean_acquisition_session(session)
+    _lock_current_acquisition_source(session, job_id, worker_id, fence, source_definition)
+    # This function refuses caller-owned writes before releasing row locks.
+    if session.in_transaction():
+        session.commit()
+
+
+def _retrieve_source_outside_transaction(
+    session: Session,
+    job_id: Any,
+    worker_id: str,
+    fence: int,
+    source_definition: dict[str, Any],
+    client: httpx.Client | None,
+) -> list[dict[str, Any]]:
+    _prepare_acquisition_network(session, job_id, worker_id, fence, source_definition)
+    records = retrieve_source(source_definition, client)
+    _lock_current_acquisition_source(session, job_id, worker_id, fence, source_definition)
+    return records
+
+
+def _retrieve_companion_outside_transaction(
+    session: Session,
+    job_id: Any,
+    worker_id: str,
+    fence: int,
+    source_definition: dict[str, Any],
+    record: dict[str, Any],
+    client: httpx.Client | None,
+) -> list[dict[str, str]]:
+    _prepare_acquisition_network(session, job_id, worker_id, fence, source_definition)
+    citations = retrieve_companion(record, client)
+    _lock_current_acquisition_source(session, job_id, worker_id, fence, source_definition)
+    return citations
 
 
 def _rss_policy_digest(source_definition: dict[str, Any]) -> str:
@@ -1894,18 +1967,8 @@ def _retrieve_publisher_rss_conditionally(
     source_definition: dict[str, Any],
     client: httpx.Client | None,
 ) -> list[dict[str, Any]]:
-    if session.new or session.dirty or session.deleted or session.in_nested_transaction():
-        raise RuntimeError("RSS network retrieval requires a clean, non-nested session")
-    source = session.get(Source, source_definition["id"])
-    assert source is not None
-    if (
-        not source.enabled
-        or not source.registry_enabled
-        or source.retrieval_method != "publisher-rss"
-    ):
-        raise SourceParseError("RSS source is currently disabled")
-    if source_definition.get("endpoint") and source.endpoint != source_definition["endpoint"]:
-        raise SourceParseError("RSS source endpoint changed before retrieval")
+    _require_clean_acquisition_session(session)
+    source = _lock_current_acquisition_source(session, job_id, worker_id, fence, source_definition)
     cache = (source.health or {}).get(_RSS_CONDITIONAL_NAMESPACE, {})
     job = session.get(Job, job_id)
     if job is None:
@@ -1941,8 +2004,6 @@ def _retrieve_publisher_rss_conditionally(
     original_modified = http_client.headers.get("If-Modified-Since")
     try:
         if session.in_transaction():
-            # Release caller-held row locks before bounded network I/O. Callers
-            # with pending writes must commit them before entering this path.
             session.commit()
         http_client.headers.pop("If-None-Match", None)
         http_client.headers.pop("If-Modified-Since", None)
@@ -1956,6 +2017,7 @@ def _retrieve_publisher_rss_conditionally(
             http_client.headers.pop("If-Modified-Since", None)
         retrieved = retrieve_source(source_definition, http_client)
         _current_rss_source(session, source_definition)
+        assert_fence(session, job_id, worker_id, fence)
         return retrieved
     finally:
         if owned_client:
@@ -2046,6 +2108,13 @@ def process_records(
     allow_model: bool = True,
 ) -> dict[str, Any]:
     """Apply canonical source records; targeted research owns its enclosing transaction."""
+    if commit and (
+        session.new or session.dirty or session.deleted or session.in_nested_transaction()
+    ):
+        raise RuntimeError(
+            "Committed ingestion requires a clean, non-nested caller session; "
+            "commit caller changes first"
+        )
     counts: dict[str, Any] = {
         "new": 0,
         "changed": 0,
@@ -2063,6 +2132,7 @@ def process_records(
         "pdf_enriched": 0,
         "pdf_skipped_not_signal": 0,
         "pdf_skipped_limit": 0,
+        "pdf_skipped_transaction": 0,
     }
     if source_definition.get("retrieval_method") == "georgia-air-permits":
         counts["snapshot_item_count"] = len(records)
@@ -2278,9 +2348,22 @@ def process_records(
                 if pdf_documents >= MAX_PDFS_PER_RUN:
                     counts["pdf_skipped_limit"] += 1
                     pdf_citations = []
+                elif not commit:
+                    # Research callers own this transaction. Preserve their
+                    # commit=False contract and report the bounded skipped fetch.
+                    counts["pdf_skipped_transaction"] += 1
+                    pdf_citations = []
                 else:
                     pdf_documents += 1
-                    pdf_citations = retrieve_companion(record, client)
+                    pdf_citations = _retrieve_companion_outside_transaction(
+                        session,
+                        job_id,
+                        worker_id,
+                        fence,
+                        source_definition,
+                        record,
+                        client,
+                    )
                     counts["pdf_enriched"] += 1
                     # Network retrieval can outlast this worker's lease. Reclaim
                     # the fence before inspecting or persisting its result.
