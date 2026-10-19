@@ -656,7 +656,7 @@ function WorkspaceApp() {
   const selectedGroup = selected && cards.find((card) => card.grouped && card.members.some((item) => item.id === selected.id))
   const selectedSharesProjectId = Boolean(selectedGroup && selected?.project_id && selectedGroup.members.every((member) => member.project_id === selected.project_id))
   return <div className={`shell${view === 'pursuits' ? ' shell-commercial' : ''}`}>
-    <header className="topbar"><a className="brand" href="/" aria-label="GridLens home"><img src="/brand/lockup-horizontal-navy.svg" alt="GridLens"/></a><nav aria-label="Primary navigation"><a href="/">Opportunities</a><button className={view === 'pursuits' ? 'nav-active' : ''} onClick={() => chooseView('pursuits')}>Research</button><button className={view === 'opportunities' && tier === 'Signals' ? 'nav-active' : ''} onClick={() => chooseTier('Signals')}>Signals</button><button className={view === 'ingestion' ? 'nav-active' : ''} onClick={() => chooseView('ingestion')}>Operations</button></nav>{view !== 'opportunities' && <label className="search"><span className="sr-only">Search projects</span><input value={search} onChange={(event) => { setSearch(event.target.value); setOffset(0) }} placeholder="Search projects, work, or permit ID"/></label>}<div className="header-actions"><button className="health-toggle" onClick={() => setShowHealth((value) => !value)} aria-expanded={showHealth}>Source health</button><button className="signout" onClick={() => void signOut()}>Sign out</button></div></header>
+    <header className="topbar"><a className="brand" href="/" aria-label="GridLens home"><img src="/brand/lockup-horizontal-navy.svg" alt="GridLens"/></a><nav aria-label="Primary navigation"><a href="/">Opportunities</a><button className={view === 'pursuits' ? 'nav-active' : ''} onClick={() => chooseView('pursuits')}>Research</button><button className={view === 'opportunities' && tier === 'Signals' ? 'nav-active' : ''} onClick={() => chooseTier('Signals')}>Signals</button><label className="tier-switch">Qualification<select aria-label="Qualification tier" value={view === 'opportunities' ? tier : ''} onChange={(event) => { if (event.target.value) chooseTier(event.target.value as Tier) }}><option value="">Current view</option>{tiers.map((value) => <option key={value}>{value}</option>)}</select></label><button className={view === 'ingestion' ? 'nav-active' : ''} onClick={() => chooseView('ingestion')}>Operations</button></nav>{view !== 'opportunities' && <label className="search"><span className="sr-only">Search projects</span><input value={search} onChange={(event) => { setSearch(event.target.value); setOffset(0) }} placeholder="Search projects, work, or permit ID"/></label>}<div className="header-actions"><button className="health-toggle" onClick={() => setShowHealth((value) => !value)} aria-expanded={showHealth}>Source health</button><button className="signout" onClick={() => void signOut()}>Sign out</button></div></header>
     {returnTo && <a className="back-button" href={returnTo}>Return to environment</a>}
     <main className={`workspace${view === 'pursuits' ? ' workspace-commercial' : ''}`}>
       {authenticated && commercialMounted && <div className="commercial-host" hidden={view !== 'pursuits'}><CommercialPursuits/></div>}
@@ -799,7 +799,8 @@ export function OpportunityDetail({ item, onReadback }: { item: Opportunity; onR
 }
 
 function isEnvironmentUrl() {
-  return location.pathname === '/environment'
+  const params = new URLSearchParams(location.search)
+  return location.pathname === '/environment' || (location.pathname === '/' && params.get('view') === 'environment')
 }
 
 function EnvironmentRoot() {

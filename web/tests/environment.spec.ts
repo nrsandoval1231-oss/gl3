@@ -106,6 +106,17 @@ test('deep link restores a project scene and the call brief stays unsent', async
   await expect(page.getByText(/call brief · nothing is sent/i)).toBeVisible()
 })
 
+test('root environment alias preserves a deep-linked scene through full-record return', async ({ page }) => {
+  await mock(page, [opportunity('a', 'Austin, TX')])
+  await page.goto('/?view=environment&mode=action&state=Texas&need=a')
+  await expect(page.getByRole('heading', { name: 'Ask the question that moves this forward.' })).toBeVisible()
+  await page.getByRole('link', { name: 'Open the full record' }).click()
+  await expect(page.getByRole('heading', { name: 'Test project a', exact: true }).first()).toBeVisible()
+  await page.getByRole('link', { name: 'Return to environment' }).click()
+  await expect(page.getByRole('heading', { name: 'Ask the question that moves this forward.' })).toBeVisible()
+  await expect(page).toHaveURL(/view=environment&mode=action&state=Texas&need=a/)
+})
+
 test('legacy environment path ignores the retired editorial flag', async ({ page }) => {
   await mock(page, [opportunity('a', 'Austin, TX')])
   await page.goto('/environment?view=editorial')

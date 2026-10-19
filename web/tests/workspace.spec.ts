@@ -81,6 +81,27 @@ test('a deep-link detail uses the current workspace disposition instead of stale
   await expect(page.locator('.wh-detail-head')).not.toContainText('Stale disposition')
 })
 
+test('refreshing to a new cohort clears selected commercial preview when its row is absent', async ({ page }) => {
+  const current = { ...need, commercial_disposition: 'ACTION NOW', commercial_reason: 'Current evidence supports immediate investigation.' }
+  const requests: URL[] = []
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/workspace?*', async route => {
+    const url = new URL(route.request().url())
+    requests.push(url)
+    const excluded = url.searchParams.get('search') === 'new generation'
+    await route.fulfill({ json: { ...response(excluded ? [] : [current]), cohort_token: excluded ? 'cohort-b' : 'cohort-a' } })
+  })
+  await page.route('**/api/opportunities/needs/need-a*', route => route.fulfill({ json: need }))
+  await page.goto('/?view=workspace')
+  await page.getByRole('button', { name: /Test data center/ }).click()
+  await expect(page.locator('.wh-detail-head')).toContainText('ACTION NOW')
+  await page.getByRole('textbox', { name: 'Search opportunities' }).fill('new generation')
+  await expect.poll(() => requests.some(url => url.searchParams.get('search') === 'new generation')).toBeTruthy()
+  await expect(page.getByRole('heading', { name: 'Test data center' })).toBeVisible()
+  await expect(page.locator('.wh-detail-head')).toContainText('Disposition unavailable')
+  await expect(page.locator('.wh-detail-head')).not.toContainText('ACTION NOW')
+})
+
 test('global search sends a server query and displays the matching cohort result', async ({ page }) => {
   const match = { ...need, id: 'need-search', name: 'Searchable Austin project' }
   const requests: string[] = []
@@ -140,6 +161,7 @@ test('Signal tier deep links stay on workspace and a changed cohort resets pagin
   await expect(page.getByRole('heading', { name: 'Power needs' })).toBeVisible()
   await expect.poll(() => requested.length).toBeGreaterThan(1)
   expect(requested[0].searchParams.get('tier')).toBe('Signal')
+  expect(requested[0].searchParams.get('cohort_token')).toBe('old')
   expect(requested.some(url => url.searchParams.get('offset') === '0' && !url.searchParams.has('cohort_token'))).toBe(true)
 })
 

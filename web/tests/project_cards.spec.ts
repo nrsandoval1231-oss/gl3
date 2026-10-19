@@ -356,7 +356,7 @@ test('Back restores the exact selected need across tiers and pages with its coho
   await selectedCard.click()
   await expect(page.getByRole('link', { name: 'Citation for the exact later-page Signal' })).toBeVisible()
   expect(new URL(page.url()).hash).toBe('#signal-later-page')
-  await page.getByRole('button', { name: 'Prospects' }).click()
+  await page.getByLabel('Qualification tier').selectOption('Prospects')
   await expect(page.locator('[data-opportunity-id="prospect-first-page"]')).toBeVisible()
 
   await page.goBack()
@@ -508,7 +508,7 @@ test('late restored-page response cannot replace a newer Back/Forward destinatio
   try {
     await page.goto('/?tier=Signals&offset=25')
     await page.locator('[data-opportunity-id="late-selected-signal"]').click()
-    await page.getByRole('button', { name: 'Prospects' }).click()
+    await page.getByLabel('Qualification tier').selectOption('Prospects')
     await expect(page.locator('[data-opportunity-id="late-prospect"]')).toBeVisible()
 
     restoreSignalPage = true
@@ -1187,7 +1187,7 @@ test('group expansion intent is invalidated by tier, search, Signal decision, pa
     await page.locator(`[data-opportunity-id="${scenario.initialId}"]`).click()
     await expect.poll(() => groupStarted).toBe(true)
     if (scenario.name === 'tier') {
-      await page.getByRole('button', { name: 'Prospects' }).click()
+      await page.getByLabel('Qualification tier').selectOption('Prospects')
       await expect(page.locator('[data-opportunity-id="scope-prospect"]')).toBeVisible()
     } else if (scenario.name === 'search') {
       await page.getByRole('textbox', { name: 'Search projects' }).fill('newterm')
@@ -1199,7 +1199,7 @@ test('group expansion intent is invalidated by tier, search, Signal decision, pa
       await page.getByRole('button', { name: 'Next →' }).click()
       await expect(page.locator('[data-opportunity-id="scope-page-next"]')).toBeVisible()
     } else {
-      await page.getByRole('button', { name: 'Ingestion' }).click()
+      await page.getByRole('button', { name: 'Operations' }).click()
       await expect.poll(() => new URL(page.url()).searchParams.get('view')).toBe('ingestion')
     }
     releaseGroup?.()

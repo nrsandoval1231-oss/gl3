@@ -1251,6 +1251,7 @@ def health():
         )
 
         for row in rows:
+            health_data = row.health if isinstance(row.health, dict) else {}
             definition = definitions.get(row.id, {})
             epochs = session.scalars(
                 select(SourceScheduleEpoch)
@@ -1430,7 +1431,8 @@ def health():
             )
             info = {
                 "id": row.id,
-                **row.health,
+                **health_data,
+                "status": health_data.get("status") or "Unknown",
                 "family": row.family,
                 "geography": row.geography,
                 "enabled": effective_enabled,
@@ -1439,7 +1441,7 @@ def health():
                 "verified_successes_7d": successes,
                 "collection_scope": (
                     definition.get("collection_scope")
-                    or row.health.get("collection_scope")
+                    or health_data.get("collection_scope")
                     or row.geography
                 ),
             }
@@ -1452,12 +1454,12 @@ def health():
                 )
             elif definition.get("coverage_limitation"):
                 info["coverage_limitation"] = definition["coverage_limitation"]
-            last_attempt = row.health.get("last_attempt")
+            last_attempt = health_data.get("last_attempt")
             if (
                 effective_enabled
-                and info["status"] not in {"Running", "Failed", "RegistryUnavailable"}
+                and info["status"] not in {"Unknown", "Running", "Failed", "RegistryUnavailable"}
                 and (
-                    not last_attempt
+                    not health_data.get("last_attempt")
                     or datetime.fromisoformat(last_attempt)
                     < checked_at - timedelta(hours=row.cadence_hours)
                 )

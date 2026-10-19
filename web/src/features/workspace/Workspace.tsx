@@ -16,7 +16,7 @@ function initialFilters(): WorkspaceFilters {
     geography: p.get('geography') ?? '', industry: p.get('industry') ?? '', activity: p.get('activity') ?? '',
     timing: p.get('timing') === 'KNOWN' || p.get('timing') === 'UNKNOWN' ? p.get('timing') as 'KNOWN' | 'UNKNOWN' : undefined,
     mw_min: p.get('mw_min') ?? '', mw_max: p.get('mw_max') ?? '', disposition: p.get('disposition') ?? '',
-    sort: (p.get('sort') as WorkspaceFilters['sort']) || 'priority', offset: Number(p.get('offset') || 0) }
+    sort: (p.get('sort') as WorkspaceFilters['sort']) || 'priority', offset: Number(p.get('offset') || 0), cohort_token: p.get('cohort_token') || undefined }
 }
 function writeUrl(filters: WorkspaceFilters, id: string | null, tab?: Tab, push = false) {
   const p = new URLSearchParams({ view: 'workspace' })
@@ -52,7 +52,7 @@ export function WorkspaceHome() {
       setPage(value)
       setSelected(previous => {
         const row = previous && value.items.find(item => item.id === previous.id)
-        return row ? { ...previous, ...commercialPreview(row) } : previous
+        return previous ? { ...previous, ...commercialPreview(row) } : previous
       })
       setLoading(false)
     }).catch((e: Error) => { if (!c.signal.aborted && sequence === listSequence.current) { setLoading(false); if (/cohort/i.test(e.message) && (filters.offset || filters.cohort_token)) { const next = { ...filters, offset: 0, cohort_token: undefined }; setFilters(next); writeUrl(next, selected?.id ?? null); setError('The opportunity list changed. Reloaded from the first page.') } else { setError(e.message); if (/session ended/i.test(e.message)) setAuthenticated(false) } } })
