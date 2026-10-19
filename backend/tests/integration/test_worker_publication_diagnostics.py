@@ -3,12 +3,12 @@
 import pytest
 from fastapi import HTTPException
 from sqlalchemy.orm import sessionmaker
+from test_saved_browse import saved_db, seed  # noqa: F401
 
 from gridlens.intelligence import saved_browse
 from gridlens.intelligence.worker_browse import install_worker_publication
 from gridlens.persistence.models import PowerNeed
 from gridlens.settings import settings
-from tests.integration.test_saved_browse import saved_db, seed  # noqa: F401
 
 
 def test_refresh_outcome_survives_savepoint_and_excludes_private_error(

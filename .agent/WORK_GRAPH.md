@@ -70,6 +70,6 @@ This isolated issue79 node does not replace or complete the main intelligence gr
 |---|---|---|---|
 | PR87-CALL | exact PR87 07d676b; owner local approval | IMPLEMENTED / LOCAL | Cited brief, honest question freshness/checkpoint, source-backed contacts and call preparation in approved UI. Final browser166 pass/1skip; actual local auth/call/restart proof. |
 | PR87-PUB | same candidate; failed CI receipt | BLOCKED / cause UNPROVEN | Safe diagnostics and fault recovery tested; fourteen rebuild/rollback checks preserve canonical hashes. Intermittent CI503 not reproduced/repaired. |
-| PR87-ACCEPT | PR87-CALL, PR87-PUB | RELEASE FAIL / full backend pending | Source manifest f3a0e328; static/contracts/build/audits pass. Independent Sol confirms contact corrections, retains publication release blocker. |
+| PR87-ACCEPT | PR87-CALL, PR87-PUB | RELEASE FAIL / CI diagnosis in PR88 | Full local backend2155pass/3skip/7subtests, browser166pass/1skip and static/contracts/build/audits pass. Independent Sol confirms contact corrections, retains publication release blocker. |
 
 [Packet](packets/PR87-CALL.md). Source recovery a5e4cf9 paused. Owner authorized publication, CI diagnosis/fixes, merge and deployment at 20:30 UTC October 19, conditional on resolving the publication failure and passing exact-candidate release gates. Preserve external work, data, provider limits and infrastructure.
