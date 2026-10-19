@@ -1,6 +1,7 @@
 import type { Opportunity, WorkspaceNeed } from '../../api/client'
 import { client, type BuyingChainResult } from '../../api/client'
 import { useEffect, useRef, useState } from 'react'
+import { projectTitle } from '../opportunities/projectCards'
 import { BuyingChain } from '../buyingChain/BuyingChain'
 import { FactWorkflowPanel } from '../pursuits/FactWorkflowPanel'
 import { QuickCallLog } from '../pursuits/QuickCallLog'
@@ -55,7 +56,7 @@ export function WorkspaceDetail({ item, pending, loading, error, tab, onTab, onB
   const evidence = item.evidence ?? []
   const callEvidence = evidence.find(source => source.assessment_current) ?? evidence[0]
   const company = item.commercial_organization || item.title_company
-  const displayTitle = item.browse_title || item.name
+  const displayTitle = projectTitle(item)
   const companyRole = item.title_company_role
   const unverified = [
     ...(!item.start_window ? ['power start timing'] : []),
@@ -80,6 +81,7 @@ export function WorkspaceDetail({ item, pending, loading, error, tab, onTab, onB
     <div className="wh-detail-head">
       <span>{item.tier} · {item.commercial_disposition ?? 'Disposition unavailable'}</span>
       <h2>{displayTitle}</h2>
+      {displayTitle !== item.name && <p>Source record: {item.name}</p>}
       {company && <p>Source-supported organization: {company}{companyRole ? ` · ${companyRole}` : ''}. Listed role does not verify purchasing authority.</p>}
       <p>{item.location ?? 'Location unknown'} · {item.activity}</p>
       <div className="wh-facts">
