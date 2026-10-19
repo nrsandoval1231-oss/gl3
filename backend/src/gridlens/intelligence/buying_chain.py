@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 import time
 from collections import Counter, defaultdict
@@ -26,6 +27,8 @@ from gridlens.domain.buying_chain import (
 from gridlens.domain.evaluation_clock import evaluation_now
 from gridlens.domain.pursuit_research import fingerprint as _hash
 from gridlens.domain.signal_admission import admitted_from_source
+from gridlens.ingestion.adapters.acquisition_runtime import remaining_seconds
+from gridlens.ingestion.adapters.bounded_http import run_isolated
 from gridlens.ingestion.adapters.buying_chain_public import (
     CAPTURE_VERSION,
     PublicDocument,
@@ -51,20 +54,415 @@ from gridlens.intelligence.buying_chain_extraction import (
     project_document_match,
 )
 from gridlens.intelligence.project_identity import normalized_identity
+from gridlens.jobs.queue import assert_fence
+from gridlens.persistence.database import SessionLocal
 from gridlens.persistence.models import (
     BuyingChainClaim,
     BuyingChainEvidence,
     BuyingChainRun,
     Evidence,
     Interpretation,
+    Job,
     NeedObservation,
     Observation,
     PowerNeed,
     Project,
     Source,
 )
+from gridlens.settings import settings
 
 MAX_SECONDS = 35
+BUYING_CHAIN_JOB_KIND = "buying_chain_research"
+BUYING_CHAIN_TASK_TYPE = "buying_chain_research"
+
+
+def _buying_chain_context_digest(session: Session, project: Project) -> str:
+    retained = _retained(session, project)
+    latest_run = session.scalar(
+        select(BuyingChainRun)
+        .where(BuyingChainRun.project_id == project.id)
+        .order_by(BuyingChainRun.created_at.desc(), BuyingChainRun.id.desc())
+        .limit(1)
+    )
+    claims = session.scalars(
+        select(BuyingChainClaim)
+        .where(BuyingChainClaim.project_id == project.id)
+        .order_by(BuyingChainClaim.id)
+    ).all()
+    return _hash(
+        {
+            "project": {
+                "id": str(project.id),
+                "source_id": project.source_id,
+                "external_id": project.external_id,
+                "identity_key": project.identity_key,
+                "name": project.name,
+                "location": project.location,
+                "asset_type": project.asset_type,
+                "identity_facts": project.identity_facts,
+            },
+            "retained": sorted((str(row.id), row.content_hash) for row in retained),
+            "latest_run": latest_run.input_hash if latest_run else None,
+            "claims": [
+                (
+                    str(row.id),
+                    row.fingerprint,
+                    row.organization,
+                    row.person_name,
+                    row.title,
+                    row.category,
+                    row.organization_relationship,
+                    row.person_organization_relationship,
+                    row.person_project_relationship,
+                    row.citations,
+                )
+                for row in claims
+            ],
+            "policy": POLICY_VERSION,
+        }
+    )
+
+
+def _public_research_plan(
+    session: Session,
+    project: Project,
+    retained_documents: list[tuple[PublicDocument, bool, str, UUID | None]],
+    supplied_urls: list[str],
+    previous_run: BuyingChainRun | None,
+) -> tuple[list[str], bool]:
+    retained_permit = project.source_id == "chicago-building-permits" and any(
+        chicago_contacts(doc.text) for doc, _, _, _ in retained_documents
+    )
+    retained_permit = retained_permit or (
+        project.source_id == GEORGIA
+        and any(georgia_identity(doc.text) for doc, _, _, _ in retained_documents)
+    )
+    retained_permit = retained_permit or (
+        project.source_id
+        in {
+            "austin-building-permits",
+            "dallas-monthly-permits",
+            "el-paso-new-commercial-permits",
+            "houston-weekly-permits",
+            "texas-rrc-drilling-permits",
+            "boston-building-permits",
+        }
+        and any(permit_facts(project.source_id, doc.text) for doc, _, _, _ in retained_documents)
+    )
+    urls: list[str] = []
+    if (
+        not retained_permit
+        and project.source_id == "chicago-building-permits"
+        and project.external_id.isdigit()
+    ):
+        registered_source = session.get(Source, project.source_id)
+        if registered_source and registered_source.endpoint.startswith(
+            "https://data.cityofchicago.org/resource/"
+        ):
+            urls.append(
+                registered_source.endpoint.split("?")[0]
+                + "?"
+                + urlencode({"$where": f"id='{project.external_id}'", "$limit": 1})
+            )
+    elif not retained_permit:
+        urls.extend(doc.url for doc, _, _, _ in retained_documents[:2])
+    urls.extend(supplied_urls)
+    if previous_run:
+        retained_urls = {doc.url for doc, _, _, _ in retained_documents}
+        for evidence_id in previous_run.evidence_ids:
+            previous_evidence = session.get(BuyingChainEvidence, UUID(evidence_id))
+            if (
+                previous_evidence
+                and previous_evidence.retained_evidence_id is None
+                and not (
+                    project.source_id == "houston-weekly-permits"
+                    and "/ibi_apps/WFServlet.ibfs" in previous_evidence.url
+                )
+                and not (retained_permit and previous_evidence.url in retained_urls)
+            ):
+                urls.append(previous_evidence.url)
+    return list(dict.fromkeys(validate_public_url(url) for url in urls)), retained_permit
+
+
+def enqueue_buying_chain_research(
+    session: Session, project_id: UUID, source_urls: list[str] | None = None
+) -> Job:
+    if len(source_urls or []) > MAX_SOURCE_URLS:
+        raise ValueError("At most four additional public source URLs are allowed")
+    normalized_urls = list(dict.fromkeys(validate_public_url(url) for url in source_urls or []))
+    project = session.scalar(select(Project).where(Project.id == project_id).with_for_update())
+    if project is None:
+        raise LookupError("Project not found")
+    context_digest = _buying_chain_context_digest(session, project)
+    request_digest = _hash(
+        {
+            "project_id": str(project.id),
+            "source_urls": normalized_urls,
+            "context_digest": context_digest,
+            "policy_version": POLICY_VERSION,
+        }
+    )
+    for active in session.scalars(
+        select(Job)
+        .where(
+            Job.kind == BUYING_CHAIN_JOB_KIND,
+            Job.target_id == project.id,
+            Job.status.in_(["queued", "running"]),
+        )
+        .order_by(Job.created_at.desc())
+        .limit(20)
+    ):
+        try:
+            checkpoint = json.loads(active.checkpoint or "{}")
+        except (TypeError, ValueError):
+            continue
+        if checkpoint.get("request_digest") == request_digest:
+            return active
+    retained_documents: list[tuple[PublicDocument, bool, str, UUID | None]] = [
+        (
+            PublicDocument(
+                evidence.url,
+                evidence.title,
+                f"{evidence.title}\n{evidence.abstract or ''}",
+                evidence.published_at,
+                evidence.observed_at,
+                evidence.extraction_location,
+                retained_version=evidence.content_hash,
+            ),
+            True,
+            "Previously accepted evidence linked to this selected physical project.",
+            evidence.id,
+        )
+        for evidence in _retained(session, project)
+    ]
+    previous_run = session.scalar(
+        select(BuyingChainRun)
+        .where(BuyingChainRun.project_id == project.id)
+        .order_by(BuyingChainRun.created_at.desc(), BuyingChainRun.id.desc())
+        .limit(1)
+    )
+    planned_urls, _ = _public_research_plan(
+        session, project, retained_documents, normalized_urls, previous_run
+    )
+    job = Job(
+        source_id=project.source_id,
+        kind=BUYING_CHAIN_JOB_KIND,
+        target_id=project.id,
+        checkpoint=json.dumps(
+            {
+                "task_type": BUYING_CHAIN_TASK_TYPE,
+                "request_digest": request_digest,
+                "context_digest": context_digest,
+                "payload": {
+                    "project_id": str(project.id),
+                    "source_urls": normalized_urls,
+                    "planned_urls": planned_urls,
+                },
+                "status": "queued",
+            },
+            separators=(",", ":"),
+        ),
+    )
+    session.add(job)
+    session.flush()
+    return job
+
+
+def buying_chain_job_status(session: Session, project_id: UUID) -> dict | None:
+    job = session.scalar(
+        select(Job)
+        .where(Job.kind == BUYING_CHAIN_JOB_KIND, Job.target_id == project_id)
+        .order_by(Job.created_at.desc(), Job.id.desc())
+        .limit(1)
+    )
+    if job is None:
+        return None
+    return {
+        "id": job.id,
+        "status": job.status,
+        "detail_status": (json.loads(job.checkpoint or "{}")).get("status"),
+        "created_at": job.created_at,
+    }
+
+
+def run_buying_chain_research(
+    job_id: UUID,
+    worker_id: str,
+    fence: int,
+    *,
+    deadline: float | None = None,
+    lease_expiry: datetime | None = None,
+) -> dict[str, Any]:
+    """Acquire public evidence without a DB transaction, then persist under a fresh fence."""
+    with SessionLocal() as session:
+        job = assert_fence(session, job_id, worker_id, fence)
+        checkpoint = json.loads(job.checkpoint or "{}")
+        if checkpoint.get("task_type") != BUYING_CHAIN_TASK_TYPE:
+            raise ValueError("Buying-chain job payload is invalid")
+        payload = checkpoint.get("payload") or {}
+        project_id = UUID(payload["project_id"])
+        project = session.get(Project, project_id)
+        if project is None or project.id != job.target_id:
+            raise LookupError("Project not found")
+        expected_context = checkpoint.get("context_digest")
+        if _buying_chain_context_digest(session, project) != expected_context:
+            checkpoint.update(status="stale", completed_at=datetime.now(UTC).isoformat())
+            job.checkpoint = json.dumps(checkpoint, separators=(",", ":"))
+            job.status = "succeeded"
+            job.lease_owner = job.lease_until = None
+            session.commit()
+            return {"status": "stale", "job_id": str(job_id)}
+        source = session.get(Source, job.source_id)
+        source_enabled = bool(source and source.enabled and source.registry_enabled)
+        retained_documents: list[tuple[PublicDocument, bool, str, UUID | None]] = [
+            (
+                PublicDocument(
+                    evidence.url,
+                    evidence.title,
+                    f"{evidence.title}\n{evidence.abstract or ''}",
+                    evidence.published_at,
+                    evidence.observed_at,
+                    evidence.extraction_location,
+                    retained_version=evidence.content_hash,
+                ),
+                True,
+                "Previously accepted evidence linked to this selected physical project.",
+                evidence.id,
+            )
+            for evidence in _retained(session, project)
+        ]
+        previous_run = session.scalar(
+            select(BuyingChainRun)
+            .where(BuyingChainRun.project_id == project_id)
+            .order_by(BuyingChainRun.created_at.desc(), BuyingChainRun.id.desc())
+            .limit(1)
+        )
+        planned_urls, _ = _public_research_plan(
+            session, project, retained_documents, payload.get("source_urls", []), previous_run
+        )
+        retained_permit_text = next(
+            (
+                doc.text
+                for doc, _, _, retained_id in retained_documents
+                if retained_id is not None
+                and project.source_id == "houston-weekly-permits"
+                and permit_facts(project.source_id, doc.text)
+            ),
+            "",
+        )
+        permit_fields = {
+            item["label"]: item["value"]
+            for item in permit_facts(project.source_id, retained_permit_text)
+        }
+        project_snapshot = project
+
+    public_enabled = (
+        settings.buying_chain_public_research_enabled and source_enabled and deadline is not None
+    )
+    prefetched_documents: dict[str, PublicDocument] = {}
+    retrieval_failures: dict[str, str] = {}
+    prefetched_detail: PublicDocument | None = None
+    detail_prefetched = True
+    if public_enabled:
+        urls = list(planned_urls)
+        checked: set[str] = set()
+        while urls and len(checked) < MAX_DOCUMENTS and len(prefetched_documents) < MAX_DOCUMENTS:
+            try:
+                remaining_seconds(deadline)
+            except TimeoutError:
+                retrieval_failures[urls[0]] = "DeadlineExceeded"
+                break
+            url = urls.pop(0)
+            if url in checked:
+                continue
+            checked.add(url)
+            try:
+                doc = retrieve(url, deadline=deadline)
+                validate_public_url(doc.url)
+                matched, _reason = project_document_match(project_snapshot, doc)
+                prefetched_documents[url] = doc
+                if matched:
+                    urls.extend(
+                        link for link in doc.links if link not in checked and link not in urls
+                    )
+            except Exception as exc:
+                retrieval_failures[url] = type(exc).__name__
+        if permit_fields.get("Permit type") == "Building Pmt":
+            try:
+                if deadline is None:
+                    raise TimeoutError("A finite acquisition deadline is required")
+                prefetched_detail = run_isolated(
+                    "gridlens.ingestion.adapters.houston_permit_details:retrieve_detail",
+                    (
+                        permit_fields.get("Source record", ""),
+                        permit_fields["Permit type"],
+                    ),
+                    {
+                        "event_date": permit_fields.get(
+                            "Permit sale event date (weekly report)", ""
+                        ),
+                        "site_address": permit_fields.get("Site address", ""),
+                    },
+                    deadline=deadline,
+                )
+            except Exception:
+                prefetched_detail = None
+    else:
+        detail_prefetched = False
+
+    with SessionLocal.begin() as session:
+        job = assert_fence(session, job_id, worker_id, fence)
+        checkpoint = json.loads(job.checkpoint or "{}")
+        project = session.scalar(
+            select(Project)
+            .where(Project.id == project_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
+        if project is None or _buying_chain_context_digest(session, project) != expected_context:
+            checkpoint.update(status="stale", completed_at=datetime.now(UTC).isoformat())
+            job.checkpoint = json.dumps(checkpoint, separators=(",", ":"))
+            job.status = "succeeded"
+            job.lease_owner = job.lease_until = None
+            return {"status": "stale", "job_id": str(job_id)}
+        current_source = session.get(Source, job.source_id)
+        policy_active = bool(
+            current_source and current_source.enabled and current_source.registry_enabled
+        )
+        still_public_enabled = settings.buying_chain_public_research_enabled and policy_active
+        result = enrich_buying_chain(
+            session,
+            project_id,
+            source_urls=payload.get("source_urls", []),
+            prefetched_documents=prefetched_documents
+            if public_enabled and still_public_enabled
+            else {},
+            retrieval_failures=retrieval_failures,
+            prefetched_houston_detail=prefetched_detail,
+            houston_detail_prefetched=detail_prefetched,
+            retained_only=not (public_enabled and still_public_enabled),
+        )
+        detail_status = (
+            "disabled"
+            if not settings.buying_chain_public_research_enabled
+            else "blocked_source_policy"
+            if not policy_active
+            else "blocked_deadline"
+            if deadline is None
+            else result.get("status", "complete")
+        )
+        checkpoint.update(
+            status="complete"
+            if detail_status in {"complete", "partial", "unresolved"}
+            else detail_status,
+            detail_status=detail_status,
+            completed_at=datetime.now(UTC).isoformat(),
+        )
+        job.checkpoint = json.dumps(checkpoint, separators=(",", ":"))
+        job.status = "succeeded"
+        job.error = None
+        job.lease_owner = job.lease_until = None
+        return {"status": detail_status, "job_id": str(job_id), "result": result}
 
 
 @dataclass(slots=True)
@@ -142,9 +540,10 @@ def _retained_evidence_current_for_project(
         source = source or session.get(Source, observation.source_id)
     if source is None:
         return False
-    if source.id.startswith("research-public-") and assessment.get(
-        "acquisition_capture_version"
-    ) != CAPTURE_VERSION:
+    if (
+        source.id.startswith("research-public-")
+        and assessment.get("acquisition_capture_version") != CAPTURE_VERSION
+    ):
         # Older public captures selected only a main container. Preserve their
         # history, but require a complete bounded capture before current use.
         return False
@@ -425,6 +824,10 @@ def enrich_buying_chain(
     *,
     source_urls: list[str] | None = None,
     fetcher: Callable[[str], PublicDocument] = retrieve,
+    prefetched_documents: dict[str, PublicDocument] | None = None,
+    retrieval_failures: dict[str, str] | None = None,
+    prefetched_houston_detail: PublicDocument | None = None,
+    houston_detail_prefetched: bool = False,
     now: datetime | None = None,
     retained_only: bool = False,
 ) -> dict:
@@ -480,64 +883,9 @@ def enrich_buying_chain(
             )
         )
     urls: list[str] = []
-    retained_permit = project.source_id == "chicago-building-permits" and any(
-        chicago_contacts(doc.text) for doc, _, _, _ in documents
+    urls, retained_permit = _public_research_plan(
+        session, project, documents, supplied, previous_run
     )
-    retained_permit = retained_permit or (
-        project.source_id == GEORGIA
-        and any(georgia_identity(doc.text) for doc, _, _, _ in documents)
-    )
-    retained_permit = retained_permit or (
-        project.source_id
-        in {
-            "austin-building-permits",
-            "dallas-monthly-permits",
-            "el-paso-new-commercial-permits",
-            "houston-weekly-permits",
-            "texas-rrc-drilling-permits",
-            "boston-building-permits",
-        }
-        and any(permit_facts(project.source_id, doc.text) for doc, _, _, _ in documents)
-    )
-    if retained_permit:
-        # The ordinary permit worker refreshes these accepted fields. A redundant
-        # network round trip must not be required to make retained evidence useful.
-        pass
-    elif project.source_id == "chicago-building-permits" and project.external_id.isdigit():
-        registered_source = session.get(Source, project.source_id)
-        if registered_source and registered_source.endpoint.startswith(
-            "https://data.cityofchicago.org/resource/"
-        ):
-            urls.append(
-                registered_source.endpoint.split("?")[0]
-                + "?"
-                + urlencode(
-                    {
-                        "$where": f"id='{project.external_id}'",
-                        "$limit": 1,
-                    }
-                )
-            )
-    else:
-        urls.extend(doc.url for doc, _, _, _ in documents[:2])
-    urls.extend(supplied)
-    # Recheck previously supported role sources within the same small fetch bound.
-    if previous_run:
-        for evidence_id in previous_run.evidence_ids:
-            previous_evidence = session.get(BuyingChainEvidence, UUID(evidence_id))
-            if (
-                previous_evidence
-                and previous_evidence.retained_evidence_id is None
-                and not (
-                    project.source_id == "houston-weekly-permits"
-                    and "/ibi_apps/WFServlet.ibfs" in previous_evidence.url
-                )
-                and not (
-                    retained_permit and previous_evidence.url in {d.url for d, _, _, _ in documents}
-                )
-            ):
-                urls.append(previous_evidence.url)
-    urls = list(dict.fromkeys(urls))
     checked_urls: set[str] = set()
     retrieval_failed = False
     # Network budget is independent of retained-document count.
@@ -553,7 +901,17 @@ def enrich_buying_chain(
             continue
         checked_urls.add(url)
         try:
-            doc = retrieve(url, deadline=deadline) if fetcher is retrieve else fetcher(url)
+            if prefetched_documents is not None:
+                doc = prefetched_documents.get(url)
+                if doc is None:
+                    retrieval_failed = True
+                    unresolved.append(
+                        f"Public retrieval unavailable for {url}: "
+                        f"{(retrieval_failures or {}).get(url, 'Unavailable')}."
+                    )
+                    continue
+            else:
+                doc = retrieve(url, deadline=deadline) if fetcher is retrieve else fetcher(url)
             validate_public_url(doc.url)
             matched, reason = project_document_match(project, doc)
             documents.append((doc, matched, reason, None))
@@ -578,7 +936,21 @@ def enrich_buying_chain(
         permit_fields = {item["label"]: item["value"] for item in parsed_permit}
         # The XLSX permit type is an official exact-project search selector only
         # where the UI result supplied this same mapping (Building Pmt -> 13).
-        if permit_fields.get("Permit type") == "Building Pmt":
+        if permit_fields.get("Permit type") == "Building Pmt" and houston_detail_prefetched:
+            if prefetched_houston_detail is not None:
+                documents.append(
+                    (
+                        prefetched_houston_detail,
+                        True,
+                        "Exact Houston sold permit project, permit type, date and site "
+                        "match the selected project.",
+                        None,
+                    )
+                )
+            else:
+                retrieval_failed = True
+                unresolved.append("Exact Houston permit detail unavailable: PublicRetrievalError.")
+        elif permit_fields.get("Permit type") == "Building Pmt":
             try:
                 detail = retrieve_detail(
                     permit_fields.get("Source record", ""),
@@ -971,9 +1343,7 @@ def buying_chain_views(
         .where(
             BuyingChainEvidence.project_id.in_(project_ids),
             BuyingChainEvidence.retained_evidence_id.is_(None),
-            BuyingChainEvidence.url.like(
-                "https://cohtora.houstontx.gov/ibi_apps/WFServlet.ibfs%"
-            ),
+            BuyingChainEvidence.url.like("https://cohtora.houstontx.gov/ibi_apps/WFServlet.ibfs%"),
         )
         .order_by(BuyingChainEvidence.last_seen_at.desc())
     ):
@@ -1163,9 +1533,7 @@ def buying_chain_view(
             )
             if row.retained_evidence_id:
                 original = (
-                    None
-                    if preload is not None
-                    else session.get(Evidence, row.retained_evidence_id)
+                    None if preload is not None else session.get(Evidence, row.retained_evidence_id)
                 )
                 # The accepted observation version is authoritative for retained
                 # fields. Native lines and earlier live JSON use different quote

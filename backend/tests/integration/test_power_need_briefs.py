@@ -56,10 +56,37 @@ def runtime(monkeypatch):
     service = import_module("gridlens.intelligence.briefs")
     api = import_module("gridlens.api.app")
     worker = import_module("gridlens.jobs.worker")
+    legacy_calls = import_module("gridlens.integrations.legacy_calls")
     monkeypatch.setattr(service, "SessionLocal", factory)
     monkeypatch.setattr(api, "SessionLocal", factory)
     monkeypatch.setattr(worker, "SessionLocal", factory)
+    monkeypatch.setattr(legacy_calls, "SessionLocal", factory)
     monkeypatch.setattr(settings, "openai_api_key", SecretStr("synthetic-key"))
+    monkeypatch.setattr(settings, "intelligence_enabled", True)
+    monkeypatch.setattr(settings, "intelligence_mode", "advisory")
+    monkeypatch.setattr(settings, "intelligence_enabled_contracts", "POWER_NEED_BRIEF")
+    monkeypatch.setattr(settings, "intelligence_openai_enabled", True)
+    monkeypatch.setattr(settings, "intelligence_research_enabled", True)
+    monkeypatch.setattr(
+        settings, "intelligence_openai_reasoning_model", settings.openai_brief_model
+    )
+    monkeypatch.setattr(
+        settings,
+        "intelligence_openai_reasoning_priced_model_id",
+        settings.openai_brief_model,
+    )
+    monkeypatch.setattr(settings, "intelligence_openai_reasoning_pricing_verified", True)
+    monkeypatch.setattr(settings, "intelligence_openai_reasoning_max_output_tokens", 700)
+    monkeypatch.setattr(settings, "intelligence_openai_reasoning_input_usd_per_million", 1)
+    monkeypatch.setattr(settings, "intelligence_openai_reasoning_output_usd_per_million", 1)
+    monkeypatch.setattr(settings, "intelligence_max_call_usd", 1)
+    monkeypatch.setattr(settings, "intelligence_max_active_calls", 5)
+    monkeypatch.setattr(settings, "briefs_daily_request_limit", 100)
+    for scope in ("global", "provider", "model", "source", "project"):
+        monkeypatch.setattr(settings, f"intelligence_{scope}_daily_calls", 100)
+        monkeypatch.setattr(settings, f"intelligence_{scope}_monthly_calls", 1000)
+        monkeypatch.setattr(settings, f"intelligence_{scope}_daily_usd", 100)
+        monkeypatch.setattr(settings, f"intelligence_{scope}_monthly_usd", 1000)
     with factory.begin() as session:
         source = Source(
             id="brief-test-permits",
@@ -1786,6 +1813,7 @@ def test_rejected_provider_output_keeps_usage_and_safe_reason(runtime, monkeypat
             },
             123,
             45,
+            settings.openai_brief_model,
         )
 
     monkeypatch.setattr(service, "_provider", rejected)
@@ -1797,9 +1825,74 @@ def test_rejected_provider_output_keeps_usage_and_safe_reason(runtime, monkeypat
         assert (row.input_tokens, row.output_tokens) == (123, 45)
 
 
+@pytest.mark.parametrize(
+    ("raw", "expected_reason"),
+    [
+        (
+            {
+                "id": "resp-brief-model-mismatch",
+                "model": "unconfigured-alias",
+                "usage": {"input_tokens": 123, "output_tokens": 45},
+                "output": [],
+            },
+            "MODEL_IDENTITY_MISMATCH",
+        ),
+        (
+            {
+                "id": "resp-brief-output-overbound",
+                "model": "gpt-5-mini",
+                "usage": {"input_tokens": 123, "output_tokens": 701},
+                "output": [],
+            },
+            "ENFORCED_OUTPUT_BOUND_EXCEEDED",
+        ),
+    ],
+)
+def test_brief_received_invalid_output_quarantines_metadata_before_local_rejection(
+    runtime, monkeypatch, raw, expected_reason
+):
+    factory, service, (need_id, _evidence_id) = runtime
+    if expected_reason == "ENFORCED_OUTPUT_BOUND_EXCEEDED":
+        raw = {**raw, "model": settings.openai_brief_model}
+    with factory.begin() as session:
+        requested = _request_due_brief(session, service, need_id)
+    leased = _lease(factory, UUID(requested["job_id"]))
+    assert leased
+    job, fence = leased
+    from gridlens.integrations import intelligence_provider
+    from gridlens.persistence.models import LogicalCall
+
+    def invalid_output(*_args, **_kwargs):
+        raise intelligence_provider.ProviderResponseError(
+            "synthetic completed invalid brief output",
+            request_id="req-brief-invalid-output",
+            response_received=True,
+            raw_response=raw,
+            reported_model=raw["model"],
+            reported_usage=raw["usage"],
+        )
+
+    monkeypatch.setattr(intelligence_provider, "call_openai_request", invalid_output)
+    service.process_brief_job(job.id, "brief-test-worker", fence)
+    with factory() as session:
+        call = session.scalar(select(LogicalCall))
+        row = session.get(PowerNeedBrief, need_id)
+    assert call and call.status == "SENT_OUTCOME_UNKNOWN"
+    assert call.blocked_reason == f"BILLING_QUARANTINE:{expected_reason}"
+    assert call.result_payload["billing_quarantine"]["response"]["provider_request_id"] == (
+        "req-brief-invalid-output"
+    )
+    assert row and row.status == "failed"
+
+
 def _valid_model_result(_payload, facts):
     fact_id = next(iter(facts))
-    return {"selected_fact_ids": [fact_id], "hypothesis_fact_id": fact_id}, 120, 40
+    return (
+        {"selected_fact_ids": [fact_id], "hypothesis_fact_id": fact_id},
+        120,
+        40,
+        settings.openai_brief_model,
+    )
 
 
 def _request_due_brief(session, service, need_id):

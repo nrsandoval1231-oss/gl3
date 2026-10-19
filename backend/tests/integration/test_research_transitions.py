@@ -1076,8 +1076,11 @@ def test_retained_native_rrc_inspection_preserves_truth_and_replay(retained_rrc,
     def forbidden(*_args, **_kwargs):
         pytest.fail("Retained RRC inspection must not perform network acquisition")
 
-    for name in ("acquire_registered_record", "retrieve", "discover_urls"):
+    for name in ("acquire_registered_record", "retrieve"):
         monkeypatch.setattr(worker, name, forbidden)
+    from gridlens.ingestion.adapters import pursuit_acquisition
+
+    monkeypatch.setattr(pursuit_acquisition, "discover_urls", forbidden)
     with factory.begin() as session:
         need = session.get(PowerNeed, need_id)
         project = session.get(Project, need.project_id)

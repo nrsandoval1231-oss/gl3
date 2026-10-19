@@ -113,6 +113,31 @@ test('navigation ignores a late enrichment result and limits repeated requests',
   await expect(page.getByRole('heading', { name: 'Test Electrical two' })).toBeVisible()
 })
 
+test('queued buying-chain job survives reload and polls to a truthful terminal state', async ({ page }) => {
+  let reads = 0
+  await shell(page, async (route) => {
+    if (route.request().method() === 'POST') {
+      await route.fulfill({ contentType: 'application/json', body: JSON.stringify({
+        ...chain('one'), research_job: { id: 'job-1', status: 'queued', detail_status: 'queued', created_at: stamp },
+      }) })
+      return
+    }
+    reads += 1
+    const state = reads < 5 ? 'queued' : 'succeeded'
+    await route.fulfill({ contentType: 'application/json', body: JSON.stringify({
+      ...chain('one'), research_job: { id: 'job-1', status: state, detail_status: state, created_at: stamp },
+    }) })
+  })
+  const section = page.getByRole('region', { name: 'Buying chain' })
+  await section.getByRole('button', { name: 'Enrich buying chain' }).click()
+  await expect(section.getByRole('status')).toContainText('queued')
+  await page.reload()
+  await expect(section.getByRole('status')).toContainText('queued')
+  await expect.poll(() => reads).toBeGreaterThanOrEqual(5)
+  await expect(section.getByRole('status')).toHaveCount(0)
+  await expect(section.getByRole('heading', { name: 'Test Electrical one' })).toBeVisible()
+})
+
 test('mobile buying chain keeps unknown and empty results readable', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await shell(page, async (route) => {

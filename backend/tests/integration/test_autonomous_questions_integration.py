@@ -11,6 +11,7 @@ from sqlalchemy.orm import sessionmaker
 from gridlens.domain.commercial_triage import build_card
 from gridlens.intelligence.pursuit_questions import schedule_questions
 from gridlens.jobs.queue import lease_one
+from gridlens.jobs.retry import jittered_delay_seconds
 from gridlens.persistence.database import Base
 from gridlens.persistence.models import (
     Evidence,
@@ -39,12 +40,14 @@ def runtime(monkeypatch):
     Base.metadata.create_all(engine)
     factory = sessionmaker(engine, expire_on_commit=False)
     worker = import_module("gridlens.intelligence.autonomous_research")
+    legacy_calls = import_module("gridlens.integrations.legacy_calls")
     question_scheduler = import_module("gridlens.intelligence.pursuit_questions")
     api = import_module("gridlens.api.app")
     monkeypatch.setattr(
         api, "_unpatched_commercial_triage_cards", api._commercial_triage_cards, raising=False
     )
     monkeypatch.setattr(worker, "SessionLocal", factory)
+    monkeypatch.setattr(legacy_calls, "SessionLocal", factory)
     monkeypatch.setattr(api, "SessionLocal", factory)
     monkeypatch.setattr(
         question_scheduler,
@@ -125,6 +128,43 @@ def runtime(monkeypatch):
     yield factory, worker, api, card
     Base.metadata.drop_all(engine)
     engine.dispose()
+
+
+def enable_fake_firecrawl(monkeypatch, factory, question_id):
+    """Enable finite ledger dispatch while acquisition adapters remain test fakes."""
+    from decimal import Decimal
+
+    from pydantic import SecretStr
+
+    monkeypatch.setattr(settings, "intelligence_enabled", True)
+    monkeypatch.setattr(settings, "intelligence_mode", "advisory")
+    monkeypatch.setattr(
+        settings,
+        "intelligence_enabled_contracts",
+        "FIRECRAWL_SEARCH_V2,FIRECRAWL_SCRAPE_V2",
+    )
+    monkeypatch.setattr(settings, "intelligence_research_enabled", True)
+    monkeypatch.setattr(settings, "intelligence_max_active_calls", 2)
+    monkeypatch.setattr(settings, "intelligence_max_call_usd", Decimal("0.1"))
+    monkeypatch.setattr(settings, "autonomous_research_max_cost_usd", Decimal("1"))
+    monkeypatch.setattr(settings, "autonomous_research_max_searches", 2)
+    for scope in ("global", "provider", "model", "source", "project"):
+        monkeypatch.setattr(settings, f"intelligence_{scope}_daily_calls", 10)
+        monkeypatch.setattr(settings, f"intelligence_{scope}_monthly_calls", 100)
+        monkeypatch.setattr(settings, f"intelligence_{scope}_daily_usd", Decimal("1"))
+        monkeypatch.setattr(settings, f"intelligence_{scope}_monthly_usd", Decimal("10"))
+    monkeypatch.setattr(settings, "firecrawl_api_key", SecretStr("synthetic-test-only"))
+    monkeypatch.setattr(settings, "firecrawl_search_cost_usd", Decimal("0.001"))
+    monkeypatch.setattr(settings, "firecrawl_scrape_cost_usd", Decimal("0.01"))
+    with factory.begin() as session:
+        question = session.get(PursuitResearchQuestion, question_id)
+        question.budget = {
+            **question.budget,
+            "max_cost_usd": "1",
+            "searches": 2,
+            "documents": 2,
+            "urls": 4,
+        }
 
 
 def schedule(factory, card, **kwargs):
@@ -268,8 +308,6 @@ def test_free_get_and_unconfigured_extraction_recover_same_evidence(runtime, mon
     import time
     from decimal import Decimal
 
-    from pydantic import SecretStr
-
     from gridlens.ingestion.adapters.buying_chain_public import (
         PublicDocument,
         PublicExtractionUnavailable,
@@ -289,8 +327,9 @@ def test_free_get_and_unconfigured_extraction_recover_same_evidence(runtime, mon
         raise PublicExtractionUnavailable("JavaScript shell")
 
     monkeypatch.setattr(worker, "retrieve", free_get_fails)
+    acquisition = import_module("gridlens.ingestion.adapters.pursuit_acquisition")
     monkeypatch.setattr(
-        worker,
+        acquisition,
         "extract_public_document",
         lambda *_args, **_kwargs: pytest.fail("Unavailable extraction must not dispatch"),
     )
@@ -310,8 +349,7 @@ def test_free_get_and_unconfigured_extraction_recover_same_evidence(runtime, mon
     recovery_id = recovery_ids[0]
     recovery_job, recovery_fence = lease_question(factory, recovery_id)
     monkeypatch.setattr(settings, "autonomous_research_max_cost_usd", Decimal("1"))
-    monkeypatch.setattr(settings, "firecrawl_api_key", SecretStr("test"))
-    monkeypatch.setattr(settings, "firecrawl_scrape_cost_usd", Decimal("0.01"))
+    enable_fake_firecrawl(monkeypatch, factory, recovery_id)
     with factory.begin() as session:
         row = session.get(PursuitResearchQuestion, recovery_id)
         row.budget = {**row.budget, "max_cost_usd": "1"}
@@ -330,7 +368,7 @@ def test_free_get_and_unconfigured_extraction_recover_same_evidence(runtime, mon
         return PublicDocument(url, "Project update", "Bounded public project content")
 
     monkeypatch.setattr(worker, "retrieve", free_get_fails)
-    monkeypatch.setattr(worker, "extract_public_document", successful_mocked_extraction)
+    monkeypatch.setattr(acquisition, "extract_public_document", successful_mocked_extraction)
     monkeypatch.setattr(
         worker,
         "retain_research_document",
@@ -376,9 +414,7 @@ def test_mixed_completed_and_failed_checks_use_bounded_retry_chain(runtime):
             row = session.get(PursuitResearchQuestion, retry_id)
             budget = row.budget
         started = time.monotonic()
-        run = worker.QuestionRun(
-            job_id, "question-test", fence, retry_id, started, budget
-        )
+        run = worker.QuestionRun(job_id, "question-test", fence, retry_id, started, budget)
         accepted_evidence_id = str(uuid4())
         accepted_evidence_ids.append(accepted_evidence_id)
         run.record(
@@ -424,8 +460,15 @@ def test_mixed_completed_and_failed_checks_use_bounded_retry_chain(runtime):
                 exhausted_at = completed.retry_after + timedelta(seconds=1)
             else:
                 assert completed.receipt["retry_class"] == "BOUNDED_TRANSIENT"
+                delay_seconds = jittered_delay_seconds(
+                    str(retry_id), retry_index + 1, delay_hours * 3600, ceiling_seconds=24 * 3600
+                )
+                assert delay_seconds == jittered_delay_seconds(
+                    str(retry_id), retry_index + 1, delay_hours * 3600, ceiling_seconds=24 * 3600
+                )
+                assert 1 <= delay_seconds <= min(delay_hours * 3600 * 1.2, 24 * 3600)
                 assert completed.retry_after == completed.completed_at + timedelta(
-                    hours=delay_hours
+                    seconds=delay_seconds
                 )
                 retry_after = completed.retry_after
 
@@ -734,7 +777,8 @@ def test_worker_empty_bounded_search_is_explicit_unresolved_without_network(runt
         pytest.fail("No exact record or configured discovery provider permits a network call")
 
     monkeypatch.setattr(worker, "retrieve", forbidden)
-    monkeypatch.setattr(worker, "discover_urls", forbidden)
+    acquisition = import_module("gridlens.ingestion.adapters.pursuit_acquisition")
+    monkeypatch.setattr(acquisition, "discover_urls", forbidden)
     monkeypatch.setattr(worker, "acquire_registered_record", forbidden)
     worker.process_question_job(job_id, "question-test", fence)
     with factory() as session:
@@ -743,7 +787,7 @@ def test_worker_empty_bounded_search_is_explicit_unresolved_without_network(runt
         assert row.attempt_count == 1
         assert row.receipt["source_checks"] == []
         assert row.receipt["searches"] == row.receipt["model_calls"] == 0
-        assert row.receipt["cost_usd"] == "0"
+        assert row.receipt["cost_usd"] is None
         assert row.receipt["acquisition_limitations"]
         assert row.retry_after <= row.completed_at + timedelta(hours=2)
         assert row.receipt["before"] == row.receipt["after"] == "RESEARCH"
@@ -755,17 +799,25 @@ def test_worker_empty_bounded_search_is_explicit_unresolved_without_network(runt
 def test_unconfigured_route_is_retryable_after_provider_recovery(runtime, monkeypatch):
     from decimal import Decimal
 
-    from pydantic import SecretStr
-
     factory, worker, _, card = runtime
     question_id = schedule(factory, card)[0]
     job_id, fence = lease_question(factory, question_id)
-    for name in ("retrieve", "discover_urls", "acquire_registered_record"):
-        monkeypatch.setattr(
-            worker,
-            name,
-            lambda *_args, **_kwargs: pytest.fail("Unconfigured provider must not be called"),
-        )
+    monkeypatch.setattr(
+        worker,
+        "retrieve",
+        lambda *_args, **_kwargs: pytest.fail("Unconfigured provider must not be called"),
+    )
+    monkeypatch.setattr(
+        worker,
+        "acquire_registered_record",
+        lambda *_args, **_kwargs: pytest.fail("Unconfigured provider must not be called"),
+    )
+    acquisition = import_module("gridlens.ingestion.adapters.pursuit_acquisition")
+    monkeypatch.setattr(
+        acquisition,
+        "discover_urls",
+        lambda *_args, **_kwargs: pytest.fail("Unconfigured provider must not be called"),
+    )
     worker.process_question_job(job_id, "question-test", fence)
     with factory() as session:
         row = session.get(PursuitResearchQuestion, question_id)
@@ -782,16 +834,16 @@ def test_unconfigured_route_is_retryable_after_provider_recovery(runtime, monkey
     with factory.begin() as session:
         row = session.get(PursuitResearchQuestion, recovered[0])
         row.budget = {**row.budget, "max_cost_usd": "1"}
-    monkeypatch.setattr(settings, "firecrawl_api_key", SecretStr("test"))
-    monkeypatch.setattr(settings, "firecrawl_search_cost_usd", Decimal("0.001"))
     recovery_id = recovered[0]
+    enable_fake_firecrawl(monkeypatch, factory, recovery_id)
     recovery_job, recovery_fence = lease_question(factory, recovery_id)
 
     def successful_empty_search(_query, **kwargs):
         kwargs["before_request"]("https://api.firecrawl.dev/v2/search")
         return []
 
-    monkeypatch.setattr(worker, "discover_urls", successful_empty_search)
+    acquisition = import_module("gridlens.ingestion.adapters.pursuit_acquisition")
+    monkeypatch.setattr(acquisition, "discover_urls", successful_empty_search)
     worker.process_question_job(recovery_job, "question-test", recovery_fence)
     with factory() as session:
         checked = session.get(PursuitResearchQuestion, recovery_id)
@@ -804,20 +856,18 @@ def test_unconfigured_route_is_retryable_after_provider_recovery(runtime, monkey
 def test_search_timeout_keeps_unknown_effect_across_force(runtime, monkeypatch):
     from decimal import Decimal
 
-    from pydantic import SecretStr
-
     factory, worker, _, card = runtime
     monkeypatch.setattr(settings, "autonomous_research_max_cost_usd", Decimal("1"))
     question_id = schedule(factory, card)[0]
     job_id, fence = lease_question(factory, question_id)
-    monkeypatch.setattr(settings, "firecrawl_api_key", SecretStr("test"))
-    monkeypatch.setattr(settings, "firecrawl_search_cost_usd", Decimal("0.001"))
+    enable_fake_firecrawl(monkeypatch, factory, question_id)
 
     def timed_out(_query, **kwargs):
         kwargs["before_request"]("https://api.firecrawl.dev/v2/search")
         raise TimeoutError("simulated response timeout after request dispatch")
 
-    monkeypatch.setattr(worker, "discover_urls", timed_out)
+    acquisition = import_module("gridlens.ingestion.adapters.pursuit_acquisition")
+    monkeypatch.setattr(acquisition, "discover_urls", timed_out)
     worker.process_question_job(job_id, "question-test", fence)
     with factory() as session:
         row = session.get(PursuitResearchQuestion, question_id)
@@ -830,9 +880,6 @@ def test_search_timeout_keeps_unknown_effect_across_force(runtime, monkeypatch):
 
 def test_extraction_timeout_preserves_unknown_paid_effect(runtime, monkeypatch):
     import time
-    from decimal import Decimal
-
-    from pydantic import SecretStr
 
     from gridlens.ingestion.adapters.buying_chain_public import PublicExtractionUnavailable
 
@@ -841,8 +888,7 @@ def test_extraction_timeout_preserves_unknown_paid_effect(runtime, monkeypatch):
     job_id, fence = lease_question(factory, question_id)
     with factory() as session:
         budget = {**session.get(PursuitResearchQuestion, question_id).budget, "max_cost_usd": "1"}
-    monkeypatch.setattr(settings, "firecrawl_api_key", SecretStr("test"))
-    monkeypatch.setattr(settings, "firecrawl_scrape_cost_usd", Decimal("0.01"))
+    enable_fake_firecrawl(monkeypatch, factory, question_id)
     run = worker.QuestionRun(job_id, "question-test", fence, question_id, time.monotonic(), budget)
 
     def direct_fails(*_args, **_kwargs):
@@ -853,11 +899,12 @@ def test_extraction_timeout_preserves_unknown_paid_effect(runtime, monkeypatch):
         raise TimeoutError("simulated extraction timeout after dispatch")
 
     monkeypatch.setattr(worker, "retrieve", direct_fails)
-    monkeypatch.setattr(worker, "extract_public_document", extract_times_out)
+    acquisition = import_module("gridlens.ingestion.adapters.pursuit_acquisition")
+    monkeypatch.setattr(acquisition, "extract_public_document", extract_times_out)
     worker._research_public_url(run, "https://publisher.example/document")
     with factory() as session:
         row = session.get(PursuitResearchQuestion, question_id)
-        assert row.receipt["inflight_url"] == "https://publisher.example/document"
+        assert row.receipt["inflight_url"] == "https://api.firecrawl.dev/v2/scrape"
         assert row.receipt["ambiguous_effects"][-1]["status"] == "UNKNOWN"
         assert row.receipt["firecrawl_extractions"] == 1
     card["input_hash"] = "new-evidence-after-ambiguous-extraction"
@@ -1248,10 +1295,6 @@ def test_expiry_cleanup_is_atomic_and_preserves_already_terminal_question(runtim
 def test_retained_public_urls_precede_discovery_without_recasting_official_sources(
     runtime, monkeypatch, family, method, public_expected
 ):
-    from decimal import Decimal
-
-    from pydantic import SecretStr
-
     from gridlens.ingestion.adapters.buying_chain_public import PublicDocument
     from gridlens.persistence.models import NeedObservation, Observation
 
@@ -1296,10 +1339,10 @@ def test_retained_public_urls_precede_discovery_without_recasting_official_sourc
         kwargs["before_request"]("https://api.firecrawl.dev/v2/search")
         return []
 
-    monkeypatch.setattr(settings, "firecrawl_api_key", SecretStr("test"))
-    monkeypatch.setattr(settings, "firecrawl_search_cost_usd", Decimal("0.001"))
+    enable_fake_firecrawl(monkeypatch, factory, question_id)
     monkeypatch.setattr(worker, "retrieve", retrieve_public)
-    monkeypatch.setattr(worker, "discover_urls", search)
+    acquisition = import_module("gridlens.ingestion.adapters.pursuit_acquisition")
+    monkeypatch.setattr(acquisition, "discover_urls", search)
     monkeypatch.setattr(
         worker,
         "retain_research_document",
@@ -1311,7 +1354,9 @@ def test_retained_public_urls_precede_discovery_without_recasting_official_sourc
         },
     )
     worker.process_question_job(job_id, "question-test", fence)
-    assert "discovery" in events
+    with factory() as session:
+        research_receipt = session.get(PursuitResearchQuestion, question_id).receipt
+    assert "discovery" in events, f"events={events!r}; receipt={research_receipt!r}"
     assert events[0] == ("public" if public_expected else "discovery")
     assert events.count("public") == int(public_expected)
     with factory() as session:
@@ -1403,8 +1448,7 @@ def test_planning_discovers_supported_need_beyond_shortlist_without_splitting_gr
         session.add_all([*needs, grouped])
         session.flush()
         shortlist = [
-            {**card, "id": str(need.id), "related_need_ids": [str(need.id)]}
-            for need in needs
+            {**card, "id": str(need.id), "related_need_ids": [str(need.id)]} for need in needs
         ]
         shortlist[0]["related_need_ids"].append(str(grouped.id))
     monkeypatch.setattr(api, "_commercial_triage_cards", lambda *_: shortlist)
@@ -1603,9 +1647,7 @@ def test_real_projection_groups_outside_shortlist_before_research_planning(runti
 
     planned = worker.planning_cards()
     pair_cards = [card for card in planned if pair_ids.intersection(card["related_need_ids"])]
-    assert len(pair_cards) == 1, [
-        (card["id"], card["related_need_ids"]) for card in pair_cards
-    ]
+    assert len(pair_cards) == 1, [(card["id"], card["related_need_ids"]) for card in pair_cards]
     pair_card = pair_cards[0]
     assert set(pair_card["related_need_ids"]) == pair_ids
     assert pair_card["reason"].startswith(
@@ -1642,9 +1684,10 @@ def test_real_projection_groups_outside_shortlist_before_research_planning(runti
         pair_states = pair_questions[0].context["before"]["related_need_states"]
         assert {state["held"] for state in pair_states} == {False, True}
         assert len(pair_card["related_need_ids"]) == 2
-        assert schedule_questions(
-            session, [pair_card, nearby_cards[0]], grouped=True, now=first_day
-        ) == []
+        assert (
+            schedule_questions(session, [pair_card, nearby_cards[0]], grouped=True, now=first_day)
+            == []
+        )
 
     monkeypatch.setattr(settings, "autonomous_research_daily_questions", 1)
     second_day = first_day + timedelta(days=1)
@@ -1690,11 +1733,21 @@ def test_unexpected_question_worker_failure_uses_bounded_retry_and_keeps_receipt
         assert job.status == "failed"
         completed_at = question.completed_at
         if delay:
-            assert question.retry_after == completed_at + timedelta(hours=delay)
+            delay_seconds = jittered_delay_seconds(
+                str(question_id), retry_index + 1, delay * 3600, ceiling_seconds=24 * 3600
+            )
+            assert delay_seconds == jittered_delay_seconds(
+                str(question_id), retry_index + 1, delay * 3600, ceiling_seconds=24 * 3600
+            )
+            assert 1 <= delay_seconds <= min(delay * 3600 * 1.2, 24 * 3600)
+            assert question.retry_after == completed_at + timedelta(seconds=delay_seconds)
+            retry_after = question.retry_after
+        else:
+            retry_after = None
     next_attempts = schedule(
         factory,
         card,
-        now=completed_at + timedelta(hours=(delay or 48), seconds=1),
+        now=(retry_after or completed_at + timedelta(hours=48)) + timedelta(seconds=1),
     )
     assert bool(next_attempts) is (delay is not None)
     if next_attempts:
@@ -1723,9 +1776,7 @@ def test_unexpected_failure_with_paid_effect_blocks_changed_forced_refresh(
     )
     assert job_worker.run_one({}, job_ids=[job_id])
     changed = {**card, "input_hash": "changed-after-ambiguous-effect"}
-    assert schedule(
-        factory, changed, force=True, now=datetime.now(UTC) + timedelta(days=2)
-    ) == []
+    assert schedule(factory, changed, force=True, now=datetime.now(UTC) + timedelta(days=2)) == []
     with factory() as session:
         question = session.get(PursuitResearchQuestion, question_id)
         assert question.receipt["retry_class"] == "UNKNOWN_EFFECT"

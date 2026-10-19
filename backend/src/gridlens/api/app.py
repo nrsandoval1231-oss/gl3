@@ -18,6 +18,7 @@ from sqlalchemy import Date, Text, and_, cast, func, or_, select
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import joinedload
 
+from gridlens.api.intelligence import router as intelligence_router
 from gridlens.api.verticals import vertical_source_tags
 from gridlens.domain.buying_chain import BuyingChainOut, BuyingEnrichBody
 from gridlens.domain.call_facts import (
@@ -60,9 +61,10 @@ from gridlens.intelligence.briefs import (
     request_brief,
 )
 from gridlens.intelligence.buying_chain import (
+    buying_chain_job_status,
     buying_chain_view,
     buying_chain_views,
-    enrich_buying_chain,
+    enqueue_buying_chain_research,
 )
 from gridlens.intelligence.lifecycle_service import lifecycle_event_supported
 from gridlens.intelligence.opportunity_browse import (
@@ -121,6 +123,7 @@ from gridlens.security import (
 from gridlens.settings import settings
 
 app = FastAPI(title="GridLens API", version="1.0.0", openapi_url=None)
+app.include_router(intelligence_router)
 WorkflowStatusFilter = Literal[
     "UNKNOWN", "NEW", "INVESTIGATING", "CONTACTED", "QUALIFIED", "WON", "LOST", "CLOSED"
 ]
@@ -1211,7 +1214,12 @@ def health():
             for state in session.scalars(select(PlannerState))
         }
         freshness_states = []
-        from gridlens.jobs.worker import _due_key, _scheduled_instants, _source_registry_drift
+        from gridlens.jobs.source_schedule_proof import verified_schedule_success
+        from gridlens.jobs.worker import (
+            _due_key,
+            _scheduled_instants,
+            _source_registry_drift,
+        )
 
         for row in rows:
             definition = definitions.get(row.id, {})
@@ -1344,7 +1352,30 @@ def health():
                     ):
                         invalid_receipt = True
                         continue
-                    successes += 1
+                    next_scheduled_for = None
+                    try:
+                        next_cursor = scheduled_for + timedelta(microseconds=1)
+                        next_slots = _scheduled_instants(
+                            epoch,
+                            epoch.effective_until or checked_at + timedelta(days=400),
+                            not_before=next_cursor,
+                        )
+                        next_scheduled_for = next(next_slots, None)
+                        if epoch.effective_until is not None and (
+                            next_scheduled_for is None or epoch.effective_until < next_scheduled_for
+                        ):
+                            next_scheduled_for = epoch.effective_until
+                    except (AttributeError, KeyError, TypeError, ValueError, OverflowError):
+                        next_scheduled_for = None
+                    if verified_schedule_success(
+                        due=due,
+                        receipt=receipt,
+                        job=job,
+                        next_scheduled_for=next_scheduled_for,
+                    ):
+                        successes += 1
+                    else:
+                        invalid_receipt = True
                 elif receipt.disposition in {"failed", "partial", "unknown"}:
                     if job.status not in {"queued", "failed", "succeeded"}:
                         invalid_receipt = True
@@ -3849,7 +3880,9 @@ def set_source_enabled_endpoint(source_id: str, body: SourceEnabledIn, request: 
 def project_buying_chain(project_id: UUID, history: bool = False):
     with SessionLocal() as session:
         try:
-            return buying_chain_view(session, project_id, history=history)
+            result = buying_chain_view(session, project_id, history=history)
+            result["research_job"] = buying_chain_job_status(session, project_id)
+            return result
         except LookupError as exc:
             raise HTTPException(404, "Project not found") from exc
 
@@ -3898,9 +3931,10 @@ def enrich_project_buying_chain(
     require_same_origin(request)
     with SessionLocal.begin() as session:
         try:
-            return enrich_buying_chain(
-                session, project_id, source_urls=body.source_urls if body else []
-            )
+            enqueue_buying_chain_research(session, project_id, body.source_urls if body else [])
+            result = buying_chain_view(session, project_id)
+            result["research_job"] = buying_chain_job_status(session, project_id)
+            return result
         except LookupError as exc:
             raise HTTPException(404, "Project not found") from exc
         except ValueError as exc:
@@ -5113,6 +5147,9 @@ def commercial_triage_history(
                             func.octet_length(PursuitCallNote.note)
                             + func.octet_length(PursuitCallNote.outcome)
                             + func.octet_length(PursuitCallNote.next_action)
+                            + func.octet_length(
+                                func.coalesce(cast(PursuitCallNote.intelligence_review, Text), "")
+                            )
                         ),
                     )
                     .where(PursuitCallNote.pursuit_id.in_(history_ids))
@@ -5282,6 +5319,9 @@ def commercial_triage_history_detail(pursuit_id: UUID):
                             func.octet_length(PursuitCallNote.note)
                             + func.octet_length(PursuitCallNote.outcome)
                             + func.octet_length(PursuitCallNote.next_action)
+                            + func.octet_length(
+                                func.coalesce(cast(PursuitCallNote.intelligence_review, Text), "")
+                            )
                         ),
                         0,
                     )

@@ -1938,7 +1938,9 @@ def test_saved_browse_parity_through_real_fact_accept_correct_reject_and_source_
             try:
                 current_generation(session)
             except HTTPException:
-                assert maintain_once(factory)["status"] == "published"
+                maintain_once(factory)
+                with factory() as fresh_session:
+                    current_generation(fresh_session)
         with factory() as session:
             saved = page(
                 session,

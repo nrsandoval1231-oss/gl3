@@ -5,7 +5,18 @@ from gridlens.persistence.models import Base
 
 
 def test_editorial_endpoints_are_not_registered():
-    assert not any(route.path.startswith("/api/editorial/") for route in app.routes)
+    def registered_paths(routes):
+        for route in routes:
+            path = getattr(route, "path", None)
+            if isinstance(path, str):
+                yield path
+            nested = getattr(route, "routes", None)
+            if nested is None:
+                nested = getattr(getattr(route, "router", None), "routes", None)
+            if nested:
+                yield from registered_paths(nested)
+
+    assert not any(path.startswith("/api/editorial/") for path in registered_paths(app.routes))
 
 
 def test_openapi_has_no_editorial_paths_or_request_models():

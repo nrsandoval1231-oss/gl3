@@ -9,8 +9,7 @@ from datetime import date, datetime
 from typing import Any
 from uuid import UUID
 
-import httpx
-
+from gridlens.integrations.intelligence_provider import call_typesafe
 from gridlens.intelligence.evidence_judge import Choice, EventType, InvalidJudgment, Judgment, Level
 
 MODEL = "jev-latest"
@@ -42,7 +41,9 @@ def choice_question(instructions: str, choices: dict[str, str]) -> dict:
     }
 
 
-def parse_typesafe_response(data: dict) -> tuple[Judgment, str, int | None, int | None]:
+def parse_typesafe_response(
+    data: dict, *, expected_model: str = MODEL
+) -> tuple[Judgment, str, int | None, int | None]:
     try:
         answers = data["answers"]
         expected = {
@@ -87,13 +88,14 @@ def parse_typesafe_response(data: dict) -> tuple[Judgment, str, int | None, int 
             ):
                 raise ValueError("invalid choice probability distribution")
             raw[name] = answer["choice"]
-        usage = data.get("usage")
-        if (
-            not isinstance(data.get("model"), str)
-            or not data["model"]
-            or not isinstance(usage, dict)
-        ):
-            raise ValueError("missing model or usage")
+        usage_value = data.get("usage")
+        if not isinstance(data.get("model"), str) or not data["model"]:
+            raise ValueError("missing model")
+        if data["model"] != expected_model:
+            raise ValueError("unexpected model")
+        if usage_value is not None and not isinstance(usage_value, dict):
+            raise ValueError("invalid usage")
+        usage = usage_value if isinstance(usage_value, dict) else {}
         counts = []
         for key in ("input_tokens", "output_tokens"):
             count = usage.get(key)
@@ -108,12 +110,22 @@ def parse_typesafe_response(data: dict) -> tuple[Judgment, str, int | None, int 
 
 
 class TypesafeEvidenceJudge:
-    def __init__(self, api_key: str, *, timeout: float = 12.0, caller: Any = httpx.post):
-        self.api_key, self.timeout, self.caller = api_key, timeout, caller
+    def __init__(
+        self,
+        api_key: str,
+        *,
+        model: str = MODEL,
+        timeout: float = 12.0,
+        caller: Any | None = None,
+    ):
+        self.api_key, self.model, self.timeout, self.caller = api_key, model, timeout, caller
 
-    def judge(self, state: dict, evidence: dict, candidates: list[dict]) -> tuple[Judgment, dict]:
+    @staticmethod
+    def build_request(
+        state: dict, evidence: dict, candidates: list[dict], *, model: str = MODEL
+    ) -> dict:
         request = {
-            "model": MODEL,
+            "model": model,
             "state": {
                 "project": {
                     "project_id": state.get("project_id"),
@@ -172,18 +184,35 @@ class TypesafeEvidenceJudge:
         # before the HTTP boundary so serialization failures cannot masquerade as calls.
         request = _json_safe(request)
         json.dumps(request, allow_nan=False)
+        return request
+
+    def judge(self, state: dict, evidence: dict, candidates: list[dict]) -> tuple[Judgment, dict]:
+        request = self.build_request(state, evidence, candidates, model=self.model)
         started = time.monotonic()
-        response = self.caller(
-            "https://api.typesafe.ai/v1/systemone",
-            headers={"Authorization": f"Bearer {self.api_key}"},
-            json=request,
-            timeout=self.timeout,
+        if self.caller is None:
+            data = call_typesafe(
+                api_key=self.api_key,
+                model=self.model,
+                payload={key: value for key, value in request.items() if key != "model"},
+                timeout_seconds=self.timeout,
+            )
+            latency_ms = data.get("provider_latency_ms", int((time.monotonic() - started) * 1000))
+        else:
+            response = self.caller(
+                "https://api.typesafe.ai/v1/systemone",
+                headers={"Authorization": f"Bearer {self.api_key}"},
+                json=request,
+                timeout=self.timeout,
+            )
+            response.raise_for_status()
+            data = response.json()
+            latency_ms = int((time.monotonic() - started) * 1000)
+        judgment, model, input_tokens, output_tokens = parse_typesafe_response(
+            data, expected_model=self.model
         )
-        response.raise_for_status()
-        judgment, model, input_tokens, output_tokens = parse_typesafe_response(response.json())
         return judgment, {
             "model": model,
-            "latency_ms": int((time.monotonic() - started) * 1000),
+            "latency_ms": latency_ms,
             "input_tokens": input_tokens,
             "output_tokens": output_tokens,
         }

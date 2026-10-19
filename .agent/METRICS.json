@@ -1,31 +1,105 @@
 {
-  "lane": "full-new-implementation",
-  "controller_model": "inherited",
+  "initiative": "intelligence-integration-20261018",
+  "lane": "full-integration",
+  "controller_model": "inherited; exact active identity UNKNOWN",
   "builder_model": "gpt-6-luna",
+  "builder_reasoning": "low",
   "review_model": "gpt-6-sol",
-  "config_identity": "user engineering controls + repository AGENTS.md + agent-harness skill",
-  "opening_tribunal": "completed once; Luna/Terra/Sol",
+  "review_reasoning": "medium",
+  "config_identity": "owner full A-G prompt + Nick engineering controls + repository AGENTS + agent-harness",
+  "opening_tribunal": "completed exactly once Luna/Terra/Sol",
+  "started_utc": null,
+  "finished_utc": null,
   "planning_seconds": null,
   "build_seconds": null,
-  "validation_seconds": 57,
-  "audit_seconds": 204,
+  "validation_seconds": null,
+  "audit_seconds": null,
   "elapsed_to_accepted_seconds": null,
-  "tokens": "UNKNOWN",
+  "tokens": null,
   "repair_count": null,
-  "formal_review_repair_packets": 1,
-  "acceptance": "PASS: immediate local ingestion slice only",
-  "timing_note": "Uninstrumented durations, development repair count and token use are UNKNOWN; no speedup claim. Builder/review handoffs record their observed UTC times. Formal review repair packets are counted separately.",
-  "validation_started_at_utc": "2026-09-25T20:04:36Z",
-  "validation_finished_at_utc": "2026-09-25T20:05:33Z",
-  "validation_scope": "Measured final frozen-candidate gate window only; earlier development/runtime validation duration UNKNOWN.",
-  "audit_attempts": [
+  "formal_reviews": [
     {
+      "candidate": "5daeb72212cf1493a714457e9be4e3b4bfe8235d",
       "verdict": "FIX",
-      "seconds": 153
+      "duration_seconds": null
     },
     {
-      "verdict": "PASS",
-      "seconds": 51
+      "candidate": "6d88afd405786a8c812299f196f976968841edc1",
+      "verdict": "FIX",
+      "duration_seconds": null,
+      "findings": "TypeSafe output billing bound; scheduler unbounded catch-up/backdated success; structured continuation gap",
+      "artifact": ".artifacts/INTELLIGENCE-20261018/final-attempt2-6d88/independent-review-6d88-fix.json"
     }
-  ]
+  ],
+  "acceptance": "Governed by matching final/release-manifest.json and independent-review.json under initiative artifacts; absent or mismatched receipt is not acceptance. Parent live proof remains OPEN.",
+  "timing_note": "Uninstrumented timing, usage and total repairs UNKNOWN. Per-command elapsed output and observed UTC handoffs in ignored artifacts. No speedup claim. Historical metrics archived unchanged.",
+  "latest_aborted_validation": {
+    "candidate_sha": "9391984ea3899318df7eab5c2946e075cc48d6c9",
+    "reason": "Independent adapter-boundary FIX; controller stopped already-failed pytest",
+    "pytest_elapsed_seconds": 394.137,
+    "full_suite_pass": false,
+    "artifact": ".artifacts/INTELLIGENCE-20261018/final-attempt6-9391984",
+    "browser_passed": 136,
+    "browser_failed": 10,
+    "browser_skipped": 1,
+    "browser_elapsed_seconds": 313.306,
+    "accepted": false
+  },
+  "latest_rejected_full_run": {
+    "candidate_sha": "8c3d3c2ee627b74cb3fb50dd6b9d5d813bb4daca",
+    "passed": 2064,
+    "failed": 1,
+    "setup_errors": 0,
+    "skipped": 3,
+    "subtests_passed": 7,
+    "pytest_elapsed_seconds": 459.1,
+    "artifact": ".artifacts/INTELLIGENCE-20261018/final-attempt4-8c3d3c2/pytest-full.log",
+    "independent_review": "FIX",
+    "tokens": "UNKNOWN",
+    "accepted": false
+  },
+  "latest_completed_backend_run": {
+    "candidate_sha": "cd8d9433b79728dd0a7253e7b85513a38df5040e",
+    "passed": 2108,
+    "skipped": 3,
+    "subtests_passed": 7,
+    "elapsed_seconds": 461.35,
+    "browser_passed": 147,
+    "browser_skipped": 1,
+    "independent_local_acceptance": true,
+    "parent_finish_contract": "OPEN",
+    "artifact": ".artifacts/INTELLIGENCE-20261018/final-accepted-cd8d943",
+    "successor_reason": "External controller reported near-midnight test status assumption; local PASS remains historical fact."
+  },
+  "active_boundary_repair": {
+    "node": "BROWSE-BOUNDARY-R1",
+    "lane": "Luna bounded test repair plus Sol independent review",
+    "base_sha": "cd8d9433b79728dd0a7253e7b85513a38df5040e",
+    "started_at": "2026-10-19T00:03:16Z",
+    "finished_at": null,
+    "tokens": null,
+    "config_identity": "Named Luna low; Sol medium; loaded configuration not independently inspected this continuation",
+    "planning_seconds": null,
+    "build_seconds": null,
+    "validation_seconds": null,
+    "audit_seconds": null,
+    "repair_count": 5,
+    "repair_count_note": "Observed: import cleanup; two current/future ID failures; list response-shape failure; independent non-vacuity strengthening. Raw early ID failures unavailable; explicitly summarized, not fabricated.",
+    "independent_diagnostic": "CORRECT current versus prepared ID; pre-freeze FIX non-vacuity exact seeded IDs.",
+    "build_finished_at": "2026-10-19T00:13:08.198245Z",
+    "controller_development_validation": {
+      "passed": 131,
+      "skipped": 1,
+      "elapsed_seconds": 95.751,
+      "pytest_seconds": 93.91,
+      "scope": "two modules before final non-vacuity strengthening"
+    },
+    "post_strengthening_focused": {
+      "passed": 2,
+      "pytest_seconds": 2.75,
+      "ruff": 0,
+      "diff": 0
+    },
+    "direction": "VALIDATE frozen full candidate"
+  }
 }

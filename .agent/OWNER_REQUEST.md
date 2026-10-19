@@ -1,5 +1,17 @@
 # Owner request
 
+## Current initiative: October 18 intelligence integration
+
+Implement the complete strategy integration A-G in the existing application,
+following the owner's full build prompt. Reuse existing modules and preserve
+canonical requirements and editorial removal. The strategy's original Packet-A
+limit and historical clean-sheet wording below are superseded for this initiative.
+Complete unblocked code, migrations, tests, UI, configuration and runbooks before
+requesting missing activation input. No routine approvals. No invented budgets,
+outreach, deployment or production changes. Actual seven daily cycles, provider
+receipts and owner commercial review require real evidence. Current baseline and
+implementation record: docs/delivery/intelligence-integration.md and WORK_GRAPH.md.
+
 ## Status after GL3-018
 
 Main contains a runnable application through merged GL3-018 (PR #8, `7f24174`). GL3-017 is merged as PR #7 (`1f18a01`). The brief below is the original starting request and is retained. Its inspected commit did not yet contain a runnable application; that description is historical. Deployment, national coverage, Prospect/Lead gates, and milestone E remain open. Standalone planning/entitlement admission remains an owner decision.

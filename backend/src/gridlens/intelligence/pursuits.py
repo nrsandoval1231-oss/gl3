@@ -25,7 +25,7 @@ from gridlens.ingestion.adapters.buying_chain_public import PublicDocument
 from gridlens.ingestion.adapters.retained_permits import fields
 from gridlens.ingestion.service import _need_has_current_support
 from gridlens.intelligence.buying_chain import buying_chain_view, enrich_buying_chain
-from gridlens.intelligence.signal_adjudication import adjudicate
+from gridlens.intelligence.signal_adjudication import POLICY_VERSION as SIGNAL_POLICY_VERSION
 from gridlens.jobs.queue import assert_fence
 from gridlens.persistence.database import SessionLocal
 from gridlens.persistence.models import (
@@ -40,6 +40,7 @@ from gridlens.persistence.models import (
     PursuitCallNote,
     PursuitDocument,
     PursuitResearchRun,
+    SignalDecision,
     Source,
 )
 from gridlens.settings import settings
@@ -526,7 +527,14 @@ def _snapshot(
         "Corporate-source discovery is not configured in this app runtime; "
         "permit-listed names and routes do not verify current employment or buyer authority"
     )
-    unknowns += [v for v in model_states if "unavailable" in v or "error" in v]
+    unknowns += [
+        value
+        for value in model_states
+        if any(
+            marker in value.casefold()
+            for marker in ("unknown", "unavailable", "error", "pending", "paused")
+        )
+    ]
     if conflicts:
         next_action = (
             f"Verify the city/state scope and physical work identity at "
@@ -602,6 +610,7 @@ def note_view(note: PursuitCallNote) -> dict:
             "next_action",
             "follow_up",
             "owner",
+            "intelligence_review",
             "created_at",
         )
     }
@@ -1016,37 +1025,65 @@ def process_research_job(job_id: UUID, worker_id: str, fence: int) -> None:
                     "screen": screen(fresh_facts, group["source_id"], datetime.now(UTC).date()),
                 }
             model_states = []
-            if settings.typesafe_api_key and batch_models < MAX_MODELS:
-                # Jev interprets only existing retained, evidence-bound input. It is
-                # not a public-source retriever, buyer verifier or promotion gate.
-                for record in group["records"][:1]:
-                    try:
-                        obs = session.get(Observation, UUID(record["observation_id"]))
-                        evidence = session.get(Evidence, UUID(record["evidence_id"]))
-                        assert obs and evidence
-                        from gridlens.intelligence.signal_adjudication import _jev_call
-
-                        decision = adjudicate(
-                            session,
-                            obs,
-                            evidence,
-                            retry_errors=True,
-                            caller=lambda state, key: _jev_call(
-                                state, key, on_request=lambda: debit(model=True)
+            # Source ingestion owns new Jev judgments. Legacy pursuit research
+            # may reuse only the exact current evidence/policy result; it must
+            # never turn a research refresh into a second paid adjudication.
+            for record in group["records"][:1]:
+                try:
+                    obs = session.get(Observation, UUID(record["observation_id"]))
+                    evidence = session.get(Evidence, UUID(record["evidence_id"]))
+                    if obs is None or evidence is None:
+                        model_states.append(
+                            "Signal evidence adjudication remains UNKNOWN: exact retained "
+                            "observation/evidence is unavailable."
+                        )
+                        continue
+                    prior_decision = session.scalar(
+                        select(SignalDecision)
+                        .where(
+                            SignalDecision.observation_id == obs.id,
+                            SignalDecision.content_hash == evidence.content_hash,
+                            SignalDecision.policy_version == SIGNAL_POLICY_VERSION,
+                        )
+                        .order_by(SignalDecision.id.desc())
+                    )
+                    cached_valid = bool(
+                        prior_decision
+                        and prior_decision.source in {"deterministic", "jev"}
+                        and prior_decision.decision
+                        and (prior_decision.source != "jev" or prior_decision.model_version)
+                    )
+                    if cached_valid and prior_decision is not None:
+                        model_states.append(
+                            "Signal evidence adjudication: reused exact current "
+                            f"{prior_decision.source} decision / {prior_decision.decision}."
+                        )
+                        continue
+                    exhausted = (
+                        daily_usage(session, model=True) >= settings.pursuits_daily_model_limit
+                        or batch_models >= MAX_MODELS
+                        or time.monotonic() >= deadline
+                    )
+                    if exhausted:
+                        failure(
+                            "Evidence-bound Jev adjudication",
+                            ResearchBudgetExceeded(
+                                "Daily or batch research request cap/deadline reached; "
+                                "work is paused and previous findings retain their "
+                                "actual freshness"
                             ),
                         )
-                        if decision.source == "jev_error":
-                            errors.append(
-                                f"Jev {decision.dimensions.get('status', 'provider_unavailable')}; "
-                                "evidence retained "
-                                "and interpretation deferred for a later bounded research job."
-                            )
                         model_states.append(
-                            f"Jev/display evidence adjudication: "
-                            f"{decision.source} / {decision.decision}"
+                            "Signal evidence adjudication remains UNKNOWN; research is "
+                            "paused at its model request budget."
                         )
-                    except Exception as exc:
-                        failure("Evidence-bound Jev adjudication", exc)
+                    else:
+                        model_states.append(
+                            "Signal evidence adjudication remains UNKNOWN pending the "
+                            "source pipeline; legacy pursuit research made no model request."
+                        )
+                except Exception as exc:
+                    failure("Exact source-pipeline signal decision lookup", exc)
             try:
                 # Retained permit fields reuse existing buying enrichment with no
                 # extra network, then the view conservatively labels permit people.

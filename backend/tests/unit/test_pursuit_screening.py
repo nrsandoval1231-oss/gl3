@@ -43,6 +43,16 @@ def group(data=None, source=AUSTIN):
     }
 
 
+def test_suite_guard_rejects_external_http_before_transport():
+    import httpx
+
+    transport = httpx.HTTPTransport()
+    request = httpx.Request("GET", "https://example.invalid/blocked")
+    with pytest.raises(pytest.fail.Exception, match="Test attempted external HTTP"):
+        transport.handle_request(request)
+    transport.close()
+
+
 def test_explicit_scope_beats_transformers_without_inferred_mw_or_delay():
     explicit = screen([facts()], AUSTIN, TODAY)
     transformer = screen([facts("Expand Data Center with 2 AE Transformers")], AUSTIN, TODAY)
@@ -171,19 +181,23 @@ def test_jev_retry_requests_each_consume_budget(monkeypatch):
     )
     requests, debits = [], []
 
-    def post(*args, **kwargs):
-        requests.append(1)
-        return httpx.Response(
-            429, request=httpx.Request("POST", "https://api.typesafe.ai/v1/systemone")
-        )
+    real_client = httpx.Client
+
+    def respond(request):
+        requests.append(request)
+        return httpx.Response(429, request=request)
+
+    def mock_client(*args, **kwargs):
+        return real_client(*args, transport=httpx.MockTransport(respond), **kwargs)
 
     def debit():
         if len(debits) >= 2:
             raise RuntimeError("Synthetic request budget exhausted")
         debits.append(1)
 
-    monkeypatch.setattr(jev.httpx, "post", post)
+    monkeypatch.setattr(jev.intelligence_provider.httpx, "Client", mock_client)
     monkeypatch.setattr(jev.time, "sleep", lambda _: None)
     with pytest.raises(RuntimeError, match="request budget exhausted"):
         jev._jev_call(state, "synthetic-key", on_request=debit)
     assert len(requests) == len(debits) == 2
+    assert all(request.url.host == "api.typesafe.ai" for request in requests)

@@ -5,6 +5,7 @@ from uuid import UUID, uuid4
 from sqlalchemy import (
     BigInteger,
     Boolean,
+    CheckConstraint,
     Date,
     DateTime,
     ForeignKey,
@@ -98,6 +99,57 @@ class SourceCheckReceipt(Base):
     )
 
 
+class SourceScheduleProgress(Base):
+    """Durable bounded materialization progress for one immutable schedule epoch."""
+
+    __tablename__ = "source_schedule_progress"
+    epoch_id: Mapped[UUID] = mapped_column(
+        ForeignKey("source_schedule_epochs.id", ondelete="CASCADE"), primary_key=True
+    )
+    recent_cursor: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    history_cursor: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_planned_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class SourceCollectionProgress(Base):
+    """Frozen checkpoint contract for resumable structured source collection."""
+
+    __tablename__ = "source_collection_progress"
+    __table_args__ = (
+        UniqueConstraint(
+            "source_id", "lane", "policy_digest", name="uq_source_collection_progress_key"
+        ),
+        CheckConstraint("length(policy_digest) = 64", name="ck_source_collection_progress_digest"),
+        CheckConstraint(
+            "length(CAST(cursor AS TEXT)) <= 8192",
+            name="ck_source_collection_progress_cursor_size",
+        ),
+        CheckConstraint(
+            "status IN ('incomplete', 'complete', 'partial', 'error')",
+            name="ck_source_collection_progress_status",
+        ),
+    )
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    source_id: Mapped[str] = mapped_column(ForeignKey("sources.id"), index=True)
+    lane: Mapped[str] = mapped_column(String(80))
+    policy_digest: Mapped[str] = mapped_column(String(64))
+    window_start: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    window_end: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    cursor: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, default=dict, server_default=text("'{}'::jsonb")
+    )
+    completed_through: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    status: Mapped[str] = mapped_column(
+        String(20), default="incomplete", server_default="incomplete"
+    )
+    error_class: Mapped[str | None] = mapped_column(String(80))
+    last_attempt_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.clock_timestamp()
+    )
+
+
 class PlannerState(Base):
     """Bounded retry and last-outcome state for an independent planner cycle."""
 
@@ -141,6 +193,13 @@ class AuthLoginBucket(Base):
 
 class Job(Base):
     __tablename__ = "jobs"
+    __table_args__ = (
+        Index(
+            "ix_jobs_project_monitor_active_source",
+            "source_id",
+            postgresql_where=text("kind = 'project_monitor' AND status IN ('queued', 'running')"),
+        ),
+    )
     id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
     source_id: Mapped[str] = mapped_column(ForeignKey("sources.id"))
     kind: Mapped[str] = mapped_column(String(30), default="ingestion", server_default="ingestion")
@@ -695,6 +754,7 @@ class PursuitCallNote(Base):
     outcome: Mapped[str] = mapped_column(String(40))
     next_action: Mapped[str] = mapped_column(Text)
     follow_up: Mapped[date | None] = mapped_column(Date)
+    intelligence_review: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -716,11 +776,12 @@ class InterconnectionFactVersion(Base):
 
 class EditorialDecision(Base):
     """Historical, append-only clearance record; no active workflow reads or writes it."""
-    __tablename__ = 'editorial_decisions'
+
+    __tablename__ = "editorial_decisions"
     sequence: Mapped[int] = mapped_column(BigInteger, Identity(), unique=True)
     id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
-    observation_id: Mapped[UUID] = mapped_column(ForeignKey('observations.id'), index=True)
-    evidence_id: Mapped[UUID] = mapped_column(ForeignKey('evidence.id'))
+    observation_id: Mapped[UUID] = mapped_column(ForeignKey("observations.id"), index=True)
+    evidence_id: Mapped[UUID] = mapped_column(ForeignKey("evidence.id"))
     evidence_hash: Mapped[str] = mapped_column(String(64))
     status: Mapped[str] = mapped_column(String(24))
     reviewer: Mapped[str] = mapped_column(String(100))
@@ -730,9 +791,10 @@ class EditorialDecision(Base):
 
 class EditorialAssessment(Base):
     """Historical assessment record retained for recovery; no active workflow uses it."""
-    __tablename__ = 'editorial_assessments'
+
+    __tablename__ = "editorial_assessments"
     id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
-    evidence_id: Mapped[UUID] = mapped_column(ForeignKey('evidence.id'), index=True)
+    evidence_id: Mapped[UUID] = mapped_column(ForeignKey("evidence.id"), index=True)
     evidence_hash: Mapped[str] = mapped_column(String(64))
     payload: Mapped[dict] = mapped_column(JSONB)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -833,3 +895,81 @@ class BrowseRow(Base):
     commercial_date: Mapped[int | None] = mapped_column(Integer)
     summary: Mapped[dict] = mapped_column(JSONB)
     compact: Mapped[dict] = mapped_column(JSONB)
+
+
+class LogicalCall(Base):
+    """Unique paid-call intent and durable record of provider dispatch uncertainty."""
+
+    __tablename__ = "logical_calls"
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    fingerprint: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    task_type: Mapped[str] = mapped_column(String(80))
+    task_key: Mapped[str] = mapped_column(String(200))
+    evidence_digest: Mapped[str] = mapped_column(String(64))
+    context_digest: Mapped[str] = mapped_column(String(64))
+    prompt_contract: Mapped[str] = mapped_column(String(120))
+    provider: Mapped[str] = mapped_column(String(80), index=True)
+    model: Mapped[str] = mapped_column(String(160), index=True)
+    policy_version: Mapped[str] = mapped_column(String(120))
+    source_id: Mapped[str | None] = mapped_column(String(100), index=True)
+    project_id: Mapped[UUID | None] = mapped_column(PGUUID(as_uuid=True), index=True)
+    lease_authority: Mapped[str] = mapped_column(String(12))
+    job_id: Mapped[UUID | None] = mapped_column(ForeignKey("jobs.id"), index=True)
+    worker_id: Mapped[str | None] = mapped_column(String(100))
+    status: Mapped[str] = mapped_column(String(32), index=True)
+    blocked_reason: Mapped[str | None] = mapped_column(String(80))
+    fence_token: Mapped[int] = mapped_column(Integer, default=0)
+    estimated_cost_usd: Mapped[Any] = mapped_column(Numeric(12, 6))
+    max_cost_usd: Mapped[Any] = mapped_column(Numeric(12, 6))
+    actual_cost_usd: Mapped[Any | None] = mapped_column(Numeric(14, 6))
+    input_tokens: Mapped[int | None] = mapped_column(BigInteger)
+    output_tokens: Mapped[int | None] = mapped_column(BigInteger)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    dispatched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    result_digest: Mapped[str | None] = mapped_column(String(64))
+    result_payload: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    budget_scopes: Mapped[list[dict[str, str]]] = mapped_column(JSONB, default=list)
+    reconciled_by: Mapped[str | None] = mapped_column(String(120))
+    reconciliation_ref: Mapped[str | None] = mapped_column(String(200))
+
+
+class LogicalCallBudget(Base):
+    """Atomic counted/cost reservation per scope and UTC daily or monthly period."""
+
+    __tablename__ = "logical_call_budgets"
+    __table_args__ = (
+        UniqueConstraint("scope", "period", "period_key", name="uq_call_budget_scope_period"),
+    )
+    id: Mapped[int] = mapped_column(BigInteger, Identity(), primary_key=True)
+    scope: Mapped[str] = mapped_column(String(220))
+    period: Mapped[str] = mapped_column(String(8))
+    period_key: Mapped[str] = mapped_column(String(10))
+    call_count: Mapped[int] = mapped_column(Integer, default=0)
+    cost_usd: Mapped[Any] = mapped_column(Numeric(14, 6), default=0)
+    active_count: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class LogicalCallSettlement(Base):
+    """Append-only operator supplied billing/usage receipt for a logical call."""
+
+    __tablename__ = "logical_call_settlements"
+    __table_args__ = (
+        UniqueConstraint("call_id", "receipt_ref", name="uq_call_settlement_receipt"),
+        CheckConstraint(
+            "actual_cost_usd IS NOT NULL OR input_tokens IS NOT NULL OR output_tokens IS NOT NULL",
+            name="ck_call_settlement_has_measurement",
+        ),
+    )
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    call_id: Mapped[UUID] = mapped_column(ForeignKey("logical_calls.id"), index=True)
+    actor: Mapped[str] = mapped_column(String(120))
+    receipt_ref: Mapped[str] = mapped_column(String(200))
+    settled_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    actual_cost_usd: Mapped[Any | None] = mapped_column(Numeric(14, 6))
+    input_tokens: Mapped[int | None] = mapped_column(BigInteger)
+    output_tokens: Mapped[int | None] = mapped_column(BigInteger)
+
+
+# Register the bounded monitoring tables with the same declarative metadata.
+from gridlens.persistence import watch_models as watch_models  # noqa: E402,F401

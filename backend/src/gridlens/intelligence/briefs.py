@@ -11,7 +11,6 @@ from typing import Any
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
-import httpx
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
@@ -448,6 +447,13 @@ def brief_view(row: PowerNeedBrief | None, fingerprint: str | None = None) -> di
 
 
 def request_brief(session: Session, need_id: UUID, question: str | None = None) -> dict:
+    from gridlens.intelligence.intelligence_jobs import _enabled
+
+    enabled, _provider, _model, blocked = _enabled("POWER_NEED_BRIEF")
+    if not enabled:
+        if blocked == "OPENAI_DISABLED_OR_KEY_MISSING":
+            blocked = "provider_not_configured"
+        raise BriefUnavailable(blocked)
     payload, _ = brief_input(session, need_id, question)
     fingerprint = _digest(payload)
     need = session.scalar(select(PowerNeed).where(PowerNeed.id == need_id).with_for_update())
@@ -554,12 +560,12 @@ def _validate_result(
     )
 
 
-def _provider(payload: dict, facts: dict[str, dict]) -> tuple[dict, int, int]:
-    if not settings.openai_api_key:
-        raise BriefUnavailable("provider_not_configured")
+def brief_request_payload(
+    payload: dict, facts: dict[str, dict], *, model: str | None = None
+) -> dict:
     schema = _response_schema(facts)
-    request = {
-        "model": settings.openai_brief_model,
+    return {
+        "model": model or settings.openai_brief_model,
         "store": False,
         "input": [
             {
@@ -621,30 +627,29 @@ def _provider(payload: dict, facts: dict[str, dict]) -> tuple[dict, int, int]:
             }
         },
     }
-    with httpx.Client(timeout=httpx.Timeout(25.0, connect=5.0)) as client:
-        response = client.post(
-            "https://api.openai.com/v1/responses",
-            headers={"Authorization": f"Bearer {settings.openai_api_key.get_secret_value()}"},
-            json=request,
-        )
-    response.raise_for_status()
-    body = response.json()
-    if body.get("status") != "completed" or body.get("incomplete_details"):
+
+
+def _provider(
+    payload: dict, facts: dict[str, dict]
+) -> tuple[dict, int | None, int | None, str | None]:
+    if not settings.openai_api_key:
+        raise BriefUnavailable("provider_not_configured")
+    request = brief_request_payload(payload, facts)
+    from gridlens.integrations.intelligence_provider import call_openai_request
+
+    body = call_openai_request(api_key=settings.openai_api_key.get_secret_value(), request=request)
+    if body.get("incomplete_details"):
         raise BriefUnavailable("provider_incomplete")
-    parts = [
-        item.get("text", "")
-        for output in body.get("output", [])
-        for item in output.get("content", [])
-        if item.get("type") == "output_text"
-    ]
-    if not parts:
+    raw = body.get("output")
+    if not isinstance(raw, dict):
         raise BriefUnavailable("provider_refusal_or_empty")
-    try:
-        raw = json.loads("".join(parts))
-    except json.JSONDecodeError as exc:
-        raise BriefUnavailable("provider_invalid_json") from exc
-    usage = body.get("usage") or {}
-    return raw, int(usage.get("input_tokens", 0)), int(usage.get("output_tokens", 0))
+    actual_model = body.get("model")
+    return (
+        raw,
+        body.get("input_tokens"),
+        body.get("output_tokens"),
+        actual_model if isinstance(actual_model, str) else None,
+    )
 
 
 def process_brief_job(job_id: UUID, worker_id: str, fence: int) -> None:
@@ -655,6 +660,13 @@ def process_brief_job(job_id: UUID, worker_id: str, fence: int) -> None:
             job.status, job.error = "failed", "missing_target"
             return
         checkpoint = json.loads(job.checkpoint) if job.checkpoint else {}
+        if checkpoint.get("reserved") and not checkpoint.get("logical_call_id"):
+            brief = session.get(PowerNeedBrief, need_id)
+            if brief:
+                brief.status, brief.error = "failed", "ambiguous_prior_request"
+            job.status, job.error = "failed", "ambiguous_prior_request"
+            job.lease_owner, job.lease_until = None, None
+            return
         question = checkpoint.get("commercial_question")
         payload, evidence = brief_input(session, need_id, question)
         facts = _fact_options(evidence, question=payload.get("commercial_question"))
@@ -664,11 +676,6 @@ def process_brief_job(job_id: UUID, worker_id: str, fence: int) -> None:
             if brief:
                 brief.status, brief.error = "failed", "input_changed_before_generation"
             job.status, job.error = "failed", "input_changed"
-            return
-        if checkpoint.get("reserved"):
-            brief.status, brief.error = "failed", "ambiguous_prior_request"
-            job.status, job.error = "failed", "ambiguous_prior_request"
-            job.lease_owner, job.lease_until = None, None
             return
         today = datetime.now(UTC).astimezone(ZoneInfo("America/Chicago")).date()
         session.execute(
@@ -680,14 +687,52 @@ def process_brief_job(job_id: UUID, worker_id: str, fence: int) -> None:
             select(BriefDailyBudget).where(BriefDailyBudget.day == today).with_for_update()
         )
         assert budget is not None
-        if budget.reserved_requests >= settings.briefs_daily_request_limit:
-            brief.status, brief.error = "unavailable", "daily_budget_exhausted"
-            job.status, job.error = "failed", "daily_budget_exhausted"
-            return
-        budget.reserved_requests += 1
-        job.checkpoint = json.dumps({"input_fingerprint": fingerprint, "reserved": True})
+        if checkpoint.get("reserved"):
+            if checkpoint.get("input_fingerprint") != fingerprint:
+                brief.status, brief.error = "failed", "input_changed_before_generation"
+                job.status, job.error = "failed", "input_changed"
+                return
+        else:
+            if budget.reserved_requests >= settings.briefs_daily_request_limit:
+                brief.status, brief.error = "unavailable", "daily_budget_exhausted"
+                job.status, job.error = "failed", "daily_budget_exhausted"
+                return
+            budget.reserved_requests += 1
+            job.checkpoint = json.dumps({"input_fingerprint": fingerprint, "reserved": True})
+        need = session.get(PowerNeed, need_id)
+        project = session.get(Project, need.project_id) if need else None
+        source_id = project.source_id if project else None
+        project_id = project.id if project else None
     try:
-        raw, input_tokens, output_tokens = _provider(payload, facts)
+        from gridlens.integrations.legacy_calls import perform_legacy_call
+
+        def save_intent(call_id: UUID) -> None:
+            with SessionLocal.begin() as session:
+                job = assert_fence(session, job_id, worker_id, fence)
+                checkpoint = json.loads(job.checkpoint or "{}")
+                checkpoint["logical_call_id"] = str(call_id)
+                job.checkpoint = json.dumps(checkpoint)
+
+        def invoke_provider() -> tuple[dict, int | None, int | None]:
+            value, input_count, output_count, actual_model = _provider(payload, facts)
+            return {"raw": value, "model": actual_model}, input_count, output_count
+
+        call_result = perform_legacy_call(
+            task_type="POWER_NEED_BRIEF",
+            task_key=f"{need_id}:{fingerprint}",
+            payload={"brief": payload, "facts": facts},
+            source_id=source_id,
+            project_id=project_id,
+            job_id=job_id,
+            worker_id=worker_id,
+            fence_token=fence,
+            invoke=invoke_provider,
+            before_dispatch=save_intent,
+        )
+        raw = call_result.result.get("raw")
+        input_tokens, output_tokens = call_result.input_tokens, call_result.output_tokens
+        if not isinstance(raw, dict):
+            raise BriefUnavailable("provider_invalid_json")
         server_unknowns = [
             *payload["need"]["unknowns"],
             "Whether the reported activity creates any temporary or backup power need is unknown.",
@@ -702,7 +747,8 @@ def process_brief_job(job_id: UUID, worker_id: str, fence: int) -> None:
                 brief.status = "failed"
                 brief.error = _safe_failure_code(exc)
                 if "input_tokens" in locals():
-                    brief.input_tokens, brief.output_tokens = input_tokens, output_tokens
+                    brief.input_tokens = input_tokens  # type: ignore[assignment]
+                    brief.output_tokens = output_tokens  # type: ignore[assignment]
             job.status, job.error = "failed", "brief_generation_failed"
             job.lease_owner = None
             job.lease_until = None
@@ -739,7 +785,8 @@ def process_brief_job(job_id: UUID, worker_id: str, fence: int) -> None:
             brief.generated_at = generated_at
             brief.policy_version, brief.schema_version = POLICY_VERSION, SCHEMA_VERSION
             brief.model = settings.openai_brief_model
-            brief.input_tokens, brief.output_tokens = input_tokens, output_tokens
+            brief.input_tokens = input_tokens  # type: ignore[assignment]
+            brief.output_tokens = output_tokens  # type: ignore[assignment]
             brief.status, brief.error = "ready", None
         elif brief:
             # An obsolete request must not downgrade a still-current cached result.
@@ -773,4 +820,10 @@ def _safe_failure_code(exc: Exception) -> str:
         return exc.args[0]
     if isinstance(exc, BriefUnavailable) and exc.args and exc.args[0] in allowed:
         return exc.args[0]
+    from gridlens.integrations.legacy_calls import LegacyCallBlocked, LegacyCallUnknown
+
+    if isinstance(exc, LegacyCallUnknown):
+        return "ambiguous_prior_request"
+    if isinstance(exc, LegacyCallBlocked):
+        return "shared_ledger_blocked"
     return "request_failed"

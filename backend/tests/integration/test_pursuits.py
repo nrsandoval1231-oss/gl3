@@ -12,7 +12,10 @@ from gridlens.ingestion.adapters.buying_chain_public import PublicDocument
 from gridlens.jobs.queue import enqueue, lease_one
 from gridlens.persistence.database import Base
 from gridlens.persistence.models import (
+    Evidence,
     Job,
+    LogicalCall,
+    Observation,
     PowerNeed,
     PowerNeedBrief,
     PowerNeedBriefVersion,
@@ -21,6 +24,7 @@ from gridlens.persistence.models import (
     PursuitCallNote,
     PursuitDocument,
     PursuitResearchRun,
+    SignalDecision,
     Source,
 )
 from gridlens.security import token_for
@@ -173,6 +177,46 @@ def execute(factory, service, *, source_id="austin-building-permits", force=True
         job, fence = leased
     service.process_research_job(job_id, "pursuit-test", fence)
     return job_id
+
+
+def seed_signal_evidence(
+    factory, service, *, decision=None, content_hash="a", policy_version=None
+):
+    group = service.candidates(None)[0]
+    record = group["records"][0]
+    service_module = import_module("gridlens.intelligence.signal_adjudication")
+    with factory.begin() as session:
+        observation = Observation(
+            id=UUID(record["observation_id"]),
+            source_id="austin-building-permits",
+            external_id="2026-100001 EP",
+            title="Synthetic ambiguous project",
+            content_hash="a",
+            url=record["url"],
+        )
+        session.add(observation)
+        session.flush()
+        evidence = Evidence(
+            id=UUID(record["evidence_id"]),
+            observation_id=observation.id,
+            content_hash="a",
+            title=observation.title,
+            url=observation.url,
+        )
+        session.add(evidence)
+        if decision is not None:
+            session.add(
+                SignalDecision(
+                    observation_id=observation.id,
+                    content_hash=content_hash,
+                    policy_version=policy_version or service_module.POLICY_VERSION,
+                    decision=decision,
+                    source="deterministic" if decision == "HOLD" else "jev",
+                    model_version=None if decision == "HOLD" else "jev-1.13.0",
+                    dimensions={"status": "synthetic"},
+                    reason="Synthetic test-only source-pipeline decision.",
+                )
+            )
 
 
 def test_live_research_contract_conflict_replay_notes_and_failure_persistence(runtime, monkeypatch):
@@ -592,7 +636,12 @@ def test_successful_ingestion_queues_same_worker_research_without_source_health_
     monkeypatch.setattr(
         worker,
         "process_job",
-        lambda *_args: {"new": 0, "changed": 0, "unchanged": 1, "latest_publication_date": None},
+        lambda *_args, **_kwargs: {
+            "new": 0,
+            "changed": 0,
+            "unchanged": 1,
+            "latest_publication_date": None,
+        },
     )
     with factory.begin() as session:
         job_id = enqueue(session, "austin-building-permits")
@@ -641,50 +690,112 @@ def test_daily_usage_counts_request_day_even_if_run_crosses_midnight(runtime):
 
 def test_model_budget_pause_survives_adjudicator_without_false_decision(runtime, monkeypatch):
     factory, service, _, _, _ = runtime
-    from gridlens.persistence.models import Evidence, Observation, SignalDecision
-
-    jev = import_module("gridlens.intelligence.signal_adjudication")
     from pydantic import SecretStr
 
     monkeypatch.setattr(settings, "typesafe_api_key", SecretStr("synthetic-key"))
     monkeypatch.setattr(settings, "pursuits_daily_model_limit", 0)
-    monkeypatch.setattr(jev, "deterministic_override", lambda *_args: None)
-    group = service.candidates(None)[0]
-    record = group["records"][0]
-    with factory.begin() as session:
-        observation = Observation(
-            id=UUID(record["observation_id"]),
-            source_id="austin-building-permits",
-            external_id="2026-100001 EP",
-            title="Synthetic ambiguous project",
-            content_hash="a",
-            url=record["url"],
-        )
-        session.add(observation)
-        session.flush()
-        session.add(
-            Evidence(
-                id=UUID(record["evidence_id"]),
-                observation_id=observation.id,
-                content_hash="a",
-                title=observation.title,
-                url=observation.url,
-            )
-        )
-
-    def call(state, key, on_request=None):
-        assert on_request
-        on_request()
-        raise AssertionError("Budget rejection must happen before a model request")
-
-    monkeypatch.setattr(jev, "_jev_call", call)
+    seed_signal_evidence(factory, service)
     execute(factory, service)
     with factory() as session:
         row = session.scalar(select(Pursuit))
         assert row.research_status == "partial"
+        assert any(
+            "Daily or batch research request cap" in error for error in row.research_errors
+        )
         assert any("work is paused" in error for error in row.research_errors)
         assert row.last_researched_at is None
         assert session.scalar(select(func.count()).select_from(SignalDecision)) == 0
+        run = session.scalar(select(PursuitResearchRun))
+        assert run.model_count == 0
+        assert session.scalar(select(func.count()).select_from(LogicalCall)) == 0
+        assert (
+            session.scalar(
+                select(func.count()).select_from(Job).where(Job.kind == "signal_adjudication")
+            )
+            == 0
+        )
+        assert any("remains UNKNOWN" in value for value in row.snapshot["unknowns"])
+
+
+def test_positive_legacy_model_cap_never_retries_missing_source_decision(runtime, monkeypatch):
+    factory, service, _, _, _ = runtime
+    from pydantic import SecretStr
+
+    monkeypatch.setattr(settings, "typesafe_api_key", SecretStr("synthetic-key"))
+    monkeypatch.setattr(settings, "pursuits_daily_model_limit", 10)
+    seed_signal_evidence(factory, service)
+    execute(factory, service)
+    with factory() as session:
+        row = session.scalar(select(Pursuit))
+        assert row.research_status == "succeeded"
+        assert any(
+            "source pipeline" in value for value in row.snapshot["unknowns"]
+        ), row.snapshot["unknowns"]
+        assert any("made no model request" in value for value in row.snapshot["unknowns"])
+        run = session.scalar(select(PursuitResearchRun))
+        assert run.model_count == 0
+        assert session.scalar(select(func.count()).select_from(LogicalCall)) == 0
+        assert session.scalar(select(func.count()).select_from(SignalDecision)) == 0
+        assert (
+            session.scalar(
+                select(func.count()).select_from(Job).where(Job.kind == "signal_adjudication")
+            )
+            == 0
+        )
+
+
+def test_exact_current_signal_decision_is_reused_without_credentials(runtime):
+    factory, service, _, _, _ = runtime
+    seed_signal_evidence(factory, service, decision="SHOW")
+    execute(factory, service)
+    with factory() as session:
+        row = session.scalar(select(Pursuit))
+        assert not any(
+            "Signal evidence adjudication remains" in value for value in row.snapshot["unknowns"]
+        )
+        run = session.scalar(select(PursuitResearchRun))
+        assert run.model_count == 0
+        assert session.scalar(select(func.count()).select_from(LogicalCall)) == 0
+        assert session.scalar(select(func.count()).select_from(SignalDecision)) == 1
+        assert (
+            session.scalar(
+                select(func.count()).select_from(Job).where(Job.kind == "signal_adjudication")
+            )
+            == 0
+        )
+
+
+@pytest.mark.parametrize(
+    ("stale_hash", "stale_policy"),
+    [("different-hash", None), ("a", "signal-display-old-policy")],
+)
+def test_stale_signal_decision_is_not_reused(runtime, monkeypatch, stale_hash, stale_policy):
+    factory, service, _, _, _ = runtime
+    monkeypatch.setattr(settings, "pursuits_daily_model_limit", 10)
+    seed_signal_evidence(
+        factory,
+        service,
+        decision="SHOW",
+        content_hash=stale_hash,
+        policy_version=stale_policy,
+    )
+    execute(factory, service)
+    with factory() as session:
+        row = session.scalar(select(Pursuit))
+        assert any(
+            "source pipeline" in value for value in row.snapshot["unknowns"]
+        ), (row.snapshot["unknowns"], row.research_errors)
+        assert not any("reused exact current" in value for value in row.snapshot["unknowns"])
+        run = session.scalar(select(PursuitResearchRun))
+        assert run.model_count == 0
+        assert session.scalar(select(func.count()).select_from(LogicalCall)) == 0
+        assert session.scalar(select(func.count()).select_from(SignalDecision)) == 1
+        assert (
+            session.scalar(
+                select(func.count()).select_from(Job).where(Job.kind == "signal_adjudication")
+            )
+            == 0
+        )
 
 
 @pytest.mark.parametrize("single_record", [False, True])
