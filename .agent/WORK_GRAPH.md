@@ -72,4 +72,4 @@ This isolated issue79 node does not replace or complete the main intelligence gr
 | PR87-PUB | same candidate; failed CI receipt | BLOCKED / cause UNPROVEN | Safe diagnostics and fault recovery tested; fourteen rebuild/rollback checks preserve canonical hashes. Intermittent CI503 not reproduced/repaired. |
 | PR87-ACCEPT | PR87-CALL, PR87-PUB | RELEASE FAIL / full backend pending | Source manifest f3a0e328; static/contracts/build/audits pass. Independent Sol confirms contact corrections, retains publication release blocker. |
 
-[Packet](packets/PR87-CALL.md). Source recovery a5e4cf9 paused. Publication, merge and deployment require later explicit approval of the concrete result.
+[Packet](packets/PR87-CALL.md). Source recovery a5e4cf9 paused. Owner authorized publication, CI diagnosis/fixes, merge and deployment at 20:30 UTC October 19, conditional on resolving the publication failure and passing exact-candidate release gates. Preserve external work, data, provider limits and infrastructure.
