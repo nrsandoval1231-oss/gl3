@@ -58,6 +58,7 @@ from gridlens.intelligence.briefs import (
     brief_input,
     brief_preview,
     brief_view,
+    brief_view_for_payload,
     request_brief,
 )
 from gridlens.intelligence.buying_chain import (
@@ -182,6 +183,8 @@ class OpportunityOut(BaseModel):
     signal_evidence_state: str = "active_evidence"
     required_mw: str | None
     commercial_size_status: str | None = None
+    qualified_remaining_gap: dict[str, Any] | None = None
+    qualification_version: str | None = None
     start_window: str | None
     duration: str | None
     supply: str
@@ -229,6 +232,33 @@ class OpportunityOut(BaseModel):
     priority_label: str | None = None
     browse_title: str | None = None
     evidence_count: int | None = None
+
+
+class PursuitWorkspaceItemOut(OpportunityOut):
+    commercial_disposition: str
+    commercial_reason: str
+    commercial_next_question: str
+    commercial_next_action: str
+    commercial_organization: str | None = None
+
+
+class PursuitWorkspaceCountsOut(BaseModel):
+    action_now: int
+    research: int
+    watch: int
+    reject: int
+
+
+class PursuitWorkspacePageOut(BaseModel):
+    items: list[PursuitWorkspaceItemOut]
+    total: int
+    counts: PursuitWorkspaceCountsOut
+    offset: int
+    limit: int
+    next_offset: int | None
+    cohort_token: str
+    count_unit: Literal["power needs"]
+    changes_available: bool
 
 
 class CallFactDraftBody(BaseModel):
@@ -879,6 +909,7 @@ class BriefContentOut(BaseModel):
     commercial_hypothesis: BriefStatementOut
     unknowns: list[str]
     next_step: str
+    commercial_question: str | None = None
 
 
 class BriefCitationOut(BaseModel):
@@ -898,6 +929,7 @@ class BriefOut(BaseModel):
     error: str | None = None
     input_tokens: int = 0
     output_tokens: int = 0
+    question_context: str = "current"
 
 
 class BriefRequestOut(BriefOut):
@@ -1222,6 +1254,7 @@ def health():
         )
 
         for row in rows:
+            health_data = row.health if isinstance(row.health, dict) else {}
             definition = definitions.get(row.id, {})
             epochs = session.scalars(
                 select(SourceScheduleEpoch)
@@ -1401,7 +1434,8 @@ def health():
             )
             info = {
                 "id": row.id,
-                **row.health,
+                **health_data,
+                "status": health_data.get("status") or "Unknown",
                 "family": row.family,
                 "geography": row.geography,
                 "enabled": effective_enabled,
@@ -1410,7 +1444,7 @@ def health():
                 "verified_successes_7d": successes,
                 "collection_scope": (
                     definition.get("collection_scope")
-                    or row.health.get("collection_scope")
+                    or health_data.get("collection_scope")
                     or row.geography
                 ),
             }
@@ -1423,12 +1457,12 @@ def health():
                 )
             elif definition.get("coverage_limitation"):
                 info["coverage_limitation"] = definition["coverage_limitation"]
-            last_attempt = row.health.get("last_attempt")
+            last_attempt = health_data.get("last_attempt")
             if (
                 effective_enabled
-                and info["status"] not in {"Running", "Failed", "RegistryUnavailable"}
+                and info["status"] not in {"Unknown", "Running", "Failed", "RegistryUnavailable"}
                 and (
-                    not last_attempt
+                    not health_data.get("last_attempt")
                     or datetime.fromisoformat(last_attempt)
                     < checked_at - timedelta(hours=row.cadence_hours)
                 )
@@ -1768,6 +1802,75 @@ def opportunities(
         if offset + len(page) < len(filtered):
             response.headers["X-Next-Offset"] = str(offset + len(page))
         return _bounded_opportunity_payload(output)
+
+
+@app.get(
+    "/api/opportunities/workspace",
+    response_model=PursuitWorkspacePageOut,
+    dependencies=[Depends(require_session)],
+)
+def pursuit_workspace(
+    request: Request,
+    search: str | None = None,
+    tier: Literal["Signal", "Prospect", "Lead"] | None = None,
+    disposition: Literal["ACTION NOW", "RESEARCH", "WATCH", "REJECT"] | None = None,
+    geography: str | None = None,
+    industry: str | None = None,
+    activity: str | None = None,
+    timing: Literal["KNOWN", "UNKNOWN"] | None = None,
+    mw_status: Literal["KNOWN", "UNKNOWN"] | None = None,
+    mw_min: str | None = None,
+    mw_max: str | None = None,
+    sort: Literal["priority", "project", "mw", "start", "updated"] = "priority",
+    limit: Annotated[int, Query(ge=1, le=50)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
+    cohort_token: str | None = None,
+):
+    accepted = {
+        "search", "tier", "disposition", "geography", "industry", "activity", "timing",
+        "mw_status", "mw_min", "mw_max", "sort", "limit", "offset", "cohort_token",
+    }
+    if set(request.query_params) - accepted:
+        raise HTTPException(422, "Unsupported workspace query parameter")
+    normalized = _normalized_browse_filters(
+        tier=tier,
+        decision=None,
+        geography=geography,
+        industry=industry,
+        activity=activity,
+        timing=timing,
+        mw_status=mw_status,
+        mw_min=mw_min,
+        mw_max=mw_max,
+        priority_segment=None,
+        status=None,
+        search=search,
+    )
+    filters = {
+        "search": (normalized["search"] or "")[:100].casefold().strip(),
+        "tier": normalized["tier"],
+        "disposition": disposition,
+        "geography": normalized["geography"],
+        "industry": normalized["industry"],
+        "activity": normalized["activity"],
+        "timing": normalized["timing"],
+        "mw_status": normalized["mw_status"],
+        "mw_min": normalized["mw_min"],
+        "mw_max": normalized["mw_max"],
+        "sort": sort,
+    }
+    with SessionLocal() as session:
+        _begin_consistent_read(session)
+        from gridlens.intelligence.pursuit_workspace import page
+
+        payload = page(session, filters, limit=limit, offset=offset, token=cohort_token)
+        _bounded_opportunity_payload(payload["items"])
+        if (
+            len(json.dumps(payload, default=str, separators=(",", ":")).encode("utf-8"))
+            > _MAX_OPPORTUNITY_PAGE_BYTES
+        ):
+            raise HTTPException(413, "Commercial workspace page exceeds the response byte budget")
+        return payload
 
 
 _OPPORTUNITY_MAP_WINDOW_LIMIT = 200
@@ -3565,6 +3668,28 @@ def opportunity_projection(
                 ),
                 "required_mw": effective["required_mw"],
                 "commercial_size_status": size_status,
+                "qualified_remaining_gap": (
+                    effective.get("qualified_remaining_gap")
+                    if effective["tier"] == "Lead"
+                    and isinstance(effective.get("qualified_remaining_gap"), dict)
+                    and effective.get("qualification_version")
+                    and not effective.get("qualification_conflict")
+                    and not effective.get("closed_by_fact")
+                    and not taylor_withdrawn
+                    and not taylor_identity_conflict
+                    else None
+                ),
+                "qualification_version": (
+                    effective.get("qualification_version")
+                    if effective["tier"] == "Lead"
+                    and isinstance(effective.get("qualified_remaining_gap"), dict)
+                    and effective.get("qualification_version")
+                    and not effective.get("qualification_conflict")
+                    and not effective.get("closed_by_fact")
+                    and not taylor_withdrawn
+                    and not taylor_identity_conflict
+                    else None
+                ),
                 "start_window": effective["start_window"],
                 "duration": effective["duration"],
                 "supply": effective["supply"],
@@ -3903,7 +4028,7 @@ def get_power_need_brief(need_id: UUID):
         except BriefUnavailable:
             payload = None
         row = session.get(PowerNeedBrief, need_id)
-        return brief_view(row, brief_fingerprint(payload) if payload else None)
+        return brief_view_for_payload(row, payload)
 
 
 @app.post(

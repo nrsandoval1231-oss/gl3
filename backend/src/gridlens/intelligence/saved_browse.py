@@ -82,37 +82,42 @@ def clock_deadline(session, now: datetime) -> datetime:
 
 
 def current_generation(session, *, now: datetime | None = None) -> BrowseGeneration:
-    now = now or datetime.now(UTC)
-    generation = session.scalar(
-        select(BrowseGeneration)
-        .join(
-            BrowseState,
-            or_(
-                BrowseState.generation_id == BrowseGeneration.id,
-                BrowseState.prepared_generation_id == BrowseGeneration.id,
-            ),
+    requested_now = now
+    # A writer may publish between our clock sample and the SELECT snapshot.
+    # Retry once with the actual clock, preserving explicit evaluation instants
+    # and every freshness predicate in the same session/transaction.
+    for _ in range(1 if requested_now is not None else 2):
+        now = requested_now if requested_now is not None else datetime.now(UTC)
+        generation = session.scalar(
+            select(BrowseGeneration)
+            .join(
+                BrowseState,
+                or_(
+                    BrowseState.generation_id == BrowseGeneration.id,
+                    BrowseState.prepared_generation_id == BrowseGeneration.id,
+                ),
+            )
+            .where(
+                BrowseState.id == 1,
+                BrowseState.input_revision == BrowseGeneration.input_revision,
+                BrowseGeneration.policy_version == POLICY_VERSION,
+                BrowseGeneration.valid_from <= now,
+                BrowseGeneration.valid_until > now,
+            )
+            .order_by(
+                BrowseGeneration.valid_from.desc(),
+                BrowseGeneration.built_at.desc(),
+                BrowseGeneration.id,
+            )
+            .limit(1)
         )
-        .where(
-            BrowseState.id == 1,
-            BrowseState.input_revision == BrowseGeneration.input_revision,
-            BrowseGeneration.policy_version == POLICY_VERSION,
-            BrowseGeneration.valid_from <= now,
-            BrowseGeneration.valid_until > now,
-        )
-        .order_by(
-            BrowseGeneration.valid_from.desc(),
-            BrowseGeneration.built_at.desc(),
-            BrowseGeneration.id,
-        )
-        .limit(1)
+        if generation is not None:
+            return generation
+    raise HTTPException(
+        503,
+        "Qualification pending: saved browse summaries need a retained-data rebuild",
+        headers={"Retry-After": "5", "X-Qualification-State": "pending"},
     )
-    if generation is None:
-        raise HTTPException(
-            503,
-            "Qualification pending: saved browse summaries need a retained-data rebuild",
-            headers={"Retry-After": "5", "X-Qualification-State": "pending"},
-        )
-    return generation
 
 
 def _search_texts(session, summaries: list[dict]) -> dict[str, str]:
@@ -182,6 +187,23 @@ def _write_rows(session, generation_id, summaries, *, check_budget=None):
         if check_budget is not None:
             check_budget()
         by_id = {str(item["id"]): item for item in details}
+        # Persist the compact commercial decision beside each canonical need row.
+        # This is built during generation publication so requests never scan the
+        # corpus or recompute business rules.
+        from gridlens.domain.commercial_triage import build_card
+        from gridlens.intelligence.buying_chain import buying_chain_views
+
+        chains = buying_chain_views(
+            session, {UUID(str(item["project_id"])) for item in details}
+        )
+        previews = {
+            str(item["id"]): build_card(
+                item,
+                chains.get(str(item["project_id"])),
+                api.chicago_today(),
+            )
+            for item in details
+        }
         values = []
         for summary in batch:
             detail = by_id.get(str(summary["id"]))
@@ -204,6 +226,14 @@ def _write_rows(session, generation_id, summaries, *, check_budget=None):
                 priority_label=api._opportunity_priority_label(summary),
                 workflow_status=summary.get("workflow_status", "UNKNOWN"),
             )
+            preview = previews[str(summary["id"])]
+            compact["commercial_preview"] = {
+                "disposition": preview.get("disposition", "WATCH"),
+                "reason": preview.get("reason", "Commercial assessment unavailable."),
+                "next_question": preview.get("next_question", ""),
+                "next_action": preview.get("next_action", ""),
+                "organization": preview.get("organization"),
+            }
             # Round-trip converts UUID/date/Decimal values for JSONB serialization.
             compact = json.loads(canonical_json(compact))
             saved_summary = json.loads(canonical_json(summary))

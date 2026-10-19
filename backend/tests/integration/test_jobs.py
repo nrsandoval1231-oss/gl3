@@ -47,6 +47,28 @@ def db():
     engine.dispose()
 
 
+def test_health_reports_unknown_when_source_has_no_health_status(db, monkeypatch):
+    _, factory = db
+    with factory.begin() as session:
+        source = session.get(Source, "synthetic-test-source")
+        assert source is not None
+        source.health = {}
+
+    from fastapi.testclient import TestClient
+
+    import gridlens.api.app as api
+    from gridlens.security import token_for
+
+    monkeypatch.setattr(api, "SessionLocal", factory)
+    client = TestClient(api.app, raise_server_exceptions=False)
+    client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
+    response = client.get("/api/health")
+    assert response.status_code == 200
+    source_health = response.json()["sources"][0]
+    assert source_health["status"] == "Unknown"
+    assert source_health["freshness"] == "UNKNOWN"
+
+
 def test_concurrent_enqueue_serializes_per_source(db):
     _, factory = db
     gate = Barrier(2)

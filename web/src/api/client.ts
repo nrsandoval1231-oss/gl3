@@ -35,6 +35,9 @@ export type OwnerFeedbackBody = { client_id: string; job_id: string; logical_cal
 
 export type BuyingChainResult = components['schemas']['BuyingChainOut']
 export type Opportunity = components['schemas']['OpportunityOut']
+export type WorkspaceNeed = components['schemas']['PursuitWorkspaceItemOut']
+export type WorkspacePage = components['schemas']['PursuitWorkspacePageOut']
+export type WorkspaceFilters = { search?: string; tier?: 'Signal' | 'Prospect' | 'Lead'; disposition?: string; geography?: string; industry?: string; activity?: string; timing?: 'KNOWN' | 'UNKNOWN'; mw_min?: string; mw_max?: string; sort?: 'priority' | 'project' | 'mw' | 'start' | 'updated'; offset?: number; cohort_token?: string }
 export type OpportunityBrowseFilters = {
   geography?: string
   industry?: string
@@ -207,6 +210,15 @@ async function opportunityNeed(needId: string, scope?: OpportunityNeedScope, sig
 }
 
 export const client = {
+  workspace: async (filters: WorkspaceFilters = {}, signal?: AbortSignal): Promise<WorkspacePage> => {
+    const params = new URLSearchParams({ limit: '25' })
+    for (const [key, value] of Object.entries(filters)) if (value !== undefined && value !== '') params.set(key, String(value))
+    const response = await fetch(`/api/opportunities/workspace?${params}`, { credentials: 'same-origin', signal })
+    if (response.status === 401) { clearContinuity(); throw new Error('Your session ended. Sign in again.') }
+    if (response.status === 409) throw new OpportunityCohortChangedError()
+    if (!response.ok) throw new Error(response.status === 503 ? 'The workspace cohort is unavailable. Retry to reload current opportunities.' : `GridLens could not complete this request (${response.status}).`)
+    return response.json() as Promise<WorkspacePage>
+  },
   pursuits: (signal?: AbortSignal, includeDropped = false, offset = 0) => api<PursuitsResult>(`/api/pursuits${includeDropped ? `?include_dropped=true&offset=${offset}` : ''}`, { signal }),
   refreshPursuits: (force = false) => api<components['schemas']['PursuitJobOut']>(`/api/pursuits/refresh${force ? '?force=true' : ''}`, { method: 'POST' }),
   savePursuitNote: (pursuitId: string, body: CallNoteBody) => api<components['schemas']['CallNoteOut']>(`/api/pursuits/${encodeURIComponent(pursuitId)}/notes`, { method: 'POST', body: JSON.stringify(body) }),

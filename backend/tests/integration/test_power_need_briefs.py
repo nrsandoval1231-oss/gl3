@@ -213,6 +213,29 @@ def test_question_bound_request_reuses_exact_pending_job_and_rejects_changed_que
         assert session.scalar(select(func.count()).select_from(Job)) == 1
 
 
+def test_targeted_question_survives_budget_reservation_and_worker_commit(runtime, monkeypatch):
+    factory, service, (need_id, _evidence_id) = runtime
+    question = "Which listed contractor should we ask about temporary power?"
+    with factory.begin() as session:
+        requested = service.request_brief(session, need_id, question)
+        job = session.get(Job, UUID(requested["job_id"]))
+        job.available_at = datetime.now(UTC) - timedelta(seconds=1)
+    leased = _lease(factory, UUID(requested["job_id"]))
+    assert leased
+    job, fence = leased
+    monkeypatch.setattr(
+        service, "_provider", lambda payload, facts: _valid_model_result(payload, facts)
+    )
+    service.process_brief_job(job.id, "brief-test-worker", fence)
+    with factory() as session:
+        completed = session.get(Job, job.id)
+        row = session.get(PowerNeedBrief, need_id)
+        assert json.loads(completed.checkpoint)["commercial_question"] == question
+        assert completed.status == "succeeded"
+        assert row and row.status == "ready"
+        assert row.result["commercial_question"] == question
+
+
 def test_browse_cache_fingerprint_matches_detail_relationship_evidence(runtime, monkeypatch):
     factory, service, (need_id, _evidence_id) = runtime
     relationship = {
@@ -226,7 +249,13 @@ def test_browse_cache_fingerprint_matches_detail_relationship_evidence(runtime, 
                 "quote": "North Campus Development LLC is named as project owner.",
                 "published_at": None,
                 "url": "https://example.test/owner",
-            }
+            },
+            {
+                "id": "chain-evidence-1",
+                "quote": "North Campus Development LLC is listed as campus developer.",
+                "published_at": None,
+                "url": "https://example.test/owner",
+            },
         ],
     }
     monkeypatch.setattr(
@@ -262,6 +291,13 @@ def test_browse_cache_fingerprint_matches_detail_relationship_evidence(runtime, 
         )
         assert preloaded_payload == legacy_payload
         assert preloaded_evidence == legacy_evidence
+        assert len(
+            [
+                item
+                for item in preloaded_evidence.values()
+                if item["id"].startswith("buying-chain:")
+            ]
+        ) == 2
         assert service.brief_fingerprint(preloaded_payload) == service.brief_fingerprint(
             legacy_payload
         )
@@ -2145,7 +2181,12 @@ def test_authenticated_brief_request_and_worker_keep_saved_maps_current(
 
     def after_commit(session):
         if not session.in_nested_transaction():
-            verify_current()
+            try:
+                verify_current()
+            except HTTPException as exc:
+                raise AssertionError(
+                    f"Post-commit browse pending: {session.info.get('worker_browse_outcome')}"
+                ) from exc
 
     provider_calls = []
 

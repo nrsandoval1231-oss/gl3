@@ -392,7 +392,10 @@ def test_concurrent_workflow_updates_serialize_by_exact_need(runtime):
         assert session.scalar(select(func.count()).select_from(NeedWorkflowStatusEvent)) == 1
 
 
-def test_current_public_support_bounds_fact_qualification_and_reassessment(runtime):
+def test_current_public_support_bounds_fact_qualification_and_reassessment(runtime, monkeypatch):
+    # Exercise the live projection path independently of the optional saved-browse
+    # deployment mode used by the current shell environment.
+    monkeypatch.setattr(settings, "saved_browse_enabled", False)
     client, factory, need_id, project_id, pursuit_id = runtime
     with factory.begin() as session:
         sibling = PowerNeed(
@@ -661,12 +664,16 @@ def test_current_public_support_bounds_fact_qualification_and_reassessment(runti
     page_card = next(item for item in page.json() if str(item["id"]) == str(need_id))
     assert page_card["required_mw"] == "21 to 24 MW"
     assert page_card["commercial_size_status"] == "at_or_above_floor"
+    assert page_card["qualified_remaining_gap"] == gap
+    assert page_card["qualification_version"] == effective["qualification_version"]
     cohort = page.headers["x-cohort-token"]
     detail = client.get(
         f"/api/opportunities/needs/{need_id}?tier=Lead&cohort_token={cohort}"
     )
     assert detail.status_code == 200, detail.text
     assert detail.json()["required_mw"] == "21 to 24 MW"
+    assert detail.json()["qualified_remaining_gap"] == gap
+    assert detail.json()["qualification_version"] == effective["qualification_version"]
     group_id = page_card["group_id"]
     group_page = client.get(
         f"/api/opportunity-groups/{group_id}?tier=Lead&cohort_token={cohort}"
@@ -1972,5 +1979,5 @@ def test_saved_browse_parity_through_real_fact_accept_correct_reject_and_source_
         return response
 
     monkeypatch.setattr(client, "get", compare_get)
-    test_current_public_support_bounds_fact_qualification_and_reassessment(runtime)
+    test_current_public_support_bounds_fact_qualification_and_reassessment(runtime, monkeypatch)
     assert len(comparisons) >= 5

@@ -3,11 +3,13 @@ import pytest
 from gridlens.intelligence.briefs import (
     POLICY_VERSION,
     SCHEMA_VERSION,
+    _digest,
     _fact_options,
     _response_schema,
     _safe_fact_text,
     _validate_result,
     brief_view,
+    brief_view_for_payload,
 )
 
 
@@ -45,6 +47,25 @@ def test_model_selects_curated_facts_and_server_renders_brief():
     )
 
 
+def test_brief_surfaces_supported_company_role_without_promoting_authority():
+    facts = _fact_options({"chain:1": {
+        "title": "Retained project relationship: JLC Electrical",
+        "excerpt": "JLC Electrical is listed as electrical contractor for the project.",
+        "url": "https://example.test/relationship",
+        "publisher": "Retained public project evidence",
+        "organization": "JLC Electrical",
+        "relationship_role": "contractor",
+    }})
+    selected = next(iter(facts))
+    result, citations = _validate_result(
+        {"selected_fact_ids": [selected], "hypothesis_fact_id": selected}, facts, []
+    )
+    assert result["event_summary"][0]["text"] == (
+        "Retained project relationship lists JLC Electrical as contractor; "
+        "purchasing authority is unverified."
+    )
+    assert result["event_summary"][0]["evidence_id"] == "chain:1"
+    assert citations[0]["url"] == "https://example.test/relationship"
 @pytest.mark.parametrize(
     "raw",
     [
@@ -210,3 +231,58 @@ def test_cached_result_is_stale_when_current_input_is_unavailable():
     result = brief_view(Row(), fingerprint=None)
     assert result["status"] == "stale"
     assert result["stale"] is True
+
+
+def test_question_scope_mismatch_is_distinct_from_changed_source_fingerprint():
+    class Row:
+        result = {
+            "event_summary": [],
+            "context_fingerprint": "same-evidence-and-settings",
+            "commercial_question": "Which contractor should we ask?",
+        }
+        generated_fingerprint = "question-specific-fingerprint"
+        status = "ready"
+        generated_at = None
+        citations = []
+        error = None
+        input_tokens = output_tokens = 0
+
+    matching_evidence = brief_view(Row(), fingerprint="same-evidence-and-settings")
+    assert matching_evidence["stale"] is False
+    assert matching_evidence["question_context"] == "different_question"
+    changed_evidence = brief_view(Row(), fingerprint="changed-evidence")
+    assert changed_evidence["stale"] is True
+    assert changed_evidence["question_context"] == "current"
+
+
+def test_legacy_question_result_is_recovered_only_when_full_fingerprint_matches():
+    class Row:
+        status = "ready"
+        generated_at = None
+        citations = []
+        error = None
+        input_tokens = output_tokens = 0
+        result = {"commercial_hypothesis": {"text": "Which contractor should we ask?"}}
+        generated_fingerprint = ""
+
+    payload = {
+        "need": {"activity": "construction"},
+        "evidence": [
+            {"id": "buying-chain:chain-1:aaaaaaaaaaaa", "excerpt": "trade"},
+            {"id": "buying-chain:chain-1:bbbbbbbbbbbb", "excerpt": "phone"},
+        ],
+    }
+    row = Row()
+    legacy_payload = {
+        **payload,
+        "evidence": [{**item, "id": "buying-chain:chain-1"} for item in payload["evidence"]],
+    }
+    row.generated_fingerprint = _digest({
+        **legacy_payload,
+        "commercial_question": "Which contractor should we ask?",
+    })
+    recovered = brief_view_for_payload(row, payload)
+    assert recovered["stale"] is False
+    assert recovered["question_context"] == "different_question"
+    drifted = brief_view_for_payload(row, {**payload, "evidence": [{"id": "permit-2"}]})
+    assert drifted["stale"] is True

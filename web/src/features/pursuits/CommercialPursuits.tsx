@@ -80,7 +80,10 @@ export function CommercialPursuits({ navigation, onNavigate, onInvestigate }: {
   onNavigate?: (next: CommercialNavigation) => void
   onInvestigate?: (needId: string) => void
 } = {}) {
-  const [localNavigation, setLocalNavigation] = useState(defaultCommercialNavigation)
+  const [localNavigation, setLocalNavigation] = useState(() => {
+    const pursuitNeed = new URLSearchParams(location.search).get('pursuitNeed')
+    return pursuitNeed ? { ...defaultCommercialNavigation, needId: pursuitNeed } : defaultCommercialNavigation
+  })
   const current = navigation ?? localNavigation
   const navigate = (patch: Partial<CommercialNavigation>) => {
     const next = { ...current, ...patch }
@@ -382,7 +385,7 @@ function ResearchQuestion({ item, draft, onDraftChange }: { item: CommercialTria
       const brief = await client.researchCommercialNeed(item.id, { question: draft.question })
       const message = brief.job_id && brief.status === 'pending' ? 'Research is queued; checking for the exact-question result.' : brief.job_id === null && brief.status === 'ready' ? 'Existing brief unchanged; showing the saved result.' : brief.error ? `Research unavailable: ${brief.error}` : brief.stale ? 'Existing brief is stale; no current result was produced.' : brief.status === 'ready' ? 'Research result' : `Research ${brief.status}`
       onDraftChange({ research: { question: draft.question, brief, message, failed: Boolean(brief.error) || brief.status === 'failed' || brief.stale } })
-    } catch (cause) { onDraftChange({ research: { question: draft.question, brief: { status: 'failed', stale: false, generated_at: null, result: null, citations: [], error: cause instanceof Error ? cause.message : 'Targeted research unavailable.', input_tokens: 0, output_tokens: 0, job_id: null }, message: cause instanceof Error ? cause.message : 'Targeted research unavailable.', failed: true } }) }
+    } catch (cause) { onDraftChange({ research: { question: draft.question, brief: { status: 'failed', stale: false, question_context: 'current', generated_at: null, result: null, citations: [], error: cause instanceof Error ? cause.message : 'Targeted research unavailable.', input_tokens: 0, output_tokens: 0, job_id: null }, message: cause instanceof Error ? cause.message : 'Targeted research unavailable.', failed: true } }) }
     finally { setBusy(false) }
   }
   const pending = progress?.brief.status === 'pending' && Boolean(progress.brief.job_id)
@@ -392,7 +395,7 @@ function ResearchQuestion({ item, draft, onDraftChange }: { item: CommercialTria
 function researchBrief(status: CommercialResearchStatus): BriefRequest {
   const result = checkedResearchContent(status.result)
   const citations = (status.citations ?? []).filter((citation): citation is NonNullable<BriefRequest['citations']>[number] => isRecord(citation) && typeof citation.evidence_id === 'string' && typeof citation.url === 'string' && typeof citation.title === 'string')
-  return { status: status.status, stale: status.status === 'superseded', generated_at: status.generated_at ?? null, result, citations, error: status.error ?? null, input_tokens: 0, output_tokens: 0, job_id: status.job_id ?? null }
+  return { status: status.status, stale: status.status === 'superseded', question_context: 'current', generated_at: status.generated_at ?? null, result, citations, error: status.error ?? null, input_tokens: 0, output_tokens: 0, job_id: status.job_id ?? null }
 }
 function checkedResearchContent(value: unknown): BriefRequest['result'] {
   if (value === null || value === undefined) return null

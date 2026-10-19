@@ -360,14 +360,14 @@ test('explicit Signals entry does not request or mount hidden commercial triage'
   expect(triageRequests).toBe(0)
 })
 
-test('default root reveals commercial preview on demand with an explicit full queue path', async ({ page }) => {
+test('legacy environment reveals commercial preview on demand with an explicit full queue path', async ({ page }) => {
   await page.route('**/api/auth/session', (route) => route.fulfill({ json: { authenticated: true } }))
   await page.route('**/api/health', (route) => route.fulfill({ json: { sources: [], backlog: 0, pending_interpretations: 0 } }))
   await page.route('**/api/changes', (route) => route.fulfill({ json: [] }))
   await page.route(/\/api\/opportunities\/map-window(?:\?|$)/, (route) => route.fulfill({ json: emptyMapWindow }))
   await page.route(/\/api\/opportunities\?/, (route) => route.fulfill({ json: [] }))
   await page.route('**/api/commercial/triage?limit=50', (route) => route.fulfill({ json: base }))
-  await page.goto('/')
+  await page.goto('/environment')
   await expect(page.getByRole('heading', { name: 'What should we work today?' })).not.toBeVisible()
   await page.getByText('Today’s queue preview', { exact: true }).click()
   await expect(page.getByRole('heading', { name: 'What should we work today?' })).toBeVisible()
@@ -380,7 +380,7 @@ test('default root reveals commercial preview on demand with an explicit full qu
   await expect(page.getByRole('heading', { name: 'What should we work today?' })).toBeVisible()
 })
 
-test('watch-only commercial cohort is not described as empty or actionable', async ({ page }) => {
+test('legacy environment watch-only cohort is not described as empty or actionable', async ({ page }) => {
   const watchOnly = structuredClone(base)
   watchOnly.items = [{ ...watchOnly.items[0], disposition: 'WATCH', watch: { event: 'Utility service plan filing', date: '2026-11-01', source_url: 'https://example.test/watch' } }]
   watchOnly.total = 1
@@ -391,7 +391,7 @@ test('watch-only commercial cohort is not described as empty or actionable', asy
   await page.route(/\/api\/opportunities\/map-window(?:\?|$)/, (route) => route.fulfill({ json: emptyMapWindow }))
   await page.route(/\/api\/opportunities\?/, (route) => route.fulfill({ json: [] }))
   await page.route('**/api/commercial/triage?limit=50', (route) => route.fulfill({ json: watchOnly }))
-  await page.goto('/')
+  await page.goto('/environment')
   await expect(page.getByRole('heading', { name: 'What should we work today?' })).not.toBeVisible()
   await page.getByText('Today’s queue preview', { exact: true }).click()
   const preview = page.locator('.commercial-today-entry')
@@ -400,7 +400,7 @@ test('watch-only commercial cohort is not described as empty or actionable', asy
   await expect(preview).not.toContainText('No candidates are currently retained')
 })
 
-test('malformed default commercial preview fails visibly without a false empty cohort', async ({ page }) => {
+test('legacy environment malformed commercial preview fails visibly without a false empty cohort', async ({ page }) => {
   const pageErrors: string[] = []
   page.on('pageerror', (error) => pageErrors.push(error.message))
   await page.route('**/api/auth/session', (route) => route.fulfill({ json: { authenticated: true } }))
@@ -409,7 +409,7 @@ test('malformed default commercial preview fails visibly without a false empty c
   await page.route(/\/api\/opportunities\/map-window(?:\?|$)/, (route) => route.fulfill({ json: emptyMapWindow }))
   await page.route(/\/api\/opportunities\?/, (route) => route.fulfill({ json: [] }))
   await page.route('**/api/commercial/triage?limit=50', (route) => route.fulfill({ json: {} }))
-  await page.goto('/')
+  await page.goto('/environment')
   await expect(page.getByRole('heading', { name: 'What should we work today?' })).not.toBeVisible()
   await page.getByText('Today’s queue preview', { exact: true }).click()
   await expect(page.locator('.commercial-today-entry').getByRole('heading', { name: 'What should we work today?' })).toBeVisible()

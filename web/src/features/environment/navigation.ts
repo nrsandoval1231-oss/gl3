@@ -105,7 +105,9 @@ export function environmentReturnUrl() {
   if (!candidate) return null
   try {
     const url = new URL(candidate, location.origin)
-    return url.origin === location.origin && url.pathname === '/' && url.searchParams.get('view') === 'environment' ? url.pathname + url.search : null
+    const allowedRoot = url.pathname === '/' && url.searchParams.get('view') === 'environment'
+    const allowedLegacySurface = url.pathname === '/environment' && (!url.searchParams.has('view') || url.searchParams.get('view') === 'environment')
+    return url.origin === location.origin && (allowedRoot || allowedLegacySurface) ? url.pathname + url.search : null
   } catch { return null }
 }
 export function withEnvironmentReturn(destination: string) {

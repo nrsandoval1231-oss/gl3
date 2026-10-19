@@ -194,6 +194,8 @@ def _fact_options(evidence: dict[str, dict], question: str | None = None) -> dic
                 "title": source["title"],
                 "url": source["url"],
                 "publisher": source["publisher"],
+                "organization": source.get("organization"),
+                "relationship_role": source.get("relationship_role"),
             }
             if len(facts) >= 16:
                 break
@@ -335,10 +337,12 @@ def brief_payload_from_links(
     if preferred:
         company = preferred[0]
         for citation in company["evidence"][:2]:
+            citation_id = str(citation["id"])
             if len(citation["quote"]) >= 12:
+                quote_key = hashlib.sha256(citation["quote"].encode()).hexdigest()[:12]
                 evidence_items.append(
                     {
-                        "id": f"buying-chain:{citation['id']}",
+                        "id": f"buying-chain:{citation_id}:{quote_key}",
                         "title": f"Retained project relationship: {company['organization']}",
                         "excerpt": citation["quote"][:MAX_EVIDENCE_TEXT],
                         "published_at": citation["published_at"].isoformat()
@@ -398,7 +402,7 @@ def brief_preview(
             "brief_generated_at": None,
             "brief_stale": False,
         }
-    fingerprint = None
+    payload = None
     try:
         payload, _ = brief_payload_from_links(
             session,
@@ -409,10 +413,9 @@ def brief_preview(
             include_project_relationship=True,
             preloaded_chain=preloaded_chain,
         )
-        fingerprint = _digest(payload)
     except BriefUnavailable:
         pass
-    stale = bool(row and row.result and row.generated_fingerprint != fingerprint)
+    stale = brief_view_for_payload(row, payload).get("stale", False)
     summary = None
     if row and row.result:
         hypothesis = row.result.get("commercial_hypothesis") or {}
@@ -430,7 +433,19 @@ def brief_preview(
 def brief_view(row: PowerNeedBrief | None, fingerprint: str | None = None) -> dict:
     if row is None:
         return {"status": "unavailable", "generated_at": None, "result": None, "citations": []}
-    stale = bool(row.result and (fingerprint is None or row.generated_fingerprint != fingerprint))
+    context = row.result.get("context_fingerprint") if row.result else None
+    different_question = bool(
+        row.result
+        and fingerprint
+        and context == fingerprint
+        and row.generated_fingerprint != fingerprint
+        and row.result.get("commercial_question")
+    )
+    stale = bool(
+        row.result
+        and (fingerprint is None or row.generated_fingerprint != fingerprint)
+        and not different_question
+    )
     status = row.status
     if stale and status not in {"pending", "failed", "unavailable"}:
         status = "stale"
@@ -439,11 +454,57 @@ def brief_view(row: PowerNeedBrief | None, fingerprint: str | None = None) -> di
         "stale": stale,
         "generated_at": row.generated_at,
         "result": row.result,
+        "question_context": "different_question" if different_question else "current",
         "citations": row.citations,
         "error": row.error,
         "input_tokens": row.input_tokens,
         "output_tokens": row.output_tokens,
     }
+
+
+def brief_view_for_payload(row: PowerNeedBrief | None, payload: dict | None) -> dict:
+    """Recognize another question only when its exact old fingerprint still matches."""
+    if payload is None:
+        return brief_view(row, None)
+    fingerprint = _digest(payload)
+    if row and row.result and row.generated_fingerprint != fingerprint:
+        base = dict(payload)
+        base.pop("commercial_question", None)
+        base_fingerprint = _digest(base)
+        result = row.result
+        if result.get("context_fingerprint") != base_fingerprint:
+            legacy_question = (result.get("commercial_hypothesis") or {}).get("text")
+            legacy_evidence_payload = dict(base)
+            legacy_evidence_payload["evidence"] = [
+                {
+                    **item,
+                    # Before quote identity was added, duplicate buying-chain
+                    # citations shared this base ID in the exact request payload.
+                    "id": re.sub(r":([0-9a-f]{12})$", "", item["id"])
+                    if isinstance(item.get("id"), str) and item["id"].startswith("buying-chain:")
+                    else item.get("id"),
+                }
+                for item in base.get("evidence", [])
+            ]
+            exact_question_match = (
+                isinstance(legacy_question, str)
+                and bool(legacy_question.strip())
+                and (
+                    _digest({**base, "commercial_question": legacy_question})
+                    == row.generated_fingerprint
+                    or _digest({**legacy_evidence_payload, "commercial_question": legacy_question})
+                    == row.generated_fingerprint
+                )
+            )
+            if exact_question_match and fingerprint == base_fingerprint:
+                view = brief_view(row, row.generated_fingerprint)
+                view["result"] = {
+                    **result, "context_fingerprint": base_fingerprint,
+                    "commercial_question": legacy_question,
+                }
+                view["question_context"] = "different_question"
+                return view
+    return brief_view(row, fingerprint)
 
 
 def request_brief(session: Session, need_id: UUID, question: str | None = None) -> dict:
@@ -543,6 +604,43 @@ def _validate_result(
         "publisher": hypothesis_fact["publisher"],
         "excerpt": hypothesis_fact["excerpt"],
     }
+    # The question itself is not evidence. Resolve a source-supported company
+    # and role deterministically so the brief can answer "who?" without asking
+    # the model to invent prose or infer buying authority.
+    company = next(
+        (
+            item
+            for item in facts.values()
+            if item.get("organization") and item.get("relationship_role")
+        ),
+        None,
+    )
+    if company:
+        company_statement = {
+            "text": (
+                f"Retained project relationship lists {company['organization']} as "
+                f"{company['relationship_role'].replace('_', ' ')}; "
+                "purchasing authority is unverified."
+            ),
+            "evidence_id": company["evidence_id"],
+        }
+        matching_company = next(
+            (index for index, statement in enumerate(statements)
+             if statement["evidence_id"] == company["evidence_id"]),
+            None,
+        )
+        if matching_company is None:
+            statements.insert(0, company_statement)
+        else:
+            statements[matching_company] = company_statement
+        citations[company["evidence_id"]] = {
+            "evidence_id": company["evidence_id"],
+            "title": company["title"],
+            "url": company["url"],
+            "publisher": company["publisher"],
+            "excerpt": company["excerpt"],
+        }
+        statements = statements[:2]
     return (
         {
             "event_summary": statements,
@@ -698,7 +796,11 @@ def process_brief_job(job_id: UUID, worker_id: str, fence: int) -> None:
                 job.status, job.error = "failed", "daily_budget_exhausted"
                 return
             budget.reserved_requests += 1
-            job.checkpoint = json.dumps({"input_fingerprint": fingerprint, "reserved": True})
+            job.checkpoint = json.dumps({
+                "commercial_question": question,
+                "input_fingerprint": fingerprint,
+                "reserved": True,
+            })
         need = session.get(PowerNeed, need_id)
         project = session.get(Project, need.project_id) if need else None
         source_id = project.source_id if project else None
@@ -739,6 +841,10 @@ def process_brief_job(job_id: UUID, worker_id: str, fence: int) -> None:
             "Buying authority and procurement timing are unverified.",
         ]
         result, citations = _validate_result(raw, facts, server_unknowns)
+        base_payload = dict(payload)
+        base_payload.pop("commercial_question", None)
+        result["context_fingerprint"] = _digest(base_payload)
+        result["commercial_question"] = payload.get("commercial_question")
     except Exception as exc:  # No automatic retry after a potentially billable call.
         with SessionLocal.begin() as session:
             job = assert_fence(session, job_id, worker_id, fence)
