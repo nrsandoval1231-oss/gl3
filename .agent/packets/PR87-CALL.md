@@ -4,6 +4,8 @@ Start: October 19, 2026 after 19:40 UTC owner handoff; exact timings recorded se
 
 Owner authorization updated October19 20:30UTC: "Ok deploy when ready." Publication, CI diagnosis/fixes, merge and existing-DigitalOcean deployment are authorized for this focused release after the publication failure is resolved and release gates pass. Preserve PR87's approved navy/white UI; no redesign/revert, external-checkout edits, unrelated source-recovery work, new paid resources, paid provider tests, budget activation or persistent credentials. Preserve $50/month, $0.01/call, eight/day, Jev off. Tests use no real provider credentials. No auth bypass: mock-only regression is labelled synthetic; real browser uses supported login to isolated app with ephemeral test credentials. Verify backup, coordinated version/generation cutover and rollback before authorized deployment.
 
+October19 21:25UTC owner clarification: "Keep diagnosing." Retain the resolve-before-release gate; no risk waiver. Bounded diagnostic CI using synthetic fixtures is within the authorized repair scope.
+
 Read AGENTS.md, .agent/AGENT_RULES.md, docs/product/PRD.md, docs/design/UI_CANON.md, docs/design/PURSUIT_WORKSPACE.md, .agent/FINISH_CONTRACT.md. Review findings are in parent task PR87_READ_ONLY_REASSESSMENT_2026-10-19.md and GL3_LIVE_BRIEF_QA_2026-10-19.md. Treat retained production examples as assessment evidence, never seed production or send private documents to providers.
 
 ## Ownership
@@ -11,6 +13,8 @@ Read AGENTS.md, .agent/AGENT_RULES.md, docs/product/PRD.md, docs/design/UI_CANON
 One Luna builder owns brief quality/freshness and call-preparation implementation/tests: intelligence/briefs.py and narrowly required brief API/DTO projection; new focused presentation helper if needed; web workspace/call/research components and CSS; existing brief/workspace tests and generated OpenAPI/TypeScript contract updates. Preserve evidence identity, qualification/ranking/budget/auth domain rules. Do not change broad provider accounting, defaults, migrations or ingestion.
 
 Controller owns publication diagnosis/repair in intelligence/worker_browse.py, intelligence/saved_browse.py or persistence/browse_invalidation.py as justified, with a new isolated regression module (avoid builder's test_power_need_briefs.py). Controller owns runtime setup, final freeze/full tests, generation rollback rehearsal, provenance assessment, independent review, reports and graph state. Coordinate if API changes overlap; controller will not edit app.py while builder owns it.
+
+Diagnostic follow-up after21:25UTC: the Luna builder owns only `.github/workflows/publication-diagnostic.yml` and `scripts/diagnose_publication.py`, without committing or publishing. Run immutable original07d source on GitHub's Ubuntu runner, preserving source bytes and synthetic-only data/provider isolation. Capture exact clock/revision/eligibility evidence without private SQL parameters or credentials. Controller owns validation/publication and Sol owns independent review. No application changes are justified until causal evidence supports them.
 
 ## Required outcome
 
