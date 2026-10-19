@@ -59,6 +59,7 @@ SCOPED_TABLES = (
     "buying_chain_claims",
     "buying_chain_runs",
     "interconnection_fact_versions",
+    "pursuit_documents",
 )
 
 INVALIDATE_SQL = """
@@ -78,6 +79,38 @@ INVALIDATE_SQL = """
         RETURN NULL;
     END $$
 """
+PURSUIT_SCOPE_SQL = """
+    CREATE OR REPLACE FUNCTION scope_browse_pursuit(payload jsonb, next_revision bigint)
+    RETURNS boolean LANGUAGE plpgsql AS $$
+    DECLARE ids uuid[]; member jsonb; owner uuid; need_owner uuid; identity text;
+    BEGIN
+        IF payload IS NULL OR jsonb_typeof(payload) <> 'object'
+            OR jsonb_typeof(payload->'project_ids') IS DISTINCT FROM 'array' THEN
+            RETURN false;
+        END IF;
+        IF jsonb_array_length(payload->'project_ids') > 1000 THEN RETURN false; END IF;
+        owner := (payload->>'project_id')::uuid;
+        IF owner IS NULL THEN RETURN false; END IF;
+        ids := ARRAY[owner];
+        FOR member IN SELECT value FROM jsonb_array_elements(payload->'project_ids') LOOP
+            IF jsonb_typeof(member) <> 'string' THEN RETURN false; END IF;
+            ids := array_append(ids, (member #>> '{}')::uuid);
+        END LOOP;
+        identity := payload->>'identity_key';
+        IF left(identity, 16) = 'commercial-need:' THEN
+            SELECT project_id INTO need_owner FROM power_needs
+                WHERE id = substring(identity FROM 17)::uuid;
+            IF need_owner IS NULL OR need_owner <> owner THEN RETURN false; END IF;
+        END IF;
+        INSERT INTO browse_dirty_projects(project_id, revision)
+            SELECT DISTINCT unnest(ids), next_revision
+        ON CONFLICT (project_id) DO UPDATE SET revision = EXCLUDED.revision;
+        RETURN true;
+    EXCEPTION WHEN invalid_text_representation THEN
+        RETURN false;
+    END $$
+"""
+
 DIRTY_SQL = """
     CREATE OR REPLACE FUNCTION browse_observation_projects(
         oid uuid, eid uuid, source_key text, external_key text
@@ -137,6 +170,13 @@ DIRTY_SQL = """
                 END IF;
             ELSIF TG_TABLE_NAME = 'observations' THEN
                 oid := (payload->>'id')::uuid;
+            ELSIF TG_TABLE_NAME = 'pursuit_documents' THEN
+                IF NOT scope_browse_pursuit(
+                    (SELECT to_jsonb(p) FROM pursuits p
+                     WHERE p.id = (payload->>'pursuit_id')::uuid), next_revision
+                ) THEN
+                    UPDATE browse_state SET full_revision = next_revision WHERE id = 1;
+                END IF;
             ELSIF TG_TABLE_NAME IN ('evidence', 'interpretations', 'signal_decisions',
                                    'change_events', 'project_match_decisions') THEN
                 oid := (payload->>'observation_id')::uuid;
@@ -181,15 +221,15 @@ SOURCE_HEALTH_SQL = """
 
 
 # Workspaces are live overlays, not qualification/ranking inputs. Exempt only
-# recognized commercial receipts; all unknown/scope/document writes stay full.
+# recognized commercial receipts. Other writes retain exact owner invalidation;
+# malformed or unresolvable owners still require a full rebuild.
 RECEIPT_SQL = """
     CREATE OR REPLACE FUNCTION invalidate_browse_receipt() RETURNS trigger
     LANGUAGE plpgsql AS $$
-    DECLARE unsafe boolean;
+    DECLARE affected jsonb; payload jsonb; next_revision bigint; full_scope boolean := false;
     BEGIN
         IF TG_OP = 'INSERT' THEN
-            SELECT EXISTS (
-                SELECT 1 FROM new_rows n WHERE (
+            SELECT jsonb_agg(to_jsonb(n)) INTO affected FROM new_rows n WHERE (
                     EXISTS (SELECT 1 FROM power_needs p
                         WHERE n.identity_key = 'commercial-need:' || p.id::text
                         AND n.project_id = p.project_id)
@@ -202,11 +242,12 @@ RECEIPT_SQL = """
                         - ARRAY['id','identity_key','project_id','project_ids','snapshot']
                         = jsonb_build_object('last_researched_at', NULL, 'last_attempt_at', NULL,
                             'research_status', 'not_researched', 'research_errors', '[]'::jsonb)
-                ) IS NOT TRUE
-            ) INTO unsafe;
+                ) IS NOT TRUE;
         ELSE
-            SELECT EXISTS (
-                SELECT 1 FROM old_rows o FULL JOIN new_rows n USING (id) WHERE (
+            SELECT jsonb_agg(value.payload) INTO affected
+                FROM old_rows o FULL JOIN new_rows n USING (id)
+                CROSS JOIN LATERAL (VALUES (to_jsonb(o)), (to_jsonb(n))) AS value(payload)
+                WHERE (
                     o.id IS NOT NULL AND n.id IS NOT NULL
                     AND EXISTS (SELECT 1 FROM power_needs p
                         WHERE n.identity_key = 'commercial-need:' || p.id::text
@@ -221,10 +262,17 @@ RECEIPT_SQL = """
                         OR jsonb_typeof(o.snapshot->'commercial_triage') = 'object')
                     AND (NOT n.snapshot ? 'commercial_triage'
                         OR jsonb_typeof(n.snapshot->'commercial_triage') = 'object')
-                ) IS NOT TRUE
-            ) INTO unsafe;
+                ) IS NOT TRUE;
         END IF;
-        IF unsafe THEN
+        IF affected IS NOT NULL THEN
+            PERFORM set_config('gridlens.browse_dirty', '1', true);
+            SELECT input_revision + 1 INTO next_revision
+                FROM browse_state WHERE id = 1 FOR UPDATE;
+            FOR payload IN SELECT value FROM jsonb_array_elements(affected) LOOP
+                IF NOT scope_browse_pursuit(payload, next_revision) THEN
+                    full_scope := true;
+                END IF;
+            END LOOP;
             UPDATE browse_state s SET
                 generation_id = CASE WHEN EXISTS (
                     SELECT 1 FROM browse_generations g WHERE g.id = s.prepared_generation_id
@@ -232,7 +280,7 @@ RECEIPT_SQL = """
                     AND g.valid_from <= clock_timestamp() AND g.valid_until > clock_timestamp()
                 ) THEN prepared_generation_id ELSE generation_id END,
                 prepared_generation_id = NULL,
-                full_revision = input_revision + 1,
+                full_revision = CASE WHEN full_scope THEN input_revision + 1 ELSE full_revision END,
                 input_revision = input_revision + 1 WHERE id = 1;
         END IF;
         RETURN NULL;
@@ -265,6 +313,7 @@ def install_workspace_triggers(connection):
 def install(connection):
     connection.exec_driver_sql("INSERT INTO browse_state (id) VALUES (1) ON CONFLICT DO NOTHING")
     connection.exec_driver_sql(INVALIDATE_SQL)
+    connection.exec_driver_sql(PURSUIT_SCOPE_SQL)
     connection.exec_driver_sql(DIRTY_SQL)
     connection.exec_driver_sql(SOURCE_HEALTH_SQL)
     install_workspace_triggers(connection)

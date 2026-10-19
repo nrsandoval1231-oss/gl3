@@ -738,6 +738,50 @@ def test_source_health_checkpoint_does_not_discard_current_browse(saved_db):
         current_generation(reader)
 
 
+@pytest.mark.parametrize("count", [4, 101])
+def test_authenticated_signal_backfill_publishes_within_operator_bound(
+    saved_db, monkeypatch, count
+):
+    from fastapi.testclient import TestClient
+
+    from gridlens.intelligence.saved_browse import maintain_once
+    from gridlens.persistence.models import SignalDecision
+    from gridlens.security import token_for
+
+    seed(saved_db, count=count, histories=1)
+    assert rebuild(saved_db)["status"] == "published"
+    monkeypatch.setattr(settings, "saved_browse_enabled", True)
+    monkeypatch.setattr(settings, "typesafe_api_key", None)
+    with TestClient(api.app, base_url="https://testserver") as client:
+        client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
+        result = client.post(
+            f"/api/signals/decisions/adjudicate?limit={count}",
+            headers={"origin": "https://testserver"},
+        )
+        assert result.status_code == 200, result.text
+        assert result.json()["processed"] == count
+        with saved_db() as reader:
+            assert reader.scalar(select(func.count()).select_from(SignalDecision)) == count
+        response = client.get("/api/opportunities/map-window?tier=Signal&decision=ALL")
+        assert response.status_code == (200 if count <= 100 else 503), response.text
+        if count > 100:
+            assert response.headers["x-qualification-state"] == "pending"
+            assert maintain_once(saved_db)["status"] == "published"
+            assert (
+                client.get("/api/opportunities/map-window?tier=Signal&decision=ALL").status_code
+                == 200
+            )
+    with saved_db() as reader:
+        assert (
+            current_generation(reader).input_revision == reader.get(BrowseState, 1).input_revision
+        )
+        canonical = api.opportunity_projection(reader)
+        actual = page(reader, filters(), limit=200, ranked=True)
+        assert {str(row["id"]): row["rank_score"] for row in canonical} == {
+            row["id"]: row["rank_score"] for row in actual["items"]
+        }
+
+
 def test_worker_startup_publishes_flushed_ingestion_before_each_commit(saved_db, monkeypatch):
     import gridlens.jobs.worker as worker
 
@@ -1075,6 +1119,235 @@ def test_structured_ingestion_bulk_commit_keeps_authenticated_maps_current(saved
         assert (
             current_generation(reader).input_revision == reader.get(BrowseState, 1).input_revision
         )
+
+
+def test_simultaneous_ingestion_research_operator_and_clock_recovery(saved_db, monkeypatch):
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Event
+    from time import monotonic
+
+    from fastapi.testclient import TestClient
+
+    from gridlens.domain.evaluation_clock import evaluate_at
+    from gridlens.intelligence import saved_browse, worker_browse
+    from gridlens.persistence.models import (
+        CallFactDecision,
+        CallFactVersion,
+        Pursuit,
+        PursuitDocument,
+    )
+    from gridlens.security import token_for
+
+    ids = seed(saved_db, count=12, histories=1)
+    boundary = datetime.now(UTC) + timedelta(minutes=5)
+    with saved_db.begin() as writer:
+        owners = [writer.get(PowerNeed, need_id).project_id for need_id in ids]
+        observations = list(writer.scalars(select(Observation).order_by(Observation.external_id)))
+        shared_observation = observations[0].id
+        shared_evidence = writer.scalar(
+            select(Evidence.id).where(Evidence.observation_id == shared_observation)
+        )
+        # Include an old/new link consumer and a second owner of the same evidence.
+        moving_link = NeedObservation(need_id=ids[1], observation_id=shared_observation)
+        writer.add(moving_link)
+        pursuit = Pursuit(
+            identity_key="synthetic-mixed-research",
+            project_id=owners[0],
+            project_ids=[str(owners[1])],
+            snapshot={},
+        )
+        writer.add(pursuit)
+        fact = CallFactVersion(
+            need_id=ids[0],
+            project_id=owners[0],
+            client_id=uuid4(),
+            activity_key="construction",
+            facility_scope="California",
+            fact_type="demand",
+            value={"mw": "20"},
+            reporter_name="Synthetic operator",
+            confirmation_channel="call",
+            confirmed_at=datetime.now(UTC),
+            effective_from=boundary,
+            content_hash="a" * 64,
+            recorded_by="Synthetic actor",
+        )
+        writer.add(fact)
+        writer.flush()
+        writer.add(
+            CallFactDecision(
+                need_id=ids[0],
+                fact_version_id=fact.id,
+                version=1,
+                client_id=uuid4(),
+                decision="accepted",
+                expected_version=0,
+                reason="Synthetic accepted future demand",
+                content_hash="b" * 64,
+                actor="Synthetic",
+            )
+        )
+        pursuit_id = pursuit.id
+        moving_link_id = moving_link.id
+    assert rebuild(saved_db)["status"] == "published"
+    monkeypatch.setattr(settings, "saved_browse_enabled", True)
+    worker_factory = sessionmaker(saved_db.kw["bind"], expire_on_commit=False)
+    worker_browse.install_worker_publication(worker_factory)
+    ready = [Event() for _ in range(3)]
+    resume = Event()
+    post_boundary = Event()
+
+    class Clock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return boundary if post_boundary.is_set() else datetime.now(tz)
+
+    for module in (saved_browse, worker_browse, api):
+        monkeypatch.setattr(module, "datetime", Clock)
+
+    def authenticated_client():
+        client = TestClient(api.app, base_url="https://testserver")
+        client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 600))
+        return client
+
+    def changes(lane):
+        with authenticated_client() as client:
+            for index in range(8):
+                if index == 4:
+                    ready[lane].set()
+                    assert resume.wait(30)
+                if lane == 0:
+                    with worker_factory.begin() as writer:
+                        writer.get(
+                            Evidence, shared_evidence
+                        ).abstract = f"Synthetic retained correction {index}"
+                        link = writer.get(NeedObservation, moving_link_id)
+                        # Link ownership changes must refresh both removed and added consumers.
+                        if link is not None:
+                            link.need_id = ids[2] if index % 2 == 0 else ids[1]
+                        writer.get(Source, "synthetic-permits").health = {
+                            "status": "Running",
+                            "checkpoint": index,
+                        }
+                elif lane == 1:
+                    with worker_factory.begin() as writer:
+                        row = writer.get(Pursuit, pursuit_id)
+                        row.project_id = owners[index % 2]
+                        row.project_ids = [str(owners[2 + index % 2])]
+                        row.snapshot = {"synthetic_research_checkpoint": index}
+                        row.research_status = "partial"
+                        writer.add(
+                            PursuitDocument(
+                                pursuit_id=pursuit_id,
+                                url=f"https://example.test/mixed/{index}",
+                                content_hash=f"{index:064x}",
+                                source={"synthetic": True},
+                            )
+                        )
+                else:
+                    response = client.post(
+                        f"/api/needs/{ids[4]}/workflow-status",
+                        headers={"origin": "https://testserver"},
+                        json={
+                            "client_id": str(uuid4()),
+                            "project_id": str(owners[4]),
+                            "expected_version": index,
+                            "status": "Investigating" if index % 2 == 0 else "Contacted",
+                            "reason": "Synthetic concurrent operator update",
+                        },
+                    )
+                    assert response.status_code == 200, response.text
+
+    with authenticated_client() as client, ThreadPoolExecutor(4) as pool:
+        futures = [pool.submit(changes, lane) for lane in range(3)]
+        ordinary_reads = 0
+        until = monotonic() + 60
+        try:
+            while not all(event.is_set() for event in ready):
+                for future in futures:
+                    if future.done():
+                        future.result()
+                assert monotonic() < until
+                response = client.get("/api/opportunities/map-window?tier=Signal&decision=ALL")
+                assert response.status_code == 200, response.text
+                ordinary_reads += 1
+            assert ordinary_reads >= 1
+
+            # A canonical write during preparation rejects the obsolete future snapshot.
+            def preparation_write():
+                with worker_factory.begin() as writer:
+                    writer.get(Pursuit, pursuit_id).research_status = "running"
+
+            assert (
+                saved_browse.prepare_next(
+                    saved_db, lead_seconds=360, before_publish=preparation_write
+                )["status"]
+                == "superseded"
+            )
+            assert (
+                client.get("/api/opportunities/map-window?tier=Signal&decision=ALL").status_code
+                == 200
+            )
+            post_boundary.set()
+            recovery_started = monotonic()
+            response = client.get("/api/opportunities/map-window?tier=Signal&decision=ALL")
+            assert response.status_code == 503
+            assert response.headers["x-qualification-state"] == "pending"
+            resume.set()
+            maintenance = pool.submit(saved_browse.maintain_once, saved_db)
+            while not all(f.done() for f in futures):
+                assert monotonic() - recovery_started < 60
+                response = client.get("/api/opportunities/map-window?tier=Signal&decision=ALL")
+                assert response.status_code in {200, 503}
+                if response.status_code == 200:
+                    with saved_db() as reader:
+                        assert current_generation(reader).valid_from >= boundary
+            for future in futures:
+                future.result(timeout=10)
+            maintenance.result(timeout=30)
+        finally:
+            resume.set()
+        for _ in range(3):
+            saved_browse.maintain_once(saved_db)
+            response = client.get("/api/opportunities/map-window?tier=Signal&decision=ALL")
+            if response.status_code == 200:
+                break
+        assert response.status_code == 200, response.text
+        recovery_seconds = monotonic() - recovery_started
+        assert recovery_seconds < 60
+    with saved_db() as reader:
+        generation = current_generation(reader)
+        assert generation.valid_from >= boundary
+        assert generation.input_revision == reader.get(BrowseState, 1).input_revision
+        with evaluate_at(boundary):
+            monkeypatch.setattr(settings, "saved_browse_enabled", False)
+            canonical = api.opportunities(limit=200, offset=0, cohort=None, sort="rank")
+            monkeypatch.setattr(settings, "saved_browse_enabled", True)
+        actual = page(reader, filters(), limit=200, ranked=True)
+        assert {str(row["id"]): row["rank_score"] for row in canonical} == {
+            row["id"]: row["rank_score"] for row in actual["items"]
+        }
+        by_id = {str(row["id"]): row for row in canonical}
+        for row in actual["items"]:
+            expected = by_id[row["id"]]
+            for field in (
+                "tier",
+                "required_mw",
+                "supply",
+                "rank_score",
+                "rank_reasons",
+                "workflow_status",
+                "priority_segment",
+                "priority_label",
+                "activity",
+                "name",
+                "location",
+            ):
+                assert row.get(field) == expected.get(field), (row["id"], field)
+    print(
+        f"mixed_publication ordinary_200_reads={ordinary_reads} "
+        f"clock_recovery_seconds={recovery_seconds:.3f}"
+    )
 
 
 def test_worker_heartbeat_does_not_repair_another_transaction_backlog(saved_db, monkeypatch):
@@ -3282,12 +3555,13 @@ def _saved_receipt_fixture(factory):
 
 
 @pytest.mark.parametrize("mutation", ["unknown_root", "scope", "identity", "research", "malformed"])
-def test_unknown_receipt_changes_remain_full_pending(saved_db, mutation):
+def test_unknown_receipt_changes_remain_scoped_or_full_pending(saved_db, mutation):
     from gridlens.persistence.models import Pursuit
 
     receipt_id, _cards = _saved_receipt_fixture(saved_db)
     with saved_db() as session:
         prior_revision = session.get(BrowseState, 1).input_revision
+        prior_full = session.get(BrowseState, 1).full_revision
     with saved_db.begin() as session:
         row = session.get(Pursuit, receipt_id)
         if mutation == "unknown_root":
@@ -3304,7 +3578,8 @@ def test_unknown_receipt_changes_remain_full_pending(saved_db, mutation):
         current_generation(session)
     with saved_db() as session:
         state = session.get(BrowseState, 1)
-        assert state.full_revision == state.input_revision == prior_revision + 1
+        assert state.input_revision == prior_revision + 1
+        assert state.full_revision == (state.input_revision if mutation == "scope" else prior_full)
 
 
 @pytest.mark.parametrize("prepared", [False, True])
@@ -3488,7 +3763,7 @@ def test_note_bulk_update_delete_and_truncate_contract(saved_db, monkeypatch):
 
 
 @pytest.mark.parametrize("kind", ["unknown_root", "research_fields", "unknown_identity"])
-def test_unrecognized_pursuit_insert_stays_full(saved_db, kind):
+def test_unrecognized_pursuit_insert_stays_pending_until_scoped_publication(saved_db, kind):
     from gridlens.persistence.models import Pursuit
 
     ids = seed(saved_db, count=1, histories=1)
@@ -3510,12 +3785,14 @@ def test_unrecognized_pursuit_insert_stays_full(saved_db, kind):
 
 
 def test_mixed_receipt_bulk_update_fails_closed_once(saved_db):
-    from gridlens.persistence.models import Pursuit
+    from gridlens.persistence.models import BrowseDirtyProject, Pursuit
 
     receipt_id, _cards = _saved_receipt_fixture(saved_db)
     with saved_db() as session:
         assert len(list(session.scalars(select(Pursuit)))) == 2
         revision = current_generation(session).input_revision
+        full_revision = session.get(BrowseState, 1).full_revision
+        owner = session.get(Pursuit, receipt_id).project_id
     with saved_db.begin() as session:
         session.execute(
             text(
@@ -3530,6 +3807,129 @@ def test_mixed_receipt_bulk_update_fails_closed_once(saved_db):
         current_generation(session)
     with saved_db() as session:
         assert session.get(BrowseState, 1).input_revision == revision + 1
+        assert session.get(BrowseState, 1).full_revision == full_revision
+        assert set(
+            session.scalars(
+                select(BrowseDirtyProject.project_id).where(BrowseDirtyProject.revision > revision)
+            )
+        ) == {owner}
+
+
+@pytest.mark.parametrize("document", [False, True])
+def test_legacy_research_scopes_old_and_new_primary_and_member_owners(saved_db, document):
+    from gridlens.persistence.models import BrowseDirtyProject, Pursuit, PursuitDocument
+
+    ids = seed(saved_db, count=4, histories=1)
+    with saved_db.begin() as session:
+        owners = [session.get(PowerNeed, need_id).project_id for need_id in ids]
+        old = Pursuit(
+            identity_key="legacy-old",
+            project_id=owners[0],
+            project_ids=[str(owners[1])],
+            snapshot={},
+        )
+        new = Pursuit(
+            identity_key="legacy-new",
+            project_id=owners[2],
+            project_ids=[str(owners[3])],
+            snapshot={},
+        )
+        session.add_all([old, new])
+        session.flush()
+        doc = PursuitDocument(
+            pursuit_id=old.id,
+            url="https://example.test/synthetic",
+            content_hash="a" * 64,
+            source={},
+        )
+        session.add(doc)
+        session.flush()
+        old_id, new_id, document_id = old.id, new.id, doc.id
+    assert rebuild(saved_db)["status"] == "published"
+    with saved_db() as reader:
+        revision = current_generation(reader).input_revision
+        full_revision = reader.get(BrowseState, 1).full_revision
+    with saved_db.begin() as writer:
+        if document:
+            writer.execute(
+                text("UPDATE pursuit_documents SET pursuit_id = :new WHERE id = :id"),
+                {"new": new_id, "id": document_id},
+            )
+        else:
+            writer.execute(
+                text(
+                    "UPDATE pursuits SET project_id = :owner, "
+                    "project_ids = CAST(:members AS jsonb) WHERE id = :id"
+                ),
+                {"owner": owners[2], "members": '["' + str(owners[3]) + '"]', "id": old_id},
+            )
+    with saved_db() as reader:
+        state = reader.get(BrowseState, 1)
+        assert state.input_revision == revision + 1
+        assert state.full_revision == full_revision
+        assert set(
+            reader.scalars(
+                select(BrowseDirtyProject.project_id).where(BrowseDirtyProject.revision > revision)
+            )
+        ) == set(owners)
+        with pytest.raises(HTTPException):
+            current_generation(reader)
+    from gridlens.intelligence.saved_browse import refresh_project_changes
+
+    with saved_db.begin() as writer:
+        assert refresh_project_changes(writer)["status"] == "published"
+    with saved_db() as reader:
+        assert {item["id"] for item in page(reader, filters())["items"]} == set(map(str, ids))
+
+
+@pytest.mark.parametrize(
+    "bad_members",
+    [None, {}, [None], [42], ["invalid-uuid"], ["00000000-0000-0000-0000-000000000001"] * 1001],
+)
+def test_malformed_legacy_owner_members_fall_back_to_full(saved_db, bad_members):
+    from gridlens.persistence.models import Pursuit
+
+    ids = seed(saved_db, count=1, histories=1)
+    assert rebuild(saved_db)["status"] == "published"
+    with saved_db.begin() as writer:
+        writer.add(
+            Pursuit(
+                identity_key="synthetic-malformed-owner",
+                project_id=writer.get(PowerNeed, ids[0]).project_id,
+                project_ids=bad_members,
+                snapshot={},
+            )
+        )
+    with saved_db() as reader:
+        state = reader.get(BrowseState, 1)
+        assert state.full_revision == state.input_revision
+        with pytest.raises(HTTPException):
+            current_generation(reader)
+
+
+@pytest.mark.parametrize(
+    "identity",
+    ["commercial-need:not-a-uuid", "commercial-need:00000000-0000-0000-0000-000000000001"],
+)
+def test_unresolvable_commercial_need_owner_falls_back_to_full(saved_db, identity):
+    from gridlens.persistence.models import Pursuit
+
+    ids = seed(saved_db, count=1, histories=1)
+    assert rebuild(saved_db)["status"] == "published"
+    with saved_db.begin() as writer:
+        writer.add(
+            Pursuit(
+                identity_key=identity,
+                project_id=writer.get(PowerNeed, ids[0]).project_id,
+                project_ids=[],
+                snapshot={},
+            )
+        )
+    with saved_db() as reader:
+        state = reader.get(BrowseState, 1)
+        assert state.full_revision == state.input_revision
+        with pytest.raises(HTTPException):
+            current_generation(reader)
 
 
 @pytest.mark.parametrize("unsafe", [False, True])
