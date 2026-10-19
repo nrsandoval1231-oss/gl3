@@ -1979,5 +1979,5 @@ def test_saved_browse_parity_through_real_fact_accept_correct_reject_and_source_
         return response
 
     monkeypatch.setattr(client, "get", compare_get)
-    test_current_public_support_bounds_fact_qualification_and_reassessment(runtime)
+    test_current_public_support_bounds_fact_qualification_and_reassessment(runtime, monkeypatch)
     assert len(comparisons) >= 5
