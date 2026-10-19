@@ -6,6 +6,8 @@ Owner authorization updated October19 20:30UTC: "Ok deploy when ready." Publicat
 
 October19 21:25UTC owner clarification: "Keep diagnosing." Retain the resolve-before-release gate; no risk waiver. Bounded diagnostic CI using synthetic fixtures is within the authorized repair scope.
 
+October19 follow-up after the independent Astra review: assess and repair a reproducible mechanism separately from historical attribution. Astra supports a bounded implicit-time reader retry for a real publication/time-sample race. Controller owns `saved_browse.current_generation` and a new isolated regression module: explicit time stays one exact query; implicit time permits at most two queries with fresh actual UTC samples, the same session, and all revision/policy/time predicates unchanged. No sleep, backdating, tolerance, stale generation, or transaction restart. Prove interleaved real publication and recovering-clock cases red/green; sustained rollback, explicit past time, invalid revision/policy/expiry and future prepared data must still fail closed. Astra independently reviews. This mechanism repair does not by itself prove the historical CI cause or authorize deployment.
+
 Read AGENTS.md, .agent/AGENT_RULES.md, docs/product/PRD.md, docs/design/UI_CANON.md, docs/design/PURSUIT_WORKSPACE.md, .agent/FINISH_CONTRACT.md. Review findings are in parent task PR87_READ_ONLY_REASSESSMENT_2026-10-19.md and GL3_LIVE_BRIEF_QA_2026-10-19.md. Treat retained production examples as assessment evidence, never seed production or send private documents to providers.
 
 ## Ownership

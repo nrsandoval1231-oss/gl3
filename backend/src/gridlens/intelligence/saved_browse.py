@@ -82,37 +82,42 @@ def clock_deadline(session, now: datetime) -> datetime:
 
 
 def current_generation(session, *, now: datetime | None = None) -> BrowseGeneration:
-    now = now or datetime.now(UTC)
-    generation = session.scalar(
-        select(BrowseGeneration)
-        .join(
-            BrowseState,
-            or_(
-                BrowseState.generation_id == BrowseGeneration.id,
-                BrowseState.prepared_generation_id == BrowseGeneration.id,
-            ),
+    requested_now = now
+    # A writer may publish between our clock sample and the SELECT snapshot.
+    # Retry once with the actual clock, preserving explicit evaluation instants
+    # and every freshness predicate in the same session/transaction.
+    for _ in range(1 if requested_now is not None else 2):
+        now = requested_now if requested_now is not None else datetime.now(UTC)
+        generation = session.scalar(
+            select(BrowseGeneration)
+            .join(
+                BrowseState,
+                or_(
+                    BrowseState.generation_id == BrowseGeneration.id,
+                    BrowseState.prepared_generation_id == BrowseGeneration.id,
+                ),
+            )
+            .where(
+                BrowseState.id == 1,
+                BrowseState.input_revision == BrowseGeneration.input_revision,
+                BrowseGeneration.policy_version == POLICY_VERSION,
+                BrowseGeneration.valid_from <= now,
+                BrowseGeneration.valid_until > now,
+            )
+            .order_by(
+                BrowseGeneration.valid_from.desc(),
+                BrowseGeneration.built_at.desc(),
+                BrowseGeneration.id,
+            )
+            .limit(1)
         )
-        .where(
-            BrowseState.id == 1,
-            BrowseState.input_revision == BrowseGeneration.input_revision,
-            BrowseGeneration.policy_version == POLICY_VERSION,
-            BrowseGeneration.valid_from <= now,
-            BrowseGeneration.valid_until > now,
-        )
-        .order_by(
-            BrowseGeneration.valid_from.desc(),
-            BrowseGeneration.built_at.desc(),
-            BrowseGeneration.id,
-        )
-        .limit(1)
+        if generation is not None:
+            return generation
+    raise HTTPException(
+        503,
+        "Qualification pending: saved browse summaries need a retained-data rebuild",
+        headers={"Retry-After": "5", "X-Qualification-State": "pending"},
     )
-    if generation is None:
-        raise HTTPException(
-            503,
-            "Qualification pending: saved browse summaries need a retained-data rebuild",
-            headers={"Retry-After": "5", "X-Qualification-State": "pending"},
-        )
-    return generation
 
 
 def _search_texts(session, summaries: list[dict]) -> dict[str, str]:
