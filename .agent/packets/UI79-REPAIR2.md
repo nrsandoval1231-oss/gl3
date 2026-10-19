@@ -1,0 +1,9 @@
+# UI79 final type/fixture and retired-alias alignment
+
+Base 25108082cc3f8f4de17c65cc5c4bd91a173717f5; same isolated feature branch, one Luna builder. Controller owns final verification and independent review. This records the second bounded repair dispatch and its explicit file authority.
+
+Objective: complete deterministic gates without weakening behavioral assertions or changing product doctrine. Allowed: Workspace.tsx helper type signature (accept null already handled by optional chaining); test_call_fact_workflow_integration.py helper call (pass its existing monkeypatch fixture); retained-editorial-records.md and one workspace.spec.ts alias regression. No API/domain/ingestion/brand/migration/provider/credential/release changes.
+
+TypeScript error TS2345 identifies the nullable argument. Widening the type erases at compile time; runtime logic remains unchanged. Static Python signature binding proves the parity helper requires monkeypatch; passing the existing fixture preserves all fact/qualification and parity assertions. Independent review agrees retired view=editorial is an inert alias to the ordinary private home, whose visual/interaction replacement is explicitly approved; documentation and a no-editorial-request regression align it with Pursuit Workspace without reviving retired functionality.
+
+Builder commits: 713fd2c (type), 6c81b71 (fixture call), 78565c2 (retired-alias doc/test). Controller affected parity journey passed on dedicated ui79_parity_test; builder typecheck/build and alias test passed. No mutable DB ownership shared. Retry budget remains two materially different attempts per defect; no unchanged retry. Final coherent backend suite, full browser gate, static checks and fresh exact-candidate review determine acceptance. Earlier FIX and harness failures stay retained. Merge/deploy/production/provider/outreach authority remains absent.
