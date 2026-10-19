@@ -864,6 +864,8 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
                         failed.lease_owner, failed.lease_until = None, None
             return True
         with SessionLocal() as session:
+            if deadline is not None:
+                session.info["browse_publication_deadline"] = deadline
             source = session.scalar(select(Source).where(Source.id == source_id).with_for_update())
             finished_job = session.get(Job, job_id)
             if source is None or finished_job is None:
@@ -1120,6 +1122,9 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
 
 def main() -> None:
     logging.basicConfig(level=logging.INFO)
+    from gridlens.intelligence.worker_browse import install_worker_publication
+
+    install_worker_publication(SessionLocal)
     definitions = {row["id"]: row for row in load_registry()}
     stop_event = threading.Event()
 

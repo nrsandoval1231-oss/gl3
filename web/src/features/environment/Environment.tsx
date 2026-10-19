@@ -255,8 +255,8 @@ export function Environment({ onSignOut, today }: { onSignOut: () => void; today
 
     <main className="env-stage">
       <section className="env-subject" aria-live="polite" data-context-loading={collection ? false : selectedFocus ? !subject && !selectionError : loading || pageKey !== filterKey}>
-        {error && inFocus && scene.mode !== 'pursuits' && <p role="alert">Map results unavailable: {error} <button onClick={() => setRevision((value) => value + 1)}>Retry opportunities</button></p>}
-        {error && !inFocus ? <div role="alert"><h1 ref={headingRef} tabIndex={-1}>Opportunities are unavailable.</h1><p>{error}</p><p>Collected evidence is unaffected. Try again or open source health from the menu.</p><button onClick={() => setRevision((value) => value + 1)}>Retry opportunities</button></div>
+        {error && inFocus && scene.mode !== 'pursuits' && <p role="alert">Map results unavailable: {error} <button className="env-go" onClick={() => setRevision((value) => value + 1)}>Retry opportunities</button></p>}
+        {error && !inFocus ? <div role="alert"><h1 ref={headingRef} tabIndex={-1}>Opportunities are unavailable.</h1><p>{error}</p><p>Collected evidence is unaffected. Try again or open source health from the menu.</p><button className="env-go" onClick={() => setRevision((value) => value + 1)}>Retry opportunities</button></div>
           : scene.mode === 'browse' ? <BrowseRecords tier={scene.tier} lens={scene.lens} search={scene.search} offset={scene.browseOffset ?? 0} onPage={(browseOffset) => go({ browseOffset })} onSelect={(item) => go({ mode: 'project', needId: item.id })}/>
           : scene.mode === 'pursuits' ? <CommercialPursuits navigation={commercial} onNavigate={(commercial) => go({ commercial })} onInvestigate={(needId) => go({ mode: 'project', needId })}/>
           : scene.mode === 'nation' ? <>
