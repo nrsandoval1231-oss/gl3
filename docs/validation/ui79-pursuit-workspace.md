@@ -10,6 +10,8 @@ Branch `feat/pursuit-workspace-79` preserves prior work at `cd84b77` and integra
 
 Canonical need detail, evidence, buying chain, call facts, workflow status and history reuse existing APIs/components. Unknown supply produces no numerical gap. Remaining gap is exposed only through guarded, current qualification output. Workflow saves require persisted readback and do not establish qualification. Important fact summaries distinguish reported/derived, conflict and unavailable evidence states rather than assuming verification.
 
+Compatibility review restored a compact qualification selector on the retained browse surface and preserved explicit root environment scene links and return paths. Pagination restores its cohort token after reload/Back. If a selected need leaves a refreshed cohort, its old commercial preview is cleared; detail declares disposition unavailable until current support is available. Missing source health returns Unknown, rather than raising a response-validation error or implying success. The health error was reproduced on unchanged main before the repair.
+
 ## Local measurements
 
 Measured October 19, 2026 on local PostgreSQL 18 and the same synthetic fixture shape in separate databases: 2,000 power needs, 6,000 observations, 6,000 evidence records. All existing migrations through `0031_research_browse` and `alembic check` passed on fresh runtime databases. Original fixture databases were preserved; the prior synthetic corpus was dumped before reuse. No retained or production database was changed.
@@ -45,7 +47,9 @@ All records shown below are **synthetic test data**.
 
 ## Verification and release boundary
 
-Final integrated validation and independent review results are recorded with the frozen candidate in the UI79 handoff. Focused development proof already covers server filtering beyond one page, tier/disposition independence, cohort drift, qualified/unknown/conflicting gaps, authentication, navigation, mobile actions and stale-response protection. All 29 original brand files match current main byte for byte.
+Final integrated validation and independent review results are recorded with the frozen candidate in the UI79 handoff and PR description. The complete browser regression passed 161 tests with one skip after compatibility repairs; type checking and production build passed after the nullable helper signature correction. Focused development proof covers server filtering beyond one page, tier/disposition independence, cohort drift, qualified/unknown/conflicting gaps, authentication, navigation, mobile actions and stale-response protection. All 29 original brand files match current main byte for byte.
+
+Failed attempts remain retained. The initial integrated browser gate reported four failures and independent review returned FIX. Those paths were repaired and retested without removing their behavioral assertions. The backend parity test had an integration fixture-signature mismatch; passing its existing monkeypatch fixture restored its full fact/qualification/parity assertions and the test passed. A backend harness run inherited browser feature flags; another used a `_test` application DB name rejected by nine safety guards. The final backend harness uses CI defaults and separate dedicated application/test databases, retaining the guards unchanged. All nine setup-blocked tests passed after that harness correction. The parent product acceptance and production performance remain separate gates.
 
 Known boundaries:
 
