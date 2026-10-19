@@ -52,6 +52,51 @@ test('workspace sends server filters, opens canonical detail, and restores list 
   await expect(page.getByRole('heading', { name: 'Power needs' })).toBeVisible()
 })
 
+test('table uses its source-backed browse title and settled detail recomputes from current evidence', async ({ page }) => {
+  const row = { ...need, name: 'Austin permit 2026-127192 EP', browse_title: 'JLC Electrical Contractor corp · contractor' }
+  const detail = {
+    ...row,
+    browse_title: undefined,
+    title_company: undefined,
+    title_company_role: undefined,
+    evidence: [{ ...need.evidence[0], assessment_current: true, abstract: 'contractor_company_name: Current project electrician' }],
+  }
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response([row]) }))
+  await page.route('**/api/opportunities/needs/need-a*', route => route.fulfill({ json: detail }))
+  await page.goto('/?view=workspace')
+  const rowButton = page.locator('[data-need-row="need-a"]')
+  await expect(rowButton.locator('strong')).toHaveText('JLC Electrical Contractor corp · contractor')
+  await expect(rowButton).toContainText('Source record: Austin permit 2026-127192 EP')
+  await rowButton.click()
+  await expect(page.getByRole('heading', { name: 'Current project electrician · contractor' })).toBeVisible()
+  await expect(page.locator('.wh-detail-head')).toContainText('Source record: Austin permit 2026-127192 EP')
+  await expect(page.locator('.wh-detail-head')).not.toContainText('JLC Electrical Contractor corp · contractor')
+})
+
+test('off-page detail reload ignores historical company evidence and keeps the source name visible', async ({ page }) => {
+  const detail = {
+    ...need,
+    name: 'Austin permit 2026-127192 EP',
+    browse_title: undefined,
+    title_company: undefined,
+    title_company_role: undefined,
+    activity: 'temporary-power',
+    supported_action: 'New',
+    evidence: [{ ...need.evidence[0], source_id: 'austin-building-permits', assessment_current: false, abstract: 'owner_company_name: Historical Owner LLC' }],
+  }
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response([]) }))
+  await page.route('**/api/opportunities/needs/need-a*', route => route.fulfill({ json: detail }))
+  await page.goto('/?view=workspace&need=need-a')
+  await expect(page.getByRole('heading', { name: 'Temporary power · Austin, TX' })).toBeVisible()
+  await expect(page.locator('.wh-detail-head')).toContainText('Source record: Austin permit 2026-127192 EP')
+  await expect(page.locator('.wh-detail-head')).not.toContainText('Historical Owner LLC')
+  await page.reload()
+  await expect(page.getByRole('heading', { name: 'Temporary power · Austin, TX' })).toBeVisible()
+  await expect(page.locator('.wh-detail-head')).toContainText('Source record: Austin permit 2026-127192 EP')
+})
+
 test('workspace gives an honest retry state when the current cohort is unavailable', async ({ page }) => {
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
   await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ status: 503, json: { detail: 'stale cohort' } }))
