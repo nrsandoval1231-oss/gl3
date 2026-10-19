@@ -80,9 +80,72 @@ test('mobile Next action opens detail and Back restores the selected row focus',
   await page.route('**/api/opportunities/needs/need-a*', route => route.fulfill({ json: need }))
   await page.goto('/?view=workspace')
   await page.getByRole('button', { name: 'Research the project contractor.' }).click()
+  await expect(page.getByRole('button', { name: 'Next steps', exact: true })).toBeInViewport()
   await expect(page.getByRole('heading', { name: 'Record call facts' })).toBeVisible()
   await page.getByRole('button', { name: /Back to power needs/ }).click()
   await expect(page.getByRole('button', { name: /Test data center/ })).toBeFocused()
+})
+
+test('Next steps presents supported organization, retained permit person and phone, dated reason and question before forms', async ({ page }) => {
+  const supported = { ...need, name: 'Austin permit 2026-127192 EP', browse_title: '833 1/2 E BRAKER LN · temporary-power', title_company: 'JLC Electrical Contractor corp', title_company_role: 'Electrical Contractor', commercial_organization: 'JLC Electrical Contractor corp', commercial_reason: 'Active temporary-loop permit issued September 29; retrieved October 14.', commercial_next_question: 'Who is handling the temporary power package, and is supply sufficient?', evidence: [{ ...need.evidence[0], title: 'Historical permit version', assessment_current: false }, { ...need.evidence[0], source_id: 'current', title: 'Current assessment permit', assessment_current: true, published_at: '2026-09-29' }] }
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response([supported]) }))
+  await page.route('**/api/opportunities/needs/need-a*', route => route.fulfill({ json: supported }))
+  await page.route('**/api/projects/project-a/buying-chain', route => route.fulfill({ json: {
+    project_id: 'project-a', candidates: [{ id: 'candidate-a', organization: 'JLC Electrical Contractor corp', category: 'electrical_contractor', stale: false, organization_relationship: 'DIRECT', public_contacts: [] }],
+    permit_summaries: [{ evidence_id: 'permit-evidence', title: 'Austin Electrical Permit', url: 'https://example.test/permit', facts: [{ label: 'Contractor company name', value: 'Wrongly inferred company' }, { label: 'Permit-listed contractor name', value: 'Jose Rivera-Lopez' }, { label: 'Contractor permit-listed phone (permit field)', value: '512-555-0100' }] }], unresolved: [], runs: [], status: 'complete',
+  } }))
+  await page.goto('/?view=workspace')
+  await page.getByRole('button', { name: /Austin permit 2026-127192/ }).click()
+  await page.getByRole('button', { name: /Research the project contractor/ }).click()
+  const brief = page.getByRole('region', { name: 'Call preparation' })
+  await expect(brief).toContainText('JLC Electrical Contractor corp')
+  await expect(brief).toContainText('Electrical Contractor')
+  await expect(brief).toContainText('Jose Rivera-Lopez')
+  await expect(brief).toContainText('Permit-listed person')
+  await expect(brief).toContainText('512-555-0100')
+  await expect(brief).not.toContainText('Wrongly inferred company')
+  await expect(brief).toContainText('Current assessment permit')
+  await expect(brief).toContainText('Active temporary-loop permit issued September 29')
+  await expect(brief).toContainText('Who is handling the temporary power package')
+  await expect(brief).toContainText('purchasing authority')
+  const briefIndex = await brief.evaluate(el => el.compareDocumentPosition(document.querySelector('.wh-detail-content h3')!) & Node.DOCUMENT_POSITION_FOLLOWING)
+  expect(briefIndex).toBeTruthy()
+  await expect(page.getByRole('heading', { name: 'Record call facts' })).toBeVisible()
+})
+
+test('Research link carries the selected need into the research queue', async ({ page }) => {
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response() }))
+  await page.route('**/api/opportunities/needs/need-a*', route => route.fulfill({ json: need }))
+  await page.route('**/api/commercial/triage?*', route => route.fulfill({ json: { items: [], total: 0, offset: 0, limit: 50 } }))
+  await page.goto('/?view=workspace&need=need-a')
+  await page.getByRole('link', { name: 'Research' }).click()
+  await expect(page).toHaveURL(/pursuitNeed=need-a/)
+})
+
+for (const resolved of [false, true]) test(`call-prep excludes prior project contact (already resolved: ${resolved})`, async ({ page }) => {
+  const second = { ...need, id: 'need-b', project_id: 'project-b', name: 'Second project' }
+  let releaseOld!: () => void
+  let oldRequestSeen = false
+  const held = new Promise<void>(resolve => { releaseOld = resolve })
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response([need, second]) }))
+  await page.route('**/api/opportunities/needs/**', route => route.fulfill({ json: route.request().url().includes('need-b') ? second : need }))
+  await page.route('**/api/projects/project-a/buying-chain', async route => {
+    oldRequestSeen = true
+    if (!resolved) await held
+    try { await route.fulfill({ json: { project_id: 'project-a', candidates: [{ organization: 'Old project contact', category: 'electrical_contractor', stale: false, organization_relationship: 'DIRECT', public_contacts: [{ value: 'Old project contact', kind: 'phone', source_url: 'https://example.test/old' }] }], permit_summaries: [], unresolved: [], runs: [], status: 'complete' } }) } catch { /* Request was correctly aborted on selection change. */ }
+  })
+  await page.route('**/api/projects/project-b/buying-chain', route => route.fulfill({ json: { project_id: 'project-b', candidates: [], permit_summaries: [], unresolved: [], runs: [], status: 'complete' } }))
+  await page.goto('/?view=workspace')
+  await page.locator('.wh-action').nth(0).click()
+  await expect.poll(() => oldRequestSeen).toBeTruthy()
+  if (resolved) await expect(page.getByRole('region', { name: 'Call preparation' })).toContainText('Old project contact')
+  await page.locator('.wh-action').nth(1).click()
+  await expect(page.getByRole('heading', { name: 'Second project' })).toBeVisible()
+  releaseOld()
+  await expect(page.getByRole('region', { name: 'Call preparation' })).not.toContainText('Old project contact')
 })
 
 test('a deep-link detail uses the current workspace disposition instead of stale detail metadata', async ({ page }) => {

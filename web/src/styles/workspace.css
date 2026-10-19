@@ -21,6 +21,7 @@
 .wh-detail a,.wh-evidence a{color:#17324a;text-decoration:underline;text-underline-offset:3px}
 .wh-detail a:hover,.wh-evidence a:hover{color:#101f2d}
 .wh-error{border-color:#d5dee5;color:#17324a}
+.wh-call-brief{border:1px solid #d5dee5;border-left:3px solid #17324a;background:#f3f6f7;padding:10px 14px;margin:10px 0 16px}.wh-call-brief h3{margin-top:0}.wh-call-brief p:last-child{margin-bottom:0}
 @media(max-width:760px){
   .wh-briefbar small{font-size:12px}
   .wh-table td{font-size:14px}

@@ -1,4 +1,6 @@
 import type { Opportunity, WorkspaceNeed } from '../../api/client'
+import { client, type BuyingChainResult } from '../../api/client'
+import { useEffect, useRef, useState } from 'react'
 import { BuyingChain } from '../buyingChain/BuyingChain'
 import { FactWorkflowPanel } from '../pursuits/FactWorkflowPanel'
 import { QuickCallLog } from '../pursuits/QuickCallLog'
@@ -27,6 +29,22 @@ type Props = {
 }
 
 export function WorkspaceDetail({ item, pending, loading, error, tab, onTab, onBack, onRetry, onReadback }: Props) {
+  const tabsRef = useRef<HTMLElement>(null)
+  useEffect(() => {
+    const nav = tabsRef.current
+    if (!nav) return
+    const reveal = () => {
+      const active = nav.querySelector<HTMLElement>('.active')
+      if (!active || nav.scrollWidth <= nav.clientWidth) return
+      const bounds = nav.getBoundingClientRect(), selected = active.getBoundingClientRect()
+      if (selected.left < bounds.left) nav.scrollLeft += selected.left - bounds.left
+      else if (selected.right > bounds.right) nav.scrollLeft += selected.right - bounds.right
+    }
+    reveal()
+    const observer = new ResizeObserver(reveal)
+    observer.observe(nav)
+    return () => observer.disconnect()
+  }, [tab, item?.id])
   if (!item) {
     return <aside className="wh-detail wh-empty-detail" aria-label="Opportunity detail">
       <p>{pending || loading ? 'Loading verified opportunity detail…' : 'Select a power need to review its evidence, verified facts, and next action.'}</p>
@@ -35,6 +53,16 @@ export function WorkspaceDetail({ item, pending, loading, error, tab, onTab, onB
   }
 
   const evidence = item.evidence ?? []
+  const callEvidence = evidence.find(source => source.assessment_current) ?? evidence[0]
+  const company = item.commercial_organization || item.title_company
+  const displayTitle = item.browse_title || item.name
+  const companyRole = item.title_company_role
+  const unverified = [
+    ...(!item.start_window ? ['power start timing'] : []),
+    ...(!item.duration ? ['duration'] : []),
+    ...(item.supply === 'Unknown' ? ['suitable temporary supply'] : []),
+    'current project assignment and purchasing authority',
+  ]
   const gap = qualifiedGap(item.qualified_remaining_gap)
   const unknowns = [...new Set([
     ...(item.missing_facts ?? []),
@@ -51,7 +79,8 @@ export function WorkspaceDetail({ item, pending, loading, error, tab, onTab, onB
     <button className="wh-back" autoFocus onClick={onBack}>← Back to power needs</button>
     <div className="wh-detail-head">
       <span>{item.tier} · {item.commercial_disposition ?? 'Disposition unavailable'}</span>
-      <h2>{item.name}</h2>
+      <h2>{displayTitle}</h2>
+      {company && <p>Source-supported organization: {company}{companyRole ? ` · ${companyRole}` : ''}. Listed role does not verify purchasing authority.</p>}
       <p>{item.location ?? 'Location unknown'} · {item.activity}</p>
       <div className="wh-facts">
         <span>Required power<strong>{item.required_mw ?? 'Unknown'}</strong><small>{factEvidenceState(item, 'demand')}</small></span>
@@ -61,7 +90,7 @@ export function WorkspaceDetail({ item, pending, loading, error, tab, onTab, onB
       </div>
       {hasConflict(item.conflict_state) && <p role="status">Evidence conflict state: {item.conflict_state}. Review retained source claims before acting.</p>}
     </div>
-    <nav className="wh-tabs" aria-label="Opportunity detail">
+    <nav ref={tabsRef} className="wh-tabs" aria-label="Opportunity detail">
       {workspaceTabs.map(value => <button key={value} className={value === tab ? 'active' : ''} onClick={() => onTab(value)}>{value}</button>)}
     </nav>
     <div className="wh-detail-content">
@@ -100,7 +129,16 @@ export function WorkspaceDetail({ item, pending, loading, error, tab, onTab, onB
         {evidence.map(source => <p className="wh-evidence" key={source.id}>{source.event_date_label}: {source.event_date ?? 'Unknown'} · {source.published_at ? `Published ${source.published_at}` : 'Publication date unknown'} · Retrieved {new Date(source.retrieved_at).toLocaleString()}</p>)}
       </div>}
       {tab === 'Next steps' && <>
-        <p>{item.commercial_next_action || item.next_action || item.commercial_next_question || 'No next action is available.'}</p>
+        <section className="wh-call-brief" aria-label="Call preparation">
+          <h3>Prepare the call</h3>
+          <p><strong>Who to verify:</strong> {company || 'Company unknown'}{companyRole ? ` · ${companyRole}` : ''}. {company ? 'The source-listed role does not establish current assignment or buying authority.' : 'Review the retained buying chain for supported organizations.'}</p>
+          {item.project_id && <CallBuyerSummary projectId={item.project_id}/>}
+          <p><strong>Why investigate:</strong> {item.commercial_reason || item.assessment_reason || item.rationale || 'No dated reason is available.'}</p>
+          {callEvidence && <p><strong>Source:</strong> <a href={callEvidence.url} target="_blank" rel="noreferrer">{callEvidence.title}</a> · {callEvidence.event_date_label}: {callEvidence.event_date ?? 'Date unknown'} · {callEvidence.published_at ? `Published ${callEvidence.published_at}` : 'Publication date unknown'} · {callEvidence.permit_status ? `Status ${callEvidence.permit_status}` : 'Status unknown'}</p>}
+          <p><strong>Opening question:</strong> {item.commercial_next_question || 'Unknown; verify who handles the power package and whether suitable temporary supply is in place.'}</p>
+          <p><strong>Still unverified:</strong> {unverified.join(', ')}.</p>
+          <p>{item.commercial_next_action || item.next_action || 'Use the opening question to confirm the scope and next step.'}</p>
+        </section>
         <h3>Record call facts</h3>
         <QuickCallLog item={item} onReadback={onReadback}/>
         <h3>Verified facts and workflow history</h3>
@@ -109,6 +147,40 @@ export function WorkspaceDetail({ item, pending, loading, error, tab, onTab, onB
       {tab === 'Unknowns' && <ul>{unknowns.map(value => <li key={value}>{value}</li>)}</ul>}
     </div>
   </aside>
+}
+
+function CallBuyerSummary({ projectId }: { projectId: string }) {
+  const [result, setResult] = useState<BuyingChainResult | null>(null)
+  const [error, setError] = useState(false)
+  useEffect(() => {
+    const controller = new AbortController()
+    setResult(null); setError(false)
+    void client.buyingChain(projectId, controller.signal).then(value => {
+      if (controller.signal.aborted) return
+      if (value.project_id !== projectId || !Array.isArray(value.candidates)) throw new Error('Mismatched buying-chain response')
+      setResult(value)
+    }).catch(() => { if (!controller.signal.aborted) setError(true) })
+    return () => controller.abort()
+  }, [projectId])
+  if (error) return <p><strong>Contact path:</strong> Unavailable; retry in Buying chain.</p>
+  if (!result || result.project_id !== projectId) return <p role="status"><strong>Source-listed contacts:</strong> Loading retained buying-chain evidence.</p>
+  const candidate = result.candidates?.find(item => !item.stale && item.organization_relationship === 'DIRECT' && item.category !== 'rental_intermediary')
+  const contact = candidate?.public_contacts?.[0]
+  const permitFacts = (result.permit_summaries ?? []).flatMap(permit =>
+    (permit.facts ?? [])
+      .filter(fact => /^(applicant (full )?name|contact (full )?name|applicant phone|contact phone|phone|permit-listed contractor name|contractor permit-listed phone \(permit field\)|permit-listed applicant name|applicant permit-listed phone \(permit field\))$/i.test(fact.label))
+      .map(fact => ({ ...fact, permit })),
+  )
+  const permitPerson = permitFacts.find(fact => /name$/i.test(fact.label))
+  const permitPhone = permitFacts.find(fact => /phone(?: \(permit field\))?$/i.test(fact.label))
+  const company = candidate?.organization
+  return <>
+    {company && <p><strong>Project organization:</strong> {company} ({candidate?.category.replaceAll('_', ' ')}; source-supported involvement, purchasing authority unverified).</p>}
+    {contact && <p><strong>Source-listed contact:</strong> {contact.value} ({contact.kind}; identity and authority unverified) · {company} · <a href={contact.source_url} target="_blank" rel="noreferrer">Contact source</a></p>}
+    {!contact && permitPerson && <p><strong>Permit-listed person:</strong> {permitPerson.value} ({permitPerson.label}; role, assignment and authority unverified) · <a href={permitPerson.permit.url} target="_blank" rel="noreferrer">{permitPerson.permit.title}</a></p>}
+    {!contact && permitPhone && <p><strong>Permit-listed phone:</strong> {permitPhone.value} ({permitPhone.label}; contact assignment unverified) · <a href={permitPhone.permit.url} target="_blank" rel="noreferrer">{permitPhone.permit.title}</a></p>}
+    {!contact && !permitPerson && !permitPhone && <p><strong>Source-listed contact:</strong> Unknown in current buying-chain evidence.</p>}
+  </>
 }
 
 function factEvidenceState(item: WorkspaceDetailItem, field: 'demand' | 'start' | 'duration' | 'supply') {

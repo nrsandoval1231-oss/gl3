@@ -63,3 +63,13 @@ Direction VALIDATE repaired B7 candidate. Builder combined147 tests pass; contro
 | UI79-I | checkpoint cd84b77 + origin/main 211d744 | BUILDER FOCUSED CHECKS PASS; CONTROLLER FULL GATES/REVIEW PENDING | Merge commit 4430b58 preserves main intelligence/publication surfaces; need-level server-filtered workspace, navigation/detail repairs, OpenAPI/types, and browser/backend evidence in [UI79 episode](episodes/UI79-integration.md). |
 
 This isolated issue79 node does not replace or complete the main intelligence graph. Main completion gates and UI79 production proof remain independently open.
+
+## PR87 owner-approved follow-up, October 19
+
+| Node | Dependencies | State | Deliverable |
+|---|---|---|---|
+| PR87-CALL | exact PR87 07d676b; owner local approval | IMPLEMENTED / LOCAL | Cited brief, honest question freshness/checkpoint, source-backed contacts and call preparation in approved UI. Final browser166 pass/1skip; actual local auth/call/restart proof. |
+| PR87-PUB | same candidate; failed CI receipt | BLOCKED / cause UNPROVEN | Safe diagnostics and fault recovery tested; fourteen rebuild/rollback checks preserve canonical hashes. Intermittent CI503 not reproduced/repaired. |
+| PR87-ACCEPT | PR87-CALL, PR87-PUB | RELEASE FAIL / full backend pending | Source manifest f3a0e328; static/contracts/build/audits pass. Independent Sol confirms contact corrections, retains publication release blocker. |
+
+[Packet](packets/PR87-CALL.md). Source recovery a5e4cf9 paused. Publication, merge and deployment require later explicit approval of the concrete result.

@@ -8,7 +8,7 @@ const tabs = workspaceTabs
 type Tab = WorkspaceTab
 type WorkspaceDetail = import('../../api/client').Opportunity & Partial<Pick<WorkspaceNeed, 'commercial_disposition' | 'commercial_reason' | 'commercial_next_question' | 'commercial_next_action' | 'commercial_organization'>>
 const getParams = () => new URLSearchParams(location.search)
-function legacyUrl(view: string) { const p = getParams(); p.set('view', view); p.delete('need'); p.delete('section'); p.delete('offset'); return `/?${p}` }
+function legacyUrl(view: string) { const p = getParams(); p.set('view', view); const need = p.get('need'); p.delete('need'); if (view === 'pursuits' && need) p.set('pursuitNeed', need); p.delete('section'); p.delete('offset'); return `/?${p}` }
 function initialFilters(): WorkspaceFilters {
   const p = getParams()
   const tier = p.get('tier')

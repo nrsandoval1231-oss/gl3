@@ -58,6 +58,7 @@ from gridlens.intelligence.briefs import (
     brief_input,
     brief_preview,
     brief_view,
+    brief_view_for_payload,
     request_brief,
 )
 from gridlens.intelligence.buying_chain import (
@@ -908,6 +909,7 @@ class BriefContentOut(BaseModel):
     commercial_hypothesis: BriefStatementOut
     unknowns: list[str]
     next_step: str
+    commercial_question: str | None = None
 
 
 class BriefCitationOut(BaseModel):
@@ -927,6 +929,7 @@ class BriefOut(BaseModel):
     error: str | None = None
     input_tokens: int = 0
     output_tokens: int = 0
+    question_context: str = "current"
 
 
 class BriefRequestOut(BriefOut):
@@ -4025,7 +4028,7 @@ def get_power_need_brief(need_id: UUID):
         except BriefUnavailable:
             payload = None
         row = session.get(PowerNeedBrief, need_id)
-        return brief_view(row, brief_fingerprint(payload) if payload else None)
+        return brief_view_for_payload(row, payload)
 
 
 @app.post(

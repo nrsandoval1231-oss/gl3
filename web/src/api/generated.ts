@@ -858,6 +858,8 @@ export interface components {
             unknowns: string[];
             /** Next Step */
             next_step: string;
+            /** Commercial Question */
+            commercial_question?: string | null;
         };
         /** BriefOut */
         BriefOut: {
@@ -885,6 +887,11 @@ export interface components {
              * @default 0
              */
             output_tokens: number;
+            /**
+             * Question Context
+             * @default current
+             */
+            question_context: string;
         };
         /** BriefRequestOut */
         BriefRequestOut: {
@@ -912,6 +919,11 @@ export interface components {
              * @default 0
              */
             output_tokens: number;
+            /**
+             * Question Context
+             * @default current
+             */
+            question_context: string;
             /** Job Id */
             job_id?: string | null;
         };

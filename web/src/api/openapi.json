@@ -3657,6 +3657,17 @@
           "next_step": {
             "type": "string",
             "title": "Next Step"
+          },
+          "commercial_question": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commercial Question"
           }
         },
         "type": "object",
@@ -3728,6 +3739,11 @@
             "type": "integer",
             "title": "Output Tokens",
             "default": 0
+          },
+          "question_context": {
+            "type": "string",
+            "title": "Question Context",
+            "default": "current"
           }
         },
         "type": "object",
@@ -3796,6 +3812,11 @@
             "type": "integer",
             "title": "Output Tokens",
             "default": 0
+          },
+          "question_context": {
+            "type": "string",
+            "title": "Question Context",
+            "default": "current"
           },
           "job_id": {
             "anyOf": [
