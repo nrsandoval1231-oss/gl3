@@ -2110,6 +2110,84 @@ def test_successful_replacement_archives_old_policy_model_and_schema(runtime, mo
         assert row.model == settings.openai_brief_model
 
 
+@pytest.mark.parametrize("commercial", [False, True])
+@pytest.mark.parametrize("provider_fails", [False, True])
+def test_authenticated_brief_request_and_worker_keep_saved_maps_current(
+    runtime, monkeypatch, commercial, provider_fails
+):
+    from gridlens.intelligence.saved_browse import current_generation, rebuild
+    from gridlens.intelligence.worker_browse import install_worker_publication
+    from gridlens.persistence.browse_invalidation import install
+    from gridlens.persistence.models import BrowseState
+
+    factory, service, (need_id, _evidence_id) = runtime
+    api = import_module("gridlens.api.app")
+    with factory.kw["bind"].begin() as connection:
+        install(connection)
+    assert rebuild(factory)["status"] == "published"
+    monkeypatch.setattr(settings, "saved_browse_enabled", True)
+    worker_factory = sessionmaker(factory.kw["bind"], expire_on_commit=False)
+    monkeypatch.setattr(service, "SessionLocal", worker_factory)
+    install_worker_publication(worker_factory)
+    client = TestClient(api.app, base_url="https://testserver")
+    client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
+    reads = []
+
+    def verify_current():
+        with factory() as reader:
+            assert (
+                current_generation(reader).input_revision
+                == reader.get(BrowseState, 1).input_revision
+            )
+        response = client.get("/api/opportunities/map-window?tier=Signal&decision=ALL")
+        reads.append(response.status_code)
+        assert response.status_code == 200, response.text
+
+    def after_commit(session):
+        if not session.in_nested_transaction():
+            verify_current()
+
+    provider_calls = []
+
+    def synthetic_provider(payload, evidence):
+        verify_current()  # The request remains usable while the provider is in flight.
+        provider_calls.append(payload)
+        assert "PRIVATE-BRIEF-TEST" not in json.dumps(payload)
+        if provider_fails:
+            raise TimeoutError("synthetic provider timeout")
+        return _valid_model_result(payload, evidence)
+
+    monkeypatch.setattr(service, "_provider", synthetic_provider)
+    event.listen(worker_factory, "after_commit", after_commit)
+    try:
+        route = (
+            f"/api/commercial/triage/{need_id}/research"
+            if commercial
+            else f"/api/power-needs/{need_id}/brief"
+        )
+        body = {"question": "Which source confirms the construction stage?"} if commercial else {}
+        response = client.post(route, json=body, headers={"origin": "https://testserver"})
+        assert response.status_code == 200, response.text
+        assert response.json()["status"] == "pending"
+        verify_current()
+        job_id = UUID(response.json()["job_id"])
+        leased = _lease(factory, job_id)
+        assert leased
+        _job, fence = leased
+        service.process_brief_job(job_id, "brief-test-worker", fence)
+        verify_current()
+    finally:
+        event.remove(worker_factory, "after_commit", after_commit)
+        client.close()
+    assert len(reads) >= 4
+    assert len(provider_calls) == 1
+    with factory() as session:
+        assert session.get(PowerNeedBrief, need_id).status == (
+            "failed" if provider_fails else "ready"
+        )
+        assert session.get(Job, job_id).status == ("failed" if provider_fails else "succeeded")
+
+
 def test_brief_api_requires_auth_and_same_origin_for_explicit_request(runtime):
     factory, _service, (need_id, _evidence_id) = runtime
     api = import_module("gridlens.api.app")

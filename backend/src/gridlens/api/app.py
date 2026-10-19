@@ -3725,7 +3725,9 @@ def adjudicate_signal_batch(
     """Explicit bounded replay/backfill; unchanged evidence and policy are idempotent."""
     require_same_origin(request)
     with SessionLocal.begin() as session:
-        return adjudicate_current_signals(session, limit=limit)
+        result = adjudicate_current_signals(session, limit=limit)
+        _refresh_saved_operator_change(session)
+        return result
 
 
 def _change_sources(session, event: ChangeEvent) -> list[dict]:
@@ -3913,7 +3915,9 @@ def create_power_need_brief(need_id: UUID, request: Request):
     require_same_origin(request)
     with SessionLocal.begin() as session:
         try:
-            return request_brief(session, need_id)
+            result = request_brief(session, need_id)
+            _refresh_saved_operator_change(session)
+            return result
         except LookupError as exc:
             raise HTTPException(404, "Power need not found") from exc
         except BriefUnavailable as exc:
@@ -5459,7 +5463,9 @@ def research_commercial_need(need_id: UUID, body: CommercialResearchBody, reques
             row = session.get(PowerNeedBrief, need_id)
             if row and row.generated_fingerprint == fingerprint and row.result:
                 return {"job_id": None, **brief_view(row, fingerprint)}
-            return request_brief(session, need_id, question)
+            result = request_brief(session, need_id, question)
+            _refresh_saved_operator_change(session)
+            return result
         except LookupError as exc:
             raise HTTPException(404, "Power need not found") from exc
         except BriefUnavailable as exc:

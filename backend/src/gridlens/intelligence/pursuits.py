@@ -737,6 +737,7 @@ def process_research_job(job_id: UUID, worker_id: str, fence: int) -> None:
         if time.monotonic() >= deadline:
             raise TimeoutError("Pursuit batch deadline exhausted")
         with SessionLocal() as session:
+            session.info["browse_publication_deadline"] = deadline
             assert_fence(session, job_id, worker_id, fence)
             row = session.scalar(
                 select(Pursuit).where(Pursuit.identity_key == group["identity_key"])
