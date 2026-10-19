@@ -116,7 +116,7 @@ export function WorkspaceHome() {
   </div>
 }
 
-function commercialPreview(row: WorkspaceNeed | undefined) {
+function commercialPreview(row: WorkspaceNeed | null | undefined) {
   return {
     commercial_disposition: row?.commercial_disposition,
     commercial_reason: row?.commercial_reason,
