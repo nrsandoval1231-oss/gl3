@@ -8,6 +8,21 @@ const need = {
 } as any
 const response = (items = [need]) => ({ items, total: items.length, counts: { action_now: 0, research: items.length, watch: 0, reject: 0 }, offset: 0, limit: 25, next_offset: null, cohort_token: 'cohort-a', count_unit: 'power needs', changes_available: false })
 
+test('retired editorial URL alias falls through to the private pursuit workspace', async ({ page }) => {
+  const apiPaths: string[] = []
+  page.on('request', request => {
+    const path = new URL(request.url()).pathname
+    if (path.startsWith('/api/')) apiPaths.push(path)
+  })
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response() }))
+  await page.goto('/?view=editorial')
+  await expect(page.getByRole('heading', { name: 'Power needs' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Editorial review' })).toHaveCount(0)
+  expect(apiPaths).toContain('/api/opportunities/workspace')
+  expect(apiPaths.some(path => path.toLowerCase().includes('editorial'))).toBe(false)
+})
+
 test('workspace sends server filters, opens canonical detail, and restores list navigation', async ({ page }) => {
   const requests: URL[] = []
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
