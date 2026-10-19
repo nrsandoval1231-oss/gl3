@@ -15,6 +15,24 @@ export type CallFactDecisionBody = components['schemas']['CallFactDecisionBody']
 export type NeedWorkflowStatus = components['schemas']['NeedWorkflowStatusOut']
 export type NeedWorkflowStatusBody = components['schemas']['NeedWorkflowStatusBody']
 
+export type IntelligenceHistoryItem = {
+  job_id: string; task_type: string | null; need_id: string; status: string
+  result: Record<string, unknown> | null; result_status?: string | null; error: string | null; evidence_ids: string[]
+  logical_call_id: string | null; usage: { input_tokens?: number | null; output_tokens?: number | null; cost_usd?: string | number | null } | null
+  reserved: boolean; uncertain: boolean; created_at: string | null; completed_at: string | null
+}
+export type IntelligenceTasks = {
+  items: { task_type: string; question_id: string | null; eligible: boolean; reason: string | null; provider: string | null; pinned_model: string | null }[]
+  mode: string; enabled: boolean; provider_configuration: { openai_key_present: boolean; typesafe_key_present: boolean }; note: string
+}
+export type IntelligenceOperations = {
+  window_days: number; sources: { source_id: string; enabled: boolean; last_attempt_at: string | null; last_success_at: string | null; last_good_preserved: boolean; checked_30d: number; failed_30d: number; partial_30d: number; parse_failures_30d: number; parse_success_30d: number | null; freshness_30d: string; due_30d: number }[]
+  queue: { by_kind_status: Record<string, Record<string, number>>; oldest_queued_at: string | null; retried_jobs_30d: number; failed_after_three_attempts_30d: number }
+  providers: { utc_day: { date: string; timezone: string; calls: number; known_cost_usd: number | null; reserved_cost_usd: number | null; reserved_known_subtotal_usd: number; unknown_cost_calls: number; daily_budget_status: string; daily_budget_rows: { scope: string; calls: number; reserved_usd: number }[]; daily_budget_limits_usd: Record<string, number>; daily_budget_limits_calls: Record<string, number> }; configured: Record<string, boolean>; enabled: Record<string, boolean>; by_provider: { provider: string; called: number; completed: number; accepted: number | null; models: Record<string, unknown>; actual_cost_usd: number | null; reserved_cost_usd: number | null; uncertain: number; failed: number; input_tokens: number; output_tokens: number; usage_known_calls: number; usage_unknown_calls: number; unknown_cost_calls: number; latency_p50_ms: number | null; latency_p95_ms: number | null }[]; reserved_cost_usd: number | null; reserved_known_subtotal_usd: number; known_cost_usd: number | null; known_cost_calls: number; unknown_cost_calls_all_time: number; total_cost_status: string; detail_rows_30d: number; detail_truncated: boolean; outstanding_uncertain_calls_all_time: number; uncertain_calls: number; accepted: number | null; accepted_reason: string }
+  questions: { outcomes_30d: Record<string, number> }; material_changes_30d: number | null; reviewed_signals: number | null; independent_leads: number | null; backup: string; restore: string; last_verified_restore_at: string | null; last_reported_restore_at: string | null; operational_receipt: Record<string, unknown>; commercial_review_receipt: { status: string; reported_case_count: number | null; decision_counts: Record<string, number> | null; reviewer: string | null; reviewed_at: string | null; sample_sha256: string | null; context_sha256: string | null; cases: { case_id: string; need_id: string; decision: string; evidence_refs: { evidence_id: string; content_hash: string }[] }[]; independent_labels: string; quality_verification: string; acceptance: string }; owner_review_notes_30d: number
+}
+export type OwnerFeedbackBody = { client_id: string; job_id: string; logical_call_id: string; decision: 'SUPPORTED' | 'CONFLICT' | 'UNRESOLVED' | 'OTHER'; note: string; next_action?: string; follow_up?: string | null; candidate: { field: string; value: string; unit?: string | null; original_value?: string | null; original_unit?: string | null; precision?: number | null; date_precision?: string | null; speaker?: string | null; speaker_organization?: string | null; speaker_role?: string | null; evidence_id: string; evidence_hash: string; quote: string; section: string; page?: number | null; span_start: number; span_end: number; publisher: string; published_date?: string | null; support: string; status: string; source_url: string; source_id?: string | null }; evidence_refs: { evidence_id: string; content_hash: string; source_url: string }[] }
+
 export type BuyingChainResult = components['schemas']['BuyingChainOut']
 export type Opportunity = components['schemas']['OpportunityOut']
 export type WorkspaceNeed = components['schemas']['PursuitWorkspaceItemOut']
@@ -205,7 +223,7 @@ export const client = {
   refreshPursuits: (force = false) => api<components['schemas']['PursuitJobOut']>(`/api/pursuits/refresh${force ? '?force=true' : ''}`, { method: 'POST' }),
   savePursuitNote: (pursuitId: string, body: CallNoteBody) => api<components['schemas']['CallNoteOut']>(`/api/pursuits/${encodeURIComponent(pursuitId)}/notes`, { method: 'POST', body: JSON.stringify(body) }),
   buyingChain: (projectId: string, signal?: AbortSignal) => api<BuyingChainResult>(`/api/projects/${encodeURIComponent(projectId)}/buying-chain`, { signal }),
-  enrichBuyingChain: (projectId: string, sourceUrls: string[]) => api<BuyingChainResult>(`/api/projects/${encodeURIComponent(projectId)}/buying-chain/enrich`, { method: 'POST', body: JSON.stringify({ source_urls: sourceUrls }) }),
+  enrichBuyingChain: (projectId: string, sourceUrls: string[], signal?: AbortSignal) => api<BuyingChainResult>(`/api/projects/${encodeURIComponent(projectId)}/buying-chain/enrich`, { method: 'POST', body: JSON.stringify({ source_urls: sourceUrls }), signal }),
   brief: (needId: string) => api<Brief>(`/api/power-needs/${encodeURIComponent(needId)}/brief`),
   requestBrief: (needId: string) => api<BriefRequest>(`/api/power-needs/${encodeURIComponent(needId)}/brief`, { method: 'POST', body: '{}' }),
   commercialTriage: (limit = 50, signal?: AbortSignal, offset = 0) => api<CommercialTriage>(`/api/commercial/triage?limit=${limit}${offset ? `&offset=${offset}` : ''}`, { signal }),
@@ -215,6 +233,11 @@ export const client = {
   researchCommercialNeed: (needId: string, body: CommercialResearchBody) => api<BriefRequest>(`/api/commercial/triage/${encodeURIComponent(needId)}/research`, { method: 'POST', body: JSON.stringify(body) }, true),
   commercialResearchStatus: (needId: string, question: string, signal?: AbortSignal) => api<CommercialResearchStatus>(`/api/commercial/triage/${encodeURIComponent(needId)}/research?${new URLSearchParams({ question }).toString()}`, { signal }, true),
   autonomousResearch: (needId: string, signal?: AbortSignal) => api<AutonomousResearch>(`/api/commercial/triage/${encodeURIComponent(needId)}/autonomous-research`, { signal }, true),
+  intelligenceTasks: (signal?: AbortSignal) => api<IntelligenceTasks>('/api/intelligence/tasks', { signal }),
+  intelligenceOperations: (signal?: AbortSignal) => api<IntelligenceOperations>('/api/intelligence/operations', { signal }),
+  intelligenceHistory: (needId: string, signal?: AbortSignal) => api<{ items: IntelligenceHistoryItem[] }>(`/api/intelligence/needs/${encodeURIComponent(needId)}/history?limit=20`, { signal }),
+  requestIntelligence: (needId: string, taskType: string, questionId?: string) => api<IntelligenceHistoryItem>(`/api/intelligence/needs/${encodeURIComponent(needId)}/jobs`, { method: 'POST', body: JSON.stringify({ task_type: taskType, ...(questionId ? { question_id: questionId } : {}) }) }),
+  saveIntelligenceFeedback: (needId: string, body: OwnerFeedbackBody) => api<{ id: string; metadata: Record<string, unknown>; note: string }>(`/api/intelligence/needs/${encodeURIComponent(needId)}/feedback`, { method: 'POST', body: JSON.stringify(body) }),
   refreshAutonomousResearch: (needId: string, force: boolean, signal?: AbortSignal) => api<AutonomousResearch>(`/api/commercial/triage/${encodeURIComponent(needId)}/autonomous-research`, { method: 'POST', body: JSON.stringify({ force }), signal }, true),
   session: () => api<{ authenticated: boolean }>('/api/auth/session').then((session) => {
     if (!session.authenticated) clearContinuity()

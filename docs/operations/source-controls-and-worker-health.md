@@ -42,7 +42,7 @@ Each enabled schedule epoch records its source configuration, cadence, mode,
 timezone, anchor and effective interval. Cadences below 24 hours use elapsed UTC
 intervals. Local-daily cadence is a positive integer number of whole 24-hour
 days; values such as 36 hours are rejected rather than rounded to a different
-schedule. Daily schedules use a local wall-clock anchor (default 03:00 in
+schedule. Daily schedules use a local wall-clock anchor (default 07:00 in
 America/Chicago); nonexistent spring-forward times resolve to the first valid
 wall time after the gap, and ambiguous fall-back times use the first occurrence.
 The worker reconciles missed occurrences into a unique source/epoch/UTC due

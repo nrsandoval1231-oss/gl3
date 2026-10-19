@@ -1,4 +1,20 @@
-# Editorial removal completion record
+# Intelligence integration completion record
+
+Current status: BUILDING all unblocked A-G. Focused local slices pass; integrated
+full gates and final independent Sol review remain required. This record grants
+no push, merge, deployment, provider activation or outreach authority.
+
+Owner full integration request supersedes strategy's Packet-A-only scope.
+PRD/Finish Contract/editorial removal remain binding. See CURRENT_STATE.md,
+WORK_GRAPH.md and docs/delivery/intelligence-integration.md for current evidence.
+Runtime SHA/flags/budgets UNKNOWN; local providers OFF/zero. Production inventory
+confirms active host and weekly droplet backups only. Real provider/cloud/restore,
+seven daily cycles and owner-reviewed commercial acceptance stay OPEN.
+
+Historical completion and metrics archived unchanged in archive/intelligence-20261018/.
+The following editorial-removal record is historical, not current integration status.
+
+## Historical editorial removal completion record
 
 Status: implementation complete; candidate is awaiting controller PostgreSQL and
 web verification. This record is not a freeze, review, merge, or deployment

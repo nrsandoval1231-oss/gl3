@@ -16,7 +16,9 @@ x-backend: &backend
   environment:
     TYPESAFE_API_KEY: ${TYPESAFE_API_KEY:-}
     OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    FIRECRAWL_API_KEY: ${FIRECRAWL_API_KEY:-}
     SAVED_BROWSE_ENABLED: ${SAVED_BROWSE_ENABLED:-false}
+    OPERATIONAL_RECEIPT_FILE: ${OPERATIONAL_RECEIPT_FILE:-}
   restart: unless-stopped
 
 services:
@@ -28,6 +30,8 @@ services:
   api:
     <<: *backend
     command: ["uv", "run", "uvicorn", "gridlens.api.app:app", "--host", "0.0.0.0", "--port", "8000", "--no-proxy-headers"]
+    volumes:
+      - ${OPERATIONAL_RECEIPT_HOST_FILE:-/dev/null}:/run/gridlens/operational-receipt.json:ro
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -35,6 +39,8 @@ services:
   worker:
     <<: *backend
     command: ["uv", "run", "python", "-m", "gridlens.jobs.worker"]
+    volumes:
+      - ${OPERATIONAL_RECEIPT_HOST_FILE:-/dev/null}:/run/gridlens/operational-receipt.json:ro
     depends_on:
       migrate:
         condition: service_completed_successfully

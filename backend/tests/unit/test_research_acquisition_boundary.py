@@ -1,5 +1,7 @@
 import multiprocessing
 import os
+import pickle
+import threading
 import time
 from io import BytesIO
 from types import SimpleNamespace
@@ -140,11 +142,20 @@ def test_vector_painted_pdf_content_is_not_certified_by_text_footer():
 
 def test_stalled_operation_is_killed_at_shared_wall_clock_deadline():
     before = {child.pid for child in multiprocessing.active_children()}
+    receiver_threads = {
+        thread.ident
+        for thread in threading.enumerate()
+        if thread.name == "gridlens-acquisition-ipc-receiver"
+    }
     started = time.monotonic()
     with pytest.raises(TimeoutError):
         run_isolated('time:sleep', (30,), {}, deadline=started + 0.35)
     assert time.monotonic() - started < 2
     assert {child.pid for child in multiprocessing.active_children()} == before
+    assert not any(
+        thread.name == "gridlens-acquisition-ipc-receiver" and thread.ident not in receiver_threads
+        for thread in threading.enumerate()
+    )
 
 
 def test_isolated_result_and_safe_parser_error_round_trip():
@@ -154,6 +165,38 @@ def test_isolated_result_and_safe_parser_error_round_trip():
         run_isolated('gridlens.ingestion.adapters.buying_chain_public:parse_document',
                      ('https://acme.com', b'x' * (MAX_TEXT + 1), 'text/plain'), {},
                      deadline=time.monotonic() + 5)
+
+
+def test_isolated_result_size_is_bounded_before_parent_unpickles():
+    from gridlens.ingestion.adapters.bounded_http import MAX_ISOLATED_RESULT_BYTES
+
+    with pytest.raises(AcquisitionFailure, match="acquisition_result_too_large"):
+        run_isolated(
+            "builtins:bytes",
+            (MAX_ISOLATED_RESULT_BYTES + 1,),
+            {},
+            deadline=time.monotonic() + 5,
+        )
+
+
+def test_isolated_rss_snapshot_preserves_validator_metadata():
+    snapshot = run_isolated(
+        "gridlens.ingestion.adapters.publisher_rss:RSSSnapshot",
+        ([{"document_number": "fixture-rss-item"}],),
+        {
+            "not_modified": True,
+            "etag": '"fixture-v1"',
+            "last_modified": "Sun, 18 Oct 2026 00:00:00 GMT",
+        },
+        deadline=time.monotonic() + 5,
+    )
+    from gridlens.ingestion.adapters.publisher_rss import RSSSnapshot
+
+    assert isinstance(snapshot, RSSSnapshot)
+    assert snapshot == [{"document_number": "fixture-rss-item"}]
+    assert snapshot.not_modified is True
+    assert snapshot.etag == '"fixture-v1"'
+    assert snapshot.last_modified == "Sun, 18 Oct 2026 00:00:00 GMT"
 
 
 def test_windows_job_object_reports_the_installed_512_mib_limit():
@@ -229,7 +272,7 @@ def test_memory_guard_failure_stops_before_acquisition_target(monkeypatch):
     class Connection:
         messages = []
 
-        def send(self, value):
+        def send_bytes(self, value):
             self.messages.append(value)
 
         def close(self):
@@ -246,7 +289,7 @@ def test_memory_guard_failure_stops_before_acquisition_target(monkeypatch):
     connection = Connection()
     bounded_http._isolated_entry(connection, "builtins:len", ([1],), {})
     assert len(connection.messages) == 1
-    success, error = connection.messages[0]
+    success, error = pickle.loads(connection.messages[0])
     assert not success
     assert isinstance(error, AcquisitionFailure)
     assert str(error) == "windows_job_assignment_failed"

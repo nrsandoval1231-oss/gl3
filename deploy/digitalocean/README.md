@@ -55,7 +55,9 @@ The managed cluster's own point-in-time backups are a second path. Record each r
 
 Secrets live in Infisical: project `06ded1a4-5c85-426a-a833-d40358529795`,
 environment slug `dev`, path `/`. Expected secret names are `TYPESAFE_API_KEY`
-and `OPENAI_API_KEY`. Both are forwarded by Compose to the API, worker, and
+and `OPENAI_API_KEY`. Optional controlled Firecrawl acquisition also uses
+`FIRECRAWL_API_KEY` when that provider is configured and authorized. Compose forwards
+all three names to the API, worker, and
 migration containers the same way (`${NAME:-}`); neither goes in the web image or
 in any file.
 

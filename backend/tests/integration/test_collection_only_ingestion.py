@@ -32,6 +32,31 @@ from gridlens.security import token_for
 from gridlens.settings import settings
 
 
+@pytest.fixture(autouse=True)
+def synthetic_structured_segment_for_collection_semantics(monkeypatch):
+    """Supply declared synthetic segments while testing downstream collection logic."""
+    import gridlens.ingestion.service as service
+
+    original_segment = service.retrieve_collection_segment
+
+    def synthetic_segment(source, lane, start, end, cursor, client=None, *, deadline=None):
+        if source.get("retrieval_method") not in {"socrata-permits", "boston-ckan-permits"}:
+            return original_segment(
+                source, lane, start, end, cursor, client, deadline=deadline
+            )
+        records = service.retrieve_source(source, client)
+        return {
+            "records": records,
+            "cursor": {},
+            "partial": False,
+            "window_complete": True,
+            "expected_count": len(records),
+            "observed_count": len(records),
+        }
+
+    monkeypatch.setattr(service, "retrieve_collection_segment", synthetic_segment)
+
+
 def test_reported_mw_uses_structured_domain_match_not_first_quote_number():
     assessment = {
         "demand_quote": "Campus capacity is 200 MW, but construction requires about 42 MW.",
@@ -1997,12 +2022,19 @@ def test_rss_fence_loss_after_durable_evidence_is_retryable(db, monkeypatch):
 
     monkeypatch.setattr(service, "retrieve_source", lambda *_args: [_project_record()])
     original_fence = service.assert_fence
-    calls = 0
+    fence_lost_after_commit = False
 
     def lose_after_evidence(session, current_job_id, worker_id, fence):
-        nonlocal calls
-        calls += 1
-        if calls == 3:
+        nonlocal fence_lost_after_commit
+        with factory() as observer:
+            committed_evidence = observer.scalar(
+                select(func.count())
+                .select_from(Evidence)
+                .join(Observation, Observation.id == Evidence.observation_id)
+                .where(Observation.source_id == "dcd-news")
+            )
+        if committed_evidence:
+            fence_lost_after_commit = True
             raise RuntimeError("Worker lease fence lost")
         return original_fence(session, current_job_id, worker_id, fence)
 
@@ -2011,6 +2043,7 @@ def test_rss_fence_loss_after_durable_evidence_is_retryable(db, monkeypatch):
         service.process_job(
             session, job_id, "test", 1, {"id": "dcd-news", "retrieval_method": "publisher-rss"}
         )
+    assert fence_lost_after_commit
     with factory() as session:
         assert session.scalar(select(func.count()).select_from(Observation)) == 1
         assert session.scalar(select(func.count()).select_from(Evidence)) == 1

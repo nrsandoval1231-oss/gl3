@@ -1,8 +1,11 @@
+import time
+from datetime import date
 from typing import Any
 
 import httpx
 
 from gridlens.ingestion.adapters.boston_permits import retrieve as retrieve_boston_permits
+from gridlens.ingestion.adapters.bounded_http import run_isolated
 from gridlens.ingestion.adapters.ceqanet import retrieve as retrieve_ceqanet
 from gridlens.ingestion.adapters.dallas_permits import retrieve as retrieve_dallas_permits
 from gridlens.ingestion.adapters.el_paso_permits import retrieve as retrieve_el_paso_permits
@@ -29,7 +32,28 @@ from gridlens.ingestion.adapters.tdlr_tabs import retrieve as retrieve_tdlr_tabs
 
 
 def retrieve_source(
-    source: dict[str, Any], client: httpx.Client | None = None
+    source: dict[str, Any],
+    client: httpx.Client | None = None,
+    *,
+    deadline: float | None = None,
+    request_headers: dict[str, str] | None = None,
+) -> list[dict[str, Any]]:
+    if client is None:
+        absolute_deadline = deadline or time.monotonic() + 25.0
+        return run_isolated(
+            "gridlens.ingestion.adapters:_retrieve_source_direct",
+            (source, None, request_headers, absolute_deadline),
+            {},
+            deadline=absolute_deadline,
+        )
+    return _retrieve_source_direct(source, client, request_headers, deadline)
+
+
+def _retrieve_source_direct(
+    source: dict[str, Any],
+    client: httpx.Client | None = None,
+    request_headers: dict[str, str] | None = None,
+    deadline: float | None = None,
 ) -> list[dict[str, Any]]:
     method = source.get("retrieval_method")
     if method in {"federal-register-json", "json-api"}:
@@ -39,7 +63,12 @@ def retrieve_source(
     if method == "nc-commerce-html":
         return retrieve_nc_commerce(source, client)
     if method == "publisher-rss":
-        return retrieve_publisher_rss(source, client)
+        if client is None and request_headers:
+            with httpx.Client(
+                timeout=25.0, follow_redirects=False, headers=request_headers
+            ) as rss_client:
+                return retrieve_publisher_rss(source, rss_client, deadline=deadline)
+        return retrieve_publisher_rss(source, client, deadline=deadline)
     if method == "rrc-drilling-permits":
         from gridlens.ingestion.adapters.rrc_drilling import retrieve
 
@@ -75,3 +104,74 @@ def retrieve_source(
     if method == "taylor-newsflash":
         return retrieve_taylor_newsflash(source, client)
     raise SourceParseError(f"Unsupported source retrieval method: {method}")
+
+
+def retrieve_collection_segment(
+    source: dict[str, Any],
+    lane: str,
+    window_start: date,
+    window_end: date,
+    cursor: dict[str, Any],
+    client: httpx.Client | None = None,
+    *,
+    deadline: float | None = None,
+) -> dict[str, Any]:
+    """Run one resumable structured-source segment in the bounded fetch child."""
+    if client is not None:
+        return _retrieve_collection_segment_direct(
+            source, lane, window_start.isoformat(), window_end.isoformat(), cursor, client
+        )
+    absolute_deadline = deadline or time.monotonic() + 25.0
+    return run_isolated(
+        "gridlens.ingestion.adapters:_retrieve_collection_segment_direct",
+        (source, lane, window_start.isoformat(), window_end.isoformat(), cursor, None),
+        {},
+        deadline=absolute_deadline,
+    )
+
+
+def _retrieve_collection_segment_direct(
+    source: dict[str, Any],
+    lane: str,
+    window_start: str,
+    window_end: str,
+    cursor: dict[str, Any],
+    client: httpx.Client | None = None,
+) -> dict[str, Any]:
+    start, end = date.fromisoformat(window_start), date.fromisoformat(window_end)
+    method = source.get("retrieval_method")
+    if method == "socrata-permits":
+        from gridlens.ingestion.adapters.socrata_permits import retrieve_collection_segment
+
+        return retrieve_collection_segment(source, lane, start, end, cursor, client)
+    if method == "boston-ckan-permits":
+        from gridlens.ingestion.adapters.boston_permits import retrieve_collection_segment
+
+        return retrieve_collection_segment(source, lane, start, end, cursor, client)
+    raise SourceParseError("Source has no resumable structured collection adapter")
+
+
+def retrieve_companion(
+    record: dict[str, Any],
+    client: httpx.Client | None = None,
+    *,
+    deadline: float | None = None,
+) -> list[dict[str, str]]:
+    """Retrieve/parse a bounded companion document outside the parent process."""
+    absolute_deadline = deadline or time.monotonic() + 30.0
+    if client is not None:
+        from gridlens.ingestion.adapters.govinfo_pdf import retrieve_companion as direct
+
+        return direct(record, client, deadline=absolute_deadline)
+    return run_isolated(
+        "gridlens.ingestion.adapters:_retrieve_companion_direct",
+        (record, absolute_deadline),
+        {},
+        deadline=absolute_deadline,
+    )
+
+
+def _retrieve_companion_direct(record: dict[str, Any], deadline: float) -> list[dict[str, str]]:
+    from gridlens.ingestion.adapters.govinfo_pdf import retrieve_companion as direct
+
+    return direct(record, deadline=deadline)

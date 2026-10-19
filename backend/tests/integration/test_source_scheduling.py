@@ -19,6 +19,7 @@ from gridlens.persistence.models import (
     SourceCheckReceipt,
     SourceDueCheck,
     SourceScheduleEpoch,
+    SourceScheduleProgress,
     WorkerHeartbeat,
 )
 from gridlens.settings import settings
@@ -90,7 +91,14 @@ def _record_receipt(session, epoch, scheduled_for, *, disposition="succeeded") -
     import gridlens.jobs.worker as worker
 
     counts = (
-        {"new": 0, "changed": 0, "unchanged": 1}
+        {
+            "new": 0,
+            "changed": 0,
+            "unchanged": 1,
+            "schedule_proof_version": 1,
+            "acquisition_started_at": scheduled_for.isoformat(),
+            "acquisition_completed_at": (scheduled_for + timedelta(seconds=1)).isoformat(),
+        }
         if disposition in {"succeeded", "partial"}
         else {"error_class": "FixtureFailure"}
     )
@@ -119,6 +127,7 @@ def _record_receipt(session, epoch, scheduled_for, *, disposition="succeeded") -
             disposition=disposition,
             check_counts=counts,
             digest=hashlib.sha256(canonical.encode()).hexdigest(),
+            recorded_at=scheduled_for + timedelta(seconds=2),
         )
     )
     return due_key
@@ -290,6 +299,7 @@ def test_operator_transition_reconciles_unsynced_registry_drift(source_db, monke
     monkeypatch.setattr(worker, "SessionLocal", factory)
     monkeypatch.setattr(worker, "load_registry", lambda: registry)
     worker.sync_registry()
+
     def load_registry_while_target_locked():
         with factory.begin() as session:
             lock_available = session.scalar(
@@ -363,9 +373,7 @@ def test_operator_transition_reconciles_unsynced_registry_drift(source_db, monke
         assert bool(leased) is expected_enabled
 
 
-def test_unchanged_registry_operator_transition_is_idempotent_and_sticky(
-    source_db, monkeypatch
-):
+def test_unchanged_registry_operator_transition_is_idempotent_and_sticky(source_db, monkeypatch):
     import gridlens.jobs.worker as worker
 
     factory = source_db
@@ -569,9 +577,7 @@ def test_missing_schedule_history_never_claims_fresh(source_db, monkeypatch):
 
 
 @pytest.mark.parametrize("tamper", ["receipt_digest", "job_fence"])
-def test_freshness_requires_matching_fenced_complete_receipt(
-    source_db, monkeypatch, tamper
-):
+def test_freshness_requires_matching_fenced_complete_receipt(source_db, monkeypatch, tamper):
     import gridlens.api.app as api
     import gridlens.jobs.worker as worker
 
@@ -737,19 +743,19 @@ def test_unobserved_registry_drift_keeps_seven_day_freshness_unknown(source_db, 
         assert epochs[1].history_known
     with factory.begin() as session:
         worker._reconcile_due(session, datetime.now(UTC) + timedelta(days=2))
+        assert session.scalar(
+            select(func.count())
+            .select_from(SourceDueCheck)
+            .where(SourceDueCheck.epoch_id == epochs[0].id)
+        ) == len(completed_slots)
         assert (
             session.scalar(
-                select(func.count()).select_from(SourceDueCheck).where(
-                    SourceDueCheck.epoch_id == epochs[0].id
-                )
+                select(func.count())
+                .select_from(SourceDueCheck)
+                .where(SourceDueCheck.epoch_id == epochs[1].id)
             )
-            == len(completed_slots)
+            >= 1
         )
-        assert session.scalar(
-            select(func.count()).select_from(SourceDueCheck).where(
-                SourceDueCheck.epoch_id == epochs[1].id
-            )
-        ) >= 1
     status = api.health()
     assert status["sources"][0]["freshness"] == "UNKNOWN"
     assert status["collection_freshness"] == "UNKNOWN"
@@ -789,9 +795,9 @@ def test_live_registry_comparison_does_not_hide_omitted_fields(
         epoch.effective_from = now - timedelta(days=10)
         if epoch.schedule_mode == "utc_hourly":
             epoch.anchor = {
-                "utc": (now - timedelta(days=10)).replace(
-                    minute=0, second=0, microsecond=0
-                ).isoformat()
+                "utc": (now - timedelta(days=10))
+                .replace(minute=0, second=0, microsecond=0)
+                .isoformat()
             }
         else:
             epoch.anchor = {
@@ -859,9 +865,7 @@ def test_validator_accepted_optional_registry_fields_sync_and_operator(
     from gridlens.ingestion.registry import load_registry
 
     factory = source_db
-    source = next(
-        item for item in load_registry() if item["id"] == "federal-register-eis"
-    )
+    source = next(item for item in load_registry() if item["id"] == "federal-register-eis")
     declared_industries = source["industries"]
     if omitted in {"cadence", "both"}:
         source.pop("cadence_hours")
@@ -887,9 +891,7 @@ def test_validator_accepted_optional_registry_fields_sync_and_operator(
         )
         assert row and epoch
         assert row.cadence_hours == 24
-        expected_industries = (
-            [] if omitted in {"industries", "both"} else declared_industries
-        )
+        expected_industries = [] if omitted in {"industries", "both"} else declared_industries
         assert row.industries == expected_industries
         assert epoch.configuration.get("cadence_hours") == 24
         assert ("industries" in epoch.configuration) is ("industries" in source)
@@ -908,11 +910,14 @@ def test_validator_accepted_optional_registry_fields_sync_and_operator(
 
     worker.sync_registry()
     with factory() as session:
-        assert session.scalar(
-            select(func.count()).select_from(SourceScheduleEpoch).where(
-                SourceScheduleEpoch.source_id == "federal-register-eis"
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(SourceScheduleEpoch)
+                .where(SourceScheduleEpoch.source_id == "federal-register-eis")
             )
-        ) == 1
+            == 1
+        )
 
     request = Request(
         {
@@ -943,9 +948,9 @@ def test_validator_accepted_optional_registry_fields_sync_and_operator(
 
     with factory() as session:
         count_before_noop = session.scalar(
-            select(func.count()).select_from(SourceScheduleEpoch).where(
-                SourceScheduleEpoch.source_id == "federal-register-eis"
-            )
+            select(func.count())
+            .select_from(SourceScheduleEpoch)
+            .where(SourceScheduleEpoch.source_id == "federal-register-eis")
         )
         current = session.scalar(
             select(SourceScheduleEpoch).where(
@@ -958,11 +963,14 @@ def test_validator_accepted_optional_registry_fields_sync_and_operator(
 
     worker.set_source_enabled("federal-register-eis", True)
     with factory() as session:
-        assert session.scalar(
-            select(func.count()).select_from(SourceScheduleEpoch).where(
-                SourceScheduleEpoch.source_id == "federal-register-eis"
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(SourceScheduleEpoch)
+                .where(SourceScheduleEpoch.source_id == "federal-register-eis")
             )
-        ) == count_before_noop
+            == count_before_noop
+        )
 
 
 @pytest.mark.parametrize("previous_industries", [["environment"], []])
@@ -977,14 +985,10 @@ def test_omitted_industries_is_epoch_drift_but_omitted_cadence_is_equivalent(
     from gridlens.ingestion.registry import load_registry
 
     factory = source_db
-    original = next(
-        item for item in load_registry() if item["id"] == "federal-register-eis"
-    )
+    original = next(item for item in load_registry() if item["id"] == "federal-register-eis")
     original["industries"] = previous_industries
     registry_path = tmp_path / "registry.json"
-    registry_path.write_text(
-        json.dumps({"version": 1, "sources": [original]}), encoding="utf-8"
-    )
+    registry_path.write_text(json.dumps({"version": 1, "sources": [original]}), encoding="utf-8")
     registry = load_registry(registry_path)
     monkeypatch.setattr(worker, "SessionLocal", factory)
     monkeypatch.setattr(api, "SessionLocal", factory)
@@ -996,11 +1000,14 @@ def test_omitted_industries_is_epoch_drift_but_omitted_cadence_is_equivalent(
     registry[0].pop("cadence_hours")
     worker.sync_registry()
     with factory() as session:
-        assert session.scalar(
-            select(func.count()).select_from(SourceScheduleEpoch).where(
-                SourceScheduleEpoch.source_id == "federal-register-eis"
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(SourceScheduleEpoch)
+                .where(SourceScheduleEpoch.source_id == "federal-register-eis")
             )
-        ) == 1
+            == 1
+        )
 
     # Industries are different: absence is preserved in the epoch declaration.
     registry[0].pop("industries")
@@ -1037,11 +1044,14 @@ def test_omitted_industries_is_epoch_drift_but_omitted_cadence_is_equivalent(
     worker.sync_registry()
     worker.set_source_enabled("federal-register-eis", True)
     with factory() as session:
-        assert session.scalar(
-            select(func.count()).select_from(SourceScheduleEpoch).where(
-                SourceScheduleEpoch.source_id == "federal-register-eis"
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(SourceScheduleEpoch)
+                .where(SourceScheduleEpoch.source_id == "federal-register-eis")
             )
-        ) == 2
+            == 2
+        )
         epochs = session.scalars(
             select(SourceScheduleEpoch)
             .where(SourceScheduleEpoch.source_id == "federal-register-eis")
@@ -1161,9 +1171,7 @@ def test_invalid_registry_defers_ingestion_but_ready_research_job_runs(source_db
     assert network_calls == []
 
     research_calls = []
-    monkeypatch.setattr(
-        pursuits, "process_research_job", lambda *args: research_calls.append(args)
-    )
+    monkeypatch.setattr(pursuits, "process_research_job", lambda *args: research_calls.append(args))
     assert worker.run_one({}, job_ids=[research_id])
     assert research_calls and research_calls[0][0] == research_id
 
@@ -1218,7 +1226,7 @@ def test_worker_uses_fresh_registry_and_records_success_for_one_due_slot(source_
     monkeypatch.setattr(worker, "load_registry", lambda: [current])
     received = []
 
-    def process(session, job_id, worker_id, fence, source_definition):
+    def process(session, job_id, worker_id, fence, source_definition, **_bounds):
         received.append(source_definition["endpoint"])
         return {"new": 1, "changed": 0, "unchanged": 0, "latest_publication_date": None}
 
@@ -1361,6 +1369,381 @@ def test_concurrent_due_reconciliation_has_one_identity_per_occurrence(source_db
         keys = session.scalars(select(SourceDueCheck.due_key)).all()
         assert keys and len(keys) == len(set(keys))
         assert session.scalar(select(func.count()).select_from(SourceDueCheck)) == len(keys)
+
+
+def test_scheduler_advances_old_backlog_in_bounded_restarts(source_db):
+    import gridlens.jobs.worker as worker
+
+    factory = source_db
+    now = datetime.now(UTC)
+    old_start = now - timedelta(days=3650)
+    with factory.begin() as session:
+        session.add(
+            SourceScheduleEpoch(
+                source_id="synthetic-scheduled-source",
+                registry_enabled=True,
+                operator_enabled=True,
+                effective_from=old_start,
+                cadence_hours=1,
+                schedule_mode="utc_hourly",
+                timezone="UTC",
+                anchor={"utc": old_start.isoformat()},
+                configuration=definition(),
+            )
+        )
+    with factory.begin() as session:
+        first = worker._reconcile_due(session, now)
+    assert 0 < first <= worker._SCHEDULE_RECENT_CAP + worker._SCHEDULE_HISTORY_CAP
+    with factory() as session:
+        progress = session.scalar(select(SourceScheduleProgress))
+        assert progress and progress.history_cursor and progress.last_planned_at
+        first_cursor = progress.history_cursor
+        first_due_count = session.scalar(select(func.count()).select_from(SourceDueCheck))
+        assert first_due_count == first
+    with factory.begin() as session:
+        second = worker._reconcile_due(session, now)
+    with factory() as session:
+        progress = session.scalar(select(SourceScheduleProgress))
+        assert progress and progress.history_cursor > first_cursor
+        assert second > 0 and second <= worker._SCHEDULE_HISTORY_CAP
+        assert session.scalar(select(func.count()).select_from(SourceDueCheck)) == (
+            first_due_count + second
+        )
+
+
+def test_ineligible_epochs_do_not_fill_bounded_planner_frontier(source_db, monkeypatch):
+    import gridlens.jobs.worker as worker
+
+    factory = source_db
+    now = datetime.now(UTC)
+    monkeypatch.setattr(worker, "_SCHEDULE_EPOCH_CAP", 1)
+    with factory.begin() as session:
+        source_id = "synthetic-scheduled-source"
+        for index in range(70):
+            epoch_start = now - timedelta(days=100 + index)
+            session.add(
+                SourceScheduleEpoch(
+                    source_id=source_id,
+                    registry_enabled=False,
+                    operator_enabled=False,
+                    effective_from=epoch_start,
+                    effective_until=epoch_start + timedelta(days=1),
+                    cadence_hours=24,
+                    schedule_mode="local_daily",
+                    timezone="America/Chicago",
+                    anchor={"local_date": epoch_start.date().isoformat(), "local_time": "03:00"},
+                    configuration=definition(enabled=False),
+                    history_known=False,
+                )
+            )
+        active_start = now - timedelta(days=2)
+        active = SourceScheduleEpoch(
+            source_id=source_id,
+            registry_enabled=True,
+            operator_enabled=True,
+            effective_from=active_start,
+            cadence_hours=24,
+            schedule_mode="local_daily",
+            timezone="America/Chicago",
+            anchor={
+                "local_date": active_start
+                .astimezone(ZoneInfo("America/Chicago"))
+                .date()
+                .isoformat(),
+                "local_time": "03:00",
+            },
+            configuration=definition(),
+            history_known=True,
+        )
+        session.add(active)
+
+    with factory.begin() as session:
+        created = worker._reconcile_due(session, now)
+    with factory() as session:
+        progress = session.scalar(
+            select(SourceScheduleProgress).where(SourceScheduleProgress.epoch_id == active.id)
+        )
+        assert created > 0
+        assert progress and progress.last_planned_at
+
+
+def test_assignment_ignores_stale_and_disabled_due_flood(source_db, monkeypatch):
+    import gridlens.jobs.worker as worker
+
+    factory = source_db
+    now = datetime.now(UTC)
+    source_id = "synthetic-scheduled-source"
+    monkeypatch.setattr(worker, "load_registry", lambda: [definition()])
+    with factory.begin() as session:
+        active_start = now - timedelta(days=10)
+        active = SourceScheduleEpoch(
+            source_id=source_id,
+            registry_enabled=True,
+            operator_enabled=True,
+            effective_from=active_start,
+            cadence_hours=24,
+            schedule_mode="local_daily",
+            timezone="America/Chicago",
+            anchor={
+                "local_date": active_start
+                .astimezone(ZoneInfo("America/Chicago"))
+                .date()
+                .isoformat(),
+                "local_time": "03:00",
+            },
+            configuration=definition(),
+            history_known=True,
+        )
+        session.add(active)
+        session.flush()
+        active_slots = list(worker._scheduled_instants(active, now))
+        current_slot = active_slots[-1]
+        old_end = now - timedelta(days=2)
+        old = SourceScheduleEpoch(
+            source_id=source_id,
+            registry_enabled=True,
+            operator_enabled=True,
+            effective_from=now - timedelta(days=12),
+            effective_until=old_end,
+            cadence_hours=1,
+            schedule_mode="utc_hourly",
+            timezone="UTC",
+            anchor={"utc": (now - timedelta(days=12)).isoformat()},
+            configuration=definition(),
+            history_known=True,
+        )
+        session.add(old)
+        session.flush()
+        old_slots = list(worker._scheduled_instants(old, old_end))[-101:]
+        for slot in old_slots:
+            due_key = worker._due_key(old, slot)
+            session.add(
+                SourceDueCheck(
+                    due_key=due_key,
+                    source_id=source_id,
+                    epoch_id=old.id,
+                    scheduled_for=slot,
+                    local_day=slot.date(),
+                    configuration=old.configuration,
+                )
+            )
+        active_due_key = worker._due_key(active, current_slot)
+        session.add(
+            SourceDueCheck(
+                due_key=active_due_key,
+                source_id=source_id,
+                epoch_id=active.id,
+                scheduled_for=current_slot,
+                local_day=current_slot.astimezone(ZoneInfo("America/Chicago")).date(),
+                configuration=active.configuration,
+            )
+        )
+        for index in range(101):
+            disabled_id = f"disabled-scheduled-source-{index:03d}"
+            disabled = Source(
+                id=disabled_id,
+                publisher="Fixture",
+                endpoint="https://example.invalid/disabled",
+                family="synthetic",
+                geography="US",
+                industries=[],
+                retrieval_method="test",
+                cadence_hours=24,
+                enabled=False,
+                registry_enabled=True,
+                health={},
+            )
+            session.add(disabled)
+            disabled_epoch = SourceScheduleEpoch(
+                source_id=disabled_id,
+                registry_enabled=True,
+                operator_enabled=True,
+                effective_from=active_start,
+                cadence_hours=24,
+                schedule_mode="local_daily",
+                timezone="America/Chicago",
+                anchor={"local_date": active_start.date().isoformat(), "local_time": "03:00"},
+                configuration={"id": disabled_id},
+                history_known=True,
+            )
+            session.add(disabled_epoch)
+            session.flush()
+            session.add(
+                SourceDueCheck(
+                    due_key=f"{index:064x}",
+                    source_id=disabled_id,
+                    epoch_id=disabled_epoch.id,
+                    scheduled_for=now - timedelta(days=2),
+                    local_day=(now - timedelta(days=2)).date(),
+                    configuration=disabled_epoch.configuration,
+                )
+            )
+
+    with factory.begin() as session:
+        assigned = worker._assign_due_jobs(session)
+    with factory.begin() as session:
+        assigned_again = worker._assign_due_jobs(session)
+    with factory() as session:
+        active_due = session.get(SourceDueCheck, active_due_key)
+        assert assigned == 1 and assigned_again == 0
+        assert active_due and active_due.job_id
+        old_rows = session.scalars(
+            select(SourceDueCheck).where(SourceDueCheck.epoch_id == old.id)
+        ).all()
+        disabled_rows = session.scalars(
+            select(SourceDueCheck).where(SourceDueCheck.source_id.like("disabled-scheduled-source-%"))
+        ).all()
+        assert len(old_rows) == 101 and all(row.job_id is None for row in old_rows)
+        assert len(disabled_rows) == 101 and all(row.job_id is None for row in disabled_rows)
+
+
+def test_assignment_uses_due_epoch_until_its_transition(source_db, monkeypatch):
+    import gridlens.jobs.worker as worker
+
+    factory = source_db
+    now = datetime.now(UTC)
+    source_id = "synthetic-scheduled-source"
+    monkeypatch.setattr(worker, "load_registry", lambda: [definition()])
+    with factory.begin() as session:
+        epoch_start = now - timedelta(days=3)
+        transition = now + timedelta(hours=1)
+        epoch = SourceScheduleEpoch(
+            source_id=source_id,
+            registry_enabled=True,
+            operator_enabled=True,
+            effective_from=epoch_start,
+            effective_until=transition,
+            cadence_hours=24,
+            schedule_mode="local_daily",
+            timezone="America/Chicago",
+            anchor={
+                "local_date": epoch_start.astimezone(ZoneInfo("America/Chicago"))
+                .date()
+                .isoformat(),
+                "local_time": "07:00:00",
+            },
+            configuration=definition(),
+            history_known=True,
+        )
+        session.add(epoch)
+        session.flush()
+        scheduled_for = list(worker._scheduled_instants(epoch, now))[-1]
+        due = SourceDueCheck(
+            due_key=worker._due_key(epoch, scheduled_for),
+            source_id=source_id,
+            epoch_id=epoch.id,
+            scheduled_for=scheduled_for,
+            local_day=scheduled_for.astimezone(ZoneInfo("America/Chicago")).date(),
+            configuration=epoch.configuration,
+        )
+        session.add(due)
+        due_key = due.due_key
+
+    with factory.begin() as session:
+        assert worker._assign_due_jobs(session) == 1
+    with factory() as session:
+        due = session.get(SourceDueCheck, due_key)
+        assert due and due.job_id
+
+
+def test_epoch_planning_round_robin_prevents_source_starvation(source_db, monkeypatch):
+    import gridlens.jobs.worker as worker
+
+    factory = source_db
+    now = datetime.now(UTC)
+    monkeypatch.setattr(worker, "_SCHEDULE_EPOCH_CAP", 1)
+    with factory.begin() as session:
+        session.add(
+            Source(
+                id="second-scheduled-source",
+                publisher="Fixture",
+                endpoint="https://example.invalid/second",
+                family="synthetic",
+                geography="US",
+                industries=[],
+                retrieval_method="test",
+                cadence_hours=24,
+                enabled=True,
+                registry_enabled=True,
+                health={"status": "Overdue"},
+            )
+        )
+        for source_id in ("synthetic-scheduled-source", "second-scheduled-source"):
+            session.add(
+                SourceScheduleEpoch(
+                    source_id=source_id,
+                    registry_enabled=True,
+                    operator_enabled=True,
+                    effective_from=now - timedelta(days=2),
+                    cadence_hours=24,
+                    schedule_mode="local_daily",
+                    timezone="America/Chicago",
+                    anchor={
+                        "local_date": (now - timedelta(days=2))
+                        .astimezone(ZoneInfo("America/Chicago"))
+                        .date()
+                        .isoformat(),
+                        "local_time": "03:00",
+                    },
+                    configuration=definition(),
+                )
+            )
+    for _ in range(2):
+        with factory.begin() as session:
+            worker._reconcile_due(session, now)
+    with factory() as session:
+        source_ids = set(session.scalars(select(SourceDueCheck.source_id)).all())
+        assert source_ids == {"synthetic-scheduled-source", "second-scheduled-source"}
+
+
+def test_assignment_never_binds_due_to_running_job(source_db, monkeypatch):
+    import gridlens.jobs.worker as worker
+
+    factory = source_db
+    now = datetime.now(UTC)
+    monkeypatch.setattr(worker, "load_registry", lambda: [definition()])
+    with factory.begin() as session:
+        source = session.get(Source, "synthetic-scheduled-source")
+        assert source
+        epoch = SourceScheduleEpoch(
+            source_id=source.id,
+            registry_enabled=True,
+            operator_enabled=True,
+            effective_from=now - timedelta(days=1),
+            cadence_hours=24,
+            schedule_mode="local_daily",
+            timezone="America/Chicago",
+            anchor={
+                "local_date": (now - timedelta(days=1)).date().isoformat(),
+                "local_time": "03:00",
+            },
+            configuration=definition(),
+        )
+        session.add(epoch)
+        session.flush()
+        due = SourceDueCheck(
+            due_key="a" * 64,
+            source_id=source.id,
+            epoch_id=epoch.id,
+            scheduled_for=now - timedelta(seconds=10),
+            local_day=now.date(),
+            configuration=definition(),
+        )
+        session.add(due)
+        running = Job(
+            source_id=source.id,
+            status="running",
+            lease_owner="worker",
+            lease_until=now + timedelta(minutes=1),
+        )
+        session.add(running)
+        session.flush()
+        due_id = due.due_key
+
+    with factory.begin() as session:
+        assert worker._assign_due_jobs(session) == 0
+    with factory() as session:
+        assert session.get(SourceDueCheck, due_id).job_id is None
 
 
 def test_concurrent_registry_sync_keeps_one_open_schedule_epoch(source_db, monkeypatch):

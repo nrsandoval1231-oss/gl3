@@ -1,11 +1,13 @@
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
-from sqlalchemy import case, select
+from sqlalchemy import Integer, and_, case, cast, func, literal, select
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Session
 
 from gridlens.domain.pursuit_research import ACTIVE
 from gridlens.persistence.models import Job, PursuitResearchQuestion, Source
+from gridlens.settings import settings
 
 
 def enqueue(session: Session, source_id: str, *, kind: str = "ingestion") -> UUID:
@@ -85,6 +87,72 @@ def lease_one(
                 "status": "Failed",
                 "error": "Lease expired after maximum attempts",
             }
+    order_by = [
+        case(
+            (Job.created_at < now - timedelta(days=1), 0),
+            (Source.family == "construction-permits", 1),
+            else_=2,
+        ).asc()
+    ]
+    routing_caps_enabled = (
+        settings.intelligence_max_active_calls > 0
+        and settings.intelligence_max_call_usd > 0
+        and all(
+            getattr(settings, f"intelligence_{scope}_{period}_calls") > 0
+            and getattr(settings, f"intelligence_{scope}_{period}_usd") > 0
+            for scope in ("global", "provider", "model", "source", "project")
+            for period in ("daily", "monthly")
+        )
+    )
+    if (
+        settings.intelligence_mode == "bounded_routing"
+        and settings.intelligence_enabled
+        and settings.intelligence_research_enabled
+        and (settings.intelligence_openai_enabled or settings.intelligence_typesafe_enabled)
+        and settings.intelligence_routing_policy_id
+        and settings.intelligence_routing_policy_evaluated
+        and settings.intelligence_bounded_routing_authorized
+        and routing_caps_enabled
+    ):
+        checkpoint_json = case(
+            (
+                func.pg_input_is_valid(Job.checkpoint, "jsonb"),
+                cast(Job.checkpoint, JSONB),
+            ),
+            else_=literal("{}").cast(JSONB),
+        )
+        route = checkpoint_json["routing_priority"]
+        raw_rank = route["rank"].as_string()
+        safe_rank = case(
+            (raw_rank.op("~")(literal("^[1-5]$")), cast(raw_rank, Integer)),
+            else_=99,
+        )
+        order_by.append(
+            case(
+                (
+                    and_(
+                        Job.kind == "intelligence_process",
+                        func.jsonb_typeof(route) == "object",
+                        route["policy_id"].as_string() == settings.intelligence_routing_policy_id,
+                        func.jsonb_typeof(route["evaluated"]) == "boolean",
+                        route["evaluated"].as_string() == "true",
+                        func.jsonb_typeof(route["authorized"]) == "boolean",
+                        route["authorized"].as_string() == "true",
+                        func.jsonb_typeof(route["rank"]) == "number",
+                        safe_rank.between(1, 5),
+                        func.jsonb_typeof(route["evaluation_job_id"]) == "string",
+                        route["evaluation_job_id"].as_string().is_not(None),
+                        func.jsonb_typeof(route["evaluation_call_id"]) == "string",
+                        route["evaluation_call_id"].as_string().is_not(None),
+                        func.jsonb_typeof(route["request_digest"]) == "string",
+                        route["request_digest"].as_string().op("~")("^[0-9a-f]{64}$"),
+                    ),
+                    safe_rank,
+                ),
+                else_=99,
+            ).asc()
+        )
+    order_by.append(Job.created_at.asc())
     job = session.scalar(
         select(Job)
         .where(
@@ -99,14 +167,7 @@ def lease_one(
         )
         # Permit jobs lead recent work, while a one-day age bucket guarantees
         # old news jobs advance even during sustained permit refresh activity.
-        .order_by(
-            case(
-                (Job.created_at < now - timedelta(days=1), 0),
-                (Source.family == "construction-permits", 1),
-                else_=2,
-            ).asc(),
-            Job.created_at,
-        )
+        .order_by(*order_by)
         .join(Source, Source.id == Job.source_id)
         .with_for_update(skip_locked=True)
         .limit(1)

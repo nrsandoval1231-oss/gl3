@@ -5,7 +5,6 @@ from __future__ import annotations
 import time
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
-from functools import partial
 from uuid import UUID
 
 from sqlalchemy import select, text
@@ -16,8 +15,6 @@ from gridlens.ingestion.adapters.pursuit_acquisition import (
     SUPPORTED_SOURCES,
     ExtractionUnavailable,
     acquire_registered_record,
-    discover_urls,
-    extract_public_document,
     retrieval_failure,
 )
 from gridlens.intelligence.buying_chain import enrich_buying_chain
@@ -34,6 +31,7 @@ from gridlens.intelligence.research_evidence import (
 )
 from gridlens.intelligence.research_routing import routing_context, selected_sources
 from gridlens.jobs.queue import assert_fence
+from gridlens.jobs.retry import jittered_delay_seconds
 from gridlens.persistence.database import SessionLocal
 from gridlens.persistence.models import (
     Evidence,
@@ -118,14 +116,34 @@ def process_question_job(job_id: UUID, worker_id: str, fence: int) -> None:
             job.status, job.lease_owner, job.lease_until = "succeeded", None, None
             return
         row.attempt_count += 1
+        inflight_call_id = row.receipt.get("inflight_logical_call_id")
         ambiguous = bool(row.receipt.get("inflight_url"))
+        if ambiguous and inflight_call_id:
+            from gridlens.persistence.models import LogicalCall
+
+            prior_call = session.get(LogicalCall, UUID(inflight_call_id))
+            if prior_call and prior_call.status in {"NOT_SENT", "COMPLETED"}:
+                ambiguous = False
+                if prior_call.status == "NOT_SENT":
+                    receipt = dict(row.receipt)
+                    receipt.update(
+                        {
+                            "inflight_url": None,
+                            "inflight_logical_call_id": None,
+                            "pre_dispatch_recovered": str(prior_call.id),
+                        }
+                    )
+                    row.receipt = receipt
         context, budget = dict(row.context), dict(row.budget)
         expected_hash = row.evidence_fingerprint
         row.status = "SEARCHING"
         row.receipt = {
             "searches": 0,
             "model_calls": 0,
-            "cost_usd": "0",
+            "cost_usd": None,
+            "actual_cost_usd": None,
+            "reserved_cost_usd": "0",
+            "cost_basis": "configured_upper_bound",
             **row.receipt,
             "started_at": row.receipt.get("started_at") or datetime.now(UTC).isoformat(),
             "latest_attempt_at": datetime.now(UTC).isoformat(),
@@ -191,7 +209,8 @@ def process_question_job(job_id: UUID, worker_id: str, fence: int) -> None:
         )
         return
     assert card is not None
-    # Explicit mode guarantees that Houston and every other route performs zero I/O.
+    # The shared ledger gates only paid provider calls; retained and registered
+    # public retrieval retain their existing source and request controls.
     with SessionLocal.begin() as session:
         assert_fence(session, job_id, worker_id, fence)
         row = session.get(PursuitResearchQuestion, question_id)
@@ -300,12 +319,17 @@ def process_question_job(job_id: UUID, worker_id: str, fence: int) -> None:
                 break
         # Discovery is URL-only; snippets are never submitted for evidence admission.
         if not resolved:
-            if not settings.firecrawl_api_key:
+            from gridlens.intelligence.intelligence_jobs import _enabled
+
+            search_enabled, _, _, search_reason = _enabled("FIRECRAWL_SEARCH_V2")
+            if not settings.firecrawl_api_key or not search_enabled:
                 run.route(
-                    "discovery", "UNAVAILABLE", reason="Firecrawl discovery is not configured."
+                    "discovery",
+                    "UNAVAILABLE",
+                    reason=search_reason or "Firecrawl discovery is not configured.",
                 )
                 run.limitation(
-                    "Firecrawl discovery is not configured; "
+                    "Firecrawl discovery is unavailable under current policy or configuration; "
                     "broader public search was not performed."
                 )
             elif settings.firecrawl_search_cost_usd is None:
@@ -317,14 +341,7 @@ def process_question_job(job_id: UUID, worker_id: str, fence: int) -> None:
                 for query in context["queries"][: budget["searches"]]:
                     if len(known_urls) >= budget["urls"]:
                         raise BudgetExceeded("Candidate URL bound reached")
-                    candidates = discover_urls(
-                        query,
-                        api_key=settings.firecrawl_api_key.get_secret_value(),
-                        deadline=run.deadline,
-                        before_request=partial(run.reserve, query=query),
-                        limit=min(budget["urls"], 10),
-                    )
-                    run.complete_search(query)
+                    candidates = run.search(query)
                     family = next(
                         (
                             item["family"]
@@ -398,13 +415,14 @@ def _research_public_url(run: QuestionRun, url: str) -> None:
                     raise ExtractionUnavailable(
                         "Firecrawl extraction or unit cost is not configured"
                     ) from None
-                document = extract_public_document(
-                    url,
-                    api_key=settings.firecrawl_api_key.get_secret_value(),
-                    deadline=run.deadline,
-                    max_bytes=run.budget["document_bytes"],
-                    before_request=run.reserve_extraction,
-                )
+                from gridlens.intelligence.intelligence_jobs import _enabled
+
+                scrape_enabled, _, _, scrape_reason = _enabled("FIRECRAWL_SCRAPE_V2")
+                if not scrape_enabled:
+                    raise ExtractionUnavailable(
+                        f"Firecrawl extraction is unavailable under current policy: {scrape_reason}"
+                    ) from None
+                document = run.scrape(url)
                 acquisition_method = "firecrawl_html_extraction"
             with SessionLocal.begin() as session:
                 row = run.row(session)
@@ -506,6 +524,8 @@ class QuestionRun:
                 # A free public/source GET is idempotent and is not a paid side effect.
                 receipt["inflight_acquisition_url"] = url
             receipt["reserved_cost_usd"] = str(next_cost)
+            receipt["actual_cost_usd"] = None
+            receipt["cost_basis"] = "configured_upper_bound"
             if query:
                 # Reservation is an upper bound, not a provider billing receipt.
                 receipt["cost_usd"] = None
@@ -532,8 +552,168 @@ class QuestionRun:
             receipt["firecrawl_extractions"] = receipt.get("firecrawl_extractions", 0) + 1
             receipt["inflight_url"] = url
             receipt["reserved_cost_usd"] = str(next_cost)
-            receipt["cost_usd"] = None  # Reservation is not a provider billing receipt.
+            receipt["cost_usd"] = None
+            receipt["actual_cost_usd"] = None
+            receipt["cost_basis"] = "configured_upper_bound"
             row.receipt = receipt
+
+    def _reserve_paid(self, call_id: UUID, url: str, *, query: str | None = None) -> None:
+        with SessionLocal.begin() as session:
+            row = self.row(session)
+            receipt = dict(row.receipt)
+            if time.monotonic() >= self.deadline:
+                raise BudgetExceeded("Research deadline exhausted")
+            if query:
+                if receipt.get("searches", 0) >= self.budget["searches"]:
+                    raise BudgetExceeded("Persisted search cap reached")
+                if receipt.get("retrieval_attempts", 0) >= self.budget["documents"]:
+                    raise BudgetExceeded("Persisted document cap reached")
+                if query in receipt.get("queries_attempted", []):
+                    raise BudgetExceeded("Identical query already attempted")
+                unit_cost = settings.firecrawl_search_cost_usd
+            else:
+                if receipt.get("retrieval_attempts", 0) >= self.budget["documents"]:
+                    raise BudgetExceeded("Persisted document cap reached")
+                unit_cost = settings.firecrawl_scrape_cost_usd
+            if unit_cost is None:
+                raise BudgetExceeded("Provider unit cost is unconfigured")
+            next_cost = Decimal(receipt.get("reserved_cost_usd", "0")) + unit_cost
+            if next_cost > Decimal(self.budget["max_cost_usd"]):
+                raise BudgetExceeded("Persisted cost cap reached")
+            if query:
+                receipt["searches"] = receipt.get("searches", 0) + 1
+                receipt["queries_attempted"] = [*receipt.get("queries_attempted", []), query]
+            else:
+                receipt["retrieval_attempts"] = receipt.get("retrieval_attempts", 0) + 1
+                receipt["firecrawl_extractions"] = receipt.get("firecrawl_extractions", 0) + 1
+            receipt.update(
+                {
+                    "inflight_url": url,
+                    "inflight_logical_call_id": str(call_id),
+                    "reserved_cost_usd": str(next_cost),
+                    "cost_usd": None,
+                    "actual_cost_usd": None,
+                    "cost_basis": "configured_upper_bound",
+                }
+            )
+            row.receipt = receipt
+
+    def _finish_paid(self, call_id: UUID, *, query: str | None = None) -> None:
+        with SessionLocal.begin() as session:
+            row = self.row(session)
+            receipt = dict(row.receipt)
+            if receipt.get("inflight_logical_call_id") == str(call_id):
+                receipt["inflight_url"] = None
+                receipt["inflight_logical_call_id"] = None
+            receipt["last_logical_call_id"] = str(call_id)
+            if query:
+                receipt["queries_searched"] = [*receipt.get("queries_searched", []), query]
+            row.receipt = receipt
+
+    def search(self, query: str) -> list[str]:
+        from gridlens.ingestion.adapters.pursuit_acquisition import discover_urls
+        from gridlens.integrations.legacy_calls import perform_legacy_call
+
+        with SessionLocal() as session:
+            row = session.get(PursuitResearchQuestion, self.question_id)
+            assert row is not None
+            project_id = row.project_id
+        payload = {"query": query, "limit": 10, "sources": ["web"]}
+        result = perform_legacy_call(
+            task_type="FIRECRAWL_SEARCH_V2",
+            task_key=f"pursuit-question:{self.question_id}:search:{fingerprint(query)}",
+            payload=payload,
+            source_id=None,
+            project_id=project_id,
+            job_id=self.job_id,
+            worker_id=self.worker_id,
+            fence_token=self.fence,
+            before_dispatch=lambda call_id: self._reserve_paid(
+                call_id, "https://api.firecrawl.dev/v2/search", query=query
+            ),
+            invoke=lambda: (
+                {
+                    "urls": discover_urls(
+                        query,
+                        api_key=settings.firecrawl_api_key.get_secret_value()
+                        if settings.firecrawl_api_key
+                        else None,
+                        deadline=self.deadline,
+                        before_request=lambda _endpoint: None,
+                        limit=10,
+                    )
+                },
+                None,
+                None,
+            ),
+        )
+        urls = result.result.get("urls")
+        if not isinstance(urls, list) or any(not isinstance(url, str) for url in urls):
+            raise ValueError("Cached Firecrawl search response is invalid")
+        self._finish_paid(result.logical_call_id, query=query)
+        return urls
+
+    def scrape(self, url: str):
+        from gridlens.ingestion.adapters.buying_chain_public import PublicDocument
+        from gridlens.ingestion.adapters.pursuit_acquisition import extract_public_document
+        from gridlens.integrations.legacy_calls import perform_legacy_call
+
+        with SessionLocal() as session:
+            row = session.get(PursuitResearchQuestion, self.question_id)
+            assert row is not None
+            project_id = row.project_id
+        payload = {"url": url, "formats": ["markdown"], "max_bytes": self.budget["document_bytes"]}
+
+        def invoke():
+            document = extract_public_document(
+                url,
+                api_key=settings.firecrawl_api_key.get_secret_value()
+                if settings.firecrawl_api_key
+                else None,
+                deadline=self.deadline,
+                before_request=lambda _endpoint: None,
+                max_bytes=self.budget["document_bytes"],
+            )
+            value = {
+                "url": document.url,
+                "title": document.title,
+                "text": document.text,
+                "published_at": document.published_at.isoformat()
+                if document.published_at
+                else None,
+                "observed_at": document.observed_at.isoformat(),
+                "extraction_location": document.extraction_location,
+                "links": list(document.links),
+                "structured": list(document.structured),
+                "retained_version": document.retained_version,
+                "capture_version": document.capture_version,
+            }
+            return value, None, None
+
+        result = perform_legacy_call(
+            task_type="FIRECRAWL_SCRAPE_V2",
+            task_key=f"pursuit-question:{self.question_id}:scrape:{fingerprint(url)}",
+            payload=payload,
+            source_id=None,
+            project_id=project_id,
+            job_id=self.job_id,
+            worker_id=self.worker_id,
+            fence_token=self.fence,
+            before_dispatch=lambda call_id: self._reserve_paid(
+                call_id, "https://api.firecrawl.dev/v2/scrape"
+            ),
+            invoke=invoke,
+        )
+        data = result.result
+        if not isinstance(data.get("text"), str):
+            raise ValueError("Cached Firecrawl scrape response is invalid")
+        data["observed_at"] = datetime.fromisoformat(data["observed_at"])
+        if data.get("published_at"):
+            data["published_at"] = datetime.fromisoformat(data["published_at"])
+        data["links"] = tuple(data.get("links", ()))
+        data["structured"] = tuple(data.get("structured", ()))
+        self._finish_paid(result.logical_call_id)
+        return PublicDocument(**data)
 
     def complete_search(self, query: str) -> None:
         with SessionLocal.begin() as session:
@@ -732,9 +912,10 @@ def _current_support(session, question, evidence, observation, result) -> bool:
     need = session.get(PowerNeed, question.need_id)
     source = session.get(Source, observation.source_id)
     assessment = interpretation.assessment if interpretation else None
-    if observation.source_id.startswith("research-public-") and (assessment or {}).get(
-        "acquisition_capture_version"
-    ) != CAPTURE_VERSION:
+    if (
+        observation.source_id.startswith("research-public-")
+        and (assessment or {}).get("acquisition_capture_version") != CAPTURE_VERSION
+    ):
         return False
     if not (
         interpretation
@@ -798,14 +979,18 @@ def _finish(
             save_evaluations(session, [card])
         now = datetime.now(UTC)
         row.status, row.completed_at = status, now
-        checked_route = any(
-            route.get("status") == "CHECKED" and route.get("kind") != "retained"
-            for route in row.receipt.get("route_results", [])
-        ) or any(
-            check.get("acquisition") != "retained"
-            and check.get("disposition") in {"ACCEPTED", "REJECTED", "UNRESOLVED"}
-            for check in row.receipt.get("source_checks", [])
-        ) or bool(row.receipt.get("queries_searched"))
+        checked_route = (
+            any(
+                route.get("status") == "CHECKED" and route.get("kind") != "retained"
+                for route in row.receipt.get("route_results", [])
+            )
+            or any(
+                check.get("acquisition") != "retained"
+                and check.get("disposition") in {"ACCEPTED", "REJECTED", "UNRESOLVED"}
+                for check in row.receipt.get("source_checks", [])
+            )
+            or bool(row.receipt.get("queries_searched"))
+        )
         failed_external_check = any(
             check.get("acquisition") != "retained" and check.get("disposition") == "FAILED"
             for check in row.receipt.get("source_checks", [])
@@ -828,6 +1013,7 @@ def _finish(
             if retryable
             else "FRESH_CHECK"
         )
+        outcome, outcome_reason = _specific_question_outcome(status, card, row)
         project = session.get(Project, row.project_id)
         assert project is not None
         row.receipt = {
@@ -846,7 +1032,15 @@ def _finish(
                 for route in row.receipt.get("route_results", [])
             ],
             "result_disposition": status,
+            "question_outcome": outcome,
+            "question_outcome_reason": outcome_reason,
             "retry_class": retry_class,
+            "retry_after": retry_after.isoformat() if retry_after else None,
+            "refresh_trigger": (
+                "bounded_backoff"
+                if retry_after is not None
+                else "material_input_or_source_change_or_operator_force"
+            ),
             "runtime_seconds": round(time.monotonic() - started, 3),
             "reevaluation_status": "COMPLETED" if card else "NO_CURRENT_SUPPORT",
             "before": row.context["before"]["disposition"],
@@ -870,6 +1064,20 @@ def _finish(
             schedule_questions(session, [card], parent_id=parent_id)
 
 
+def _specific_question_outcome(status: str, card: dict | None, row) -> tuple[str, str]:
+    """Keep a question outcome distinct from worker completion and candidate presence."""
+    if status == "RESOLVED" and card and blocker_resolved(row.category, card, row.context):
+        return "FOUND", "The current canonical projection supports the specific question."
+    if card and card.get("conflict_state") in {"CONFLICT", "conflict", "unresolved conflict"}:
+        return "CONFLICT", "Current canonical evidence retains an attributable conflict."
+    routes = row.receipt.get("route_results", [])
+    if status == "BUDGET_EXCEEDED" or any(route.get("status") == "UNAVAILABLE" for route in routes):
+        return "BLOCKED", "A configured source, policy, or persisted budget prevented a check."
+    if row.receipt.get("inflight_url") or row.receipt.get("ambiguous_effects"):
+        return "UNKNOWN", "A dispatched acquisition has no conclusive stored outcome."
+    return "UNKNOWN", "No canonical accepted fact resolves this specific question."
+
+
 def _retry_deadline(row: PursuitResearchQuestion, now: datetime) -> datetime | None:
     """Return a finite retry time; an UNKNOWN paid effect blocks retries."""
     if row.receipt.get("inflight_url") or row.receipt.get("ambiguous_effects"):
@@ -877,4 +1085,10 @@ def _retry_deadline(row: PursuitResearchQuestion, now: datetime) -> datetime | N
     attempt = int(row.context.get("retry_index", 0)) + 1
     if attempt > len(RETRY_BACKOFF_HOURS):
         return None
-    return now + timedelta(hours=RETRY_BACKOFF_HOURS[attempt - 1])
+    delay_seconds = jittered_delay_seconds(
+        str(row.id),
+        attempt,
+        RETRY_BACKOFF_HOURS[attempt - 1] * 3600,
+        ceiling_seconds=24 * 3600,
+    )
+    return now + timedelta(seconds=delay_seconds)

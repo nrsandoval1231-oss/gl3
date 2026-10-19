@@ -4,6 +4,183 @@
  */
 
 export interface paths {
+    "/api/intelligence/tasks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Intelligence Tasks */
+        get: operations["intelligence_tasks_api_intelligence_tasks_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/intelligence/operations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Intelligence Operations */
+        get: operations["intelligence_operations_api_intelligence_operations_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/intelligence/needs/{need_id}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Need Intelligence History */
+        get: operations["need_intelligence_history_api_intelligence_needs__need_id__history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/intelligence/needs/{need_id}/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Request Intelligence Job */
+        post: operations["request_intelligence_job_api_intelligence_needs__need_id__jobs_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/intelligence/needs/{need_id}/evidence/{evidence_id}/ocr": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Request Scanned Pdf Ocr
+         * @description Queue OCR only for one already-linked source Evidence; never fetch in the API.
+         */
+        post: operations["request_scanned_pdf_ocr_api_intelligence_needs__need_id__evidence__evidence_id__ocr_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/intelligence/needs/{need_id}/evidence/{evidence_id}/ocr-followon": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Request Ocr Grounded Followon
+         * @description Queue a separate OCR_UNVERIFIED candidate extraction over an existing transcript.
+         */
+        post: operations["request_ocr_grounded_followon_api_intelligence_needs__need_id__evidence__evidence_id__ocr_followon_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/intelligence/needs/{need_id}/jobs/{job_id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cancel Intelligence Job */
+        post: operations["cancel_intelligence_job_api_intelligence_needs__need_id__jobs__job_id__cancel_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/intelligence/needs/{need_id}/jobs/{job_id}/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Retry Intelligence Job */
+        post: operations["retry_intelligence_job_api_intelligence_needs__need_id__jobs__job_id__retry_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/intelligence/needs/{need_id}/watches": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Need Watch */
+        get: operations["get_need_watch_api_intelligence_needs__need_id__watches_get"];
+        put?: never;
+        /** Set Need Watch */
+        post: operations["set_need_watch_api_intelligence_needs__need_id__watches_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/intelligence/needs/{need_id}/feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Save Owner Feedback */
+        post: operations["save_owner_feedback_api_intelligence_needs__need_id__feedback_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/login": {
         parameters: {
             query?: never;
@@ -814,6 +991,24 @@ export interface components {
              * @default buying-chain-v2-permits
              */
             policy_version: string;
+            research_job?: components["schemas"]["BuyingChainResearchJobOut"] | null;
+        };
+        /** BuyingChainResearchJobOut */
+        BuyingChainResearchJobOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Status */
+            status: string;
+            /** Detail Status */
+            detail_status?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
         };
         /** BuyingEnrichBody */
         BuyingEnrichBody: {
@@ -1104,6 +1299,62 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /** Intelligence Review */
+            intelligence_review?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /** CandidateReviewRef */
+        CandidateReviewRef: {
+            /** Field */
+            field: string;
+            /** Value */
+            value: string;
+            /** Unit */
+            unit?: string | null;
+            /** Original Value */
+            original_value?: string | null;
+            /** Original Unit */
+            original_unit?: string | null;
+            /** Precision */
+            precision?: number | null;
+            /** Date Precision */
+            date_precision?: string | null;
+            /**
+             * Evidence Id
+             * Format: uuid
+             */
+            evidence_id: string;
+            /** Evidence Hash */
+            evidence_hash: string;
+            /** Quote */
+            quote: string;
+            /** Section */
+            section: string;
+            /** Page */
+            page?: number | null;
+            /** Span Start */
+            span_start: number;
+            /** Span End */
+            span_end: number;
+            /** Publisher */
+            publisher: string;
+            /** Published Date */
+            published_date?: string | null;
+            /** Speaker */
+            speaker?: string | null;
+            /** Speaker Organization */
+            speaker_organization?: string | null;
+            /** Speaker Role */
+            speaker_role?: string | null;
+            /** Support */
+            support: string;
+            /** Status */
+            status: string;
+            /** Source Url */
+            source_url: string;
+            /** Source Id */
+            source_id?: string | null;
         };
         /** ChangeOut */
         ChangeOut: {
@@ -1803,6 +2054,182 @@ export interface components {
             /** Offset */
             offset: number;
         };
+        /** IntelligenceHistoryOut */
+        IntelligenceHistoryOut: {
+            /**
+             * Job Id
+             * Format: uuid
+             */
+            job_id: string;
+            /** Task Type */
+            task_type: string | null;
+            /**
+             * Need Id
+             * Format: uuid
+             */
+            need_id: string;
+            /** Status */
+            status: string;
+            /** Result */
+            result: {
+                [key: string]: unknown;
+            } | null;
+            /** Result Status */
+            result_status?: string | null;
+            /** Error */
+            error: string | null;
+            /** Evidence Ids */
+            evidence_ids: string[];
+            /** Logical Call Id */
+            logical_call_id: string | null;
+            /** Usage */
+            usage: {
+                [key: string]: unknown;
+            } | null;
+            /** Reserved */
+            reserved: boolean;
+            /** Uncertain */
+            uncertain: boolean;
+            /** Created At */
+            created_at: string | null;
+            /** Completed At */
+            completed_at: string | null;
+        };
+        /** IntelligenceHistoryPageOut */
+        IntelligenceHistoryPageOut: {
+            /** Items */
+            items: components["schemas"]["IntelligenceHistoryOut"][];
+        };
+        /** IntelligenceJobOut */
+        IntelligenceJobOut: {
+            /**
+             * Job Id
+             * Format: uuid
+             */
+            job_id: string;
+            /** Task Type */
+            task_type: string | null;
+            /**
+             * Need Id
+             * Format: uuid
+             */
+            need_id: string;
+            /** Status */
+            status: string;
+            /** Result */
+            result: {
+                [key: string]: unknown;
+            } | null;
+            /** Result Status */
+            result_status?: string | null;
+            /** Error */
+            error: string | null;
+            /** Evidence Ids */
+            evidence_ids: string[];
+            /** Logical Call Id */
+            logical_call_id: string | null;
+            /** Usage */
+            usage: {
+                [key: string]: unknown;
+            } | null;
+            /** Reserved */
+            reserved: boolean;
+            /** Uncertain */
+            uncertain: boolean;
+            /** Created At */
+            created_at: string | null;
+            /** Completed At */
+            completed_at: string | null;
+        };
+        /** IntelligenceOperationsOut */
+        IntelligenceOperationsOut: {
+            /** Window Days */
+            window_days: number;
+            /** Sources */
+            sources: {
+                [key: string]: unknown;
+            }[];
+            /** Queue */
+            queue: {
+                [key: string]: unknown;
+            };
+            /** Providers */
+            providers: {
+                [key: string]: unknown;
+            };
+            /** Questions */
+            questions: {
+                [key: string]: unknown;
+            };
+            /** Material Changes 30D */
+            material_changes_30d: number | null;
+            /** Reviewed Signals */
+            reviewed_signals: number | null;
+            /** Independent Leads */
+            independent_leads: number | null;
+            /** Backup */
+            backup: string;
+            /** Restore */
+            restore: string;
+            /** Last Verified Restore At */
+            last_verified_restore_at: string | null;
+            /** Last Reported Restore At */
+            last_reported_restore_at: string | null;
+            /** Operational Receipt */
+            operational_receipt: {
+                [key: string]: unknown;
+            };
+            /** Commercial Review Receipt */
+            commercial_review_receipt: {
+                [key: string]: unknown;
+            };
+            /** Owner Review Notes 30D */
+            owner_review_notes_30d: number;
+        };
+        /** IntelligenceTaskOut */
+        IntelligenceTaskOut: {
+            /** Task Type */
+            task_type: string;
+            /** Question Id */
+            question_id: string | null;
+            /** Eligible */
+            eligible: boolean;
+            /** Reason */
+            reason: string | null;
+            /** Provider */
+            provider: string | null;
+            /** Pinned Model */
+            pinned_model: string | null;
+        };
+        /** IntelligenceTasksOut */
+        IntelligenceTasksOut: {
+            /** Items */
+            items: components["schemas"]["IntelligenceTaskOut"][];
+            /** Mode */
+            mode: string;
+            /** Enabled */
+            enabled: boolean;
+            /** Provider Configuration */
+            provider_configuration: {
+                [key: string]: boolean;
+            };
+            /** Note */
+            note: string;
+        };
+        /** IntelligenceWatchOut */
+        IntelligenceWatchOut: {
+            /** Item */
+            item?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /** JobRequest */
+        JobRequest: {
+            /** Task Type */
+            task_type: string;
+            /** Question Id */
+            question_id?: string | null;
+        };
         /** LifecycleEventOut */
         LifecycleEventOut: {
             /** State */
@@ -2097,6 +2524,62 @@ export interface components {
             browse_title?: string | null;
             /** Evidence Count */
             evidence_count?: number | null;
+        };
+        /** OwnerFeedback */
+        OwnerFeedback: {
+            /**
+             * Client Id
+             * Format: uuid
+             */
+            client_id: string;
+            /**
+             * Job Id
+             * Format: uuid
+             */
+            job_id: string;
+            /**
+             * Logical Call Id
+             * Format: uuid
+             */
+            logical_call_id: string;
+            /**
+             * Decision
+             * @enum {string}
+             */
+            decision: "SUPPORTED" | "CONFLICT" | "UNRESOLVED" | "OTHER";
+            /** Note */
+            note: string;
+            /**
+             * Next Action
+             * @default
+             */
+            next_action: string;
+            /** Follow Up */
+            follow_up?: string | null;
+            candidate: components["schemas"]["CandidateReviewRef"];
+            /** Evidence Refs */
+            evidence_refs: components["schemas"]["ReviewEvidenceRef"][];
+        };
+        /** OwnerFeedbackOut */
+        OwnerFeedbackOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Client Id
+             * Format: uuid
+             */
+            client_id: string;
+            /** Metadata */
+            metadata: {
+                [key: string]: unknown;
+            };
+            /** Note */
+            note: string;
+            /** Created At */
+            created_at: string | null;
         };
         /** PermitFactOut */
         PermitFactOut: {
@@ -2843,6 +3326,18 @@ export interface components {
             /** Retrieved At */
             retrieved_at?: string | null;
         };
+        /** ReviewEvidenceRef */
+        ReviewEvidenceRef: {
+            /**
+             * Evidence Id
+             * Format: uuid
+             */
+            evidence_id: string;
+            /** Content Hash */
+            content_hash: string;
+            /** Source Url */
+            source_url: string;
+        };
         /** SessionOut */
         SessionOut: {
             /** Authenticated */
@@ -2929,6 +3424,29 @@ export interface components {
             /** Context */
             ctx?: Record<string, never>;
         };
+        /** WatchRequest */
+        WatchRequest: {
+            /** Sources */
+            sources: components["schemas"]["WatchSource"][];
+            /** Question Ids */
+            question_ids?: string[] | null;
+            /**
+             * Enabled
+             * @default true
+             */
+            enabled: boolean;
+            /** Reprocess Revision */
+            reprocess_revision?: string | null;
+        };
+        /** WatchSource */
+        WatchSource: {
+            /** Source Id */
+            source_id: string;
+            /** Allowed Urls */
+            allowed_urls: string[];
+            /** Record Ids */
+            record_ids?: string[];
+        };
     };
     responses: never;
     parameters: never;
@@ -2938,6 +3456,347 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    intelligence_tasks_api_intelligence_tasks_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntelligenceTasksOut"];
+                };
+            };
+        };
+    };
+    intelligence_operations_api_intelligence_operations_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntelligenceOperationsOut"];
+                };
+            };
+        };
+    };
+    need_intelligence_history_api_intelligence_needs__need_id__history_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                need_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntelligenceHistoryPageOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    request_intelligence_job_api_intelligence_needs__need_id__jobs_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                need_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JobRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntelligenceJobOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    request_scanned_pdf_ocr_api_intelligence_needs__need_id__evidence__evidence_id__ocr_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                need_id: string;
+                evidence_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntelligenceJobOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    request_ocr_grounded_followon_api_intelligence_needs__need_id__evidence__evidence_id__ocr_followon_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                need_id: string;
+                evidence_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JobRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntelligenceJobOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cancel_intelligence_job_api_intelligence_needs__need_id__jobs__job_id__cancel_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                need_id: string;
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntelligenceJobOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    retry_intelligence_job_api_intelligence_needs__need_id__jobs__job_id__retry_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                need_id: string;
+                job_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntelligenceJobOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_need_watch_api_intelligence_needs__need_id__watches_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                need_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntelligenceWatchOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_need_watch_api_intelligence_needs__need_id__watches_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                need_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WatchRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntelligenceWatchOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    save_owner_feedback_api_intelligence_needs__need_id__feedback_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                need_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OwnerFeedback"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OwnerFeedbackOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     login_api_auth_login_post: {
         parameters: {
             query?: never;

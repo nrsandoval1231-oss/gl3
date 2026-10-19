@@ -12,7 +12,10 @@ from gridlens.ingestion.adapters.buying_chain_public import PublicDocument
 from gridlens.jobs.queue import enqueue, lease_one
 from gridlens.persistence.database import Base
 from gridlens.persistence.models import (
+    Evidence,
     Job,
+    LogicalCall,
+    Observation,
     PowerNeed,
     PowerNeedBrief,
     PowerNeedBriefVersion,
@@ -21,6 +24,7 @@ from gridlens.persistence.models import (
     PursuitCallNote,
     PursuitDocument,
     PursuitResearchRun,
+    SignalDecision,
     Source,
 )
 from gridlens.security import token_for
@@ -173,6 +177,46 @@ def execute(factory, service, *, source_id="austin-building-permits", force=True
         job, fence = leased
     service.process_research_job(job_id, "pursuit-test", fence)
     return job_id
+
+
+def seed_signal_evidence(
+    factory, service, *, decision=None, content_hash="a", policy_version=None
+):
+    group = service.candidates(None)[0]
+    record = group["records"][0]
+    service_module = import_module("gridlens.intelligence.signal_adjudication")
+    with factory.begin() as session:
+        observation = Observation(
+            id=UUID(record["observation_id"]),
+            source_id="austin-building-permits",
+            external_id="2026-100001 EP",
+            title="Synthetic ambiguous project",
+            content_hash="a",
+            url=record["url"],
+        )
+        session.add(observation)
+        session.flush()
+        evidence = Evidence(
+            id=UUID(record["evidence_id"]),
+            observation_id=observation.id,
+            content_hash="a",
+            title=observation.title,
+            url=observation.url,
+        )
+        session.add(evidence)
+        if decision is not None:
+            session.add(
+                SignalDecision(
+                    observation_id=observation.id,
+                    content_hash=content_hash,
+                    policy_version=policy_version or service_module.POLICY_VERSION,
+                    decision=decision,
+                    source="deterministic" if decision == "HOLD" else "jev",
+                    model_version=None if decision == "HOLD" else "jev-1.13.0",
+                    dimensions={"status": "synthetic"},
+                    reason="Synthetic test-only source-pipeline decision.",
+                )
+            )
 
 
 def test_live_research_contract_conflict_replay_notes_and_failure_persistence(runtime, monkeypatch):
@@ -592,7 +636,12 @@ def test_successful_ingestion_queues_same_worker_research_without_source_health_
     monkeypatch.setattr(
         worker,
         "process_job",
-        lambda *_args: {"new": 0, "changed": 0, "unchanged": 1, "latest_publication_date": None},
+        lambda *_args, **_kwargs: {
+            "new": 0,
+            "changed": 0,
+            "unchanged": 1,
+            "latest_publication_date": None,
+        },
     )
     with factory.begin() as session:
         job_id = enqueue(session, "austin-building-permits")
@@ -641,50 +690,433 @@ def test_daily_usage_counts_request_day_even_if_run_crosses_midnight(runtime):
 
 def test_model_budget_pause_survives_adjudicator_without_false_decision(runtime, monkeypatch):
     factory, service, _, _, _ = runtime
-    from gridlens.persistence.models import Evidence, Observation, SignalDecision
-
-    jev = import_module("gridlens.intelligence.signal_adjudication")
     from pydantic import SecretStr
 
     monkeypatch.setattr(settings, "typesafe_api_key", SecretStr("synthetic-key"))
     monkeypatch.setattr(settings, "pursuits_daily_model_limit", 0)
-    monkeypatch.setattr(jev, "deterministic_override", lambda *_args: None)
-    group = service.candidates(None)[0]
-    record = group["records"][0]
-    with factory.begin() as session:
-        observation = Observation(
-            id=UUID(record["observation_id"]),
-            source_id="austin-building-permits",
-            external_id="2026-100001 EP",
-            title="Synthetic ambiguous project",
-            content_hash="a",
-            url=record["url"],
-        )
-        session.add(observation)
-        session.flush()
-        session.add(
-            Evidence(
-                id=UUID(record["evidence_id"]),
-                observation_id=observation.id,
-                content_hash="a",
-                title=observation.title,
-                url=observation.url,
-            )
-        )
-
-    def call(state, key, on_request=None):
-        assert on_request
-        on_request()
-        raise AssertionError("Budget rejection must happen before a model request")
-
-    monkeypatch.setattr(jev, "_jev_call", call)
+    seed_signal_evidence(factory, service)
     execute(factory, service)
     with factory() as session:
         row = session.scalar(select(Pursuit))
         assert row.research_status == "partial"
+        assert any(
+            "Daily or batch research request cap" in error for error in row.research_errors
+        )
         assert any("work is paused" in error for error in row.research_errors)
         assert row.last_researched_at is None
         assert session.scalar(select(func.count()).select_from(SignalDecision)) == 0
+        run = session.scalar(select(PursuitResearchRun))
+        assert run.model_count == 0
+        assert session.scalar(select(func.count()).select_from(LogicalCall)) == 0
+        assert (
+            session.scalar(
+                select(func.count()).select_from(Job).where(Job.kind == "signal_adjudication")
+            )
+            == 0
+        )
+        assert any("remains UNKNOWN" in value for value in row.snapshot["unknowns"])
+
+
+@pytest.mark.parametrize("prior_findings", [False, True])
+def test_zero_budget_research_keeps_saved_maps_current_after_every_commit(
+    runtime, monkeypatch, prior_findings
+):
+    from sqlalchemy import event
+
+    from gridlens.intelligence.saved_browse import current_generation, rebuild
+    from gridlens.intelligence.worker_browse import install_worker_publication
+    from gridlens.persistence.browse_invalidation import install
+    from gridlens.persistence.models import BrowseState, Interpretation, NeedObservation
+
+    factory, service, public, api, project_id = runtime
+    seed_signal_evidence(factory, service)
+    group = service.candidates(None)[0]
+    with factory.begin() as session:
+        need = PowerNeed(
+            project_id=project_id,
+            activity_key="construction",
+            tier="Signal",
+            rationale="Synthetic retained permit",
+            supply="Unknown",
+            active=True,
+        )
+        session.add(need)
+        session.flush()
+        observation_id = UUID(group["records"][0]["observation_id"])
+        session.add(NeedObservation(need_id=need.id, observation_id=observation_id))
+        session.add(
+            Interpretation(
+                observation_id=observation_id,
+                content_hash="a",
+                evaluator_version="fixture",
+                status="accepted",
+                assessment={
+                    "semantic_hash": "a",
+                    "evidence_hash": "a",
+                    "decision": "accepted",
+                    "project_identity_key": "synthetic-orion",
+                    "power_activity": "construction",
+                    "subject": "Synthetic Orion",
+                    "location": "100 ORION LN",
+                },
+            )
+        )
+    if prior_findings:
+        execute(factory, service)
+        with factory() as session:
+            prior = session.scalar(select(Pursuit))
+            prior_snapshot, prior_freshness = prior.snapshot, prior.last_researched_at
+    with factory.kw["bind"].begin() as connection:
+        install(connection)
+    assert rebuild(factory)["status"] == "published"
+    monkeypatch.setattr(settings, "saved_browse_enabled", True)
+    monkeypatch.setattr(settings, "pursuits_daily_fetch_limit", 0)
+    monkeypatch.setattr(settings, "pursuits_daily_model_limit", 0)
+    worker_factory = sessionmaker(factory.kw["bind"], expire_on_commit=False)
+    monkeypatch.setattr(service, "SessionLocal", worker_factory)
+    install_worker_publication(worker_factory)
+    attempts = []
+
+    def no_network(*_args, **kwargs):
+        kwargs["on_request"]()
+        attempts.append("external request")
+        raise AssertionError("Zero budgets must prevent external requests")
+
+    monkeypatch.setattr(public, "retrieve_austin", no_network)
+    monkeypatch.setattr(public, "retrieve_tabs", no_network)
+    with factory() as session:
+        initial_full = session.get(BrowseState, 1).full_revision
+        canonical = api.opportunity_projection(session)
+        assert len(canonical) == 1
+    statuses = []
+    client = TestClient(api.app, base_url="https://testserver")
+    client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
+
+    def verify_after_commit(session):
+        if session.in_nested_transaction():
+            return
+        with factory() as reader:
+            state = reader.get(BrowseState, 1)
+            assert current_generation(reader).input_revision == state.input_revision
+            assert state.full_revision == initial_full
+        response = client.get("/api/opportunities/map-window?tier=Signal&decision=ALL")
+        statuses.append(response.status_code)
+        assert response.status_code == 200
+
+    event.listen(worker_factory, "after_commit", verify_after_commit)
+    try:
+        job_id = execute(factory, service)
+    finally:
+        event.remove(worker_factory, "after_commit", verify_after_commit)
+        client.close()
+    assert len(statuses) >= 4 and not attempts
+    with factory() as session:
+        assert session.get(Job, job_id).status == "succeeded"
+        run = session.scalar(select(PursuitResearchRun).where(PursuitResearchRun.job_id == job_id))
+        assert run.status == "failed" and run.fetch_count == run.model_count == 0
+        assert any("Daily or batch" in message for message in run.errors)
+        row = session.scalar(select(Pursuit))
+        if prior_findings:
+            assert row.snapshot == prior_snapshot
+            assert row.last_researched_at == prior_freshness
+        assert api.opportunity_projection(session) == canonical
+
+
+def test_ingestion_dispatches_full_retained_research_batch_without_saved_map_gap(
+    runtime, monkeypatch
+):
+    from concurrent.futures import ThreadPoolExecutor
+    from time import monotonic
+
+    from sqlalchemy import event
+
+    from gridlens.intelligence.saved_browse import current_generation, rebuild
+    from gridlens.intelligence.worker_browse import install_worker_publication
+    from gridlens.persistence.browse_invalidation import install
+    from gridlens.persistence.models import BrowseState, Interpretation, NeedObservation
+
+    factory, service, public, api, _unused_project_id = runtime
+    # Exercise the real retained candidate selector, not the one-group unit fixture.
+    monkeypatch.undo()
+    monkeypatch.setattr(api, "SessionLocal", factory)
+    monkeypatch.setattr(settings, "saved_browse_enabled", False)
+    monkeypatch.setattr(settings, "typesafe_api_key", None)
+    monkeypatch.setattr(settings, "pursuits_daily_fetch_limit", 0)
+    monkeypatch.setattr(settings, "pursuits_daily_model_limit", 0)
+    with factory.begin() as writer:
+        writer.add(
+            Source(
+                id="texas-rrc-drilling-permits",
+                publisher="Synthetic RRC",
+                endpoint="https://example.test/rrc",
+                family="construction-permits",
+                geography="Texas",
+                industries=[],
+                retrieval_method="rrc-drilling-permits",
+                health={},
+            )
+        )
+        writer.flush()
+        for index in range(12):
+            source_id = "austin-building-permits" if index < 8 else "texas-rrc-drilling-permits"
+            external = f"2026-{100100 + index} EP" if index < 8 else f"{910100 + index:07d}"
+            address = f"{100 + index} SYNTHETIC CAMPUS LN"
+            project = Project(
+                source_id=source_id,
+                external_id=external,
+                name=f"Synthetic Campus {index}",
+                location=address,
+                identity_key=f"synthetic-batch-{index}",
+            )
+            writer.add(project)
+            writer.flush()
+            description = (
+                "construction power temporary service for Data Center"
+                if index < 8
+                else f"W-1 well permit: Drill; lease SYNTHETIC SWD {index}, well 1."
+            )
+            observation = Observation(
+                source_id=source_id,
+                external_id=external,
+                title=project.name,
+                abstract=description,
+                url=f"https://example.test/batch/{index}",
+                content_hash=f"{index:064x}",
+            )
+            writer.add(observation)
+            writer.flush()
+            evidence = Evidence(
+                observation_id=observation.id,
+                content_hash=observation.content_hash,
+                title=project.name,
+                abstract=(
+                    f"row: {external}\naddress: {address}\n"
+                    f"description: {description}\ndate: 2026-09-15\nstatus: Active"
+                ),
+                url=observation.url,
+                event_date=datetime.now(UTC).date(),
+            )
+            writer.add(evidence)
+            activity = "construction" if index < 8 else "drilling"
+            writer.add(
+                Interpretation(
+                    observation_id=observation.id,
+                    content_hash=observation.content_hash,
+                    status="accepted",
+                    assessment={
+                        "decision": "accepted",
+                        "semantic_hash": observation.content_hash,
+                        "evidence_hash": evidence.content_hash,
+                        "project_identity_key": project.identity_key,
+                        "power_activity": activity,
+                    },
+                )
+            )
+            need = PowerNeed(
+                project_id=project.id,
+                activity_key=activity,
+                tier="Signal",
+                rationale="Synthetic retained batch",
+                supply="Unknown",
+            )
+            writer.add(need)
+            writer.flush()
+            writer.add(NeedObservation(need_id=need.id, observation_id=observation.id))
+    prior = {}
+    with factory.begin() as writer:
+        groups = service.candidates(writer)
+        assert len(groups) == len(service.select_batch(writer, groups)) == 12
+        for index, group in enumerate(groups[:6]):
+            row = Pursuit(
+                identity_key=group["identity_key"],
+                project_id=UUID(group["projects"][0]["id"]),
+                project_ids=[p["id"] for p in group["projects"]],
+                snapshot={"synthetic_retained_marker": index, "evidence": []},
+                research_status="partial",
+                last_researched_at=datetime.now(UTC) - timedelta(days=2),
+            )
+            writer.add(row)
+            writer.flush()
+            prior[row.id] = (row.snapshot, row.last_researched_at)
+    with factory.kw["bind"].begin() as connection:
+        install(connection)
+    assert rebuild(factory)["status"] == "published"
+    monkeypatch.setattr(settings, "saved_browse_enabled", True)
+    worker = import_module("gridlens.jobs.worker")
+    worker_factory = sessionmaker(factory.kw["bind"], expire_on_commit=False)
+    monkeypatch.setattr(service, "SessionLocal", worker_factory)
+    monkeypatch.setattr(worker, "SessionLocal", worker_factory)
+    install_worker_publication(worker_factory)
+    attempts = []
+
+    def forbidden_request(*_args, **kwargs):
+        kwargs["on_request"]()
+        attempts.append("external request")
+        raise AssertionError("Zero budgets must prevent requests")
+
+    for name in (
+        "retrieve_austin",
+        "retrieve_tabs",
+        "retrieve_rrc_snapshot",
+        "retrieve_rrc_archive",
+    ):
+        monkeypatch.setattr(public, name, forbidden_request)
+
+    def synthetic_ingestion(session, *_args, **_kwargs):
+        observation = session.scalar(
+            select(Observation).where(Observation.source_id == "austin-building-permits")
+        )
+        observation.title += " refreshed"
+        session.commit()  # Same durable phase boundary used by ingestion.
+        return {"new": 0, "changed": 1, "unchanged": 0, "latest_publication_date": None}
+
+    monkeypatch.setattr(worker, "process_job", synthetic_ingestion)
+    with factory.begin() as writer:
+        ingestion_id = enqueue(writer, "austin-building-permits")
+        writer.get(Job, ingestion_id).available_at = datetime.now(UTC) - timedelta(seconds=1)
+    with factory() as reader:
+        initial_full = reader.get(BrowseState, 1).full_revision
+    commits = []
+
+    def committed(session):
+        if session.in_nested_transaction():
+            return
+        with factory() as reader:
+            state = reader.get(BrowseState, 1)
+            assert current_generation(reader).input_revision == state.input_revision
+            assert state.full_revision == initial_full
+        commits.append(1)
+
+    event.listen(worker_factory, "after_commit", committed)
+    started = monotonic()
+    try:
+        assert worker.run_one({"austin-building-permits": {}}, job_ids=[ingestion_id])
+        with factory() as reader:
+            assert reader.get(Job, ingestion_id).status == "succeeded"
+            research = reader.scalar(select(Job).where(Job.kind == "pursuit_research"))
+            assert research.status == "queued"
+            research_id = research.id
+        with (
+            TestClient(api.app, base_url="https://testserver") as client,
+            ThreadPoolExecutor(1) as pool,
+        ):
+            client.cookies.set(
+                "gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300)
+            )
+            future = pool.submit(
+                worker.run_one, {"austin-building-permits": {}}, job_ids=[research_id]
+            )
+            reads = 0
+            while not future.done() or reads < 5:
+                assert monotonic() - started < 120
+                response = client.get("/api/opportunities/map-window?tier=Signal&decision=ALL")
+                assert response.status_code == 200, response.text
+                reads += 1
+            assert future.result()
+    finally:
+        event.remove(worker_factory, "after_commit", committed)
+    assert not attempts
+    assert len(commits) >= 26
+    with factory() as reader:
+        assert reader.get(Job, research_id).status == "succeeded"
+        runs = list(
+            reader.scalars(
+                select(PursuitResearchRun).where(PursuitResearchRun.job_id == research_id)
+            )
+        )
+        assert len(runs) == 12
+        assert all(
+            run.fetch_count == run.model_count == 0 and run.status == "failed" for run in runs
+        )
+        for pursuit_id, (snapshot, freshness) in prior.items():
+            row = reader.get(Pursuit, pursuit_id)
+            assert row.snapshot == snapshot and row.last_researched_at == freshness
+        assert reader.scalar(select(func.count()).select_from(LogicalCall)) == 0
+    print(
+        f"automatic_research groups=12 commits={len(commits)} "
+        f"authenticated_200_reads={reads} elapsed_seconds={monotonic() - started:.3f}"
+    )
+
+
+def test_positive_legacy_model_cap_never_retries_missing_source_decision(runtime, monkeypatch):
+    factory, service, _, _, _ = runtime
+    from pydantic import SecretStr
+
+    monkeypatch.setattr(settings, "typesafe_api_key", SecretStr("synthetic-key"))
+    monkeypatch.setattr(settings, "pursuits_daily_model_limit", 10)
+    seed_signal_evidence(factory, service)
+    execute(factory, service)
+    with factory() as session:
+        row = session.scalar(select(Pursuit))
+        assert row.research_status == "succeeded"
+        assert any(
+            "source pipeline" in value for value in row.snapshot["unknowns"]
+        ), row.snapshot["unknowns"]
+        assert any("made no model request" in value for value in row.snapshot["unknowns"])
+        run = session.scalar(select(PursuitResearchRun))
+        assert run.model_count == 0
+        assert session.scalar(select(func.count()).select_from(LogicalCall)) == 0
+        assert session.scalar(select(func.count()).select_from(SignalDecision)) == 0
+        assert (
+            session.scalar(
+                select(func.count()).select_from(Job).where(Job.kind == "signal_adjudication")
+            )
+            == 0
+        )
+
+
+def test_exact_current_signal_decision_is_reused_without_credentials(runtime):
+    factory, service, _, _, _ = runtime
+    seed_signal_evidence(factory, service, decision="SHOW")
+    execute(factory, service)
+    with factory() as session:
+        row = session.scalar(select(Pursuit))
+        assert not any(
+            "Signal evidence adjudication remains" in value for value in row.snapshot["unknowns"]
+        )
+        run = session.scalar(select(PursuitResearchRun))
+        assert run.model_count == 0
+        assert session.scalar(select(func.count()).select_from(LogicalCall)) == 0
+        assert session.scalar(select(func.count()).select_from(SignalDecision)) == 1
+        assert (
+            session.scalar(
+                select(func.count()).select_from(Job).where(Job.kind == "signal_adjudication")
+            )
+            == 0
+        )
+
+
+@pytest.mark.parametrize(
+    ("stale_hash", "stale_policy"),
+    [("different-hash", None), ("a", "signal-display-old-policy")],
+)
+def test_stale_signal_decision_is_not_reused(runtime, monkeypatch, stale_hash, stale_policy):
+    factory, service, _, _, _ = runtime
+    monkeypatch.setattr(settings, "pursuits_daily_model_limit", 10)
+    seed_signal_evidence(
+        factory,
+        service,
+        decision="SHOW",
+        content_hash=stale_hash,
+        policy_version=stale_policy,
+    )
+    execute(factory, service)
+    with factory() as session:
+        row = session.scalar(select(Pursuit))
+        assert any(
+            "source pipeline" in value for value in row.snapshot["unknowns"]
+        ), (row.snapshot["unknowns"], row.research_errors)
+        assert not any("reused exact current" in value for value in row.snapshot["unknowns"])
+        run = session.scalar(select(PursuitResearchRun))
+        assert run.model_count == 0
+        assert session.scalar(select(func.count()).select_from(LogicalCall)) == 0
+        assert session.scalar(select(func.count()).select_from(SignalDecision)) == 1
+        assert (
+            session.scalar(
+                select(func.count()).select_from(Job).where(Job.kind == "signal_adjudication")
+            )
+            == 0
+        )
 
 
 @pytest.mark.parametrize("single_record", [False, True])

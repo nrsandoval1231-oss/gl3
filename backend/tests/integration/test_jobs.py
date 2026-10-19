@@ -1,3 +1,4 @@
+import json
 from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from threading import Barrier
@@ -221,6 +222,207 @@ def test_permit_queue_priority_and_news_age_fairness(db):
         assert aged_news.source_id == "daily-news"
 
 
+def test_bounded_routing_rank_is_policy_bound_and_preserves_age_fairness(db, monkeypatch):
+    _, factory = db
+    monkeypatch.setattr(settings, "intelligence_mode", "bounded_routing")
+    monkeypatch.setattr(settings, "intelligence_enabled", True)
+    monkeypatch.setattr(settings, "intelligence_research_enabled", True)
+    monkeypatch.setattr(settings, "intelligence_typesafe_enabled", True)
+    monkeypatch.setattr(settings, "intelligence_routing_policy_id", "policy-reviewed-7")
+    monkeypatch.setattr(settings, "intelligence_routing_policy_evaluated", True)
+    monkeypatch.setattr(settings, "intelligence_bounded_routing_authorized", True)
+    monkeypatch.setattr(settings, "intelligence_max_active_calls", 1)
+    monkeypatch.setattr(settings, "intelligence_max_call_usd", 1)
+    for scope in ("global", "provider", "model", "source", "project"):
+        for period in ("daily", "monthly"):
+            monkeypatch.setattr(settings, f"intelligence_{scope}_{period}_calls", 1)
+            monkeypatch.setattr(settings, f"intelligence_{scope}_{period}_usd", 1)
+    now = datetime.now(UTC)
+
+    def checkpoint(rank: int, policy_id: str) -> str:
+        return json.dumps(
+            {
+                "task_type": "RESEARCH_PRIORITY_V1",
+                "status": "queued",
+                "routing_priority": {
+                    "rank": rank,
+                    "policy_id": policy_id,
+                    "evaluated": True,
+                    "authorized": True,
+                    "evaluation_job_id": "00000000-0000-0000-0000-000000000001",
+                    "evaluation_call_id": "00000000-0000-0000-0000-000000000002",
+                    "request_digest": "d" * 64,
+                },
+            }
+        )
+
+    with factory.begin() as session:
+        aged = Job(
+            source_id="synthetic-test-source",
+            kind="ingestion",
+            status="queued",
+            available_at=now,
+            created_at=now - timedelta(days=2),
+        )
+        ordinary = Job(
+            source_id="synthetic-test-source",
+            kind="intelligence_process",
+            status="queued",
+            checkpoint=checkpoint(1, "wrong-policy"),
+            available_at=now,
+            created_at=now - timedelta(seconds=3),
+        )
+        lower_rank = Job(
+            source_id="synthetic-test-source",
+            kind="intelligence_process",
+            status="queued",
+            checkpoint=checkpoint(4, "policy-reviewed-7"),
+            available_at=now,
+            created_at=now - timedelta(seconds=2),
+        )
+        higher_rank = Job(
+            source_id="synthetic-test-source",
+            kind="intelligence_process",
+            status="queued",
+            checkpoint=checkpoint(1, "policy-reviewed-7"),
+            available_at=now,
+            created_at=now - timedelta(seconds=1),
+        )
+        legacy_cursor = Job(
+            source_id="synthetic-test-source",
+            kind="ingestion",
+            status="queued",
+            checkpoint="legacy cursor is not JSON",
+            available_at=now,
+            created_at=now - timedelta(seconds=4),
+        )
+        malformed_rank = Job(
+            source_id="synthetic-test-source",
+            kind="intelligence_process",
+            status="queued",
+            checkpoint=json.dumps(
+                {
+                    "routing_priority": {
+                        "rank": "oops",
+                        "policy_id": "policy-reviewed-7",
+                        "evaluated": "true",
+                        "authorized": True,
+                        "evaluation_job_id": "job",
+                        "evaluation_call_id": "call",
+                        "request_digest": "d" * 64,
+                    }
+                }
+            ),
+            available_at=now,
+            created_at=now + timedelta(seconds=1),
+        )
+        fractional_rank = Job(
+            source_id="synthetic-test-source",
+            kind="intelligence_process",
+            status="queued",
+            checkpoint=json.dumps(
+                {
+                    "routing_priority": {
+                        "rank": 2.5,
+                        "policy_id": "policy-reviewed-7",
+                        "evaluated": True,
+                        "authorized": True,
+                        "evaluation_job_id": "job",
+                        "evaluation_call_id": "call",
+                        "request_digest": "d" * 64,
+                    }
+                }
+            ),
+            available_at=now,
+            created_at=now + timedelta(seconds=2),
+        )
+        session.add_all(
+            [
+                aged,
+                ordinary,
+                lower_rank,
+                higher_rank,
+                legacy_cursor,
+                malformed_rank,
+                fractional_rank,
+            ]
+        )
+        session.flush()
+        expected_ids = [
+            aged.id,
+            higher_rank.id,
+            lower_rank.id,
+            legacy_cursor.id,
+            ordinary.id,
+            malformed_rank.id,
+            fractional_rank.id,
+        ]
+    actual_ids = []
+    for worker_number in range(len(expected_ids)):
+        with factory.begin() as session:
+            leased, _ = lease_one(session, f"rank-worker-{worker_number}")
+            actual_ids.append(leased.id)
+    assert actual_ids == expected_ids
+
+
+def test_bounded_routing_hint_is_ignored_when_provider_killed(db, monkeypatch):
+    _, factory = db
+    monkeypatch.setattr(settings, "intelligence_mode", "bounded_routing")
+    monkeypatch.setattr(settings, "intelligence_enabled", True)
+    monkeypatch.setattr(settings, "intelligence_research_enabled", True)
+    monkeypatch.setattr(settings, "intelligence_typesafe_enabled", False)
+    monkeypatch.setattr(settings, "intelligence_openai_enabled", False)
+    monkeypatch.setattr(settings, "intelligence_routing_policy_id", "policy-reviewed-7")
+    monkeypatch.setattr(settings, "intelligence_routing_policy_evaluated", True)
+    monkeypatch.setattr(settings, "intelligence_bounded_routing_authorized", True)
+    monkeypatch.setattr(settings, "intelligence_max_active_calls", 1)
+    monkeypatch.setattr(settings, "intelligence_max_call_usd", 1)
+    for scope in ("global", "provider", "model", "source", "project"):
+        for period in ("daily", "monthly"):
+            monkeypatch.setattr(settings, f"intelligence_{scope}_{period}_calls", 1)
+            monkeypatch.setattr(settings, f"intelligence_{scope}_{period}_usd", 1)
+    now = datetime.now(UTC)
+
+    def checkpoint(rank: int) -> str:
+        return json.dumps(
+            {
+                "routing_priority": {
+                    "rank": rank,
+                    "policy_id": "policy-reviewed-7",
+                    "evaluated": True,
+                    "authorized": True,
+                    "evaluation_job_id": "job",
+                    "evaluation_call_id": "call",
+                    "request_digest": "d" * 64,
+                }
+            }
+        )
+
+    with factory.begin() as session:
+        older_rank_4 = Job(
+            source_id="synthetic-test-source",
+            kind="intelligence_process",
+            status="queued",
+            checkpoint=checkpoint(4),
+            available_at=now,
+            created_at=now - timedelta(seconds=2),
+        )
+        newer_rank_1 = Job(
+            source_id="synthetic-test-source",
+            kind="intelligence_process",
+            status="queued",
+            checkpoint=checkpoint(1),
+            available_at=now,
+            created_at=now - timedelta(seconds=1),
+        )
+        session.add_all([older_rank_4, newer_rank_1])
+        session.flush()
+        expected_id = older_rank_4.id
+    with factory.begin() as session:
+        leased, _ = lease_one(session, "provider-kill-worker")
+    assert leased.id == expected_id
+
+
 def test_scoped_worker_leaves_other_jobs_and_expired_leases_untouched(db):
     _, factory = db
     with factory.begin() as session:
@@ -297,7 +499,7 @@ def test_runtime_recovery_honors_backoff_and_reports_failure_then_recovery(db, m
     runtime, worker, definition = _runtime_fixture(factory, monkeypatch)
     from gridlens.ingestion.adapters.federal_register import SourceParseError
 
-    def fail(*args):
+    def fail(*args, **kwargs):
         raise SourceParseError("synthetic incomplete snapshot")
 
     monkeypatch.setattr(worker, "process_job", fail)
@@ -322,7 +524,7 @@ def test_runtime_recovery_honors_backoff_and_reports_failure_then_recovery(db, m
     monkeypatch.setattr(
         worker,
         "process_job",
-        lambda *args: {
+        lambda *args, **kwargs: {
             "new": 0,
             "changed": 0,
             "unchanged": 1,

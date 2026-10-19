@@ -47,6 +47,18 @@ export function BuyingChain({ projectId }: { projectId: string }) {
     return () => { active.current = false; controller.abort() }
   }, [projectId])
 
+  useEffect(() => {
+    const status = result?.research_job?.status
+    if (status !== 'queued' && status !== 'running') return
+    const controller = new AbortController()
+    const timer = setInterval(() => {
+      client.buyingChain(projectId, controller.signal)
+        .then((data) => { if (active.current && !controller.signal.aborted) setResult(checkedResult(data, projectId)) })
+        .catch(() => undefined)
+    }, 1500)
+    return () => { clearInterval(timer); controller.abort() }
+  }, [projectId, result?.research_job?.id, result?.research_job?.status])
+
   async function enrich() {
     if (pending.current) return
     const urls = sourceUrls.split(/\n/).map((url) => url.trim()).filter(Boolean)
@@ -57,8 +69,9 @@ export function BuyingChain({ projectId }: { projectId: string }) {
     pending.current = true
     setEnriching(true)
     setError('')
+    const controller = new AbortController()
     try {
-      const data = await client.enrichBuyingChain(projectId, urls)
+      const data = await client.enrichBuyingChain(projectId, urls, controller.signal)
       if (active.current) setResult(checkedResult(data, projectId))
     } catch (cause: unknown) {
       if (active.current) setError(cause instanceof Error ? cause.message : 'Buying chain could not be enriched. Retained evidence is unchanged.')
@@ -73,7 +86,11 @@ export function BuyingChain({ projectId }: { projectId: string }) {
     <p className="buying-chain-note">Organization involvement, current job role, and a person’s assignment to this project are separate claims. A relevant role does not establish purchasing authority or an open temporary-power package.</p>
     <details className="buying-chain-sources"><summary>Add supporting source links</summary><label>Public project or organization sources (up to four)<textarea value={sourceUrls} onChange={(event) => setSourceUrls(event.target.value)} rows={3} placeholder="https://…" disabled={enriching}/></label><p>Existing project evidence is checked first. Links should support this project’s contractors or their current team.</p></details>
     {loading && <p role="status">Loading buying chain…</p>}
-    {enriching && <p role="status">Checking this project’s bounded source evidence. You can leave this view and return later.</p>}
+    {(enriching || result?.research_job?.status === 'queued' || result?.research_job?.status === 'running') && <p role="status">Buying-chain research {result?.research_job?.status ?? 'queued'}. You can leave this view and return later.</p>}
+    {result?.research_job?.detail_status === 'disabled' && <p className="buying-chain-note">Public research is disabled. Retained project evidence remains available.</p>}
+    {result?.research_job?.detail_status === 'blocked_source_policy' && <p className="buying-chain-note">Public research was blocked because this project’s source policy is disabled. Retained project evidence remains available.</p>}
+    {result?.research_job?.detail_status === 'stale' && <p className="buying-chain-note">Project evidence changed while research was running, so this result was discarded. Enrich again to check the current project.</p>}
+    {result?.research_job?.detail_status === 'partial' && <p className="buying-chain-note">Research completed with unresolved sources. Existing findings and citations remain inspectable.</p>}
     {error && <p role="alert" className="integrity">{error}{result?.candidates?.length ? ' Previously retained findings remain below.' : ''}</p>}
     {result && <>
       <div className="permit-summary">

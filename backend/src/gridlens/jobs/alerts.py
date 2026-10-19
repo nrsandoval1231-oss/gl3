@@ -23,7 +23,8 @@ def processing_failures() -> dict[str, int]:
     from sqlalchemy import func, select
 
     from gridlens.persistence.database import SessionLocal
-    from gridlens.persistence.models import Interpretation, Job
+    from gridlens.persistence.models import Interpretation, Job, LogicalCall
+    from gridlens.persistence.watch_models import ProjectMonitorWatch
 
     since = datetime.now(UTC) - FAILURE_WINDOW
     with SessionLocal() as session:
@@ -37,9 +38,27 @@ def processing_failures() -> dict[str, int]:
             .select_from(Interpretation)
             .where(Interpretation.status == "failed")
         )
+        uncertain = session.scalar(
+            select(func.count())
+            .select_from(LogicalCall)
+            .where(LogicalCall.status == "SENT_OUTCOME_UNKNOWN")
+        )
+        old_queued = session.scalar(
+            select(func.count())
+            .select_from(Job)
+            .where(Job.status == "queued", Job.created_at < datetime.now(UTC) - timedelta(hours=24))
+        )
+        quarantined = session.scalar(
+            select(func.count())
+            .select_from(ProjectMonitorWatch)
+            .where(ProjectMonitorWatch.status == "quarantined")
+        )
     counts = {f"{kind} jobs": int(count) for kind, count in jobs}
     if interpretations:
         counts["interpretations"] = int(interpretations)
+    counts["uncertain logical calls"] = int(uncertain or 0)
+    counts["old queued jobs"] = int(old_queued or 0)
+    counts["monitor quarantines"] = int(quarantined or 0)
     return counts
 
 

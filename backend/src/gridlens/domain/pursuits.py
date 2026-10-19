@@ -70,6 +70,7 @@ class CallNoteOut(CallNoteBody):
     id: UUID
     owner: str
     created_at: datetime
+    intelligence_review: dict | None = None
 
 
 class PursuitOut(BaseModel):

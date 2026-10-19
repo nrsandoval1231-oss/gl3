@@ -5,6 +5,7 @@ import time
 from contextlib import nullcontext
 from decimal import Decimal
 from types import SimpleNamespace
+from uuid import UUID
 
 import httpx
 import pytest
@@ -169,6 +170,8 @@ def test_failure_receipt_uses_stable_codes_without_sensitive_exception_text(erro
 
 @pytest.mark.parametrize("eligible", [True, False])
 def test_worker_scrape_fallback_only_for_explicit_javascript_shell(monkeypatch, eligible):
+    from gridlens.ingestion.adapters import pursuit_acquisition
+    from gridlens.integrations import legacy_calls
     from gridlens.intelligence import autonomous_research as worker
     from gridlens.settings import settings
 
@@ -198,6 +201,10 @@ def test_worker_scrape_fallback_only_for_explicit_javascript_shell(monkeypatch, 
     )
     monkeypatch.setattr(settings, "firecrawl_api_key", SecretStr("test"))
     monkeypatch.setattr(settings, "firecrawl_scrape_cost_usd", Decimal("0.01"))
+    monkeypatch.setattr(settings, "intelligence_enabled", True)
+    monkeypatch.setattr(settings, "intelligence_mode", "advisory")
+    monkeypatch.setattr(settings, "intelligence_research_enabled", True)
+    monkeypatch.setattr(settings, "intelligence_enabled_contracts", "FIRECRAWL_SCRAPE_V2")
 
     def retrieve(*_args, **_kwargs):
         events.append("direct")
@@ -206,22 +213,43 @@ def test_worker_scrape_fallback_only_for_explicit_javascript_shell(monkeypatch, 
         raise PublicAccessRestricted("Login required")
 
     def extract(*_args, **kwargs):
-        kwargs["before_request"]("https://api.firecrawl.dev/v2/scrape")
+        assert kwargs["api_key"] == "test"
+        assert kwargs["max_bytes"] == 750000
+        assert callable(kwargs["before_request"])
         events.append("scrape")
         return PublicDocument(URL, "Public project", "Full supported text")
 
+    call_id = UUID(int=1)
+
+    def perform_legacy_call(**kwargs):
+        assert kwargs["task_type"] == "FIRECRAWL_SCRAPE_V2"
+        kwargs["before_dispatch"](call_id)
+        payload, input_tokens, output_tokens = kwargs["invoke"]()
+        assert input_tokens is output_tokens is None
+        return SimpleNamespace(logical_call_id=call_id, result=payload)
+
     monkeypatch.setattr(worker, "retrieve", retrieve)
-    monkeypatch.setattr(worker, "extract_public_document", extract)
-    run = SimpleNamespace(
-        question_id="q",
-        deadline=time.monotonic() + 5,
-        budget={"document_bytes": 750000},
-        cached=lambda _: None,
-        reserve=lambda _: events.append("direct_reserved"),
-        reserve_extraction=lambda _: events.append("scrape_reserved"),
-        row=lambda _: question,
-        record=receipts.append,
+    monkeypatch.setattr(pursuit_acquisition, "extract_public_document", extract)
+    monkeypatch.setattr(legacy_calls, "perform_legacy_call", perform_legacy_call)
+    monkeypatch.setattr(worker, "SessionLocal", SessionFactory())
+    run = worker.QuestionRun(
+        "j",
+        "w",
+        1,
+        "q",
+        time.monotonic(),
+        {"timeout_seconds": 5, "document_bytes": 750000, "documents": 2, "max_cost_usd": "1"},
     )
+    monkeypatch.setattr(run, "cached", lambda _: None)
+    monkeypatch.setattr(run, "reserve", lambda *_args, **_kwargs: events.append("direct_reserved"))
+    monkeypatch.setattr(run, "row", lambda _: question)
+    monkeypatch.setattr(
+        run,
+        "_reserve_paid",
+        lambda *_args, **_kwargs: events.append("scrape_reserved"),
+    )
+    monkeypatch.setattr(run, "_finish_paid", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(run, "record", receipts.append)
     worker._research_public_url(run, URL)
     assert events == (
         ["direct_reserved", "direct", "scrape_reserved", "scrape"]

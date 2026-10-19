@@ -12,6 +12,7 @@ from collections import Counter
 from datetime import UTC, datetime, time, timedelta
 from decimal import Decimal
 from pathlib import Path
+from time import monotonic
 from typing import Any
 from uuid import UUID, uuid4
 from zoneinfo import ZoneInfo
@@ -157,12 +158,14 @@ def _search_texts(session, summaries: list[dict]) -> dict[str, str]:
     return streams
 
 
-def _write_rows(session, generation_id, summaries):
+def _write_rows(session, generation_id, summaries, *, check_budget=None):
     from gridlens.api import app as api
 
     digest = hashlib.sha256()
     row_count = 0
     for start in range(0, len(summaries), 50):
+        if check_budget is not None:
+            check_budget()
         batch = [
             {
                 **item,
@@ -176,6 +179,8 @@ def _write_rows(session, generation_id, summaries):
         details = api.opportunity_projection(
             session, selected_need_ids={item["id"] for item in batch}
         )
+        if check_budget is not None:
+            check_budget()
         by_id = {str(item["id"]): item for item in details}
         # Persist the compact commercial decision beside each canonical need row.
         # This is built during generation publication so requests never scan the
@@ -266,11 +271,15 @@ def _write_rows(session, generation_id, summaries):
         if values:
             session.execute(insert(BrowseRow), values)
         row_count += len(values)
+        if check_budget is not None:
+            check_budget()
     return row_count, digest.hexdigest()
 
 
-def refresh_project_changes(session) -> dict | None:
-    """Publish scoped operator changes in their canonical write transaction.
+def refresh_project_changes(
+    session, *, max_projects=100, max_needs=100, execution_deadline=None
+) -> dict | None:
+    """Publish scoped operator/ingestion changes in their canonical write transaction.
 
     The singleton lock serializes writers/publication; pre-commit readers keep the
     previous complete generation, post-commit readers see the new one. Unknown
@@ -279,6 +288,11 @@ def refresh_project_changes(session) -> dict | None:
     """
     from gridlens.api import app as api
 
+    def check_budget():
+        if execution_deadline is not None and monotonic() >= execution_deadline:
+            raise TimeoutError("Saved browse publication deadline exhausted")
+
+    check_budget()
     session.flush()
     state = session.scalar(
         select(BrowseState)
@@ -288,6 +302,11 @@ def refresh_project_changes(session) -> dict | None:
     )
     if state is None or state.generation_id is None:
         return None
+    # Any caller may have read canonical objects before another scoped writer
+    # committed (including API fact/workflow handlers). With the publication
+    # fence held and our writes flushed, reconstruct from the latest database
+    # values rather than an identity map retained from an earlier revision.
+    session.expire_all()
     previous = session.get(BrowseGeneration, state.generation_id)
     now = datetime.now(UTC)
     if (
@@ -300,23 +319,26 @@ def refresh_project_changes(session) -> dict | None:
         return None
     if previous.input_revision == state.input_revision:
         return {"status": "current"}
-    projects = list(
-        session.scalars(
-            select(BrowseDirtyProject.project_id)
-            .where(
-                BrowseDirtyProject.revision > previous.input_revision,
-                BrowseDirtyProject.revision <= state.input_revision,
-            )
-            .limit(101)
-        )
+    project_query = select(BrowseDirtyProject.project_id).where(
+        BrowseDirtyProject.revision > previous.input_revision,
+        BrowseDirtyProject.revision <= state.input_revision,
     )
-    # Bulk writes remain offline work; do not hide an unbounded canonical replay
-    # in a mutation request. The maintenance command can run the full builder.
-    if len(projects) > 100:
+    if max_projects is not None:
+        project_query = project_query.limit(max_projects + 1)
+    projects = list(session.scalars(project_query))
+    # Interactive callers retain their small bound. Workers have an explicit
+    # larger bound/budget; offline maintenance can finish the complete dirty set.
+    if max_projects is not None and len(projects) > max_projects:
         return None
-    need_ids = set(session.scalars(select(PowerNeed.id).where(PowerNeed.project_id.in_(projects))))
-    if len(need_ids) > 100:
+    need_query = (
+        select(PowerNeed.id).where(PowerNeed.project_id.in_(projects)).order_by(PowerNeed.id)
+    )
+    if max_needs is not None:
+        need_query = need_query.limit(max_needs + 1)
+    need_ids = list(session.scalars(need_query))
+    if max_needs is not None and len(need_ids) > max_needs:
         return None
+    check_budget()
     deadline = min(previous.valid_until, clock_deadline(session, now))
     generation = BrowseGeneration(
         id=uuid4(),
@@ -346,11 +368,20 @@ def refresh_project_changes(session) -> dict | None:
             ),
         )
     )
+    changed_digest = hashlib.sha256()
     with evaluate_at(now):
-        summaries = api.opportunity_projection(
-            session, summary_only=True, selected_need_ids=need_ids
-        )
-        _, changed_digest = _write_rows(session, generation.id, summaries)
+        # The selected canonical summary path deliberately handles one bounded
+        # page. Never pass a larger set and silently publish only its first page.
+        for start in range(0, len(need_ids), 100):
+            check_budget()
+            summaries = api.opportunity_projection(
+                session, summary_only=True, selected_need_ids=set(need_ids[start : start + 100])
+            )
+            check_budget()
+            budget_args = {"check_budget": check_budget} if execution_deadline is not None else {}
+            _, batch_digest = _write_rows(session, generation.id, summaries, **budget_args)
+            changed_digest.update(batch_digest.encode())
+            check_budget()
     generation.row_count = session.scalar(
         select(func.count()).select_from(BrowseRow).where(BrowseRow.generation_id == generation.id)
     )
@@ -359,7 +390,7 @@ def refresh_project_changes(session) -> dict | None:
             [
                 previous.digest,
                 generation.input_revision,
-                changed_digest,
+                changed_digest.hexdigest(),
             ]
         ).encode()
     ).hexdigest()
@@ -367,6 +398,7 @@ def refresh_project_changes(session) -> dict | None:
     # quadratic nested-loop plans in the global metadata update.
     session.execute(text("ANALYZE browse_rows"))
     generation.counts = _publish_group_metadata(session, generation.id)
+    check_budget()
     if datetime.now(UTC) >= deadline:
         # Never turn an expired construction into a claimed fresh publication.
         # Its canonical write remains committed/pending; maintenance rebuilds it.
@@ -375,6 +407,7 @@ def refresh_project_changes(session) -> dict | None:
     state.generation_id = generation.id
     session.flush()
     _prune_generations(session)
+    check_budget()
     # Keep latest dirty revisions until a full build publishes: an older full
     # snapshot may still need to replay this transaction even after this local
     # generation has become current. One journal row per project stays bounded.
@@ -448,7 +481,7 @@ def maintain_once(factory) -> dict:
                 state.generation_id = selected.id
                 state.prepared_generation_id = None
                 session.flush()
-        result = refresh_project_changes(session)
+        result = refresh_project_changes(session, max_projects=None, max_needs=None)
     if result is None:
         return rebuild(factory)
     prepared = prepare_next(factory)
@@ -539,7 +572,9 @@ def rebuild(factory, *, before_publish=None, _prepare_at: datetime | None = None
                     previous_pointer = state.generation_id
                     state.generation_id = generation_id
                     publication.flush()
-                    rebased = refresh_project_changes(publication)
+                    rebased = refresh_project_changes(
+                        publication, max_projects=None, max_needs=None
+                    )
                     if rebased is not None and rebased["status"] == "published":
                         generation_id = UUID(rebased["generation_id"])
                         generation = publication.get(BrowseGeneration, generation_id)

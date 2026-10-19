@@ -30,7 +30,8 @@ from gridlens.settings import settings
 
 
 @pytest.fixture
-def shadow_db():
+def shadow_db(monkeypatch):
+    monkeypatch.setattr(settings, "jev_shadow_daily_limit", 20)
     target, application = make_url(settings.test_database_url), make_url(settings.database_url)
     assert target.database.endswith("_test") and target != application
     engine = create_engine(settings.test_database_url)

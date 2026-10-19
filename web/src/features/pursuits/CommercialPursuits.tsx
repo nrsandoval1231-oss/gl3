@@ -3,6 +3,7 @@ import { client, type BriefRequest, type CallNoteBody, type CommercialResearchSt
 import { BuyingChain } from '../buyingChain/BuyingChain'
 import { ResearchChanges } from './ResearchChanges'
 import { AutonomousResearch } from './AutonomousResearch'
+import { IntelligenceResearch } from './IntelligenceResearch'
 import { Pursuits } from './Pursuits'
 import '../../styles/pursuits.css'
 import { useCommercialDraft, type CommercialDraft } from './commercialDrafts'
@@ -320,6 +321,7 @@ function CommercialDetail({ item, draft, onDraftChange, onSaved }: { item: Comme
     <section><h3>Source history</h3>{item.stage.source_url && <p>Stage source: <a href={item.stage.source_url} target="_blank" rel="noreferrer">{item.stage.stage} evidence ↗</a> · {unknown(item.stage.evidence_id)}</p>}{item.sources?.length ? <ul className="commercial-source-list">{item.sources.map((source, index) => <li key={`${source.evidence_id}-${index}`}>{source.text} <Citation fact={source}/>{source.date && <small> · {source.date}</small>}</li>)}</ul> : <p>Source citations unavailable.</p>}</section>
     <AutonomousResearch key={item.id} needId={item.id}/>
     <ResearchQuestion item={item} draft={draft} onDraftChange={onDraftChange}/><PursuitNote item={item} draft={draft} onDraftChange={onDraftChange} onSaved={onSaved}/>
+    <IntelligenceResearch key={`intelligence-${item.id}`} needId={item.id}/>
   </div>
 }
 

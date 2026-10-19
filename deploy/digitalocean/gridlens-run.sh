@@ -12,11 +12,25 @@ case "${1:-}" in
   backup)
     set -a; . ./.env.prod; set +a
     stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+    object_ref="s3://${SPACES_BUCKET}/backups/gridlens-${stamp}.dump"
     docker run --rm postgres:18.6 pg_dump --format=custom --no-owner "${BACKUP_DATABASE_URL}" \
       | docker run --rm -i \
           -e AWS_ACCESS_KEY_ID="${SPACES_KEY}" -e AWS_SECRET_ACCESS_KEY="${SPACES_SECRET}" \
-          amazon/aws-cli:2.27.50 s3 cp - "s3://${SPACES_BUCKET}/backups/gridlens-${stamp}.dump" \
+          amazon/aws-cli:2.27.50 s3 cp - "${object_ref}" \
           --endpoint-url "https://${SPACES_REGION}.digitaloceanspaces.com"
+    receipt_tmp="/opt/gridlens/operational-receipt.json.tmp"
+    python3 - "${receipt_tmp}" "${object_ref}" "${DEPLOYED_SHA:-UNKNOWN}" <<'PY'
+import json, os, sys
+from datetime import datetime, timezone
+path, reference, deployed_sha = sys.argv[1:]
+with open(path, "w", encoding="utf-8") as output:
+    json.dump({"version": 1, "recorded_at": datetime.now(timezone.utc).isoformat(),
+               "backup_reference": reference, "deployed_sha": deployed_sha}, output)
+    output.write("\n")
+    output.flush()
+    os.fsync(output.fileno())
+os.replace(path, "/opt/gridlens/operational-receipt.json")
+PY
     echo "backup gridlens-${stamp}.dump uploaded" ;;
   *) echo "usage: $0 collect|alert|backup" >&2; exit 2 ;;
 esac

@@ -12,7 +12,11 @@ from urllib.parse import urlparse
 import httpx
 from pypdf import PdfReader
 
-from gridlens.ingestion.adapters.bounded_http import ResponseTooLarge, read_bounded_response
+from gridlens.ingestion.adapters.bounded_http import (
+    ResponseTooLarge,
+    read_bounded_response,
+    remaining_seconds,
+)
 from gridlens.ingestion.adapters.federal_register import SourceParseError
 
 MAX_PDF_BYTES = 5_000_000
@@ -35,7 +39,7 @@ def _title_pattern(title: str) -> re.Pattern[str]:
 
 
 def retrieve_companion(
-    record: dict[str, Any], client: httpx.Client | None = None
+    record: dict[str, Any], client: httpx.Client | None = None, *, deadline: float | None = None
 ) -> list[dict[str, str]]:
     """Return one bounded excerpt whose PDF and page are tied to the FR record."""
     url = record.get("pdf_url")
@@ -57,9 +61,10 @@ def retrieve_companion(
     client = client or httpx.Client(timeout=30.0, follow_redirects=False)
     try:
         try:
-            headers, content = read_bounded_response(client, url, MAX_PDF_BYTES)
+            headers, content = read_bounded_response(client, url, MAX_PDF_BYTES, deadline=deadline)
         except ResponseTooLarge as exc:
             raise SourceParseError(str(exc)) from exc
+        remaining_seconds(deadline)
         content_type = headers.get("content-type", "").split(";", 1)[0].lower()
         if content_type != "application/pdf" or not content.startswith(b"%PDF-"):
             raise SourceParseError("GovInfo response is not a PDF")
@@ -71,6 +76,7 @@ def retrieve_companion(
         excerpt = None
         matching_footer = False
         for page_number, page in enumerate(reader.pages, start=1):
+            remaining_seconds(deadline)
             page_text = page.extract_text() or ""
             if not page_text.strip():
                 continue

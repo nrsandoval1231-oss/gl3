@@ -37,8 +37,21 @@ from gridlens.domain.signal_admission import (
     admitted_from_source,
 )
 from gridlens.domain.taylor_planning import interpret_taylor_planning
-from gridlens.ingestion.adapters import retrieve_source
-from gridlens.ingestion.adapters.govinfo_pdf import MAX_PDFS_PER_RUN, retrieve_companion
+from gridlens.ingestion.adapters import (
+    retrieve_collection_segment,
+    retrieve_companion,
+    retrieve_source,
+)
+from gridlens.ingestion.adapters.acquisition_runtime import remaining_seconds
+from gridlens.ingestion.adapters.federal_register import SourceParseError
+from gridlens.ingestion.adapters.govinfo_pdf import MAX_PDFS_PER_RUN
+from gridlens.ingestion.structured_collection import (
+    apply_segment_result,
+    collection_continuation_needed,
+    collection_policy_digest,
+    collection_status,
+    prepare_collection_progress,
+)
 from gridlens.intelligence.change_detection import (
     lock_project,
     record_material_diff,
@@ -72,6 +85,7 @@ from gridlens.persistence.models import (
     ChangeEvent,
     Evidence,
     Interpretation,
+    Job,
     LifecycleEvent,
     NeedObservation,
     NeedWorkflowStatusEvent,
@@ -81,6 +95,7 @@ from gridlens.persistence.models import (
     ProjectMatchDecision,
     SignalDecision,
     Source,
+    SourceCollectionProgress,
 )
 
 PERMIT_RETRIEVAL_METHODS = {
@@ -452,9 +467,7 @@ def _effective_qualification_from_claim(claim: dict[str, Any]) -> dict[str, Any]
         # Only an explicit accepted-demand intersection may override the source
         # claim for calculation. Source-only claims keep the original projection.
         "required_mw": (
-            None
-            if closed_by_fact
-            else claim.get("fact_derived_required_mw") or _reported_mw(claim)
+            None if closed_by_fact else claim.get("fact_derived_required_mw") or _reported_mw(claim)
         ),
         "start_window": (
             claim.get("start_window")
@@ -790,9 +803,7 @@ def load_current_need_operator_inputs(
         ranked_decisions.c.decision.in_(["accepted", "corrected"]),
         CallFactVersion.need_id.in_(need_ids),
         CallFactVersion.effective_from <= current,
-        or_(
-            CallFactVersion.effective_until.is_(None), CallFactVersion.effective_until > current
-        ),
+        or_(CallFactVersion.effective_until.is_(None), CallFactVersion.effective_until > current),
     )
     fact_bytes = sum(
         (
@@ -1249,6 +1260,7 @@ def assess_retained_news(
     worker_id: str | None = None,
     fence: int | None = None,
     rejection_reason: str | None = None,
+    lease_expiry: datetime | None = None,
 ) -> bool:
     """Evaluate one durable RSS version; return True when a new decision was stored."""
     interpretation = session.scalar(
@@ -1778,7 +1790,7 @@ def assess_retained_news(
         assert worker_id is not None and fence is not None
         job = assert_fence(session, job_id, worker_id, fence)
         job.checkpoint = observation.external_id
-        job.lease_until = datetime.now(UTC) + timedelta(seconds=90)
+        _advance_job_lease(job, lease_expiry)
     session.flush()
     return True
 
@@ -1790,19 +1802,94 @@ def process_job(
     fence: int,
     source_definition: dict[str, Any],
     client: httpx.Client | None = None,
+    *,
+    deadline: float | None = None,
+    lease_expiry: datetime | None = None,
 ) -> dict[str, Any]:
-    retrieved = retrieve_source(source_definition, client)
+    if source_definition.get("retrieval_method") in {
+        "socrata-permits",
+        "boston-ckan-permits",
+    }:
+        return _process_structured_collection_segment(
+            session,
+            job_id,
+            worker_id,
+            fence,
+            source_definition,
+            client,
+            deadline=deadline,
+            lease_expiry=lease_expiry,
+        )
+    if source_definition.get("retrieval_method") == "publisher-rss":
+        retrieved = _retrieve_publisher_rss_conditionally(
+            session, job_id, worker_id, fence, source_definition, client, deadline=deadline
+        )
+        if getattr(retrieved, "not_modified", False):
+            source = _current_rss_source(session, source_definition)
+            cached = (source.health or {}).get("publisher_rss_conditional", {})
+            assert_fence(session, job_id, worker_id, fence)
+            source.health = {
+                **(source.health or {}),
+                _RSS_CONDITIONAL_NAMESPACE: {
+                    **cached,
+                    "complete": True,
+                    "last_checked_at": datetime.now(UTC).isoformat(),
+                    "etag": getattr(retrieved, "etag", None) or cached.get("etag"),
+                    "last_modified": getattr(retrieved, "last_modified", None)
+                    or cached.get("last_modified"),
+                },
+            }
+            # Keep the last complete snapshot facts; a 304 is a successful check,
+            # not an empty snapshot and never a withdrawal signal.
+            return {
+                "new": 0,
+                "changed": 0,
+                "unchanged": 0,
+                "signals": 0,
+                "retrieved_records": 0,
+                "parsed_records": 0,
+                "records_scanned": 0,
+                "latest_publication_date": cached.get("latest_publication_date"),
+                "snapshot_item_count": cached.get("snapshot_item_count", 0),
+                "snapshot_oldest_publication_date": cached.get("snapshot_oldest_publication_date"),
+                "snapshot_newest_publication_date": cached.get("snapshot_newest_publication_date"),
+                "conditional_checked": True,
+            }
+        counts = _process_collection_only(
+            session,
+            job_id,
+            worker_id,
+            fence,
+            source_definition,
+            [record for record in retrieved if not record.get("presence_only")],
+            deadline=deadline,
+            lease_expiry=lease_expiry,
+        )
+        remaining_seconds(deadline)
+        _store_publisher_rss_checkpoint(
+            session, job_id, worker_id, fence, source_definition, retrieved, counts
+        )
+        return counts
+
+    retrieved = _retrieve_source_outside_transaction(
+        session, job_id, worker_id, fence, source_definition, client, deadline=deadline
+    )
     # Presence-only rows are listed by the source but withheld from processing this run
     # (for example, enrichment failed). They still count as present in the snapshot.
     records = [record for record in retrieved if not record.get("presence_only")]
-    if source_definition.get("retrieval_method") == "publisher-rss":
-        return _process_collection_only(
-            session, job_id, worker_id, fence, source_definition, records
-        )
     counts = process_records(
-        session, job_id, worker_id, fence, source_definition, records, client=client
+        session,
+        job_id,
+        worker_id,
+        fence,
+        source_definition,
+        records,
+        client=client,
+        deadline=deadline,
+        lease_expiry=lease_expiry,
     )
     if source_definition.get("snapshot_complete"):
+        remaining_seconds(deadline)
         assert_fence(session, job_id, worker_id, fence)
         transitions = reconcile_snapshot(
             session,
@@ -1816,6 +1903,548 @@ def process_job(
     return counts
 
 
+def _collection_progress_checkpoint(
+    progress: SourceCollectionProgress,
+) -> tuple[
+    str,
+    str,
+    str,
+    datetime | None,
+    datetime | None,
+    datetime | None,
+    str,
+    str | None,
+    datetime | None,
+    datetime,
+    str,
+]:
+    """Return immutable progress identity captured before public acquisition."""
+    serialized_cursor = json.dumps(
+        progress.cursor or {}, sort_keys=True, separators=(",", ":")
+    )
+    return (
+        progress.source_id,
+        progress.lane,
+        progress.policy_digest,
+        progress.window_start,
+        progress.window_end,
+        progress.completed_through,
+        progress.status,
+        progress.error_class,
+        progress.last_attempt_at,
+        progress.updated_at,
+        serialized_cursor,
+    )
+
+
+def _process_structured_collection_segment(
+    session: Session,
+    job_id: Any,
+    worker_id: str,
+    fence: int,
+    source_definition: dict[str, Any],
+    client: httpx.Client | None,
+    *,
+    deadline: float | None,
+    lease_expiry: datetime | None,
+) -> dict[str, Any]:
+    progress, digest, lanes = prepare_collection_progress(session, source_definition)
+    lane = progress.lane
+    window_start = progress.window_start
+    window_end = progress.window_end
+    if window_start is None or window_end is None:
+        raise SourceParseError("Structured collection progress has no date window")
+    start_day = window_start.astimezone(UTC).date()
+    end_day = window_end.astimezone(UTC).date()
+    cursor = dict(progress.cursor or {})
+    expected_progress_state = _collection_progress_checkpoint(progress)
+    progress_id = progress.id
+    # Persist the attempt before releasing the database session for public I/O.
+    session.commit()
+    _prepare_acquisition_network(session, job_id, worker_id, fence, source_definition)
+    result: dict[str, Any]
+    acquisition_started_at = None
+    acquisition_completed_at = None
+    from gridlens.ingestion.registry import load_registry
+
+    try:
+        preflight_definition = next(
+            (item for item in load_registry() if item.get("id") == source_definition["id"]),
+            None,
+        )
+        if preflight_definition is None or collection_policy_digest(preflight_definition) != digest:
+            result = {
+                "records": [],
+                "cursor": cursor,
+                "partial": True,
+                "error_class": "CollectionPolicyChanged",
+                "window_complete": False,
+                "expected_count": None,
+                "observed_count": 0,
+            }
+        else:
+            remaining_seconds(deadline)
+            acquisition_started_at = session.scalar(text("SELECT clock_timestamp()"))
+            session.commit()
+            result = retrieve_collection_segment(
+                source_definition,
+                lane,
+                start_day,
+                end_day,
+                cursor,
+                client,
+                deadline=deadline,
+            )
+            remaining_seconds(deadline)
+    except SourceParseError as exc:
+        result = {
+            "records": [],
+            "cursor": cursor,
+            "partial": True,
+            "error_class": type(exc).__name__,
+            "window_complete": False,
+            "expected_count": None,
+            "observed_count": 0,
+        }
+
+    source = _lock_current_acquisition_source(
+        session, job_id, worker_id, fence, source_definition
+    )
+    try:
+        live_definition = next(
+            (item for item in load_registry() if item.get("id") == source.id), None
+        )
+    except Exception:
+        live_definition = None
+    if live_definition is None or collection_policy_digest(live_definition) != digest:
+        result = {
+            "records": [],
+            "cursor": cursor,
+            "partial": True,
+            "error_class": "CollectionPolicyChanged",
+            "window_complete": False,
+            "expected_count": result.get("expected_count"),
+            "observed_count": 0,
+        }
+    records = result.get("records", [])
+    if not isinstance(records, list) or len(records) > 1000 or any(
+        not isinstance(record, dict) for record in records
+    ):
+        raise SourceParseError("Structured source segment exceeded its record bound")
+    current_progress = session.scalar(
+        select(SourceCollectionProgress)
+        .where(SourceCollectionProgress.id == progress_id)
+        .execution_options(populate_existing=True)
+        .with_for_update()
+    )
+    if (
+        current_progress is None
+        or _collection_progress_checkpoint(current_progress) != expected_progress_state
+    ):
+        # A duplicate/stale worker may retain useful fetched rows, but cannot
+        # checkpoint or claim completeness after another worker advanced it.
+        result = {
+            **result,
+            "partial": True,
+            "error_class": "CollectionCheckpointChanged",
+            "cursor": cursor,
+            "window_complete": False,
+        }
+    counts = process_records(
+        session,
+        job_id,
+        worker_id,
+        fence,
+        source_definition,
+        records,
+        client=client,
+        commit=False,
+        deadline=deadline,
+        lease_expiry=lease_expiry,
+    )
+    # Evidence is durable before the progress checkpoint. A crash between these
+    # commits safely replays the same source rows and deduplicates evidence.
+    segment_job = assert_fence(session, job_id, worker_id, fence)
+    if records:
+        last_external_id = str(records[-1]["document_number"])
+        try:
+            prior_checkpoint = json.loads(segment_job.checkpoint or "{}")
+        except (TypeError, ValueError):
+            prior_checkpoint = None
+        if isinstance(prior_checkpoint, dict) and prior_checkpoint.get(
+            "collection_continuation"
+        ) is True:
+            segment_job.checkpoint = json.dumps(
+                {
+                    **prior_checkpoint,
+                    "last_record_external_id": last_external_id,
+                },
+                sort_keys=True,
+            )
+        else:
+            segment_job.checkpoint = last_external_id
+    session.commit()
+    acquisition_completed_at = session.scalar(text("SELECT clock_timestamp()"))
+
+    source = _lock_current_acquisition_source(
+        session, job_id, worker_id, fence, source_definition
+    )
+    try:
+        latest_definition = next(
+            (item for item in load_registry() if item.get("id") == source.id), None
+        )
+    except Exception:
+        latest_definition = None
+    latest_progress = session.scalar(
+        select(SourceCollectionProgress)
+        .where(SourceCollectionProgress.id == progress_id)
+        .execution_options(populate_existing=True)
+        .with_for_update()
+    )
+    if (
+        latest_definition is None
+        or collection_policy_digest(latest_definition) != digest
+        or latest_progress is None
+        or _collection_progress_checkpoint(latest_progress) != expected_progress_state
+    ):
+        result = {
+            **result,
+            "partial": True,
+            "error_class": "CollectionCheckpointChanged",
+            "cursor": cursor,
+            "window_complete": False,
+        }
+        progress_partial = True
+        current_complete = all_complete = False
+        continuation = False
+    else:
+        progress_partial = bool(result.get("partial"))
+        completed_at = session.scalar(text("SELECT clock_timestamp()"))
+        apply_segment_result(latest_progress, result, now=completed_at)
+        current_complete, all_complete = collection_status(
+            session, source.id, digest, lanes
+        )
+        continuation = not progress_partial and collection_continuation_needed(
+            session,
+            source.id,
+            digest,
+            lanes,
+            source=source_definition,
+        )
+        if progress_partial:
+            current_complete = all_complete = False
+    counts.update(
+        {
+            "collection_lane": lane,
+            "collection_status": "COMPLETE" if all_complete else "PARTIAL",
+            "collection_current_complete": current_complete,
+            "collection_continuation": continuation,
+            "collection_window_start": start_day.isoformat(),
+            "collection_window_end": end_day.isoformat(),
+            "collection_expected_count": result.get("expected_count"),
+            "collection_observed_count": result.get("observed_count", len(records)),
+            "collection_error_class": result.get("error_class"),
+            "acquisition_started_at": acquisition_started_at.isoformat()
+            if acquisition_started_at
+            else None,
+            "acquisition_completed_at": acquisition_completed_at.isoformat()
+            if acquisition_completed_at
+            else None,
+            "partial": not all_complete,
+        }
+    )
+    if result.get("partial"):
+        counts["parse_failures"] = int(counts.get("parse_failures", 0)) + 1
+    session.commit()
+    return counts
+
+
+_RSS_CONDITIONAL_NAMESPACE = "publisher_rss_conditional"
+_RSS_PARSER_VERSION = "publisher-rss-v2"
+
+
+def _advance_job_lease(job: Job, original_expiry: datetime | None) -> None:
+    now = datetime.now(UTC)
+    extension = now + timedelta(seconds=90)
+    if original_expiry is not None:
+        extension = min(extension, original_expiry + timedelta(seconds=5))
+    if job.lease_until is None or extension > job.lease_until:
+        job.lease_until = extension
+
+
+def _require_clean_acquisition_session(session: Session) -> None:
+    if session.new or session.dirty or session.deleted or session.in_nested_transaction():
+        raise RuntimeError(
+            "Acquisition network retrieval requires a clean, non-nested session; "
+            "commit caller changes before retrieval"
+        )
+
+
+def _lock_current_acquisition_source(
+    session: Session,
+    job_id: Any,
+    worker_id: str,
+    fence: int,
+    source_definition: dict[str, Any],
+) -> Source:
+    session.execute(text("SET LOCAL lock_timeout = '500ms'"))
+    session.execute(text("SET LOCAL statement_timeout = '2500ms'"))
+    job = assert_fence(session, job_id, worker_id, fence)
+    source = session.scalar(
+        select(Source)
+        .where(Source.id == source_definition["id"])
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    if (
+        source is None
+        or not source.enabled
+        or not source.registry_enabled
+        or source.retrieval_method != source_definition.get("retrieval_method")
+    ):
+        raise SourceParseError("Acquisition source is currently disabled or changed")
+    if source_definition.get("endpoint") and source.endpoint != source_definition["endpoint"]:
+        raise SourceParseError("Acquisition source endpoint changed")
+    if job.source_id != source.id:
+        raise SourceParseError("Acquisition lease belongs to a different source")
+    return source
+
+
+def _prepare_acquisition_network(
+    session: Session,
+    job_id: Any,
+    worker_id: str,
+    fence: int,
+    source_definition: dict[str, Any],
+) -> None:
+    _require_clean_acquisition_session(session)
+    _lock_current_acquisition_source(session, job_id, worker_id, fence, source_definition)
+    # This function refuses caller-owned writes before releasing row locks.
+    if session.in_transaction():
+        session.commit()
+
+
+def _retrieve_source_outside_transaction(
+    session: Session,
+    job_id: Any,
+    worker_id: str,
+    fence: int,
+    source_definition: dict[str, Any],
+    client: httpx.Client | None,
+    *,
+    deadline: float | None = None,
+) -> list[dict[str, Any]]:
+    _prepare_acquisition_network(session, job_id, worker_id, fence, source_definition)
+    remaining_seconds(deadline)
+    records = (
+        retrieve_source(source_definition, client)
+        if deadline is None
+        else retrieve_source(source_definition, client, deadline=deadline)
+    )
+    remaining_seconds(deadline)
+    _lock_current_acquisition_source(session, job_id, worker_id, fence, source_definition)
+    return records
+
+
+def _retrieve_companion_outside_transaction(
+    session: Session,
+    job_id: Any,
+    worker_id: str,
+    fence: int,
+    source_definition: dict[str, Any],
+    record: dict[str, Any],
+    client: httpx.Client | None,
+    *,
+    deadline: float | None = None,
+) -> list[dict[str, str]]:
+    _prepare_acquisition_network(session, job_id, worker_id, fence, source_definition)
+    remaining_seconds(deadline)
+    citations = (
+        retrieve_companion(record, client)
+        if deadline is None
+        else retrieve_companion(record, client, deadline=deadline)
+    )
+    remaining_seconds(deadline)
+    _lock_current_acquisition_source(session, job_id, worker_id, fence, source_definition)
+    return citations
+
+
+def _rss_policy_digest(source_definition: dict[str, Any]) -> str:
+    policy = {
+        "id": source_definition.get("id"),
+        "endpoint": source_definition.get("endpoint"),
+        "query": source_definition.get("query"),
+        "retrieval_method": source_definition.get("retrieval_method"),
+        "publisher": source_definition.get("publisher"),
+        "parser_version": _RSS_PARSER_VERSION,
+        "evaluator_version": EVALUATOR_VERSION,
+        "admission_policy_version": ADMISSION_POLICY_VERSION,
+    }
+    return hashlib.sha256(
+        json.dumps(policy, sort_keys=True, separators=(",", ":"), default=str).encode()
+    ).hexdigest()
+
+
+def _retrieve_publisher_rss_conditionally(
+    session: Session,
+    job_id: Any,
+    worker_id: str,
+    fence: int,
+    source_definition: dict[str, Any],
+    client: httpx.Client | None,
+    *,
+    deadline: float | None = None,
+) -> list[dict[str, Any]]:
+    _require_clean_acquisition_session(session)
+    source = _lock_current_acquisition_source(session, job_id, worker_id, fence, source_definition)
+    cache = (source.health or {}).get(_RSS_CONDITIONAL_NAMESPACE, {})
+    job = session.get(Job, job_id)
+    if job is None:
+        raise SourceParseError("RSS job disappeared before retrieval")
+    checkpoint = job.checkpoint
+    in_progress = False
+    forced = False
+    if checkpoint:
+        try:
+            checkpoint_value = json.loads(checkpoint)
+        except (TypeError, ValueError):
+            in_progress = True
+        else:
+            if isinstance(checkpoint_value, dict):
+                forced = checkpoint_value.get("force") is True
+                in_progress = any(key != "force" for key in checkpoint_value)
+            else:
+                in_progress = True
+    eligible = bool(
+        not forced
+        and not in_progress
+        and source.enabled is True
+        and source.registry_enabled is True
+        and cache.get("complete") is True
+        and cache.get("endpoint") == source_definition.get("endpoint")
+        and cache.get("parser_version") == _RSS_PARSER_VERSION
+        and cache.get("policy_digest") == _rss_policy_digest(source_definition)
+        and (cache.get("etag") or cache.get("last_modified"))
+    )
+    if client is None and deadline is not None:
+        request_headers = {}
+        if eligible and cache.get("etag"):
+            request_headers["If-None-Match"] = cache["etag"]
+        if eligible and cache.get("last_modified"):
+            request_headers["If-Modified-Since"] = cache["last_modified"]
+        if session.in_transaction():
+            session.commit()
+        remaining_seconds(deadline)
+        retrieved = retrieve_source(
+            source_definition, deadline=deadline, request_headers=request_headers
+        )
+        remaining_seconds(deadline)
+        _current_rss_source(session, source_definition)
+        assert_fence(session, job_id, worker_id, fence)
+        return retrieved
+    owned_client = client is None
+    http_client = client or httpx.Client(timeout=25.0, follow_redirects=False)
+    original_etag = http_client.headers.get("If-None-Match")
+    original_modified = http_client.headers.get("If-Modified-Since")
+    try:
+        if session.in_transaction():
+            session.commit()
+        http_client.headers.pop("If-None-Match", None)
+        http_client.headers.pop("If-Modified-Since", None)
+        if eligible:
+            if cache.get("etag"):
+                http_client.headers["If-None-Match"] = cache["etag"]
+            if cache.get("last_modified"):
+                http_client.headers["If-Modified-Since"] = cache["last_modified"]
+        else:
+            http_client.headers.pop("If-None-Match", None)
+            http_client.headers.pop("If-Modified-Since", None)
+        remaining_seconds(deadline)
+        retrieved = (
+            retrieve_source(source_definition, http_client)
+            if deadline is None
+            else retrieve_source(source_definition, http_client, deadline=deadline)
+        )
+        remaining_seconds(deadline)
+        _current_rss_source(session, source_definition)
+        assert_fence(session, job_id, worker_id, fence)
+        return retrieved
+    finally:
+        if owned_client:
+            http_client.close()
+        else:
+            if original_etag is None:
+                http_client.headers.pop("If-None-Match", None)
+            else:
+                http_client.headers["If-None-Match"] = original_etag
+            if original_modified is None:
+                http_client.headers.pop("If-Modified-Since", None)
+            else:
+                http_client.headers["If-Modified-Since"] = original_modified
+
+
+def _current_rss_source(session: Session, source_definition: dict[str, Any]) -> Source:
+    source = session.scalar(
+        select(Source)
+        .where(Source.id == source_definition["id"])
+        .with_for_update()
+        .execution_options(populate_existing=True)
+    )
+    if (
+        source is None
+        or not source.enabled
+        or not source.registry_enabled
+        or source.retrieval_method != "publisher-rss"
+    ):
+        raise SourceParseError("RSS source was disabled during retrieval")
+    if source_definition.get("endpoint") and source.endpoint != source_definition["endpoint"]:
+        raise SourceParseError("RSS source endpoint changed during retrieval")
+    return source
+
+
+def _store_publisher_rss_checkpoint(
+    session: Session,
+    job_id: Any,
+    worker_id: str,
+    fence: int,
+    source_definition: dict[str, Any],
+    retrieved: list[dict[str, Any]],
+    counts: dict[str, Any],
+) -> None:
+    source = session.get(Source, source_definition["id"])
+    assert source is not None
+    job = assert_fence(session, job_id, worker_id, fence)
+    previous_health = source.health or {}
+    current = {
+        "complete": True,
+        "endpoint": source_definition.get("endpoint"),
+        "parser_version": _RSS_PARSER_VERSION,
+        "policy_digest": _rss_policy_digest(source_definition),
+        "etag": getattr(retrieved, "etag", None),
+        "last_modified": getattr(retrieved, "last_modified", None),
+        "snapshot_item_count": counts.get("snapshot_item_count", 0),
+        "snapshot_oldest_publication_date": counts.get("snapshot_oldest_publication_date"),
+        "snapshot_newest_publication_date": counts.get("snapshot_newest_publication_date"),
+        "latest_publication_date": counts.get("latest_publication_date"),
+        "snapshot_digest": hashlib.sha256(
+            "\n".join(
+                sorted(
+                    f"{record.get('document_number')}:{record.get('source_hash', '')}"
+                    for record in retrieved
+                )
+            ).encode()
+        ).hexdigest(),
+        "completed_at": datetime.now(UTC).isoformat(),
+    }
+    # A full 200 without validators invalidates old validators instead of reusing
+    # a token for a representation/policy that the origin did not identify.
+    source.health = {**previous_health, _RSS_CONDITIONAL_NAMESPACE: current}
+    job.checkpoint = json.dumps(
+        {"rss_snapshot_complete": True, "snapshot_digest": current["snapshot_digest"]},
+        sort_keys=True,
+    )
+
+
 def process_records(
     session: Session,
     job_id: Any,
@@ -1827,8 +2456,17 @@ def process_records(
     *,
     commit: bool = True,
     allow_model: bool = True,
+    deadline: float | None = None,
+    lease_expiry: datetime | None = None,
 ) -> dict[str, Any]:
     """Apply canonical source records; targeted research owns its enclosing transaction."""
+    if commit and (
+        session.new or session.dirty or session.deleted or session.in_nested_transaction()
+    ):
+        raise RuntimeError(
+            "Committed ingestion requires a clean, non-nested caller session; "
+            "commit caller changes first"
+        )
     counts: dict[str, Any] = {
         "new": 0,
         "changed": 0,
@@ -1846,6 +2484,7 @@ def process_records(
         "pdf_enriched": 0,
         "pdf_skipped_not_signal": 0,
         "pdf_skipped_limit": 0,
+        "pdf_skipped_transaction": 0,
     }
     if source_definition.get("retrieval_method") == "georgia-air-permits":
         counts["snapshot_item_count"] = len(records)
@@ -1866,6 +2505,7 @@ def process_records(
         )
     pdf_documents = 0
     for record in records:
+        remaining_seconds(deadline)
         assert_fence(session, job_id, worker_id, fence)
         source = session.get(Source, source_definition["id"])
         assert source is not None
@@ -1935,7 +2575,8 @@ def process_records(
                 job = assert_fence(session, job_id, worker_id, fence)
                 if commit:
                     job.checkpoint = external_id
-                    job.lease_until = datetime.now(UTC) + timedelta(seconds=90)
+                    _advance_job_lease(job, lease_expiry)
+                remaining_seconds(deadline)
                 session.commit() if commit else session.flush()
                 continue
         is_new = observation is None
@@ -2011,6 +2652,7 @@ def process_records(
                 existing_evidence.provenance, source_provenance
             )
         # Ordinary ingestion keeps evidence durable across enrichment failure.
+        remaining_seconds(deadline)
         session.commit() if commit else session.flush()
         companions = record.get("companions", [])
         if not isinstance(companions, list):
@@ -2044,7 +2686,8 @@ def process_records(
                     )
                 )
         if companions:
-            session.commit() if commit else session.flush()
+            remaining_seconds(deadline)
+        session.commit() if commit else session.flush()
         # The PDF is an alternate representation of the FR record. Attach its
         # content hash and page citation to this observation only.
         if record.get("pdf_url"):
@@ -2061,9 +2704,23 @@ def process_records(
                 if pdf_documents >= MAX_PDFS_PER_RUN:
                     counts["pdf_skipped_limit"] += 1
                     pdf_citations = []
+                elif not commit:
+                    # Research callers own this transaction. Preserve their
+                    # commit=False contract and report the bounded skipped fetch.
+                    counts["pdf_skipped_transaction"] += 1
+                    pdf_citations = []
                 else:
                     pdf_documents += 1
-                    pdf_citations = retrieve_companion(record, client)
+                    pdf_citations = _retrieve_companion_outside_transaction(
+                        session,
+                        job_id,
+                        worker_id,
+                        fence,
+                        source_definition,
+                        record,
+                        client,
+                        deadline=deadline,
+                    )
                     counts["pdf_enriched"] += 1
                     # Network retrieval can outlast this worker's lease. Reclaim
                     # the fence before inspecting or persisting its result.
@@ -2091,6 +2748,7 @@ def process_records(
                             event_date=None,
                         )
                     )
+                    remaining_seconds(deadline)
                     session.commit() if commit else session.flush()
         # PDF evidence has its own commit boundary. Reacquire the current fence
         # before creating or updating the durable interpretation backlog.
@@ -2169,7 +2827,8 @@ def process_records(
             job = assert_fence(session, job_id, worker_id, fence)
             if commit:
                 job.checkpoint = external_id
-                job.lease_until = datetime.now(UTC) + timedelta(seconds=90)
+                _advance_job_lease(job, lease_expiry)
+            remaining_seconds(deadline)
             session.commit() if commit else session.flush()
             continue
         if interpretation is None:
@@ -2183,6 +2842,7 @@ def process_records(
             interpretation.attempts += 1
         session.flush()
         # Research admission instead owns the enclosing savepoint.
+        remaining_seconds(deadline)
         session.commit() if commit else session.flush()
 
         try:
@@ -2204,6 +2864,7 @@ def process_records(
         except Exception as exc:
             assert_fence(session, job_id, worker_id, fence)
             interpretation.status, interpretation.error = "failed", type(exc).__name__
+            remaining_seconds(deadline)
             session.commit() if commit else session.flush()
             continue
         assert_fence(session, job_id, worker_id, fence)
@@ -2266,7 +2927,8 @@ def process_records(
                 job = assert_fence(session, job_id, worker_id, fence)
                 if commit:
                     job.checkpoint = external_id
-                    job.lease_until = datetime.now(UTC) + timedelta(seconds=90)
+                    _advance_job_lease(job, lease_expiry)
+                remaining_seconds(deadline)
                 session.commit() if commit else session.flush()
                 counts["context_only"] = counts.get("context_only", 0) + 1
                 continue
@@ -3214,7 +3876,8 @@ def process_records(
         job = assert_fence(session, job_id, worker_id, fence)
         if commit:
             job.checkpoint = external_id
-            job.lease_until = datetime.now(UTC) + timedelta(seconds=90)
+            _advance_job_lease(job, lease_expiry)
+        remaining_seconds(deadline)
         session.commit() if commit else session.flush()
     return counts
 
@@ -3226,6 +3889,9 @@ def _process_collection_only(
     fence: int,
     source_definition: dict[str, Any],
     records: list[dict[str, Any]],
+    *,
+    deadline: float | None = None,
+    lease_expiry: datetime | None = None,
 ) -> dict[str, Any]:
     """Retain each RSS version, then run the shared deterministic project evaluator."""
     counts: dict[str, Any] = {
@@ -3247,9 +3913,23 @@ def _process_collection_only(
         counts["snapshot_newest_publication_date"] = max(publications)
         counts["latest_publication_date"] = max(publications)
     for record in records:
+        remaining_seconds(deadline)
         assert_fence(session, job_id, worker_id, fence)
-        source = session.get(Source, source_definition["id"])
+        source = session.scalar(
+            select(Source)
+            .where(Source.id == source_definition["id"])
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        )
         assert source is not None
+        if (
+            not source.enabled
+            or not source.registry_enabled
+            or source.retrieval_method != "publisher-rss"
+        ):
+            raise SourceParseError("RSS source was disabled during retained processing")
+        if source_definition.get("endpoint") and source.endpoint != source_definition["endpoint"]:
+            raise SourceParseError("RSS source endpoint changed during retained processing")
         external_id = record["document_number"]
         digest = _hash(record)
         evidence_digest = record.get("source_hash") or _source_version_hash(record)
@@ -3348,12 +4028,18 @@ def _process_collection_only(
             )
         job = assert_fence(session, job_id, worker_id, fence)
         job.checkpoint = external_id
-        job.lease_until = datetime.now(UTC) + timedelta(seconds=90)
+        _advance_job_lease(job, lease_expiry)
         session.commit()  # Evidence and a retryable pending row survive evaluator failure.
 
         assert_fence(session, job_id, worker_id, fence)
         changed_decision = assess_retained_news(
-            session, observation, evidence, job_id=job_id, worker_id=worker_id, fence=fence
+            session,
+            observation,
+            evidence,
+            job_id=job_id,
+            worker_id=worker_id,
+            fence=fence,
+            lease_expiry=lease_expiry,
         )
         if interpretation.status == "accepted" and interpretation.assessment:
             current_source = session.get(Source, observation.source_id)
@@ -3373,6 +4059,6 @@ def _process_collection_only(
         if not changed_decision:
             job = assert_fence(session, job_id, worker_id, fence)
             job.checkpoint = external_id
-            job.lease_until = datetime.now(UTC) + timedelta(seconds=90)
+            _advance_job_lease(job, lease_expiry)
         session.commit()
     return counts
