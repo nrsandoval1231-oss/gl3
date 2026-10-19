@@ -791,6 +791,79 @@ def test_prepared_clock_snapshot_is_not_early_and_matches_future_canonical(saved
             assert str(left[field]) == str(right[field]), field
 
 
+def test_dirty_revision_maintenance_prepares_near_boundary_and_preserves_parity(
+    saved_db, monkeypatch
+):
+    from gridlens.domain.evaluation_clock import evaluate_at
+    from gridlens.intelligence import saved_browse
+    from gridlens.persistence.models import BrowseGeneration
+
+    ids = seed(saved_db)
+    expected_ids = {str(need_id) for need_id in ids[1:]}
+    rebuild(saved_db)
+    with saved_db() as session:
+        old = current_generation(session)
+        boundary = old.valid_until
+        old_id = old.id
+    with saved_db.begin() as writer:
+        writer.get(PowerNeed, ids[0]).active = False
+    with saved_db() as session:
+        with pytest.raises(HTTPException) as pending:
+            current_generation(session)
+        assert pending.value.status_code == 503
+        assert pending.value.headers["X-Qualification-State"] == "pending"
+
+    now = boundary - timedelta(seconds=30)
+
+    class NearBoundary(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return now
+
+    monkeypatch.setattr(saved_browse, "datetime", NearBoundary)
+    assert saved_browse.maintain_once(saved_db)["status"] == "prepared"
+    with saved_db() as fresh_session:
+        refreshed = current_generation(fresh_session, now=now)
+        refreshed_id = refreshed.id
+        assert refreshed_id != old_id
+        assert refreshed.valid_from == now
+        assert refreshed.valid_until == boundary
+        state = fresh_session.get(BrowseState, 1)
+        prepared_id = state.prepared_generation_id
+        prepared = fresh_session.get(BrowseGeneration, prepared_id)
+        assert prepared_id != refreshed_id
+        assert prepared.valid_from == boundary
+        assert prepared.built_at < boundary
+    assert saved_browse.maintain_once(saved_db)["status"] == "ready"
+
+    monkeypatch.setattr(settings, "saved_browse_enabled", False)
+    with evaluate_at(now):
+        expected_now = api.opportunities(limit=50, offset=0, cohort=None, sort="rank")
+    with evaluate_at(boundary):
+        expected_boundary = api.opportunities(limit=50, offset=0, cohort=None, sort="rank")
+    monkeypatch.setattr(settings, "saved_browse_enabled", True)
+
+    def assert_parity(at, expected):
+        class ReaderClock(datetime):
+            @classmethod
+            def now(cls, tz=None):
+                return at
+
+        monkeypatch.setattr(saved_browse, "datetime", ReaderClock)
+        with saved_db() as session:
+            if at == boundary:
+                assert current_generation(session, now=at).id == prepared_id
+            actual = page(session, filters(), limit=50, ranked=True)["items"]
+        assert {str(item["id"]) for item in expected} == expected_ids
+        assert {str(item["id"]) for item in actual} == expected_ids
+        for left, right in zip(actual, expected, strict=True):
+            for field in ("id", "tier", "required_mw", "rank_score", "rank_reasons", "group_id"):
+                assert str(left[field]) == str(right[field]), field
+
+    assert_parity(now, expected_now)
+    assert_parity(boundary, expected_boundary)
+
+
 def test_preparation_write_race_discard_and_rollback_safety(saved_db):
     from gridlens.intelligence.saved_browse import prepare_next
 

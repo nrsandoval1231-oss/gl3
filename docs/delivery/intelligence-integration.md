@@ -275,3 +275,15 @@ receipts remain required.
 9391984 was rejected during final verification. Additional shared-transport and legacy-wrapper repairs preserve billing metadata before semantic rejection and distinguish malformed usage from legitimate NULL measurements. The stopped backend run is not a pass; browser136 passes/10 failures/1 skip are retained. Browser failures were traced to schema-invalid synthetic health and newly unmocked intelligence GETs in navigation fixtures; these are repaired without changing product navigation. Complete final receipts remain required.
 
 e4fa verification:2108 backend tests passed,3 skipped,7 subtests passed;146 browser tests passed,1 skipped. Visual review still rejected unreadable operations text, repaired through a scoped existing-color rule and contrast regression. The V5 restore check compares all52 tables to immutable backup-time hashes; later login bucket activity in the current source is reported separately, never deleted or excluded. Conservative provider-wide holds on unsafe semantic envelopes remain an explicit availability tradeoff requiring attributable reconciliation. These receipts precede the final corrected freeze.
+
+
+cd8d943 received independent local PASS:2108 backend tests,147 browser tests,
+all52 restored table hashes and restart preservation. Those immutable receipts
+are retained in final-accepted-cd8d943 and runtime-accepted-cd8d943, with original
+hashes verified after relocation. A later cloud-controller report exposed a
+near-UTC-midnight test-only assumption: maintenance can return prepared after
+refreshing current state. BROWSE-BOUNDARY-R1 preserves all semantic parity
+assertions, checks a fresh current generation, and exercises the preparation
+window deterministically. Application and migration changes are excluded from
+this repair. Cloud full-suite proof and the parent operational Finish Contract
+remain pending; successor acceptance requires matching final receipts.

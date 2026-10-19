@@ -53,3 +53,5 @@ Direction VALIDATE repaired B7 candidate. Builder combined147 tests pass; contro
 | F4 | full939 browser failures | LOCALLY VERIFIED | Nine commercial-navigation failures isolated from synthetic health fixture |
 
 | F5 | independent e4fa visual FIX | INTEGRATED CANDIDATE | Scope operations foreground to existing navy; computed contrast plus actual screenshot |
+
+| BROWSE-BOUNDARY-R1 | external near-midnight test failure after cd8d local PASS | VALIDATE | Fresh-session current generation plus deterministic preparation-window parity; tests only |

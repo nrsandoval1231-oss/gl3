@@ -59,15 +59,47 @@
     "accepted": false
   },
   "latest_completed_backend_run": {
-    "candidate_sha": "e4fa7402f420af289837763d89787359af4414f9",
+    "candidate_sha": "cd8d9433b79728dd0a7253e7b85513a38df5040e",
     "passed": 2108,
     "skipped": 3,
     "subtests_passed": 7,
-    "elapsed_seconds": 636.58,
-    "browser_passed": 146,
+    "elapsed_seconds": 461.35,
+    "browser_passed": 147,
     "browser_skipped": 1,
-    "accepted": false,
-    "reason": "Independent visual contrast FIX; point-in-time restore comparison correction documented",
-    "artifact": ".artifacts/INTELLIGENCE-20261018/final-attempt7-e4fa740"
+    "independent_local_acceptance": true,
+    "parent_finish_contract": "OPEN",
+    "artifact": ".artifacts/INTELLIGENCE-20261018/final-accepted-cd8d943",
+    "successor_reason": "External controller reported near-midnight test status assumption; local PASS remains historical fact."
+  },
+  "active_boundary_repair": {
+    "node": "BROWSE-BOUNDARY-R1",
+    "lane": "Luna bounded test repair plus Sol independent review",
+    "base_sha": "cd8d9433b79728dd0a7253e7b85513a38df5040e",
+    "started_at": "2026-10-19T00:03:16Z",
+    "finished_at": null,
+    "tokens": null,
+    "config_identity": "Named Luna low; Sol medium; loaded configuration not independently inspected this continuation",
+    "planning_seconds": null,
+    "build_seconds": null,
+    "validation_seconds": null,
+    "audit_seconds": null,
+    "repair_count": 5,
+    "repair_count_note": "Observed: import cleanup; two current/future ID failures; list response-shape failure; independent non-vacuity strengthening. Raw early ID failures unavailable; explicitly summarized, not fabricated.",
+    "independent_diagnostic": "CORRECT current versus prepared ID; pre-freeze FIX non-vacuity exact seeded IDs.",
+    "build_finished_at": "2026-10-19T00:13:08.198245Z",
+    "controller_development_validation": {
+      "passed": 131,
+      "skipped": 1,
+      "elapsed_seconds": 95.751,
+      "pytest_seconds": 93.91,
+      "scope": "two modules before final non-vacuity strengthening"
+    },
+    "post_strengthening_focused": {
+      "passed": 2,
+      "pytest_seconds": 2.75,
+      "ruff": 0,
+      "diff": 0
+    },
+    "direction": "VALIDATE frozen full candidate"
   }
 }
