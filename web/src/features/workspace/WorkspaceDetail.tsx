@@ -43,8 +43,8 @@ export function WorkspaceDetail({ item, pending, loading, error, tab, onTab, onB
     ...(!item.start_window ? ['Start window'] : []),
     ...(!item.duration ? ['Duration'] : []),
     ...(item.commercial_organization ? [] : ['Buying organization']),
-    'Buying authority',
-    'Fuel and site constraints',
+    'Buying authority: not evaluated in this summary; review the buying chain.',
+    'Fuel and site constraints: not evaluated in this summary; review dated evidence.',
   ])]
 
   return <aside className="wh-detail" aria-label="Opportunity detail">
@@ -54,11 +54,12 @@ export function WorkspaceDetail({ item, pending, loading, error, tab, onTab, onB
       <h2>{item.name}</h2>
       <p>{item.location ?? 'Location unknown'} · {item.activity}</p>
       <div className="wh-facts">
-        <span>Required power<strong>{item.required_mw ?? 'Unknown'}</strong></span>
-        <span>Start<strong>{item.start_window ?? 'Unknown'}</strong></span>
-        <span>Duration<strong>{item.duration ?? 'Unknown'}</strong></span>
-        <span>Suitable supply<strong>{item.supply ?? 'Unknown'}</strong></span>
+        <span>Required power<strong>{item.required_mw ?? 'Unknown'}</strong><small>{factEvidenceState(item, 'demand')}</small></span>
+        <span>Start<strong>{item.start_window ?? 'Unknown'}</strong><small>{factEvidenceState(item, 'start')}</small></span>
+        <span>Duration<strong>{item.duration ?? 'Unknown'}</strong><small>{factEvidenceState(item, 'duration')}</small></span>
+        <span>Suitable supply<strong>{item.supply ?? 'Unknown'}</strong><small>{factEvidenceState(item, 'supply')}</small></span>
       </div>
+      {hasConflict(item.conflict_state) && <p role="status">Evidence conflict state: {item.conflict_state}. Review retained source claims before acting.</p>}
     </div>
     <nav className="wh-tabs" aria-label="Opportunity detail">
       {workspaceTabs.map(value => <button key={value} className={value === tab ? 'active' : ''} onClick={() => onTab(value)}>{value}</button>)}
@@ -69,7 +70,6 @@ export function WorkspaceDetail({ item, pending, loading, error, tab, onTab, onB
       {tab === 'Overview' && <>
         <p>{item.commercial_reason || item.assessment_reason || item.rationale || 'No assessment summary is available.'}</p>
         <p><strong>Next question:</strong> {item.commercial_next_question || 'Unknown'}</p>
-        {item.conflict_state && item.conflict_state !== 'clear' && <p role="status">Evidence conflict state: {item.conflict_state}. Review retained source claims before acting.</p>}
         {evidence[0] && <p>Supporting source: <a href={evidence[0].url} target="_blank" rel="noreferrer">{evidence[0].title}</a> · {evidence[0].published_at ?? 'Publication date unknown'}</p>}
       </>}
       {tab === 'Evidence' && <div>
@@ -93,7 +93,7 @@ export function WorkspaceDetail({ item, pending, loading, error, tab, onTab, onB
           <p>Basis: {gap.basis_quote}</p>
           <p>Calculation: {gap.calculation} · Qualification {item.qualification_version ?? gap.version}</p>
         </> : <p>Supply unknown or no supported remaining gap is available for this need.</p>}
-        <p>Fuel and site constraints: Unknown unless supported by source evidence.</p>
+        <p>Fuel and site constraints: not evaluated in this summary; review dated evidence.</p>
         <button onClick={() => onTab('Evidence')}>Review dated evidence</button>
       </div>}
       {tab === 'Timeline' && <div>
@@ -109,4 +109,18 @@ export function WorkspaceDetail({ item, pending, loading, error, tab, onTab, onB
       {tab === 'Unknowns' && <ul>{unknowns.map(value => <li key={value}>{value}</li>)}</ul>}
     </div>
   </aside>
+}
+
+function factEvidenceState(item: WorkspaceDetailItem, field: 'demand' | 'start' | 'duration' | 'supply') {
+  if (field === 'demand' && item.demand_quote) return 'Source-reported'
+  if (field === 'supply' && item.supply_quote) return 'Source-reported'
+  if ((field === 'start' || field === 'duration') && item.qualified_remaining_gap && qualifiedGap(item.qualified_remaining_gap)?.value_kind) {
+    return `${qualifiedGap(item.qualified_remaining_gap)?.value_kind} qualification`
+  }
+  const value = field === 'demand' ? item.required_mw : field === 'start' ? item.start_window : field === 'duration' ? item.duration : item.supply
+  return value && value !== 'Unknown' ? 'Evidence status unavailable' : 'Unknown'
+}
+
+function hasConflict(value: string | null | undefined) {
+  return new Set(['conflict', 'unresolved conflict', 'contradictory same-work need states']).has((value ?? '').trim().toLowerCase())
 }

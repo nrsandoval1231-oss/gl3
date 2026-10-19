@@ -55,3 +55,11 @@ Direction VALIDATE repaired B7 candidate. Builder combined147 tests pass; contro
 | F5 | independent e4fa visual FIX | INTEGRATED CANDIDATE | Scope operations foreground to existing navy; computed contrast plus actual screenshot |
 
 | BROWSE-BOUNDARY-R1 | external near-midnight test failure after cd8d local PASS | VALIDATE | Fresh-session current generation plus deterministic preparation-window parity; tests only |
+
+## Issue #79 Pursuit Workspace integration (separate branch)
+
+| Node | Dependencies | State | Deliverable |
+|---|---|---|---|
+| UI79-I | checkpoint cd84b77 + origin/main 211d744 | BUILDER FOCUSED CHECKS PASS; CONTROLLER FULL GATES/REVIEW PENDING | Merge commit 4430b58 preserves main intelligence/publication surfaces; need-level server-filtered workspace, navigation/detail repairs, OpenAPI/types, and browser/backend evidence in [UI79 episode](episodes/UI79-integration.md). |
+
+This isolated issue79 node does not replace or complete the main intelligence graph. Main completion gates and UI79 production proof remain independently open.

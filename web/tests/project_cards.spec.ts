@@ -783,7 +783,7 @@ test('unchanged activity filter during page load does not cancel or duplicate it
   }
 })
 
-test('clicking the active ingestion view during its request does not strand loading', async ({ page }) => {
+test('clicking the active Operations view during its request does not strand loading', async ({ page }) => {
   let requestStarted = false
   let releaseRequest: (() => void) | undefined
   const gate = new Promise<void>((resolve) => { releaseRequest = resolve })
@@ -804,9 +804,9 @@ test('clicking the active ingestion view during its request does not strand load
   })
   try {
     await page.goto('/?view=ingestion')
-    await expect(page.getByRole('button', { name: 'Ingestion' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Operations' })).toBeVisible()
     await expect.poll(() => requestStarted).toBe(true)
-    await page.getByRole('button', { name: 'Ingestion' }).click()
+    await page.getByRole('button', { name: 'Operations' }).click()
     releaseRequest?.()
     await expect(page.getByText('Updating this view…')).toHaveCount(0)
     await expect(page.getByRole('heading', { name: 'No retained source items' })).toBeVisible()
