@@ -506,6 +506,271 @@
         }
       }
     },
+    "/api/opportunities/workspace": {
+      "get": {
+        "summary": "Pursuit Workspace",
+        "operationId": "pursuit_workspace_api_opportunities_workspace_get",
+        "parameters": [
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search"
+            }
+          },
+          {
+            "name": "tier",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "Signal",
+                    "Prospect",
+                    "Lead"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tier"
+            }
+          },
+          {
+            "name": "disposition",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "ACTION NOW",
+                    "RESEARCH",
+                    "WATCH",
+                    "REJECT"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Disposition"
+            }
+          },
+          {
+            "name": "geography",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Geography"
+            }
+          },
+          {
+            "name": "industry",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Industry"
+            }
+          },
+          {
+            "name": "activity",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Activity"
+            }
+          },
+          {
+            "name": "timing",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "KNOWN",
+                    "UNKNOWN"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Timing"
+            }
+          },
+          {
+            "name": "mw_status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "enum": [
+                    "KNOWN",
+                    "UNKNOWN"
+                  ],
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Mw Status"
+            }
+          },
+          {
+            "name": "mw_min",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Mw Min"
+            }
+          },
+          {
+            "name": "mw_max",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Mw Max"
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "priority",
+                "project",
+                "mw",
+                "start",
+                "updated"
+              ],
+              "type": "string",
+              "default": "priority",
+              "title": "Sort"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 50,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "cohort_token",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Cohort Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PursuitWorkspacePageOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/opportunities/map-window": {
       "get": {
         "summary": "Opportunity Map Window",
@@ -6442,6 +6707,29 @@
             ],
             "title": "Commercial Size Status"
           },
+          "qualified_remaining_gap": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Qualified Remaining Gap"
+          },
+          "qualification_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Qualification Version"
+          },
           "start_window": {
             "anyOf": [
               {
@@ -7616,6 +7904,701 @@
           "content_hash"
         ],
         "title": "PursuitSourceOut"
+      },
+      "PursuitWorkspaceCountsOut": {
+        "properties": {
+          "action_now": {
+            "type": "integer",
+            "title": "Action Now"
+          },
+          "research": {
+            "type": "integer",
+            "title": "Research"
+          },
+          "watch": {
+            "type": "integer",
+            "title": "Watch"
+          },
+          "reject": {
+            "type": "integer",
+            "title": "Reject"
+          }
+        },
+        "type": "object",
+        "required": [
+          "action_now",
+          "research",
+          "watch",
+          "reject"
+        ],
+        "title": "PursuitWorkspaceCountsOut"
+      },
+      "PursuitWorkspaceItemOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location"
+          },
+          "tier": {
+            "type": "string",
+            "title": "Tier"
+          },
+          "workflow_status": {
+            "type": "string",
+            "title": "Workflow Status",
+            "default": "UNKNOWN"
+          },
+          "activity": {
+            "type": "string",
+            "title": "Activity"
+          },
+          "rationale": {
+            "type": "string",
+            "title": "Rationale"
+          },
+          "signal_evidence_state": {
+            "type": "string",
+            "title": "Signal Evidence State",
+            "default": "active_evidence"
+          },
+          "required_mw": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Required Mw"
+          },
+          "commercial_size_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commercial Size Status"
+          },
+          "qualified_remaining_gap": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Qualified Remaining Gap"
+          },
+          "qualification_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Qualification Version"
+          },
+          "start_window": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Start Window"
+          },
+          "duration": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duration"
+          },
+          "supply": {
+            "type": "string",
+            "title": "Supply"
+          },
+          "next_action": {
+            "type": "string",
+            "title": "Next Action"
+          },
+          "conflict_state": {
+            "type": "string",
+            "title": "Conflict State"
+          },
+          "assessment_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assessment Reason"
+          },
+          "supported_subject": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supported Subject"
+          },
+          "supported_action": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supported Action"
+          },
+          "title_company": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title Company"
+          },
+          "rank_score": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rank Score"
+          },
+          "rank_reasons": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rank Reasons"
+          },
+          "rank_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rank Version"
+          },
+          "title_company_role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title Company Role"
+          },
+          "demand_quote": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Demand Quote"
+          },
+          "supply_quote": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supply Quote"
+          },
+          "missing_facts": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Missing Facts"
+          },
+          "reported_power_facts": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Reported Power Facts"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/EvidenceOut"
+            },
+            "type": "array",
+            "title": "Evidence"
+          },
+          "asset_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Asset Type"
+          },
+          "lifecycle_state": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lifecycle State"
+          },
+          "lifecycle_timeline": {
+            "items": {
+              "$ref": "#/components/schemas/LifecycleEventOut"
+            },
+            "type": "array",
+            "title": "Lifecycle Timeline"
+          },
+          "expected_next_milestone": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Next Milestone"
+          },
+          "expected_power_event": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Power Event"
+          },
+          "time_to_power_window": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Time To Power Window"
+          },
+          "estimate_basis": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estimate Basis"
+          },
+          "estimate_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estimate Version"
+          },
+          "lifecycle_open_questions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Lifecycle Open Questions"
+          },
+          "monitoring_requirements": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Monitoring Requirements"
+          },
+          "signal_display_decision": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Signal Display Decision"
+          },
+          "signal_display_decision_state": {
+            "type": "string",
+            "title": "Signal Display Decision State",
+            "default": "unadjudicated"
+          },
+          "signal_display_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Signal Display Source"
+          },
+          "signal_display_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Signal Display Reason"
+          },
+          "signal_admission_origin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Signal Admission Origin"
+          },
+          "brief_status": {
+            "type": "string",
+            "title": "Brief Status",
+            "default": "unavailable"
+          },
+          "brief_summary": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Brief Summary"
+          },
+          "brief_generated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Brief Generated At"
+          },
+          "brief_stale": {
+            "type": "boolean",
+            "title": "Brief Stale",
+            "default": false
+          },
+          "group_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group Id"
+          },
+          "group_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group Title"
+          },
+          "group_total_filtered": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group Total Filtered"
+          },
+          "group_loaded_on_page": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group Loaded On Page"
+          },
+          "group_complete_on_page": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Group Complete On Page"
+          },
+          "matched_search": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Matched Search"
+          },
+          "priority_segment": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Priority Segment"
+          },
+          "priority_label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Priority Label"
+          },
+          "browse_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Browse Title"
+          },
+          "evidence_count": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Evidence Count"
+          },
+          "commercial_disposition": {
+            "type": "string",
+            "title": "Commercial Disposition"
+          },
+          "commercial_reason": {
+            "type": "string",
+            "title": "Commercial Reason"
+          },
+          "commercial_next_question": {
+            "type": "string",
+            "title": "Commercial Next Question"
+          },
+          "commercial_next_action": {
+            "type": "string",
+            "title": "Commercial Next Action"
+          },
+          "commercial_organization": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Commercial Organization"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "project_id",
+          "name",
+          "location",
+          "tier",
+          "activity",
+          "rationale",
+          "required_mw",
+          "start_window",
+          "duration",
+          "supply",
+          "next_action",
+          "conflict_state",
+          "evidence",
+          "commercial_disposition",
+          "commercial_reason",
+          "commercial_next_question",
+          "commercial_next_action"
+        ],
+        "title": "PursuitWorkspaceItemOut"
+      },
+      "PursuitWorkspacePageOut": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PursuitWorkspaceItemOut"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          },
+          "counts": {
+            "$ref": "#/components/schemas/PursuitWorkspaceCountsOut"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "next_offset": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Offset"
+          },
+          "cohort_token": {
+            "type": "string",
+            "title": "Cohort Token"
+          },
+          "count_unit": {
+            "type": "string",
+            "const": "power needs",
+            "title": "Count Unit"
+          },
+          "changes_available": {
+            "type": "boolean",
+            "title": "Changes Available"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "counts",
+          "offset",
+          "limit",
+          "next_offset",
+          "cohort_token",
+          "count_unit",
+          "changes_available"
+        ],
+        "title": "PursuitWorkspacePageOut"
       },
       "PursuitsOut": {
         "properties": {

@@ -27,7 +27,7 @@ The canonical vertical/asset lifecycle doctrine is [Vertical Lifecycle Intellige
 
 ## Frozen application UI
 
-The approved visual and interaction direction is [the frozen UI canon](../design/UI_CANON.md), with the [browse](../design/references/browse.webp) and [detail](../design/references/detail.webp) reference screens. Visual examples are fictional. Product and evidence requirements in this PRD govern actual values and tier behavior.
+The owner-approved October 18, 2026 visual and interaction direction is [the UI canon](../design/UI_CANON.md) and [Pursuit Workspace contract](../design/PURSUIT_WORKSPACE.md). Opportunities is the default commercial workspace with horizontal Research, Signals and Operations navigation, compact factual briefing, and a sortable server-backed queue beside contextual intelligence. This supersedes incompatible map-first, atmospheric-canvas and primary tier-navigation presentation requirements, including the presentation portion of requirement 31. Signal, Prospect and Lead remain independently discoverable and filterable; qualification, evidence, workflow, nationwide scope and data requirements are unchanged. Prior fictional visual references are historical, never production data or acceptance evidence.
 
 ## Product outcomes
 

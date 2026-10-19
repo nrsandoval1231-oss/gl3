@@ -10,6 +10,7 @@ import { BuyingChain } from '../features/buyingChain/BuyingChain'
 import { Environment } from '../features/environment/Environment'
 import '../features/environment/environment.css'
 import { LoginPage } from '../features/auth/LoginPage'
+import { WorkspaceHome } from '../features/workspace/Workspace'
 
 const tiers = ['Signals', 'Prospects', 'Leads'] as const
 type Tier = typeof tiers[number]
@@ -166,7 +167,7 @@ function WorkspaceApp() {
   const [view, setView] = useState<View>(initialView)
   const [commercialMounted, setCommercialMounted] = useState(() => initialView() === 'pursuits')
   const [defaultTodayEntry] = useState(() => !new URLSearchParams(location.search).has('tier') && !new URLSearchParams(location.search).has('view'))
-  const [search, setSearch] = useState('')
+  const [search, setSearch] = useState(() => new URLSearchParams(location.search).get('q') ?? '')
   const [browseFilters, setBrowseFilters] = useState<OpportunityBrowseFilters>(() => browseFiltersFrom(new URLSearchParams(location.search)))
   const [items, setItems] = useState<Opportunity[]>([])
   const [opportunityPage, setOpportunityPage] = useState<OpportunityPage | null>(null)
@@ -654,7 +655,7 @@ function WorkspaceApp() {
   const selectedGroup = selected && cards.find((card) => card.grouped && card.members.some((item) => item.id === selected.id))
   const selectedSharesProjectId = Boolean(selectedGroup && selected?.project_id && selectedGroup.members.every((member) => member.project_id === selected.project_id))
   return <div className={`shell${view === 'pursuits' ? ' shell-commercial' : ''}`}>
-    <header className="topbar"><a className="brand" href={routeUrl('Signals', '')} aria-label="GridLens home" onClick={(event) => { event.preventDefault(); chooseTier('Signals') }}><img src={view === 'pursuits' ? '/brand/lockup-horizontal-white.svg' : '/brand/lockup-horizontal-navy.svg'} alt="GridLens"/></a><nav aria-label="Workspace views">{tiers.map((name) => <button key={name} className={view === 'opportunities' && tier === name ? 'nav-active' : ''} aria-current={view === 'opportunities' && tier === name ? 'page' : undefined} onClick={() => chooseTier(name)}>{name}</button>)}<button className={view === 'pursuits' ? 'nav-active' : ''} aria-current={view === 'pursuits' ? 'page' : undefined} onClick={() => chooseView('pursuits')}>Today’s pursuits</button><button className={view === 'ingestion' ? 'nav-active' : ''} aria-current={view === 'ingestion' ? 'page' : undefined} onClick={() => chooseView('ingestion')}>Ingestion</button></nav><div className="header-actions"><button className="health-toggle" onClick={() => setShowHealth((value) => !value)} aria-expanded={showHealth}>Source health</button><button className="signout" onClick={() => void signOut()}>Sign out</button></div></header>
+    <header className="topbar"><a className="brand" href="/" aria-label="GridLens home"><img src="/brand/lockup-horizontal-navy.svg" alt="GridLens"/></a><nav aria-label="Primary navigation"><a href="/">Opportunities</a><button className={view === 'pursuits' ? 'nav-active' : ''} onClick={() => chooseView('pursuits')}>Research</button><button className={view === 'opportunities' && tier === 'Signals' ? 'nav-active' : ''} onClick={() => chooseTier('Signals')}>Signals</button><button className={view === 'ingestion' ? 'nav-active' : ''} onClick={() => chooseView('ingestion')}>Operations</button></nav><label className="search"><span className="sr-only">Search projects</span><input value={search} onChange={(event) => { setSearch(event.target.value); setOffset(0) }} placeholder="Search projects, work, or permit ID"/></label><div className="header-actions"><button className="health-toggle" onClick={() => setShowHealth((value) => !value)} aria-expanded={showHealth}>Source health</button><button className="signout" onClick={() => void signOut()}>Sign out</button></div></header>
     {returnTo && <a className="back-button" href={returnTo}>Return to environment</a>}
     <main className={`workspace${view === 'pursuits' ? ' workspace-commercial' : ''}`}>
       {authenticated && commercialMounted && <div className="commercial-host" hidden={view !== 'pursuits'}><CommercialPursuits/></div>}
@@ -722,7 +723,7 @@ function missingFactCategory(fact: string) {
   return normalized
 }
 
-function OpportunityDetail({ item, onReadback }: { item: Opportunity; onReadback: () => void }) {
+export function OpportunityDetail({ item, onReadback }: { item: Opportunity; onReadback: () => void }) {
   const activeNeedId = useRef(item.id)
   const [brief, setBrief] = useState<Brief | null>(null)
   const [briefBusy, setBriefBusy] = useState(false)
@@ -797,8 +798,7 @@ function OpportunityDetail({ item, onReadback }: { item: Opportunity; onReadback
 }
 
 function isEnvironmentUrl() {
-  const params = new URLSearchParams(location.search)
-  return ['environment', 'editorial'].includes(params.get('view') || '') || (params.size === 0 && !location.hash)
+  return location.pathname === '/environment'
 }
 
 function EnvironmentRoot() {
@@ -817,5 +817,7 @@ function EnvironmentRoot() {
 
 export function App() {
   const [environment] = useState(isEnvironmentUrl)
-  return environment ? <EnvironmentRoot/> : <WorkspaceApp/>
+  const params = new URLSearchParams(location.search)
+  const legacy = params.get('view') !== 'workspace' && (['Signals', 'Prospects', 'Leads'].includes(params.get('tier') || '') || ['pursuits', 'ingestion'].includes(params.get('view') || ''))
+  return environment ? <EnvironmentRoot/> : legacy ? <WorkspaceApp/> : <WorkspaceHome/>
 }

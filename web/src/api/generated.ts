@@ -146,6 +146,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/opportunities/workspace": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Pursuit Workspace */
+        get: operations["pursuit_workspace_api_opportunities_workspace_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/opportunities/map-window": {
         parameters: {
             query?: never;
@@ -1969,6 +1986,12 @@ export interface components {
             required_mw: string | null;
             /** Commercial Size Status */
             commercial_size_status?: string | null;
+            /** Qualified Remaining Gap */
+            qualified_remaining_gap?: {
+                [key: string]: unknown;
+            } | null;
+            /** Qualification Version */
+            qualification_version?: string | null;
             /** Start Window */
             start_window: string | null;
             /** Duration */
@@ -2336,6 +2359,198 @@ export interface components {
             match_reason: string;
             /** Content Hash */
             content_hash: string;
+        };
+        /** PursuitWorkspaceCountsOut */
+        PursuitWorkspaceCountsOut: {
+            /** Action Now */
+            action_now: number;
+            /** Research */
+            research: number;
+            /** Watch */
+            watch: number;
+            /** Reject */
+            reject: number;
+        };
+        /** PursuitWorkspaceItemOut */
+        PursuitWorkspaceItemOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /** Name */
+            name: string;
+            /** Location */
+            location: string | null;
+            /** Tier */
+            tier: string;
+            /**
+             * Workflow Status
+             * @default UNKNOWN
+             */
+            workflow_status: string;
+            /** Activity */
+            activity: string;
+            /** Rationale */
+            rationale: string;
+            /**
+             * Signal Evidence State
+             * @default active_evidence
+             */
+            signal_evidence_state: string;
+            /** Required Mw */
+            required_mw: string | null;
+            /** Commercial Size Status */
+            commercial_size_status?: string | null;
+            /** Qualified Remaining Gap */
+            qualified_remaining_gap?: {
+                [key: string]: unknown;
+            } | null;
+            /** Qualification Version */
+            qualification_version?: string | null;
+            /** Start Window */
+            start_window: string | null;
+            /** Duration */
+            duration: string | null;
+            /** Supply */
+            supply: string;
+            /** Next Action */
+            next_action: string;
+            /** Conflict State */
+            conflict_state: string;
+            /** Assessment Reason */
+            assessment_reason?: string | null;
+            /** Supported Subject */
+            supported_subject?: string | null;
+            /** Supported Action */
+            supported_action?: string | null;
+            /** Title Company */
+            title_company?: string | null;
+            /** Rank Score */
+            rank_score?: number | null;
+            /** Rank Reasons */
+            rank_reasons?: string[] | null;
+            /** Rank Version */
+            rank_version?: string | null;
+            /** Title Company Role */
+            title_company_role?: string | null;
+            /** Demand Quote */
+            demand_quote?: string | null;
+            /** Supply Quote */
+            supply_quote?: string | null;
+            /** Missing Facts */
+            missing_facts?: string[];
+            /** Reported Power Facts */
+            reported_power_facts?: string[];
+            /** Evidence */
+            evidence: components["schemas"]["EvidenceOut"][];
+            /** Asset Type */
+            asset_type?: string | null;
+            /** Lifecycle State */
+            lifecycle_state?: string | null;
+            /** Lifecycle Timeline */
+            lifecycle_timeline?: components["schemas"]["LifecycleEventOut"][];
+            /** Expected Next Milestone */
+            expected_next_milestone?: string | null;
+            /** Expected Power Event */
+            expected_power_event?: string | null;
+            /** Time To Power Window */
+            time_to_power_window?: string | null;
+            /** Estimate Basis */
+            estimate_basis?: {
+                [key: string]: unknown;
+            } | null;
+            /** Estimate Version */
+            estimate_version?: string | null;
+            /** Lifecycle Open Questions */
+            lifecycle_open_questions?: string[];
+            /** Monitoring Requirements */
+            monitoring_requirements?: string[];
+            /** Signal Display Decision */
+            signal_display_decision?: string | null;
+            /**
+             * Signal Display Decision State
+             * @default unadjudicated
+             */
+            signal_display_decision_state: string;
+            /** Signal Display Source */
+            signal_display_source?: string | null;
+            /** Signal Display Reason */
+            signal_display_reason?: string | null;
+            /** Signal Admission Origin */
+            signal_admission_origin?: string | null;
+            /**
+             * Brief Status
+             * @default unavailable
+             */
+            brief_status: string;
+            /** Brief Summary */
+            brief_summary?: string | null;
+            /** Brief Generated At */
+            brief_generated_at?: string | null;
+            /**
+             * Brief Stale
+             * @default false
+             */
+            brief_stale: boolean;
+            /** Group Id */
+            group_id?: string | null;
+            /** Group Title */
+            group_title?: string | null;
+            /** Group Total Filtered */
+            group_total_filtered?: number | null;
+            /** Group Loaded On Page */
+            group_loaded_on_page?: number | null;
+            /** Group Complete On Page */
+            group_complete_on_page?: boolean | null;
+            /** Matched Search */
+            matched_search?: boolean | null;
+            /** Priority Segment */
+            priority_segment?: number | null;
+            /** Priority Label */
+            priority_label?: string | null;
+            /** Browse Title */
+            browse_title?: string | null;
+            /** Evidence Count */
+            evidence_count?: number | null;
+            /** Commercial Disposition */
+            commercial_disposition: string;
+            /** Commercial Reason */
+            commercial_reason: string;
+            /** Commercial Next Question */
+            commercial_next_question: string;
+            /** Commercial Next Action */
+            commercial_next_action: string;
+            /** Commercial Organization */
+            commercial_organization?: string | null;
+        };
+        /** PursuitWorkspacePageOut */
+        PursuitWorkspacePageOut: {
+            /** Items */
+            items: components["schemas"]["PursuitWorkspaceItemOut"][];
+            /** Total */
+            total: number;
+            counts: components["schemas"]["PursuitWorkspaceCountsOut"];
+            /** Offset */
+            offset: number;
+            /** Limit */
+            limit: number;
+            /** Next Offset */
+            next_offset: number | null;
+            /** Cohort Token */
+            cohort_token: string;
+            /**
+             * Count Unit
+             * @constant
+             */
+            count_unit: "power needs";
+            /** Changes Available */
+            changes_available: boolean;
         };
         /** PursuitsOut */
         PursuitsOut: {
@@ -2923,6 +3138,50 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OpportunityOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    pursuit_workspace_api_opportunities_workspace_get: {
+        parameters: {
+            query?: {
+                search?: string | null;
+                tier?: ("Signal" | "Prospect" | "Lead") | null;
+                disposition?: ("ACTION NOW" | "RESEARCH" | "WATCH" | "REJECT") | null;
+                geography?: string | null;
+                industry?: string | null;
+                activity?: string | null;
+                timing?: ("KNOWN" | "UNKNOWN") | null;
+                mw_status?: ("KNOWN" | "UNKNOWN") | null;
+                mw_min?: string | null;
+                mw_max?: string | null;
+                sort?: "priority" | "project" | "mw" | "start" | "updated";
+                limit?: number;
+                offset?: number;
+                cohort_token?: string | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PursuitWorkspacePageOut"];
                 };
             };
             /** @description Validation Error */
