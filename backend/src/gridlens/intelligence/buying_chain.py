@@ -107,9 +107,15 @@ def _buying_chain_context_digest(session: Session, project: Project) -> str:
             "latest_run": latest_run.input_hash if latest_run else None,
             "claims": [
                 (
-                    str(row.id), row.fingerprint, row.organization, row.person_name,
-                    row.title, row.category, row.organization_relationship,
-                    row.person_organization_relationship, row.person_project_relationship,
+                    str(row.id),
+                    row.fingerprint,
+                    row.organization,
+                    row.person_name,
+                    row.title,
+                    row.category,
+                    row.organization_relationship,
+                    row.person_organization_relationship,
+                    row.person_project_relationship,
                     row.citations,
                 )
                 for row in claims
@@ -403,9 +409,7 @@ def retained_buying_chain_backfill(
 ) -> dict[str, Any]:
     """Plan or enqueue one bounded page of projects with current accepted evidence."""
     if not 1 <= limit <= MAX_RETAINED_BACKFILL_PROJECTS:
-        raise ValueError(
-            f"Backfill limit must be between 1 and {MAX_RETAINED_BACKFILL_PROJECTS}"
-        )
+        raise ValueError(f"Backfill limit must be between 1 and {MAX_RETAINED_BACKFILL_PROJECTS}")
     query = (
         select(Project)
         .join(PowerNeed, PowerNeed.project_id == Project.id)
@@ -425,9 +429,7 @@ def retained_buying_chain_backfill(
         observation = session.get(Observation, evidence.observation_id)
         interpretation = (
             session.scalar(
-                select(Interpretation).where(
-                    Interpretation.observation_id == observation.id
-                )
+                select(Interpretation).where(Interpretation.observation_id == observation.id)
             )
             if observation
             else None
@@ -522,9 +524,7 @@ def run_buying_chain_research(
                     if retained_observation
                     else None
                 )
-                evidence_policy_version = retained_evidence_policy_version(
-                    retained_interpretation
-                )
+                evidence_policy_version = retained_evidence_policy_version(retained_interpretation)
                 retained_version_current = bool(
                     retained_evidence
                     and retained_evidence.content_hash == payload.get("evidence_hash")
@@ -675,9 +675,11 @@ def run_buying_chain_research(
             if not retained_only_task and project is not None
             else None
         )
-        if project is None or (
-            current_retained_context if retained_only_task else current_manual_context
-        ) != expected_context:
+        if (
+            project is None
+            or (current_retained_context if retained_only_task else current_manual_context)
+            != expected_context
+        ):
             checkpoint.update(status="stale", completed_at=datetime.now(UTC).isoformat())
             job.checkpoint = json.dumps(checkpoint, separators=(",", ":"))
             job.status = "succeeded"
@@ -703,8 +705,7 @@ def run_buying_chain_research(
         detail_status = (
             result.get("status", "complete")
             if retained_only_task
-            else
-            "disabled"
+            else "disabled"
             if not settings.buying_chain_public_research_enabled
             else "blocked_source_policy"
             if not policy_active

@@ -333,6 +333,7 @@ def test_workspace_endpoint_orders_rank_78_before_rank_25_across_pages(saved_db)
     from test_saved_browse import seed
 
     from gridlens.api import app as api
+
     need_ids = seed(saved_db, count=5, histories=1)
     assert rebuild(saved_db)["status"] == "published"
     with saved_db.begin() as session:

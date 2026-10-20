@@ -492,6 +492,7 @@ def test_map_group_detail_and_export_accept_saved_tokens(saved_db, monkeypatch):
         tier="Signal", cohort_token=saved["cohort_token"], limit=500
     )
     assert exported.headers["x-total-count"] == "3"
+
     async def read_export():
         return "".join([chunk.decode() async for chunk in exported.body_iterator])
 

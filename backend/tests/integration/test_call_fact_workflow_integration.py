@@ -231,9 +231,12 @@ def test_fact_correction_requires_current_accepted_same_type_predecessor(runtime
     draft_successor = _body(
         project_id, pursuit_id, expected_version=1, predecessor_id=draft.json()["id"]
     )
-    assert client.post(
-        f"/api/needs/{need_id}/facts", json=draft_successor, headers=headers
-    ).status_code == 409
+    assert (
+        client.post(
+            f"/api/needs/{need_id}/facts", json=draft_successor, headers=headers
+        ).status_code
+        == 409
+    )
 
     accepted = client.post(
         f"/api/needs/{need_id}/facts/{draft.json()['id']}/decision",
@@ -252,17 +255,16 @@ def test_fact_correction_requires_current_accepted_same_type_predecessor(runtime
     )
     wrong_type["fact_type"] = "buyer"
     wrong_type["value"] = {"organization": "Synthetic Buyer", "role": "project owner"}
-    assert client.post(
-        f"/api/needs/{need_id}/facts", json=wrong_type, headers=headers
-    ).status_code == 409
+    assert (
+        client.post(f"/api/needs/{need_id}/facts", json=wrong_type, headers=headers).status_code
+        == 409
+    )
 
     correction = _body(
         project_id, pursuit_id, expected_version=2, predecessor_id=draft.json()["id"]
     )
     correction["value"] = {"mw": "21", "basis": "Synthetic correction"}
-    successor = client.post(
-        f"/api/needs/{need_id}/facts", json=correction, headers=headers
-    )
+    successor = client.post(f"/api/needs/{need_id}/facts", json=correction, headers=headers)
     assert successor.status_code == 200, successor.text
     corrected = client.post(
         f"/api/needs/{need_id}/facts/{successor.json()['id']}/decision",
@@ -275,13 +277,11 @@ def test_fact_correction_requires_current_accepted_same_type_predecessor(runtime
         headers=headers,
     )
     assert corrected.status_code == 200, corrected.text
-    stale = _body(
-        project_id, pursuit_id, expected_version=5, predecessor_id=draft.json()["id"]
-    )
+    stale = _body(project_id, pursuit_id, expected_version=5, predecessor_id=draft.json()["id"])
     stale["value"] = {"mw": "22", "basis": "Stale correction"}
-    assert client.post(
-        f"/api/needs/{need_id}/facts", json=stale, headers=headers
-    ).status_code == 409
+    assert (
+        client.post(f"/api/needs/{need_id}/facts", json=stale, headers=headers).status_code == 409
+    )
 
 
 def test_concurrent_fact_corrections_cannot_supersede_one_predecessor_twice(runtime):
