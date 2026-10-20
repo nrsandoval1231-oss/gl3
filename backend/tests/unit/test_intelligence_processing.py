@@ -231,6 +231,8 @@ def test_provider_transport_recursion_error_keeps_received_response_metadata(mon
     class Client:
         def __init__(self, *, timeout):
             del timeout
+            self._transport = type("Transport", (), {"_pool": type("Pool", (), {})()})()
+            self._mounts = {}
 
         def __enter__(self):
             return self

@@ -6,7 +6,9 @@ import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
+import httpcore
 import pytest
+from httpcore._backends.base import NetworkStream
 
 from gridlens.integrations import intelligence_provider
 
@@ -90,6 +92,47 @@ def test_delayed_response_inside_total_budget_succeeds(serve, monkeypatch):
     assert server.posts == 1
 
 
+def test_deadline_backend_recalculates_before_each_blocking_operation(monkeypatch):
+    now = [10.0]
+    monkeypatch.setattr(intelligence_provider.time, "monotonic", lambda: now[0])
+    backend = intelligence_provider._DeadlineStreamBackend(11.0)
+
+    class Stream(NetworkStream):
+        def __init__(self):
+            self.timeouts = []
+
+        def read(self, max_bytes, timeout=None):
+            self.timeouts.append(timeout)
+            return b"x"
+
+        def write(self, buffer, timeout=None):
+            self.timeouts.append(timeout)
+
+        def start_tls(self, ssl_context, server_hostname=None, timeout=None):
+            self.timeouts.append(timeout)
+            return self
+
+        def close(self):
+            pass
+
+        def get_extra_info(self, info):
+            return None
+
+    stream = Stream()
+    wrapped = intelligence_provider._DeadlineNetworkStream(stream, backend)
+    wrapped.read(1, timeout=5)
+    now[0] = 10.3
+    wrapped = wrapped.start_tls(object(), server_hostname="provider.invalid", timeout=5)
+    now[0] = 10.7
+    wrapped.write(b"x", timeout=5)
+    now[0] = 10.8
+    wrapped.read(1, timeout=5)
+    assert stream.timeouts == pytest.approx([1.0, 0.7, 0.3, 0.2])
+    now[0] = 11.0
+    with pytest.raises(httpcore.ReadTimeout):
+        wrapped.read(1, timeout=5)
+
+
 def test_true_total_deadline_expiry_is_inconclusive_and_bounded(serve):
     def stalled(handler):
         time.sleep(3)
@@ -104,6 +147,33 @@ def test_true_total_deadline_expiry_is_inconclusive_and_bounded(serve):
     assert error.conclusive is False
     assert error.response_received is False
     assert error.cause == "total_deadline_exceeded"
+    assert server.posts == 1
+
+
+def test_delayed_connect_and_header_stall_share_one_deadline(serve, monkeypatch):
+    original_connect = intelligence_provider.SyncBackend.connect_tcp
+    delayed = False
+
+    def slow_connect(backend, *args, **kwargs):
+        nonlocal delayed
+        if not delayed:
+            delayed = True
+            time.sleep(0.65)
+        return original_connect(backend, *args, **kwargs)
+
+    monkeypatch.setattr(intelligence_provider.SyncBackend, "connect_tcp", slow_connect)
+
+    def stalled_headers(handler):
+        time.sleep(2)
+        _reply(handler, b"{}")
+
+    server = serve(stalled_headers)
+    started = time.monotonic()
+    with pytest.raises(intelligence_provider.ProviderResponseError) as raised:
+        _post(server, 1)
+    elapsed = time.monotonic() - started
+    assert elapsed < 1.3  # 1s budget plus 300ms scheduler/socket tolerance.
+    assert raised.value.cause == "total_deadline_exceeded"
     assert server.posts == 1
 
 
@@ -135,20 +205,35 @@ def test_slow_drip_cannot_extend_past_total_deadline(serve):
         handler.send_response(200)
         handler.send_header("content-length", "40")
         handler.end_headers()
-        for _ in range(40):
+        for _ in range(8):
             handler.wfile.write(b" ")
             handler.wfile.flush()
             time.sleep(0.1)
+        time.sleep(2)
 
     server = serve(drip)
     started = time.monotonic()
     with pytest.raises(intelligence_provider.ProviderResponseError) as raised:
         _post(server, 1)
-    assert time.monotonic() - started < 2
+    assert time.monotonic() - started < 1.3  # 1s budget plus 300ms tolerance.
     assert raised.value.cause == "total_deadline_exceeded"
 
 
-def test_connection_failure_is_inconclusive_with_sanitized_cause():
+def test_connection_failure_is_inconclusive_with_sanitized_cause(monkeypatch):
+    def refused(*_args, **_kwargs):
+        raise httpcore.ConnectError("synthetic refusal")
+
+    monkeypatch.setattr(intelligence_provider.SyncBackend, "connect_tcp", refused)
+    with pytest.raises(intelligence_provider.ProviderResponseError) as raised:
+        intelligence_provider._post_json(
+            "http://127.0.0.1:1/", headers={}, payload={}, timeout_seconds=2
+        )
+    assert raised.value.conclusive is False
+    assert raised.value.response_received is False
+    assert raised.value.cause == "connect_error"
+
+
+def test_loopback_connection_failure_remains_inconclusive():
     with socket.socket() as probe:
         probe.bind(("127.0.0.1", 0))
         port = probe.getsockname()[1]
@@ -158,7 +243,7 @@ def test_connection_failure_is_inconclusive_with_sanitized_cause():
         )
     assert raised.value.conclusive is False
     assert raised.value.response_received is False
-    assert raised.value.cause == "connect_error"
+    assert raised.value.cause in {"connect_error", "total_deadline_exceeded"}
 
 
 def test_invalid_json_is_conclusive(serve):

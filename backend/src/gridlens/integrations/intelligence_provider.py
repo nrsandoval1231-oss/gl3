@@ -8,7 +8,10 @@ import time
 from collections.abc import Iterator
 from typing import Any
 
+import httpcore
 import httpx
+from httpcore._backends.base import NetworkBackend, NetworkStream
+from httpcore._backends.sync import SyncBackend
 
 TIMEOUT_SECONDS = 45
 # Connection setup and request upload are short; waiting for the model's
@@ -72,6 +75,102 @@ class _TotalDeadlineExceeded(Exception):
     pass
 
 
+class _DeadlineStreamBackend(NetworkBackend):
+    """Clamp every httpcore socket operation to the one request deadline."""
+
+    def __init__(self, deadline: float):
+        self.deadline = deadline
+        self.backend = SyncBackend()
+
+    def _remaining(self, timeout: float | None, error_type: type[Exception]) -> float:
+        remaining = self.deadline - time.monotonic()
+        if remaining <= 0:
+            raise error_type("Provider total request deadline exceeded")
+        return remaining if timeout is None else min(timeout, remaining)
+
+    def connect_tcp(
+        self,
+        host: str,
+        port: int,
+        timeout: float | None = None,
+        local_address: str | None = None,
+        socket_options=None,
+    ) -> NetworkStream:
+        stream = self.backend.connect_tcp(
+            host,
+            port,
+            timeout=self._remaining(timeout, httpcore.ConnectTimeout),
+            local_address=local_address,
+            socket_options=socket_options,
+        )
+        if time.monotonic() >= self.deadline:
+            stream.close()
+            raise httpcore.ConnectTimeout("Provider total request deadline exceeded")
+        return _DeadlineNetworkStream(stream, self)
+
+    def connect_unix_socket(
+        self, path: str, timeout: float | None = None, socket_options=None
+    ) -> NetworkStream:
+        stream = self.backend.connect_unix_socket(
+            path,
+            timeout=self._remaining(timeout, httpcore.ConnectTimeout),
+            socket_options=socket_options,
+        )
+        if time.monotonic() >= self.deadline:
+            stream.close()
+            raise httpcore.ConnectTimeout("Provider total request deadline exceeded")
+        return _DeadlineNetworkStream(stream, self)
+
+    def sleep(self, seconds: float) -> None:
+        self.backend.sleep(seconds)
+
+
+class _DeadlineNetworkStream(NetworkStream):
+    def __init__(self, stream: NetworkStream, backend: _DeadlineStreamBackend):
+        self.stream = stream
+        self.backend = backend
+
+    def read(self, max_bytes: int, timeout: float | None = None) -> bytes:
+        value = self.stream.read(
+            max_bytes, timeout=self.backend._remaining(timeout, httpcore.ReadTimeout)
+        )
+        if time.monotonic() >= self.backend.deadline:
+            raise httpcore.ReadTimeout("Provider total request deadline exceeded")
+        return value
+
+    def write(self, buffer: bytes, timeout: float | None = None) -> None:
+        self.stream.write(buffer, timeout=self.backend._remaining(timeout, httpcore.WriteTimeout))
+        if time.monotonic() >= self.backend.deadline:
+            raise httpcore.WriteTimeout("Provider total request deadline exceeded")
+
+    def start_tls(self, ssl_context, server_hostname=None, timeout=None) -> NetworkStream:
+        stream = self.stream.start_tls(
+            ssl_context,
+            server_hostname=server_hostname,
+            timeout=self.backend._remaining(timeout, httpcore.ConnectTimeout),
+        )
+        if time.monotonic() >= self.backend.deadline:
+            stream.close()
+            raise httpcore.ConnectTimeout("Provider total request deadline exceeded")
+        return _DeadlineNetworkStream(stream, self.backend)
+
+    def close(self) -> None:
+        self.stream.close()
+
+    def get_extra_info(self, info: str):
+        return self.stream.get_extra_info(info)
+
+
+def _install_deadline_backend(client: httpx.Client, deadline: float) -> None:
+    """Install on the default and environment-proxy transports before connect."""
+    backend = _DeadlineStreamBackend(deadline)
+    transports = {client._transport, *client._mounts.values()}
+    for transport in transports:
+        pool = getattr(transport, "_pool", None)
+        if pool is not None:
+            pool._network_backend = backend
+
+
 def _phase_timeouts(deadline: float) -> dict[str, float]:
     remaining = deadline - time.monotonic()
     if remaining <= 0:
@@ -132,6 +231,7 @@ def _post_json(
     body_size = 0
     try:
         with httpx.Client(timeout=timeout_seconds) as client:
+            _install_deadline_backend(client, deadline)
             with client.stream(
                 "POST",
                 url,
