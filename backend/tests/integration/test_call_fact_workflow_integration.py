@@ -512,6 +512,106 @@ def test_concurrent_workflow_updates_serialize_by_exact_need(runtime):
         assert session.scalar(select(func.count()).select_from(NeedWorkflowStatusEvent)) == 1
 
 
+def test_discovery_facts_remain_signal_and_preserve_history(runtime, monkeypatch):
+    monkeypatch.setattr(settings, "saved_browse_enabled", False)
+    client, factory, need_id, project_id, pursuit_id = runtime
+    content_hash = "b" * 64
+    with factory.begin() as session:
+        need = session.get(PowerNeed, need_id)
+        project = session.get(Project, project_id)
+        need.activity_key = "project-discovery"
+        observation = Observation(
+            source_id="a6-test-source",
+            external_id="neutral-site",
+            title="Synthetic facility site milestone",
+            abstract="A facility site milestone in Test City.",
+            published_at=datetime.now(UTC).date(),
+            url="https://example.test/neutral-site",
+            content_hash=content_hash,
+        )
+        session.add(observation)
+        session.flush()
+        session.add_all(
+            [
+                Evidence(
+                    observation_id=observation.id,
+                    content_hash=content_hash,
+                    title=observation.title,
+                    abstract=observation.abstract,
+                    url=observation.url,
+                    published_at=observation.published_at,
+                    observed_at=datetime.now(UTC),
+                ),
+                Interpretation(
+                    observation_id=observation.id,
+                    content_hash=content_hash,
+                    status="accepted",
+                    assessment={
+                        "decision": "accepted",
+                        "semantic_hash": content_hash,
+                        "evidence_hash": content_hash,
+                        "project_identity_key": project.identity_key,
+                        "power_activity": "project-discovery",
+                        "tier": "Signal",
+                        "reason": "Current site milestone.",
+                        "subject": project.name,
+                        "location": project.location,
+                    },
+                ),
+                NeedObservation(need_id=need.id, observation_id=observation.id),
+            ]
+        )
+    headers = {"origin": "http://testserver"}
+    version = 0
+
+    def accept(kind, value):
+        nonlocal version
+        body = _body(project_id, pursuit_id, expected_version=version)
+        body.update(
+            activity_key="project-discovery",
+            fact_type=kind,
+            value=value,
+            effective_from="2026-01-01T00:00:00+00:00",
+            effective_until="2027-03-04T00:00:00+00:00",
+        )
+        draft = client.post(f"/api/needs/{need_id}/facts", json=body, headers=headers)
+        assert draft.status_code == 200, draft.text
+        version += 1
+        decision = client.post(
+            f"/api/needs/{need_id}/facts/{draft.json()['id']}/decision",
+            json={
+                "client_id": str(uuid4()),
+                "expected_version": version,
+                "decision": "accepted",
+                "reason": "Synthetic confirmed fact",
+            },
+            headers=headers,
+        )
+        assert decision.status_code == 200, decision.text
+        version += 1
+        return decision.json()
+
+    for kind, value in [
+        ("demand", {"mw": "20"}),
+        ("unsuitable_supply", {"mw": "2"}),
+        ("timing", {"start_date": "2027-01-01", "end_date": "2027-02-01", "duration_days": 31}),
+        ("suitable_supply", {"mw": "5", "quality": "suitable"}),
+        ("buyer", {"organization": "Synthetic Owner LLC", "role": "project owner"}),
+    ]:
+        assert accept(kind, value)["tier"] == "Signal"
+    browse = client.get("/api/opportunities?tier=Signal")
+    assert browse.status_code == 200, browse.text
+    assert any(str(item["id"]) == str(need_id) for item in browse.json())
+    detail = client.get(f"/api/opportunities/needs/{need_id}?tier=Signal")
+    assert detail.status_code == 200, detail.text
+    assert detail.json()["tier"] == "Signal"
+    history = client.get(f"/api/needs/{need_id}/facts")
+    assert history.status_code == 200 and history.json()["current_fact_version"] == version
+    closed = accept("closure", {"state": "adequate_supply"})
+    assert closed["active"] is False
+    assert client.get(f"/api/needs/{need_id}/facts").json()["current_fact_version"] == version
+
+
 def test_current_public_support_bounds_fact_qualification_and_reassessment(runtime, monkeypatch):
     # Exercise the live projection path independently of the optional saved-browse
     # deployment mode used by the current shell environment.
