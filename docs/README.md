@@ -1,5 +1,23 @@
-# Documentation index
+# Documentation map
 
-`product/` contains the canonical PRD and lifecycle strategy. `design/` contains owner-approved UI/brand references. `architecture/` states implementation boundaries. `sources/` records source coverage and limitations. `operations/` links current operational truth and future procedures. `delivery/` tracks acceptance gates. `validation/` retains dated, candidate-bound evidence.
+Use one authority for each question. Historical reports remain evidence for their stated date and candidate; they do not override current authorities.
 
-For current status, start at [delivery milestones](delivery/milestones.md). [`.agent/CURRENT_STATE.md`](../.agent/CURRENT_STATE.md) is the short checkpoint. Dated historical reports remain historical; the archive index is [here](../.agent/archive/STAGE1-20261009/ARCHIVE-INDEX.md).
+| Topic | Authority | Supporting evidence |
+|---|---|---|
+| Product scope, tiers, and qualification | [PRD](product/PRD.md) | [Vertical lifecycle strategy](product/VERTICAL_LIFECYCLE_STRATEGY.md) |
+| UI and brand | [UI canon](design/UI_CANON.md) | [Pursuit Workspace contract](design/PURSUIT_WORKSPACE.md), [brand assets](design/BRAND_ASSETS.md) |
+| Architecture and data flow | [Architecture overview](architecture/overview.md) | [Data model](architecture/data-model.md) and focused architecture notes |
+| Source behavior and coverage | [Coverage](sources/coverage.md) | [Source notes](sources/) and [registry](../config/sources/registry.v1.json) |
+| Local setup and checks | [Repository README](../README.md) | [Local runtime](operations/local-runtime.md), [script guide](../scripts/README.md) |
+| Production observation and deployment boundary | [Operations status](operations/README.md) | [Sanitized dated receipt](operations/observations/2026-10-20-production-readonly.md) binds to the named ignored source receipts |
+| Backup and restore | [Operations status](operations/README.md) | [Local restore drill](operations/local-restore-drill.md) and dated receipt prove one copy/restore; scheduled retention and production cutover remain UNKNOWN |
+| Runtime environment defaults | [Runtime configuration](operations/runtime-configuration.md) | Verified against `backend/src/gridlens/settings.py`; code defaults are not production configuration |
+| Delivery status | [Milestones](delivery/milestones.md) | [Audit remediation matrix](../.agent/AUDIT_REMEDIATION_MATRIX.md), [controller evidence](validation/audit-remediation-20261020.md) |
+
+## Archive and superseded material
+
+The [committed inventory](../.agent/archive/AUDIT-20261020/DOCUMENTATION-INVENTORY-20261020.md) lists all 151 Markdown documents in the pre-cleanup baseline and gives each a disposition. It separates owner authority, current entry points, technical/source notes, candidate evidence, and superseded/preparation material. This classification does not claim every historical sentence was revalidated. The baseline reported 34 missing relative targets; the committed list does not treat them as 34 missing receipts. Historical pages keep their original context and are not silently repaired as live runbooks.
+
+Do not delete historical narratives or receipts. Some ignored local receipts are unavailable in a clean checkout; the index identifies them as evidence referenced by dated reports, not as current links or replacements. Fifteen baseline entry-page Git blobs are preserved with prefix `pre-docs-repair-8163f13__`. Four superseded runbooks were shortened to notices in the follow-up; their pre-edit Git blobs use prefix `pre-docs-followup-20261020__`. The archive index records the source commits and notes that Windows checkout line endings may differ under `core.autocrlf=true`; working-copy byte identity is not claimed. The PRD and UI canon are unchanged. Earlier decision rows remain intact with one authorized October 20 news decision appended.
+
+The October 20 recovery handoff in PR #98 and production database/backup proposal in PR #97 were reviewed as open documentation proposals. Neither was merged by this packet. Use the consolidated authorities above for the current state. The [archive index](../.agent/archive/AUDIT-20261020/README.md) covers original state histories; archive files and immutable receipts remain evidence, not current status.

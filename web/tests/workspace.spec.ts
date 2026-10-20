@@ -7,6 +7,11 @@ const need = {
   missing_facts: ['Activity-specific load', 'Suitable utility supply'], project_identity_key: 'test', commercial_disposition: 'RESEARCH', commercial_reason: 'Load and supply remain unknown.', commercial_next_question: 'Who owns the electrical scope?', commercial_next_action: 'Research the project contractor.', commercial_organization: null,
 } as any
 const response = (items = [need]) => ({ items, total: items.length, counts: { action_now: 0, research: items.length, watch: 0, reject: 0 }, offset: 0, limit: 25, next_offset: null, cohort_token: 'cohort-a', count_unit: 'power needs', changes_available: false })
+const emptyChanges = { items: [], counts: { discovered: 0, changed: 0, promoted: 0, closed: 0, review_exception: 0 }, total_unreviewed: 0, offset: 0, limit: 50, next_offset: null, evaluated_at: '2026-10-20T12:00:00Z', baseline_identity: '00000000-0000-4000-8000-000000000001', baseline_reviewed_at: null, first_use: true, token: 'a'.repeat(64), source_health_exceptions: [] }
+
+test.beforeEach(async ({ page }) => {
+  await page.route('**/api/opportunities/workspace/changes*', route => route.fulfill({ json: emptyChanges }))
+})
 
 test('retired editorial URL alias falls through to the private pursuit workspace', async ({ page }) => {
   const apiPaths: string[] = []
@@ -562,6 +567,151 @@ test('stale list responses cannot replace a newer filter result', async ({ page 
   await expect(page.getByRole('button', { name: /Current result/ })).toBeVisible()
   resolveOld()
   await expect(page.getByRole('button', { name: /Stale result/ })).toHaveCount(0)
+})
+
+test('a failed workspace filter hides rows, counts, and pagination from the prior cohort', async ({ page }) => {
+  const oldCohortAction = 'Austin cohort only action'
+  const selectedRow = { ...need, name: 'Austin retained row', commercial_next_action: oldCohortAction }
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/workspace?*', route => {
+    const geography = new URL(route.request().url()).searchParams.get('geography')
+    if (geography === 'Houston') return route.fulfill({ status: 503, json: { detail: 'workspace unavailable' } })
+    return route.fulfill({ json: response([selectedRow]) })
+  })
+  await page.route('**/api/opportunities/needs/need-a*', route => route.fulfill({ json: { ...need, name: 'Fresh canonical detail' } }))
+  await page.route('**/api/power-needs/need-a/title', route => route.fulfill({ json: { status: 'disabled', result: null, citations: [] } }))
+  await page.route('**/api/needs/need-a/facts*', route => route.fulfill({ json: { items: [], total: 0, limit: 50, offset: 0, next_offset: null, current_fact_version: 0 } }))
+  await page.route('**/api/needs/need-a/workflow-status', route => route.fulfill({ json: { need_id: 'need-a', status: 'New', version: 0, events: [] } }))
+  await page.goto('/?view=workspace&geography=Austin')
+  await expect(page.getByRole('button', { name: /Austin retained row/ })).toBeVisible()
+  await page.locator('[data-need-row="need-a"]').click()
+  await expect(page.getByRole('heading', { name: 'Fresh canonical detail' })).toBeVisible()
+  await page.getByRole('button', { name: 'Next steps' }).click()
+  await expect(page.getByRole('region', { name: 'Call preparation' }).getByText(oldCohortAction)).toBeVisible()
+  await page.getByLabel('Geography (exact match)').fill('Houston')
+  await expect(page.getByRole('alert')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Fresh canonical detail' })).toBeVisible()
+  await expect(page.getByText(oldCohortAction)).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /Austin retained row/ })).toHaveCount(0)
+  await expect(page.locator('.wh-briefbar')).toContainText('Current results unavailable')
+  await expect(page.locator('.wh-briefbar')).toContainText('—')
+  await expect(page.locator('.wh-paging')).toContainText('of —')
+})
+
+test('canonical priority score and reasons are explained separately from disposition', async ({ page }) => {
+  const ranked = { ...need, rank_score: 8, rank_reasons: ['Near-term start', 'Supported project scale'], rank_version: 'rank-v1' }
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response([ranked]) }))
+  await page.route('**/api/opportunities/needs/need-a*', route => route.fulfill({ json: ranked }))
+  await page.goto('/?view=workspace')
+  await expect(page.locator('[data-need-row="need-a"]')).toContainText('Priority 8 · Near-term start; Supported project scale')
+  await page.locator('[data-need-row="need-a"]').click()
+  const priority = page.getByRole('region', { name: 'Priority explanation' })
+  await expect(priority).toContainText('Canonical rank score: 8 · rank-v1')
+  await expect(priority).toContainText('Near-term start')
+  await expect(priority).toContainText('separate from qualification and commercial disposition')
+})
+
+test('material change review acknowledges only the displayed page and keeps health exceptions visible', async ({ page }) => {
+  await page.unrouteAll()
+  const change = {
+    event_key: 'fact:11111111-1111-4111-8111-111111111111', category: 'changed', title: 'Call fact accepted: demand',
+    detail: 'Austin DC · Synthetic Facility', created_at: '2026-10-20T11:00:00Z', source_date: '2026-10-20',
+    project_id: 'project-a', before_state: null, after_state: { fact_type: 'demand', value: { mw: '12' } },
+    needs: [{ id: 'need-a', name: 'Synthetic Facility', location: 'Austin, TX', active: false, tier: 'Signal' }],
+    sources: [], fact_version_id: '22222222-2222-4222-8222-222222222222', fact_type: 'demand', decision: 'accepted',
+    reason: 'Confirmed by operator', actor: 'Operator', confirmed_at: '2026-10-20T10:00:00Z', source_reference: null,
+  }
+  let reads = 0
+  let reviewed = false
+  let reviewBody: Record<string, unknown> | null = null
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response() }))
+  await page.route('**/api/opportunities/workspace/changes*', route => {
+    reads += 1
+    return route.fulfill({ json: reviewed ? { ...emptyChanges, first_use: false, baseline_reviewed_at: '2026-10-20T12:01:00Z', source_health_exceptions: [{ source_id: 'source-a', status: 'Partial', error: 'partial run', parse_failures: 1 }] } : { ...emptyChanges, items: [change], total_unreviewed: 1, counts: { ...emptyChanges.counts, changed: 1 }, source_health_exceptions: [{ source_id: 'source-a', status: 'Partial', error: 'partial run', parse_failures: 1 }] } })
+  })
+  await page.route('**/api/opportunities/workspace/changes/review', async route => {
+    reviewBody = route.request().postDataJSON() as Record<string, unknown>
+    reviewed = true
+    await route.fulfill({ json: { baseline_identity: emptyChanges.baseline_identity, reviewed_at: '2026-10-20T12:01:00Z', reviewed_count: 1, event_keys: [change.event_key], token: emptyChanges.token, remaining_counts: emptyChanges.counts } })
+  })
+  await page.route('**/api/opportunities/needs/need-a/history', route => route.fulfill({ json: { id: 'need-a', project_id: 'project-a', name: 'Synthetic Facility', location: 'Austin, TX', activity: 'construction', active: false, tier: 'Signal', rationale: 'Closed historical need', required_mw: null, start_window: null, duration: null, supply: 'Unknown', updated_at: '2026-10-20T10:30:00Z', evidence: [] } }))
+  await page.goto('/?view=workspace')
+  const panel = page.getByRole('region', { name: 'Material changes' })
+  await panel.getByText('Material changes · 1 unreviewed items').click()
+  await expect(panel).toContainText('Call fact accepted: demand')
+  await expect(panel).toContainText('Source-health exceptions')
+  await page.screenshot({ path: 'test-results/audit-workspace-briefing.png', fullPage: true })
+  await panel.getByRole('button', { name: /Synthetic Facility · Austin, TX/ }).click()
+  await expect(panel).toContainText('Inactive historical need')
+  await panel.getByRole('button', { name: 'Close historical detail' }).click()
+  await panel.getByRole('button', { name: 'Mark these displayed changes reviewed' }).click()
+  await expect.poll(() => reviewBody).toEqual({ baseline_identity: emptyChanges.baseline_identity, token: emptyChanges.token, limit: 50, offset: 0 })
+  await expect.poll(() => reads).toBeGreaterThan(1)
+  await expect(panel).toContainText('No unreviewed material changes on this page.')
+  await expect(panel).toContainText('source-a · Partial · partial run · 1 parse failures')
+})
+
+test('active change links use canonical workspace readback instead of historical stored tier', async ({ page }) => {
+  await page.unrouteAll()
+  const activeChange = {
+    ...emptyChanges,
+    items: [{
+      event_key: 'fact:33333333-3333-4333-8333-333333333333', category: 'changed',
+      title: 'Call fact accepted: demand', detail: 'Synthetic fixture',
+      created_at: '2026-10-20T11:00:00Z', source_date: null, project_id: 'project-a',
+      before_state: null, after_state: { fact_type: 'demand', value: { mw: '12' } },
+      needs: [{ id: 'need-a', name: 'Synthetic Facility', location: 'Austin, TX', active: true, tier: 'Lead' }],
+      sources: [], fact_version_id: '44444444-4444-4444-8444-444444444444', fact_type: 'demand',
+      decision: 'accepted', reason: 'Confirmed', actor: 'Operator', confirmed_at: '2026-10-20T10:00:00Z', source_reference: null,
+    }],
+    total_unreviewed: 1, counts: { ...emptyChanges.counts, changed: 1 },
+  }
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response([]) }))
+  await page.route('**/api/opportunities/workspace/changes*', route => route.fulfill({ json: activeChange }))
+  await page.route('**/api/opportunities/needs/need-a?*', route => route.fulfill({ json: { ...need, tier: 'Signal' } }))
+  let historicalReads = 0
+  await page.route('**/api/opportunities/needs/need-a/history', route => { historicalReads += 1; return route.fulfill({ json: { ...need, active: true, tier: 'Lead' } }) })
+  await page.goto('/?view=workspace')
+  const panel = page.getByRole('region', { name: 'Material changes' })
+  await panel.locator('summary').click()
+  const link = panel.getByRole('button', { name: /Synthetic Facility · Austin, TX · demand/ })
+  await link.click()
+  await expect(page.getByRole('heading', { name: 'Test data center' })).toBeVisible()
+  await expect(page.getByText(/Signal/).first()).toBeVisible()
+  expect(historicalReads).toBe(0)
+})
+
+test('active change link hides a previously stored Lead while canonical readback is pending or fails', async ({ page }) => {
+  await page.unrouteAll()
+  const activeChange = {
+    ...emptyChanges,
+    items: [{
+      event_key: 'fact:55555555-5555-4555-8555-555555555555', category: 'changed',
+      title: 'Call fact accepted: demand', detail: 'Synthetic fixture',
+      created_at: '2026-10-20T11:00:00Z', source_date: null, project_id: 'project-a',
+      before_state: null, after_state: { fact_type: 'demand', value: { mw: '12' } },
+      needs: [{ id: 'need-a', name: 'Synthetic Facility', location: 'Austin, TX', active: true, tier: 'Lead' }],
+      sources: [], fact_version_id: '66666666-6666-4666-8666-666666666666', fact_type: 'demand',
+      decision: 'accepted', reason: 'Confirmed', actor: 'Operator', confirmed_at: '2026-10-20T10:00:00Z', source_reference: null,
+    }],
+    total_unreviewed: 1, counts: { ...emptyChanges.counts, changed: 1 },
+  }
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response([]) }))
+  await page.route('**/api/opportunities/workspace/changes*', route => route.fulfill({ json: activeChange }))
+  await page.route('**/api/opportunities/needs/need-a?*', route => route.fulfill({ status: 503, json: { detail: 'Fresh qualification unavailable' } }))
+  let historicalReads = 0
+  await page.route('**/api/opportunities/needs/need-a/history', route => { historicalReads += 1; return route.fulfill({ json: { ...need, active: true, tier: 'Lead' } }) })
+  await page.goto('/?view=workspace')
+  const panel = page.getByRole('region', { name: 'Material changes' })
+  await panel.locator('summary').click()
+  await panel.getByRole('button', { name: /Synthetic Facility · Austin, TX · demand/ }).click()
+  await expect(page.getByRole('alert')).toContainText('GridLens could not complete this request (503)')
+  await expect(page.locator('.wh-detail')).not.toContainText('Lead')
+  expect(historicalReads).toBe(0)
 })
 
 test('tablet workspace has no horizontal overflow and retains readable layout', async ({ page }) => {

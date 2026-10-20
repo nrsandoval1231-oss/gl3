@@ -1,0 +1,100 @@
+{
+  "format": "gl3-audit-publication-1-completion-v1",
+  "packet": "AUDIT-PUBLICATION-1",
+  "status": "IMPLEMENTATION_AND_LOCAL_VALIDATION_PASS_PENDING_CONTROLLER_REVIEW",
+  "acceptance_claim": false,
+  "repository": "GridLens gl3",
+  "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-audit-publication-repair-20261020",
+  "branch": "repair/audit-publication-repair-20261020",
+  "base_sha": "3f016536ff2e7fd45de6a779c0b0a98185ef1c26",
+  "source_sha": "ac55bb6bee952d50531484f7e2eb732685a2a566",
+  "scope": [
+    "backend/src/gridlens/persistence/browse_invalidation.py",
+    "backend/src/gridlens/intelligence/saved_browse.py",
+    "backend/migrations/versions/0034_draft_fact_browse_invalidation.py",
+    "backend/tests/integration/test_saved_browse.py",
+    "backend/tests/integration/test_fact_draft_publication.py"
+  ],
+  "implementation": {
+    "trigger_behavior": "Initial call-fact version inserts do not dirty or advance browse state. A decision insert is suppressed only when every inserted row is a version-1 draft with expected_version 0 and no other decision history for that need; mixed and later drafts remain conservatively invalidating. Updates, deletes, truncates, accepted decisions and other decision writes retain their existing fences.",
+    "clock_behavior": "effective_from and effective_until boundaries are taken only from each fact version's latest accepted or corrected decision.",
+    "migration": "Additive 0034_fact_draft_browse after 0033_workspace_review; downgrade restores the previous trigger set.",
+    "api_refresh_calls_preserved": true
+  },
+  "validation": {
+    "focused_postgresql": {
+      "command": "uv run --project backend pytest -q backend/tests/integration/test_fact_draft_publication.py",
+      "exit_code": 0,
+      "result": "4 passed, 1 upstream Starlette warning"
+    },
+    "affected_postgresql_suites": {
+      "command": "uv run --project backend pytest -q backend/tests/integration/test_saved_browse.py backend/tests/integration/test_call_fact_workflow_integration.py backend/tests/integration/test_pursuit_workspace.py",
+      "exit_code": 0,
+      "result": "169 passed, 1 skipped, 6 upstream warnings in 160.29 seconds"
+    },
+    "ruff_format": {
+      "command": "uv run --project backend ruff format --check backend/src/gridlens/persistence/browse_invalidation.py backend/src/gridlens/intelligence/saved_browse.py backend/migrations/versions/0034_draft_fact_browse_invalidation.py backend/tests/integration/test_saved_browse.py backend/tests/integration/test_fact_draft_publication.py",
+      "exit_code": 0,
+      "result": "5 files already formatted"
+    },
+    "ruff_check": {
+      "command": "uv run --project backend ruff check backend/src/gridlens/persistence/browse_invalidation.py backend/src/gridlens/intelligence/saved_browse.py backend/migrations/versions/0034_draft_fact_browse_invalidation.py backend/tests/integration/test_saved_browse.py backend/tests/integration/test_fact_draft_publication.py",
+      "exit_code": 0,
+      "result": "All checks passed"
+    },
+    "mypy": {
+      "command": "uv run --project backend mypy backend/src/gridlens/persistence/browse_invalidation.py backend/src/gridlens/intelligence/saved_browse.py",
+      "exit_code": 0,
+      "result": "Success: no issues found in 2 source files"
+    },
+    "diff_check": {
+      "command": "git diff --check",
+      "exit_code": 0,
+      "result": "PASS"
+    },
+    "migration_fresh_upgrade": {
+      "command": "uv run --project . python -c 'from gridlens.settings import settings; settings.database_url=settings.test_database_url; from alembic import command; from alembic.config import Config; command.upgrade(Config(\"alembic.ini\"), \"head\")'",
+      "exit_code": 0,
+      "database": "127.0.0.1:55520/gl3_audit_20261020_publication_test",
+      "result": "Fresh upgrade reached 0034_fact_draft_browse"
+    },
+    "migration_repeat_upgrade": {
+      "command": "same Alembic upgrade head command against the same disposable test database",
+      "exit_code": 0,
+      "result": "Repeat upgrade completed without operations"
+    },
+    "migration_drift": {
+      "command": "uv run --project . python -c 'from gridlens.settings import settings; settings.database_url=settings.test_database_url; from alembic import command; from alembic.config import Config; command.check(Config(\"alembic.ini\"))'",
+      "exit_code": 0,
+      "result": "No new upgrade operations detected"
+    },
+    "migration_source_sql_parity": {
+      "exit_code": 0,
+      "result": "The SQL function definitions in the source installer and migration match byte-for-byte"
+    }
+  },
+  "recovery_evidence": [
+    "An initial focused-test run used zero as the revision baseline even though fixture seeding had already invalidated browse state; the test now captures its baseline after rebuild.",
+    "An initial truncate assertion attempted to truncate call_fact_versions while call_fact_decisions referenced it; the test now truncates the related tables together and checks both statement-trigger revisions.",
+    "The existing call-fact workflow fixture drops and recreates Base metadata tables in the disposable test database but leaves alembic_version and migration functions. A post-suite drift check therefore first reported missing tables. The public schema was verified to contain only alembic_version before the reset; leftover migration/test helper functions were inspected and removed from that disposable database, then fresh/repeat upgrade and alembic check passed. The database is restored at migration head 0034."
+  ],
+  "timing": {
+    "start_utc": "UNKNOWN",
+    "finish_utc": "2026-10-20T20:27:55Z",
+    "planning_seconds": "UNKNOWN",
+    "build_seconds": "UNKNOWN",
+    "validation_seconds": "UNKNOWN",
+    "audit_seconds": "UNKNOWN",
+    "total_seconds": "UNKNOWN"
+  },
+  "metrics": {
+    "tokens": "UNKNOWN",
+    "model_config_identity": "UNKNOWN",
+    "independent_benchmark": "UNKNOWN / controller-owned",
+    "performance_speedup_claim": false
+  },
+  "limits": [
+    "Local deterministic implementation and validation only; no independent review or overall acceptance claim.",
+    "No production database, corpus, provider, paid call, push, merge or deployment was used."
+  ]
+}

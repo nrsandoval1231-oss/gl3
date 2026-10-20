@@ -175,6 +175,56 @@ def _seed_job(sessions, *, task_type="SOURCE_RELEVANCE_V1", question_id=None, li
     return need_id, evidence_id, job_id
 
 
+def test_enqueue_reuses_matching_active_job_beyond_recent_ten_and_skips_malformed(sessions):
+    need_id, _evidence_id, original_job_id = _seed_job(sessions)
+    with sessions.begin() as session:
+        original = session.get(Job, original_job_id)
+        checkpoint = json.loads(original.checkpoint)
+        for index in range(12):
+            session.add(
+                Job(
+                    source_id=original.source_id,
+                    kind=original.kind,
+                    target_id=need_id,
+                    status="queued",
+                    checkpoint=json.dumps({"request_digest": f"{index:064x}"}),
+                    created_at=datetime.now(UTC) + timedelta(seconds=index + 1),
+                )
+            )
+        session.add(
+            Job(
+                source_id=original.source_id,
+                kind=original.kind,
+                target_id=need_id,
+                status="queued",
+                checkpoint="legacy malformed checkpoint [",
+                created_at=datetime.now(UTC) + timedelta(seconds=20),
+            )
+        )
+        reused = enqueue_intelligence(session, need_id=need_id, task_type="SOURCE_RELEVANCE_V1")
+        assert reused.id == original.id
+        assert json.loads(reused.checkpoint)["request_digest"] == checkpoint["request_digest"]
+
+
+def test_concurrent_enqueue_reuses_one_matching_active_job(sessions):
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Barrier
+
+    need_id, _evidence_id, _job_id = _seed_job(sessions)
+    barrier = Barrier(2)
+
+    def enqueue():
+        with sessions.begin() as session:
+            barrier.wait(timeout=5)
+            return enqueue_intelligence(
+                session, need_id=need_id, task_type="SOURCE_RELEVANCE_V1"
+            ).id
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        ids = list(pool.map(lambda _index: enqueue(), range(2)))
+    assert ids[0] == ids[1]
+
+
 def test_retained_context_uses_accepted_supplement_hashes_independently(sessions):
     from gridlens.intelligence.intelligence_jobs import _retained_context
 
@@ -2066,6 +2116,7 @@ def _seed_signal_adjudication_job(sessions):
             source_id=source_id,
             kind="signal_adjudication",
             target_id=observation_id,
+            available_at=datetime.now(UTC) - timedelta(seconds=1),
             checkpoint=json.dumps(
                 {
                     "evidence_id": str(evidence_id),

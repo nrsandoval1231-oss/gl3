@@ -1,0 +1,144 @@
+{
+  "packet": "AUDIT-DOCS",
+  "objective": "Consolidate active documentation against the implementation and dated read-only observations; add focused documentation checks.",
+  "repository": "C:\\Users\\nrsan\\Nucleus\\02_Projects\\GridLens\\gl3-audit-docs-20261020",
+  "branch": "repair/audit-docs-20261020",
+  "base_sha": "fc5afbb144d5129ef9edcefeeb87d5faf25f03f4",
+  "status": "IMPLEMENTED_PENDING_CONTROLLER_VALIDATION",
+  "started_utc": "UNKNOWN",
+  "finished_utc": "2026-10-20T19:49:51Z",
+  "changed_files": [
+    ".agent/AUDIT-DOCS-COMPLETION.json",
+    ".agent/CURRENT_STATE.md",
+    ".agent/archive/AUDIT-20261020/DOCUMENTATION-INVENTORY-20261020.md",
+    ".agent/archive/AUDIT-20261020/README.md",
+    ".agent/archive/AUDIT-20261020/pre-docs-followup-20261020__docs__delivery__build-plan.md",
+    ".agent/archive/AUDIT-20261020/pre-docs-followup-20261020__docs__operations__local-signal-verification.md",
+    ".agent/archive/AUDIT-20261020/pre-docs-followup-20261020__docs__operations__manual-pr-review.md",
+    ".agent/archive/AUDIT-20261020/pre-docs-followup-20261020__docs__operations__power-pursuits.md",
+    ".agent/archive/AUDIT-20261020/pre-docs-repair-8163f13__README.md",
+    ".agent/archive/AUDIT-20261020/pre-docs-repair-8163f13__deploy__README.md",
+    ".agent/archive/AUDIT-20261020/pre-docs-repair-8163f13__deploy__digitalocean__README.md",
+    ".agent/archive/AUDIT-20261020/pre-docs-repair-8163f13__docs__README.md",
+    ".agent/archive/AUDIT-20261020/pre-docs-repair-8163f13__docs__architecture__README.md",
+    ".agent/archive/AUDIT-20261020/pre-docs-repair-8163f13__docs__architecture__overview.md",
+    ".agent/archive/AUDIT-20261020/pre-docs-repair-8163f13__docs__decisions.md",
+    ".agent/archive/AUDIT-20261020/pre-docs-repair-8163f13__docs__delivery__README.md",
+    ".agent/archive/AUDIT-20261020/pre-docs-repair-8163f13__docs__delivery__milestones.md",
+    ".agent/archive/AUDIT-20261020/pre-docs-repair-8163f13__docs__operations__README.md",
+    ".agent/archive/AUDIT-20261020/pre-docs-repair-8163f13__docs__operations__local-runtime.md",
+    ".agent/archive/AUDIT-20261020/pre-docs-repair-8163f13__docs__operations__runtime-recovery.md",
+    ".agent/archive/AUDIT-20261020/pre-docs-repair-8163f13__docs__sources__README.md",
+    ".agent/archive/AUDIT-20261020/pre-docs-repair-8163f13__docs__sources__coverage.md",
+    ".agent/archive/AUDIT-20261020/pre-docs-repair-8163f13__scripts__README.md",
+    "README.md",
+    "config/README.md",
+    "config/sources/README.md",
+    "deploy/README.md",
+    "deploy/digitalocean/README.md",
+    "docs/README.md",
+    "docs/architecture/overview.md",
+    "docs/decisions.md",
+    "docs/delivery/README.md",
+    "docs/delivery/build-plan.md",
+    "docs/delivery/milestones.md",
+    "docs/operations/README.md",
+    "docs/operations/local-runtime.md",
+    "docs/operations/local-signal-verification.md",
+    "docs/operations/manual-pr-review.md",
+    "docs/operations/observations/",
+    "docs/operations/power-pursuits.md",
+    "docs/operations/runtime-configuration.md",
+    "docs/operations/runtime-recovery.md",
+    "docs/sources/README.md",
+    "docs/sources/coverage.md",
+    "scripts/README.md",
+    "scripts/check.ps1",
+    "scripts/check_docs.py"
+  ],
+  "validation": [
+    {
+      "command": "uv run --project backend python scripts/check_docs.py",
+      "exit_code": 0,
+      "result": "Maintained documentation graph passed: 39 documents, 135 local targets, 2 anchors. Immutable historical trees are excluded from outgoing traversal but local links to them are checked."
+    },
+    {
+      "command": "uv run --project backend python -m py_compile scripts/check_docs.py",
+      "exit_code": 0,
+      "result": "Passed."
+    },
+    {
+      "command": "pwsh -NoProfile -Command parse scripts/check.ps1 with System.Management.Automation.Language.Parser",
+      "exit_code": 0,
+      "result": "PowerShell parse passed."
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0,
+      "result": "Passed. Git printed configured LF-to-CRLF working-copy warnings."
+    },
+    {
+      "command": "Validate committed inventory rows against ignored docs-inventory-baseline.json",
+      "exit_code": 0,
+      "result": "151 baseline Markdown files each have one disposition; classes: authority 9, candidate-evidence 73, current-entry 13, source-note 28, superseded-or-preparation 6, technical-note 22. This is a path/role disposition, not a line-by-line review of all historical prose."
+    },
+    {
+      "command": "Compare seven documented raw-receipt SHA-256 values with named controller receipts",
+      "exit_code": 0,
+      "result": "All seven hashes matched. Read-only receipts only; no raw receipts copied into repository."
+    },
+    {
+      "command": "Compare four archived superseded pages to pre-edit HEAD blobs after CRLF checkout normalization",
+      "exit_code": 0,
+      "result": "All four archived copies matched pre-edit bytes after normalizing documented CRLF checkout conversion."
+    }
+  ],
+  "read_only_references": {
+    "baseline_inventory": ".artifacts/docs-inventory-baseline.json (ignored; not committed; 151 documents, 34 missing local targets at baseline)",
+    "production_receipts": "Adjacent controller worktree .artifacts/audit-remediation/production-readonly*.txt and production-backup-sha256-20261020.txt; read only",
+    "pull_requests": [
+      "#97: docs/operations/production-database-and-backups.md; proposal status conflicts with subsequent handoff claims, so only independently observed receipts were consolidated.",
+      "#98: docs/operations/2026-10-20-recovery-handoff.md; reviewed as a dated handoff, not treated as the authority for current host claims."
+    ]
+  },
+  "metrics": {
+    "historical_documents_in_inventory": 151,
+    "historical_missing_relative_targets_at_baseline": 34,
+    "active_documents_checked": 39,
+    "local_targets_checked": 135,
+    "production_database_projects": 1620,
+    "production_saved_needs": 1619,
+    "restored_local_evidence_versions": 18016,
+    "restored_local_observations": 16694,
+    "full_repository_validation": "UNKNOWN_PENDING_CONTROLLER",
+    "candidate_sha_and_commit": "UNKNOWN_PENDING_COMMIT",
+    "independent_review": "UNKNOWN_PENDING_CONTROLLER",
+    "ci_status": "UNKNOWN",
+    "deployment_status": "NO_CHANGE_BY_THIS_PACKET; overall release remains open",
+    "authenticated_live_workflow": "UNKNOWN",
+    "scheduled_offhost_retention": "UNKNOWN",
+    "tokens": "UNKNOWN",
+    "model_config_identity": "UNKNOWN",
+    "elapsed_to_acceptance": "UNKNOWN_PENDING_INDEPENDENT_ACCEPTANCE",
+    "inventory_disposition_counts": {
+      "authority": 9,
+      "candidate-evidence": 73,
+      "current-entry": 13,
+      "source-note": 28,
+      "superseded-or-preparation": 6,
+      "technical-note": 22
+    },
+    "heading_anchors_checked": 2,
+    "raw_receipt_hashes_checked": 7,
+    "superseded_pages_archived_byte_equivalent": 4,
+    "production_deploy_rollback_commands": "UNKNOWN; authorized wrapper and secret context were not observed",
+    "repeatable_backup_restore_commands": "UNKNOWN; installed service script, offhost schedule, and authorized restore procedure were not observed"
+  },
+  "authority_and_scope": "No product code, migrations, canonical PRD/UI canon, credentials, GitHub settings, production state, deployment, merge, push, provider call, or governance setting was changed. This artifact reports a documentation checkpoint only; it does not claim parent objective completion or deployment.",
+  "second_repair": {
+    "base_commit": "8163f134d87eb92a19fbe18824630cb97490d15e",
+    "status": "prepared for controller validation",
+    "scope": "Expanded reachable-document and anchor checking; replaced four conflicting active narratives with notices while preserving pre-edit bytes; committed 151-document disposition index; clarified source registry fields, receipt window, setup and current authorities.",
+    "owner_decision": "Authorized October 20 discovery Signal decision appended to docs/decisions.md; PRD and UI canon untouched; implementation/heldout validation pending Terra."
+  }
+}

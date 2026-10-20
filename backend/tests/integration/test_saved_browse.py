@@ -1,8 +1,12 @@
 """Disposable PostgreSQL parity and publication safety; no external calls."""
 
+import asyncio
+import csv
+import json
 from copy import deepcopy
 from datetime import UTC, date, datetime, timedelta
 from importlib import import_module
+from io import StringIO
 from uuid import UUID, uuid4
 
 import pytest
@@ -359,7 +363,7 @@ def test_group_membership_is_recomputed_after_activity_filter(saved_db):
 
 def test_exact_fact_boundary_and_policy_expiry_fail_closed(saved_db, monkeypatch):
     from gridlens.intelligence import saved_browse
-    from gridlens.persistence.models import BrowseGeneration, CallFactVersion
+    from gridlens.persistence.models import BrowseGeneration, CallFactDecision, CallFactVersion
 
     ids = seed(saved_db, count=1)
     boundary = datetime.now(UTC) + timedelta(minutes=5)
@@ -380,6 +384,21 @@ def test_exact_fact_boundary_and_policy_expiry_fail_closed(saved_db, monkeypatch
                 effective_from=boundary,
                 content_hash="a" * 64,
                 recorded_by="Synthetic actor",
+            )
+        )
+        session.flush()
+        fact = session.scalar(select(CallFactVersion).where(CallFactVersion.need_id == need.id))
+        session.add(
+            CallFactDecision(
+                need_id=need.id,
+                fact_version_id=fact.id,
+                version=1,
+                client_id=uuid4(),
+                decision="accepted",
+                expected_version=0,
+                reason="Synthetic accepted future demand",
+                content_hash="b" * 64,
+                actor="Synthetic",
             )
         )
     rebuild(saved_db)
@@ -488,6 +507,16 @@ def test_map_group_detail_and_export_accept_saved_tokens(saved_db, monkeypatch):
         tier="Signal", cohort_token=saved["cohort_token"], limit=500
     )
     assert exported.headers["x-total-count"] == "3"
+
+    async def read_export():
+        return "".join([chunk.decode() async for chunk in exported.body_iterator])
+
+    exported_csv = asyncio.run(read_export())
+    export_rows = list(csv.DictReader(StringIO(exported_csv)))
+    first_export = next(row for row in export_rows if row["need_id"] == str(item["id"]))
+    assert int(first_export["rank_score"]) == detail["rank_score"]
+    assert json.loads(first_export["rank_reasons"]) == detail["rank_reasons"]
+    assert first_export["rank_version"] == detail["rank_version"]
     with saved_db.begin() as session:
         session.execute(text("UPDATE projects SET name='Changed fixture'"))
     with pytest.raises(HTTPException) as exc:

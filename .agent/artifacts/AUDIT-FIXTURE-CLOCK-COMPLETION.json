@@ -1,0 +1,28 @@
+{
+  "packet": "AUDIT-FIXTURE-CLOCK",
+  "status": "PASS",
+  "branch": "repair/audit-fixture-clock-20261020",
+  "base_sha": "0db08e5ce52d1094cb8ff11e7c40e4c551d8a526",
+  "source_commit": "17f263e3440b2ab8bf8ea0c9072182641a4d0a3b",
+  "utc_start": "UNKNOWN (not captured at dispatch)",
+  "utc_finish": "2026-10-20T20:42:49Z",
+  "changed_files": [
+    "backend/tests/integration/test_collection_chain_budget.py",
+    "backend/tests/integration/test_intelligence_worker_integration.py"
+  ],
+  "change": "Set the selected queued collection job due one second before worker dispatch, including generated successors; seed estimated-JEV adjudication jobs as explicitly due.",
+  "validation": {
+    "focused_pytest": {
+      "command": "python -m pytest -q tests/integration/test_collection_chain_budget.py::test_default_and_legacy_marker_allow_exactly_eight_jobs tests/integration/test_intelligence_worker_integration.py::test_estimated_jev_uses_existing_shared_active_and_budget_caps tests/integration/test_structured_collection_adversarial.py",
+      "result": "13 passed in 7.28s; exit 0",
+      "database_guard": "Fresh private databases on 127.0.0.1:55520: gl3_fixture_clock_20261020_app and gl3_fixture_clock_20261020_test"
+    },
+    "ruff": "ruff check on both changed files: All checks passed",
+    "diff_check": "git diff --check: passed"
+  },
+  "failure_evidence": {
+    "prior_preflight": "Parent integrated-preflight.log records failures in both exactly-eight-jobs parameterizations and the max_active estimated-JEV case. The focused rerun after explicit due timestamps passed all four cases.",
+    "rerun_log": "backend/fixture-clock-focused-pytest.log (ignored local evidence file)"
+  },
+  "authority": "Tests only; no production code, lease eligibility, budgets, accounting, schemas, paid calls, push, merge, or deployment."
+}

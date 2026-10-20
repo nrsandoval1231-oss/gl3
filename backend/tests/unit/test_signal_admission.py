@@ -109,3 +109,39 @@ def test_planning_and_general_government_research_remain_context():
             identified_project=True,
         )
         assert not result.admitted
+
+
+def test_news_admission_rechecks_exact_dated_evidence_and_neutral_activity():
+    from datetime import date
+    from types import SimpleNamespace
+
+    from gridlens.domain.news_interpretation import assess_news
+    from gridlens.domain.signal_admission import admitted_from_source
+
+    source = SimpleNamespace(id="rss", family="news", retrieval_method="publisher-rss")
+    title = "Atlas sells New York smelter to data center developer"
+    evidence = SimpleNamespace(
+        title=title,
+        abstract="",
+        content_hash="hash",
+        published_at=date(2026, 10, 20),
+        event_date=None,
+        url="https://publisher.example/article",
+    )
+    assessment = assess_news(title, "").as_dict()
+    assessment.update(evidence_hash="hash", power_activity="project-discovery")
+    assert admitted_from_source(source, assessment, evidence).admitted
+    for change in (
+        {"evidence_hash": "stale"},
+        {"subject": "Different"},
+        {"location": "Texas"},
+        {"action": "builds"},
+        {"tier": "Prospect"},
+        {"power_activity": "construction"},
+    ):
+        assert not admitted_from_source(source, {**assessment, **change}, evidence).admitted
+    evidence.url = None
+    assert not admitted_from_source(source, assessment, evidence).admitted
+    evidence.url = "https://publisher.example/article"
+    evidence.published_at = None
+    assert not admitted_from_source(source, assessment, evidence).admitted

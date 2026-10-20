@@ -536,7 +536,7 @@ def qualification_from_facts(
     if timing_conflict:
         conflict = {
             **base,
-            "tier": "Prospect",
+            "tier": "Signal" if need.activity_key == "project-discovery" else "Prospect",
             "qualification_conflict": True,
             "closed_by_fact": False,
             "reason": (
@@ -650,6 +650,28 @@ def qualification_from_facts(
         ):
             closed.pop(key, None)
         return closed
+
+    # Discovery records identify a site event, not a power phase. Keep the
+    # accepted facts and closure/conflict handling above, but do not treat facts
+    # bound to this neutral placeholder as phase-specific qualification.
+    if need.activity_key == "project-discovery":
+        result = {
+            **base,
+            "tier": "Signal",
+            "demand_mw": None,
+            "required_mw": None,
+            "reason": "A supported power activity is required before qualification.",
+        }
+        for key in (
+            "start_window",
+            "duration",
+            "qualified_remaining_gap",
+            "qualification_next_action",
+            "buying_role",
+            "fact_derived_required_mw",
+        ):
+            result.pop(key, None)
+        return result
 
     # A source-supported Prospect already establishes activity-specific demand
     # and unsuitable supply. Signal needs compatible exact-need facts for both.

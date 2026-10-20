@@ -1,32 +1,38 @@
-# Runtime recovery — GL3-020
+# Local database and source recovery commands
 
-Recover the configured application database in place. Preserve `.env`, credentials, source artifacts and existing data. Do not create a replacement corpus or reset the application database to make acceptance pass.
+This is a **local development** procedure. It is not the production deployment or backup/restore runbook. Production commands and rollback are UNKNOWN; use the [operations authority](README.md), which maintains the deployment hold.
 
-From the repository root, first inspect existing listeners and processes. Start the existing PostgreSQL cluster using its established command if needed. Apply pending migrations with `(cd backend && .venv/bin/alembic upgrade head)`; this is additive migration, not database replacement.
+## Read-only status
 
-```bash
+Run from the repository root after configuring the ignored local `.env` and starting only the local PostgreSQL cluster described in [local runtime](local-runtime.md):
+
+```powershell
 uv run --project backend python -m gridlens.jobs.runtime status
-uv run --project backend python -m gridlens.jobs.runtime reconcile
-uv run --project backend python -m gridlens.jobs.runtime check \
-  --source austin-building-permits --source texas-rrc-drilling-permits
 ```
 
-`status` uses a read-only transaction. Missing persisted registry entries, field drift and unregistered retained sources are reported separately. Counts and saved source health are database observations, not service-health probes. A stale saved success is not a current refresh.
+The command reads registry drift, source health, counts, and queue backlog. It does not probe the database's service health, retrieve sources, or prove a current source refresh. A saved old success is not a fresh check.
 
-`reconcile` inserts/updates registry entries using the existing worker synchronization. Health, jobs, evidence and project history are preserved. Unregistered rows are reported and retained; no automatic deletion or retirement is performed.
+## Registry reconciliation
 
-`check` validates all selections before mutation, deduplicates repeated IDs and attempts each selected source at most once. Existing queued/running jobs are reused. Future backoff and active leases remain intact, so a job can be reported as deferred without a new request. Expired selected jobs use normal lease recovery; unrelated jobs and expired leases are untouched. Exit 1 means at least one selected check failed or was deferred. It does not block checks for other selected sources. Existing adapter timeouts, byte/page limits, source restrictions and deterministic admission stay authoritative.
+`reconcile` writes registry definitions to the configured database while preserving saved health, jobs, evidence, and project history. Run it only against the disposable local application database after verifying the effective database target. Never run it merely to fix a report or against a production/retained database.
 
-After a successful check, repeat the same command to test source replay. Inspect job status and new/changed/unchanged counts, and verify persisted content/evidence identities before claiming duplicate-free replay. Source data can change between requests; changed records must retain prior evidence. Do not count unchanged records as fresh opportunities.
+```powershell
+uv run --project backend python -m gridlens.jobs.runtime reconcile
+```
 
-Start API and web using the saved handoff commands; sign in using the existing ignored local credential file. Verify authenticated Signals, evidence detail and source health; unauthenticated requests must remain rejected.
+Unregistered rows are reported and retained. The command does not delete sources or history.
 
-For continuous collection in this development runtime, the existing worker can be started with `WORKER_AUTO_REFRESH=true`. It plans due sources at startup and hourly thereafter. A paused/suspended executor cannot guarantee daily collection. Production still requires authorized durable hosting, the managed scheduler, secrets, alerts, backups and seven measured scheduled daily cycles. This slice does not close PRD milestones A or E.
+## Explicit source check
 
-## Texas RRC calendar boundary
+`check` can enqueue work and make real external HTTP requests. It can also write observations and evidence. Only run a specifically approved source against the local database, after checking source access/retention rules and the active environment. The following example is a shape, not authorization to fetch either named source:
 
-RRC snapshot selection and freshness use `America/Chicago`, the publisher’s local day. Between UTC midnight and Texas midnight, the previous month-end product must still be selected from the Texas month. This fixes the October 1 01:00 UTC request for a September EOM while it was still September 30 in Texas. After Texas midnight, an unpublished required EOM still fails visibly; no guessed backup or older archive substitutes for it. The missing-snapshot error includes the requested filename.
+```powershell
+uv run --project backend python -m gridlens.jobs.runtime check `
+  --source <approved-source-id>
+```
 
-## Stable grouped-permit replay
+The command validates all IDs before mutation and attempts each selected source at most once. Active jobs are reused; retry backoff and leases can defer work. Exit 1 means at least one selected check failed or was deferred; exit 2 means invalid input or runtime setup failure. A deferred result does not mean a new request occurred.
 
-Several accepted permits can support the same power need. An unchanged check retains its saved admission citation when that citation still links to current accepted evidence for the same project/activity and current admission policy. This avoids rotating between valid permit citations and updating the opportunity timestamp on replay. Invalid/outdated bases still refresh; real source changes continue through the existing correction/history path.
+After a successful, authorized check, repeat only if a replay was explicitly requested. Compare durable observation/evidence identities, source health, and the relevant opportunity history. Do not treat unchanged rows as new discoveries. Parser failures must remain visible and must not overwrite last accepted data.
+
+For source schedule and worker behavior as implementation contracts, see [source scheduling proof](source-scheduling-proof.md) and [source controls and worker health](source-controls-and-worker-health.md). Those detailed engineering records do not establish production's scheduler or seven-day health.

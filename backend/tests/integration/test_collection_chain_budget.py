@@ -117,6 +117,9 @@ def _run(factory, definition, job_id):
     import gridlens.jobs.worker as worker
 
     with factory.begin() as session:
+        job = session.get(Job, job_id)
+        assert job is not None
+        job.available_at = datetime.now(UTC) - timedelta(seconds=1)
         if session.scalar(select(SourceDueCheck).where(SourceDueCheck.job_id == job_id)) is None:
             epoch = session.scalar(select(SourceScheduleEpoch))
             session.add(

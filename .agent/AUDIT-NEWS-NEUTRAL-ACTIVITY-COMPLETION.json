@@ -1,0 +1,49 @@
+{
+  "node": "neutral discovery activity qualification guard",
+  "source_sha": "14261e933e296b3032be0927ca1d2e3fc463645c",
+  "recorded_utc": "UNKNOWN",
+  "recorded_date": "2026-10-20",
+  "start_utc": "UNKNOWN",
+  "durations": "UNKNOWN",
+  "tokens": "UNKNOWN",
+  "model": "UNKNOWN",
+  "config_identity": "UNKNOWN",
+  "changed_files": [
+    "backend/src/gridlens/domain/call_facts.py",
+    "backend/tests/unit/test_call_facts.py",
+    "backend/tests/integration/test_call_fact_workflow_integration.py"
+  ],
+  "validation": [
+    {
+      "cwd": "backend",
+      "command": "$env:PYTHONPATH='src'; ../../gl3-audit-retained-20261020/backend/.venv/Scripts/python.exe -m pytest tests/unit/test_call_facts.py tests/integration/test_call_fact_workflow_integration.py -q --tb=short",
+      "result": "56 passed, 1 dependency deprecation warning",
+      "exit_code": 0,
+      "database": "private isolated news_test"
+    },
+    {
+      "cwd": "repository root",
+      "command": "../gl3-audit-retained-20261020/backend/.venv/Scripts/ruff.exe format backend/src/gridlens/domain/call_facts.py backend/tests/unit/test_call_facts.py backend/tests/integration/test_call_fact_workflow_integration.py",
+      "result": "3 files left unchanged",
+      "exit_code": 0
+    },
+    {
+      "cwd": "repository root",
+      "command": "../gl3-audit-retained-20261020/backend/.venv/Scripts/ruff.exe check backend/src/gridlens/domain/call_facts.py backend/tests/unit/test_call_facts.py backend/tests/integration/test_call_fact_workflow_integration.py",
+      "result": "All checks passed",
+      "exit_code": 0
+    },
+    {"cwd": "repository root", "command": "git diff --check", "result": "PASS", "exit_code": 0}
+  ],
+  "behavior": [
+    "Neutral project-discovery remains Signal when demand, unsuitable supply, timing, suitable supply and buyer facts are accepted; fact history remains available.",
+    "Timing conflicts remain conflicts and cannot promote neutral discovery; existing conflict semantics for supported activities are retained.",
+    "Explicit closure and confirmed adequate supply over the complete window retain existing closure semantics.",
+    "A supported construction activity continues to qualify under existing Prospect and Lead gates.",
+    "Endpoint regression checks Signal list and detail, fact version readback, and closure."
+  ],
+  "limitations": [
+    "No phase editor or automatic activity renaming was added. A genuinely supported power activity must be evidenced and reconciled before qualification promotion.",
+    "Independent review and combined candidate validation remain controller responsibilities."
+  ]
+}
