@@ -10,7 +10,7 @@ import re
 from dataclasses import asdict, dataclass
 from typing import Any
 
-EVALUATOR_VERSION = "rss-project-v9"
+EVALUATOR_VERSION = "rss-project-v10"
 _STATES = (
     "Alabama|Alaska|Arizona|Arkansas|California|Colorado|Connecticut|Delaware|Florida|Georgia|"
     "Hawaii|Idaho|Illinois|Indiana|Iowa|Kansas|Kentucky|Louisiana|Maine|Maryland|"
@@ -102,6 +102,13 @@ _STATE_ABBREVIATIONS = {
 _OUTSIDE_US = re.compile(
     r"(?<!New )\b(Mexico|Japan|South Korea|Korea|Canada|United Kingdom|UK|Germany|India|"
     r"China|Taiwan|"
+    r"France|Australia|Singapore|Malaysia|Thailand|Vietnam|Indonesia|Poland|Israel)\b",
+    re.I,
+)
+_FOREIGN_SITE_LOCATION = re.compile(
+    r"\b(?:in|at|near|around)\s+"
+    r"(?:(?:[A-Z][\w.'-]*(?:\s+[A-Z][\w.'-]*){0,2}),\s*)?"
+    r"(?:Mexico|Japan|South Korea|Korea|Canada|United Kingdom|UK|Germany|India|China|Taiwan|"
     r"France|Australia|Singapore|Malaysia|Thailand|Vietnam|Indonesia|Poland|Israel)\b",
     re.I,
 )
@@ -244,15 +251,8 @@ def _site_location(text: str) -> str | None:
     """Find a US place grammatically attached to the facility event, never an actor HQ."""
     text = re.sub(rf"\b(?:{_STATES})-based\b", "", text, flags=re.I)
     facility_match = _FACILITY.search(text)
-    for city, state_name in sorted(_CITIES.items(), key=lambda item: len(item[0]), reverse=True):
-        city_match = re.search(rf"\b{re.escape(city)}\b", text, re.I)
-        if city_match is None:
-            continue
-        before = text[max(0, city_match.start() - 10) : city_match.start()]
-        if re.search(r"\b(?:in|at|near)\s*$", before, re.I) or (
-            facility_match and city_match.end() <= facility_match.start()
-        ):
-            return city if city.casefold() == state_name.casefold() else f"{city}, {state_name}"
+    # An explicit state tied to the project outranks a city-name fallback.
+    # For example, Columbus can refer to cities in several states.
     for state in _STATE_RE.finditer(text):
         before = text[max(0, state.start() - 10) : state.start()]
         after = text[state.end() : state.end() + 35]
@@ -273,6 +273,15 @@ def _site_location(text: str) -> str | None:
             if city_state:
                 return f"{city_state.group(1)}, {state.group(1)}"
             return state.group(1)
+    for city, state_name in sorted(_CITIES.items(), key=lambda item: len(item[0]), reverse=True):
+        city_match = re.search(rf"\b{re.escape(city)}\b", text, re.I)
+        if city_match is None:
+            continue
+        before = text[max(0, city_match.start() - 10) : city_match.start()]
+        if re.search(r"\b(?:in|at|near)\s*$", before, re.I) or (
+            facility_match and city_match.end() <= facility_match.start()
+        ):
+            return city if city.casefold() == state_name.casefold() else f"{city}, {state_name}"
     embedded = re.search(
         rf"\b([A-Z][\w.'-]*(?:\s+[A-Z][\w.'-]*){{0,2}})\s+"
         rf"(?:data cent(?:er|re)|campus|plant|facility|site|hotel|shipyard),\s*({_STATES})\b",
@@ -306,6 +315,28 @@ def _event_span(title: str, summary: str) -> str | None:
 
 def _event_location(title: str, summary: str, event: str | None) -> str | None:
     """Do not infer a plant location from a separate company/background sentence."""
+    # A project-linked foreign location is authoritative even if the same event
+    # contains a US state token (for example, a Georgia factory near Monterrey).
+    # Requiring the location phrase to follow the facility avoids treating an
+    # actor's foreign headquarters as the project's site.
+    for span in (event, title):
+        if span:
+            facility_match = _FACILITY.search(span)
+            foreign_location = _FOREIGN_SITE_LOCATION.search(span)
+            site_modifier = (
+                span[facility_match.end() : foreign_location.start()]
+                if facility_match and foreign_location
+                else ""
+            )
+            if (
+                facility_match
+                and foreign_location
+                and foreign_location.start() >= facility_match.end()
+                and not re.search(
+                    r"[.;]|\b(?:headquarters?|HQ|headquartered|based)\b", site_modifier, re.I
+                )
+            ):
+                return None
     for span in (event, title):
         if span:
             location = _site_location(span)

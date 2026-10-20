@@ -57,6 +57,26 @@ test('workspace sends server filters, opens canonical detail, and restores list 
   await expect(page.getByRole('heading', { name: 'Power needs' })).toBeVisible()
 })
 
+test('browser Back re-reads the same selected need after identity is cleared', async ({ page }) => {
+  let detailReads = 0
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response() }))
+  await page.route('**/api/opportunities/needs/need-a*', route => {
+    detailReads += 1
+    return route.fulfill({ json: need })
+  })
+  await page.goto('/?view=workspace')
+  await page.locator('[data-need-row="need-a"]').click()
+  await expect(page.getByRole('heading', { name: 'Test data center' })).toBeVisible()
+  await page.locator('[data-need-row="need-a"]').click()
+  await expect.poll(() => new URL(page.url()).searchParams.get('need')).toBe('need-a')
+  const readsBeforeBack = detailReads
+  await page.goBack()
+  await expect.poll(() => detailReads).toBeGreaterThan(readsBeforeBack)
+  await expect(page.getByRole('heading', { name: 'Test data center' })).toBeVisible()
+  await expect(page.getByText('Loading current need detail.')).toHaveCount(0)
+})
+
 test('table uses its source-backed browse title and settled detail recomputes from current evidence', async ({ page }) => {
   const row = { ...need, name: 'Austin permit 2026-127192 EP', browse_title: 'JLC Electrical Contractor corp · contractor' }
   const detail = {
@@ -651,6 +671,127 @@ test('material change review acknowledges only the displayed page and keeps heal
   await expect.poll(() => reads).toBeGreaterThan(1)
   await expect(panel).toContainText('No unreviewed material changes on this page.')
   await expect(panel).toContainText('source-a · Partial · partial run · 1 parse failures')
+})
+
+test('reviewing page two resets to the remaining first page without changing its exact token', async ({ page }) => {
+  await page.unrouteAll()
+  let pageTwoReviewed = false
+  let failFirstReview = true
+  const reviewBodies: Record<string, unknown>[] = []
+  const changes = (offset: number) => {
+    const start = pageTwoReviewed ? 1 : offset + 1
+    const count = pageTwoReviewed ? 50 : 100 - offset
+    const items = Array.from({ length: Math.min(50, count) }, (_, index) => ({
+      event_key: `change:${start + index}`,
+      category: 'changed',
+      title: `Change ${start + index}`,
+      detail: 'Synthetic remaining material change',
+      created_at: '2026-10-20T12:00:00Z',
+      source_date: null, project_id: null, before_state: null, after_state: null,
+      needs: [], sources: [],
+    }))
+    return {
+      ...emptyChanges,
+      items,
+      total_unreviewed: pageTwoReviewed ? 50 : 100,
+      offset: pageTwoReviewed ? 0 : offset,
+      next_offset: pageTwoReviewed ? null : offset === 0 ? 50 : null,
+      token: `token-${pageTwoReviewed ? 'remaining' : offset}`,
+    }
+  }
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response() }))
+  await page.route('**/api/opportunities/workspace/changes*', async route => {
+    if (route.request().method() === 'POST') {
+      reviewBodies.push(route.request().postDataJSON() as Record<string, unknown>)
+      if (failFirstReview) {
+        failFirstReview = false
+        return route.fulfill({ status: 503, json: { detail: 'Synthetic review response failure' } })
+      }
+      pageTwoReviewed = true
+      return route.fulfill({ json: { baseline_identity: emptyChanges.baseline_identity, reviewed_count: 50, token: 'token-50', event_keys: [] } })
+    }
+    const offset = Number(new URL(route.request().url()).searchParams.get('offset') ?? 0)
+    return route.fulfill({ json: changes(offset) })
+  })
+  await page.goto('/?view=workspace')
+  const panel = page.getByRole('region', { name: 'Material changes' })
+  await panel.locator('summary').click()
+  await expect(panel.getByRole('heading', { name: 'Change 1' })).toBeVisible()
+  await panel.getByRole('button', { name: 'Next changes' }).click()
+  await expect(panel.getByRole('heading', { name: 'Change 51' })).toBeVisible()
+  await panel.getByRole('button', { name: 'Mark these displayed changes reviewed' }).click()
+  await expect(panel.getByRole('alert')).toBeVisible()
+  await expect(panel.getByRole('heading', { name: 'Change 51' })).toBeVisible()
+  await panel.getByRole('button', { name: 'Mark these displayed changes reviewed' }).click()
+  await expect.poll(() => reviewBodies).toHaveLength(2)
+  expect(reviewBodies[0]).toEqual({ baseline_identity: emptyChanges.baseline_identity, token: 'token-50', limit: 50, offset: 50 })
+  expect(reviewBodies[1]).toEqual(reviewBodies[0])
+  await expect(panel.getByRole('heading', { name: 'Change 1' })).toBeVisible()
+  await expect(panel.getByRole('heading', { name: 'Change 50' })).toBeVisible()
+  await expect(panel.getByText(/Showing 1-50 of 50 unreviewed/)).toBeVisible()
+})
+
+test('accepted fact read-back refreshes the material changes count and list', async ({ page }) => {
+  await page.unrouteAll()
+  let fact: Record<string, any> | null = null
+  let currentVersion = 0
+  let changeReads = 0
+  const emptyFactPage = () => ({ items: fact ? [fact] : [], total: fact ? 1 : 0, limit: 50, offset: 0, next_offset: null, current_fact_version: currentVersion })
+  const materialChange = {
+    ...emptyChanges,
+    items: [{
+      event_key: 'fact:accepted-fact', category: 'changed', title: 'Call fact accepted: demand',
+      detail: 'Synthetic facility', created_at: '2026-10-20T12:00:00Z', source_date: null,
+      project_id: 'project-a', before_state: null,
+      after_state: { fact_type: 'demand', value: { mw: '12' }, effective_from: null, effective_until: null },
+      needs: [], sources: [], fact_version_id: 'accepted-fact', fact_type: 'demand', decision: 'accepted',
+      reason: 'Confirmed by operator', actor: 'Operator', confirmed_at: '2026-10-20T12:00:00Z', source_reference: null,
+    }],
+    counts: { ...emptyChanges.counts, changed: 1 }, total_unreviewed: 1,
+  }
+  await page.route('**/api/**', async route => {
+    const request = route.request()
+    const path = new URL(request.url()).pathname
+    const method = request.method()
+    if (path === '/api/auth/session') return route.fulfill({ json: { authenticated: true } })
+    if (path === '/api/opportunities/workspace') return route.fulfill({ json: response() })
+    if (path === '/api/opportunities/workspace/changes') {
+      changeReads += 1
+      return route.fulfill({ json: fact?.decision === 'accepted' ? materialChange : emptyChanges })
+    }
+    if (path === '/api/opportunities/needs/need-a') return route.fulfill({ json: need })
+    if (path === '/api/needs/need-a/facts' && method === 'GET') return route.fulfill({ json: emptyFactPage() })
+    if (path === '/api/needs/need-a/facts' && method === 'POST') {
+      currentVersion = 1
+      fact = { id: 'accepted-fact', need_id: 'need-a', project_id: 'project-a', predecessor_id: null, activity_key: 'construction', facility_scope: 'Test data center', fact_type: 'demand', value: { mw: '12', basis: 'Synthetic report' }, reporter_name: 'Synthetic operator', reporter_role: 'Project Engineer', confirmation_channel: 'phone', source_reference: null, source_date: null, confirmed_at: '2026-10-20T12:00:00Z', effective_from: '2026-10-20T12:00:00Z', effective_until: null, content_hash: 'a'.repeat(64), decision: 'draft', decision_version: currentVersion, decision_reason: 'Draft', decision_actor: 'Operator', authority_label: 'Reported / not accepted', recorded_by: 'Operator', created_at: '2026-10-20T12:00:00Z' }
+      return route.fulfill({ json: fact })
+    }
+    if (path === '/api/needs/need-a/facts/accepted-fact/decision' && method === 'POST') {
+      currentVersion += 1
+      fact = { ...fact!, decision: 'accepted', decision_version: currentVersion, decision_reason: 'Confirmed by operator', decision_actor: 'Operator', authority_label: 'User-confirmed' }
+      return route.fulfill({ json: { id: 'decision-accepted', version: currentVersion, decision: 'accepted', fact_version_id: 'accepted-fact', reason: 'Confirmed by operator', actor: 'Operator', created_at: '2026-10-20T12:00:00Z' } })
+    }
+    if (path === '/api/needs/need-a/workflow-status') return route.fulfill({ json: { need_id: 'need-a', status: 'New', version: 0, events: [] } })
+    if (path === '/api/power-needs/need-a/title') return route.fulfill({ json: { status: 'disabled', result: null, citations: [] } })
+    if (path === '/api/projects/project-a/buying-chain') return route.fulfill({ json: { project_id: 'project-a', candidates: [], permit_summaries: [], unresolved: [], runs: [], status: 'unavailable' } })
+    return route.fulfill({ json: [] })
+  })
+  await page.goto('/?view=workspace')
+  const panel = page.getByRole('region', { name: 'Material changes' })
+  await expect(panel.locator('summary')).toContainText('0 unreviewed items')
+  await page.locator('[data-need-row="need-a"]').click()
+  await page.getByRole('button', { name: 'Next steps' }).click()
+  await page.getByLabel('Reporter name').fill('Synthetic operator')
+  await page.getByLabel('Reported demand (MW or bounded range)').fill('12')
+  await page.getByRole('button', { name: 'Save fact draft' }).click()
+  await expect(page.getByText(/Draft persisted and confirmed/)).toBeVisible()
+  await page.getByLabel('Reason for decision').fill('Confirmed by operator')
+  await page.getByRole('button', { name: 'Accept fact' }).click()
+  await expect(page.getByText(/Server read-back confirmed accepted version 2/)).toBeVisible()
+  await expect.poll(() => changeReads).toBeGreaterThan(1)
+  await expect(panel.locator('summary')).toContainText('1 unreviewed items')
+  await expect(panel.getByRole('heading', { name: 'Call fact accepted: demand' })).toBeVisible()
 })
 
 test('active change links use canonical workspace readback instead of historical stored tier', async ({ page }) => {
