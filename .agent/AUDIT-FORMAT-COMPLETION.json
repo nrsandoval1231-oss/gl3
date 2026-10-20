@@ -1,0 +1,58 @@
+{
+  "format": "gl3-audit-format-completion-v1",
+  "packet": "AUDIT-FORMAT",
+  "status": "FORMAT_AND_FOCUSED_STATIC_CHECKS_PASS",
+  "acceptance_claim": false,
+  "repository": "GridLens gl3",
+  "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-audit-publication-20261020",
+  "branch": "repair/audit-publication-20261020",
+  "packet_declared_base_sha": "a60b6fd60f562a1031baa5e0a729f737ef627ad7",
+  "source_commit": "2ce47fade34c6b53cc632ba9d1a6001ab5329a9e",
+  "owned_files": [
+    "backend/src/gridlens/intelligence/buying_chain.py",
+    "backend/tests/integration/test_call_fact_workflow_integration.py",
+    "backend/tests/integration/test_pursuit_workspace.py",
+    "backend/tests/integration/test_saved_browse.py"
+  ],
+  "validation": {
+    "format": {
+      "command": "uv run --project backend ruff format backend/src/gridlens/intelligence/buying_chain.py backend/tests/integration/test_call_fact_workflow_integration.py backend/tests/integration/test_pursuit_workspace.py backend/tests/integration/test_saved_browse.py",
+      "exit_code": 0,
+      "result": "4 files reformatted"
+    },
+    "ast_equality": {
+      "command": "uv run --project backend python -c <AST dump SHA-256 for all four owned files>",
+      "exit_code": 0,
+      "result": "PASS: before and after AST dump hashes identical",
+      "sha256": {
+        "backend/src/gridlens/intelligence/buying_chain.py": "83877cbaa07148dfa6735c7256218d32af3d725f91a2278be424098b396d4587",
+        "backend/tests/integration/test_call_fact_workflow_integration.py": "a9da0865f20b0e413a671afc4c7d7267ef8fc98e737f41b1b5e9bd5174ac619e",
+        "backend/tests/integration/test_pursuit_workspace.py": "f78a958ca9deb13e35579848986fba3f884536838e945a74d8e5da474a4fe67c",
+        "backend/tests/integration/test_saved_browse.py": "261c0d7544056ff15352b031ecedaa035907c40d0454035178abf56072539dc2"
+      }
+    },
+    "focused_lint": {
+      "command": "uv run --project backend ruff check backend/src/gridlens/intelligence/buying_chain.py backend/tests/integration/test_call_fact_workflow_integration.py backend/tests/integration/test_pursuit_workspace.py backend/tests/integration/test_saved_browse.py",
+      "exit_code": 0,
+      "result": "All checks passed"
+    },
+    "diff_check": {
+      "command": "git diff --check",
+      "exit_code": 0,
+      "result": "PASS"
+    },
+    "tests": "UNKNOWN / NOT RUN per packet"
+  },
+  "timing": {
+    "start_utc": "UNKNOWN",
+    "finish_utc": "2026-10-20T20:07:40Z",
+    "duration_seconds": "UNKNOWN"
+  },
+  "tokens": "UNKNOWN",
+  "config_identity": "UNKNOWN",
+  "limits": [
+    "Formatting only; AST equality proves no parsed Python syntax tree change.",
+    "No tests, database operations, provider calls, or runtime validation were performed.",
+    "Independent review, controller integration, repository-level acceptance, merge, push, deployment, and live-product acceptance are not claimed."
+  ]
+}
