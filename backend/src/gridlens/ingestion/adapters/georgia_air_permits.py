@@ -103,7 +103,13 @@ def _bounded_get(
 ) -> tuple[httpx.Headers, bytes]:
     parts: list[bytes] = []
     size = 0
-    with client.stream("GET", url, params=params, headers=headers) as response:
+    # The adapter's URL allowlist is only meaningful if callers cannot override
+    # the client's redirect policy. Pass False at the request boundary too.
+    with client.stream(
+        "GET", url, params=params, headers=headers, follow_redirects=False
+    ) as response:
+        if 300 <= response.status_code < 400:
+            raise SourceParseError("Georgia source redirects are not followed")
         response.raise_for_status()
         declared = response.headers.get("content-length")
         if declared:
@@ -201,11 +207,23 @@ def _current_scope_excerpt(narrative_excerpt: str) -> str:
 
 
 def _document_url(value: str) -> str:
-    parsed = urlparse(value)
+    try:
+        if any(ord(char) < 32 or ord(char) == 127 for char in value):
+            raise ValueError("control character")
+        parsed = urlparse(value)
+        port = parsed.port
+    except (TypeError, ValueError) as exc:
+        raise SourceParseError("Georgia document link is outside the approved EPD path") from exc
     if (
         parsed.scheme != "https"
         or parsed.hostname != EPD_HOST
+        or parsed.username is not None
+        or parsed.password is not None
+        or port not in (None, 443)
         or parsed.query
+        or "?" in value
+        or parsed.fragment
+        or "#" in value
         or not _DOC_PATH.fullmatch(parsed.path)
     ):
         raise SourceParseError("Georgia document link is outside the approved EPD path")
