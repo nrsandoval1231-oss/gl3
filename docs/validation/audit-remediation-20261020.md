@@ -16,7 +16,7 @@ Workspace rows/counts/actions now follow the successful filter/cohort and fact-r
 
 ## Measured publication and briefing work
 
-On the same local restored clone with3059 material events, three50-item briefing GETs fell from6350 SQL statements and2028–2246ms to11 statements and98–103ms. Counts and ordered event keys were unchanged; default list remained6 statements, about59ms. This is local measurement, not a production SLO.
+On the same local restored clone with3059 material events, three50-item briefing GETs fell from6350 SQL statements and2028–2246ms to11 statements and98–103ms. A read-only repeatable-read cross-version comparison proved full50-item canonical response parity, including ordered keys, token, sources and before/after. Counts and ordered event keys were unchanged; default list remained6 statements, about59ms. This is local measurement, not a production SLO.
 
 At1620/5000 synthetic needs, ten draft/accept cycles copied32380/99980 rows before versus16190/49990 after. First draft of each new immutable fact now advances neither revision nor generation; accepted/corrected/retracted and later same-fact drafts retain conservative fencing. Accepted publication still copies the corpus and updates global metadata under the lock; no storage rewrite or transaction weakening occurred. Pair p95 was1031/2424ms before and241/591ms after, on small noisy local samples; timing improvement cannot be attributed solely to code. All sampled concurrent reads returned200 (before205/210 samples; after94/96). SQL profile separates lock-acquisition, copying, analyze and prune work. WAL is cluster-wide and is not billed database work.
 
@@ -24,7 +24,7 @@ Actual stubbed ingestion exercised one/ten accepted records, pending503 after ca
 
 ## Evidence boundaries and receipts
 
-The first integrated preflight recorded2314 passed,3 failed,3 skipped and9 setup errors. Nine errors were a local application-database suffix mistake; three dispatch assertions were due-job fixtures using PostgreSQL timestamps ahead of the coarse Windows application clock. Sol diagnosed the timing evidence; only test fixtures were backdated, preserving production lease and budget rules. The affected13 cases then passed. Controller briefing/publication checks passed10 tests. These are development checkpoints; final gates and independent review are separate exact-head receipts.
+The first integrated preflight recorded2314 passed,3 failed,3 skipped and9 setup errors. Nine errors were a local application-database suffix mistake; three dispatch assertions were due-job fixtures using PostgreSQL timestamps ahead of the coarse Windows application clock. Sol diagnosed the timing evidence; only test fixtures were backdated, preserving production lease and budget rules. The affected13 cases then passed. Controller briefing/publication checks passed10 tests. The first frozen dependency gate then found certifi GHSA-6q48-6c7w-9gw2; the lock repair selects2026.10.19. The [maintainer advisory](https://github.com/certifi/python-certifi/security/advisories/GHSA-6q48-6c7w-9gw2) and failed audit receipt are retained as evidence. These are development checkpoints; final gates and independent review are separate exact-head receipts.
 
 Raw JSON/logs, restored database and screenshots remain ignored in the controller workspace. The following hashes identify inspected sanitized summaries, not secret environment files. Fresh production observations and backup evidence are documented separately in [operations](../operations/README.md). Historical handoffs and baseline CI do not prove this candidate.
 
@@ -39,3 +39,4 @@ Raw JSON/logs, restored database and screenshots remain ignored in the controlle
 | `publication-profile-after-v2.json` | `fb13ed0c21e5c20c892b8bed7b6d97a6694485dccd3cee5c3536aa084f35ad90` |
 | `publication-ingestion-contention.json` | `ea2005d12bcac1a74bf0d59d351241b59c8f62095d8a9dfa177509e11ef42fdc` |
 | `workflow-browser-receipt.json` | `b6efeeea024e949baf841e4b87d7f5048b7eb4af914b22606a1ea73a09660f60` |
+| `briefing-cross-version-parity.json` | `6e1e4965c14ca6c7f2a1c4ed9ba25343aa20b568d70992d2e778f8185e7d0c9c` |
