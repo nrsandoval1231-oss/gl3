@@ -2,7 +2,7 @@
   "status": "FAILED_CHECKPOINT_NOT_ACCEPTED",
   "utc": "2026-10-20T19:46:32.036733+00:00",
   "baseline_source": "732cb8b1c1c2222486b87efc93fe2173e3f9ef60",
-  "candidate": "uncommitted",
+  "candidate": "2489730785afc3476c936049f733c728e09e00f3",
   "policy_version": "signal-admission-v2",
   "owner_authorization": "Allow site-specific news to create standalone discovery Signals, with unknown power facts and the existing Prospect/Lead gates.",
   "log": "C:\\Users\\nrsan\\Nucleus\\02_Projects\\GridLens\\gl3-audit-news-specialist-20261020\\.artifacts\\news-admission-recovery.log",
