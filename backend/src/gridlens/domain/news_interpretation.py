@@ -10,7 +10,7 @@ import re
 from dataclasses import asdict, dataclass
 from typing import Any
 
-EVALUATOR_VERSION = "rss-project-v8"
+EVALUATOR_VERSION = "rss-project-v9"
 _STATES = (
     "Alabama|Alaska|Arizona|Arkansas|California|Colorado|Connecticut|Delaware|Florida|Georgia|"
     "Hawaii|Idaho|Illinois|Indiana|Iowa|Kansas|Kentucky|Louisiana|Maine|Maryland|"
@@ -21,6 +21,7 @@ _STATES = (
 )
 _STATE_RE = re.compile(rf"\b({_STATES})\b", re.I)
 _CITIES = {
+    "West Memphis": "Arkansas",
     "Houston": "Texas",
     "Dallas": "Texas",
     "Fort Worth": "Texas",
@@ -71,7 +72,7 @@ _FACILITY = re.compile(
     r"\b(?:AI )?(?:data cent(?:er|re)|campus|manufacturing (?:campus|plant|facility)|"
     r"manufacturing|plant|factory|facility|water reclamation plant|water project|"
     r"industrial (?:site|project)|processing facility|greenhouse|mine|hospital|"
-    r"medical center|shipyard|"
+    r"medical center|shipyard|smelter|hotel|"
     r"chip fabs?|semiconductor fabs?|fabs?|expansion|"
     r"arena|stadium|offices)\b",
     re.I,
@@ -81,6 +82,12 @@ _ACTION = re.compile(
     r"starts? on(?: the)? (?:\$[\d,.]+(?:m|b|bn|million|billion)?\s*)?"
     r"(?:concrete )?(?:deck|(?:facility )?expansion)|"
     r"begins? (?:the )?(?:concrete )?deck|"
+    r"sells?\b[^.]{0,100}\b(?:smelter|site|land|parcel)\b|"
+    r"(?:smelter|site|land|parcel)\s+(?:is |was )?sold\b|"
+    r"files? for\s+(?:a\s+)?(?:second|new|additional|\d+(?:st|nd|rd|th))\s+building|"
+    r"(?:will\s+)?fund\s+(?:renewable energy and )?grid upgrades|"
+    r"(?:to\s+)?close\s+in\s+\d{4}\s+for\s+(?:multiyear|multi-year|major|substantial)\s+"
+    r"(?:facade\s+)?restoration|"
     r"files? to (?:build|construct)|plans? to (?:build|construct|"
     r"expand|establish|open)|to (?:build|construct|expand|establish|open)|will (?:build|"
     r"construct|expand|establish|open)|(?:build|construct|expand|establish|open)(?:s|ed|ing)?)\b",
@@ -229,6 +236,15 @@ def _site_location(text: str) -> str | None:
             if city_state:
                 return f"{city_state.group(1)}, {state.group(1)}"
             return state.group(1)
+    embedded = re.search(
+        rf"\b([A-Z][\w.'-]*(?:\s+[A-Z][\w.'-]*){{0,2}})\s+"
+        rf"(?:data cent(?:er|re)|campus|plant|facility|site|hotel|shipyard),\s*({_STATES})\b",
+        text,
+    )
+    if embedded:
+        return f"{embedded.group(1)}, {embedded.group(2)}"
+    if re.search(r"\bNYC(?:[’']s)?\b", text) and re.search(r"\bhotel\b", text, re.I):
+        return "New York, New York"
     abbreviation = re.search(
         r"\b(?:in|at|near)\s+([A-Z]{2})\b|,\s*([A-Z]{2})\b", text
     )
@@ -276,6 +292,16 @@ def _event_location(title: str, summary: str, event: str | None) -> str | None:
             return None
         facility_words = set(re.findall(r"[a-z]+", facility_match.group(0).lower()))
         for sentence in _sentences(summary):
+            # A demonstrative reference to the same facility binds a short abstract
+            # sentence to the headline, without borrowing a company headquarters.
+            reference = re.match(
+                rf"^(?:the|its|this)\s+{re.escape(facility_match.group(0))}\b",
+                sentence, re.I,
+            )
+            if reference and not _OUTSIDE_US.search(sentence):
+                location = _site_location(sentence)
+                if location:
+                    return location
             if _ACTION.search(sentence) and facility_words.intersection(
                 re.findall(r"[a-z]+", sentence.lower())
             ):
@@ -317,6 +343,15 @@ def _subject(title: str, summary: str, event: str) -> str | None:
         )
         if named:
             return named.group(1).strip()
+    milestone_actor = re.match(
+        r"^\s*([A-Z][\w&.'’-]*(?:\s+[A-Z][\w&.'’-]*){0,3})\s+"
+        r"(?:sells?|files? for|expands? partnership)\b", title
+    )
+    if milestone_actor:
+        return milestone_actor.group(1).strip()
+    hotel = re.search(r"\b([A-Z][\w&.'’-]*(?:\s+[A-Z][\w&.'’-]*){0,3}\s+Hotel)\b", title)
+    if hotel:
+        return hotel.group(1)
     company = re.search(
         r"^\s*([A-Z][\w&.'’-]*(?:\s+[A-Z][\w&.'’-]*){0,3}"
         r"(?:\s+(?:joint venture|JV))?)\s+"
@@ -464,7 +499,9 @@ def _action_activity(action: str) -> str | None:
     if _EARLY_DC_ACTION.fullmatch(normalized) is not None:
         # Site, financing and power-contract milestones precede construction power.
         return "construction"
-    if re.search(r"\b(?:deck|start on .*expansion)\b", normalized, re.I):
+    if re.search(r"\b(?:sells?|sold|fund)\b", normalized, re.I):
+        return None
+    if re.search(r"\b(?:restoration|files? for|deck|start on .*expansion)\b", normalized, re.I):
         return "construction"
     if _ACTION.fullmatch(normalized) is None:
         return None
@@ -620,6 +657,11 @@ def assess_news(title: str, summary: str | None) -> NewsAssessment:
             "The retained text is speculative rather than a confirmed physical project event.",
             location,
         )
+    if event and re.search(
+        r"\b(?:in|at|near)\s+(?:Canada|Mexico|Japan|Germany|India|China|Australia|"
+        r"Singapore|Malaysia|France|United Kingdom)\b", event, re.I
+    ):
+        return _rejected("The physical event is explicitly located outside the US.")
     if (_OUTSIDE_US.search(title) or (event and _OUTSIDE_US.search(event))) and not location:
         outside = _OUTSIDE_US.search(title) or _OUTSIDE_US.search(event or "")
         if outside is not None:
