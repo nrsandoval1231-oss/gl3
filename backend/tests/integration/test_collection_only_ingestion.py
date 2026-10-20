@@ -2465,8 +2465,8 @@ def test_apply_reports_interpretation_failure_and_retries(db, monkeypatch, tmp_p
     )
     monkeypatch.setattr(
         reinterpret_news,
-        "_test_database_session_factory",
-        lambda: (None, "collection_test", factory),
+        "_database_session_factory",
+        lambda target, expected: (None, "collection_test", factory),
     )
     output = tmp_path / "apply.json"
     monkeypatch.setattr(
@@ -2475,6 +2475,8 @@ def test_apply_reports_interpretation_failure_and_retries(db, monkeypatch, tmp_p
         [
             "reinterpret_news.py",
             "--apply",
+            "--expected-database-name",
+            "collection_test",
             "--include-accepted",
             "--limit",
             "1",

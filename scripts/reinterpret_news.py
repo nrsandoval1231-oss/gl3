@@ -1,4 +1,10 @@
-"""Report deterministic decisions for already-retained RSS items; no retrieval occurs."""
+"""Reassess already-retained RSS items without retrieval or model calls.
+
+Default mode reads a local JSON export and writes a dry-run report. Apply requires
+an explicit expected database name. Application apply additionally requires a
+separate owner authorization for that specific run; selecting a target is not
+itself authorization. No application run is automatic.
+"""
 
 from __future__ import annotations
 
@@ -28,7 +34,9 @@ def interpret_rows(
     source_rows: Any = rows
     if isinstance(rows, dict):
         source_rows = rows.get("cases", rows.get("observations", []))
-    if not isinstance(source_rows, list) or any(not isinstance(row, dict) for row in source_rows):
+    if not isinstance(source_rows, list) or any(
+        not isinstance(row, dict) for row in source_rows
+    ):
         raise ValueError("Retained corpus must contain a list of record objects")
     rss_rows = [
         row for row in source_rows if str(row.get("source_id", "")).endswith("-news")
@@ -36,7 +44,9 @@ def interpret_rows(
     rss_rows.sort(
         key=lambda row: (
             row["source_id"],
-            row.get("external_id") or row.get("case_id") or row.get("observation_id", ""),
+            row.get("external_id")
+            or row.get("case_id")
+            or row.get("observation_id", ""),
             row.get("content_hash", ""),
         )
     )
@@ -45,7 +55,9 @@ def interpret_rows(
     for row in rss_rows:
         excerpt = row.get("excerpt", row.get("abstract"))
         assessment = assess_news(row["title"], excerpt)
-        external_id = row.get("external_id") or row.get("case_id") or row.get("observation_id")
+        external_id = (
+            row.get("external_id") or row.get("case_id") or row.get("observation_id")
+        )
         decisions.append(
             {
                 "source_id": row["source_id"],
@@ -73,27 +85,39 @@ def interpret_rows(
     }
 
 
-def _test_database_session_factory():
+def _database_session_factory(target_name: str, expected_database_name: str):
+    """Validate the selected database identity before creating an engine."""
     from sqlalchemy import create_engine
     from sqlalchemy.engine import make_url
     from sqlalchemy.orm import sessionmaker
 
     from gridlens.settings import settings
 
-    if not settings.test_database_url:
-        raise ValueError("--apply requires TEST_DATABASE_URL for a disposable database")
-    target_url = make_url(settings.test_database_url)
-    application_url = make_url(settings.database_url)
-    if not target_url.database or not target_url.database.endswith("_test"):
-        raise ValueError("--apply requires a database name ending in _test")
-    if (target_url.host, target_url.port, target_url.database) == (
-        application_url.host,
-        application_url.port,
-        application_url.database,
+    if target_name not in {"test", "application"}:
+        raise ValueError("--database-target must be test or application")
+    database_url = (
+        settings.test_database_url if target_name == "test" else settings.database_url
+    )
+    if not database_url:
+        raise ValueError(f"Reassessment target {target_name} is not configured")
+    target = make_url(database_url)
+    application = make_url(settings.database_url)
+    if not target.database:
+        raise ValueError("Reassessment target has no database name")
+    if target_name == "test" and not target.database.endswith("_test"):
+        raise ValueError("Test reassessment target must end in _test")
+    if target.database != expected_database_name:
+        raise ValueError("Target database name does not match --expected-database-name")
+    if target_name == "test" and (target.host, target.port, target.database) == (
+        application.host,
+        application.port,
+        application.database,
     ):
-        raise ValueError("--apply refuses the application database")
-    engine = create_engine(settings.test_database_url)
-    return engine, target_url.database, sessionmaker(engine, expire_on_commit=False)
+        raise ValueError(
+            "Reassessment refuses to use the application database as the test target"
+        )
+    engine = create_engine(database_url)
+    return engine, target.database, sessionmaker(engine, expire_on_commit=False)
 
 
 def apply_retained_news(
@@ -107,7 +131,12 @@ def apply_retained_news(
     from uuid import UUID
 
     from gridlens.ingestion.service import assess_retained_news
-    from gridlens.persistence.models import Evidence, Interpretation, Observation, Source
+    from gridlens.persistence.models import (
+        Evidence,
+        Interpretation,
+        Observation,
+        Source,
+    )
 
     decisions: list[dict[str, Any]] = []
     failed = 0
@@ -118,9 +147,7 @@ def apply_retained_news(
             .join(Interpretation, Interpretation.observation_id == Observation.id)
             .where(Source.retrieval_method == "publisher-rss")
             .where(
-                Interpretation.status.in_(
-                    ["accepted", "rejected", "failed", "pending"]
-                )
+                Interpretation.status.in_(["accepted", "rejected", "failed", "pending"])
                 if include_accepted
                 else Interpretation.status == "rejected"
             )
@@ -141,7 +168,8 @@ def apply_retained_news(
                     item
                     for item in evidence_versions
                     if item.title == observation.title
-                    and (item.abstract or "").split() == (observation.abstract or "").split()
+                    and (item.abstract or "").split()
+                    == (observation.abstract or "").split()
                     and item.published_at == observation.published_at
                     and item.url == observation.url
                 ),
@@ -154,7 +182,9 @@ def apply_retained_news(
             assess_retained_news(session, observation, current)
             session.flush()
             interpretation = session.scalar(
-                select(Interpretation).where(Interpretation.observation_id == observation.id)
+                select(Interpretation).where(
+                    Interpretation.observation_id == observation.id
+                )
             )
             assessment = (interpretation.assessment if interpretation else None) or {}
             status = interpretation.status if interpretation else "missing"
@@ -166,12 +196,16 @@ def apply_retained_news(
                     "external_id": observation.external_id,
                     "content_hash": observation.content_hash,
                     "published_at": (
-                        observation.published_at.isoformat() if observation.published_at else None
+                        observation.published_at.isoformat()
+                        if observation.published_at
+                        else None
                     ),
                     "title": observation.title,
                     "citation_url": observation.url,
                     "status": status,
-                    "error": interpretation.error if interpretation else "missing_interpretation",
+                    "error": interpretation.error
+                    if interpretation
+                    else "missing_interpretation",
                     "assessment": {
                         key: value
                         for key, value in assessment.items()
@@ -186,7 +220,9 @@ def apply_retained_news(
     return {
         "evaluator_version": EVALUATOR_VERSION,
         "admission_policy_version": ADMISSION_POLICY_VERSION,
-        "mode": "apply-including-accepted" if include_accepted else "apply-rejected-only",
+        "mode": "apply-including-accepted"
+        if include_accepted
+        else "apply-rejected-only",
         "source_count": len(decisions),
         "next_cursor": str(observations[-1].id) if observations else None,
         "counts": dict(sorted(counts.items())),
@@ -206,13 +242,20 @@ def main() -> None:
         "--output", type=Path, default=Path(".artifacts/GL3-007/dry-run.json")
     )
     parser.add_argument(
-        "--limit", type=int, default=MAX_ROWS, help=f"Maximum records to reassess (1-{MAX_ROWS})"
+        "--limit",
+        type=int,
+        default=MAX_ROWS,
+        help=f"Maximum records to reassess (1-{MAX_ROWS})",
     )
     parser.add_argument(
         "--apply",
         action="store_true",
-        help="Persist decisions transactionally to the isolated TEST_DATABASE_URL only",
+        help="Persist to selected database; application requires separate owner authorization",
     )
+    parser.add_argument(
+        "--database-target", choices=("test", "application"), default="test"
+    )
+    parser.add_argument("--expected-database-name")
     parser.add_argument("--after-observation-id", type=UUID)
     parser.add_argument(
         "--include-accepted",
@@ -224,9 +267,13 @@ def main() -> None:
         parser.error(f"--limit must be between 1 and {MAX_ROWS}")
     if args.include_accepted and not args.apply:
         parser.error("--include-accepted requires --apply")
+    if args.apply and not args.expected_database_name:
+        parser.error("--apply requires --expected-database-name")
     if args.apply:
         try:
-            engine, database_name, apply_sessions = _test_database_session_factory()
+            engine, database_name, apply_sessions = _database_session_factory(
+                args.database_target, args.expected_database_name
+            )
         except ValueError as exc:
             parser.error(str(exc))
         try:
@@ -237,6 +284,7 @@ def main() -> None:
                 include_accepted=args.include_accepted,
             )
             report["database"] = database_name
+            report["database_target"] = args.database_target
         finally:
             if engine is not None:
                 engine.dispose()
