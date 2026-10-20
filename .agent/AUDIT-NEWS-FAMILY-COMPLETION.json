@@ -1,8 +1,8 @@
 {
   "node": "F03 event family redirect",
-  "candidate_sha": "64863c22f7a8e37576fa89425ceb05bb40717589",
+  "candidate_sha": "732cb8b1c1c2222486b87efc93fe2173e3f9ef60",
   "evaluator_version": "rss-project-v9",
-  "completed_utc": "2026-10-20T19:37:53.610799+00:00",
+  "completed_utc": "2026-10-20T19:38:38.692220+00:00",
   "started_utc": "UNKNOWN",
   "durations": "UNKNOWN",
   "tokens": "UNKNOWN",
@@ -1955,10 +1955,10 @@
       "title": "Google expands partnership with Entergy Arkansas, will fund renewable energy and grid upgrades for West Memphis data center",
       "decision": "accepted",
       "tier": "Signal",
-      "reason": "The retained text reports expands for West Memphis data center, a data center event in West Memphis, Arkansas; power facts require investigation. The retained city is West Memphis; Arkansas is a bounded city-to-state mapping.",
-      "action": "expands",
+      "reason": "The retained text reports will fund renewable energy and grid upgrades for West Memphis data center, a data center event in West Memphis, Arkansas; power facts require investigation. The retained city is West Memphis; Arkansas is a bounded city-to-state mapping.",
+      "action": "will fund renewable energy and grid upgrades",
       "location": "West Memphis, Arkansas",
-      "signal_power_activity": "construction",
+      "signal_power_activity": null,
       "demand_mw": null,
       "demand_quote": null,
       "supply_quote": null
@@ -3099,7 +3099,7 @@
     }
   ],
   "validation": [
-    "33 interpretation tests passed",
+    "34 interpretation tests passed",
     "ruff owned files passed",
     "git diff --check passed"
   ],
