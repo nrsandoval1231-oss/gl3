@@ -77,7 +77,7 @@ export function QuickCallLog({ item, onReadback }: { item: Opportunity; onReadba
     if (facts.some((fact) => fact.section === 'timing') && !(has('start') && has('end') && has('duration'))) {
       return setError('Timing needs the earliest start, latest start and duration together.')
     }
-    if (facts.some((fact) => fact.section === 'timing') && (![values.start, values.end].every((date) => /^\d{4}-\d{2}-\d{2}$/.test(date) && new Date(date).toISOString().slice(0, 10) === date))) {
+    if (facts.some((fact) => fact.section === 'timing') && (![values.start, values.end].every((date) => /^\d{4}-\d{2}-\d{2}$/.test(date) && Number.isFinite(new Date(date).getTime()) && new Date(date).toISOString().slice(0, 10) === date))) {
       return setError('Timing needs valid calendar dates.')
     }
     if (has('duration') && (!/^\d+$/.test(values.duration.trim()) || !Number.isSafeInteger(Number(values.duration)) || Number(values.duration) < 1 || Number(values.duration) > 36500)) {
@@ -87,7 +87,7 @@ export function QuickCallLog({ item, onReadback }: { item: Opportunity; onReadba
     if (has('buyer') && values.buyer.trim().length < 2) return setError('Buyer organization needs at least 2 characters.')
     if (has('buyer') && !values.buyerRole) return setError('Choose the buyer role they reported.')
     if (has('mw') && !validMw(values.mw.trim(), false)) return setError('Power needed must be a positive MW value or supported range, up to 1000000 MW.')
-    if (has('supply') && values.supplyQuality === 'unsuitable' && !validMw(values.supply.trim(), false)) {
+    if (has('supply') && values.supplyQuality === 'unsuitable' && (!/^\s*\d+(\.\d+)?\s*$/.test(values.supply) || !validMw(values.supply.trim(), false))) {
       return setError('Unsuitable supply needs one positive MW number within the supported range.')
     }
     if (has('supply') && values.supplyQuality !== 'unsuitable' && !validMw(values.supply.trim(), true)) return setError('Suitable supply must be an MW value or supported range from 0 to 1000000 MW.')
