@@ -13,10 +13,10 @@ FACT_DECISION_INSERT_SQL = """
     DECLARE initial_drafts_only boolean;
     BEGIN
         SELECT bool_and(
-            n.decision = 'draft' AND n.version = 1 AND n.expected_version = 0
+            n.decision = 'draft'
             AND NOT EXISTS (
                 SELECT 1 FROM call_fact_decisions prior
-                WHERE prior.need_id = n.need_id AND prior.id <> n.id
+                WHERE prior.fact_version_id = n.fact_version_id AND prior.id <> n.id
             )
         ) INTO initial_drafts_only FROM new_rows n;
         IF initial_drafts_only IS TRUE THEN
@@ -37,10 +37,10 @@ FACT_DECISION_INSERT_SQL = """
     LANGUAGE plpgsql AS $$
     DECLARE next_revision bigint; owner uuid;
     BEGIN
-        IF NEW.decision = 'draft' AND NEW.version = 1 AND NEW.expected_version = 0
+        IF NEW.decision = 'draft'
             AND NOT EXISTS (
                 SELECT 1 FROM call_fact_decisions prior
-                WHERE prior.need_id = NEW.need_id AND prior.id <> NEW.id
+                WHERE prior.fact_version_id = NEW.fact_version_id AND prior.id <> NEW.id
             ) THEN
             RETURN NULL;
         END IF;

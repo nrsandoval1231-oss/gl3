@@ -194,15 +194,12 @@ def test_initial_draft_batch_is_suppressed_but_mixed_late_draft_is_fenced(public
 
     with factory.begin() as session:
         needs = [session.get(PowerNeed, need_id) for need_id in need_ids]
-        late_fact = _fact(
-            needs[0],
-            start=datetime.now(UTC) + timedelta(days=8),
-        )
+        late_fact = facts[0]
         initial_fact = _fact(
             needs[3],
             start=datetime.now(UTC) + timedelta(days=8),
         )
-        session.add_all([late_fact, initial_fact])
+        session.add(initial_fact)
         session.flush()
         session.execute(
             insert(CallFactDecision).values(
@@ -234,6 +231,123 @@ def test_initial_draft_batch_is_suppressed_but_mixed_late_draft_is_fenced(public
             )
             == needs[0].project_id
         )
+
+
+def test_first_draft_per_fact_is_suppressed_but_draft_after_acceptance_is_fenced(
+    publication_db,
+):
+    factory = publication_db
+    need_id = _seed(factory)[0]
+    rebuild(factory)
+    with factory() as session:
+        need = session.get(PowerNeed, need_id)
+
+    accepted_fact = _fact(need, start=datetime.now(UTC) + timedelta(days=3))
+    with factory.begin() as session:
+        session.add(accepted_fact)
+        session.flush()
+        session.add_all(
+            [
+                CallFactDecision(
+                    **_decision(
+                        need_id,
+                        accepted_fact.id,
+                        version=1,
+                        expected_version=0,
+                        status="draft",
+                    )
+                ),
+                CallFactDecision(
+                    **_decision(
+                        need_id,
+                        accepted_fact.id,
+                        version=2,
+                        expected_version=1,
+                        status="accepted",
+                    )
+                ),
+            ]
+        )
+    accepted_revision, _ = _state(factory)
+    assert rebuild(factory)["status"] == "published"
+    accepted_revision, accepted_generation = _state(factory)
+
+    second_fact = _fact(need, start=datetime.now(UTC) + timedelta(days=4))
+    third_fact = _fact(need, start=datetime.now(UTC) + timedelta(days=5))
+    with factory.begin() as session:
+        session.add_all([second_fact, third_fact])
+        session.flush()
+        session.add_all(
+            [
+                CallFactDecision(
+                    **_decision(
+                        need_id,
+                        second_fact.id,
+                        version=3,
+                        expected_version=2,
+                        status="draft",
+                    )
+                ),
+                CallFactDecision(
+                    **_decision(
+                        need_id,
+                        third_fact.id,
+                        version=4,
+                        expected_version=3,
+                        status="draft",
+                    )
+                ),
+            ]
+        )
+    with factory() as session:
+        assert _state(factory) == (accepted_revision, accepted_generation)
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(BrowseDirtyProject)
+                .where(BrowseDirtyProject.project_id == need.project_id)
+            )
+            == 0
+        )
+
+    with factory.begin() as session:
+        session.add(
+            CallFactDecision(
+                **_decision(
+                    need_id,
+                    second_fact.id,
+                    version=5,
+                    expected_version=4,
+                    status="accepted",
+                )
+            )
+        )
+    published_revision, _ = _state(factory)
+    assert published_revision == accepted_revision + 1
+    with factory() as session:
+        assert (
+            session.scalar(
+                select(BrowseDirtyProject.project_id).where(
+                    BrowseDirtyProject.project_id == need.project_id
+                )
+            )
+            == need.project_id
+        )
+
+    with factory.begin() as session:
+        session.add(
+            CallFactDecision(
+                **_decision(
+                    need_id,
+                    accepted_fact.id,
+                    version=6,
+                    expected_version=5,
+                    status="draft",
+                )
+            )
+        )
+    hostile_draft_revision, _ = _state(factory)
+    assert hostile_draft_revision == published_revision + 1
 
 
 def test_clock_deadline_uses_only_latest_accepted_fact_intervals(publication_db):
