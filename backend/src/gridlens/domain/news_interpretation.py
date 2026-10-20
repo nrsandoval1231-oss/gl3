@@ -251,44 +251,104 @@ def _site_location(text: str) -> str | None:
     """Find a US place grammatically attached to the facility event, never an actor HQ."""
     text = re.sub(rf"\b(?:{_STATES})-based\b", "", text, flags=re.I)
     facility_match = _FACILITY.search(text)
-    # A state grammatically attached to the project outranks a city-name
-    # fallback. For example, Columbus can refer to cities in several states.
+
+    def has_non_site_party_clause_without_site_reset(end: int) -> bool:
+        if facility_match is None or end <= facility_match.end():
+            return False
+        intervening = text[facility_match.end() : end]
+        customer = re.search(
+            r"\b(?:customers?|clients?|buyers?|partners?|contractors?|suppliers?|investors?)\b",
+            intervening,
+            re.I,
+        )
+        if customer is None:
+            return False
+        return (
+            re.search(
+                r"\b(?:site|facility|plant|data cent(?:er|re)|campus|project)\b",
+                intervening[customer.end() :],
+                re.I,
+            )
+            is None
+        )
+
+    # Prefer an explicit state attached to the project. Skip states attached to
+    # customer clauses unless a later site/facility phrase resets the relation.
     for state in _STATE_RE.finditer(text):
         before = text[max(0, state.start() - 10) : state.start()]
         city_before = text[max(0, state.start() - 40) : state.start()]
-        if re.search(r"\b(?:in|at|near)\s*$", before, re.I) or re.search(
-            r"\b(?:in|at|near)\s+[A-Z][\w.'-]*(?:\s+[A-Z][\w.'-]*){0,2},\s*$", city_before
-        ):
-            for city, known_city_state in sorted(
-                _CITIES.items(), key=lambda item: len(item[0]), reverse=True
-            ):
-                city_match = re.search(rf"\b{re.escape(city)}\b", text, re.I)
-                if (
-                    city_match
-                    and city_match.start() <= state.start() < city_match.end()
-                    and known_city_state.casefold() == state.group(1).casefold()
-                ):
-                    return (
-                        city
-                        if city.casefold() == state.group(1).casefold()
-                        else f"{city}, {state.group(1)}"
-                    )
-            city_state = re.search(
-                r"\b(?:in|at|near)\s+([A-Z][\w.'-]*(?:\s+[A-Z][\w.'-]*){0,2}),\s*$",
+        direct = bool(
+            re.search(r"\b(?:in|at|near)\s*$", before, re.I)
+            or re.search(
+                r"\b(?:in|at|near)\s+[A-Z][\w.'-]*(?:\s+[A-Z][\w.'-]*){0,2},\s*$",
                 city_before,
             )
-            if city_state:
-                return f"{city_state.group(1)}, {state.group(1)}"
-            return state.group(1)
+        )
+        if not direct or has_non_site_party_clause_without_site_reset(state.start()):
+            continue
+
+        for city, city_state in sorted(
+            _CITIES.items(), key=lambda item: len(item[0]), reverse=True
+        ):
+            city_match = re.search(rf"\b{re.escape(city)}\b", text, re.I)
+            if (
+                city_match is None
+                or city_match.start() > state.start()
+                or city_state.casefold() != state.group(1).casefold()
+            ):
+                continue
+            project_linked = False
+            if facility_match and city_match.end() <= facility_match.start():
+                project_linked = len(text[city_match.end() : facility_match.start()].split()) <= 3
+            elif facility_match and city_match.start() >= facility_match.end():
+                prefix = text[facility_match.end() : city_match.start()]
+                project_linked = bool(re.search(r"\b(?:in|at|near)\s+$", prefix, re.I))
+                if has_non_site_party_clause_without_site_reset(city_match.start()):
+                    project_linked = False
+            elif not facility_match:
+                project_linked = True
+            if project_linked:
+                return (
+                    city
+                    if city.casefold() == state.group(1).casefold()
+                    else f"{city}, {state.group(1)}"
+                )
+
+        city_state_match = re.search(
+            r"\b(?:in|at|near)\s+([A-Z][\w.'-]*(?:\s+[A-Z][\w.'-]*){0,2}),\s*$",
+            city_before,
+        )
+        if city_state_match:
+            return f"{city_state_match.group(1)}, {state.group(1)}"
+        return state.group(1)
+
+    # A project-linked city can be stated before its facility name or directly
+    # after a location preposition. Do this before weak nearby actor-state hints.
     for city, state_name in sorted(_CITIES.items(), key=lambda item: len(item[0]), reverse=True):
         city_match = re.search(rf"\b{re.escape(city)}\b", text, re.I)
         if city_match is None:
             continue
         before = text[max(0, city_match.start() - 10) : city_match.start()]
-        if re.search(r"\b(?:in|at|near)\s*$", before, re.I) or (
-            facility_match and city_match.end() <= facility_match.start()
-        ):
+        after_facility = bool(
+            facility_match
+            and city_match.start() >= facility_match.end()
+            and re.search(
+                r"\b(?:in|at|near)\s+$", text[facility_match.end() : city_match.start()], re.I
+            )
+            and not has_non_site_party_clause_without_site_reset(city_match.start())
+        )
+        before_facility = bool(
+            facility_match
+            and city_match.end() <= facility_match.start()
+            and len(text[city_match.end() : facility_match.start()].split()) <= 3
+        )
+        if re.search(
+            r"\b(?:in|at|near)\s*$", before, re.I
+        ) and not has_non_site_party_clause_without_site_reset(city_match.start()):
             return city if city.casefold() == state_name.casefold() else f"{city}, {state_name}"
+        if after_facility or before_facility:
+            return city if city.casefold() == state_name.casefold() else f"{city}, {state_name}"
+
     # A nearby state before the facility can describe its developer rather than
     # the site. Use this weaker association only after project-linked city names.
     if facility_match:
@@ -342,37 +402,19 @@ def _event_location(title: str, summary: str, event: str | None) -> str | None:
                 if facility_match and foreign_location
                 else ""
             )
-            domestic_site_end = None
-            if facility_match and foreign_location:
-                for state in _STATE_RE.finditer(span, facility_match.end()):
-                    prefix = span[facility_match.end() : state.start()]
-                    if re.search(
-                        r"\b(?:in|at|near)\s+(?:[A-Z][\w.'-]*(?:\s+[A-Z][\w.'-]*){0,2},\s*)?$",
-                        prefix,
-                    ):
-                        domestic_site_end = state.end()
-                        break
-                if domestic_site_end is None:
-                    for city in sorted(_CITIES, key=len, reverse=True):
-                        city_match = re.search(
-                            rf"\b{re.escape(city)}\b",
-                            span[facility_match.end() : foreign_location.start()],
-                            re.I,
-                        )
-                        if city_match is None:
-                            continue
-                        city_start = facility_match.end() + city_match.start()
-                        prefix = span[facility_match.end() : city_start]
-                        if re.search(r"\b(?:in|at|near)\s+$", prefix, re.I):
-                            domestic_site_end = facility_match.end() + city_match.end()
-                            break
+            domestic_site = (
+                _site_location(span[: foreign_location.start()])
+                if facility_match and foreign_location
+                else None
+            )
             partner_context = bool(
-                domestic_site_end is not None
+                domestic_site
+                and facility_match
                 and foreign_location
                 and re.search(
-                    r"\b(?:with|among|and)\b[^.;]{0,80}\b"
+                    r"\b(?:with|among|and)\b[^.;]{0,100}\b"
                     r"(?:partners?|contractors?|suppliers?|investors?)\b",
-                    span[domestic_site_end : foreign_location.start()],
+                    span[facility_match.end() : foreign_location.start()],
                     re.I,
                 )
             )

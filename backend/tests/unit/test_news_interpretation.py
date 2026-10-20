@@ -157,22 +157,33 @@ def test_actor_hq_geography_never_establishes_the_facility_location() -> None:
         assert assess_news(title, summary).decision == "rejected"
 
 
-def test_project_linked_city_precedes_nearby_developer_state() -> None:
-    result = assess_news("California developer Atlas builds Austin data center", None)
-    assert (result.decision, result.tier, result.location) == (
-        "accepted",
-        "Signal",
-        "Austin, Texas",
-    )
+def test_project_linked_city_precedes_nearby_developer_or_customer_state() -> None:
+    cases = [
+        ("California developer Atlas builds Austin data center", "Austin, Texas"),
+        (
+            "Atlas builds a factory for customers in California at its site in Phoenix, Arizona",
+            "Phoenix, Arizona",
+        ),
+        ("Atlas builds Phoenix data center in Arizona", "Phoenix, Arizona"),
+    ]
+    for title, location in cases:
+        result = assess_news(title, None)
+        assert (result.decision, result.tier, result.location) == ("accepted", "Signal", location)
 
 
 def test_domestic_city_site_precedes_foreign_partner_location() -> None:
-    result = assess_news("Atlas builds a factory in Austin with partners in Tokyo, Japan", None)
-    assert (result.decision, result.tier, result.location) == (
-        "accepted",
-        "Signal",
-        "Austin, Texas",
-    )
+    cases = [
+        "Atlas builds a factory in Austin with partners in Tokyo, Japan",
+        "Atlas builds Austin factory with partners in Tokyo, Japan",
+        "Atlas builds a factory in Austin, TX with partners in Tokyo, Japan",
+    ]
+    for title in cases:
+        result = assess_news(title, None)
+        assert (result.decision, result.tier, result.location) == (
+            "accepted",
+            "Signal",
+            "Austin, Texas",
+        )
 
 
 def test_site_name_words_are_not_activity_and_claim_spans_must_differ() -> None:
