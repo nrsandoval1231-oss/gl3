@@ -1,0 +1,75 @@
+{
+  "format": "gl3-audit-publication-repair-2-completion-v1",
+  "packet": "AUDIT-PUBLICATION-1 / controller follow-up repair 2",
+  "status": "IMPLEMENTATION_AND_LOCAL_VALIDATION_PASS_PENDING_CONTROLLER_REVIEW",
+  "acceptance_claim": false,
+  "repository": "GridLens gl3",
+  "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-audit-publication-repair-20261020",
+  "branch": "repair/audit-publication-repair-20261020",
+  "base_source_sha": "590d8e6082159487a96d07997dc8f6a522cd1eba",
+  "source_sha": "cf1dff43de1c9745b1cee1d90565c5d2eaca9839",
+  "scope": [
+    "backend/src/gridlens/persistence/browse_invalidation.py",
+    "backend/migrations/versions/0034_draft_fact_browse_invalidation.py",
+    "backend/tests/integration/test_fact_draft_publication.py"
+  ],
+  "implementation": {
+    "eligibility": "A DRAFT insert is suppressed only when its fact_version_id has no earlier decision. This permits first drafts for multiple new facts on the same need, including after another fact on that need was accepted, independent of need-stream version and expected_version.",
+    "preserved_fences": "A draft on a fact with any existing decision remains invalidating, including a draft appended after an accepted decision. Statement-level bool_and continues to invalidate mixed statements when any inserted row is ineligible. UPDATE, DELETE, TRUNCATE, non-draft decisions, and unknown writes retain existing triggers.",
+    "migration_source_parity": "0034 migration function SQL remains byte-identical to the source installer function SQL."
+  },
+  "validation": {
+    "focused_postgresql": {
+      "command": "uv run --project backend pytest backend/tests/integration/test_fact_draft_publication.py -q",
+      "exit_code": 0,
+      "result": "5 passed, 1 upstream Starlette warning in 4.51 seconds"
+    },
+    "ruff_format": {
+      "command": "uv run --project backend ruff format --check backend/src/gridlens/persistence/browse_invalidation.py backend/migrations/versions/0034_draft_fact_browse_invalidation.py backend/tests/integration/test_fact_draft_publication.py",
+      "exit_code": 0,
+      "result": "3 files already formatted"
+    },
+    "ruff_check": {
+      "command": "uv run --project backend ruff check backend/src/gridlens/persistence/browse_invalidation.py backend/migrations/versions/0034_draft_fact_browse_invalidation.py backend/tests/integration/test_fact_draft_publication.py",
+      "exit_code": 0,
+      "result": "All checks passed"
+    },
+    "mypy": {
+      "command": "uv run --project backend mypy backend/src/gridlens/persistence/browse_invalidation.py",
+      "exit_code": 0,
+      "result": "Success: no issues found in 1 source file"
+    },
+    "migration_source_sql_parity": {
+      "command": "uv run --project backend python -c \"import importlib.util; from gridlens.persistence.browse_invalidation import FACT_DECISION_INSERT_SQL as source; spec=importlib.util.spec_from_file_location('migration0034','backend/migrations/versions/0034_draft_fact_browse_invalidation.py'); module=importlib.util.module_from_spec(spec); spec.loader.exec_module(module); assert source == module.FACT_DECISION_INSERT_SQL; print('trigger SQL parity: exact')\"",
+      "exit_code": 0,
+      "result": "trigger SQL parity: exact"
+    },
+    "diff_check": {
+      "command": "git diff --check",
+      "exit_code": 0,
+      "result": "PASS"
+    }
+  },
+  "recovery_evidence": [
+    "The first focused test run exited 1 because the old mixed-late-draft fixture inserted a new fact with no same-fact decision history; under the revised rule, that was correctly eligible for suppression. The fixture now adds a later draft to the already-decided same fact, retaining a distinct first draft in the mixed statement; the focused module then passed."
+  ],
+  "timing": {
+    "start_utc": "UNKNOWN",
+    "finish_utc": "2026-10-20T20:38:31Z",
+    "planning_seconds": "UNKNOWN",
+    "build_seconds": "UNKNOWN",
+    "validation_seconds": "UNKNOWN",
+    "audit_seconds": "UNKNOWN",
+    "total_seconds": "UNKNOWN"
+  },
+  "metrics": {
+    "tokens": "UNKNOWN",
+    "model_config_identity": "UNKNOWN",
+    "matched_benchmark": "UNKNOWN / controller-owned",
+    "performance_speedup_claim": false
+  },
+  "limits": [
+    "Focused local validation only; prior packet validation is not reasserted here. Controller owns integration validation, matched benchmarks, and acceptance review.",
+    "No production database, corpus, provider, paid call, push, merge, or deployment was used."
+  ]
+}
