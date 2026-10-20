@@ -2,19 +2,21 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from importlib import import_module
 from threading import Barrier
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, select
+from sqlalchemy import create_engine, event, select
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 
+from gridlens.intelligence.workspace_changes import review_token
 from gridlens.persistence.database import Base
 from gridlens.persistence.models import (
     CallFactDecision,
     CallFactVersion,
     ChangeEvent,
+    Evidence,
     NeedObservation,
     Observation,
     PowerNeed,
@@ -488,3 +490,94 @@ def test_concurrent_first_review_and_overlapping_pages_are_bounded(runtime):
         acknowledged_keys = {item.event_key for item in acknowledgments}
         assert acknowledged_keys == first_reviewed_keys | set(overlap_receipt["event_keys"])
         assert len(acknowledgments) == len(acknowledged_keys)
+
+
+def test_workspace_change_get_has_constant_query_count_with_acknowledged_history(runtime):
+    client, factory, project_id, need_ids, observation_id = runtime
+    now = datetime.now(UTC)
+    with factory.begin() as session:
+        source = Evidence(
+            observation_id=observation_id,
+            content_hash="e" * 64,
+            title="Synthetic retained evidence",
+            url="https://example.test/workspace-evidence",
+        )
+        session.add(source)
+        session.flush()
+        sibling_transition = ChangeEvent(
+            id=1,
+            observation_id=observation_id,
+            project_id=project_id,
+            evidence_id=source.id,
+            field_name="power_need",
+            kind="power_need_changed",
+            prior_state={
+                "value": [
+                    {"activity": "construction", "tier": "Signal", "required_mw": "10"},
+                    {"activity": "commissioning", "tier": "Signal", "required_mw": "10"},
+                ]
+            },
+            new_state={
+                "value": [
+                    {"activity": "construction", "tier": "Prospect", "required_mw": "10"},
+                    {"activity": "commissioning", "tier": "Prospect", "required_mw": "10"},
+                ]
+            },
+            material=True,
+            content_hash="1" * 64,
+            created_at=now,
+        )
+        history = [
+            ChangeEvent(
+                id=event_id,
+                observation_id=observation_id,
+                project_id=project_id,
+                field_name="project_name",
+                kind="project_changed",
+                prior_state={"value": f"before {event_id}"},
+                new_state={"value": f"after {event_id}"},
+                material=True,
+                content_hash=f"{event_id:064x}",
+                created_at=now - timedelta(seconds=event_id),
+            )
+            for event_id in range(2, 3060)
+        ]
+        session.add_all([sibling_transition, *history])
+        session.add_all(
+            WorkspaceChangeAcknowledgment(
+                event_key=f"change:{event_id}",
+                reviewed_at=now,
+                review_token="a" * 64,
+            )
+            for event_id in range(51, 3060)
+        )
+
+    engine = factory.kw["bind"]
+    statements = []
+
+    def count_statement(_connection, _cursor, statement, _parameters, _context, _many):
+        statements.append(statement)
+
+    event.listen(engine, "before_cursor_execute", count_statement)
+    try:
+        response = client.get("/api/opportunities/workspace/changes?limit=50&offset=0")
+    finally:
+        event.remove(engine, "before_cursor_execute", count_statement)
+
+    assert response.status_code == 200, response.text
+    payload = response.json()
+    assert payload["total_unreviewed"] == 50
+    assert payload["counts"]["promoted"] == 1
+    assert payload["counts"]["changed"] == 49
+    assert len(payload["items"]) == 50
+    expected_keys = [f"change:{event_id}" for event_id in range(1, 51)]
+    assert [item["event_key"] for item in payload["items"]] == expected_keys
+    assert payload["token"] == review_token(UUID(payload["baseline_identity"]), expected_keys)
+    assert payload["next_offset"] is None
+    assert payload["items"][0]["before_state"]["value"][0]["tier"] == "Signal"
+    assert payload["items"][0]["after_state"]["value"][0]["tier"] == "Prospect"
+    assert {item["id"] for item in payload["items"][0]["needs"]} == {
+        str(need_id) for need_id in need_ids
+    }
+    assert payload["items"][0]["sources"][0]["content_hash"] == "e" * 64
+    assert len(statements) < 30, f"expected bounded query count, observed {len(statements)}"
