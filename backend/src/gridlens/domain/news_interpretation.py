@@ -266,14 +266,14 @@ def _site_location(text: str) -> str | None:
                 facility_match and state.end() <= facility_match.start() and len(after.split()) <= 5
             )
         ):
-            for city, city_state in sorted(
+            for city, known_city_state in sorted(
                 _CITIES.items(), key=lambda item: len(item[0]), reverse=True
             ):
                 city_match = re.search(rf"\b{re.escape(city)}\b", text, re.I)
                 if (
                     city_match
                     and city_match.start() <= state.start() < city_match.end()
-                    and city_state.casefold() == state.group(1).casefold()
+                    and known_city_state.casefold() == state.group(1).casefold()
                 ):
                     return (
                         city
@@ -354,6 +354,7 @@ def _event_location(title: str, summary: str, event: str | None) -> str | None:
                         break
             partner_context = bool(
                 domestic_site
+                and foreign_location
                 and re.search(
                     r"\b(?:with|among|and)\b[^.;]{0,80}\b"
                     r"(?:partners?|contractors?|suppliers?|investors?)\b",
