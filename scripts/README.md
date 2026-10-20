@@ -13,3 +13,5 @@ These scripts support local setup, checks, replay, and diagnostics. Read each sc
 From the repository root, run the docs graph check as `uv run --project backend python scripts/check_docs.py` and the local full gate as `pwsh scripts/check.ps1`. See [clean-checkout local runtime](../docs/operations/local-runtime.md) for database setup and [runtime configuration](../docs/operations/runtime-configuration.md) for code defaults.
 
 Other scripts are purpose-specific. A successful local or synthetic command is not production, live-provider, or commercial acceptance evidence.
+
+Retained-only operator tools: [news reassessment](../docs/sources/project-interpretation.md#bounded-operator-reassessment) and [buying-chain backfill](../docs/operations/retained-buying-chain-backfill.md). Both use bounded pages and explicit database identity for apply; application/production actions require separate authorization. Use `uv run --project backend python scripts/<script>.py --help` from the repository root.
