@@ -85,6 +85,7 @@ export type IngestionItem = components['schemas']['IngestionItemOut']
 export type IngestionPage = components['schemas']['IngestionPageOut']
 export type Brief = components['schemas']['BriefOut']
 export type BriefRequest = components['schemas']['BriefRequestOut']
+export type PowerNeedTitle = { status: 'disabled' | 'unavailable' | 'pending' | 'ready' | 'stale' | 'failed'; result: { title: string; organization: string | null; role: string | null; activity: string | null } | null; citations: { evidence_id: string; title: string; url: string; publisher: string; quote: string; role?: string | null }[]; generated_at: string | null; model: string | null; error?: string | null; job_id?: string | null }
 export type CommercialTriage = components['schemas']['CommercialTriagePageOut']
 export type CommercialTriageCard = components['schemas']['CommercialTriageCard']
 export type CommercialTriageHistory = components['schemas']['CommercialTriageHistoryPageOut']
@@ -226,6 +227,8 @@ export const client = {
   enrichBuyingChain: (projectId: string, sourceUrls: string[], signal?: AbortSignal) => api<BuyingChainResult>(`/api/projects/${encodeURIComponent(projectId)}/buying-chain/enrich`, { method: 'POST', body: JSON.stringify({ source_urls: sourceUrls }), signal }),
   brief: (needId: string) => api<Brief>(`/api/power-needs/${encodeURIComponent(needId)}/brief`),
   requestBrief: (needId: string) => api<BriefRequest>(`/api/power-needs/${encodeURIComponent(needId)}/brief`, { method: 'POST', body: '{}' }),
+  powerNeedTitle: (needId: string, signal?: AbortSignal) => api<PowerNeedTitle>(`/api/power-needs/${encodeURIComponent(needId)}/title`, { signal }),
+  requestPowerNeedTitle: (needId: string, signal?: AbortSignal) => api<PowerNeedTitle>(`/api/power-needs/${encodeURIComponent(needId)}/title`, { method: 'POST', body: '{}', signal }),
   commercialTriage: (limit = 50, signal?: AbortSignal, offset = 0) => api<CommercialTriage>(`/api/commercial/triage?limit=${limit}${offset ? `&offset=${offset}` : ''}`, { signal }),
   commercialTriageHistory: (signal?: AbortSignal, offset = 0, limit = 50) => api<CommercialTriageHistory>(`/api/commercial/triage/history${offset || limit !== 50 ? `?limit=${limit}&offset=${offset}` : ''}`, { signal }),
   commercialTriageHistoryDetail: (pursuitId: string, signal?: AbortSignal) => api<CommercialTriageHistoryItem>(`/api/commercial/triage/history/${encodeURIComponent(pursuitId)}`, { signal }),

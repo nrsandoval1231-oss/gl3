@@ -24,6 +24,7 @@ from gridlens.intelligence.intelligence_jobs import (
     _cost_bound,
     _dispatch_policy,
     _enabled,
+    _openai_output_bound,
     _provider_audit_exceeds_bound,
     _provider_error_quarantine_details,
     _safe_provider_audit,
@@ -74,13 +75,38 @@ def perform_legacy_call(
     fence_token: int,
     invoke: Callable[[], tuple[dict[str, Any], int | None, int | None]],
     before_dispatch: Callable[[UUID], None] | None = None,
+    before_dispatch_with_policy: Callable[[UUID, dict[str, str] | None], None] | None = None,
+    existing_call_id: UUID | None = None,
 ) -> LegacyCallResult:
     """Reserve, durably mark uncertain, call once, and complete one provider intent.
 
     Network exceptions intentionally leave ``SENT_OUTCOME_UNKNOWN`` in the ledger.
     Callers may preserve the same id in their own JSON receipt, but must not retry it.
     """
-    enabled, provider, model, reason = _enabled(task_type)
+    if existing_call_id is not None:
+        with SessionLocal() as session:
+            existing = session.get(LogicalCall, existing_call_id)
+            if (
+                existing is None
+                or existing.task_type != task_type
+                or existing.task_key != task_key[:200]
+                or existing.job_id != job_id
+            ):
+                raise LegacyCallUnknown("CHECKPOINT_LOGICAL_CALL_MISMATCH")
+            if existing.status == "COMPLETED" and isinstance(existing.result_payload, dict):
+                return LegacyCallResult(
+                    existing.id,
+                    existing.result_payload,
+                    existing.input_tokens,
+                    existing.output_tokens,
+                    True,
+                )
+        # The checkpoint takes precedence over a fresh fingerprint. In
+        # particular, uncertain/sent calls are never replayed after a policy change.
+        raise LegacyCallUnknown("CHECKPOINT_LOGICAL_CALL_NOT_REPLAYABLE")
+    if before_dispatch is not None and before_dispatch_with_policy is not None:
+        raise ValueError("Only one before-dispatch callback may be supplied")
+    enabled, provider, model, reason = _enabled(task_type, payload=payload)
     if not enabled:
         raise LegacyCallBlocked(reason)
     max_cost = _cost_bound(provider, task_type, payload)
@@ -134,16 +160,22 @@ def perform_legacy_call(
             )
     if reservation.status != "NOT_SENT":
         raise LegacyCallUnknown(reservation.status)
-    if before_dispatch:
+    if before_dispatch or before_dispatch_with_policy:
         try:
-            before_dispatch(call_id)
+            if before_dispatch_with_policy:
+                before_dispatch_with_policy(
+                    call_id, dict(billing_policy) if billing_policy is not None else None
+                )
+            else:
+                assert before_dispatch is not None
+                before_dispatch(call_id)
         except Exception:
             with SessionLocal() as session:
                 from gridlens.integrations.logical_calls import cancel_call
 
                 cancel_call(session, call_id, fence_token=fence_token)
             raise
-    enabled, current_provider, current_model, reason = _enabled(task_type)
+    enabled, current_provider, current_model, reason = _enabled(task_type, payload=payload)
     policy_ok = bool(enabled and provider == current_provider and model == current_model)
     policy_ok = (
         policy_ok
@@ -160,12 +192,21 @@ def perform_legacy_call(
     with SessionLocal() as session:
         dispatched = mark_dispatched(session, call_id, fence_token=fence_token, enabled=policy_ok)
     if dispatched.status != "SENT_OUTCOME_UNKNOWN" or dispatched.blocked_reason:
+        if dispatched.status == "NOT_SENT":
+            with SessionLocal() as session:
+                from gridlens.integrations.logical_calls import cancel_call
+
+                cancel_call(session, call_id, fence_token=fence_token)
         raise LegacyCallBlocked(reason or dispatched.blocked_reason or "DISPATCH_NOT_AUTHORIZED")
     try:
         result, input_tokens, output_tokens = invoke()
     except Exception as exc:
         error_quarantine = _provider_error_quarantine_details(
-            exc, provider=provider, task_type=task_type, expected_model=model
+            exc,
+            provider=provider,
+            task_type=task_type,
+            expected_model=model,
+            billing_policy=billing_policy,
         )
         if error_quarantine is not None:
             with SessionLocal() as session:
@@ -179,9 +220,7 @@ def perform_legacy_call(
                     response_payload=error_quarantine["response_payload"],
                     input_tokens=error_quarantine["input_tokens"],
                     output_tokens=error_quarantine["output_tokens"],
-                    conservative_exposure_usd=error_quarantine[
-                        "conservative_exposure_usd"
-                    ],
+                    conservative_exposure_usd=error_quarantine["conservative_exposure_usd"],
                     exposure_basis=error_quarantine["exposure_basis"],
                     exposure_status=error_quarantine["exposure_status"],
                 )
@@ -213,12 +252,14 @@ def perform_legacy_call(
     if not isinstance(result, dict):
         raise ValueError("Legacy provider result must be a JSON object")
     if provider in {"typesafe", "openai"}:
-        actual_model = result.get("actual_model", result.get("model"))
+        actual_model = (
+            result.get("actual_model", result.get("model"))
+            if provider == "openai"
+            else result.get("model")
+        )
         raw_usage_present = "usage" in result
         raw_usage = result.get("usage")
-        quarantine_reason: str | None = (
-            "MODEL_IDENTITY_MISMATCH" if actual_model != model else None
-        )
+        quarantine_reason: str | None = "MODEL_IDENTITY_MISMATCH" if actual_model != model else None
         if quarantine_reason is None and _provider_audit_exceeds_bound(result):
             quarantine_reason = "RESPONSE_TOO_LARGE"
         if (
@@ -237,13 +278,21 @@ def perform_legacy_call(
             quarantine_reason is None
             and provider == "typesafe"
             and input_tokens is not None
+            and (billing_policy or {}).get("cost_basis") == "ESTIMATE"
+            and input_tokens > 64_000
+        ):
+            quarantine_reason = "ESTIMATED_CONTEXT_ASSUMPTION_EXCEEDED"
+        if (
+            quarantine_reason is None
+            and provider == "typesafe"
+            and input_tokens is not None
+            and (billing_policy or {}).get("cost_basis") != "ESTIMATE"
             and input_tokens > settings.intelligence_typesafe_max_total_billable_input_tokens
         ):
             quarantine_reason = "TOTAL_BILLABLE_INPUT_CEILING_EXCEEDED"
         output_bound = None
         if provider == "openai":
-            prefix = "fast" if task_type == "GROUNDED_EXTRACTION" else "reasoning"
-            output_bound = getattr(settings, f"intelligence_openai_{prefix}_max_output_tokens")
+            output_bound = _openai_output_bound(task_type)
             if (
                 quarantine_reason is None
                 and type(output_tokens) is int
@@ -262,9 +311,13 @@ def perform_legacy_call(
             ):
                 if provider == "typesafe":
                     exposure, exposure_status = _bounded_cost_exposure(
-                        provider, task_type, input_tokens, 0
+                        provider, task_type, input_tokens, 0, billing_policy=billing_policy
                     )
-                    exposure_basis = "reported_same_model_input_tokens_at_pinned_input_rate"
+                    exposure_basis = (
+                        "reported_same_model_input_tokens_at_estimated_input_rate"
+                        if (billing_policy or {}).get("cost_basis") == "ESTIMATE"
+                        else "reported_same_model_input_tokens_at_pinned_input_rate"
+                    )
                 elif type(output_tokens) is int and 0 <= output_tokens <= 2**63 - 1:
                     exposure, exposure_status = _bounded_cost_exposure(
                         provider, task_type, input_tokens, output_tokens
@@ -292,6 +345,59 @@ def perform_legacy_call(
                     exposure_status=exposure_status,
                 )
             raise LegacyCallUnknown(quarantined.blocked_reason or quarantine_reason)
+    if (billing_policy or {}).get("cost_basis") == "ESTIMATE":
+        result = dict(result)
+        assert billing_policy is not None
+        estimate = None
+        if type(input_tokens) is int and 0 <= input_tokens <= 2**63 - 1:
+            estimate = _bounded_cost_exposure(
+                provider, task_type, input_tokens, output_tokens or 0, billing_policy=billing_policy
+            )[0]
+        result["usage_estimated_usd"] = str(estimate) if estimate is not None else None
+        result["usage_estimate_policy"] = {
+            "id": billing_policy["policy_id"],
+            "cost_basis": billing_policy["cost_basis"],
+            "input_rate_usd_per_million": billing_policy["input_rate"],
+            "output_rate_usd_per_million": billing_policy["output_rate"],
+            "hard_bound_verified": False,
+        }
+        if _provider_audit_exceeds_bound(result):
+            exposure = None
+            exposure_status = "UNKNOWN"
+            exposure_basis = None
+            if type(input_tokens) is int and 0 <= input_tokens <= 2**63 - 1:
+                exposure, exposure_status = _bounded_cost_exposure(
+                    provider,
+                    task_type,
+                    input_tokens,
+                    output_tokens if type(output_tokens) is int else 0,
+                    billing_policy=billing_policy,
+                )
+                exposure_basis = "reported_same_model_input_tokens_at_estimated_input_rate"
+            with SessionLocal() as session:
+                quarantined = quarantine_call(
+                    session,
+                    call_id,
+                    fence_token=fence_token,
+                    expected_model=model,
+                    actual_model=model,
+                    reason="RESPONSE_TOO_LARGE",
+                    response_payload=_safe_provider_audit(result),
+                    input_tokens=(
+                        input_tokens
+                        if type(input_tokens) is int and 0 <= input_tokens <= 2**63 - 1
+                        else None
+                    ),
+                    output_tokens=(
+                        output_tokens
+                        if type(output_tokens) is int and 0 <= output_tokens <= 2**63 - 1
+                        else None
+                    ),
+                    conservative_exposure_usd=exposure,
+                    exposure_basis=exposure_basis,
+                    exposure_status=exposure_status,
+                )
+            raise LegacyCallUnknown(quarantined.blocked_reason or "RESPONSE_TOO_LARGE")
     with SessionLocal() as session:
         completed = complete_call(
             session,

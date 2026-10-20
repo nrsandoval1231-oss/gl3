@@ -315,9 +315,7 @@ def _scheduled_instants(
         cursor += timedelta(days=day_step)
 
 
-def _next_scheduled_after(
-    epoch: SourceScheduleEpoch, scheduled_for: datetime
-) -> datetime | None:
+def _next_scheduled_after(epoch: SourceScheduleEpoch, scheduled_for: datetime) -> datetime | None:
     horizon = scheduled_for + timedelta(hours=epoch.cadence_hours + 25)
     return next(
         _scheduled_instants(
@@ -500,8 +498,10 @@ def _assign_due_jobs(session) -> int:
             continue
         # Keep the due row pending while a source configuration is held by an
         # active acquisition. Never enqueue work against a stale enabled/config.
-        if due_definition is None or epoch is None or _source_registry_drift(
-            due_definition, source, epoch
+        if (
+            due_definition is None
+            or epoch is None
+            or _source_registry_drift(due_definition, source, epoch)
         ):
             continue
         canonical_due = next(
@@ -863,6 +863,32 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
                         failed.status, failed.error = "failed", type(exc).__name__
                         failed.lease_owner, failed.lease_until = None, None
             return True
+        if kind == "power_need_title":
+            from gridlens.intelligence.titles import process_title_job
+
+            try:
+                process_title_job(job_id, WORKER_ID, fence)
+            except Exception as exc:
+                with SessionLocal.begin() as session:
+                    failed = session.get(Job, job_id)
+                    if (
+                        failed
+                        and failed.status == "running"
+                        and failed.lease_owner == WORKER_ID
+                        and failed.fence == fence
+                    ):
+                        from gridlens.persistence.models import PowerNeedTitle
+
+                        title = (
+                            session.get(PowerNeedTitle, failed.target_id)
+                            if failed.target_id
+                            else None
+                        )
+                        if title and title.status == "pending":
+                            title.status, title.error = "failed", "worker_failed"
+                        failed.status, failed.error = "failed", type(exc).__name__
+                        failed.lease_owner = failed.lease_until = None
+            return True
         with SessionLocal() as session:
             if deadline is not None:
                 session.info["browse_publication_deadline"] = deadline
@@ -956,9 +982,7 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
                     "error": counts.get("collection_error_class") or "Collection incomplete",
                     "collection_status": "PARTIAL",
                     "collection_lane": counts.get("collection_lane"),
-                    "collection_current_complete": counts.get(
-                        "collection_current_complete", False
-                    ),
+                    "collection_current_complete": counts.get("collection_current_complete", False),
                     "collection_window_start": counts.get("collection_window_start"),
                     "collection_window_end": counts.get("collection_window_end"),
                     "collection_scope": definition.get("collection_scope"),
@@ -979,9 +1003,7 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
                     "error": None,
                     "latest_publication_date": counts["latest_publication_date"],
                     "collection_status": counts.get("collection_status"),
-                    "collection_current_complete": counts.get(
-                        "collection_current_complete", True
-                    ),
+                    "collection_current_complete": counts.get("collection_current_complete", True),
                     "collection_scope": definition.get("collection_scope"),
                     "coverage_limitation": definition.get("coverage_limitation"),
                     **{

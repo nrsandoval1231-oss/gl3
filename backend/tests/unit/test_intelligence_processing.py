@@ -420,7 +420,6 @@ def test_pairwise_match_dispatch_is_disabled_without_candidate_context(monkeypat
 
 
 def test_typesafe_cost_bound_reserves_full_attested_total_input_ceiling(monkeypatch):
-
     monkeypatch.setattr(settings, "intelligence_typesafe_model", "pinned-fixture-model")
     monkeypatch.setattr(settings, "intelligence_typesafe_input_usd_per_million", Decimal("2"))
     monkeypatch.setattr(settings, "intelligence_typesafe_output_usd_per_million", Decimal("0"))
@@ -470,7 +469,6 @@ def test_typesafe_cost_bound_reserves_full_attested_total_input_ceiling(monkeypa
 def test_typesafe_output_charge_and_numeric_output_cap_do_not_pass_without_transport_bound(
     monkeypatch,
 ):
-
     monkeypatch.setattr(settings, "intelligence_enabled", True)
     monkeypatch.setattr(settings, "intelligence_mode", "advisory")
     monkeypatch.setattr(settings, "intelligence_enabled_contracts", "SIGNAL_ADJUDICATION")
@@ -505,7 +503,6 @@ def test_typesafe_output_charge_and_numeric_output_cap_do_not_pass_without_trans
 
 
 def test_typesafe_missing_billing_attestation_fails_closed_and_identity_tracks_proof(monkeypatch):
-
     for name, value in {
         "intelligence_enabled": True,
         "intelligence_mode": "advisory",
@@ -690,3 +687,173 @@ def test_grounded_response_schema_requires_explicit_unit_date_and_attribution_fi
         "speaker_role",
     } <= set(candidate["required"])
     assert candidate["additionalProperties"] is False
+
+
+def _estimated_signal_configuration(monkeypatch, *, observation_id=None):
+    selected_id = observation_id or uuid4()
+    values = {
+        "intelligence_enabled": True,
+        "intelligence_mode": "advisory",
+        "intelligence_enabled_contracts": "SIGNAL_ADJUDICATION",
+        "jev_enabled": True,
+        "intelligence_typesafe_enabled": True,
+        "typesafe_api_key": SecretStr("synthetic-fixture-only"),
+        "intelligence_typesafe_model": "jev-1.13.0",
+        "intelligence_typesafe_priced_model_id": "jev-1.13.0",
+        "intelligence_typesafe_pricing_verified": True,
+        "intelligence_typesafe_input_usd_per_million": Decimal("0.042"),
+        "intelligence_typesafe_output_usd_per_million": Decimal("0"),
+        "intelligence_typesafe_billing_mode": "input_only",
+        "intelligence_typesafe_billing_model_id": "jev-1.13.0",
+        "intelligence_typesafe_billing_contract_id": "systemone-v1",
+        "intelligence_typesafe_billing_policy_id": "typesafe-signal-estimate-v1",
+        "intelligence_typesafe_billing_reference": "https://docs.typesafe.ai/models#jev-1.13.0",
+        "intelligence_typesafe_billing_verified": True,
+        "intelligence_typesafe_total_input_bound_verified": False,
+        "intelligence_typesafe_estimated_reservation_usd": Decimal("0.01"),
+        "intelligence_typesafe_estimate_observation_ids": str(selected_id),
+        "intelligence_max_call_usd": Decimal("0.1"),
+    }
+    for name, value in values.items():
+        monkeypatch.setattr(settings, name, value)
+    return selected_id
+
+
+def _estimated_signal_payload(observation_id, **state_changes):
+    state = {
+        "title": "Fixture project event",
+        "abstract": "A retained public construction filing.",
+        "url": "https://example.invalid/permit",
+        "published_at": "2026-10-01",
+        "source_id": "fixture-source",
+        "source_family": "permit",
+        "publisher": "Fixture Publisher",
+        "event_date": "",
+        "event_date_label": "",
+        "project_name": "Fixture project",
+        "location": "Austin, TX",
+        "asset_type": "facility",
+        "lifecycle_state": "planned",
+    }
+    state.update(state_changes)
+    return {
+        "state": state,
+        "observation_id": str(observation_id),
+        "evidence_id": str(uuid4()),
+        "evidence_hash": "a" * 64,
+    }
+
+
+def test_estimated_signal_policy_is_selected_scoped_and_byte_bounded(monkeypatch):
+    from gridlens.intelligence.intelligence_jobs import (
+        TYPESAFE_SIGNAL_REQUEST_MAX_BYTES,
+        _serialized_request_bytes,
+    )
+    from gridlens.intelligence.signal_adjudication import jev_request_payload
+
+    observation_id = _estimated_signal_configuration(monkeypatch)
+    payload = _estimated_signal_payload(observation_id)
+    assert _enabled("SIGNAL_ADJUDICATION", payload=payload) == (
+        True,
+        "typesafe",
+        "jev-1.13.0",
+        "",
+    )
+    assert _cost_bound("typesafe", "SIGNAL_ADJUDICATION", payload) == Decimal("0.01")
+    assert not _enabled("SIGNAL_ADJUDICATION", payload=_estimated_signal_payload(uuid4()))[0]
+    assert not _enabled("JEV_HEALTH_PROBE", payload=payload)[0]
+
+    exact = _estimated_signal_payload(observation_id)
+    request_bytes = _serialized_request_bytes(
+        jev_request_payload(exact["state"], model="jev-1.13.0")
+    )
+    exact["state"]["project_name"] += "x" * (TYPESAFE_SIGNAL_REQUEST_MAX_BYTES - request_bytes)
+    assert (
+        _serialized_request_bytes(jev_request_payload(exact["state"], model="jev-1.13.0"))
+        == TYPESAFE_SIGNAL_REQUEST_MAX_BYTES
+    )
+    assert _cost_bound("typesafe", "SIGNAL_ADJUDICATION", exact) == Decimal("0.01")
+    exact["state"]["project_name"] += "x"
+    assert _cost_bound("typesafe", "SIGNAL_ADJUDICATION", exact) == 0
+
+    unicode_payload = _estimated_signal_payload(observation_id)
+    unicode_payload["state"]["project_name"] = "é" * 8_500
+    assert (
+        _serialized_request_bytes(jev_request_payload(unicode_payload["state"], model="jev-1.13.0"))
+        > TYPESAFE_SIGNAL_REQUEST_MAX_BYTES
+    )
+    assert _cost_bound("typesafe", "SIGNAL_ADJUDICATION", unicode_payload) == 0
+
+
+@pytest.mark.parametrize("reservation", [Decimal("0.001"), Decimal("0.02")])
+def test_estimated_signal_reservation_must_match_reviewed_amount(monkeypatch, reservation):
+    from gridlens.intelligence.intelligence_jobs import _cost_bound
+
+    observation_id = _estimated_signal_configuration(monkeypatch)
+    monkeypatch.setattr(settings, "intelligence_typesafe_estimated_reservation_usd", reservation)
+    payload = _estimated_signal_payload(observation_id)
+    assert not _enabled("SIGNAL_ADJUDICATION", payload=payload)[0]
+    assert _cost_bound("typesafe", "SIGNAL_ADJUDICATION", payload) == 0
+
+
+def test_estimated_policy_snapshot_tracks_scope_and_reservation(monkeypatch):
+    from gridlens.intelligence.intelligence_jobs import _billing_policy_identity
+
+    _estimated_signal_configuration(monkeypatch)
+    before = _billing_policy_identity("typesafe", "jev-1.13.0", "SIGNAL_ADJUDICATION")
+    assert before is not None
+    assert before["cost_basis"] == "ESTIMATE"
+    assert before["hard_bound_verified"] == "false"
+    assert before["max_attempts"] == "1"
+    monkeypatch.setattr(
+        settings, "intelligence_typesafe_estimated_reservation_usd", Decimal("0.02")
+    )
+    assert before != _billing_policy_identity("typesafe", "jev-1.13.0", "SIGNAL_ADJUDICATION")
+    monkeypatch.setattr(
+        settings, "intelligence_typesafe_estimated_reservation_usd", Decimal("0.01")
+    )
+    monkeypatch.setattr(settings, "intelligence_typesafe_estimate_observation_ids", str(uuid4()))
+    assert before != _billing_policy_identity("typesafe", "jev-1.13.0", "SIGNAL_ADJUDICATION")
+
+
+def test_estimated_usage_is_input_only_and_preserves_unknown_input():
+    from gridlens.intelligence.intelligence_jobs import _estimated_cost_from_usage
+
+    policy = {"cost_basis": "ESTIMATE", "input_rate": "0.042", "output_rate": "0"}
+    assert _estimated_cost_from_usage(
+        "typesafe", "SIGNAL_ADJUDICATION", 551, None, billing_policy=policy
+    ) == Decimal(551) * Decimal("0.042") / Decimal(1_000_000)
+    assert (
+        _estimated_cost_from_usage(
+            "typesafe", "SIGNAL_ADJUDICATION", None, 120, billing_policy=policy
+        )
+        is None
+    )
+
+
+def test_estimated_signal_quarantine_uses_reported_context_assumption():
+    error = intelligence_provider.ProviderResponseError(
+        "synthetic estimated-context response",
+        response_received=True,
+        raw_response={
+            "model": "jev-1.13.0",
+            "usage": {"input_tokens": 64_001, "output_tokens": None},
+        },
+        reported_model="jev-1.13.0",
+        reported_usage={"input_tokens": 64_001, "output_tokens": None},
+    )
+    details = _provider_error_quarantine_details(
+        error,
+        provider="typesafe",
+        task_type="SIGNAL_ADJUDICATION",
+        expected_model="jev-1.13.0",
+        billing_policy={
+            "cost_basis": "ESTIMATE",
+            "input_rate": "0.042",
+            "output_rate": "0",
+        },
+    )
+    assert details and details["reason"] == "ESTIMATED_CONTEXT_ASSUMPTION_EXCEEDED"
+    assert details["conservative_exposure_usd"] == (
+        Decimal(64_001) * Decimal("0.042") / Decimal(1_000_000)
+    )

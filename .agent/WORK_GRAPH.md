@@ -73,3 +73,13 @@ This isolated issue79 node does not replace or complete the main intelligence gr
 | PR87-ACCEPT | PR87-CALL, PR87-PUB | RELEASE FAIL / CI diagnosis in PR88 | Full local backend2155pass/3skip/7subtests, browser166pass/1skip and static/contracts/build/audits pass. Independent Sol confirms contact corrections, retains publication release blocker. |
 
 [Packet](packets/PR87-CALL.md). Source recovery a5e4cf9 paused. Owner authorized publication, CI diagnosis/fixes, merge and deployment at 20:30 UTC October 19, conditional on resolving the publication failure and passing exact-candidate release gates. Preserve external work, data, provider limits and infrastructure.
+
+## October19 title follow-up
+
+| Node | Dependencies | State | Deliverable |
+|---|---|---|---|
+| TITLE-01 | deployed b97de9b; Nick23:12UTC release approval | DEPLOYED / LIVE VERIFIED | PR89 d58691e passed4CIchecks, merged37e8274; web-only image51660ba deployed/restarted. Backend/DB/runtime unchanged. Live settled desktop/mobile/reload title/rawsource checks PASS; sessionrevoked. Root TITLE01_RELEASE_AND_INFERENCE_2026-10-19.md. |
+| TITLE-02 | TITLE-01; actual LLM title intent | REVIEW REPAIR / LOCAL | Independently allowlisted queued title enrichment and persistence/UI. Sol found source-provenance bugs; Luna repairing. Isolated backend gates and PostgreSQL tests pending. Publication/deployment not approved by focused TITLE01 release approval. |
+| PROVIDER-ONESHOT | explicit inference request; Astra reviewed Jev estimated-cost path | LIVE INFERENCE VERIFIED | OpenAI gpt-6-luna and pinned Jev1.13.0 synthetic results persisted. Fixed Jev identity repeat0POST; unchanged$50/month; no ordinaryJevactivation or fabricatedbillingattestation. |
+
+| JEV-ESTIMATE-01 | TITLE-02; parent23:41UTC inference-on scope; Astra design review | IMPLEMENTING / LOCAL | Explicit selected-observation SIGNAL_ADJUDICATION estimate policy. Preserve strict policy, false hard-bound attestation, shared50/month, oneactive/attempt, checkpoint no-replay and response quarantine. No runtime activation. Packet JEV-ESTIMATE-01.md; root proposes three current public Austin records for combined reviewed release. |

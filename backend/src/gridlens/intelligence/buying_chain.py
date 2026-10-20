@@ -479,6 +479,9 @@ class BuyingChainViewPreload:
     retained_current: dict[UUID, dict[UUID, bool]] = field(
         default_factory=lambda: defaultdict(dict)
     )
+    retained_source_ids: dict[UUID, dict[UUID, str]] = field(
+        default_factory=lambda: defaultdict(dict)
+    )
     permit_details: dict[UUID, list[BuyingChainEvidence]] = field(
         default_factory=lambda: defaultdict(list)
     )
@@ -664,6 +667,25 @@ def _store_document(
     session.add(row)
     session.flush()
     return row
+
+
+def has_public_research_provenance(source: BuyingChainEvidence) -> bool:
+    """Validate a bounded public-research citation without inventing registry IDs."""
+    if source.retained_evidence_id is not None or not source.project_match_reason.strip():
+        return False
+    try:
+        validated_url = validate_public_url(source.url)
+    except ValueError:
+        return False
+    document = PublicDocument(
+        url=source.url,
+        title=source.title,
+        text=source.excerpt,
+        published_at=source.published_at,
+        observed_at=source.observed_at,
+        extraction_location=source.extraction_location,
+    )
+    return validated_url == source.url and document_content_hash(document) == source.content_hash
 
 
 def _entity_key(item: Extracted) -> str:
@@ -1423,6 +1445,7 @@ def buying_chain_views(
         .execution_options(yield_per=500)
     )
     for project, evidence, observation, interpretation, source in retained_reference_rows:
+        preload.retained_source_ids[project.id][evidence.id] = observation.source_id
         if evidence.id not in preload.retained_current[project.id]:
             preload.retained_current[project.id][evidence.id] = (
                 _retained_evidence_current_for_project(
@@ -1502,6 +1525,16 @@ def buying_chain_view(
         original = session.get(Evidence, source.retained_evidence_id)
         return bool(original and _retained_evidence_current_for_project(session, project, original))
 
+    def retained_source_id(source: BuyingChainEvidence) -> str | None:
+        retained_id = source.retained_evidence_id
+        if retained_id is None:
+            return None
+        if preload is not None:
+            return preload.retained_source_ids.get(project_id, {}).get(retained_id)
+        original = session.get(Evidence, retained_id)
+        observation = session.get(Observation, original.observation_id) if original else None
+        return observation.source_id if observation else None
+
     selected = claims if history else [row for row in claims if str(row.id) in current_claim_ids]
     candidates: list[dict[str, Any]] = []
     for claim in selected:
@@ -1565,6 +1598,11 @@ def buying_chain_view(
             evidence.append(
                 {
                     "id": row.id,
+                    "retained_evidence_id": (
+                        str(row.retained_evidence_id) if row.retained_evidence_id else None
+                    ),
+                    "source_id": retained_source_id(row),
+                    "public_research_provenance": has_public_research_provenance(row),
                     "url": row.url,
                     "quote": citation["quote"],
                     "supports": citation["supports"],
@@ -1630,6 +1668,15 @@ def buying_chain_view(
                     evidence.append(
                         {
                             "id": prior_source.id,
+                            "retained_evidence_id": (
+                                str(prior_source.retained_evidence_id)
+                                if prior_source.retained_evidence_id
+                                else None
+                            ),
+                            "source_id": retained_source_id(prior_source),
+                            "public_research_provenance": has_public_research_provenance(
+                                prior_source
+                            ),
                             "url": prior_source.url,
                             "quote": prior_citation["quote"],
                             "supports": "conflicting_organization_person_role",

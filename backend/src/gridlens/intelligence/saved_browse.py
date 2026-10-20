@@ -127,6 +127,7 @@ def _search_texts(session, summaries: list[dict]) -> dict[str, str]:
             normalized(value)
             for value in (
                 item.get("name"),
+                item.get("browse_title"),
                 project_title(item),
                 item.get("location"),
                 item.get("activity"),
@@ -180,13 +181,17 @@ def _write_rows(session, generation_id, summaries, *, check_budget=None):
             for item in summaries[start : start + 50]
         ]
         api._opportunity_evidence_search_matches(session, batch, None)
-        searches = _search_texts(session, batch)
         details = api.opportunity_projection(
             session, selected_need_ids={item["id"] for item in batch}
         )
         if check_budget is not None:
             check_budget()
         by_id = {str(item["id"]): item for item in details}
+        for summary in batch:
+            detail = by_id.get(str(summary["id"]))
+            if detail and detail.get("browse_title"):
+                summary["browse_title"] = detail["browse_title"]
+        searches = _search_texts(session, batch)
         # Persist the compact commercial decision beside each canonical need row.
         # This is built during generation publication so requests never scan the
         # corpus or recompute business rules.
@@ -220,7 +225,7 @@ def _write_rows(session, generation_id, summaries, *, check_budget=None):
             compact.update(
                 evidence=[],
                 lifecycle_timeline=[],
-                browse_title=project_title(summary),
+                browse_title=summary.get("browse_title") or project_title(summary),
                 evidence_count=len(detail.get("evidence", [])),
                 priority_segment=api._opportunity_priority_segment(summary),
                 priority_label=api._opportunity_priority_label(summary),
@@ -237,6 +242,7 @@ def _write_rows(session, generation_id, summaries, *, check_budget=None):
             # Round-trip converts UUID/date/Decimal values for JSONB serialization.
             compact = json.loads(canonical_json(compact))
             saved_summary = json.loads(canonical_json(summary))
+            saved_summary["browse_title"] = compact["browse_title"]
             values.append(
                 dict(
                     generation_id=generation_id,
@@ -267,7 +273,7 @@ def _write_rows(session, generation_id, summaries, *, check_budget=None):
                     commercial_date=commercial_priority[2],
                     summary=saved_summary,
                     compact=compact,
-                    display_title=project_title(summary),
+                    display_title=compact["browse_title"],
                 )
             )
             digest.update(

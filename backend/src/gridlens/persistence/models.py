@@ -482,6 +482,40 @@ class PowerNeedBriefVersion(Base):
     output_tokens: Mapped[int] = mapped_column(Integer)
 
 
+class PowerNeedTitle(Base):
+    """Advisory, evidence-cited title enrichment kept separate from canonical need facts."""
+
+    __tablename__ = "power_need_titles"
+    need_id: Mapped[UUID] = mapped_column(ForeignKey("power_needs.id"), primary_key=True)
+    requested_fingerprint: Mapped[str | None] = mapped_column(String(64))
+    generated_fingerprint: Mapped[str | None] = mapped_column(String(64))
+    policy_version: Mapped[str] = mapped_column(String(40))
+    schema_version: Mapped[str] = mapped_column(String(40))
+    model: Mapped[str] = mapped_column(String(100))
+    status: Mapped[str] = mapped_column(String(20), default="unavailable")
+    result: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    citations: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, default=list)
+    generated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    input_tokens: Mapped[int | None] = mapped_column(Integer)
+    output_tokens: Mapped[int | None] = mapped_column(Integer)
+    error: Mapped[str | None] = mapped_column(String(80))
+
+
+class PowerNeedTitleVersion(Base):
+    __tablename__ = "power_need_title_versions"
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    need_id: Mapped[UUID] = mapped_column(ForeignKey("power_needs.id"), index=True)
+    input_fingerprint: Mapped[str] = mapped_column(String(64))
+    policy_version: Mapped[str] = mapped_column(String(40))
+    schema_version: Mapped[str] = mapped_column(String(40))
+    model: Mapped[str] = mapped_column(String(100))
+    result: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    citations: Mapped[list[dict[str, Any]]] = mapped_column(JSONB)
+    generated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    input_tokens: Mapped[int | None] = mapped_column(Integer)
+    output_tokens: Mapped[int | None] = mapped_column(Integer)
+
+
 class BriefDailyBudget(Base):
     __tablename__ = "brief_daily_budgets"
     day: Mapped[date] = mapped_column(Date, primary_key=True)

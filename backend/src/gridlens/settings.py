@@ -124,9 +124,14 @@ class Settings(BaseSettings):
     jev_shadow_batch_limit: int = 20
     jev_shadow_daily_limit: int = 20
     jev_shadow_timeout_seconds: int = 90
+    intelligence_typesafe_estimated_reservation_usd: Decimal = Field(
+        default=Decimal("0"), ge=0, le=100
+    )
+    intelligence_typesafe_estimate_observation_ids: str = ""
     openai_api_key: SecretStr | None = None
     openai_brief_model: str = "gpt-4.1-mini"
     briefs_daily_request_limit: int = 8
+    power_need_titles_enabled: bool = False
     autonomous_research_enabled: bool = True
     buying_chain_public_research_enabled: bool = False
     autonomous_research_daily_questions: int = Field(default=8, ge=0, le=100)

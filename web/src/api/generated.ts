@@ -571,6 +571,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/power-needs/{need_id}/title": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Power Need Title */
+        get: operations["get_power_need_title_api_power_needs__need_id__title_get"];
+        put?: never;
+        /** Create Power Need Title */
+        post: operations["create_power_need_title_api_power_needs__need_id__title_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/projects/{project_id}/buying-chain/enrich": {
         parameters: {
             query?: never;
@@ -2534,6 +2552,16 @@ export interface components {
             priority_label?: string | null;
             /** Browse Title */
             browse_title?: string | null;
+            /** Title Status */
+            title_status?: string | null;
+            /** Title Generated At */
+            title_generated_at?: string | null;
+            /** Title Model */
+            title_model?: string | null;
+            /** Title Citations */
+            title_citations?: {
+                [key: string]: unknown;
+            }[];
             /** Evidence Count */
             evidence_count?: number | null;
         };
@@ -2626,6 +2654,27 @@ export interface components {
             extraction_location: string;
             /** Facts */
             facts?: components["schemas"]["PermitFactOut"][];
+        };
+        /** PowerNeedTitleOut */
+        PowerNeedTitleOut: {
+            /** Status */
+            status: string;
+            /** Result */
+            result?: {
+                [key: string]: unknown;
+            } | null;
+            /** Citations */
+            citations?: {
+                [key: string]: unknown;
+            }[];
+            /** Generated At */
+            generated_at?: string | null;
+            /** Model */
+            model?: string | null;
+            /** Error */
+            error?: string | null;
+            /** Job Id */
+            job_id?: string | null;
         };
         /** ProjectChangeOut */
         ProjectChangeOut: {
@@ -3011,6 +3060,16 @@ export interface components {
             priority_label?: string | null;
             /** Browse Title */
             browse_title?: string | null;
+            /** Title Status */
+            title_status?: string | null;
+            /** Title Generated At */
+            title_generated_at?: string | null;
+            /** Title Model */
+            title_model?: string | null;
+            /** Title Citations */
+            title_citations?: {
+                [key: string]: unknown;
+            }[];
             /** Evidence Count */
             evidence_count?: number | null;
             /** Commercial Disposition */
@@ -4516,6 +4575,68 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BriefRequestOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_power_need_title_api_power_needs__need_id__title_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                need_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PowerNeedTitleOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_power_need_title_api_power_needs__need_id__title_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                need_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PowerNeedTitleOut"];
                 };
             };
             /** @description Validation Error */
