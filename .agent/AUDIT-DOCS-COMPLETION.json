@@ -1,0 +1,73 @@
+{
+  "packet": "AUDIT-DOCS",
+  "objective": "Consolidate active documentation against the implementation and dated read-only observations; add focused documentation checks.",
+  "repository": "C:\\Users\\nrsan\\Nucleus\\02_Projects\\GridLens\\gl3-audit-docs-20261020",
+  "branch": "repair/audit-docs-20261020",
+  "base_sha": "fc5afbb144d5129ef9edcefeeb87d5faf25f03f4",
+  "status": "IMPLEMENTED_PENDING_CONTROLLER_VALIDATION",
+  "started_utc": "UNKNOWN",
+  "finished_utc": "2026-10-20T19:31:41Z",
+  "changed_files": [
+    "README.md",
+    "deploy/README.md",
+    "docs/README.md",
+    "docs/delivery/milestones.md",
+    "docs/operations/README.md",
+    "docs/sources/coverage.md",
+    "scripts/README.md",
+    "scripts/check.ps1",
+    "scripts/check_docs.py",
+    ".agent/AUDIT-DOCS-COMPLETION.json"
+  ],
+  "validation": [
+    {
+      "command": "uv run --project backend python scripts/check_docs.py",
+      "exit_code": 0,
+      "result": "Active documentation link check passed: 10 documents, 65 local targets. Historical inventory is separate: 151 documents, 34 missing relative targets at baseline."
+    },
+    {
+      "command": "pwsh -NoProfile -Command '$tokens=$null; $errors=$null; [System.Management.Automation.Language.Parser]::ParseFile((Resolve-Path \"scripts/check.ps1\"),[ref]$tokens,[ref]$errors) > $null; if ($errors.Count) { $errors | ForEach-Object { $_.Message }; exit 1 }; \"PowerShell parse passed\"'",
+      "exit_code": 0,
+      "result": "PowerShell parse passed."
+    },
+    {
+      "command": "uv run --project backend python -m py_compile scripts/check_docs.py",
+      "exit_code": 0,
+      "result": "Python compilation passed."
+    },
+    {
+      "command": "git diff --check",
+      "exit_code": 0,
+      "result": "Passed; Git emitted only configured LF-to-CRLF working-copy warnings for edited Markdown."
+    }
+  ],
+  "read_only_references": {
+    "baseline_inventory": ".artifacts/docs-inventory-baseline.json (ignored; not committed)",
+    "production_receipts": "Adjacent controller worktree .artifacts/audit-remediation/production-readonly*.txt and production-backup-sha256-20261020.txt; read only",
+    "pull_requests": [
+      "#97: docs/operations/production-database-and-backups.md; proposal status conflicts with subsequent handoff claims, so only independently observed receipts were consolidated.",
+      "#98: docs/operations/2026-10-20-recovery-handoff.md; reviewed as a dated handoff, not treated as the authority for current host claims."
+    ]
+  },
+  "metrics": {
+    "historical_documents_in_inventory": 151,
+    "historical_missing_relative_targets_at_baseline": 34,
+    "active_documents_checked": 10,
+    "local_targets_checked": 65,
+    "production_database_projects": 1620,
+    "production_saved_needs": 1619,
+    "restored_local_evidence_versions": 18016,
+    "restored_local_observations": 16694,
+    "full_repository_validation": "UNKNOWN_PENDING_CONTROLLER",
+    "candidate_sha_and_commit": "UNKNOWN_PENDING_COMMIT",
+    "independent_review": "UNKNOWN_PENDING_CONTROLLER",
+    "ci_status": "UNKNOWN",
+    "deployment_status": "NO_CHANGE_BY_THIS_PACKET; overall release remains open",
+    "authenticated_live_workflow": "UNKNOWN",
+    "scheduled_offhost_retention": "UNKNOWN",
+    "tokens": "UNKNOWN",
+    "model_config_identity": "UNKNOWN",
+    "elapsed_to_acceptance": "UNKNOWN_PENDING_INDEPENDENT_ACCEPTANCE"
+  },
+  "authority_and_scope": "No product code, migrations, canonical PRD/UI canon, credentials, GitHub settings, production state, deployment, merge, push, provider call, or governance setting was changed. This artifact reports a documentation checkpoint only; it does not claim parent objective completion."
+}
