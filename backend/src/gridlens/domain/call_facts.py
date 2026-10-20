@@ -52,18 +52,6 @@ def validate_fact(fact_type: str, value: dict[str, Any]) -> dict[str, Any]:
     allowed = fields_by_type[fact_type] | {"basis", "source_quote"}
     if set(value) - allowed:
         raise ValueError("Fact value contains unsupported fields")
-    correction_keys = {
-        "corrects_source_semantic_hash",
-        "corrects_source_evidence_hash",
-    }
-    supplied_correction_keys = correction_keys.intersection(value)
-    if supplied_correction_keys:
-        if fact_type != "timing":
-            raise ValueError("source corrections are supported only for timing facts")
-        if supplied_correction_keys != correction_keys:
-            raise ValueError("timing correction must bind both current source hashes")
-        if not isinstance(value.get("basis"), str) or not value["basis"].strip():
-            raise ValueError("timing correction requires a basis reason")
     clean: dict[str, Any] = {}
     if fact_type in {"demand", "unsuitable_supply", "suitable_supply"}:
         if fact_type == "suitable_supply" and value.get("quality") not in {
@@ -110,6 +98,13 @@ def validate_fact(fact_type: str, value: dict[str, Any]) -> dict[str, Any]:
             "end_date": last.isoformat(),
             "duration_days": duration,
         }
+        correction_keys = {
+            "corrects_source_semantic_hash",
+            "corrects_source_evidence_hash",
+        }
+        supplied_correction_keys = correction_keys.intersection(value)
+        if supplied_correction_keys and supplied_correction_keys != correction_keys:
+            raise ValueError("timing correction must bind both current source hashes")
         if supplied_correction_keys:
             for key in sorted(correction_keys):
                 source_hash = value.get(key)
