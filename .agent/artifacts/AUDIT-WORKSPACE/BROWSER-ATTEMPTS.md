@@ -48,4 +48,3 @@ Cause: the API client intentionally normalizes server error detail. The assertio
 ## Final proof
 
 `npm test -- --project=regression tests/workspace.spec.ts`: 33 passed (23.2s) after the UI copy refinement. The final screenshot is `audit-workspace-briefing.png` (SHA-256 `D5423FC7FE3F2B76E4A93A18FA8C9AD52DEF3DFFDBD3381098BAB78DEE8D18AE`).
-
