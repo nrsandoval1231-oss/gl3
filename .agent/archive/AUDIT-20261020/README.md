@@ -1,3 +1,5 @@
-# Preserved pre-remediation state
+# Preserved pre-remediation records
 
-The two files here preserve the exact CURRENT_STATE and WORK_GRAPH bytes on baseline9e9e188 before October20 audit remediation. They contain dated approvals/observations and remain historical evidence; they are superseded for current navigation by [current state](../../CURRENT_STATE.md), [current work graph](../../WORK_GRAPH.md) and [delivery status](../../../docs/delivery/milestones.md). Do not treat their commands or runtime claims as current operational instructions.
+These files preserve baseline 9e9e188 records before the October 20 remediation: CURRENT_STATE, WORK_GRAPH, OWNER_REQUEST, COMPLETION and METRICS. Original bytes and dated authority/observation history are retained. The attached deep audit is also preserved unchanged as baseline evidence.
+
+Current navigation is [current state](../../CURRENT_STATE.md), [work graph](../../WORK_GRAPH.md), [owner request](../../OWNER_REQUEST.md) and [delivery status](../../../docs/delivery/milestones.md). Archived commands and links retain their original context; missing ignored receipts are not recreated or represented as current operational proof. The audit's repair suggestions do not grant deployment, governance or spending authority.
