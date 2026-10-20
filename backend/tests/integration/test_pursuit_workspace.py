@@ -350,3 +350,30 @@ def test_workspace_route_requires_authentication():
     client = TestClient(api.app, base_url="https://testserver")
     response = client.get("/api/opportunities/workspace")
     assert response.status_code == 401
+
+
+def test_signal_decision_counts_cover_all_pages_of_active_signal_cohort(monkeypatch):
+    from gridlens.api import app as api
+
+    pages = {
+        0: [{"signal_display_decision": "SHOW"} for _ in range(50)],
+        50: [
+            {"signal_display_decision": "REVIEW"},
+            {"signal_display_decision": None},
+        ],
+    }
+    requested_offsets = []
+
+    def opportunity_page(*, tier, limit, offset):
+        assert tier == "Signal" and limit == 50
+        requested_offsets.append(offset)
+        return pages.get(offset, [])
+
+    monkeypatch.setattr(api, "opportunities", opportunity_page)
+    assert api.signal_decision_counts() == {
+        "show": 50,
+        "review": 1,
+        "hold": 0,
+        "unadjudicated": 1,
+    }
+    assert requested_offsets == [0, 50]

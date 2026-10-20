@@ -54,6 +54,38 @@ def test_fact_values_are_typed_and_reject_invalid_ranges():
     assert validate_timezone(datetime(2026, 10, 8, tzinfo=UTC), "confirmed_at").tzinfo == UTC
 
 
+def test_source_timing_correction_requires_exact_timing_binding():
+    correction = {
+        "start_date": "2027-01-01",
+        "end_date": "2027-03-01",
+        "duration_days": 45,
+        "corrects_source_semantic_hash": "a" * 64,
+        "corrects_source_evidence_hash": "b" * 64,
+        "basis": "Publisher corrected the announced schedule.",
+    }
+    assert validate_fact("timing", correction)["corrects_source_evidence_hash"] == "b" * 64
+    with pytest.raises(ValueError, match="unsupported fields"):
+        validate_fact(
+            "demand",
+            {
+                "mw": 12,
+                "corrects_source_semantic_hash": "a" * 64,
+                "corrects_source_evidence_hash": "b" * 64,
+            },
+        )
+    with pytest.raises(ValueError, match="both current source hashes"):
+        validate_fact(
+            "timing",
+            {
+                key: value
+                for key, value in correction.items()
+                if key != "corrects_source_evidence_hash"
+            },
+        )
+    with pytest.raises(ValueError, match="basis reason"):
+        validate_fact("timing", {key: value for key, value in correction.items() if key != "basis"})
+
+
 def test_exact_mw_fact_ranges_normalize_without_changing_legacy_scalar_shape():
     assert validate_fact("demand", {"mw_min": 20, "mw_max": "25.0"}) == {
         "mw_min": "20",

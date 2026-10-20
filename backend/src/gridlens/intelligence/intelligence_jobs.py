@@ -447,7 +447,6 @@ def enqueue_intelligence(
             Job.status.in_(["queued", "running"]),
         )
         .order_by(Job.created_at.desc())
-        .limit(10)
     ):
         try:
             checkpoint = json.loads(job.checkpoint or "{}")

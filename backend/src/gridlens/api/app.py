@@ -2721,6 +2721,9 @@ def export_opportunities_csv(
             "name",
             "location",
             "tier",
+            "rank_score",
+            "rank_reasons",
+            "rank_version",
             "signal_decision",
             "workflow_status",
             "priority_segment",
@@ -2761,6 +2764,11 @@ def export_opportunities_csv(
                     "name": record["name"],
                     "location": record["location"] or "UNKNOWN",
                     "tier": record["tier"],
+                    "rank_score": record.get("rank_score"),
+                    "rank_reasons": json.dumps(
+                        record.get("rank_reasons") or [], separators=(",", ":")
+                    ),
+                    "rank_version": record.get("rank_version") or "UNKNOWN",
                     "signal_decision": record.get("signal_display_decision") or "UNKNOWN",
                     "workflow_status": record.get("workflow_status", "UNKNOWN"),
                     "priority_segment": (
@@ -3888,9 +3896,15 @@ class SignalDecisionCountsOut(BaseModel):
 def signal_decision_counts():
     """Count active Signal opportunity records using the same lifecycle policy as browse."""
     counts = {"show": 0, "review": 0, "hold": 0, "unadjudicated": 0}
-    for item in opportunities(tier="Signal"):
-        decision = item["signal_display_decision"]
-        counts[decision.casefold() if decision else "unadjudicated"] += 1
+    offset = 0
+    while True:
+        cohort = opportunities(tier="Signal", limit=50, offset=offset)
+        for item in cohort:
+            decision = item["signal_display_decision"]
+            counts[decision.casefold() if decision else "unadjudicated"] += 1
+        if len(cohort) < 50:
+            break
+        offset += len(cohort)
     return counts
 
 

@@ -175,6 +175,27 @@ def _seed_job(sessions, *, task_type="SOURCE_RELEVANCE_V1", question_id=None, li
     return need_id, evidence_id, job_id
 
 
+def test_enqueue_reuses_matching_active_job_beyond_recent_ten(sessions):
+    need_id, _evidence_id, original_job_id = _seed_job(sessions)
+    with sessions.begin() as session:
+        original = session.get(Job, original_job_id)
+        checkpoint = json.loads(original.checkpoint)
+        for index in range(12):
+            session.add(
+                Job(
+                    source_id=original.source_id,
+                    kind=original.kind,
+                    target_id=need_id,
+                    status="queued",
+                    checkpoint=json.dumps({"request_digest": f"{index:064x}"}),
+                    created_at=datetime.now(UTC) + timedelta(seconds=index + 1),
+                )
+            )
+        reused = enqueue_intelligence(session, need_id=need_id, task_type="SOURCE_RELEVANCE_V1")
+        assert reused.id == original.id
+        assert json.loads(reused.checkpoint)["request_digest"] == checkpoint["request_digest"]
+
+
 def test_retained_context_uses_accepted_supplement_hashes_independently(sessions):
     from gridlens.intelligence.intelligence_jobs import _retained_context
 
