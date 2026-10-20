@@ -696,6 +696,8 @@ def run_buying_chain_research(
                 project
                 and target
                 and target.content_hash == payload.get("evidence_hash")
+                and retained_evidence_policy_version(target_interpretation)
+                == payload.get("evidence_policy_version")
                 and _retained_evidence_current_for_project(
                     session,
                     project,

@@ -270,7 +270,7 @@ def test_retained_buying_chain_job_reads_and_cites_its_fifth_current_document(
         for index in range(5):
             is_target = index == 4
             abstract = (
-                "Fifth-only Acme Industrial is the general contractor for Synthetic Orion "
+                "Acme Industrial is the general contractor for Synthetic Orion "
                 "Data Center in Austin, TX."
                 if is_target
                 else f"Synthetic Orion Data Center retained update {index} in Austin, TX."
@@ -300,6 +300,7 @@ def test_retained_buying_chain_job_reads_and_cites_its_fifth_current_document(
                     observation_id=observation.id,
                     content_hash=observation.content_hash,
                     status="accepted",
+                    evaluator_version="research-policy-v1",
                     assessment={
                         "decision": "accepted",
                         "evidence_hash": observation.content_hash,
@@ -322,8 +323,12 @@ def test_retained_buying_chain_job_reads_and_cites_its_fifth_current_document(
         leased, fence = lease_one(session, "retained-five-document-test", job_ids=[job_id])
         assert leased is not None
     result = buying_chain.run_buying_chain_research(job_id, "retained-five-document-test", fence)
-    assert result["status"] == "complete"
-    with factory() as session:
+    assert result["status"] == "partial"
+    assert (
+        "Named individual project assignment and purchasing authority remain UNKNOWN."
+        in result["result"]["unresolved"]
+    )
+    with factory.begin() as session:
         retained_row = session.scalar(
             select(BuyingChainEvidence).where(BuyingChainEvidence.retained_evidence_id == target_id)
         )
@@ -332,23 +337,12 @@ def test_retained_buying_chain_job_reads_and_cites_its_fifth_current_document(
         assert any(
             candidate["organization"] == "Acme Industrial"
             and any(
-                evidence["id"] == str(retained_row.id)
+                evidence["id"] == retained_row.id
                 and evidence["retained_evidence_id"] == str(target_id)
                 for evidence in candidate["evidence"]
             )
             for candidate in candidates
-        )
-        target = session.get(Evidence, target_id)
-        interpretation = session.scalar(
-            select(Interpretation).where(Interpretation.observation_id == target.observation_id)
-        )
-        interpretation.status = "rejected"
-        assert (
-            buying_chain.enqueue_retained_buying_chain_research(
-                session, project_id, target.id, target.content_hash
-            )
-            is None
-        )
+        ), candidates
         stale_checkpoint = json.loads(session.get(Job, job_id).checkpoint)
         stale_checkpoint["status"] = "queued"
         stale_job = Job(
@@ -367,13 +361,58 @@ def test_retained_buying_chain_job_reads_and_cites_its_fifth_current_document(
             session, "retained-stale-target-test", job_ids=[stale_job_id]
         )
         assert leased is not None
+
+    original_plan = buying_chain._public_research_plan
+    policy_change_applied = False
+
+    def change_target_policy_after_initial_check(session, *args):
+        nonlocal policy_change_applied
+        planned = original_plan(session, *args)
+        if not policy_change_applied:
+            with factory.begin() as policy_session:
+                target = policy_session.get(Evidence, target_id)
+                interpretation = policy_session.scalar(
+                    select(Interpretation).where(
+                        Interpretation.observation_id == target.observation_id
+                    )
+                )
+                interpretation.evaluator_version = "research-policy-next"
+            policy_change_applied = True
+        return planned
+
+    monkeypatch.setattr(
+        buying_chain, "_public_research_plan", change_target_policy_after_initial_check
+    )
+    with factory() as session:
+        prior_run_count = session.scalar(select(func.count()).select_from(BuyingChainRun))
     stale_result = buying_chain.run_buying_chain_research(
         stale_job_id, "retained-stale-target-test", stale_fence
     )
+    assert policy_change_applied
     assert stale_result["status"] == "stale"
     with factory() as session:
         stale_checkpoint = json.loads(session.get(Job, stale_job_id).checkpoint)
         assert stale_checkpoint["stale_reason"] == "retained_evidence_version_changed"
+        assert session.scalar(select(func.count()).select_from(BuyingChainRun)) == prior_run_count
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(BuyingChainEvidence)
+                .where(BuyingChainEvidence.retained_evidence_id == target_id)
+            )
+            == 1
+        )
+        target = session.get(Evidence, target_id)
+        interpretation = session.scalar(
+            select(Interpretation).where(Interpretation.observation_id == target.observation_id)
+        )
+        interpretation.status = "rejected"
+        assert (
+            buying_chain.enqueue_retained_buying_chain_research(
+                session, project_id, target.id, target.content_hash
+            )
+            is None
+        )
 
 
 def seed(factory, source, job_id):

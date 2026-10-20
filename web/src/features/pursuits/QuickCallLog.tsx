@@ -29,8 +29,8 @@ export function QuickCallLog({ item, onReadback }: { item: Opportunity; onReadba
   const set = (key: string) => (event: { target: { value: string } }) => setValues((current) => ({ ...current, [key]: event.target.value }))
   const has = (...keys: string[]) => keys.some((key) => (values[key] ?? '').trim() !== '')
   const validMw = (value: string, allowZero: boolean) => {
-    const match = /^\s*(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?)\s*(kW|MW)?(?:\s*(?:-|–|to)\s*(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?)\s*(kW|MW)?)?\s*$/i.exec(value)
-    if (!match || value.trim().length > 128) return false
+    const match = /^\s*((?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?)\s*(kW|MW)?(?:\s*(?:-|\u2013|to)\s*((?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d+)?)\s*(kW|MW)?)?\s*$/i.exec(value)
+    if (!match || value.trim().length > 128 || (match[3] && !match[4])) return false
     const lowUnit = match[2] ?? match[4]
     const highUnit = match[4] ?? match[2]
     const low = Number(match[1].replaceAll(',', '')) * (lowUnit?.toLowerCase() === 'kw' ? 0.001 : 1)
@@ -88,7 +88,7 @@ export function QuickCallLog({ item, onReadback }: { item: Opportunity; onReadba
     if (has('start') && has('end') && values.start > values.end) return setError('Earliest start must be on or before latest start.')
     if (has('buyer') && values.buyer.trim().length < 2) return setError('Buyer organization needs at least 2 characters.')
     if (has('buyer') && !values.buyerRole) return setError('Choose the buyer role they reported.')
-    if (has('mw') && !validMw(values.mw.trim(), false)) return setError('Power needed must be a positive MW value or supported range, up to 1000000 MW.')
+    if (has('mw') && !validMw(values.mw.trim(), false)) return setError('Power needed must be a positive MW value or a range with an explicit unit, up to 1000000 MW.')
     if (has('supply') && values.supplyQuality === 'unsuitable' && (!/^\s*\d+(\.\d+)?\s*$/.test(values.supply) || !validMw(values.supply.trim(), false))) {
       return setError('Unsuitable supply needs one positive MW number within the supported range.')
     }
@@ -172,7 +172,7 @@ export function QuickCallLog({ item, onReadback }: { item: Opportunity; onReadba
       </fieldset>
       <fieldset disabled={busy}>
         <legend>What they told you · leave blank what wasn't said</legend>
-        <label>Power needed (MW or range, e.g. 10 or 8-12)<input aria-label="Power needed" value={values.mw ?? ''} onChange={set('mw')}/></label>
+        <label>Power needed (e.g. 10 MW or 8-12 MW)<input aria-label="Power needed" value={values.mw ?? ''} onChange={set('mw')}/></label>
         <label>Earliest start<input aria-label="Earliest start" type="date" value={values.start ?? ''} onChange={set('start')}/></label>
         <label>Latest start<input aria-label="Latest start" type="date" value={values.end ?? ''} onChange={set('end')}/></label>
         <label>Duration (days)<input aria-label="Duration days" type="number" min="1" value={values.duration ?? ''} onChange={set('duration')}/></label>
