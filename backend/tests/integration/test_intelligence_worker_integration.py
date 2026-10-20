@@ -2152,6 +2152,9 @@ def test_estimated_jev_worker_persists_usage_audit_and_reuses_completed_call(ses
             source_id=source_id,
             kind="signal_adjudication",
             target_id=observation_id,
+            # This tests completed-call reuse, not database/application clock
+            # alignment. Make the fixture unambiguously eligible for leasing.
+            available_at=datetime.now(UTC) - timedelta(seconds=1),
             checkpoint=json.dumps(
                 {
                     "evidence_id": str(evidence_id),

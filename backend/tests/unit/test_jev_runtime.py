@@ -159,49 +159,8 @@ def test_compose_forwards_injected_keys_without_a_secret_file(tmp_path):
     assert "FIRECRAWL_API_KEY" not in services["web"].get("environment", {})
 
 
-def test_typesafe_transport_enforces_cooperative_total_deadline(monkeypatch):
-    monkeypatch.setattr(intelligence_provider, "TIMEOUT_SECONDS", 0.005)
-    monkeypatch.setattr(intelligence_provider, "READ_PHASE_TIMEOUT_SECONDS", 0.005)
-
-    class SlowResponse:
-        status_code = 200
-        headers = {}
-
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *_args):
-            return None
-
-        def iter_bytes(self):
-            yield b"{}"
-
-    class Client:
-        def __init__(self, *, timeout):
-            assert timeout.read == 0.005
-
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *_args):
-            return None
-
-        def stream(self, *_args, **_kwargs):
-            return SlowResponse()
-
-    monkeypatch.setattr(intelligence_provider.httpx, "Client", Client)
-    clock_calls = 0
-
-    def monotonic():
-        nonlocal clock_calls
-        clock_calls += 1
-        return 0.0 if clock_calls == 1 else 0.001 if clock_calls <= 3 else 0.01
-
-    monkeypatch.setattr(intelligence_provider.time, "monotonic", monotonic)
-    with pytest.raises(intelligence_provider.ProviderResponseError, match="total request deadline"):
-        intelligence_provider._post_json(
-            "https://provider.invalid", headers={}, payload={}, timeout_seconds=0.005
-        )
+# Total-deadline enforcement is covered against a loopback server in
+# test_intelligence_provider_transport.py.
 
 
 @pytest.mark.parametrize("key", [None, "", "   "])
