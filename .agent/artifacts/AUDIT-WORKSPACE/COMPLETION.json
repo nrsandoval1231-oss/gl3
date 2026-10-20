@@ -5,7 +5,7 @@
   "branch": "repair/audit-workspace-20261020",
   "base_sha": "83ed6e4e1dd416bbfc9d4886fe64c29025c8ed4f",
   "implementation_commit": "5308c656f6e1f6b7a0ef0a5e42ba7998cf917f80",
-  "finish_utc": "2026-10-20 20:11 UTC (minute-level; exact finish not instrumented)",
+  "finish_utc": "2026-10-20 20:12:51 UTC",
   "start_utc": "UNKNOWN",
   "model_and_config_identity": "UNKNOWN",
   "measured_tokens": "UNKNOWN",
