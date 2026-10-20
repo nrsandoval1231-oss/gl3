@@ -363,7 +363,7 @@ def test_group_membership_is_recomputed_after_activity_filter(saved_db):
 
 def test_exact_fact_boundary_and_policy_expiry_fail_closed(saved_db, monkeypatch):
     from gridlens.intelligence import saved_browse
-    from gridlens.persistence.models import BrowseGeneration, CallFactVersion
+    from gridlens.persistence.models import BrowseGeneration, CallFactDecision, CallFactVersion
 
     ids = seed(saved_db, count=1)
     boundary = datetime.now(UTC) + timedelta(minutes=5)
@@ -384,6 +384,21 @@ def test_exact_fact_boundary_and_policy_expiry_fail_closed(saved_db, monkeypatch
                 effective_from=boundary,
                 content_hash="a" * 64,
                 recorded_by="Synthetic actor",
+            )
+        )
+        session.flush()
+        fact = session.scalar(select(CallFactVersion).where(CallFactVersion.need_id == need.id))
+        session.add(
+            CallFactDecision(
+                need_id=need.id,
+                fact_version_id=fact.id,
+                version=1,
+                client_id=uuid4(),
+                decision="accepted",
+                expected_version=0,
+                reason="Synthetic accepted future demand",
+                content_hash="b" * 64,
+                actor="Synthetic",
             )
         )
     rebuild(saved_db)
