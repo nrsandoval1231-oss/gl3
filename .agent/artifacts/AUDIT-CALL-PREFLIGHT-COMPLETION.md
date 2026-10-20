@@ -29,3 +29,13 @@ px playwright test tests/environment.spec.ts -g "one call logs several facts" wi
 - After final metadata-bound checks, focused `npx playwright test tests/environment.spec.ts -g "one call logs several facts"` — exit 0; 1 passed.
 - `git diff --check` — exit 0.
 - UTC timing/token metrics and model config identity remain UNKNOWN.
+
+## Bounded integration repair
+
+- Source commit: `bd98b8750102de4b142589951201fe0c2f450ff5`.
+- Unsuitable supply now requires a scalar decimal plus canonical positive/range bounds, matching backend `validate_fact`; range input such as `5-10` is rejected before any POST. Suitable supply ranges and zero remain supported.
+- Calendar validation checks a finite parsed date before ISO conversion, so malformed programmatic input returns the inline validation error rather than throwing.
+- `npm run typecheck` — exit 0.
+- `npx playwright test tests/environment.spec.ts -g "one call logs several facts"` — exit 0; 1 passed, covering unsuitable `5-10` and zero with zero writes, then positive scalar save/accept and suitable zero.
+- `git diff --check` — exit 0.
+- Build and broader suites not rerun per bounded repair instruction. No external effects.
