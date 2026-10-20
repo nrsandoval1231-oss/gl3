@@ -364,3 +364,83 @@ def test_named_actor_subjects_remain_identifiable() -> None:
         ).tier
         == "Signal"
     )
+
+
+def test_early_stage_us_data_center_events_from_retained_headlines_are_signals() -> None:
+    # Retained production headlines (DCD, 2026-10) previously rejected as having no
+    # concrete project action. Land, financing, a dated power contract for a planned
+    # site, and site conversion each precede groundbreaking.
+    cases = [
+        (
+            "Microsoft acquires 600 acres of land for data center in Woodward, Iowa",
+            "Local residents raise concerns",
+            "Iowa",
+        ),
+        (
+            "Digi Power X secures $200m in debt financing for Alabama data center project",
+            "Will support the development of a 40MW data center in Columbiana, Alabama",
+            "Alabama",
+        ),
+        (
+            "Microsoft signs 20-year power deal with Indiana utility NiSource for planned "
+            "data center in the state",
+            "Will commence in 2028",
+            "Indiana",
+        ),
+        (
+            "Valor Energy acquires computing site in Youngstown, Ohio",
+            "Company looks to pivot 18MW site into an AI data center",
+            "Ohio",
+        ),
+    ]
+    for title, summary, location in cases:
+        result = assess_news(title, summary)
+        assert (result.decision, result.tier, result.location) == (
+            "accepted",
+            "Signal",
+            location,
+        ), (title, result.reason)
+        assert result.subject
+        assert result.demand_mw is None
+        # The ingestion path requires an accepted Signal to bind one power activity.
+        assert signal_power_activity(result.action) == "construction"
+
+
+def test_named_commercial_construction_start_is_a_signal() -> None:
+    result = assess_news(
+        "DPR breaks ground on $230M Kaiser Permanente project in Colorado",
+        "The contractor will use prefabricated and modular construction to build the "
+        "offices, cutting down on jobsite complexity.",
+    )
+    assert (result.decision, result.tier, result.location) == ("accepted", "Signal", "Colorado")
+    assert result.subject == "Kaiser Permanente project"
+
+
+def test_early_stage_lookalikes_stay_rejected() -> None:
+    cases = [
+        # Company acquisitions, not sites.
+        ("CBRE acquires data center services firm Onnec", "Initial purchase price of $610 million"),
+        # Exploratory or speculative site interest.
+        (
+            "400MW data center eyed at old Navy cyber site in San Diego, California",
+            "Manchester Financial Group exploring potential of data center at NAVWAR HQ",
+        ),
+        (
+            "Google explores data center site in Roanoke County, Virginia",
+            "Evaluates the Wood Haven Technology Park as a site for project",
+        ),
+        # Power contract without a planned/new site is supply reporting.
+        (
+            "Meta signs power deal with Texas utility for existing data centers",
+            "The agreement covers current operations",
+        ),
+        # Financing a company, not a site.
+        ("Lambda secures $500m in financing", "The AI cloud firm will expand its team"),
+        # Non-US.
+        (
+            "DataVault secures $50m in financing for data center in Auckland, New Zealand",
+            "First phase due live next year",
+        ),
+    ]
+    for title, summary in cases:
+        assert assess_news(title, summary).decision == "rejected", title

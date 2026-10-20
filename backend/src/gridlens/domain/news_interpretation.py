@@ -52,7 +52,8 @@ _OUTSIDE_US = re.compile(
 _FACILITY = re.compile(
     r"\b(?:AI )?(?:data cent(?:er|re)|campus|manufacturing (?:campus|plant|facility)|"
     r"manufacturing|plant|factory|facility|water reclamation plant|water project|"
-    r"industrial (?:site|project)|processing facility|greenhouse|mine)\b",
+    r"industrial (?:site|project)|processing facility|greenhouse|mine|hospital|medical center|"
+    r"arena|stadium|offices)\b",
     re.I,
 )
 _ACTION = re.compile(
@@ -62,13 +63,28 @@ _ACTION = re.compile(
     r"construct|expand|establish|open)|(?:build|construct|expand|establish|open)(?:s|ed|ing)?)\b",
     re.I,
 )
+# Pre-construction data-center milestones: a concrete site, financing, a power
+# contract for a planned site, or conversion of an existing site. Only admitted in a
+# span that also names a data center, and never for company deals or exploratory
+# interest (those remain speculative or non-facility reporting).
+_EARLY_DC_ACTION = re.compile(
+    r"\b(?:acquires?\s+(?:\d[\d,]*\s+acres|land|(?:a |the )?(?:[a-z]+\s+)?site)\b|"
+    r"secures?\s+\$[\d.,]+\s*(?:m|bn|b|million|billion)\s+(?:in\s+)?"
+    r"(?:debt\s+|equity\s+|project\s+)?financing\s+for\b|"
+    r"power (?:deal|agreement|contract)\b[^.]{0,60}\bfor (?:a |its |the )?"
+    r"(?:planned|proposed|new|future) (?:AI )?data cent(?:er|re)|"
+    r"(?:pivot|convert)(?:s|ed|ing)?\s+(?:[\w$.-]+\s+){0,4}into\b)",
+    re.I,
+)
+_DATA_CENTER = re.compile(r"\bdata cent(?:er|re)\b", re.I)
 _NEGATED = re.compile(
     r"\b(?:cancel(?:s|ed|led|lation)?|scrap(?:s|ped)?|withdraw(?:s|n|al)?|rescind(?:s|ed)?|"
     r"abandon(?:s|ed|ment)?|halt(?:s|ed)?|not proceeding|no longer proceeding|shelved|denied)\b",
     re.I,
 )
 _SPECULATIVE = re.compile(
-    r"\b(?:could|may|might|reportedly|rumou?red|speculat(?:e|ion)|forecast|opinion|editorial)\b",
+    r"\b(?:could|may|might|reportedly|rumou?red|speculat(?:e|ion)|forecast|opinion|editorial|"
+    r"eyed|explores?|exploring)\b",
     re.I,
 )
 _NON_EVENT = re.compile(
@@ -159,8 +175,15 @@ def _site_location(text: str) -> str | None:
     for state in _STATE_RE.finditer(text):
         before = text[max(0, state.start() - 10) : state.start()]
         after = text[state.end() : state.end() + 35]
-        if re.search(r"\b(?:in|at|near)\s*$", before, re.I) or (
-            facility_match and state.end() <= facility_match.start() and len(after.split()) <= 5
+        city_before = text[max(0, state.start() - 40) : state.start()]
+        if (
+            re.search(r"\b(?:in|at|near)\s*$", before, re.I)
+            or re.search(
+                r"\b(?:in|at|near)\s+[A-Z][\w.'-]*(?:\s+[A-Z][\w.'-]*){0,2},\s*$", city_before
+            )
+            or (
+                facility_match and state.end() <= facility_match.start() and len(after.split()) <= 5
+            )
         ):
             return state.group(1)
     for city, state_name in sorted(_CITIES.items(), key=lambda item: len(item[0]), reverse=True):
@@ -175,9 +198,16 @@ def _site_location(text: str) -> str | None:
     return None
 
 
+def _early_dc_action(span: str) -> re.Match[str] | None:
+    return _EARLY_DC_ACTION.search(span) if _DATA_CENTER.search(span) else None
+
+
 def _event_span(title: str, summary: str) -> str | None:
     for span in [title, *_sentences(summary)]:
         if _FACILITY.search(span) and _ACTION.search(span):
+            return span
+    for span in [title, *_sentences(summary)]:
+        if _early_dc_action(span):
             return span
     return None
 
@@ -213,6 +243,14 @@ def _subject(title: str, summary: str, event: str) -> str | None:
     )
     if named:
         return named.group(1).strip()
+    if event != title:
+        named = re.search(
+            r"\b([A-Z][\w&.'’-]*(?:\s+[A-Z0-9][\w&.'’-]*){0,3}\s+(?:data cent(?:er|re)|campus|"
+            r"plant|factory|facility|project))\b",
+            title,
+        )
+        if named:
+            return named.group(1).strip()
     for sentence in _sentences(summary):
         named = re.search(
             r"\b([A-Z][\w&.'’-]*(?:\s+[A-Z0-9][\w&.'’-]*){0,3}(?:\s+[a-z]+){0,2}\s+"
@@ -354,6 +392,9 @@ def _power_clause(subject: str, clause: str) -> _PowerClause | None:
 def _action_activity(action: str) -> str | None:
     """Map every action admitted by the event grammar to its supported phase."""
     normalized = action.strip()
+    if _EARLY_DC_ACTION.fullmatch(normalized) is not None:
+        # Site, financing and power-contract milestones precede construction power.
+        return "construction"
     if _ACTION.fullmatch(normalized) is None:
         return None
     if re.search(r"\bopen", normalized, re.I):
@@ -524,7 +565,13 @@ def assess_news(title: str, summary: str | None) -> NewsAssessment:
         )
     if not location:
         return _rejected("A US project location is not stated with the physical facility event.")
-    subject = _subject(title, summary, event)
+    early_match = None if _ACTION.search(event) else _early_dc_action(event)
+    if early_match is not None:
+        # The deal's actor names the planned site; never a counterparty in the text.
+        actor = re.match(r"\s*([A-Z][\w&.'’-]*(?:\s+[A-Z][\w&.'’-]*){0,3})\s+[a-z]", title)
+        subject = f"{actor.group(1).strip()} data center" if actor else None
+    else:
+        subject = _subject(title, summary, event)
     if not subject or not _identifiable_subject(subject):
         return _rejected(
             "No identifiable company, project, or named site is retained with the physical event.",
@@ -538,6 +585,8 @@ def assess_news(title: str, summary: str | None) -> NewsAssessment:
         )
     demand_quote, supply_quote = _prospect_claims(title, summary, subject)
     action_match = _ACTION.search(event)
+    if early_match is not None:
+        action_match = early_match
     facility_match = _FACILITY.search(event)
     if action_match is None or facility_match is None:
         return _rejected(
