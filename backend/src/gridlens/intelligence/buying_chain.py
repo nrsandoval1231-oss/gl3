@@ -75,6 +75,7 @@ MAX_SECONDS = 35
 BUYING_CHAIN_JOB_KIND = "buying_chain_research"
 BUYING_CHAIN_TASK_TYPE = "buying_chain_research"
 RETAINED_BUYING_CHAIN_TASK_TYPE = "buying_chain_retained"
+MAX_RETAINED_BACKFILL_PROJECTS = 100
 
 
 def _buying_chain_context_digest(session: Session, project: Project) -> str:
@@ -106,15 +107,9 @@ def _buying_chain_context_digest(session: Session, project: Project) -> str:
             "latest_run": latest_run.input_hash if latest_run else None,
             "claims": [
                 (
-                    str(row.id),
-                    row.fingerprint,
-                    row.organization,
-                    row.person_name,
-                    row.title,
-                    row.category,
-                    row.organization_relationship,
-                    row.person_organization_relationship,
-                    row.person_project_relationship,
+                    str(row.id), row.fingerprint, row.organization, row.person_name,
+                    row.title, row.category, row.organization_relationship,
+                    row.person_organization_relationship, row.person_project_relationship,
                     row.citations,
                 )
                 for row in claims
@@ -122,6 +117,53 @@ def _buying_chain_context_digest(session: Session, project: Project) -> str:
             "policy": POLICY_VERSION,
         }
     )
+
+
+def _retained_buying_chain_context_digest(session: Session, project: Project) -> str:
+    """Fence retained-only extraction on source state, never its own derived claims."""
+    current_evidence = []
+    for evidence in _retained(session, project):
+        observation = session.get(Observation, evidence.observation_id)
+        interpretation = (
+            session.scalar(
+                select(Interpretation).where(Interpretation.observation_id == observation.id)
+            )
+            if observation
+            else None
+        )
+        current_evidence.append(
+            (
+                str(evidence.id),
+                evidence.content_hash,
+                retained_evidence_policy_version(interpretation),
+            )
+        )
+    return _hash(
+        {
+            "project": {
+                "id": str(project.id),
+                "identity_key": project.identity_key,
+                "name": project.name,
+                "location": project.location,
+                "identity_facts": project.identity_facts,
+            },
+            "accepted_evidence": sorted(current_evidence),
+            "buying_chain_policy_version": POLICY_VERSION,
+        }
+    )
+
+
+def retained_evidence_policy_version(interpretation: Interpretation | None) -> str | None:
+    """Identify the evaluator that accepted this source version across source families."""
+    if interpretation is None:
+        return None
+    assessment = interpretation.assessment or {}
+    value = (
+        assessment.get("admission_policy_version")
+        or assessment.get("evaluator_version")
+        or interpretation.evaluator_version
+    )
+    return value if isinstance(value, str) and value else None
 
 
 def _public_research_plan(
@@ -274,7 +316,6 @@ def enqueue_retained_buying_chain_research(
     project_id: UUID,
     evidence_id: UUID,
     evidence_hash: str,
-    admission_policy_version: str,
 ) -> Job | None:
     """Queue one retained-only extraction for an accepted evidence version."""
     project = session.scalar(select(Project).where(Project.id == project_id).with_for_update())
@@ -296,14 +337,17 @@ def enqueue_retained_buying_chain_research(
         )
     ):
         return None
-    context_digest = _buying_chain_context_digest(session, project)
+    evidence_policy_version = retained_evidence_policy_version(interpretation)
+    if evidence_policy_version is None:
+        return None
+    context_digest = _retained_buying_chain_context_digest(session, project)
     request_digest = _hash(
         {
             "task_type": RETAINED_BUYING_CHAIN_TASK_TYPE,
             "project_id": str(project.id),
             "evidence_id": str(evidence.id),
             "evidence_hash": evidence_hash,
-            "admission_policy_version": admission_policy_version,
+            "evidence_policy_version": evidence_policy_version,
             "context_digest": context_digest,
             "buying_chain_policy_version": POLICY_VERSION,
         }
@@ -338,7 +382,7 @@ def enqueue_retained_buying_chain_research(
                     "project_id": str(project.id),
                     "evidence_id": str(evidence.id),
                     "evidence_hash": evidence_hash,
-                    "admission_policy_version": admission_policy_version,
+                    "evidence_policy_version": evidence_policy_version,
                 },
                 "status": "queued",
             },
@@ -348,6 +392,73 @@ def enqueue_retained_buying_chain_research(
     session.add(job)
     session.flush()
     return job
+
+
+def retained_buying_chain_backfill(
+    session: Session,
+    *,
+    after_project_id: UUID | None = None,
+    limit: int = 50,
+    enqueue: bool = False,
+) -> dict[str, Any]:
+    """Plan or enqueue one bounded page of projects with current accepted evidence."""
+    if not 1 <= limit <= MAX_RETAINED_BACKFILL_PROJECTS:
+        raise ValueError(
+            f"Backfill limit must be between 1 and {MAX_RETAINED_BACKFILL_PROJECTS}"
+        )
+    query = (
+        select(Project)
+        .join(PowerNeed, PowerNeed.project_id == Project.id)
+        .where(PowerNeed.active.is_(True))
+        .distinct()
+        .order_by(Project.id)
+        .limit(limit)
+    )
+    if after_project_id is not None:
+        query = query.where(Project.id > after_project_id)
+    projects = session.scalars(query).all()
+    candidates: list[dict[str, Any]] = []
+    for project in projects:
+        evidence = next(iter(_retained(session, project)), None)
+        if evidence is None:
+            continue
+        observation = session.get(Observation, evidence.observation_id)
+        interpretation = (
+            session.scalar(
+                select(Interpretation).where(
+                    Interpretation.observation_id == observation.id
+                )
+            )
+            if observation
+            else None
+        )
+        policy_version = retained_evidence_policy_version(interpretation)
+        if policy_version is None:
+            continue
+        job = (
+            enqueue_retained_buying_chain_research(
+                session, project.id, evidence.id, evidence.content_hash
+            )
+            if enqueue
+            else None
+        )
+        candidates.append(
+            {
+                "project_id": str(project.id),
+                "evidence_id": str(evidence.id),
+                "evidence_hash": evidence.content_hash,
+                "evidence_policy_version": policy_version,
+                "job_id": str(job.id) if job else None,
+                "job_status": job.status if job else None,
+            }
+        )
+    return {
+        "scanned_projects": len(projects),
+        "candidate_count": len(candidates),
+        "queued_count": sum(bool(row["job_id"]) for row in candidates) if enqueue else 0,
+        "next_after_project_id": str(projects[-1].id) if projects else None,
+        "candidates": candidates,
+    }
 
 
 def buying_chain_job_status(session: Session, project_id: UUID) -> dict | None:
@@ -411,14 +522,14 @@ def run_buying_chain_research(
                     if retained_observation
                     else None
                 )
+                evidence_policy_version = retained_evidence_policy_version(
+                    retained_interpretation
+                )
                 retained_version_current = bool(
                     retained_evidence
                     and retained_evidence.content_hash == payload.get("evidence_hash")
                     and retained_interpretation
-                    and (retained_interpretation.assessment or {}).get(
-                        "admission_policy_version"
-                    )
-                    == payload.get("admission_policy_version")
+                    and evidence_policy_version == payload.get("evidence_policy_version")
                     and _retained_evidence_current_for_project(
                         session,
                         project,
@@ -427,10 +538,17 @@ def run_buying_chain_research(
                         interpretation=retained_interpretation,
                     )
                 )
-        if (
-            not retained_version_current
-            or _buying_chain_context_digest(session, project) != expected_context
-        ):
+        current_context = (
+            _retained_buying_chain_context_digest(session, project)
+            if retained_only_task
+            else _buying_chain_context_digest(session, project)
+        )
+        if not retained_version_current or current_context != expected_context:
+            checkpoint["stale_reason"] = (
+                "retained_evidence_version_changed"
+                if not retained_version_current
+                else "retained_context_changed"
+            )
             checkpoint.update(status="stale", completed_at=datetime.now(UTC).isoformat())
             job.checkpoint = json.dumps(checkpoint, separators=(",", ":"))
             job.status = "succeeded"
@@ -547,7 +665,19 @@ def run_buying_chain_research(
             .with_for_update()
             .execution_options(populate_existing=True)
         )
-        if project is None or _buying_chain_context_digest(session, project) != expected_context:
+        current_retained_context = (
+            _retained_buying_chain_context_digest(session, project)
+            if retained_only_task and project is not None
+            else None
+        )
+        current_manual_context = (
+            _buying_chain_context_digest(session, project)
+            if not retained_only_task and project is not None
+            else None
+        )
+        if project is None or (
+            current_retained_context if retained_only_task else current_manual_context
+        ) != expected_context:
             checkpoint.update(status="stale", completed_at=datetime.now(UTC).isoformat())
             job.checkpoint = json.dumps(checkpoint, separators=(",", ":"))
             job.status = "succeeded"

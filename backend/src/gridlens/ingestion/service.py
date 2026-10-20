@@ -1783,19 +1783,15 @@ def assess_retained_news(
         project = session.get(Project, project_id)
         if project is not None:
             record_material_diff(session, project, evidence, baseline)
+    # Reassign after in-place edits so SQLAlchemy marks the JSON value dirty.
+    interpretation.assessment = {**payload}
+    flag_modified(interpretation, "assessment")
     if current_need is not None and interpretation.status == "accepted":
         from gridlens.intelligence.buying_chain import enqueue_retained_buying_chain_research
 
         enqueue_retained_buying_chain_research(
-            session,
-            current_need.project_id,
-            evidence.id,
-            evidence.content_hash,
-            ADMISSION_POLICY_VERSION,
+            session, current_need.project_id, evidence.id, evidence.content_hash
         )
-    # Reassign after in-place edits so SQLAlchemy marks the JSON value dirty.
-    interpretation.assessment = {**payload}
-    flag_modified(interpretation, "assessment")
     if job_id is not None:
         assert worker_id is not None and fence is not None
         job = assert_fence(session, job_id, worker_id, fence)
@@ -3883,6 +3879,13 @@ def process_records(
                     )
                 # Snapshot diff excludes retry metadata, timestamps and rationale-only churn.
                 record_material_diff(session, project, lifecycle_evidence, material_baseline)
+                from gridlens.intelligence.buying_chain import (
+                    enqueue_retained_buying_chain_research,
+                )
+
+                enqueue_retained_buying_chain_research(
+                    session, project.id, lifecycle_evidence.id, lifecycle_evidence.content_hash
+                )
 
         job = assert_fence(session, job_id, worker_id, fence)
         if commit:

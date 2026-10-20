@@ -328,7 +328,7 @@ def test_international_policy_and_recall_stay_rejected() -> None:
 
 def test_contract_and_dictionary_are_stable() -> None:
     result = assess_news("Atlas builds a plant in Alabama", None)
-    assert EVALUATOR_VERSION == "rss-project-v6"
+    assert EVALUATOR_VERSION == "rss-project-v7"
     assert set(result.as_dict()) == {
         "decision",
         "tier",
@@ -341,6 +341,75 @@ def test_contract_and_dictionary_are_stable() -> None:
         "supply_quote",
         "missing_facts",
     }
+
+
+def test_site_and_milestone_news_v7_preserves_retained_project_events() -> None:
+    cases = [
+        (
+            "Northrop Grumman, Air Force start on $4.5B expansion",
+            "With cash from the One Big Beautiful Bill, the California build will add more "
+            "than 1 million square feet to produce B-21 Raider machines.",
+            "California",
+        ),
+        (
+            "GlobalFoundries to build and operate two new chip fabs in NY as part of $21bn "
+            "US-Japan deal",
+            "First facility is expected to be operational in 2029",
+            "New York",
+        ),
+        (
+            "GlobalFoundries building $21B New York fabs under US-Japan trade deal",
+            "The multibillion-dollar agreement will accelerate U.S. semiconductor manufacturing, "
+            "strengthen critical supply chains and support growing automotive and industrial "
+            "demand, GlobalFoundries said.",
+            "New York",
+        ),
+        (
+            "Flintco-Mortenson JV begins concrete deck at $900M Oklahoma City NBA arena",
+            "The construction team on the future home of the Oklahoma City Thunder also started "
+            "work on the loading dock walls on the east side of the venue.",
+            "Oklahoma City, Oklahoma",
+        ),
+        (
+            "Application filed for 3.3 million sq ft data center campus in Augusta, Georgia",
+            "Project targeting 2028/2029 go live date",
+            "Augusta, Georgia",
+        ),
+        (
+            "IURC approves AES Indiana plan for $1.3bn solar, storage, and transmission project "
+            "for Google data center in Monrovia",
+            "Google is expected to pay for all the costs associated with the project",
+            "Monrovia, Indiana",
+        ),
+    ]
+    for title, summary, location in cases:
+        result = assess_news(title, summary)
+        assert (result.decision, result.tier, result.location) == (
+            "accepted", "Signal", location
+        ), (title, result.reason)
+        assert result.demand_mw is None
+        assert signal_power_activity(result.action) == "construction"
+
+
+def test_v7_does_not_turn_speculative_or_system_power_stories_into_site_events() -> None:
+    cases = [
+        (
+            "400MW data center eyed at old Navy cyber site in San Diego, California",
+            "Manchester Financial Group exploring potential of data center at NAVWAR HQ",
+        ),
+        (
+            "AEP signs 960-MW Indiana nuclear pact with Amazon, X-energy",
+            "If the project is developed, Amazon would purchase the power under a long-term "
+            "contract that covers the cost of the facility and its operations, the companies said.",
+        ),
+        (
+            "Georgia electric cooperative plans 50-MW home battery deployment",
+            "Central Georgia Electric Membership Corporation plans to use the batteries to reduce "
+            "system peaks and energy costs as hyperscale data centers seek to connect to its grid.",
+        ),
+    ]
+    for title, summary in cases:
+        assert assess_news(title, summary).decision == "rejected", title
 
 
 def test_generic_actors_are_not_identifiable_project_subjects() -> None:

@@ -9,6 +9,7 @@ import sys
 from collections import Counter
 from pathlib import Path
 from typing import Any
+from uuid import UUID
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "backend" / "src"))
@@ -95,8 +96,15 @@ def _test_database_session_factory():
     return engine, target_url.database, sessionmaker(engine, expire_on_commit=False)
 
 
-def apply_retained_news(session_factory, limit: int) -> dict[str, Any]:
+def apply_retained_news(
+    session_factory,
+    limit: int,
+    *,
+    after_observation_id=None,
+    include_accepted: bool = False,
+) -> dict[str, Any]:
     from sqlalchemy import select
+    from uuid import UUID
 
     from gridlens.ingestion.service import assess_retained_news
     from gridlens.persistence.models import Evidence, Interpretation, Observation, Source
@@ -104,13 +112,24 @@ def apply_retained_news(session_factory, limit: int) -> dict[str, Any]:
     decisions: list[dict[str, Any]] = []
     failed = 0
     with session_factory.begin() as session:
-        observations = session.scalars(
+        query = (
             select(Observation)
             .join(Source, Source.id == Observation.source_id)
+            .join(Interpretation, Interpretation.observation_id == Observation.id)
             .where(Source.retrieval_method == "publisher-rss")
-            .order_by(Observation.source_id, Observation.external_id)
+            .where(
+                Interpretation.status.in_(
+                    ["accepted", "rejected", "failed", "pending"]
+                )
+                if include_accepted
+                else Interpretation.status == "rejected"
+            )
+            .order_by(Observation.id)
             .limit(limit)
-        ).all()
+        )
+        if after_observation_id is not None:
+            query = query.where(Observation.id > UUID(str(after_observation_id)))
+        observations = session.scalars(query).all()
         for observation in observations:
             evidence_versions = session.scalars(
                 select(Evidence)
@@ -146,7 +165,9 @@ def apply_retained_news(session_factory, limit: int) -> dict[str, Any]:
                     "source_id": observation.source_id,
                     "external_id": observation.external_id,
                     "content_hash": observation.content_hash,
-                    "published_at": observation.published_at.isoformat(),
+                    "published_at": (
+                        observation.published_at.isoformat() if observation.published_at else None
+                    ),
                     "title": observation.title,
                     "citation_url": observation.url,
                     "status": status,
@@ -165,8 +186,9 @@ def apply_retained_news(session_factory, limit: int) -> dict[str, Any]:
     return {
         "evaluator_version": EVALUATOR_VERSION,
         "admission_policy_version": ADMISSION_POLICY_VERSION,
-        "mode": "apply",
+        "mode": "apply-including-accepted" if include_accepted else "apply-rejected-only",
         "source_count": len(decisions),
+        "next_cursor": str(observations[-1].id) if observations else None,
         "counts": dict(sorted(counts.items())),
         "decisions": decisions,
         "failed_or_pending": failed,
@@ -191,16 +213,29 @@ def main() -> None:
         action="store_true",
         help="Persist decisions transactionally to the isolated TEST_DATABASE_URL only",
     )
+    parser.add_argument("--after-observation-id", type=UUID)
+    parser.add_argument(
+        "--include-accepted",
+        action="store_true",
+        help="also re-evaluate accepted RSS records; apply defaults to rejected records only",
+    )
     args = parser.parse_args()
     if not 1 <= args.limit <= MAX_ROWS:
         parser.error(f"--limit must be between 1 and {MAX_ROWS}")
+    if args.include_accepted and not args.apply:
+        parser.error("--include-accepted requires --apply")
     if args.apply:
         try:
             engine, database_name, apply_sessions = _test_database_session_factory()
         except ValueError as exc:
             parser.error(str(exc))
         try:
-            report = apply_retained_news(apply_sessions, args.limit)
+            report = apply_retained_news(
+                apply_sessions,
+                args.limit,
+                after_observation_id=args.after_observation_id,
+                include_accepted=args.include_accepted,
+            )
             report["database"] = database_name
         finally:
             if engine is not None:
