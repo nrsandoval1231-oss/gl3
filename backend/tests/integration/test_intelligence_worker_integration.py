@@ -2032,6 +2032,7 @@ def _seed_signal_adjudication_job(sessions):
                 health={},
             )
         )
+        session.flush()
         session.add(
             Observation(
                 id=observation_id,
@@ -2044,6 +2045,7 @@ def _seed_signal_adjudication_job(sessions):
                 content_hash=evidence_hash,
             )
         )
+        session.flush()
         session.add(
             Evidence(
                 id=evidence_id,
@@ -2055,6 +2057,7 @@ def _seed_signal_adjudication_job(sessions):
                 published_at=date(2026, 10, 1),
             )
         )
+        session.flush()
         job = Job(
             source_id=source_id,
             kind="signal_adjudication",

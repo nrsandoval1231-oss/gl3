@@ -370,7 +370,7 @@ def test_authenticated_queue_mock_worker_persists_and_projects_title(title_runti
     assert ready.status_code == 200 and ready.json()["status"] == "ready"
     title = ready.json()["result"]["title"]
     assert "Activity: Building substations for the Synthetic North Campus." in title
-    assert "Synthetic North Campus Holdings LLC - asset_operator" in title
+    assert "Synthetic North Campus Holdings LLC - asset operator" in title
     assert any(
         citation["quote"].startswith("Owner/operator:") for citation in ready.json()["citations"]
     )
