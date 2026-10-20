@@ -10,9 +10,9 @@ Use one authority for each question. Historical reports remain evidence for thei
 | Source behavior and coverage | [Coverage](sources/coverage.md) | [Source notes](sources/) and [registry](../config/sources/registry.v1.json) |
 | Local setup and checks | [Repository README](../README.md) | [Local runtime](operations/local-runtime.md), [script guide](../scripts/README.md) |
 | Production observation and deployment boundary | [Operations status](operations/README.md) | [Sanitized dated receipt](operations/observations/2026-10-20-production-readonly.md) binds to the named ignored source receipts |
-| Backup and restore | [Operations status](operations/README.md) | The October 20 receipt proves one copied dump and isolated restore; schedule retention and repeatable commands remain UNKNOWN |
+| Backup and restore | [Operations status](operations/README.md) | [Local restore drill](operations/local-restore-drill.md) and dated receipt prove one copy/restore; scheduled retention and production cutover remain UNKNOWN |
 | Runtime environment defaults | [Runtime configuration](operations/runtime-configuration.md) | Verified against `backend/src/gridlens/settings.py`; code defaults are not production configuration |
-| Delivery status | [Milestones](delivery/milestones.md) | [Audit remediation matrix](../.agent/AUDIT_REMEDIATION_MATRIX.md) |
+| Delivery status | [Milestones](delivery/milestones.md) | [Audit remediation matrix](../.agent/AUDIT_REMEDIATION_MATRIX.md), [controller evidence](validation/audit-remediation-20261020.md) |
 
 ## Archive and superseded material
 

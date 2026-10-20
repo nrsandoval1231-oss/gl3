@@ -1,5 +1,5 @@
-# Completion checkpoint
+# Candidate completion record
 
-Audit remediation is in progress; no final candidate is accepted yet. Implementation claims must be checked against the exact candidate and the governing Finish Contract. See [current state](CURRENT_STATE.md), [work graph](WORK_GRAPH.md), [finding matrix](AUDIT_REMEDIATION_MATRIX.md) and [delivery status](../docs/delivery/milestones.md).
+Implementation packets are integrated and the commercial workflow has bounded local runtime proof. This file does not certify final gates, independent review, production or product acceptance. Exact candidate SHA, local gate logs, CI and independent verdict are recorded against the review PR head; a changed candidate needs new evidence. See [controller evidence](../docs/validation/audit-remediation-20261020.md), [matrix](AUDIT_REMEDIATION_MATRIX.md), [current state](CURRENT_STATE.md) and authoritative [delivery status](../docs/delivery/milestones.md).
 
-The prior October 18 completion narrative is preserved [unchanged](archive/AUDIT-20261020/pre-remediation-COMPLETION.md). It is historical evidence, not a current claim about integration, production flags, backup health or acceptance. Final run evidence will be bound to a frozen commit in the review PR and ignored `.agent/artifacts/AUDIT-20261020/` receipts; later bookkeeping cannot extend a review to changed source.
+Untouched prospective news evaluation, authenticated production acceptance, approved host deploy/rollback procedure, scheduled off-host retention, owner governance and parent PRD release gates remain open. No merge/deploy/paid activation/production replay occurred. Prior completion narrative remains [unchanged history](archive/AUDIT-20261020/pre-remediation-COMPLETION.md).

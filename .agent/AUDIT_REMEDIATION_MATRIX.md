@@ -20,8 +20,22 @@ Observed 2026-10-20 UTC against remote main `9e9e188bdf2825a8305a0e9eac0b23f0af1
 | R05 job dedup | active search limit(10) in intelligence_jobs.py | Still open | exact digest predicate, preserve logical-call fingerprint | matching request older than ten tasks reused; concurrency |
 | Docs | milestones3ee90f1, operations stage1 claims, conflicting deployed layout, pending/merged status drift | Still open | inventory active authorities; short canonical entry points; archive superseded narratives unchanged | local relative links/path/command checks; operational claims dated and labeled |
 
-The table preserves the initial baseline assessment. Subsequent controller checks passed 72 CORE tests and 63 retained tests. The first frozen news v7 second split admitted 0/3 useful events; v8's final reserved split admitted 1/5 useful events, with 0/85 clear false admissions. Those failures remain evidence. All 219 retained articles are now development data; no further result can be called untouched positive holdout proof.
+The table preserves initial baseline assessment; the following current disposition is implementation evidence, not deployment acceptance.
 
-Nick then explicitly authorized site-specific standalone news discovery Signals with unknown power facts and unchanged Prospect/Lead gates. This supersedes the September 30 news-only admission restriction for this scope; the old decision remains history. Terra owns a versioned matching-first admission and event-family repair, including a neutral project-discovery phase when power activity is unsupported. Workspace and documentation work remain in progress. A narrow draft-publication optimization waits for the workspace migration to join.
+| Finding | Integrated repair and controller evidence | Remaining acceptance |
+|---|---|---|
+| F01 | Canonical weighted workspace ordering, stable ties;78/25 endpoint inversion, list/detail/export parity covered | Exact final gates/review receipts at PR head |
+| F02 | PR96 reused; v9 grammar/v2 matching-first admission and guarded versioned reassessment;219 development replay20 useful/training admissions,0 clear false positives | Untouched prospective positive news evaluation remains open after preserved failed holdouts; no production backfill |
+| F03 | Accepted retained evidence schedules idempotent no-fetch/model extraction; provenance/history/roles preserved; current-view duplicates0 | Production enabled-path acceptance after authorized release |
+| F04 | Locked predecessor eligibility/type/activity/facility and concurrency validation; qualification/readback regressions | Exact final gates/review |
+| F05 | Filter/cohort/readback identity hides stale rows/counts/actions; failure/retry/pagination browser regressions | Authenticated production verification remains open |
+| F06 | Atomic client/shared capacity check before either increment | Distinct/concurrent regression in final gates |
+| F07 | Complete canonical eligible cohort aggregation, not page iteration | >50 mixed/inactive regression in final gates |
+| F08 | Material change/fact journals, persisted review baseline, exact bounded-page acknowledgment, source exceptions and evidence links;11 queries versus6350 on3059 events | Production review workflow after authorized release |
+| F09 | Exact minimum main-protection proposal in operations authority | Owner applies/authorizes governance; no settings changed |
+| R01 | New immutable draft suppression and accepted-only clock boundaries; corpus copies halved in matched1620/5000 fixtures; conservative accepted publication retained | Production latency/SLO unmeasured; accepted writes remain O(corpus) |
+| R02 / Docs |151-document inventory, single topic map/authorities, archived superseded Git blobs, current deployment path corrected, guarded local restore drill | Approved host deploy/rollback secret context and scheduled off-host retention remain UNKNOWN |
+| R03 / R04 | Focused helper added; architecture and strict evidence/qualification retained | Existing official-parser coverage limitations preserved |
+| R05 | Complete active-job exact-digest search and concurrency guard; logical-call fingerprint unchanged | No duplicate billing claim |
 
-Fresh read-only host observations on October 20 at 18:29–18:39 UTC and a checksum-verified local backup restore are recorded in operations status. No settings altered; no production backfill, deployment, provider activation or merge authorized. Historical receipts remain observations at their stated time. Completion follows the commercial workflow and Finish Contract.
+See the [controller evidence](../docs/validation/audit-remediation-20261020.md) for results, failed attempts, receipt digests and limits. Nick explicitly authorized site-specific standalone news discovery Signals with unknown power facts and unchanged Prospect/Lead gates; old September30 decision remains history. Fresh read-only production observations span October20 18:28:48–18:50:41UTC. No merge, deployment, paid activation or production backfill occurred. Parent commercial and PRD release gates remain open.

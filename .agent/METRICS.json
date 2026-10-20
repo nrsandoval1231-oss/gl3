@@ -6,10 +6,10 @@
   "first_instrumented_utc": "2026-10-20T18:28:31Z",
   "utc_finish": "UNKNOWN: in progress",
   "planning_duration_seconds": "UNKNOWN",
-  "build_duration_seconds": "UNKNOWN: per-builder completion receipts pending",
-  "validation_duration_seconds": "UNKNOWN: final gates pending",
-  "audit_duration_seconds": "UNKNOWN: independent final review pending",
-  "repair_count": "UNKNOWN: incomplete run; preserve builder attempts",
+  "build_duration_seconds": "UNKNOWN aggregate; per-packet UTC evidence retained",
+  "validation_duration_seconds": "Bound to exact PR-head ignored final-gates receipt; preflight626.41s was not final",
+  "audit_duration_seconds": "Bound to independent exact-head review receipt",
+  "repair_count": "Per-packet artifacts retain both attempts and failures; no aggregate speed claim",
   "builder_model": "gpt-6-luna",
   "builder_reasoning": "low",
   "architect_review_model": "gpt-6-sol medium",
@@ -17,5 +17,5 @@
   "config_identity": "UNKNOWN: no claim of saved configuration load",
   "measured_tokens": "UNKNOWN",
   "elapsed_to_accepted_seconds": "UNKNOWN: no independent acceptance yet",
-  "claims": "No speedup claim. Exploratory benchmark timings describe local synthetic workloads only."
+  "claims": "Mechanical copied-row reduction and measured local latency only; no production speedup or savings claim. Unknown tokens/config identity remain unknown."
 }
