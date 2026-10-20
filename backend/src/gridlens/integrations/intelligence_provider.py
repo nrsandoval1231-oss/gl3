@@ -76,7 +76,7 @@ class _TotalDeadlineExceeded(Exception):
 
 
 class _DeadlineStreamBackend(NetworkBackend):
-    """Clamp every httpcore socket operation to the one request deadline."""
+    """Clamp each httpcore stream operation to the remaining request budget."""
 
     def __init__(self, deadline: float):
         self.deadline = deadline
