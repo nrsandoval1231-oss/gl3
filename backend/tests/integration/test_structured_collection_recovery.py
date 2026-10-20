@@ -396,11 +396,14 @@ def test_worker_marks_partial_health_and_queues_transactional_continuation(
         assert source is not None
         assert source.health["status"] == "Partial"
         assert source.health["last_success"] == "prior-good"
-        assert source.health["new_records"] == 7
+        assert source.health["new_records"] == 0
         receipt = session.scalar(
             select(SourceCheckReceipt).where(SourceCheckReceipt.job_id == job_id)
         )
         assert receipt is not None
         assert receipt.disposition == "partial"
         assert len(queued) == 1
-        assert json.loads(queued[0].checkpoint) == {"collection_continuation": True}
+        assert json.loads(queued[0].checkpoint) == {
+            "collection_continuation": True,
+            "collection_jobs_remaining": 7,
+        }

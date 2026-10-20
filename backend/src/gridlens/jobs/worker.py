@@ -2,6 +2,7 @@ import hashlib
 import json
 import logging
 import os
+import re
 import signal
 import socket
 import threading
@@ -18,6 +19,10 @@ from gridlens.ingestion.adapters.acquisition_runtime import (
     FencedLeaseRenewer,
     acquisition_deadline,
     try_public_acquisition_admission,
+)
+from gridlens.ingestion.adapters.diagnostics import (
+    acquisition_diagnostics,
+    acquisition_error_message,
 )
 from gridlens.ingestion.registry import load_registry
 from gridlens.ingestion.service import process_job
@@ -39,6 +44,34 @@ from gridlens.settings import settings
 
 logger = logging.getLogger(__name__)
 WORKER_ID = f"{socket.gethostname()}-{os.getpid()}"
+# Inclusive of the current job. Retries retain this budget and the existing
+# five-attempt limit, so this bounds jobs, not crash/retry acquisition dispatches.
+MAX_COLLECTION_CHAIN_JOBS = 8
+
+
+def _collection_checkpoint(raw: str | None, parsed: object) -> dict:
+    if isinstance(parsed, dict):
+        return parsed
+    # Older initial structured jobs stored the last external record ID directly.
+    # Preserve those bounded IDs (including JSON-looking numeric IDs), without
+    # treating malformed budget objects or JSON booleans/null as fresh chains.
+    if (
+        raw is not None
+        and len(raw) <= 128
+        and raw not in {"true", "false", "null"}
+        and re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_-]*(?: [A-Za-z0-9_-]+)*", raw)
+    ):
+        return {"last_record_external_id": raw}
+    raise ValueError("Invalid structured collection job budget")
+
+
+def _collection_jobs_remaining(checkpoint: object) -> int:
+    if not isinstance(checkpoint, dict):
+        raise ValueError("Invalid structured collection job budget")
+    remaining = checkpoint.get("collection_jobs_remaining", MAX_COLLECTION_CHAIN_JOBS)
+    if type(remaining) is not int or not 1 <= remaining <= MAX_COLLECTION_CHAIN_JOBS:
+        raise ValueError("Invalid structured collection job budget")
+    return remaining
 
 
 def _schedule_zone() -> str:
@@ -708,8 +741,10 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
         try:
             job_checkpoint = json.loads(job.checkpoint or "{}")
         except (ValueError, TypeError):
-            job_checkpoint = {}
-        intelligence_task_type = job_checkpoint.get("task_type")
+            job_checkpoint = None
+        intelligence_task_type = (
+            job_checkpoint.get("task_type") if isinstance(job_checkpoint, dict) else None
+        )
         source = session.get(Source, source_id)
         if source and kind == "ingestion":
             try:
@@ -917,6 +952,17 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
                 _release_admission(admission_context)
                 admission_context = None
                 return True
+            collection_jobs_remaining = None
+            if definition.get("retrieval_method") in {"socrata-permits", "boston-ckan-permits"}:
+                # Validate within the worker failure boundary, before acquisition.
+                # Capture once: service checkpoints must never reset this chain.
+                job_checkpoint = _collection_checkpoint(finished_job.checkpoint, job_checkpoint)
+                collection_jobs_remaining = _collection_jobs_remaining(job_checkpoint)
+                assert isinstance(job_checkpoint, dict)
+                finished_job.checkpoint = json.dumps(
+                    {**job_checkpoint, "collection_jobs_remaining": collection_jobs_remaining},
+                    sort_keys=True,
+                )
             # The dispatch advisory lock serializes this source without keeping
             # the Source row lock or a database transaction across provider HTTP.
             session.commit()
@@ -964,6 +1010,17 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
                 admission_context = None
                 return True
             definition = current_definition
+            if collection_jobs_remaining is not None:
+                remaining = collection_jobs_remaining - 1
+                needs_continuation = bool(counts.get("collection_continuation"))
+                paused = needs_continuation and remaining == 0
+                counts.update(
+                    collection_jobs_remaining=remaining,
+                    collection_paused_for_budget=paused,
+                    collection_continuation=needs_continuation and remaining > 0,
+                )
+                if paused:
+                    counts.update(collection_status="PARTIAL", partial=True)
             (
                 finished_job.status,
                 finished_job.lease_until,
@@ -975,11 +1032,28 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
                     **source.health,
                     "status": "Partial",
                     "last_attempt": attempted,
+                    "new_records": counts.get("new", 0),
+                    "changed_records": counts.get("changed", 0),
+                    "unchanged_records": counts.get("unchanged", 0),
+                    **{
+                        key: counts[key]
+                        for key in (
+                            "retrieved_records",
+                            "parsed_records",
+                            "records_scanned",
+                            "permit_accepted",
+                            "permit_rejected",
+                        )
+                        if key in counts
+                    },
                     "parse_failures": max(
                         int(source.health.get("parse_failures", 0)),
                         int(counts.get("parse_failures", 0)),
                     ),
                     "error": counts.get("collection_error_class") or "Collection incomplete",
+                    "error_code": counts.get("collection_error_code"),
+                    "error_stage": counts.get("collection_error_stage"),
+                    "http_status": counts.get("collection_http_status"),
                     "collection_status": "PARTIAL",
                     "collection_lane": counts.get("collection_lane"),
                     "collection_current_complete": counts.get("collection_current_complete", False),
@@ -1001,6 +1075,9 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
                     "unchanged_records": counts["unchanged"],
                     "parse_failures": 0,
                     "error": None,
+                    "error_code": None,
+                    "error_stage": None,
+                    "http_status": None,
                     "latest_publication_date": counts["latest_publication_date"],
                     "collection_status": counts.get("collection_status"),
                     "collection_current_complete": counts.get("collection_current_complete", True),
@@ -1034,6 +1111,17 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
                     "pdf_skipped_not_signal": counts.get("pdf_skipped_not_signal", 0),
                     "pdf_skipped_limit": counts.get("pdf_skipped_limit", 0),
                 }
+            if collection_jobs_remaining is not None:
+                source.health = {
+                    **source.health,
+                    "collection_jobs_remaining": counts["collection_jobs_remaining"],
+                    "collection_paused_for_budget": counts["collection_paused_for_budget"],
+                }
+                if counts["collection_paused_for_budget"]:
+                    source.health = {
+                        **source.health,
+                        "error": "Collection paused at chain job budget",
+                    }
             disposition = (
                 "partial" if counts.get("parse_failures") or counts.get("partial") else "succeeded"
             )
@@ -1057,12 +1145,19 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
                     if continuation_job and continuation_job.status == "queued":
                         try:
                             checkpoint = json.loads(continuation_job.checkpoint or "{}")
-                        except (TypeError, ValueError):
-                            checkpoint = {"prior_checkpoint": continuation_job.checkpoint}
-                        if not isinstance(checkpoint, dict):
-                            checkpoint = {"prior_checkpoint": checkpoint}
+                        except (TypeError, ValueError) as exc:
+                            raise ValueError("Invalid structured collection job budget") from exc
+                        successor_remaining = min(
+                            counts["collection_jobs_remaining"],
+                            _collection_jobs_remaining(checkpoint),
+                        )
                         continuation_job.checkpoint = json.dumps(
-                            {**checkpoint, "collection_continuation": True}, sort_keys=True
+                            {
+                                **checkpoint,
+                                "collection_continuation": True,
+                                "collection_jobs_remaining": successor_remaining,
+                            },
+                            sort_keys=True,
                         )
             if not counts.get("partial") and source_id in {
                 "austin-building-permits",
@@ -1081,6 +1176,7 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
             _release_admission(admission_context)
             admission_context = None
     except Exception as exc:
+        diagnostics = acquisition_diagnostics(exc) if kind == "ingestion" else {}
         with SessionLocal.begin() as session:
             failed_job = session.get(Job, job_id)
             source = session.get(Source, source_id)
@@ -1107,7 +1203,11 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
                 from gridlens.ingestion.adapters.federal_register import SourceParseError
 
                 failed_job.error = (
-                    str(exc)[:250] if isinstance(exc, SourceParseError) else type(exc).__name__
+                    acquisition_error_message(exc)
+                    if kind == "ingestion"
+                    else str(exc)[:250]
+                    if isinstance(exc, SourceParseError)
+                    else type(exc).__name__
                 )
                 if kind == "ingestion":
                     from gridlens.ingestion.adapters.federal_register import SourceParseError
@@ -1117,7 +1217,7 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
                         failed_job,
                         fence,
                         "failed" if isinstance(exc, SourceParseError) else "unknown",
-                        {"error_class": type(exc).__name__},
+                        {"error_class": type(exc).__name__, **diagnostics},
                     )
             if source and valid_owner and kind == "ingestion":
                 from gridlens.ingestion.adapters.federal_register import SourceParseError
@@ -1129,7 +1229,11 @@ def run_one(definitions: dict[str, dict], *, job_ids: list[UUID] | None = None) 
                     "last_attempt": attempted,
                     "parse_failures": int(source.health.get("parse_failures", 0))
                     + int(is_parse_error),
-                    "error": str(exc)[:250] if is_parse_error else type(exc).__name__,
+                    "error": acquisition_error_message(exc),
+                    "error_code": None,
+                    "error_stage": None,
+                    "http_status": None,
+                    **diagnostics,
                 }
     finally:
         if admission_context is not None:

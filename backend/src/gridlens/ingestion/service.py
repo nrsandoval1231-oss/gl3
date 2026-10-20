@@ -1995,11 +1995,14 @@ def _process_structured_collection_segment(
             )
             remaining_seconds(deadline)
     except SourceParseError as exc:
+        from gridlens.ingestion.adapters.diagnostics import acquisition_diagnostics
+
         result = {
             "records": [],
             "cursor": cursor,
             "partial": True,
             "error_class": type(exc).__name__,
+            **acquisition_diagnostics(exc),
             "window_complete": False,
             "expected_count": None,
             "observed_count": 0,
@@ -2069,9 +2072,9 @@ def _process_structured_collection_segment(
             prior_checkpoint = json.loads(segment_job.checkpoint or "{}")
         except (TypeError, ValueError):
             prior_checkpoint = None
-        if (
-            isinstance(prior_checkpoint, dict)
-            and prior_checkpoint.get("collection_continuation") is True
+        if isinstance(prior_checkpoint, dict) and (
+            prior_checkpoint.get("collection_continuation") is True
+            or "collection_jobs_remaining" in prior_checkpoint
         ):
             segment_job.checkpoint = json.dumps(
                 {
@@ -2139,6 +2142,9 @@ def _process_structured_collection_segment(
             "collection_expected_count": result.get("expected_count"),
             "collection_observed_count": result.get("observed_count", len(records)),
             "collection_error_class": result.get("error_class"),
+            "collection_error_code": result.get("error_code"),
+            "collection_error_stage": result.get("error_stage"),
+            "collection_http_status": result.get("http_status"),
             "acquisition_started_at": acquisition_started_at.isoformat()
             if acquisition_started_at
             else None,

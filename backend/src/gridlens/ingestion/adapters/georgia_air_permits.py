@@ -13,6 +13,7 @@ from urllib.parse import urlparse
 import httpx
 from pypdf import PdfReader
 
+from gridlens.ingestion.adapters.diagnostics import acquisition_stage
 from gridlens.ingestion.adapters.federal_register import SourceParseError
 from gridlens.ingestion.parsers.generator_schedule import VERSION, extract_generator_facts
 
@@ -220,6 +221,21 @@ def _extract_document(
     application_number: str,
     location: str,
 ) -> dict[str, Any] | None:
+    with acquisition_stage("georgia_document"):
+        return _extract_document_content(
+            client, url, label, run_state, facility, application_number, location
+        )
+
+
+def _extract_document_content(
+    client: httpx.Client,
+    url: str,
+    label: str,
+    run_state: dict[str, int],
+    facility: str,
+    application_number: str,
+    location: str,
+) -> dict[str, Any] | None:
     if not url:
         return None
     if run_state["pdf_count"] >= MAX_PDFS_PER_RUN:
@@ -360,9 +376,10 @@ def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list
     }
     state = {"bytes": 0, "pdf_count": 0, "pdf_pages": 0}
     try:
-        metadata_headers, metadata_body = _bounded_get(
-            http, APP_METADATA_URL, MAX_RESPONSE_BYTES, headers=api_headers
-        )
+        with acquisition_stage("georgia_metadata"):
+            metadata_headers, metadata_body = _bounded_get(
+                http, APP_METADATA_URL, MAX_RESPONSE_BYTES, headers=api_headers
+            )
         state["bytes"] += len(metadata_body)
         if "json" not in metadata_headers.get("content-type", "").lower():
             raise SourceParseError("Georgia Knack metadata is not JSON")
@@ -392,13 +409,14 @@ def retrieve(source: dict[str, Any], client: httpx.Client | None = None) -> list
         expected_count: int | None = None
         expected_pages: int | None = None
         for page in range(1, int(query["max_pages"]) + 1):
-            headers, body = _bounded_get(
-                http,
-                RECORDS_URL,
-                MAX_RESPONSE_BYTES,
-                params={"rows_per_page": ROWS_PER_PAGE, "page": page},
-                headers=api_headers,
-            )
+            with acquisition_stage("georgia_listing"):
+                headers, body = _bounded_get(
+                    http,
+                    RECORDS_URL,
+                    MAX_RESPONSE_BYTES,
+                    params={"rows_per_page": ROWS_PER_PAGE, "page": page},
+                    headers=api_headers,
+                )
             state["bytes"] += len(body)
             if (
                 state["bytes"] > MAX_RUN_BYTES
