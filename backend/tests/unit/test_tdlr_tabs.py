@@ -40,7 +40,9 @@ def test_project_page_fields():
     assert parsed["address"] == "Stainback Rd, Red Oak, TX 75154"
     assert parsed["county"] == "Ellis"
     assert (parsed["registered"], parsed["start"], parsed["completion"]) == (
-        "2026-01-05", "2026-03-01", "2027-12-31",
+        "2026-01-05",
+        "2026-03-01",
+        "2027-12-31",
     )
     assert parsed["cost"] == "$325,000,000" and parsed["work_type"] == "New Construction"
     assert parsed["owner"] == "DB Data Center Red Oak, LLC"

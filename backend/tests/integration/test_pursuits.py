@@ -179,9 +179,7 @@ def execute(factory, service, *, source_id="austin-building-permits", force=True
     return job_id
 
 
-def seed_signal_evidence(
-    factory, service, *, decision=None, content_hash="a", policy_version=None
-):
+def seed_signal_evidence(factory, service, *, decision=None, content_hash="a", policy_version=None):
     group = service.candidates(None)[0]
     record = group["records"][0]
     service_module = import_module("gridlens.intelligence.signal_adjudication")
@@ -699,9 +697,7 @@ def test_model_budget_pause_survives_adjudicator_without_false_decision(runtime,
     with factory() as session:
         row = session.scalar(select(Pursuit))
         assert row.research_status == "partial"
-        assert any(
-            "Daily or batch research request cap" in error for error in row.research_errors
-        )
+        assert any("Daily or batch research request cap" in error for error in row.research_errors)
         assert any("work is paused" in error for error in row.research_errors)
         assert row.last_researched_at is None
         assert session.scalar(select(func.count()).select_from(SignalDecision)) == 0
@@ -1049,9 +1045,9 @@ def test_positive_legacy_model_cap_never_retries_missing_source_decision(runtime
     with factory() as session:
         row = session.scalar(select(Pursuit))
         assert row.research_status == "succeeded"
-        assert any(
-            "source pipeline" in value for value in row.snapshot["unknowns"]
-        ), row.snapshot["unknowns"]
+        assert any("source pipeline" in value for value in row.snapshot["unknowns"]), row.snapshot[
+            "unknowns"
+        ]
         assert any("made no model request" in value for value in row.snapshot["unknowns"])
         run = session.scalar(select(PursuitResearchRun))
         assert run.model_count == 0
@@ -1103,9 +1099,10 @@ def test_stale_signal_decision_is_not_reused(runtime, monkeypatch, stale_hash, s
     execute(factory, service)
     with factory() as session:
         row = session.scalar(select(Pursuit))
-        assert any(
-            "source pipeline" in value for value in row.snapshot["unknowns"]
-        ), (row.snapshot["unknowns"], row.research_errors)
+        assert any("source pipeline" in value for value in row.snapshot["unknowns"]), (
+            row.snapshot["unknowns"],
+            row.research_errors,
+        )
         assert not any("reused exact current" in value for value in row.snapshot["unknowns"])
         run = session.scalar(select(PursuitResearchRun))
         assert run.model_count == 0

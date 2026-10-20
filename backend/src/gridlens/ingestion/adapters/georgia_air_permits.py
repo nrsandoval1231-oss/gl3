@@ -66,7 +66,15 @@ _RELEVANT = re.compile(
     re.IGNORECASE,
 )
 _LEGAL_SUFFIXES = {
-    "llc", "inc", "incorporated", "corp", "corporation", "ltd", "limited", "co", "company"
+    "llc",
+    "inc",
+    "incorporated",
+    "corp",
+    "corporation",
+    "ltd",
+    "limited",
+    "co",
+    "company",
 }
 
 

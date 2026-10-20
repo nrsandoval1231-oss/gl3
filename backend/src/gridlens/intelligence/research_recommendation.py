@@ -1,6 +1,5 @@
 """Deterministic, advisory research routing seam; never queues work or changes tiers."""
 
-
 _NEED_FIELDS = ("activity", "tier", "mw", "timing", "duration", "supply")
 
 

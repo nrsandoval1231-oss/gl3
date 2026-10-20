@@ -71,9 +71,9 @@ def test_strong_non_data_center_can_outrank_weak_data_center():
 def test_conflict_and_listing_review_reduce_evidence_points():
     clean = rank_opportunity(item(), None, TODAY)["rank_score"]
     conflict = rank_opportunity(item(conflict_state="CONFLICT"), None, TODAY)["rank_score"]
-    absent = rank_opportunity(
-        item(signal_evidence_state="source_listing_absent"), None, TODAY
-    )["rank_score"]
+    absent = rank_opportunity(item(signal_evidence_state="source_listing_absent"), None, TODAY)[
+        "rank_score"
+    ]
     assert conflict < clean and absent < clean
 
 
@@ -99,9 +99,10 @@ def test_responsible_contractor_counts_but_unknown_category_does_not():
 
 def test_tier_raises_evidence_but_rank_never_changes_tier():
     signal, lead = item(), item(tier="Lead")
-    assert rank_opportunity(lead, None, TODAY)["rank_score"] > rank_opportunity(
-        signal, None, TODAY
-    )["rank_score"]
+    assert (
+        rank_opportunity(lead, None, TODAY)["rank_score"]
+        > rank_opportunity(signal, None, TODAY)["rank_score"]
+    )
     assert signal["tier"] == "Signal" and "rank_score" not in signal
 
 

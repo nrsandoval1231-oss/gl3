@@ -230,9 +230,7 @@ def extract_project_claims(
     # Only a supported sentence can own its terminal as-of date. A standalone
     # dated heading must not lend the publication date to an undated assertion.
     for quote in {claim["quote"] for claim in result}:
-        without_stamp = re.sub(
-            r"\s+as of \d{4}-\d{2}-\d{2}[.!?]?$", "", quote, flags=re.I
-        )
+        without_stamp = re.sub(r"\s+as of \d{4}-\d{2}-\d{2}[.!?]?$", "", quote, flags=re.I)
         framing = framing.replace(quote, without_stamp)
     if re.search(r"\bas of \d{4}-\d{2}-\d{2}\b", framing, re.I):
         return []
@@ -315,9 +313,7 @@ class _ProjectClaimAccumulator:
                     if self._conflict[field]
                     else "SUPPORTED"
                 ),
-                "value": self._values[field]
-                if has_value and not self._conflict[field]
-                else None,
+                "value": self._values[field] if has_value and not self._conflict[field] else None,
             }
             if self.retain_claims:
                 state["claims"] = self._claims[field]

@@ -68,7 +68,7 @@ def _listing_rows(soup: BeautifulSoup) -> list[dict[str, str]]:
         path = raw_parts.path
         prefix = "/index%2ephp/news/press-releases/"
         if path.startswith(prefix):
-            path = "/news/press-releases/" + path[len(prefix):]
+            path = "/news/press-releases/" + path[len(prefix) :]
         normalized_href = (
             urlunsplit(
                 (raw_parts.scheme, raw_parts.netloc, path, raw_parts.query, raw_parts.fragment)

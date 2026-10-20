@@ -507,9 +507,7 @@ def _assess_tceq_batch(
         and record.get("html_url")
         and (data_center or named_project)
     )
-    subject = (
-        "a data-center project" if data_center else f"named project ({facility})"
-    )
+    subject = "a data-center project" if data_center else f"named project ({facility})"
     if accepted:
         reason = (
             f"TCEQ lists a pending temporary concrete batch plant registration "
@@ -679,8 +677,7 @@ def _assess_fort_worth(
         subject = "a data-center substation" if substation else "a new or expanded data center"
         issued = status.casefold() == "issued"
         stage = (
-            "An issued permit authorizes the work but does not show that construction has "
-            "started."
+            "An issued permit authorizes the work but does not show that construction has started."
             if issued
             else "A filed permit is not an issued permit and does not show that construction "
             "has started."
@@ -761,7 +758,10 @@ def _assess_ceqa(record: dict[str, Any], permit: dict[str, Any], as_of: date) ->
     named = in_title or bool(_TCEQ_DATA_CENTER.search(description))
     policy_only = bool(_CEQA_POLICY_ONLY.search(title))
     accepted = bool(
-        named and not policy_only and location and record.get("event_date")
+        named
+        and not policy_only
+        and location
+        and record.get("event_date")
         and record.get("html_url")
     )
     if accepted:

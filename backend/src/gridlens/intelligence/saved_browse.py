@@ -198,9 +198,7 @@ def _write_rows(session, generation_id, summaries, *, check_budget=None):
         from gridlens.domain.commercial_triage import build_card
         from gridlens.intelligence.buying_chain import buying_chain_views
 
-        chains = buying_chain_views(
-            session, {UUID(str(item["project_id"])) for item in details}
-        )
+        chains = buying_chain_views(session, {UUID(str(item["project_id"])) for item in details})
         previews = {
             str(item["id"]): build_card(
                 item,

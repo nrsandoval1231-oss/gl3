@@ -49,16 +49,18 @@ def test_dimensions_use_exact_normalized_project_and_need_values():
         _summary(location=None),
         _summary(asset_type="unmapped stored asset type", activity="other"),
     ]
-    assert _filter_opportunity_summaries(
-        rows, _filters(geography="  ＣＨＩＣＡＧＯ,   IL ")
-    ) == [rows[0], rows[2]]
+    assert _filter_opportunity_summaries(rows, _filters(geography="  ＣＨＩＣＡＧＯ,   IL ")) == [
+        rows[0],
+        rows[2],
+    ]
     assert _filter_opportunity_summaries(rows, _filters(geography="UNKNOWN")) == [rows[1]]
-    assert _filter_opportunity_summaries(
-        rows, _filters(industry="unmapped stored asset type")
-    ) == [rows[2]]
-    assert _filter_opportunity_summaries(
-        rows, _filters(activity="facility-expansion")
-    ) == [rows[0], rows[1]]
+    assert _filter_opportunity_summaries(rows, _filters(industry="unmapped stored asset type")) == [
+        rows[2]
+    ]
+    assert _filter_opportunity_summaries(rows, _filters(activity="facility-expansion")) == [
+        rows[0],
+        rows[1],
+    ]
 
 
 def test_timing_and_mw_filters_use_effective_summary_only_and_inclusive_overlap():

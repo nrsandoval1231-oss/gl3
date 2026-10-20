@@ -33,7 +33,7 @@ const path = geoPath()
 const centroids = new Map(states.features.map((f) => [f.properties.name, path.centroid(f)]))
 const bounds = new Map(states.features.map((f) => [f.properties.name, path.bounds(f)]))
 
-export function sceneFromUrl(params: URLSearchParams): Scene {
+function sceneFromUrl(params: URLSearchParams): Scene {
   const mode = params.get('mode') as Mode | null
   const tier = params.get('level') as TierName | null
   return {

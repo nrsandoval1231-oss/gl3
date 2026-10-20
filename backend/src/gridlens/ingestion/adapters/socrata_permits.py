@@ -413,9 +413,7 @@ def retrieve_collection_segment(
         terms = ["data center", "data centre"]
         if backfill.get("include_explicit_power") is True:
             terms.extend(("construction power", "temporary service", "t-pole"))
-        predicate = " OR ".join(
-            f"lower({fields['description']}) LIKE '%{term}%'" for term in terms
-        )
+        predicate = " OR ".join(f"lower({fields['description']}) LIKE '%{term}%'" for term in terms)
         base_where = (
             f"{fields['date']} >= '{lower}' AND {fields['date']} <= '{upper}' "
             f"AND ({class_filters[source_id]}) AND ({predicate})"
@@ -480,9 +478,7 @@ def retrieve_collection_segment(
                 {"$select": "count(*) AS row_count", "$where": count_where},
             )
         except (httpx.HTTPError, ResponseTooLarge) as exc:
-            raise SourceParseError(
-                f"Permit segment count failed: {type(exc).__name__}"
-            ) from exc
+            raise SourceParseError(f"Permit segment count failed: {type(exc).__name__}") from exc
         run_bytes += len(body)
         if run_bytes > MAX_RUN or "json" not in headers.get("content-type", "").lower():
             raise SourceParseError("Permit segment count exceeded bounds or was non-JSON")
@@ -535,9 +531,7 @@ def retrieve_collection_segment(
                 http, source["endpoint"], MAX_RESPONSE, params_rows
             )
         except (httpx.HTTPError, ResponseTooLarge) as exc:
-            raise SourceParseError(
-                f"Permit segment page failed: {type(exc).__name__}"
-            ) from exc
+            raise SourceParseError(f"Permit segment page failed: {type(exc).__name__}") from exc
         run_bytes += len(body)
         if run_bytes > MAX_RUN or "json" not in headers.get("content-type", "").lower():
             raise SourceParseError("Permit segment exceeded bounds or returned non-JSON")
@@ -563,11 +557,9 @@ def retrieve_collection_segment(
             if not row_id or row_id in seen or issue_day > datetime.now(UTC).date():
                 raise SourceParseError("Permit segment has invalid or duplicate row identity")
             if source_id == "austin-building-permits":
-                class_valid = (
-                    _field(row, fields["class"]) == "Commercial"
-                    and _field(row, fields["type"])
-                    in {"Building Permit", "Electrical Permit"}
-                )
+                class_valid = _field(row, fields["class"]) == "Commercial" and _field(
+                    row, fields["type"]
+                ) in {"Building Permit", "Electrical Permit"}
             elif source_id == "seattle-building-permits":
                 class_valid = (
                     _field(row, fields["class"]) == "Non-Residential"
@@ -575,15 +567,12 @@ def retrieve_collection_segment(
                 )
             else:
                 permit_type = _field(row, fields["type"])
-                class_valid = (
-                    permit_type in {
-                        "PERMIT - NEW CONSTRUCTION",
-                        "PERMIT - RENOVATION/ALTERATION",
-                    }
-                    or (
-                        permit_type == "PERMIT – EXPRESS PERMIT PROGRAM"
-                        and _field(row, fields["work"]) == "Electrical Work"
-                    )
+                class_valid = permit_type in {
+                    "PERMIT - NEW CONSTRUCTION",
+                    "PERMIT - RENOVATION/ALTERATION",
+                } or (
+                    permit_type == "PERMIT – EXPRESS PERMIT PROGRAM"
+                    and _field(row, fields["work"]) == "Electrical Work"
                 )
             if not class_valid:
                 raise SourceParseError("Permit segment row escaped the reviewed class filter")
@@ -613,16 +602,12 @@ def retrieve_collection_segment(
                 prior_key = (
                     (
                         str(after_value),
-                        int(after_id)
-                        if source_id == "chicago-building-permits"
-                        else after_id,
+                        int(after_id) if source_id == "chicago-building-permits" else after_id,
                     )
                     if is_modified
                     else (
                         day.isoformat(),
-                        int(after_id)
-                        if source_id == "chicago-building-permits"
-                        else after_id,
+                        int(after_id) if source_id == "chicago-building-permits" else after_id,
                     )
                 )
                 if sort_key <= prior_key:

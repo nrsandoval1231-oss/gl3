@@ -55,8 +55,8 @@ def test_listing_changes_fail_visibly():
 
 def test_relative_and_wrapped_application_link_resolves_to_official_pdf():
     body = FIXTURE.read_bytes().replace(
-        b'https://www.tceq.texas.gov/assets/public/permitting/air/reports/applications/407086-tc.pdf',
-        b'/assets/public/permitting/air/reports/applications/407086-tc.\r\npdf',
+        b"https://www.tceq.texas.gov/assets/public/permitting/air/reports/applications/407086-tc.pdf",
+        b"/assets/public/permitting/air/reports/applications/407086-tc.\r\npdf",
         1,
     )
     row = parse_listing(body, TODAY)[0]
@@ -83,14 +83,17 @@ def test_tceq_href_format_alias_preserves_project_identity_and_hash():
     assert second["permit"]["source_link_hrefs"]["application"].endswith(".\r\npdf")
 
 
-@pytest.mark.parametrize("href", [
-    "//attacker.example/assets/public/permitting/air/reports/applications/a.pdf",
-    "https://user@www.tceq.texas.gov/assets/public/permitting/air/reports/applications/a.pdf",
-    "http://www.tceq.texas.gov/assets/public/permitting/air/reports/applications/a.pdf",
-    "/private",
-    "/assets/public/permitting/air/reports/applications/%2fprivate.pdf",
-    "/assets/public/permitting/air/reports/applications/../../private.pdf",
-])
+@pytest.mark.parametrize(
+    "href",
+    [
+        "//attacker.example/assets/public/permitting/air/reports/applications/a.pdf",
+        "https://user@www.tceq.texas.gov/assets/public/permitting/air/reports/applications/a.pdf",
+        "http://www.tceq.texas.gov/assets/public/permitting/air/reports/applications/a.pdf",
+        "/private",
+        "/assets/public/permitting/air/reports/applications/%2fprivate.pdf",
+        "/assets/public/permitting/air/reports/applications/../../private.pdf",
+    ],
+)
 def test_tceq_application_link_rejects_foreign_or_unsafe_urls(href: str):
     from gridlens.ingestion.adapters.tceq_nsr_pending import _official
 
@@ -131,7 +134,9 @@ def test_unsited_or_non_load_filings_stay_evidence():
         if "DATA CENTER" not in f"{row['applicant']} {row['facility']}"
     )
     summary = {
-        "city": "Odessa", "county": "Ector", "text": "",
+        "city": "Odessa",
+        "county": "Ector",
+        "text": "",
         "purpose": "This permit will authorize a gas plant.",
     }
     rejected = assess_permit(_record(other, summary), as_of=TODAY)
@@ -193,8 +198,12 @@ FERMI = (
 
 def _row(facility: str, applicant: str, permit: str) -> dict:
     return {
-        "project": "1", "applicant": applicant, "facility": facility, "permits": [permit],
-        "received": date(2026, 3, 27), "application_stage": "Technically Complete Application",
+        "project": "1",
+        "applicant": applicant,
+        "facility": facility,
+        "permits": [permit],
+        "received": date(2026, 3, 27),
+        "application_stage": "Technically Complete Application",
         "notice_url": "https://www.tceq.texas.gov/x#1",
         "application_url": "https://www.tceq.texas.gov/x.pdf",
     }

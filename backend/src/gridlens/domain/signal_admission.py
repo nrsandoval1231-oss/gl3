@@ -101,10 +101,7 @@ def source_origin(family: str, retrieval_method: str) -> str:
         return "Official TDLR project registration"
     if retrieval_method in _PERMIT_METHODS and family == "construction-permits":
         return "Official permit"
-    if (
-        retrieval_method in _ENVIRONMENTAL_REVIEW_METHODS
-        and family == _ENVIRONMENTAL_REVIEW_FAMILY
-    ):
+    if retrieval_method in _ENVIRONMENTAL_REVIEW_METHODS and family == _ENVIRONMENTAL_REVIEW_FAMILY:
         return "Official environmental-review filing"
     if retrieval_method == _CULTIVATION_METHOD and family == _CULTIVATION_FAMILY:
         return "Official cultivation application"
@@ -140,10 +137,7 @@ def admit_standalone(
         return Admission(False, origin, "The current source version has no accepted assessment.")
     if retrieval_method in _PERMIT_METHODS and family == "construction-permits":
         return Admission(True, origin, "Accepted evidence from an official permit source.")
-    if (
-        retrieval_method in _ENVIRONMENTAL_REVIEW_METHODS
-        and family == _ENVIRONMENTAL_REVIEW_FAMILY
-    ):
+    if retrieval_method in _ENVIRONMENTAL_REVIEW_METHODS and family == _ENVIRONMENTAL_REVIEW_FAMILY:
         return Admission(
             True,
             origin,

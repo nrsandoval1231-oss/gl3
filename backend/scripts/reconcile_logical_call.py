@@ -94,7 +94,8 @@ def main() -> int:
     if args.action == "settle" and args.outcome_proof:
         parser.error("--outcome-proof is only valid for outcome action")
     if args.action == "outcome" and (
-        not args.outcome_proof or any(
+        not args.outcome_proof
+        or any(
             value is not None
             for value in (args.actual_cost_usd, args.input_tokens, args.output_tokens)
         )

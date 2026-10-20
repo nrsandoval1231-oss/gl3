@@ -164,8 +164,7 @@ def seed_material_state(session: Session, project: Project) -> ProjectMaterialSt
         # pre-action claims under the project lock, then preserve the stored
         # selected values so only this metadata is quietly normalized.
         current_by_activity = {
-            item["activity"]: item
-            for item in material_state(session, project.id)["power_need"]
+            item["activity"]: item for item in material_state(session, project.id)["power_need"]
         }
         prior_needs = row.state.get("power_need", [])
         normalized = []
@@ -310,9 +309,7 @@ def record_material_diff(
         if before == after:
             continue
         field_sources = (buying_evidence or {}).get(field, [])
-        field_support = max(
-            field_sources, key=lambda row: (row.last_seen_at, row.id), default=None
-        )
+        field_support = max(field_sources, key=lambda row: (row.last_seen_at, row.id), default=None)
         if (
             buying_evidence is not None
             and field in {"contractor", "buyer"}
@@ -356,7 +353,8 @@ def record_material_diff(
                 "value": after,
                 **(
                     {"buying_chain_evidence_ids": [str(row.id) for row in field_sources]}
-                    if field_sources else {}
+                    if field_sources
+                    else {}
                 ),
             },
             material=True,

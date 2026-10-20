@@ -84,11 +84,7 @@ def main() -> int:
             raise AssertionError("summary priority tuples differ from the frozen oracle")
         for row in summary:
             evidence: dict[str, Any] = next(
-                (
-                    item
-                    for item in row.get("evidence", [])
-                    if item.get("assessment_current", True)
-                ),
+                (item for item in row.get("evidence", []) if item.get("assessment_current", True)),
                 {},
             )
             actual_identity = work_identity(
@@ -123,9 +119,7 @@ def main() -> int:
                 )
 
         selected_ids = {UUID(need_id) for group in actual_groups[:50] for need_id in group}
-        selected = opportunity_projection(
-            session, tier="Signal", selected_need_ids=selected_ids
-        )
+        selected = opportunity_projection(session, tier="Signal", selected_need_ids=selected_ids)
         selected_rows = {str(row["id"]): row for row in selected}
         if set(selected_rows) != {str(need_id) for need_id in selected_ids}:
             raise AssertionError("selected-page hydration omitted or added a related need")

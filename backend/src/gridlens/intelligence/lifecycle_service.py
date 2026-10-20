@@ -27,8 +27,7 @@ def _assessment_evidence_id_matches(assessment: dict, evidence: Evidence) -> boo
     if isinstance(evidence_claim, dict):
         recorded_ids.append(evidence_claim.get("id"))
     return all(
-        recorded_id is None or str(recorded_id) == str(evidence.id)
-        for recorded_id in recorded_ids
+        recorded_id is None or str(recorded_id) == str(evidence.id) for recorded_id in recorded_ids
     )
 
 

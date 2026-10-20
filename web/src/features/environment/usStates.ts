@@ -1,6 +1,6 @@
 // Location strings come from sources ("Dallas, Texas", "Austin, TX"). Resolve only an
 // explicit state name or postal code; anything else stays unmapped and listed.
-export const stateCodes: Record<string, string> = {
+const stateCodes: Record<string, string> = {
   AL: 'Alabama', AK: 'Alaska', AZ: 'Arizona', AR: 'Arkansas', CA: 'California', CO: 'Colorado',
   CT: 'Connecticut', DE: 'Delaware', DC: 'District of Columbia', FL: 'Florida', GA: 'Georgia',
   HI: 'Hawaii', ID: 'Idaho', IL: 'Illinois', IN: 'Indiana', IA: 'Iowa', KS: 'Kansas',

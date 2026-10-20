@@ -1446,8 +1446,7 @@ def test_ineligible_epochs_do_not_fill_bounded_planner_frontier(source_db, monke
             schedule_mode="local_daily",
             timezone="America/Chicago",
             anchor={
-                "local_date": active_start
-                .astimezone(ZoneInfo("America/Chicago"))
+                "local_date": active_start.astimezone(ZoneInfo("America/Chicago"))
                 .date()
                 .isoformat(),
                 "local_time": "03:00",
@@ -1485,8 +1484,7 @@ def test_assignment_ignores_stale_and_disabled_due_flood(source_db, monkeypatch)
             schedule_mode="local_daily",
             timezone="America/Chicago",
             anchor={
-                "local_date": active_start
-                .astimezone(ZoneInfo("America/Chicago"))
+                "local_date": active_start.astimezone(ZoneInfo("America/Chicago"))
                 .date()
                 .isoformat(),
                 "local_time": "03:00",
@@ -1591,7 +1589,9 @@ def test_assignment_ignores_stale_and_disabled_due_flood(source_db, monkeypatch)
             select(SourceDueCheck).where(SourceDueCheck.epoch_id == old.id)
         ).all()
         disabled_rows = session.scalars(
-            select(SourceDueCheck).where(SourceDueCheck.source_id.like("disabled-scheduled-source-%"))
+            select(SourceDueCheck).where(
+                SourceDueCheck.source_id.like("disabled-scheduled-source-%")
+            )
         ).all()
         assert len(old_rows) == 101 and all(row.job_id is None for row in old_rows)
         assert len(disabled_rows) == 101 and all(row.job_id is None for row in disabled_rows)

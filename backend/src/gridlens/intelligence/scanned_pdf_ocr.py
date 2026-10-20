@@ -63,8 +63,13 @@ OCR_PREFLIGHT_CONTRACT_VERSION = "responses-input-tokens-count-v1"
 
 
 def _quarantine_ocr_response(
-    *, call_id: UUID, fence_token: int, task_type: str, model: str,
-    error: Exception | None = None, response: dict[str, Any] | None = None,
+    *,
+    call_id: UUID,
+    fence_token: int,
+    task_type: str,
+    model: str,
+    error: Exception | None = None,
+    response: dict[str, Any] | None = None,
     input_token_limit: int | None = None,
 ) -> bool:
     """Keep received OCR response billing unknown until explicit reconciliation."""

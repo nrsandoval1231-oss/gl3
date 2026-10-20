@@ -23,8 +23,12 @@ class PolicyEvidence(Record):
     observed_on: date
     location: Text
     kind: Literal[
-        "official_record", "draft_minutes", "staff_report", "reported_vote",
-        "enactment_record", "effective_clause",
+        "official_record",
+        "draft_minutes",
+        "staff_report",
+        "reported_vote",
+        "enactment_record",
+        "effective_clause",
     ]
     summary: Text
 
@@ -131,5 +135,12 @@ if __name__ == "__main__":
     parser.add_argument("--on", type=date.fromisoformat)
     args = parser.parse_args()
     record = load_policy(args.path)
-    print(json.dumps({"record": record.model_dump(mode="json"),
-                      "state": record.state_on(args.on or record.as_of_date)}, indent=2))
+    print(
+        json.dumps(
+            {
+                "record": record.model_dump(mode="json"),
+                "state": record.state_on(args.on or record.as_of_date),
+            },
+            indent=2,
+        )
+    )

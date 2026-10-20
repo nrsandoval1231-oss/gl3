@@ -41,9 +41,9 @@ def test_archived_role_is_not_refreshed_by_calendar_or_generic_date(incidental_d
     document = parse_document(
         "https://acme.com/2019/alice",
         (
-            '<html><head><title>Acme biography archive</title></head><body>'
+            "<html><head><title>Acme biography archive</title></head><body>"
             f"{incidental_date}"
-            '<article>Alice Smith is Project Director at Acme.</article></body></html>'
+            "<article>Alice Smith is Project Director at Acme.</article></body></html>"
         ).encode(),
         "text/html",
     )
@@ -66,9 +66,9 @@ def test_explicit_publication_date_supports_recent_role(publication):
     document = parse_document(
         "https://acme.com/news/project-director",
         (
-            '<html><head><title>Acme announcement</title></head><body>'
+            "<html><head><title>Acme announcement</title></head><body>"
             f"{publication}"
-            '<article>Alice Smith is Project Director at Acme.</article></body></html>'
+            "<article>Alice Smith is Project Director at Acme.</article></body></html>"
         ).encode(),
         "text/html",
     )

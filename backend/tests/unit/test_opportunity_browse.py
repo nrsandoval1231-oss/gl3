@@ -90,9 +90,7 @@ def test_matcher_preserves_matches_across_joined_search_field_boundaries():
         ("Data\t\r\n Center", "  data   center  ", True),
     ],
 )
-def test_matcher_normalization_matches_frozen_typescript_whitespace_and_case(
-    name, query, expected
-):
+def test_matcher_normalization_matches_frozen_typescript_whitespace_and_case(name, query, expected):
     item = _item()
     item["name"] = name
 
@@ -121,12 +119,18 @@ def test_browse_route_defaults_remain_plain_values_for_direct_callers():
 
 
 def test_grouped_signal_decision_preserves_existing_precedence_and_unknown_review():
-    assert grouped_signal_decision(
-        [{"signal_display_decision": "HOLD"}, {"signal_display_decision": "SHOW"}]
-    ) == "SHOW"
-    assert grouped_signal_decision(
-        [{"signal_display_decision": "HOLD"}, {"signal_display_decision": None}]
-    ) == "REVIEW"
+    assert (
+        grouped_signal_decision(
+            [{"signal_display_decision": "HOLD"}, {"signal_display_decision": "SHOW"}]
+        )
+        == "SHOW"
+    )
+    assert (
+        grouped_signal_decision(
+            [{"signal_display_decision": "HOLD"}, {"signal_display_decision": None}]
+        )
+        == "REVIEW"
+    )
     assert grouped_signal_decision([{"signal_display_decision": "HOLD"}]) == "HOLD"
 
 
@@ -134,9 +138,7 @@ def test_saved_snapshot_preflight_rejects_one_oversized_nested_value():
     row = type("SavedRow", (), {})()
     row.identity_key = "commercial-need:synthetic"
     row.snapshot = {"commercial_triage": {"saved_card": {"notes": ["x"]}}}
-    row.snapshot["commercial_triage"]["saved_card"]["notes"] = [
-        "x" * _MAX_SAVED_SNAPSHOT_BYTES
-    ]
+    row.snapshot["commercial_triage"]["saved_card"]["notes"] = ["x" * _MAX_SAVED_SNAPSHOT_BYTES]
 
     with pytest.raises(HTTPException) as oversized:
         _check_saved_history_bounds(row, note_count=1)

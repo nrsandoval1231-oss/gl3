@@ -233,9 +233,7 @@ def test_revision_forces_reprocess_and_no_change_preserves_good_evidence(session
         assert updated.revision_history[-1]["last_good_facts"] == good_facts
         assert updated.revision_history[-1]["last_good_evidence_refs"] == good_refs
         assert updated.revision_history[-1]["sources"][0]["allowed_urls"] == old_allowed
-        assert updated.revision_history[-1]["sources"][0]["cursor"] == {
-            "stable": "native-cursor"
-        }
+        assert updated.revision_history[-1]["sources"][0]["cursor"] == {"stable": "native-cursor"}
     with sessions.begin() as session:
         job_id2 = plan_monitoring(session, enabled=True)[0]
         assert session.get(Job, job_id2).target_id == watch_id
@@ -392,13 +390,16 @@ def test_planner_respects_global_host_and_source_active_caps(sessions):
         )
         assert len(first) == 1
     with sessions.begin() as session:
-        assert plan_monitoring(
-            session,
-            enabled=True,
-            max_active_jobs=4,
-            max_active_per_host=4,
-            max_active_per_source=1,
-        ) == []
+        assert (
+            plan_monitoring(
+                session,
+                enabled=True,
+                max_active_jobs=4,
+                max_active_per_host=4,
+                max_active_per_source=1,
+            )
+            == []
+        )
         active = list(
             session.scalars(
                 select(Job).where(
@@ -451,9 +452,7 @@ def test_planner_provisions_only_from_current_accepted_need_evidence(sessions):
         job = session.get(Job, queued[0])
         watch = session.get(ProjectMonitorWatch, job.target_id)
         source = session.scalar(
-            select(ProjectMonitorWatchSource).where(
-                ProjectMonitorWatchSource.watch_id == watch.id
-            )
+            select(ProjectMonitorWatchSource).where(ProjectMonitorWatchSource.watch_id == watch.id)
         )
         assert watch.enabled is True
         assert watch.question_ids == list(QUESTION_CONTRACTS)
@@ -494,9 +493,7 @@ def test_fake_retrieval_runs_outside_transaction_with_bounded_watch_context(sess
         assert cursor.cursor == {"row": "unchanged"}
 
 
-def test_default_runner_uses_registered_acquisition_and_canonical_retention(
-    sessions, monkeypatch
-):
+def test_default_runner_uses_registered_acquisition_and_canonical_retention(sessions, monkeypatch):
     from gridlens.intelligence import monitoring, research_evidence
 
     need_id = _seed(sessions, "default-runner")

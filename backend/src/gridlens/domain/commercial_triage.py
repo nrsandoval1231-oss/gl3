@@ -153,16 +153,12 @@ class PriorityInputAccumulator:
             re.search(r"electrical_buildout|construction|commissioning", text)
         )
         self.lifecycle_producing = self.lifecycle_producing or bool(
-            re.search(
-                r"production|producing|completion|workover|spud|startup|operating", text
-            )
+            re.search(r"production|producing|completion|workover|spud|startup|operating", text)
         )
 
     def merge_supporting_evidence(self, other: PriorityInputAccumulator) -> None:
         self.evidence_scope = self.evidence_scope or other.evidence_scope
-        self.evidence_commissioning = (
-            self.evidence_commissioning or other.evidence_commissioning
-        )
+        self.evidence_commissioning = self.evidence_commissioning or other.evidence_commissioning
         self.evidence_construction = self.evidence_construction or other.evidence_construction
         self.evidence_oil_gas = self.evidence_oil_gas or other.evidence_oil_gas
         self.latest_date = max(self.latest_date, other.latest_date)
@@ -254,19 +250,16 @@ def _priority(item: dict[str, Any]) -> tuple[int, int, int, str, str]:
         segment = 5
     elif data_center:
         segment = 6
-    elif (
-        re.search(
-            r"oil|gas|drill|well|pipeline|compressor",
-            " ".join(
-                [
-                    str(item.get("activity", "")),
-                    str(item.get("name", "")),
-                    str(item.get("supported_action") or ""),
-                ]
-            ).casefold(),
-        )
-        or features.get("evidence_oil_gas")
-    ):
+    elif re.search(
+        r"oil|gas|drill|well|pipeline|compressor",
+        " ".join(
+            [
+                str(item.get("activity", "")),
+                str(item.get("name", "")),
+                str(item.get("supported_action") or ""),
+            ]
+        ).casefold(),
+    ) or features.get("evidence_oil_gas"):
         segment = 7
     else:
         segment = 8
@@ -927,14 +920,14 @@ def cards(
     return group_cards(items, chains, today, limit=max(1, min(limit, MAX_CARDS)))
 
 
-def grouped_need_ids(
-    items: list[dict[str, Any]], limit: int | None = None
-) -> list[list[str]]:
+def grouped_need_ids(items: list[dict[str, Any]], limit: int | None = None) -> list[list[str]]:
     """Return canonical work groups in first priority encounter order."""
     groups = grouped_need_groups(items)
-    return [need_ids for _identity, need_ids in groups[:limit]] if limit is not None else [
-        need_ids for _identity, need_ids in groups
-    ]
+    return (
+        [need_ids for _identity, need_ids in groups[:limit]]
+        if limit is not None
+        else [need_ids for _identity, need_ids in groups]
+    )
 
 
 def work_group_identity(item: dict[str, Any]) -> str:
@@ -1023,9 +1016,7 @@ def group_cards(
                 key=lambda value: value["evidence_id"],
             )
             operator_fact_refs = [
-                reference
-                for card in group
-                for reference in card.get("operator_fact_refs", [])
+                reference for card in group for reference in card.get("operator_fact_refs", [])
             ]
             if operator_fact_refs:
                 merged["operator_fact_refs"] = sorted(
