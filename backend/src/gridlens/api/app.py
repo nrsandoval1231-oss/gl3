@@ -103,6 +103,7 @@ from gridlens.persistence.models import (
     PowerNeed,
     PowerNeedBrief,
     PowerNeedBriefVersion,
+    PowerNeedTitle,
     Project,
     ProjectLifecycle,
     SignalDecision,
@@ -231,6 +232,10 @@ class OpportunityOut(BaseModel):
     priority_segment: int | None = None
     priority_label: str | None = None
     browse_title: str | None = None
+    title_status: str | None = None
+    title_generated_at: datetime | None = None
+    title_model: str | None = None
+    title_citations: list[dict[str, Any]] = Field(default_factory=list)
     evidence_count: int | None = None
 
 
@@ -934,6 +939,16 @@ class BriefOut(BaseModel):
 
 class BriefRequestOut(BriefOut):
     job_id: UUID | None = None
+
+
+class PowerNeedTitleOut(BaseModel):
+    status: str
+    result: dict[str, Any] | None = None
+    citations: list[dict[str, Any]] = Field(default_factory=list)
+    generated_at: datetime | None = None
+    model: str | None = None
+    error: str | None = None
+    job_id: str | None = None
 
 
 class HealthSourceOut(BaseModel):
@@ -1827,8 +1842,20 @@ def pursuit_workspace(
     cohort_token: str | None = None,
 ):
     accepted = {
-        "search", "tier", "disposition", "geography", "industry", "activity", "timing",
-        "mw_status", "mw_min", "mw_max", "sort", "limit", "offset", "cohort_token",
+        "search",
+        "tier",
+        "disposition",
+        "geography",
+        "industry",
+        "activity",
+        "timing",
+        "mw_status",
+        "mw_min",
+        "mw_max",
+        "sort",
+        "limit",
+        "offset",
+        "cohort_token",
     }
     if set(request.query_params) - accepted:
         raise HTTPException(422, "Unsupported workspace query parameter")
@@ -3338,6 +3365,16 @@ def opportunity_projection(
             select(PowerNeedBrief).where(PowerNeedBrief.need_id.in_(need_ids))
         )
     }
+    titles_by_need = (
+        {
+            title.need_id: title
+            for title in session.scalars(
+                select(PowerNeedTitle).where(PowerNeedTitle.need_id.in_(need_ids))
+            )
+        }
+        if need_ids
+        else {}
+    )
     lifecycles_by_project = defaultdict(list)
     lifecycle_observations = set()
     for event, evidence_row in session.execute(
@@ -3795,6 +3832,21 @@ def opportunity_projection(
                         buying_chains_by_project.get(str(project.id)),
                     )
                 ),
+                **(
+                    {}
+                    if summary_only
+                    else __import__(
+                        "gridlens.intelligence.titles", fromlist=["title_preview"]
+                    ).title_preview(
+                        session,
+                        need,
+                        project,
+                        links,
+                        sources,
+                        buying_chains_by_project.get(str(project.id)),
+                        titles_by_need.get(need.id),
+                    )
+                ),
             }
         )
         if not summary_only:
@@ -4047,6 +4099,48 @@ def create_power_need_brief(need_id: UUID, request: Request):
             raise HTTPException(404, "Power need not found") from exc
         except BriefUnavailable as exc:
             raise HTTPException(409, str(exc)) from exc
+
+
+@app.get(
+    "/api/power-needs/{need_id}/title",
+    response_model=PowerNeedTitleOut,
+    dependencies=[Depends(require_session)],
+)
+def get_power_need_title(need_id: UUID):
+    from gridlens.intelligence.titles import BriefUnavailable, digest, title_input, title_view
+
+    if not settings.power_need_titles_enabled:
+        return title_view(None, None, False)
+    with SessionLocal() as session:
+        try:
+            payload, _ = title_input(session, need_id)
+            fingerprint = digest(payload)
+        except LookupError as exc:
+            raise HTTPException(404, "Power need not found") from exc
+        except BriefUnavailable:
+            fingerprint = None
+        row = session.get(PowerNeedTitle, need_id)
+        return title_view(row, fingerprint)
+
+
+@app.post(
+    "/api/power-needs/{need_id}/title",
+    response_model=PowerNeedTitleOut,
+    dependencies=[Depends(require_session)],
+)
+def create_power_need_title(need_id: UUID, request: Request):
+    require_same_origin(request)
+    from gridlens.intelligence.titles import request_title
+
+    with SessionLocal.begin() as session:
+        try:
+            return request_title(session, need_id)
+        except LookupError as exc:
+            raise HTTPException(404, "Power need not found") from exc
+        except Exception as exc:
+            raise HTTPException(
+                409, "Title enrichment is unavailable for current evidence"
+            ) from exc
 
 
 @app.post(

@@ -271,6 +271,264 @@ test('workspace selection is restored through Back, Forward, and a deep-link ref
   await expect(page.getByRole('heading', { name: 'Test data center' })).toBeVisible()
 })
 
+test('title enrichment is explicit, polls pending work, refreshes the saved list, and shows citations', async ({ page }) => {
+  let queued = false
+  let ready = false
+  let statusReads = 0
+  const enrichedTitle = 'Cobalt Data Center expansion — Cobalt Energy — asset operator — Activity: Building substations.'
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response([{ ...need, browse_title: ready ? enrichedTitle : undefined }]) }))
+  await page.route('**/api/opportunities/needs/need-a*', route => route.fulfill({ json: need }))
+  await page.route('**/api/power-needs/need-a/title', async route => {
+    if (route.request().method() === 'POST') {
+      queued = true
+      await route.fulfill({ json: { status: 'pending', job_id: 'job-a', result: null, citations: [], generated_at: null, model: 'gpt-test' } })
+      return
+    }
+    statusReads += 1
+    if (!queued) {
+      await route.fulfill({ json: { status: 'unavailable', result: null, citations: [], generated_at: null, model: null } })
+      return
+    }
+    if (statusReads >= 3) {
+      ready = true
+      await route.fulfill({ json: { status: 'ready', result: { title: enrichedTitle }, citations: [{ evidence_id: 'ev-a', title: 'Current permit', url: 'https://example.test/current', publisher: 'City permits', quote: 'Activity: Building substations.' }], generated_at: '2026-10-19T10:00:00Z', model: 'gpt-test' } })
+      return
+    }
+    await route.fulfill({ json: { status: 'pending', result: null, citations: [], generated_at: null, model: 'gpt-test' } })
+  })
+  await page.goto('/?view=workspace')
+  await page.locator('[data-need-row="need-a"]').click()
+  await expect(page.getByRole('button', { name: 'Enrich title' })).toBeVisible()
+  await expect.poll(() => statusReads).toBe(1)
+  await page.getByRole('button', { name: 'Enrich title' }).click()
+  await expect(page.getByRole('heading', { name: enrichedTitle })).toBeVisible({ timeout: 8000 })
+  const titleRegion = page.getByRole('region', { name: 'Evidence-grounded title' })
+  await expect(titleRegion.getByRole('link', { name: 'Current permit' })).toBeVisible()
+  await expect(titleRegion).toContainText('source activity')
+  await expect(titleRegion).toContainText('"Activity: Building substations."')
+  await expect(page.locator('[data-need-row="need-a"] strong')).toHaveText(enrichedTitle)
+})
+
+test('switching selected needs clears the prior title and ignores late title status', async ({ page }) => {
+  const second = { ...need, id: 'need-b', project_id: 'project-b', name: 'Second project' }
+  let releaseFirst: (() => void) | undefined
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response([need, second]) }))
+  await page.route('**/api/opportunities/needs/*', route => route.fulfill({ json: route.request().url().includes('need-b') ? second : need }))
+  await page.route('**/api/power-needs/*/title', async route => {
+    if (route.request().url().includes('need-a')) await new Promise<void>(resolve => { releaseFirst = resolve })
+    await route.fulfill({ json: { status: 'unavailable', result: null, citations: [], generated_at: null, model: null } })
+  })
+  await page.goto('/?view=workspace')
+  await page.locator('[data-need-row="need-a"]').click()
+  await page.locator('[data-need-row="need-b"]').click()
+  await expect(page.getByRole('heading', { name: 'Second project' })).toBeVisible()
+  releaseFirst?.()
+  await expect(page.getByRole('button', { name: 'Enrich title' })).toBeVisible()
+  await expect(page.locator('.wh-title-enrichment')).not.toContainText('Cobalt Data Center expansion')
+})
+
+test('switching needs during a title POST does not leave the new selection busy', async ({ page }) => {
+  const second = { ...need, id: 'need-b', project_id: 'project-b', name: 'Second project' }
+  let releasePost: (() => void) | undefined
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response([need, second]) }))
+  await page.route('**/api/opportunities/needs/*', route => route.fulfill({ json: route.request().url().includes('need-b') ? second : need }))
+  await page.route('**/api/power-needs/*/title', async route => {
+    if (route.request().method() === 'POST' && route.request().url().includes('need-a')) {
+      await new Promise<void>(resolve => { releasePost = resolve })
+      await route.fulfill({ json: { status: 'pending', job_id: 'job-a', result: null, citations: [], generated_at: null, model: 'gpt-test' } })
+      return
+    }
+    await route.fulfill({ json: { status: 'unavailable', result: null, citations: [], generated_at: null, model: null } })
+  })
+  await page.goto('/?view=workspace')
+  await page.locator('[data-need-row="need-a"]').click()
+  await page.getByRole('button', { name: 'Enrich title' }).click()
+  await expect.poll(() => Boolean(releasePost)).toBeTruthy()
+  await page.locator('[data-need-row="need-b"]').click()
+  await expect(page.getByRole('heading', { name: 'Second project' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Enrich title' })).toBeEnabled()
+  releasePost?.()
+})
+
+test('a failed pending-title status check is visible and retryable', async ({ page }) => {
+  let posts = 0
+  let statusReads = 0
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response() }))
+  await page.route('**/api/opportunities/needs/need-a*', route => route.fulfill({ json: need }))
+  await page.route('**/api/power-needs/need-a/title', async route => {
+    if (route.request().method() === 'POST') {
+      posts += 1
+      await route.fulfill({ json: { status: 'pending', job_id: `job-${posts}`, result: null, citations: [], generated_at: null, model: 'gpt-test' } })
+      return
+    }
+    statusReads += 1
+    if (statusReads === 1) await route.fulfill({ json: { status: 'unavailable', result: null, citations: [], generated_at: null, model: null } })
+    else if (statusReads === 2) await route.fulfill({ status: 503, json: { detail: 'temporarily unavailable' } })
+    else await route.fulfill({ json: { status: 'pending', job_id: `job-${posts}`, result: null, citations: [], generated_at: null, model: 'gpt-test' } })
+  })
+  await page.goto('/?view=workspace')
+  await page.locator('[data-need-row="need-a"]').click()
+  await page.getByRole('button', { name: 'Enrich title' }).click()
+  const titleRegion = page.getByRole('region', { name: 'Evidence-grounded title' })
+  await expect(titleRegion).toContainText('Title status could not be checked', { timeout: 8000 })
+  await expect(page.getByRole('button', { name: 'Enrich title' })).toBeDisabled()
+  await page.getByRole('button', { name: 'Retry status' }).click()
+  await expect.poll(() => statusReads).toBeGreaterThan(2)
+  await expect.poll(() => posts).toBe(1)
+  await expect(titleRegion).toContainText('Title request pending.')
+  await expect(page.getByRole('button', { name: 'Enrich title' })).toBeEnabled()
+})
+
+test('a delayed status retry for a prior selection cannot leave that need busy', async ({ page }) => {
+  const second = { ...need, id: 'need-b', project_id: 'project-b', name: 'Second project' }
+  let aStatusReads = 0
+  let releaseRetry: (() => void) | undefined
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response([need, second]) }))
+  await page.route('**/api/opportunities/needs/*', route => route.fulfill({ json: route.request().url().includes('need-b') ? second : need }))
+  await page.route('**/api/power-needs/*/title', async route => {
+    if (route.request().url().includes('need-b')) {
+      await route.fulfill({ json: { status: 'unavailable', result: null, citations: [], generated_at: null, model: null } })
+      return
+    }
+    if (route.request().method() === 'POST') {
+      await route.fulfill({ json: { status: 'unavailable', result: null, citations: [], generated_at: null, model: null } })
+      return
+    }
+    aStatusReads += 1
+    if (aStatusReads === 2) await new Promise<void>(resolve => { releaseRetry = resolve })
+    if (aStatusReads === 1 || aStatusReads === 3) {
+      await route.fulfill({ status: 503, json: { detail: 'temporarily unavailable' } })
+    } else {
+      await route.fulfill({ json: { status: 'unavailable', result: null, citations: [], generated_at: null, model: null } })
+    }
+  })
+  await page.goto('/?view=workspace')
+  await page.locator('[data-need-row="need-a"]').click()
+  await expect(page.getByRole('button', { name: 'Retry status' })).toBeVisible()
+  await page.getByRole('button', { name: 'Retry status' }).click()
+  await expect.poll(() => Boolean(releaseRetry)).toBeTruthy()
+  await page.locator('[data-need-row="need-b"]').click()
+  await expect(page.getByRole('heading', { name: 'Second project' })).toBeVisible()
+  await page.locator('[data-need-row="need-a"]').click()
+  await expect(page.getByRole('heading', { name: 'Test data center' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Retry status' })).toBeEnabled()
+  releaseRetry?.()
+  await page.getByRole('button', { name: 'Retry status' }).click()
+  await expect(page.getByRole('button', { name: 'Enrich title' })).toBeEnabled()
+})
+
+test('an initial title status failure replaces last-known enriched detail with deterministic fallback', async ({ page }) => {
+  const lastKnown = 'Old enriched project title - owner operator'
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response([{ ...need, browse_title: lastKnown, title_status: 'ready' }]) }))
+  await page.route('**/api/opportunities/needs/need-a*', route => route.fulfill({ json: { ...need, browse_title: lastKnown, title_status: 'ready' } }))
+  let titleReads = 0
+  let titlePosts = 0
+  await page.route('**/api/power-needs/need-a/title', route => {
+    if (route.request().method() === 'POST') titlePosts += 1
+    titleReads += 1
+    if (titleReads === 1) return route.fulfill({ status: 503, json: { detail: 'temporarily unavailable' } })
+    return route.fulfill({ json: { status: 'unavailable', result: null, citations: [], generated_at: null, model: null } })
+  })
+  await page.goto('/?view=workspace')
+  await page.locator('[data-need-row="need-a"]').click()
+  await expect(page.getByRole('heading', { name: 'Test data center' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: lastKnown })).toHaveCount(0)
+  const titleRegion = page.getByRole('region', { name: 'Evidence-grounded title' })
+  await expect(titleRegion).toContainText('status could not be checked')
+  await expect(page.getByRole('button', { name: 'Enrich title' })).toBeDisabled()
+  await page.getByRole('button', { name: 'Retry status' }).click()
+  await expect.poll(() => titleReads).toBe(2)
+  await expect.poll(() => titlePosts).toBe(0)
+  await expect(page.getByRole('button', { name: 'Enrich title' })).toBeEnabled()
+  await expect(titleRegion).toContainText('Showing source-backed title fallback.')
+})
+
+test('cached ready POST refreshes the saved list and a newly stale item falls back', async ({ page }) => {
+  let listReads = 0
+  let detailReads = 0
+  const oldTitle = 'Old generated title - source role - Activity: Old activity.'
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/workspace?*', route => {
+    listReads += 1
+    const row = listReads === 1
+      ? { ...need, browse_title: oldTitle, title_status: 'ready' }
+      : { ...need, browse_title: 'Temporary power - Austin, TX', title_status: 'stale' }
+    return route.fulfill({ json: response([row]) })
+  })
+  await page.route('**/api/opportunities/needs/need-a*', route => {
+    detailReads += 1
+    return route.fulfill({ json: { ...need, title_status: detailReads === 1 ? 'ready' : 'stale', browse_title: detailReads === 1 ? oldTitle : 'Temporary power - Austin, TX' } })
+  })
+  let titleStatusReads = 0
+  await page.route('**/api/power-needs/need-a/title', async route => {
+    if (route.request().method() === 'POST') {
+      await route.fulfill({ json: { status: 'ready', result: { title: oldTitle }, citations: [{ evidence_id: 'ev-a', title: 'Old permit', url: 'https://example.test/old', publisher: 'City', quote: 'Old activity.' }], generated_at: '2026-10-19T10:00:00Z', model: 'gpt-test' } })
+      return
+    }
+    titleStatusReads += 1
+    if (titleStatusReads === 1) {
+      await route.fulfill({ json: { status: 'ready', result: { title: oldTitle }, citations: [{ evidence_id: 'ev-a', title: 'Old permit', url: 'https://example.test/old', publisher: 'City', quote: 'Old activity.' }], generated_at: '2026-10-19T10:00:00Z', model: 'gpt-test' } })
+      return
+    }
+    await route.fulfill({ json: { status: 'stale', result: null, citations: [], generated_at: null, model: 'gpt-test' } })
+  })
+  await page.goto('/?view=workspace')
+  await page.locator('[data-need-row="need-a"]').click()
+  await expect(page.getByRole('heading', { name: 'Old generated title' })).toBeVisible()
+  await page.getByRole('button', { name: 'Refresh title' }).click()
+  await expect.poll(() => listReads).toBeGreaterThan(1)
+  await expect(page.getByRole('heading', { name: 'Temporary power - Austin, TX' })).toBeVisible()
+  const titleRegion = page.getByRole('region', { name: 'Evidence-grounded title' })
+  await expect(titleRegion).toContainText('Saved title is stale')
+  await expect(titleRegion).not.toContainText('Old permit')
+})
+
+test('the selected title response wins over stale browse metadata in either direction', async ({ page }) => {
+  const staleNeed = {
+    ...need,
+    id: 'need-a',
+    title_status: 'ready',
+    browse_title: 'Old enriched browse title - owner operator',
+  }
+  const refreshedNeed = {
+    ...need,
+    id: 'need-b',
+    project_id: 'project-b',
+    name: 'Second project',
+    title_status: 'stale',
+    browse_title: 'Old stale title - contractor',
+  }
+  const freshTitle = 'Second project - Synthetic Owner LLC - asset operator - Activity: Site expansion.'
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response([staleNeed, refreshedNeed]) }))
+  await page.route('**/api/opportunities/needs/*', route => {
+    const id = route.request().url().includes('need-b') ? 'need-b' : 'need-a'
+    return route.fulfill({ json: id === 'need-b' ? refreshedNeed : staleNeed })
+  })
+  await page.route('**/api/power-needs/*/title', route => {
+    const id = route.request().url().includes('need-b') ? 'need-b' : 'need-a'
+    return route.fulfill({ json: id === 'need-a'
+      ? { status: 'stale', result: null, citations: [], generated_at: null, model: 'gpt-test' }
+      : { status: 'ready', result: { title: freshTitle }, citations: [{ evidence_id: 'ev-b', title: 'Current filing', url: 'https://example.test/current', publisher: 'City', quote: 'Activity: Site expansion.' }], generated_at: '2026-10-19T10:00:00Z', model: 'gpt-test' },
+    })
+  })
+  await page.goto('/?view=workspace')
+  await page.locator('[data-need-row="need-a"]').click()
+  await expect(page.getByRole('heading', { name: 'Test data center' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Old enriched browse title - owner operator' })).toHaveCount(0)
+  await expect(page.getByRole('region', { name: 'Evidence-grounded title' })).toContainText('Saved title is stale')
+  await page.locator('[data-need-row="need-b"]').click()
+  await expect(page.getByRole('heading', { name: freshTitle })).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Evidence-grounded title' })).toContainText('Evidence-grounded title')
+  await expect(page.getByRole('heading', { name: 'Old stale title - contractor' })).toHaveCount(0)
+})
+
 test('Signal tier deep links stay on workspace and a changed cohort resets pagination', async ({ page }) => {
   let pages = 0
   const requested: URL[] = []

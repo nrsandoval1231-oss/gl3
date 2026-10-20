@@ -392,10 +392,21 @@ def process_signal_adjudication_job(job_id: UUID, worker_id: str, fence: int) ->
         project_id = project.id if project else None
         from gridlens.intelligence.intelligence_jobs import _enabled
 
-        enabled, _provider, model, reason = _enabled("SIGNAL_ADJUDICATION")
+        payload = {
+            "state": state,
+            "model": settings.intelligence_typesafe_model,
+            "contract": "signal-display-v2",
+            "observation_id": str(observation.id),
+            "evidence_id": str(evidence.id),
+            "evidence_hash": evidence.content_hash,
+        }
+        enabled, _provider, model, reason = _enabled("SIGNAL_ADJUDICATION", payload=payload)
         if not enabled:
-            raise RuntimeError(reason)
-        payload = {"state": state, "model": model, "contract": "signal-display-v2"}
+            job.status, job.error = "succeeded", f"BLOCKED:{reason}"
+            job.lease_owner, job.lease_until = None, None
+            return
+        payload["model"] = model
+        checkpoint_call_id = checkpoint.get("logical_call_id")
     api_key = settings.typesafe_api_key.get_secret_value() if settings.typesafe_api_key else ""
 
     def invoke() -> tuple[dict[str, Any], int | None, int | None]:
@@ -415,7 +426,18 @@ def process_signal_adjudication_job(job_id: UUID, worker_id: str, fence: int) ->
             worker_id=worker_id,
             fence_token=fence,
             invoke=invoke,
-            before_dispatch=lambda call_id: _save_signal_call_id(job_id, worker_id, fence, call_id),
+            before_dispatch_with_policy=lambda call_id, policy: _save_signal_call_id_if_current(
+                job_id,
+                worker_id,
+                fence,
+                call_id,
+                policy,
+                observation.id,
+                evidence.id,
+                evidence.content_hash,
+                source_id,
+            ),
+            existing_call_id=UUID(checkpoint_call_id) if checkpoint_call_id else None,
         )
         dimensions = validated_dimensions(call.result, expected_model=model)
         decision = map_dimensions(dimensions, title=state["title"], abstract=state["abstract"])
@@ -432,13 +454,18 @@ def process_signal_adjudication_job(job_id: UUID, worker_id: str, fence: int) ->
         job = assert_fence(session, job_id, worker_id, fence)
         current_observation = session.get(Observation, observation.id)
         current_evidence = session.get(Evidence, evidence.id)
+        from gridlens.intelligence.intelligence_jobs import _enabled
+
+        policy_enabled = _enabled("SIGNAL_ADJUDICATION", payload=payload)[0]
         if (
             current_observation is None
             or current_evidence is None
             or current_evidence.content_hash != evidence.content_hash
             or current_observation.content_hash != evidence.content_hash
+            or not _signal_source_enabled(session, source_id)
+            or not policy_enabled
         ):
-            job.status, job.error = "succeeded", "STALE_EVIDENCE_AFTER_PROVIDER"
+            job.status, job.error = "succeeded", "STALE_EVIDENCE_OR_POLICY_AFTER_PROVIDER"
         else:
             session.add(
                 SignalDecision(
@@ -466,6 +493,54 @@ def _save_signal_call_id(job_id: UUID, worker_id: str, fence: int, call_id: UUID
         job = assert_fence(session, job_id, worker_id, fence)
         checkpoint = json.loads(job.checkpoint or "{}")
         checkpoint["logical_call_id"] = str(call_id)
+        job.checkpoint = json.dumps(checkpoint)
+
+
+def _signal_source_enabled(session: Session, source_id: str) -> bool:
+    source = session.get(Source, source_id)
+    return bool(source and source.enabled and source.registry_enabled)
+
+
+def _save_signal_call_id_if_current(
+    job_id: UUID,
+    worker_id: str,
+    fence: int,
+    call_id: UUID,
+    billing_policy: dict[str, str] | None,
+    observation_id: UUID,
+    evidence_id: UUID,
+    content_hash: str,
+    source_id: str,
+) -> None:
+    """Recheck exact public provenance in the dispatch transaction before saving receipt."""
+    import json
+
+    from gridlens.jobs.queue import assert_fence
+    from gridlens.persistence.database import SessionLocal
+
+    with SessionLocal.begin() as session:
+        job = assert_fence(session, job_id, worker_id, fence)
+        observation = session.get(Observation, observation_id)
+        evidence = session.get(Evidence, evidence_id)
+        if (
+            observation is None
+            or evidence is None
+            or observation.source_id != source_id
+            or observation.content_hash != content_hash
+            or evidence.observation_id != observation_id
+            or evidence.content_hash != content_hash
+            or not _signal_source_enabled(session, source_id)
+        ):
+            raise RuntimeError("SIGNAL_EVIDENCE_OR_SOURCE_STALE_BEFORE_DISPATCH")
+        checkpoint = json.loads(job.checkpoint or "{}")
+        prior_call_id = checkpoint.get("logical_call_id")
+        prior_policy = checkpoint.get("logical_call_policy")
+        if prior_call_id is not None and (
+            prior_call_id != str(call_id) or prior_policy != billing_policy
+        ):
+            raise RuntimeError("SIGNAL_LOGICAL_CALL_POLICY_SNAPSHOT_MISMATCH")
+        checkpoint["logical_call_id"] = str(call_id)
+        checkpoint["logical_call_policy"] = billing_policy
         job.checkpoint = json.dumps(checkpoint)
 
 

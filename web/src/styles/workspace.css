@@ -22,6 +22,7 @@
 .wh-detail a:hover,.wh-evidence a:hover{color:#101f2d}
 .wh-error{border-color:#d5dee5;color:#17324a}
 .wh-call-brief{border:1px solid #d5dee5;border-left:3px solid #17324a;background:#f3f6f7;padding:10px 14px;margin:10px 0 16px}.wh-call-brief h3{margin-top:0}.wh-call-brief p:last-child{margin-bottom:0}
+.wh-title-enrichment{display:grid;gap:5px;margin:8px 0;color:#395a75;font-size:12px}.wh-title-enrichment button{justify-self:start;border:1px solid #17324a;background:#fff;color:#17324a;padding:6px 10px;cursor:pointer}.wh-title-enrichment button:disabled{opacity:.55;cursor:default}.wh-title-enrichment p{margin:0;overflow-wrap:anywhere}
 @media(max-width:760px){
   .wh-briefbar small{font-size:12px}
   .wh-table td{font-size:14px}

@@ -57,14 +57,21 @@ JOB_KIND = "intelligence_process"
 POLICY_VERSION = "bounded-intelligence-v1"
 TYPESAFE_BILLING_CONTRACT_ID = "systemone-v1"
 TYPESAFE_BILLING_POLICY_ID = "typesafe-total-input-ceiling-v1"
+TYPESAFE_SIGNAL_ESTIMATE_POLICY_ID = "typesafe-signal-estimate-v1"
+TYPESAFE_SIGNAL_ESTIMATE_TASK = "SIGNAL_ADJUDICATION"
+TYPESAFE_SIGNAL_ESTIMATE_MODEL = "jev-1.13.0"
+TYPESAFE_SIGNAL_REQUEST_MAX_BYTES = 16_384
+TYPESAFE_SIGNAL_REPORTED_INPUT_REVIEW_TOKENS = 64_000
 SCHEMA_VERSION = "intelligence-request-v1"
 MAX_CONTEXT_BYTES = 45_000
 MAX_EVIDENCE_DOCUMENTS = 24
 MAX_PROVIDER_RESPONSE_BYTES = 65_536
 GROUND_TASKS = {"GROUNDED_EXTRACTION", "GROUNDED_DOSSIER"}
 LEGACY_BRIEF_OUTPUT_TOKENS = 700
+POWER_NEED_TITLE_OUTPUT_TOKENS = 240
 LEGACY_TASKS = {
     "POWER_NEED_BRIEF",
+    "POWER_NEED_TITLE",
     "SIGNAL_ADJUDICATION",
     "EVIDENCE_SHADOW",
     "JEV_HEALTH_PROBE",
@@ -685,6 +692,23 @@ def _enabled(
             ):
                 return False, "", "", "FIRECRAWL_DISABLED_OR_UNIT_COST_MISSING"
             return True, "firecrawl", task_type.casefold(), ""
+        if task_type == "POWER_NEED_TITLE":
+            if not settings.power_need_titles_enabled:
+                return False, "", "", "TITLE_ENRICHMENT_DISABLED"
+            if not settings.intelligence_openai_enabled or not settings.openai_api_key:
+                return False, "", "", "OPENAI_DISABLED_OR_KEY_MISSING"
+            model = settings.openai_brief_model
+            if model != settings.intelligence_openai_reasoning_model:
+                return False, "", "", "TITLE_MODEL_NOT_MATCHED_TO_PRICED_REASONING_MODEL"
+            if (
+                not settings.intelligence_openai_reasoning_pricing_verified
+                or settings.intelligence_openai_reasoning_priced_model_id != model
+                or settings.intelligence_openai_reasoning_max_output_tokens < 240
+                or settings.intelligence_openai_reasoning_input_usd_per_million <= 0
+                or settings.intelligence_openai_reasoning_output_usd_per_million < 0
+            ):
+                return False, "", "", "OPENAI_OUTPUT_BOUND_OR_MODEL_PRICING_MISSING"
+            return True, "openai", model, ""
         if task_type == "POWER_NEED_BRIEF":
             if not settings.intelligence_openai_enabled or not settings.openai_api_key:
                 return False, "", "", "OPENAI_DISABLED_OR_KEY_MISSING"
@@ -701,6 +725,11 @@ def _enabled(
             ):
                 return False, "", "", "OPENAI_OUTPUT_BOUND_OR_MODEL_PRICING_MISSING"
             return True, "openai", model, ""
+        if task_type == TYPESAFE_SIGNAL_ESTIMATE_TASK and _estimated_signal_policy_selected():
+            reason = _estimated_signal_policy_block_reason(payload)
+            if reason:
+                return False, "", "", reason
+            return True, "typesafe", TYPESAFE_SIGNAL_ESTIMATE_MODEL, ""
         expected_model = settings.intelligence_typesafe_model
         if not settings.jev_enabled or not settings.intelligence_typesafe_enabled:
             return False, "", "", "TYPESAFE_DISABLED"
@@ -730,6 +759,94 @@ def _enabled(
     ):
         return False, "", "", "TYPESAFE_INPUT_PRICING_OR_MODEL_MISSING"
     return True, "typesafe", settings.intelligence_typesafe_model, ""
+
+
+def _estimated_signal_policy_selected() -> bool:
+    """Select estimate mode explicitly; malformed partial configuration cannot fall back."""
+    return bool(
+        settings.intelligence_typesafe_billing_policy_id == TYPESAFE_SIGNAL_ESTIMATE_POLICY_ID
+        or settings.intelligence_typesafe_estimated_reservation_usd != 0
+        or settings.intelligence_typesafe_estimate_observation_ids.strip()
+    )
+
+
+def _estimated_signal_observation_ids() -> set[str]:
+    ids: set[str] = set()
+    for item in settings.intelligence_typesafe_estimate_observation_ids.split(","):
+        value = item.strip()
+        if not value:
+            continue
+        try:
+            ids.add(str(UUID(value)))
+        except (ValueError, AttributeError):
+            return set()
+        if len(ids) > 10:
+            return set()
+    return ids
+
+
+def _estimated_signal_policy_block_reason(payload: dict[str, Any] | None) -> str:
+    """Validate the sole narrow estimated-reservation policy without claiming a hard bound."""
+    amount = settings.intelligence_typesafe_estimated_reservation_usd
+    selected = _estimated_signal_observation_ids()
+    if settings.intelligence_typesafe_billing_policy_id != TYPESAFE_SIGNAL_ESTIMATE_POLICY_ID:
+        return "TYPESAFE_ESTIMATE_POLICY_ID_MISMATCH"
+    if (
+        not amount.is_finite()
+        or amount != Decimal("0.01")
+        or amount > settings.intelligence_max_call_usd
+    ):
+        return "TYPESAFE_ESTIMATE_RESERVATION_INVALID"
+    if not selected:
+        return "TYPESAFE_ESTIMATE_SCOPE_EMPTY_OR_INVALID"
+    if (
+        not settings.intelligence_enabled
+        or settings.intelligence_mode not in {"evaluation", "advisory"}
+        or not settings.jev_enabled
+        or not settings.intelligence_typesafe_enabled
+        or not settings.typesafe_api_key
+    ):
+        return "TYPESAFE_OR_INTELLIGENCE_DISABLED"
+    if settings.intelligence_typesafe_model != TYPESAFE_SIGNAL_ESTIMATE_MODEL:
+        return "TYPESAFE_ESTIMATE_MODEL_NOT_PINNED"
+    if (
+        settings.intelligence_typesafe_billing_mode != "input_only"
+        or not settings.intelligence_typesafe_billing_verified
+        or settings.intelligence_typesafe_billing_model_id != TYPESAFE_SIGNAL_ESTIMATE_MODEL
+        or settings.intelligence_typesafe_billing_contract_id != TYPESAFE_BILLING_CONTRACT_ID
+        or not settings.intelligence_typesafe_billing_reference.strip()
+        or not settings.intelligence_typesafe_pricing_verified
+        or settings.intelligence_typesafe_priced_model_id != TYPESAFE_SIGNAL_ESTIMATE_MODEL
+        or settings.intelligence_typesafe_input_usd_per_million != Decimal("0.042")
+        or settings.intelligence_typesafe_output_usd_per_million != Decimal("0")
+        or settings.intelligence_typesafe_total_input_bound_verified
+    ):
+        return "TYPESAFE_ESTIMATE_PRICING_OR_NO_HARD_BOUND_POLICY_INVALID"
+    if payload is None:
+        return "TYPESAFE_ESTIMATE_OBSERVATION_SCOPE_REQUIRED"
+    observation_id = payload.get("observation_id")
+    evidence_id = payload.get("evidence_id")
+    evidence_hash = payload.get("evidence_hash")
+    try:
+        normalized_id = str(UUID(str(observation_id)))
+        UUID(str(evidence_id))
+    except (ValueError, TypeError, AttributeError):
+        return "TYPESAFE_ESTIMATE_RETAINED_EVIDENCE_REQUIRED"
+    if normalized_id not in selected or not isinstance(evidence_hash, str) or not evidence_hash:
+        return "TYPESAFE_ESTIMATE_OBSERVATION_NOT_SELECTED"
+    state = payload.get("state")
+    if not isinstance(state, dict):
+        return "TYPESAFE_ESTIMATE_REQUEST_INVALID"
+    try:
+        from gridlens.intelligence.signal_adjudication import jev_request_payload
+
+        request = jev_request_payload(state, model=TYPESAFE_SIGNAL_ESTIMATE_MODEL)
+        request_bytes = _serialized_request_bytes(request)
+    except (KeyError, TypeError, ValueError, RecursionError):
+        return "TYPESAFE_ESTIMATE_REQUEST_INVALID"
+    if request_bytes > TYPESAFE_SIGNAL_REQUEST_MAX_BYTES:
+        return "TYPESAFE_ESTIMATE_REQUEST_TOO_LARGE"
+    return ""
 
 
 def _typesafe_billing_block_reason(model: str) -> str:
@@ -780,6 +897,31 @@ def _billing_policy_identity(
             "output_rate": str(getattr(settings, f"{name_prefix}_output_usd_per_million")),
             "max_output_tokens": str(getattr(settings, f"{name_prefix}_max_output_tokens")),
         }
+    if task_type == TYPESAFE_SIGNAL_ESTIMATE_TASK and _estimated_signal_policy_selected():
+        scope = sorted(_estimated_signal_observation_ids())
+        return {
+            **response_policy,
+            "task_type": TYPESAFE_SIGNAL_ESTIMATE_TASK,
+            "cost_basis": "ESTIMATE",
+            "policy_id": TYPESAFE_SIGNAL_ESTIMATE_POLICY_ID,
+            "billing_mode": settings.intelligence_typesafe_billing_mode,
+            "billing_verified": str(settings.intelligence_typesafe_billing_verified).lower(),
+            "billing_model_id": settings.intelligence_typesafe_billing_model_id,
+            "billing_contract_id": settings.intelligence_typesafe_billing_contract_id,
+            "pricing_verified": str(settings.intelligence_typesafe_pricing_verified).lower(),
+            "priced_model_id": settings.intelligence_typesafe_priced_model_id,
+            "pricing_reference": settings.intelligence_typesafe_billing_reference,
+            "input_rate": str(settings.intelligence_typesafe_input_usd_per_million),
+            "output_rate": str(settings.intelligence_typesafe_output_usd_per_million),
+            "reservation_usd": str(settings.intelligence_typesafe_estimated_reservation_usd),
+            "request_max_bytes": str(TYPESAFE_SIGNAL_REQUEST_MAX_BYTES),
+            "reported_input_review_tokens": str(TYPESAFE_SIGNAL_REPORTED_INPUT_REVIEW_TOKENS),
+            "max_attempts": "1",
+            "hard_bound_verified": "false",
+            "selected_scope_sha256": hashlib.sha256(
+                json.dumps(scope, separators=(",", ":"), ensure_ascii=True).encode("utf-8")
+            ).hexdigest(),
+        }
     return {
         **response_policy,
         "mode": settings.intelligence_typesafe_billing_mode,
@@ -799,6 +941,15 @@ def _billing_policy_identity(
         "input_rate": str(settings.intelligence_typesafe_input_usd_per_million),
         "output_rate": str(settings.intelligence_typesafe_output_usd_per_million),
     }
+
+
+def _openai_output_bound(task_type: str) -> int:
+    if task_type == "POWER_NEED_TITLE":
+        return POWER_NEED_TITLE_OUTPUT_TOKENS
+    if task_type in {"OCR_EXTRACTION", "OCR_GROUNDED_FOLLOWON"}:
+        return settings.intelligence_ocr_max_output_tokens
+    prefix = "fast" if task_type == "GROUNDED_EXTRACTION" else "reasoning"
+    return getattr(settings, f"intelligence_openai_{prefix}_max_output_tokens")
 
 
 def _caps() -> dict[str, dict[str, int | Decimal]]:
@@ -868,6 +1019,23 @@ def _cost_bound(provider: str, task_type: str, payload: dict[str, Any]) -> Decim
     if provider == "openai":
         from gridlens.intelligence.briefs import brief_request_payload
 
+        if task_type == "POWER_NEED_TITLE":
+            from gridlens.intelligence.titles import MAX_OUTPUT_TOKENS, title_request_payload
+
+            title_payload = payload["title"]
+            evidence = payload["evidence"]
+            if not payload.get("roles") and not payload.get("activities"):
+                return Decimal("0")
+            request = title_request_payload(
+                title_payload, evidence, payload.get("roles"), payload.get("activities")
+            )
+            request_bytes = _serialized_request_bytes(request)
+            input_price = settings.intelligence_openai_reasoning_input_usd_per_million
+            output_price = settings.intelligence_openai_reasoning_output_usd_per_million
+            output_tokens = MAX_OUTPUT_TOKENS
+            return (
+                Decimal(request_bytes) * input_price + Decimal(output_tokens) * output_price
+            ) / Decimal(1_000_000)
         if task_type == "POWER_NEED_BRIEF":
             request = brief_request_payload(
                 payload["brief"], payload["facts"], model=settings.openai_brief_model
@@ -896,6 +1064,19 @@ def _cost_bound(provider: str, task_type: str, payload: dict[str, Any]) -> Decim
         )
         request_bytes = _serialized_request_bytes(request)
     else:
+        if (
+            provider == "typesafe"
+            and task_type == TYPESAFE_SIGNAL_ESTIMATE_TASK
+            and _estimated_signal_policy_selected()
+        ):
+            if _estimated_signal_policy_block_reason(payload):
+                return Decimal("0")
+            from gridlens.intelligence.signal_adjudication import jev_request_payload
+
+            request = jev_request_payload(payload["state"], model=TYPESAFE_SIGNAL_ESTIMATE_MODEL)
+            if _serialized_request_bytes(request) > TYPESAFE_SIGNAL_REQUEST_MAX_BYTES:
+                return Decimal("0")
+            return settings.intelligence_typesafe_estimated_reservation_usd
         if _typesafe_billing_block_reason(settings.intelligence_typesafe_model):
             return Decimal("0")
         input_price = settings.intelligence_typesafe_input_usd_per_million
@@ -932,18 +1113,30 @@ def _cost_bound(provider: str, task_type: str, payload: dict[str, Any]) -> Decim
 
 
 def _estimated_cost_from_usage(
-    provider: str, task_type: str, input_tokens: int | None, output_tokens: int | None
+    provider: str,
+    task_type: str,
+    input_tokens: int | None,
+    output_tokens: int | None,
+    *,
+    billing_policy: dict[str, str] | None = None,
 ) -> Decimal | None:
-    if input_tokens is None or output_tokens is None:
+    estimate_policy = billing_policy is not None and billing_policy.get("cost_basis") == "ESTIMATE"
+    if input_tokens is None or (output_tokens is None and not estimate_policy):
         return None
     if type(input_tokens) is not int or input_tokens < 0:
         raise ValueError("Provider input token usage is invalid")
+    if output_tokens is None and estimate_policy:
+        output_tokens = 0
     if type(output_tokens) is not int or output_tokens < 0:
         raise ValueError("Provider output token usage is invalid")
     if provider == "openai":
         prefix = "fast" if task_type == "GROUNDED_EXTRACTION" else "reasoning"
         input_price = getattr(settings, f"intelligence_openai_{prefix}_input_usd_per_million")
         output_price = getattr(settings, f"intelligence_openai_{prefix}_output_usd_per_million")
+    elif estimate_policy:
+        assert billing_policy is not None
+        input_price = Decimal(billing_policy["input_rate"])
+        output_price = Decimal(billing_policy["output_rate"])
     else:
         input_price = settings.intelligence_typesafe_input_usd_per_million
         output_price = Decimal("0")
@@ -1047,7 +1240,11 @@ def _provider_audit_exceeds_bound(value: Any) -> bool:
 
 
 def _bounded_cost_exposure(
-    provider: str, task_type: str, input_tokens: int, output_tokens: int
+    provider: str,
+    task_type: str,
+    input_tokens: int,
+    output_tokens: int,
+    billing_policy: dict[str, str] | None = None,
 ) -> tuple[Decimal | None, str]:
     """Do not let an unrepresentable estimate prevent durable provider quarantine."""
     try:
@@ -1060,7 +1257,9 @@ def _bounded_cost_exposure(
                 + Decimal(output_tokens) * settings.intelligence_ocr_output_usd_per_million
             ) / Decimal(1_000_000)
         else:
-            estimate = _estimated_cost_from_usage(provider, task_type, input_tokens, output_tokens)
+            estimate = _estimated_cost_from_usage(
+                provider, task_type, input_tokens, output_tokens, billing_policy=billing_policy
+            )
         if estimate is None or not estimate.is_finite() or estimate > MAX_ACTUAL_USD:
             return None, "UNBOUNDED"
         return estimate, "BOUNDED"
@@ -1075,6 +1274,7 @@ def _provider_error_quarantine_details(
     task_type: str,
     expected_model: str,
     input_token_limit: int | None = None,
+    billing_policy: dict[str, str] | None = None,
 ) -> dict[str, Any] | None:
     """Normalize a received provider error into bounded quarantine evidence."""
     if provider not in {"typesafe", "openai"} or not getattr(error, "response_received", False):
@@ -1115,18 +1315,22 @@ def _provider_error_quarantine_details(
         reason = "REPORTED_INPUT_EXCEEDS_PREFLIGHT_COUNT"
     elif (
         provider == "typesafe"
+        and billing_policy is not None
+        and billing_policy.get("cost_basis") == "ESTIMATE"
+        and input_tokens is not None
+        and input_tokens > TYPESAFE_SIGNAL_REPORTED_INPUT_REVIEW_TOKENS
+    ):
+        reason = "ESTIMATED_CONTEXT_ASSUMPTION_EXCEEDED"
+    elif (
+        provider == "typesafe"
+        and not (billing_policy is not None and billing_policy.get("cost_basis") == "ESTIMATE")
         and input_tokens > settings.intelligence_typesafe_max_total_billable_input_tokens
     ):
         reason = "TOTAL_BILLABLE_INPUT_CEILING_EXCEEDED"
-    elif provider == "openai" and output_tokens is not None and output_tokens > (
-        settings.intelligence_ocr_max_output_tokens
-        if task_type in {"OCR_EXTRACTION", "OCR_GROUNDED_FOLLOWON"}
-        else getattr(
-            settings,
-            "intelligence_openai_fast_max_output_tokens"
-            if task_type == "GROUNDED_EXTRACTION"
-            else "intelligence_openai_reasoning_max_output_tokens",
-        )
+    elif (
+        provider == "openai"
+        and output_tokens is not None
+        and output_tokens > _openai_output_bound(task_type)
     ):
         reason = "ENFORCED_OUTPUT_BOUND_EXCEEDED"
     else:
@@ -1165,9 +1369,13 @@ def _provider_error_quarantine_details(
     if actual_model == expected_model and _valid_reported_tokens(input_tokens):
         if provider == "typesafe" and input_tokens is not None:
             exposure, exposure_status = _bounded_cost_exposure(
-                provider, task_type, input_tokens, 0
+                provider, task_type, input_tokens, 0, billing_policy=billing_policy
             )
-            exposure_basis = "reported_same_model_input_tokens_at_pinned_input_rate"
+            exposure_basis = (
+                "reported_same_model_input_tokens_at_estimated_input_rate"
+                if billing_policy is not None and billing_policy.get("cost_basis") == "ESTIMATE"
+                else "reported_same_model_input_tokens_at_pinned_input_rate"
+            )
         elif (
             provider == "openai"
             and input_tokens is not None
@@ -1890,9 +2098,7 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
                         if _valid_reported_tokens(output_tokens)
                         else None,
                         conservative_exposure_usd=exposure,
-                        exposure_basis=(
-                            exposure_basis
-                        ),
+                        exposure_basis=(exposure_basis),
                         exposure_status=exposure_status,
                     )
                 billing_quarantined = True
@@ -1964,9 +2170,7 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
                     response_payload=error_quarantine["response_payload"],
                     input_tokens=input_tokens,
                     output_tokens=output_tokens,
-                    conservative_exposure_usd=error_quarantine[
-                        "conservative_exposure_usd"
-                    ],
+                    conservative_exposure_usd=error_quarantine["conservative_exposure_usd"],
                     exposure_basis=error_quarantine["exposure_basis"],
                     exposure_status=error_quarantine["exposure_status"],
                 )
@@ -1984,8 +2188,10 @@ def process_intelligence_job(job_id: UUID, worker_id: str, fence_token: int) -> 
             }
         response_ref = f"response:{provider_response_id}" if provider_response_id else None
         terminal_failure = False
-        if not billing_quarantined and response_ref and (
-            getattr(exc, "conclusive", False) or provider_response_complete
+        if (
+            not billing_quarantined
+            and response_ref
+            and (getattr(exc, "conclusive", False) or provider_response_complete)
         ):
             with SessionLocal() as session:
                 failure = fail_call(

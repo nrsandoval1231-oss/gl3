@@ -13,6 +13,7 @@ from gridlens.intelligence.intelligence_jobs import (
     enqueue_intelligence,
     intelligence_history,
 )
+from gridlens.persistence import database
 from gridlens.persistence.database import Base
 from gridlens.persistence.models import (
     Evidence,
@@ -27,6 +28,7 @@ from gridlens.persistence.models import (
     ProjectMatchDecision,
     Pursuit,
     PursuitResearchQuestion,
+    SignalDecision,
     Source,
 )
 from gridlens.settings import settings
@@ -393,6 +395,9 @@ def _wire_worker(sessions, monkeypatch):
     from gridlens.intelligence import intelligence_jobs
     from gridlens.jobs import worker
 
+    # signal_adjudication imports SessionLocal inside its functions, so patch the
+    # defining module instead of assigning an unused attribute on that module.
+    monkeypatch.setattr(database, "SessionLocal", sessions)
     monkeypatch.setattr(intelligence_jobs, "SessionLocal", sessions)
     monkeypatch.setattr(intelligence_jobs, "call_typesafe", _fake_call)
     monkeypatch.setattr(worker, "SessionLocal", sessions)
@@ -1323,7 +1328,6 @@ def test_leased_scanned_pdf_job_commits_capture_then_counts_and_keeps_transcript
         assert followon_call.result_payload["candidates"] == []
 
 
-
 def test_typesafe_dispatch_preserves_bounded_need_and_identity_context(sessions, monkeypatch):
     _enable_bounded_typesafe(monkeypatch)
     _need_id, _evidence_id, job_id = _seed_job(sessions)
@@ -1978,3 +1982,670 @@ def test_conclusive_provider_schema_failure_is_terminal_not_unknown(sessions, mo
     assert call.result_payload == {"provider_response_ref": "response:fixture-invalid-response"}
     assert history[0]["status"] == "failed"
     assert history[0]["uncertain"] is False
+
+
+def _estimated_signal_enabled(monkeypatch, observation_id):
+    values = {
+        "intelligence_enabled": True,
+        "intelligence_mode": "advisory",
+        "intelligence_enabled_contracts": "SIGNAL_ADJUDICATION",
+        "jev_enabled": True,
+        "intelligence_typesafe_enabled": True,
+        "typesafe_api_key": SecretStr("fixture-only"),
+        "intelligence_typesafe_model": "jev-1.13.0",
+        "intelligence_typesafe_priced_model_id": "jev-1.13.0",
+        "intelligence_typesafe_pricing_verified": True,
+        "intelligence_typesafe_input_usd_per_million": Decimal("0.042"),
+        "intelligence_typesafe_output_usd_per_million": Decimal("0"),
+        "intelligence_typesafe_billing_mode": "input_only",
+        "intelligence_typesafe_billing_model_id": "jev-1.13.0",
+        "intelligence_typesafe_billing_contract_id": "systemone-v1",
+        "intelligence_typesafe_billing_policy_id": "typesafe-signal-estimate-v1",
+        "intelligence_typesafe_billing_reference": "https://docs.typesafe.ai/models#jev-1.13.0",
+        "intelligence_typesafe_billing_verified": True,
+        "intelligence_typesafe_total_input_bound_verified": False,
+        "intelligence_typesafe_estimated_reservation_usd": Decimal("0.01"),
+        "intelligence_typesafe_estimate_observation_ids": str(observation_id),
+        "intelligence_max_active_calls": 1,
+        "intelligence_max_call_usd": Decimal("0.01"),
+    }
+    for name, value in values.items():
+        monkeypatch.setattr(settings, name, value)
+    for scope in ("global", "provider", "model", "source", "project"):
+        for period in ("daily", "monthly"):
+            monkeypatch.setattr(settings, f"intelligence_{scope}_{period}_calls", 10)
+            monkeypatch.setattr(settings, f"intelligence_{scope}_{period}_usd", Decimal("50"))
+
+
+def _seed_signal_adjudication_job(sessions):
+    source_id = "estimated-jev-public-source"
+    observation_id, evidence_id = uuid4(), uuid4()
+    evidence_hash = "f" * 64
+    with sessions.begin() as session:
+        session.add(
+            Source(
+                id=source_id,
+                publisher="Fixture City",
+                endpoint="https://example.invalid",
+                family="permit",
+                geography="Austin",
+                industries=["power"],
+                retrieval_method="fixture",
+                enabled=True,
+                registry_enabled=True,
+                health={},
+            )
+        )
+        session.flush()
+        session.add(
+            Observation(
+                id=observation_id,
+                source_id=source_id,
+                external_id="estimate-test-1",
+                title="Austin facility expansion permit",
+                abstract="A new facility expansion is proposed.",
+                published_at=date(2026, 10, 1),
+                url="https://example.invalid/permit/1",
+                content_hash=evidence_hash,
+            )
+        )
+        session.flush()
+        session.add(
+            Evidence(
+                id=evidence_id,
+                observation_id=observation_id,
+                content_hash=evidence_hash,
+                title="Austin facility expansion permit",
+                abstract="A new facility expansion is proposed.",
+                url="https://example.invalid/permit/1",
+                published_at=date(2026, 10, 1),
+            )
+        )
+        session.flush()
+        job = Job(
+            source_id=source_id,
+            kind="signal_adjudication",
+            target_id=observation_id,
+            checkpoint=json.dumps(
+                {
+                    "evidence_id": str(evidence_id),
+                    "content_hash": evidence_hash,
+                    "policy_version": "signal-display-v2",
+                }
+            ),
+        )
+        session.add(job)
+        session.flush()
+        job_id = job.id
+    return source_id, observation_id, evidence_id, evidence_hash, job_id
+
+
+def test_estimated_jev_worker_persists_usage_audit_and_reuses_completed_call(sessions, monkeypatch):
+    (
+        source_id,
+        observation_id,
+        evidence_id,
+        evidence_hash,
+        job_id,
+    ) = _seed_signal_adjudication_job(sessions)
+    _estimated_signal_enabled(monkeypatch, observation_id)
+    worker = _wire_worker(sessions, monkeypatch)
+    monkeypatch.setattr(worker, "WORKER_ID", "fixture-estimated-jev-worker")
+    from gridlens.integrations import legacy_calls
+    from gridlens.intelligence import signal_adjudication
+
+    monkeypatch.setattr(legacy_calls, "SessionLocal", sessions)
+    monkeypatch.setattr(database, "SessionLocal", sessions)
+    sent = []
+    answers = {
+        name: {"type": "noul", "noul": value}
+        for name, value in {
+            "physical_project_event": 0.9,
+            "meaningful_new_activity": 0.9,
+            "commercial_relevance": 0.7,
+            "temporary_power_relevance": 0.6,
+            "routine_maintenance": 0.1,
+            "transient_event": 0.0,
+        }.items()
+    }
+
+    def provider(**kwargs):
+        sent.append(kwargs)
+        return {
+            "model": "jev-1.13.0",
+            "answers": answers,
+            "usage": {"input_tokens": 551, "output_tokens": None},
+        }
+
+    monkeypatch.setattr(signal_adjudication.intelligence_provider, "call_typesafe", provider)
+    assert worker.run_one({}, job_ids=[job_id]) is True
+    with sessions() as session:
+        call = session.scalar(select(LogicalCall))
+        decision = session.scalar(
+            select(SignalDecision).where(SignalDecision.observation_id == observation_id)
+        )
+        job = session.get(Job, job_id)
+    assert len(sent) == 1
+    assert call and call.status == "COMPLETED"
+    assert call.max_cost_usd == Decimal("0.010000") and call.actual_cost_usd is None
+    assert call.result_payload["usage_estimated_usd"] == str(
+        Decimal(551) * Decimal("0.042") / Decimal(1_000_000)
+    )
+    assert call.result_payload["usage_estimate_policy"]["hard_bound_verified"] is False
+    assert decision and decision.source == "jev" and decision.content_hash == evidence_hash
+    assert job and json.loads(job.checkpoint)["logical_call_id"] == str(call.id)
+    from gridlens.intelligence.intelligence_jobs import _billing_policy_identity
+
+    assert json.loads(job.checkpoint)["logical_call_policy"] == _billing_policy_identity(
+        "typesafe", "jev-1.13.0", "SIGNAL_ADJUDICATION"
+    )
+    assert sent[0]["model"] == "jev-1.13.0"
+    assert sent[0]["payload"]["state"]["source_id"] == source_id
+    from gridlens.intelligence.signal_adjudication import jev_request_payload
+
+    assert {"model": sent[0]["model"], **sent[0]["payload"]} == jev_request_payload(
+        sent[0]["payload"]["state"], model="jev-1.13.0"
+    )
+
+    with sessions.begin() as session:
+        duplicate = Job(
+            source_id=source_id,
+            kind="signal_adjudication",
+            target_id=observation_id,
+            checkpoint=json.dumps(
+                {
+                    "evidence_id": str(evidence_id),
+                    "content_hash": evidence_hash,
+                    "policy_version": "signal-display-v2",
+                }
+            ),
+        )
+        session.add(duplicate)
+        session.flush()
+        duplicate_id = duplicate.id
+    assert worker.run_one({}, job_ids=[duplicate_id]) is True
+    assert len(sent) == 1
+
+
+def test_estimated_jev_final_usage_envelope_overflow_quarantines_and_cannot_replay(
+    sessions, monkeypatch
+):
+    from gridlens.integrations.logical_calls import MAX_RESULT_BYTES
+
+    source_id, observation_id, _evidence_id, evidence_hash, job_id = _seed_signal_adjudication_job(
+        sessions
+    )
+    _estimated_signal_enabled(monkeypatch, observation_id)
+    worker = _wire_worker(sessions, monkeypatch)
+    monkeypatch.setattr(worker, "WORKER_ID", "fixture-estimated-envelope-worker")
+    from gridlens.integrations import legacy_calls
+    from gridlens.intelligence import signal_adjudication
+
+    monkeypatch.setattr(legacy_calls, "SessionLocal", sessions)
+    monkeypatch.setattr(database, "SessionLocal", sessions)
+    answers = {
+        name: {"type": "noul", "noul": 0.5}
+        for name in (
+            "physical_project_event",
+            "meaningful_new_activity",
+            "commercial_relevance",
+            "temporary_power_relevance",
+            "routine_maintenance",
+            "transient_event",
+        )
+    }
+    response = {
+        "model": "jev-1.13.0",
+        "answers": answers,
+        "usage": {"input_tokens": 551, "output_tokens": None},
+        "padding": "",
+    }
+    estimate = str(Decimal(551) * Decimal("0.042") / Decimal(1_000_000))
+    estimate_policy = {
+        "id": "typesafe-signal-estimate-v1",
+        "cost_basis": "ESTIMATE",
+        "input_rate_usd_per_million": "0.042",
+        "output_rate_usd_per_million": "0",
+        "hard_bound_verified": False,
+    }
+
+    def encoded_size(value):
+        return len(
+            json.dumps(
+                value,
+                sort_keys=True,
+                separators=(",", ":"),
+                ensure_ascii=True,
+                allow_nan=False,
+            ).encode("utf-8")
+        )
+
+    response["padding"] = "x" * (MAX_RESULT_BYTES - encoded_size(response) - 64)
+    assert encoded_size(response) == MAX_RESULT_BYTES - 64
+    assert encoded_size(
+        {
+            **response,
+            "usage_estimated_usd": estimate,
+            "usage_estimate_policy": estimate_policy,
+        }
+    ) > MAX_RESULT_BYTES
+
+    provider_calls = []
+
+    def provider(**kwargs):
+        provider_calls.append(kwargs)
+        return response
+
+    monkeypatch.setattr(signal_adjudication.intelligence_provider, "call_typesafe", provider)
+    assert worker.run_one({}, job_ids=[job_id]) is True
+    with sessions() as session:
+        call = session.scalar(select(LogicalCall))
+        decision = session.scalar(
+            select(SignalDecision).where(SignalDecision.observation_id == observation_id)
+        )
+        job = session.get(Job, job_id)
+        budgets = list(session.scalars(select(LogicalCallBudget)))
+    assert len(provider_calls) == 1
+    assert call and call.status == "SENT_OUTCOME_UNKNOWN"
+    assert call.blocked_reason == "BILLING_QUARANTINE:RESPONSE_TOO_LARGE"
+    assert call.result_payload["billing_quarantine"]["reason"] == "RESPONSE_TOO_LARGE"
+    assert call.actual_cost_usd is None and call.estimated_cost_usd == Decimal("0.010000")
+    assert budgets and all(budget.active_count == 1 for budget in budgets)
+    assert decision and decision.source == "jev_error"
+    assert job and job.status == "succeeded"
+    assert json.loads(job.checkpoint)["logical_call_policy"]["hard_bound_verified"] == "false"
+
+    with pytest.raises(
+        legacy_calls.LegacyCallUnknown, match="CHECKPOINT_LOGICAL_CALL_NOT_REPLAYABLE"
+    ):
+        legacy_calls.perform_legacy_call(
+            task_type="SIGNAL_ADJUDICATION",
+            task_key=f"{observation_id}:{evidence_hash}:signal-display-v2",
+            payload={},
+            source_id=source_id,
+            project_id=None,
+            job_id=job_id,
+            worker_id="fixture-estimated-envelope-worker",
+            fence_token=1,
+            invoke=lambda: pytest.fail("an uncertain response must not be replayed"),
+            existing_call_id=call.id,
+        )
+    assert len(provider_calls) == 1
+
+
+def test_estimated_jev_unselected_backlog_finishes_without_reservation_or_transport(
+    sessions, monkeypatch
+):
+    _source_id, observation_id, _evidence_id, _digest, job_id = _seed_signal_adjudication_job(
+        sessions
+    )
+    _estimated_signal_enabled(monkeypatch, uuid4())
+    worker = _wire_worker(sessions, monkeypatch)
+    from gridlens.intelligence import signal_adjudication
+
+    monkeypatch.setattr(database, "SessionLocal", sessions)
+    calls = []
+    monkeypatch.setattr(
+        signal_adjudication.intelligence_provider,
+        "call_typesafe",
+        lambda **kwargs: calls.append(kwargs),
+    )
+    assert worker.run_one({}, job_ids=[job_id]) is True
+    with sessions() as session:
+        job = session.get(Job, job_id)
+        logical_calls = list(session.scalars(select(LogicalCall)))
+        decisions = list(
+            session.scalars(
+                select(SignalDecision).where(SignalDecision.observation_id == observation_id)
+            )
+        )
+    assert calls == [] and logical_calls == [] and decisions == []
+    assert job and job.status == "succeeded" and "OBSERVATION_NOT_SELECTED" in (job.error or "")
+
+
+@pytest.mark.parametrize("reservation", [Decimal("0.001"), Decimal("0.02")])
+def test_estimated_jev_unreviewed_reservation_fails_before_ledger_or_transport(
+    sessions, monkeypatch, reservation
+):
+    _source_id, observation_id, _evidence_id, _digest, job_id = _seed_signal_adjudication_job(
+        sessions
+    )
+    _estimated_signal_enabled(monkeypatch, observation_id)
+    monkeypatch.setattr(settings, "intelligence_typesafe_estimated_reservation_usd", reservation)
+    worker = _wire_worker(sessions, monkeypatch)
+    from gridlens.intelligence import signal_adjudication
+
+    monkeypatch.setattr(database, "SessionLocal", sessions)
+    provider_calls = []
+    monkeypatch.setattr(
+        signal_adjudication.intelligence_provider,
+        "call_typesafe",
+        lambda **kwargs: provider_calls.append(kwargs),
+    )
+    assert worker.run_one({}, job_ids=[job_id]) is True
+    with sessions() as session:
+        job = session.get(Job, job_id)
+        calls = list(session.scalars(select(LogicalCall)))
+        budgets = list(session.scalars(select(LogicalCallBudget)))
+    assert provider_calls == [] and calls == [] and budgets == []
+    assert job and job.status == "succeeded"
+    assert "TYPESAFE_ESTIMATE_RESERVATION_INVALID" in (job.error or "")
+
+
+def test_estimated_jev_reservation_change_before_dispatch_cancels_without_transport(
+    sessions, monkeypatch
+):
+    _source_id, observation_id, _evidence_id, _digest, job_id = _seed_signal_adjudication_job(
+        sessions
+    )
+    _estimated_signal_enabled(monkeypatch, observation_id)
+    monkeypatch.setattr(settings, "intelligence_max_call_usd", Decimal("0.05"))
+    worker = _wire_worker(sessions, monkeypatch)
+    monkeypatch.setattr(worker, "WORKER_ID", "fixture-estimated-policy-change-worker")
+    from gridlens.integrations import legacy_calls
+    from gridlens.intelligence import signal_adjudication
+
+    monkeypatch.setattr(legacy_calls, "SessionLocal", sessions)
+    monkeypatch.setattr(database, "SessionLocal", sessions)
+    original_reserve = legacy_calls.reserve_call
+
+    def reserve_then_change_policy(*args, **kwargs):
+        result = original_reserve(*args, **kwargs)
+        monkeypatch.setattr(
+            settings, "intelligence_typesafe_estimated_reservation_usd", Decimal("0.02")
+        )
+        return result
+
+    monkeypatch.setattr(legacy_calls, "reserve_call", reserve_then_change_policy)
+    provider_calls = []
+    monkeypatch.setattr(
+        signal_adjudication.intelligence_provider,
+        "call_typesafe",
+        lambda **kwargs: provider_calls.append(kwargs),
+    )
+    assert worker.run_one({}, job_ids=[job_id]) is True
+    with sessions() as session:
+        call = session.scalar(select(LogicalCall))
+        budgets = list(session.scalars(select(LogicalCallBudget)))
+    assert provider_calls == []
+    assert call and call.status == "CANCELLED"
+    assert budgets and all(budget.active_count == 0 for budget in budgets)
+
+
+@pytest.mark.parametrize("blocker", ["max_active", "shared_daily_budget"])
+def test_estimated_jev_uses_existing_shared_active_and_budget_caps(sessions, monkeypatch, blocker):
+    _source_id, observation_id, _evidence_id, _digest, job_id = _seed_signal_adjudication_job(
+        sessions
+    )
+    _estimated_signal_enabled(monkeypatch, observation_id)
+    if blocker == "max_active":
+        monkeypatch.setattr(settings, "intelligence_max_active_calls", 0)
+    else:
+        monkeypatch.setattr(settings, "intelligence_global_daily_usd", Decimal("0.005"))
+    worker = _wire_worker(sessions, monkeypatch)
+    from gridlens.intelligence import signal_adjudication
+
+    monkeypatch.setattr(database, "SessionLocal", sessions)
+    provider_calls = []
+    monkeypatch.setattr(
+        signal_adjudication.intelligence_provider,
+        "call_typesafe",
+        lambda **kwargs: provider_calls.append(kwargs),
+    )
+    assert worker.run_one({}, job_ids=[job_id]) is True
+    with sessions() as session:
+        calls = list(session.scalars(select(LogicalCall)))
+        budgets = list(session.scalars(select(LogicalCallBudget)))
+    assert provider_calls == []
+    assert all(call.status != "SENT_OUTCOME_UNKNOWN" for call in calls)
+    assert all(budget.active_count == 0 for budget in budgets)
+
+
+@pytest.mark.parametrize("change", ["evidence", "source_disabled"])
+def test_estimated_jev_rechecks_evidence_and_source_before_dispatch(
+    sessions, monkeypatch, change
+):
+    source_id, observation_id, evidence_id, _digest, job_id = _seed_signal_adjudication_job(
+        sessions
+    )
+    _estimated_signal_enabled(monkeypatch, observation_id)
+    worker = _wire_worker(sessions, monkeypatch)
+    monkeypatch.setattr(worker, "WORKER_ID", "fixture-estimated-current-check-worker")
+    from gridlens.integrations import legacy_calls
+    from gridlens.intelligence import signal_adjudication
+
+    monkeypatch.setattr(legacy_calls, "SessionLocal", sessions)
+    monkeypatch.setattr(database, "SessionLocal", sessions)
+    original_reserve = legacy_calls.reserve_call
+
+    def reserve_then_change_public_support(*args, **kwargs):
+        reservation = original_reserve(*args, **kwargs)
+        with sessions.begin() as session:
+            if change == "evidence":
+                session.get(Evidence, evidence_id).content_hash = "b" * 64
+            else:
+                session.get(Source, source_id).enabled = False
+        return reservation
+
+    monkeypatch.setattr(legacy_calls, "reserve_call", reserve_then_change_public_support)
+    provider_calls = []
+    monkeypatch.setattr(
+        signal_adjudication.intelligence_provider,
+        "call_typesafe",
+        lambda **kwargs: provider_calls.append(kwargs),
+    )
+    assert worker.run_one({}, job_ids=[job_id]) is True
+    with sessions() as session:
+        calls = list(session.scalars(select(LogicalCall)))
+        budgets = list(session.scalars(select(LogicalCallBudget)))
+        decisions = list(
+            session.scalars(
+                select(SignalDecision).where(SignalDecision.observation_id == observation_id)
+            )
+        )
+    assert provider_calls == [] and len(calls) == 1
+    assert calls[0].status == "CANCELLED"
+    assert budgets and all(budget.active_count == 0 for budget in budgets)
+    assert decisions == []
+
+
+@pytest.mark.parametrize(
+    ("response_model", "explicit_actual_model", "input_tokens", "expected_reason"),
+    [
+        ("jev-alias", None, 551, "MODEL_IDENTITY_MISMATCH"),
+        ("wrong-alias", "jev-1.13.0", 551, "MODEL_IDENTITY_MISMATCH"),
+        ("jev-1.13.0", None, True, "INVALID_REPORTED_USAGE"),
+        ("jev-1.13.0", None, 64_001, "ESTIMATED_CONTEXT_ASSUMPTION_EXCEEDED"),
+    ],
+)
+def test_estimated_jev_response_guards_quarantine_through_shared_ledger(
+    sessions, monkeypatch, response_model, explicit_actual_model, input_tokens, expected_reason
+):
+    _source_id, observation_id, _evidence_id, _digest, job_id = _seed_signal_adjudication_job(
+        sessions
+    )
+    _estimated_signal_enabled(monkeypatch, observation_id)
+    worker = _wire_worker(sessions, monkeypatch)
+    monkeypatch.setattr(worker, "WORKER_ID", "fixture-estimated-guard-worker")
+    from gridlens.integrations import legacy_calls
+    from gridlens.intelligence import signal_adjudication
+
+    monkeypatch.setattr(legacy_calls, "SessionLocal", sessions)
+    monkeypatch.setattr(database, "SessionLocal", sessions)
+    answers = {
+        name: {"type": "noul", "noul": 0.5}
+        for name in (
+            "physical_project_event",
+            "meaningful_new_activity",
+            "commercial_relevance",
+            "temporary_power_relevance",
+            "routine_maintenance",
+            "transient_event",
+        )
+    }
+    provider_calls = []
+
+    def provider(**kwargs):
+        provider_calls.append(kwargs)
+        usage = {"input_tokens": input_tokens, "output_tokens": 12}
+        response = {"model": response_model, "answers": answers, "usage": usage}
+        if explicit_actual_model is not None:
+            response["actual_model"] = explicit_actual_model
+        return response
+
+    monkeypatch.setattr(signal_adjudication.intelligence_provider, "call_typesafe", provider)
+    assert worker.run_one({}, job_ids=[job_id]) is True
+    with sessions() as session:
+        call = session.scalar(select(LogicalCall))
+        decisions = list(
+            session.scalars(
+                select(SignalDecision).where(SignalDecision.observation_id == observation_id)
+            )
+        )
+        job = session.get(Job, job_id)
+    assert len(provider_calls) == 1
+    assert call and call.status == "SENT_OUTCOME_UNKNOWN"
+    assert call.blocked_reason == f"BILLING_QUARANTINE:{expected_reason}"
+    assert call.actual_cost_usd is None and call.estimated_cost_usd == Decimal("0.010000")
+    assert decisions and decisions[-1].source == "jev_error"
+    assert job and json.loads(job.checkpoint)["logical_call_policy"]["policy_id"] == (
+        "typesafe-signal-estimate-v1"
+    )
+
+
+def test_estimated_jev_received_error_uses_snapshot_threshold_and_quarantine(sessions, monkeypatch):
+    _source_id, observation_id, _evidence_id, _digest, job_id = _seed_signal_adjudication_job(
+        sessions
+    )
+    _estimated_signal_enabled(monkeypatch, observation_id)
+    worker = _wire_worker(sessions, monkeypatch)
+    monkeypatch.setattr(worker, "WORKER_ID", "fixture-estimated-provider-error-worker")
+    from gridlens.integrations import legacy_calls
+    from gridlens.intelligence import signal_adjudication
+
+    monkeypatch.setattr(legacy_calls, "SessionLocal", sessions)
+    monkeypatch.setattr(database, "SessionLocal", sessions)
+    raw = {
+        "model": "jev-1.13.0",
+        "usage": {"input_tokens": 64_001, "output_tokens": None},
+    }
+
+    def provider(**_kwargs):
+        raise signal_adjudication.intelligence_provider.ProviderResponseError(
+            "synthetic provider semantic response",
+            response_received=True,
+            raw_response=raw,
+            reported_model=raw["model"],
+            reported_usage=raw["usage"],
+        )
+
+    monkeypatch.setattr(signal_adjudication.intelligence_provider, "call_typesafe", provider)
+    assert worker.run_one({}, job_ids=[job_id]) is True
+    with sessions() as session:
+        call = session.scalar(select(LogicalCall))
+        job = session.get(Job, job_id)
+    assert call and call.status == "SENT_OUTCOME_UNKNOWN"
+    assert call.blocked_reason == "BILLING_QUARANTINE:ESTIMATED_CONTEXT_ASSUMPTION_EXCEEDED"
+    assert call.actual_cost_usd is None
+    assert job and json.loads(job.checkpoint)["logical_call_policy"]["policy_id"] == (
+        "typesafe-signal-estimate-v1"
+    )
+
+
+def test_estimated_jev_received_conclusive_failure_retains_captured_policy(sessions, monkeypatch):
+    _source_id, observation_id, _evidence_id, _digest, job_id = _seed_signal_adjudication_job(
+        sessions
+    )
+    _estimated_signal_enabled(monkeypatch, observation_id)
+    worker = _wire_worker(sessions, monkeypatch)
+    monkeypatch.setattr(worker, "WORKER_ID", "fixture-estimated-rejected-worker")
+    from gridlens.integrations import legacy_calls
+    from gridlens.intelligence import signal_adjudication
+
+    monkeypatch.setattr(legacy_calls, "SessionLocal", sessions)
+    monkeypatch.setattr(database, "SessionLocal", sessions)
+    provider_calls = []
+    raw = {"model": "jev-1.13.0", "usage": {"input_tokens": 551, "output_tokens": None}}
+
+    def reject(**_kwargs):
+        provider_calls.append(True)
+        raise signal_adjudication.intelligence_provider.ProviderResponseError(
+            "synthetic conclusive rejection",
+            request_id="fixture-rejected-response",
+            conclusive=True,
+            status_code=400,
+            response_received=True,
+            raw_response=raw,
+            reported_model=raw["model"],
+            reported_usage=raw["usage"],
+        )
+
+    monkeypatch.setattr(signal_adjudication.intelligence_provider, "call_typesafe", reject)
+    assert worker.run_one({}, job_ids=[job_id]) is True
+    with sessions() as session:
+        call = session.scalar(select(LogicalCall))
+        job = session.get(Job, job_id)
+    assert provider_calls == [True]
+    assert call and call.status == "FAILED"
+    assert job and job.status == "succeeded"
+    assert json.loads(job.checkpoint)["logical_call_policy"]["policy_id"] == (
+        "typesafe-signal-estimate-v1"
+    )
+
+
+def test_estimated_jev_uncertain_checkpoint_is_not_replayed_after_policy_change(
+    sessions, monkeypatch
+):
+    source_id, observation_id, _evidence_id, evidence_hash, job_id = _seed_signal_adjudication_job(
+        sessions
+    )
+    _estimated_signal_enabled(monkeypatch, observation_id)
+    worker = _wire_worker(sessions, monkeypatch)
+    worker_id = "fixture-estimated-uncertain-worker"
+    monkeypatch.setattr(worker, "WORKER_ID", worker_id)
+    import httpx
+
+    from gridlens.integrations import legacy_calls
+    from gridlens.intelligence import signal_adjudication
+
+    monkeypatch.setattr(legacy_calls, "SessionLocal", sessions)
+    monkeypatch.setattr(database, "SessionLocal", sessions)
+    provider_calls = []
+
+    def disconnect(**_kwargs):
+        provider_calls.append(True)
+        raise httpx.ConnectError("synthetic disconnected outcome")
+
+    monkeypatch.setattr(signal_adjudication.intelligence_provider, "call_typesafe", disconnect)
+    assert worker.run_one({}, job_ids=[job_id]) is True
+    with sessions() as session:
+        job = session.get(Job, job_id)
+        call = session.scalar(select(LogicalCall))
+        budget_count = session.scalar(select(func.count()).select_from(LogicalCallBudget))
+    assert job and call and call.status == "SENT_OUTCOME_UNKNOWN"
+    checkpoint = json.loads(job.checkpoint)
+    assert checkpoint["logical_call_id"] == str(call.id)
+    snapshot = checkpoint["logical_call_policy"]
+    assert snapshot["reservation_usd"] == "0.01"
+    monkeypatch.setattr(
+        settings, "intelligence_typesafe_estimated_reservation_usd", Decimal("0.02")
+    )
+    with pytest.raises(
+        legacy_calls.LegacyCallUnknown, match="CHECKPOINT_LOGICAL_CALL_NOT_REPLAYABLE"
+    ):
+        legacy_calls.perform_legacy_call(
+            task_type="SIGNAL_ADJUDICATION",
+            task_key=f"{observation_id}:{evidence_hash}:signal-display-v2",
+            payload={"observation_id": str(observation_id)},
+            source_id=source_id,
+            project_id=None,
+            job_id=job_id,
+            worker_id=worker_id,
+            fence_token=1,
+            invoke=lambda: provider_calls.append(True),
+            existing_call_id=call.id,
+        )
+    with sessions() as session:
+        assert session.scalar(select(func.count()).select_from(LogicalCall)) == 1
+        assert session.scalar(select(func.count()).select_from(LogicalCallBudget)) == budget_count
+    assert provider_calls == [True]

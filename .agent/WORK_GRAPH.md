@@ -73,3 +73,13 @@ This isolated issue79 node does not replace or complete the main intelligence gr
 | PR87-ACCEPT | PR87-CALL, PR87-PUB | RELEASE FAIL / CI diagnosis in PR88 | Full local backend2155pass/3skip/7subtests, browser166pass/1skip and static/contracts/build/audits pass. Independent Sol confirms contact corrections, retains publication release blocker. |
 
 [Packet](packets/PR87-CALL.md). Source recovery a5e4cf9 paused. Owner authorized publication, CI diagnosis/fixes, merge and deployment at 20:30 UTC October 19, conditional on resolving the publication failure and passing exact-candidate release gates. Preserve external work, data, provider limits and infrastructure.
+
+## October19 title follow-up
+
+| Node | Dependencies | State | Deliverable |
+|---|---|---|---|
+| TITLE-01 | deployed b97de9b; Nick23:12UTC release approval | DEPLOYED / LIVE VERIFIED | PR89 d58691e passed4CIchecks, merged37e8274; web-only image51660ba deployed/restarted. Backend/DB/runtime unchanged. Live settled desktop/mobile/reload title/rawsource checks PASS; sessionrevoked. Root TITLE01_RELEASE_AND_INFERENCE_2026-10-19.md. |
+| TITLE-02 | TITLE-01; actual LLM title intent | STATIC PASS / FINAL BACKEND RUNNING | Integrated38d7499; full5750769c/backend8f5d1916. Sol/Astra review rebound; focusedPG130pass, migrations/parity pass; frontend175pass/1skip, typecheck/build/contracts pass. FullPG running. Parent clarified title/inference release is within existing request; continuing public-data activation awaits Nick. |
+| PROVIDER-ONESHOT | explicit inference request; Astra reviewed Jev estimated-cost path | LIVE INFERENCE VERIFIED | OpenAI gpt-6-luna and pinned Jev1.13.0 synthetic results persisted. Fixed Jev identity repeat0POST; unchanged$50/month; no ordinaryJevactivation or fabricatedbillingattestation. |
+
+| JEV-ESTIMATE-01 | TITLE-02; parent23:41UTC inference-on scope; Astra design review | STATIC PASS / ACTIVATION HELD | Fixed0.01 selected-observation estimate policy; immutable checkpoint snapshot, exact model, no-replay/quarantine. FocusedPG130pass; restored public-record preflight0calls/0writes. Ordinary Jev remains off. Six-intent controller review and continuing-sharing answer pending. Source recovery remains paused. |

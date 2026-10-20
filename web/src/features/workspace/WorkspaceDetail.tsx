@@ -1,5 +1,5 @@
 import type { Opportunity, WorkspaceNeed } from '../../api/client'
-import { client, type BuyingChainResult } from '../../api/client'
+import { client, type BuyingChainResult, type PowerNeedTitle } from '../../api/client'
 import { useEffect, useRef, useState } from 'react'
 import { projectTitle } from '../opportunities/projectCards'
 import { BuyingChain } from '../buyingChain/BuyingChain'
@@ -27,9 +27,61 @@ type Props = {
   onBack: () => void
   onRetry: () => void
   onReadback: () => void
+  onTitleReady: () => void
 }
 
-export function WorkspaceDetail({ item, pending, loading, error, tab, onTab, onBack, onRetry, onReadback }: Props) {
+export function WorkspaceDetail({ item, pending, loading, error, tab, onTab, onBack, onRetry, onReadback, onTitleReady }: Props) {
+  const [titleState, setTitleState] = useState<PowerNeedTitle | null>(null)
+  const [titleBusyNeedId, setTitleBusyNeedId] = useState<string | null>(null)
+  const [titleStatusBusyNeedId, setTitleStatusBusyNeedId] = useState<string | null>(null)
+  const titleRequestId = useRef<string | null>(null)
+  const titleRequestSequence = useRef(0)
+  const titleBusy = Boolean(item && titleBusyNeedId === item.id)
+  const titleStatusCheckFailed = titleState?.status === 'failed' && titleState.error === 'status_check_failed'
+  const titleStatusBusy = Boolean(item && titleStatusBusyNeedId === item.id)
+  const onTitleReadyRef = useRef(onTitleReady)
+  useEffect(() => { onTitleReadyRef.current = onTitleReady }, [onTitleReady])
+  useEffect(() => {
+    const id = item?.id
+    const sequence = ++titleRequestSequence.current
+    titleRequestId.current = id ?? null
+    setTitleBusyNeedId(null)
+    setTitleStatusBusyNeedId(null)
+    setTitleState(null)
+    if (!id) return
+    const controller = new AbortController()
+    void client.powerNeedTitle(id, controller.signal).then(value => {
+      if (!controller.signal.aborted && titleRequestSequence.current === sequence && titleRequestId.current === id) setTitleState(value)
+    }).catch(() => {
+      if (!controller.signal.aborted && titleRequestSequence.current === sequence && titleRequestId.current === id) {
+        setTitleState({ status: 'failed', result: null, citations: [], generated_at: null, model: null, error: 'status_check_failed' })
+      }
+    })
+    return () => controller.abort()
+  }, [item?.id, item?.title_status, item?.browse_title])
+  useEffect(() => {
+    const id = item?.id
+    if (!id || titleState?.status !== 'pending') return
+    const sequence = titleRequestSequence.current
+    const controller = new AbortController()
+    let timer = 0
+    const poll = () => {
+      timer = window.setTimeout(() => {
+        void client.powerNeedTitle(id, controller.signal).then(value => {
+          if (controller.signal.aborted || titleRequestSequence.current !== sequence || titleRequestId.current !== id) return
+          setTitleState(value)
+          if (value.status === 'ready') onTitleReadyRef.current()
+          else if (value.status === 'pending') poll()
+        }).catch(() => {
+          if (!controller.signal.aborted && titleRequestSequence.current === sequence && titleRequestId.current === id) {
+            setTitleState({ status: 'failed', result: null, citations: [], generated_at: null, model: null, error: 'status_check_failed' })
+          }
+        })
+      }, 1500)
+    }
+    poll()
+    return () => { controller.abort(); window.clearTimeout(timer) }
+  }, [item?.id, titleState?.status])
   const tabsRef = useRef<HTMLElement>(null)
   useEffect(() => {
     const nav = tabsRef.current
@@ -56,7 +108,16 @@ export function WorkspaceDetail({ item, pending, loading, error, tab, onTab, onB
   const evidence = item.evidence ?? []
   const callEvidence = evidence.find(source => source.assessment_current) ?? evidence[0]
   const company = item.commercial_organization || item.title_company
-  const displayTitle = projectTitle(item)
+  const currentTitleReady = titleState?.status === 'ready' && Boolean(titleState.result?.title)
+  const titleStatus = titleState?.status ?? item.title_status
+  const useDeterministicTitleFallback = ['pending', 'stale', 'failed', 'disabled', 'unavailable'].includes(titleStatus ?? '')
+  const canonicalTitleFallback = projectTitle({
+    ...item,
+    browse_title: item.title_status === 'ready' ? undefined : item.browse_title,
+  })
+  const displayTitle = currentTitleReady
+    ? titleState.result!.title
+    : useDeterministicTitleFallback ? canonicalTitleFallback : item.browse_title || canonicalTitleFallback
   const companyRole = item.title_company_role
   const unverified = [
     ...(!item.start_window ? ['power start timing'] : []),
@@ -92,6 +153,41 @@ export function WorkspaceDetail({ item, pending, loading, error, tab, onTab, onB
       </div>
       {hasConflict(item.conflict_state) && <p role="status">Evidence conflict state: {item.conflict_state}. Review retained source claims before acting.</p>}
     </div>
+    <section className="wh-title-enrichment" aria-label="Evidence-grounded title">
+      <button disabled={titleBusy || titleState?.status === 'disabled' || titleStatusCheckFailed} onClick={() => {
+        const id = item.id
+        const sequence = ++titleRequestSequence.current
+        titleRequestId.current = id
+        setTitleBusyNeedId(id)
+        void client.requestPowerNeedTitle(id).then(value => {
+          if (titleRequestSequence.current !== sequence || titleRequestId.current !== id) return
+          setTitleState(value)
+          if (value.status === 'ready') onTitleReadyRef.current()
+        }).catch(() => {
+          if (titleRequestSequence.current === sequence && titleRequestId.current === id) setTitleState({ status: 'failed', result: null, citations: [], generated_at: null, model: null, error: 'request_failed' })
+        }).finally(() => { if (titleRequestSequence.current === sequence && titleRequestId.current === id) setTitleBusyNeedId(null) })
+      }}>{currentTitleReady ? 'Refresh title' : 'Enrich title'}</button>
+      {titleStatusCheckFailed && <button disabled={titleStatusBusy} onClick={() => {
+        const id = item.id
+        const sequence = ++titleRequestSequence.current
+        const controller = new AbortController()
+        titleRequestId.current = id
+        setTitleStatusBusyNeedId(id)
+        void client.powerNeedTitle(id, controller.signal).then(value => {
+          if (titleRequestSequence.current !== sequence || titleRequestId.current !== id) return
+          setTitleState(value)
+          if (value.status === 'ready') onTitleReadyRef.current()
+        }).catch(() => {
+          if (titleRequestSequence.current === sequence && titleRequestId.current === id) {
+            setTitleState({ status: 'failed', result: null, citations: [], generated_at: null, model: null, error: 'status_check_failed' })
+          }
+        }).finally(() => {
+          if (titleRequestSequence.current === sequence && titleRequestId.current === id) setTitleStatusBusyNeedId(null)
+        })
+      }}>{titleStatusBusy ? 'Checking status' : 'Retry status'}</button>}
+      <span role="status">{titleBusy ? 'Requesting title.' : titleStatusBusy ? 'Checking current title status.' : titleStatus === 'disabled' ? 'Title enrichment is disabled; showing source-backed fallback.' : titleStatus === 'pending' ? 'Title request pending.' : currentTitleReady ? `Evidence-grounded title · ${titleState.model ?? 'model unknown'}` : titleStatus === 'stale' ? 'Saved title is stale; showing source-backed fallback.' : titleStatusCheckFailed ? 'Title status could not be checked. Check again before requesting a new title.' : titleState?.status === 'failed' ? 'Title request failed; showing source-backed fallback.' : 'Showing source-backed title fallback.'}</span>
+      {currentTitleReady && titleState.citations.map(citation => <p key={`${citation.evidence_id}:${citation.role ?? ''}:${citation.quote}`}><a href={citation.url} target="_blank" rel="noreferrer">{citation.title}</a> · {citation.role ?? 'source activity'}: "{citation.quote}"</p>)}
+    </section>
     <nav ref={tabsRef} className="wh-tabs" aria-label="Opportunity detail">
       {workspaceTabs.map(value => <button key={value} className={value === tab ? 'active' : ''} onClick={() => onTab(value)}>{value}</button>)}
     </nav>
