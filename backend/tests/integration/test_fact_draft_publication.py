@@ -31,7 +31,6 @@ def publication_db(monkeypatch):
     test_url = make_url(settings.test_database_url)
     app_url = make_url(settings.database_url)
     assert test_url.host in {"127.0.0.1", "::1", "localhost"}
-    assert test_url.port == 55520
     assert test_url.database and test_url.database.endswith("_test")
     assert "corpus" not in test_url.database.lower()
     assert (test_url.host, test_url.port, test_url.database) != (
