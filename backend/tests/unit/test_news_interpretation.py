@@ -617,3 +617,15 @@ def test_event_family_v9_renamed_passive_crossfield_and_guards() -> None:
         assert result.demand_mw is None and result.supply_quote is None
     for title, summary in negatives:
         assert assess_news(title, summary).decision == "rejected", title
+
+
+def test_site_sale_and_grid_commitment_do_not_claim_construction_phase() -> None:
+    for title in (
+        "Alcoa sells New York aluminum smelter to data center developer for $315 million",
+        "Google expands partnership with Entergy Arkansas, will fund renewable energy "
+        "and grid upgrades for West Memphis data center",
+    ):
+        result = assess_news(title, "")
+        assert result.tier == "Signal"
+        assert signal_power_activity(result.action) is None
+        assert result.demand_mw is None and result.supply_quote is None

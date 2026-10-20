@@ -510,8 +510,17 @@ def _action_activity(action: str) -> str | None:
     return "construction"
 
 
+def _event_action(event: str) -> re.Match[str] | None:
+    # A project-specific grid commitment takes precedence over a corporate
+    # partnership expansion elsewhere in the same headline.
+    grid = re.search(
+        r"\b(?:will\s+)?fund\s+(?:renewable energy and )?grid upgrades\b", event, re.I
+    )
+    return grid or _ACTION.search(event)
+
+
 def _event_activity(event: str) -> str | None:
-    action = _ACTION.search(event)
+    action = _event_action(event)
     return _action_activity(action.group(0)) if action else None
 
 
@@ -680,7 +689,7 @@ def assess_news(title: str, summary: str | None) -> NewsAssessment:
         )
     if not location:
         return _rejected("A US project location is not stated with the physical facility event.")
-    early_match = None if _ACTION.search(event) else _early_dc_action(event)
+    early_match = None if _event_action(event) else _early_dc_action(event)
     if early_match is not None:
         subject = _subject(title, summary, event)
         if subject is None:
@@ -703,7 +712,7 @@ def assess_news(title: str, summary: str | None) -> NewsAssessment:
             location,
         )
     demand_quote, supply_quote = _prospect_claims(title, summary, subject)
-    action_match = _ACTION.search(event)
+    action_match = _event_action(event)
     if early_match is not None:
         action_match = early_match
     facility_match = _FACILITY.search(event)
