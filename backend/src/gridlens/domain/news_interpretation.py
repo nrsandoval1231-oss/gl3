@@ -10,7 +10,7 @@ import re
 from dataclasses import asdict, dataclass
 from typing import Any
 
-EVALUATOR_VERSION = "rss-project-v7"
+EVALUATOR_VERSION = "rss-project-v8"
 _STATES = (
     "Alabama|Alaska|Arizona|Arkansas|California|Colorado|Connecticut|Delaware|Florida|Georgia|"
     "Hawaii|Idaho|Illinois|Indiana|Iowa|Kansas|Kentucky|Louisiana|Maine|Maryland|"
@@ -70,7 +70,8 @@ _OUTSIDE_US = re.compile(
 _FACILITY = re.compile(
     r"\b(?:AI )?(?:data cent(?:er|re)|campus|manufacturing (?:campus|plant|facility)|"
     r"manufacturing|plant|factory|facility|water reclamation plant|water project|"
-    r"industrial (?:site|project)|processing facility|greenhouse|mine|hospital|medical center|"
+    r"industrial (?:site|project)|processing facility|greenhouse|mine|hospital|"
+    r"medical center|shipyard|"
     r"chip fabs?|semiconductor fabs?|fabs?|expansion|"
     r"arena|stadium|offices)\b",
     re.I,
@@ -80,7 +81,7 @@ _ACTION = re.compile(
     r"starts? on(?: the)? (?:\$[\d,.]+(?:m|b|bn|million|billion)?\s*)?"
     r"(?:concrete )?(?:deck|(?:facility )?expansion)|"
     r"begins? (?:the )?(?:concrete )?deck|"
-    r"plans? to (?:build|construct|"
+    r"files? to (?:build|construct)|plans? to (?:build|construct|"
     r"expand|establish|open)|to (?:build|construct|expand|establish|open)|will (?:build|"
     r"construct|expand|establish|open)|(?:build|construct|expand|establish|open)(?:s|ed|ing)?)\b",
     re.I,
@@ -317,8 +318,10 @@ def _subject(title: str, summary: str, event: str) -> str | None:
         if named:
             return named.group(1).strip()
     company = re.search(
-        r"^\s*([A-Z][\w&.'’-]*(?:\s+[A-Z][\w&.'’-]*){0,3})\s+"
-        r"(?:breaks? ground|groundbreak|begins? (?:construction|(?:the )?(?:concrete )?deck)|"
+        r"^\s*([A-Z][\w&.'’-]*(?:\s+[A-Z][\w&.'’-]*){0,3}"
+        r"(?:\s+(?:joint venture|JV))?)\s+"
+        r"(?:files? to (?:build|construct)|breaks? ground|groundbreak|"
+        r"begins? (?:construction|(?:the )?(?:concrete )?deck)|"
         r"starts? on|build(?:s|ing)?|construct(?:s|ing)?|to |will |plans? to )",
         title,
     )
@@ -610,6 +613,8 @@ def assess_news(title: str, summary: str | None) -> NewsAssessment:
             "The retained text includes a canceled, denied, withdrawn, or halted activity.",
             location,
         )
+    if re.search(r"\b(?:recruits?|recruiting|hires?|hiring|job openings?)\b", title, re.I):
+        return _rejected("The retained headline is hiring news rather than a project event.")
     if _SPECULATIVE.search(title):
         return _rejected(
             "The retained text is speculative rather than a confirmed physical project event.",

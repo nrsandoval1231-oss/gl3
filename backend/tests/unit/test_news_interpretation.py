@@ -328,7 +328,7 @@ def test_international_policy_and_recall_stay_rejected() -> None:
 
 def test_contract_and_dictionary_are_stable() -> None:
     result = assess_news("Atlas builds a plant in Alabama", None)
-    assert EVALUATOR_VERSION == "rss-project-v7"
+    assert EVALUATOR_VERSION == "rss-project-v8"
     assert set(result.as_dict()) == {
         "decision",
         "tier",
@@ -532,3 +532,35 @@ def test_early_stage_lookalikes_stay_rejected() -> None:
     ]
     for title, summary in cases:
         assert assess_news(title, summary).decision == "rejected", title
+
+
+def test_filed_build_and_joint_venture_groundbreakings_are_unknown_power_signals() -> None:
+    cases = [
+        ("Turner-FH joint venture breaks ground on Colorado hospital",
+         "The build for AdventHealth in Louisville carries a price tag of $475 million, "
+         "according to Becker’s Hospital Review."),
+        ("Soluna files to build 112MW data center building in Willacy, Texas",
+         "Will span a single building totaling 471,884 sq ft"),
+        ("JE Dunn-Alberici JV breaks ground on $3.2B Texas shipyard",
+         "The greenfield shipyard built for military contractor Saronic is the first in the U.S. "
+         "since World War II, according to the construction joint venture."),
+    ]
+    for title, abstract in cases:
+        result = assess_news(title, abstract)
+        assert result.decision == "accepted" and result.tier == "Signal", title
+        assert result.demand_mw is None and result.demand_quote is None
+        assert result.supply_quote is None
+        assert "activity-specific power requirement" in result.missing_facts
+        assert "supply suitability" in result.missing_facts
+
+
+def test_new_event_forms_keep_location_and_speculation_guards() -> None:
+    cases = [
+        ("Atlas JV may break ground on a Texas shipyard", "Plans are being explored."),
+        ("Atlas JV breaks ground on a shipyard in Canada", "Its office is in Texas."),
+        ("Atlas files to build a data center", "The company is based in Texas."),
+        ("Atlas JV cancels groundbreaking on Texas shipyard", "The project was halted."),
+        ("Atlas JV recruits staff for Texas shipyard", "The facility opened years ago."),
+    ]
+    for title, abstract in cases:
+        assert assess_news(title, abstract).decision == "rejected", title
