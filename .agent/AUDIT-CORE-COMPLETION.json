@@ -1,15 +1,17 @@
 {
   "packet": "AUDIT-CORE",
-  "status": "IMPLEMENTED_LOCAL_VALIDATION_PASS",
+  "status": "LOCAL_REPAIR_VALIDATION_PASS_PENDING_INDEPENDENT_REVIEW",
   "repository": "GridLens gl3",
   "worktree": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/gl3-audit-core-20261020",
   "branch": "repair/audit-core-20261020",
   "base_sha": "9e9e188bdf2825a8305a0e9eac0b23f0af1df47e",
   "commits": [
     "2f8fecb9f1f356e58c52e8f5c3107e8c1339b13d",
-    "c1e4ab0b01173a351b49145e9e0c51656620d900"
+    "c1e4ab0b01173a351b49145e9e0c51656620d900",
+    "840f098d6f87f8a1430b76463c1ce3ac4682dd65",
+    "cb0ced9cbd0257b17409fee3dbf3ad09612bda8e"
   ],
-  "candidate_sha": "c1e4ab0b01173a351b49145e9e0c51656620d900",
+  "candidate_sha": "cb0ced9cbd0257b17409fee3dbf3ad09612bda8e",
   "worktree_clean": true,
   "scope": ["F01", "F04", "F06", "F07", "R05"],
   "validation": {
@@ -17,7 +19,11 @@
       "command": "cd backend; uv run pytest -q tests/integration/test_pursuit_workspace.py tests/integration/test_intelligence_worker_integration.py::test_enqueue_reuses_matching_active_job_beyond_recent_ten_and_skips_malformed tests/integration/test_intelligence_worker_integration.py::test_concurrent_enqueue_reuses_one_matching_active_job tests/integration/test_call_fact_workflow_integration.py tests/unit/test_auth_persistence.py",
       "result": "PASS: 31 passed, 1 warning"
     },
-    "ruff": "PASS: changed backend modules/tests",
+    "call_facts_unit_tests": {
+      "command": "cd backend; uv run pytest -q tests/unit/test_call_facts.py",
+      "result": "PASS: 41 passed"
+    },
+    "ruff": "PASS: changed backend modules/tests; call_facts.py and test_call_facts.py",
     "mypy": "PASS: 4 source files",
     "diff_check": "PASS"
   },
@@ -26,11 +32,11 @@
     "F04 predecessor validation runs while exact need row lock is held; regressions cover draft, wrong type, superseded/stale predecessor and concurrent decisions.",
     "F07 tests cover >50 records, HOLD, REVIEW, SHOW, unadjudicated, active non-Signal row, inactive rows, enabled and disabled saved browse, and stale generation fence.",
     "R05 exact request_digest matching uses bounded SQL LIMIT 1 and pg_input_is_valid before JSONB cast; tests cover >10 newer unmatched jobs, malformed legacy checkpoint and concurrent duplicate enqueue.",
-    "Removed unrelated domain source-hash timing correction validation after controller scope direction; no product qualification rules were added.",
+    "Restored backend/src/gridlens/domain/call_facts.py and backend/tests/unit/test_call_facts.py exactly from base 9e9e188; no timing-basis qualification rules were added. Requested predecessor validation in app.py remains intact.",
     "The requested packet file AUDIT-CORE.md was not present in this worktree .agent/packets directory; this completion artifact is provided for controller handoff."
   ],
   "limits": [
-    "Local implementation and deterministic focused validation only; no independent review, merge, push, deploy or live-product acceptance claimed.",
+    "Local implementation and deterministic validation only; independent review, merge, push, deploy and live-product acceptance are pending and not claimed.",
     "UTC start, stage durations, tokens, runtime SHA, config identity and full repository-level gates are UNKNOWN/not measured."
   ]
 }
