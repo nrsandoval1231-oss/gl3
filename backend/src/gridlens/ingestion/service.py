@@ -1210,8 +1210,6 @@ def _retained_candidate_lock_ids(
         for project in projects
         if target_identity and project.identity_key == target_identity
     }
-    if admitted and ids:
-        return ids
     if claim.get("decision") != "accepted" or not claim.get("subject") or not claim.get("location"):
         return ids
     site_claims = labeled_sites(f"{observation.title} {observation.abstract or ''}")
@@ -1311,16 +1309,28 @@ def assess_retained_news(
             claim["reason"] = rejection_reason
         else:
             claim = assess_news(observation.title, observation.abstract).as_dict()
+        if (
+            evidence.observation_id != observation.id
+            or evidence.title != observation.title
+            or (evidence.abstract or "") != (observation.abstract or "")
+        ):
+            raise ValueError("Evidence does not match the current observation")
         payload = _assessment_payload(observation, evidence, claim)
         payload["admission_policy_version"] = ADMISSION_POLICY_VERSION
         if rejection_reason is not None:
             payload["admission_status"] = "research_quarantine"
         activity_key = news_power_activity(claim)
-        if claim.get("decision") == "accepted" and activity_key is None:
+        if (
+            claim.get("decision") == "accepted"
+            and claim.get("tier") == "Prospect"
+            and activity_key is None
+        ):
             raise ValueError(
                 "Prospect evidence does not bind demand and supply to one power activity"
             )
         if claim.get("decision") == "accepted":
+            if claim.get("tier") == "Signal" and activity_key is None:
+                activity_key = "project-discovery"
             payload["power_activity"] = activity_key
             payload["project_identity_key"] = _news_identity_key(
                 observation.title,
@@ -1382,6 +1392,9 @@ def assess_retained_news(
         title=evidence.title,
         abstract=evidence.abstract,
     )
+
+    if source.family == "news" and source.retrieval_method == "publisher-rss":
+        admission = admitted_from_source(source, payload, evidence)
 
     old_project_ids = set(
         session.scalars(
@@ -1451,6 +1464,32 @@ def assess_retained_news(
     interpretation.status = "accepted" if claim["decision"] == "accepted" else "rejected"
 
     current_need: PowerNeed | None = None
+    # A site-specific news Signal can stand alone, but an existing official
+    # same-project/same-activity need retains its identity and authority.
+    news_admitted = (
+        claim["decision"] == "accepted"
+        and admission.admitted
+        and source.family == "news"
+        and source.retrieval_method == "publisher-rss"
+    )
+    if news_admitted:
+        current_need, matched_payload = _attach_news_supplement(
+            session,
+            observation,
+            evidence,
+            claim,
+            payload,
+            material_baselines,
+            candidate_project_ids,
+        )
+        if (
+            current_need is not None
+            or matched_payload.get("admission_status") == "supplement_unknown"
+        ):
+            payload = matched_payload
+            payload["admission_origin"] = admission.origin
+            interpretation.assessment = {**payload}
+            flag_modified(interpretation, "assessment")
     supplemental_only = claim["decision"] == "accepted" and not admission.admitted
     if supplemental_only:
         current_need, payload = _attach_news_supplement(
@@ -1465,7 +1504,11 @@ def assess_retained_news(
         payload["admission_origin"] = admission.origin
         interpretation.assessment = {**payload}
         flag_modified(interpretation, "assessment")
-    elif claim["decision"] == "accepted":
+    elif (
+        claim["decision"] == "accepted"
+        and current_need is None
+        and payload.get("admission_status") != "supplement_unknown"
+    ):
         identity_key = payload["project_identity_key"]
         project = session.scalar(
             select(Project)

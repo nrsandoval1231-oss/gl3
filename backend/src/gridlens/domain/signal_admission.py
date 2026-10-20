@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-POLICY_VERSION = "signal-admission-v1"
+POLICY_VERSION = "signal-admission-v2"
 
 _PERMIT_METHODS = {
     "socrata-permits",
@@ -223,6 +223,35 @@ def admit_standalone(
 
 def admitted_from_source(source: Any, assessment: dict[str, Any], evidence: Any) -> Admission:
     """Evaluate a persisted accepted assessment and its exact retained evidence."""
+    if source.family == "news" and source.retrieval_method == "publisher-rss":
+        # Re-evaluate the exact retained evidence; derived city/state names need
+        # not appear verbatim in the source, but every derived field must match.
+        from gridlens.domain.news_interpretation import assess_news, signal_power_activity
+
+        fresh = assess_news(evidence.title, evidence.abstract)
+        activity = signal_power_activity(fresh.action) or "project-discovery"
+        valid = (
+            fresh.decision == "accepted"
+            and fresh.tier == "Signal"
+            and assessment.get("decision") == "accepted"
+            and assessment.get("tier") == "Signal"
+            and assessment.get("evidence_hash") == evidence.content_hash
+            and all(
+                assessment.get(key) == getattr(fresh, key)
+                for key in ("subject", "location", "action")
+            )
+            and assessment.get("power_activity") == activity
+            and bool(fresh.subject and fresh.location and fresh.action)
+            and bool(evidence.published_at or evidence.event_date)
+            and bool(evidence.url and evidence.url.startswith("https://"))
+        )
+        return Admission(
+            valid,
+            "News context",
+            "Accepted dated site-specific news discovery; power facts remain unknown."
+            if valid
+            else "News discovery requires an exact, dated, linked site assessment.",
+        )
     evidence_text = f"{evidence.title} {evidence.abstract or ''}".casefold()
     subject = str(assessment.get("subject") or assessment.get("project_name") or "").strip()
     location = str(assessment.get("location") or "").strip()

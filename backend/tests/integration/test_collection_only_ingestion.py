@@ -178,9 +178,7 @@ def test_collection_replay_and_changed_version_never_create_signals(db, monkeypa
         assert interpretation.evaluator_version
 
 
-def test_accepted_news_queues_retained_only_buying_chain_and_preserves_corrections(
-    db, monkeypatch
-):
+def test_accepted_news_queues_retained_only_buying_chain_and_preserves_corrections(db, monkeypatch):
     from gridlens.intelligence.buying_chain import buying_chain_view
     from gridlens.jobs import worker
     from gridlens.persistence.models import BuyingChainClaim, BuyingChainRun
@@ -329,19 +327,26 @@ def test_accepted_news_queues_retained_only_buying_chain_and_preserves_correctio
     # worker has added derived claims and a run record.
     with factory() as session:
         replay = service.process_job(
-            session, ingestion_job_id, "test", 1,
+            session,
+            ingestion_job_id,
+            "test",
+            1,
             {"id": source_id, "retrieval_method": "publisher-rss"},
         )
     assert replay["unchanged"] == 1
     with factory() as session:
-        assert session.scalar(
-            select(func.count()).select_from(Job).where(Job.kind == "buying_chain_research")
-        ) == 1
+        assert (
+            session.scalar(
+                select(func.count()).select_from(Job).where(Job.kind == "buying_chain_research")
+            )
+            == 1
+        )
 
     # A correction creates a new job and current view while retaining the old claim in history.
     corrected_row = _project_record(
         "Acme Builders completed its Atlas Mesa data center work. "
-        "Site address: 100 Main Street, Austin, Texas.", title
+        "Site address: 100 Main Street, Austin, Texas.",
+        title,
     )
     monkeypatch.setattr(service, "retrieve_source", lambda *_args: [corrected_row])
     with factory() as session:
@@ -366,12 +371,8 @@ def test_accepted_news_queues_retained_only_buying_chain_and_preserves_correctio
     with factory() as session:
         current = buying_chain_view(session, project_id)
         history = buying_chain_view(session, project_id, history=True)
-        assert not any(
-            item["organization"] == "Acme Builders" for item in current["candidates"]
-        )
-        assert any(
-            item["organization"] == "Acme Builders" for item in history["candidates"]
-        )
+        assert not any(item["organization"] == "Acme Builders" for item in current["candidates"])
+        assert any(item["organization"] == "Acme Builders" for item in history["candidates"])
 
 
 def test_accepted_permit_automatically_extracts_retained_roles_and_corrections(db, monkeypatch):
@@ -387,15 +388,22 @@ def test_accepted_permit_automatically_extracts_retained_roles_and_corrections(d
     with factory.begin() as session:
         session.add(
             Source(
-                id=definition["id"], publisher=definition["publisher"],
-                endpoint=definition["endpoint"], family=definition["family"],
-                geography="Austin, TX", industries=["data centers"],
-                retrieval_method=definition["retrieval_method"], health={},
+                id=definition["id"],
+                publisher=definition["publisher"],
+                endpoint=definition["endpoint"],
+                family=definition["family"],
+                geography="Austin, TX",
+                industries=["data centers"],
+                retrieval_method=definition["retrieval_method"],
+                health={},
             )
         )
         session.flush()
         ingestion_job = Job(
-            source_id=definition["id"], status="running", lease_owner="test", fence=1,
+            source_id=definition["id"],
+            status="running",
+            lease_owner="test",
+            fence=1,
             lease_until=datetime.now(UTC) + timedelta(minutes=10),
         )
         session.add(ingestion_job)
@@ -417,9 +425,13 @@ def test_accepted_permit_automatically_extracts_retained_roles_and_corrections(d
             "event_date": "2026-09-25",
             "html_url": "https://example.test/permit/AUTO-RETAINED-001",
             "permit": {
-                "row_id": "AUTO-RETAINED-001", "description": description,
-                "status": "Active", "address": "100 Main Street",
-                "city": "Austin", "state": "TX", "project": "Atlas Mesa data center",
+                "row_id": "AUTO-RETAINED-001",
+                "description": description,
+                "status": "Active",
+                "address": "100 Main Street",
+                "city": "Austin",
+                "state": "TX",
+                "project": "Atlas Mesa data center",
                 "source_fields": {},
             },
         }
@@ -445,9 +457,12 @@ def test_accepted_permit_automatically_extracts_retained_roles_and_corrections(d
         dry_run = retained_buying_chain_backfill(session, limit=1)
         assert dry_run["candidate_count"] == 1 and dry_run["queued_count"] == 0
         assert dry_run["next_after_project_id"] == str(project_id)
-        assert session.scalar(
-            select(func.count()).select_from(Job).where(Job.kind == "buying_chain_research")
-        ) == 1
+        assert (
+            session.scalar(
+                select(func.count()).select_from(Job).where(Job.kind == "buying_chain_research")
+            )
+            == 1
+        )
         applied = retained_buying_chain_backfill(session, limit=1, enqueue=True)
         assert applied["queued_count"] == 1
         assert applied["candidates"][0]["job_id"] == str(retained_job_id)
@@ -457,14 +472,17 @@ def test_accepted_permit_automatically_extracts_retained_roles_and_corrections(d
     monkeypatch.setattr(worker, "WORKER_ID", "retained-permit-test")
     monkeypatch.setattr(settings, "buying_chain_public_research_enabled", True)
     monkeypatch.setattr(
-        buying_chain, "retrieve",
+        buying_chain,
+        "retrieve",
         lambda *_args, **_kwargs: pytest.fail("retained-only extraction attempted HTTP"),
     )
     assert worker.run_one({}, job_ids=[retained_job_id])
     with factory() as session:
-        claims = list(session.scalars(
-            select(BuyingChainClaim).where(BuyingChainClaim.project_id == project_id)
-        ))
+        claims = list(
+            session.scalars(
+                select(BuyingChainClaim).where(BuyingChainClaim.project_id == project_id)
+            )
+        )
         assert any(
             row.organization == "Acme Builders"
             and row.category == "general_contractor"
@@ -476,27 +494,26 @@ def test_accepted_permit_automatically_extracts_retained_roles_and_corrections(d
 
     # An unchanged source replay is idempotent and leaves the completed extraction intact.
     with factory() as session:
-        replay = service.process_job(
-            session, ingestion_job_id, "test", 1, definition
-        )
+        replay = service.process_job(session, ingestion_job_id, "test", 1, definition)
     assert replay["unchanged"] == 1
     with factory() as session:
-        assert session.scalar(
-            select(func.count()).select_from(Job).where(Job.kind == "buying_chain_research")
-        ) == 1
+        assert (
+            session.scalar(
+                select(func.count()).select_from(Job).where(Job.kind == "buying_chain_research")
+            )
+            == 1
+        )
 
     records[:] = [permit("Beta Builders")]
     with factory() as session:
-        changed = service.process_job(
-            session, ingestion_job_id, "test", 1, definition
-        )
+        changed = service.process_job(session, ingestion_job_id, "test", 1, definition)
     assert changed["changed"] == 1
     with factory() as session:
-        correction_jobs = list(session.scalars(
-            select(Job).where(
-                Job.kind == "buying_chain_research", Job.status == "queued"
+        correction_jobs = list(
+            session.scalars(
+                select(Job).where(Job.kind == "buying_chain_research", Job.status == "queued")
             )
-        ))
+        )
         assert len(correction_jobs) == 1
         correction_job_id = correction_jobs[0].id
     assert worker.run_one({}, job_ids=[correction_job_id])
@@ -2433,10 +2450,17 @@ def test_apply_reports_interpretation_failure_and_retries(db, monkeypatch, tmp_p
     )
     output = tmp_path / "apply.json"
     monkeypatch.setattr(
-        sys, "argv", [
-            "reinterpret_news.py", "--apply", "--include-accepted", "--limit", "1",
-            "--output", str(output),
-        ]
+        sys,
+        "argv",
+        [
+            "reinterpret_news.py",
+            "--apply",
+            "--include-accepted",
+            "--limit",
+            "1",
+            "--output",
+            str(output),
+        ],
     )
     with pytest.raises(SystemExit) as failed:
         reinterpret_news.main()
@@ -2533,9 +2557,7 @@ def test_retained_reassessment_is_cursor_bounded_and_preserves_history(db):
     assert second_page["source_count"] == 1
     assert second_page["decisions"][0]["published_at"] is None
     assert second_page["next_cursor"] == str(second_id)
-    explicit_replay = reinterpret_news.apply_retained_news(
-        factory, 1, include_accepted=True
-    )
+    explicit_replay = reinterpret_news.apply_retained_news(factory, 1, include_accepted=True)
     assert explicit_replay["mode"] == "apply-including-accepted"
     assert explicit_replay["source_count"] == 1
     with factory() as session:
@@ -2692,3 +2714,92 @@ def test_authenticated_inbox_filters_and_paginates_retained_versions(db, monkeyp
     assert all(
         "topic_label" not in item and "matched_terms" not in item for item in all_items["items"]
     )
+
+
+def test_news_discovery_unknown_activity_reassessment_and_correction(db):
+    from gridlens.ingestion.service import assess_retained_news
+
+    _, factory, _ = db
+    with factory.begin() as session:
+        source = session.get(Source, "mjbizdaily-news")
+        title = "Atlas sells New York smelter to data center developer"
+        observation = Observation(
+            source_id=source.id,
+            external_id="site-sale",
+            title=title,
+            abstract="",
+            published_at=date(2026, 10, 20),
+            url="https://example.com/news/site-sale",
+            content_hash="a" * 64,
+        )
+        session.add(observation)
+        session.flush()
+        evidence = Evidence(
+            observation_id=observation.id,
+            title=title,
+            abstract="",
+            url=observation.url,
+            published_at=observation.published_at,
+            content_hash="a" * 64,
+        )
+        session.add(evidence)
+        session.flush()
+        assert assess_retained_news(session, observation, evidence)
+        interpretation = session.scalar(select(Interpretation))
+        need = session.scalar(select(PowerNeed))
+        assert interpretation.status == "accepted"
+        assert interpretation.assessment["power_activity"] == "project-discovery"
+        assert (need.activity_key, need.tier, need.required_mw, need.supply) == (
+            "project-discovery",
+            "Signal",
+            None,
+            "Unknown",
+        )
+        sibling = PowerNeed(
+            project_id=need.project_id,
+            activity_key="commissioning",
+            tier="Signal",
+            rationale="Independent commissioning evidence",
+            supply="Unknown",
+        )
+        session.add(sibling)
+        session.flush()
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(NeedObservation)
+                .where(NeedObservation.need_id == sibling.id)
+            )
+            == 0
+        )
+        assert not assess_retained_news(session, observation, evidence)
+        # A policy-only replay is not a new source version; its old decision is retained.
+        interpretation.assessment = {
+            **interpretation.assessment,
+            "admission_policy_version": "signal-admission-v1",
+        }
+        assert assess_retained_news(session, observation, evidence)
+        assert interpretation.assessment["previous_decisions"][-1]["admission_policy_version"] == (
+            "signal-admission-v1"
+        )
+        assert not assess_retained_news(session, observation, evidence)
+        observation.title = "Atlas cancels New York smelter sale"
+        observation.content_hash = "b" * 64
+        revised = Evidence(
+            observation_id=observation.id,
+            title=observation.title,
+            abstract="",
+            url=observation.url,
+            published_at=observation.published_at,
+            content_hash="b" * 64,
+        )
+        session.add(revised)
+        session.flush()
+        assert assess_retained_news(session, observation, revised)
+        session.refresh(need)
+        assert not need.active
+        session.refresh(sibling)
+        assert sibling.active
+        assert interpretation.status == "rejected"
+        assert interpretation.assessment["previous_decisions"]
+        assert not assess_retained_news(session, observation, revised)

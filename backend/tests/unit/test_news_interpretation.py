@@ -385,7 +385,9 @@ def test_site_and_milestone_news_v7_preserves_retained_project_events() -> None:
     for title, summary, location in cases:
         result = assess_news(title, summary)
         assert (result.decision, result.tier, result.location) == (
-            "accepted", "Signal", location
+            "accepted",
+            "Signal",
+            location,
         ), (title, result.reason)
         assert result.demand_mw is None
         assert signal_power_activity(result.action) == "construction"
@@ -536,14 +538,21 @@ def test_early_stage_lookalikes_stay_rejected() -> None:
 
 def test_filed_build_and_joint_venture_groundbreakings_are_unknown_power_signals() -> None:
     cases = [
-        ("Turner-FH joint venture breaks ground on Colorado hospital",
-         "The build for AdventHealth in Louisville carries a price tag of $475 million, "
-         "according to Becker’s Hospital Review."),
-        ("Soluna files to build 112MW data center building in Willacy, Texas",
-         "Will span a single building totaling 471,884 sq ft"),
-        ("JE Dunn-Alberici JV breaks ground on $3.2B Texas shipyard",
-         "The greenfield shipyard built for military contractor Saronic is the first in the U.S. "
-         "since World War II, according to the construction joint venture."),
+        (
+            "Turner-FH joint venture breaks ground on Colorado hospital",
+            "The build for AdventHealth in Louisville carries a price tag of $475 million, "
+            "according to Becker’s Hospital Review.",
+        ),
+        (
+            "Soluna files to build 112MW data center building in Willacy, Texas",
+            "Will span a single building totaling 471,884 sq ft",
+        ),
+        (
+            "JE Dunn-Alberici JV breaks ground on $3.2B Texas shipyard",
+            "The greenfield shipyard built for military contractor Saronic is "
+            "the first in the U.S. "
+            "since World War II, according to the construction joint venture.",
+        ),
     ]
     for title, abstract in cases:
         result = assess_news(title, abstract)
@@ -570,22 +579,49 @@ def test_event_family_table_v9_retained_examples_and_matched_negatives() -> None
     # Each row is a retained project example and a company-level, speculative,
     # overseas, or otherwise non-project contrast for the same event family.
     families = [
-        ("filing", "Stack files for second building at Lancaster campus, Texas",
-         "Company looks to start work in March", "Atlas files for a patent in Texas", ""),
-        ("sale", "Alcoa sells New York aluminum smelter to data center developer for $315 million",
-         "Company doesn’t name buyer", "Atlas sells a company in Texas", ""),
-        ("financing", "Digi Power X secures $200m in debt financing "
-         "for Alabama data center project",
-         "Will support the development of a data center", "Atlas secures $500m in financing", ""),
-        ("power", "Google expands partnership with Entergy Arkansas, will fund renewable energy "
-         "and grid upgrades for West Memphis data center", "Inks 440MW PPA",
-         "Atlas signs power deal with Texas utility for existing data centers", ""),
-        ("conversion", "Valor Energy acquires computing site in Youngstown, Ohio",
-         "Company looks to pivot 18MW site into an AI data center",
-         "Atlas explores data center site in Roanoke County, Virginia", ""),
-        ("restoration", "NYC’s Plaza Hotel to close in 2027 for multiyear facade restoration",
-         "The New York icon will shut down for at least four years",
-         "Atlas considers facade restoration for a hotel in Texas", ""),
+        (
+            "filing",
+            "Stack files for second building at Lancaster campus, Texas",
+            "Company looks to start work in March",
+            "Atlas files for a patent in Texas",
+            "",
+        ),
+        (
+            "sale",
+            "Alcoa sells New York aluminum smelter to data center developer for $315 million",
+            "Company doesn’t name buyer",
+            "Atlas sells a company in Texas",
+            "",
+        ),
+        (
+            "financing",
+            "Digi Power X secures $200m in debt financing for Alabama data center project",
+            "Will support the development of a data center",
+            "Atlas secures $500m in financing",
+            "",
+        ),
+        (
+            "power",
+            "Google expands partnership with Entergy Arkansas, will fund renewable energy "
+            "and grid upgrades for West Memphis data center",
+            "Inks 440MW PPA",
+            "Atlas signs power deal with Texas utility for existing data centers",
+            "",
+        ),
+        (
+            "conversion",
+            "Valor Energy acquires computing site in Youngstown, Ohio",
+            "Company looks to pivot 18MW site into an AI data center",
+            "Atlas explores data center site in Roanoke County, Virginia",
+            "",
+        ),
+        (
+            "restoration",
+            "NYC’s Plaza Hotel to close in 2027 for multiyear facade restoration",
+            "The New York icon will shut down for at least four years",
+            "Atlas considers facade restoration for a hotel in Texas",
+            "",
+        ),
     ]
     for family, positive, summary, negative, negative_summary in families:
         actual = assess_news(positive, summary)
@@ -597,16 +633,22 @@ def test_event_family_table_v9_retained_examples_and_matched_negatives() -> None
 
 def test_event_family_v9_renamed_passive_crossfield_and_guards() -> None:
     positives = [
-        ("Atlas sells smelter to data center developer",
-         "The smelter in Albany, New York will become a data center."),
+        (
+            "Atlas sells smelter to data center developer",
+            "The smelter in Albany, New York will become a data center.",
+        ),
         ("Atlas smelter sold in New York to data center developer", ""),
-        ("Metro Hotel to close in 2027 for multiyear facade restoration",
-         "The hotel in Houston, Texas requires major repairs."),
+        (
+            "Metro Hotel to close in 2027 for multiyear facade restoration",
+            "The hotel in Houston, Texas requires major repairs.",
+        ),
     ]
     negatives = [
         ("Atlas explores selling New York smelter to data center developer", ""),
-        ("Atlas sells smelter in Canada to data center developer",
-         "The smelter in Houston, Texas is unrelated."),
+        (
+            "Atlas sells smelter in Canada to data center developer",
+            "The smelter in Houston, Texas is unrelated.",
+        ),
         ("Atlas sells smelter to data center developer", "The company is based in Texas."),
         ("Atlas recruits staff for Texas shipyard", "The facility opened years ago."),
         ("Atlas cancels plans to build a data center in Texas", ""),

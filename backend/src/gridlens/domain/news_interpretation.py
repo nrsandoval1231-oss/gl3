@@ -48,19 +48,56 @@ _CITIES = {
     "Monrovia": "Indiana",
 }
 _STATE_ABBREVIATIONS = {
-    "AL": "Alabama", "AK": "Alaska", "AZ": "Arizona", "AR": "Arkansas",
-    "CA": "California", "CO": "Colorado", "CT": "Connecticut", "DE": "Delaware",
-    "FL": "Florida", "GA": "Georgia", "HI": "Hawaii", "ID": "Idaho",
-    "IL": "Illinois", "IN": "Indiana", "IA": "Iowa", "KS": "Kansas",
-    "KY": "Kentucky", "LA": "Louisiana", "ME": "Maine", "MD": "Maryland",
-    "MA": "Massachusetts", "MI": "Michigan", "MN": "Minnesota", "MS": "Mississippi",
-    "MO": "Missouri", "MT": "Montana", "NE": "Nebraska", "NV": "Nevada",
-    "NH": "New Hampshire", "NJ": "New Jersey", "NM": "New Mexico", "NY": "New York",
-    "NC": "North Carolina", "ND": "North Dakota", "OH": "Ohio", "OK": "Oklahoma",
-    "OR": "Oregon", "PA": "Pennsylvania", "RI": "Rhode Island", "SC": "South Carolina",
-    "SD": "South Dakota", "TN": "Tennessee", "TX": "Texas", "UT": "Utah",
-    "VT": "Vermont", "VA": "Virginia", "WA": "Washington", "WV": "West Virginia",
-    "WI": "Wisconsin", "WY": "Wyoming",
+    "AL": "Alabama",
+    "AK": "Alaska",
+    "AZ": "Arizona",
+    "AR": "Arkansas",
+    "CA": "California",
+    "CO": "Colorado",
+    "CT": "Connecticut",
+    "DE": "Delaware",
+    "FL": "Florida",
+    "GA": "Georgia",
+    "HI": "Hawaii",
+    "ID": "Idaho",
+    "IL": "Illinois",
+    "IN": "Indiana",
+    "IA": "Iowa",
+    "KS": "Kansas",
+    "KY": "Kentucky",
+    "LA": "Louisiana",
+    "ME": "Maine",
+    "MD": "Maryland",
+    "MA": "Massachusetts",
+    "MI": "Michigan",
+    "MN": "Minnesota",
+    "MS": "Mississippi",
+    "MO": "Missouri",
+    "MT": "Montana",
+    "NE": "Nebraska",
+    "NV": "Nevada",
+    "NH": "New Hampshire",
+    "NJ": "New Jersey",
+    "NM": "New Mexico",
+    "NY": "New York",
+    "NC": "North Carolina",
+    "ND": "North Dakota",
+    "OH": "Ohio",
+    "OK": "Oklahoma",
+    "OR": "Oregon",
+    "PA": "Pennsylvania",
+    "RI": "Rhode Island",
+    "SC": "South Carolina",
+    "SD": "South Dakota",
+    "TN": "Tennessee",
+    "TX": "Texas",
+    "UT": "Utah",
+    "VT": "Vermont",
+    "VA": "Virginia",
+    "WA": "Washington",
+    "WV": "West Virginia",
+    "WI": "Wisconsin",
+    "WY": "Wyoming",
 }
 _OUTSIDE_US = re.compile(
     r"(?<!New )\b(Mexico|Japan|South Korea|Korea|Canada|United Kingdom|UK|Germany|India|"
@@ -245,9 +282,7 @@ def _site_location(text: str) -> str | None:
         return f"{embedded.group(1)}, {embedded.group(2)}"
     if re.search(r"\bNYC(?:[’']s)?\b", text) and re.search(r"\bhotel\b", text, re.I):
         return "New York, New York"
-    abbreviation = re.search(
-        r"\b(?:in|at|near)\s+([A-Z]{2})\b|,\s*([A-Z]{2})\b", text
-    )
+    abbreviation = re.search(r"\b(?:in|at|near)\s+([A-Z]{2})\b|,\s*([A-Z]{2})\b", text)
     if abbreviation:
         code = abbreviation.group(1) or abbreviation.group(2)
         if code in _STATE_ABBREVIATIONS:
@@ -296,7 +331,8 @@ def _event_location(title: str, summary: str, event: str | None) -> str | None:
             # sentence to the headline, without borrowing a company headquarters.
             reference = re.match(
                 rf"^(?:the|its|this)\s+{re.escape(facility_match.group(0))}\b",
-                sentence, re.I,
+                sentence,
+                re.I,
             )
             if reference and not _OUTSIDE_US.search(sentence):
                 location = _site_location(sentence)
@@ -345,7 +381,8 @@ def _subject(title: str, summary: str, event: str) -> str | None:
             return named.group(1).strip()
     milestone_actor = re.match(
         r"^\s*([A-Z][\w&.'’-]*(?:\s+[A-Z][\w&.'’-]*){0,3})\s+"
-        r"(?:sells?|files? for|expands? partnership)\b", title
+        r"(?:sells?|files? for|expands? partnership)\b",
+        title,
     )
     if milestone_actor:
         return milestone_actor.group(1).strip()
@@ -366,7 +403,7 @@ def _subject(title: str, summary: str, event: str) -> str | None:
         named = re.search(
             r"\b([A-Z][\w&.'’-]*(?:\s+[A-Z0-9][\w&.'’-]*){0,3}(?:\s+[a-z]+){0,2}\s+"
             r"(?:Water Reclamation Plant|data cent(?:er|re)|campus|plant|factory|facility|"
-        r"project|site|arena|stadium))\b",
+            r"project|site|arena|stadium))\b",
             sentence,
         )
         if named:
@@ -513,9 +550,7 @@ def _action_activity(action: str) -> str | None:
 def _event_action(event: str) -> re.Match[str] | None:
     # A project-specific grid commitment takes precedence over a corporate
     # partnership expansion elsewhere in the same headline.
-    grid = re.search(
-        r"\b(?:will\s+)?fund\s+(?:renewable energy and )?grid upgrades\b", event, re.I
-    )
+    grid = re.search(r"\b(?:will\s+)?fund\s+(?:renewable energy and )?grid upgrades\b", event, re.I)
     return grid or _ACTION.search(event)
 
 
@@ -668,7 +703,9 @@ def assess_news(title: str, summary: str | None) -> NewsAssessment:
         )
     if event and re.search(
         r"\b(?:in|at|near)\s+(?:Canada|Mexico|Japan|Germany|India|China|Australia|"
-        r"Singapore|Malaysia|France|United Kingdom)\b", event, re.I
+        r"Singapore|Malaysia|France|United Kingdom)\b",
+        event,
+        re.I,
     ):
         return _rejected("The physical event is explicitly located outside the US.")
     if (_OUTSIDE_US.search(title) or (event and _OUTSIDE_US.search(event))) and not location:
@@ -694,9 +731,7 @@ def assess_news(title: str, summary: str | None) -> NewsAssessment:
         subject = _subject(title, summary, event)
         if subject is None:
             # The deal's actor names the planned site; never a counterparty.
-            actor = re.match(
-                r"\s*([A-Z][\w&.'’-]*(?:\s+[A-Z][\w&.'’-]*){0,3})\s+[a-z]", title
-            )
+            actor = re.match(r"\s*([A-Z][\w&.'’-]*(?:\s+[A-Z][\w&.'’-]*){0,3})\s+[a-z]", title)
             subject = f"{actor.group(1).strip()} data center" if actor else None
     else:
         subject = _subject(title, summary, event)
