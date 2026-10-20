@@ -79,7 +79,7 @@ test('browser Back re-reads the same selected need after identity is cleared', a
   await panel.locator('summary').click()
   await panel.getByRole('button', { name: 'Next changes' }).click()
   await expect(panel.getByRole('heading', { name: 'Change 51', exact: true })).toBeVisible()
-  await expect(panel.getByText('Showing 51-100 of 100 unreviewed')).toBeVisible()
+  await expect(panel.getByText('Showing 51–100 of 100 unreviewed')).toBeVisible()
   await page.locator('[data-need-row="need-a"]').click()
   await expect(page.getByRole('heading', { name: 'Test data center' })).toBeVisible()
   await page.locator('[data-need-row="need-a"]').click()
@@ -90,7 +90,7 @@ test('browser Back re-reads the same selected need after identity is cleared', a
   await expect(page.getByRole('heading', { name: 'Test data center' })).toBeVisible()
   await expect(page.getByText('Loading current need detail.')).toHaveCount(0)
   await expect(panel.getByRole('heading', { name: 'Change 51', exact: true })).toBeVisible()
-  await expect(panel.getByText('Showing 51-100 of 100 unreviewed')).toBeVisible()
+  await expect(panel.getByText('Showing 51–100 of 100 unreviewed')).toBeVisible()
 })
 
 test('table uses its source-backed browse title and settled detail recomputes from current evidence', async ({ page }) => {
@@ -745,7 +745,7 @@ test('reviewing page two resets to the remaining first page without changing its
   expect(reviewBodies[1]).toEqual(reviewBodies[0])
   await expect(panel.getByRole('heading', { name: 'Change 1', exact: true })).toBeVisible()
   await expect(panel.getByRole('heading', { name: 'Change 50', exact: true })).toBeVisible()
-  await expect(panel.getByText(/Showing 1-50 of 50 unreviewed/)).toBeVisible()
+  await expect(panel.getByText('Showing 1–50 of 50 unreviewed')).toBeVisible()
 })
 
 test('accepted fact read-back refreshes the material changes count and list', async ({ page }) => {
@@ -806,7 +806,7 @@ test('accepted fact read-back refreshes the material changes count and list', as
   await expect(page.getByText(/Draft persisted and confirmed/)).toBeVisible()
   await page.getByLabel('Reason for decision').fill('Confirmed by operator')
   await page.getByRole('button', { name: 'Accept fact' }).click()
-  await expect(page.getByText(/Server read-back confirmed accepted version 2/)).toBeVisible()
+  await expect(page.getByRole('option', { name: 'v2 · demand · accepted', exact: true })).toHaveCount(1)
   await expect.poll(() => changeReads).toBeGreaterThan(1)
   await expect(summary).toContainText('1 unreviewed items')
   await expect(panel.getByRole('heading', { name: 'Call fact accepted: demand' })).toBeVisible()
