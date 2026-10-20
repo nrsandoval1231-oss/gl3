@@ -2,6 +2,7 @@ import json
 from decimal import Decimal
 from uuid import uuid4
 
+import httpx
 import pytest
 from pydantic import SecretStr
 
@@ -215,6 +216,8 @@ def test_provider_transport_recursion_error_keeps_received_response_metadata(mon
     class Response:
         status_code = 200
         headers = {"x-request-id": "req-recursive-raw"}
+        request = httpx.Request("POST", "https://provider.invalid")
+        stream = httpx.ByteStream(b"{}")
 
         def __enter__(self):
             return self
@@ -223,7 +226,7 @@ def test_provider_transport_recursion_error_keeps_received_response_metadata(mon
             return None
 
         def iter_bytes(self):
-            yield b"{}"
+            yield from self.stream
 
     class Client:
         def __init__(self, *, timeout):

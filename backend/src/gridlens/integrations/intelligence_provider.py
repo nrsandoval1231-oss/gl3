@@ -5,12 +5,15 @@ from __future__ import annotations
 import hashlib
 import json
 import time
+from collections.abc import Iterator
 from typing import Any
 
 import httpx
 
 TIMEOUT_SECONDS = 45
-READ_PHASE_TIMEOUT_SECONDS = 5
+# Connection setup and request upload are short; waiting for the model's
+# response uses whatever remains of the single finite total deadline.
+CONNECT_PHASE_TIMEOUT_SECONDS = 5
 MAX_RESPONSE_BYTES = 65_536
 GROUNDED_INSTRUCTIONS = (
     "Extract claims only when supported by retained evidence. "
@@ -48,8 +51,11 @@ class ProviderResponseError(RuntimeError):
         reported_usage: Any = None,
         raw_response_sha256: str | None = None,
         raw_response_size: int | None = None,
+        cause: str | None = None,
     ):
         super().__init__(message)
+        # Sanitized machine-readable transport cause; never a payload or credential.
+        self.cause = cause
         self.request_id = request_id
         self.conclusive = conclusive
         self.status_code = status_code
@@ -60,6 +66,51 @@ class ProviderResponseError(RuntimeError):
         self.reported_usage = reported_usage
         self.raw_response_sha256 = raw_response_sha256
         self.raw_response_size = raw_response_size
+
+
+class _TotalDeadlineExceeded(Exception):
+    pass
+
+
+def _phase_timeouts(deadline: float) -> dict[str, float]:
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        raise _TotalDeadlineExceeded
+    setup = min(CONNECT_PHASE_TIMEOUT_SECONDS, remaining)
+    return {"connect": setup, "write": setup, "pool": setup, "read": remaining}
+
+
+class _DeadlineStream(httpx.SyncByteStream):
+    """Check every raw chunk so a slow drip cannot outlive the total deadline."""
+
+    def __init__(self, stream: httpx.SyncByteStream, deadline: float):
+        self.stream = stream
+        self.deadline = deadline
+
+    def __iter__(self) -> Iterator[bytes]:
+        for chunk in self.stream:
+            if time.monotonic() >= self.deadline:
+                raise _TotalDeadlineExceeded
+            yield chunk
+        if time.monotonic() >= self.deadline:
+            raise _TotalDeadlineExceeded
+
+    def close(self) -> None:
+        self.stream.close()
+
+
+def _transport_cause(exc: Exception) -> str:
+    if isinstance(exc, httpx.ConnectTimeout):
+        return "connect_timeout"
+    if isinstance(exc, httpx.ConnectError):
+        return "connect_error"
+    if isinstance(exc, httpx.WriteTimeout | httpx.PoolTimeout):
+        return "send_timeout"
+    if isinstance(exc, httpx.ReadTimeout):
+        return "read_timeout"
+    if isinstance(exc, httpx.RemoteProtocolError):
+        return "protocol_error"
+    return "transport_error"
 
 
 def _post_json(
@@ -80,25 +131,22 @@ def _post_json(
     body_digest = hashlib.sha256()
     body_size = 0
     try:
-        phase_timeout = min(READ_PHASE_TIMEOUT_SECONDS, timeout_seconds)
-        timeout = httpx.Timeout(
-            connect=phase_timeout,
-            read=phase_timeout,
-            write=phase_timeout,
-            pool=phase_timeout,
-        )
-        with httpx.Client(timeout=timeout) as client:
-            with client.stream("POST", url, headers=headers, json=payload) as response:
+        with httpx.Client(timeout=timeout_seconds) as client:
+            with client.stream(
+                "POST",
+                url,
+                headers=headers,
+                json=payload,
+                extensions={"timeout": _phase_timeouts(deadline)},
+            ) as response:
                 response_received = True
                 response_status = response.status_code
                 request_id = response.headers.get("x-request-id")
-                if time.monotonic() >= deadline:
-                    raise ProviderResponseError(
-                        "Provider total request deadline exceeded",
-                        request_id=request_id,
-                        response_received=True,
-                        status_code=response_status,
-                    )
+                # httpcore reads the body timeout when iteration starts; keep
+                # every body read within the budget left after the headers.
+                response.request.extensions["timeout"] = _phase_timeouts(deadline)
+                assert isinstance(response.stream, httpx.SyncByteStream)
+                response.stream = _DeadlineStream(response.stream, deadline)
                 if response.status_code >= 400:
                     raise ProviderResponseError(
                         f"Provider returned HTTP {response.status_code}",
@@ -106,6 +154,7 @@ def _post_json(
                         conclusive=response.status_code < 500,
                         status_code=response.status_code,
                         response_received=True,
+                        cause="http_status",
                     )
                 length = response.headers.get("content-length")
                 if length and int(length) > MAX_RESPONSE_BYTES:
@@ -115,17 +164,9 @@ def _post_json(
                         response_received=True,
                         status_code=response_status,
                         raw_response_size=int(length),
+                        cause="response_too_large",
                     )
                 for chunk in response.iter_bytes():
-                    if time.monotonic() >= deadline:
-                        raise ProviderResponseError(
-                            "Provider total request deadline exceeded",
-                            request_id=request_id,
-                            response_received=True,
-                            status_code=response_status,
-                            raw_response_sha256=body_digest.hexdigest(),
-                            raw_response_size=body_size,
-                        )
                     body_digest.update(chunk)
                     body_size += len(chunk)
                     remaining = max(0, MAX_RESPONSE_BYTES + 1 - len(body))
@@ -138,16 +179,8 @@ def _post_json(
                             status_code=response_status,
                             raw_response_sha256=body_digest.hexdigest(),
                             raw_response_size=body_size,
+                            cause="response_too_large",
                         )
-                if time.monotonic() >= deadline:
-                    raise ProviderResponseError(
-                        "Provider total request deadline exceeded",
-                        request_id=request_id,
-                        response_received=True,
-                        status_code=response_status,
-                        raw_response_sha256=body_digest.hexdigest(),
-                        raw_response_size=body_size,
-                    )
         data = json.loads(body)
         if not isinstance(data, dict):
             raise ProviderResponseError(
@@ -159,19 +192,26 @@ def _post_json(
                 raw_response=data,
                 raw_response_sha256=body_digest.hexdigest(),
                 raw_response_size=body_size,
+                cause="invalid_response",
             )
         request_id = request_id or (data.get("id") if isinstance(data.get("id"), str) else None)
         return data, request_id, int((time.monotonic() - started) * 1000)
     except ProviderResponseError:
         raise
-    except (httpx.TimeoutException, httpx.TransportError) as exc:
+    except (_TotalDeadlineExceeded, httpx.TransportError) as exc:
+        # A timeout that fires at the total deadline is reported as such; the
+        # outcome stays inconclusive because the provider may have completed.
+        expired = isinstance(exc, _TotalDeadlineExceeded) or (
+            isinstance(exc, httpx.TimeoutException) and time.monotonic() >= deadline - 0.05
+        )
         raise ProviderResponseError(
-            type(exc).__name__,
+            "Provider total request deadline exceeded" if expired else type(exc).__name__,
             request_id=request_id,
             response_received=response_received,
             status_code=response_status,
             raw_response_sha256=body_digest.hexdigest() if body_size else None,
             raw_response_size=body_size or None,
+            cause="total_deadline_exceeded" if expired else _transport_cause(exc),
         ) from exc
     except (ValueError, json.JSONDecodeError, RecursionError) as exc:
         raise ProviderResponseError(
@@ -182,6 +222,7 @@ def _post_json(
             status_code=response_status,
             raw_response_sha256=body_digest.hexdigest() if body_size else None,
             raw_response_size=body_size or None,
+            cause="invalid_response",
         ) from exc
 
 
