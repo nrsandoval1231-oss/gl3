@@ -61,11 +61,25 @@ test('browser Back re-reads the same selected need after identity is cleared', a
   let detailReads = 0
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
   await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response() }))
+  await page.route('**/api/opportunities/workspace/changes?*', route => {
+    const offset = Number(new URL(route.request().url()).searchParams.get('offset') ?? 0)
+    const items = Array.from({ length: 50 }, (_, index) => ({
+      event_key: `change:${offset + index + 1}`, category: 'changed', title: `Change ${offset + index + 1}`,
+      detail: 'Synthetic retained change', created_at: '2026-10-20T12:00:00Z', source_date: null,
+      project_id: null, before_state: null, after_state: null, needs: [], sources: [],
+    }))
+    return route.fulfill({ json: { ...emptyChanges, items, total_unreviewed: 100, offset, next_offset: offset === 0 ? 50 : null } })
+  })
   await page.route('**/api/opportunities/needs/need-a*', route => {
     detailReads += 1
     return route.fulfill({ json: need })
   })
   await page.goto('/?view=workspace')
+  const panel = page.locator('.wh-changes')
+  await panel.locator('summary').click()
+  await panel.getByRole('button', { name: 'Next changes' }).click()
+  await expect(panel.getByRole('heading', { name: 'Change 51', exact: true })).toBeVisible()
+  await expect(panel.getByText('Showing 51-100 of 100 unreviewed')).toBeVisible()
   await page.locator('[data-need-row="need-a"]').click()
   await expect(page.getByRole('heading', { name: 'Test data center' })).toBeVisible()
   await page.locator('[data-need-row="need-a"]').click()
@@ -75,6 +89,8 @@ test('browser Back re-reads the same selected need after identity is cleared', a
   await expect.poll(() => detailReads).toBeGreaterThan(readsBeforeBack)
   await expect(page.getByRole('heading', { name: 'Test data center' })).toBeVisible()
   await expect(page.getByText('Loading current need detail.')).toHaveCount(0)
+  await expect(panel.getByRole('heading', { name: 'Change 51', exact: true })).toBeVisible()
+  await expect(panel.getByText('Showing 51-100 of 100 unreviewed')).toBeVisible()
 })
 
 test('table uses its source-backed browse title and settled detail recomputes from current evidence', async ({ page }) => {
@@ -658,7 +674,7 @@ test('material change review acknowledges only the displayed page and keeps heal
   })
   await page.route('**/api/opportunities/needs/need-a/history', route => route.fulfill({ json: { id: 'need-a', project_id: 'project-a', name: 'Synthetic Facility', location: 'Austin, TX', activity: 'construction', active: false, tier: 'Signal', rationale: 'Closed historical need', required_mw: null, start_window: null, duration: null, supply: 'Unknown', updated_at: '2026-10-20T10:30:00Z', evidence: [] } }))
   await page.goto('/?view=workspace')
-  const panel = page.getByRole('region', { name: 'Material changes' })
+  const panel = page.locator('.wh-changes')
   await panel.getByText('Material changes · 1 unreviewed items').click()
   await expect(panel).toContainText('Call fact accepted: demand')
   await expect(panel).toContainText('Source-health exceptions')
@@ -701,34 +717,34 @@ test('reviewing page two resets to the remaining first page without changing its
   }
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
   await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response() }))
-  await page.route('**/api/opportunities/workspace/changes*', async route => {
-    if (route.request().method() === 'POST') {
-      reviewBodies.push(route.request().postDataJSON() as Record<string, unknown>)
-      if (failFirstReview) {
-        failFirstReview = false
-        return route.fulfill({ status: 503, json: { detail: 'Synthetic review response failure' } })
-      }
-      pageTwoReviewed = true
-      return route.fulfill({ json: { baseline_identity: emptyChanges.baseline_identity, reviewed_count: 50, token: 'token-50', event_keys: [] } })
-    }
+  await page.route('**/api/opportunities/workspace/changes?*', async route => {
     const offset = Number(new URL(route.request().url()).searchParams.get('offset') ?? 0)
     return route.fulfill({ json: changes(offset) })
   })
+  await page.route('**/api/opportunities/workspace/changes/review', async route => {
+    reviewBodies.push(route.request().postDataJSON() as Record<string, unknown>)
+    if (failFirstReview) {
+      failFirstReview = false
+      return route.fulfill({ status: 503, json: { detail: 'Synthetic review response failure' } })
+    }
+    pageTwoReviewed = true
+    return route.fulfill({ json: { baseline_identity: emptyChanges.baseline_identity, reviewed_count: 50, token: 'token-50', event_keys: [] } })
+  })
   await page.goto('/?view=workspace')
-  const panel = page.getByRole('region', { name: 'Material changes' })
+  const panel = page.locator('.wh-changes')
   await panel.locator('summary').click()
-  await expect(panel.getByRole('heading', { name: 'Change 1' })).toBeVisible()
+  await expect(panel.getByRole('heading', { name: 'Change 1', exact: true })).toBeVisible()
   await panel.getByRole('button', { name: 'Next changes' }).click()
-  await expect(panel.getByRole('heading', { name: 'Change 51' })).toBeVisible()
+  await expect(panel.getByRole('heading', { name: 'Change 51', exact: true })).toBeVisible()
   await panel.getByRole('button', { name: 'Mark these displayed changes reviewed' }).click()
   await expect(panel.getByRole('alert')).toBeVisible()
-  await expect(panel.getByRole('heading', { name: 'Change 51' })).toBeVisible()
+  await expect(panel.getByRole('heading', { name: 'Change 51', exact: true })).toBeVisible()
   await panel.getByRole('button', { name: 'Mark these displayed changes reviewed' }).click()
   await expect.poll(() => reviewBodies).toHaveLength(2)
   expect(reviewBodies[0]).toEqual({ baseline_identity: emptyChanges.baseline_identity, token: 'token-50', limit: 50, offset: 50 })
   expect(reviewBodies[1]).toEqual(reviewBodies[0])
-  await expect(panel.getByRole('heading', { name: 'Change 1' })).toBeVisible()
-  await expect(panel.getByRole('heading', { name: 'Change 50' })).toBeVisible()
+  await expect(panel.getByRole('heading', { name: 'Change 1', exact: true })).toBeVisible()
+  await expect(panel.getByRole('heading', { name: 'Change 50', exact: true })).toBeVisible()
   await expect(panel.getByText(/Showing 1-50 of 50 unreviewed/)).toBeVisible()
 })
 
@@ -750,7 +766,7 @@ test('accepted fact read-back refreshes the material changes count and list', as
     }],
     counts: { ...emptyChanges.counts, changed: 1 }, total_unreviewed: 1,
   }
-  await page.route('**/api/**', async route => {
+  await page.route(url => url.pathname.startsWith('/api/'), async route => {
     const request = route.request()
     const path = new URL(request.url()).pathname
     const method = request.method()
@@ -778,8 +794,10 @@ test('accepted fact read-back refreshes the material changes count and list', as
     return route.fulfill({ json: [] })
   })
   await page.goto('/?view=workspace')
-  const panel = page.getByRole('region', { name: 'Material changes' })
-  await expect(panel.locator('summary')).toContainText('0 unreviewed items')
+  const panel = page.locator('.wh-changes')
+  const summary = panel.locator(':scope > details > summary')
+  await expect(summary).toContainText('0 unreviewed items')
+  await summary.click()
   await page.locator('[data-need-row="need-a"]').click()
   await page.getByRole('button', { name: 'Next steps' }).click()
   await page.getByLabel('Reporter name').fill('Synthetic operator')
@@ -790,7 +808,7 @@ test('accepted fact read-back refreshes the material changes count and list', as
   await page.getByRole('button', { name: 'Accept fact' }).click()
   await expect(page.getByText(/Server read-back confirmed accepted version 2/)).toBeVisible()
   await expect.poll(() => changeReads).toBeGreaterThan(1)
-  await expect(panel.locator('summary')).toContainText('1 unreviewed items')
+  await expect(summary).toContainText('1 unreviewed items')
   await expect(panel.getByRole('heading', { name: 'Call fact accepted: demand' })).toBeVisible()
 })
 
@@ -816,7 +834,7 @@ test('active change links use canonical workspace readback instead of historical
   let historicalReads = 0
   await page.route('**/api/opportunities/needs/need-a/history', route => { historicalReads += 1; return route.fulfill({ json: { ...need, active: true, tier: 'Lead' } }) })
   await page.goto('/?view=workspace')
-  const panel = page.getByRole('region', { name: 'Material changes' })
+  const panel = page.locator('.wh-changes')
   await panel.locator('summary').click()
   const link = panel.getByRole('button', { name: /Synthetic Facility · Austin, TX · demand/ })
   await link.click()
@@ -847,7 +865,7 @@ test('active change link hides a previously stored Lead while canonical readback
   let historicalReads = 0
   await page.route('**/api/opportunities/needs/need-a/history', route => { historicalReads += 1; return route.fulfill({ json: { ...need, active: true, tier: 'Lead' } }) })
   await page.goto('/?view=workspace')
-  const panel = page.getByRole('region', { name: 'Material changes' })
+  const panel = page.locator('.wh-changes')
   await panel.locator('summary').click()
   await panel.getByRole('button', { name: /Synthetic Facility · Austin, TX · demand/ }).click()
   await expect(page.getByRole('alert')).toContainText('GridLens could not complete this request (503)')

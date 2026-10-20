@@ -266,6 +266,20 @@ def _site_location(text: str) -> str | None:
                 facility_match and state.end() <= facility_match.start() and len(after.split()) <= 5
             )
         ):
+            for city, city_state in sorted(
+                _CITIES.items(), key=lambda item: len(item[0]), reverse=True
+            ):
+                city_match = re.search(rf"\b{re.escape(city)}\b", text, re.I)
+                if (
+                    city_match
+                    and city_match.start() <= state.start() < city_match.end()
+                    and city_state.casefold() == state.group(1).casefold()
+                ):
+                    return (
+                        city
+                        if city.casefold() == state.group(1).casefold()
+                        else f"{city}, {state.group(1)}"
+                    )
             city_state = re.search(
                 r"\b(?:in|at|near)\s+([A-Z][\w.'-]*(?:\s+[A-Z][\w.'-]*){0,2}),\s*$",
                 city_before,
@@ -328,6 +342,25 @@ def _event_location(title: str, summary: str, event: str | None) -> str | None:
                 if facility_match and foreign_location
                 else ""
             )
+            domestic_site = None
+            if facility_match and foreign_location:
+                for state in _STATE_RE.finditer(span, facility_match.end()):
+                    prefix = span[facility_match.end() : state.start()]
+                    if re.search(
+                        r"\b(?:in|at|near)\s+(?:[A-Z][\w.'-]*(?:\s+[A-Z][\w.'-]*){0,2},\s*)?$",
+                        prefix,
+                    ):
+                        domestic_site = state
+                        break
+            partner_context = bool(
+                domestic_site
+                and re.search(
+                    r"\b(?:with|among|and)\b[^.;]{0,80}\b"
+                    r"(?:partners?|contractors?|suppliers?|investors?)\b",
+                    span[domestic_site.end() : foreign_location.start()],
+                    re.I,
+                )
+            )
             if (
                 facility_match
                 and foreign_location
@@ -335,6 +368,7 @@ def _event_location(title: str, summary: str, event: str | None) -> str | None:
                 and not re.search(
                     r"[.;]|\b(?:headquarters?|HQ|headquartered|based)\b", site_modifier, re.I
                 )
+                and not partner_context
             ):
                 return None
     for span in (event, title):

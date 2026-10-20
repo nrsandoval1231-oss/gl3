@@ -120,6 +120,15 @@ def test_explicit_foreign_project_site_wins_us_state_token_and_hq_control() -> N
     assert foreign_site.decision == "rejected"
     assert foreign_site.location is None
 
+    partner_abroad = assess_news(
+        "Atlas builds a factory in Texas with partners in Tokyo, Japan", None
+    )
+    assert (partner_abroad.decision, partner_abroad.tier, partner_abroad.location) == (
+        "accepted",
+        "Signal",
+        "Texas",
+    )
+
     # A foreign actor headquarters does not override a project explicitly in Texas.
     domestic_site = assess_news("Japan-based Atlas builds a factory in Texas", None)
     assert (domestic_site.decision, domestic_site.tier, domestic_site.location) == (
@@ -131,6 +140,10 @@ def test_explicit_foreign_project_site_wins_us_state_token_and_hq_control() -> N
 
 def test_actor_hq_geography_never_establishes_the_facility_location() -> None:
     cases = [
+        (
+            "Texas-based Atlas builds a data center in Japan",
+            "Atlas headquarters are in Dallas.",
+        ),
         (
             "Texas-based Atlas builds a manufacturing plant in Shanghai",
             "Atlas headquarters are in Dallas.",

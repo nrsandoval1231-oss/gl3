@@ -162,6 +162,14 @@ def _fact_rows(session: Session) -> Sequence[Row[tuple[CallFactDecision, CallFac
     ).all()
 
 
+def _effective_date_iso(value: datetime | None) -> str | None:
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=UTC)
+    return value.astimezone(UTC).isoformat()
+
+
 def _fact_projections(session: Session, acknowledged: set[str]) -> list[dict]:
     rows = _fact_rows(session)
     rows = sorted(rows, key=lambda row: row[0].version)
@@ -210,12 +218,8 @@ def _fact_projections(session: Session, acknowledged: set[str]) -> list[dict]:
                 return {
                     "fact_type": version.fact_type,
                     "value": version.value,
-                    "effective_from": (
-                        version.effective_from.isoformat() if version.effective_from else None
-                    ),
-                    "effective_until": (
-                        version.effective_until.isoformat() if version.effective_until else None
-                    ),
+                    "effective_from": _effective_date_iso(version.effective_from),
+                    "effective_until": _effective_date_iso(version.effective_until),
                 }
 
             before_value = fact_state(before_fact) if before_fact is not None else None
