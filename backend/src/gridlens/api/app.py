@@ -14,7 +14,7 @@ from zoneinfo import ZoneInfo
 from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field, SecretStr
-from sqlalchemy import Date, Text, and_, cast, func, or_, select
+from sqlalchemy import Date, Text, and_, cast, func, or_, select, text
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import joinedload
 
@@ -83,6 +83,7 @@ from gridlens.intelligence.opportunity_browse import (
     project_title as opportunity_project_title,
 )
 from gridlens.intelligence.project_state import project_state as read_project_state
+from gridlens.intelligence.saved_browse import current_generation
 from gridlens.intelligence.signal_adjudication import POLICY_VERSION, adjudicate_current_signals
 from gridlens.intelligence.snapshot_presence import absent_need_ids
 from gridlens.jobs.queue import enqueue
@@ -3896,15 +3897,33 @@ class SignalDecisionCountsOut(BaseModel):
 def signal_decision_counts():
     """Count active Signal opportunity records using the same lifecycle policy as browse."""
     counts = {"show": 0, "review": 0, "hold": 0, "unadjudicated": 0}
-    offset = 0
-    while True:
-        cohort = opportunities(tier="Signal", limit=50, offset=offset)
-        for item in cohort:
-            decision = item["signal_display_decision"]
-            counts[decision.casefold() if decision else "unadjudicated"] += 1
-        if len(cohort) < 50:
-            break
-        offset += len(cohort)
+    with SessionLocal() as session:
+        _begin_consistent_read(session)
+        if settings.saved_browse_enabled:
+            generation = current_generation(session)
+            rows = session.execute(
+                text(
+                    "SELECT compact->>'signal_display_decision' AS decision, count(*) "
+                    "FROM browse_rows WHERE generation_id=:generation AND tier='Signal' "
+                    "GROUP BY 1"
+                ),
+                {"generation": generation.id},
+            )
+            for decision, count in rows:
+                key = decision.casefold() if decision else "unadjudicated"
+                counts[key] += count
+        else:
+            summaries = opportunity_projection(session, tier="Signal", summary_only=True)
+            need_ids = [UUID(str(item["id"])) for item in summaries]
+            for start in range(0, len(need_ids), 50):
+                details = opportunity_projection(
+                    session,
+                    tier="Signal",
+                    selected_need_ids=set(need_ids[start : start + 50]),
+                )
+                for item in details:
+                    decision = item["signal_display_decision"]
+                    counts[decision.casefold() if decision else "unadjudicated"] += 1
     return counts
 
 
@@ -4210,6 +4229,34 @@ def _validate_need_scope(session, need_id: UUID, project_id: UUID, pursuit_id: U
     return need, project, pursuit
 
 
+def _validate_current_fact_predecessor(
+    session, predecessor: CallFactVersion, need: PowerNeed, *, fact_type: str, facility: str
+) -> None:
+    if (
+        predecessor.project_id != need.project_id
+        or predecessor.fact_type != fact_type
+        or predecessor.activity_key != need.activity_key
+        or " ".join(predecessor.facility_scope.split()).casefold() != facility.casefold()
+    ):
+        raise HTTPException(
+            409, "Correction predecessor must match the exact fact type, activity and facility"
+        )
+    latest = session.scalar(
+        select(CallFactDecision)
+        .where(CallFactDecision.fact_version_id == predecessor.id)
+        .order_by(CallFactDecision.version.desc())
+        .limit(1)
+    )
+    now = evaluation_now(datetime.now(UTC))
+    if (
+        latest is None
+        or latest.decision not in {"accepted", "corrected"}
+        or predecessor.effective_from > now
+        or predecessor.effective_until is not None and predecessor.effective_until <= now
+    ):
+        raise HTTPException(409, "Correction predecessor is not a current accepted fact")
+
+
 def _fact_version_view(row: CallFactVersion, decision: CallFactDecision | None):
     return {
         "id": row.id,
@@ -4503,6 +4550,9 @@ def create_need_call_fact(need_id: UUID, body: CallFactDraftBody, request: Reque
             predecessor = session.get(CallFactVersion, body.predecessor_id)
             if predecessor is None or predecessor.need_id != need.id:
                 raise HTTPException(404, "Predecessor fact is outside this exact need")
+            _validate_current_fact_predecessor(
+                session, predecessor, need, fact_type=body.fact_type, facility=facility
+            )
         row = CallFactVersion(
             need_id=need.id,
             project_id=project.id,
@@ -4601,9 +4651,24 @@ def decide_need_call_fact(
         if body.decision == "corrected":
             if row.predecessor_id is None:
                 raise HTTPException(422, "A corrected version must identify its predecessor")
+            row_decision = session.scalar(
+                select(CallFactDecision)
+                .where(CallFactDecision.fact_version_id == row.id)
+                .order_by(CallFactDecision.version.desc())
+                .limit(1)
+            )
+            if row_decision is None or row_decision.decision != "draft":
+                raise HTTPException(409, "Only a current draft correction can be accepted")
             predecessor = session.get(CallFactVersion, row.predecessor_id)
             if predecessor is None or predecessor.need_id != need.id:
                 raise HTTPException(409, "Correction predecessor is invalid")
+            _validate_current_fact_predecessor(
+                session,
+                predecessor,
+                need,
+                fact_type=row.fact_type,
+                facility=row.facility_scope,
+            )
             session.add(
                 CallFactDecision(
                     need_id=need.id,

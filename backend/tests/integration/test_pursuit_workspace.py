@@ -1,16 +1,17 @@
 """Saved need-level workspace tests over an isolated disposable PostgreSQL schema."""
 
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from uuid import UUID
 
 import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
-from sqlalchemy import event, select
+from sqlalchemy import event, select, text
 
 from gridlens.intelligence.pursuit_workspace import page
 from gridlens.intelligence.saved_browse import rebuild
-from gridlens.persistence.models import BrowseRow
+from gridlens.persistence.models import BrowseRow, BrowseState
 
 pytest_plugins = ["test_saved_browse"]
 
@@ -325,6 +326,71 @@ def test_workspace_facets_unknowns_and_stable_sort_use_saved_row_fixture(saved_d
         assert len(set(ordered_ids)) == 55
 
 
+def test_workspace_endpoint_orders_rank_78_before_rank_25_across_pages(saved_db):
+    from datetime import UTC, datetime
+
+    from fastapi.testclient import TestClient
+    from test_saved_browse import seed
+
+    from gridlens.api import app as api
+    need_ids = seed(saved_db, count=5, histories=1)
+    assert rebuild(saved_db)["status"] == "published"
+    with saved_db.begin() as session:
+        generation_id = session.get(BrowseState, 1).generation_id
+        rows = [session.get(BrowseRow, (generation_id, need_id)) for need_id in need_ids[:4]]
+        assert all(rows)
+        session.execute(
+            text("UPDATE browse_rows SET rank_score=0 WHERE generation_id=:generation"),
+            {"generation": generation_id},
+        )
+        session.flush()
+        rows = [session.get(BrowseRow, (generation_id, need_id)) for need_id in need_ids[:4]]
+        for row, industry, score, commercial_segment in (
+            (rows[0], "industrial", 78, 8),
+            (rows[1], "industrial", 78, 8),
+            (rows[2], "data_center", 25, 0),
+            (rows[3], "industrial", 10, 8),
+        ):
+            row.industry = industry
+            row.rank_score = score
+            row.commercial_segment = commercial_segment
+            row.updated_at = datetime(2026, 10, 1, tzinfo=UTC)
+            row.compact = {
+                **row.compact,
+                "industry": industry,
+                "asset_type": industry,
+                "rank_score": score,
+                "rank_reasons": ["Fixture rank scenario"],
+            }
+    client = TestClient(api.app, base_url="https://testserver")
+    from gridlens.security import token_for
+
+    client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
+    first_response = client.get("/api/opportunities/workspace?limit=1")
+    assert first_response.status_code == 200, first_response.text
+    first = first_response.json()
+    token = first["cohort_token"]
+    second_response = client.get(
+        f"/api/opportunities/workspace?limit=1&offset=1&cohort_token={token}"
+    )
+    assert second_response.status_code == 200, second_response.text
+    second = second_response.json()
+    assert first["total"] == 5
+    expected_tied_ids = sorted(str(need_id) for need_id in need_ids[:2])
+    assert [item["rank_score"] for item in first["items"] + second["items"]] == [78, 78]
+    assert [item["id"] for item in first["items"] + second["items"]] == expected_tied_ids
+    third_response = client.get(
+        f"/api/opportunities/workspace?limit=1&offset=2&cohort_token={token}"
+    )
+    assert third_response.status_code == 200, third_response.text
+    third_items = third_response.json()["items"]
+    assert third_items[0]["rank_score"] == 25
+    assert third_items[0]["id"] in {str(need_id) for need_id in need_ids[:4]}
+    assert [item["id"] for item in first["items"] + second["items"]][:2] == sorted(
+        str(need_id) for need_id in need_ids[:2]
+    )
+
+
 def test_workspace_route_rejects_bad_sort_unknown_parameter_and_huge_mw(saved_db):
     from datetime import UTC, datetime
 
@@ -352,28 +418,77 @@ def test_workspace_route_requires_authentication():
     assert response.status_code == 401
 
 
-def test_signal_decision_counts_cover_all_pages_of_active_signal_cohort(monkeypatch):
+def test_signal_decision_counts_aggregate_full_active_cohort(saved_db, monkeypatch):
+    from fastapi.testclient import TestClient
+    from test_saved_browse import seed
+
     from gridlens.api import app as api
+    from gridlens.persistence.models import BrowseGeneration, BrowseRow, PowerNeed
+    from gridlens.security import token_for
+    from gridlens.settings import settings
 
-    pages = {
-        0: [{"signal_display_decision": "SHOW"} for _ in range(50)],
-        50: [
-            {"signal_display_decision": "REVIEW"},
-            {"signal_display_decision": None},
-        ],
-    }
-    requested_offsets = []
-
-    def opportunity_page(*, tier, limit, offset):
-        assert tier == "Signal" and limit == 50
-        requested_offsets.append(offset)
-        return pages.get(offset, [])
-
-    monkeypatch.setattr(api, "opportunities", opportunity_page)
-    assert api.signal_decision_counts() == {
-        "show": 50,
+    monkeypatch.setattr(settings, "saved_browse_enabled", True)
+    need_ids = seed(saved_db, count=60, histories=1)
+    with saved_db.begin() as session:
+        for need_id in need_ids[-8:]:
+            session.get(PowerNeed, need_id).active = False
+    assert rebuild(saved_db)["status"] == "published"
+    with saved_db.begin() as session:
+        rows = list(session.scalars(select(BrowseRow).order_by(BrowseRow.need_id)))
+        signal_rows = [row for row in rows if row.tier == "Signal"]
+        assert len(signal_rows) == 52
+        signal_rows[0].tier = "Lead"
+        for index, row in enumerate(signal_rows[1:]):
+            if index < 48:
+                decision = "SHOW"
+            elif index == 48:
+                decision = "REVIEW"
+            elif index == 49:
+                decision = "HOLD"
+            else:
+                decision = None
+            row.compact = {**row.compact, "signal_display_decision": decision}
+    client = TestClient(api.app, base_url="https://testserver")
+    client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
+    response = client.get("/api/signals/decisions")
+    assert response.status_code == 200, response.text
+    assert response.json() == {
+        "show": 48,
         "review": 1,
-        "hold": 0,
+        "hold": 1,
         "unadjudicated": 1,
     }
-    assert requested_offsets == [0, 50]
+    with saved_db.begin() as session:
+        generation = session.scalar(select(BrowseGeneration).limit(1))
+        generation.valid_until = datetime.now(UTC) - timedelta(seconds=1)
+    stale_response = client.get("/api/signals/decisions")
+    assert stale_response.status_code == 503
+
+
+def test_signal_decision_counts_uses_canonical_cohort_when_saved_browse_is_disabled(
+    saved_db, monkeypatch
+):
+    from fastapi.testclient import TestClient
+    from test_saved_browse import seed
+
+    from gridlens.api import app as api
+    from gridlens.persistence.models import PowerNeed
+    from gridlens.security import token_for
+    from gridlens.settings import settings
+
+    need_ids = seed(saved_db, count=60, histories=1)
+    with saved_db.begin() as session:
+        for need_id in need_ids[-8:]:
+            session.get(PowerNeed, need_id).active = False
+    monkeypatch.setattr(settings, "saved_browse_enabled", False)
+    monkeypatch.setattr(
+        api,
+        "current_generation",
+        lambda _session: (_ for _ in ()).throw(AssertionError("disabled path used saved browse")),
+    )
+    client = TestClient(api.app, base_url="https://testserver")
+    client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
+    response = client.get("/api/signals/decisions")
+    assert response.status_code == 200, response.text
+    counts = response.json()
+    assert sum(counts.values()) == 52

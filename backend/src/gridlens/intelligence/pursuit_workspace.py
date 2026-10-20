@@ -75,9 +75,7 @@ def page(session, filters: dict[str, Any], *, limit: int, offset: int, token: st
     if disposition:
         params["disposition"] = disposition
     sort_sql = {
-        "priority": (
-            "commercial_segment, commercial_geography, commercial_date, project_id, need_id"
-        ),
+        "priority": "rank_score DESC, updated_at DESC, need_id",
         "project": "lower(display_title), display_title, need_id",
         "mw": "mw_low DESC NULLS LAST, need_id",
         "start": (
