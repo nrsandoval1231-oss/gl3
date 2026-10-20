@@ -4105,13 +4105,35 @@ def _process_collection_only(
                 if current_source is not None
                 else None
             )
-            if current_admission and current_admission.admitted:
-                counts["signals"] += int(interpretation.assessment.get("tier") == "Signal")
-            if (
+            assessment = interpretation.assessment
+            current_need = session.scalar(
+                select(PowerNeed)
+                .join(NeedObservation, NeedObservation.need_id == PowerNeed.id)
+                .join(Project, Project.id == PowerNeed.project_id)
+                .where(
+                    NeedObservation.observation_id == observation.id,
+                    PowerNeed.active.is_(True),
+                    PowerNeed.activity_key == assessment.get("power_activity"),
+                    Project.identity_key == assessment.get("project_identity_key"),
+                )
+            )
+            current_project = (
+                session.get(Project, current_need.project_id) if current_need else None
+            )
+            supported = bool(
                 current_admission
                 and current_admission.admitted
-                and interpretation.assessment.get("tier") == "Signal"
-            ):
+                and assessment.get("tier") == "Signal"
+                and assessment.get("semantic_hash") == observation.content_hash
+                and assessment.get("evidence_hash") == evidence.content_hash
+                and assessment.get("admission_status")
+                not in {"supplement_unknown", "supplement_unmatched", "research_quarantine"}
+                and current_need
+                and current_project
+                and _need_has_current_support(session, current_need, current_project)
+            )
+            if supported:
+                counts["signals"] += 1
                 adjudicate_signal(session, observation, evidence)
         if not changed_decision:
             job = assert_fence(session, job_id, worker_id, fence)

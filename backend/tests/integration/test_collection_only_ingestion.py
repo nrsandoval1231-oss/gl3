@@ -540,7 +540,7 @@ def _project_record(
     }
 
 
-def test_applied_digital_news_is_retained_as_context_without_standalone_need(db, monkeypatch):
+def test_applied_digital_news_admits_unknown_power_signal(db, monkeypatch):
     _, factory, _ = db
     job_id = _rss_source_job(factory, "applied-digital-news", "Applied Digital News")
     import gridlens.ingestion.service as service
@@ -566,9 +566,9 @@ def test_applied_digital_news_is_retained_as_context_without_standalone_need(db,
         assert interpretation and interpretation.status == "accepted"
         assert interpretation.assessment["action"] == "will be built"
         assert interpretation.assessment["power_activity"] == "construction"
-        assert interpretation.assessment["admission_status"] == "supplement_unmatched"
-        assert need is None and project_count == 0
-        assert counts["signals"] == 0
+        assert need and project_count == 1
+        assert need.tier == "Signal" and need.required_mw is None and need.supply == "Unknown"
+        assert counts["signals"] == 1
 
 
 def test_news_identity_does_not_merge_distinct_sites_for_same_company_and_state():
@@ -1687,7 +1687,7 @@ def test_official_same_hash_reassignment_clears_former_project_support_and_keeps
 
 
 @pytest.mark.parametrize("prospect_first", [True, False])
-def test_news_only_signal_and_prospect_claims_never_create_a_need(db, monkeypatch, prospect_first):
+def test_news_only_signal_creates_need_without_prospect_promotion(db, monkeypatch, prospect_first):
     _, factory, _ = db
     prospect_job = _rss_source_job(factory, "atlas-prospect-news", "Atlas Prospect News")
     signal_job = _rss_source_job(factory, "atlas-signal-news", "Atlas Signal News")
@@ -1726,16 +1726,17 @@ def test_news_only_signal_and_prospect_claims_never_create_a_need(db, monkeypatc
     for source_id in order:
         ingest(source_id)
     with factory() as session:
-        assert session.scalar(select(func.count()).select_from(Project)) == 0
-        assert session.scalar(select(func.count()).select_from(PowerNeed)) == 0
-        assert session.scalar(select(func.count()).select_from(NeedObservation)) == 0
+        assert session.scalar(select(func.count()).select_from(Project)) == 1
+        assert session.scalar(select(func.count()).select_from(PowerNeed)) == 1
+        need = session.scalar(select(PowerNeed))
+        assert need.tier == "Signal" and need.required_mw is None and need.supply == "Unknown"
         signal_assessment = session.scalar(
             select(Interpretation.assessment)
             .join(Observation)
             .where(Observation.source_id == "atlas-signal-news")
         )
         assert signal_assessment and signal_assessment["tier"] == "Signal"
-        assert signal_assessment["admission_status"] == "supplement_unmatched"
+        assert signal_assessment["power_activity"] == "construction"
         prospect_row = session.scalar(
             select(Observation).where(Observation.source_id == "atlas-prospect-news")
         )
@@ -1752,11 +1753,11 @@ def test_news_only_signal_and_prospect_claims_never_create_a_need(db, monkeypatc
     assert ingest("atlas-prospect-news")["changed"] == 1
     with factory() as session:
         assert session.scalar(select(func.count()).select_from(Evidence)) == 3
-        assert session.scalar(select(func.count()).select_from(Project)) == 0
-        assert session.scalar(select(func.count()).select_from(PowerNeed)) == 0
+        assert session.scalar(select(func.count()).select_from(Project)) == 1
+        assert session.scalar(select(func.count()).select_from(PowerNeed)) == 1
 
 
-def test_news_only_duplicate_correction_and_replay_preserve_evidence_without_needs(db, monkeypatch):
+def test_news_only_duplicate_correction_and_replay_preserve_supported_need(db, monkeypatch):
     _, factory, _ = db
     dcd_job = _rss_source_job(factory, "dcd-news", "Data Center Dynamics")
     utility_job = _rss_source_job(factory, "utility-dive-news", "Utility Dive")
@@ -1768,12 +1769,12 @@ def test_news_only_duplicate_correction_and_replay_preserve_evidence_without_nee
         initial = service.process_job(
             session, dcd_job, "test", 1, {"id": "dcd-news", "retrieval_method": "publisher-rss"}
         )
-    assert initial["signals"] == 0
+    assert initial["signals"] == 1
     with factory() as session:
         replay = service.process_job(
             session, dcd_job, "test", 1, {"id": "dcd-news", "retrieval_method": "publisher-rss"}
         )
-    assert replay["signals"] == 0
+    assert replay["signals"] == 1
 
     # Exact title/summary duplicate from another configured feed links to the same event.
     monkeypatch.setattr(service, "retrieve_source", lambda *_args: [first])
@@ -1786,10 +1787,9 @@ def test_news_only_duplicate_correction_and_replay_preserve_evidence_without_nee
             {"id": "utility-dive-news", "retrieval_method": "publisher-rss"},
         )
     with factory() as session:
-        assert session.scalar(select(func.count()).select_from(Project)) == 0
-        assert session.scalar(select(func.count()).select_from(PowerNeed)) == 0
-        assert session.scalar(select(func.count()).select_from(NeedObservation)) == 0
-        assert session.scalar(select(func.count()).select_from(ChangeEvent)) == 0
+        assert session.scalar(select(func.count()).select_from(Project)) == 1
+        assert session.scalar(select(func.count()).select_from(PowerNeed)) == 1
+        assert session.scalar(select(func.count()).select_from(NeedObservation)) == 2
 
     # One source correction preserves the need while the second cited source remains current.
     corrected = _project_record(
@@ -1802,8 +1802,8 @@ def test_news_only_duplicate_correction_and_replay_preserve_evidence_without_nee
         )
     with factory() as session:
         need = session.scalar(select(PowerNeed))
-        assert need is None
-        assert session.scalar(select(func.count()).select_from(Project)) == 0
+        assert need is not None and need.active
+        assert session.scalar(select(func.count()).select_from(Project)) == 1
         assert session.scalar(select(func.count()).select_from(Evidence)) == 3
         interpretation = session.scalar(
             select(Interpretation).join(Observation).where(Observation.source_id == "dcd-news")
@@ -1825,8 +1825,8 @@ def test_news_only_duplicate_correction_and_replay_preserve_evidence_without_nee
         )
     with factory() as session:
         need = session.scalar(select(PowerNeed))
-        assert need is None
-        assert session.scalar(select(func.count()).select_from(Project)) == 0
+        assert need is not None and not need.active
+        assert session.scalar(select(func.count()).select_from(Project)) == 1
         assert session.scalar(select(func.count()).select_from(Evidence)) == 4
         event_count = session.scalar(select(func.count()).select_from(ChangeEvent))
 
@@ -1960,13 +1960,13 @@ def test_current_rss_supplement_matches_permit_by_explicit_project_and_site(
             )
 
     if news_first:
-        assert ingest(news_source_id)["signals"] == 0
+        assert ingest(news_source_id)["signals"] == 1
         assert ingest(permit_source_id)["permit_accepted"] == 1
         news_counts = ingest(news_source_id)  # Replays the unchanged item after the permit arrives.
     else:
         assert ingest(permit_source_id)["permit_accepted"] == 1
         news_counts = ingest(news_source_id)
-    assert news_counts["signals"] == 0
+    assert news_counts["signals"] == (1 if news_first else 0)
     with factory() as session:
         assert session.scalar(select(func.count()).select_from(Project)) == 1
         assert session.scalar(select(func.count()).select_from(PowerNeed)) == 1
@@ -1978,7 +1978,11 @@ def test_current_rss_supplement_matches_permit_by_explicit_project_and_site(
         assert project and project.identity_facts["project_aliases"] == [
             "Northstar Mesa data center"
         ]
-        assert need and need.activity_key == "facility-expansion" and need.tier == "Signal"
+        assert need and need.activity_key == (
+            "construction" if news_first else "facility-expansion"
+        )
+        assert need.tier == "Signal"
+        old_need_id = need.id
         assert need.required_mw is None and need.supply == "Unknown"
         assert need.admission_basis["origin"] == "Official permit"
         news_observation = session.scalar(
@@ -1987,7 +1991,14 @@ def test_current_rss_supplement_matches_permit_by_explicit_project_and_site(
         assert news_observation is not None
         decision = session.scalar(
             select(ProjectMatchDecision).where(
-                ProjectMatchDecision.observation_id == news_observation.id,
+                ProjectMatchDecision.observation_id
+                == (
+                    session.scalar(
+                        select(Observation.id).where(Observation.source_id == permit_source_id)
+                    )
+                    if news_first
+                    else news_observation.id
+                ),
                 ProjectMatchDecision.candidate_project_id == project.id,
             )
         )
@@ -2013,15 +2024,20 @@ def test_current_rss_supplement_matches_permit_by_explicit_project_and_site(
                 ),
             )
         )
-        assert display_decision is None
+        if not news_phase and not news_first:
+            assert display_decision is None
         assessment = session.scalar(
             select(Interpretation.assessment)
             .join(Observation)
             .where(Observation.source_id == news_source_id)
         )
-        assert assessment and assessment["admission_status"] == (
-            "supplement_unknown" if news_phase else "supplemental"
-        )
+        assert assessment
+        if news_first:
+            assert assessment["decision"] == "accepted"
+        else:
+            assert assessment["admission_status"] == (
+                "supplement_unknown" if news_phase else "supplemental"
+            )
         if not news_phase:
             assert "physical address" in decision.reason
             assert "project name/alias" in decision.reason
@@ -2050,15 +2066,15 @@ def test_current_rss_supplement_matches_permit_by_explicit_project_and_site(
             {"id": news_source_id, "retrieval_method": "publisher-rss"},
         )
     with factory() as session:
-        need = session.scalar(select(PowerNeed))
+        need = session.get(PowerNeed, old_need_id)
         assert need and need.active
         assert session.scalar(select(func.count()).select_from(NeedObservation)) == (
-            1 if news_phase else 2
+            2 if news_phase else 3
         )
         current_news = session.scalar(
             select(Interpretation).join(Observation).where(Observation.source_id == news_source_id)
         )
-        assert current_news.assessment["admission_status"] != "supplemental"
+        assert current_news.assessment.get("admission_status") != "supplemental"
         assert current_news.assessment["subject"] != "Northstar Mesa data center"
     if not news_phase:
         import importlib
@@ -2066,13 +2082,14 @@ def test_current_rss_supplement_matches_permit_by_explicit_project_and_site(
         api_module = importlib.import_module("gridlens.api.app")
         monkeypatch.setattr(api_module, "SessionLocal", factory)
         cards = api_module.opportunities(tier="Signal")
-        assert len(cards) == 1
+        assert len(cards) == 2
+        old_card = next(card for card in cards if card["project_id"] == project.id)
         news_card_evidence = [
-            item for item in cards[0]["evidence"] if item["source_id"] == news_source_id
+            item for item in old_card["evidence"] if item["source_id"] == news_source_id
         ]
         assert news_card_evidence
         assert all(item["assessment_current"] is False for item in news_card_evidence)
-        assert "Another project" not in cards[0]["rationale"]
+        assert "Another project" not in old_card["rationale"]
 
     permit["abstract"] = (
         "address: 100 Main Street, Austin, TX\nproject: Northstar Mesa data center\n"
@@ -2093,13 +2110,13 @@ def test_current_rss_supplement_matches_permit_by_explicit_project_and_site(
         )
     assert permit_counts["permit_rejected"] == 1
     with factory() as session:
-        need = session.scalar(select(PowerNeed))
+        need = session.get(PowerNeed, old_need_id)
         assert need and not need.active
         assert session.scalar(select(func.count()).select_from(NeedObservation)) == (
-            1 if news_phase else 2
+            2 if news_phase else 3
         )
         assert session.scalar(select(func.count()).select_from(Evidence)) == 4
-        assert session.scalar(select(func.count()).select_from(Project)) == 1
+        assert session.scalar(select(func.count()).select_from(Project)) == 2
         stable_event_count = session.scalar(select(func.count()).select_from(ChangeEvent))
     with factory() as session:
         service.process_job(
@@ -2235,7 +2252,7 @@ def test_phase_numbered_same_building_permits_consolidate_but_distinct_buildings
     with factory() as session:
         need = session.scalar(select(PowerNeed).where(PowerNeed.project_id == building_b.id))
         assert need is not None
-        assert need.admission_basis["policy_version"] == "signal-admission-v1"
+        assert need.admission_basis["policy_version"] == "signal-admission-v2"
 
 
 def test_multiple_labeled_rss_sites_keep_record_separate_with_persisted_ambiguity(db, monkeypatch):
@@ -2357,6 +2374,7 @@ def test_multiple_labeled_rss_sites_keep_record_separate_with_persisted_ambiguit
     assert counts["signals"] == 0
     with factory() as session:
         assert session.scalar(select(func.count()).select_from(Project)) == 1
+        assert session.scalar(select(func.count()).select_from(PowerNeed)) == 1
         observation = session.scalar(
             select(Observation).where(Observation.source_id == news_source_id)
         )
@@ -2416,7 +2434,9 @@ def test_rss_fence_loss_after_durable_evidence_is_retryable(db, monkeypatch):
             session, job_id, "test", 1, {"id": "dcd-news", "retrieval_method": "publisher-rss"}
         )
     with factory() as session:
-        assert session.scalar(select(func.count()).select_from(Project)) == 0
+        assert session.scalar(select(func.count()).select_from(Project)) == 1
+        need = session.scalar(select(PowerNeed))
+        assert need.tier == "Signal" and need.required_mw is None and need.supply == "Unknown"
         assert session.scalar(select(Interpretation)).status == "accepted"
 
 
