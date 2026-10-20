@@ -100,6 +100,7 @@ export function WorkspaceDetail({ item, pending, loading, error, tab, onTab, onB
   }, [tab, item?.id])
   if (!item) {
     return <aside className="wh-detail wh-empty-detail" aria-label="Opportunity detail">
+      <button className="wh-back" onClick={onBack}>← Back to power needs</button>
       <p>{pending || loading ? 'Loading verified opportunity detail…' : 'Select a power need to review its evidence, verified facts, and next action.'}</p>
       {error && <p role="alert">{error} <button onClick={onRetry}>Retry</button></p>}
     </aside>
@@ -196,6 +197,7 @@ export function WorkspaceDetail({ item, pending, loading, error, tab, onTab, onB
       {error && <p role="alert">{error} <button onClick={onRetry}>Retry</button></p>}
       {tab === 'Overview' && <>
         <p>{item.commercial_reason || item.assessment_reason || item.rationale || 'No assessment summary is available.'}</p>
+        <section aria-label="Priority explanation"><strong>Priority</strong>{item.rank_score != null ? <p>Canonical rank score: {item.rank_score}{item.rank_version ? ` · ${item.rank_version}` : ''}</p> : <p>Canonical rank score unavailable.</p>}{item.rank_reasons?.length ? <ul>{item.rank_reasons.map((reason, index) => <li key={`${index}:${reason}`}>{reason}</li>)}</ul> : <p>No rank reasons were recorded.</p>}<small>Priority is separate from qualification and commercial disposition.</small></section>
         <p><strong>Next question:</strong> {item.commercial_next_question || 'Unknown'}</p>
         {evidence[0] && <p>Supporting source: <a href={evidence[0].url} target="_blank" rel="noreferrer">{evidence[0].title}</a> · {evidence[0].published_at ?? 'Publication date unknown'}</p>}
       </>}

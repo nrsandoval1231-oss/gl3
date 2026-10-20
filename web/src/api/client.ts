@@ -37,6 +37,11 @@ export type BuyingChainResult = components['schemas']['BuyingChainOut']
 export type Opportunity = components['schemas']['OpportunityOut']
 export type WorkspaceNeed = components['schemas']['PursuitWorkspaceItemOut']
 export type WorkspacePage = components['schemas']['PursuitWorkspacePageOut']
+export type WorkspaceChanges = components['schemas']['WorkspaceChangesOut']
+export type WorkspaceChangeNeed = components['schemas']['WorkspaceChangeNeedOut']
+export type WorkspaceChangesReviewBody = components['schemas']['WorkspaceChangesReviewBody']
+export type WorkspaceChangesReviewReceipt = components['schemas']['WorkspaceChangesReviewReceiptOut']
+export type WorkspaceHistoricalNeed = components['schemas']['WorkspaceHistoricalNeedOut']
 export type WorkspaceFilters = { search?: string; tier?: 'Signal' | 'Prospect' | 'Lead'; disposition?: string; geography?: string; industry?: string; activity?: string; timing?: 'KNOWN' | 'UNKNOWN'; mw_min?: string; mw_max?: string; sort?: 'priority' | 'project' | 'mw' | 'start' | 'updated'; offset?: number; cohort_token?: string }
 export type OpportunityBrowseFilters = {
   geography?: string
@@ -220,6 +225,16 @@ export const client = {
     if (!response.ok) throw new Error(response.status === 503 ? 'The workspace cohort is unavailable. Retry to reload current opportunities.' : `GridLens could not complete this request (${response.status}).`)
     return response.json() as Promise<WorkspacePage>
   },
+  workspaceChanges: (limit = 50, offset = 0, signal?: AbortSignal) => {
+    const params = new URLSearchParams({ limit: String(limit), offset: String(offset) })
+    return api<WorkspaceChanges>(`/api/opportunities/workspace/changes?${params}`, { signal })
+  },
+  reviewWorkspaceChanges: (body: WorkspaceChangesReviewBody) => api<WorkspaceChangesReviewReceipt>(
+    '/api/opportunities/workspace/changes/review', { method: 'POST', body: JSON.stringify(body) }, true,
+  ),
+  workspaceHistoricalNeed: (needId: string, signal?: AbortSignal) => api<WorkspaceHistoricalNeed>(
+    `/api/opportunities/needs/${encodeURIComponent(needId)}/history`, { signal },
+  ),
   pursuits: (signal?: AbortSignal, includeDropped = false, offset = 0) => api<PursuitsResult>(`/api/pursuits${includeDropped ? `?include_dropped=true&offset=${offset}` : ''}`, { signal }),
   refreshPursuits: (force = false) => api<components['schemas']['PursuitJobOut']>(`/api/pursuits/refresh${force ? '?force=true' : ''}`, { method: 'POST' }),
   savePursuitNote: (pursuitId: string, body: CallNoteBody) => api<components['schemas']['CallNoteOut']>(`/api/pursuits/${encodeURIComponent(pursuitId)}/notes`, { method: 'POST', body: JSON.stringify(body) }),

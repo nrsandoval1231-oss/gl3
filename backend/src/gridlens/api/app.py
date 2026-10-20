@@ -15,6 +15,7 @@ from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field, SecretStr
 from sqlalchemy import Date, Text, and_, cast, func, or_, select, text
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import DBAPIError
 from sqlalchemy.orm import joinedload
 
@@ -113,6 +114,8 @@ from gridlens.persistence.models import (
     SourceDueCheck,
     SourceScheduleEpoch,
     WorkerHeartbeat,
+    WorkspaceChangeAcknowledgment,
+    WorkspaceChangeBaseline,
 )
 from gridlens.security import (
     check_password,
@@ -265,6 +268,119 @@ class PursuitWorkspacePageOut(BaseModel):
     cohort_token: str
     count_unit: Literal["power needs"]
     changes_available: bool
+
+
+class WorkspaceChangeCountsOut(BaseModel):
+    discovered: int
+    changed: int
+    promoted: int
+    closed: int
+    review_exception: int
+
+
+class WorkspaceChangeNeedOut(BaseModel):
+    id: UUID
+    name: str
+    location: str | None
+    active: bool
+    tier: str
+
+
+class WorkspaceChangeSourceOut(BaseModel):
+    title: str
+    url: str
+    published_at: date | None
+    event_date: date | None
+    retrieved_at: datetime | None
+    content_hash: str
+
+
+class WorkspaceChangeSourceExceptionOut(BaseModel):
+    source_id: str
+    status: str
+    error: str | None
+    parse_failures: int
+
+
+class WorkspaceChangeItemOut(BaseModel):
+    event_key: str
+    category: Literal["discovered", "changed", "promoted", "closed", "review_exception"]
+    title: str
+    detail: str
+    created_at: datetime
+    source_date: date | None
+    project_id: UUID | None
+    before_state: dict[str, Any] | None
+    after_state: dict[str, Any] | None
+    needs: list[WorkspaceChangeNeedOut]
+    sources: list[WorkspaceChangeSourceOut]
+    transitions: dict[str, str] | None = None
+    fact_version_id: UUID | None = None
+    before_version: int | None = None
+    after_version: int | None = None
+    fact_type: str | None = None
+    decision: str | None = None
+    reason: str | None = None
+    actor: str | None = None
+    confirmed_at: datetime | None = None
+    source_reference: str | None = None
+
+
+class WorkspaceChangesOut(BaseModel):
+    items: list[WorkspaceChangeItemOut]
+    counts: WorkspaceChangeCountsOut
+    total_unreviewed: int
+    offset: int
+    limit: int
+    next_offset: int | None
+    evaluated_at: datetime
+    baseline_identity: UUID
+    baseline_reviewed_at: datetime | None
+    first_use: bool
+    token: str
+    source_health_exceptions: list[WorkspaceChangeSourceExceptionOut]
+
+
+class WorkspaceChangesReviewBody(BaseModel):
+    baseline_identity: UUID
+    token: str = Field(pattern=r"^[0-9a-f]{64}$")
+    limit: int = Field(default=50, ge=1, le=50)
+    offset: int = Field(default=0, ge=0, le=100000)
+
+
+class WorkspaceChangesReviewReceiptOut(BaseModel):
+    baseline_identity: UUID
+    reviewed_at: datetime
+    reviewed_count: int
+    event_keys: list[str]
+    token: str
+    remaining_counts: WorkspaceChangeCountsOut
+
+
+class WorkspaceHistoricalEvidenceOut(BaseModel):
+    title: str
+    url: str
+    published_at: date | None
+    event_date: date | None
+    retrieved_at: datetime
+    content_hash: str
+
+
+class WorkspaceHistoricalNeedOut(BaseModel):
+    id: UUID
+    project_id: UUID
+    name: str
+    location: str | None
+    activity: str
+    active: bool
+    tier: str
+    rationale: str
+    required_mw: str | None
+    start_window: str | None
+    duration: str | None
+    supply: str
+    updated_at: datetime
+    evidence: list[WorkspaceHistoricalEvidenceOut]
 
 
 class CallFactDraftBody(BaseModel):
@@ -3992,6 +4108,191 @@ def changes():
 
 
 @app.get(
+    "/api/opportunities/workspace/changes",
+    response_model=WorkspaceChangesOut,
+    dependencies=[Depends(require_session)],
+)
+def workspace_change_briefing(
+    limit: int = Query(default=50, ge=1, le=50),
+    offset: int = Query(default=0, ge=0, le=100000),
+):
+    from gridlens.intelligence.workspace_changes import (
+        UNINITIALIZED_BASELINE,
+        workspace_changes,
+    )
+
+    with SessionLocal() as session:
+        session.connection(execution_options={"isolation_level": "REPEATABLE READ"})
+        session.execute(text("SET TRANSACTION READ ONLY"))
+        baseline = session.get(WorkspaceChangeBaseline, 1)
+        baseline_identity = baseline.baseline_identity if baseline else UNINITIALIZED_BASELINE
+        result = workspace_changes(
+            session,
+            baseline_identity,
+            limit=limit,
+            offset=offset,
+            evaluated_at=datetime.now(UTC),
+        )
+        result["baseline_reviewed_at"] = baseline.reviewed_at if baseline else None
+        result["first_use"] = baseline is None
+        return result
+
+
+@app.post(
+    "/api/opportunities/workspace/changes/review",
+    response_model=WorkspaceChangesReviewReceiptOut,
+    dependencies=[Depends(require_session)],
+)
+def review_workspace_changes(body: WorkspaceChangesReviewBody, request: Request):
+    from gridlens.intelligence.workspace_changes import (
+        workspace_changes,
+    )
+
+    require_same_origin(request)
+    for attempt in range(3):
+        try:
+            with SessionLocal.begin() as session:
+                session.connection(execution_options={"isolation_level": "REPEATABLE READ"})
+                session.execute(
+                    text(
+                        "INSERT INTO workspace_change_baselines "
+                        "(id, baseline_identity) VALUES (1, :baseline_identity) "
+                        "ON CONFLICT (id) DO NOTHING"
+                    ),
+                    {"baseline_identity": str(body.baseline_identity)},
+                )
+                baseline = session.scalar(
+                    select(WorkspaceChangeBaseline)
+                    .where(WorkspaceChangeBaseline.id == 1)
+                    .with_for_update()
+                )
+                if baseline is None:
+                    raise HTTPException(500, "Workspace review baseline could not be initialized")
+                if body.baseline_identity != baseline.baseline_identity:
+                    raise HTTPException(
+                        409, "Workspace review baseline changed; reload the briefing"
+                    )
+                if baseline.last_token == body.token and baseline.last_receipt is not None:
+                    return baseline.last_receipt
+
+                snapshot = workspace_changes(
+                    session,
+                    baseline.baseline_identity,
+                    limit=body.limit,
+                    offset=body.offset,
+                    evaluated_at=datetime.now(UTC),
+                )
+                if snapshot["token"] != body.token:
+                    raise HTTPException(
+                        409, "Workspace changes changed; reload the briefing before reviewing"
+                    )
+
+                reviewed_at = session.scalar(select(func.clock_timestamp())) or datetime.now(UTC)
+                event_keys = [item["event_key"] for item in snapshot["items"]]
+                if event_keys:
+                    session.execute(
+                        pg_insert(WorkspaceChangeAcknowledgment)
+                        .values(
+                            [
+                                {
+                                    "event_key": event_key,
+                                    "reviewed_at": reviewed_at,
+                                    "review_token": body.token,
+                                }
+                                for event_key in event_keys
+                            ]
+                        )
+                        .on_conflict_do_nothing(
+                            index_elements=[WorkspaceChangeAcknowledgment.event_key]
+                        )
+                    )
+                remaining = workspace_changes(
+                    session,
+                    baseline.baseline_identity,
+                    limit=body.limit,
+                    offset=body.offset,
+                    evaluated_at=reviewed_at,
+                )
+                receipt = {
+                    "baseline_identity": str(baseline.baseline_identity),
+                    "reviewed_at": reviewed_at.isoformat(),
+                    "reviewed_count": len(event_keys),
+                    "event_keys": event_keys,
+                    "token": body.token,
+                    "remaining_counts": remaining["counts"],
+                }
+                baseline.reviewed_at = reviewed_at
+                baseline.last_token = body.token
+                baseline.last_receipt = receipt
+                session.flush()
+                return receipt
+        except DBAPIError as exc:
+            original = exc.orig
+            sqlstate = getattr(original, "sqlstate", None) or getattr(original, "pgcode", None)
+            if sqlstate not in {"40001", "40P01"}:
+                raise
+            if attempt == 2:
+                raise HTTPException(
+                    409, "Workspace review changed concurrently; reload the briefing"
+                ) from exc
+    raise HTTPException(409, "Workspace review changed concurrently; reload the briefing")
+
+
+@app.get(
+    "/api/opportunities/needs/{need_id}/history",
+    response_model=WorkspaceHistoricalNeedOut,
+    dependencies=[Depends(require_session)],
+)
+def workspace_historical_need(need_id: UUID):
+    with SessionLocal() as session:
+        session.connection(execution_options={"isolation_level": "REPEATABLE READ"})
+        need = session.get(PowerNeed, need_id)
+        if need is None:
+            raise HTTPException(404, "Historical power need not found")
+        if need.active:
+            raise HTTPException(
+                409,
+                "Active power needs must be opened through the current workspace readback",
+            )
+        project = session.get(Project, need.project_id)
+        if project is None:
+            raise HTTPException(404, "Historical project not found")
+        evidence_rows = session.scalars(
+            select(Evidence)
+            .join(NeedObservation, NeedObservation.observation_id == Evidence.observation_id)
+            .where(NeedObservation.need_id == need.id)
+            .order_by(Evidence.observed_at.desc(), Evidence.id.desc())
+            .limit(10)
+        ).all()
+        return {
+            "id": need.id,
+            "project_id": project.id,
+            "name": project.name,
+            "location": project.location,
+            "activity": need.activity_key,
+            "active": need.active,
+            "tier": need.tier,
+            "rationale": need.rationale,
+            "required_mw": need.required_mw,
+            "start_window": need.start_window,
+            "duration": need.duration,
+            "supply": need.supply,
+            "updated_at": need.updated_at,
+            "evidence": [
+                {
+                    "title": evidence.title,
+                    "url": evidence.url,
+                    "published_at": evidence.published_at,
+                    "event_date": evidence.event_date,
+                    "retrieved_at": evidence.observed_at,
+                    "content_hash": evidence.content_hash,
+                }
+                for evidence in evidence_rows
+            ],
+        }
+
+
+@app.get(
     "/api/projects/{project_id}/state",
     response_model=ProjectStateOut,
     dependencies=[Depends(require_session)],
@@ -4252,7 +4553,8 @@ def _validate_current_fact_predecessor(
         latest is None
         or latest.decision not in {"accepted", "corrected"}
         or predecessor.effective_from > now
-        or predecessor.effective_until is not None and predecessor.effective_until <= now
+        or predecessor.effective_until is not None
+        and predecessor.effective_until <= now
     ):
         raise HTTPException(409, "Correction predecessor is not a current accepted fact")
 

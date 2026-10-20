@@ -468,6 +468,57 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/opportunities/workspace/changes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Workspace Change Briefing */
+        get: operations["workspace_change_briefing_api_opportunities_workspace_changes_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/opportunities/workspace/changes/review": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Review Workspace Changes */
+        post: operations["review_workspace_changes_api_opportunities_workspace_changes_review_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/opportunities/needs/{need_id}/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Workspace Historical Need */
+        get: operations["workspace_historical_need_api_opportunities_needs__need_id__history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/projects/{project_id}/state": {
         parameters: {
             query?: never;
@@ -3518,6 +3569,248 @@ export interface components {
             /** Record Ids */
             record_ids?: string[];
         };
+        /** WorkspaceChangeCountsOut */
+        WorkspaceChangeCountsOut: {
+            /** Discovered */
+            discovered: number;
+            /** Changed */
+            changed: number;
+            /** Promoted */
+            promoted: number;
+            /** Closed */
+            closed: number;
+            /** Review Exception */
+            review_exception: number;
+        };
+        /** WorkspaceChangeItemOut */
+        WorkspaceChangeItemOut: {
+            /** Event Key */
+            event_key: string;
+            /**
+             * Category
+             * @enum {string}
+             */
+            category: "discovered" | "changed" | "promoted" | "closed" | "review_exception";
+            /** Title */
+            title: string;
+            /** Detail */
+            detail: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Source Date */
+            source_date: string | null;
+            /** Project Id */
+            project_id: string | null;
+            /** Before State */
+            before_state: {
+                [key: string]: unknown;
+            } | null;
+            /** After State */
+            after_state: {
+                [key: string]: unknown;
+            } | null;
+            /** Needs */
+            needs: components["schemas"]["WorkspaceChangeNeedOut"][];
+            /** Sources */
+            sources: components["schemas"]["WorkspaceChangeSourceOut"][];
+            /** Transitions */
+            transitions?: {
+                [key: string]: string;
+            } | null;
+            /** Fact Version Id */
+            fact_version_id?: string | null;
+            /** Before Version */
+            before_version?: number | null;
+            /** After Version */
+            after_version?: number | null;
+            /** Fact Type */
+            fact_type?: string | null;
+            /** Decision */
+            decision?: string | null;
+            /** Reason */
+            reason?: string | null;
+            /** Actor */
+            actor?: string | null;
+            /** Confirmed At */
+            confirmed_at?: string | null;
+            /** Source Reference */
+            source_reference?: string | null;
+        };
+        /** WorkspaceChangeNeedOut */
+        WorkspaceChangeNeedOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Location */
+            location: string | null;
+            /** Active */
+            active: boolean;
+            /** Tier */
+            tier: string;
+        };
+        /** WorkspaceChangeSourceExceptionOut */
+        WorkspaceChangeSourceExceptionOut: {
+            /** Source Id */
+            source_id: string;
+            /** Status */
+            status: string;
+            /** Error */
+            error: string | null;
+            /** Parse Failures */
+            parse_failures: number;
+        };
+        /** WorkspaceChangeSourceOut */
+        WorkspaceChangeSourceOut: {
+            /** Title */
+            title: string;
+            /** Url */
+            url: string;
+            /** Published At */
+            published_at: string | null;
+            /** Event Date */
+            event_date: string | null;
+            /** Retrieved At */
+            retrieved_at: string | null;
+            /** Content Hash */
+            content_hash: string;
+        };
+        /** WorkspaceChangesOut */
+        WorkspaceChangesOut: {
+            /** Items */
+            items: components["schemas"]["WorkspaceChangeItemOut"][];
+            counts: components["schemas"]["WorkspaceChangeCountsOut"];
+            /** Total Unreviewed */
+            total_unreviewed: number;
+            /** Offset */
+            offset: number;
+            /** Limit */
+            limit: number;
+            /** Next Offset */
+            next_offset: number | null;
+            /**
+             * Evaluated At
+             * Format: date-time
+             */
+            evaluated_at: string;
+            /**
+             * Baseline Identity
+             * Format: uuid
+             */
+            baseline_identity: string;
+            /** Baseline Reviewed At */
+            baseline_reviewed_at: string | null;
+            /** First Use */
+            first_use: boolean;
+            /** Token */
+            token: string;
+            /** Source Health Exceptions */
+            source_health_exceptions: components["schemas"]["WorkspaceChangeSourceExceptionOut"][];
+        };
+        /** WorkspaceChangesReviewBody */
+        WorkspaceChangesReviewBody: {
+            /**
+             * Baseline Identity
+             * Format: uuid
+             */
+            baseline_identity: string;
+            /** Token */
+            token: string;
+            /**
+             * Limit
+             * @default 50
+             */
+            limit: number;
+            /**
+             * Offset
+             * @default 0
+             */
+            offset: number;
+        };
+        /** WorkspaceChangesReviewReceiptOut */
+        WorkspaceChangesReviewReceiptOut: {
+            /**
+             * Baseline Identity
+             * Format: uuid
+             */
+            baseline_identity: string;
+            /**
+             * Reviewed At
+             * Format: date-time
+             */
+            reviewed_at: string;
+            /** Reviewed Count */
+            reviewed_count: number;
+            /** Event Keys */
+            event_keys: string[];
+            /** Token */
+            token: string;
+            remaining_counts: components["schemas"]["WorkspaceChangeCountsOut"];
+        };
+        /** WorkspaceHistoricalEvidenceOut */
+        WorkspaceHistoricalEvidenceOut: {
+            /** Title */
+            title: string;
+            /** Url */
+            url: string;
+            /** Published At */
+            published_at: string | null;
+            /** Event Date */
+            event_date: string | null;
+            /**
+             * Retrieved At
+             * Format: date-time
+             */
+            retrieved_at: string;
+            /** Content Hash */
+            content_hash: string;
+        };
+        /** WorkspaceHistoricalNeedOut */
+        WorkspaceHistoricalNeedOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /** Name */
+            name: string;
+            /** Location */
+            location: string | null;
+            /** Activity */
+            activity: string;
+            /** Active */
+            active: boolean;
+            /** Tier */
+            tier: string;
+            /** Rationale */
+            rationale: string;
+            /** Required Mw */
+            required_mw: string | null;
+            /** Start Window */
+            start_window: string | null;
+            /** Duration */
+            duration: string | null;
+            /** Supply */
+            supply: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Evidence */
+            evidence: components["schemas"]["WorkspaceHistoricalEvidenceOut"][];
+        };
     };
     responses: never;
     parameters: never;
@@ -4370,6 +4663,102 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ChangeOut"][];
+                };
+            };
+        };
+    };
+    workspace_change_briefing_api_opportunities_workspace_changes_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceChangesOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    review_workspace_changes_api_opportunities_workspace_changes_review_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WorkspaceChangesReviewBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceChangesReviewReceiptOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    workspace_historical_need_api_opportunities_needs__need_id__history_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                need_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceHistoricalNeedOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
