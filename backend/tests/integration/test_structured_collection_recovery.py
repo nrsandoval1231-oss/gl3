@@ -154,9 +154,7 @@ def test_process_job_resumes_modified_history_after_long_outage(structured_db):
         )
 
     with httpx.Client(transport=httpx.MockTransport(handler)) as client, factory() as session:
-        counts = process_job(
-            session, job_id, "test", 1, source_definition, client
-        )
+        counts = process_job(session, job_id, "test", 1, source_definition, client)
 
     assert counts["collection_lane"] == "modified_history"
     assert counts["collection_window_start"] == next_modified_day.isoformat()
@@ -212,9 +210,7 @@ def test_process_job_resumes_modified_history_after_long_outage(structured_db):
         httpx.Client(transport=httpx.MockTransport(empty_day_handler)) as client,
         factory() as session,
     ):
-        resumed = process_job(
-            session, restarted_job_id, "test", 1, source_definition, client
-        )
+        resumed = process_job(session, restarted_job_id, "test", 1, source_definition, client)
     assert resumed["collection_lane"] == "modified_history"
     assert resumed["collection_continuation"] is True
     with factory() as session:
@@ -266,11 +262,14 @@ def test_process_job_rejects_disabled_source_or_stale_fence_before_fetch(
         job_id = job.id
 
     requests: list[httpx.Request] = []
-    with httpx.Client(
-        transport=httpx.MockTransport(
-            lambda request: requests.append(request) or httpx.Response(200, json=[])
-        )
-    ) as client, factory() as session:
+    with (
+        httpx.Client(
+            transport=httpx.MockTransport(
+                lambda request: requests.append(request) or httpx.Response(200, json=[])
+            )
+        ) as client,
+        factory() as session,
+    ):
         if disabled:
             with pytest.raises(SourceParseError, match="disabled or changed"):
                 process_job(session, job_id, "test", 1, source_definition, client)

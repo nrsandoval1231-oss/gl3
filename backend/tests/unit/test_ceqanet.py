@@ -59,15 +59,18 @@ def test_ceqanet_alias_href_does_not_change_record_identity_or_hash():
     assert second["permit"]["source_link_hrefs"]["CEQAnet document"] == "/2026020574"
 
 
-@pytest.mark.parametrize("href", [
-    "//attacker.example/2026080888",
-    "https://user@ceqanet.lci.ca.gov/2026080888",
-    "/2026080888?redirect=https://attacker.example",
-    "/2026080888/../../private",
-    "/raw/a/../2026100400",
-    "/2026100400\n",
-    "/2026100400\t",
-])
+@pytest.mark.parametrize(
+    "href",
+    [
+        "//attacker.example/2026080888",
+        "https://user@ceqanet.lci.ca.gov/2026080888",
+        "/2026080888?redirect=https://attacker.example",
+        "/2026080888/../../private",
+        "/raw/a/../2026100400",
+        "/2026100400\n",
+        "/2026100400\t",
+    ],
+)
 def test_ceqanet_rejects_foreign_or_malformed_document_links(href: str):
     body = LISTING.replace(
         b'href="https://ceqanet.lci.ca.gov/2026100400"',
@@ -138,8 +141,9 @@ def test_retrieve_keeps_only_data_center_documents():
         # Other documents do not name a data center.
         return httpx.Response(
             200,
-            content=ELSINORE.replace(b"one data center building", b"one warehouse building")
-            .replace(b"2026020574", url.rsplit("/", 1)[-1].encode()),
+            content=ELSINORE.replace(
+                b"one data center building", b"one warehouse building"
+            ).replace(b"2026020574", url.rsplit("/", 1)[-1].encode()),
         )
 
     client = httpx.Client(transport=httpx.MockTransport(handler))

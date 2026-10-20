@@ -72,9 +72,7 @@ def adversarial_db():
 
 
 def _source_definition() -> dict:
-    return next(
-        item for item in load_registry() if item["id"] == "chicago-building-permits"
-    )
+    return next(item for item in load_registry() if item["id"] == "chicago-building-permits")
 
 
 def _chicago_row(row_id: str = "420001", *, issue_date: str | None = None) -> dict:
@@ -237,8 +235,9 @@ def test_crash_after_evidence_commit_restarts_without_duplicate_evidence(
 
     monkeypatch.setattr(service, "apply_segment_result", crash_once)
     with client:
-        with factory() as session, pytest.raises(
-            RuntimeError, match="injected crash after evidence commit"
+        with (
+            factory() as session,
+            pytest.raises(RuntimeError, match="injected crash after evidence commit"),
         ):
             process_job(session, job_id, "adversarial-test", 1, definition, client)
 
@@ -258,9 +257,7 @@ def test_crash_after_evidence_commit_restarts_without_duplicate_evidence(
             )
 
         with factory() as session:
-            result = process_job(
-                session, job_id, "adversarial-test", 1, definition, client
-            )
+            result = process_job(session, job_id, "adversarial-test", 1, definition, client)
 
     assert raised and len(requests) == 6
     assert result["collection_status"] == "PARTIAL"
@@ -270,9 +267,7 @@ def test_crash_after_evidence_commit_restarts_without_duplicate_evidence(
         observation = session.scalar(select(Observation))
         evidence = session.scalar(select(Evidence))
         progress = session.scalar(
-            select(SourceCollectionProgress).where(
-                SourceCollectionProgress.lane == "issue_recent"
-            )
+            select(SourceCollectionProgress).where(SourceCollectionProgress.lane == "issue_recent")
         )
         assert observation is not None and observation.external_id == "420001"
         assert evidence is not None and evidence.observation_id == observation.id
@@ -283,9 +278,9 @@ def test_crash_after_evidence_commit_restarts_without_duplicate_evidence(
             observation.first_seen_at,
         ) == retained_evidence
         assert progress is not None and progress.status == "incomplete"
-        assert progress.cursor.get("day") == (
-            datetime.now(UTC).date() - timedelta(days=5)
-        ).isoformat()
+        assert (
+            progress.cursor.get("day") == (datetime.now(UTC).date() - timedelta(days=5)).isoformat()
+        )
 
 
 def test_stale_fence_after_fetch_cannot_write_evidence_or_checkpoint(adversarial_db):
@@ -588,9 +583,7 @@ def test_window_rollover_invalidates_reused_empty_cursor(adversarial_db):
     assert third_result["collection_error_class"] is None
     with factory() as session:
         progress = session.scalar(
-            select(SourceCollectionProgress).where(
-                SourceCollectionProgress.lane == "issue_recent"
-            )
+            select(SourceCollectionProgress).where(SourceCollectionProgress.lane == "issue_recent")
         )
         assert progress is not None
         assert _utc_date(progress.window_start) == today - timedelta(days=6)
@@ -694,9 +687,10 @@ def test_worker_retry_continues_after_progress_commit_before_job_terminal(
             assert job is not None and job.status == "queued"
             assert progress is not None and progress.status == "incomplete"
             committed_cursor = dict(progress.cursor)
-            assert committed_cursor.get("day") == (
-                datetime.now(UTC).date() - timedelta(days=5)
-            ).isoformat()
+            assert (
+                committed_cursor.get("day")
+                == (datetime.now(UTC).date() - timedelta(days=5)).isoformat()
+            )
 
         with factory.begin() as session:
             job = session.get(Job, job_id)
@@ -710,9 +704,7 @@ def test_worker_retry_continues_after_progress_commit_before_job_terminal(
     with factory() as session:
         job = session.get(Job, job_id)
         progress = session.scalar(
-            select(SourceCollectionProgress).where(
-                SourceCollectionProgress.lane == "issue_recent"
-            )
+            select(SourceCollectionProgress).where(SourceCollectionProgress.lane == "issue_recent")
         )
         assert job is not None and job.status == "succeeded"
         assert progress is not None
@@ -783,9 +775,7 @@ def test_invalid_or_changed_segment_stays_partial_and_retains_last_good_evidence
         )
 
     with httpx.Client(transport=httpx.MockTransport(handler)) as client, factory() as session:
-        result = process_job(
-            session, job_id, "adversarial-test", 1, definition, client
-        )
+        result = process_job(session, job_id, "adversarial-test", 1, definition, client)
 
     assert result["collection_status"] == "PARTIAL"
     assert result["partial"] is True

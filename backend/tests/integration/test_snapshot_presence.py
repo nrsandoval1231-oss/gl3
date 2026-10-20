@@ -199,9 +199,7 @@ def test_snapshot_covers_retained_text_job_recovery_and_call_intent(db):
     assert compare(before, after)["result"] == "MISMATCH"
     omitted = {
         **before,
-        "tables": {
-            key: value for key, value in before["tables"].items() if key != "settlements"
-        },
+        "tables": {key: value for key, value in before["tables"].items() if key != "settlements"},
     }
     assert "required_table_metadata_missing" in compare(omitted, before)["issues"]
 

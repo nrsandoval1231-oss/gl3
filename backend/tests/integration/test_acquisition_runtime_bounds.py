@@ -221,9 +221,10 @@ def test_refresh_due_advances_other_sources_while_ingestion_holds_source_lock(
         assert followup_job and followup_job.status == "queued"
         assert session.scalar(select(func.count()).select_from(SourceCheckReceipt)) == 0
 
-    assert worker.run_one(
-        {item["id"]: item for item in definitions}, job_ids=[followup_job_id]
-    ) is True
+    assert (
+        worker.run_one({item["id"]: item for item in definitions}, job_ids=[followup_job_id])
+        is True
+    )
     assert network_calls == ["source-a", "source-a"]
     worker.sync_registry()
     with factory() as session:
@@ -238,9 +239,7 @@ def test_refresh_due_advances_other_sources_while_ingestion_holds_source_lock(
         assert len(open_a) == 1
         receipts = list(
             session.scalars(
-                select(SourceCheckReceipt)
-                .join(Job)
-                .where(Job.source_id == source_a["id"])
+                select(SourceCheckReceipt).join(Job).where(Job.source_id == source_a["id"])
             )
         )
         assert len(receipts) == 1
@@ -248,9 +247,7 @@ def test_refresh_due_advances_other_sources_while_ingestion_holds_source_lock(
         assert receipt.job_id == followup_job_id
         assert receipt.due_key == linked_due.due_key
         assert receipt.disposition == "succeeded"
-        acquisition_started = datetime.fromisoformat(
-            receipt.check_counts["acquisition_started_at"]
-        )
+        acquisition_started = datetime.fromisoformat(receipt.check_counts["acquisition_started_at"])
         acquisition_completed = datetime.fromisoformat(
             receipt.check_counts["acquisition_completed_at"]
         )

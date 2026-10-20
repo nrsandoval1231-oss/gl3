@@ -12,7 +12,8 @@ from gridlens.settings import settings
 
 
 def test_refresh_outcome_survives_savepoint_and_excludes_private_error(
-    saved_db, monkeypatch,  # noqa: F811
+    saved_db,  # noqa: F811
+    monkeypatch,
 ):
     ids = seed(saved_db, histories=1)
     assert saved_browse.rebuild(saved_db)["status"] == "published"
@@ -34,7 +35,9 @@ def test_refresh_outcome_survives_savepoint_and_excludes_private_error(
         writer.get(PowerNeed, ids[0]).rationale = "Canonical change survives"
         writer.commit()
         assert writer.info["worker_browse_outcome"] == {
-            "status": "pending", "reason": "RuntimeError", "sqlstate": None,
+            "status": "pending",
+            "reason": "RuntimeError",
+            "sqlstate": None,
         }
     with saved_db() as reader:
         assert reader.get(PowerNeed, ids[0]).rationale == "Canonical change survives"

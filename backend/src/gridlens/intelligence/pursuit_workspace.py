@@ -32,9 +32,7 @@ def page(session, filters: dict[str, Any], *, limit: int, offset: int, token: st
         if filters.get(key):
             if filters[key] == "UNKNOWN" and key in {"geography", "industry", "activity"}:
                 clauses.append(
-                    f"{column} IN ('', 'unknown')"
-                    if key == "industry"
-                    else f"{column} = ''"
+                    f"{column} IN ('', 'unknown')" if key == "industry" else f"{column} = ''"
                 )
             else:
                 clauses.append(f"{column}=:f_{key}")
@@ -44,9 +42,7 @@ def page(session, filters: dict[str, Any], *, limit: int, offset: int, token: st
         params["has_timing"] = filters["timing"] == "KNOWN"
     if filters.get("mw_status"):
         clauses.append(
-            "mw_low IS NOT NULL"
-            if filters["mw_status"] == "KNOWN"
-            else "mw_low IS NULL"
+            "mw_low IS NOT NULL" if filters["mw_status"] == "KNOWN" else "mw_low IS NULL"
         )
     if filters.get("mw_min"):
         bound = Decimal(filters["mw_min"])
@@ -85,8 +81,7 @@ def page(session, filters: dict[str, Any], *, limit: int, offset: int, token: st
         "project": "lower(display_title), display_title, need_id",
         "mw": "mw_low DESC NULLS LAST, need_id",
         "start": (
-            "NULLIF(NULLIF(lower(compact->>'start_window'), 'unknown'), '') ASC NULLS LAST, "
-            "need_id"
+            "NULLIF(NULLIF(lower(compact->>'start_window'), 'unknown'), '') ASC NULLS LAST, need_id"
         ),
         "updated": "updated_at DESC, need_id",
     }[filters["sort"]]
@@ -104,13 +99,17 @@ def page(session, filters: dict[str, Any], *, limit: int, offset: int, token: st
     total = session.execute(
         text(f"SELECT count(*) FROM browse_rows WHERE {filtered}"), params
     ).scalar_one()
-    rows = session.execute(
-        text(
-            f"SELECT compact FROM browse_rows WHERE {filtered} "
-            f"ORDER BY {sort_sql} LIMIT :limit OFFSET :offset"
-        ),
-        params,
-    ).scalars().all()
+    rows = (
+        session.execute(
+            text(
+                f"SELECT compact FROM browse_rows WHERE {filtered} "
+                f"ORDER BY {sort_sql} LIMIT :limit OFFSET :offset"
+            ),
+            params,
+        )
+        .scalars()
+        .all()
+    )
     items = []
     for compact in rows:
         preview = compact.pop("commercial_preview", {})
@@ -140,6 +139,14 @@ def page(session, filters: dict[str, Any], *, limit: int, offset: int, token: st
             }
         )
     next_offset = offset + len(items) if offset + len(items) < total else None
-    return {"items": items, "total": total, "counts": dict(counts), "offset": offset,
-            "limit": limit, "next_offset": next_offset, "cohort_token": cohort,
-            "count_unit": "power needs", "changes_available": False}
+    return {
+        "items": items,
+        "total": total,
+        "counts": dict(counts),
+        "offset": offset,
+        "limit": limit,
+        "next_offset": next_offset,
+        "cohort_token": cohort,
+        "count_unit": "power needs",
+        "changes_available": False,
+    }

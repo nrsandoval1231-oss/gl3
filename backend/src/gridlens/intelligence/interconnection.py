@@ -107,9 +107,7 @@ def attach_interconnection_facts(
             raise ValueError("Retained interconnection facts cannot be overwritten")
         return
     session.add(
-        InterconnectionFactVersion(
-            project_id=project.id, evidence_id=evidence.id, payload=payload
-        )
+        InterconnectionFactVersion(project_id=project.id, evidence_id=evidence.id, payload=payload)
     )
     session.flush()
 
@@ -125,9 +123,7 @@ def current_interconnection_state(session: Session, project_id: UUID, *, today: 
         .join(Interpretation, Interpretation.observation_id == Observation.id)
         .join(Source, Source.id == Observation.source_id)
         .join(InterconnectionFactVersion, InterconnectionFactVersion.evidence_id == Evidence.id)
-        .where(
-            InterconnectionFactVersion.project_id == project.id
-        )
+        .where(InterconnectionFactVersion.project_id == project.id)
         .order_by(Evidence.observed_at, Evidence.id)
     )
     records = []

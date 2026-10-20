@@ -46,12 +46,7 @@ def exact_mw_interval(value: object) -> tuple[Decimal, Decimal] | None:
             high *= Decimal("0.001")
     except ArithmeticError:
         return None
-    if (
-        not low.is_finite()
-        or not high.is_finite()
-        or low < 0
-        or high < low
-    ):
+    if not low.is_finite() or not high.is_finite() or low < 0 or high < low:
         return None
     return low, high
 

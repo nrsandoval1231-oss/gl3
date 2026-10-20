@@ -74,8 +74,8 @@ def _pdf_document(url: str, body: bytes) -> PublicDocument:
             raise ValueError("PDF contains unsupported image or form content")
         content = page.get_contents()
         if content is not None and any(
-            operator in {b"INLINE IMAGE", b"S", b"s", b"f", b"F", b"f*", b"B", b"B*",
-                         b"b", b"b*", b"sh"}
+            operator
+            in {b"INLINE IMAGE", b"S", b"s", b"f", b"F", b"f*", b"B", b"B*", b"b", b"b*", b"sh"}
             for _, operator in content.operations
         ):
             raise ValueError("PDF contains unsupported image or vector-painted content")
@@ -91,7 +91,9 @@ def _pdf_document(url: str, body: bytes) -> PublicDocument:
     metadata = reader.metadata
     title = str(metadata.title) if metadata and metadata.title else "Public project document"
     return PublicDocument(
-        url, _bounded_title(title), text,
+        url,
+        _bounded_title(title),
+        text,
         # PDF creation/modification metadata does not establish publication.
         extraction_location=f"PDF pages 1-{len(pages)} (inline page markers)",
     )
@@ -211,11 +213,14 @@ def parse_document(url: str, body: bytes, content_type: str) -> PublicDocument:
     text = "\n".join(
         line.strip() for line in main.get_text("\n", strip=True).splitlines() if line.strip()
     )
-    body_restricted = bool(re.search(
-        r"access denied|access forbidden|captcha|verify (?:you are|that you are) human|"
-        r"(?:sign|log) in to (?:view|access)|login required",
-        text, re.I,
-    )) or bool(soup.select('input[type="password"]'))
+    body_restricted = bool(
+        re.search(
+            r"access denied|access forbidden|captcha|verify (?:you are|that you are) human|"
+            r"(?:sign|log) in to (?:view|access)|login required",
+            text,
+            re.I,
+        )
+    ) or bool(soup.select('input[type="password"]'))
     if len(text) < 150 and re.search(r"\b(?:sign in|log in|login)\b", text, re.I):
         body_restricted = True
     if body_restricted or any(
@@ -238,8 +243,11 @@ def parse_document(url: str, body: bytes, content_type: str) -> PublicDocument:
             raise PublicExtractionUnavailable("javascript_rendering_required")
         raise ValueError("Source did not return usable public content")
     return PublicDocument(
-        url, _bounded_title(title), _bounded_text(text), published,
-        links=tuple(dict.fromkeys(links))[:2]
+        url,
+        _bounded_title(title),
+        _bounded_text(text),
+        published,
+        links=tuple(dict.fromkeys(links))[:2],
     )
 
 

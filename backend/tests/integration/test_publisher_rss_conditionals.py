@@ -14,9 +14,7 @@ from gridlens.persistence.database import Base
 from gridlens.persistence.models import Evidence, Job, Observation, Source
 from gridlens.settings import settings
 
-SOURCE_DEFINITION = next(
-    row for row in load_registry() if row["id"] == "mjbizdaily-news"
-)
+SOURCE_DEFINITION = next(row for row in load_registry() if row["id"] == "mjbizdaily-news")
 
 
 def _feed() -> bytes:

@@ -40,15 +40,15 @@ def evaluate_targets(
             return found
     else:
         items = opportunity_projection(
-            session, include_below_floor=True, include_operator_fact_refs=True,
+            session,
+            include_below_floor=True,
+            include_operator_fact_refs=True,
             selected_need_ids={UUID(identity) for identity in wanted},
         )
         exact_items = {str(item["id"]): item for item in items if str(item["id"]) in wanted}
         chains = {
             str(project_id): buying_chain_view(session, project_id)
-            for project_id in sorted(
-                {item["project_id"] for item in exact_items.values()}, key=str
-            )
+            for project_id in sorted({item["project_id"] for item in exact_items.values()}, key=str)
         }
         for need_id, item in exact_items.items():
             card = build_card(item, chains.get(str(item["project_id"])), today)
@@ -68,9 +68,7 @@ def evaluate_targets(
         # evidence; final cards are rebuilt with current chain data for selected groups.
         identity_groups = group_cards(items, {}, today)
         requested_groups = [
-            card
-            for card in identity_groups
-            if missing.intersection(card["related_need_ids"])
+            card for card in identity_groups if missing.intersection(card["related_need_ids"])
         ]
         requested_ids = {
             need_id for card in requested_groups for need_id in card["related_need_ids"]

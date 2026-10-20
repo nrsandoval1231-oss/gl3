@@ -17,12 +17,23 @@ def parse(data):
 @pytest.fixture
 def pending():
     return dict(
-        schema_version=1, policy_id="test-moratorium", jurisdiction="Test City, CA",
-        kind="land_use_moratorium", scope="New data-center land-use approvals citywide",
-        as_of_date="2026-10-07", duration_days=45,
-        evidence=[dict(id="status", url="https://example.gov/file/1",
-                       observed_on="2026-10-07", location="Status", kind="official_record",
-                       summary="Passed; final action October 6; minutes draft")],
+        schema_version=1,
+        policy_id="test-moratorium",
+        jurisdiction="Test City, CA",
+        kind="land_use_moratorium",
+        scope="New data-center land-use approvals citywide",
+        as_of_date="2026-10-07",
+        duration_days=45,
+        evidence=[
+            dict(
+                id="status",
+                url="https://example.gov/file/1",
+                observed_on="2026-10-07",
+                location="Status",
+                kind="official_record",
+                summary="Passed; final action October 6; minutes draft",
+            )
+        ],
         observations=[dict(source_id="status", status="Passed", event_date="2026-10-06")],
         limitations=["Enactment and effective interval not verified"],
     )
@@ -31,14 +42,27 @@ def pending():
 def enacted(pending):
     data = deepcopy(pending)
     data["evidence"] += [
-        dict(id="enactment", url="https://example.gov/ordinance/1", observed_on="2026-10-07",
-             location="Signed adoption", kind="enactment_record", summary="Enacted October 6"),
-        dict(id="interval", url="https://example.gov/ordinance/1", observed_on="2026-10-07",
-             location="Effective clause", kind="effective_clause", summary="Verified interval"),
+        dict(
+            id="enactment",
+            url="https://example.gov/ordinance/1",
+            observed_on="2026-10-07",
+            location="Signed adoption",
+            kind="enactment_record",
+            summary="Enacted October 6",
+        ),
+        dict(
+            id="interval",
+            url="https://example.gov/ordinance/1",
+            observed_on="2026-10-07",
+            location="Effective clause",
+            kind="effective_clause",
+            summary="Verified interval",
+        ),
     ]
     data["enactment"] = dict(date="2026-10-06", source_id="enactment")
     data["effective_interval"] = dict(
-        start="2026-10-06", end_exclusive="2026-11-20", source_id="interval")
+        start="2026-10-06", end_exclusive="2026-11-20", source_id="interval"
+    )
     return data
 
 
@@ -81,8 +105,17 @@ def test_effective_interval_without_enactment_is_rejected(pending):
         parse(data)
 
 
-@pytest.mark.parametrize("change", ["reversed", "before_enactment", "unknown_source",
-                                    "future_evidence", "duplicate_source", "project_id"])
+@pytest.mark.parametrize(
+    "change",
+    [
+        "reversed",
+        "before_enactment",
+        "unknown_source",
+        "future_evidence",
+        "duplicate_source",
+        "project_id",
+    ],
+)
 def test_invalid_provenance_and_project_scope_rejected(pending, change):
     data = enacted(pending)
     if change == "reversed":
@@ -101,8 +134,13 @@ def test_invalid_provenance_and_project_scope_rejected(pending, change):
         parse(data)
 
 
-@pytest.mark.parametrize("kind,want", [("utility_intake_constraint", "reported_constraint"),
-                                      ("policy_development", "in_development")])
+@pytest.mark.parametrize(
+    "kind,want",
+    [
+        ("utility_intake_constraint", "reported_constraint"),
+        ("policy_development", "in_development"),
+    ],
+)
 def test_non_land_use_records_cannot_become_moratoria(pending, kind, want):
     pending["kind"] = kind
     pending.pop("duration_days")
@@ -124,12 +162,15 @@ def test_non_moratorium_snapshot_does_not_assert_future_conditions(pending, kind
     assert parse(pending).state_on(date(2028, 1, 1)) == "requires_refresh"
 
 
-@pytest.mark.parametrize("name,want", [
-    ("sf-261021", "pending_verification"),
-    ("oakland-27-0050", "pending_verification"),
-    ("santa-clara-svp-intake", "reported_constraint"),
-    ("santa-clara-policy-development", "in_development"),
-])
+@pytest.mark.parametrize(
+    "name,want",
+    [
+        ("sf-261021", "pending_verification"),
+        ("oakland-27-0050", "pending_verification"),
+        ("santa-clara-svp-intake", "reported_constraint"),
+        ("santa-clara-policy-development", "in_development"),
+    ],
+)
 def test_reviewed_records_roundtrip_without_project_claims(name, want):
     from gridlens.domain.jurisdiction_policy import PolicyRecord, load_policy
 

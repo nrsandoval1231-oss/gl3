@@ -187,8 +187,9 @@ def test_billing_quarantine_holds_exposure_blocks_provider_and_is_idempotent(ses
         )
     assert row and row.status == "SENT_OUTCOME_UNKNOWN" and row.finished_at is None
     assert budget and budget.active_count == 2 and budget.cost_usd == Decimal("0.050000")
-    with sessions() as session, pytest.raises(
-        ValueError, match="requires attributable actual-cost evidence"
+    with (
+        sessions() as session,
+        pytest.raises(ValueError, match="requires attributable actual-cost evidence"),
     ):
         reconcile_call(
             session,
@@ -404,21 +405,25 @@ def test_completed_result_payload_is_canonical_bounded_and_self_consistent(sessi
             )
     payload = {"answer": "valid"}
     with sessions() as session:
-        assert complete_call(
-            session, first.call_id, fence_token=7, result_payload=payload
-        ).status == "COMPLETED"
+        assert (
+            complete_call(session, first.call_id, fence_token=7, result_payload=payload).status
+            == "COMPLETED"
+        )
     with sessions() as session:
         row = session.scalar(select(LogicalCall).where(LogicalCall.id == first.call_id))
         assert row is not None
-        assert row.result_digest == hashlib.sha256(
-            json.dumps(
-                payload,
-                sort_keys=True,
-                separators=(",", ":"),
-                ensure_ascii=True,
-                allow_nan=False,
-            ).encode("utf-8")
-        ).hexdigest()
+        assert (
+            row.result_digest
+            == hashlib.sha256(
+                json.dumps(
+                    payload,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                    ensure_ascii=True,
+                    allow_nan=False,
+                ).encode("utf-8")
+            ).hexdigest()
+        )
 
 
 def test_concurrent_reservations_do_not_oversubscribe_daily_cap(sessions):
@@ -827,13 +832,16 @@ def test_settlement_replay_conflict_and_concurrent_receipts_charge_once(sessions
         results = list(pool.map(settle, ["receipt-a", "receipt-b", "receipt-a", "receipt-b"]))
     assert results.count(False) == 2 and results.count(True) == 2
     with sessions() as session:
-        assert len(
-            session.scalars(
-                select(LogicalCallSettlement).where(
-                    LogicalCallSettlement.call_id == call.call_id
-                )
-            ).all()
-        ) == 2
+        assert (
+            len(
+                session.scalars(
+                    select(LogicalCallSettlement).where(
+                        LogicalCallSettlement.call_id == call.call_id
+                    )
+                ).all()
+            )
+            == 2
+        )
         daily = session.scalar(
             select(LogicalCallBudget).where(
                 LogicalCallBudget.scope == "global:global", LogicalCallBudget.period == "daily"
@@ -920,9 +928,7 @@ def test_host_cli_requires_fresh_digest_and_applies_only_after_preview(
     digest = json.loads(capsys.readouterr().out)["digest"]
     with sessions.begin() as session:
         session.execute(
-            update(LogicalCall)
-            .where(LogicalCall.id == call.call_id)
-            .values(result_digest="f" * 64)
+            update(LogicalCall).where(LogicalCall.id == call.call_id).values(result_digest="f" * 64)
         )
     monkeypatch.setattr(
         sys,
@@ -932,11 +938,12 @@ def test_host_cli_requires_fresh_digest_and_applies_only_after_preview(
     with pytest.raises(SystemExit):
         cli["main"]()
     with sessions() as session:
-        assert session.scalar(
-            select(LogicalCallSettlement).where(
-                LogicalCallSettlement.call_id == call.call_id
+        assert (
+            session.scalar(
+                select(LogicalCallSettlement).where(LogicalCallSettlement.call_id == call.call_id)
             )
-        ) is None
+            is None
+        )
     monkeypatch.setattr(sys, "argv", ["reconcile_logical_call.py", *base_args])
     assert cli["main"]() == 0
     fresh_digest = json.loads(capsys.readouterr().out)["digest"]

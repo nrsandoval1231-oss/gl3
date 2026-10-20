@@ -106,6 +106,8 @@ jobs:
           } >> "$GITHUB_ENV"
       - run: uv run ruff check src tests
         working-directory: backend
+      - run: uv run ruff format --check src tests
+        working-directory: backend
       - run: uv run mypy src
         working-directory: backend
       - run: uv run alembic upgrade head

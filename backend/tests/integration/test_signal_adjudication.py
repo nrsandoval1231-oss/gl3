@@ -288,9 +288,7 @@ def test_adjudication_api_does_not_accept_caller_policy_version(db, monkeypatch)
 
     monkeypatch.setattr(api, "adjudicate_current_signals", backfill)
     client = TestClient(api.app)
-    client.cookies.set(
-        "gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300)
-    )
+    client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
     response = client.post(
         "/api/signals/decisions/adjudicate?limit=1&policy_version=untrusted-repeat"
     )

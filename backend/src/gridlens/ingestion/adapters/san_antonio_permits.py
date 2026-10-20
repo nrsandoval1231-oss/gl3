@@ -64,8 +64,10 @@ def parse_rows(body: bytes) -> list[dict[str, Any]]:
     except ValueError as exc:
         raise SourceParseError("San Antonio datastore did not return JSON") from exc
     result = payload.get("result") if isinstance(payload, dict) else None
-    if not isinstance(payload, dict) or payload.get("success") is not True or not isinstance(
-        result, dict
+    if (
+        not isinstance(payload, dict)
+        or payload.get("success") is not True
+        or not isinstance(result, dict)
     ):
         raise SourceParseError("San Antonio datastore search failed")
     records, total = result.get("records"), result.get("total")

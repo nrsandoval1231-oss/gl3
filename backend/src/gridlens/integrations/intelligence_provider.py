@@ -277,11 +277,9 @@ def call_openai_request(*, api_key: str, request: dict[str, Any]) -> dict[str, A
         parts = [
             item.get("text", "")
             for block in data["output"]
-            if isinstance(block, dict)
-            and isinstance(block.get("content"), list)
+            if isinstance(block, dict) and isinstance(block.get("content"), list)
             for item in block.get("content", [])
-            if isinstance(item, dict)
-            and item.get("type") == "output_text"
+            if isinstance(item, dict) and item.get("type") == "output_text"
         ]
         output = json.loads("".join(parts))
     except (json.JSONDecodeError, TypeError, AttributeError, RecursionError) as exc:

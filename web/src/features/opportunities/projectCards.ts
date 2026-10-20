@@ -267,18 +267,3 @@ export function serverProjectCards(items: Opportunity[]): ProjectCard[] {
   })
 }
 
-export function matchesOpportunity(item: Opportunity, query: string) {
-  const term = normalized(query)
-  if (!term) return true
-  const searchable = [
-    item.name,
-    projectTitle(item),
-    item.location ?? '',
-    item.activity,
-    item.supported_subject ?? '',
-    item.supported_action ?? '',
-    item.assessment_reason ?? '',
-    ...item.evidence.flatMap((evidence) => [evidence.title, evidence.abstract ?? '', evidence.document_number, evidence.source_id]),
-  ].join(' ')
-  return normalized(searchable).includes(term)
-}

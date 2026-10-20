@@ -79,9 +79,11 @@ def parse_search(body: bytes) -> tuple[int, list[dict[str, Any]]]:
         payload = json.loads(body)
     except ValueError as exc:
         raise SourceParseError("TABS search did not return JSON") from exc
-    rows, total = (payload.get("data"), payload.get("recordsFiltered")) if isinstance(
-        payload, dict
-    ) else (None, None)
+    rows, total = (
+        (payload.get("data"), payload.get("recordsFiltered"))
+        if isinstance(payload, dict)
+        else (None, None)
+    )
     if not isinstance(rows, list) or not isinstance(total, int):
         raise SourceParseError("TABS search response lacks data or recordsFiltered")
     for row in rows:
@@ -249,4 +251,3 @@ def retrieve(
     finally:
         if client is None:
             http.close()
-

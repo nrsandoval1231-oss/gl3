@@ -64,7 +64,8 @@ def _before_commit(session):
                 session, max_projects=1000, max_needs=1000, execution_deadline=deadline
             )
             session.info["worker_browse_outcome"] = result or {
-                "status": "pending", "reason": "refresh_not_published",
+                "status": "pending",
+                "reason": "refresh_not_published",
             }
     except Exception as exc:
         # Never log exception text/SQL parameters: canonical inputs can include

@@ -74,7 +74,9 @@ def test_data_center_batch_plant_is_a_construction_signal():
 
 def test_unnamed_temporary_plant_stays_evidence():
     row = {
-        "project": "1", "applicant": "Example Ready Mix", "facility": "PORTABLE TEMPORARY CBP 3",
+        "project": "1",
+        "applicant": "Example Ready Mix",
+        "facility": "PORTABLE TEMPORARY CBP 3",
         "registration": "173154L003",
     }
     result = assess_permit(record(row, notice_from_text(DPR_NOTICE, "173154L003")), as_of=TODAY)

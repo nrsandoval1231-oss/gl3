@@ -124,7 +124,7 @@ function sourceDateLabel(evidence: Opportunity['evidence'][number], showPublicat
   return evidence.published_at ? `Published ${evidence.published_at}` : 'Publication date unknown'
 }
 
-export function CommercialTodayEntry({ onOpen, compact = false }: { onOpen: () => void; compact?: boolean }) {
+function CommercialTodayEntry({ onOpen, compact = false }: { onOpen: () => void; compact?: boolean }) {
   const [triage, setTriage] = useState<Awaited<ReturnType<typeof client.commercialTriage>> | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -724,7 +724,7 @@ function missingFactCategory(fact: string) {
   return normalized
 }
 
-export function OpportunityDetail({ item, onReadback }: { item: Opportunity; onReadback: () => void }) {
+function OpportunityDetail({ item, onReadback }: { item: Opportunity; onReadback: () => void }) {
   const activeNeedId = useRef(item.id)
   const [brief, setBrief] = useState<Brief | null>(null)
   const [briefBusy, setBriefBusy] = useState(false)

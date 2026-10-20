@@ -254,10 +254,7 @@ def collection_status(
     all_complete = current_complete and all(
         by_lane.get(lane)
         and by_lane[lane].status == "complete"
-        and (
-            lane == "issue_backfill"
-            or _date(by_lane[lane].completed_through) == current_day
-        )
+        and (lane == "issue_backfill" or _date(by_lane[lane].completed_through) == current_day)
         for lane in lanes
     )
     return current_complete, all_complete

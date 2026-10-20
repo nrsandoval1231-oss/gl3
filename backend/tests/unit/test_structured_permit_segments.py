@@ -216,11 +216,7 @@ def test_boston_overfull_day_uses_id_keyset_and_stable_issue_date():
             return _response(
                 {
                     "success": True,
-                    "result": {
-                        "records": [
-                            {"row_count": count, "unique_permit_numbers": count}
-                        ]
-                    },
+                    "result": {"records": [{"row_count": count, "unique_permit_numbers": count}]},
                 }
             )
         after = int(sql.split("_id > ", 1)[1].split(" ", 1)[0]) if "_id > " in sql else 0

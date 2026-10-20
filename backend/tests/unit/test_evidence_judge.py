@@ -254,14 +254,16 @@ def test_recommendation_requires_nested_timing_and_a_public_buyer_contact():
         "state": {
             "power_need": {
                 "status": "SUPPORTED",
-                "value": [{
-                    "activity": {"status": "SUPPORTED", "value": "construction"},
-                    "tier": {"status": "SUPPORTED", "value": "Prospect"},
-                    "mw": {"status": "SUPPORTED", "value": "42 MW"},
-                    "timing": {"status": "UNKNOWN", "value": None},
-                    "duration": {"status": "SUPPORTED", "value": "6 months"},
-                    "supply": {"status": "SUPPORTED", "value": "Reported constraint"},
-                }],
+                "value": [
+                    {
+                        "activity": {"status": "SUPPORTED", "value": "construction"},
+                        "tier": {"status": "SUPPORTED", "value": "Prospect"},
+                        "mw": {"status": "SUPPORTED", "value": "42 MW"},
+                        "timing": {"status": "UNKNOWN", "value": None},
+                        "duration": {"status": "SUPPORTED", "value": "6 months"},
+                        "supply": {"status": "SUPPORTED", "value": "Reported constraint"},
+                    }
+                ],
             },
             "utility_service": {"status": "UNKNOWN", "value": None},
             "lifecycle": {"status": "SUPPORTED"},

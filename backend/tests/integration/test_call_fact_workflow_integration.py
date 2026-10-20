@@ -35,9 +35,7 @@ def runtime(monkeypatch):
     app_url = make_url(settings.database_url)
     assert test_url.database and (
         test_url.database == "test" or test_url.database.endswith("_test")
-    ), (
-        "Refusing destructive setup without an explicit disposable *_test database"
-    )
+    ), "Refusing destructive setup without an explicit disposable *_test database"
     assert "corpus" not in test_url.database.lower(), (
         "Refusing destructive setup against a retained corpus database"
     )
@@ -263,7 +261,8 @@ def test_fact_decision_replay_cannot_acknowledge_a_different_fact(runtime, targe
     history = client.get(f"/api/needs/{need_id}/facts").json()
     assert history["current_fact_version"] == 3
     assert {row["id"]: row["decision"] for row in history["items"]} == {
-        first_id: "accepted", second_id: "draft"
+        first_id: "accepted",
+        second_id: "draft",
     }
     with factory() as session:
         assert session.scalar(select(func.count()).select_from(CallFactDecision)) == 3
@@ -468,9 +467,7 @@ def test_current_public_support_bounds_fact_qualification_and_reassessment(runti
     event_version = 0
     range_draft_body = _body(project_id, pursuit_id, expected_version=event_version)
     range_draft_body["value"] = {"mw": "20 to 25 MW"}
-    range_draft = client.post(
-        f"/api/needs/{need_id}/facts", json=range_draft_body, headers=headers
-    )
+    range_draft = client.post(f"/api/needs/{need_id}/facts", json=range_draft_body, headers=headers)
     assert range_draft.status_code == 200, range_draft.text
     assert range_draft.json()["value"] == {"mw_min": "20", "mw_max": "25"}
     equivalent_range_body = deepcopy(range_draft_body)
@@ -517,9 +514,12 @@ def test_current_public_support_bounds_fact_qualification_and_reassessment(runti
 
     # The current official source already supports Prospect. These facts add
     # only the missing Lead gates; no duplicate demand or shortage assertion is needed.
-    assert accept(
-        "timing", {"start_date": "2027-01-01", "end_date": "2027-02-01", "duration_days": 31}
-    ).json()["tier"] == "Prospect"
+    assert (
+        accept(
+            "timing", {"start_date": "2027-01-01", "end_date": "2027-02-01", "duration_days": 31}
+        ).json()["tier"]
+        == "Prospect"
+    )
     with factory.begin() as session:
         need = session.get(PowerNeed, need_id)
         assert need is not None
@@ -529,9 +529,7 @@ def test_current_public_support_bounds_fact_qualification_and_reassessment(runti
     changed_fact_browse = client.get("/api/opportunities?tier=Prospect")
     assert changed_fact_browse.status_code == 200, changed_fact_browse.text
     assert changed_fact_browse.headers["x-cohort-token"] != initial_cohort
-    stale_fact_page = client.get(
-        f"/api/opportunities?tier=Prospect&cohort_token={initial_cohort}"
-    )
+    stale_fact_page = client.get(f"/api/opportunities?tier=Prospect&cohort_token={initial_cohort}")
     assert stale_fact_page.status_code == 409
     initial_supply = accept("suitable_supply", {"mw": "5", "quality": "suitable"}).json()
     lead_result = accept(
@@ -560,9 +558,7 @@ def test_current_public_support_bounds_fact_qualification_and_reassessment(runti
     closure_body = _body(project_id, pursuit_id, expected_version=event_version)
     closure_body["fact_type"] = "closure"
     closure_body["value"] = {"state": "adequate_supply"}
-    closure = client.post(
-        f"/api/needs/{need_id}/facts", json=closure_body, headers=headers
-    )
+    closure = client.post(f"/api/needs/{need_id}/facts", json=closure_body, headers=headers)
     assert closure.status_code == 200, closure.text
     closure_decision = client.post(
         f"/api/needs/{need_id}/facts/{closure.json()['id']}/decision",
@@ -667,25 +663,19 @@ def test_current_public_support_bounds_fact_qualification_and_reassessment(runti
     assert page_card["qualified_remaining_gap"] == gap
     assert page_card["qualification_version"] == effective["qualification_version"]
     cohort = page.headers["x-cohort-token"]
-    detail = client.get(
-        f"/api/opportunities/needs/{need_id}?tier=Lead&cohort_token={cohort}"
-    )
+    detail = client.get(f"/api/opportunities/needs/{need_id}?tier=Lead&cohort_token={cohort}")
     assert detail.status_code == 200, detail.text
     assert detail.json()["required_mw"] == "21 to 24 MW"
     assert detail.json()["qualified_remaining_gap"] == gap
     assert detail.json()["qualification_version"] == effective["qualification_version"]
     group_id = page_card["group_id"]
-    group_page = client.get(
-        f"/api/opportunity-groups/{group_id}?tier=Lead&cohort_token={cohort}"
-    )
+    group_page = client.get(f"/api/opportunity-groups/{group_id}?tier=Lead&cohort_token={cohort}")
     assert group_page.status_code == 200, group_page.text
     grouped_card = next(
         item for item in group_page.json()["items"] if str(item["id"]) == str(need_id)
     )
     assert grouped_card["required_mw"] == "21 to 24 MW"
-    csv = client.get(
-        f"/api/opportunities/export.csv?tier=Lead&limit=50&cohort_token={cohort}"
-    )
+    csv = client.get(f"/api/opportunities/export.csv?tier=Lead&limit=50&cohort_token={cohort}")
     assert csv.status_code == 200, csv.text
     assert "21 to 24 MW" in csv.text
 
@@ -799,9 +789,7 @@ def test_current_public_support_bounds_fact_qualification_and_reassessment(runti
     }
     adequate_body["effective_from"] = "2026-01-01T00:00:00+00:00"
     adequate_body["effective_until"] = "2027-03-04T00:00:00+00:00"
-    adequate_draft = client.post(
-        f"/api/needs/{need_id}/facts", json=adequate_body, headers=headers
-    )
+    adequate_draft = client.post(f"/api/needs/{need_id}/facts", json=adequate_body, headers=headers)
     assert adequate_draft.status_code == 200, adequate_draft.text
     event_version += 1
     adequate_decision = client.post(
@@ -827,9 +815,7 @@ def test_current_public_support_bounds_fact_qualification_and_reassessment(runti
     inactive_prospects = client.get("/api/opportunities?tier=Prospect&limit=50")
     assert inactive_prospects.status_code == 200, inactive_prospects.text
     assert all(str(item["id"]) != str(need_id) for item in inactive_prospects.json())
-    stale_preclosure = client.get(
-        f"/api/opportunities?tier=Lead&cohort_token={preclosure_token}"
-    )
+    stale_preclosure = client.get(f"/api/opportunities?tier=Lead&cohort_token={preclosure_token}")
     assert stale_preclosure.status_code == 409
     inactive_csv = client.get("/api/opportunities/export.csv?tier=Lead&limit=50")
     assert inactive_csv.status_code == 200, inactive_csv.text
@@ -925,9 +911,7 @@ def test_current_public_support_bounds_fact_qualification_and_reassessment(runti
     partial_body["value"] = {"mw_min": "10", "mw_max": "15", "quality": "suitable"}
     partial_body["effective_from"] = "2026-01-01T00:00:00+00:00"
     partial_body["effective_until"] = "2027-03-04T00:00:00+00:00"
-    partial_draft = client.post(
-        f"/api/needs/{need_id}/facts", json=partial_body, headers=headers
-    )
+    partial_draft = client.post(f"/api/needs/{need_id}/facts", json=partial_body, headers=headers)
     assert partial_draft.status_code == 200, partial_draft.text
     event_version += 1
     partial_decision = client.post(
@@ -1016,9 +1000,7 @@ def test_current_public_support_bounds_fact_qualification_and_reassessment(runti
         status_filter = status.upper()
         filtered = client.get(f"/api/opportunities?tier=Lead&status={status_filter}")
         assert filtered.status_code == 200, filtered.text
-        filtered_item = next(
-            item for item in filtered.json() if str(item["id"]) == str(need_id)
-        )
+        filtered_item = next(item for item in filtered.json() if str(item["id"]) == str(need_id))
         assert filtered_item["workflow_status"] == status
         assert int(filtered.headers["x-total-count"]) >= 1
         current_token = filtered.headers["x-cohort-token"]
@@ -1223,9 +1205,7 @@ def test_timing_correction_is_source_version_bound_and_replayed_after_source_cha
     )
     assert compatible_group.status_code == 200, compatible_group.text
     assert any(str(item["id"]) == str(need_id) for item in compatible_group.json()["items"])
-    compatible_detail = client.get(
-        f"/api/opportunities/needs/{need_id}?tier=Lead&timing=KNOWN"
-    )
+    compatible_detail = client.get(f"/api/opportunities/needs/{need_id}?tier=Lead&timing=KNOWN")
     assert compatible_detail.status_code == 200, compatible_detail.text
     assert compatible_detail.json()["start_window"] == "2027-01-10 to 2027-01-20"
     compatible_csv = client.get("/api/opportunities/export.csv?tier=Lead&timing=KNOWN")
@@ -1239,8 +1219,9 @@ def test_timing_correction_is_source_version_bound_and_replayed_after_source_cha
         assert compatible_card is not None and compatible_card["tier"] == "Lead"
         assert compatible_card["start_window"] == "2027-01-10 to 2027-01-20"
         assert compatible_card["duration"] == "40 days"
-        assert compatible_card["operator_fact_refs"][0]["fact_version_id"] == (
-            compatible_draft.json()["id"]
+        assert (
+            compatible_card["operator_fact_refs"][0]["fact_version_id"]
+            == (compatible_draft.json()["id"])
         )
         save_evaluations(session, [compatible_card], now=compatible_saved_at)
 
@@ -1298,11 +1279,13 @@ def test_timing_correction_is_source_version_bound_and_replayed_after_source_cha
         assert corrected_card is not None and corrected_card["tier"] == "Prospect"
         assert corrected_card["start_window"] == "2026-11-01 to 2026-11-01"
         assert corrected_card["duration"] == "31 days"
-        assert corrected_card["operator_fact_refs"][0]["fact_version_id"] == (
-            correction_draft.json()["id"]
+        assert (
+            corrected_card["operator_fact_refs"][0]["fact_version_id"]
+            == (correction_draft.json()["id"])
         )
-        assert corrected_card["operator_fact_refs"][0]["content_hash"] == (
-            correction_draft.json()["content_hash"]
+        assert (
+            corrected_card["operator_fact_refs"][0]["content_hash"]
+            == (correction_draft.json()["content_hash"])
         )
         save_evaluations(session, [corrected_card], now=corrected_saved_at)
     with factory() as session:
@@ -1331,13 +1314,15 @@ def test_timing_correction_is_source_version_bound_and_replayed_after_source_cha
         assert "operator_fact_refs" not in original_saved
         assert compatible_saved["start_window"] == "2027-01-10 to 2027-01-20"
         assert compatible_saved["duration"] == "40 days"
-        assert compatible_saved["operator_fact_refs"][0]["fact_version_id"] == (
-            compatible_draft.json()["id"]
+        assert (
+            compatible_saved["operator_fact_refs"][0]["fact_version_id"]
+            == (compatible_draft.json()["id"])
         )
         assert corrected_saved["start_window"] == "2026-11-01 to 2026-11-01"
         assert corrected_saved["duration"] == "31 days"
-        assert corrected_saved["operator_fact_refs"][0]["fact_version_id"] == (
-            correction_draft.json()["id"]
+        assert (
+            corrected_saved["operator_fact_refs"][0]["fact_version_id"]
+            == (correction_draft.json()["id"])
         )
     correction_history = client.get(f"/api/needs/{need_id}/facts?limit=20")
     assert correction_history.status_code == 200, correction_history.text
@@ -1381,9 +1366,7 @@ def test_timing_correction_is_source_version_bound_and_replayed_after_source_cha
     unknown_timing_page = client.get("/api/opportunities?tier=Prospect&timing=UNKNOWN")
     assert unknown_timing_page.status_code == 200, unknown_timing_page.text
     assert all(str(item["id"]) != str(need_id) for item in unknown_timing_page.json())
-    known_detail = client.get(
-        f"/api/opportunities/needs/{need_id}?tier=Prospect&timing=KNOWN"
-    )
+    known_detail = client.get(f"/api/opportunities/needs/{need_id}?tier=Prospect&timing=KNOWN")
     assert known_detail.status_code == 200, known_detail.text
     assert known_detail.json()["start_window"] == "2026-11-01 to 2026-11-01"
     known_csv = client.get("/api/opportunities/export.csv?tier=Prospect&timing=KNOWN")
@@ -1401,9 +1384,7 @@ def test_timing_correction_is_source_version_bound_and_replayed_after_source_cha
     }
     supply_body["effective_from"] = "2026-01-01T00:00:00+00:00"
     supply_body["effective_until"] = "2026-12-03T00:00:00+00:00"
-    supply_draft = client.post(
-        f"/api/needs/{need_id}/facts", json=supply_body, headers=headers
-    )
+    supply_draft = client.post(f"/api/needs/{need_id}/facts", json=supply_body, headers=headers)
     assert supply_draft.status_code == 200, supply_draft.text
     supply_decision = client.post(
         f"/api/needs/{need_id}/facts/{supply_draft.json()['id']}/decision",
@@ -1541,9 +1522,7 @@ def test_timing_correction_is_source_version_bound_and_replayed_after_source_cha
     current_browse = client.get("/api/opportunities?tier=Prospect")
     assert current_browse.status_code == 200, current_browse.text
     assert any(str(item["id"]) == str(need_id) for item in current_browse.json())
-    stale_browse = client.get(
-        f"/api/opportunities?tier=Prospect&cohort_token={old_cohort}"
-    )
+    stale_browse = client.get(f"/api/opportunities?tier=Prospect&cohort_token={old_cohort}")
     assert stale_browse.status_code == 409
     current_csv = client.get("/api/opportunities/export.csv?tier=Prospect")
     assert current_csv.status_code == 200, current_csv.text
@@ -1684,9 +1663,7 @@ def test_saved_commercial_card_binds_accepted_fact_versions_as_of(runtime):
         project_id, pursuit_id, expected_version=2, predecessor_id=first_fact_id
     )
     correction_body["value"] = {"mw": "21", "basis": "Synthetic fact B"}
-    correction = client.post(
-        f"/api/needs/{need_id}/facts", json=correction_body, headers=headers
-    )
+    correction = client.post(f"/api/needs/{need_id}/facts", json=correction_body, headers=headers)
     assert correction.status_code == 200, correction.text
     corrected = client.post(
         f"/api/needs/{need_id}/facts/{correction.json()['id']}/decision",
@@ -1741,9 +1718,7 @@ def test_saved_commercial_card_binds_accepted_fact_versions_as_of(runtime):
         "organization": "Synthetic rejected buyer",
         "role": "project owner",
     }
-    rejected = client.post(
-        f"/api/needs/{need_id}/facts", json=rejected_body, headers=headers
-    )
+    rejected = client.post(f"/api/needs/{need_id}/facts", json=rejected_body, headers=headers)
     assert rejected.status_code == 200, rejected.text
     rejection = client.post(
         f"/api/needs/{need_id}/facts/{rejected.json()['id']}/decision",
@@ -1801,12 +1776,9 @@ def test_saved_commercial_card_binds_accepted_fact_versions_as_of(runtime):
         assert pursuit is not None
         versions = pursuit.snapshot["commercial_triage"]["versions"]
         assert len(versions) == 5
-        assert [version["operator_fact_provenance"] for version in versions] == [
-            "recorded"
-        ] * 5
+        assert [version["operator_fact_provenance"] for version in versions] == ["recorded"] * 5
         saved_refs = [
-            version["saved_card"].get("operator_fact_refs", [None])[0]
-            for version in versions
+            version["saved_card"].get("operator_fact_refs", [None])[0] for version in versions
         ]
         assert saved_refs == [None, refs_a[0], refs_b[0], refs_returned[0], refs_returned[0]]
         assert versions[1]["saved_card"]["facts"][0]["hash"] == original_hash
@@ -1892,11 +1864,14 @@ def test_current_fact_preflight_fails_closed_before_fact_orm_hydration(runtime, 
     assert "no evidence was truncated" in response.json()["detail"]
     assert hydrated_fact_entities == []
     with factory() as session:
-        assert session.scalar(
-            select(func.count())
-            .select_from(CallFactVersion)
-            .where(CallFactVersion.need_id == need_id)
-        ) == number_of_rows
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(CallFactVersion)
+                .where(CallFactVersion.need_id == need_id)
+            )
+            == number_of_rows
+        )
 
 
 def test_saved_browse_parity_through_real_fact_accept_correct_reject_and_source_changes(

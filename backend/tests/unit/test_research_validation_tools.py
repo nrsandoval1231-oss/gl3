@@ -66,9 +66,7 @@ def test_manifest_requires_all_five_categories_and_explicit_distinct_ids(tmp_pat
         harness.validate_manifest(value, tmp_path)
 
 
-@pytest.mark.parametrize(
-    ("windows", "expected"), [(True, "npm.cmd"), (False, "npm")]
-)
+@pytest.mark.parametrize(("windows", "expected"), [(True, "npm.cmd"), (False, "npm")])
 def test_browser_runner_resolves_platform_npm_executable(monkeypatch, windows, expected):
     requested = []
 
@@ -120,9 +118,7 @@ def no_question_case(category="austin_data_center"):
     }
 
 
-@pytest.mark.parametrize(
-    "category", ["austin_data_center", "austin_temporary_power"]
-)
+@pytest.mark.parametrize("category", ["austin_data_center", "austin_temporary_power"])
 def test_owner_no_question_exception_requires_unchanged_source_linked_austin_case(category):
     before = no_question_case(category)
     after = copy.deepcopy(before)
@@ -452,9 +448,7 @@ def test_full_harness_offline_fixture_receipts_and_duplicate_replay_failure(
             )
             rows.append(row)
             store["questions"].append(row)
-            store["jobs"].append(
-                SimpleNamespace(id=uuid4(), target_id=qid, status="queued")
-            )
+            store["jobs"].append(SimpleNamespace(id=uuid4(), target_id=qid, status="queued"))
         return rows
 
     def run(_definitions, *, job_ids):

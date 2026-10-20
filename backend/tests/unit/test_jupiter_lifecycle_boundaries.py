@@ -7,9 +7,10 @@ from gridlens.domain.lifecycle import classify_event
 
 @pytest.mark.parametrize("permit", ["air permit", "air-permit", "air quality permit"])
 def test_procedural_air_permit_event_does_not_establish_campus_formation(permit):
-    assert classify_event(
-        f"Hearing officer appointed for Project Jupiter data center {permit}."
-    ) is None
+    assert (
+        classify_event(f"Hearing officer appointed for Project Jupiter data center {permit}.")
+        is None
+    )
 
 
 @pytest.mark.parametrize(

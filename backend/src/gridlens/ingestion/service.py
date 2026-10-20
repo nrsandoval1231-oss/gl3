@@ -1919,9 +1919,7 @@ def _collection_progress_checkpoint(
     str,
 ]:
     """Return immutable progress identity captured before public acquisition."""
-    serialized_cursor = json.dumps(
-        progress.cursor or {}, sort_keys=True, separators=(",", ":")
-    )
+    serialized_cursor = json.dumps(progress.cursor or {}, sort_keys=True, separators=(",", ":"))
     return (
         progress.source_id,
         progress.lane,
@@ -2007,9 +2005,7 @@ def _process_structured_collection_segment(
             "observed_count": 0,
         }
 
-    source = _lock_current_acquisition_source(
-        session, job_id, worker_id, fence, source_definition
-    )
+    source = _lock_current_acquisition_source(session, job_id, worker_id, fence, source_definition)
     try:
         live_definition = next(
             (item for item in load_registry() if item.get("id") == source.id), None
@@ -2027,8 +2023,10 @@ def _process_structured_collection_segment(
             "observed_count": 0,
         }
     records = result.get("records", [])
-    if not isinstance(records, list) or len(records) > 1000 or any(
-        not isinstance(record, dict) for record in records
+    if (
+        not isinstance(records, list)
+        or len(records) > 1000
+        or any(not isinstance(record, dict) for record in records)
     ):
         raise SourceParseError("Structured source segment exceeded its record bound")
     current_progress = session.scalar(
@@ -2071,9 +2069,10 @@ def _process_structured_collection_segment(
             prior_checkpoint = json.loads(segment_job.checkpoint or "{}")
         except (TypeError, ValueError):
             prior_checkpoint = None
-        if isinstance(prior_checkpoint, dict) and prior_checkpoint.get(
-            "collection_continuation"
-        ) is True:
+        if (
+            isinstance(prior_checkpoint, dict)
+            and prior_checkpoint.get("collection_continuation") is True
+        ):
             segment_job.checkpoint = json.dumps(
                 {
                     **prior_checkpoint,
@@ -2086,9 +2085,7 @@ def _process_structured_collection_segment(
     session.commit()
     acquisition_completed_at = session.scalar(text("SELECT clock_timestamp()"))
 
-    source = _lock_current_acquisition_source(
-        session, job_id, worker_id, fence, source_definition
-    )
+    source = _lock_current_acquisition_source(session, job_id, worker_id, fence, source_definition)
     try:
         latest_definition = next(
             (item for item in load_registry() if item.get("id") == source.id), None
@@ -2121,9 +2118,7 @@ def _process_structured_collection_segment(
         progress_partial = bool(result.get("partial"))
         completed_at = session.scalar(text("SELECT clock_timestamp()"))
         apply_segment_result(latest_progress, result, now=completed_at)
-        current_complete, all_complete = collection_status(
-            session, source.id, digest, lanes
-        )
+        current_complete, all_complete = collection_status(session, source.id, digest, lanes)
         continuation = not progress_partial and collection_continuation_needed(
             session,
             source.id,

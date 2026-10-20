@@ -17,9 +17,7 @@ VERTICAL_TAGS = {
 }
 
 VERTICAL_ALIASES = {
-    alias: group
-    for group, tags in VERTICAL_TAGS.items()
-    for alias in (group, *tags)
+    alias: group for group, tags in VERTICAL_TAGS.items() for alias in (group, *tags)
 }
 
 

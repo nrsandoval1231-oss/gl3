@@ -486,12 +486,14 @@ def test_reassigned_retained_role_cannot_conflict_with_current_independent_role(
                 person_project_relationship="ROLE_SUPPORTED",
                 evidence_strength="High",
                 reason="Cited public role.",
-                citations=[{
-                    "evidence_id": str(source.id),
-                    "url": source.url,
-                    "quote": quote,
-                    "supports": "organization_person_role",
-                }],
+                citations=[
+                    {
+                        "evidence_id": str(source.id),
+                        "url": source.url,
+                        "quote": quote,
+                        "supports": "organization_person_role",
+                    }
+                ],
                 public_contacts=[],
                 observed_at=NOW,
             )
@@ -533,9 +535,7 @@ def test_reassigned_retained_role_cannot_conflict_with_current_independent_role(
         assert view["candidates"][0]["person_organization_relationship"] == "CURRENT"
         assert view["candidates"][0]["person_project_relationship"] == "ROLE_SUPPORTED"
         assert view["candidates"][0]["stale"] is False
-        assert all(
-            quote["id"] != old_source.id for quote in view["candidates"][0]["evidence"]
-        )
+        assert all(quote["id"] != old_source.id for quote in view["candidates"][0]["evidence"])
         history = buying_chain_view(session, project.id, history=True)["candidates"]
         assert {row["id"] for row in history} == {
             old_claim.id,
@@ -842,9 +842,7 @@ def test_deduplicated_claim_keeps_independent_category_after_retained_reassignme
         assert retained is not None and interpretation is not None
         retained.abstract = "Acme is the general contractor for Orion Data Center in Austin, TX."
         contact_quote = "Call Acme at 512-555-0100."
-        public_org_quote = (
-            f"Acme is the {public_role_phrase} for Orion Data Center in Austin, TX."
-        )
+        public_org_quote = f"Acme is the {public_role_phrase} for Orion Data Center in Austin, TX."
         fetched = PublicDocument(
             URL,
             retained.title,
@@ -881,13 +879,15 @@ def test_deduplicated_claim_keeps_independent_category_after_retained_reassignme
                 "supports": "public_contact",
             },
         ]
-        stored_claim.public_contacts = [{
-            "kind": "phone",
-            "value": "512-555-0100",
-            "source_url": URL,
-            "quote": contact_quote,
-            "observed_at": NOW.isoformat(),
-        }]
+        stored_claim.public_contacts = [
+            {
+                "kind": "phone",
+                "value": "512-555-0100",
+                "source_url": URL,
+                "quote": contact_quote,
+                "observed_at": NOW.isoformat(),
+            }
+        ]
         session.flush()
         baseline = seed_material_state(session, project)
         unrelated = Project(
@@ -996,13 +996,15 @@ def test_partial_citation_survival_downgrades_role_and_excludes_all_invalid_clai
                 citation(old_source, role_quote, "organization_person_role"),
                 citation(old_source, role_quote, "public_contact"),
             ],
-            public_contacts=[{
-                "kind": "email",
-                "value": "alice@example.test",
-                "source_url": old_source.url,
-                "quote": role_quote,
-                "observed_at": NOW.isoformat(),
-            }],
+            public_contacts=[
+                {
+                    "kind": "email",
+                    "value": "alice@example.test",
+                    "source_url": old_source.url,
+                    "quote": role_quote,
+                    "observed_at": NOW.isoformat(),
+                }
+            ],
             observed_at=NOW,
         )
         invalid_only = BuyingChainClaim(
@@ -1152,7 +1154,9 @@ def test_retained_scan_reaches_older_current_version_after_invalid_prefix(db):
         assert all(
             row.retained_evidence_id == accepted.id
             for row in session.scalars(
-                select(BuyingChainEvidence).where(BuyingChainEvidence.retained_evidence_id.is_not(None))
+                select(BuyingChainEvidence).where(
+                    BuyingChainEvidence.retained_evidence_id.is_not(None)
+                )
             ).all()
         )
 
@@ -1343,7 +1347,8 @@ def test_fresh_independent_role_citation_survives_invalid_old_role(db, old_inval
         claim = session.get(BuyingChainClaim, person["id"])
         assert claim is not None
         original_role = next(
-            citation for citation in claim.citations
+            citation
+            for citation in claim.citations
             if citation["supports"] == "organization_person_role"
         )
         old_source = session.get(BuyingChainEvidence, original_role["evidence_id"])
@@ -1388,14 +1393,13 @@ def test_fresh_independent_role_citation_survives_invalid_old_role(db, old_inval
             session.add(replacement)
         session.flush()
         survivor = next(
-            row for row in buying_chain_view(session, project.id, now=later)["candidates"]
+            row
+            for row in buying_chain_view(session, project.id, now=later)["candidates"]
             if row["id"] == claim.id
         )
         assert survivor["person_organization_relationship"] == "CURRENT"
         assert survivor["stale"] is False
-        assert {item["id"] for item in survivor["evidence"]} >= {
-            old_source.id, independent.id
-        }
+        assert {item["id"] for item in survivor["evidence"]} >= {old_source.id, independent.id}
 
         # If the independent page also withdraws the role, no current role
         # citation remains. The person relationship must become UNKNOWN.
@@ -1415,7 +1419,8 @@ def test_fresh_independent_role_citation_survives_invalid_old_role(db, old_inval
         )
         session.flush()
         withdrawn = next(
-            row for row in buying_chain_view(session, project.id, now=later)["candidates"]
+            row
+            for row in buying_chain_view(session, project.id, now=later)["candidates"]
             if row["id"] == claim.id
         )
         assert withdrawn["person_organization_relationship"] == "UNKNOWN"
@@ -1479,9 +1484,7 @@ def test_boston_retained_applicant_facts_are_cited_without_creating_buyer(db):
         summary = next(
             row for row in result["permit_summaries"] if row["source_id"] == source_row.id
         )
-        applicant = next(
-            fact for fact in summary["facts"] if fact["value"] == "Acme Services"
-        )
+        applicant = next(fact for fact in summary["facts"] if fact["value"] == "Acme Services")
         assert applicant["label"] == "Applicant (role as applicant; buyer authority unknown)"
         assert applicant["quote"] in evidence.abstract
         assert result["candidates"] == []
@@ -1666,9 +1669,7 @@ def test_houston_exact_detail_uses_source_record_key_and_attaches_to_matching_pr
         )
         observation.abstract = evidence.abstract
         result = enrich_buying_chain(session, project.id, now=NOW)
-        assert calls == [
-            ("26051624", "Building Pmt", "2026-09-02", "8930 GULF FWY A")
-        ]
+        assert calls == [("26051624", "Building Pmt", "2026-09-02", "8930 GULF FWY A")]
         candidate = next(
             item for item in result["candidates"] if item["organization"] == "ACME LLC"
         )
@@ -1686,9 +1687,7 @@ def test_houston_exact_detail_uses_source_record_key_and_attaches_to_matching_pr
 
         retained_before = set(
             session.scalars(
-                select(BuyingChainEvidence.id).where(
-                    BuyingChainEvidence.project_id == project.id
-                )
+                select(BuyingChainEvidence.id).where(BuyingChainEvidence.project_id == project.id)
             )
         )
         claims_before = set(
@@ -1699,26 +1698,35 @@ def test_houston_exact_detail_uses_source_record_key_and_attaches_to_matching_pr
         response_type[0] = "Demolition"
         rejected = enrich_buying_chain(session, project.id, now=NOW + timedelta(minutes=1))
         assert len(rejected["permit_summaries"]) == 2
-        assert set(
-            session.scalars(
-                select(BuyingChainEvidence.id).where(
-                    BuyingChainEvidence.project_id == project.id
+        assert (
+            set(
+                session.scalars(
+                    select(BuyingChainEvidence.id).where(
+                        BuyingChainEvidence.project_id == project.id
+                    )
                 )
             )
-        ) == retained_before
-        assert set(
-            session.scalars(
-                select(BuyingChainClaim.id).where(BuyingChainClaim.project_id == project.id)
+            == retained_before
+        )
+        assert (
+            set(
+                session.scalars(
+                    select(BuyingChainClaim.id).where(BuyingChainClaim.project_id == project.id)
+                )
             )
-        ) == claims_before
+            == claims_before
+        )
 
         should_fail[0] = True
         failed = enrich_buying_chain(session, project.id, now=NOW + timedelta(minutes=2))
         assert len(failed["permit_summaries"]) == 2
-        assert set(
-            session.scalars(
-                select(BuyingChainEvidence.id).where(
-                    BuyingChainEvidence.project_id == project.id
+        assert (
+            set(
+                session.scalars(
+                    select(BuyingChainEvidence.id).where(
+                        BuyingChainEvidence.project_id == project.id
+                    )
                 )
             )
-        ) == retained_before
+            == retained_before
+        )

@@ -144,8 +144,7 @@ def classify_event(
     # or procedural clause cannot lend its milestone to the campus, while a
     # separately stated campus event remains usable.
     title_has_data_center = (
-        bool(re.search(_ASSETS[0][1], title, re.IGNORECASE))
-        or project_asset_type == "data_center"
+        bool(re.search(_ASSETS[0][1], title, re.IGNORECASE)) or project_asset_type == "data_center"
     )
     permit_patterns = {
         "building_permit_issued": (r"\bbuilding permit\b", "building permit was issued"),
@@ -181,11 +180,7 @@ def classify_event(
             and permit_marker
             and re.search(permit_pattern, part)
             and not adjacent_facility
-            and not (
-                names_other_facility
-                and not explicit_campus
-                and not campus_reference
-            )
+            and not (names_other_facility and not explicit_campus and not campus_reference)
         ):
             # A previously typed data-center project cannot lend a generic
             # permit title to a different facility named in this current record.
@@ -404,10 +399,14 @@ def _classify_scope(
     )
     if match is None and not allow_formation_fallback:
         return None
-    if match is None and asset == AssetType.DATA_CENTER and re.search(
-        r"building permit|electrical permit|construction|energiz|commission|"
-        r"transformer|substation|switchgear",
-        text,
+    if (
+        match is None
+        and asset == AssetType.DATA_CENTER
+        and re.search(
+            r"building permit|electrical permit|construction|energiz|commission|"
+            r"transformer|substation|switchgear",
+            text,
+        )
     ):
         return None
     if match is None:

@@ -108,9 +108,10 @@ def validate_fact(fact_type: str, value: dict[str, Any]) -> dict[str, Any]:
         if supplied_correction_keys:
             for key in sorted(correction_keys):
                 source_hash = value.get(key)
-                if not isinstance(source_hash, str) or re.fullmatch(
-                    r"[0-9a-fA-F]{64}", source_hash
-                ) is None:
+                if (
+                    not isinstance(source_hash, str)
+                    or re.fullmatch(r"[0-9a-fA-F]{64}", source_hash) is None
+                ):
                     raise ValueError("timing correction source hashes must be SHA-256 values")
                 clean[key] = source_hash.lower()
             basis = value.get("basis")
@@ -145,9 +146,7 @@ def _format_mw(value: Decimal) -> str:
     return format(value.normalize(), "f")
 
 
-def _fact_mw_interval(
-    value: dict[str, Any], *, allow_zero: bool
-) -> tuple[Decimal, Decimal] | None:
+def _fact_mw_interval(value: dict[str, Any], *, allow_zero: bool) -> tuple[Decimal, Decimal] | None:
     """Read one exact point or bounded interval from typed fact fields."""
     has_min = "mw_min" in value
     has_max = "mw_max" in value
@@ -393,9 +392,7 @@ def _fact_covers_interval(row: Any, interval: tuple[datetime, datetime]) -> bool
     ):
         return False
     if ends_at is not None and (
-        not isinstance(ends_at, datetime)
-        or ends_at.tzinfo is None
-        or ends_at.utcoffset() is None
+        not isinstance(ends_at, datetime) or ends_at.tzinfo is None or ends_at.utcoffset() is None
     ):
         return False
     start, end = interval
@@ -577,11 +574,7 @@ def qualification_from_facts(
         closure_rows.append(rows_by_type["demand"][0])
     if base_tier == "Signal" and unsuitable:
         closure_rows.append(rows_by_type["unsuitable_supply"][0])
-    closure_supply_interval = (
-        _fact_mw_interval(suitable[0], allow_zero=True)
-        if suitable
-        else None
-    )
+    closure_supply_interval = _fact_mw_interval(suitable[0], allow_zero=True) if suitable else None
     if (
         closure_has_shortage_support
         and suitable
@@ -664,11 +657,7 @@ def qualification_from_facts(
         required_interval = calculation_demand
     else:
         required_interval = fact_interval
-    has_unsuitable = (
-        bool(unsuitable)
-        if base_tier == "Signal"
-        else bool(base.get("supply_quote"))
-    )
+    has_unsuitable = bool(unsuitable) if base_tier == "Signal" else bool(base.get("supply_quote"))
     if required_interval is None or not has_unsuitable:
         if (
             base_tier == "Lead"
@@ -728,14 +717,10 @@ def qualification_from_facts(
 
         gap = {
             "required_mw": (
-                _mw_presentation(required_interval)
-                if ranged
-                else _format_mw(required_low)
+                _mw_presentation(required_interval) if ranged else _format_mw(required_low)
             ),
             "available_mw": (
-                _mw_presentation(closure_supply_interval)
-                if ranged
-                else _format_mw(available_low)
+                _mw_presentation(closure_supply_interval) if ranged else _format_mw(available_low)
             ),
             "value_kind": "Derived",
             "suitable_supply_basis": "User-confirmed",
@@ -784,9 +769,7 @@ def qualification_from_facts(
             "tier": "Lead",
             **(
                 {
-                    "start_window": (
-                        f"{timing[0]['start_date']} to {timing[0]['end_date']}"
-                    ),
+                    "start_window": (f"{timing[0]['start_date']} to {timing[0]['end_date']}"),
                     "duration": f"{timing[0]['duration_days']} days",
                 }
                 if timing_resolution in {"compatible_narrowing", "explicit_source_correction"}
@@ -893,9 +876,7 @@ def qualification_from_facts(
         return result
     lead_facts = [timing_rows[0], suitable_rows[0], buyer_rows[0]]
     if base_tier == "Signal":
-        lead_facts.extend(
-            (rows_by_type["demand"][0], rows_by_type["unsuitable_supply"][0])
-        )
+        lead_facts.extend((rows_by_type["demand"][0], rows_by_type["unsuitable_supply"][0]))
     elif demand:
         # A fact that narrows a public interval is a calculation input and must
         # cover the same complete activity window as timing and suitable supply.
@@ -918,9 +899,7 @@ def qualification_from_facts(
         and source_interval is not None
         and fact_interval is not None
     )
-    ranged = (
-        required_low != required_high or available_low != available_high or fact_intersection
-    )
+    ranged = required_low != required_high or available_low != available_high or fact_intersection
     gap = {
         "required_mw": (
             _mw_presentation(required_interval) if ranged else _format_mw(required_low)

@@ -217,10 +217,7 @@ def retrieve_collection_segment(
     if type(scanned) is not int or scanned < 0:
         raise SourceParseError("Boston collection cursor has an invalid row count")
     start = day.isoformat()
-    where = (
-        f"issued_date >= '{start}T00:00:00' "
-        f"AND issued_date <= '{start}T23:59:59.999'"
-    )
+    where = f"issued_date >= '{start}T00:00:00' AND issued_date <= '{start}T23:59:59.999'"
     relation = f'"{RESOURCE_ID}"'
     http = client or httpx.Client(
         timeout=20, follow_redirects=False, headers={"Accept": "application/json"}

@@ -2222,13 +2222,16 @@ def test_estimated_jev_final_usage_envelope_overflow_quarantines_and_cannot_repl
 
     response["padding"] = "x" * (MAX_RESULT_BYTES - encoded_size(response) - 64)
     assert encoded_size(response) == MAX_RESULT_BYTES - 64
-    assert encoded_size(
-        {
-            **response,
-            "usage_estimated_usd": estimate,
-            "usage_estimate_policy": estimate_policy,
-        }
-    ) > MAX_RESULT_BYTES
+    assert (
+        encoded_size(
+            {
+                **response,
+                "usage_estimated_usd": estimate,
+                "usage_estimate_policy": estimate_policy,
+            }
+        )
+        > MAX_RESULT_BYTES
+    )
 
     provider_calls = []
 
@@ -2402,9 +2405,7 @@ def test_estimated_jev_uses_existing_shared_active_and_budget_caps(sessions, mon
 
 
 @pytest.mark.parametrize("change", ["evidence", "source_disabled"])
-def test_estimated_jev_rechecks_evidence_and_source_before_dispatch(
-    sessions, monkeypatch, change
-):
+def test_estimated_jev_rechecks_evidence_and_source_before_dispatch(sessions, monkeypatch, change):
     source_id, observation_id, evidence_id, _digest, job_id = _seed_signal_adjudication_job(
         sessions
     )

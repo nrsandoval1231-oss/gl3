@@ -41,9 +41,7 @@ def synthetic_structured_segment_for_collection_semantics(monkeypatch):
 
     def synthetic_segment(source, lane, start, end, cursor, client=None, *, deadline=None):
         if source.get("retrieval_method") not in {"socrata-permits", "boston-ckan-permits"}:
-            return original_segment(
-                source, lane, start, end, cursor, client, deadline=deadline
-            )
+            return original_segment(source, lane, start, end, cursor, client, deadline=deadline)
         records = service.retrieve_source(source, client)
         return {
             "records": records,
@@ -767,7 +765,8 @@ def test_second_official_need_claim_emits_conflict_without_selected_value_change
         fields = project_state(session, project.id)["state"]["power_need"]["value"][0]
         assert fields["mw"]["status"] == "CONFLICT"
         assert {claim["evidence"]["id"] for claim in fields["mw"]["claims"]} == {
-            str(first_evidence.id), str(second_evidence.id)
+            str(first_evidence.id),
+            str(second_evidence.id),
         }
         event = session.scalar(
             select(ChangeEvent).where(
@@ -778,7 +777,8 @@ def test_second_official_need_claim_emits_conflict_without_selected_value_change
         )
         assert event is not None
         assert event.new_state["value"][0]["conflicts"]["mw"] == [
-            "about 42 MW", "approximately 58 MW"
+            "about 42 MW",
+            "approximately 58 MW",
         ]
         event_count = session.scalar(select(func.count()).select_from(ChangeEvent))
         agreeing_observation, agreeing_evidence = retained(first_summary, "agreeing-42")
@@ -815,7 +815,8 @@ def test_second_official_need_claim_emits_conflict_without_selected_value_change
         )
         assert resolution is not None
         assert resolution.prior_state["value"][0]["conflicts"]["mw"] == [
-            "about 42 MW", "approximately 58 MW"
+            "about 42 MW",
+            "approximately 58 MW",
         ]
         assert "conflicts" not in resolution.new_state["value"][0]
         resolved_count = session.scalar(select(func.count()).select_from(ChangeEvent))
@@ -1220,12 +1221,14 @@ def test_official_same_hash_reassignment_clears_former_project_support_and_keeps
                 person_project_relationship="UNKNOWN",
                 evidence_strength="High",
                 reason="Official retained citation.",
-                citations=[{
-                    "evidence_id": str(chain_evidence.id),
-                    "url": evidence.url,
-                    "quote": quote,
-                    "supports": "organization_category",
-                }],
+                citations=[
+                    {
+                        "evidence_id": str(chain_evidence.id),
+                        "url": evidence.url,
+                        "quote": quote,
+                        "supports": "organization_category",
+                    }
+                ],
                 public_contacts=[],
                 observed_at=evidence.observed_at,
             )
@@ -1263,11 +1266,14 @@ def test_official_same_hash_reassignment_clears_former_project_support_and_keeps
         ) == before_evidence
         assert session.get(ProjectLifecycle, former.id) is None
         assert project_state(session, former.id)["state"]["lifecycle"]["status"] == "UNKNOWN"
-        assert session.scalar(
-            select(func.count())
-            .select_from(LifecycleEvent)
-            .where(LifecycleEvent.project_id == former.id)
-        ) >= 1  # The historical event remains retained.
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(LifecycleEvent)
+                .where(LifecycleEvent.project_id == former.id)
+            )
+            >= 1
+        )  # The historical event remains retained.
         assert buying_chain_view(session, former.id)["candidates"] == []
         assert any(
             row["id"] == chain_claim_ids[former.id]
@@ -1280,13 +1286,18 @@ def test_official_same_hash_reassignment_clears_former_project_support_and_keeps
         # The source reports delayed construction, not begun work. Correcting the
         # project binding must not turn that pending claim into lifecycle support.
         assert project_state(session, selected.id)["state"]["lifecycle"]["status"] == "UNKNOWN"
-        assert session.scalar(
-            select(func.count()).select_from(ChangeEvent).where(
-                ChangeEvent.project_id == former.id,
-                ChangeEvent.evidence_id == evidence.id,
-                ChangeEvent.field_name.in_(["phase", "contractor", "buyer"]),
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(ChangeEvent)
+                .where(
+                    ChangeEvent.project_id == former.id,
+                    ChangeEvent.evidence_id == evidence.id,
+                    ChangeEvent.field_name.in_(["phase", "contractor", "buyer"]),
+                )
             )
-        ) >= 3
+            >= 3
+        )
         selected_fields = set(
             session.scalars(
                 select(ChangeEvent.field_name).where(

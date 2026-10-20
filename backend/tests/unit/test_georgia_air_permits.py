@@ -702,6 +702,7 @@ def test_pdf_identity_company_legal_style_preserves_station_and_site(
         )
     )
     with httpx.Client(transport=transport) as client:
+
         def extract():
             return georgia_air_permits._extract_document(
                 client,
