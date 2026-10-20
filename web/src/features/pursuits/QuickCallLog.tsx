@@ -66,8 +66,8 @@ export function QuickCallLog({ item, onReadback }: { item: Opportunity; onReadba
     }
     if (has('start') && has('end') && values.start > values.end) return setError('Earliest start must be on or before latest start.')
     if (has('buyer') && !values.buyerRole) return setError('Choose the buyer role they reported.')
-    if (has('supply') && values.supplyQuality === 'unsuitable' && !/^\s*\d+(\.\d+)?\s*$/.test(values.supply)) {
-      return setError('Unsuitable supply needs one MW number, not a range.')
+    if (has('supply') && values.supplyQuality === 'unsuitable' && (!/^\s*\d+(\.\d+)?\s*$/.test(values.supply) || !Number.isFinite(Number(values.supply)) || Number(values.supply) <= 0 || Number(values.supply) > 1_000_000)) {
+      return setError('Unsuitable supply needs one positive MW number within the supported range.')
     }
     setBusy(true); setError('')
     const saved: CallFact[] = []
