@@ -1,0 +1,108 @@
+[
+  {
+    "directory": "gl3",
+    "branch": "codex/gl3-ci-selector-f8b13dd",
+    "head": "76f4f244033e5132ceef4e620d166f18fcc0059a",
+    "dirty": [
+      " M web/src/features/environment/Environment.tsx"
+    ]
+  },
+  {
+    "directory": "gl3-evaluation-post",
+    "branch": "perf/evaluation-post",
+    "head": "bce0ccf7fe69fb02c2cfc96c91c25f0ec86891e9",
+    "dirty": []
+  },
+  {
+    "directory": "gl3-map-publication",
+    "branch": "fix/saved-browse-pursuit-publication",
+    "head": "48e18c29285bbcadb8aaff1bc399c3759dc509a9",
+    "dirty": []
+  },
+  {
+    "directory": "gl3-persistent-ingestion",
+    "branch": "feat/persistent-ingestion-acceptance",
+    "head": "49121eb14f5d090abbbbc8ebcd4bea6a4be62b21",
+    "dirty": [
+      " M .agent/CURRENT_STATE.md",
+      " M .agent/WORK_GRAPH.md",
+      "?? .agent/CURRENT_STATE.before-2101510.md",
+      "?? .agent/CURRENT_STATE.before-939.md",
+      "?? .agent/CURRENT_STATE.pre-6d88afd-final-disposition-20261018.md",
+      "?? .agent/CURRENT_STATE.pre-frozen-6d88afd-20261018.md",
+      "?? .agent/OWNERSHIP.md",
+      "?? .agent/WORK_GRAPH.before-f47.md",
+      "?? .agent/WORK_GRAPH.pre-6d88afd-disposition-20261018.md",
+      "?? .agent/archive/current-state-20261018T1921.md",
+      "?? .agent/archive/current-state-20261018T1938.md",
+      "?? .agent/archive/pre-persistent-ingestion-20261018T1856Z/",
+      "?? .agent/archive/work-graph-20261018T1952.md",
+      "?? .agent/packets/frozen-2101510-acceptance.md",
+      "?? .agent/packets/frozen-6d88afd-controller-acceptance.md",
+      "?? .agent/packets/frozen-939-accounting-acceptance.md",
+      "?? .agent/packets/frozen-cd8d943-delta-review.md",
+      "?? .agent/packets/frozen-e4fa-accounting-acceptance.md",
+      "?? .agent/packets/frozen-f47-provider-accounting-review.md",
+      "?? .agent/packets/frozen-f8b13dd-boundary-review.md",
+      "?? .agent/packets/persistent-ingestion-acceptance.md",
+      "?? backend/tests/integration/test_persistent_ingestion_acceptance.py",
+      "?? backend/tests/integration/test_persistent_ingestion_operational_acceptance.py",
+      "?? backend/tests/integration/test_persistent_ingestion_rss_boundary_acceptance.py",
+      "?? backend/tests/integration/test_persistent_ingestion_stale_writer_acceptance.py"
+    ]
+  },
+  {
+    "directory": "gl3-pr87-baseline",
+    "branch": null,
+    "head": "07d676b57df4b02d85257a1f6c10aa5f33db4e5d",
+    "dirty": []
+  },
+  {
+    "directory": "gl3-pr87-deployed-baseline",
+    "branch": null,
+    "head": "211d744eb3ecf58e0ffd27ecf6a82d83a68c8b03",
+    "dirty": []
+  },
+  {
+    "directory": "gl3-pr87-repair",
+    "branch": "fix/pr87-call-preparation",
+    "head": "85acc0eca4dbc6ae5d1c80def712b72c5e6207bc",
+    "dirty": []
+  },
+  {
+    "directory": "gl3-preload",
+    "branch": "perf/request-preload",
+    "head": "9947b21029acacbc3cd03ed411674b86163a1baa",
+    "dirty": [
+      " M .agent/CURRENT_STATE.md",
+      " M .agent/WORK_GRAPH.md",
+      "?? .agent/archive/pre-request-preload-20261018T094551Z-CURRENT_STATE.md",
+      "?? .agent/archive/pre-request-preload-20261018T094551Z-WORK_GRAPH.md",
+      "?? .agent/packets/request-preload.md"
+    ]
+  },
+  {
+    "directory": "gl3-remove-editorial",
+    "branch": "remove/editorial",
+    "head": "eba435c3dbff5adf9ee7dba2719b5c96e759071e",
+    "dirty": []
+  },
+  {
+    "directory": "gl3-source-repair",
+    "branch": "fix/source-collection-recovery",
+    "head": "a5e4cf9ed7851e58de8599520c7f617a7ae5b831",
+    "dirty": []
+  },
+  {
+    "directory": "gl3-title-enrichment",
+    "branch": "fix/source-backed-opportunity-titles",
+    "head": "802cbb4055c515699ce998445f77f98ab96d65b1",
+    "dirty": []
+  },
+  {
+    "directory": "gl3-title01-release",
+    "branch": "fix/validated-workspace-titles",
+    "head": "d58691eaa5f94c4915d4b0790c6b7a0bf13e84fd",
+    "dirty": []
+  }
+]

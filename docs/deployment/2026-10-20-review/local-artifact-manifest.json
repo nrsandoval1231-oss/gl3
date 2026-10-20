@@ -1,0 +1,866 @@
+[
+  {
+    "name": "title02-0427d566d528.tar.gz",
+    "bytes": 1100075,
+    "sha256": "d31b495b78c329e2b7f110624d4f8dd6d52b1387383264981c7020612284a465",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-38d7499b6726-git-manifest.json",
+    "bytes": 176389,
+    "sha256": "8a4067e2e105fe4fa6f770e244a66a4e4012c420d8c27f719addec6c5c523dd3",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-39bcd4c1afe5.tar.gz",
+    "bytes": 1009123,
+    "sha256": "26127303be8a1614a8375286886698cdb6853b6405df34ef98216e9e4c3b2a5a",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-802cbb4055c5-git-manifest.json",
+    "bytes": 176389,
+    "sha256": "41a9ede58fafbf9b7d7763fba28803e71dc230aef3e3774703f24403248c2bc5",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-86a66a2611d6.tar.gz",
+    "bytes": 1003419,
+    "sha256": "37be6f045f7c1d9b0390dccb41b84656c859edb0d056a5d0b38f87255564e4ba",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-8f5d19165ab5.tar.gz",
+    "bytes": 1100186,
+    "sha256": "afe6cfe14492c9df42f7e5309bb275aae89dd5579c75d15c769e474c4a080f16",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-activate-runtime-notes.md",
+    "bytes": 6483,
+    "sha256": "21cede5f37d421c49340db4ff1d128061874cadc60ff04091901d68dac6afa90",
+    "git_copy": "reviews/title02-activate-runtime-notes.md"
+  },
+  {
+    "name": "title02-activate-runtime.py",
+    "bytes": 48807,
+    "sha256": "03b205b5db46c7ab113a88784bb3e865e5f58aaef23b6ad8d1f474559d44c64c",
+    "git_copy": "operator-scripts/title02-activate-runtime.py"
+  },
+  {
+    "name": "title02-activation-astra-review.md",
+    "bytes": 8023,
+    "sha256": "49147c3186b72f28d216b809f4a452150e0cb33ec7ced00189311eae1c0f7832",
+    "git_copy": "reviews/title02-activation-astra-review.md"
+  },
+  {
+    "name": "title02-all-browser-fallback-expectation.log",
+    "bytes": 47851,
+    "sha256": "f68df01ff94d6562cad73fc82a2a66c6310c504c4970b2880560d11e7fe21dee",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-all-browser-mixed-during-retry-repair.log",
+    "bytes": 51472,
+    "sha256": "aecd1542aa9fc90c2578a7f70c7e24d39537b700dda689c936767fcb8d54d9eb",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-all-browser-retry-bug.log",
+    "bytes": 51021,
+    "sha256": "7669830914c020b2e5525dfafc45a573eab4ea03a9b9d5a350c2bcdda78979a0",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-all-browser.config.cjs",
+    "bytes": 648,
+    "sha256": "243258fb7815ec7b0017cd779869b26b150c698b3e4369b5db114bdeb1f4b87a",
+    "git_copy": "operator-scripts/title02-all-browser.config.cjs"
+  },
+  {
+    "name": "title02-all-browser.log",
+    "bytes": 45180,
+    "sha256": "f213d05eefe6a3ae3b276ac64ab55ebd8313bae1b1b0e73df9b61017ec467823",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-astra-final-review.md",
+    "bytes": 11508,
+    "sha256": "3b5a291560d2c6c0f8c7b930405d677bf6c61395a29276a2381658bbb27c5960",
+    "git_copy": "reviews/title02-astra-final-review.md"
+  },
+  {
+    "name": "title02-authorization-20261020.json",
+    "bytes": 1512,
+    "sha256": "0859fcbb3c97c846abc3598355324e6d08207d520321d45c2f6b7353c1a6fb11",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-b22f936ffb55.tar.gz",
+    "bytes": 1009536,
+    "sha256": "61ef0f76e36be6aaead426f21777f5953f6426d9a5a43cc2e71386875b2c9ac5",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-bac0e8187613.tar.gz",
+    "bytes": 1100087,
+    "sha256": "fe469707f507a257420f1a89f9af358da581edee73464ec3d52da03169113ec5",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-backend-0427d566d528.log",
+    "bytes": 241187,
+    "sha256": "884cfa7783b0c6ccf90058c0ae52ec02ef7dfe381e01faee95a8479f03bcf101",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-backend-8f5d19165ab5.log",
+    "bytes": 18218,
+    "sha256": "e35ed7ab00897e51d00d10d5299b790d3e13f4785d42c64f06141306a3cf4670",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-backend-bac0e8187613.log",
+    "bytes": 44280,
+    "sha256": "b706b2b76ef147f00abab8b965b9b31163c997f5be3f90c794906790e94097c1",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-browse-realignment.json",
+    "bytes": 429,
+    "sha256": "281e59f20bdd46072274ab50dce9196a3bef1e6a4ca74d2c5e44c0f2d7dd895b",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-browser-final-ui.log",
+    "bytes": 24140,
+    "sha256": "438d1e6c19db1f5a479effebaed33453a09fdcda74ac33d65c80cf907bdfed22",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-browser-repaired.log",
+    "bytes": 20807,
+    "sha256": "2b40fd345f04b51f81e71220ce76c01afcf180e1bac1d3289b4419d9aa50680b",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-browser-tests.log",
+    "bytes": 29127,
+    "sha256": "c21e93f677da3f18aecf8ef7845cf35577db1fa71f1d295a761c2488ccb27dda",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-build-release.py",
+    "bytes": 2833,
+    "sha256": "9ea3a92725e69f53b5e0ae9e9863779dbb1f04ebaa30d2d4eb0c6e44d2ec1113",
+    "git_copy": "operator-scripts/title02-build-release.py"
+  },
+  {
+    "name": "title02-candidate-manifest.json",
+    "bytes": 48317,
+    "sha256": "e7ba89afaf2d670162062e1f7c7923811892aeaf29713deb9b9736bcf8617e98",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-cb10c21cd6bd.tar.gz",
+    "bytes": 1007180,
+    "sha256": "08125a85707bc15f24242009dedd4bc9b3ce3130cbdc7340aa8b7e3bd5dd6ef1",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-ci-39348986891.log",
+    "bytes": 289389,
+    "sha256": "bc28416c4b0286348d0ae30745e5a33fb5edd31b8bfc4382192ee813671cb9fc",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-compose-discovery.json",
+    "bytes": 919,
+    "sha256": "7d1d26db4527bc42fb8423b48965014b5e8340bad4b5505dc44108049aea304d",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-compose-discovery.py",
+    "bytes": 1069,
+    "sha256": "c6954bf75e0f329432f87051f4e6bc6b7aa5789c62c15953d7b05d133c871af5",
+    "git_copy": "operator-scripts/title02-compose-discovery.py"
+  },
+  {
+    "name": "title02-contract-parity.py",
+    "bytes": 1039,
+    "sha256": "649baef5ec3402a22133187925a2ae6e384e3ed6b84856b5529b7117aca7c449",
+    "git_copy": "operator-scripts/title02-contract-parity.py"
+  },
+  {
+    "name": "title02-controller-astra-review.md",
+    "bytes": 14853,
+    "sha256": "525aa20a5287a5976213943f597faad22a9a28df66715808eef64bba16ed5ac5",
+    "git_copy": "reviews/title02-controller-astra-review.md"
+  },
+  {
+    "name": "title02-controller-host-offline.json",
+    "bytes": 695,
+    "sha256": "080600fff33322a9676250b8fcaaf6a6080add275178d09d9dbbeeda4d987a55",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-controller-host-offline.py",
+    "bytes": 1601,
+    "sha256": "1100d30d77750ddfd9b72f1dabd66d063bec4d30839fa247fad8c95813a94c60",
+    "git_copy": "operator-scripts/title02-controller-host-offline.py"
+  },
+  {
+    "name": "title02-controller-live-preflight.json",
+    "bytes": 8990,
+    "sha256": "3ba41076765f4881e875c95b1787bcff38bcef3f7575de97cc0003bcdc1441e7",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-controller-preflight-manifest.json",
+    "bytes": 539,
+    "sha256": "66dc73588f60c2a064af13f1ea0af9f58c8d9c400b79683a019be98d4b49539b",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-controller-preflight-run.py",
+    "bytes": 3726,
+    "sha256": "b92ec614b516693010ac1c93e234d4a954eff4af6b387d232d65c834f553d601",
+    "git_copy": "operator-scripts/title02-controller-preflight-run.py"
+  },
+  {
+    "name": "title02-controller-restored-preflight.json",
+    "bytes": 11162,
+    "sha256": "1ffb9138b0b29890065f23decb41a5467e15b5fbe0c06d18796671fca5f83228",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-controller-restored-preflight.log",
+    "bytes": 9569,
+    "sha256": "9d638b645245fb5a75d8a195b5d838456f1d4966364af64f038035725ae82ae6",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-disabled-1-desktop.png",
+    "bytes": 86251,
+    "sha256": "2f49d0a4c2661505a6f1c08b8a09d013cb16f468c203a760c726ee6da3d7906a",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-disabled-1-mobile.png",
+    "bytes": 53456,
+    "sha256": "698ab8997b0869f3fe61944d1edcc739fda27deba04976fa7671225fdf42d2cf",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-disabled-2-desktop.png",
+    "bytes": 102943,
+    "sha256": "105918b2080f9d58cefd21bdfa6c28bc54ae26f3433ca2e98de6ce04d76c1ec5",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-disabled-2-mobile.png",
+    "bytes": 54372,
+    "sha256": "f093a6e5abdfea56c18bc799ac3d1e9e1c02e96712ff383f7193d927f934a986",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-disabled-3-desktop.png",
+    "bytes": 111024,
+    "sha256": "245a3647d8ebfa432165c3430234cc448b46e73a8edc2ba24fdb2674effc46fc",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-disabled-3-mobile.png",
+    "bytes": 60627,
+    "sha256": "09cb72547e06abd55cdd890c272210672eb7d9f8726e7ea3b7f41f019fbe975d",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-environment-recheck.log",
+    "bytes": 580,
+    "sha256": "b139bfd73bf1681fcf0d3560a8ab61fa04f6a2539b63f03b88c19593129d7f50",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-fb9065c8f222.tar.gz",
+    "bytes": 1015871,
+    "sha256": "6b580839b6cc8cc4aaf9f00a8b3ac5f378f0caf5f75855000e2f5146141cc0ae",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-final-live-state.json",
+    "bytes": 2051,
+    "sha256": "7287ba7753eeaab733b294e49c7037c6cc39e8f1c11232dd01d9e42315f2b7c6",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-final-runtime-controls.json",
+    "bytes": 1990,
+    "sha256": "e81ed32ddef7493a028a1d7487a51d690df547a7c9adf10ca97da9217ddd3c0c",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-fixture-repair-binding.json",
+    "bytes": 385,
+    "sha256": "d4e9c8fd4ce14d5745a8f4df51d7c3d1575d7525341dd0ce1063ab3e5f763c8b",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-freeze-frontend.py",
+    "bytes": 1155,
+    "sha256": "926cf1825d63ed9857c068246c4a79f2e18b06bbcbd70118848095f325c1821d",
+    "git_copy": "operator-scripts/title02-freeze-frontend.py"
+  },
+  {
+    "name": "title02-frontend-54273d3-manifest.json",
+    "bytes": 11128,
+    "sha256": "54273d39af38e4fa48e2e68b203e4cab126f3de6aabca391d9637e9dfcdf0d8f",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-frontend-b910c2f-manifest.json",
+    "bytes": 11128,
+    "sha256": "b910c2fb104ea78677154cbeb9d237d0a4ca8b13e0e290e189d97cc6123ff7e1",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-frontend-frozen.json",
+    "bytes": 11214,
+    "sha256": "a0f9a6e2cf2a4cd839e0c06f778e08b7d4f6dc951bb08fd90a2c2cb35629fd1b",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-frontend-gates.json",
+    "bytes": 1181,
+    "sha256": "5f40de3dc515dfcd3e0027b686bcea83f941dba856cc78311a4ab6d3ee1c7bfc",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-frozen-0427d566d528-manifest.json",
+    "bytes": 48317,
+    "sha256": "fdc7bdc8983993f452b144ea22810405f3be7246b72da9537f567a67799e1367",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-frozen-31260342d118-manifest.json",
+    "bytes": 59331,
+    "sha256": "47abfd598a21b47bdddd4e0fbc20c755c4ea99b331ae4193dc5b94aa8aa9015c",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-frozen-49b184d58f09-manifest.json",
+    "bytes": 59331,
+    "sha256": "386f897326f01a3792ab54d010dc8e1b4e3d1193a47b270391ba482350b717ba",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-frozen-b22f936ffb55-manifest.json",
+    "bytes": 42878,
+    "sha256": "742f6284921e61a7e0573f51993be04272f92c67dcfae85d89e76e869b52d500",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-frozen-bac0e8187613-manifest.json",
+    "bytes": 48317,
+    "sha256": "436a426294d30150af4e7f7f90c7af3dd4251517e4c78646996e265333f7b0d6",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-frozen-c09fec87ae0c-manifest.json",
+    "bytes": 56389,
+    "sha256": "c258759c4693558f09c699a3b67930af72fb85d59a9d2f3f0f1f99009ed211e1",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-full-candidate-manifest.json",
+    "bytes": 59331,
+    "sha256": "4daf5b7537c62a4e5ca89afb21a6bf296a363887e90de97a7b4eb2a7e01e448b",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-generated-verify.ts",
+    "bytes": 160085,
+    "sha256": "831edfc76af1de00098479b98c8ec432612743952d6ddc02581681cc5936a77d",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-identify-extra-test.py",
+    "bytes": 1047,
+    "sha256": "ef4f60555eed09700f06ca5bf0388af9e735ab836c767b3e25890dc7c564984c",
+    "git_copy": "operator-scripts/title02-identify-extra-test.py"
+  },
+  {
+    "name": "title02-identify-test.py",
+    "bytes": 647,
+    "sha256": "5ff188de04401b3c3df56751ed252996a3bd47815900f7e01388b2afea0b3049",
+    "git_copy": "operator-scripts/title02-identify-test.py"
+  },
+  {
+    "name": "title02-image-build-802cbb4055c5.log",
+    "bytes": 726,
+    "sha256": "93cf5bf01cdea09f0fa57b3bb7a88f4bca5d41c1754a195fcdee8ed0fa2426cf",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-image-contract-check.py",
+    "bytes": 2649,
+    "sha256": "4f159ea572481493e4117d3e6de7d7df2689fe67fb3959252e730fcf679f9e16",
+    "git_copy": "operator-scripts/title02-image-contract-check.py"
+  },
+  {
+    "name": "title02-isolated-39bcd4c1afe5.log",
+    "bytes": 11422,
+    "sha256": "e12b39250340ca8b2e730eaeb0ba2f250834070d1e731a08cbb92542b1bdb0a7",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-isolated-86a66a2611d6.log",
+    "bytes": 1443,
+    "sha256": "5e8c217767f7ed3c95feeac0f2f5a3fbd0197b68c1fc80d011936dc71efb8bce",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-isolated-b22f936ffb55.log",
+    "bytes": 18061,
+    "sha256": "a2a9477a6e8aa8c03e0893ba9cd35e069b9386fe1b6ede55b5e5aa4c246f71ce",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-isolated-cb10c21cd6bd.log",
+    "bytes": 1293,
+    "sha256": "d19b6cab50c2832921b116cf1eaf7e7660abb13a063067d7500025ce2109f5f6",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-isolated-preflight.json",
+    "bytes": 529,
+    "sha256": "d1a9f00634eaf275c18eee4e15fb806a416b298e5911ad292cea362993fd4aaa",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-isolated-preflight.py",
+    "bytes": 844,
+    "sha256": "3a245c1b45f98391bbbb704cc5b3fbf621182c181eb8be3562dd8e30cd105a59",
+    "git_copy": "operator-scripts/title02-isolated-preflight.py"
+  },
+  {
+    "name": "title02-isolated-run.py",
+    "bytes": 7580,
+    "sha256": "6a53f57e492d99339a497427831a04b03015f092b582fd779eda0027e43c7bab",
+    "git_copy": "operator-scripts/title02-isolated-run.py"
+  },
+  {
+    "name": "title02-isolated-scope-run.py",
+    "bytes": 3360,
+    "sha256": "799004f717cb57beefc8bb03ba2696a7a47d5d153fff0a67d70feb1bc2dcde59",
+    "git_copy": "operator-scripts/title02-isolated-scope-run.py"
+  },
+  {
+    "name": "title02-jev-offline-tests-missing-env.log",
+    "bytes": 4066,
+    "sha256": "9566677b878232cb7836ae0b334cf13a782fad22dc7881dfc36dffd8a5cafbfb",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-jev-offline-tests.log",
+    "bytes": 101,
+    "sha256": "e518593b1235b470181c8990aad175a3670d88f84760db34c55d4a29c6082021",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-jev-proposed-scope.json",
+    "bytes": 3150,
+    "sha256": "ce5b146ab3759a9af012ad521c15450c9621a64abc387c9999a4eb071d453cfc",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-live-baseline-check.json",
+    "bytes": 2040,
+    "sha256": "32e25194f23086ccd1144f3ac574a1be2dd9411c483cbf656d6573201c25fc82",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-live-baseline-check.py",
+    "bytes": 1937,
+    "sha256": "45bb43671eb939e66ce82ce05a199c54fe4a125a49ab1ea5825a7fc4edfad562",
+    "git_copy": "operator-scripts/title02-live-baseline-check.py"
+  },
+  {
+    "name": "title02-live-browser-disabled-before-validation.json",
+    "bytes": 1376,
+    "sha256": "85135061ad3776f519b32d43be9c63e694cfad72eecf34faebbac075eba3945b",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-live-browser-disabled.json",
+    "bytes": 1251,
+    "sha256": "49e8b955dd0ad0a0af1e3217c264ea87dff1554f849007712395933264e2523b",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-live-browser-qa.cjs",
+    "bytes": 6711,
+    "sha256": "c5b6aab0e755737f38d77dbe9a6d28882acdf8189ed112759683864f1ad9e82a",
+    "git_copy": "operator-scripts/title02-live-browser-qa.cjs"
+  },
+  {
+    "name": "title02-main-ci.json",
+    "bytes": 202,
+    "sha256": "e94c7fc7e6c1224a85afd11c3fcd4bd11d25f87430464b68a58f60273e3ddf78",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-pack-candidate.py",
+    "bytes": 2885,
+    "sha256": "ea9afed5a362eed1cd2ef03be1d6318e65747d8877d869819e84956c85b733a9",
+    "git_copy": "operator-scripts/title02-pack-candidate.py"
+  },
+  {
+    "name": "title02-packaged-contract-802cbb4055c5.log",
+    "bytes": 572,
+    "sha256": "1a9255db8785ff31a875258e9ae07609cd6d7468fd28cb0cb0ad875de23a69cc",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-playwright.config.cjs",
+    "bytes": 595,
+    "sha256": "7f696dd4ab93d4081ab6be24f3cda0adb171102fb573981260eff91cf6e93bea",
+    "git_copy": "operator-scripts/title02-playwright.config.cjs"
+  },
+  {
+    "name": "title02-pr-body.md",
+    "bytes": 4119,
+    "sha256": "58217a7071ef6703e5e16675f6fac57b373a55e1845bc72b88e385c90def653a",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-pr90-ci.json",
+    "bytes": 1307,
+    "sha256": "ea796b0b18661e1e93506f795d8600fbb302df8b0566c8bddd4dcfdbca33f0b2",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-pr90-merged.json",
+    "bytes": 187,
+    "sha256": "8c2533fa6812453764a3d136d6aac353697d3767d349f87ffefafbd39fbf8448",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-prepare-gates.py",
+    "bytes": 2792,
+    "sha256": "c9082c1e3aa0ccf0f78d77cae2b6c7536ce34bdc792dd2d8aec30a3c9d027d03",
+    "git_copy": "operator-scripts/title02-prepare-gates.py"
+  },
+  {
+    "name": "title02-prepare-release.py",
+    "bytes": 2517,
+    "sha256": "a050ed821f7819fa15d3354c0c63c554c1593aa613624c6511d6481c1bd46303",
+    "git_copy": "operator-scripts/title02-prepare-release.py"
+  },
+  {
+    "name": "title02-prepare-rollout.py",
+    "bytes": 6129,
+    "sha256": "be9cf7e97acaa0f456ea6cc0e7f64e7c8ad16a81ff844e96b5b4820c4f154deb",
+    "git_copy": "operator-scripts/title02-prepare-rollout.py"
+  },
+  {
+    "name": "title02-proposed-activation.json",
+    "bytes": 3223,
+    "sha256": "5f6d5a44e6e740aed583d1269babdaa21eb9a2cfd954e952047cd499526608d5",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-public-scope-candidates.json",
+    "bytes": 42604,
+    "sha256": "8e59dcba277416c498953900c4ee7d76ca05fe88b9ad0b4ee79d4a474d10cb5b",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-realign-browse.py",
+    "bytes": 1455,
+    "sha256": "1e535a7ca1831185a09ded4471c601a37c7bc6214f7b3d965b9e03f0fb4451f3",
+    "git_copy": "operator-scripts/title02-realign-browse.py"
+  },
+  {
+    "name": "title02-release-gate.json",
+    "bytes": 2586,
+    "sha256": "3b46f4d3fdd867c5075f0509823ddb27278e6d8891fa5f7a67d8b9e046f2f092",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-restart-preservation.json",
+    "bytes": 901,
+    "sha256": "bc834adaa612322478aa3c5a7f53e71d0718b7e086a70eaa879e8e45599d0e74",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-restart-preservation.py",
+    "bytes": 6962,
+    "sha256": "af57ad994abd82f07e4e94c722ed5ae8abbf86307d4e578049b406614dc1405e",
+    "git_copy": "operator-scripts/title02-restart-preservation.py"
+  },
+  {
+    "name": "title02-restart-sol-review.md",
+    "bytes": 3004,
+    "sha256": "e55fb10009577eb93b507480747ba238f9f5756ef51c72065e568f33c6ee7b4c",
+    "git_copy": "reviews/title02-restart-sol-review.md"
+  },
+  {
+    "name": "title02-restored-migration-check.json",
+    "bytes": 759,
+    "sha256": "cb6b4f7f47f5f04cc40ff7f4494712618f470de3269b349efaaee12a149844db",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-restored-migration-check.log",
+    "bytes": 3775,
+    "sha256": "9a08ad2bb21837bf19f7088f055ced2240913af6fd467237ae0ac94ded2c8a6e",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-restored-migration-check.py",
+    "bytes": 4877,
+    "sha256": "a9a35d5e948caa22e9174b411a507158b8a2a41846f1be13a43aa1c465ee3cb0",
+    "git_copy": "operator-scripts/title02-restored-migration-check.py"
+  },
+  {
+    "name": "title02-restored-migration-startup-failure.log",
+    "bytes": 798,
+    "sha256": "7645f4f4f94b3781edfee03bbc8c3fa4f4e1e6d1245a53af89d344245a1df846",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-restored-scope-preflight.json",
+    "bytes": 3747,
+    "sha256": "e6418b28bc900006e8a07218f9cef839756e5ee47469541866eb79e71ab24f61",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-restored-scope-preflight.log",
+    "bytes": 3747,
+    "sha256": "e6418b28bc900006e8a07218f9cef839756e5ee47469541866eb79e71ab24f61",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-retained-result-after-restart.json",
+    "bytes": 5282,
+    "sha256": "f32f0d90b353fc795f7b93fe66ba8af93afec965251cd97c6a6667cac24f818e",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-retained-result-before-restart.json",
+    "bytes": 4719,
+    "sha256": "130bf16a2867f572977f51dfa4f15fc37eb1495475ee07d5470fee570b398687",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-retained-result-check.py",
+    "bytes": 4200,
+    "sha256": "0eecad89facaf5fd835bec13602e3f9e1f61cb754e00b705401d14c2ec270350",
+    "git_copy": "operator-scripts/title02-retained-result-check.py"
+  },
+  {
+    "name": "title02-reviewed-workspace-detail.tsx",
+    "bytes": 21179,
+    "sha256": "062923dc8d48a0923e15bb288a6a36aa3d4ab50564ca8b8d6cd822d701aa5299",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-rollout-live-preflight.json",
+    "bytes": 272,
+    "sha256": "f5c85de1518aa9fe995c04053c41e8542a008dba642ac6d2c75f1873826169e5",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-rollout-live.log",
+    "bytes": 1428,
+    "sha256": "3954ce2655ff6cca948fa9d2ed0f13fae7c6bae959a6d7efe0f0626eca82a9ce",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-rollout-progress.py",
+    "bytes": 965,
+    "sha256": "4dcd13d5c0a0070d70ac51f049fcc8cdfb033fbcde1cdb09fa553afe8664d729",
+    "git_copy": "operator-scripts/title02-rollout-progress.py"
+  },
+  {
+    "name": "title02-rollout-receipt.json",
+    "bytes": 1171,
+    "sha256": "4734ecf6bc39571e37f97d366cd45d2157e2eb655a9942b53266c04e39ab426f",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-rollout-sol-review.md",
+    "bytes": 4056,
+    "sha256": "349f3d4dbf5335076a74e42cd749ce6250d08936fad6542f3176dd7ccb1a80ce",
+    "git_copy": "reviews/title02-rollout-sol-review.md"
+  },
+  {
+    "name": "title02-rollout.py",
+    "bytes": 18853,
+    "sha256": "3244b8e1d9124bf7a8bb9b77db9e59f6c138e34abefa0bbeda988e75445a2bd0",
+    "git_copy": "operator-scripts/title02-rollout.py"
+  },
+  {
+    "name": "title02-runtime-controls.json",
+    "bytes": 1990,
+    "sha256": "06c9290918b5f854374545c4c5b82a8de6a3170169e80926e36f07c42d37bc57",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-runtime-controls.py",
+    "bytes": 1513,
+    "sha256": "68517431e668d91adf87f9066458d6c100f741b251e3d0fbec623566e893ca58",
+    "git_copy": "operator-scripts/title02-runtime-controls.py"
+  },
+  {
+    "name": "title02-scope-preflight-manifest.json",
+    "bytes": 327,
+    "sha256": "128632e0f101fbcce76a0ac56dbadead594abd870128822f0c872d4cbd3e556b",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-scoped-readonly-preflight.py",
+    "bytes": 6446,
+    "sha256": "c64068ff73efeb99ce1f06245e342fee0e07d698127f9ca01db057ad11a5ccd5",
+    "git_copy": "operator-scripts/title02-scoped-readonly-preflight.py"
+  },
+  {
+    "name": "title02-select-public-scope.py",
+    "bytes": 2603,
+    "sha256": "1b13180da0937410f6a93fea6af4c263df52246dbd685502d511e6969133b4cb",
+    "git_copy": "operator-scripts/title02-select-public-scope.py"
+  },
+  {
+    "name": "title02-shell-regression-diagnosis.json",
+    "bytes": 654,
+    "sha256": "4e8afa83bc87c3d8588d2e2502cde90d280a5d9e18e33912efa6dff3eca0dfc8",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-shell-regression-probe.log",
+    "bytes": 1731,
+    "sha256": "82ebbcff22df3d944c1d666a37ae6f689edb24066cfc208256eb44cce84292be",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-shell-regression-probe.py",
+    "bytes": 1727,
+    "sha256": "cce7df6f31766e8c4152459333a44df797283df2acde46f4a548a2de4180ffe1",
+    "git_copy": "operator-scripts/title02-shell-regression-probe.py"
+  },
+  {
+    "name": "title02-six-diagnose.py",
+    "bytes": 1700,
+    "sha256": "02d787f996b6a500ae3e7251cf984fa87043cea6bab0089a5ffc0a6795ad36b1",
+    "git_copy": "operator-scripts/title02-six-diagnose.py"
+  },
+  {
+    "name": "title02-six-diagnosis.json",
+    "bytes": 23140,
+    "sha256": "cb8c60171805886bf716a0632d5497291260eb0e13be1fd66415447e0ffd9315",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-six-execution-gate.json",
+    "bytes": 1347,
+    "sha256": "62be6fb48d6ae99db0eab91483d6797dadbe1f03decd0ee985e5083a203540a8",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-six-host-receipt.json",
+    "bytes": 428,
+    "sha256": "6ca54124605927e9fae4fbdbc9af63bc04fe1a01ffbe11bffb3bb3f11276b004",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-six-intent-controller.py",
+    "bytes": 19949,
+    "sha256": "56f3c25cd674a287de730cc9ad40563e52b94c86bc44b67de8d249fc27a89225",
+    "git_copy": "operator-scripts/title02-six-intent-controller.py"
+  },
+  {
+    "name": "title02-six-intent-host.py",
+    "bytes": 11119,
+    "sha256": "13440a1fc090fb4b763cc6b6392f6b407d02b4ac0cc69d4ee2d15092b856556e",
+    "git_copy": "operator-scripts/title02-six-intent-host.py"
+  },
+  {
+    "name": "title02-six-intents-retained.jsonl",
+    "bytes": 13619,
+    "sha256": "2b51cc61aac055fc11da89aa0e54e8c02de57809711c348c3a7225c6de190c81",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-six-live.log",
+    "bytes": 410,
+    "sha256": "dc40d8c3767d9c1d38bc6f006ef52a80af66ad4df3f625bbf9bc08133ffd43d1",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-six-permission.json",
+    "bytes": 1610,
+    "sha256": "c6da70ffb7e8be1cdba160b63ccd66f571d72985171e6c23d09b761cfc54f568",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-socket-regression-probe.json",
+    "bytes": 378,
+    "sha256": "e10f88d03083b26ab49f8f2c123f53638dbccfd6a006565a32aa9995e1100830",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-socket-regression-probe.log",
+    "bytes": 7693,
+    "sha256": "9a8cea817b4ca8f8a69522a19af2b160f42775a648904e6303f94da26263fdbc",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "title02-socket-regression-probe.py",
+    "bytes": 2877,
+    "sha256": "afb17e0c384a04f35b8c4652eea4495ff44db75e24aeb6ac6de25c2955bf922e",
+    "git_copy": "operator-scripts/title02-socket-regression-probe.py"
+  },
+  {
+    "name": "title02-sol-review.md",
+    "bytes": 22488,
+    "sha256": "7de0aadc2ed47361d6ca4fd2e8d8084c0bbee732bcac5331f63013d4b9b3d2a2",
+    "git_copy": "reviews/title02-sol-review.md"
+  },
+  {
+    "name": "title02-stop-supplemental-tests.py",
+    "bytes": 956,
+    "sha256": "d18a7dd45404020f8db9a5394b47425d73e502dc0fc602fd95a810c68e26709a",
+    "git_copy": "operator-scripts/title02-stop-supplemental-tests.py"
+  },
+  {
+    "name": "title02-workspace-final.log",
+    "bytes": 15239,
+    "sha256": "3a07ee93d314e85c9ce66dcc962388bd0d27940d0ef137337784187ddc150d5d",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "TITLE02_DEPLOYMENT_RESULT_2026-10-20.md",
+    "bytes": 7998,
+    "sha256": "713f77d277f0d9c06708d1d1cc644091f1dca822b2b89892bcae9a0b4463a613",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "TITLE02_JEV_RELEASE_PLAN.md",
+    "bytes": 7789,
+    "sha256": "0acce95e98ce237999ffc36c99200d7ec1074a885ead9ce7e0380139fa3fc7ab",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "TITLE02_RECOVERY_REVIEW.md",
+    "bytes": 13629,
+    "sha256": "8e19b7532902a00186dc443e4aaa8272ce1962ac005a318982027effadab056b",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  },
+  {
+    "name": "TITLE02_RELEASE_APPROVAL_2026-10-20.md",
+    "bytes": 6919,
+    "sha256": "fb72166f48f8051f6fffbd33f1d719016acb69749a7257c1f2c7b3506c898d41",
+    "git_copy": "retained locally; raw runtime evidence excluded"
+  }
+]
