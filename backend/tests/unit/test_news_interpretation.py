@@ -165,6 +165,7 @@ def test_project_linked_city_precedes_nearby_developer_or_customer_state() -> No
             "Phoenix, Arizona",
         ),
         ("Atlas builds Phoenix data center in Arizona", "Phoenix, Arizona"),
+        ("Atlas builds Austin's first large liquid-cooled data center", "Austin, Texas"),
     ]
     for title, location in cases:
         result = assess_news(title, None)
@@ -184,6 +185,13 @@ def test_domestic_city_site_precedes_foreign_partner_location() -> None:
             "Signal",
             "Austin, Texas",
         )
+
+    foreign_site = assess_news(
+        "California developer Atlas builds factory with partners at a site near Tokyo, Japan",
+        None,
+    )
+    assert foreign_site.decision == "rejected"
+    assert foreign_site.location is None
 
 
 def test_site_name_words_are_not_activity_and_claim_spans_must_differ() -> None:

@@ -272,9 +272,32 @@ def _site_location(text: str) -> str | None:
             is None
         )
 
-    # Prefer an explicit state attached to the project. Skip states attached to
-    # customer clauses unless a later site/facility phrase resets the relation.
-    for state in _STATE_RE.finditer(text):
+    def city_precedes_facility(city_match: re.Match[str]) -> bool:
+        if facility_match is None or city_match.end() > facility_match.start():
+            return False
+        between = text[city_match.end() : facility_match.start()]
+        return bool(
+            not between.strip()
+            or re.fullmatch(r"\s+(?:[A-Za-z0-9]+(?:-[A-Za-z0-9]+)?\s+)?", between)
+            or re.match(r"\s*(?:'|\u2019)s\b", between)
+        )
+
+    named_states = list(_STATE_RE.finditer(text))
+    state_coreference = bool(
+        facility_match
+        and re.search(
+            r"\b(?:in|within)\s+the\s+state\b",
+            text[facility_match.end() :],
+            re.I,
+        )
+        and len(named_states) == 1
+    )
+
+    # Prefer an explicit state attached to the project. A unique named state
+    # may also ground a later explicit "in the state" reference. Skip states
+    # attached to customer clauses unless a later site/facility phrase resets
+    # the relation.
+    for state in named_states:
         before = text[max(0, state.start() - 10) : state.start()]
         city_before = text[max(0, state.start() - 40) : state.start()]
         direct = bool(
@@ -284,7 +307,12 @@ def _site_location(text: str) -> str | None:
                 city_before,
             )
         )
-        if not direct or has_non_site_party_clause_without_site_reset(state.start()):
+        coreferenced = bool(
+            state_coreference and facility_match and state.end() <= facility_match.start()
+        )
+        if (not direct and not coreferenced) or has_non_site_party_clause_without_site_reset(
+            state.start()
+        ):
             continue
 
         for city, city_state in sorted(
@@ -298,8 +326,8 @@ def _site_location(text: str) -> str | None:
             ):
                 continue
             project_linked = False
-            if facility_match and city_match.end() <= facility_match.start():
-                project_linked = len(text[city_match.end() : facility_match.start()].split()) <= 3
+            if city_precedes_facility(city_match):
+                project_linked = True
             elif facility_match and city_match.start() >= facility_match.end():
                 prefix = text[facility_match.end() : city_match.start()]
                 project_linked = bool(re.search(r"\b(?:in|at|near)\s+$", prefix, re.I))
@@ -323,7 +351,7 @@ def _site_location(text: str) -> str | None:
         return state.group(1)
 
     # A project-linked city can be stated before its facility name or directly
-    # after a location preposition. Do this before weak nearby actor-state hints.
+    # after a location preposition, before considering less specific fallbacks.
     for city, state_name in sorted(_CITIES.items(), key=lambda item: len(item[0]), reverse=True):
         city_match = re.search(rf"\b{re.escape(city)}\b", text, re.I)
         if city_match is None:
@@ -337,11 +365,7 @@ def _site_location(text: str) -> str | None:
             )
             and not has_non_site_party_clause_without_site_reset(city_match.start())
         )
-        before_facility = bool(
-            facility_match
-            and city_match.end() <= facility_match.start()
-            and len(text[city_match.end() : facility_match.start()].split()) <= 3
-        )
+        before_facility = city_precedes_facility(city_match)
         if re.search(
             r"\b(?:in|at|near)\s*$", before, re.I
         ) and not has_non_site_party_clause_without_site_reset(city_match.start()):
@@ -349,12 +373,14 @@ def _site_location(text: str) -> str | None:
         if after_facility or before_facility:
             return city if city.casefold() == state_name.casefold() else f"{city}, {state_name}"
 
-    # A nearby state before the facility can describe its developer rather than
-    # the site. Use this weaker association only after project-linked city names.
+    # Keep a state directly modifying the facility ("Georgia factory"), but
+    # do not infer the site from a nearby developer or customer state.
     if facility_match:
         for state in _STATE_RE.finditer(text):
-            after = text[state.end() : state.end() + 35]
-            if state.end() <= facility_match.start() and len(after.split()) <= 5:
+            if (
+                state.end() <= facility_match.start()
+                and not text[state.end() : facility_match.start()].strip()
+            ):
                 return state.group(1)
     embedded = re.search(
         rf"\b([A-Z][\w.'-]*(?:\s+[A-Z][\w.'-]*){{0,2}})\s+"
