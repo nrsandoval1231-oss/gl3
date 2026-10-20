@@ -185,6 +185,17 @@ def test_fact_draft_accept_correction_are_append_only_and_nonpromoting_without_s
     correction_body["value"] = {"mw": "21", "basis": "Synthetic correction"}
     successor = client.post(f"/api/needs/{need_id}/facts", json=correction_body, headers=headers)
     assert successor.status_code == 200, successor.text
+    accepted_successor = client.post(
+        f"/api/needs/{need_id}/facts/{successor.json()['id']}/decision",
+        json={
+            "client_id": str(uuid4()),
+            "expected_version": 3,
+            "decision": "accepted",
+            "reason": "Must use atomic correction decision",
+        },
+        headers=headers,
+    )
+    assert accepted_successor.status_code == 422
     corrected = client.post(
         f"/api/needs/{need_id}/facts/{successor.json()['id']}/decision",
         json={
@@ -282,6 +293,73 @@ def test_fact_correction_requires_current_accepted_same_type_predecessor(runtime
     assert (
         client.post(f"/api/needs/{need_id}/facts", json=stale, headers=headers).status_code == 409
     )
+
+
+def test_corrected_decision_requires_a_predecessor(runtime):
+    client, _factory, need_id, project_id, pursuit_id = runtime
+    headers = {"origin": "http://testserver"}
+    draft = client.post(
+        f"/api/needs/{need_id}/facts",
+        json=_body(project_id, pursuit_id),
+        headers=headers,
+    )
+    assert draft.status_code == 200, draft.text
+    response = client.post(
+        f"/api/needs/{need_id}/facts/{draft.json()['id']}/decision",
+        json={
+            "client_id": str(uuid4()),
+            "expected_version": 1,
+            "decision": "corrected",
+            "reason": "No predecessor exists for this fact",
+        },
+        headers=headers,
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.parametrize("decision", ["rejected", "retracted"])
+def test_rejecting_or_retracting_correction_draft_keeps_accepted_predecessor(runtime, decision):
+    client, factory, need_id, project_id, pursuit_id = runtime
+    headers = {"origin": "http://testserver"}
+    original = client.post(
+        f"/api/needs/{need_id}/facts",
+        json=_body(project_id, pursuit_id),
+        headers=headers,
+    )
+    assert original.status_code == 200, original.text
+    accepted = client.post(
+        f"/api/needs/{need_id}/facts/{original.json()['id']}/decision",
+        json={
+            "client_id": str(uuid4()),
+            "expected_version": 1,
+            "decision": "accepted",
+            "reason": "Synthetic accepted predecessor",
+        },
+        headers=headers,
+    )
+    assert accepted.status_code == 200, accepted.text
+    successor_body = _body(
+        project_id, pursuit_id, expected_version=2, predecessor_id=original.json()["id"]
+    )
+    successor = client.post(f"/api/needs/{need_id}/facts", json=successor_body, headers=headers)
+    assert successor.status_code == 200, successor.text
+    decision_response = client.post(
+        f"/api/needs/{need_id}/facts/{successor.json()['id']}/decision",
+        json={
+            "client_id": str(uuid4()),
+            "expected_version": 3,
+            "decision": decision,
+            "reason": f"Synthetic correction {decision}",
+        },
+        headers=headers,
+    )
+    assert decision_response.status_code == 200, decision_response.text
+    assert decision_response.json()["decision"] == decision
+    with factory() as session:
+        from gridlens.ingestion.service import load_current_need_operator_inputs
+
+        facts_by_need, _ = load_current_need_operator_inputs(session, [need_id])
+        assert [fact.id for fact in facts_by_need[need_id]] == [UUID(original.json()["id"])]
 
 
 def test_concurrent_fact_corrections_cannot_supersede_one_predecessor_twice(runtime):

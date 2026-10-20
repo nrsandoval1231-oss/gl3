@@ -4949,6 +4949,8 @@ def decide_need_call_fact(
         )
         if version != body.expected_version:
             raise HTTPException(409, "Fact history version is stale")
+        if row.predecessor_id is not None and body.decision == "accepted":
+            raise HTTPException(422, "A correction successor must be decided as corrected")
         next_version = version + 1
         if body.decision == "corrected":
             if row.predecessor_id is None:

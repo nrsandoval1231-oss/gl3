@@ -315,7 +315,7 @@ test('one call logs several facts as drafts, then accepts them in one explicit s
   })
   await page.goto('/environment?view=environment&mode=action&state=Texas&need=a')
   await page.getByLabel('Contact name').fill('Jordan Example')
-  await page.getByLabel('Power needed').fill('8-12')
+  await page.getByLabel('Power needed').fill('8-12 kW')
   await page.getByLabel('Earliest start').fill('2027-01-01')
   await page.getByLabel('Latest start').fill('2027-03-01')
   await page.getByLabel('Duration days').fill('0')
@@ -351,6 +351,7 @@ test('one call logs several facts as drafts, then accepts them in one explicit s
     ['buyer', 2, 'Midlothian, TX', 'Jordan Example'],
     ['unsuitable_supply', 3, 'Midlothian, TX', 'Jordan Example'],
   ])
+  expect(created[1].value).toEqual({ mw: '8-12 kW' })
   expect(created[4].value).toEqual({ mw: '3' })
   expect(decided).toHaveLength(0)
   await page.getByRole('button', { name: /Accept all 4 as confirmed by Jordan Example/ }).click()

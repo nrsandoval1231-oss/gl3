@@ -572,7 +572,11 @@ def run_buying_chain_research(
                 "Previously accepted evidence linked to this selected physical project.",
                 evidence.id,
             )
-            for evidence in _retained(session, project)
+            for evidence in _retained(
+                session,
+                project,
+                target_evidence_id=retained_evidence_id if retained_only_task else None,
+            )
         ]
         previous_run = session.scalar(
             select(BuyingChainRun)
@@ -675,12 +679,46 @@ def run_buying_chain_research(
             if not retained_only_task and project is not None
             else None
         )
+        retained_target_current = True
+        if retained_only_task:
+            target = session.get(Evidence, retained_evidence_id)
+            target_observation = session.get(Observation, target.observation_id) if target else None
+            target_interpretation = (
+                session.scalar(
+                    select(Interpretation).where(
+                        Interpretation.observation_id == target_observation.id
+                    )
+                )
+                if target_observation
+                else None
+            )
+            retained_target_current = bool(
+                project
+                and target
+                and target.content_hash == payload.get("evidence_hash")
+                and _retained_evidence_current_for_project(
+                    session,
+                    project,
+                    target,
+                    observation=target_observation,
+                    interpretation=target_interpretation,
+                )
+            )
         if (
             project is None
             or (current_retained_context if retained_only_task else current_manual_context)
             != expected_context
+            or not retained_target_current
         ):
-            checkpoint.update(status="stale", completed_at=datetime.now(UTC).isoformat())
+            checkpoint.update(
+                status="stale",
+                stale_reason=(
+                    "retained_evidence_version_changed"
+                    if not retained_target_current
+                    else "retained_context_changed"
+                ),
+                completed_at=datetime.now(UTC).isoformat(),
+            )
             job.checkpoint = json.dumps(checkpoint, separators=(",", ":"))
             job.status = "succeeded"
             job.lease_owner = job.lease_until = None
@@ -701,6 +739,7 @@ def run_buying_chain_research(
             prefetched_houston_detail=prefetched_detail,
             houston_detail_prefetched=detail_prefetched,
             retained_only=not (public_enabled and still_public_enabled),
+            retained_target_evidence_id=(retained_evidence_id if retained_only_task else None),
         )
         detail_status = (
             result.get("status", "complete")
@@ -844,7 +883,12 @@ def _retained_evidence_current_for_project(
     return assessment.get("admission_status") == "supplemental"
 
 
-def _retained(session: Session, project: Project) -> list[Evidence]:
+def _retained(
+    session: Session,
+    project: Project,
+    *,
+    target_evidence_id: UUID | None = None,
+) -> list[Evidence]:
     observations = (
         select(NeedObservation.observation_id)
         .join(
@@ -889,6 +933,16 @@ def _retained(session: Session, project: Project) -> list[Evidence]:
         cursor = (rows[-1][0].observed_at, rows[-1][0].id)
         if len(rows) < 24:
             break
+    if target_evidence_id is not None:
+        target = session.get(Evidence, target_evidence_id)
+        if (
+            target is not None
+            and target not in accepted
+            and _retained_evidence_current_for_project(session, project, target)
+        ):
+            # A per-evidence retained job must read its current target even when
+            # it falls outside the usual four newest accepted documents.
+            accepted = [*accepted[:3], target]
     return accepted
 
 
@@ -1114,6 +1168,7 @@ def enrich_buying_chain(
     houston_detail_prefetched: bool = False,
     now: datetime | None = None,
     retained_only: bool = False,
+    retained_target_evidence_id: UUID | None = None,
 ) -> dict:
     now = now or datetime.now(UTC)
     # Lock one project during this bounded pass to serialize replay without another queue.
@@ -1149,7 +1204,7 @@ def enrich_buying_chain(
     deadline = started + MAX_SECONDS
     unresolved: list[str] = []
     documents: list[tuple[PublicDocument, bool, str, UUID | None]] = []
-    for evidence in _retained(session, project):
+    for evidence in _retained(session, project, target_evidence_id=retained_target_evidence_id):
         documents.append(
             (
                 PublicDocument(

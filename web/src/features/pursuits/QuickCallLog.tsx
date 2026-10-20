@@ -31,8 +31,10 @@ export function QuickCallLog({ item, onReadback }: { item: Opportunity; onReadba
   const validMw = (value: string, allowZero: boolean) => {
     const match = /^\s*(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?)\s*(kW|MW)?(?:\s*(?:-|–|to)\s*(\d{1,3}(?:,\d{3})+|\d+(?:\.\d+)?)\s*(kW|MW)?)?\s*$/i.exec(value)
     if (!match || value.trim().length > 128) return false
-    const low = Number(match[1].replaceAll(',', '')) * (match[2]?.toLowerCase() === 'kw' ? 0.001 : 1)
-    const high = Number((match[3] ?? match[1]).replaceAll(',', '')) * ((match[4] ?? match[2])?.toLowerCase() === 'kw' ? 0.001 : 1)
+    const lowUnit = match[2] ?? match[4]
+    const highUnit = match[4] ?? match[2]
+    const low = Number(match[1].replaceAll(',', '')) * (lowUnit?.toLowerCase() === 'kw' ? 0.001 : 1)
+    const high = Number((match[3] ?? match[1]).replaceAll(',', '')) * (highUnit?.toLowerCase() === 'kw' ? 0.001 : 1)
     return Number.isFinite(low) && Number.isFinite(high) && low >= (allowZero ? 0 : Number.MIN_VALUE) && high >= low && high <= 1_000_000
   }
 

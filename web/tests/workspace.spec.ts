@@ -570,16 +570,25 @@ test('stale list responses cannot replace a newer filter result', async ({ page 
 })
 
 test('a failed workspace filter hides rows, counts, and pagination from the prior cohort', async ({ page }) => {
+  const oldCohortAction = 'Austin cohort only action'
+  const selectedRow = { ...need, name: 'Austin retained row', commercial_next_action: oldCohortAction }
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
   await page.route('**/api/opportunities/workspace?*', route => {
     const geography = new URL(route.request().url()).searchParams.get('geography')
     if (geography === 'Houston') return route.fulfill({ status: 503, json: { detail: 'workspace unavailable' } })
-    return route.fulfill({ json: response([{ ...need, name: 'Austin retained row' }]) })
+    return route.fulfill({ json: response([selectedRow]) })
   })
+  await page.route('**/api/opportunities/needs/need-a*', route => route.fulfill({ json: { ...need, name: 'Fresh canonical detail' } }))
   await page.goto('/?view=workspace&geography=Austin')
   await expect(page.getByRole('button', { name: /Austin retained row/ })).toBeVisible()
+  await page.locator('[data-need-row="need-a"]').click()
+  await expect(page.getByRole('heading', { name: 'Test data center' })).toBeVisible()
+  await page.getByRole('button', { name: 'Next steps' }).click()
+  await expect(page.getByText(oldCohortAction)).toBeVisible()
   await page.getByLabel('Geography (exact match)').fill('Houston')
   await expect(page.getByRole('alert')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Fresh canonical detail' })).toBeVisible()
+  await expect(page.getByText(oldCohortAction)).toHaveCount(0)
   await expect(page.getByRole('button', { name: /Austin retained row/ })).toHaveCount(0)
   await expect(page.locator('.wh-briefbar')).toContainText('Current results unavailable')
   await expect(page.locator('.wh-briefbar')).toContainText('—')

@@ -53,6 +53,10 @@ export function WorkspaceHome() {
   const requestKey = workspaceRequestKey(filters)
   const pageCurrent = Boolean(page && pageIdentity?.request === requestKey && pageIdentity.revision === revision && !loading && !error)
   const detailCurrent = Boolean(selected && detailIdentity?.id === selected.id && detailIdentity.revision === revision && !detailLoading && !detailError)
+  let detailItem: WorkspaceDetail | null = null
+  if (detailCurrent && selected) {
+    detailItem = pageCurrent ? selected : { ...selected, ...commercialPreview(undefined) }
+  }
   const savedScroll = useRef({ list: 0, window: 0 })
   useEffect(() => { void client.session().then(value => setAuthenticated(value.authenticated)).catch(() => setAuthenticated(false)) }, [])
   useEffect(() => {
@@ -142,7 +146,7 @@ export function WorkspaceHome() {
         <div className="wh-table-wrap"><table className="wh-table"><thead><tr><th>Project / location</th><th>MW</th><th>Application</th><th>Start · duration</th><th>Disposition</th><th>Next action</th></tr></thead><tbody>{items.map(item => { const title = projectTitle(item); return <tr key={item.id} className={selected?.id === item.id ? 'selected' : ''}><td data-label="Project / location"><button className="wh-project" data-need-row={item.id} onClick={() => select(item)}><strong>{title}</strong>{title !== item.name && <small>Source record: {item.name}</small>}<span>{item.location ?? 'Location unknown'} · {item.tier}</span>{item.rank_score != null && <small>Priority {item.rank_score}{item.rank_reasons?.length ? ` · ${item.rank_reasons.join('; ')}` : ''}</small>}</button></td><td data-label="MW">{item.required_mw ?? 'Unknown'}</td><td data-label="Application">{item.activity.replaceAll('-', ' ')}</td><td data-label="Start · duration">{item.start_window ?? 'Unknown'} · {item.duration ?? 'Unknown'}</td><td data-label="Disposition">{item.commercial_disposition}</td><td data-label="Next action"><button className="wh-action" title={item.commercial_next_action || item.commercial_next_question || 'Review evidence'} onClick={() => select(item, 'Next steps')}>{item.commercial_next_action || item.commercial_next_question || 'Review evidence'}</button></td></tr> })}</tbody></table></div>
         <footer className="wh-paging"><span>Showing {items.length ? (visiblePage?.offset ?? 0) + 1 : 0}–{pageCurrent ? position : '—'} of {pageCurrent ? visiblePage?.total ?? '—' : '—'}</span><button disabled={!pageCurrent || !visiblePage?.offset} onClick={() => { if (visiblePage) update({ ...filters, offset: Math.max(0, visiblePage.offset - 25), cohort_token: visiblePage.cohort_token }) }}>Previous</button><button disabled={!pageCurrent || visiblePage?.next_offset == null} onClick={() => { if (visiblePage) update({ ...filters, offset: visiblePage.next_offset ?? 0, cohort_token: visiblePage.cohort_token }) }}>Next</button></footer>
       </section>
-      <WorkspaceDetail item={detailCurrent ? selected : null} pending={Boolean(pendingNeedId)} loading={detailLoading || Boolean(selected && !detailCurrent)} error={detailError} tab={tab} onTab={next => { setTab(next); if (selected) writeUrl(filters, selected.id, next) }} onBack={() => select(null)} onRetry={() => setRevision(value => value + 1)} onReadback={() => { setDetailIdentity(null); setSelected(null); setPendingNeedId(selected?.id ?? null); setRevision(value => value + 1) }} onTitleReady={() => setRevision(value => value + 1)}/>
+      <WorkspaceDetail item={detailItem} pending={Boolean(pendingNeedId)} loading={detailLoading || Boolean(selected && !detailCurrent)} error={detailError} tab={tab} onTab={next => { setTab(next); if (selected) writeUrl(filters, selected.id, next) }} onBack={() => select(null)} onRetry={() => setRevision(value => value + 1)} onReadback={() => { setDetailIdentity(null); setSelected(null); setPendingNeedId(selected?.id ?? null); setRevision(value => value + 1) }} onTitleReady={() => setRevision(value => value + 1)}/>
     </main>
   </div>
 }

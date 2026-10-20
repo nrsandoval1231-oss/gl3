@@ -24,6 +24,7 @@ from gridlens.persistence.models import (
     BuyingChainEvidence,
     BuyingChainRun,
     Evidence,
+    Interpretation,
     Job,
     NeedObservation,
     Observation,
@@ -234,6 +235,145 @@ def test_buying_chain_worker_does_not_hold_project_lock_during_acquisition(
         assert json.loads(completed.checkpoint)["status"] == "stale"
         assert session.scalar(select(func.count()).select_from(BuyingChainRun)) == 0
         assert session.scalar(select(func.count()).select_from(BuyingChainEvidence)) == 0
+
+
+def test_retained_buying_chain_job_reads_and_cites_its_fifth_current_document(
+    research_db, monkeypatch
+):
+    from gridlens.intelligence import buying_chain
+    from gridlens.jobs.queue import lease_one
+
+    factory, source, _job_id = research_db
+    monkeypatch.setattr(buying_chain, "SessionLocal", factory)
+    monkeypatch.setattr(settings, "buying_chain_public_research_enabled", False)
+    target_id = None
+    with factory.begin() as session:
+        project = Project(
+            source_id=source["id"],
+            external_id="retained-five-document-test",
+            name="Synthetic Orion Data Center",
+            location="Austin, TX",
+            identity_key="synthetic-orion-five-document-test",
+        )
+        session.add(project)
+        session.flush()
+        need = PowerNeed(
+            project_id=project.id,
+            activity_key="construction",
+            tier="Signal",
+            rationale="Synthetic test need",
+            supply="Unknown",
+        )
+        session.add(need)
+        session.flush()
+        now = datetime.now(UTC)
+        for index in range(5):
+            is_target = index == 4
+            abstract = (
+                "Fifth-only Acme Industrial is the general contractor for Synthetic Orion "
+                "Data Center in Austin, TX."
+                if is_target
+                else f"Synthetic Orion Data Center retained update {index} in Austin, TX."
+            )
+            observation = Observation(
+                source_id=source["id"],
+                external_id=f"retained-five-{index}",
+                title=f"Retained document {index}",
+                url=f"https://example.test/retained-five-{index}",
+                abstract=abstract,
+                content_hash=f"retained-hash-{index}",
+            )
+            session.add(observation)
+            session.flush()
+            evidence = Evidence(
+                observation_id=observation.id,
+                title=observation.title,
+                url=observation.url,
+                abstract=abstract,
+                content_hash=observation.content_hash,
+                observed_at=now - timedelta(days=index),
+            )
+            session.add(evidence)
+            session.add(NeedObservation(observation_id=observation.id, need_id=need.id))
+            session.add(
+                Interpretation(
+                    observation_id=observation.id,
+                    content_hash=observation.content_hash,
+                    status="accepted",
+                    assessment={
+                        "decision": "accepted",
+                        "evidence_hash": observation.content_hash,
+                        "project_identity_key": project.identity_key,
+                        "admission_status": "supplemental",
+                    },
+                )
+            )
+            session.flush()
+            if is_target:
+                target_id = evidence.id
+        target = session.get(Evidence, target_id)
+        job = buying_chain.enqueue_retained_buying_chain_research(
+            session, project.id, target.id, target.content_hash
+        )
+        assert job is not None
+        job_id, project_id = job.id, project.id
+
+    with factory.begin() as session:
+        leased, fence = lease_one(session, "retained-five-document-test", job_ids=[job_id])
+        assert leased is not None
+    result = buying_chain.run_buying_chain_research(job_id, "retained-five-document-test", fence)
+    assert result["status"] == "complete"
+    with factory() as session:
+        retained_row = session.scalar(
+            select(BuyingChainEvidence).where(BuyingChainEvidence.retained_evidence_id == target_id)
+        )
+        assert retained_row is not None
+        candidates = buying_chain.buying_chain_view(session, project_id)["candidates"]
+        assert any(
+            candidate["organization"] == "Acme Industrial"
+            and any(
+                evidence["id"] == str(retained_row.id)
+                and evidence["retained_evidence_id"] == str(target_id)
+                for evidence in candidate["evidence"]
+            )
+            for candidate in candidates
+        )
+        target = session.get(Evidence, target_id)
+        interpretation = session.scalar(
+            select(Interpretation).where(Interpretation.observation_id == target.observation_id)
+        )
+        interpretation.status = "rejected"
+        assert (
+            buying_chain.enqueue_retained_buying_chain_research(
+                session, project_id, target.id, target.content_hash
+            )
+            is None
+        )
+        stale_checkpoint = json.loads(session.get(Job, job_id).checkpoint)
+        stale_checkpoint["status"] = "queued"
+        stale_job = Job(
+            source_id=source["id"],
+            kind=session.get(Job, job_id).kind,
+            target_id=project_id,
+            checkpoint=json.dumps(stale_checkpoint, separators=(",", ":")),
+            status="queued",
+        )
+        session.add(stale_job)
+        session.flush()
+        stale_job_id = stale_job.id
+
+    with factory.begin() as session:
+        leased, stale_fence = lease_one(
+            session, "retained-stale-target-test", job_ids=[stale_job_id]
+        )
+        assert leased is not None
+    stale_result = buying_chain.run_buying_chain_research(
+        stale_job_id, "retained-stale-target-test", stale_fence
+    )
+    assert stale_result["status"] == "stale"
+    with factory() as session:
+        stale_checkpoint = json.loads(session.get(Job, stale_job_id).checkpoint)
+        assert stale_checkpoint["stale_reason"] == "retained_evidence_version_changed"
 
 
 def seed(factory, source, job_id):
