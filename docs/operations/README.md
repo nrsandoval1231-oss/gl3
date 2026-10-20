@@ -20,7 +20,7 @@ Rollback is also not executable from the available evidence. The presence of tim
 
 On October 20, a `gridlens-db-backup.timer` existed and its service reported success. The 17:04 UTC daily dump was 18,811,807 bytes. A pre-deploy dump from 15:19 UTC was copied off-host; its recorded SHA-256 is `b74583c19cf03fc6a290d736d4aa942388157cece729358da7c6f2e834d742e1`. The copy restored into a private local PostgreSQL 18 database and reported 1,620 projects, 18,016 evidence versions and 16,694 observations.
 
-This proves one off-host copy and one isolated restore. It does not prove the daily dump was copied off-host, scheduled retention, backup alerting, repeatable restore instructions, recovery time, or production cutover. The receipts do not contain the installed unit/service/script bodies, retention configuration, or repeatable restore command. Those steps remain UNKNOWN; no command is invented here. Do not restore over or rename the live database.
+The October 20 run proved one off-host copy and one isolated restore. The guarded local restore sequence is now documented in the [local restore drill](local-restore-drill.md), based on the executed harness and verified dump. That local procedure does not establish production recovery. The installed production unit/service/script bodies, off-host schedule and retention, approved host secret-injection context, production restore/rollback commands, recovery time, and cutover procedure remain UNKNOWN. Do not restore over or rename the live database.
 
 For an authorized future drill, retain the source dump read-only, verify its digest and archive readability, restore only to a new isolated PostgreSQL 18 target with dispatch/providers disabled, compare schema and the agreed row-count set, preserve logs/digests, and destroy the target only under an explicit cleanup record. Production cutover, credential injection, and rollback require the missing approved runbook and owner authorization.
 
@@ -30,6 +30,7 @@ For an authorized future drill, retain the source dump read-only, verify its dig
 - [Runtime configuration](runtime-configuration.md): settings defaults and what they control, verified against `backend/src/gridlens/settings.py`.
 - [Local runtime](local-runtime.md): clean-checkout loopback PostgreSQL, separate app/test databases, and local env loading.
 - [Runtime recovery](runtime-recovery.md): local-only read-only inspection and guarded database/source operations.
+- [Local restore drill](local-restore-drill.md): repeatable, isolated PostgreSQL 18 restore with digest, archive, and readback checks; not a production recovery procedure.
 - [Delivery status](../delivery/milestones.md): PRD release gates; all A–E remain open in this observation.
 
 Other `docs/operations/` pages describe particular code paths or dated proofs (source scheduling, saved browse, buying chain, pursuit research, local restore, and intelligence). They do not authorize production commands. Their original dated text is preserved; see the [documentation inventory and archive index](../../.agent/archive/AUDIT-20261020/DOCUMENTATION-INVENTORY-20261020.md).

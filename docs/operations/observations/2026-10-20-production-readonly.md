@@ -63,11 +63,13 @@ The host reported `gridlens-db-backup.timer`; the associated service reported su
 
 `b74583c19cf03fc6a290d736d4aa942388157cece729358da7c6f2e834d742e1`
 
-That copied dump restored into a private local PostgreSQL 18 database with 1,620 projects, 18,016 evidence versions, and 16,694 observations. This is one copy and restore. Scheduled off-host retention, retention length, repeatable restore commands, and production recovery timing remain UNKNOWN.
+That copied dump restored into the new private local PostgreSQL 18 database `gl3_audit_20261020_corpus_test` at the loopback endpoint `127.0.0.1:55520`, with 1,620 projects, 18,016 evidence versions, and 16,694 observations. The harness asserted that the local `DATABASE_URL` used that host and port, refused an existing target database, set the password only in the child process environment without logging it, and ran `pg_restore --no-owner --no-privileges --exit-on-error` without `--clean` or `--create`. The local sequence is documented in the [local restore drill](../local-restore-drill.md); it is reproducible local evidence, not production recovery proof. Scheduled off-host retention, retention length, production restore/cutover commands, and production recovery timing remain UNKNOWN.
+
+The controller's ignored restore harness `restore_corpus.py` has SHA-256 `921c6601f9b142206d6f768c7786c9f203498066e5d01ef42c1dafef65d31f8a`; the associated empty `retained-restore.log` has the standard empty-file SHA-256 `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`. These digests identify local evidence files; the empty log alone does not prove success. The harness returned exit code 0 and its readback reported the counts above. The ignored dump and harness are not copied into this repository.
 
 ## Host path and command uncertainty
 
-The inspected path was `/etc/gridlens/compose.app.yaml`, `/etc/gridlens/runtime.env`, prebuilt images, and `/opt/gridlens/releases/<tag>`. The host `compose config` check did not run successfully because the controller shell lacked the `TYPESAFE_API_KEY` injection context. That failure does not show a running-container failure. The approved injection wrapper, release command, rollback command, installed backup service/script body, and repeatable restore command were not present in the sanitized receipts; all remain UNKNOWN. No executable production deploy or restore commands are inferred from this snapshot.
+The inspected path was `/etc/gridlens/compose.app.yaml`, `/etc/gridlens/runtime.env`, prebuilt images, and `/opt/gridlens/releases/<tag>`. The host `compose config` check did not run successfully because the controller shell lacked the `TYPESAFE_API_KEY` injection context. That failure does not show a running-container failure. The approved injection wrapper, release command, rollback command, installed backup service/script body, and production restore/cutover procedure were not present in the sanitized receipts; all remain UNKNOWN. No executable production deploy or restore commands are inferred from this snapshot.
 
 ## Source receipt digests
 

@@ -1,15 +1,67 @@
-# Scripts
+# Operational scripts
 
-These scripts support local setup, validation, replay and bounded diagnostics. Read each script's help and documentation before using it against a configured database. Never point destructive or fixture-oriented commands at production or retained evidence.
+- `setup_local.py` creates ignored native-runtime credentials from `.artifacts/local-postgres/connection.env` or process `DATABASE_URL`/`TEST_DATABASE_URL` when passed `--use-environment`; it refuses to replace existing credentials unless passed `--force`.
+- `setup_compose.py` creates separate ignored Compose credentials and `.artifacts/compose-auth.txt`; it also refuses silent credential rotation.
+- `export_openapi.py` exports typed FastAPI response schemas to `web/src/api/openapi.json`; run `npm run generate:api` in `web` to refresh TypeScript types.
 
-## Local setup and checks
+The worker and optional managed scheduler share the application queue services rather than duplicating qualification logic.
 
-- [`setup_local.py`](setup_local.py) prepares ignored local credentials using the documented local database configuration.
-- [`setup_compose.py`](setup_compose.py) prepares ignored credentials for the repository's local Compose stack.
-- [`check.ps1`](check.ps1) runs the locked backend and web checks, Ruff lint and format checks, migrations, tests, build, and browser regression. It requires configured `DATABASE_URL`, a disposable `TEST_DATABASE_URL` ending `_test`, `APP_PASSWORD_HASH`, and `SESSION_SECRET`. It does not start PostgreSQL, generate credentials, deploy, or prove live scheduled collection.
-- [`check_docs.py`](check_docs.py) checks local relative links in the active documentation entry points. Historical missing targets are reported separately from that gate.
-- [`export_openapi.py`](export_openapi.py) exports the backend OpenAPI document; then run `npm run generate:api` from `web` to refresh generated TypeScript API types.
+## Captured buying-chain acceptance
 
-From PowerShell at the repository root, run the documentation check with `uv run --project backend python scripts/check_docs.py`. Run the full local gate with `pwsh scripts/check.ps1` after configuring the required environment and disposable databases. See the root [setup and validation guide](../README.md).
+`validate_buying_chain_captures.py` replays the five retained real-source captures
+through the production buying-chain parser, extraction, and persistence code. It
+reconstructs the three existing GL3-016 corpus identities in a disposable schema
+of the separate `TEST_DATABASE_URL` database. It commits, reloads, and repeats each
+pass, checking candidate identity, exact citations, unchanged counts, and unchanged
+Signal/power fields. No organization or person claim is seeded.
 
-Other scripts are purpose-specific. Read their adjacent docs and `--help` before running. A successful local or synthetic command is not production or commercial acceptance evidence.
+With PostgreSQL running and the backend environment configured:
+
+```bash
+uv run --project backend python scripts/validate_buying_chain_captures.py \
+  --captures /path/to/retained-capture-directory
+```
+
+The capture directory must contain `manifest.json` and its unedited five body
+files. Their SHA-256 hashes must match the manifest. Keep full source captures
+outside Git. `--repo` defaults to this checkout; `--output` defaults to
+`docs/validation/gl3-017-real-acceptance.json`. The report preserves prior attempt
+summaries. Exit status is nonzero on any failed acceptance check. This verifies
+captured-source processing only, not direct live-network or browser operation.
+
+## Runtime inspection and recovery
+
+Use `uv run --project backend python -m gridlens.jobs.runtime` from the repository root. `status` reads registry drift, source health, content counts and backlog without changing the database. `reconcile` updates/inserts registry definitions while retaining existing health, jobs and content. `check --source SOURCE_ID` (repeat the flag for multiple sources) attempts each selected source once through the normal fenced worker. It reuses active jobs, honors retry backoff/live leases, and leaves unrelated jobs untouched. Exit 0 means every selected job was attempted successfully; exit 1 includes failed or deferred jobs; exit 2 reports invalid input or runtime setup failure.
+
+See [runtime recovery](../docs/operations/runtime-recovery.md) for startup and validation boundaries. These commands do not deploy a scheduler or establish daily reliability.
+
+## Isolated synthetic browser acceptance
+
+`seeded_browser_acceptance.py` creates a uniquely named `gl3_synthetic_browser_*`
+PostgreSQL database using the existing configured database account, applies the
+current migrations, then seeds explicitly synthetic source-shaped fixtures through
+canonical permit rendering, ingestion, evidence admission and pursuit research.
+It never installs fixtures into the ordinary application database or shared test
+database. It refuses a nonempty seed target and occupied API/web ports. The worker
+uses fixture acquisition; model credentials are disabled for this run.
+
+```bash
+PLAYWRIGHT_BROWSERS_PATH=/path/to/installed/playwright \
+UV_CACHE_DIR=/tmp/uv-cache uv run --directory backend \
+  python ../scripts/seeded_browser_acceptance.py --full-suite
+```
+
+Omit `--full-suite` to run the six existing authenticated browser scenarios in
+`first_path.spec.ts` and `pursuits.spec.ts`, unchanged. Requires an installed
+Chromium, existing workspace authentication (`GRIDLENS_TEST_PASSWORD` or the
+existing private `.artifacts/local-auth.txt`), and a database role allowed to
+create an isolated database. Ports default to 8137/5237 and can be overridden.
+No credentials are generated. Each run retains its database, migration/seed/worker
+logs, browser results/screenshots and candidate manifest under
+`.artifacts/synthetic-browser/` for inspection; no database is automatically dropped.
+
+This proves application workflows with **synthetic fixtures only**. The existing
+test names contain “live”/“real” because they ordinarily expect a populated runtime;
+passing them here does **not** establish live-source acceptance, the retained PR23
+corpus, or production operation. Source URLs in fixtures identify adapter formats,
+not claims that those pages supplied the synthetic facts.
