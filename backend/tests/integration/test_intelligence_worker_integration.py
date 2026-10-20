@@ -13,6 +13,7 @@ from gridlens.intelligence.intelligence_jobs import (
     enqueue_intelligence,
     intelligence_history,
 )
+from gridlens.persistence import database
 from gridlens.persistence.database import Base
 from gridlens.persistence.models import (
     Evidence,
@@ -394,6 +395,9 @@ def _wire_worker(sessions, monkeypatch):
     from gridlens.intelligence import intelligence_jobs
     from gridlens.jobs import worker
 
+    # signal_adjudication imports SessionLocal inside its functions, so patch the
+    # defining module instead of assigning an unused attribute on that module.
+    monkeypatch.setattr(database, "SessionLocal", sessions)
     monkeypatch.setattr(intelligence_jobs, "SessionLocal", sessions)
     monkeypatch.setattr(intelligence_jobs, "call_typesafe", _fake_call)
     monkeypatch.setattr(worker, "SessionLocal", sessions)
@@ -2091,7 +2095,7 @@ def test_estimated_jev_worker_persists_usage_audit_and_reuses_completed_call(ses
     from gridlens.intelligence import signal_adjudication
 
     monkeypatch.setattr(legacy_calls, "SessionLocal", sessions)
-    monkeypatch.setattr(signal_adjudication, "SessionLocal", sessions)
+    monkeypatch.setattr(database, "SessionLocal", sessions)
     sent = []
     answers = {
         name: {"type": "noul", "noul": value}
@@ -2178,7 +2182,7 @@ def test_estimated_jev_final_usage_envelope_overflow_quarantines_and_cannot_repl
     from gridlens.intelligence import signal_adjudication
 
     monkeypatch.setattr(legacy_calls, "SessionLocal", sessions)
-    monkeypatch.setattr(signal_adjudication, "SessionLocal", sessions)
+    monkeypatch.setattr(database, "SessionLocal", sessions)
     answers = {
         name: {"type": "noul", "noul": 0.5}
         for name in (
@@ -2279,7 +2283,7 @@ def test_estimated_jev_unselected_backlog_finishes_without_reservation_or_transp
     worker = _wire_worker(sessions, monkeypatch)
     from gridlens.intelligence import signal_adjudication
 
-    monkeypatch.setattr(signal_adjudication, "SessionLocal", sessions)
+    monkeypatch.setattr(database, "SessionLocal", sessions)
     calls = []
     monkeypatch.setattr(
         signal_adjudication.intelligence_provider,
@@ -2311,7 +2315,7 @@ def test_estimated_jev_unreviewed_reservation_fails_before_ledger_or_transport(
     worker = _wire_worker(sessions, monkeypatch)
     from gridlens.intelligence import signal_adjudication
 
-    monkeypatch.setattr(signal_adjudication, "SessionLocal", sessions)
+    monkeypatch.setattr(database, "SessionLocal", sessions)
     provider_calls = []
     monkeypatch.setattr(
         signal_adjudication.intelligence_provider,
@@ -2342,7 +2346,7 @@ def test_estimated_jev_reservation_change_before_dispatch_cancels_without_transp
     from gridlens.intelligence import signal_adjudication
 
     monkeypatch.setattr(legacy_calls, "SessionLocal", sessions)
-    monkeypatch.setattr(signal_adjudication, "SessionLocal", sessions)
+    monkeypatch.setattr(database, "SessionLocal", sessions)
     original_reserve = legacy_calls.reserve_call
 
     def reserve_then_change_policy(*args, **kwargs):
@@ -2381,7 +2385,7 @@ def test_estimated_jev_uses_existing_shared_active_and_budget_caps(sessions, mon
     worker = _wire_worker(sessions, monkeypatch)
     from gridlens.intelligence import signal_adjudication
 
-    monkeypatch.setattr(signal_adjudication, "SessionLocal", sessions)
+    monkeypatch.setattr(database, "SessionLocal", sessions)
     provider_calls = []
     monkeypatch.setattr(
         signal_adjudication.intelligence_provider,
@@ -2411,7 +2415,7 @@ def test_estimated_jev_rechecks_evidence_and_source_before_dispatch(
     from gridlens.intelligence import signal_adjudication
 
     monkeypatch.setattr(legacy_calls, "SessionLocal", sessions)
-    monkeypatch.setattr(signal_adjudication, "SessionLocal", sessions)
+    monkeypatch.setattr(database, "SessionLocal", sessions)
     original_reserve = legacy_calls.reserve_call
 
     def reserve_then_change_public_support(*args, **kwargs):
@@ -2467,7 +2471,7 @@ def test_estimated_jev_response_guards_quarantine_through_shared_ledger(
     from gridlens.intelligence import signal_adjudication
 
     monkeypatch.setattr(legacy_calls, "SessionLocal", sessions)
-    monkeypatch.setattr(signal_adjudication, "SessionLocal", sessions)
+    monkeypatch.setattr(database, "SessionLocal", sessions)
     answers = {
         name: {"type": "noul", "noul": 0.5}
         for name in (
@@ -2520,7 +2524,7 @@ def test_estimated_jev_received_error_uses_snapshot_threshold_and_quarantine(ses
     from gridlens.intelligence import signal_adjudication
 
     monkeypatch.setattr(legacy_calls, "SessionLocal", sessions)
-    monkeypatch.setattr(signal_adjudication, "SessionLocal", sessions)
+    monkeypatch.setattr(database, "SessionLocal", sessions)
     raw = {
         "model": "jev-1.13.0",
         "usage": {"input_tokens": 64_001, "output_tokens": None},
@@ -2559,7 +2563,7 @@ def test_estimated_jev_received_conclusive_failure_retains_captured_policy(sessi
     from gridlens.intelligence import signal_adjudication
 
     monkeypatch.setattr(legacy_calls, "SessionLocal", sessions)
-    monkeypatch.setattr(signal_adjudication, "SessionLocal", sessions)
+    monkeypatch.setattr(database, "SessionLocal", sessions)
     provider_calls = []
     raw = {"model": "jev-1.13.0", "usage": {"input_tokens": 551, "output_tokens": None}}
 
@@ -2605,7 +2609,7 @@ def test_estimated_jev_uncertain_checkpoint_is_not_replayed_after_policy_change(
     from gridlens.intelligence import signal_adjudication
 
     monkeypatch.setattr(legacy_calls, "SessionLocal", sessions)
-    monkeypatch.setattr(signal_adjudication, "SessionLocal", sessions)
+    monkeypatch.setattr(database, "SessionLocal", sessions)
     provider_calls = []
 
     def disconnect(**_kwargs):
