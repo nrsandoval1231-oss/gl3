@@ -74,6 +74,7 @@ from gridlens.settings import settings
 MAX_SECONDS = 35
 BUYING_CHAIN_JOB_KIND = "buying_chain_research"
 BUYING_CHAIN_TASK_TYPE = "buying_chain_research"
+RETAINED_BUYING_CHAIN_TASK_TYPE = "buying_chain_retained"
 
 
 def _buying_chain_context_digest(session: Session, project: Project) -> str:
@@ -268,6 +269,87 @@ def enqueue_buying_chain_research(
     return job
 
 
+def enqueue_retained_buying_chain_research(
+    session: Session,
+    project_id: UUID,
+    evidence_id: UUID,
+    evidence_hash: str,
+    admission_policy_version: str,
+) -> Job | None:
+    """Queue one retained-only extraction for an accepted evidence version."""
+    project = session.scalar(select(Project).where(Project.id == project_id).with_for_update())
+    evidence = session.get(Evidence, evidence_id)
+    observation = session.get(Observation, evidence.observation_id) if evidence else None
+    interpretation = (
+        session.scalar(
+            select(Interpretation).where(Interpretation.observation_id == observation.id)
+        )
+        if observation
+        else None
+    )
+    if (
+        project is None
+        or evidence is None
+        or evidence.content_hash != evidence_hash
+        or not _retained_evidence_current_for_project(
+            session, project, evidence, observation=observation, interpretation=interpretation
+        )
+    ):
+        return None
+    context_digest = _buying_chain_context_digest(session, project)
+    request_digest = _hash(
+        {
+            "task_type": RETAINED_BUYING_CHAIN_TASK_TYPE,
+            "project_id": str(project.id),
+            "evidence_id": str(evidence.id),
+            "evidence_hash": evidence_hash,
+            "admission_policy_version": admission_policy_version,
+            "context_digest": context_digest,
+            "buying_chain_policy_version": POLICY_VERSION,
+        }
+    )
+    prior_jobs = session.scalars(
+        select(Job)
+        .where(
+            Job.kind == BUYING_CHAIN_JOB_KIND,
+            Job.target_id == project.id,
+            Job.checkpoint.contains(request_digest),
+        )
+        .order_by(Job.created_at.desc(), Job.id.desc())
+        .limit(1)
+    ).all()
+    if prior_jobs:
+        try:
+            prior_checkpoint = json.loads(prior_jobs[0].checkpoint or "{}")
+        except (TypeError, ValueError):
+            prior_checkpoint = {}
+        if prior_checkpoint.get("request_digest") == request_digest:
+            return prior_jobs[0]
+    job = Job(
+        source_id=project.source_id,
+        kind=BUYING_CHAIN_JOB_KIND,
+        target_id=project.id,
+        checkpoint=json.dumps(
+            {
+                "task_type": RETAINED_BUYING_CHAIN_TASK_TYPE,
+                "request_digest": request_digest,
+                "context_digest": context_digest,
+                "payload": {
+                    "project_id": str(project.id),
+                    "evidence_id": str(evidence.id),
+                    "evidence_hash": evidence_hash,
+                    "admission_policy_version": admission_policy_version,
+                },
+                "status": "queued",
+            },
+            separators=(",", ":"),
+        ),
+    )
+    session.add(job)
+    session.flush()
+    return job
+
+
 def buying_chain_job_status(session: Session, project_id: UUID) -> dict | None:
     job = session.scalar(
         select(Job)
@@ -297,15 +379,58 @@ def run_buying_chain_research(
     with SessionLocal() as session:
         job = assert_fence(session, job_id, worker_id, fence)
         checkpoint = json.loads(job.checkpoint or "{}")
-        if checkpoint.get("task_type") != BUYING_CHAIN_TASK_TYPE:
+        task_type = checkpoint.get("task_type")
+        if task_type not in {BUYING_CHAIN_TASK_TYPE, RETAINED_BUYING_CHAIN_TASK_TYPE}:
             raise ValueError("Buying-chain job payload is invalid")
+        retained_only_task = task_type == RETAINED_BUYING_CHAIN_TASK_TYPE
         payload = checkpoint.get("payload") or {}
         project_id = UUID(payload["project_id"])
         project = session.get(Project, project_id)
         if project is None or project.id != job.target_id:
             raise LookupError("Project not found")
         expected_context = checkpoint.get("context_digest")
-        if _buying_chain_context_digest(session, project) != expected_context:
+        retained_version_current = True
+        if retained_only_task:
+            try:
+                retained_evidence_id = UUID(payload["evidence_id"])
+            except (KeyError, TypeError, ValueError):
+                retained_version_current = False
+            else:
+                retained_evidence = session.get(Evidence, retained_evidence_id)
+                retained_observation = (
+                    session.get(Observation, retained_evidence.observation_id)
+                    if retained_evidence
+                    else None
+                )
+                retained_interpretation = (
+                    session.scalar(
+                        select(Interpretation).where(
+                            Interpretation.observation_id == retained_observation.id
+                        )
+                    )
+                    if retained_observation
+                    else None
+                )
+                retained_version_current = bool(
+                    retained_evidence
+                    and retained_evidence.content_hash == payload.get("evidence_hash")
+                    and retained_interpretation
+                    and (retained_interpretation.assessment or {}).get(
+                        "admission_policy_version"
+                    )
+                    == payload.get("admission_policy_version")
+                    and _retained_evidence_current_for_project(
+                        session,
+                        project,
+                        retained_evidence,
+                        observation=retained_observation,
+                        interpretation=retained_interpretation,
+                    )
+                )
+        if (
+            not retained_version_current
+            or _buying_chain_context_digest(session, project) != expected_context
+        ):
             checkpoint.update(status="stale", completed_at=datetime.now(UTC).isoformat())
             job.checkpoint = json.dumps(checkpoint, separators=(",", ":"))
             job.status = "succeeded"
@@ -357,7 +482,10 @@ def run_buying_chain_research(
         project_snapshot = project
 
     public_enabled = (
-        settings.buying_chain_public_research_enabled and source_enabled and deadline is not None
+        not retained_only_task
+        and settings.buying_chain_public_research_enabled
+        and source_enabled
+        and deadline is not None
     )
     prefetched_documents: dict[str, PublicDocument] = {}
     retrieval_failures: dict[str, str] = {}
@@ -443,6 +571,9 @@ def run_buying_chain_research(
             retained_only=not (public_enabled and still_public_enabled),
         )
         detail_status = (
+            result.get("status", "complete")
+            if retained_only_task
+            else
             "disabled"
             if not settings.buying_chain_public_research_enabled
             else "blocked_source_policy"

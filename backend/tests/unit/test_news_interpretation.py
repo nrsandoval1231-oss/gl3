@@ -374,7 +374,7 @@ def test_early_stage_us_data_center_events_from_retained_headlines_are_signals()
         (
             "Microsoft acquires 600 acres of land for data center in Woodward, Iowa",
             "Local residents raise concerns",
-            "Iowa",
+            "Woodward, Iowa",
         ),
         (
             "Digi Power X secures $200m in debt financing for Alabama data center project",
@@ -390,7 +390,7 @@ def test_early_stage_us_data_center_events_from_retained_headlines_are_signals()
         (
             "Valor Energy acquires computing site in Youngstown, Ohio",
             "Company looks to pivot 18MW site into an AI data center",
-            "Ohio",
+            "Youngstown, Ohio",
         ),
     ]
     for title, summary, location in cases:
@@ -414,6 +414,25 @@ def test_named_commercial_construction_start_is_a_signal() -> None:
     )
     assert (result.decision, result.tier, result.location) == ("accepted", "Signal", "Colorado")
     assert result.subject == "Kaiser Permanente project"
+
+
+def test_city_state_and_fort_worth_location_are_retained_without_power_inference() -> None:
+    result = assess_news(
+        "Meta acquires 100 acres of land for planned data center in Fort Worth, Texas",
+        "The site is under evaluation.",
+    )
+    assert (result.decision, result.tier, result.location) == (
+        "accepted",
+        "Signal",
+        "Fort Worth, Texas",
+    )
+    assert result.demand_mw is None
+    assert result.missing_facts == [
+        "activity-specific power requirement",
+        "supply suitability",
+        "start window",
+        "duration",
+    ]
 
 
 def test_early_stage_lookalikes_stay_rejected() -> None:

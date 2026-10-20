@@ -177,6 +177,203 @@ def test_collection_replay_and_changed_version_never_create_signals(db, monkeypa
         assert interpretation.evaluator_version
 
 
+def test_accepted_news_queues_retained_only_buying_chain_and_preserves_corrections(
+    db, monkeypatch
+):
+    from gridlens.intelligence.buying_chain import buying_chain_view
+    from gridlens.jobs import worker
+    from gridlens.persistence.models import BuyingChainClaim, BuyingChainRun
+
+    _, factory, ingestion_job_id = db
+    source_id = "dcd-news"
+    ingestion_job_id = _rss_source_job(factory, source_id, "Data Center Dynamics")
+    import gridlens.ingestion.service as service
+    from gridlens.ingestion.registry import load_registry
+    from gridlens.intelligence import buying_chain
+
+    permit_definition = next(
+        row for row in load_registry() if row["id"] == "austin-building-permits"
+    )
+    with factory.begin() as session:
+        official = Source(
+            id=permit_definition["id"],
+            publisher=permit_definition["publisher"],
+            endpoint=permit_definition["endpoint"],
+            family=permit_definition["family"],
+            geography="Texas",
+            industries=["data centers"],
+            retrieval_method=permit_definition["retrieval_method"],
+            health={},
+        )
+        session.add(official)
+        session.flush()
+        project = Project(
+            identity_key="austin-building-permits:atlas-mesa",
+            name="Atlas Mesa data center",
+            location="100 Main Street, Austin, Texas",
+            source_id=official.id,
+            external_id="atlas-mesa-permit",
+            identity_facts={"site": "100 Main Street, Austin, Texas"},
+        )
+        session.add(project)
+        session.flush()
+        permit_observation = Observation(
+            source_id=official.id,
+            external_id="atlas-mesa-permit",
+            title="Atlas Mesa data center permit, 100 Main Street, Austin, Texas",
+            abstract="Atlas Mesa data center project at 100 Main Street, Austin, Texas.",
+            published_at=date(2026, 9, 25),
+            url="https://abc.austintexas.gov/permit/atlas-mesa",
+            content_hash="official-atlas-mesa-v1",
+        )
+        session.add(permit_observation)
+        session.flush()
+        permit_evidence = Evidence(
+            observation_id=permit_observation.id,
+            content_hash="official-atlas-mesa-v1",
+            title=permit_observation.title,
+            abstract=permit_observation.abstract,
+            url=permit_observation.url,
+            published_at=permit_observation.published_at,
+            extraction_location="permit record",
+        )
+        session.add(permit_evidence)
+        session.flush()
+        session.add(
+            Interpretation(
+                observation_id=permit_observation.id,
+                content_hash=permit_observation.content_hash,
+                status="accepted",
+                evaluator_version="permit-test-v1",
+                assessment={
+                    "decision": "accepted",
+                    "semantic_hash": permit_observation.content_hash,
+                    "evidence_hash": permit_evidence.content_hash,
+                    "subject": project.name,
+                    "location": project.location,
+                    "project_identity_key": project.identity_key,
+                    "power_activity": "facility-expansion",
+                },
+            )
+        )
+        need = PowerNeed(
+            project_id=project.id,
+            activity_key="facility-expansion",
+            tier="Signal",
+            rationale="Official permit identifies the data-center project.",
+            supply="Unknown",
+            active=True,
+        )
+        session.add(need)
+        session.flush()
+        session.add(NeedObservation(need_id=need.id, observation_id=permit_observation.id))
+
+    title = "Atlas begins construction at Atlas Mesa data center in Austin, Texas"
+    first_row = _project_record(
+        "Acme Builders is the general contractor for Atlas Mesa data center. "
+        "Site address: 100 Main Street, Austin, Texas.",
+        title,
+    )
+    monkeypatch.setattr(service, "retrieve_source", lambda *_args: [first_row])
+    with factory() as session:
+        service.process_job(
+            session,
+            ingestion_job_id,
+            "test",
+            1,
+            {"id": source_id, "retrieval_method": "publisher-rss"},
+        )
+
+    with factory() as session:
+        jobs = list(
+            session.scalars(
+                select(Job)
+                .where(Job.kind == "buying_chain_research")
+                .order_by(Job.created_at, Job.id)
+            )
+        )
+        assert len(jobs) == 1
+        queued = json.loads(jobs[0].checkpoint)
+        assert queued["task_type"] == "buying_chain_retained"
+        project_id = jobs[0].target_id
+        retained_job_id = jobs[0].id
+
+    # Replaying an unchanged RSS version does not enqueue another extraction.
+    with factory() as session:
+        service.process_job(
+            session,
+            ingestion_job_id,
+            "test",
+            1,
+            {"id": source_id, "retrieval_method": "publisher-rss"},
+        )
+    with factory() as session:
+        assert session.scalar(
+            select(func.count()).select_from(Job).where(Job.kind == "buying_chain_research")
+        ) == 1
+
+    # The retained task must not enter network admission even when public research is enabled.
+    monkeypatch.setattr(worker, "SessionLocal", factory)
+    monkeypatch.setattr(buying_chain, "SessionLocal", factory)
+    monkeypatch.setattr(worker, "WORKER_ID", "retained-buying-chain-test")
+    monkeypatch.setattr(settings, "buying_chain_public_research_enabled", True)
+    monkeypatch.setattr(
+        buying_chain,
+        "retrieve",
+        lambda *_args, **_kwargs: pytest.fail("retained-only extraction attempted HTTP"),
+    )
+    assert worker.run_one({}, job_ids=[retained_job_id])
+    with factory() as session:
+        claims = list(
+            session.scalars(
+                select(BuyingChainClaim).where(BuyingChainClaim.project_id == project_id)
+            )
+        )
+        assert any(
+            claim.organization == "Acme Builders"
+            and claim.category == "general_contractor"
+            and claim.organization_relationship == "DIRECT"
+            for claim in claims
+        )
+        assert not any("rental" in claim.organization.casefold() for claim in claims)
+        assert len(list(session.scalars(select(BuyingChainRun)))) == 1
+
+    # A correction creates a new job and current view while retaining the old claim in history.
+    corrected_row = _project_record(
+        "Acme Builders completed its Atlas Mesa data center work. "
+        "Site address: 100 Main Street, Austin, Texas.", title
+    )
+    monkeypatch.setattr(service, "retrieve_source", lambda *_args: [corrected_row])
+    with factory() as session:
+        service.process_job(
+            session,
+            ingestion_job_id,
+            "test",
+            1,
+            {"id": source_id, "retrieval_method": "publisher-rss"},
+        )
+    with factory() as session:
+        jobs = list(
+            session.scalars(
+                select(Job)
+                .where(Job.kind == "buying_chain_research", Job.status == "queued")
+                .order_by(Job.created_at, Job.id)
+            )
+        )
+        assert len(jobs) == 1
+        corrected_job_id = jobs[0].id
+    assert worker.run_one({}, job_ids=[corrected_job_id])
+    with factory() as session:
+        current = buying_chain_view(session, project_id)
+        history = buying_chain_view(session, project_id, history=True)
+        assert not any(
+            item["organization"] == "Acme Builders" for item in current["candidates"]
+        )
+        assert any(
+            item["organization"] == "Acme Builders" for item in history["candidates"]
+        )
+
+
 def _project_record(
     summary: str = "", title: str = "Atlas begins construction at Atlas Mesa data center in Texas"
 ):
@@ -2095,7 +2292,11 @@ def test_apply_reports_interpretation_failure_and_retries(db, monkeypatch, tmp_p
     monkeypatch.setattr(
         service, "assess_news", lambda *_args: (_ for _ in ()).throw(RuntimeError())
     )
-    monkeypatch.setattr("gridlens.persistence.database.SessionLocal", factory)
+    monkeypatch.setattr(
+        reinterpret_news,
+        "_test_database_session_factory",
+        lambda: (None, "collection_test", factory),
+    )
     output = tmp_path / "apply.json"
     monkeypatch.setattr(
         sys, "argv", ["reinterpret_news.py", "--apply", "--limit", "1", "--output", str(output)]

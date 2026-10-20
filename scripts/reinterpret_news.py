@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import sys
 from collections import Counter
@@ -13,28 +14,45 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "backend" / "src"))
 
 from gridlens.domain.news_interpretation import EVALUATOR_VERSION, assess_news  # noqa: E402
+from gridlens.domain.signal_admission import POLICY_VERSION as ADMISSION_POLICY_VERSION  # noqa: E402
+
+MAX_ROWS = 500
 
 
 def interpret_rows(
-    rows: list[dict[str, Any]], limit: int | None = None
+    rows: list[dict[str, Any]] | dict[str, Any], limit: int = MAX_ROWS
 ) -> dict[str, Any]:
-    rss_rows = [row for row in rows if str(row.get("source_id", "")).endswith("-news")]
+    if not 1 <= limit <= MAX_ROWS:
+        raise ValueError(f"limit must be between 1 and {MAX_ROWS}")
+    source_rows: Any = rows
+    if isinstance(rows, dict):
+        source_rows = rows.get("cases", rows.get("observations", []))
+    if not isinstance(source_rows, list) or any(not isinstance(row, dict) for row in source_rows):
+        raise ValueError("Retained corpus must contain a list of record objects")
+    rss_rows = [
+        row for row in source_rows if str(row.get("source_id", "")).endswith("-news")
+    ]
     rss_rows.sort(
-        key=lambda row: (row["source_id"], row["external_id"], row["content_hash"])
+        key=lambda row: (
+            row["source_id"],
+            row.get("external_id") or row.get("case_id") or row.get("observation_id", ""),
+            row.get("content_hash", ""),
+        )
     )
-    if limit is not None:
-        rss_rows = rss_rows[:limit]
+    rss_rows = rss_rows[:limit]
     decisions = []
     for row in rss_rows:
-        assessment = assess_news(row["title"], row.get("excerpt"))
+        excerpt = row.get("excerpt", row.get("abstract"))
+        assessment = assess_news(row["title"], excerpt)
+        external_id = row.get("external_id") or row.get("case_id") or row.get("observation_id")
         decisions.append(
             {
                 "source_id": row["source_id"],
-                "external_id": row["external_id"],
-                "content_hash": row["content_hash"],
+                "external_id": external_id,
+                "content_hash": row.get("content_hash"),
                 "published_at": row["published_at"],
                 "title": row["title"],
-                "citation_url": row["citation_url"],
+                "citation_url": row.get("citation_url", row.get("url")),
                 "assessment": assessment.as_dict(),
             }
         )
@@ -44,10 +62,114 @@ def interpret_rows(
     )
     return {
         "evaluator_version": EVALUATOR_VERSION,
+        "admission_policy_version": ADMISSION_POLICY_VERSION,
         "mode": "dry-run",
         "source_count": len(rss_rows),
+        "limit": limit,
+        "corpus_kind": "retained-records",
         "counts": dict(sorted(counts.items())),
         "decisions": decisions,
+    }
+
+
+def _test_database_session_factory():
+    from sqlalchemy import create_engine
+    from sqlalchemy.engine import make_url
+    from sqlalchemy.orm import sessionmaker
+
+    from gridlens.settings import settings
+
+    if not settings.test_database_url:
+        raise ValueError("--apply requires TEST_DATABASE_URL for a disposable database")
+    target_url = make_url(settings.test_database_url)
+    application_url = make_url(settings.database_url)
+    if not target_url.database or not target_url.database.endswith("_test"):
+        raise ValueError("--apply requires a database name ending in _test")
+    if (target_url.host, target_url.port, target_url.database) == (
+        application_url.host,
+        application_url.port,
+        application_url.database,
+    ):
+        raise ValueError("--apply refuses the application database")
+    engine = create_engine(settings.test_database_url)
+    return engine, target_url.database, sessionmaker(engine, expire_on_commit=False)
+
+
+def apply_retained_news(session_factory, limit: int) -> dict[str, Any]:
+    from sqlalchemy import select
+
+    from gridlens.ingestion.service import assess_retained_news
+    from gridlens.persistence.models import Evidence, Interpretation, Observation, Source
+
+    decisions: list[dict[str, Any]] = []
+    failed = 0
+    with session_factory.begin() as session:
+        observations = session.scalars(
+            select(Observation)
+            .join(Source, Source.id == Observation.source_id)
+            .where(Source.retrieval_method == "publisher-rss")
+            .order_by(Observation.source_id, Observation.external_id)
+            .limit(limit)
+        ).all()
+        for observation in observations:
+            evidence_versions = session.scalars(
+                select(Evidence)
+                .where(Evidence.observation_id == observation.id)
+                .order_by(Evidence.observed_at.desc(), Evidence.content_hash)
+            ).all()
+            current = next(
+                (
+                    item
+                    for item in evidence_versions
+                    if item.title == observation.title
+                    and (item.abstract or "").split() == (observation.abstract or "").split()
+                    and item.published_at == observation.published_at
+                    and item.url == observation.url
+                ),
+                None,
+            )
+            if current is None:
+                raise RuntimeError(
+                    f"No retained evidence matches current observation {observation.id}"
+                )
+            assess_retained_news(session, observation, current)
+            session.flush()
+            interpretation = session.scalar(
+                select(Interpretation).where(Interpretation.observation_id == observation.id)
+            )
+            assessment = (interpretation.assessment if interpretation else None) or {}
+            status = interpretation.status if interpretation else "missing"
+            if status in {"failed", "pending"}:
+                failed += 1
+            decisions.append(
+                {
+                    "source_id": observation.source_id,
+                    "external_id": observation.external_id,
+                    "content_hash": observation.content_hash,
+                    "published_at": observation.published_at.isoformat(),
+                    "title": observation.title,
+                    "citation_url": observation.url,
+                    "status": status,
+                    "error": interpretation.error if interpretation else "missing_interpretation",
+                    "assessment": {
+                        key: value
+                        for key, value in assessment.items()
+                        if key != "previous_decisions"
+                    },
+                }
+            )
+    counts = Counter(
+        f"{row['assessment'].get('decision')}:{row['assessment'].get('tier') or 'none'}"
+        for row in decisions
+    )
+    return {
+        "evaluator_version": EVALUATOR_VERSION,
+        "admission_policy_version": ADMISSION_POLICY_VERSION,
+        "mode": "apply",
+        "source_count": len(decisions),
+        "counts": dict(sorted(counts.items())),
+        "decisions": decisions,
+        "failed_or_pending": failed,
     }
 
 
@@ -61,111 +183,34 @@ def main() -> None:
     parser.add_argument(
         "--output", type=Path, default=Path(".artifacts/GL3-007/dry-run.json")
     )
-    parser.add_argument("--limit", type=int)
+    parser.add_argument(
+        "--limit", type=int, default=MAX_ROWS, help=f"Maximum records to reassess (1-{MAX_ROWS})"
+    )
     parser.add_argument(
         "--apply",
         action="store_true",
-        help="Persist decisions transactionally to DATABASE_URL",
+        help="Persist decisions transactionally to the isolated TEST_DATABASE_URL only",
     )
     args = parser.parse_args()
-    if args.limit is not None and args.limit < 1:
-        parser.error("--limit must be positive")
+    if not 1 <= args.limit <= MAX_ROWS:
+        parser.error(f"--limit must be between 1 and {MAX_ROWS}")
     if args.apply:
-        from sqlalchemy import select
-
-        from gridlens.ingestion.service import assess_retained_news
-        from gridlens.persistence.database import SessionLocal
-        from gridlens.persistence.models import (
-            Evidence,
-            Interpretation,
-            Observation,
-            Source,
-        )
-
-        decisions: list[dict[str, Any]] = []
-        failed = 0
-        with SessionLocal.begin() as session:
-            observations = session.scalars(
-                select(Observation)
-                .join(Source, Source.id == Observation.source_id)
-                .where(Source.retrieval_method == "publisher-rss")
-                .order_by(Observation.source_id, Observation.external_id)
-            ).all()
-            if args.limit is not None:
-                observations = observations[: args.limit]
-            for observation in observations:
-                evidence_versions = session.scalars(
-                    select(Evidence)
-                    .where(Evidence.observation_id == observation.id)
-                    .order_by(Evidence.observed_at.desc(), Evidence.content_hash)
-                ).all()
-                current = next(
-                    (
-                        item
-                        for item in evidence_versions
-                        if item.title == observation.title
-                        and (item.abstract or "").split()
-                        == (observation.abstract or "").split()
-                        and item.published_at == observation.published_at
-                        and item.url == observation.url
-                    ),
-                    None,
-                )
-                if current is None:
-                    raise RuntimeError(
-                        f"No retained evidence matches current observation {observation.id}"
-                    )
-                assess_retained_news(session, observation, current)
-                session.flush()
-                interpretation = session.scalar(
-                    select(Interpretation).where(
-                        Interpretation.observation_id == observation.id
-                    )
-                )
-                assessment = (
-                    interpretation.assessment if interpretation else None
-                ) or {}
-                status = interpretation.status if interpretation else "missing"
-                if status in {"failed", "pending"}:
-                    failed += 1
-                decisions.append(
-                    {
-                        "source_id": observation.source_id,
-                        "external_id": observation.external_id,
-                        "content_hash": observation.content_hash,
-                        "published_at": observation.published_at.isoformat(),
-                        "title": observation.title,
-                        "citation_url": observation.url,
-                        "status": status,
-                        "error": interpretation.error
-                        if interpretation
-                        else "missing_interpretation",
-                        "assessment": {
-                            key: value
-                            for key, value in assessment.items()
-                            if key != "previous_decisions"
-                        },
-                    }
-                )
-        from collections import Counter
-
-        counts = Counter(
-            f"{row['assessment'].get('decision')}:{row['assessment'].get('tier') or 'none'}"
-            for row in decisions
-        )
-        report = {
-            "evaluator_version": EVALUATOR_VERSION,
-            "mode": "apply",
-            "source_count": len(decisions),
-            "counts": dict(sorted(counts.items())),
-            "decisions": decisions,
-            "database": "DATABASE_URL current retained observations",
-            "failed_or_pending": failed,
-        }
+        try:
+            engine, database_name, apply_sessions = _test_database_session_factory()
+        except ValueError as exc:
+            parser.error(str(exc))
+        try:
+            report = apply_retained_news(apply_sessions, args.limit)
+            report["database"] = database_name
+        finally:
+            if engine is not None:
+                engine.dispose()
     else:
-        rows = json.loads(args.input.read_text(encoding="utf-8"))
+        input_bytes = args.input.read_bytes()
+        rows = json.loads(input_bytes)
         report = interpret_rows(rows, args.limit)
         report["input"] = str(args.input)
+        report["corpus_sha256"] = hashlib.sha256(input_bytes).hexdigest()
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(
         json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"

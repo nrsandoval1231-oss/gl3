@@ -23,6 +23,7 @@ _STATE_RE = re.compile(rf"\b({_STATES})\b", re.I)
 _CITIES = {
     "Houston": "Texas",
     "Dallas": "Texas",
+    "Fort Worth": "Texas",
     "Austin": "Texas",
     "San Antonio": "Texas",
     "Pine Bluff": "Arkansas",
@@ -185,6 +186,12 @@ def _site_location(text: str) -> str | None:
                 facility_match and state.end() <= facility_match.start() and len(after.split()) <= 5
             )
         ):
+            city_state = re.search(
+                r"\b(?:in|at|near)\s+([A-Z][\w.'-]*(?:\s+[A-Z][\w.'-]*){0,2}),\s*$",
+                city_before,
+            )
+            if city_state:
+                return f"{city_state.group(1)}, {state.group(1)}"
             return state.group(1)
     for city, state_name in sorted(_CITIES.items(), key=lambda item: len(item[0]), reverse=True):
         city_match = re.search(rf"\b{re.escape(city)}\b", text, re.I)
