@@ -1,7 +1,7 @@
 # Deployment artifacts
 
-Files under this directory are repository deployment preparations. They are not the observed production entry point. The October 20 read-only host inspection found prebuilt images launched from `/etc/gridlens/compose.app.yaml`, runtime configuration at `/etc/gridlens/runtime.env`, and release directories under `/opt/gridlens/releases/<tag>`. See [operations status](../docs/operations/README.md) for the dated observation and limits.
+Files under `deploy/` are implementation/build artifacts or alternate deployment preparation. They are not a verified production runbook. The October 20 read-only host observation reported prebuilt images under `/opt/gridlens/releases/<tag>`, `/etc/gridlens/compose.app.yaml`, and `/etc/gridlens/runtime.env`; the approved command and secret-injection context remain unknown.
 
-The host's active procedure, release operator, credentials flow and rollback were not validated by this packet. Do not use the repository clone plus `.env.prod` examples in `digitalocean/README.md` as instructions for the observed production host. Those files describe an alternate preparation path and may contain stale assumptions.
+Use [operations status](../docs/operations/README.md) for the production hold, observed host paths, backup/restore evidence, and gaps. Use [local runtime](../docs/operations/local-runtime.md) for the local native or Compose development setup. `deploy/digitalocean/README.md` is retained as alternate preparation only and explicitly is not to be executed against the observed host.
 
-For local development only, see the root [setup guide](../README.md) and [Compose preparation](../deploy/digitalocean/README.md). Deployment remains on hold pending the owner-authorized release process, exact-candidate checks, runtime verification and open product acceptance gates. This documentation change does not alter production or hosting settings.
+Production deploy, rollback, restore, and cutover commands have not been verified. No settings or production state were changed by this documentation work.

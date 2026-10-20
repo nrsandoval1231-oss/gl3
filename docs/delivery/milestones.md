@@ -4,9 +4,9 @@ Observed 2026-10-20. This page separates repository work from release acceptance
 
 ## Current checkpoint
 
-The remediation baseline is `fc5afbb144d5129ef9edcefeeb87d5faf25f03f4`, based on GitHub main `9e9e188bdf2825a8305a0e9eac0b23f0af1df47e`. PRs #94 and #95 are merged; #96, #97, and #98 were open when inspected. Remediation work is in progress. The news held-out corpus has a known failure and remains assigned for repair. This checkpoint does not establish a finished remediation candidate, deployment, or product acceptance.
+The remediation baseline is `fc5afbb144d5129ef9edcefeeb87d5faf25f03f4`, based on GitHub main `9e9e188bdf2825a8305a0e9eac0b23f0af1df47e`. PRs #94 and #95 are merged; #96, #97, and #98 were open when inspected. Remediation work is in progress. The news held-out corpus has a known failure. On October 20, the owner authorized site-specific news to create discovery Signals with unknown power facts and unchanged Prospect/Lead gates; news implementation and held-out validation remain pending Terra's handoff. See [the decision log](../decisions.md#owner-decision-october-20-2026-site-specific-news-may-create-discovery-signals). This checkpoint does not establish a finished remediation candidate, deployment, or product acceptance.
 
-Read-only production observations from 2026-10-20 18:29–18:39 UTC are summarized in [operations status](../operations/README.md). The running image was `title02-802cbb4055c5`, schema `0032`, with 1,620 projects and 1,619 saved needs. Authenticated live workflow proof and scheduled off-host backup retention remain UNKNOWN.
+Read-only production observations from 2026-10-20 18:28:48–18:50:41 UTC are summarized in [operations status](../operations/README.md). The running image was `title02-802cbb4055c5`, schema `0032`, with 1,620 projects and 1,619 saved needs. Authenticated live workflow proof and scheduled off-host backup retention remain UNKNOWN.
 
 ## Product gates
 
