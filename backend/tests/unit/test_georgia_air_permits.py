@@ -72,6 +72,65 @@ def assessment_record(description: str) -> dict:
     }
 
 
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://user:pass@epd.georgia.gov/document/document/abc-nar/download",
+        "https://epd.georgia.gov:8443/document/document/abc-nar/download",
+        "https://epd.georgia.gov:bad/document/document/abc-nar/download",
+        "https://[bad-host/document/document/abc-nar/download",
+        "https://epd.georgia.gov/document/document/abc-nar/download#fragment",
+        "https://epd.georgia.gov/document/document/abc-nar/download#",
+        "https://epd.georgia.gov/document/document/abc-nar/download?",
+        "https://epd.georgia.gov/document/document/abc-nar/download?x=1",
+        "http://epd.georgia.gov/document/document/abc-nar/download",
+        "https://epd.georgia.gov/document/document/abc-nar/download\n",
+        "https://epd.georgia.gov/document/document/../abc-nar/download",
+        "https://other.example/document/document/abc-nar/download",
+    ],
+)
+def test_georgia_document_url_rejects_unapproved_url_components(url):
+    with pytest.raises(georgia_air_permits.SourceParseError):
+        georgia_air_permits._document_url(url)
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://epd.georgia.gov/document/document/abc-nar/download",
+        "https://epd.georgia.gov:443/document/document/abc-nar/download",
+    ],
+)
+def test_georgia_document_url_accepts_approved_epd_urls(url):
+    assert georgia_air_permits._document_url(url) == url
+
+
+def test_bounded_georgia_get_never_follows_redirects_even_with_opted_in_client():
+    requests = []
+
+    def handler(request):
+        requests.append(request)
+        return httpx.Response(
+            302,
+            headers={"location": "https://attacker.example/payload"},
+        )
+
+    transport = httpx.MockTransport(handler)
+    with httpx.Client(transport=transport, follow_redirects=True) as client:
+        with pytest.raises(
+            georgia_air_permits.SourceParseError,
+            match="redirects are not followed",
+        ):
+            georgia_air_permits._bounded_get(
+                client,
+                "https://epd.georgia.gov/document/document/abc-nar/download",
+                1024,
+            )
+
+    assert len(requests) == 1
+    assert requests[0].url.host == "epd.georgia.gov"
+
+
 def test_partial_utility_campus_is_signal_with_reported_values_separate():
     record = assessment_record(
         "Northstar is a named campus with 100 MW planned capacity; only 20 MW utility "

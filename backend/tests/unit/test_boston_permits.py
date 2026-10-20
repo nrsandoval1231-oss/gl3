@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
 import httpx
 import pytest
@@ -14,6 +14,57 @@ from gridlens.ingestion.registry import load_registry
 
 def source():
     return next(row for row in load_registry() if row["id"] == SOURCE_ID)
+
+
+@pytest.mark.parametrize("lane", ["issue_recent", "issue_history"])
+def test_daily_keyset_resumes_id_order_despite_reversed_issue_timestamps(lane):
+    from gridlens.ingestion.adapters.boston_permits import retrieve_collection_segment
+
+    day = date(2026, 10, 13)
+    # Synthetic IDs cross the page boundary while their issue times go backwards.
+    rows = [row(i, f"{day}T{23 - i % 24:02}:00:00") for i in range(1, 1002)]
+    queries = []
+
+    def handler(request):
+        sql = request.url.params["sql"]
+        queries.append(sql)
+        if "COUNT(*)" in sql:
+            result = [{"row_count": len(rows), "unique_permit_numbers": len(rows)}]
+        else:
+            assert "ORDER BY _id ASC LIMIT 1000" in sql
+            assert "ORDER BY issued_date" not in sql
+            result = rows[1000:] if "AND _id > 1000" in sql else rows[:1000]
+        return httpx.Response(200, json={"success": True, "result": {"records": result}})
+
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        first = retrieve_collection_segment(source(), lane, day, day, {}, client)
+        assert first["cursor"]["after_id"] == 1000
+        assert first["observed_count"] == 1000 and not first["window_complete"]
+        resumed = retrieve_collection_segment(source(), lane, day, day, first["cursor"], client)
+        replay = retrieve_collection_segment(source(), lane, day, day, first["cursor"], client)
+    assert resumed == replay
+    assert resumed["window_complete"] and resumed["observed_count"] == 1001
+    assert resumed["records"][0]["document_number"] == "ALT1001"
+    assert len({r["document_number"] for r in first["records"] + resumed["records"]}) == 1001
+
+
+@pytest.mark.parametrize("bad_rows", [[2, 1], [1, 1]])
+def test_daily_keyset_rejects_duplicate_or_descending_rows(bad_rows):
+    from gridlens.ingestion.adapters.boston_permits import retrieve_collection_segment
+
+    day = date(2026, 10, 13)
+
+    def handler(request):
+        records = (
+            [{"row_count": 2, "unique_permit_numbers": 2}]
+            if "COUNT(*)" in request.url.params["sql"]
+            else [row(i, f"{day}T00:00:00") for i in bad_rows]
+        )
+        return httpx.Response(200, json={"success": True, "result": {"records": records}})
+
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        with pytest.raises(SourceParseError, match="duplicate identity or bad order"):
+            retrieve_collection_segment(source(), "issue_recent", day, day, {}, client)
 
 
 def row(row_id: int, issued: str, **updates):

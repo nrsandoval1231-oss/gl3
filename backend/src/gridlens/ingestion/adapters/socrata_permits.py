@@ -438,12 +438,8 @@ def retrieve_collection_segment(
             raise SourceParseError("Permit collection cursor has an invalid row key")
         if len(after_id) > 256:
             raise SourceParseError("Permit collection cursor row key is too long")
-        if source_id == "chicago-building-permits":
-            if not after_id.isdigit():
-                raise SourceParseError("Chicago permit cursor row key is not numeric")
-            row_literal = after_id
-        else:
-            row_literal = "'" + after_id.replace("'", "''") + "'"
+        # Publisher row keys are opaque text, including Chicago Express IDs.
+        row_literal = "'" + after_id.replace("'", "''") + "'"
         if is_modified:
             if not isinstance(after_value, str):
                 raise SourceParseError("Permit modification cursor has no timestamp key")
@@ -543,7 +539,7 @@ def retrieve_collection_segment(
             raise SourceParseError("Permit segment page is empty or exceeds its row bound")
         records: list[dict[str, Any]] = []
         seen: set[str] = set()
-        previous: tuple[str, int | str] | None = None
+        previous: tuple[str, str] | None = None
         for row in rows:
             if not isinstance(row, dict):
                 raise SourceParseError("Permit segment row has invalid shape")
@@ -586,30 +582,14 @@ def retrieve_collection_segment(
                     raise SourceParseError("Permit segment row escaped the backfill keyword filter")
             if sort_date != day:
                 raise SourceParseError("Permit segment row escaped its date window")
-            try:
-                stable_row_id: int | str = (
-                    int(row_id) if source_id == "chicago-building-permits" else row_id
-                )
-            except ValueError as exc:
-                raise SourceParseError("Chicago permit row key is not numeric") from exc
             sort_key = (
                 modified_value if is_modified else issue_day.isoformat(),
-                stable_row_id,
+                row_id,
             )
             if previous is not None and sort_key < previous:
                 raise SourceParseError("Permit segment rows are out of stable key order")
             if after_id is not None:
-                prior_key = (
-                    (
-                        str(after_value),
-                        int(after_id) if source_id == "chicago-building-permits" else after_id,
-                    )
-                    if is_modified
-                    else (
-                        day.isoformat(),
-                        int(after_id) if source_id == "chicago-building-permits" else after_id,
-                    )
-                )
+                prior_key = (str(after_value) if is_modified else day.isoformat(), after_id)
                 if sort_key <= prior_key:
                     raise SourceParseError("Permit segment row did not advance its keyset")
             seen.add(row_id)

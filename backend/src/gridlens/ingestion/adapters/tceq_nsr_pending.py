@@ -41,6 +41,7 @@ MAX_PDF_PAGES = 4
 MIN_ROWS = 20
 MAX_ROWS = 2000
 _NOTICE_PATH = "/permitting/air/newsourcereview/airpermits-pendingpermit-apps"
+_ECID_URL = "https://www14.tceq.texas.gov/epic/eCID/"
 _APPLICATION_PATH = re.compile(
     r"^/assets/public/permitting/air/reports/applications/\d+-[a-z0-9-]+\.pdf$",
     re.IGNORECASE,
@@ -80,7 +81,7 @@ def _received(value: str, today: date) -> date:
     return received
 
 
-def _official(url: str) -> str:
+def _normalize_link(url: str) -> str:
     # TCEQ wraps long hrefs at line boundaries in its HTML. Remove only those
     # line breaks, then resolve relative links against the fixed official page.
     if any(ord(char) < 0x20 and char not in "\r\n" for char in url) or "\x7f" in url:
@@ -92,7 +93,11 @@ def _official(url: str) -> str:
     # gov; repair that exact known form as well as ordinary filename wrapping.
     normalized = url.replace("www.tceq.texas\r\ngov", "www.tceq.texas.gov")
     normalized = normalized.replace("\r", "").replace("\n", "")
-    normalized = urljoin(LISTING_URL, normalized)
+    return urljoin(LISTING_URL, normalized)
+
+
+def _official(url: str) -> str:
+    normalized = _normalize_link(url)
     parts = urlsplit(normalized)
     if (
         parts.scheme != "https"
@@ -110,6 +115,18 @@ def _official(url: str) -> str:
     return normalized
 
 
+def _notice(url: str) -> str:
+    # eCID is an exact citation-only landing page, never a retrieval destination.
+    # Its absence of a project fragment does not make its navigation a project ID.
+    normalized = _normalize_link(url)
+    if normalized == _ECID_URL:
+        return normalized
+    normalized = _official(url)
+    if urlsplit(normalized).path != _NOTICE_PATH:
+        raise SourceParseError("TCEQ notice link is outside the official notice path")
+    return normalized
+
+
 def parse_listing(body: bytes, today: date) -> list[dict[str, Any]]:
     soup = BeautifulSoup(body, "html.parser")
     heading = soup.find(["h1", "h2"], string=re.compile("Pending Applications: New Source Review"))
@@ -122,22 +139,50 @@ def parse_listing(body: bytes, today: date) -> list[dict[str, Any]]:
             continue
         cells = [cell for cell in tr.find_all("td", recursive=False) if isinstance(cell, Tag)]
         if len(cells) != 5:
+            if cells and (
+                re.search(r"\b\d{2}/\d{2}/\d{4}\b", _text(tr))
+                or any(
+                    re.search(r"/reports/applications/\d+-", str(anchor.get("href", "")))
+                    for anchor in tr.find_all("a", href=True)
+                    if isinstance(anchor, Tag)
+                )
+            ):
+                raise SourceParseError("TCEQ listing application row has an invalid column count")
             continue
         applicant_cell, facility_cell, permit_cell, date_cell, link_cell = cells
         notice = applicant_cell.find("a", href=True)
         application = link_cell.find("a", href=True)
         if not isinstance(notice, Tag) or not isinstance(application, Tag):
+            if any(_text(cell) for cell in (facility_cell, permit_cell, date_cell)):
+                raise SourceParseError("TCEQ listing application row is missing a required link")
             continue
         for anchor in applicant_cell.find_all("a"):
             anchor.extract()
         applicant = _text(applicant_cell)
         facility = _text(facility_cell)
         permits = [p.strip() for p in _text(permit_cell).replace(" ", "").split(",") if p.strip()]
-        project = urlsplit(str(notice["href"])).fragment
+        notice_url = _notice(str(notice["href"]))
+        application_url = _official(str(application["href"]))
+        if not _APPLICATION_PATH.fullmatch(urlsplit(application_url).path):
+            raise SourceParseError("TCEQ application link is outside the official application path")
+        project = urlsplit(notice_url).fragment
+        application_project = re.fullmatch(
+            r"/assets/public/permitting/air/reports/applications/(\d+)-(?:ac|tc)\.pdf",
+            urlsplit(application_url).path,
+            re.IGNORECASE,
+        )
+        if notice_url == _ECID_URL:
+            # Official AC/TC document filenames carry the TCEQ project number,
+            # corroborated by the legacy notice fragments paired with these paths.
+            if application_project is None:
+                raise SourceParseError("TCEQ eCID row lacks a validated application project path")
+            project = application_project.group(1)
+        elif application_project and project != application_project.group(1):
+            raise SourceParseError("TCEQ notice and application project identities conflict")
         if not applicant or not facility or not permits or not project.isdigit():
             raise SourceParseError("TCEQ listing row lacks applicant, facility, permit or project")
         if project in seen:
-            continue
+            raise SourceParseError("TCEQ listing has duplicate project identity")
         seen.add(project)
         rows.append(
             {
@@ -148,8 +193,8 @@ def parse_listing(body: bytes, today: date) -> list[dict[str, Any]]:
                 "received": _received(_text(date_cell), today),
                 "notice_href": str(notice["href"]),
                 "application_href": str(application["href"]),
-                "notice_url": _official(str(notice["href"])),
-                "application_url": _official(str(application["href"])),
+                "notice_url": notice_url,
+                "application_url": application_url,
                 "application_stage": _text(application),
             }
         )
@@ -244,7 +289,9 @@ def _record(row: dict[str, Any], summary: dict[str, Any] | None) -> dict[str, An
         "publication_date": None,
         "event_date": row["received"].isoformat(),
         "event_date_label": "Application received (TCEQ listing)",
-        "html_url": row["notice_url"],
+        "html_url": (
+            row["application_url"] if row["notice_url"] == _ECID_URL else row["notice_url"]
+        ),
         "extraction_location": "TCEQ NSR pending-application listing row"
         + ("; Plain Language Summary page 1" if summary else ""),
         "source_hash": hashlib.sha256(

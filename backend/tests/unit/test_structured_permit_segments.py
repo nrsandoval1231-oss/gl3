@@ -89,7 +89,8 @@ def test_socrata_modified_lane_keeps_old_issue_date_and_utc_system_field():
     for index in range(1, 16):
         row[f"contact_{index}_type"] = None
         row[f"contact_{index}_name"] = None
-    rows = [{**row, "id": row_id} for row_id in ("9", "10")]
+    # Chicago IDs are opaque text (e.g. N2990649); the publisher orders them as text.
+    rows = [{**row, "id": row_id} for row_id in ("10", "9")]
     requests: list[httpx.Request] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -105,7 +106,7 @@ def test_socrata_modified_lane_keeps_old_issue_date_and_utc_system_field():
         )
 
     assert result["window_complete"] is True
-    assert [record["document_number"] for record in result["records"]] == ["9", "10"]
+    assert [record["document_number"] for record in result["records"]] == ["10", "9"]
     assert result["records"][0]["event_date"] == "2020-04-02"
     assert result["records"][0]["permit"]["source_modified_at"] == modified_at
     assert f"{today.isoformat()}T00:00:00.000Z" in requests[0].url.params["$where"]

@@ -186,7 +186,8 @@ def test_parser_failure_preserves_accepted_health_and_is_visible(db, monkeypatch
     assert response.status_code == 200
     source = response.json()["sources"][0]
     assert source["status"] == "Failed"
-    assert source["error"] == "synthetic schema mismatch"
+    # Unreviewed parser text is never persisted; only the allowlisted message is.
+    assert source["error"] == "Acquisition source response could not be parsed"
     assert source["last_success"] == "retained"
     assert source["new_records"] == 0
     with factory() as session:
@@ -534,7 +535,10 @@ def test_runtime_recovery_honors_backoff_and_reports_failure_then_recovery(db, m
     assert len(first["checks"]) == 1
     assert first["all_succeeded"] is False
     assert first["checks"][0]["health"]["last_success"] == "retained"
-    assert first["checks"][0]["health"]["error"] == "synthetic incomplete snapshot"
+    assert first["checks"][0]["health"]["error"] == (
+        "Acquisition source response could not be parsed"
+    )
+    assert first["checks"][0]["health"]["error_code"] == "source_parse_error"
     deferred = runtime.check_sources([definition["id"]])
     assert deferred["all_succeeded"] is False
     assert deferred["checks"][0]["attempted"] is False
