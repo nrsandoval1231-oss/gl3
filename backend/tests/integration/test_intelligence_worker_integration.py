@@ -2116,6 +2116,7 @@ def _seed_signal_adjudication_job(sessions):
             source_id=source_id,
             kind="signal_adjudication",
             target_id=observation_id,
+            available_at=datetime.now(UTC) - timedelta(seconds=1),
             checkpoint=json.dumps(
                 {
                     "evidence_id": str(evidence_id),
