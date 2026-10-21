@@ -8,6 +8,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+from gridlens.domain.power_schedule import PowerScheduleProjection, project_schedule
 from gridlens.domain.pursuit_research import ACTIVE, fingerprint
 
 POLICY = "opportunity-intelligence-v1"
@@ -79,6 +80,7 @@ class IntelligenceCard(BaseModel):
     completeness: dict[str, int | str]
     last_intelligence_update: str | None = None
     power_gap: dict[str, Any] | None = None
+    power_schedule: PowerScheduleProjection | None = None
     evidence: list[IntelligenceSource]
     research_enabled: bool
 
@@ -468,6 +470,12 @@ def assemble_card(
     add("activity", "Power activity", "identity", item.get("activity"), "power_need", current)
     add("stage", "Project stage", "identity", item.get("lifecycle_state"), "phase", current)
     gap = normalize_gap(item)
+    schedule_facts = [
+        fact
+        for fact in item.get("operator_fact_refs", [])
+        if fact.get("fact_type") == "power_schedule"
+    ]
+    schedule = project_schedule(schedule_facts)
 
     def field_sources(kind):
         quote = item.get("power_field_provenance", {}).get(kind)
@@ -620,6 +628,7 @@ def assemble_card(
         },
         last_intelligence_update=updated[-1] if updated else None,
         power_gap=gap,
+        power_schedule=schedule,
         evidence=sources,
         research_enabled=research_enabled,
     )
