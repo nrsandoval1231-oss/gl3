@@ -90,7 +90,18 @@ def test_reported_exact_load_excludes_answered_question_without_writing_power_ne
         "supply": "Unknown",
     }
     assert blocker_resolved("load", card)
-    assert [q["category"] for q in plan_questions(card)] == ["facility_demand", "supply"]
+    legacy_questions = plan_questions(card)
+    expanded_categories = {
+        "facility_demand",
+        "fuel",
+        "voltage",
+        "load_profile",
+        "procurement",
+        "utility_obstacle",
+    }
+    assert [q["category"] for q in legacy_questions] == ["supply"]
+    assert not expanded_categories.intersection(q["category"] for q in legacy_questions)
+    assert any(q["category"] == "facility_demand" for q in plan_questions(card, enrich=True))
     assert card["required_mw"] is None
 
 

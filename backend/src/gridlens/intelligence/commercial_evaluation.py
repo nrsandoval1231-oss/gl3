@@ -195,9 +195,11 @@ def save_evaluations(session: Session, cards: list[dict], *, now: datetime | Non
             )
         intelligence_changed = bool(
             current_intelligence is not None
-            and prior_intelligence is not None
-            and prior_intelligence.get("input_fingerprint")
-            != current_intelligence.get("input_fingerprint")
+            and (
+                prior_intelligence is None
+                or prior_intelligence.get("input_fingerprint")
+                != current_intelligence.get("input_fingerprint")
+            )
         )
         changed = (
             prior.get("input_hash") != card["input_hash"]

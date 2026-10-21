@@ -321,19 +321,20 @@ def plan_questions(
         categories.append("timing")
     if not card.get("required_mw"):
         categories.append("load")
-    if not blocker_resolved("facility_demand", card):
+    if enrich and not blocker_resolved("facility_demand", card):
         categories.append("facility_demand")
     if card.get("supply") in {None, "Unknown"}:
         categories.append("supply")
-    for category in (
-        "fuel",
-        "voltage",
-        "load_profile",
-        "procurement",
-        "utility_obstacle",
-    ):
-        if not blocker_resolved(category, card):
-            categories.append(category)
+    if enrich:
+        for category in (
+            "fuel",
+            "voltage",
+            "load_profile",
+            "procurement",
+            "utility_obstacle",
+        ):
+            if not blocker_resolved(category, card):
+                categories.append(category)
     if enrich and not card.get("duration"):
         categories.append("duration")
     if enrich:

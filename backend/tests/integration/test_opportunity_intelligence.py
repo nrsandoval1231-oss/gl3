@@ -262,6 +262,46 @@ def test_optional_projection_does_not_churn_or_erase_saved_snapshot(saved_db):
         ] == str(need_id)
 
 
+def test_first_intelligence_projection_versions_legacy_receipt_once(saved_db):
+    from copy import deepcopy
+
+    from test_saved_browse import seed
+
+    from gridlens.intelligence.commercial_evaluation import evaluate_target, save_evaluations
+    from gridlens.persistence.models import Pursuit
+
+    need_id = seed(saved_db, count=1, histories=1)[0]
+    with saved_db.begin() as session:
+        current = evaluate_target(session, need_id)
+        legacy = deepcopy(current)
+        legacy.pop("intelligence_card")
+        save_evaluations(session, [legacy])
+        row = session.scalar(select(Pursuit))
+        prior_snapshot = deepcopy(row.snapshot["commercial_triage"])
+        prior_version = deepcopy(prior_snapshot["versions"][-1])
+        assert prior_version["saved_card"].get("intelligence_card") is None
+
+        save_evaluations(session, [current])
+        updated = row.snapshot["commercial_triage"]
+        assert len(updated["versions"]) == len(prior_snapshot["versions"]) + 1
+        assert updated["versions"][-2] == prior_version
+        assert updated["saved_card"]["intelligence_card"] == current["intelligence_card"]
+
+        save_evaluations(session, [current])
+        assert (
+            len(row.snapshot["commercial_triage"]["versions"])
+            == len(prior_snapshot["versions"]) + 1
+        )
+
+        omitted = deepcopy(current)
+        omitted.pop("intelligence_card")
+        save_evaluations(session, [omitted])
+        assert (
+            row.snapshot["commercial_triage"]["saved_card"]["intelligence_card"]
+            == current["intelligence_card"]
+        )
+
+
 def test_intelligence_fingerprint_versions_once_and_omission_preserves_prior_card(saved_db):
     from copy import deepcopy
 
