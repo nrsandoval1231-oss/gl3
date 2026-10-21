@@ -91,7 +91,7 @@ export function WorkspaceHome() {
   const [signalsRevision, setSignalsRevision] = useState(0)
   const selectionSequence = useRef(0)
   const historyFocusSequence = useRef(0)
-  const pendingHistoryFocus = useRef<{ id: string; sequence: number; focused: boolean } | null>(null)
+  const pendingHistoryFocus = useRef<{ id: string; sequence: number; focused: boolean; origin: Element | null } | null>(null)
   const researchFocus = useRef<HTMLElement | null>(null)
   const signalParams = useRef<URLSearchParams | null>(currentView() === 'signals' ? getParams() : null)
   const lastSelected = useRef<string | null>(null)
@@ -137,6 +137,10 @@ export function WorkspaceHome() {
         const isCurrent = detailCurrent
         if (!isCurrent && current.focused) return
         const active = document.activeElement
+        if (!current.focused && active !== current.origin && active !== document.body && active instanceof HTMLElement && active.isConnected) {
+          pendingHistoryFocus.current = null
+          return
+        }
         if (isCurrent && current.focused && active !== document.body && active instanceof HTMLElement && active.isConnected) {
           pendingHistoryFocus.current = null
           return
@@ -183,7 +187,7 @@ export function WorkspaceHome() {
       setTab(workspaceTabFromParams(p))
       setDetailIdentity(null)
       if (!id) { ++selectionSequence.current; setDetailLoading(false); setSelected(null); setPendingNeedId(null); if (currentView() === 'opportunities') { const snapshot = history.state?.workspaceSnapshot ?? { ...savedScroll.current, focus: lastSelected.current }; pendingRestore.current = { ...snapshot, key: workspaceRequestKey(next) } } else requestAnimationFrame(() => { if (lastSelected.current) document.querySelector<HTMLElement>(`[data-opportunity-id="${CSS.escape(lastSelected.current)}"]`)?.focus() }); return }
-      if (currentView() === 'opportunities') pendingHistoryFocus.current = { id, sequence: ++historyFocusSequence.current, focused: false }
+      if (currentView() === 'opportunities' && window.matchMedia('(max-width: 1050px)').matches) pendingHistoryFocus.current = { id, sequence: ++historyFocusSequence.current, focused: false, origin: document.activeElement }
       const row = page?.items.find(item => item.id === id)
       setSelected(row ?? null); setPendingNeedId(row ? null : id)
       // A history navigation can reselect the same Need while its selected ID

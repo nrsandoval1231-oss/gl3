@@ -218,6 +218,29 @@ test('mobile history Back keeps the selected shell through delayed readback and 
   await expect(page.getByRole('button', { name: /Back to power needs/ })).toBeFocused()
 })
 
+test('desktop history readback does not steal Search focus after resizing to phone', async ({ page }) => {
+  const needA = { ...need, id: 'need-a', name: 'ACS project' }
+  const needB = { ...need, id: 'need-b', project_id: 'project-b', name: 'JLC project' }
+  await page.setViewportSize({ width: 1280, height: 844 })
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response([needA, needB]) }))
+  await page.route('**/api/opportunities/needs/need-a*', route => route.fulfill({ json: needA }))
+  await page.route('**/api/opportunities/needs/need-b*', route => route.fulfill({ json: needB }))
+  await page.goto('/?view=workspace')
+  await page.locator('[data-need-row="need-b"]').click()
+  await expect(page.getByRole('heading', { name: 'JLC project' })).toBeVisible()
+  await page.locator('[data-need-row="need-a"]').click()
+  await expect(page.getByRole('heading', { name: 'ACS project' })).toBeVisible()
+  await page.goBack()
+  await expect(page.getByRole('heading', { name: 'JLC project' })).toBeVisible()
+  const search = page.getByRole('textbox', { name: 'Search workspace' })
+  await search.focus()
+  await expect(search).toBeFocused()
+  await page.setViewportSize({ width: 390, height: 844 })
+  await expect(search).toBeFocused()
+  await expect(page.locator('.wh-list')).toBeHidden()
+})
+
 test('mobile Back can leave a held history readback and late response cannot restore it', async ({ page }) => {
   const needA = { ...need, id: 'need-a', project_id: 'project-a', name: 'ACS project' }
   const needB = { ...need, id: 'need-b', project_id: 'project-b', name: 'JLC project' }
