@@ -18,6 +18,7 @@ test('real session protects the workspace, survives reload, and ends on sign-out
 
   await page.reload()
   await expect(page.getByRole('heading', { name: 'Signals', exact: true })).toBeVisible()
+  await page.locator('.wh-account > summary').click()
   await page.getByRole('button', { name: 'Sign out', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Sign in', exact: true })).toBeVisible()
   expect((await page.request.get('/api/health')).status()).toBe(401)

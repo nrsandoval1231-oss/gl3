@@ -32,6 +32,8 @@ type Props = {
 }
 
 export function WorkspaceDetail({ item, pending, loading, error, tab, onTab, onBack, onRetry, onReadback, onTitleReady }: Props) {
+  const [shareState, setShareState] = useState('')
+  const [sourceFilter, setSourceFilter] = useState('All sources')
   const [brief, setBrief] = useState<Brief | null>(null)
   const [briefBusy, setBriefBusy] = useState(false)
   const [briefError, setBriefError] = useState('')
@@ -48,6 +50,8 @@ export function WorkspaceDetail({ item, pending, loading, error, tab, onTab, onB
   const titleStatusBusy = Boolean(item && titleStatusBusyNeedId === item.id)
   const onTitleReadyRef = useRef(onTitleReady)
   useEffect(() => { onTitleReadyRef.current = onTitleReady }, [onTitleReady])
+  useEffect(() => { setShareState('') }, [item?.id])
+  useEffect(() => { setSourceFilter('All sources') }, [item?.id])
   useEffect(() => {
     const id = item?.id
     const sequence = ++briefRequestSequence.current
@@ -142,7 +146,12 @@ export function WorkspaceDetail({ item, pending, loading, error, tab, onTab, onB
   }
 
   const evidence = item.evidence ?? []
+  const cardEvidence = item.intelligence_card?.evidence ?? []
+  const sourceFilters = [...new Set([...evidence.map(source => source.source_origin || source.source_id), ...cardEvidence.map(source => source.reference)].filter(Boolean))].sort()
+  const visibleEvidence = sourceFilter === 'All sources' ? evidence : evidence.filter(source => (source.source_origin || source.source_id) === sourceFilter)
+  const visibleCardEvidence = sourceFilter === 'All sources' ? cardEvidence : cardEvidence.filter(source => source.reference === sourceFilter)
   const callEvidence = evidence.find(source => source.assessment_current) ?? evidence[0]
+  const customer = item.intelligence_card?.fields.find(field => field.key === 'customer' && field.value)?.value ?? null
   const company = item.commercial_organization || item.title_company
   const currentTitleReady = titleState?.status === 'ready' && Boolean(titleState.result?.title)
   const titleStatus = titleState?.status ?? item.title_status
@@ -186,31 +195,90 @@ export function WorkspaceDetail({ item, pending, loading, error, tab, onTab, onB
   }
   const briefContent = brief?.result as { event_summary?: { text: string; evidence_id: string }[]; commercial_hypothesis?: { text: string; evidence_id: string }; unknowns?: string[]; next_step?: string } | null
   const briefStatements = [...(briefContent?.event_summary ?? []), ...(briefContent?.commercial_hypothesis ? [briefContent.commercial_hypothesis] : [])]
+  const supportedGap = qualifiedGap(item.qualified_remaining_gap)
+  const cardGap = item.intelligence_card?.power_gap
+  const cardGapRemaining = cardGap && typeof cardGap.remaining_mw === 'string' && cardGap.remaining_mw.trim() ? cardGap.remaining_mw : null
+  const cardGapBasis = cardGap && typeof cardGap.status === 'string' ? cardGap.status.replaceAll('_', ' ') : 'Supported activity-specific bridge gap.'
+  const facilityDemand = item.intelligence_card?.fields.find(field => field.key === 'facility_demand')
+  const energization = item.intelligence_card?.fields.find(field => field.key === 'energization')
+  const metrics = [
+    { key: 'demand', label: 'Facility Demand', value: facilityDemand?.value ?? 'Not established', basis: facilityDemand?.basis ?? 'No facility-wide demand is supported by retained evidence.', icon: 'demand' },
+    { key: 'gap', label: 'Potential Bridge-Power Gap', value: supportedGap ? `${supportedGap.remaining_mw_min}–${supportedGap.remaining_mw_max} MW` : cardGapRemaining ?? 'Not established', basis: supportedGap ? `${supportedGap.value_kind} · ${item.qualification_version ?? supportedGap.version}` : cardGapRemaining ? cardGapBasis : 'No supported remaining gap is available.', icon: 'gap' },
+    { key: 'start', label: 'Power Needed By', value: item.start_window ?? 'Not established', basis: item.start_window ? factEvidenceState(item, 'start') : 'No supported power timing is available.', icon: 'calendar' },
+    { key: 'duration', label: 'Expected Duration', value: item.duration ?? 'Not established', basis: item.duration ? factEvidenceState(item, 'duration') : 'No supported duration is available.', icon: 'clock' },
+    { key: 'supply', label: 'Utility Energization', value: energization?.value ?? 'Not established', basis: energization?.value ? `Utility service status; date not established. ${energization.basis}` : 'Utility energization timing is not supported by retained evidence.', icon: 'supply' },
+  ] as const
+  function openNextSteps() {
+    onTab('Next steps')
+    window.setTimeout(() => document.querySelector('.wh-tabs')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0)
+  }
+  async function copyShareLink() {
+    try { await navigator.clipboard.writeText(location.href); setShareState('Opportunity link copied.') }
+    catch { setShareState('Link copying is unavailable in this browser.') }
+  }
 
   return <aside className="wh-detail" aria-label="Opportunity detail">
-    <button className="wh-back" autoFocus onClick={onBack}>← Back to power needs</button>
     <div className="wh-detail-head">
-      <span>{item.tier} · {item.commercial_disposition ?? 'Disposition unavailable'}</span>
-      <h2>{displayTitle}</h2>
-      {item.intelligence_card?.fields.find(field => field.key === 'customer')?.value && <p className="ic-customer-heading">{item.intelligence_card.fields.find(field => field.key === 'customer')?.value}</p>}
-      <p>{item.location ?? 'Location unknown'} · {item.activity}</p>
-      {item.tier === 'Signal' && item.commercial_size_status === 'unknown' && <p className="wh-integrity"><strong>Activity size unknown.</strong> Retained for investigation; the 300 kW minimum is inclusive.</p>}
-      {item.signal_evidence_state === 'planning_application_withdrawn' && <p className="wh-integrity"><strong>Planning application withdrawn · historical Signal.</strong> Current project viability is unknown.</p>}
+      <div className="wh-identity-toolbar"><div className="wh-breadcrumb"><button className="wh-back" aria-label="Back to power needs" onClick={onBack}>Opportunities</button><span aria-hidden="true">/</span><span>{customer || 'Project'}</span><span aria-hidden="true">/</span><span>{displayTitle}</span></div><div className="wh-record-actions"><button className="wh-share" onClick={() => void copyShareLink()}><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M12.7 6.3 8.1 8.9m0 2.2 4.6 2.6"/><circle cx="14.8" cy="5.1" r="2.1"/><circle cx="5.3" cy="10" r="2.1"/><circle cx="14.8" cy="14.9" r="2.1"/></svg>Share</button><button className="wh-primary-action" onClick={openNextSteps}><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 4v12M4 10h12"/></svg>Update workflow</button>{shareState && <span role="status">{shareState}</span>}</div></div>
+      <div className="wh-record-hero">
+        <span className="wh-customer-monogram" aria-hidden="true">{(customer || displayTitle).split(/\s+/).filter(Boolean).slice(0, 2).map(word => word[0]).join('').toUpperCase()}</span>
+        <div className="wh-record-identity">
+          <h2>{customer || displayTitle}</h2>
+          {customer && <p className="wh-record-project">{displayTitle}</p>}
+          <p className="wh-record-subtitle">{item.location ?? 'Location unknown'} · {item.activity.replaceAll('-', ' ')}</p>
+        </div>
+        <div className="wh-record-qualification"><span className="wh-tier-badge">{item.tier} · {item.commercial_disposition ?? 'Disposition unavailable'}</span><span>{item.intelligence_card?.last_intelligence_update ? `Evidence updated ${new Date(item.intelligence_card.last_intelligence_update).toLocaleDateString()}` : 'Evidence update date unavailable'}</span></div>
+        {item.intelligence_card && <div className="wh-completeness"><span>Intelligence completeness</span><strong>{item.intelligence_card.completeness.supported}/{item.intelligence_card.completeness.total}</strong><progress aria-label="Intelligence completeness" max={item.intelligence_card.completeness.total} value={item.intelligence_card.completeness.supported}/></div>}
+      </div>      {item.signal_evidence_state === 'planning_application_withdrawn' && <p className="wh-integrity"><strong>Planning application withdrawn · historical Signal.</strong> Current project viability is unknown.</p>}
       {item.signal_evidence_state === 'planning_status_unknown' && <p className="wh-integrity"><strong>Conflicting planning revision · historical Signal.</strong> Current application and project status are unknown.</p>}
       {item.signal_evidence_state === 'source_listing_absent' && <p className="wh-integrity"><strong>Status review needed.</strong> This filing is no longer in the source current listing; it may have been issued, denied, or withdrawn. Its evidence is retained.</p>}
       {item.group_total_filtered && item.group_total_filtered > 1 && <p className="wh-group-context">Part of a group with {item.group_total_filtered} retained records. Each record and its evidence remain separate and available.</p>}
-      <section className="wh-next-action-featured" aria-label="Next action"><div><p className="wh-kicker">Next supported step</p><strong>{item.commercial_next_action || item.next_action || 'Review the retained evidence.'}</strong><p>{item.commercial_next_question || 'Open the evidence and confirm the unresolved project details.'}</p></div><button type="button" onClick={() => onTab('Next steps')}>Open next steps</button></section>
-      <details className="wh-source-context"><summary>Source title and organization</summary>{displayTitle !== item.name && <p>Source record: {item.name}</p>}{company && <p>Source-supported organization: {company}{companyRole ? ` · ${companyRole}` : ''}. Listed role does not verify purchasing authority.</p>}</details>
-      {!item.intelligence_card && <div className="wh-facts">
-        <span>Required power<strong>{item.required_mw ?? 'Unknown'}</strong><small>{factEvidenceState(item, 'demand')}</small></span>
-        <span>Start<strong>{item.start_window ?? 'Unknown'}</strong><small>{factEvidenceState(item, 'start')}</small></span>
-        <span>Duration<strong>{item.duration ?? 'Unknown'}</strong><small>{factEvidenceState(item, 'duration')}</small></span>
-        <span>Suitable supply<strong>{item.supply ?? 'Unknown'}</strong><small>{factEvidenceState(item, 'supply')}</small></span>
-      </div>
-      }
-      {hasConflict(item.conflict_state) && <p role="status">Evidence conflict state: {item.conflict_state}. Review retained source claims before acting.</p>}
-    </div>
-    <section className="wh-title-enrichment" aria-label="Evidence-grounded title">
+      {hasConflict(item.conflict_state) && <p role="status" className="wh-integrity">Evidence conflict state: {item.conflict_state}. Review retained source claims before acting.</p>}    </div>
+    <section className="wh-metrics" aria-label="Power need metrics">
+      {metrics.map(metric => <article className="wh-metric" key={metric.key}><span className="wh-metric-icon" aria-hidden="true"><svg viewBox="0 0 24 24">{metric.icon === 'demand' ? <><path d="m13 2-8 11h6l-1 9 9-12h-6z"/></> : metric.icon === 'gap' ? <><path d="M4 19V9m5 10V5m5 14v-7m5 7V3"/></> : metric.icon === 'calendar' ? <><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M7 3v4m10-4v4M3 10h18"/></> : metric.icon === 'clock' ? <><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></> : <><path d="M4 21h16M6 18h12l-2-12H8zM9 3h6M10 10h4m-4 4h4"/></>}</svg></span><div><span className="wh-metric-label">{metric.label}</span><strong className={metric.value === 'Not established' ? 'wh-metric-unknown' : undefined}>{metric.value}</strong><small>{metric.basis}</small></div></article>)}
+    </section>
+    {item.intelligence_card ? <IntelligenceCard key={item.id} card={item.intelligence_card} opportunityName={displayTitle} customer={customer} location={item.location} activity={item.activity.replaceAll('-', ' ')} tier={item.tier} why={item.commercial_reason || item.assessment_reason || item.rationale || 'No assessment rationale is available.'} nextAction={item.commercial_next_action || item.next_action || item.commercial_next_question || 'Review retained evidence and confirm the unresolved details.'} onReadback={onReadback} onReview={openNextSteps} /> : <div className="wh-summary-columns">
+      <section><h3>Project &amp; customer details</h3><dl><div><dt>Project</dt><dd>{displayTitle}</dd></div>{customer && <div><dt>Customer / end user</dt><dd>{customer}</dd></div>}<div><dt>Power activity</dt><dd>{item.activity.replaceAll('-', ' ')}</dd></div><div><dt>Location</dt><dd>{item.location ?? 'Unknown'}</dd></div></dl></section>
+      <section><h3>Key contacts &amp; buying chain</h3><p>No current verified contact is available in the intelligence summary.</p>{item.project_id && <button onClick={() => onTab('Buying chain')}>Review buying chain</button>}</section>
+      <section><h3>Why this opportunity matters</h3><p>{item.commercial_reason || item.assessment_reason || item.rationale || 'No assessment rationale is available.'}</p><h4>Recommended next action</h4><p>{item.commercial_next_action || item.next_action || item.commercial_next_question || 'Review retained evidence and confirm the unresolved details.'}</p><button onClick={() => onTab('Next steps')}>Update workflow</button></section>
+    </div>}
+    <nav ref={tabsRef} className="wh-tabs" aria-label="Opportunity detail">
+      {(['Evidence', 'Power gap', 'Unknowns', 'Next steps'] as const).map(value => <button key={value} aria-pressed={value === tab} aria-label={value === 'Next steps' ? 'Next steps' : value === 'Power gap' ? 'Commercial Assessment' : value === 'Unknowns' ? 'Research Gaps' : 'Evidence'} className={value === tab ? 'active' : ''} onClick={() => onTab(value)}>{value === 'Power gap' ? 'Commercial Assessment' : value === 'Unknowns' ? 'Research Gaps' : value === 'Next steps' ? 'Notes & Activity' : 'Evidence'}</button>)}
+      <details className="wh-more-tabs" open><summary>More</summary><div>{(['Overview', 'Buying chain', 'Timeline'] as const).map(value => <button key={value} aria-pressed={tab === value} onClick={() => onTab(value)}>{value}</button>)}</div></details>
+    </nav>
+    <div className="wh-detail-content">
+      {loading && <p role="status">Loading verified detail…</p>}
+      {error && <p role="alert">{error} <button onClick={onRetry}>Retry</button></p>}
+      {tab === 'Overview' && !item.intelligence_card && <>
+        <details className="wh-provenance-disclosure"><summary>Decision and evidence diagnostics</summary>
+          {item.signal_admission_origin && <p>Signal admission origin: {item.signal_admission_origin}</p>}
+          {item.signal_evidence_state && <p>Signal evidence state: {item.signal_evidence_state.replaceAll('_', ' ')}</p>}
+          {item.commercial_size_status && <p>Activity size status: {item.commercial_size_status}</p>}
+          {item.supported_subject && <p>Supported subject: {item.supported_subject}{item.supported_action ? ` · ${item.supported_action}` : ''}</p>}
+          {item.demand_quote && <blockquote>{item.demand_quote}</blockquote>}{item.supply_quote && <blockquote>{item.supply_quote}</blockquote>}
+          {item.reported_power_facts?.length ? <><strong>Reported power figures (source claims, not rental requirements)</strong><ul>{item.reported_power_facts.map((fact, i) => <li key={`${i}-${fact}`}>{fact}</li>)}</ul></> : null}
+          {item.lifecycle_state && <p>Asset lifecycle: {item.asset_type?.replaceAll('_', ' ') ?? 'Unknown'} · {item.lifecycle_state.replaceAll('_', ' ')}. Expected next milestone: {item.expected_next_milestone ?? 'Unknown'}; expected power event: {item.expected_power_event ?? 'Unknown'}; estimated window: {item.time_to_power_window ?? 'Unknown'}.</p>}
+          {item.estimate_version && <p>Derived lifecycle estimate · {item.estimate_version} · {String(item.estimate_basis?.confidence ?? 'confidence unknown')}. This is not a reported date, power requirement, or power gap.</p>}
+          {item.lifecycle_timeline?.length ? <ol>{item.lifecycle_timeline.map((event, i) => <li key={`${event.event_type}-${i}`}><a href={event.evidence_url} target="_blank" rel="noreferrer">{event.date ?? 'Date unknown'} · {event.state.replaceAll('_', ' ')}</a> ({event.value_kind}{event.current ? '' : ', superseded'}{event.published_at ? ` · published ${event.published_at}` : ''})</li>)}</ol> : null}
+          {item.monitoring_requirements?.length ? <p>Monitoring: {item.monitoring_requirements.join(' · ')}</p> : null}
+          {item.lifecycle_open_questions?.length ? <p>Lifecycle evidence still missing: {item.lifecycle_open_questions.join(' · ')}</p> : null}
+        </details>
+        <p>{item.commercial_reason || item.assessment_reason || item.rationale || 'No assessment summary is available.'}</p>
+        <section aria-label="Priority explanation"><strong>Priority</strong>{item.rank_score != null ? <p>Canonical rank score: {item.rank_score}{item.rank_version ? ` · ${item.rank_version}` : ''}</p> : <p>Canonical rank score unavailable.</p>}{item.rank_reasons?.length ? <ul>{item.rank_reasons.map((reason, index) => <li key={`${index}:${reason}`}>{reason}</li>)}</ul> : <p>No rank reasons were recorded.</p>}<small>Priority is separate from qualification and commercial disposition.</small></section>
+        <p><strong>Next question:</strong> {item.commercial_next_question || 'Unknown'}</p>
+        {evidence[0] && <p>Supporting source: <a href={evidence[0].url} target="_blank" rel="noreferrer">{evidence[0].title}</a> · {evidence[0].published_at ?? 'Publication date unknown'}</p>}
+      </>}
+      {tab === 'Evidence' && <div className="wh-evidence-section">
+        <header className="wh-evidence-heading"><div><h2>Evidence &amp; Sources</h2><p>Retained records: {evidence.length} · Intelligence citations: {cardEvidence.length}. Citations may refer to records listed here.</p></div><label>Filter sources <select aria-label="Filter evidence sources" value={sourceFilter} onChange={event => setSourceFilter(event.target.value)}><option value="All sources">All sources</option>{sourceFilters.map(filter => <option key={filter} value={filter}>{filter}</option>)}</select></label></header>
+        {evidence.length === 0 && <p>No retained evidence is attached to this opportunity.</p>}
+        {evidence.length > 0 && <table className="wh-evidence-table"><thead><tr><th>Date</th><th>Source</th><th>Title</th><th>Key insight</th><th>Type</th></tr></thead><tbody>{visibleEvidence.map(source => <tr key={`${source.source_id}-${source.document_number}-${source.content_hash}`}>
+          <td>{source.event_date ?? 'Date unknown'}</td><td>{source.source_id}</td><td><a href={source.url} target="_blank" rel="noreferrer">{source.title}</a><details><summary>Source record</summary><p>{source.document_number ?? 'Document number unknown'} · {source.event_date_label}: {source.event_date ?? 'Unknown'}</p><p>{source.published_at ? `Published ${source.published_at}` : 'Publication date unknown'} · Retrieved {new Date(source.retrieved_at).toLocaleString()}</p><p>{source.assessment_current ? 'Current assessment evidence' : 'Historical evidence version'} · {source.extraction_location} · {source.content_hash}</p>{source.permit_status && <p>Permit status: {source.permit_status}</p>}</details></td><td>{source.abstract ?? 'No source abstract.'}</td><td>{source.source_origin}</td>
+        </tr>)}</tbody></table>}
+        {visibleCardEvidence.length > 0 && <section className="wh-card-sources" aria-label="Intelligence card sources">{visibleCardEvidence.map(source => <article key={source.reference}><strong>{source.title}</strong><p>{source.reference} · {source.source_date ?? 'Source date unavailable'} · {source.verification_status} · {source.extraction_method}</p>{source.passage && <blockquote>{source.passage}</blockquote>}{source.url && <a href={source.url} target="_blank" rel="noreferrer">Open retained source</a>}</article>)}</section>}
+      </div>}
+      {tab === 'Evidence' && <section aria-label="Opportunity diagnostics">      {item.tier === 'Signal' && item.commercial_size_status === 'unknown' && <p className="wh-integrity">Activity size unknown. Retained for investigation; the 300 kW minimum is inclusive.</p>}
+      <details className="wh-source-context"><summary>Source title and organization</summary><p>Source record: {item.name}</p>{company && <p>Source-listed organization: {company}{companyRole ? ` · ${companyRole}` : ''}. This role does not establish customer status or purchasing authority.</p>}</details>
+{item.intelligence_card && <details><summary>Opportunity diagnostics</summary><p>Research completeness is separate from {item.intelligence_card.qualification} qualification.</p>{item.intelligence_card.fields.filter(field => field.value === null).map(field => <p key={field.key}><strong>{field.label}:</strong> Unknown · {field.basis}</p>)}</details>}<details className="wh-title-controls" open><summary>Evidence-grounded title</summary><section className="wh-title-enrichment" aria-label="Evidence-grounded title">
       <button disabled={titleBusy || titleState?.status === 'disabled' || titleStatusCheckFailed} onClick={() => {
         const id = item.id
         const sequence = ++titleRequestSequence.current
@@ -244,45 +312,7 @@ export function WorkspaceDetail({ item, pending, loading, error, tab, onTab, onB
       }}>{titleStatusBusy ? 'Checking status' : 'Retry status'}</button>}
       <span role="status">{titleBusy ? 'Requesting title.' : titleStatusBusy ? 'Checking current title status.' : titleStatus === 'disabled' ? 'Title enrichment is disabled; showing source-backed fallback.' : titleStatus === 'pending' ? 'Title request pending.' : currentTitleReady ? `Evidence-grounded title · ${titleState.model ?? 'model unknown'}` : titleStatus === 'stale' ? 'Saved title is stale; showing source-backed fallback.' : titleStatusCheckFailed ? 'Title status could not be checked. Check again before requesting a new title.' : titleState?.status === 'failed' ? 'Title request failed; showing source-backed fallback.' : 'Showing source-backed title fallback.'}</span>
       {currentTitleReady && titleState.citations.map(citation => <p key={`${citation.evidence_id}:${citation.role ?? ''}:${citation.quote}`}><a href={citation.url} target="_blank" rel="noreferrer">{citation.title}</a> · {citation.role ?? 'source activity'}: "{citation.quote}"</p>)}
-    </section>
-
-    <nav ref={tabsRef} className="wh-tabs" aria-label="Opportunity detail">
-      {workspaceTabs.map(value => <button key={value} className={value === tab ? 'active' : ''} onClick={() => onTab(value)}>{value}</button>)}
-    </nav>
-    <div className="wh-detail-content">
-      {loading && <p role="status">Loading verified detail…</p>}
-      {error && <p role="alert">{error} <button onClick={onRetry}>Retry</button></p>}
-      {tab === 'Overview' && item.intelligence_card && <IntelligenceCard key={item.id} card={item.intelligence_card} onReadback={onReadback} onReview={() => onTab('Next steps')} />}
-      {tab === 'Overview' && !item.intelligence_card && <>
-        <details className="wh-provenance-disclosure"><summary>Decision and evidence diagnostics</summary>
-          {item.signal_admission_origin && <p>Signal admission origin: {item.signal_admission_origin}</p>}
-          {item.signal_evidence_state && <p>Signal evidence state: {item.signal_evidence_state.replaceAll('_', ' ')}</p>}
-          {item.commercial_size_status && <p>Activity size status: {item.commercial_size_status}</p>}
-          {item.supported_subject && <p>Supported subject: {item.supported_subject}{item.supported_action ? ` · ${item.supported_action}` : ''}</p>}
-          {item.demand_quote && <blockquote>{item.demand_quote}</blockquote>}{item.supply_quote && <blockquote>{item.supply_quote}</blockquote>}
-          {item.reported_power_facts?.length ? <><strong>Reported power figures (source claims, not rental requirements)</strong><ul>{item.reported_power_facts.map((fact, i) => <li key={`${i}-${fact}`}>{fact}</li>)}</ul></> : null}
-          {item.lifecycle_state && <p>Asset lifecycle: {item.asset_type?.replaceAll('_', ' ') ?? 'Unknown'} · {item.lifecycle_state.replaceAll('_', ' ')}. Expected next milestone: {item.expected_next_milestone ?? 'Unknown'}; expected power event: {item.expected_power_event ?? 'Unknown'}; estimated window: {item.time_to_power_window ?? 'Unknown'}.</p>}
-          {item.estimate_version && <p>Derived lifecycle estimate · {item.estimate_version} · {String(item.estimate_basis?.confidence ?? 'confidence unknown')}. This is not a reported date, power requirement, or power gap.</p>}
-          {item.lifecycle_timeline?.length ? <ol>{item.lifecycle_timeline.map((event, i) => <li key={`${event.event_type}-${i}`}><a href={event.evidence_url} target="_blank" rel="noreferrer">{event.date ?? 'Date unknown'} · {event.state.replaceAll('_', ' ')}</a> ({event.value_kind}{event.current ? '' : ', superseded'}{event.published_at ? ` · published ${event.published_at}` : ''})</li>)}</ol> : null}
-          {item.monitoring_requirements?.length ? <p>Monitoring: {item.monitoring_requirements.join(' · ')}</p> : null}
-          {item.lifecycle_open_questions?.length ? <p>Lifecycle evidence still missing: {item.lifecycle_open_questions.join(' · ')}</p> : null}
-        </details>
-        <p>{item.commercial_reason || item.assessment_reason || item.rationale || 'No assessment summary is available.'}</p>
-        <section aria-label="Priority explanation"><strong>Priority</strong>{item.rank_score != null ? <p>Canonical rank score: {item.rank_score}{item.rank_version ? ` · ${item.rank_version}` : ''}</p> : <p>Canonical rank score unavailable.</p>}{item.rank_reasons?.length ? <ul>{item.rank_reasons.map((reason, index) => <li key={`${index}:${reason}`}>{reason}</li>)}</ul> : <p>No rank reasons were recorded.</p>}<small>Priority is separate from qualification and commercial disposition.</small></section>
-        <p><strong>Next question:</strong> {item.commercial_next_question || 'Unknown'}</p>
-        {evidence[0] && <p>Supporting source: <a href={evidence[0].url} target="_blank" rel="noreferrer">{evidence[0].title}</a> · {evidence[0].published_at ?? 'Publication date unknown'}</p>}
-      </>}
-      {tab === 'Evidence' && <div>
-        {evidence.length === 0 && <p>No retained evidence is attached to this opportunity.</p>}
-        {evidence.map(source => <article className="wh-evidence" key={`${source.source_id}-${source.document_number}-${source.content_hash}`}>
-          <a href={source.url} target="_blank" rel="noreferrer">{source.title}</a>
-          <p>{source.source_id} · {source.document_number} · {source.source_origin}</p>
-          <p>{source.event_date_label}: {source.event_date ?? 'Unknown'} · {source.published_at ? `Published ${source.published_at}` : 'Publication date unknown'} · Retrieved {new Date(source.retrieved_at).toLocaleString()}</p>
-          <p>{source.assessment_current ? 'Current assessment evidence' : 'Historical evidence version'} · {source.extraction_location} · {source.content_hash}</p>
-          {source.permit_status && <p>Permit status: {source.permit_status}</p>}
-          <p>{source.abstract ?? 'No source abstract.'}</p>
-        </article>)}
-      </div>}
+    </section></details></section>}
       {tab === 'Buying chain' && item.project_id && <BuyingChain projectId={item.project_id}/>}
       {tab === 'Buying chain' && !item.project_id && <p>Project identity is unavailable, so a buying chain cannot be resolved.</p>}
       {tab === 'Power gap' && <div>
@@ -326,8 +356,9 @@ export function WorkspaceDetail({ item, pending, loading, error, tab, onTab, onB
         <h3>Verified facts and workflow history</h3>
         <FactWorkflowPanel item={item} onReadback={onReadback}/>
       </>}
-      {tab === 'Unknowns' && <ul>{unknowns.map(value => <li key={value}>{value}</li>)}</ul>}
+      {tab === 'Unknowns' && <><ul>{unknowns.map(value => <li key={value}>{value}</li>)}</ul>{item.intelligence_card?.research_gaps.map(field => <p key={field.key}><strong>{field.label}:</strong> {field.value ?? field.basis} · {field.status}{field.research_status ? ` · ${field.research_status.replaceAll('_', ' ').toLowerCase()}` : ''}</p>)}{item.tier === 'Signal' && item.commercial_size_status === 'unknown' && <p>Activity size unknown. Retained for investigation; the 300 kW minimum is inclusive.</p>}</>}
     </div>
+    <section className="wh-mobile-workflow" aria-label="Next action"><button type="button" onClick={openNextSteps}>Update workflow</button></section>
   </aside>
 }
 

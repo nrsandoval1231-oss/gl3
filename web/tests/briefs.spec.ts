@@ -46,9 +46,9 @@ test('detail explicitly requests a brief, polls pending state, and resolves sour
   })
 
   await page.goto('/')
-  await expect(page.getByRole('heading', { name: 'Your pursuits' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Opportunity Intelligence' })).toBeVisible()
   await page.locator(`[data-need-row="${id}"]`).click()
-  await page.getByRole('button', { name: 'Open next steps' }).click()
+  await page.locator('.wh-record-actions').getByRole('button', { name: 'Update workflow' }).click()
   await expect(page.getByRole('heading', { name: 'Concise evidence brief' })).toBeVisible()
   await expect(page.getByText('Not generated')).toBeVisible()
   await page.getByRole('button', { name: 'Generate or retry brief' }).click()
