@@ -1,5 +1,7 @@
 # Controller candidate evidence
 
+Release follow-up: [selected-history loading and focus correction](NAVIGATION_RELEASE_FIX.md). The evidence below records the original approved UI candidate; the follow-up retains its own manifest and validation results.
+
 This UI uses the supplied [owner reference](../../design/references/opportunity-intelligence-approved.jpg) and [brand sheet](../../design/references/brand-system-v1-owner.jpg). It is stacked on PR102, dependency `5ef5f3f29e94fffb071351b61e186d236d40068c`. No backend, schema, provider, budget, ingestion or qualification implementation changes belong to this diff.
 
 ## Browser captures

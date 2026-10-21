@@ -1,0 +1,20 @@
+{
+  "checked_utc": "2026-10-21T18:02:08.4594716Z",
+  "pinned_uv": "0.7.13 (62ed17b23 2025-06-12)",
+  "base_commit": "d3d8af385277d9c04273fca29b21994584a33c02",
+  "commands": [
+    {
+      "exit_code": 0,
+      "command": "uvx --from uv==0.7.13 uv lock --check",
+      "result": "Resolved 46 packages; lock accepted and no files changed."
+    },
+    {
+      "exit_code": 0,
+      "command": "uvx --from uv==0.7.13 uv export --locked --extra dev --no-emit-project --format requirements-txt --output-file ../.artifacts/release-ui/pdf-dependency/pinned-uv-requirements.txt",
+      "result": "Locked requirements exported."
+    }
+  ],
+  "pypdf": "6.20.1",
+  "pinned_export": "../.artifacts/release-ui/pdf-dependency/pinned-uv-requirements.txt",
+  "token_count": "UNKNOWN"
+}
