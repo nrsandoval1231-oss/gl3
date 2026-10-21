@@ -28,6 +28,7 @@ def item():
                 "abstract": "Example project construction",
                 "assessment_current": True,
                 "content_hash": "a" * 64,
+                "source_id": "fort-worth-development-permits",
             }
         ],
     }
@@ -264,6 +265,76 @@ def test_generic_permit_name_is_not_presented_as_project_identity():
     fields = {field.key: field for field in card.fields}
     assert fields["project"].value is None
     assert fields["source_identifier"].value == "ETS1870328"
+
+
+@pytest.mark.parametrize(
+    ("source_id", "abstract", "project", "identifier"),
+    [
+        (
+            "texas-rrc-drilling-permits",
+            "row: 0761171\nlease: HAUG-KIESCHNICK AC UNIT 33\nwell: 1H\n",
+            "HAUG-KIESCHNICK AC UNIT 33, well 1H",
+            "0761171",
+        ),
+        (
+            "austin-building-permits",
+            "row: 2026-068264 EP\ndescription: Temporary service for (6) fans and construction "
+            "power for TXDOT project # 14-0914-04-362R.\n",
+            "TXDOT project # 14-0914-04-362R",
+            "2026-068264 EP",
+        ),
+    ],
+)
+def test_source_specific_rrc_and_austin_names_keep_raw_record_identifier(
+    source_id, abstract, project, identifier
+):
+    record = item()
+    record["name"] = "Generic permit record"
+    record["evidence"][0].update(source_id=source_id, abstract=abstract)
+    card = assemble_card(record, {}, {"disposition": "WATCH"}, [], research_enabled=True)
+    fields = {field.key: field for field in card.fields}
+    assert fields["project"].value == project
+    assert fields["source_identifier"].value == identifier
+    project_quote = fields["project"].sources[0].passage
+    assert (
+        "HAUG-KIESCHNICK AC UNIT 33" in project_quote and "well: 1H" in project_quote
+    ) or project in project_quote
+    assert identifier in fields["source_identifier"].sources[0].passage
+
+
+@pytest.mark.parametrize(
+    ("title", "abstract", "expected"),
+    [
+        (
+            "QTS ATL3",
+            "Facility: QTS ATL3\nFacility Name: QTS ATL3 Campus\n"
+            "QTS ATL3 Campus is proposed greenfield to be located at 2883 Gordon Highway, "
+            "Augusta, Richmond County.",
+            "QTS ATL3 Campus",
+        ),
+        (
+            "TADG \ufffd ATL02 / Ellenwood",
+            "Official narrative excerpt: Page 1: NARRATIVE Facility Name: TADG – ATL02 "
+            "AIRS No.: 063-00154 Location: Ellenwood, GA (Clayton County)\n",
+            "TADG – ATL02",
+        ),
+    ],
+)
+def test_explicit_narrative_facility_name_precedes_title_or_summary(title, abstract, expected):
+    record = item()
+    record["name"] = title
+    if title == "QTS ATL3":
+        record["supported_subject"] = "QTS ATL3"
+    record["location"] = "Augusta, Georgia"
+    record["evidence"][0].update(title=title, abstract=abstract)
+    fields = {
+        field.key: field
+        for field in assemble_card(record, {}, {}, [], research_enabled=False).fields
+    }
+    assert fields["project"].value == expected
+    if title == "QTS ATL3":
+        assert fields["location"].value == "2883 Gordon Highway, Augusta, Richmond County"
+        assert "2883 Gordon Highway" in fields["location"].sources[0].passage
 
 
 def test_unrelated_operator_fact_cannot_ground_demand_and_missing_contacts_are_gaps():

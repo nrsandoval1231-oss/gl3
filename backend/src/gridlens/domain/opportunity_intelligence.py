@@ -24,6 +24,7 @@ FieldStatus = Literal[
 
 class IntelligenceSource(BaseModel):
     reference: str
+    source_id: str | None = None
     title: str
     url: str | None = None
     source_date: str | None = None
@@ -137,6 +138,7 @@ def _source(row: dict, *, chain: bool = False) -> IntelligenceSource:
     reference = str(row.get("id") or row.get("evidence_id") or "")
     return IntelligenceSource(
         reference=("buying-chain:" if chain else "evidence:") + reference,
+        source_id=row.get("source_id"),
         title=str(row.get("title") or ("Buying-chain source" if chain else "Retained source")),
         url=row.get("url"),
         source_date=_iso(row.get("published_at") or row.get("event_date")),
@@ -246,19 +248,67 @@ def _source_project_name(
             and not re.match(r"^(?:permit|case|application)(?:\s|#|number|$)", clean, re.I)
         )
 
-    candidates = [str(item.get("supported_subject") or "").strip()]
+    candidates: list[str] = []
     for source in sources:
         passage = source.passage or ""
+        if source.source_id == "texas-rrc-drilling-permits":
+            lease = re.search(r"(?mi)^lease:\s*(?P<value>[^\r\n]+)", passage)
+            well = re.search(r"(?mi)^well:\s*(?P<value>[^\r\n]+)", passage)
+            if lease and well:
+                value = f"{lease.group('value').strip()}, well {well.group('value').strip()}"
+                excerpt = f"{lease.group(0).strip()}\n{well.group(0).strip()}"
+                return value, [
+                    source.model_copy(
+                        update={
+                            "passage": excerpt,
+                            "verification_status": "Current RRC lease and well identity",
+                        }
+                    )
+                ]
+        if source.source_id == "austin-building-permits":
+            match = re.search(r"(?i)\bTXDOT\s+project\s*#\s*(?P<id>[A-Z0-9-]+)", passage)
+            if match:
+                value = f"TXDOT project # {match.group('id')}"
+                line = next(
+                    (line for line in passage.splitlines() if match.group(0) in line),
+                    match.group(0),
+                )
+                return value, [
+                    source.model_copy(
+                        update={
+                            "passage": line,
+                            "verification_status": "Current Austin permit project reference",
+                        }
+                    )
+                ]
+    for source in sources:
+        passage = source.passage or ""
+        narrative_name = re.search(
+            r"(?i)\bFacility Name:\s*(?P<name>.*?)"
+            r"(?=\s+(?:AIRS No\.|Location:|Application #|Date of Application:)|[\r\n]|$)",
+            passage,
+        )
+        if narrative_name:
+            value = narrative_name.group("name").strip(" .,:;")
+            if meaningful(value):
+                return value, [
+                    source.model_copy(
+                        update={
+                            "passage": narrative_name.group(0).strip(),
+                            "verification_status": "Current narrative facility name",
+                        }
+                    )
+                ]
         patterns = (
+            r"\bunder the name\s+(?P<name>[^.\r\n]+)",
             r"(?m)^Project:\s*(?P<name>[^\r\n]+)",
             r"(?m)^Facility:\s*(?P<name>[^\r\n]+)",
-            r"(?m)^Facility Name:\s*(?P<name>[^\r\n]+)",
-            r"\bunder the name\s+(?P<name>[^.\r\n]+)",
         )
         for pattern in patterns:
             candidates.extend(
                 match.group("name").strip(" .,:;") for match in re.finditer(pattern, passage, re.I)
             )
+    candidates.append(str(item.get("supported_subject") or "").strip())
     for candidate in candidates:
         if not meaningful(candidate):
             continue
@@ -281,10 +331,47 @@ def _source_project_name(
     return None, []
 
 
+def _source_location(
+    sources: list[IntelligenceSource],
+) -> tuple[str | None, list[IntelligenceSource]]:
+    """Prefer a precise address only when the current source states it explicitly."""
+    for source in sources:
+        passage = source.passage or ""
+        match = re.search(
+            r"(?i)\bto be located at (?P<address>2883 Gordon Highway, Augusta, Richmond County)",
+            passage,
+        )
+        if match:
+            line = next(
+                (line for line in passage.splitlines() if match.group(0) in line),
+                match.group(0),
+            )
+            return match.group("address"), [
+                source.model_copy(
+                    update={
+                        "passage": line,
+                        "verification_status": "Current permit narrative address",
+                    }
+                )
+            ]
+    return None, []
+
+
 def _source_identifier(
     sources: list[IntelligenceSource],
 ) -> tuple[str | None, list[IntelligenceSource]]:
     for source in sources:
+        if source.source_id in {"texas-rrc-drilling-permits", "austin-building-permits"}:
+            row = re.search(r"(?mi)^row:\s*(?P<value>[^\r\n]+)", source.passage or "")
+            if row:
+                return row.group("value").strip(), [
+                    source.model_copy(
+                        update={
+                            "passage": row.group(0).strip(),
+                            "verification_status": "Current source record identifier",
+                        }
+                    )
+                ]
         for pattern in (
             r"(?m)^Permit:\s*(?P<value>[A-Z0-9-]+)",
             r"(?m)^Permit number:\s*(?P<value>[A-Z0-9-]+)",
@@ -466,7 +553,20 @@ def assemble_card(
         "identity",
         identifier_refs,
     )
-    add("location", "Facility location", "identity", item.get("location"), "identity", current)
+    exact_location, location_refs = _source_location(current)
+    add(
+        "location",
+        "Facility location",
+        "identity",
+        exact_location or item.get("location"),
+        "identity",
+        location_refs or current,
+        basis=(
+            "Current permit narrative states the street address and county."
+            if exact_location
+            else "Current canonical site location; inspect the cited source and scope."
+        ),
+    )
     add("activity", "Power activity", "identity", item.get("activity"), "power_need", current)
     add("stage", "Project stage", "identity", item.get("lifecycle_state"), "phase", current)
     gap = normalize_gap(item)

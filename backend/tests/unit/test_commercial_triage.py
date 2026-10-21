@@ -53,6 +53,42 @@ def _item(**overrides):
     return item
 
 
+def test_power_schedule_refs_do_not_change_commercial_research_fingerprint():
+    base = _item()
+    legacy_ref = {
+        "need_id": str(base["id"]),
+        "fact_version_id": str(uuid4()),
+        "content_hash": "a" * 64,
+        "authority": "User-confirmed",
+        "fact_type": "demand",
+        "value": {"mw": "5"},
+    }
+    schedule_ref = {
+        "need_id": str(base["id"]),
+        "fact_version_id": str(uuid4()),
+        "content_hash": "b" * 64,
+        "authority": "User-confirmed",
+        "fact_type": "power_schedule",
+        "value": {"phases": []},
+    }
+    no_facts = build_card(base, {}, date(2026, 10, 21))
+    demand = build_card({**base, "operator_fact_refs": [legacy_ref]}, {}, date(2026, 10, 21))
+    demand_and_schedule = build_card(
+        {**base, "operator_fact_refs": [legacy_ref, schedule_ref]}, {}, date(2026, 10, 21)
+    )
+    schedule_only = build_card(
+        {**base, "operator_fact_refs": [schedule_ref]}, {}, date(2026, 10, 21)
+    )
+
+    assert demand["input_hash"] != no_facts["input_hash"]
+    assert demand_and_schedule["input_hash"] == demand["input_hash"]
+    assert schedule_only["input_hash"] == no_facts["input_hash"]
+    assert all(
+        set(reference) == {"need_id", "fact_version_id", "content_hash", "authority"}
+        for reference in demand_and_schedule["operator_fact_refs"]
+    )
+
+
 def test_permit_contact_is_action_now_with_unknown_need_and_no_inferred_company():
     item = _item()
     evidence_id = str(uuid4())

@@ -262,6 +262,44 @@ def test_optional_projection_does_not_churn_or_erase_saved_snapshot(saved_db):
         ] == str(need_id)
 
 
+def test_intelligence_fingerprint_versions_once_and_omission_preserves_prior_card(saved_db):
+    from copy import deepcopy
+
+    from test_saved_browse import seed
+
+    from gridlens.intelligence.commercial_evaluation import evaluate_target, save_evaluations
+    from gridlens.persistence.models import Pursuit
+
+    need_id = seed(saved_db, count=1, histories=1)[0]
+    with saved_db.begin() as session:
+        first = evaluate_target(session, need_id)
+        save_evaluations(session, [first])
+    with saved_db.begin() as session:
+        changed_intelligence = deepcopy(first)
+        changed_intelligence["intelligence_card"]["input_fingerprint"] = "b" * 64
+        save_evaluations(session, [changed_intelligence])
+        row = session.scalar(select(Pursuit))
+        assert len(row.snapshot["commercial_triage"]["versions"]) == 2
+        saved_fingerprint = row.snapshot["commercial_triage"]["saved_card"]["intelligence_card"][
+            "input_fingerprint"
+        ]
+        assert saved_fingerprint == "b" * 64
+
+        save_evaluations(session, [changed_intelligence])
+        assert len(row.snapshot["commercial_triage"]["versions"]) == 2
+
+        omitted = {key: value for key, value in first.items() if key != "intelligence_card"}
+        omitted["input_hash"] = "c" * 64
+        save_evaluations(session, [omitted])
+        assert len(row.snapshot["commercial_triage"]["versions"]) == 3
+        assert (
+            row.snapshot["commercial_triage"]["saved_card"]["intelligence_card"][
+                "input_fingerprint"
+            ]
+            == saved_fingerprint
+        )
+
+
 def test_batch_enforces_complete_response_byte_bound_after_assembly(saved_db, monkeypatch):
     from test_saved_browse import seed
 

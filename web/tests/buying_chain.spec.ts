@@ -21,11 +21,16 @@ const chain = (id: string): BuyingChainResult => ({
     organization_relationship: 'DIRECT', person_organization_relationship: 'CURRENT',
     person_project_relationship: 'ROLE_SUPPORTED', evidence_strength: 'Medium',
     reason: 'Test fixture: employer involved, current relevant role, no personal assignment evidence.',
-    observed_at: stamp, verified_at: stamp, stale: false, history_count: 1,
+    observed_at: stamp, verified_at: stamp, stale: false, correction_stale: false, retracted: false, history_count: 1,
+    correction_version: 'v1',
     public_contacts: [], evidence: [{
       id: 'evidence-1', url: 'https://example.com/project', quote: 'Test Electrical is the electrical contractor.',
       supports: 'project_organization', extraction_location: 'contractor field',
       published_at: null, observed_at: stamp, content_hash: 'fixture-hash',
+    }, {
+      id: 'contact-evidence', url: 'https://example.com/contact', quote: 'Business contact: +1 312 555 0100',
+      supports: 'public_contact', extraction_location: 'current contact page',
+      published_at: null, observed_at: stamp, content_hash: 'b'.repeat(64),
     }],
   }],
 })
@@ -117,6 +122,98 @@ test('navigation ignores a late enrichment result and limits repeated requests',
   await expect(page.getByRole('region', { name: 'Buying chain' }).getByRole('heading', { name: 'Test Electrical one' })).toBeVisible()
   await page.goForward()
   await expect(page.getByRole('region', { name: 'Buying chain' }).getByRole('heading', { name: 'Test Electrical two' })).toBeVisible()
+})
+
+test('contact correction surfaces 409, verifies history read-back and retracts the project claim', async ({ page }) => {
+  let version = 'v1'
+  let staleOnce = true
+  let retracted = false
+  const history: Array<{ id: string; action: string; reason: string; created_at: string }> = []
+  await shell(page, async (route) => {
+    const request = route.request()
+    if (request.method() === 'POST') {
+      const body = request.postDataJSON() as { expected_version: string; action: string; reported_contact: boolean }
+      if (staleOnce) {
+        staleOnce = false
+        version = 'v2'
+        await route.fulfill({ status: 409, body: 'Claim changed; review current history.' })
+        return
+      }
+      expect(body.expected_version).toBe(version)
+      version = body.action === 'retract' ? 'v4' : 'v3'
+      retracted = body.action === 'retract'
+      history.push({ id: `correction-${history.length + 1}`, action: body.action, reason: 'Confirmed with project team', created_at: stamp })
+      await route.fulfill({ json: { id: history.at(-1)!.id, version, action: body.action, values: {}, reason: 'Confirmed with project team', actor: 'operator', created_at: stamp, reported_contact: body.reported_contact } })
+      return
+    }
+    const value = chain('one')
+    const candidate = value.candidates![0]
+    candidate.correction_version = version
+    candidate.retracted = retracted
+    candidate.correction_history = history
+    candidate.reported_contacts = retracted ? [] : [{ kind: 'phone', value: '+1 312 555 0199' }]
+    candidate.public_contacts = []
+    await route.fulfill({ json: value })
+  })
+  const section = page.getByRole('region', { name: 'Buying chain' })
+  await section.getByRole('button', { name: 'Correct or retract contact' }).click()
+  await section.getByLabel('Corrected contact value').fill('+1 312 555 0199')
+  await section.getByLabel('Operator-reported contact; not a verified public method').check()
+  await section.getByLabel('Reason', { exact: true }).fill('Confirmed with project team')
+  await section.getByRole('button', { name: 'Save contact correction' }).click()
+  await expect(section.getByRole('alert')).toContainText('409')
+  await section.getByRole('button', { name: 'Review claim and correction history' }).click()
+  await expect(section.getByRole('button', { name: 'Hide claim history' })).toBeVisible()
+  await expect(section.getByRole('alert')).toContainText('409')
+  expect(history).toHaveLength(0)
+})
+
+test('operator-reported contact is history-backed, has no call action and can be retracted', async ({ page }) => {
+  let version = 'v1'
+  let retracted = false
+  let historyReads = 0
+  const history: Array<{ id: string; action: string; reason: string; created_at: string }> = []
+  await shell(page, async (route) => {
+    const request = route.request()
+    if (request.url().includes('history=true')) historyReads += 1
+    if (request.method() === 'POST') {
+      const body = request.postDataJSON() as { expected_version: string; action: string; reported_contact: boolean }
+      expect(body.expected_version).toBe(version)
+      version = body.action === 'retract' ? 'v3' : 'v2'
+      retracted = body.action === 'retract'
+      history.push({ id: `saved-${history.length + 1}`, action: body.action, reason: 'Confirmed with project team', created_at: stamp })
+      await route.fulfill({ json: { id: history.at(-1)!.id, version, action: body.action, values: {}, reason: 'Confirmed with project team', actor: 'operator', created_at: stamp, reported_contact: body.reported_contact } })
+      return
+    }
+    const value = chain('one')
+    const candidate = value.candidates![0]
+    candidate.correction_version = version
+    candidate.retracted = retracted
+    candidate.correction_history = history
+    candidate.reported_contacts = history.some((entry) => entry.action === 'correct') && !retracted ? [{ kind: 'phone', value: '+1 312 555 0199' }] : []
+    candidate.public_contacts = []
+    await route.fulfill({ json: value })
+  })
+  const section = page.getByRole('region', { name: 'Buying chain' })
+  await section.getByRole('button', { name: 'Correct or retract contact' }).click()
+  await section.getByLabel('Corrected contact value').fill('+1 312 555 0199')
+  await section.getByLabel('Operator-reported contact; not a verified public method').check()
+  await section.getByLabel('Reason', { exact: true }).fill('Confirmed with project team')
+  await section.getByRole('button', { name: 'Save contact correction' }).click()
+  await expect.poll(() => history.length).toBe(1)
+  await expect.poll(() => historyReads).toBeGreaterThan(0)
+  if (await section.getByLabel('Corrected contact value').count() === 0) {
+    await section.getByRole('button', { name: 'Correct or retract contact' }).click()
+  }
+  await expect(section.getByText(/not a verified public call or email method/)).toBeVisible()
+  await expect(section.getByRole('link', { name: /Call|Email/ })).toHaveCount(0)
+  await expect(section.getByRole('button', { name: 'Retract this project relationship' })).toBeVisible()
+  await section.getByLabel('Reason', { exact: true }).fill('Confirmed with project team')
+  await section.getByRole('button', { name: 'Retract this project relationship' }).click()
+  await expect(section.getByText('This project relationship is retracted and retained here as history.')).toBeVisible()
+  await expect(section.getByRole('button', { name: 'Correct or retract contact' })).toHaveCount(0)
+  await expect(section.getByRole('link', { name: /Call|Email/ })).toHaveCount(0)
+  expect(history.map((entry) => entry.action)).toEqual(['correct', 'retract'])
 })
 
 test('queued buying-chain job survives reload and polls to a truthful terminal state', async ({ page }) => {

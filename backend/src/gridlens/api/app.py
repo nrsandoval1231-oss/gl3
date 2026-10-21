@@ -4044,6 +4044,9 @@ def opportunity_projection(
                         "fact_type": fact.fact_type,
                         "source_reference": fact.source_reference,
                         "confirmed_at": fact.confirmed_at,
+                        "reporter_name": fact.reporter_name,
+                        "reporter_organization": fact.reporter_organization,
+                        "reporter_role": fact.reporter_role,
                         "value": fact.value,
                     }
                     for fact in sorted(

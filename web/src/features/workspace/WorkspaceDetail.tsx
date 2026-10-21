@@ -151,9 +151,11 @@ export function WorkspaceDetail({ item, pending, loading, error, tab, onTab, onB
     ...item,
     browse_title: item.title_status === 'ready' ? undefined : item.browse_title,
   })
-  const displayTitle = currentTitleReady
+  const intelligenceProject = item.intelligence_card?.fields.find(field => field.key === 'project')?.value
+  const displayTitle = intelligenceProject || (currentTitleReady
     ? titleState.result!.title
-    : useDeterministicTitleFallback ? canonicalTitleFallback : item.browse_title || canonicalTitleFallback
+    : useDeterministicTitleFallback ? canonicalTitleFallback : item.browse_title || canonicalTitleFallback)
+  const intelligenceLocation = item.intelligence_card?.fields.find(field => field.key === 'location')?.value
   const companyRole = item.title_company_role
   const unverified = [
     ...(!item.start_window ? ['power start timing'] : []),
@@ -193,7 +195,7 @@ export function WorkspaceDetail({ item, pending, loading, error, tab, onTab, onB
       <span>{item.tier} · {item.commercial_disposition ?? 'Disposition unavailable'}</span>
       <h2>{displayTitle}</h2>
       {item.intelligence_card?.fields.find(field => field.key === 'customer')?.value && <p className="ic-customer-heading">{item.intelligence_card.fields.find(field => field.key === 'customer')?.value}</p>}
-      <p>{item.location ?? 'Location unknown'} · {item.activity}</p>
+      <p>{intelligenceLocation || item.location || 'Location unknown'} · {item.activity}</p>
       {item.tier === 'Signal' && item.commercial_size_status === 'unknown' && <p className="wh-integrity"><strong>Activity size unknown.</strong> Retained for investigation; the 300 kW minimum is inclusive.</p>}
       {item.signal_evidence_state === 'planning_application_withdrawn' && <p className="wh-integrity"><strong>Planning application withdrawn · historical Signal.</strong> Current project viability is unknown.</p>}
       {item.signal_evidence_state === 'planning_status_unknown' && <p className="wh-integrity"><strong>Conflicting planning revision · historical Signal.</strong> Current application and project status are unknown.</p>}
@@ -283,7 +285,7 @@ export function WorkspaceDetail({ item, pending, loading, error, tab, onTab, onB
           <p>{source.abstract ?? 'No source abstract.'}</p>
         </article>)}
       </div>}
-      {tab === 'Buying chain' && item.project_id && <BuyingChain projectId={item.project_id}/>}
+      {tab === 'Buying chain' && item.project_id && <BuyingChain projectId={item.project_id} onReadback={onReadback}/>}
       {tab === 'Buying chain' && !item.project_id && <p>Project identity is unavailable, so a buying chain cannot be resolved.</p>}
       {tab === 'Power gap' && <div>
         {gap ? <>

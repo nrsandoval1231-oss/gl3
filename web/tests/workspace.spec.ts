@@ -33,7 +33,7 @@ test('workspace sends server filters, opens canonical detail, and restores list 
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
   await page.route('**/api/opportunities/workspace?*', async route => { const url = new URL(route.request().url()); requests.push(url); await route.fulfill({ json: response(url.searchParams.get('geography') === 'Austin, TX' ? [need] : []) }) })
   await page.route('**/api/opportunities/needs/need-a*', route => route.fulfill({ json: { ...need, required_mw: '3 MW' } }))
-  await page.goto('/')
+  await page.goto('/?view=workspace')
   await expect(page.getByRole('heading', { name: 'Your pursuits' })).toBeVisible()
   await page.locator('.wh-filter-disclosure summary').click()
   await page.getByLabel('Geography (exact match)').fill('Austin, TX')
@@ -75,7 +75,7 @@ test('browser Back re-reads the same selected need after identity is cleared', a
     detailReads += 1
     return route.fulfill({ json: need })
   })
-  await page.goto('/?view=workspace')
+  await page.goto('/')
   const panel = page.locator('.wh-changes')
   await panel.locator(':scope > details > summary').click()
   await panel.getByRole('button', { name: 'Next changes' }).click()
@@ -131,7 +131,8 @@ test('off-page detail reload ignores historical company evidence and keeps the s
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
   await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response([]) }))
   await page.route('**/api/opportunities/needs/need-a*', route => route.fulfill({ json: detail }))
-  await page.goto('/?view=workspace&need=need-a')
+  await page.goto('/')
+  await page.getByRole('button', { name: /Test data center/ }).click()
   await expect(page.getByRole('heading', { name: 'Temporary power · Austin, TX' })).toBeVisible()
   await page.locator('.wh-source-context summary').click()
   await expect(page.locator('.wh-detail-head')).toContainText('Source record: Austin permit 2026-127192 EP')
@@ -332,8 +333,7 @@ test('workspace selection is restored through Back, Forward, and a deep-link ref
   await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
   await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response() }))
   await page.route('**/api/opportunities/needs/need-a*', route => route.fulfill({ json: need }))
-  await page.goto('/')
-  await page.getByRole('button', { name: /Test data center/ }).click()
+  await page.goto('/?view=workspace&need=need-a')
   await expect(page.getByRole('heading', { name: 'Test data center' })).toBeVisible()
   await page.goBack()
   await expect(page.getByRole('heading', { name: 'Your pursuits' })).toBeVisible()
@@ -844,6 +844,120 @@ test('accepted fact read-back refreshes the material changes count and list', as
   await expect(panel.getByRole('heading', { name: 'Call fact accepted: demand' })).toBeVisible()
 })
 
+test('row-based schedule drafts, accepts, corrects and retracts with dated utility metadata', async ({ page }) => {
+  await page.unrouteAll()
+  let currentVersion = 0
+  const facts: Array<Record<string, any>> = []
+  const postedValues: Record<string, any>[] = []
+  const pageResult = () => ({
+    items: [...facts].reverse(), total: facts.length, limit: 50, offset: 0, next_offset: null,
+    current_fact_version: currentVersion,
+    current_reported_timing_correction_target: {
+      available: false, unavailable_reason: 'no_current_admitted_lead', need_id: 'need-a',
+      project_id: 'project-a', project_identity_key: null, activity_key: 'construction', facility_identity: null,
+      source_semantic_hash: null, source_evidence_hash: null, retained_evidence_id: null, source_id: null,
+      earliest_possible_start: null, latest_possible_start: null, minimum_duration_days: null,
+      maximum_duration_days: null, current_fact_version: currentVersion,
+    },
+  })
+  await page.route(url => url.pathname.startsWith('/api/'), async route => {
+    const request = route.request()
+    const path = new URL(request.url()).pathname
+    const method = request.method()
+    if (path === '/api/auth/session') return route.fulfill({ json: { authenticated: true } })
+    if (path === '/api/opportunities/workspace') return route.fulfill({ json: response() })
+    if (path === '/api/opportunities/workspace/changes') return route.fulfill({ json: emptyChanges })
+    if (path === '/api/opportunities/needs/need-a') return route.fulfill({ json: need })
+    if (path === '/api/needs/need-a/facts' && method === 'GET') return route.fulfill({ json: pageResult() })
+    if (path === '/api/needs/need-a/facts' && method === 'POST') {
+      currentVersion += 1
+      postedValues.push(request.postDataJSON())
+      const fact = { ...(postedValues.at(-1) as object), id: `schedule-${facts.length + 1}`, need_id: 'need-a', project_id: 'project-a', decision: 'draft', decision_version: currentVersion, decision_reason: 'Draft', decision_actor: 'Operator', authority_label: 'Reported / not accepted', recorded_by: 'Operator', created_at: '2026-10-20T12:00:00Z', content_hash: 'a'.repeat(64) }
+      facts.push(fact)
+      return route.fulfill({ json: fact })
+    }
+    const decisionMatch = path.match(/^\/api\/needs\/need-a\/facts\/([^/]+)\/decision$/)
+    if (decisionMatch && method === 'POST') {
+      currentVersion += 1
+      const body = request.postDataJSON() as { decision: string; reason: string }
+      const fact = facts.find(row => row.id === decisionMatch[1])!
+      fact.decision = body.decision; fact.decision_version = currentVersion
+      fact.decision_reason = body.reason; fact.decision_actor = 'Operator'
+      fact.authority_label = body.decision === 'accepted' || body.decision === 'corrected' ? 'User-confirmed' : 'Retracted'
+      return route.fulfill({ json: { id: `decision-${currentVersion}`, version: currentVersion, decision: body.decision, fact_version_id: fact.id, reason: body.reason, actor: 'Operator', created_at: '2026-10-20T12:00:00Z' } })
+    }
+    if (path === '/api/needs/need-a/workflow-status') return route.fulfill({ json: { need_id: 'need-a', status: 'New', version: 0, events: [] } })
+    if (path === '/api/power-needs/need-a/title') return route.fulfill({ json: { status: 'disabled', result: null, citations: [] } })
+    if (path === '/api/projects/project-a/buying-chain') return route.fulfill({ json: { project_id: 'project-a', candidates: [], permit_summaries: [], unresolved: [], runs: [], status: 'unavailable' } })
+    return route.fulfill({ json: [] })
+  })
+  await page.goto('/?view=workspace')
+  await page.locator('[data-need-row="need-a"]').click()
+  await page.getByRole('button', { name: 'Next steps', exact: true }).click()
+  const panel = page.getByRole('region', { name: 'Exact-Need facts and operator status' })
+  const enterSchedule = async (correction: boolean) => {
+    await panel.getByLabel('Fact type').selectOption('power_schedule')
+    await panel.getByLabel('Reporter name').fill('Synthetic operator')
+    await panel.getByLabel('Reporter organization').fill('Example Owner')
+    await panel.getByLabel('Reporter role').fill('Project Engineer')
+    await panel.getByLabel('Phase name').fill(correction ? 'commissioning-revised' : 'commissioning')
+    await panel.getByLabel('Start date').fill('2027-01-01')
+    await panel.getByLabel('End date').fill('2027-02-01')
+    await panel.getByLabel('Demand minimum (MW)').fill(correction ? '11' : '10')
+    await panel.getByLabel('Demand maximum (MW)').fill('12')
+    await panel.getByLabel('Demand basis').fill('Owner-described commissioning demand')
+    await panel.getByLabel('Supply coverage').selectOption('partial')
+    await panel.getByLabel('Coverage basis').fill('Utility date remains subject to confirmation')
+    await panel.getByRole('button', { name: 'Add supply entry' }).click()
+    const utility = panel.getByRole('group', { name: 'Supply entry 1' })
+    await utility.getByLabel('Entry name').fill('utility-service')
+    await utility.getByLabel('Start date').fill('2027-01-15')
+    await utility.getByLabel('End date').fill('2027-02-01')
+    await utility.getByLabel('Supply minimum (MW)').fill('4')
+    await utility.getByLabel('Supply maximum (MW)').fill('5')
+    await utility.getByLabel('Supply state').selectOption('committed')
+    await utility.getByLabel('Suitability').selectOption('suitable')
+    await utility.getByLabel('Supply source kind').selectOption('utility_grid')
+    await utility.getByLabel('Service-ready / energization date').fill('2027-01-15')
+    await utility.getByLabel('Date basis').fill('Utility service letter')
+    await utility.getByLabel('Supply basis').fill('Utility committed service')
+    await panel.getByRole('button', { name: 'Add supply entry' }).click()
+    const proposed = panel.getByRole('group', { name: 'Supply entry 2' })
+    await proposed.getByLabel('Entry name').fill('future-utility-option')
+    await proposed.getByLabel('Start date').fill('2027-03-01')
+    await proposed.getByLabel('End date').fill('2027-04-01')
+    await proposed.getByLabel('Supply minimum (MW)').fill('4')
+    await proposed.getByLabel('Supply maximum (MW)').fill('5')
+    await proposed.getByLabel('Supply state').selectOption('proposed')
+    await proposed.getByLabel('Suitability').selectOption('suitable')
+    await proposed.getByLabel('Supply source kind').selectOption('utility_grid')
+    await proposed.getByLabel('Service-ready / energization date').fill('2027-03-15')
+    await proposed.getByLabel('Date basis').fill('Draft utility schedule')
+    await proposed.getByLabel('Supply basis').fill('Proposed future grid service')
+    await panel.getByLabel('Basis', { exact: true }).fill('Operator-reported phased work plan')
+    await panel.locator('form').getByLabel('Source reference', { exact: true }).last().fill('utility-letter-1')
+    if (correction) await panel.getByLabel('Predecessor fact version (for correction)').selectOption({ label: 'v2 · power_schedule · accepted' })
+  }
+  await enterSchedule(false)
+  await panel.getByRole('button', { name: 'Save fact draft' }).click()
+  await expect(panel.getByText(/Draft persisted and confirmed/)).toBeVisible()
+  expect(postedValues.at(-1)?.value).toMatchObject({ phases: [{ phase_id: 'commissioning', mw_min: '10' }], supplies: [{ supply_id: 'utility-service', source_kind: 'utility_grid', service_ready_date: '2027-01-15' }, { supply_id: 'future-utility-option', state: 'proposed', source_kind: 'utility_grid', service_ready_date: '2027-03-15' }] })
+  await panel.getByLabel('Reason for decision').fill('Schedule confirmed for test')
+  await panel.getByRole('button', { name: 'Accept fact' }).click()
+  await expect(panel.getByText('power_schedule · accepted · User-confirmed')).toBeVisible()
+
+  await enterSchedule(true)
+  await panel.getByRole('button', { name: 'Save fact draft' }).click()
+  await expect(panel.getByText(/Draft persisted and confirmed/)).toBeVisible()
+  await panel.getByLabel('Reason for decision').fill('Corrected commissioning estimate')
+  await panel.getByRole('button', { name: 'Record correction' }).click()
+  await expect(panel.getByText('power_schedule · corrected · User-confirmed')).toBeVisible()
+  await panel.getByLabel('Reason for retraction').fill('Source schedule withdrawn')
+  const corrected = panel.locator('article').filter({ hasText: 'power_schedule · corrected · User-confirmed' })
+  await corrected.getByRole('button', { name: 'Retract this accepted version' }).click()
+  await expect(panel.getByText('power_schedule · retracted · Retracted')).toBeVisible()
+})
+
 test('active change links use canonical workspace readback instead of historical stored tier', async ({ page }) => {
   await page.unrouteAll()
   const activeChange = {
@@ -946,12 +1060,25 @@ for (const width of [1280, 390]) {
     const card = {
       policy_version: 'opportunity-intelligence-v1', need_id: need.id, project_id: need.project_id,
       input_fingerprint: 'a'.repeat(64), qualification: 'Signal', disposition: 'RESEARCH',
-      fields: [{ key: 'customer', label: 'Customer / end user', section: 'identity', value: 'Example Owner', status: 'Verified', basis: 'Current owner relationship.', sources: [source] }],
+      fields: [
+        { key: 'customer', label: 'Customer / end user', section: 'identity', value: 'Example Owner', status: 'Verified', basis: 'Current owner relationship.', sources: [source] },
+        { key: 'project', label: 'Project', section: 'identity', value: 'QTS ATL3 Campus', status: 'Verified', basis: 'Explicit permit narrative facility name.', sources: [source] },
+        { key: 'location', label: 'Facility location', section: 'identity', value: '2883 Gordon Highway, Augusta, Richmond County', status: 'Verified', basis: 'Current permit narrative address.', sources: [source] },
+      ],
       contacts: [{ claim_id: 'party', company: 'Example Owner', name: null, title: null, role: 'owner developer', responsibility: 'General company contact path', purchasing_authority: 'Requires confirmation for this power package', methods: [{ kind: 'phone', value: '+1 512 555 0100', href: 'tel:+15125550100', source_url: source.url }], sources: [source] }],
       next_contact_path: 'Confirm power procurement with the company office.', next_action: 'Verify the activity-specific power window.',
       research_gaps: [{ key: 'start', label: 'Power needed', section: 'power', value: null, status: 'Research in progress', basis: 'No supported date yet.', research_category: 'timing', research_status: 'NOT_SCHEDULED', sources: [] }],
       completeness: { supported: 1, total: 2, percent: 50, basis: 'Independent of qualification' },
       last_intelligence_update: '2026-10-20T10:00:00Z', power_gap: null, evidence: [source], research_enabled: true,
+      power_schedule: {
+        status: 'UNRESOLVED', basis: 'Operator-reported phased work plan',
+        fact_refs: [{ fact_version_id: 'schedule-v1', content_hash: 'b'.repeat(64), authority: 'User-confirmed', source_reference: 'utility-letter-1', confirmed_at: '2026-10-20T10:00:00Z', reporter_name: 'A. Operator', reporter_organization: 'Example Owner', reporter_role: 'Project Engineer', source_quote: 'January commissioning schedule.' }],
+        supplies: [
+          { supply_id: 'utility-service', start_date: '2027-01-15', end_date: '2027-02-01', mw_min: '4', mw_max: '5', state: 'committed', suitability: 'suitable', source_kind: 'utility_grid', service_ready_date: '2027-01-15', date_basis: 'Utility service letter', basis: 'Committed service', source_reference: 'utility-letter-1' },
+          { supply_id: 'future-grid-option', start_date: '2027-03-01', end_date: '2027-04-01', mw_min: '4', mw_max: '5', state: 'proposed', suitability: 'suitable', source_kind: 'utility_grid', service_ready_date: '2027-03-15', date_basis: 'Draft utility schedule', basis: 'Proposed service', source_reference: null },
+        ],
+        segments: [{ phase_id: 'commissioning', start_date: '2027-01-01', end_date: '2027-02-01', demand_min_mw: '10', demand_max_mw: '12', demand_basis: 'Owner-described package', supply_min_mw: null, supply_max_mw: null, residual_min_mw: null, residual_max_mw: null, supply_ids: [], unresolved_supply_ids: [], supply_basis: [], unresolved_reason: 'Other supply is unknown', scenario: 'base' }],
+      },
     }
     await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
     await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response() }))
@@ -963,10 +1090,16 @@ for (const width of [1280, 390]) {
     await page.goto('/?view=workspace&need=need-a')
     const panel = page.getByRole('region', { name: 'Commercial intelligence card', exact: true })
     await expect(panel).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'QTS ATL3 Campus', exact: true })).toBeVisible()
+    await expect(page.locator('.wh-detail-head')).toContainText('2883 Gordon Highway, Augusta, Richmond County')
     await expect(panel.getByText('Example Owner', { exact: true }).first()).toBeVisible()
     await expect(panel.getByRole('link', { name: 'Call +1 512 555 0100' })).toHaveAttribute('href', 'tel:+15125550100')
     await expect(panel.locator('a[href^="mailto:"]')).toHaveCount(0)
     await expect(panel.getByText('Research completeness is separate from Signal qualification.')).toBeVisible()
+    await expect(panel.getByText('Reported grid energization: 2027-01-15')).toBeVisible()
+    await expect(panel.getByText(/scenario date, not committed service/)).toBeVisible()
+    await panel.getByText('Schedule attribution and source').click()
+    await expect(panel.getByText(/reported by A. Operator, Example Owner · Project Engineer/)).toBeVisible()
     await panel.getByRole('button', { name: 'Research missing information' }).click()
     await expect.poll(() => researchBody).toEqual({ force: false, complete_intelligence: true })
     await expect(panel.getByRole('status')).toContainText('Targeted research queued')

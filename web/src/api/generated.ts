@@ -604,6 +604,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/projects/{project_id}/buying-chain/{claim_id}/corrections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Correct Project Buying Chain */
+        post: operations["correct_project_buying_chain_api_projects__project_id__buying_chain__claim_id__corrections_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/power-needs/{need_id}/brief": {
         parameters: {
             query?: never;
@@ -1074,6 +1091,96 @@ export interface components {
              * @default false
              */
             stale: boolean;
+            /** Fingerprint */
+            fingerprint?: string | null;
+            /** Correction Version */
+            correction_version?: string | null;
+            /** Correction History */
+            correction_history?: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Correction Stale
+             * @default false
+             */
+            correction_stale: boolean;
+            /**
+             * Retracted
+             * @default false
+             */
+            retracted: boolean;
+            /** Reported Contacts */
+            reported_contacts?: {
+                [key: string]: unknown;
+            }[];
+        };
+        /** BuyingChainCorrectionBody */
+        BuyingChainCorrectionBody: {
+            /** Expected Version */
+            expected_version: string;
+            /** Idempotency Key */
+            idempotency_key: string;
+            /** Action */
+            action: string;
+            /** Values */
+            values?: {
+                [key: string]: string | null;
+            };
+            /** Source Evidence Id */
+            source_evidence_id?: string | null;
+            /** Source Hash */
+            source_hash?: string | null;
+            /** Reason */
+            reason: string;
+            /**
+             * Reported Contact
+             * @default false
+             */
+            reported_contact: boolean;
+            /** Identity Type */
+            identity_type?: string | null;
+            /** Identity Id */
+            identity_id?: string | null;
+        };
+        /** BuyingChainCorrectionOut */
+        BuyingChainCorrectionOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Claim Id
+             * Format: uuid
+             */
+            claim_id: string;
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /** Version */
+            version: string;
+            /** Action */
+            action: string;
+            /** Values */
+            values: {
+                [key: string]: string | null;
+            };
+            /** Reason */
+            reason: string;
+            /** Actor */
+            actor: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Reported Contact
+             * @default false
+             */
+            reported_contact: boolean;
         };
         /** BuyingChainOut */
         BuyingChainOut: {
@@ -2200,6 +2307,7 @@ export interface components {
             power_gap?: {
                 [key: string]: unknown;
             } | null;
+            power_schedule?: components["schemas"]["PowerScheduleProjection"] | null;
             /** Evidence */
             evidence: components["schemas"]["IntelligenceSource"][];
             /** Research Enabled */
@@ -2399,6 +2507,8 @@ export interface components {
         IntelligenceSource: {
             /** Reference */
             reference: string;
+            /** Source Id */
+            source_id?: string | null;
             /** Title */
             title: string;
             /** Url */
@@ -2878,6 +2988,117 @@ export interface components {
             error?: string | null;
             /** Job Id */
             job_id?: string | null;
+        };
+        /** PowerScheduleFactReference */
+        PowerScheduleFactReference: {
+            /** Fact Version Id */
+            fact_version_id?: string | null;
+            /** Content Hash */
+            content_hash?: string | null;
+            /** Authority */
+            authority?: string | null;
+            /** Source Reference */
+            source_reference?: string | null;
+            /** Source Quote */
+            source_quote?: string | null;
+            /** Confirmed At */
+            confirmed_at?: string | null;
+            /** Reporter Name */
+            reporter_name?: string | null;
+            /** Reporter Organization */
+            reporter_organization?: string | null;
+            /** Reporter Role */
+            reporter_role?: string | null;
+        };
+        /** PowerScheduleProjection */
+        PowerScheduleProjection: {
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "SUPPORTED_SCENARIO" | "UNRESOLVED" | "CONFLICT";
+            /** Basis */
+            basis: string;
+            /** Fact Refs */
+            fact_refs: components["schemas"]["PowerScheduleFactReference"][];
+            /** Supplies */
+            supplies?: components["schemas"]["PowerScheduleSupply"][];
+            /** Segments */
+            segments: components["schemas"]["PowerScheduleSegment"][];
+        };
+        /** PowerScheduleSegment */
+        PowerScheduleSegment: {
+            /** Phase Id */
+            phase_id: string;
+            /** Start Date */
+            start_date: string;
+            /** End Date */
+            end_date: string;
+            /** Demand Min Mw */
+            demand_min_mw: string;
+            /** Demand Max Mw */
+            demand_max_mw: string;
+            /** Demand Basis */
+            demand_basis: string;
+            /** Supply Min Mw */
+            supply_min_mw: string | null;
+            /** Supply Max Mw */
+            supply_max_mw: string | null;
+            /** Residual Min Mw */
+            residual_min_mw: string | null;
+            /** Residual Max Mw */
+            residual_max_mw: string | null;
+            /** Supply Ids */
+            supply_ids?: string[];
+            /** Unresolved Supply Ids */
+            unresolved_supply_ids?: string[];
+            /** Supply Basis */
+            supply_basis?: string[];
+            /** Unresolved Reason */
+            unresolved_reason?: string | null;
+            /**
+             * Scenario
+             * @default base
+             * @enum {string}
+             */
+            scenario: "base" | "alternative";
+        };
+        /** PowerScheduleSupply */
+        PowerScheduleSupply: {
+            /** Supply Id */
+            supply_id: string;
+            /** Start Date */
+            start_date: string;
+            /** End Date */
+            end_date: string;
+            /** Mw Min */
+            mw_min: string;
+            /** Mw Max */
+            mw_max: string;
+            /**
+             * State
+             * @enum {string}
+             */
+            state: "operating" | "committed" | "proposed" | "hypothetical";
+            /**
+             * Suitability
+             * @enum {string}
+             */
+            suitability: "suitable" | "unsuitable" | "unknown";
+            /**
+             * Source Kind
+             * @default other
+             * @enum {string}
+             */
+            source_kind: "utility_grid" | "onsite" | "other";
+            /** Service Ready Date */
+            service_ready_date?: string | null;
+            /** Date Basis */
+            date_basis: string;
+            /** Basis */
+            basis: string;
+            /** Source Reference */
+            source_reference?: string | null;
         };
         /** ProjectChangeOut */
         ProjectChangeOut: {
@@ -5055,6 +5276,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BuyingChainOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    correct_project_buying_chain_api_projects__project_id__buying_chain__claim_id__corrections_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project_id: string;
+                claim_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BuyingChainCorrectionBody"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BuyingChainCorrectionOut"];
                 };
             };
             /** @description Validation Error */

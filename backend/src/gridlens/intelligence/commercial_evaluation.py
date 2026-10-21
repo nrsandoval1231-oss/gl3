@@ -158,6 +158,17 @@ def save_evaluations(session: Session, cards: list[dict], *, now: datetime | Non
         saved_card["notes"] = []
         snapshot = dict(row.snapshot or {})
         prior = snapshot.get("commercial_triage", {})
+        prior_saved_card = prior.get("saved_card")
+        prior_intelligence = (
+            prior_saved_card.get("intelligence_card")
+            if isinstance(prior_saved_card, dict)
+            else None
+        )
+        current_intelligence = card.get("intelligence_card")
+        if current_intelligence is None and prior_intelligence is not None:
+            # An optional current projection may be omitted by callers. Keep its
+            # last saved as-of value when writing another commercial snapshot.
+            saved_card["intelligence_card"] = prior_intelligence
         versions = (
             list(prior.get("versions", [])) if isinstance(prior.get("versions"), list) else []
         )
@@ -182,16 +193,16 @@ def save_evaluations(session: Session, cards: list[dict], *, now: datetime | Non
                     "saved_card": prior_card,
                 }
             )
+        intelligence_changed = bool(
+            current_intelligence is not None
+            and prior_intelligence is not None
+            and prior_intelligence.get("input_fingerprint")
+            != current_intelligence.get("input_fingerprint")
+        )
         changed = (
             prior.get("input_hash") != card["input_hash"]
             or prior.get("disposition") != card["disposition"]
-            or (
-                card.get("intelligence_card") is not None
-                and ((prior.get("saved_card") or {}).get("intelligence_card") or {}).get(
-                    "policy_version"
-                )
-                != card["intelligence_card"].get("policy_version")
-            )
+            or intelligence_changed
         )
         if changed:
             versions.append(

@@ -13,6 +13,11 @@
 .ic-contact p { margin: 5px 0; }
 .ic-contact-actions { display: flex; gap: 10px; flex-wrap: wrap; margin: 8px 0; }
 .ic-contact-actions a { border: 1px solid #a8b7c4; border-radius: 8px; padding: 7px 10px; }
+.ic-table-scroll { max-width: 100%; overflow-x: auto; border: 1px solid #e0e5e9; border-radius: 10px; }
+.ic-schedule table { width: 100%; min-width: 620px; border-collapse: collapse; font-size: .78rem; }
+.ic-schedule th, .ic-schedule td { padding: 9px; border-bottom: 1px solid #e0e5e9; text-align: left; vertical-align: top; }
+.ic-schedule td small { display: block; margin-top: 5px; }
+.ic-qualified-gap { margin-top: 14px; padding: 1px 12px 10px; border-left: 3px solid #173b56; background: #f3f6f8; border-radius: 4px 12px 12px 4px; }
 .ic-next { padding: 1px 12px 12px; border-left: 3px solid #173b56; background: #f3f6f8; border-radius: 4px 12px 12px 4px; }
 .ic-gap { padding: 8px 0; border-bottom: 1px solid #e0e5e9; }
 .ic-gap small { display: block; }

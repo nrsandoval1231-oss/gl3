@@ -39,6 +39,26 @@ class PowerScheduleFactReference(BaseModel):
     source_reference: str | None = None
     source_quote: str | None = None
     confirmed_at: str | None = None
+    reporter_name: str | None = None
+    reporter_organization: str | None = None
+    reporter_role: str | None = None
+
+
+class PowerScheduleSupply(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    supply_id: str
+    start_date: str
+    end_date: str
+    mw_min: str
+    mw_max: str
+    state: Literal["operating", "committed", "proposed", "hypothetical"]
+    suitability: Literal["suitable", "unsuitable", "unknown"]
+    source_kind: Literal["utility_grid", "onsite", "other"] = "other"
+    service_ready_date: str | None = None
+    date_basis: str
+    basis: str
+    source_reference: str | None = None
 
 
 class PowerScheduleProjection(BaseModel):
@@ -47,6 +67,7 @@ class PowerScheduleProjection(BaseModel):
     status: Literal["SUPPORTED_SCENARIO", "UNRESOLVED", "CONFLICT"]
     basis: str
     fact_refs: list[PowerScheduleFactReference]
+    supplies: list[PowerScheduleSupply] = Field(default_factory=list)
     segments: list[PowerScheduleSegment]
 
 
@@ -160,7 +181,7 @@ def validate_schedule(value: dict[str, Any]) -> dict[str, Any]:
         }
         if (
             not isinstance(supply, dict)
-            or set(supply) - (required | {"service_ready_date", "source_reference"})
+            or set(supply) - (required | {"service_ready_date", "source_reference", "source_kind"})
             or not required.issubset(supply)
         ):
             raise ValueError("supply entry has missing or unsupported fields")
@@ -179,6 +200,9 @@ def validate_schedule(value: dict[str, Any]) -> dict[str, Any]:
             raise ValueError("supply state is unsupported")
         if supply["suitability"] not in {"suitable", "unsuitable", "unknown"}:
             raise ValueError("supply suitability must be explicit")
+        source_kind = supply.get("source_kind", "other")
+        if source_kind not in {"utility_grid", "onsite", "other"}:
+            raise ValueError("supply source kind is unsupported")
         ready = supply.get("service_ready_date")
         if supply["state"] == "committed":
             if ready is None or _date(ready, "committed service-ready date") > start:
@@ -200,6 +224,7 @@ def validate_schedule(value: dict[str, Any]) -> dict[str, Any]:
                 "mw_max": _fmt(high),
                 "state": supply["state"],
                 "suitability": supply["suitability"],
+                "source_kind": source_kind,
                 "date_basis": _text(supply["date_basis"], "date basis", 500),
                 "basis": _text(supply["basis"], "supply basis", 2000),
                 "service_ready_date": ready,
@@ -251,6 +276,9 @@ def project_schedule(facts: list[dict[str, Any]]) -> PowerScheduleProjection | N
                     if confirmed_at is not None and hasattr(confirmed_at, "isoformat")
                     else confirmed_at
                 ),
+                reporter_name=fact.get("reporter_name"),
+                reporter_organization=fact.get("reporter_organization"),
+                reporter_role=fact.get("reporter_role"),
             )
         )
     if len(facts) > 1:
@@ -258,9 +286,11 @@ def project_schedule(facts: list[dict[str, Any]]) -> PowerScheduleProjection | N
             status="CONFLICT",
             basis="Multiple current accepted schedules are unsuperseded.",
             fact_refs=refs,
+            supplies=[],
             segments=[],
         )
     value = facts[0]["value"]
+    supply_summaries = [PowerScheduleSupply.model_validate(supply) for supply in value["supplies"]]
     segments: list[PowerScheduleSegment] = []
     unresolved = False
     for phase in value["phases"]:
@@ -355,5 +385,6 @@ def project_schedule(facts: list[dict[str, Any]]) -> PowerScheduleProjection | N
         status="UNRESOLVED" if unresolved else "SUPPORTED_SCENARIO",
         basis=value["basis"],
         fact_refs=refs,
+        supplies=supply_summaries,
         segments=segments,
     )

@@ -34,6 +34,7 @@ def schedule():
                 "state": "committed",
                 "suitability": "suitable",
                 "service_ready_date": "2027-01-15",
+                "source_kind": "utility_grid",
                 "date_basis": "Utility letter",
                 "basis": "Committed utility service",
             },
@@ -47,6 +48,7 @@ def schedule():
                 "suitability": "suitable",
                 "date_basis": "Budgetary proposal",
                 "basis": "Uncommitted alternative",
+                "source_kind": "onsite",
             },
         ],
     }
@@ -61,6 +63,9 @@ def test_staggered_supply_partitions_base_and_alternative_scenario():
         "source_reference": "call-1",
         "confirmed_at": "2026-10-20T00:00:00Z",
         "authority": "User-confirmed",
+        "reporter_name": "A. Operator",
+        "reporter_organization": "Example Owner",
+        "reporter_role": "Project Engineer",
     }
     result = project_schedule([fact])
     assert result.status == "SUPPORTED_SCENARIO"
@@ -73,6 +78,12 @@ def test_staggered_supply_partitions_base_and_alternative_scenario():
     assert (base[1].supply_min_mw, base[1].supply_max_mw) == ("4", "5")
     alternatives = [segment for segment in result.segments if segment.scenario == "alternative"]
     assert len(alternatives) == 2
+    utility = next(supply for supply in result.supplies if supply.supply_id == "utility")
+    assert utility.source_kind == "utility_grid"
+    assert utility.service_ready_date == "2027-01-15"
+    assert result.fact_refs[0].reporter_name == "A. Operator"
+    assert result.fact_refs[0].reporter_organization == "Example Owner"
+    assert result.fact_refs[0].reporter_role == "Project Engineer"
 
 
 @pytest.mark.parametrize(

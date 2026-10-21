@@ -2741,6 +2741,66 @@
         }
       }
     },
+    "/api/projects/{project_id}/buying-chain/{claim_id}/corrections": {
+      "post": {
+        "summary": "Correct Project Buying Chain",
+        "operationId": "correct_project_buying_chain_api_projects__project_id__buying_chain__claim_id__corrections_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "claim_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Claim Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BuyingChainCorrectionBody"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BuyingChainCorrectionOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/power-needs/{need_id}/brief": {
       "get": {
         "summary": "Get Power Need Brief",
@@ -4217,6 +4277,54 @@
             "type": "boolean",
             "title": "Stale",
             "default": false
+          },
+          "fingerprint": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fingerprint"
+          },
+          "correction_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correction Version"
+          },
+          "correction_history": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Correction History"
+          },
+          "correction_stale": {
+            "type": "boolean",
+            "title": "Correction Stale",
+            "default": false
+          },
+          "retracted": {
+            "type": "boolean",
+            "title": "Retracted",
+            "default": false
+          },
+          "reported_contacts": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Reported Contacts"
           }
         },
         "type": "object",
@@ -4235,6 +4343,181 @@
           "verified_at"
         ],
         "title": "BuyingCandidateOut"
+      },
+      "BuyingChainCorrectionBody": {
+        "properties": {
+          "expected_version": {
+            "type": "string",
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Expected Version"
+          },
+          "idempotency_key": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 8,
+            "title": "Idempotency Key"
+          },
+          "action": {
+            "type": "string",
+            "pattern": "^(correct|retract)$",
+            "title": "Action"
+          },
+          "values": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "object",
+            "title": "Values"
+          },
+          "source_evidence_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Evidence Id"
+          },
+          "source_hash": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64,
+                "minLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Hash"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 3,
+            "title": "Reason"
+          },
+          "reported_contact": {
+            "type": "boolean",
+            "title": "Reported Contact",
+            "default": false
+          },
+          "identity_type": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(company|person)$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Identity Type"
+          },
+          "identity_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Identity Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "expected_version",
+          "idempotency_key",
+          "action",
+          "reason"
+        ],
+        "title": "BuyingChainCorrectionBody"
+      },
+      "BuyingChainCorrectionOut": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "claim_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Claim Id"
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "action": {
+            "type": "string",
+            "title": "Action"
+          },
+          "values": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "type": "object",
+            "title": "Values"
+          },
+          "reason": {
+            "type": "string",
+            "title": "Reason"
+          },
+          "actor": {
+            "type": "string",
+            "title": "Actor"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "reported_contact": {
+            "type": "boolean",
+            "title": "Reported Contact",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "claim_id",
+          "project_id",
+          "version",
+          "action",
+          "values",
+          "reason",
+          "actor",
+          "created_at"
+        ],
+        "title": "BuyingChainCorrectionOut"
       },
       "BuyingChainOut": {
         "properties": {
@@ -7424,6 +7707,16 @@
             ],
             "title": "Power Gap"
           },
+          "power_schedule": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/PowerScheduleProjection"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "evidence": {
             "items": {
               "$ref": "#/components/schemas/IntelligenceSource"
@@ -8065,6 +8358,17 @@
           "reference": {
             "type": "string",
             "title": "Reference"
+          },
+          "source_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Id"
           },
           "title": {
             "type": "string",
@@ -9588,6 +9892,384 @@
           "status"
         ],
         "title": "PowerNeedTitleOut"
+      },
+      "PowerScheduleFactReference": {
+        "properties": {
+          "fact_version_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fact Version Id"
+          },
+          "content_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Hash"
+          },
+          "authority": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Authority"
+          },
+          "source_reference": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Reference"
+          },
+          "source_quote": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Quote"
+          },
+          "confirmed_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirmed At"
+          },
+          "reporter_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reporter Name"
+          },
+          "reporter_organization": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reporter Organization"
+          },
+          "reporter_role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reporter Role"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "PowerScheduleFactReference"
+      },
+      "PowerScheduleProjection": {
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "SUPPORTED_SCENARIO",
+              "UNRESOLVED",
+              "CONFLICT"
+            ],
+            "title": "Status"
+          },
+          "basis": {
+            "type": "string",
+            "title": "Basis"
+          },
+          "fact_refs": {
+            "items": {
+              "$ref": "#/components/schemas/PowerScheduleFactReference"
+            },
+            "type": "array",
+            "title": "Fact Refs"
+          },
+          "supplies": {
+            "items": {
+              "$ref": "#/components/schemas/PowerScheduleSupply"
+            },
+            "type": "array",
+            "title": "Supplies"
+          },
+          "segments": {
+            "items": {
+              "$ref": "#/components/schemas/PowerScheduleSegment"
+            },
+            "type": "array",
+            "title": "Segments"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "status",
+          "basis",
+          "fact_refs",
+          "segments"
+        ],
+        "title": "PowerScheduleProjection"
+      },
+      "PowerScheduleSegment": {
+        "properties": {
+          "phase_id": {
+            "type": "string",
+            "title": "Phase Id"
+          },
+          "start_date": {
+            "type": "string",
+            "title": "Start Date"
+          },
+          "end_date": {
+            "type": "string",
+            "title": "End Date"
+          },
+          "demand_min_mw": {
+            "type": "string",
+            "title": "Demand Min Mw"
+          },
+          "demand_max_mw": {
+            "type": "string",
+            "title": "Demand Max Mw"
+          },
+          "demand_basis": {
+            "type": "string",
+            "title": "Demand Basis"
+          },
+          "supply_min_mw": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supply Min Mw"
+          },
+          "supply_max_mw": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Supply Max Mw"
+          },
+          "residual_min_mw": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Residual Min Mw"
+          },
+          "residual_max_mw": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Residual Max Mw"
+          },
+          "supply_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Supply Ids"
+          },
+          "unresolved_supply_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Unresolved Supply Ids"
+          },
+          "supply_basis": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Supply Basis"
+          },
+          "unresolved_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unresolved Reason"
+          },
+          "scenario": {
+            "type": "string",
+            "enum": [
+              "base",
+              "alternative"
+            ],
+            "title": "Scenario",
+            "default": "base"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "phase_id",
+          "start_date",
+          "end_date",
+          "demand_min_mw",
+          "demand_max_mw",
+          "demand_basis",
+          "supply_min_mw",
+          "supply_max_mw",
+          "residual_min_mw",
+          "residual_max_mw"
+        ],
+        "title": "PowerScheduleSegment"
+      },
+      "PowerScheduleSupply": {
+        "properties": {
+          "supply_id": {
+            "type": "string",
+            "title": "Supply Id"
+          },
+          "start_date": {
+            "type": "string",
+            "title": "Start Date"
+          },
+          "end_date": {
+            "type": "string",
+            "title": "End Date"
+          },
+          "mw_min": {
+            "type": "string",
+            "title": "Mw Min"
+          },
+          "mw_max": {
+            "type": "string",
+            "title": "Mw Max"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "operating",
+              "committed",
+              "proposed",
+              "hypothetical"
+            ],
+            "title": "State"
+          },
+          "suitability": {
+            "type": "string",
+            "enum": [
+              "suitable",
+              "unsuitable",
+              "unknown"
+            ],
+            "title": "Suitability"
+          },
+          "source_kind": {
+            "type": "string",
+            "enum": [
+              "utility_grid",
+              "onsite",
+              "other"
+            ],
+            "title": "Source Kind",
+            "default": "other"
+          },
+          "service_ready_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Service Ready Date"
+          },
+          "date_basis": {
+            "type": "string",
+            "title": "Date Basis"
+          },
+          "basis": {
+            "type": "string",
+            "title": "Basis"
+          },
+          "source_reference": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Reference"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "supply_id",
+          "start_date",
+          "end_date",
+          "mw_min",
+          "mw_max",
+          "state",
+          "suitability",
+          "date_basis",
+          "basis"
+        ],
+        "title": "PowerScheduleSupply"
       },
       "ProjectChangeOut": {
         "properties": {
