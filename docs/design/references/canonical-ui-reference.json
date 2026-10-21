@@ -1,10 +1,10 @@
 {
   "decision_date": "2026-10-01",
   "owner": "Nick Sandoval",
-  "status": "LOCKED",
+  "status": "HISTORICAL_SUPERSEDED",
   "owner_decision": "This is the one! Make this the canonical UI-UX.",
   "package": "GridLens-Canonical-UI-2026-10-01.zip",
-  "storage_note": "Exact reference assets are preserved in the companion package delivered in the approval conversation. This documentation change records their identities; it does not claim the binary assets or original HTML have already been committed to this repository. Import these exact files alongside this manifest before visual implementation.",
+  "storage_note": "Historical manifest retained with original reference identities and hashes. These October 1 references are not current visual authority; use the October 20 v3 canon and prototype. Existing bytes and provenance statements are otherwise preserved.",
   "reference_files": [
     {
       "filename": "canonical-overview-2026-10-01.png",
@@ -30,5 +30,7 @@
     "detail.webp",
     "Later generated dashboard and storyboard images"
   ],
-  "production_data": false
+  "production_data": false,
+  "superseded_on": "2026-10-20",
+  "superseded_by": "../UI_CANON.md"
 }

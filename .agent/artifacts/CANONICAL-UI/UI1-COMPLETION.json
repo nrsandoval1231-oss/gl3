@@ -1,0 +1,89 @@
+{
+  "node_id": "UI-1",
+  "base_sha": "a4d77d821ed229834b678b2dfb79c4d0f246dd8d",
+  "status": "implementation_handoff_pending_controller_gates",
+  "owned_files": [
+    "web/public/brand/lockup-pursuits-v3.svg",
+    "web/public/images/login-infrastructure.png (deleted after reference audit)",
+    "web/src/features/auth/LoginPage.tsx",
+    "web/src/features/auth/login.css",
+    "web/src/features/operations/OperationsInbox.tsx",
+    "web/src/features/pursuits/ResearchChanges.css",
+    "web/src/features/workspace/WorkspaceDetail.tsx",
+    "web/src/main.tsx",
+    "web/src/styles/app.css",
+    "web/src/styles/layout.css (deleted as unused)",
+    "web/src/styles/pursuits.css",
+    "web/src/styles/workspace.css",
+    "web/package.json",
+    "web/package-lock.json",
+    "web/tests/briefs.spec.ts",
+    "web/tests/workspace.spec.ts",
+    "web/tests/project_cards.spec.ts",
+    "web/src/styles/workspace.css",
+    "web/tests/call-facts.spec.ts"
+  ],
+  "focused_validation": [
+    {
+      "command": "npm run typecheck",
+      "result": "PASS"
+    },
+    {
+      "command": "npm run build",
+      "result": "PASS"
+    },
+    {
+      "command": "npx playwright test tests/workspace.spec.ts tests/briefs.spec.ts tests/verticals.spec.ts --project=regression --workers=1 --output=.artifacts/luna-browser",
+      "result": "36/37 passed. The sole failure was an obsolete assertion expecting the retired KPI strip's em-dash count in the title row. Removed that assertion; the useful unavailable-state and pagination assertions remain."
+    },
+    {
+      "command": "npx playwright test tests/workspace.spec.ts --grep 'failed workspace filter' --project=regression --workers=1 --output=.artifacts/luna-browser",
+      "result": "PASS after correcting the obsolete title-row assertion."
+    },
+    {
+      "command": "npx playwright test tests/workspace.spec.ts --grep 'mobile Next action|failed workspace filter' --project=regression --workers=1 --output=.artifacts/luna-browser",
+      "result": "After Terra's Workspace focus restoration repair: mobile Back-focus test PASS; unavailable-cohort test initially exposed the obsolete KPI assertion, then passed separately after its correction."
+    },
+    {
+      "command": "npx playwright test tests/briefs.spec.ts --project=regression --workers=1 --output=.artifacts/luna-browser",
+      "result": "PASS (1/1); exercises explicit brief request, pending polling, generated statements, and citation links from canonical detail."
+    },
+    {
+      "command": "npx playwright test tests/verticals.spec.ts --project=regression --workers=1 --output=.artifacts/luna-browser",
+      "result": "PASS (3/3); source-sector alias/canonical filter, health-derived source IDs, and grouped Signals."
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS; no whitespace errors."
+    },
+    {
+      "command": "npx playwright test tests/call-facts.spec.ts --project=regression --workers=1 --output=.artifacts/luna-browser",
+      "result": "PASS (19 passed, 1 skipped). Covers attributed facts, correction targets, workflow idempotency/read-back, seven workflow filters and UNKNOWN URL round-trip, exact-Need draft isolation and stale response races. Explicit persisted-app test skipped because seeded disposable auth environment was not supplied."
+    },
+    {
+      "command": "npx playwright test tests/workspace.spec.ts tests/briefs.spec.ts tests/buying_chain.spec.ts --project=regression --workers=1 --output=.artifacts/luna-browser",
+      "result": "PASS (40/40), including mobile selected-detail first-viewport action and compact header, detail/history, briefs, buying-chain, navigation and evidence workflows."
+    },
+    {
+      "command": "npm run typecheck; npm run build; git diff --check",
+      "result": "PASS; TypeScript typecheck and production Vite build succeeded; diff whitespace check clean."
+    }
+  ],
+  "runtime": {
+    "api_port": 8120,
+    "web_port": 5293,
+    "notes": "Reused controller's isolated retained-corpus runtime; no migration, backend mutation, or app-database truncation performed."
+  },
+  "known_limitations": [
+    "The direct auth.spec.ts run was not validated because this process did not have GRIDLENS_TEST_PASSWORD; it exited with the test's explicit missing-environment error. Do not infer auth end-to-end PASS from it.",
+    "Controller full frontend/repository gates and final exact-candidate review remain pending. This receipt is an implementation handoff, not a completion or acceptance claim.",
+    "Visual review was performed by the controller on the shared local runtime; no independent final review is claimed here.",
+    "Final repository-wide frontend/backend gates and independent exact-candidate review remain controller-owned and pending; implementation handoff is not an overall acceptance claim."
+  ],
+  "authority": {
+    "commit": false,
+    "push": false,
+    "merge": false,
+    "deploy": false
+  }
+}
