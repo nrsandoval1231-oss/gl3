@@ -23,6 +23,7 @@ FIELDS = (
     "procurement_status",
     "utility_obstacle",
 )
+_DURABLE_REPORTED_FIELDS = {"voltage", "facility_scale_mw", "facility_demand_mw"}
 _PHASES = (
     ("cancelled", r"(?:project|development|facility) (?:is |was |has been )?cancel(?:led|ed)"),
     ("completed", r"(?:project|development|facility) (?:is |was |has been )?completed"),
@@ -418,7 +419,10 @@ class _ProjectClaimAccumulator:
         except (KeyError, ValueError, TypeError):
             return
         persistent = claim.get("value") in {"completed", "cancelled", "adequate"}
-        if dated > self.today or (dated < self.today - timedelta(days=90) and not persistent):
+        durable_report = field in _DURABLE_REPORTED_FIELDS
+        if dated > self.today or (
+            dated < self.today - timedelta(days=90) and not persistent and not durable_report
+        ):
             return
         value = claim["value"]
         if not self._has_value[field]:

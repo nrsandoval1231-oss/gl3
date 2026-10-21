@@ -251,6 +251,91 @@ def test_facility_scale_and_voltage_conflicts_do_not_change_qualification():
     assert qualification_veto(state) is None
 
 
+@pytest.mark.parametrize("age_days", [91, 365])
+def test_durable_reported_specs_preserve_original_date_beyond_ninety_days(age_days):
+    as_of = TODAY - timedelta(days=age_days)
+    rows = [
+        {
+            "field": "voltage",
+            "value": "208 V, 1 phase",
+            "as_of": as_of.isoformat(),
+            "date_basis": "event_date",
+            "quote": "Office trailer 100A 208v 1Ph",
+        },
+        {
+            "field": "facility_scale_mw",
+            "value": "196",
+            "as_of": as_of.isoformat(),
+            "date_basis": "event_date",
+            "quote": "488,628 SF 196MW data center",
+        },
+        {
+            "field": "facility_demand_mw",
+            "value": "12",
+            "as_of": as_of.isoformat(),
+            "date_basis": "explicit_as_of",
+            "quote": "facility electrical demand is 12 MW",
+        },
+    ]
+    state = project_claim_state(rows, today=TODAY)
+    for field, claim in zip(
+        ("voltage", "facility_scale_mw", "facility_demand_mw"), rows, strict=True
+    ):
+        assert state[field]["status"] == "SUPPORTED"
+        assert state[field]["value"] == claim["value"]
+        assert state[field]["claims"][0]["as_of"] == as_of.isoformat()
+        assert state[field]["claims"][0]["date_basis"] == claim["date_basis"]
+        assert state[field]["claims"][0]["quote"] == claim["quote"]
+    assert state["activity_load_mw"]["status"] == "UNKNOWN"
+    assert qualification_veto(state) is None
+
+
+def test_old_status_and_activity_reports_still_expire_and_future_specs_stay_unknown():
+    old = (TODAY - timedelta(days=91)).isoformat()
+    future = (TODAY + timedelta(days=1)).isoformat()
+    state = project_claim_state(
+        [
+            {"field": "permanent_service", "value": "pending", "as_of": old},
+            {"field": "fuel_availability", "value": "available", "as_of": old},
+            {"field": "activity_load_mw", "value": "12", "as_of": old},
+            {"field": "voltage", "value": "208 V, 1 phase", "as_of": future},
+            {"field": "facility_scale_mw", "value": "196", "as_of": future},
+            {"field": "facility_demand_mw", "value": "12", "as_of": future},
+        ],
+        today=TODAY,
+    )
+    for field in (
+        "permanent_service",
+        "fuel_availability",
+        "activity_load_mw",
+        "voltage",
+        "facility_scale_mw",
+        "facility_demand_mw",
+    ):
+        assert state[field]["status"] == "UNKNOWN"
+
+
+def test_old_durable_reports_conflict_with_both_original_citations():
+    old = (TODAY - timedelta(days=120)).isoformat()
+    rows = [
+        {
+            "field": "voltage",
+            "value": value,
+            "as_of": old,
+            "quote": quote,
+            "evidence_id": evidence_id,
+        }
+        for value, quote, evidence_id in (
+            ("208 V, 1 phase", "permit A: 208 V 1 phase", "evidence-a"),
+            ("480 V, 3 phase", "permit B: 480 V 3 phase", "evidence-b"),
+        )
+    ]
+    state = project_claim_state(rows, today=TODAY)["voltage"]
+    assert state["status"] == "CONFLICT"
+    assert state["value"] is None
+    assert [claim["evidence_id"] for claim in state["claims"]] == ["evidence-a", "evidence-b"]
+
+
 @pytest.mark.parametrize(
     "text",
     [
@@ -389,7 +474,9 @@ def test_retained_permit_claims_require_a_valid_source_date_and_current_value():
         as_of=date(2026, 1, 1),
         today=TODAY,
     )
-    assert project_claim_state(stale, today=TODAY)["facility_scale_mw"]["status"] == "UNKNOWN"
+    stale_state = project_claim_state(stale, today=TODAY)["facility_scale_mw"]
+    assert stale_state["status"] == "SUPPORTED"
+    assert stale_state["claims"][0]["as_of"] == "2026-01-01"
 
 
 @pytest.mark.parametrize(
