@@ -141,11 +141,8 @@ def reconcile_claim_identity(
     subject = claim.organization if entity_type == "company" else claim.person_name
     bound = any(
         citation.get("evidence_id") == str(source.id)
-        and citation.get("supports") == (
-            "project_organization"
-            if entity_type == "company"
-            else "organization_person_role"
-        )
+        and citation.get("supports")
+        == ("project_organization" if entity_type == "company" else "organization_person_role")
         and _typed_subject_binding(
             str(citation.get("quote", "")), identifier_type, normalized, subject or ""
         )
@@ -286,9 +283,9 @@ def ensure_project_scoped_identity_links(session: Session, claim_ids: list[str])
         candidate = current_by_claim.get(claim_id)
         if candidate is None:
             continue
-        entity_specs: list[
-            tuple[str, str, type[CompanyIdentity] | type[PersonIdentity]]
-        ] = [("company", "project_organization", CompanyIdentity)]
+        entity_specs: list[tuple[str, str, type[CompanyIdentity] | type[PersonIdentity]]] = [
+            ("company", "project_organization", CompanyIdentity)
+        ]
         if claim.person_name:
             person_support = (
                 "organization_person_role"

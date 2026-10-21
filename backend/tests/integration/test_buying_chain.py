@@ -185,10 +185,7 @@ def test_global_company_identity_requires_current_cited_strong_identifier_and_ke
             project_id=project_a.id,
             url="https://registry.example/acme",
             title="Acme legal entity record",
-            excerpt=(
-                "Acme legal entity record, LEI: 5493001KJTIIGC8Y1R12, "
-                "US EIN: 12-3456789."
-            ),
+            excerpt=("Acme legal entity record, LEI: 5493001KJTIIGC8Y1R12, US EIN: 12-3456789."),
             content_hash="a" * 64,
             extraction_location="legal entity identifier field",
             published_at=date(2026, 9, 20),
@@ -342,12 +339,22 @@ def test_global_company_identity_requires_current_cited_strong_identifier_and_ke
         assert session.scalar(select(func.count()).select_from(BuyingChainClaim)) == 2
         assert session.scalar(select(func.count()).select_from(CompanyIdentity)) == 2
         ein_a = reconcile_claim_identity(
-            session, claims[0].id, "company", "ein", "12-3456789",
-            identity_sources[0], "Typed US EIN in cited legal entity record",
+            session,
+            claims[0].id,
+            "company",
+            "ein",
+            "12-3456789",
+            identity_sources[0],
+            "Typed US EIN in cited legal entity record",
         )
         ein_b = reconcile_claim_identity(
-            session, claims[1].id, "company", "ein", "12-3456789",
-            identity_sources[1], "Typed US EIN in cited legal entity record",
+            session,
+            claims[1].id,
+            "company",
+            "ein",
+            "12-3456789",
+            identity_sources[1],
+            "Typed US EIN in cited legal entity record",
         )
         assert ein_a.company_identity_id == ein_b.company_identity_id
         ensure_project_scoped_identity_links(session, [str(claim.id) for claim in claims])
@@ -358,24 +365,42 @@ def test_global_company_identity_requires_current_cited_strong_identifier_and_ke
         claims[1].organization = "Beta"
         with pytest.raises(ValueError, match="unambiguously bound"):
             reconcile_claim_identity(
-                session, claims[1].id, "company", "lei", "5493001KJTIIGC8Y1R12",
-                identity_sources[1], "Identifier belongs to another entity",
+                session,
+                claims[1].id,
+                "company",
+                "lei",
+                "5493001KJTIIGC8Y1R12",
+                identity_sources[1],
+                "Identifier belongs to another entity",
             )
         assert claims[0].person_name == claims[1].person_name == "Sam Lee"
         claims[0].title = "Project Director"
-        assert current_claim_identity_links(session, {claims[0].id})[claims[0].id][
-            "person_identity_id"
-        ] == person_a_id
+        assert (
+            current_claim_identity_links(session, {claims[0].id})[claims[0].id][
+                "person_identity_id"
+            ]
+            == person_a_id
+        )
         assert claims[0].person_project_relationship == "UNKNOWN"
         with pytest.raises(ValueError, match="approved strong identifier"):
             reconcile_claim_identity(
-                session, claims[0].id, "person", "professional_license", "LIC-111",
-                cited[0], "Unscoped license",
+                session,
+                claims[0].id,
+                "person",
+                "professional_license",
+                "LIC-111",
+                cited[0],
+                "Unscoped license",
             )
         with pytest.raises(ValueError, match="approved strong identifier"):
             reconcile_claim_identity(
-                session, claims[0].id, "company", "registry_number", "12345",
-                identity_sources[0], "Unscoped registry number",
+                session,
+                claims[0].id,
+                "company",
+                "registry_number",
+                "12345",
+                identity_sources[0],
+                "Unscoped registry number",
             )
         with pytest.raises(ValueError, match="strong identifier"):
             reconcile_claim_identity(
@@ -399,13 +424,23 @@ def test_global_company_identity_requires_current_cited_strong_identifier_and_ke
             )
         with pytest.raises(ValueError, match="unambiguously bound"):
             reconcile_claim_identity(
-                session, claims[1].id, "company", "lei", "5493001KJTIIGC8Y1R12",
-                identity_sources[1], "Wrong entity passage",
+                session,
+                claims[1].id,
+                "company",
+                "lei",
+                "5493001KJTIIGC8Y1R12",
+                identity_sources[1],
+                "Wrong entity passage",
             )
         with pytest.raises(ValueError, match="unambiguously bound"):
             reconcile_claim_identity(
-                session, claims[0].id, "company", "ein", "12-3456789",
-                cited[0], "Number without typed field",
+                session,
+                claims[0].id,
+                "company",
+                "ein",
+                "12-3456789",
+                cited[0],
+                "Number without typed field",
             )
 
         separate = CompanyIdentity()
@@ -1087,9 +1122,9 @@ def test_authenticated_correction_is_append_only_versioned_and_overlays_only_one
     }
     reported = client.post(path, headers={"origin": "http://testserver"}, json=report)
     assert reported.status_code == 200, reported.text
-    reported_candidate = client.get(
-        f"/api/projects/{project_id}/buying-chain?history=true"
-    ).json()["candidates"]
+    reported_candidate = client.get(f"/api/projects/{project_id}/buying-chain?history=true").json()[
+        "candidates"
+    ]
     report_item = next(item for item in reported_candidate if item["id"] == str(claim_id))
     assert report_item["reported_contacts"][0]["value"] == "+1-512-555-0100"
     assert all(contact["value"] != "+1-512-555-0100" for contact in report_item["public_contacts"])
