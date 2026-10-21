@@ -36,13 +36,13 @@ const needB = { ...needA, id: 'need-b', project_id: 'project-b', name: 'Second s
 
 test('approved intelligence dashboard preserves evidence, verified actions, selection history, and mobile width', async ({ page }) => {
   let providerPosts = 0
-  const workspace = (items: typeof needA[]) => ({ items, total: items.length, counts: { action_now: 0, research: items.length, watch: 0, reject: 0 }, offset: 0, limit: 25, next_offset: null, cohort_token: 'approved-cohort', count_unit: 'power needs', changes_available: false })
+  const workspace = (items: typeof needA[], total = items.length) => ({ items, total, counts: { action_now: 0, research: total, watch: 0, reject: 0 }, offset: 0, limit: 25, next_offset: null, cohort_token: 'approved-cohort', count_unit: 'power needs', changes_available: false })
   await page.route(url => url.pathname.startsWith('/api/'), async route => {
     const request = route.request()
     const path = new URL(request.url()).pathname
     if (request.method() === 'POST') providerPosts += 1
     if (path === '/api/auth/session') return route.fulfill({ json: { authenticated: true } })
-    if (path === '/api/opportunities/workspace') return route.fulfill({ json: workspace([needA, needB]) })
+    if (path === '/api/opportunities/workspace') return route.fulfill({ json: workspace([needA, needB], 1659) })
     if (path === '/api/opportunities/workspace/changes') return route.fulfill({ json: { items: [], counts: { discovered: 0, changed: 0, promoted: 0, closed: 0, review_exception: 0 }, total_unreviewed: 0, offset: 0, limit: 50, next_offset: null, baseline_identity: 'test', token: 'test', source_health_exceptions: [] } })
     if (path === '/api/opportunities/needs/need-a') return route.fulfill({ json: needA })
     if (path === '/api/opportunities/needs/need-b') return route.fulfill({ json: needB })
@@ -52,6 +52,38 @@ test('approved intelligence dashboard preserves evidence, verified actions, sele
 
   await page.setViewportSize({ width: 1280, height: 720 })
   await page.goto('/?view=workspace')
+  await expect(page.locator('.wh-list')).toBeVisible()
+  // Reserve the scrollbar gutter that Windows Chrome allocates in this list.
+  await page.locator('.wh-list').evaluate(element => { element.style.scrollbarGutter = 'stable' })
+  await expect(page.locator('.wh-queue-heading > span')).toHaveText('1659 opportunities')
+  await expect(page.locator('.wh-sort select')).toHaveValue('priority')
+  const assertQueueToolbarFits = async () => {
+    const geometry = await page.evaluate(() => {
+      const list = document.querySelector<HTMLElement>('.wh-list')!
+      const tools = document.querySelector<HTMLElement>('.wh-tools > summary')!
+      const rect = tools.getBoundingClientRect()
+      const listRect = list.getBoundingClientRect()
+      return {
+        scrollWidth: list.scrollWidth,
+        clientWidth: list.clientWidth,
+        toolsRight: rect.right,
+        visibleRight: listRect.left + list.clientLeft + list.clientWidth,
+      }
+    })
+    expect(geometry.scrollWidth).toBeLessThanOrEqual(geometry.clientWidth)
+    expect(geometry.toolsRight).toBeLessThanOrEqual(geometry.visibleRight)
+  }
+  await assertQueueToolbarFits()
+  await page.locator('.wh-tools > summary').click()
+  await expect(page.locator('.wh-tool-content')).toBeVisible()
+  await page.locator('.wh-filter-disclosure > summary').click()
+  await expect(page.getByLabel('Tier')).toBeVisible()
+  await assertQueueToolbarFits()
+  await page.locator('.wh-tools > summary').click()
+  for (const width of [1321, 1330, 1399, 1440]) {
+    await page.setViewportSize({ width, height: 720 })
+    await assertQueueToolbarFits()
+  }
   await page.locator('[data-need-row="need-a"]').click()
   await expect(page.getByRole('heading', { name: 'A very long customer organization name that should wrap without widening the dashboard' })).toBeVisible()
   await expect(page.getByText('Opportunity Intelligence', { exact: true })).toBeVisible()
