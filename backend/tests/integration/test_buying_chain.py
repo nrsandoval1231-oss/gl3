@@ -17,6 +17,7 @@ from gridlens.intelligence.buying_chain import (
 )
 from gridlens.intelligence.identity_reconciliation import (
     current_claim_identity_links,
+    ensure_project_scoped_identity_links,
     link_claim_to_identity,
     reconcile_claim_identity,
 )
@@ -176,14 +177,18 @@ def test_global_company_identity_requires_current_cited_strong_identifier_and_ke
         )
         evidence_a = session.get(BuyingChainEvidence, evidence_a_id)
         evidence_a.excerpt += (
+            " Acme legal entity, LEI: 5493001KJTIIGC8Y1R12, US EIN: 12-3456789."
+            " Beta legal entity, US EIN: 12-3456789."
             " Sam Lee is engineer at Acme; professional license: LIC-111."
-            " Sam Lee is engineer at Beta; professional license: LIC-222."
         )
         identity_a = BuyingChainEvidence(
             project_id=project_a.id,
             url="https://registry.example/acme",
             title="Acme legal entity record",
-            excerpt="Legal entity identifier: 549300EXAMPLE.",
+            excerpt=(
+                "Acme legal entity record, LEI: 5493001KJTIIGC8Y1R12, "
+                "US EIN: 12-3456789."
+            ),
             content_hash="a" * 64,
             extraction_location="legal entity identifier field",
             published_at=date(2026, 9, 20),
@@ -282,7 +287,6 @@ def test_global_company_identity_requires_current_cited_strong_identifier_and_ke
             observed_at=claim_a.observed_at,
             verified_at=claim_a.verified_at,
         )
-        claim_b.organization = "Beta"
         claim_b.title = "Electrical Lead"
         session.add(claim_b)
         session.flush()
@@ -311,7 +315,7 @@ def test_global_company_identity_requires_current_cited_strong_identifier_and_ke
             claims[0].id,
             "company",
             "lei",
-            "549300EXAMPLE",
+            "5493001KJTIIGC8Y1R12",
             identity_sources[0],
             "Official registry identifier in cited source",
         )
@@ -320,7 +324,7 @@ def test_global_company_identity_requires_current_cited_strong_identifier_and_ke
             claims[0].id,
             "company",
             "lei",
-            "549300EXAMPLE",
+            "5493001KJTIIGC8Y1R12",
             identity_sources[0],
             "Official registry identifier in cited source",
         )
@@ -329,7 +333,7 @@ def test_global_company_identity_requires_current_cited_strong_identifier_and_ke
             claims[1].id,
             "company",
             "lei",
-            "549300EXAMPLE",
+            "5493001KJTIIGC8Y1R12",
             identity_sources[1],
             "Official registry identifier in cited source",
         )
@@ -337,38 +341,42 @@ def test_global_company_identity_requires_current_cited_strong_identifier_and_ke
         assert first.company_identity_id == second.company_identity_id
         assert session.scalar(select(func.count()).select_from(BuyingChainClaim)) == 2
         assert session.scalar(select(func.count()).select_from(CompanyIdentity)) == 2
-        person_a = reconcile_claim_identity(
-            session,
-            claims[0].id,
-            "person",
-            "professional_license",
-            "LIC-111",
-            cited[0],
-            "Official professional license in cited passage",
+        ein_a = reconcile_claim_identity(
+            session, claims[0].id, "company", "ein", "12-3456789",
+            identity_sources[0], "Typed US EIN in cited legal entity record",
         )
-        person_b = reconcile_claim_identity(
-            session,
-            claims[1].id,
-            "person",
-            "professional_license",
-            "LIC-222",
-            cited[1],
-            "Official professional license in cited passage",
+        ein_b = reconcile_claim_identity(
+            session, claims[1].id, "company", "ein", "12-3456789",
+            identity_sources[1], "Typed US EIN in cited legal entity record",
         )
+        assert ein_a.company_identity_id == ein_b.company_identity_id
+        ensure_project_scoped_identity_links(session, [str(claim.id) for claim in claims])
+        person_links = current_claim_identity_links(session, {claim.id for claim in claims})
+        person_a_id = person_links[claims[0].id]["person_identity_id"]
+        person_b_id = person_links[claims[1].id]["person_identity_id"]
+        assert person_a_id != person_b_id
+        claims[1].organization = "Beta"
+        with pytest.raises(ValueError, match="unambiguously bound"):
+            reconcile_claim_identity(
+                session, claims[1].id, "company", "lei", "5493001KJTIIGC8Y1R12",
+                identity_sources[1], "Identifier belongs to another entity",
+            )
         assert claims[0].person_name == claims[1].person_name == "Sam Lee"
-        assert person_a.person_identity_id != person_b.person_identity_id
         claims[0].title = "Project Director"
-        same_person = reconcile_claim_identity(
-            session,
-            claims[0].id,
-            "person",
-            "professional_license",
-            "LIC-111",
-            cited[0],
-            "Same official license after role update",
-        )
-        assert same_person.person_identity_id == person_a.person_identity_id
+        assert current_claim_identity_links(session, {claims[0].id})[claims[0].id][
+            "person_identity_id"
+        ] == person_a_id
         assert claims[0].person_project_relationship == "UNKNOWN"
+        with pytest.raises(ValueError, match="approved strong identifier"):
+            reconcile_claim_identity(
+                session, claims[0].id, "person", "professional_license", "LIC-111",
+                cited[0], "Unscoped license",
+            )
+        with pytest.raises(ValueError, match="approved strong identifier"):
+            reconcile_claim_identity(
+                session, claims[0].id, "company", "registry_number", "12345",
+                identity_sources[0], "Unscoped registry number",
+            )
         with pytest.raises(ValueError, match="strong identifier"):
             reconcile_claim_identity(
                 session,
@@ -379,15 +387,25 @@ def test_global_company_identity_requires_current_cited_strong_identifier_and_ke
                 identity_sources[1],
                 "Same name",
             )
-        with pytest.raises(ValueError, match="must appear in the cited source passage"):
+        with pytest.raises(ValueError, match="checksum-valid"):
             reconcile_claim_identity(
                 session,
                 claims[1].id,
                 "company",
                 "lei",
-                "UNSUPPORTED-LEI",
+                "5493001KJTIIGC8Y1R13",
                 identity_sources[1],
                 "Uncited identifier",
+            )
+        with pytest.raises(ValueError, match="unambiguously bound"):
+            reconcile_claim_identity(
+                session, claims[1].id, "company", "lei", "5493001KJTIIGC8Y1R12",
+                identity_sources[1], "Wrong entity passage",
+            )
+        with pytest.raises(ValueError, match="unambiguously bound"):
+            reconcile_claim_identity(
+                session, claims[0].id, "company", "ein", "12-3456789",
+                cited[0], "Number without typed field",
             )
 
         separate = CompanyIdentity()
@@ -413,6 +431,8 @@ def test_global_company_identity_requires_current_cited_strong_identifier_and_ke
             "current",
             "superseded",
             "superseded",
+            "superseded",
+            "superseded",
         ]
         assert {link.source_evidence_id for link in history} == {
             cited[0],
@@ -425,7 +445,11 @@ def test_global_company_identity_requires_current_cited_strong_identifier_and_ke
             project_id=project_a.id,
             url=identity_a.url,
             title=identity_a.title,
-            excerpt="Legal entity identifier: 549300EXAMPLE. Registry record refreshed.",
+            excerpt=(
+                "Acme legal entity record, LEI: 5493001KJTIIGC8Y1R12, "
+                "US EIN: 12-3456789. "
+                "Registry record refreshed."
+            ),
             content_hash="b" * 64,
             extraction_location="replacement version",
             published_at=date(2026, 10, 1),
@@ -450,7 +474,7 @@ def test_global_company_identity_requires_current_cited_strong_identifier_and_ke
             )
         )
         assert current_claim_identity_links(session, {claims[0].id})[claims[0].id] == {
-            "person_identity_id": str(person_a.person_identity_id)
+            "person_identity_id": person_a_id
         }
         candidate = next(
             item
@@ -459,7 +483,7 @@ def test_global_company_identity_requires_current_cited_strong_identifier_and_ke
         )
         assert not candidate["stale"]
         assert "company_identity_id" not in candidate
-        assert candidate["person_identity_id"] == str(person_a.person_identity_id)
+        assert candidate["person_identity_id"] == person_a_id
 
 
 def test_batched_buying_chain_view_matches_single_project_projection(db):

@@ -25,12 +25,45 @@ from gridlens.persistence.models import (
 )
 
 EntityType = Literal["company", "person"]
-COMPANY_IDENTIFIERS = {"lei", "ein", "registry_number", "official_entity_id"}
-PERSON_IDENTIFIERS = {"official_person_id", "professional_license"}
+COMPANY_IDENTIFIERS = {"lei", "ein"}
+PERSON_IDENTIFIERS: set[str] = set()
 
 
 def _normalized(value: str) -> str:
     return re.sub(r"\s+", "", value).casefold()
+
+
+def _valid_lei(value: str) -> bool:
+    normalized = _normalized(value).upper()
+    if not re.fullmatch(r"[0-9A-Z]{20}", normalized):
+        return False
+    expanded = "".join(str(ord(char) - 55) if char.isalpha() else char for char in normalized)
+    remainder = 0
+    for digit in expanded:
+        remainder = (remainder * 10 + int(digit)) % 97
+    return remainder == 1
+
+
+def _valid_ein(value: str) -> bool:
+    return bool(re.fullmatch(r"(?:\d{2}-?\d{7})", value.strip()))
+
+
+def _typed_subject_binding(
+    quote: str, identifier_type: str, normalized_value: str, subject: str
+) -> bool:
+    """Require an exact typed field and a named subject in the same short passage."""
+    if not subject.strip():
+        return False
+    escaped = re.escape(normalized_value)
+    label = (
+        r"\b(?:LEI|Legal Entity Identifier)\b"
+        if identifier_type == "lei"
+        else r"\b(?:US EIN|EIN|Employer Identification Number)\b"
+    )
+    pattern = rf"{label}\s*(?:number|identifier)?\s*[:#=]?\s*{escaped}\b"
+    if not re.search(pattern, quote, re.IGNORECASE):
+        return False
+    return bool(re.search(re.escape(subject.strip()), quote, re.IGNORECASE))
 
 
 def _validate_claim_evidence(
@@ -101,12 +134,27 @@ def reconcile_claim_identity(
         raise ValueError("identifier value and reason are required")
     source = _validate_claim_evidence(session, claim, entity_type, source_evidence_id)
     normalized = _normalized(identifier_value)
-    if not any(
+    if identifier_type == "lei" and not _valid_lei(identifier_value):
+        raise ValueError("LEI must be a checksum-valid 20-character identifier")
+    if identifier_type == "ein" and not _valid_ein(identifier_value):
+        raise ValueError("EIN must be an exact nine-digit US identifier")
+    subject = claim.organization if entity_type == "company" else claim.person_name
+    bound = any(
         citation.get("evidence_id") == str(source.id)
-        and normalized in _normalized(str(citation.get("quote", "")))
+        and citation.get("supports") == (
+            "project_organization"
+            if entity_type == "company"
+            else "organization_person_role"
+        )
+        and _typed_subject_binding(
+            str(citation.get("quote", "")), identifier_type, normalized, subject or ""
+        )
         for citation in claim.citations
-    ):
-        raise ValueError("strong identifier must appear in the cited source passage")
+    )
+    if not bound:
+        raise ValueError(
+            "typed identifier must be unambiguously bound to the entity in its citation"
+        )
     identifier = session.scalar(
         select(IdentityIdentifier).where(
             IdentityIdentifier.entity_type == entity_type,
