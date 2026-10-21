@@ -15,6 +15,9 @@ from gridlens.persistence.models import (
     BuyingChainClaim,
     BuyingChainCorrection,
     BuyingChainEvidence,
+    BuyingChainIdentityLink,
+    CompanyIdentity,
+    PersonIdentity,
 )
 
 EDITABLE = {
@@ -127,6 +130,7 @@ def correct_buying_chain_claim(
     if (identity_type is None) != (identity_id is None):
         raise ValueError("Identity type and ID must be supplied together")
     source = None
+    candidate: dict[str, Any] | None = None
     if source_evidence_id:
         source = session.get(BuyingChainEvidence, source_evidence_id)
         if source is None or source.project_id != project_id or source_hash != source.content_hash:
@@ -178,6 +182,43 @@ def correct_buying_chain_claim(
             raise ValueError("Identity reconciliation requires cited current source evidence")
         from gridlens.intelligence.identity_reconciliation import link_claim_to_identity
 
+    current_candidate = candidate
+    if current_candidate is None and any(
+        field in values for field in ("organization", "person_name")
+    ):
+        current_candidate = next(
+            (
+                item
+                for item in buying_chain_view(session, project_id)["candidates"]
+                if str(item["id"]) == str(claim_id)
+            ),
+            None,
+        )
+    changed_identity_types = {
+        entity_type
+        for field, entity_type in (("organization", "company"), ("person_name", "person"))
+        if field in values
+        and current_candidate is not None
+        and values[field] != current_candidate.get(field)
+    }
+    if changed_identity_types and source is None:
+        raise ValueError("Subject corrections require cited current source evidence")
+
+    linked_type_with_explicit_rebind: str | None = None
+    same_link_rebind = False
+    if identity_id is not None:
+        if source is None:
+            raise ValueError("Identity reconciliation requires cited current source evidence")
+        identity_model = CompanyIdentity if identity_type == "company" else PersonIdentity
+        if session.get(identity_model, identity_id) is None:
+            raise ValueError("identity does not exist")
+        existing_link = session.scalar(
+            select(BuyingChainIdentityLink).where(
+                BuyingChainIdentityLink.claim_id == claim.id,
+                BuyingChainIdentityLink.entity_type == identity_type,
+                BuyingChainIdentityLink.state == "current",
+            )
+        )
         link_claim_to_identity(
             session,
             claim,
@@ -187,6 +228,47 @@ def correct_buying_chain_claim(
             reason,
             reviewed_by=actor,
         )
+        linked_type_with_explicit_rebind = identity_type
+        same_link_rebind = bool(
+            identity_type in changed_identity_types
+            and existing_link is not None
+            and getattr(
+                existing_link,
+                "company_identity_id" if identity_type == "company" else "person_identity_id",
+            )
+            == identity_id
+            and existing_link.source_version_hash == source.content_hash
+        )
+        if same_link_rebind:
+            assert existing_link is not None
+            existing_link.state = "superseded"
+            existing_link.superseded_at = datetime.now(UTC)
+            session.flush()
+            link_claim_to_identity(
+                session,
+                claim,
+                identity_type,  # type: ignore[arg-type]
+                identity_id,
+                source,
+                reason,
+                reviewed_by=actor,
+            )
+
+    types_to_supersede = changed_identity_types - (
+        {linked_type_with_explicit_rebind} if linked_type_with_explicit_rebind else set()
+    )
+    if types_to_supersede:
+        links = session.scalars(
+            select(BuyingChainIdentityLink).where(
+                BuyingChainIdentityLink.claim_id == claim.id,
+                BuyingChainIdentityLink.entity_type.in_(types_to_supersede),
+                BuyingChainIdentityLink.state == "current",
+            )
+        ).all()
+        for link in links:
+            link.state = "superseded"
+            link.superseded_at = datetime.now(UTC)
+        session.flush()
     row = BuyingChainCorrection(
         project_id=project_id,
         claim_id=claim_id,
@@ -295,17 +377,19 @@ def overlay_corrections(
                 contact_values["public_contact_value"] = values["public_contact_value"]
                 contact_values["contact_status"] = contact_status
                 if contact_status == "operator_report":
+                    kind = contact_values.get("public_contact_kind") or "reported"
                     contact = {
-                        "kind": contact_values.get("public_contact_kind") or "reported",
+                        "kind": kind,
                         "value": values["public_contact_value"],
                         "source_url": "",
                         "quote": "",
                         "operator_report": True,
                     }
                     candidate["reported_contacts"] = [
-                        *candidate.get("reported_contacts", []),
-                        contact,
-                    ]
+                        item
+                        for item in candidate.get("reported_contacts", [])
+                        if str(item.get("kind", "")).lower() != str(kind).lower()
+                    ] + [contact]
                 elif values["public_contact_value"]:
                     kind = contact_values.get("public_contact_kind") or "general"
                     cited_contact = next(
@@ -320,12 +404,13 @@ def overlay_corrections(
                         ),
                         None,
                     )
+                    existing = [
+                        item
+                        for item in candidate.get("public_contacts", [])
+                        if str(item.get("kind", "")).lower() != str(kind).lower()
+                    ]
+                    candidate["public_contacts"] = existing
                     if cited_contact:
-                        existing = [
-                            item
-                            for item in candidate.get("public_contacts", [])
-                            if str(item.get("kind", "")).lower() != str(kind).lower()
-                        ]
                         existing.append(
                             {
                                 "kind": kind,

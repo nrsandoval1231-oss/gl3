@@ -216,6 +216,108 @@ test('operator-reported contact is history-backed, has no call action and can be
   expect(history.map((entry) => entry.action)).toEqual(['correct', 'retract'])
 })
 
+test('a historical stale correction can be repaired using fresh evidence', async ({ page }) => {
+  let saved = false
+  const staleHistory = [{
+    id: 'stale-correction', action: 'correct', reason: 'Prior cited page was replaced', created_at: stamp,
+  }]
+  await shell(page, async (route) => {
+    if (route.request().method() === 'POST') {
+      const body = route.request().postDataJSON() as {
+        expected_version: string; source_evidence_id: string; source_hash: string; values: Record<string, string>
+      }
+      expect(body.expected_version).toBe('stale-head')
+      expect(body.source_evidence_id).toBe('current-contact')
+      expect(body.source_hash).toBe('c'.repeat(64))
+      expect(body.values.public_contact_value).toBe('+1 312 555 0199')
+      saved = true
+      await route.fulfill({ json: {
+        id: 'fresh-correction', version: 'fresh-head', action: 'correct', values: body.values,
+        reason: 'Verified from current contact page', actor: 'operator', created_at: stamp,
+        reported_contact: false,
+      } })
+      return
+    }
+    const value = chain('one')
+    const candidate = value.candidates![0]
+    candidate.correction_stale = true
+    candidate.correction_version = saved ? 'fresh-head' : 'stale-head'
+    candidate.correction_history = saved
+      ? [...staleHistory, { id: 'fresh-correction', action: 'correct', reason: 'Verified from current contact page', created_at: stamp }]
+      : staleHistory
+    candidate.public_contacts = saved
+      ? [{ kind: 'phone', value: '+1 312 555 0199', source_url: 'https://example.com/current', quote: 'Current business contact: +1 312 555 0199', observed_at: stamp }]
+      : [{ kind: 'phone', value: '+1 312 555 0100', source_url: 'https://example.com/old', quote: 'Old business contact: +1 312 555 0100', observed_at: stamp }]
+    candidate.evidence = [
+      ...candidate.evidence!.filter((item) => item.id !== 'contact-evidence'),
+      {
+        id: 'old-contact', url: 'https://example.com/old', quote: 'Old business contact: +1 312 555 0100',
+        supports: 'public_contact', extraction_location: 'superseded contact page', published_at: null,
+        observed_at: stamp, content_hash: 'b'.repeat(64),
+      },
+      {
+        id: 'current-contact', url: 'https://example.com/current', quote: 'Current business contact: +1 312 555 0199',
+        supports: 'public_contact', extraction_location: 'current contact page', published_at: null,
+        observed_at: stamp, content_hash: 'c'.repeat(64),
+      },
+    ]
+    await route.fulfill({ json: value })
+  })
+  const section = page.getByRole('region', { name: 'Buying chain' })
+  await expect(section.getByText('phone: +1 312 555 0100', { exact: false })).toBeVisible()
+  await section.getByRole('button', { name: 'Correct or retract contact' }).click()
+  await section.getByLabel('Corrected contact value').fill('+1 312 555 0199')
+  await section.getByLabel('Current public-contact evidence').selectOption('current-contact')
+  await section.getByLabel('Reason', { exact: true }).fill('Verified from current contact page')
+  await section.getByRole('button', { name: 'Save contact correction' }).click()
+  await expect.poll(() => saved).toBe(true)
+  await expect(section.getByText(/Contact correction confirmed against current public evidence/)).toBeVisible()
+  await expect(section.getByText('phone: +1 312 555 0199', { exact: false })).toBeVisible()
+  await expect(section.getByText('phone: +1 312 555 0100', { exact: false })).toHaveCount(0)
+  await expect(section.getByRole('button', { name: 'Save contact correction' })).toBeEnabled()
+})
+
+test('contact correction readback reports an unverified replacement without restoring the old method', async ({ page }) => {
+  let saved = false
+  await shell(page, async (route) => {
+    if (route.request().method() === 'POST') {
+      const body = route.request().postDataJSON() as { values: Record<string, string> }
+      saved = true
+      await route.fulfill({ json: {
+        id: 'accepted-correction', version: 'accepted-head', action: 'correct', values: body.values,
+        reason: 'Recorded from submitted review', actor: 'operator', created_at: stamp, reported_contact: false,
+      } })
+      return
+    }
+    const value = chain('one')
+    const candidate = value.candidates![0]
+    candidate.correction_stale = true
+    candidate.correction_version = saved ? 'accepted-head' : 'stale-head'
+    candidate.correction_history = saved
+      ? [{ id: 'accepted-correction', action: 'correct', reason: 'Recorded from submitted review', created_at: stamp }]
+      : [{ id: 'stale-correction', action: 'correct', reason: 'Prior page was replaced', created_at: stamp }]
+    candidate.public_contacts = saved
+      ? []
+      : [{ kind: 'phone', value: '+1 312 555 0100', source_url: 'https://example.com/old', quote: 'Old business contact: +1 312 555 0100', observed_at: stamp }]
+    candidate.evidence = [{
+      id: 'current-contact', url: 'https://example.com/current', quote: 'Current page lists a different contact.',
+      supports: 'public_contact', extraction_location: 'current contact page', published_at: null,
+      observed_at: stamp, content_hash: 'c'.repeat(64),
+    }]
+    await route.fulfill({ json: value })
+  })
+  const section = page.getByRole('region', { name: 'Buying chain' })
+  await section.getByRole('button', { name: 'Correct or retract contact' }).click()
+  await section.getByLabel('Corrected contact value').fill('+1 312 555 0199')
+  await section.getByLabel('Current public-contact evidence').selectOption('current-contact')
+  await section.getByLabel('Reason', { exact: true }).fill('Record reviewed value')
+  await section.getByRole('button', { name: 'Save contact correction' }).click()
+  await expect.poll(() => saved).toBe(true)
+  await expect(section.getByRole('status')).toContainText('current public evidence did not confirm')
+  await expect(section.getByText('phone: +1 312 555 0100', { exact: false })).toHaveCount(0)
+  await expect(section.getByRole('link', { name: /Call|Email/ })).toHaveCount(0)
+})
+
 test('queued buying-chain job survives reload and polls to a truthful terminal state', async ({ page }) => {
   let reads = 0
   await shell(page, async (route) => {

@@ -26,11 +26,10 @@ function checkedResult(data: BuyingChainResult, projectId: string) {
   return data
 }
 
-function CorrectionControls({ projectId, candidate, onSaved, onReadback }: {
+function CorrectionControls({ projectId, candidate, onSaved }: {
   projectId: string
   candidate: NonNullable<BuyingChainResult['candidates']>[number]
   onSaved: (result: BuyingChainResult) => void
-  onReadback: () => void
 }) {
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -73,9 +72,10 @@ function CorrectionControls({ projectId, candidate, onSaved, onReadback }: {
       if (!current || !confirmed || current.correction_version !== saved.version || (action === 'retract' && !current.retracted)) {
         throw new Error('The saved correction could not be confirmed in this project’s claim history. Its request is preserved; reload history before retrying.')
       }
+      const contactReadback = !body.reported_contact && current.public_contacts?.some((contact) =>
+        contact.kind === body.values?.public_contact_kind && contact.value === body.values?.public_contact_value)
       onSaved(readback)
-      onReadback?.()
-      setPending(null); setValue(''); setReason(''); setNotice(action === 'retract' ? 'Claim retraction confirmed in project history.' : reported ? 'Operator-reported contact saved separately; it has no public call or email action.' : 'Contact correction confirmed against current public evidence.')
+      setPending(null); setValue(''); setReason(''); setNotice(action === 'retract' ? 'Claim retraction confirmed in project history.' : body.reported_contact ? 'Operator-reported contact saved separately; it has no public call or email action.' : contactReadback ? 'Contact correction confirmed against current public evidence.' : 'Correction recorded, but current public evidence did not confirm the replacement method; the old same-kind method was removed.')
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Contact correction failed. Reload project history before retrying.')
     } finally { setBusy(false) }
@@ -83,7 +83,7 @@ function CorrectionControls({ projectId, candidate, onSaved, onReadback }: {
 
   return <section className="buying-chain-correction" aria-label={`Contact correction for ${candidate.organization}`}>
     {candidate.correction_stale && <p className="integrity">The cited source version changed. Review current evidence before correcting or retracting.</p>}
-    <button type="button" disabled={busy || candidate.stale || candidate.correction_stale || !currentVersion} onClick={() => setOpen((value) => !value)}>{open ? 'Close contact review' : 'Correct or retract contact'}</button>
+    <button type="button" disabled={busy || candidate.stale || !currentVersion} onClick={() => setOpen((value) => !value)}>{open ? 'Close contact review' : 'Correct or retract contact'}</button>
     {open && <div>
       <label>Contact type<select value={kind} disabled={busy || Boolean(pending)} onChange={(event) => setKind(event.target.value)}><option value="phone">Phone</option><option value="email">Email</option><option value="profile">Profile</option><option value="website">Website</option><option value="general">General contact</option></select></label>
       <label>Corrected contact value<input value={value} disabled={busy || Boolean(pending)} onChange={(event) => setValue(event.target.value)}/></label>
@@ -100,7 +100,7 @@ function CorrectionControls({ projectId, candidate, onSaved, onReadback }: {
   </section>
 }
 
-export function BuyingChain({ projectId, onReadback = () => {} }: { projectId: string; onReadback?: () => void }) {
+export function BuyingChain({ projectId, onReadback: _onReadback = () => {} }: { projectId: string; onReadback?: () => void }) {
   const [result, setResult] = useState<BuyingChainResult | null>(null)
   const [showHistory, setShowHistory] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -204,7 +204,7 @@ export function BuyingChain({ projectId, onReadback = () => {} }: { projectId: s
         {(candidate.public_contacts ?? []).length === 0 && <p className="buying-chain-note">Public business contact details unknown</p>}
         {(candidate.public_contacts ?? []).map((contact, index) => <p key={index}>{contact.kind}: {contact.value} <a href={safeUrl(contact.source_url)} target="_blank" rel="noreferrer">Contact source</a></p>)}
         {(candidate.reported_contacts ?? []).map((contact, index) => <p key={`reported-${index}`} className="integrity">Operator-reported contact: {String(contact.value ?? 'Value not recorded')} · not a verified public call or email method.</p>)}
-        {!candidate.retracted && <CorrectionControls projectId={projectId} candidate={candidate} onSaved={acceptCorrection} onReadback={onReadback}/>}
+        {!candidate.retracted && <CorrectionControls projectId={projectId} candidate={candidate} onSaved={acceptCorrection}/>}
         <details><summary>Inspect relationship evidence ({(candidate.evidence ?? []).length})</summary>{(candidate.evidence ?? []).map((evidence, index) => <div className="evidence" key={index}><a href={safeUrl(evidence.url)} target="_blank" rel="noreferrer">{evidence.supports.replaceAll("_", " ")} · {evidence.extraction_location}</a><blockquote>{evidence.quote}</blockquote><p className="evidence-meta">Published {evidence.published_at ?? 'Unknown'} · Observed {time(evidence.observed_at)}</p></div>)}</details>
       </li>)}</ol>
       {(result.unresolved ?? []).length > 0 && <details open={(result.candidates ?? []).length === 0}><summary>Unresolved questions ({(result.unresolved ?? []).length})</summary><ul>{(result.unresolved ?? []).map((question, index) => <li key={index}>{question}</li>)}</ul></details>}

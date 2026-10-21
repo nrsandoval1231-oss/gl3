@@ -1280,6 +1280,86 @@ def test_sparse_corrections_compose_and_corrected_contact_replaces_actionable_me
     methods = contact_projection({"candidates": [candidate]})[0].methods
     assert [method["href"] for method in methods] == ["tel:5125550199"]
 
+    unsupported = deepcopy(candidate)
+    unsupported["public_contacts"] = [
+        {
+            "kind": "phone",
+            "value": "512-555-0100",
+            "source_url": "https://news.example/old",
+            "quote": first_quote,
+        }
+    ]
+    unsupported["evidence"][-1]["supports"] = "project_organization"
+    unsupported_row = SimpleNamespace(**vars(corrections[1]))
+    unsupported_row.id = UUID("00000000-0000-0000-0000-000000000024")
+    unsupported_row.values = {
+        "public_contact_kind": "phone",
+        "public_contact_value": "512-555-0177",
+    }
+    overlay_corrections(
+        None,
+        UUID("00000000-0000-0000-0000-000000000030"),
+        [unsupported],
+        False,
+        decisions=[unsupported_row],
+    )
+    assert unsupported["public_contacts"] == []
+    assert contact_projection({"candidates": [unsupported]})[0].methods == []
+
+
+def test_operator_report_replaces_same_kind_current_report_without_action():
+    claim_id = UUID("00000000-0000-0000-0000-000000000040")
+    row = SimpleNamespace(
+        id=UUID("00000000-0000-0000-0000-000000000041"),
+        claim_id=claim_id,
+        project_id=UUID("00000000-0000-0000-0000-000000000042"),
+        action="correct",
+        values={
+            "public_contact_kind": "phone",
+            "public_contact_value": "512-555-0199",
+            "contact_status": "operator_report",
+        },
+        source_evidence_id=None,
+        source_version_hash=None,
+        created_at=NOW,
+        expected_version="old",
+        idempotency_key="new-report",
+        reason="Operator confirmed a new number.",
+        actor="operator",
+    )
+    candidate = {
+        "id": claim_id,
+        "fingerprint": "initial",
+        "organization": "Acme",
+        "person_name": None,
+        "title": None,
+        "category": "general_contractor",
+        "organization_relationship": "DIRECT",
+        "reason": "Current source supports the company.",
+        "public_contacts": [],
+        "reported_contacts": [{"kind": "phone", "value": "512-555-0100"}],
+        "evidence": [
+            {
+                "id": UUID("00000000-0000-0000-0000-000000000043"),
+                "current_support": True,
+                "supports": "project_organization",
+                "quote": "Acme is the project contractor.",
+            }
+        ],
+        "stale": False,
+    }
+    overlay_corrections(None, row.project_id, [candidate], False, decisions=[row])
+    assert candidate["reported_contacts"] == [
+        {
+            "kind": "phone",
+            "value": "512-555-0199",
+            "source_url": "",
+            "quote": "",
+            "operator_report": True,
+        }
+    ]
+    assert contact_projection({"candidates": [candidate]})[0].methods == []
+
 
 def test_corrected_company_hides_old_identity_until_reviewed_rebind_and_keeps_rebind(db):
     with db.begin() as session:
@@ -1339,6 +1419,15 @@ def test_corrected_company_hides_old_identity_until_reviewed_rebind_and_keeps_re
         changed = buying_chain_view(session, project.id)["candidates"][0]
         assert changed["organization"] == "Beta"
         assert "company_identity_id" not in changed
+        old_link = session.scalar(
+            select(BuyingChainIdentityLink).where(
+                BuyingChainIdentityLink.claim_id == claim.id,
+                BuyingChainIdentityLink.entity_type == "company",
+                BuyingChainIdentityLink.company_identity_id == old_identity.id,
+            )
+        )
+        assert old_link.state == "superseded"
+        assert old_link.superseded_at is not None
 
         rebound = correct_buying_chain_claim(
             session,
