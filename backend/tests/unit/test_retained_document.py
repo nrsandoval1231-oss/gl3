@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import hashlib
-import sys
+import importlib.util
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -15,9 +15,12 @@ from gridlens.domain.signal_admission import (
 from gridlens.ingestion.adapters import retained_document
 from gridlens.ingestion.adapters.retained_document import SOURCES, extract
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-
-from scripts.import_retained_document import assert_isolated_database
+IMPORT_SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "import_retained_document.py"
+IMPORT_SPEC = importlib.util.spec_from_file_location("retained_document_unit_cli", IMPORT_SCRIPT)
+assert IMPORT_SPEC is not None and IMPORT_SPEC.loader is not None
+import_retained_document = importlib.util.module_from_spec(IMPORT_SPEC)
+IMPORT_SPEC.loader.exec_module(import_retained_document)
+assert_isolated_database = import_retained_document.assert_isolated_database
 
 
 @pytest.mark.parametrize("source_id", sorted(SOURCES))

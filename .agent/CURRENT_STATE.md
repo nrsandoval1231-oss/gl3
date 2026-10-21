@@ -15,3 +15,5 @@ Read the current candidate-bound disposition in ignored `F17-COMPLETION.json` un
 No merge, deployment, production write, source scheduling or paid-model activation is authorized. Live-provider acceptance/cost and production latency remain UNKNOWN/BLOCKED. Milestone A and parent launch Finish Contract remain open.
 
 The first F17 freeze a482299 stopped at dependency audit for pypdf 6.20.1 (CVE-2026-113786). Failed local/CI receipts and its isolated gate database remain preserved. R2 pins patched 6.21.1 and requires a replacement freeze, original-document checks and fresh gates; no audit waiver or unrelated upgrade.
+
+Replacement b4ecb04 passed audit/static/schema but stopped at canonical pytest collection: focused custom Python paths had masked the command-module import. R3 changes only the two test loaders to explicit file imports, then requires canonical collection and a fresh full gate. Its failed receipt/database remain preserved.

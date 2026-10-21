@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import hashlib
+import importlib.util
 import json
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from uuid import uuid4
 
 import pytest
@@ -35,7 +37,12 @@ from gridlens.persistence.models import (
     Source,
 )
 from gridlens.settings import settings
-from scripts import import_retained_document
+
+IMPORT_SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "import_retained_document.py"
+IMPORT_SPEC = importlib.util.spec_from_file_location("retained_document_import_cli", IMPORT_SCRIPT)
+assert IMPORT_SPEC is not None and IMPORT_SPEC.loader is not None
+import_retained_document = importlib.util.module_from_spec(IMPORT_SPEC)
+IMPORT_SPEC.loader.exec_module(import_retained_document)
 
 
 @pytest.fixture
