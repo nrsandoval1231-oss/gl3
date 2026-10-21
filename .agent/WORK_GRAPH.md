@@ -6,7 +6,7 @@ Authority: [APPROVED-UI packet](packets/APPROVED-UI.md). Prior graph bytes remai
 |---|---|---|---|---|
 | UI1 screenshot reproduction | IMPLEMENTED | PR102 base5ef5f3f | Luna, bounded Terra recovery | Source manifest and completion receipts |
 | UI2 runtime/comparison/gates | VALIDATED locally | UI1 | Controller | docs/validation/approved-workspace/CANDIDATE.md |
-| UI3 exact-candidate independent review | RE-REVIEW NEXT | Corrected UI2 frozen commit | Independent Sol | Prior05789b3 FIX preserved; record/citation correction revalidated |
+| UI3 exact-candidate independent review | FINAL COPY RE-REVIEW NEXT | Final UI2 frozen commit | Independent Sol | Prior05789b3 FIX and9c03a52 bounded PASS/copy finding preserved; all corrections revalidated |
 | UI4 focused stacked draft PR | WAITING on UI3 | UI3 | Controller | Delivery receipt binds pushed SHA, PR and CI separately |
 | ASSET1 licensed Diatype / official master | EXTERNAL DEPENDENCY | Owner assets | Owner | Images available; font binaries absent |
 

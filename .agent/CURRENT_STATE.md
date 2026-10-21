@@ -8,7 +8,9 @@ UI1 is implemented, including measured primary geometry, real API selection, ver
 
 UI3 review of05789b3 returned FIX for a combined record/citation count. A fresh bounded Luna correction under packets/APPROVED-UI-COUNT-REPAIR.md separates those counts, explains possible overlap and preserves filtering/drill-down. Controller repeated all final gates, the real persisted case, both capture matrices, keyboard and performance on corrected source. The prior raw verdict is preserved under ignored review-05789b3.
 
-Next direction VALIDATE: freeze corrected source/evidence, then independent Sol re-review under packets/APPROVED-UI-REVIEW.md. The ignored exact-commit REVIEW.json/REVIEW.md and delivery receipt record the subsequent review/PR transition without changing the audited source. A focused stacked draft PR is authorized; merge/deploy are not.
+Sol's bounded PASS on9c03a52 resolved the count issue but retained a minor singular/plural caption finding. A narrow copy correction now uses stable count-label syntax; controller repeated all gates/runtime proof. That prior report is preserved under ignored review-9c03a52.
+
+Next direction VALIDATE: freeze final copy/evidence, then focused independent Sol exact-commit review under packets/APPROVED-UI-REVIEW.md. Ignored REVIEW.json/REVIEW.md and the delivery receipt record subsequent review/PR transitions without changing audited source. A focused stacked draft PR is authorized; merge/deploy are not.
 
 ASSET1 remains open: licensed ABC Diatype binaries and official wordmark master are absent. Owner images are available but contain no installable fonts. Existing SVG wordmark is an approximation; no exact brand parity or finished release claim is made. PR102 retained/live-provider gates and parent cloud/launch gates remain open.
 

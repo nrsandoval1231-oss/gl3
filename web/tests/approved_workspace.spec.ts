@@ -64,7 +64,7 @@ test('approved intelligence dashboard preserves evidence, verified actions, sele
   await page.getByRole('button', { name: 'Research Gaps' }).click()
   await expect(page.getByText(/Buying authority: not evaluated in this summary/)).toBeVisible()
   await page.getByRole('button', { name: 'Evidence', exact: true }).click()
-  await expect(page.locator('.wh-evidence-heading')).toContainText('1 retained records · 1 intelligence-card citations')
+  await expect(page.locator('.wh-evidence-heading')).toContainText('Retained records: 1 · Intelligence citations: 1.')
   await expect(page.locator('.wh-evidence-heading')).toContainText('Citations may refer to records listed here.')
   const sourceFilter = page.getByRole('combobox', { name: 'Filter evidence sources' })
   await expect(sourceFilter.locator('option')).toHaveText(['All sources', 'City permits', 'evidence:approved-fixture'])
