@@ -1,6 +1,7 @@
 from collections import Counter
 from datetime import UTC, date, datetime, timedelta
 from importlib import import_module
+from uuid import UUID
 
 import pytest
 from fastapi.testclient import TestClient
@@ -14,11 +15,18 @@ from gridlens.intelligence.buying_chain import (
     buying_chain_views,
     enrich_buying_chain,
 )
+from gridlens.intelligence.identity_reconciliation import (
+    current_claim_identity_links,
+    link_claim_to_identity,
+    reconcile_claim_identity,
+)
 from gridlens.persistence.database import Base
 from gridlens.persistence.models import (
     BuyingChainClaim,
     BuyingChainEvidence,
+    BuyingChainIdentityLink,
     BuyingChainRun,
+    CompanyIdentity,
     Evidence,
     Interpretation,
     NeedObservation,
@@ -61,13 +69,13 @@ def db():
     engine.dispose()
 
 
-def seed(session):
+def seed(session, external_id="42", identity_key="orion", name="Orion Data Center"):
     observation = Observation(
         source_id="test",
-        external_id="42",
-        title="Orion Data Center",
+        external_id=external_id,
+        title=name,
         url=URL,
-        abstract="Orion Data Center in Austin, TX.",
+        abstract=f"{name} in Austin, TX.",
         published_at=date(2026, 9, 20),
         content_hash="a",
     )
@@ -98,10 +106,10 @@ def seed(session):
     )
     project = Project(
         source_id="test",
-        external_id="42",
-        name="Orion Data Center",
+        external_id=external_id,
+        name=name,
         location="Austin, TX",
-        identity_key="orion",
+        identity_key=identity_key,
         identity_facts={},
     )
     session.add(project)
@@ -140,8 +148,318 @@ def test_replay_is_idempotent_and_never_changes_tier(db):
         before = counts(session)
         second = enrich_buying_chain(session, p.id, fetcher=fetch, now=NOW + timedelta(minutes=2))
         assert first["candidates"][0]["id"] == second["candidates"][0]["id"]
+        assert first["candidates"][0]["company_identity_id"]
+        assert (
+            first["candidates"][0]["company_identity_id"]
+            == second["candidates"][0]["company_identity_id"]
+        )
         assert counts(session) == before
         assert session.scalar(select(PowerNeed.tier)) == "Signal"
+
+
+def test_global_company_identity_requires_current_cited_strong_identifier_and_keeps_claims(db):
+    with db.begin() as session:
+        project_a = seed(session)
+        view = enrich_buying_chain(
+            session,
+            project_a.id,
+            fetcher=lambda url: source(
+                "Acme is the general contractor for Orion Data Center in Austin, TX."
+            ),
+            now=NOW,
+        )
+        claim_a = session.get(BuyingChainClaim, view["candidates"][0]["id"])
+        evidence_a_id = next(
+            UUID(citation["evidence_id"])
+            for citation in claim_a.citations
+            if citation["supports"] == "project_organization"
+        )
+        evidence_a = session.get(BuyingChainEvidence, evidence_a_id)
+        evidence_a.excerpt += (
+            " Sam Lee is engineer at Acme; professional license: LIC-111."
+            " Sam Lee is engineer at Beta; professional license: LIC-222."
+        )
+        identity_a = BuyingChainEvidence(
+            project_id=project_a.id,
+            url="https://registry.example/acme",
+            title="Acme legal entity record",
+            excerpt="Legal entity identifier: 549300EXAMPLE.",
+            content_hash="a" * 64,
+            extraction_location="legal entity identifier field",
+            published_at=date(2026, 9, 20),
+            observed_at=NOW,
+            last_seen_at=NOW,
+            project_match_reason="Exact legal entity record linked for the project claim",
+        )
+        session.add(identity_a)
+        session.flush()
+        claim_a.citations.append(
+            {
+                "evidence_id": str(identity_a.id),
+                "supports": "project_organization",
+                "url": identity_a.url,
+                "quote": identity_a.excerpt,
+            }
+        )
+        claim_a.person_name = "Sam Lee"
+        claim_a.title = "Project Engineer"
+        claim_a.person_organization_relationship = "DIRECT"
+        claim_a.person_project_relationship = "UNKNOWN"
+        claim_a.citations.extend(
+            [
+                {
+                    "evidence_id": str(evidence_a_id),
+                    "supports": "organization_person_role",
+                    "url": URL,
+                    "quote": "Sam Lee is engineer at Acme; professional license: LIC-111.",
+                },
+                {
+                    "evidence_id": str(evidence_a_id),
+                    "supports": "organization_person_role",
+                    "url": URL,
+                    "quote": "Sam Lee is engineer at Beta; professional license: LIC-222.",
+                },
+            ]
+        )
+        project_b = seed(session, "43", "orion-other")
+        evidence_b = BuyingChainEvidence(
+            project_id=project_b.id,
+            retained_evidence_id=evidence_a.retained_evidence_id,
+            url=evidence_a.url,
+            title=evidence_a.title,
+            excerpt=evidence_a.excerpt,
+            content_hash=evidence_a.content_hash,
+            extraction_location=evidence_a.extraction_location,
+            published_at=evidence_a.published_at,
+            observed_at=evidence_a.observed_at,
+            last_seen_at=evidence_a.last_seen_at,
+            project_match_reason="Independent project-specific retained claim fixture",
+        )
+        identity_b = BuyingChainEvidence(
+            project_id=project_b.id,
+            url=identity_a.url,
+            title=identity_a.title,
+            excerpt=identity_a.excerpt,
+            content_hash=identity_a.content_hash,
+            extraction_location=identity_a.extraction_location,
+            published_at=identity_a.published_at,
+            observed_at=identity_a.observed_at,
+            last_seen_at=identity_a.last_seen_at,
+            project_match_reason="Independent project-specific registry citation",
+        )
+        session.add(evidence_b)
+        session.add(identity_b)
+        session.flush()
+        claim_b = BuyingChainClaim(
+            project_id=project_b.id,
+            entity_key=claim_a.entity_key,
+            fingerprint=claim_a.fingerprint,
+            policy_version=claim_a.policy_version,
+            organization=claim_a.organization,
+            person_name=claim_a.person_name,
+            title=claim_a.title,
+            category=claim_a.category,
+            organization_relationship=claim_a.organization_relationship,
+            person_organization_relationship=claim_a.person_organization_relationship,
+            person_project_relationship=claim_a.person_project_relationship,
+            evidence_strength=claim_a.evidence_strength,
+            reason=claim_a.reason,
+            citations=[
+                {
+                    **citation,
+                    "evidence_id": str(
+                        evidence_b.id
+                        if citation["evidence_id"] == str(evidence_a.id)
+                        else identity_b.id
+                    ),
+                    "url": evidence_b.url
+                    if citation["evidence_id"] == str(evidence_a.id)
+                    else identity_b.url,
+                }
+                for citation in claim_a.citations
+            ],
+            public_contacts=claim_a.public_contacts,
+            observed_at=claim_a.observed_at,
+            verified_at=claim_a.verified_at,
+        )
+        claim_b.organization = "Beta"
+        claim_b.title = "Electrical Lead"
+        session.add(claim_b)
+        session.flush()
+        run_a = session.scalar(
+            select(BuyingChainRun).where(BuyingChainRun.project_id == project_a.id)
+        )
+        session.add(
+            BuyingChainRun(
+                project_id=project_b.id,
+                input_hash=run_a.input_hash,
+                evidence_ids=[str(evidence_b.id), str(identity_b.id)],
+                claim_ids=[str(claim_b.id)],
+                policy_version=run_a.policy_version,
+                status=run_a.status,
+                documents_checked=run_a.documents_checked,
+                candidates_added=1,
+                unresolved=[],
+            )
+        )
+        claims = [claim_a, claim_b]
+        cited = [evidence_a_id, evidence_b.id]
+        identity_sources = [identity_a.id, identity_b.id]
+
+        first = reconcile_claim_identity(
+            session,
+            claims[0].id,
+            "company",
+            "lei",
+            "549300EXAMPLE",
+            identity_sources[0],
+            "Official registry identifier in cited source",
+        )
+        replay = reconcile_claim_identity(
+            session,
+            claims[0].id,
+            "company",
+            "lei",
+            "549300EXAMPLE",
+            identity_sources[0],
+            "Official registry identifier in cited source",
+        )
+        second = reconcile_claim_identity(
+            session,
+            claims[1].id,
+            "company",
+            "lei",
+            "549300EXAMPLE",
+            identity_sources[1],
+            "Official registry identifier in cited source",
+        )
+        assert first.id == replay.id
+        assert first.company_identity_id == second.company_identity_id
+        assert session.scalar(select(func.count()).select_from(BuyingChainClaim)) == 2
+        assert session.scalar(select(func.count()).select_from(CompanyIdentity)) == 2
+        person_a = reconcile_claim_identity(
+            session,
+            claims[0].id,
+            "person",
+            "professional_license",
+            "LIC-111",
+            cited[0],
+            "Official professional license in cited passage",
+        )
+        person_b = reconcile_claim_identity(
+            session,
+            claims[1].id,
+            "person",
+            "professional_license",
+            "LIC-222",
+            cited[1],
+            "Official professional license in cited passage",
+        )
+        assert claims[0].person_name == claims[1].person_name == "Sam Lee"
+        assert person_a.person_identity_id != person_b.person_identity_id
+        claims[0].title = "Project Director"
+        same_person = reconcile_claim_identity(
+            session,
+            claims[0].id,
+            "person",
+            "professional_license",
+            "LIC-111",
+            cited[0],
+            "Same official license after role update",
+        )
+        assert same_person.person_identity_id == person_a.person_identity_id
+        assert claims[0].person_project_relationship == "UNKNOWN"
+        with pytest.raises(ValueError, match="strong identifier"):
+            reconcile_claim_identity(
+                session,
+                claims[1].id,
+                "company",
+                "name",
+                "Acme",
+                identity_sources[1],
+                "Same name",
+            )
+        with pytest.raises(ValueError, match="must appear in the cited source passage"):
+            reconcile_claim_identity(
+                session,
+                claims[1].id,
+                "company",
+                "lei",
+                "UNSUPPORTED-LEI",
+                identity_sources[1],
+                "Uncited identifier",
+            )
+
+        separate = CompanyIdentity()
+        session.add(separate)
+        session.flush()
+        corrected = link_claim_to_identity(
+            session,
+            claims[0],
+            "company",
+            separate.id,
+            session.get(BuyingChainEvidence, identity_sources[0]),
+            "Operator corrected prior link",
+            reviewed_by="operator:nick",
+        )
+        history = session.scalars(
+            select(BuyingChainIdentityLink).where(
+                BuyingChainIdentityLink.claim_id == claims[0].id,
+                BuyingChainIdentityLink.entity_type == "company",
+            )
+        ).all()
+        assert corrected.state == "current"
+        assert sorted(link.state for link in history) == [
+            "current",
+            "superseded",
+            "superseded",
+        ]
+        assert {link.source_evidence_id for link in history} == {
+            cited[0],
+            identity_sources[0],
+        }
+        visible = current_claim_identity_links(session, {claims[0].id})
+        assert visible[claims[0].id]["company_identity_id"] == str(separate.id)
+
+        replacement = BuyingChainEvidence(
+            project_id=project_a.id,
+            url=identity_a.url,
+            title=identity_a.title,
+            excerpt="Legal entity identifier: 549300EXAMPLE. Registry record refreshed.",
+            content_hash="b" * 64,
+            extraction_location="replacement version",
+            published_at=date(2026, 10, 1),
+            observed_at=NOW + timedelta(days=1),
+            last_seen_at=NOW + timedelta(days=1),
+            project_match_reason="New source version",
+        )
+        session.add(replacement)
+        session.flush()
+        session.add(
+            BuyingChainRun(
+                project_id=project_a.id,
+                input_hash="c" * 64,
+                evidence_ids=[str(evidence_a.id), str(replacement.id)],
+                claim_ids=[str(claims[0].id)],
+                policy_version="identity-test",
+                status="complete",
+                documents_checked=1,
+                candidates_added=0,
+                unresolved=[],
+                created_at=NOW + timedelta(days=1),
+            )
+        )
+        assert current_claim_identity_links(session, {claims[0].id})[claims[0].id] == {
+            "person_identity_id": str(person_a.person_identity_id)
+        }
+        candidate = next(
+            item
+            for item in buying_chain_view(session, project_a.id)["candidates"]
+            if item["id"] == claims[0].id
+        )
+        assert not candidate["stale"]
+        assert "company_identity_id" not in candidate
+        assert candidate["person_identity_id"] == str(person_a.person_identity_id)
 
 
 def test_batched_buying_chain_view_matches_single_project_projection(db):

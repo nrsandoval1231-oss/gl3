@@ -59,6 +59,7 @@ from gridlens.persistence.database import SessionLocal
 from gridlens.persistence.models import (
     BuyingChainClaim,
     BuyingChainEvidence,
+    BuyingChainIdentityLink,
     BuyingChainRun,
     Evidence,
     Interpretation,
@@ -1570,6 +1571,10 @@ def enrich_buying_chain(
             )
         )
     session.flush()
+    from gridlens.intelligence.identity_reconciliation import ensure_project_scoped_identity_links
+
+    ensure_project_scoped_identity_links(session, current_claim_ids)
+    session.flush()
     retained_after = _retained(session, project)
     if retained_after:
         from gridlens.intelligence.change_detection import record_material_diff
@@ -1805,11 +1810,15 @@ def buying_chain_views(
                 )
             )
 
-    return {
-        str(project_id): buying_chain_view(session, project_id, now=now, preload=preload)
+    views = {
+        str(project_id): buying_chain_view(
+            session, project_id, now=now, preload=preload, include_identity_ids=False
+        )
         for project_id in project_ids
         if project_id in projects
     }
+    _attach_identity_ids(session, list(views.values()))
+    return views
 
 
 def buying_chain_view(
@@ -1819,6 +1828,7 @@ def buying_chain_view(
     now: datetime | None = None,
     history: bool = False,
     preload: BuyingChainViewPreload | None = None,
+    include_identity_ids: bool = True,
 ) -> dict:
     now = now or evaluation_now(datetime.now(UTC))
     project = session.get(Project, project_id)
@@ -1956,6 +1966,7 @@ def buying_chain_view(
                     "published_at": row.published_at,
                     "observed_at": row.observed_at,
                     "content_hash": row.content_hash,
+                    "current_source_version_id": newest_by_url[row.url],
                     "current_support": not source_superseded and not role_aged,
                 }
             )
@@ -2109,7 +2120,7 @@ def buying_chain_view(
     )
     if any(item["stale"] for item in candidates):
         unresolved.append("Some evidence is stale or superseded; verify current responsibility.")
-    return {
+    result = {
         "project_id": project_id,
         "status": active_run.status if active_run else "not_researched",
         "candidates": candidates if history else candidates[:MAX_CANDIDATES],
@@ -2128,6 +2139,46 @@ def buying_chain_view(
         "permit_summaries": _permit_summaries(session, project_id, preload=preload),
         "policy_version": POLICY_VERSION,
     }
+    if not history and include_identity_ids:
+        _attach_identity_ids(session, [result])
+    return result
+
+
+def _attach_identity_ids(session: Session, views: list[dict]) -> None:
+    """Attach current claim IDs with one batched link read and no contact aggregation."""
+    candidates = [
+        candidate for view in views for candidate in view["candidates"] if not candidate["stale"]
+    ]
+    claim_ids = {candidate["id"] for candidate in candidates}
+    if not claim_ids:
+        return
+    by_claim = {candidate["id"]: candidate for candidate in candidates}
+    links = session.scalars(
+        select(BuyingChainIdentityLink)
+        .where(
+            BuyingChainIdentityLink.claim_id.in_(claim_ids),
+            BuyingChainIdentityLink.state == "current",
+        )
+        .order_by(BuyingChainIdentityLink.created_at.desc(), BuyingChainIdentityLink.id.desc())
+    ).all()
+    seen: set[tuple[UUID, str]] = set()
+    for link in links:
+        key = (link.claim_id, link.entity_type)
+        if key in seen:
+            continue
+        candidate = by_claim[link.claim_id]
+        if not any(
+            str(item["id"]) == str(link.source_evidence_id)
+            and str(item.get("current_source_version_id")) == str(link.source_evidence_id)
+            and item.get("content_hash") == link.source_version_hash
+            and item.get("current_support")
+            for item in candidate["evidence"]
+        ):
+            continue
+        candidate[f"{link.entity_type}_identity_id"] = str(
+            link.company_identity_id if link.entity_type == "company" else link.person_identity_id
+        )
+        seen.add(key)
 
 
 def _permit_summaries(

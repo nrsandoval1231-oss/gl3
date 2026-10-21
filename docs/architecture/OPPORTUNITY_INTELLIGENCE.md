@@ -12,6 +12,8 @@ Current direct owner/operator claims identify the customer. Contractors remain b
 
 ## Reads and persistence
 
+`CompanyIdentity` and `PersonIdentity` provide stable IDs while `BuyingChainClaim` remains the project-scoped source of names, roles, contacts and citations. Current supported claims receive unique project-scoped IDs without a name-based cross-project merge; person IDs require a current cited role or assignment. `IdentityIdentifier` records strong legal/company or official person identifiers with the exact buying-chain evidence version and reason. `BuyingChainIdentityLink` binds one claim to one identity with its own source version and reason; link corrections supersede the prior link and retain its history. Cross-project reconciliation requires the identifier literal in a relevant citation that remains current in `buying_chain_view`. Direct corrections require an attributed reviewer. Names, employer, and contact strings cannot create a cross-project link. Current buying-chain projections expose the IDs through one batched read, without merging contacts across projects. Identity does not grant project responsibility or purchasing authority.
+
 - Existing authenticated `GET /api/opportunities/needs/{id}` includes `intelligence_card`.
 - Authenticated `GET /api/opportunity-intelligence?need_ids=...` accepts 1–20 UUIDs and returns one aggregate per current eligible need. Inactive/missing needs are omitted; this is not a historical endpoint.
 - Reads reuse canonical projection and bulk buying-chain retrieval, bulk project identity lookup and a ranked latest-30-question window per need. Existing evidence preflight and complete response byte bounds apply after expansion.
@@ -37,7 +39,7 @@ Only the current qualified canonical gap enters the normalized aggregate. Both s
 
 The gap retains its existing scoped start/duration, qualification version and source/fact identifiers. Conflicts suppress a single accepted value. Current source-reported activity load can populate a descriptive field but cannot establish temporary-generation demand or promote qualification. Facility demand never substitutes for scoped power demand; unknown supply never becomes zero.
 
-This is interval-scoped normalization of the existing calculation, not a new phased demand/supply schedule solver. Facility total demand, fuel, voltage and load-profile completion, richer procurement/milestone synthesis, structured person/contact corrections and globally reconciled company identities still need implementation and acceptance. They must not be represented as shipped capability.
+This is interval-scoped normalization of the existing calculation, not a new phased demand/supply schedule solver. Facility total demand, fuel, voltage and load-profile completion, richer procurement/milestone synthesis, and structured person/contact corrections still need implementation and acceptance. Identity persistence is now present, while broad identity evaluation and any card-level identity aggregation remain outside this bounded slice.
 
 ## Interface
 
