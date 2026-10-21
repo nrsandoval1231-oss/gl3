@@ -154,7 +154,54 @@ def _source_link_provenance(record: dict[str, Any], source_id: str) -> dict[str,
         for label, value in raw_links.items():
             if isinstance(label, str) and label and isinstance(value, str) and value:
                 links[label] = [value]
-    return {"raw_source_links": links} if links else {}
+    provenance: dict[str, Any] = {"raw_source_links": links} if links else {}
+    retained = record.get("retained_document")
+    if isinstance(retained, dict):
+        provenance["retained_document"] = retained
+    return provenance
+
+
+def _interpret_retained_document(source_id: str, record: dict[str, Any]) -> dict[str, str] | None:
+    """Interpret only exact F17 source IDs and reviewed physical-site cues."""
+    from gridlens.ingestion.adapters.retained_document import SOURCES
+
+    policy = SOURCES.get(source_id)
+    retained = record.get("retained_document")
+    if not policy or not isinstance(retained, dict):
+        return None
+    if (
+        retained.get("sha256") != policy["sha256"]
+        or retained.get("source_site") != policy["location"]
+        or not retained.get("project_name")
+    ):
+        return None
+    name = str(retained["project_name"])
+    if name.casefold() not in f"{record.get('title', '')} {record.get('abstract', '')}".casefold():
+        return None
+    rationale = {
+        "stack_claim": (
+            "STACK's June 24, 2024 claim reports a later 18 MVA cap through at least 2028, "
+            "contrasting it with the earlier 28 MVA in 2026 and 31 MVA by 2027 schedule. "
+            "These are attributed claims, not an adjudicated finding; MVA is not converted to MW."
+        ),
+        "stack_cec": (
+            "STACK's February 2025 CEC filing reports underservice at Memorex Junction and "
+            "includes a September 2021 draft agreement. The party submission is not a CEC finding."
+        ),
+        "crusoe_bridge": (
+            "Crusoe reports natural-gas turbines providing temporary bridge power at its "
+            "Abilene Stargate campus while grid upgrades catch up. This is reported in-use "
+            "configuration, not an open purchase; exact bridge and grid-ready dates are unknown."
+        ),
+    }.get(policy["rationale_kind"])
+    if not rationale:
+        return None
+    return {
+        "name": name,
+        "activity_key": policy["activity"],
+        "rationale": rationale,
+        "location": policy["location"],
+    }
 
 
 def _merge_source_link_provenance(
@@ -2898,7 +2945,9 @@ def process_records(
         try:
             permit_assessment = assess_permit(record) if is_permit_source else None
             interpreted = (
-                {
+                _interpret_retained_document(source.id, record)
+                if source_definition.get("retrieval_method") == "retained-document"
+                else {
                     "name": permit_assessment["subject"],
                     "activity_key": permit_assessment["power_activity"],
                     "rationale": permit_assessment["reason"],
@@ -3815,6 +3864,7 @@ def process_records(
             )
             material_change = False
             reopened = need is not None and not need.active
+            retained_document = source.retrieval_method == "retained-document"
             if need is None:
                 need = PowerNeed(
                     project_id=project.id,
@@ -3827,11 +3877,18 @@ def process_records(
                 session.flush()
                 counts["signals"] += 1
                 material_change = True
-            elif not need.active or need.rationale != rationale or not same_version:
+            elif (
+                not need.active
+                or not same_version
+                or (need.rationale != rationale and not retained_document)
+            ):
                 material_change = True
                 need.active = True
-                need.rationale = rationale
-            need.admission_basis = admission.as_basis(source.id, evidence_digest)
+                if not retained_document:
+                    need.rationale = rationale
+            incoming_basis = admission.as_basis(source.id, evidence_digest)
+            if source.retrieval_method != "retained-document":
+                need.admission_basis = incoming_basis
             if (
                 session.scalar(
                     select(NeedObservation.id).where(
@@ -3842,6 +3899,23 @@ def process_records(
                 is None
             ):
                 session.add(NeedObservation(need_id=need.id, observation_id=observation.id))
+            if retained_document:
+                # A second retained document can add support to the same
+                # physical need. Preserve its already-current admission basis
+                # so additive evidence does not churn the need on replay.
+                # Invalid or stale bases are repaired from accepted support.
+                session.flush()
+                basis_matches_incoming = need.admission_basis == incoming_basis
+                preserve_current_retained_basis = (
+                    not basis_matches_incoming
+                    and _need_admission_basis_is_current(session, need, project)
+                    and not reopened
+                )
+                if not preserve_current_retained_basis and not basis_matches_incoming:
+                    need.admission_basis = incoming_basis
+                    if need.rationale != rationale:
+                        material_change = True
+                        need.rationale = rationale
             if material_change:
                 event_kind = change_kind
                 if same_version and prior_interpretation_status in {"accepted", "rejected"}:

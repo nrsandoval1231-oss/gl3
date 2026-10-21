@@ -1,6 +1,6 @@
 {
-  "reviewer": "Independent source-label review by Sol, 2026-10-21; independent shared-company source review",
-  "label_scope": "Literal retained Evidence abstracts in retained-candidates.json, checked without consulting intelligence-card output. Null means this source set does not establish the field; it is not proof the fact is unavailable publicly.",
+  "reviewer": "Independent source-label review by Sol, 2026-10-21; independent shared-company source review; F17 original-document source labels independently reviewed by Sol before new card projection",
+  "label_scope": "Literal retained Evidence abstracts in retained-candidates.json, checked without consulting intelligence-card output. Null means this source set does not establish the field; it is not proof the fact is unavailable publicly. F17 adds two distinct physical sites from original public documents; category scope, attribution and unknowns are recorded separately from projection output.",
   "cases": [
     {
       "need_id": "2a133586-db46-46ef-8343-a658ca8004ab",
@@ -79,7 +79,7 @@
       ],
       "expected_fields": {
         "customer": "TA Ellenwood LLC",
-        "project": "TADG \u2013 ATL02",
+        "project": "TADG – ATL02",
         "location": "Ellenwood, Georgia",
         "required_mw": null,
         "gap": null
@@ -312,6 +312,112 @@
         "content_hash": "51e2e85fbe3c0ee0b8a5a633b0f274b96282b89f3372b2fa3c63abaf76ebddc0",
         "source_url": "https://mft.rrc.texas.gov/link/5f07cc72-2e79-4df8-ade1-9aeb792e03fc"
       }
+    },
+    {
+      "need_id": "346eef98-3230-4ee2-a914-a0ea9919d9a8",
+      "f17_site_key": "stack_memorex_junction_1200_memorex_drive",
+      "categories": [
+        "data_center",
+        "unestablished_temporary_need",
+        "utility_constraint",
+        "conflicting_dates"
+      ],
+      "expected_fields": {
+        "customer": "1220 Santa Clara Propco, LLC",
+        "project": "SVY02A / Memorex Junction data center",
+        "location": "1200 Memorex Drive, Santa Clara, CA",
+        "facility_demand": null,
+        "required_mw": null,
+        "start": null,
+        "gap": null,
+        "energization": null
+      },
+      "source_label": {
+        "independent_label_review": "Sol original-document review before card projection, 2026-10-21",
+        "customer_role": "1220 Santa Clara Propco, LLC is named Customer in the attached draft agreement and claimant in the city-filed claim; STACK is owner/developer operator in the 2025 CEC letter. Neither is established as a buyer of temporary generation.",
+        "noncanonical_claims": "STACK's October 9, 2024 email (CEC PDF pp. 51-52) reports 48 MW IT plus 24 MW mechanical = 72 MW needed and a 90 MVA ultimate request; the February 2025 letter describes 90 MW design. These are different units/scope/vintages and cannot be silently reconciled into a current facility_demand or gap. The 2021 draft says 60 MW IT design and 90 MVA substation capacity, also different concepts.",
+        "category_basis": [
+          {
+            "category": "utility_constraint",
+            "source_supported": true,
+            "basis": "Claim pp. 15-16 reports only 4.5 MVA service in 2024 and a March 14, 2024 SVP notice limiting available capacity to 18 MVA until at least 2028. Attached draft agreement pp. 16-18 defines the site, utility, and system-improvement dependency. CEC filing pp. 4-5 reiterates current underservice in STACK's February 2025 letter. SVP's October 16, 2024 email on PDF p. 50 says additional load beyond executed agreements is under evaluation as projects progress, with completion scheduled around 2028. Label the precise statements by author/vintage, not as independently adjudicated service facts.",
+            "critical_excerpt": "SVP was now saying it would be capped at 18 MVA starting in 2025 until, at least, 2028 (claim PDF p. 16)",
+            "limits": "MVA is not MW; no power factor, actual present draw, available MW, temporary required MW, or qualified gap can be derived."
+          },
+          {
+            "category": "conflicting_dates",
+            "source_supported": true,
+            "same_milestone": "Availability of more than 18 MVA for this Memorex Junction service, particularly the reported 28 MVA 2026 and 31 MVA 2027 phases",
+            "earlier_vintage": "The claim pp. 15-16 describes the Substation Agreement schedule as 28 MVA in 2026 and 31 MVA in 2027. The separately retained CEC attachment Exhibit E, PDF p. 40, prints 28/31 MVA for 2026/2027 but is visibly marked Draft rev 0 dated September 30, 2021; do not certify it as the signed final agreement.",
+            "later_vintage": "The June 24, 2024 claimant says SVP informed it March 14, 2024 that capacity would stay at or below 18 MVA through at least 2028 (claim p. 16 and timeline p. 21). These vintages conflict for the same >18 MVA availability milestone; the later date is claimant-reported utility notice, not a retained direct March 14 notice or legal judgment.",
+            "critical_excerpt": "28 MVA in 2026 and 31 MVA by 2027 ... not provide more than 18 MVA until 2028 (claim pp. 15-16)",
+            "limits": "Preserve both dated reports and supersession/disagreement; do not merge unrelated receiving-station upgrade dates into one energization milestone or assert a breach."
+          }
+        ],
+        "provenance_record": "pr105-real-evidence.json"
+      },
+      "retained_sources": [
+        {
+          "source_id": "f17-stack-city-claim",
+          "observation_id": "a54c7ae1-b6f0-4a15-955e-b0e60fd1f205",
+          "evidence_id": "d53b9224-2c63-48cd-9e00-b46b22eacf65",
+          "content_hash": "ccc92aea483b84f9afe0436e2fb9d515cf2fe99a05e19a1f270a0c4fd53a6deb",
+          "url": "https://santaclara.legistar.com/View.ashx?GUID=41D90CA3-8232-4978-9508-DB1418113E87&ID=1349150&M=E2",
+          "extraction_location": "PDF pp. 14-18; PDF pp. 20-21"
+        },
+        {
+          "source_id": "f17-stack-cec-filing",
+          "observation_id": "d6e319d0-1dc0-4863-9ddc-2e10b1d00c66",
+          "evidence_id": "cc7dd0bf-38de-4e10-a85a-a587a5b8b736",
+          "content_hash": "33d0ed5f40f21fbcd74502a4c92d8c0373ac73c417e8b3046a7deba965806340",
+          "url": "https://efiling.energy.ca.gov/GetDocument.aspx?tn=261716",
+          "extraction_location": "PDF pp. 1-6; PDF pp. 16-18; PDF pp. 40-40; PDF pp. 50-52"
+        }
+      ]
+    },
+    {
+      "need_id": "819be466-5c99-4b68-9dbc-bc72616eebd7",
+      "f17_site_key": "crusoe_abilene_stargate",
+      "categories": [
+        "data_center",
+        "unestablished_temporary_need",
+        "bridge_power"
+      ],
+      "expected_fields": {
+        "customer": "Crusoe",
+        "project": "Abilene Stargate campus",
+        "location": "near Abilene, Texas",
+        "facility_demand": null,
+        "required_mw": null,
+        "start": null,
+        "gap": null,
+        "energization": null
+      },
+      "source_label": {
+        "independent_label_review": "Sol original-document review before card projection, 2026-10-21",
+        "customer_role": "Crusoe is report publisher, campus developer/operator; no identified buyer of incremental temporary generation or procurement event.",
+        "noncanonical_claims": "Report printed p. 15's 1.2 GW total campus capacity and 206 MW commissioned/in operation are project-scale/status figures, not facility demand or temporary required MW. Historical first-phase May 2025 operations is not a bridge-power start date.",
+        "category_basis": [
+          {
+            "category": "bridge_power",
+            "source_supported": true,
+            "basis": "Crusoe report printed p. 19 says generation supports campuses while grid upgrades catch up and specifically says its Abilene Stargate campus uses natural-gas turbines to provide temporary bridge power. Printed p. 15 identifies the named campus, first phase operational by May 2025, and full campus expected by end 2026. Publisher blog dates report release May 28, 2026. This establishes a real named-site historical/in-use bridge configuration, not an unmet future sale.",
+            "critical_excerpt": "we use natural gas turbines to provide temporary bridge power (report printed p. 19)",
+            "limits": "Report printed p. 16's 350 MW is on-site power capacity described as long-term backup; it is not stated temporary required MW, open gap, available utility shortfall, or current purchase need. The grid-upgrade catch-up window is qualitative; no dated bridge start/end or utility energization date is established. If evaluator requires a dated time window or open unmet need, bridge category is still BLOCKED."
+          }
+        ],
+        "provenance_record": "pr105-real-evidence.json"
+      },
+      "retained_sources": [
+        {
+          "source_id": "f17-crusoe-impact",
+          "observation_id": "5f7b358b-071d-42fe-8d49-4c9bc6a037fe",
+          "evidence_id": "a511309f-80e4-497f-bfcb-40bc68f18459",
+          "content_hash": "38ca3db4c94206be9e8b2ee1e3b5fa1239b00948c50b3ac0e102e6d7f1773619",
+          "url": "https://cdn.prod.website-files.com/6855c1aa175582ee23e0aa19/6aa975443d2a8405e214f067_Crusoe_2025_Impact%20Report2_web_optimized.pdf",
+          "extraction_location": "PDF pp. 2-2; PDF pp. 15-16; PDF pp. 19-19"
+        }
+      ]
     }
   ],
   "runtime_scope": "Local isolated restored retained corpus; original dump preserved; no provider calls or production mutation.",

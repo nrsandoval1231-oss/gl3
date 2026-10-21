@@ -10,6 +10,7 @@ from gridlens.domain.opportunity_intelligence import (
     contact_projection,
     normalize_gap,
 )
+from gridlens.ingestion.adapters.retained_document import SOURCES
 
 
 def item():
@@ -265,6 +266,65 @@ def test_generic_permit_name_is_not_presented_as_project_identity():
     fields = {field.key: field for field in card.fields}
     assert fields["project"].value is None
     assert fields["source_identifier"].value == "ETS1870328"
+
+
+def test_f17_compound_project_name_requires_exact_current_source_alias_and_site_quotes():
+    policy = SOURCES["f17-stack-cec-filing"]
+    record = item()
+    evidence = record["evidence"][0]
+    evidence.update(
+        source_id="f17-stack-cec-filing",
+        url=policy["url"],
+        title="SVY02A / Memorex Junction data center — retained filing",
+        content_hash=policy["sha256"],
+        retained_evidence_id=str(uuid4()),
+        assessment_current=True,
+        abstract=(
+            "The figures represented for SVY02A Memorex will be used in the Memorex Junction "
+            "Operational Study. STACK became owner of the data center project, a.k.a. "
+            "�Memorex Junction,� and heads the Development Team. The 1200 Memorex\nDrive "
+            "project is in the City of Santa Clara."
+        ),
+    )
+
+    def project_field(value):
+        card = assemble_card(value, {}, {"disposition": "WATCH"}, [], research_enabled=False)
+        return next(field for field in card.fields if field.key == "project")
+
+    project = project_field(record)
+    assert project.value == "SVY02A / Memorex Junction data center"
+    assert len(project.sources) == 3
+    assert all(source.passage in evidence["abstract"] for source in project.sources)
+    assert any("SVY02A Memorex" in source.passage for source in project.sources)
+    assert any("a.k.a." in source.passage for source in project.sources)
+
+    wrong_hash = deepcopy(record)
+    wrong_hash["evidence"][0]["content_hash"] = "wrong-version"
+    assert project_field(wrong_hash).value is None
+    title_only = deepcopy(record)
+    title_only["evidence"][0]["abstract"] = "Generic CEC filing without project aliases."
+    assert project_field(title_only).value is None
+    wrong_source = deepcopy(record)
+    wrong_source["evidence"][0]["source_id"] = "other-retained-source"
+    assert project_field(wrong_source).value is None
+
+
+def test_crusoe_project_name_remains_directly_source_native():
+    policy = SOURCES["f17-crusoe-impact"]
+    record = item()
+    record["supported_subject"] = "Abilene Stargate campus"
+    record["evidence"][0].update(
+        source_id="f17-crusoe-impact",
+        url=policy["url"],
+        content_hash=policy["sha256"],
+        retained_evidence_id=str(uuid4()),
+        assessment_current=True,
+        abstract="The Abilene Stargate campus is identified in the report.",
+    )
+    card = assemble_card(record, {}, {"disposition": "WATCH"}, [], research_enabled=False)
+    project = next(field for field in card.fields if field.key == "project")
+    assert project.value == "Abilene Stargate campus"
+    assert project.sources[0].passage == record["evidence"][0]["abstract"]
 
 
 @pytest.mark.parametrize(

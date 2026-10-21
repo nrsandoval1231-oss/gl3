@@ -1236,7 +1236,24 @@ def enrich_buying_chain(
     deadline = started + MAX_SECONDS
     unresolved: list[str] = []
     documents: list[tuple[PublicDocument, bool, str, UUID | None]] = []
+    from gridlens.ingestion.adapters.retained_document import SOURCES as F17_SOURCES
+
     for evidence in _retained(session, project, target_evidence_id=retained_target_evidence_id):
+        observation = session.get(Observation, evidence.observation_id)
+        structured: tuple[dict, ...] = ()
+        if observation and observation.source_id in F17_SOURCES:
+            retained = (evidence.provenance or {}).get("retained_document")
+            structured = (
+                {
+                    "f17_retained": {
+                        "source_id": observation.source_id,
+                        "evidence_content_hash": evidence.content_hash,
+                        "project_name": project.name,
+                        "project_location": project.location,
+                        "retained_document": retained,
+                    }
+                },
+            )
         documents.append(
             (
                 PublicDocument(
@@ -1246,6 +1263,7 @@ def enrich_buying_chain(
                     evidence.published_at,
                     evidence.observed_at,
                     evidence.extraction_location,
+                    structured=structured,
                     retained_version=evidence.content_hash,
                 ),
                 True,
@@ -1368,7 +1386,10 @@ def enrich_buying_chain(
     }
     organizations: list[Extracted] = []
     saved: dict[str, BuyingChainEvidence] = {}
+    from gridlens.ingestion.adapters.retained_document import SOURCES as F17_SOURCES
+
     for doc, matched, reason, retained_id in documents:
+        f17_source_id = None
         if matched:
             row = _store_document(
                 session,
@@ -1385,6 +1406,8 @@ def enrich_buying_chain(
                     session.get(Observation, original.observation_id) if original else None
                 )
                 if observation:
+                    if observation.source_id in F17_SOURCES:
+                        f17_source_id = observation.source_id
                     organizations.extend(
                         extract_retained_permit_organizations(doc, observation.source_id)
                     )
@@ -1393,12 +1416,20 @@ def enrich_buying_chain(
                 and "/ibi_apps/WFServlet.ibfs" in doc.url
             ):
                 organizations.extend(extract_retained_permit_organizations(doc, project.source_id))
-            organizations.extend(extract_organizations(doc, project))
+            if f17_source_id is None:
+                organizations.extend(extract_organizations(doc, project))
     people = [item for item in organizations if item.person_name is not None]
     organizations = _deduplicate([item for item in organizations if item.person_name is None])
     for doc, matched, reason, retained_id in documents:
-        results = extract_people(
-            doc, organizations, project, project_scoped=matched, today=now.date()
+        f17_retained = any(
+            isinstance(row, dict) and "f17_retained" in row for row in doc.structured
+        )
+        results = (
+            []
+            if f17_retained
+            else extract_people(
+                doc, organizations, project, project_scoped=matched, today=now.date()
+            )
         )
         if results:
             row = _store_document(

@@ -1,24 +1,18 @@
-# Work graph — PR102 follow-up integration
+# Work graph - PR105 follow-up
 
-Authority remains the owner request, PRD, Finish Contract, and approved UI canon. PR102 and PR103 were merged upstream; this branch is a follow-up integration candidate, not an update to either merged PR.
+Owner intent, canonical PRD, Finish Contract and approved UI govern this graph. PR102/103/104/106 are upstream history; this is PR105 on main b224bbbe. Prior frontier bytes and failures are preserved in ignored controller artifacts.
 
-This is the implementation frontier before final acceptance. Subsequent exact-candidate gate and review results live in PR105 and the frozen manifest/receipts; prior candidate results do not certify a changed candidate.
-
-| Node | Status | Evidence / next action |
+| Node | State at freeze | Evidence / dependency |
 |---|---|---|
-| F1–F5 implementation | Integrated | Exact retained read: 14 cases, 79/79 fields; see curated release manifest and prior controller receipts. |
-| PR103 approved UI preservation | Integrated | Main protected card, styles, tokens, navigation, and approved workspace behavior retained from `cf440a2`. |
-| F8 schedule/workspace integration | Focused validation passed | Browser 62/62, typecheck, and build passed; exact receipt is ignored `artifacts/PR102-FINISH/F8-COMPLETION.json`. |
-| F9 dependency audit repair | Integrated | Only pypdf 6.19.0 to 6.20.1; focused parser/audit proof retained. |
-| F11 independent-review repairs | Integrated | Typed identity-link response/replay and additive, fail-closed supply scenarios; prior ff05491 code review and full gates passed. |
-| F12 restored browse recovery | Validated on prior candidate | Retained-only derived rebuild restored queue200; source tables, snapshots, jobs, and calls unchanged. |
-| F13 diagnosis recovery | Corrected | Initial broad-scan explanation rejected before edits; actual legacy path measured at 161 SQL/about 2.4s. |
-| F14 unfiltered legacy detail | Focused validation passed | 6979fa4; 21 focused tests/static checks; identical 65-field payload at 37 SQL/about 60-67ms. Scoped paths preserved. |
-| F15 latest-main composition | Integrated; focused gates passed | Merge `ab3b707` has parents `022dace6` and `b224bbbe`. Workspace correction generation/readback guards and main mobile history focus guards are composed; 66 browser tests, typecheck/build/docs pass; protected UI and F14 blobs match pinned parents. |
-| Final frozen-candidate gates | READY / pending | Freeze the resulting implementation plus this handoff, then run mandatory full gates. Prior ff05491 results do not transfer. |
-| Persisted runtime/restart proof | Pending on final candidate | Repeat real authenticated queue/card/five-viewport/restart proof, exact payload and raw/snapshot/job/call comparisons. |
-| Independent review | Pending on final candidate | Sol reviews exact F14 integration plus final deterministic/runtime receipts; no parent completion while data gates remain blocked. |
-| Retained category acceptance | BLOCKED | Three required categories remain absent: utility constraint, conflicting dates, bridge power. |
-| Live provider and release | BLOCKED / UNKNOWN | Separate authorization, source permission, budget, and runtime proof remain required. |
+| Prior implementation F1-F16 | Integrated | 7af23c3 independent technical PASS; correction/history/identity/schedules, selected-detail optimization and approved-main UI composition retained. Prior gates do not transfer. |
+| F17 primary-source acquisition | Retained | Three exact official-publisher PDFs; two sites support the three missing categories. Public hashes/pages/dates/limits in pr105-real-evidence.json. |
+| F17 source labels | Independent PASS | Sol reviewed originals before projection. Original14 labels unchanged; two distinct new physical sites, no current unmet-demand inference. |
+| F17-B1 disabled manual intake | Implemented | Normal fenced canonical pipeline, hash-before-parse/write, bounded pages, atomic rollback and exact version/site admission. |
+| F17-B2 identity and citation projection | Implemented | Retained-only targeted enrichment; source-native roles/aliases, generic correspondent extraction bypass; actual-source layout and alias repairs preserve prior failures. |
+| F17-R1 replay integration | Development PASS | Strict admission-basis success wording aligned; valid basis/rationale preserved, stale/missing/reopened basis repaired. Six actual imports in both orders change only job receipts; all other checked complete table hashes remain identical. |
+| F17 copied-corpus acceptance | Development PASS | 16 cases/95 fields, all10 categories, zero unsupported populated nulls; three sources -> two needs; replay and16 snapshots stable. Original DB/dumps unchanged. |
+| F17 final gates | READY: VALIDATE | Freeze -> fresh full local gates + exact CI -> actual runtime/restart/citation/performance proof -> independent Sol review. Results bind only unchanged frozen SHA in PR105 and ignored receipts. |
+| PR105 controlled-release readiness | Depends on final gates | Mark ready only after independent acceptance; do not merge. |
+| Live activation / Milestone A / launch | Open, separate authority | Provider/cost/production latency UNKNOWN; canonical Finish Contract unchanged. |
 
-The strong-ID reconciliation helper is tested but not wired into ordinary enrichment. Production linking remains project-scoped; cross-project links require attributed review through the correction API. Migration order is `0035_reconciled_identity`, then `0036_buying_chain_corrections`. Do not widen scope or treat focused green checks as parent-goal completion.
+No parallel mutable frontier remains. One builder performed the dependent source path; controller serially imported and evaluated. B1 required layout/canonical-transaction proof; B2 used two materially distinct repairs (wrapped source cues, then composed alias citation). Sol returned to the Finish Contract and issued one bounded R1 integration repair for complete-row replay stability. Failed effects were inspected before retry. Original public bodies and baseline database remain preserved. Automatic cross-project reconciliation is not enabled. Migrations remain 0035 then 0036; no new schema or UI redesign.

@@ -240,6 +240,59 @@ def _source_project_name(
 ) -> tuple[str | None, list[IntelligenceSource]]:
     """Use a project name only when a current retained source names it directly."""
 
+    f17_stack_sources = {
+        "f17-stack-city-claim",
+        "f17-stack-cec-filing",
+    }
+    retained_f17_stack = [source for source in sources if source.source_id in f17_stack_sources]
+    if retained_f17_stack:
+        # This compound label is assembled only from source-native aliases in
+        # the exact current CEC evidence version. The source must also anchor
+        # the relation to the physical project address; its generated title is
+        # never evidence for the label.
+        from gridlens.ingestion.adapters.retained_document import SOURCES
+
+        policy = SOURCES["f17-stack-cec-filing"]
+        for source in retained_f17_stack:
+            if (
+                source.source_id != "f17-stack-cec-filing"
+                or not source.retained_evidence_id
+                or source.content_hash != policy["sha256"]
+                or source.url != policy["url"]
+                or source.verification_status != "Current retained support"
+            ):
+                continue
+            passage = source.passage or ""
+            identity = re.search(
+                r"\b(?P<identifier>SVY02A)\s+Memorex\b.{0,100}?"
+                r"\b(?P<alias>Memorex Junction)\s+Operational Study\b",
+                passage,
+                re.I | re.S,
+            )
+            owner_alias = re.search(
+                r"\bowner of the data center project,\s*a\.k\.a\.\s*.{0,40}?"
+                r"\bMemorex Junction\b",
+                passage,
+                re.I | re.S,
+            )
+            site = re.search(r"\b1200\s+Memorex\s+Drive\s+project\b", passage, re.I)
+            if not identity or not owner_alias or not site:
+                continue
+            value = f"{identity.group('identifier')} / {identity.group('alias')} data center"
+            support = [identity.group(0), owner_alias.group(0), site.group(0)]
+            return value, [
+                source.model_copy(
+                    update={
+                        "passage": quote,
+                        "verification_status": "Current CEC source-native project alias and site",
+                    }
+                )
+                for quote in support
+            ]
+        # An F17 item cannot fall through to generic “Project:” or generated-
+        # title matching when its exact retained alias proof is unavailable.
+        return None, []
+
     def meaningful(value: str) -> bool:
         clean = value.strip(" .,:;\t")
         return bool(

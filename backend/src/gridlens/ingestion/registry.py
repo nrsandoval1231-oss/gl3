@@ -70,6 +70,11 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
             "fort-worth-permits": {"services5.arcgis.com"},
             "san-antonio-permits": {"data.sanantonio.gov"},
             "tdlr-tabs": {"www.tdlr.texas.gov"},
+            "retained-document": {
+                "santaclara.legistar.com",
+                "efiling.energy.ca.gov",
+                "cdn.prod.website-files.com",
+            },
         }
         # Only adapters that return every listed row or fail may declare a complete snapshot;
         # absence from such a snapshot is then a reviewable status change.
@@ -97,6 +102,7 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
             "ma-cultivation-applications",
             "tceq-nsr-pending",
             "tceq-temporary-batch-plants",
+            "retained-document",
         } or (1 <= query.get("window_days", 0) <= 90)
         if source["retrieval_method"] in {"json-api", "federal-register-json"}:
             bounded = (
@@ -291,6 +297,13 @@ def load_registry(path: Path = REGISTRY_PATH) -> list[dict[str, Any]]:
                 <= query.get("max_run_bytes", 0)
                 <= 100_000_000
                 and source.get("geography") == "Taylor, Texas"
+            )
+        elif source["retrieval_method"] == "retained-document":
+            bounded = (
+                source.get("enabled") is False
+                and source.get("manual_only") is True
+                and set(query) == {"document_id"}
+                and query["document_id"] == source["id"]
             )
         else:
             bounded = False
