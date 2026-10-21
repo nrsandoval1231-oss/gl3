@@ -816,6 +816,7 @@ class BuyingChainViewPreload:
     permit_details: dict[UUID, list[BuyingChainEvidence]] = field(
         default_factory=lambda: defaultdict(list)
     )
+    corrections: dict[UUID, list[Any]] = field(default_factory=lambda: defaultdict(list))
 
 
 def _accepted_version(interpretation: Interpretation | None, evidence: Evidence) -> bool:
@@ -1705,6 +1706,14 @@ def buying_chain_views(
         .order_by(BuyingChainClaim.created_at.desc(), BuyingChainClaim.id.desc())
     ):
         preload.claims[claim_row.project_id].append(claim_row)
+    from gridlens.persistence.models import BuyingChainCorrection
+
+    for correction_row in session.scalars(
+        select(BuyingChainCorrection)
+        .where(BuyingChainCorrection.project_id.in_(project_ids))
+        .order_by(BuyingChainCorrection.created_at, BuyingChainCorrection.id)
+    ):
+        preload.corrections[correction_row.project_id].append(correction_row)
     for source_row in session.scalars(
         select(BuyingChainEvidence)
         .where(BuyingChainEvidence.project_id.in_(project_ids))
@@ -2065,6 +2074,7 @@ def buying_chain_view(
         candidates.append(
             {
                 "id": claim.id,
+                "fingerprint": claim.fingerprint,
                 "organization": claim.organization,
                 "person_name": claim.person_name,
                 "title": claim.title,
@@ -2112,6 +2122,16 @@ def buying_chain_view(
             item["person_name"] or "",
         )
     )
+    from gridlens.intelligence.buying_chain_corrections import overlay_corrections
+
+    overlay_corrections(
+        session,
+        project_id,
+        candidates,
+        history,
+        decisions=preload.corrections.get(project_id, []) if preload else None,
+    )
+    candidates = [item for item in candidates if history or not item.get("retracted")]
     # Reuse the latest-run selection loaded above for bounded multi-project reads.
     unresolved = (
         list(active_run.unresolved)

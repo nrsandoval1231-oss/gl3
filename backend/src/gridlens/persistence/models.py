@@ -719,6 +719,27 @@ class BuyingChainClaim(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class BuyingChainCorrection(Base):
+    """Append-only attributed correction/retraction for one project-scoped claim."""
+
+    __tablename__ = "buying_chain_corrections"
+    __table_args__ = (
+        UniqueConstraint("claim_id", "idempotency_key", name="uq_buying_correction_idempotency"),
+    )
+    id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
+    project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id"))
+    claim_id: Mapped[UUID] = mapped_column(ForeignKey("buying_chain_claims.id"))
+    expected_version: Mapped[str] = mapped_column(String(80))
+    idempotency_key: Mapped[str] = mapped_column(String(120))
+    action: Mapped[str] = mapped_column(String(16))
+    values: Mapped[dict[str, Any]] = mapped_column(JSONB, default=dict)
+    source_evidence_id: Mapped[UUID | None] = mapped_column(ForeignKey("buying_chain_evidence.id"))
+    source_version_hash: Mapped[str | None] = mapped_column(String(64))
+    reason: Mapped[str] = mapped_column(Text)
+    actor: Mapped[str] = mapped_column(String(120))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class CompanyIdentity(Base):
     """Stable cross-project company identity; display names are descriptive only."""
 

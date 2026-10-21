@@ -21,7 +21,12 @@ from sqlalchemy.orm import joinedload
 
 from gridlens.api.intelligence import router as intelligence_router
 from gridlens.api.verticals import vertical_source_tags
-from gridlens.domain.buying_chain import BuyingChainOut, BuyingEnrichBody
+from gridlens.domain.buying_chain import (
+    BuyingChainCorrectionBody,
+    BuyingChainCorrectionOut,
+    BuyingChainOut,
+    BuyingEnrichBody,
+)
 from gridlens.domain.call_facts import (
     CurrentOperatorInputBoundExceeded,
     _source_lead_timing_bounds,
@@ -68,6 +73,10 @@ from gridlens.intelligence.buying_chain import (
     buying_chain_view,
     buying_chain_views,
     enqueue_buying_chain_research,
+)
+from gridlens.intelligence.buying_chain_corrections import (
+    correct_buying_chain_claim,
+    correction_view,
 )
 from gridlens.intelligence.lifecycle_service import lifecycle_event_supported
 from gridlens.intelligence.opportunity_browse import (
@@ -4445,6 +4454,42 @@ def project_buying_chain(project_id: UUID, history: bool = False):
             return result
         except LookupError as exc:
             raise HTTPException(404, "Project not found") from exc
+
+
+@app.post(
+    "/api/projects/{project_id}/buying-chain/{claim_id}/corrections",
+    response_model=BuyingChainCorrectionOut,
+    dependencies=[Depends(require_session)],
+)
+def correct_project_buying_chain(
+    project_id: UUID, claim_id: UUID, request: Request, body: BuyingChainCorrectionBody
+):
+    require_same_origin(request)
+    with SessionLocal.begin() as session:
+        try:
+            row = correct_buying_chain_claim(
+                session,
+                project_id=project_id,
+                claim_id=claim_id,
+                expected_version=body.expected_version,
+                idempotency_key=body.idempotency_key,
+                action=body.action,
+                values=body.values,
+                source_evidence_id=body.source_evidence_id,
+                source_hash=body.source_hash,
+                reason=body.reason,
+                actor="authenticated_operator",
+                reported_contact=body.reported_contact,
+                identity_type=body.identity_type,
+                identity_id=body.identity_id,
+            )
+            return correction_view(row)
+        except LookupError as exc:
+            raise HTTPException(404, str(exc)) from exc
+        except RuntimeError as exc:
+            raise HTTPException(409, str(exc)) from exc
+        except ValueError as exc:
+            raise HTTPException(422, str(exc)) from exc
 
 
 @app.get(

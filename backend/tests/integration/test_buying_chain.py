@@ -928,6 +928,169 @@ def test_api_auth_origin_unknown_project_and_url_bound(db, monkeypatch):
     )
 
 
+def test_authenticated_correction_is_append_only_versioned_and_overlays_only_one_project(
+    db, monkeypatch
+):
+    api = import_module("gridlens.api.app")
+    monkeypatch.setattr(api, "SessionLocal", db)
+    with db.begin() as session:
+        project_a = seed(session, external_id="correction-a", identity_key="correction-a")
+        project_b = seed(session, external_id="correction-b", identity_key="correction-b")
+        for project, external_id in ((project_a, "correction-a"), (project_b, "correction-b")):
+            observation = session.scalar(
+                select(Observation).where(Observation.external_id == external_id)
+            )
+            interpretation = session.scalar(
+                select(Interpretation).where(Interpretation.observation_id == observation.id)
+            )
+            interpretation.assessment = {
+                **interpretation.assessment,
+                "project_identity_key": project.identity_key,
+            }
+        a = enrich_buying_chain(
+            session,
+            project_a.id,
+            fetcher=lambda url: source(
+                "Acme is the general contractor for Orion Data Center in Austin, TX."
+            ),
+            now=NOW,
+        )
+        b = enrich_buying_chain(
+            session,
+            project_b.id,
+            fetcher=lambda url: source(
+                "Acme is the general contractor for Orion Data Center in Austin, TX."
+            ),
+            now=NOW,
+        )
+        candidate = a["candidates"][0]
+        claim_id, project_id = candidate["id"], project_a.id
+        evidence = candidate["evidence"][0]
+        payload = {
+            "expected_version": candidate["fingerprint"],
+            "idempotency_key": "correction-test-001",
+            "action": "correct",
+            "values": {"category": "electrical_contractor"},
+            "source_evidence_id": str(evidence["id"]),
+            "source_hash": evidence["content_hash"],
+            "reason": "Operator verified title in cited source.",
+        }
+    client = TestClient(api.app)
+    path = f"/api/projects/{project_id}/buying-chain/{claim_id}/corrections"
+    assert client.post(path, json=payload).status_code == 401
+    client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
+    assert (
+        client.post(path, headers={"origin": "https://evil.example"}, json=payload).status_code
+        == 403
+    )
+    response = client.post(path, headers={"origin": "http://testserver"}, json=payload)
+    assert response.status_code == 200, response.text
+    replay = client.post(path, headers={"origin": "http://testserver"}, json=payload)
+    assert replay.json()["id"] == response.json()["id"]
+    stale = {**payload, "idempotency_key": "correction-test-002"}
+    assert client.post(path, headers={"origin": "http://testserver"}, json=stale).status_code == 409
+    current = client.get(f"/api/projects/{project_id}/buying-chain").json()
+    edited = next(item for item in current["candidates"] if item["id"] == str(claim_id))
+    assert edited["category"] == "electrical_contractor"
+    assert edited["correction_version"] == response.json()["id"]
+    unsupported_contact = {
+        "expected_version": response.json()["id"],
+        "idempotency_key": "correction-test-005",
+        "action": "correct",
+        "values": {"public_contact_kind": "phone", "public_contact_value": "+1-512-555-0100"},
+        "source_evidence_id": str(evidence["id"]),
+        "source_hash": evidence["content_hash"],
+        "reason": "Attempted contact correction without a contact citation.",
+    }
+    assert (
+        client.post(
+            path, headers={"origin": "http://testserver"}, json=unsupported_contact
+        ).status_code
+        == 422
+    )
+    changed_hash = {
+        **unsupported_contact,
+        "idempotency_key": "correction-test-006",
+        "source_hash": "f" * 64,
+    }
+    assert (
+        client.post(path, headers={"origin": "http://testserver"}, json=changed_hash).status_code
+        == 422
+    )
+    arbitrary_identity = {
+        "expected_version": response.json()["id"],
+        "idempotency_key": "correction-test-007",
+        "action": "correct",
+        "values": {},
+        "source_evidence_id": str(evidence["id"]),
+        "source_hash": evidence["content_hash"],
+        "identity_type": "company",
+        "identity_id": "00000000-0000-0000-0000-000000000001",
+        "reason": "Attempted identity reference without an existing reviewed identity.",
+    }
+    assert (
+        client.post(
+            path, headers={"origin": "http://testserver"}, json=arbitrary_identity
+        ).status_code
+        == 422
+    )
+    with db.begin() as session:
+        session.add(
+            BuyingChainEvidence(
+                project_id=project_id,
+                url=evidence["url"],
+                title="Updated article",
+                excerpt="Updated article with no current buyer or contact claim.",
+                content_hash="b" * 64,
+                extraction_location="article body",
+                published_at=date(2026, 9, 21),
+                observed_at=NOW + timedelta(days=1),
+                last_seen_at=NOW + timedelta(days=1),
+                project_match_reason="same test project",
+            )
+        )
+    stale_history = client.get(f"/api/projects/{project_id}/buying-chain?history=true").json()
+    stale_item = next(item for item in stale_history["candidates"] if item["id"] == str(claim_id))
+    assert stale_item["correction_stale"] is True
+    assert stale_item["category"] == "general_contractor"
+    report = {
+        "expected_version": response.json()["id"],
+        "idempotency_key": "correction-test-003",
+        "action": "correct",
+        "values": {"public_contact_kind": "phone", "public_contact_value": "+1-512-555-0100"},
+        "reason": "Operator reported a contact during a call.",
+        "reported_contact": True,
+    }
+    reported = client.post(path, headers={"origin": "http://testserver"}, json=report)
+    assert reported.status_code == 200, reported.text
+    reported_candidate = client.get(
+        f"/api/projects/{project_id}/buying-chain?history=true"
+    ).json()["candidates"]
+    report_item = next(item for item in reported_candidate if item["id"] == str(claim_id))
+    assert report_item["reported_contacts"][0]["value"] == "+1-512-555-0100"
+    assert all(contact["value"] != "+1-512-555-0100" for contact in report_item["public_contacts"])
+    retract = {
+        "expected_version": reported.json()["id"],
+        "idempotency_key": "correction-test-004",
+        "action": "retract",
+        "reason": "Operator withdrew the relationship.",
+    }
+    retracted = client.post(path, headers={"origin": "http://testserver"}, json=retract)
+    assert retracted.status_code == 200, retracted.text
+    assert all(
+        item["id"] != str(claim_id)
+        for item in client.get(f"/api/projects/{project_id}/buying-chain").json()["candidates"]
+    )
+    history = client.get(f"/api/projects/{project_id}/buying-chain?history=true").json()
+    edited_history = next(item for item in history["candidates"] if item["id"] == str(claim_id))
+    assert len(edited_history["correction_history"]) == 3
+    other = client.get(f"/api/projects/{project_b.id}/buying-chain").json()
+    other_candidate = next(
+        item for item in other["candidates"] if item["id"] == str(b["candidates"][0]["id"])
+    )
+    assert other_candidate["category"] == "general_contractor"
+
+
 def test_chicago_default_exact_id_fetch_and_contractors_without_supplied_url(db):
     with db.begin() as session:
         session.add(
