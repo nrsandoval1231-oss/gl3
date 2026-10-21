@@ -280,9 +280,7 @@ def test_authenticated_power_schedule_draft_correct_conflict_retract_current_car
     assert current["power_schedule"]["fact_refs"][0]["source_reference"] == "synthetic-test-call"
     assert current["power_schedule"]["fact_refs"][0]["authority"] == "User-confirmed"
     assert "source_quote" in current["power_schedule"]["fact_refs"][0]
-    assert all(
-        source.get("reference") != "synthetic-test-call" for source in current["evidence"]
-    )
+    assert all(source.get("reference") != "synthetic-test-call" for source in current["evidence"])
 
     correction = draft(validate_fact("power_schedule", schedule("8")), 2, first["id"])
     corrected = decide(correction["id"], 3, "corrected")
