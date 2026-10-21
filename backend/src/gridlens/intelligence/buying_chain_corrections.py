@@ -254,38 +254,90 @@ def overlay_corrections(
         if not decisions:
             candidate["correction_version"] = candidate.get("fingerprint")
             continue
-        latest = decisions[-1]
-        if latest.source_evidence_id is not None and not any(
-            str(item.get("id")) == str(latest.source_evidence_id)
-            and str(item.get("current_source_version_id")) == str(latest.source_evidence_id)
-            and item.get("content_hash") == latest.source_version_hash
-            and item.get("current_support")
-            for item in candidate.get("evidence", [])
-        ):
-            candidate["correction_version"] = candidate.get("fingerprint")
-            candidate["correction_stale"] = True
-            continue
-        candidate["correction_version"] = str(latest.id)
-        if latest.action == "retract":
-            candidate["retracted"] = True
-            candidate["public_contacts"] = []
-            continue
-        values = dict(latest.values)
-        contact_status = values.pop("contact_status", None)
-        for key, value in values.items():
-            if key in EDITABLE and key.startswith("public_contact_"):
+        contact_values: dict[str, Any] = {}
+        for row in decisions:
+            cited = row.source_evidence_id is None or any(
+                str(item.get("id")) == str(row.source_evidence_id)
+                and str(item.get("current_source_version_id")) == str(row.source_evidence_id)
+                and item.get("content_hash") == row.source_version_hash
+                and item.get("current_support")
+                for item in candidate.get("evidence", [])
+            )
+            if not cited:
+                candidate["correction_stale"] = True
                 continue
-            if key in EDITABLE:
-                candidate[key] = value
-        if values.get("public_contact_value"):
-            contact = {
-                "kind": values.get("public_contact_kind") or "reported",
-                "value": values["public_contact_value"],
-                "source_url": "",
-                "quote": "",
-                "operator_report": contact_status == "operator_report",
-            }
-            if contact_status == "operator_report":
-                candidate["reported_contacts"] = [contact]
-            else:
-                candidate["public_contacts"] = [*candidate["public_contacts"], contact]
+            if row.action == "retract":
+                candidate["retracted"] = True
+                candidate["public_contacts"] = []
+                candidate["reported_contacts"] = []
+                contact_values.clear()
+                continue
+
+            candidate["retracted"] = False
+            values = dict(row.values)
+            contact_status = values.pop("contact_status", None)
+            subject_changed = any(
+                key in values and values[key] != candidate.get(key)
+                for key in ("organization", "person_name")
+            )
+            if subject_changed:
+                # Existing methods belong to the prior subject unless this row
+                # supplies its own current, cited method below.
+                candidate["public_contacts"] = []
+                candidate["reported_contacts"] = []
+                contact_values.clear()
+            for key, value in values.items():
+                if key in EDITABLE and not key.startswith("public_contact_"):
+                    candidate[key] = value
+            if "public_contact_kind" in values:
+                contact_values["public_contact_kind"] = values["public_contact_kind"]
+            if "public_contact_value" in values:
+                contact_values["public_contact_value"] = values["public_contact_value"]
+                contact_values["contact_status"] = contact_status
+                if contact_status == "operator_report":
+                    contact = {
+                        "kind": contact_values.get("public_contact_kind") or "reported",
+                        "value": values["public_contact_value"],
+                        "source_url": "",
+                        "quote": "",
+                        "operator_report": True,
+                    }
+                    candidate["reported_contacts"] = [
+                        *candidate.get("reported_contacts", []),
+                        contact,
+                    ]
+                elif values["public_contact_value"]:
+                    kind = contact_values.get("public_contact_kind") or "general"
+                    cited_contact = next(
+                        (
+                            item
+                            for item in candidate.get("evidence", [])
+                            if str(item.get("id")) == str(row.source_evidence_id)
+                            and item.get("supports") == "public_contact"
+                            and item.get("current_support")
+                            and item.get("public_research_provenance")
+                            and values["public_contact_value"] in str(item.get("quote", ""))
+                        ),
+                        None,
+                    )
+                    if cited_contact:
+                        existing = [
+                            item
+                            for item in candidate.get("public_contacts", [])
+                            if str(item.get("kind", "")).lower() != str(kind).lower()
+                        ]
+                        existing.append(
+                            {
+                                "kind": kind,
+                                "value": values["public_contact_value"],
+                                "source_url": cited_contact.get("url", ""),
+                                "quote": cited_contact.get("quote", ""),
+                                "operator_report": False,
+                            }
+                        )
+                        candidate["public_contacts"] = existing
+        # The write version tracks the append-only log head even if that row's
+        # cited source is stale and its values are therefore not projected.
+        candidate["correction_version"] = str(decisions[-1].id)
+        if candidate.get("retracted"):
+            continue

@@ -1,6 +1,8 @@
 from collections import Counter
+from copy import deepcopy
 from datetime import UTC, date, datetime, timedelta
 from importlib import import_module
+from types import SimpleNamespace
 from uuid import UUID
 
 import pytest
@@ -9,11 +11,16 @@ from sqlalchemy import create_engine, func, select
 from sqlalchemy.engine import make_url
 from sqlalchemy.orm import sessionmaker
 
+from gridlens.domain.opportunity_intelligence import contact_projection
 from gridlens.ingestion.adapters.buying_chain_public import PublicDocument, parse_document
 from gridlens.intelligence.buying_chain import (
     buying_chain_view,
     buying_chain_views,
     enrich_buying_chain,
+)
+from gridlens.intelligence.buying_chain_corrections import (
+    correct_buying_chain_claim,
+    overlay_corrections,
 )
 from gridlens.intelligence.identity_reconciliation import (
     current_claim_identity_links,
@@ -1126,6 +1133,8 @@ def test_authenticated_correction_is_append_only_versioned_and_overlays_only_one
         "candidates"
     ]
     report_item = next(item for item in reported_candidate if item["id"] == str(claim_id))
+    # The earlier cited correction is stale after the source version changed.
+    assert report_item["category"] == "general_contractor"
     assert report_item["reported_contacts"][0]["value"] == "+1-512-555-0100"
     assert all(contact["value"] != "+1-512-555-0100" for contact in report_item["public_contacts"])
     retract = {
@@ -1148,6 +1157,220 @@ def test_authenticated_correction_is_append_only_versioned_and_overlays_only_one
         item for item in other["candidates"] if item["id"] == str(b["candidates"][0]["id"])
     )
     assert other_candidate["category"] == "general_contractor"
+
+
+def test_sparse_corrections_compose_and_corrected_contact_replaces_actionable_method():
+    claim_id = UUID("00000000-0000-0000-0000-000000000010")
+    first_source = UUID("00000000-0000-0000-0000-000000000011")
+    second_source = UUID("00000000-0000-0000-0000-000000000012")
+    first_quote = "Acme is the prior company; call 512-555-0100."
+    second_quote = "Call Beta at 512-555-0199."
+    corrections = [
+        SimpleNamespace(
+            id=UUID("00000000-0000-0000-0000-000000000021"),
+            claim_id=claim_id,
+            project_id=UUID("00000000-0000-0000-0000-000000000030"),
+            action="correct",
+            values={"organization": "Beta"},
+            source_evidence_id=first_source,
+            source_version_hash="a" * 64,
+            created_at=NOW,
+            expected_version="initial",
+            idempotency_key="first",
+            reason="Correction one",
+            actor="operator",
+        ),
+        SimpleNamespace(
+            id=UUID("00000000-0000-0000-0000-000000000022"),
+            claim_id=claim_id,
+            project_id=UUID("00000000-0000-0000-0000-000000000030"),
+            action="correct",
+            values={"public_contact_kind": "phone", "public_contact_value": "512-555-0199"},
+            source_evidence_id=second_source,
+            source_version_hash="b" * 64,
+            created_at=NOW + timedelta(seconds=1),
+            expected_version="first",
+            idempotency_key="second",
+            reason="Correction two",
+            actor="operator",
+        ),
+        SimpleNamespace(
+            id=UUID("00000000-0000-0000-0000-000000000023"),
+            claim_id=claim_id,
+            project_id=UUID("00000000-0000-0000-0000-000000000030"),
+            action="correct",
+            values={"title": "Unsupported stale title"},
+            source_evidence_id=UUID("00000000-0000-0000-0000-000000000013"),
+            source_version_hash="c" * 64,
+            created_at=NOW + timedelta(seconds=2),
+            expected_version="second",
+            idempotency_key="stale-third",
+            reason="Stale correction source",
+            actor="operator",
+        ),
+    ]
+    candidate = {
+        "id": claim_id,
+        "fingerprint": "initial",
+        "organization": "Acme",
+        "person_name": None,
+        "title": None,
+        "category": "general_contractor",
+        "organization_relationship": "DIRECT",
+        "reason": "Current source supports the company.",
+        "public_contacts": [
+            {
+                "kind": "phone",
+                "value": "512-555-0100",
+                "source_url": "https://news.example/old",
+                "quote": first_quote,
+            }
+        ],
+        "evidence": [
+            {
+                "id": first_source,
+                "current_source_version_id": first_source,
+                "content_hash": "a" * 64,
+                "current_support": True,
+                "supports": "public_contact",
+                "public_research_provenance": True,
+                "url": "https://news.example/old",
+                "quote": first_quote,
+            },
+            {
+                "id": second_source,
+                "current_source_version_id": second_source,
+                "content_hash": "b" * 64,
+                "current_support": True,
+                "supports": "public_contact",
+                "public_research_provenance": True,
+                "url": "https://news.example/new",
+                "quote": second_quote,
+            },
+        ],
+        "stale": False,
+    }
+    changed_subject = deepcopy(candidate)
+    overlay_corrections(
+        None,
+        UUID("00000000-0000-0000-0000-000000000030"),
+        [changed_subject],
+        False,
+        decisions=corrections[:1],
+    )
+    assert changed_subject["organization"] == "Beta"
+    assert contact_projection({"candidates": [changed_subject]})[0].methods == []
+    overlay_corrections(
+        None, UUID("00000000-0000-0000-0000-000000000030"), [candidate], True, decisions=corrections
+    )
+    assert candidate["organization"] == "Beta"
+    assert candidate["category"] == "general_contractor"
+    assert candidate["correction_stale"] is True
+    assert candidate["correction_version"] == str(corrections[-1].id)
+    assert candidate["title"] is None
+    assert candidate["public_contacts"] == [
+        {
+            "kind": "phone",
+            "value": "512-555-0199",
+            "source_url": "https://news.example/new",
+            "quote": second_quote,
+            "operator_report": False,
+        }
+    ]
+    methods = contact_projection({"candidates": [candidate]})[0].methods
+    assert [method["href"] for method in methods] == ["tel:5125550199"]
+
+
+def test_corrected_company_hides_old_identity_until_reviewed_rebind_and_keeps_rebind(db):
+    with db.begin() as session:
+        project = seed(
+            session, external_id="identity-correction", identity_key="identity-correction"
+        )
+        interpretation = session.scalar(
+            select(Interpretation).where(
+                Interpretation.observation_id
+                == session.scalar(
+                    select(Observation.id).where(Observation.external_id == "identity-correction")
+                )
+            )
+        )
+        interpretation.assessment = {
+            **interpretation.assessment,
+            "project_identity_key": project.identity_key,
+        }
+        result = enrich_buying_chain(
+            session,
+            project.id,
+            fetcher=lambda url: source(
+                "Acme is the general contractor for Orion Data Center in Austin, TX."
+            ),
+            now=NOW,
+        )
+        candidate = result["candidates"][0]
+        claim = session.get(BuyingChainClaim, candidate["id"])
+        evidence = session.get(BuyingChainEvidence, candidate["evidence"][0]["id"])
+        evidence.excerpt += " Beta"
+        old_identity = CompanyIdentity()
+        new_identity = CompanyIdentity()
+        session.add_all([old_identity, new_identity])
+        session.flush()
+        link_claim_to_identity(
+            session,
+            claim,
+            "company",
+            old_identity.id,
+            evidence,
+            "Previously reviewed company identity.",
+            reviewed_by="operator",
+        )
+        first = correct_buying_chain_claim(
+            session,
+            project_id=project.id,
+            claim_id=claim.id,
+            expected_version=candidate["fingerprint"],
+            idempotency_key="subject-change",
+            action="correct",
+            values={"organization": "Beta"},
+            source_evidence_id=evidence.id,
+            source_hash=evidence.content_hash,
+            reason="Corrected organization from current source.",
+            actor="operator",
+        )
+        changed = buying_chain_view(session, project.id)["candidates"][0]
+        assert changed["organization"] == "Beta"
+        assert "company_identity_id" not in changed
+
+        rebound = correct_buying_chain_claim(
+            session,
+            project_id=project.id,
+            claim_id=claim.id,
+            expected_version=str(first.id),
+            idempotency_key="reviewed-rebind",
+            action="correct",
+            values={},
+            source_evidence_id=evidence.id,
+            source_hash=evidence.content_hash,
+            reason="Reviewed the corrected company identity.",
+            actor="operator",
+            identity_type="company",
+            identity_id=new_identity.id,
+        )
+        correct_buying_chain_claim(
+            session,
+            project_id=project.id,
+            claim_id=claim.id,
+            expected_version=str(rebound.id),
+            idempotency_key="later-contact-report",
+            action="correct",
+            values={"public_contact_kind": "phone", "public_contact_value": "512-555-0199"},
+            source_evidence_id=None,
+            source_hash=None,
+            reason="Operator reported a current contact.",
+            actor="operator",
+            reported_contact=True,
+        )
+        current = buying_chain_view(session, project.id)["candidates"][0]
+        assert current["company_identity_id"] == str(new_identity.id)
 
 
 def test_chicago_default_exact_id_fetch_and_contractors_without_supplied_url(db):

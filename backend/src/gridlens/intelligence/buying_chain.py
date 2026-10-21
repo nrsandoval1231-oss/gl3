@@ -58,6 +58,7 @@ from gridlens.jobs.queue import assert_fence
 from gridlens.persistence.database import SessionLocal
 from gridlens.persistence.models import (
     BuyingChainClaim,
+    BuyingChainCorrection,
     BuyingChainEvidence,
     BuyingChainIdentityLink,
     BuyingChainRun,
@@ -2181,12 +2182,59 @@ def _attach_identity_ids(session: Session, views: list[dict]) -> None:
         )
         .order_by(BuyingChainIdentityLink.created_at.desc(), BuyingChainIdentityLink.id.desc())
     ).all()
+    corrections = session.scalars(
+        select(BuyingChainCorrection)
+        .where(BuyingChainCorrection.claim_id.in_(claim_ids))
+        .order_by(
+            BuyingChainCorrection.created_at,
+            BuyingChainCorrection.id,
+        )
+    ).all()
+    by_correction_claim: dict[UUID, list[BuyingChainCorrection]] = defaultdict(list)
+    for correction in corrections:
+        by_correction_claim[correction.claim_id].append(correction)
     seen: set[tuple[UUID, str]] = set()
     for link in links:
         key = (link.claim_id, link.entity_type)
         if key in seen:
             continue
         candidate = by_claim[link.claim_id]
+        invalidated = False
+        explicit_rebind: tuple[str, str] | None = None
+        for correction in by_correction_claim.get(link.claim_id, []):
+            if correction.source_evidence_id is not None and not any(
+                str(item.get("id")) == str(correction.source_evidence_id)
+                and str(item.get("current_source_version_id")) == str(correction.source_evidence_id)
+                and item.get("content_hash") == correction.source_version_hash
+                and item.get("current_support")
+                for item in candidate["evidence"]
+            ):
+                continue
+            values = correction.values
+            subject_field = "organization" if link.entity_type == "company" else "person_name"
+            if subject_field in values:
+                invalidated = True
+                explicit_rebind = None
+            reference = values.get("identity_reference")
+            if (
+                isinstance(reference, dict)
+                and reference.get("type") == link.entity_type
+                and reference.get("id")
+                and correction.source_evidence_id is not None
+            ):
+                invalidated = False
+                explicit_rebind = (str(reference["id"]), str(correction.source_evidence_id))
+        identity_id = str(
+            link.company_identity_id if link.entity_type == "company" else link.person_identity_id
+        )
+        if invalidated or (
+            explicit_rebind is not None
+            and (
+                explicit_rebind[0] != identity_id
+                or explicit_rebind[1] != str(link.source_evidence_id)
+            )
+        ):
+            continue
         if not any(
             str(item["id"]) == str(link.source_evidence_id)
             and str(item.get("current_source_version_id")) == str(link.source_evidence_id)
@@ -2195,9 +2243,7 @@ def _attach_identity_ids(session: Session, views: list[dict]) -> None:
             for item in candidate["evidence"]
         ):
             continue
-        candidate[f"{link.entity_type}_identity_id"] = str(
-            link.company_identity_id if link.entity_type == "company" else link.person_identity_id
-        )
+        candidate[f"{link.entity_type}_identity_id"] = identity_id
         seen.add(key)
 
 
