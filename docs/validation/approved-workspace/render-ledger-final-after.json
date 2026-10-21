@@ -1,0 +1,23 @@
+{
+  "utc": "2026-10-21T14:41:45.629998+00:00",
+  "phase": "final-after",
+  "databases": {
+    "synthetic": {
+      "projects": 12,
+      "power_needs": 12,
+      "evidence": 36,
+      "buying_chain_claims": 4,
+      "jobs": 0,
+      "logical_calls": 0
+    },
+    "retained": {
+      "projects": 1620,
+      "power_needs": 1620,
+      "evidence": 18016,
+      "buying_chain_claims": 47,
+      "jobs": 872,
+      "logical_calls": 10
+    }
+  },
+  "source_backup_sha256": "1e778b371eef6551d8c003586c58431465abdd0e0cb327d9244bae28b503ab80"
+}

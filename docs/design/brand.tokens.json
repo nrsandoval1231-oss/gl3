@@ -8,20 +8,14 @@
     "atmosphere": "#6F879D",
     "mist": "#D5DEE5",
     "ice": "#F3F6F7",
-    "white": "#FFFFFF"
+    "white": "#FFFFFF",
+    "signal_blue": "#3B82F6"
   },
   "primary_ui_color": "#17324A",
   "application_tokens": {
-    "pursuits_surface_silver": "#E7EAED",
-    "pursuits_accent_orange": "#D87145",
-    "pursuits_ink": "#172234",
-    "pursuits_navy": "#1D3044",
-    "pursuits_panel_white": "#FFFFFF",
-    "pursuits_panel_radius_px": 24,
-    "pursuits_lockup_width_px": {
-      "desktop": 156,
-      "tablet": 134,
-      "phone": 114
-    }
+    "workspace_header": "#17324A",
+    "workspace_canvas": "#F3F6F7",
+    "workspace_accent": "#3B82F6",
+    "sidebar_desktop_fraction": 0.25
   }
 }

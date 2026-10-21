@@ -1,3 +1,9 @@
+# Approved Opportunity Intelligence references
+
+The October 21, 2026 owner directive supersedes the earlier v3 presentation. [Dashboard](opportunity-intelligence-approved.jpg) and [Brand System v1.0](brand-system-v1-owner.jpg) are byte-for-byte copies of the owner-supplied JPEGs. See [provenance](opportunity-intelligence-reference.json) and the current [UI canon](../UI_CANON.md).
+
+## Historical references
+
 # UI reference assets
 
 ## Current approved visual reference

@@ -1,0 +1,73 @@
+{
+  "started_utc": "2026-10-21T14:38:30.994380+00:00",
+  "scope": "UI candidate on PR102 dependency; isolated API fixture database; providers disabled",
+  "gates": [
+    {
+      "name": "audit",
+      "command": [
+        "npm.cmd",
+        "audit"
+      ],
+      "exit_code": 0,
+      "seconds": 0.81,
+      "log": "controller-audit.log"
+    },
+    {
+      "name": "typecheck",
+      "command": [
+        "npm.cmd",
+        "run",
+        "typecheck"
+      ],
+      "exit_code": 0,
+      "seconds": 2.39,
+      "log": "controller-typecheck.log"
+    },
+    {
+      "name": "build",
+      "command": [
+        "npm.cmd",
+        "run",
+        "build"
+      ],
+      "exit_code": 0,
+      "seconds": 3.41,
+      "log": "controller-build.log"
+    },
+    {
+      "name": "browser",
+      "command": [
+        "npm.cmd",
+        "run",
+        "test:ci",
+        "--",
+        "--workers=2"
+      ],
+      "exit_code": 0,
+      "seconds": 75.99,
+      "log": "controller-browser.log"
+    },
+    {
+      "name": "docs",
+      "command": [
+        "C:\\Users\\nrsan\\Nucleus\\02_Projects\\GridLens\\gl3-approved-intelligence-ui\\backend\\.venv\\Scripts\\python.exe",
+        "scripts/check_docs.py"
+      ],
+      "exit_code": 0,
+      "seconds": 0.11,
+      "log": "controller-docs.log"
+    },
+    {
+      "name": "diff",
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exit_code": 0,
+      "seconds": 0.04,
+      "log": "controller-diff.log"
+    }
+  ],
+  "finished_utc": "2026-10-21T14:39:53.738369+00:00"
+}

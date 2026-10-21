@@ -686,20 +686,11 @@ test('synthetic authenticated browser writes persist through the isolated local 
   const facility = process.env.A6_UI_PERSISTED_NAME
   const password = process.env.A6_UI_PERSISTED_PASSWORD
   test.skip(!needId || !projectId || !facility || !password, 'requires the explicitly seeded disposable UI application database')
-  const item = { ...opportunity(needId!), project_id: projectId!, name: facility!, tier: 'Signal' }
   const readCurrentNeed = async () => page.evaluate(async (selectedNeedId) => {
     const response = await fetch(`/api/opportunities/needs/${encodeURIComponent(selectedNeedId)}?tier=Signal&search=&decision=ALL`, { credentials: 'include' })
     if (!response.ok) throw new Error(`Selected Need read-back failed with ${response.status}`)
     return response.json() as Promise<Opportunity>
   }, needId!)
-  await page.route('**/api/opportunities*', async (route) => {
-    if (new URL(route.request().url()).pathname !== '/api/opportunities') return route.continue()
-    return route.fulfill({ json: [item], headers: {
-      'X-Total-Count': '1', 'X-Group-Total-Count': '1', 'X-Page-Record-Count': '1', 'X-Page-Group-Count': '1',
-      'X-Limit': '50', 'X-Offset': '0', 'X-Cohort-Token': 'synthetic-browser-only-cohort',
-      'X-Decision-Counts': '{"SHOW":0,"REVIEW":0,"HOLD":0}',
-    } })
-  })
   await page.route('**/api/health', (route) => route.fulfill({ json: { sources: [], backlog: 0, pending_interpretations: 0 } }))
   await page.route('**/api/changes', (route) => route.fulfill({ json: [] }))
   let statusPostCount = 0
@@ -718,9 +709,13 @@ test('synthetic authenticated browser writes persist through the isolated local 
   await page.goto('/?tier=Signals')
   await page.getByLabel('Password', { exact: true }).fill(password!)
   await page.getByRole('button', { name: 'Continue' }).click()
+  await page.getByLabel('Search projects').fill(facility!)
   await page.locator(`[data-opportunity-id="${needId}"]`).click()
-  await expect(page.getByText(new RegExp(`Need ${needId} · project ${projectId}`))).toBeVisible()
+  await expect(page.locator('.wh-detail h2')).toBeVisible()
+  await page.locator('.wh-record-actions').getByRole('button', { name: 'Update workflow' }).click()
   const selectedNeedBefore = await readCurrentNeed()
+  expect(selectedNeedBefore.id).toBe(needId)
+  expect(selectedNeedBefore.project_id).toBe(projectId)
   expect(selectedNeedBefore.tier).toBe('Signal')
   const beforeDecision = selectedNeedBefore
   expect(beforeDecision.tier).toBe('Signal')
@@ -758,5 +753,5 @@ test('synthetic authenticated browser writes persist through the isolated local 
   expect(statusPostBodies[2]).toEqual(statusPostBodies[1])
   const afterStatus = await readCurrentNeed()
   expect(afterStatus.tier).toBe(beforeDecision.tier)
-  await expect(page.getByText(/Status and reason do not qualify the Need/)).toBeVisible()
+  await expect(page.getByText(/neither a note nor a status is a qualification input/)).toBeVisible()
 })
