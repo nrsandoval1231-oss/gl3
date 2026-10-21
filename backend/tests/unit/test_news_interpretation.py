@@ -104,8 +104,46 @@ def test_new_mexico_is_a_us_state_not_an_international_mexico_match() -> None:
     assert (result.decision, result.tier, result.location) == ("accepted", "Signal", "New Mexico")
 
 
+def test_explicit_project_state_wins_city_fallback() -> None:
+    columbus = assess_news("Atlas builds Columbus plant in Georgia", None)
+    assert (columbus.decision, columbus.tier, columbus.location) == (
+        "accepted",
+        "Signal",
+        "Georgia",
+    )
+
+
+def test_explicit_foreign_project_site_wins_us_state_token_and_hq_control() -> None:
+    foreign_site = assess_news(
+        "Acme begins construction on Georgia factory near Monterrey, Mexico", None
+    )
+    assert foreign_site.decision == "rejected"
+    assert foreign_site.location is None
+
+    partner_abroad = assess_news(
+        "Atlas builds a factory in Texas with partners in Tokyo, Japan", None
+    )
+    assert (partner_abroad.decision, partner_abroad.tier, partner_abroad.location) == (
+        "accepted",
+        "Signal",
+        "Texas",
+    )
+
+    # A foreign actor headquarters does not override a project explicitly in Texas.
+    domestic_site = assess_news("Japan-based Atlas builds a factory in Texas", None)
+    assert (domestic_site.decision, domestic_site.tier, domestic_site.location) == (
+        "accepted",
+        "Signal",
+        "Texas",
+    )
+
+
 def test_actor_hq_geography_never_establishes_the_facility_location() -> None:
     cases = [
+        (
+            "Texas-based Atlas builds a data center in Japan",
+            "Atlas headquarters are in Dallas.",
+        ),
         (
             "Texas-based Atlas builds a manufacturing plant in Shanghai",
             "Atlas headquarters are in Dallas.",
@@ -117,6 +155,52 @@ def test_actor_hq_geography_never_establishes_the_facility_location() -> None:
     ]
     for title, summary in cases:
         assert assess_news(title, summary).decision == "rejected"
+
+
+def test_project_linked_city_precedes_nearby_developer_or_customer_state() -> None:
+    cases = [
+        ("California developer Atlas builds Austin data center", "Austin, Texas"),
+        (
+            "Atlas builds a factory for customers in California at its site in Phoenix, Arizona",
+            "Phoenix, Arizona",
+        ),
+        (
+            "California developer Atlas builds a factory in Austin with partners in the state",
+            "Austin, Texas",
+        ),
+        ("Atlas builds Phoenix data center in Arizona", "Phoenix, Arizona"),
+        ("Atlas builds Austin's first large liquid-cooled data center", "Austin, Texas"),
+    ]
+    for title, location in cases:
+        result = assess_news(title, None)
+        assert (result.decision, result.tier, result.location) == ("accepted", "Signal", location)
+
+
+def test_domestic_city_site_precedes_foreign_partner_location() -> None:
+    cases = [
+        "Atlas builds a factory in Austin with partners in Tokyo, Japan",
+        "Atlas builds Austin factory with partners in Tokyo, Japan",
+        "Atlas builds a factory in Austin, TX with partners in Tokyo, Japan",
+    ]
+    for title in cases:
+        result = assess_news(title, None)
+        assert (result.decision, result.tier, result.location) == (
+            "accepted",
+            "Signal",
+            "Austin, Texas",
+        )
+
+    foreign_site = assess_news(
+        "California developer Atlas builds factory with partners at a site near Tokyo, Japan",
+        None,
+    )
+    assert foreign_site.decision == "rejected"
+    assert foreign_site.location is None
+
+
+def test_state_modifier_attached_to_facility_is_a_grounded_site() -> None:
+    result = assess_news("Atlas builds Texas battery factory", None)
+    assert (result.decision, result.tier, result.location) == ("accepted", "Signal", "Texas")
 
 
 def test_site_name_words_are_not_activity_and_claim_spans_must_differ() -> None:
@@ -328,7 +412,7 @@ def test_international_policy_and_recall_stay_rejected() -> None:
 
 def test_contract_and_dictionary_are_stable() -> None:
     result = assess_news("Atlas builds a plant in Alabama", None)
-    assert EVALUATOR_VERSION == "rss-project-v9"
+    assert EVALUATOR_VERSION == "rss-project-v10"
     assert set(result.as_dict()) == {
         "decision",
         "tier",
