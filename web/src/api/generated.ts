@@ -888,6 +888,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/opportunity-intelligence": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Opportunity Intelligence Batch
+         * @description Current aggregate from persisted evidence, at most twenty exact needs.
+         */
+        get: operations["opportunity_intelligence_batch_api_opportunity_intelligence_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -899,6 +919,11 @@ export interface components {
              * @default false
              */
             force: boolean;
+            /**
+             * Complete Intelligence
+             * @default false
+             */
+            complete_intelligence: boolean;
         };
         /** AutonomousResearchOut */
         AutonomousResearchOut: {
@@ -1495,6 +1520,9 @@ export interface components {
         };
         /** CommercialTriageCard */
         CommercialTriageCard: {
+            /** Owner Organizations */
+            owner_organizations?: string[];
+            intelligence_card?: components["schemas"]["IntelligenceCard"] | null;
             /** Research State */
             research_state?: {
                 [key: string]: unknown;
@@ -2135,6 +2163,106 @@ export interface components {
             /** Offset */
             offset: number;
         };
+        /** IntelligenceCard */
+        IntelligenceCard: {
+            /**
+             * Policy Version
+             * @default opportunity-intelligence-v1
+             */
+            policy_version: string;
+            /** Need Id */
+            need_id: string;
+            /** Project Id */
+            project_id: string;
+            /** Input Fingerprint */
+            input_fingerprint: string;
+            /** Qualification */
+            qualification: string;
+            /** Disposition */
+            disposition: string;
+            /** Fields */
+            fields: components["schemas"]["IntelligenceField"][];
+            /** Contacts */
+            contacts: components["schemas"]["IntelligenceContact"][];
+            /** Next Contact Path */
+            next_contact_path: string;
+            /** Next Action */
+            next_action: string;
+            /** Research Gaps */
+            research_gaps: components["schemas"]["IntelligenceField"][];
+            /** Completeness */
+            completeness: {
+                [key: string]: number | string;
+            };
+            /** Last Intelligence Update */
+            last_intelligence_update?: string | null;
+            /** Power Gap */
+            power_gap?: {
+                [key: string]: unknown;
+            } | null;
+            /** Evidence */
+            evidence: components["schemas"]["IntelligenceSource"][];
+            /** Research Enabled */
+            research_enabled: boolean;
+        };
+        /** IntelligenceContact */
+        IntelligenceContact: {
+            /** Claim Id */
+            claim_id: string;
+            /** Company */
+            company: string;
+            /** Name */
+            name?: string | null;
+            /** Title */
+            title?: string | null;
+            /** Role */
+            role: string;
+            /**
+             * Responsibility
+             * @enum {string}
+             */
+            responsibility: "Verified project responsibility" | "Verified organizational responsibility" | "Inferred likely role" | "General company contact path";
+            /**
+             * Purchasing Authority
+             * @default Requires confirmation for this power package
+             */
+            purchasing_authority: string;
+            /** Methods */
+            methods?: {
+                [key: string]: string;
+            }[];
+            /** Sources */
+            sources?: components["schemas"]["IntelligenceSource"][];
+            /** Verified At */
+            verified_at?: string | null;
+        };
+        /** IntelligenceField */
+        IntelligenceField: {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /**
+             * Section
+             * @enum {string}
+             */
+            section: "identity" | "power" | "commercial";
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "Verified" | "Evidence-supported estimate" | "Research in progress" | "Not publicly available" | "Not applicable" | "Conflicting evidence";
+            /** Value */
+            value?: string | null;
+            /** Basis */
+            basis: string;
+            /** Sources */
+            sources?: components["schemas"]["IntelligenceSource"][];
+            /** Research Category */
+            research_category?: string | null;
+            /** Research Status */
+            research_status?: string | null;
+        };
         /** IntelligenceHistoryOut */
         IntelligenceHistoryOut: {
             /**
@@ -2266,6 +2394,29 @@ export interface components {
             };
             /** Owner Review Notes 30D */
             owner_review_notes_30d: number;
+        };
+        /** IntelligenceSource */
+        IntelligenceSource: {
+            /** Reference */
+            reference: string;
+            /** Title */
+            title: string;
+            /** Url */
+            url?: string | null;
+            /** Source Date */
+            source_date?: string | null;
+            /** Retained Evidence Id */
+            retained_evidence_id?: string | null;
+            /** Content Hash */
+            content_hash?: string | null;
+            /** Passage */
+            passage?: string | null;
+            /** Extraction Method */
+            extraction_method: string;
+            /** Verification Status */
+            verification_status: string;
+            /** Assessed At */
+            assessed_at?: string | null;
         };
         /** IntelligenceTaskOut */
         IntelligenceTaskOut: {
@@ -2460,6 +2611,7 @@ export interface components {
         };
         /** OpportunityOut */
         OpportunityOut: {
+            intelligence_card?: components["schemas"]["IntelligenceCard"] | null;
             /**
              * Id
              * Format: uuid
@@ -2968,6 +3120,7 @@ export interface components {
         };
         /** PursuitWorkspaceItemOut */
         PursuitWorkspaceItemOut: {
+            intelligence_card?: components["schemas"]["IntelligenceCard"] | null;
             /**
              * Id
              * Format: uuid
@@ -5622,6 +5775,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BriefRequestOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    opportunity_intelligence_batch_api_opportunity_intelligence_get: {
+        parameters: {
+            query: {
+                need_ids: string[];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IntelligenceCard"][];
                 };
             };
             /** @description Validation Error */

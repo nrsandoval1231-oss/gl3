@@ -625,8 +625,12 @@ def test_ambiguous_inflight_retrieval_is_visible_failure_without_repeat(runtime,
         assert session.get(PowerNeed, card["id"]).tier == "Signal"
 
 
-def test_status_and_queue_api_require_auth_origin_and_preserve_receipts(runtime):
+def test_status_and_queue_api_require_auth_origin_and_preserve_receipts(runtime, monkeypatch):
     factory, _, api, card = runtime
+    from gridlens.intelligence import commercial_evaluation
+
+    # The explicit endpoint now evaluates the exact target, not a mocked shortlist.
+    monkeypatch.setattr(commercial_evaluation, "evaluate_target", lambda _session, _need: card)
     url = f"/api/commercial/triage/{card['id']}/autonomous-research"
     client = TestClient(api.app, base_url="https://testserver")
     assert client.get(url).status_code == 401

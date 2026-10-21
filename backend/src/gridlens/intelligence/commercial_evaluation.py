@@ -23,7 +23,7 @@ def evaluate_targets(
 
     from gridlens.api.app import _commercial_triage_cards, opportunity_projection
     from gridlens.domain.commercial_triage import build_card, group_cards
-    from gridlens.intelligence.buying_chain import buying_chain_view
+    from gridlens.intelligence.buying_chain import buying_chain_view, buying_chain_views
     from gridlens.persistence.models import PowerNeed, Project
 
     wanted = {str(need_id) for need_id in need_ids}
@@ -39,19 +39,27 @@ def evaluate_targets(
         if not missing:
             return found
     else:
+        chains: dict = {}
         items = opportunity_projection(
             session,
+            buying_chain_results=chains,
             include_below_floor=True,
             include_operator_fact_refs=True,
             selected_need_ids={UUID(identity) for identity in wanted},
         )
         exact_items = {str(item["id"]): item for item in items if str(item["id"]) in wanted}
-        chains = {
-            str(project_id): buying_chain_view(session, project_id)
-            for project_id in sorted({item["project_id"] for item in exact_items.values()}, key=str)
-        }
         for need_id, item in exact_items.items():
             card = build_card(item, chains.get(str(item["project_id"])), today)
+            from gridlens.domain.opportunity_intelligence import assemble_card
+            from gridlens.settings import settings
+
+            card["intelligence_card"] = assemble_card(
+                item,
+                chains.get(str(item["project_id"]), {}),
+                card,
+                [],
+                research_enabled=settings.autonomous_research_enabled,
+            ).model_dump(mode="json")
             card["related_need_ids"] = [need_id]
             card["related_need_states"] = []
             found[need_id] = card
@@ -75,10 +83,7 @@ def evaluate_targets(
         }
         selected_items = [item for item in items if str(item["id"]) in requested_ids]
         selected_projects = sorted({item["project_id"] for item in selected_items}, key=str)
-        chains = {
-            str(project_id): buying_chain_view(session, project_id)
-            for project_id in selected_projects
-        }
+        chains = buying_chain_views(session, set(selected_projects))
         grouped_cards = group_cards(selected_items, chains, today)
         for card in grouped_cards:
             for related_id in card["related_need_ids"]:
@@ -180,6 +185,13 @@ def save_evaluations(session: Session, cards: list[dict], *, now: datetime | Non
         changed = (
             prior.get("input_hash") != card["input_hash"]
             or prior.get("disposition") != card["disposition"]
+            or (
+                card.get("intelligence_card") is not None
+                and ((prior.get("saved_card") or {}).get("intelligence_card") or {}).get(
+                    "policy_version"
+                )
+                != card["intelligence_card"].get("policy_version")
+            )
         )
         if changed:
             versions.append(

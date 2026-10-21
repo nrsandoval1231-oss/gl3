@@ -1,0 +1,26 @@
+.intelligence-card { color: var(--navy, #142d42); min-width: 0; }
+.ic-heading { display: flex; gap: 12px; justify-content: space-between; align-items: center; flex-wrap: wrap; }
+.ic-heading span, .ic-completeness, .intelligence-card small { color: #526372; font-size: .78rem; }
+.intelligence-card h3 { font-size: 1rem; margin: 18px 0 10px; }
+.ic-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 0; }
+.ic-facts > div, .ic-contact { background: #f5f7f8; border: 1px solid #e0e5e9; padding: 12px; border-radius: 14px; overflow-wrap: anywhere; }
+.ic-facts dt { font-size: .78rem; color: #526372; }
+.ic-facts dd { margin: 5px 0; font-weight: 650; font-size: .95rem; }
+.intelligence-card details { margin-top: 10px; font-size: .82rem; }
+.intelligence-card summary { cursor: pointer; line-height: 1.6; }
+.intelligence-card blockquote { margin: 8px 0; padding-left: 10px; border-left: 2px solid #c6d0d8; white-space: pre-wrap; overflow-wrap: anywhere; }
+.ic-contact { margin: 8px 0; }
+.ic-contact p { margin: 5px 0; }
+.ic-contact-actions { display: flex; gap: 10px; flex-wrap: wrap; margin: 8px 0; }
+.ic-contact-actions a { border: 1px solid #a8b7c4; border-radius: 8px; padding: 7px 10px; }
+.ic-next { padding: 1px 12px 12px; border-left: 3px solid #173b56; background: #f3f6f8; border-radius: 4px 12px 12px 4px; }
+.ic-gap { padding: 8px 0; border-bottom: 1px solid #e0e5e9; }
+.ic-gap small { display: block; }
+.intelligence-card pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: .75rem; }
+.ic-evidence article { margin: 12px 0; overflow-wrap: anywhere; }
+@media (max-width: 600px) { .ic-facts { grid-template-columns: 1fr; } .ic-heading button { width: 100%; } }
+.intelligence-card button { border: 1px solid #cbd5dd; border-radius: 9px; background: #fff; color: #17324a; padding: 8px 12px; font: inherit; font-size: .82rem; cursor: pointer; }
+.intelligence-card button:hover:not(:disabled) { background: #edf2f5; border-color: #9cabb8; }
+.intelligence-card button:disabled { cursor: default; opacity: .55; }
+.intelligence-card :is(button, a, summary):focus-visible { outline: 2px solid #173b56; outline-offset: 3px; }
+.ic-customer-heading { font-weight: 650; color: #17324a; }

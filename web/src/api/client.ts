@@ -256,7 +256,7 @@ export const client = {
   intelligenceHistory: (needId: string, signal?: AbortSignal) => api<{ items: IntelligenceHistoryItem[] }>(`/api/intelligence/needs/${encodeURIComponent(needId)}/history?limit=20`, { signal }),
   requestIntelligence: (needId: string, taskType: string, questionId?: string) => api<IntelligenceHistoryItem>(`/api/intelligence/needs/${encodeURIComponent(needId)}/jobs`, { method: 'POST', body: JSON.stringify({ task_type: taskType, ...(questionId ? { question_id: questionId } : {}) }) }),
   saveIntelligenceFeedback: (needId: string, body: OwnerFeedbackBody) => api<{ id: string; metadata: Record<string, unknown>; note: string }>(`/api/intelligence/needs/${encodeURIComponent(needId)}/feedback`, { method: 'POST', body: JSON.stringify(body) }),
-  refreshAutonomousResearch: (needId: string, force: boolean, signal?: AbortSignal) => api<AutonomousResearch>(`/api/commercial/triage/${encodeURIComponent(needId)}/autonomous-research`, { method: 'POST', body: JSON.stringify({ force }), signal }, true),
+  refreshAutonomousResearch: (needId: string, force: boolean, signal?: AbortSignal, completeIntelligence = false) => api<AutonomousResearch>(`/api/commercial/triage/${encodeURIComponent(needId)}/autonomous-research`, { method: 'POST', body: JSON.stringify({ force, ...(completeIntelligence ? { complete_intelligence: true } : {}) }), signal }, true),
   session: () => api<{ authenticated: boolean }>('/api/auth/session').then((session) => {
     if (!session.authenticated) clearContinuity()
     return session
