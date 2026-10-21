@@ -48,13 +48,23 @@ def _valid_ein(value: str) -> bool:
     return bool(re.fullmatch(r"(?:\d{2}-?\d{7})", value.strip()))
 
 
+def _normalized_identifier(identifier_type: str, value: str) -> str:
+    if identifier_type == "ein":
+        return re.sub(r"\D", "", value)
+    return _normalized(value)
+
+
 def _typed_subject_binding(
     quote: str, identifier_type: str, normalized_value: str, subject: str
 ) -> bool:
     """Require an exact typed field and a named subject in the same short passage."""
     if not subject.strip():
         return False
-    escaped = re.escape(normalized_value)
+    if identifier_type == "ein":
+        digits = re.sub(r"\D", "", normalized_value)
+        escaped = f"{re.escape(digits[:2])}-?{re.escape(digits[2:])}"
+    else:
+        escaped = re.escape(normalized_value)
     label = (
         r"\b(?:LEI|Legal Entity Identifier)\b"
         if identifier_type == "lei"
@@ -140,7 +150,7 @@ def reconcile_claim_identity(
     if not identifier_value.strip() or not reason.strip():
         raise ValueError("identifier value and reason are required")
     source = _validate_claim_evidence(session, claim, entity_type, source_evidence_id)
-    normalized = _normalized(identifier_value)
+    normalized = _normalized_identifier(identifier_type, identifier_value)
     if identifier_type == "lei" and not _valid_lei(identifier_value):
         raise ValueError("LEI must be a checksum-valid 20-character identifier")
     if identifier_type == "ein" and not _valid_ein(identifier_value):
@@ -159,15 +169,20 @@ def reconcile_claim_identity(
         raise ValueError(
             "typed identifier must be unambiguously bound to the entity in its citation"
         )
-    identifier = session.scalar(
-        select(IdentityIdentifier).where(
+    lookup_values = [normalized]
+    if identifier_type == "ein":
+        lookup_values.append(f"{normalized[:2]}-{normalized[2:]}")
+    identifiers = session.scalars(
+        select(IdentityIdentifier)
+        .where(
             IdentityIdentifier.entity_type == entity_type,
             IdentityIdentifier.identifier_type == identifier_type,
-            IdentityIdentifier.normalized_value == normalized,
         )
-    )
+        .where(IdentityIdentifier.normalized_value.in_(lookup_values))
+        .order_by(IdentityIdentifier.normalized_value)
+    ).all()
     linked_identity_id: UUID | None
-    if identifier is None:
+    if not identifiers:
         identity = CompanyIdentity() if entity_type == "company" else PersonIdentity()
         session.add(identity)
         session.flush()
@@ -185,23 +200,23 @@ def reconcile_claim_identity(
         session.flush()
         linked_identity_id = identity.id
     else:
-        identity_id = (
-            identifier.company_identity_id
-            if entity_type == "company"
-            else identifier.person_identity_id
-        )
-        found_identity = session.get(
-            CompanyIdentity if entity_type == "company" else PersonIdentity, identity_id
-        )
-        if found_identity is None:
+        identity_ids = {
+            row.company_identity_id if entity_type == "company" else row.person_identity_id
+            for row in identifiers
+        }
+        if None in identity_ids:
             raise ValueError("identity identifier is not linked to a valid identity")
-        linked_identity_id = (
-            identifier.company_identity_id
-            if entity_type == "company"
-            else identifier.person_identity_id
-        )
-        if linked_identity_id is None:
-            raise ValueError("identity identifier is not linked to the requested entity type")
+        if len(identity_ids) != 1:
+            raise ValueError("equivalent identifier records conflict; identity reuse is ambiguous")
+        linked_identity_id = next(iter(identity_ids))
+        if (
+            linked_identity_id is None
+            or session.get(
+                CompanyIdentity if entity_type == "company" else PersonIdentity, linked_identity_id
+            )
+            is None
+        ):
+            raise ValueError("identity identifier is not linked to a valid identity")
     return link_claim_to_identity(
         session, claim, entity_type, linked_identity_id, source, reason, _strong_identifier=True
     )

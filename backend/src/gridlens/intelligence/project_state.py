@@ -120,9 +120,7 @@ def current_research_state(
             "fort-worth-permits",
             "boston-building-permits",
         }:
-            source_date = (
-                evidence.event_date or evidence.published_at or evidence.observed_at.date()
-            )
+            source_date = evidence.event_date or evidence.published_at
             for claim in extract_retained_permit_claims(
                 observation.source_id,
                 evidence.abstract or "",

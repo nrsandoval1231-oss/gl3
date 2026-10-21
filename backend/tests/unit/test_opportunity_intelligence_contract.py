@@ -517,6 +517,7 @@ def test_explicit_narrative_facility_name_precedes_title_or_summary(title, abstr
     record["name"] = title
     if title == "QTS ATL3":
         record["supported_subject"] = "QTS ATL3"
+        record["evidence"][0]["source_id"] = "georgia-air-draft-title-v"
     record["location"] = "Augusta, Georgia"
     record["evidence"][0].update(title=title, abstract=abstract)
     fields = {

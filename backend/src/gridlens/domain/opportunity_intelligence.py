@@ -344,20 +344,15 @@ def _source_location(
     """Prefer a precise address only when the current source states it explicitly."""
     for source in sources:
         passage = source.passage or ""
-        match = re.search(
-            r"(?i)\bto be located at (?P<address>2883 Gordon Highway, Augusta, Richmond County)",
-            passage,
-        )
-        if match:
-            line = next(
-                (line for line in passage.splitlines() if match.group(0) in line),
-                match.group(0),
-            )
-            return match.group("address"), [
+        from gridlens.ingestion.adapters.retained_permits import source_native_georgia_location
+
+        location = source_native_georgia_location(source.source_id or "", passage)
+        if location:
+            return location.value, [
                 source.model_copy(
                     update={
-                        "passage": line,
-                        "verification_status": "Current permit narrative address",
+                        "passage": location.quote,
+                        "verification_status": location.verification_status,
                     }
                 )
             ]
@@ -582,6 +577,17 @@ def assemble_card(
         fact
         for fact in item.get("operator_fact_refs", [])
         if fact.get("fact_type") == "power_schedule"
+        and bool(str(fact.get("need_id") or "").strip())
+        and str(fact.get("need_id")) == str(item.get("id") or "")
+        and bool(str(fact.get("project_id") or "").strip())
+        and str(fact.get("project_id") or "") == str(item.get("project_id") or "")
+        and bool(item.get("activity_key"))
+        and bool(fact.get("activity_key"))
+        and fact.get("activity_key") == item.get("activity_key")
+        and bool(str(item.get("location") or "").strip())
+        and bool(str(fact.get("facility_scope") or "").strip())
+        and str(fact.get("facility_scope") or "").strip().casefold()
+        == str(item.get("location") or "").strip().casefold()
     ]
     schedule = project_schedule(schedule_facts)
 

@@ -37,6 +37,7 @@ from gridlens.persistence.models import (
     BuyingChainRun,
     CompanyIdentity,
     Evidence,
+    IdentityIdentifier,
     Interpretation,
     NeedObservation,
     Observation,
@@ -324,6 +325,8 @@ def test_global_company_identity_requires_current_cited_strong_identifier_and_ke
         evidence_a = session.get(BuyingChainEvidence, evidence_a_id)
         evidence_a.excerpt += (
             " Acme legal entity, LEI: 5493001KJTIIGC8Y1R12, US EIN: 12-3456789."
+            " Acme subsidiary record, US EIN: 98-7654321."
+            " Acme registry record, US EIN: 11-1111111."
             " Beta legal entity, US EIN: 12-3456789."
             " Sam Lee is engineer at Acme; professional license: LIC-111."
         )
@@ -331,7 +334,11 @@ def test_global_company_identity_requires_current_cited_strong_identifier_and_ke
             project_id=project_a.id,
             url="https://registry.example/acme",
             title="Acme legal entity record",
-            excerpt=("Acme legal entity record, LEI: 5493001KJTIIGC8Y1R12, US EIN: 12-3456789."),
+            excerpt=(
+                "Acme legal entity record, LEI: 5493001KJTIIGC8Y1R12, US EIN: 12-3456789. "
+                "Acme subsidiary record, US EIN: 98-7654321. "
+                "Acme registry record, US EIN: 11-1111111."
+            ),
             content_hash="a" * 64,
             extraction_location="legal entity identifier field",
             published_at=date(2026, 9, 20),
@@ -498,11 +505,125 @@ def test_global_company_identity_requires_current_cited_strong_identifier_and_ke
             claims[1].id,
             "company",
             "ein",
-            "12-3456789",
+            "123456789",
             identity_sources[1],
             "Typed US EIN in cited legal entity record",
         )
         assert ein_a.company_identity_id == ein_b.company_identity_id
+        assert (
+            session.scalar(
+                select(IdentityIdentifier).where(
+                    IdentityIdentifier.identifier_type == "ein",
+                    IdentityIdentifier.normalized_value == "123456789",
+                )
+            )
+            is not None
+        )
+
+        legacy_identity = CompanyIdentity()
+        session.add(legacy_identity)
+        session.flush()
+        legacy_identifier = IdentityIdentifier(
+            entity_type="company",
+            company_identity_id=legacy_identity.id,
+            person_identity_id=None,
+            identifier_type="ein",
+            normalized_value="98-7654321",
+            source_evidence_id=identity_sources[0],
+            source_version_hash=session.get(BuyingChainEvidence, identity_sources[0]).content_hash,
+            reason="Existing legacy EIN spelling",
+        )
+        session.add(legacy_identifier)
+        session.flush()
+        legacy_a = reconcile_claim_identity(
+            session,
+            claims[0].id,
+            "company",
+            "ein",
+            "987654321",
+            identity_sources[0],
+            "Cited EIN without punctuation",
+        )
+        legacy_b = reconcile_claim_identity(
+            session,
+            claims[1].id,
+            "company",
+            "ein",
+            "98-7654321",
+            identity_sources[1],
+            "Same cited EIN with punctuation",
+        )
+        assert legacy_a.company_identity_id == legacy_b.company_identity_id == legacy_identity.id
+        assert legacy_identifier.normalized_value == "98-7654321"
+
+        conflict_a, conflict_b = CompanyIdentity(), CompanyIdentity()
+        session.add_all([conflict_a, conflict_b])
+        session.flush()
+        conflict_rows = [
+            IdentityIdentifier(
+                entity_type="company",
+                company_identity_id=identity.id,
+                person_identity_id=None,
+                identifier_type="ein",
+                normalized_value=value,
+                source_evidence_id=identity_sources[0],
+                source_version_hash=session.get(
+                    BuyingChainEvidence, identity_sources[0]
+                ).content_hash,
+                reason="Conflicting historical spelling",
+            )
+            for value, identity in (("111111111", conflict_a), ("11-1111111", conflict_b))
+        ]
+        session.add_all(conflict_rows)
+        session.flush()
+        identity_count_before = session.scalar(select(func.count()).select_from(CompanyIdentity))
+        identifier_count_before = session.scalar(
+            select(func.count()).select_from(IdentityIdentifier)
+        )
+        links_before_conflict = [
+            (row.id, row.company_identity_id, row.source_evidence_id, row.state)
+            for row in session.scalars(
+                select(BuyingChainIdentityLink)
+                .where(BuyingChainIdentityLink.claim_id == claims[0].id)
+                .order_by(BuyingChainIdentityLink.id)
+            )
+        ]
+        with pytest.raises(ValueError, match="conflict"):
+            reconcile_claim_identity(
+                session,
+                claims[0].id,
+                "company",
+                "ein",
+                "11-1111111",
+                identity_sources[0],
+                "Conflicting identifier spellings must not merge identities",
+            )
+        assert (
+            session.scalar(select(func.count()).select_from(CompanyIdentity))
+            == identity_count_before
+        )
+        assert (
+            session.scalar(select(func.count()).select_from(IdentityIdentifier))
+            == identifier_count_before
+        )
+        assert [
+            (row.id, row.company_identity_id, row.source_evidence_id, row.state)
+            for row in session.scalars(
+                select(BuyingChainIdentityLink)
+                .where(BuyingChainIdentityLink.claim_id == claims[0].id)
+                .order_by(BuyingChainIdentityLink.id)
+            )
+        ] == links_before_conflict
+        with pytest.raises(ValueError, match="EIN must be an exact nine-digit"):
+            reconcile_claim_identity(
+                session,
+                claims[0].id,
+                "company",
+                "ein",
+                "12345678",
+                identity_sources[0],
+                "Malformed EIN must be rejected",
+            )
         ensure_project_scoped_identity_links(session, [str(claim.id) for claim in claims])
         person_links = current_claim_identity_links(session, {claim.id for claim in claims})
         person_a_id = person_links[claims[0].id]["person_identity_id"]
@@ -610,6 +731,7 @@ def test_global_company_identity_requires_current_cited_strong_identifier_and_ke
         assert corrected.state == "current"
         assert sorted(link.state for link in history) == [
             "current",
+            "superseded",
             "superseded",
             "superseded",
             "superseded",

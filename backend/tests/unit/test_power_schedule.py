@@ -307,6 +307,8 @@ def test_card_contains_typed_schedule_and_operator_report_provenance():
     record = {
         "id": "n",
         "project_id": "p",
+        "activity_key": "construction",
+        "location": "Dallas, TX",
         "tier": "Lead",
         "qualification_version": "qualified-v1",
         "start_window": "2027-01-01",
@@ -323,6 +325,10 @@ def test_card_contains_typed_schedule_and_operator_report_provenance():
         "operator_fact_refs": [
             {
                 "fact_type": "power_schedule",
+                "need_id": "n",
+                "project_id": "p",
+                "activity_key": "construction",
+                "facility_scope": "Dallas, TX",
                 "value": validate_fact("power_schedule", schedule()),
                 "fact_version_id": "version-1",
                 "content_hash": "c" * 64,
@@ -338,3 +344,48 @@ def test_card_contains_typed_schedule_and_operator_report_provenance():
     assert card.power_schedule.status == "SUPPORTED_SCENARIO"
     assert card.power_schedule.fact_refs[0].source_reference == "call-1"
     assert "owner described" in card.power_schedule.fact_refs[0].source_quote
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        {"location": "Austin, TX"},
+        {"activity_key": "temporary_power"},
+        {"project_id": "other-project"},
+        {"operator_fact_refs": [{"fact_type": "power_schedule", "need_id": "another-need"}]},
+        {"operator_fact_refs": [{"fact_type": "power_schedule"}]},
+    ],
+)
+def test_schedule_scope_must_match_current_canonical_need(mutation):
+    record = {
+        "id": "n",
+        "project_id": "p",
+        "activity_key": "construction",
+        "location": "Dallas, TX",
+        "tier": "Lead",
+        "qualification_version": "qualified-v1",
+        "qualified_remaining_gap": {
+            "required_mw_min": "10",
+            "required_mw_max": "12",
+            "available_mw_min": "0",
+            "available_mw_max": "0",
+            "remaining_mw_min": "10",
+            "remaining_mw_max": "12",
+        },
+        "evidence": [],
+        "operator_fact_refs": [
+            {
+                "fact_type": "power_schedule",
+                "need_id": "n",
+                "project_id": "p",
+                "activity_key": "construction",
+                "facility_scope": "Dallas, TX",
+                "value": validate_fact("power_schedule", schedule()),
+                "fact_version_id": "version-1",
+                "content_hash": "c" * 64,
+            }
+        ],
+    }
+    record.update(mutation)
+    result = assemble_card(record, {}, {}, [], research_enabled=False)
+    assert result.power_schedule is None

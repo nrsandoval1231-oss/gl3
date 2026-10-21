@@ -265,3 +265,43 @@ def test_georgia_owner_pattern_preserves_qts_proponent_and_tadg_owner_roles():
     assert owner.citations[0]["quote"] == (
         "TA Digital Realty (TADG) – ATL02, which is owned by TA Ellenwood LLC"
     )
+
+
+def test_georgia_narrative_location_is_source_gated_and_ignores_mailing_address():
+    from gridlens.ingestion.adapters.retained_permits import source_native_georgia_location
+
+    original = (
+        "QTS ATL3 Campus is proposed greenfield to be located at 2883 Gordon Highway, "
+        "Augusta, Richmond County."
+    )
+    result = source_native_georgia_location("georgia-air-draft-title-v", original)
+    assert result is not None
+    assert result.value == "2883 Gordon Highway, Augusta, Richmond County"
+    assert result.quote == original
+    second = source_native_georgia_location(
+        "georgia-air-draft-title-v",
+        "Facility is to be located at 45 New Street, Savannah, Chatham County. "
+        "Mailing address: 900 Office Road, Atlanta, GA.",
+    )
+    assert second is not None and second.value == "45 New Street, Savannah, Chatham County"
+    abbreviated_line = "to be located at 125 W. Main St., Rome, Floyd County."
+    abbreviated = source_native_georgia_location("georgia-air-draft-title-v", abbreviated_line)
+    assert abbreviated is not None
+    assert abbreviated.value == "125 W. Main St., Rome, Floyd County"
+    assert abbreviated.quote == abbreviated_line
+    assert (
+        source_native_georgia_location(
+            "georgia-air-draft-title-v", "to be located at an unspecified site."
+        )
+        is None
+    )
+    assert (
+        source_native_georgia_location(
+            "other-source", "to be located at 45 New Street, Savannah, Chatham County."
+        )
+        is None
+    )
+    assert (
+        source_native_georgia_location("georgia-air-draft-title-v", "Mailing address: 1 Main St")
+        is None
+    )

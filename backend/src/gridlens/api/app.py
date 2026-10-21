@@ -3852,6 +3852,7 @@ def opportunity_projection(
                     workflow_by_need[need.id].status if need.id in workflow_by_need else "UNKNOWN"
                 ),
                 "activity": need.activity_key,
+                "activity_key": need.activity_key,
                 "rationale": (
                     "The latest linked Taylor revision withdraws this planning application. "
                     "Earlier project evidence remains historical; current project viability "
@@ -4049,11 +4050,31 @@ def opportunity_projection(
                 )
             )
         if include_operator_fact_refs:
-            accepted_facts = fact_rows_by_need.get(need.id, [])
+            accepted_facts = [
+                fact
+                for fact in fact_rows_by_need.get(need.id, [])
+                if fact.fact_type != "power_schedule"
+                or (
+                    fact.need_id == need.id
+                    and fact.project_id == need.project_id
+                    and fact.activity_key == need.activity_key
+                    and fact.facility_scope.strip().casefold()
+                    == (project.location or "").strip().casefold()
+                )
+            ]
             if accepted_facts:
                 result[-1]["operator_fact_refs"] = [
                     {
                         "need_id": str(need.id),
+                        **(
+                            {
+                                "project_id": str(fact.project_id),
+                                "activity_key": fact.activity_key,
+                                "facility_scope": fact.facility_scope,
+                            }
+                            if fact.fact_type == "power_schedule"
+                            else {}
+                        ),
                         "fact_version_id": str(fact.id),
                         "content_hash": fact.content_hash,
                         "authority": "User-confirmed",

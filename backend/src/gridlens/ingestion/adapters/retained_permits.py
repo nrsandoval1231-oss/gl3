@@ -131,6 +131,32 @@ class RetainedIdentity:
     verification_status: str
 
 
+@dataclass(frozen=True)
+class RetainedLocation:
+    value: str
+    quote: str
+    verification_status: str
+
+
+def source_native_georgia_location(source_id: str, passage: str) -> RetainedLocation | None:
+    """Extract a Georgia permit narrative site address, never its mailing address."""
+    if source_id != GEORGIA:
+        return None
+    address = re.compile(
+        r"(?i)\bto be located at\s+(?P<address>"
+        r"\d{1,6}\s+[\w.'’#/-]+(?:[ \t]+[\w.'’#/-]+){0,8},"
+        r"[ \t]*[^,\r\n.;]+,[ \t]*[^,\r\n.;]*\bCounty)"
+    )
+    for match in address.finditer(passage):
+        value = " ".join(match.group("address").split())
+        if not value:
+            continue
+        quote = next((line for line in passage.splitlines() if match.group(0) in line), "")
+        if quote:
+            return RetainedLocation(value, quote, "Current permit narrative address")
+    return None
+
+
 _SOURCE_NATIVE_IDENTITY_IDS = frozenset({"texas-rrc-drilling-permits", "austin-building-permits"})
 
 

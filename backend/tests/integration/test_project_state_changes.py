@@ -333,6 +333,101 @@ def test_original_retained_permit_claims_are_version_bound_and_activity_scoped(d
         assert state[str(electrical[0].id)]["activity_load_mw"]["status"] == "UNKNOWN"
 
 
+def test_boston_permit_research_needs_source_date_not_retrieval_day(db):
+    from gridlens.domain.project_research import VERSION as RESEARCH_VERSION
+
+    today = date.today()
+    retrieved = datetime.now(UTC)
+    abstract = (
+        "Permit number: ETS1870328\nDescription: Electrical\n"
+        "Comments: Provide temporary electrical work required to support Boss steel "
+        "Office trailer 100A 208v 1Ph $5000"
+    )
+    with db.begin() as session:
+        project, _, _ = seed(session)
+        session.add(
+            Source(
+                id="boston-building-permits",
+                publisher="City of Boston",
+                endpoint="https://data.boston.gov/api/3/action/datastore_search",
+                family="construction-permits",
+                geography="Boston, Massachusetts",
+                industries=[],
+                retrieval_method="test",
+                health={},
+            )
+        )
+        session.flush()
+        need = PowerNeed(
+            project_id=project.id,
+            activity_key="temporary-power",
+            tier="Signal",
+            rationale="Boston retained permit date test",
+            active=True,
+        )
+        observation = Observation(
+            source_id="boston-building-permits",
+            external_id="permit-source-date",
+            title="Boston permit source-date test",
+            abstract=abstract,
+            url="https://permits.example/boston/source-date",
+            published_at=None,
+            content_hash="boston-source-date",
+        )
+        session.add_all([need, observation])
+        session.flush()
+        evidence = Evidence(
+            observation_id=observation.id,
+            title=observation.title,
+            abstract=abstract,
+            url=observation.url,
+            content_hash=observation.content_hash,
+            event_date=today,
+            published_at=None,
+            observed_at=retrieved,
+        )
+        interpretation = Interpretation(
+            observation_id=observation.id,
+            evaluator_version=RESEARCH_VERSION,
+            content_hash=observation.content_hash,
+            status="accepted",
+            assessment={"evidence_hash": observation.content_hash},
+        )
+        session.add_all(
+            [
+                evidence,
+                interpretation,
+                NeedObservation(need_id=need.id, observation_id=observation.id),
+            ]
+        )
+        session.flush()
+
+        state = current_research_state(session, project.id)
+        current = state[str(need.id)]["voltage"]
+        assert current["status"] == "SUPPORTED"
+        assert current["claims"][0]["as_of"] == today.isoformat()
+
+        evidence.event_date = today - timedelta(days=120)
+        session.flush()
+        old = current_research_state(session, project.id).get(str(need.id), {})
+        old_claims = old.get("voltage", {}).get("claims", [])
+        assert old_claims
+        assert old_claims[0]["as_of"] == (today - timedelta(days=120)).isoformat()
+
+        evidence.event_date = today + timedelta(days=1)
+        session.flush()
+        assert current_research_state(session, project.id).get(str(need.id), {}) == {}
+
+        evidence.event_date = None
+        session.flush()
+        assert current_research_state(session, project.id).get(str(need.id), {}) == {}
+        raw_evidence = session.get(Evidence, evidence.id)
+        assert raw_evidence is not None
+        assert raw_evidence.event_date is None
+        assert raw_evidence.published_at is None
+        assert raw_evidence.observed_at == retrieved
+
+
 def test_need_state_excludes_reassigned_and_supplemental_evidence(db):
     with db.begin() as session:
         project, observation, evidence = seed(session)
