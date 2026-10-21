@@ -27,11 +27,12 @@ type Props = {
   onTab: (tab: WorkspaceTab) => void
   onBack: () => void
   onRetry: () => void
-  onReadback: () => void
+  onReadback: (notice?: string) => void
+  correctionNotice?: string
   onTitleReady: () => void
 }
 
-export function WorkspaceDetail({ item, pending, loading, error, tab, onTab, onBack, onRetry, onReadback, onTitleReady }: Props) {
+export function WorkspaceDetail({ item, pending, loading, error, tab, onTab, onBack, onRetry, onReadback, onTitleReady, correctionNotice }: Props) {
   const [brief, setBrief] = useState<Brief | null>(null)
   const [briefBusy, setBriefBusy] = useState(false)
   const [briefError, setBriefError] = useState('')
@@ -137,6 +138,7 @@ export function WorkspaceDetail({ item, pending, loading, error, tab, onTab, onB
   if (!item) {
     return <aside className="wh-detail wh-empty-detail" aria-label="Opportunity detail">
       <p>{pending || loading ? 'Loading verified opportunity detail…' : 'Select an opportunity to review its evidence and next action.'}</p>
+      {correctionNotice && <p role="status">{correctionNotice}</p>}
       {error && <p role="alert">{error} <button onClick={onRetry}>Retry</button></p>}
     </aside>
   }
@@ -253,6 +255,7 @@ export function WorkspaceDetail({ item, pending, loading, error, tab, onTab, onB
     </nav>
     <div className="wh-detail-content">
       {loading && <p role="status">Loading verified detail…</p>}
+      {correctionNotice && <p role="status">{correctionNotice}</p>}
       {error && <p role="alert">{error} <button onClick={onRetry}>Retry</button></p>}
       {tab === 'Overview' && item.intelligence_card && <IntelligenceCard key={item.id} card={item.intelligence_card} onReadback={onReadback} onReview={() => onTab('Next steps')} />}
       {tab === 'Overview' && !item.intelligence_card && <>

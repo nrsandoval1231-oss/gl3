@@ -318,6 +318,61 @@ test('contact correction readback reports an unverified replacement without rest
   await expect(section.getByRole('link', { name: /Call|Email/ })).toHaveCount(0)
 })
 
+test('workspace overview refresh removes superseded contact action and keeps the correction outcome accessible', async ({ page }) => {
+  let corrected = false
+  const source = { reference: 'evidence:contact', title: 'Official contact page', url: 'https://example.com/contact', source_date: null, retained_evidence_id: 'current-contact', content_hash: 'b'.repeat(64), passage: 'Current business contact: +1 312 555 0100', extraction_method: 'official page', verification_status: 'Current retained support' }
+  const intelligenceCard = {
+    policy_version: 'opportunity-intelligence-v1', need_id: 'one', project_id: 'one', input_fingerprint: 'a'.repeat(64),
+    qualification: 'Signal', disposition: 'RESEARCH', fields: [],
+    contacts: [{ claim_id: 'candidate-one', company: 'Test Electrical one', name: null, title: null, role: 'electrical contractor', responsibility: 'General company contact path', purchasing_authority: 'Requires confirmation for this power package', methods: [{ kind: 'phone', value: '+1 312 555 0100', href: 'tel:+13125550100', source_url: source.url }], sources: [source] }],
+    next_contact_path: 'Confirm with the company office.', next_action: 'Review the current contact evidence.', research_gaps: [], completeness: { supported: 0, total: 0 }, evidence: [source], research_enabled: false,
+  }
+  await page.route(apiRoute, async (route) => {
+    const request = route.request()
+    const path = new URL(request.url()).pathname
+    if (path === '/api/auth/session') return route.fulfill({ json: { authenticated: true } })
+    if (path === '/api/opportunities/workspace/changes') return route.fulfill({ json: { items: [], counts: { discovered: 0, changed: 0, promoted: 0, closed: 0, review_exception: 0 }, total_unreviewed: 0, offset: 0, limit: 50, next_offset: null, evaluated_at: stamp, baseline_identity: '00000000-0000-4000-8000-000000000001', baseline_reviewed_at: null, first_use: true, token: 'a'.repeat(64), source_health_exceptions: [] } })
+    if (path === '/api/opportunities/workspace') return route.fulfill({ json: { items: [project('one')], total: 1, counts: { action_now: 0, research: 1, watch: 0, reject: 0 }, offset: 0, limit: 25, next_offset: null, cohort_token: 'cohort-one' } })
+    if (path === '/api/opportunities/needs/one') return route.fulfill({ json: { ...project('one'), intelligence_card: { ...intelligenceCard, contacts: corrected ? [] : intelligenceCard.contacts } } })
+    if (path.includes('/buying-chain')) {
+      if (request.method() === 'POST') {
+        const body = request.postDataJSON() as { values: Record<string, string> }
+        corrected = true
+        return route.fulfill({ json: { id: 'correction-one', version: 'v2', action: 'correct', values: body.values, reason: 'Current method is not supported', actor: 'operator', created_at: stamp, reported_contact: false } })
+      }
+      const value = chain('one')
+      const candidate = value.candidates![0]
+      candidate.correction_version = corrected ? 'v2' : 'v1'
+      candidate.correction_history = corrected ? [{ id: 'correction-one', action: 'correct', values: { public_contact_kind: 'phone', public_contact_value: '+1 312 555 0199' }, reason: 'Current method is not supported', created_at: stamp, reported_contact: false }] : []
+      candidate.public_contacts = corrected ? [] : [{ kind: 'phone', value: '+1 312 555 0100', source_url: source.url, quote: source.passage, observed_at: stamp }]
+      candidate.evidence = [{ id: 'current-contact', url: source.url, quote: source.passage, supports: 'public_contact', extraction_location: 'official page', published_at: null, observed_at: stamp, content_hash: 'b'.repeat(64) }]
+      return route.fulfill({ json: value })
+    }
+    if (path.includes('/power-needs/') && path.endsWith('/title')) return route.fulfill({ json: { status: 'disabled', result: null, citations: [] } })
+    if (path.includes('/power-needs/') && path.endsWith('/brief')) return route.fulfill({ json: { status: 'disabled', result: null, citations: [] } })
+    return route.fulfill({ json: [] })
+  })
+  await page.goto('/?view=workspace')
+  await expect(page.getByRole('heading', { name: 'Your pursuits' })).toBeVisible()
+  await page.locator('[data-need-row="one"]').click()
+  const overview = page.getByRole('region', { name: 'Commercial intelligence card', exact: true })
+  await expect(overview.getByRole('link', { name: 'Call +1 312 555 0100' })).toHaveAttribute('href', 'tel:+13125550100')
+  await page.getByRole('button', { name: 'Buying chain', exact: true }).click()
+  const buyingChain = page.getByRole('region', { name: 'Buying chain' })
+  await buyingChain.getByRole('button', { name: 'Correct or retract contact' }).click()
+  await buyingChain.getByLabel('Corrected contact value').fill('+1 312 555 0199')
+  await buyingChain.getByLabel('Current public-contact evidence').selectOption('current-contact')
+  await buyingChain.getByLabel('Reason', { exact: true }).fill('Current method is not supported')
+  await buyingChain.getByRole('button', { name: 'Save contact correction' }).click()
+  const correctionNotice = 'Correction recorded, but current public evidence did not confirm the replacement method; the old same-kind method was removed.'
+  await expect(page.getByText(correctionNotice, { exact: true })).toBeVisible()
+  await expect(buyingChain.getByRole('button', { name: 'Correct or retract contact' })).toBeVisible()
+  await page.getByRole('button', { name: 'Overview', exact: true }).click()
+  await expect(page.getByRole('region', { name: 'Commercial intelligence card', exact: true }).getByRole('link', { name: 'Call +1 312 555 0100' })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Buying chain', exact: true }).click()
+  await expect(page.getByText(correctionNotice, { exact: true })).toBeVisible()
+})
+
 test('queued buying-chain job survives reload and polls to a truthful terminal state', async ({ page }) => {
   let reads = 0
   await shell(page, async (route) => {
