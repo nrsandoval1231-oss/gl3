@@ -3,6 +3,8 @@
 from datetime import UTC, date, datetime, timedelta
 from uuid import uuid4
 
+import pytest
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from sqlalchemy import func, select
 
@@ -50,6 +52,59 @@ def test_aggregate_is_authenticated_bounded_read_only_and_preserves_qualificatio
     with saved_db() as session:
         assert session.scalar(select(func.count()).select_from(Job)) == before
         assert session.scalar(select(func.count()).select_from(PursuitResearchQuestion)) == 0
+
+
+def test_unfiltered_legacy_detail_projects_only_selected_need(saved_db, monkeypatch):
+    from test_saved_browse import seed
+
+    from gridlens.api import app as api
+    from gridlens.settings import settings
+
+    ids = seed(saved_db, count=40, histories=1)
+    monkeypatch.setattr(settings, "saved_browse_enabled", False)
+    summary_scopes = []
+    evidence_match_sizes = []
+    canonical_projection = api.opportunity_projection
+    canonical_evidence_matches = api._opportunity_evidence_search_matches
+
+    def observe_projection(session, **kwargs):
+        if kwargs.get("summary_only"):
+            summary_scopes.append(kwargs.get("selected_need_ids"))
+        return canonical_projection(session, **kwargs)
+
+    def observe_evidence_matches(session, items, search):
+        evidence_match_sizes.append(len(items))
+        return canonical_evidence_matches(session, items, search)
+
+    monkeypatch.setattr(api, "opportunity_projection", observe_projection)
+    monkeypatch.setattr(api, "_opportunity_evidence_search_matches", observe_evidence_matches)
+
+    detail = api.opportunity_need_detail(ids[0])
+
+    assert detail["id"] == ids[0]
+    assert detail["intelligence_card"]["need_id"] == str(ids[0])
+    assert summary_scopes == [{ids[0]}]
+    assert evidence_match_sizes == []
+
+    summary_scopes.clear()
+    whitespace_detail = api.opportunity_need_detail(ids[0], search=" \t", decision="ALL")
+    assert whitespace_detail["id"] == ids[0]
+    assert summary_scopes == [{ids[0]}]
+    assert evidence_match_sizes == []
+
+    summary_scopes.clear()
+    with pytest.raises(HTTPException) as error:
+        api.opportunity_need_detail(ids[0], mw_min="0")
+    assert error.value.status_code == 404
+    assert summary_scopes == [None]
+    assert evidence_match_sizes == [0]
+
+    summary_scopes.clear()
+    unknown_need_id = uuid4()
+    with pytest.raises(HTTPException) as error:
+        api.opportunity_need_detail(unknown_need_id)
+    assert error.value.status_code == 404
+    assert summary_scopes == [{unknown_need_id}]
 
 
 def test_old_retained_boston_voltage_remains_dated_and_hash_bound_on_authenticated_card_read(

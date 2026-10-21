@@ -2700,40 +2700,56 @@ def opportunity_need_detail(
             return detail
     with SessionLocal() as session:
         _begin_consistent_read(session)
-        summaries = _filter_opportunity_summaries(
-            opportunity_projection(session, tier=tier, summary_only=True), filters
-        )
-        summaries = [
-            {
-                **item,
-                "_browse_first_evidence": {},
-                "_browse_action_candidates": item.get("_browse_action_candidates", []),
-            }
-            for item in summaries
-        ]
-        evidence_matches = _opportunity_evidence_search_matches(session, summaries, search)
-        groups = grouped_opportunities(summaries)
-        member_matches = {
-            str(member["id"]): matched_opportunity(
-                member, search or "", evidence_matches.get(str(member["id"]), False)
+        unfiltered = (
+            cohort_token is None
+            and not normalized_dimension(search)
+            and filters["decision"] in {None, "ALL"}
+            and all(
+                value is None for key, value in filters.items() if key not in {"search", "decision"}
             )
-            for member in summaries
-        }
-        group_keys_by_id = {str(member["id"]): key for key, members in groups for member in members}
-        selected_groups = [
-            (key, members)
-            for key, members in groups
-            if any(member_matches[str(member["id"])] for member in members)
-            and (decision in {None, "ALL"} or grouped_signal_decision(members) == decision)
-        ]
-        selected = [member for _key, members in selected_groups for member in members]
-        selected.sort(key=lambda item: str(item["id"]))
-        selected.sort(key=lambda item: item.get("_updated_at") or datetime.min, reverse=True)
-        selected_keys = [group_keys_by_id[str(item["id"])] for item in selected]
-        current_token = build_opportunity_cohort_token(filters, selected, selected_keys)
-        if cohort_token is not None and _membership_token(cohort_token) != current_token:
-            raise HTTPException(409, "Opportunity cohort changed; reopen the selected record")
-        summary = next((item for item in selected if item["id"] == need_id), None)
+        )
+        if unfiltered:
+            summaries = opportunity_projection(
+                session, summary_only=True, selected_need_ids={need_id}
+            )
+            summary = summaries[0] if summaries else None
+        else:
+            summaries = _filter_opportunity_summaries(
+                opportunity_projection(session, tier=tier, summary_only=True), filters
+            )
+            summaries = [
+                {
+                    **item,
+                    "_browse_first_evidence": {},
+                    "_browse_action_candidates": item.get("_browse_action_candidates", []),
+                }
+                for item in summaries
+            ]
+            evidence_matches = _opportunity_evidence_search_matches(session, summaries, search)
+            groups = grouped_opportunities(summaries)
+            member_matches = {
+                str(member["id"]): matched_opportunity(
+                    member, search or "", evidence_matches.get(str(member["id"]), False)
+                )
+                for member in summaries
+            }
+            group_keys_by_id = {
+                str(member["id"]): key for key, members in groups for member in members
+            }
+            selected_groups = [
+                (key, members)
+                for key, members in groups
+                if any(member_matches[str(member["id"])] for member in members)
+                and (decision in {None, "ALL"} or grouped_signal_decision(members) == decision)
+            ]
+            selected = [member for _key, members in selected_groups for member in members]
+            selected.sort(key=lambda item: str(item["id"]))
+            selected.sort(key=lambda item: item.get("_updated_at") or datetime.min, reverse=True)
+            selected_keys = [group_keys_by_id[str(item["id"])] for item in selected]
+            current_token = build_opportunity_cohort_token(filters, selected, selected_keys)
+            if cohort_token is not None and _membership_token(cohort_token) != current_token:
+                raise HTTPException(409, "Opportunity cohort changed; reopen the selected record")
+            summary = next((item for item in selected if item["id"] == need_id), None)
         if summary is None:
             raise HTTPException(404, "Opportunity is outside the requested filtered cohort")
         _preflight_opportunity_details(session, [summary])
