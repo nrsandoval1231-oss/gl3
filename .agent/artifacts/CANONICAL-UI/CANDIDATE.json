@@ -2,10 +2,10 @@
   "schema": "canonical-ui-index-manifest-v1",
   "base_sha": "a4d77d821ed229834b678b2dfb79c4d0f246dd8d",
   "branch": "feat/canonical-pursuit-ui",
-  "recorded_utc": "2026-10-21T00:03:12.952516+00:00",
+  "recorded_utc": "2026-10-21T00:13:24.257526+00:00",
   "self_exclusion": ".agent/artifacts/CANONICAL-UI/CANDIDATE.json",
   "identity": "Git index blobs after staging the validated candidate; review additionally pins the resulting commit SHA",
-  "entries_sha256": "b93fc2aaec69852a936dc1b2a1863aa03b7208bad81b24a0d03dd7b25301b51a",
+  "entries_sha256": "8f41201bf8ab7d251eafba0fde64334c3cb5561019445696e2233e3df03d37be",
   "entries": [
     {
       "path": ".agent/AGENT_RULES.md",
@@ -140,7 +140,7 @@
     {
       "path": ".agent/CURRENT_STATE.md",
       "mode": "100644",
-      "git_blob": "aec4d04d6feaffe37b16c909ee645b901c32f333"
+      "git_blob": "9f328ccebda15ee27e796776c3bc615f45c7042e"
     },
     {
       "path": ".agent/FINISH_CONTRACT.md",
@@ -580,7 +580,7 @@
     {
       "path": ".agent/artifacts/CANONICAL-UI/PACKET.md",
       "mode": "100644",
-      "git_blob": "f1e3ad2152af2a6db062dc7a015e51421eb6c1a8"
+      "git_blob": "acf74e166942d60e847e4891c3c7ae9647edf7cd"
     },
     {
       "path": ".agent/artifacts/CANONICAL-UI/UI1-COMPLETION.json",
@@ -590,12 +590,12 @@
     {
       "path": ".agent/artifacts/CANONICAL-UI/UI1-ROUTING-COMPLETION.json",
       "mode": "100644",
-      "git_blob": "50f209cb966ba34521ffb1e15d49a89d8ae6182b"
+      "git_blob": "de36eb1ffea19b6f7f3ab919f6e10c890feca0e2"
     },
     {
       "path": ".agent/artifacts/CANONICAL-UI/VALIDATION.json",
       "mode": "100644",
-      "git_blob": "da43728f46c4e77bb561a0efb7a872dd22b72f0a"
+      "git_blob": "dcd03e2755bd980aead803c3f082950f68ba843a"
     },
     {
       "path": ".agent/artifacts/CANONICAL-UI/VALIDATION_PLAN.md",
@@ -605,7 +605,7 @@
     {
       "path": ".agent/artifacts/CANONICAL-UI/WORK_GRAPH.md",
       "mode": "100644",
-      "git_blob": "365dc27b7c2581752ea20f2479f9345434a70ec7"
+      "git_blob": "0fa848930c38c6ebd1d40f95d043e7f9cff70f12"
     },
     {
       "path": ".agent/episodes/GL3-001-runtime.md",
@@ -5105,7 +5105,7 @@
     {
       "path": "web/src/features/workspace/Workspace.tsx",
       "mode": "100644",
-      "git_blob": "b8bd1a6ab80b7913d303cbf36076ceda8f1932b5"
+      "git_blob": "6f6ed784d3494bdceb0d2272461a91f585715bc6"
     },
     {
       "path": "web/src/features/workspace/WorkspaceChanges.tsx",
@@ -5195,7 +5195,7 @@
     {
       "path": "web/tests/environment.spec.ts",
       "mode": "100644",
-      "git_blob": "eb78215d2d34c46f1b464b3d148d4677973b8060"
+      "git_blob": "b2b4c75b5c43183dd52c3d65926d66a4d2047532"
     },
     {
       "path": "web/tests/first_path.spec.ts",

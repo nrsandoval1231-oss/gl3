@@ -1,7 +1,7 @@
 {
   "scope": "Canonical UI PR candidate; not parent product completion or deployment",
   "started_utc": "2026-10-20T22:42:01Z",
-  "recorded_utc": "2026-10-21T00:02:01.264127+00:00",
+  "recorded_utc": "2026-10-21T00:13:24.033819+00:00",
   "base_sha": "a4d77d821ed229834b678b2dfb79c4d0f246dd8d",
   "backend": {
     "unchanged_from_base": true,
@@ -19,42 +19,42 @@
     ]
   },
   "frontend": {
-    "started_utc": "2026-10-21T00:00:18.646579+00:00",
+    "started_utc": "2026-10-21T00:11:43.703583+00:00",
     "gates": [
       {
         "name": "audit",
         "exit_code": 0,
-        "seconds": 1.08
+        "seconds": 1.03
       },
       {
         "name": "typecheck",
         "exit_code": 0,
-        "seconds": 2.56
+        "seconds": 2.36
       },
       {
         "name": "build",
         "exit_code": 0,
-        "seconds": 4.76
+        "seconds": 4.55
       },
       {
         "name": "browser",
         "exit_code": 0,
-        "seconds": 76.52
+        "seconds": 69.81
       },
       {
         "name": "docs",
         "exit_code": 0,
-        "seconds": 0.53
+        "seconds": 0.14
       },
       {
         "name": "diff",
         "exit_code": 0,
-        "seconds": 0.08
+        "seconds": 0.03
       }
     ],
-    "finished_utc": "2026-10-21T00:01:44.169515+00:00"
+    "finished_utc": "2026-10-21T00:13:01.630132+00:00"
   },
-  "browser_summary": "147 passed (1.3m)",
+  "browser_summary": "149 passed (1.2m)",
   "runtime": {
     "database": "dedicated loopback clone; 1619 retained needs; separate disposable test database",
     "api_port": 8120,
@@ -84,15 +84,15 @@
     },
     {
       "path": ".artifacts/canonical-ui/frontend-final/browser.log",
-      "sha256": "800eee77a1ad77ca6367a0b6c673e74361014177b21cdb98220c5bc7418e57af"
+      "sha256": "078e9586e80e04568563a7d4343b6a0e6fd4127b694b0b1a05cb16d1ed5befac"
     },
     {
       "path": ".artifacts/canonical-ui/frontend-final/build.log",
-      "sha256": "7867019481a5511403688bf76b88baf24374febe7389ae7973f10f7b72d29dfc"
+      "sha256": "a338584f8f99bf199cc51a1e27a7deaf8e2c786ba311f7c99616f387b0535be6"
     },
     {
       "path": ".artifacts/canonical-ui/frontend-final/diff.log",
-      "sha256": "fd63d0f304f6215538a92e95ddf6a57aea9f15aac02396bd79baec2a2021d7bf"
+      "sha256": "205fcf3c786a7e567188821df39db0a2552a10d78c6e65ef61d767453a2ab8c8"
     },
     {
       "path": ".artifacts/canonical-ui/frontend-final/docs.log",

@@ -49,11 +49,15 @@ function workspaceRequestKey(filters: WorkspaceFilters) {
   for (const [key, value] of Object.entries(filters)) if (value !== undefined && value !== '') params.set(key, String(value))
   return params.toString()
 }
+function workspaceParams(filters: WorkspaceFilters) {
+  const params = new URLSearchParams({ view: 'workspace' })
+  for (const [key, value] of Object.entries(filters)) if (value !== undefined && value !== '') params.set(key === 'search' ? 'q' : key, String(value))
+  return params
+}
 function writeUrl(filters: WorkspaceFilters, id: string | null, tab?: Tab, push = false) {
   const signalView = currentView() === 'signals'
-  const p = signalView ? getParams() : new URLSearchParams({ view: 'workspace' })
+  const p = signalView ? getParams() : workspaceParams(filters)
   if (signalView) { p.set('view', 'signals'); p.delete('need'); p.delete('section') }
-  else for (const [key, value] of Object.entries(filters)) if (value !== undefined && value !== '') p.set(key === 'search' ? 'q' : key, String(value))
   if (id) p.set('need', id)
   if (tab && tab !== 'Overview') p.set('section', tab.toLowerCase().replaceAll(' ', '-'))
   const url = `/${p.size ? `?${p}` : ''}`
@@ -63,9 +67,9 @@ export function WorkspaceHome() {
   const [view, setView] = useState(currentView)
   const [researchMounted, setResearchMounted] = useState(() => currentView() === 'pursuits')
   const [signalScope, setSignalScope] = useState<OpportunityNeedScope | null>(null)
-  const [commercialNavigation, setCommercialNavigation] = useState<CommercialNavigation>(commercialFromUrl)
+  const [commercialNavigation, setCommercialNavigation] = useState<CommercialNavigation>(() => currentView() === 'pursuits' ? commercialFromUrl() : defaultCommercialNavigation)
   const [authenticated, setAuthenticated] = useState<boolean | null>(null)
-  const [filters, setFilters] = useState<WorkspaceFilters>(initialFilters)
+  const [filters, setFilters] = useState<WorkspaceFilters>(() => currentView() === 'opportunities' ? initialFilters() : { sort: 'priority', offset: 0 })
   const [page, setPage] = useState<WorkspacePage | null>(null)
   const [pageIdentity, setPageIdentity] = useState<{ request: string; revision: number } | null>(null)
   const [selected, setSelected] = useState<WorkspaceDetail | null>(null)
@@ -80,6 +84,7 @@ export function WorkspaceHome() {
   const [detailNavigation, setDetailNavigation] = useState(0)
   const selectionSequence = useRef(0)
   const researchFocus = useRef<HTMLElement | null>(null)
+  const signalParams = useRef<URLSearchParams | null>(currentView() === 'signals' ? getParams() : null)
   const lastSelected = useRef<string | null>(null)
   const listSequence = useRef(0)
   const pageRef = useRef<{ page: WorkspacePage; request: string; revision: number } | null>(null)
@@ -136,7 +141,7 @@ export function WorkspaceHome() {
       setView(currentView())
       if (currentView() === 'pursuits') { setResearchMounted(true); setCommercialNavigation(commercialFromUrl()); requestAnimationFrame(() => researchFocus.current?.focus()) }
       try { id ||= decodeURIComponent(location.hash.slice(1) || '') } catch { setDetailError('The selected power need link is malformed.'); id = '' }
-      const next = initialFilters(); pendingRestore.current = null; setFilters(next)
+      const next = currentView() === 'opportunities' ? initialFilters() : filters; pendingRestore.current = null; if (currentView() === 'opportunities') setFilters(next); if (currentView() === 'signals') signalParams.current = getParams()
       setTab(tabs.find(t => t.toLowerCase().replaceAll(' ', '-') === (p.get('section') ?? (p.get('mode') === 'action' ? 'next-steps' : null))) ?? 'Overview')
       setDetailIdentity(null)
       if (!id) { ++selectionSequence.current; setDetailLoading(false); setSelected(null); setPendingNeedId(null); if (currentView() === 'opportunities') { const snapshot = history.state?.workspaceSnapshot ?? { ...savedScroll.current, focus: lastSelected.current }; pendingRestore.current = { ...snapshot, key: workspaceRequestKey(next) } } else requestAnimationFrame(() => { if (lastSelected.current) document.querySelector<HTMLElement>(`[data-opportunity-id="${CSS.escape(lastSelected.current)}"]`)?.focus() }); return }
@@ -189,14 +194,13 @@ export function WorkspaceHome() {
     const researchNeed = nextView === 'pursuits' ? selected?.id ?? pendingNeedId ?? commercialNavigation.needId : null
     if (nextView !== view) { ++selectionSequence.current; setSelected(null); setPendingNeedId(null); setDetailIdentity(null); setDetailLoading(false); setDetailError('') }
     setView(nextView)
-    const params = new URLSearchParams(getParams())
-    if (nextView === 'opportunities') { params.set('view', 'workspace'); params.delete('source'); params.delete('vertical'); params.delete('pursuitNeed'); params.delete('need'); params.delete('section'); params.delete('tier') }
-    else if (nextView === 'signals') { params.set('view', 'signals'); params.set('tier', 'Signals'); params.delete('need'); params.delete('section') }
-    else params.set('view', nextView)
+    if (view === 'signals') signalParams.current = getParams()
+    const params = nextView === 'opportunities' ? workspaceParams(filters)
+      : nextView === 'signals' ? new URLSearchParams(signalParams.current ?? { view: 'signals', tier: 'Signals' })
+      : new URLSearchParams({ view: nextView })
+    if (nextView === 'signals') { params.set('view', 'signals'); params.delete('need'); params.delete('section') }
     if (nextView === 'pursuits') {
       setResearchMounted(true)
-      params.delete('need')
-      params.delete('section')
       setCommercialNavigation(previous => ({ ...previous, needId: researchNeed }))
       writeCommercial(params, { ...commercialNavigation, needId: researchNeed })
     }
@@ -211,9 +215,9 @@ export function WorkspaceHome() {
   const position = useMemo(() => (page?.offset ?? 0) + items.length, [page, items])
   if (authenticated === null) return <main className="loading" aria-live="polite">Loading your private workspace…</main>
   if (!authenticated) return <LoginPage onLogin={async password => { await client.login(password); setPage(null); setError(''); setSelected(null); setAuthenticated(true) }}/>
-  const header = <header className="wh-header"><a href="/?view=workspace" aria-label="GridLens home"><img src="/brand/lockup-pursuits-v3.svg" alt="GridLens"/></a><nav aria-label="Primary navigation"><button className={view === 'opportunities' ? 'active' : ''} onClick={() => { navigate('opportunities'); setFilters(value => ({ ...value, tier: undefined, offset: 0, cohort_token: undefined })) }}>Opportunities</button><button className={view === 'pursuits' ? 'active' : ''} onClick={() => navigate('pursuits')}>Research</button><button className={view === 'signals' ? 'active' : ''} onClick={() => navigate('signals')}>Signals</button><button className={view === 'ingestion' ? 'active' : ''} onClick={() => navigate('ingestion')}>Operations</button></nav>{view === 'opportunities' && <label className="wh-global-search"><span>Search</span><input aria-label="Search opportunities" value={filters.search ?? ''} onChange={e => change('search', e.target.value)}/></label>}<button className="wh-signout" onClick={() => void client.logout().then(() => location.reload())}>Sign out</button></header>
+  const header = <header className="wh-header"><a href="/?view=workspace" aria-label="GridLens home"><img src="/brand/lockup-pursuits-v3.svg" alt="GridLens"/></a><nav aria-label="Primary navigation"><button className={view === 'opportunities' ? 'active' : ''} onClick={() => navigate('opportunities')}>Opportunities</button><button className={view === 'pursuits' ? 'active' : ''} onClick={() => navigate('pursuits')}>Research</button><button className={view === 'signals' ? 'active' : ''} onClick={() => navigate('signals')}>Signals</button><button className={view === 'ingestion' ? 'active' : ''} onClick={() => navigate('ingestion')}>Operations</button></nav>{view === 'opportunities' && <label className="wh-global-search"><span>Search</span><input aria-label="Search opportunities" value={filters.search ?? ''} onChange={e => change('search', e.target.value)}/></label>}<button className="wh-signout" onClick={() => void client.logout().then(() => location.reload())}>Sign out</button></header>
   const updateCommercial = (next: CommercialNavigation, push = true) => { if (JSON.stringify(next) === JSON.stringify(commercialNavigation)) return; setCommercialNavigation(next); const params = new URLSearchParams(getParams()); params.set('view', 'pursuits'); writeCommercial(params, next); if (push) history.pushState(history.state, '', `/?${params}`); else history.replaceState(history.state, '', `/?${params}`) }
-  const researchHost = <main className="wh-single-view" hidden={view !== 'pursuits'}>{researchMounted && <><label>Search this page <input aria-label="Search commercial pursuits on this page" value={commercialNavigation.query} onChange={event => updateCommercial({ ...commercialNavigation, query: event.target.value }, false)}/></label><CommercialPursuits navigation={commercialNavigation} onNavigate={updateCommercial} onInvestigate={id => { researchFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null; const params = new URLSearchParams(getParams()); writeCommercial(params, commercialNavigation); params.set('view', 'workspace'); params.set('need', id); params.delete('section'); history.pushState({ ...history.state, workspaceDetail: true }, '', `/?${params}`); setView('opportunities'); setDetailIdentity(null); setSelected(null); setPendingNeedId(id); setTab('Overview') }}/></>}</main>
+  const researchHost = <main className="wh-single-view" hidden={view !== 'pursuits'}>{researchMounted && <><label>Search this page <input aria-label="Search commercial pursuits on this page" value={commercialNavigation.query} onChange={event => updateCommercial({ ...commercialNavigation, query: event.target.value }, false)}/></label><CommercialPursuits navigation={commercialNavigation} onNavigate={updateCommercial} onInvestigate={id => { researchFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null; const params = workspaceParams(filters); params.set('need', id); history.pushState({ ...history.state, workspaceDetail: true }, '', `/?${params}`); setView('opportunities'); setDetailIdentity(null); setSelected(null); setPendingNeedId(id); setTab('Overview') }}/></>}</main>
   if (view === 'pursuits') return <div className="workspace-home">{header}{researchHost}</div>
   if (view === 'ingestion') return <div className="workspace-home">{header}{researchHost}<main className="wh-single-view"><OperationsInbox/></main></div>
   if (view === 'signals') return <div className="workspace-home">{header}{researchHost}<main className="wh-main"><div className="wh-layout"><SignalsBrowse onSelect={item => openActiveNeed(item)} onScope={scope => { setSignalScope(scope); if (!scope && !getParams().get('need') && !location.hash) { ++selectionSequence.current; setSelected(null); setPendingNeedId(null); setDetailIdentity(null); setDetailLoading(false) } }}/><WorkspaceDetail item={detailItem} pending={Boolean(pendingNeedId)} loading={detailLoading || Boolean(selected && !detailCurrent)} error={detailError} tab={tab} onTab={next => { setTab(next); if (selected) writeUrl(filters, selected.id, next) }} onBack={() => select(null)} onRetry={() => setRevision(value => value + 1)} onReadback={() => { setDetailIdentity(null); setSelected(null); setPendingNeedId(selected?.id ?? null); setRevision(value => value + 1) }} onTitleReady={() => setRevision(value => value + 1)}/></div></main></div>

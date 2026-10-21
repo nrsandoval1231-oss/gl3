@@ -41,5 +41,21 @@
     "source_listing_parity": "Loaded absent source listing is flagged on card and affected expanded member; outcome stays unknown.",
     "tier_decision_parity": "Signal decisions reset to ALL and are hidden for Prospect/Lead; incoming non-Signal decision URL is normalized; Signals navigation returns to Signal.",
     "replaced_preview_coverage": "Canonical Research access, no automatic triage fetch on environment entry, watch-only visibility, and malformed response reporting replace retired map-preview cases."
+  },
+  "review_repair": {
+    "base_candidate": "473a3302a164496941b087b5c1fe5ac6686f6e12",
+    "started_utc": "2026-10-21T00:08:51Z",
+    "finished_utc": "2026-10-21T00:11:26Z",
+    "finding": "Cross-section navigation mixed foreign URL filters with the displayed Opportunities state.",
+    "files": [
+      "web/src/features/workspace/Workspace.tsx",
+      "web/tests/environment.spec.ts"
+    ],
+    "changes": "Build destination URLs from their section state; preserve Opportunities and Signals filters independently; serialize Research and investigation destinations without foreign filters.",
+    "validation_command": "Remove-Item Env:CI -ErrorAction SilentlyContinue; $env:GRIDLENS_API_PORT='8120'; $env:GRIDLENS_WEB_PORT='5293'; npx playwright test tests/commercial-pursuits.spec.ts tests/autonomous-research.spec.ts tests/source-listing-review.spec.ts tests/pursuit-refresh.spec.ts tests/environment.spec.ts tests/verticals.spec.ts tests/project_cards.spec.ts --project=regression --workers=2 --output=.artifacts/terra-browser --reporter=dot",
+    "result": "81 passed (38.0s)",
+    "previous_run": "80 passed, 1 failed: SHOW selector absent; isolated unchanged rerun passed and repeat combined run passed.",
+    "typecheck": "npx tsc --noEmit passed after source changes",
+    "independent_review": "Pending on re-frozen candidate."
   }
 }
