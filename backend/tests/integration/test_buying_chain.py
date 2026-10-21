@@ -31,6 +31,7 @@ from gridlens.intelligence.identity_reconciliation import (
 from gridlens.persistence.database import Base
 from gridlens.persistence.models import (
     BuyingChainClaim,
+    BuyingChainCorrection,
     BuyingChainEvidence,
     BuyingChainIdentityLink,
     BuyingChainRun,
@@ -1157,6 +1158,89 @@ def test_authenticated_correction_is_append_only_versioned_and_overlays_only_one
         item for item in other["candidates"] if item["id"] == str(b["candidates"][0]["id"])
     )
     assert other_candidate["category"] == "general_contractor"
+
+
+def test_identity_link_correction_api_returns_typed_reference_and_replays(db, monkeypatch):
+    api = import_module("gridlens.api.app")
+    monkeypatch.setattr(api, "SessionLocal", db)
+    with db.begin() as session:
+        project = seed(session, external_id="identity-api", identity_key="identity-api")
+        observed = session.scalar(
+            select(Observation).where(Observation.external_id == "identity-api")
+        )
+        interpretation = session.scalar(
+            select(Interpretation).where(Interpretation.observation_id == observed.id)
+        )
+        interpretation.assessment = {
+            **interpretation.assessment,
+            "project_identity_key": project.identity_key,
+        }
+        result = enrich_buying_chain(
+            session,
+            project.id,
+            fetcher=lambda url: source(
+                "Acme is the general contractor for Orion Data Center in Austin, TX."
+            ),
+            now=NOW,
+        )
+        candidate = result["candidates"][0]
+        evidence = candidate["evidence"][0]
+        identity = CompanyIdentity()
+        session.add(identity)
+        session.flush()
+        identity_id = identity.id
+        payload = {
+            "expected_version": candidate["fingerprint"],
+            "idempotency_key": "identity-api-link-001",
+            "action": "correct",
+            "values": {},
+            "source_evidence_id": str(evidence["id"]),
+            "source_hash": evidence["content_hash"],
+            "reason": "Reviewed the company identity against current evidence.",
+            "identity_type": "company",
+            "identity_id": str(identity_id),
+        }
+        project_id, claim_id = project.id, candidate["id"]
+    client = TestClient(api.app)
+    client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
+    path = f"/api/projects/{project_id}/buying-chain/{claim_id}/corrections"
+    response = client.post(path, headers={"origin": "http://testserver"}, json=payload)
+    assert response.status_code == 200, response.text
+    assert response.json()["values"]["identity_reference"] == {
+        "type": "company",
+        "id": str(identity_id),
+    }
+    replay = client.post(path, headers={"origin": "http://testserver"}, json=payload)
+    assert replay.status_code == 200, replay.text
+    assert replay.json()["id"] == response.json()["id"]
+    history = client.get(f"/api/projects/{project_id}/buying-chain?history=true").json()[
+        "candidates"
+    ]
+    corrected = next(item for item in history if item["id"] == str(claim_id))
+    assert corrected["correction_history"][-1]["values"]["identity_reference"] == {
+        "type": "company",
+        "id": str(identity_id),
+    }
+    with db.begin() as session:
+        links = list(
+            session.scalars(
+                select(BuyingChainIdentityLink).where(
+                    BuyingChainIdentityLink.claim_id == claim_id,
+                    BuyingChainIdentityLink.company_identity_id == identity_id,
+                    BuyingChainIdentityLink.state == "current",
+                )
+            )
+        )
+        assert len(links) == 1
+        corrections = list(
+            session.scalars(
+                select(BuyingChainCorrection).where(
+                    BuyingChainCorrection.claim_id == claim_id,
+                    BuyingChainCorrection.idempotency_key == "identity-api-link-001",
+                )
+            )
+        )
+        assert len(corrections) == 1
 
 
 def test_sparse_corrections_compose_and_corrected_contact_replaces_actionable_method():

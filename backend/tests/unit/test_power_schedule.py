@@ -86,6 +86,39 @@ def test_staggered_supply_partitions_base_and_alternative_scenario():
     assert result.fact_refs[0].reporter_role == "Project Engineer"
 
 
+def test_alternatives_add_committed_supply_and_remain_independent():
+    value = schedule()
+    value["phases"][0].update(mw_min="10", mw_max="10", start_date="2027-01-15")
+    value["supplies"][1].update(start_date="2027-01-15", mw_min="3", mw_max="3")
+    second = deepcopy(value["supplies"][1])
+    second.update(supply_id="generator-option", mw_min="2", mw_max="2")
+    value["supplies"].append(second)
+    result = project_schedule([{"value": validate_fact("power_schedule", value)}])
+    alternatives = [s for s in result.segments if s.scenario == "alternative"]
+    assert [
+        (s.supply_ids, s.supply_min_mw, s.supply_max_mw, s.residual_min_mw, s.residual_max_mw)
+        for s in alternatives
+    ] == [
+        (["utility", "rental-option"], "7", "8", "2", "3"),
+        (["utility", "generator-option"], "6", "7", "3", "4"),
+    ]
+
+
+@pytest.mark.parametrize(
+    "coverage,suitability",
+    [("partial", "suitable"), ("confirmed_complete", "unknown")],
+)
+def test_alternative_remains_unresolved_when_existing_supply_is_unknown(coverage, suitability):
+    value = schedule()
+    value["phases"][0].update(start_date="2027-01-15", supply_coverage=coverage)
+    value["supplies"][0]["suitability"] = suitability
+    result = project_schedule([{"value": validate_fact("power_schedule", value)}])
+    alternative = next(s for s in result.segments if s.scenario == "alternative")
+    assert alternative.supply_min_mw is None
+    assert alternative.residual_min_mw is None
+    assert alternative.unresolved_reason
+
+
 @pytest.mark.parametrize(
     "mutate",
     [

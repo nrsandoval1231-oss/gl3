@@ -357,6 +357,8 @@ def project_schedule(facts: list[dict[str, Any]]) -> PowerScheduleProjection | N
                 for s in active
                 if s["state"] in {"proposed", "hypothetical"} and s["suitability"] == "suitable"
             ):
+                alternative_min = supply_min + _mw(alternative["mw_min"], "supply")
+                alternative_max = supply_max + _mw(alternative["mw_max"], "supply")
                 segments.append(
                     PowerScheduleSegment(
                         phase_id=phase["phase_id"],
@@ -365,19 +367,32 @@ def project_schedule(facts: list[dict[str, Any]]) -> PowerScheduleProjection | N
                         demand_min_mw=_fmt(demand_min),
                         demand_max_mw=_fmt(demand_max),
                         demand_basis=phase["basis"],
-                        supply_min_mw=_fmt(_mw(alternative["mw_min"], "supply")),
-                        supply_max_mw=_fmt(_mw(alternative["mw_max"], "supply")),
-                        residual_min_mw=_fmt(
-                            max(Decimal(0), demand_min - _mw(alternative["mw_max"], "supply"))
-                        ),
-                        residual_max_mw=_fmt(
-                            max(Decimal(0), demand_max - _mw(alternative["mw_min"], "supply"))
-                        ),
-                        supply_ids=[alternative["supply_id"]],
+                        supply_min_mw=_fmt(alternative_min) if not incomplete else None,
+                        supply_max_mw=_fmt(alternative_max) if not incomplete else None,
+                        residual_min_mw=_fmt(max(Decimal(0), demand_min - alternative_max))
+                        if not incomplete
+                        else None,
+                        residual_max_mw=_fmt(max(Decimal(0), demand_max - alternative_min))
+                        if not incomplete
+                        else None,
+                        supply_ids=[s["supply_id"] for s in known] + [alternative["supply_id"]],
+                        unresolved_supply_ids=[s["supply_id"] for s in unknown],
                         supply_basis=[
+                            f"{s['supply_id']}: {s['basis']} ({s['date_basis']})"
+                            for s in active
+                            if s["state"] in {"operating", "committed"}
+                        ]
+                        + [
                             f"{alternative['supply_id']}: {alternative['basis']} "
                             f"({alternative['date_basis']})"
                         ],
+                        unresolved_reason=(
+                            "Operating or committed supply suitability is unknown."
+                            if unknown
+                            else phase["coverage_reason"]
+                        )
+                        if incomplete
+                        else None,
                         scenario="alternative",
                     )
                 )

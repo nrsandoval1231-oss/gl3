@@ -4479,6 +4479,9 @@
                   "type": "string"
                 },
                 {
+                  "$ref": "#/components/schemas/BuyingChainIdentityReferenceOut"
+                },
+                {
                   "type": "null"
                 }
               ]
@@ -4518,6 +4521,29 @@
           "created_at"
         ],
         "title": "BuyingChainCorrectionOut"
+      },
+      "BuyingChainIdentityReferenceOut": {
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "company",
+              "person"
+            ],
+            "title": "Type"
+          },
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "type",
+          "id"
+        ],
+        "title": "BuyingChainIdentityReferenceOut"
       },
       "BuyingChainOut": {
         "properties": {

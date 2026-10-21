@@ -2,6 +2,7 @@
 
 from datetime import date, datetime
 from enum import StrEnum
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -135,13 +136,18 @@ class BuyingChainCorrectionBody(BaseModel):
     identity_id: UUID | None = None
 
 
+class BuyingChainIdentityReferenceOut(BaseModel):
+    type: Literal["company", "person"]
+    id: UUID
+
+
 class BuyingChainCorrectionOut(BaseModel):
     id: UUID
     claim_id: UUID
     project_id: UUID
     version: str
     action: str
-    values: dict[str, str | None]
+    values: dict[str, str | None | BuyingChainIdentityReferenceOut]
     reason: str
     actor: str
     created_at: datetime

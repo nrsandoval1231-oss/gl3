@@ -1165,7 +1165,7 @@ export interface components {
             action: string;
             /** Values */
             values: {
-                [key: string]: string | null;
+                [key: string]: string | components["schemas"]["BuyingChainIdentityReferenceOut"] | null;
             };
             /** Reason */
             reason: string;
@@ -1181,6 +1181,19 @@ export interface components {
              * @default false
              */
             reported_contact: boolean;
+        };
+        /** BuyingChainIdentityReferenceOut */
+        BuyingChainIdentityReferenceOut: {
+            /**
+             * Type
+             * @enum {string}
+             */
+            type: "company" | "person";
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
         };
         /** BuyingChainOut */
         BuyingChainOut: {
