@@ -1,0 +1,20 @@
+{
+  "decision_date": "2026-10-20",
+  "owner": "Nick Sandoval",
+  "status": "APPROVED_VISUAL_REFERENCE",
+  "title": "GridLens Pursuit Workspace v3",
+  "files": [
+    {
+      "filename": "pursuit-workspace-v3-approved.png",
+      "role": "Owner-approved standalone prototype screenshot; visual reference only; fictional sample records visible",
+      "source": "C:/Users/nrsan/Nucleus/02_Projects/GridLens/.artifacts/velto-ui-exploration-20261020/v3/logo-larger.png",
+      "bytes": 71011,
+      "sha256": "641d423aecea373be3824fc5b0f8bfeb99c281d2c02d3eafcf5154df410ba1d0",
+      "dimensions": "1265x712",
+      "copy_method": "Byte-for-byte copy; source and repository target hashes matched"
+    }
+  ],
+  "prototype_data_is_fictional": true,
+  "browser_tab_state_is_production_data": false,
+  "production_runtime_evidence": false
+}

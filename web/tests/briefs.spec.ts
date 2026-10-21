@@ -19,17 +19,20 @@ test('detail explicitly requests a brief, polls pending state, and resolves sour
     citations: [citation], error: null, input_tokens: 300, output_tokens: 90,
   }
   await page.route('**/api/auth/session', (route) => route.fulfill({ json: { authenticated: true } }))
-  await page.route('**/api/opportunities**', (route) => route.fulfill({ json: [{
+  const opportunity = {
     id, project_id: '22222222-2222-4222-8222-222222222222', name: 'North Campus', location: 'Austin, TX',
-    tier: 'Signal', activity: 'construction', rationale: 'Public construction evidence merits investigation.',
+    tier: 'Signal', workflow_status: 'UNKNOWN', activity: 'construction', rationale: 'Public construction evidence merits investigation.',
     signal_display_decision: 'SHOW', signal_display_decision_state: 'adjudicated',
     signal_evidence_state: 'active_evidence', required_mw: null, start_window: null, duration: null,
     supply: 'Unknown', next_action: 'Confirm the activity power requirement.', conflict_state: 'Not assessed',
+    commercial_disposition: 'RESEARCH', commercial_reason: 'Public construction evidence merits investigation.', commercial_next_question: 'Confirm power needs.', commercial_next_action: 'Confirm the activity power requirement.',
     evidence: [{ title: 'North Campus permit', abstract: 'Construction at the north campus.', url: citation.url,
       published_at: null, retrieved_at: '2026-10-01T10:00:00Z', extraction_location: 'permit description',
       content_hash: 'a'.repeat(64), event_date: null, event_date_label: 'Unknown', source_id: 'austin-building-permits',
       document_number: 'permit-1', source_origin: 'Official permit', assessment_current: true, permit_status: null }],
-  }] }))
+  }
+  await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: { items: [opportunity], total: 1, counts: { action_now: 0, research: 1, watch: 0, reject: 0 }, offset: 0, limit: 25, next_offset: null, cohort_token: 'brief-test', count_unit: 'power needs', changes_available: false } }))
+  await page.route(`**/api/opportunities/needs/${id}*`, route => route.fulfill({ json: opportunity }))
   await page.route('**/api/changes', (route) => route.fulfill({ json: [] }))
   await page.route('**/api/health', (route) => route.fulfill({ json: { sources: [], backlog: 0, pending_interpretations: 0 } }))
   await page.route('**/api/projects/*/buying-chain', (route) => route.fulfill({ json: { candidates: [], permit_summaries: [], unresolved: [], runs: [], status: 'not_researched', policy_version: 'test' } }))
@@ -42,9 +45,10 @@ test('detail explicitly requests a brief, polls pending state, and resolves sour
     return route.fulfill({ json: posted && getCount > 1 ? ready : { status: 'unavailable', stale: false, result: null, citations: [] } })
   })
 
-  await page.goto('/?tier=Signals')
-  await expect(page.getByRole('heading', { name: 'Signals', exact: true })).toBeVisible()
-  await page.locator(`[data-opportunity-id="${id}"]`).click()
+  await page.goto('/')
+  await expect(page.getByRole('heading', { name: 'Your pursuits' })).toBeVisible()
+  await page.locator(`[data-need-row="${id}"]`).click()
+  await page.getByRole('button', { name: 'Open next steps' }).click()
   await expect(page.getByRole('heading', { name: 'Concise evidence brief' })).toBeVisible()
   await expect(page.getByText('Not generated')).toBeVisible()
   await page.getByRole('button', { name: 'Generate or retry brief' }).click()

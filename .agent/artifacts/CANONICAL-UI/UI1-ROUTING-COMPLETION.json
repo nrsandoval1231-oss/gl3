@@ -1,0 +1,45 @@
+{
+  "node": "UI1-ROUTING",
+  "status": "IMPLEMENTED_PENDING_INDEPENDENT_REVIEW",
+  "base": "a4d77d821ed229834b678b2dfb79c4d0f246dd8d",
+  "owned_files": [
+    "web/src/app/App.tsx",
+    "web/src/features/opportunities/SignalsBrowse.tsx",
+    "web/src/features/workspace/Workspace.tsx",
+    "web/tests/environment.spec.ts",
+    "web/tests/verticals.spec.ts",
+    "web/tests/project_cards.spec.ts"
+  ],
+  "validation": {
+    "working_directory": "web",
+    "command_powershell": "$env:GRIDLENS_API_PORT='8120'; $env:GRIDLENS_WEB_PORT='5293'; npx playwright test tests/environment.spec.ts tests/verticals.spec.ts tests/project_cards.spec.ts --project=regression --workers=2 --output=.artifacts/terra-browser --reporter=line",
+    "result": "51 passed (14.8s)",
+    "test_counts": {
+      "environment": 12,
+      "verticals": 3,
+      "project_cards": 36
+    },
+    "typecheck": "npx tsc --noEmit passed before final test-only edits"
+  },
+  "coverage_mapping": {
+    "retired_map_only": "State map counts, map-window requests, ranked map subsets, map retry, and map-scene navigation were retired with the map.",
+    "canonical_queue": "Environment regressions cover legacy aliases, no map requests, unknown geography, bounded pagination, exact selection and Back/Forward, unsent action, and delayed successive Back/Forward scroll and focus restoration.",
+    "drafts_and_async": "Environment regressions cover draft persistence failure, authentication clearing, first-link isolation, Research investigation return, and pending save and targeted research without duplicate writes.",
+    "browse_and_selection": "Project-card regressions cover scoped filters and export across qualification tiers, exact selection outside the current cohort, later-page cohort bootstrap, Back/Forward, stale detail/browse/group responses, grouped members, and loading/error metadata.",
+    "sources": "Vertical regressions cover source and sector aliases, authenticated source filters, and mixed group/member decisions."
+  },
+  "unproven_by_owned_suites": [
+    "Independent proof of Research disposition, page, and per-field disclosure/scroll restoration across investigation and reload.",
+    "Independent proof of retained action identity and geography when an active filter excludes the selected record."
+  ],
+  "acceptance": "Not claimed. Controller must run final integrated gates and independent review against the frozen candidate.",
+  "followup": {
+    "command_powershell": "Remove-Item Env:CI -ErrorAction SilentlyContinue; $env:GRIDLENS_API_PORT='8120'; $env:GRIDLENS_WEB_PORT='5293'; npx playwright test tests/commercial-pursuits.spec.ts tests/autonomous-research.spec.ts tests/source-listing-review.spec.ts tests/pursuit-refresh.spec.ts tests/environment.spec.ts tests/verticals.spec.ts tests/project_cards.spec.ts --project=regression --workers=2 --output=.artifacts/terra-browser --reporter=dot",
+    "working_directory": "web",
+    "result": "79 passed (39.4s)",
+    "scope": "Four commercial and research suites plus affected routing suites",
+    "source_listing_parity": "Loaded absent source listing is flagged on card and affected expanded member; outcome stays unknown.",
+    "tier_decision_parity": "Signal decisions reset to ALL and are hidden for Prospect/Lead; incoming non-Signal decision URL is normalized; Signals navigation returns to Signal.",
+    "replaced_preview_coverage": "Canonical Research access, no automatic triage fetch on environment entry, watch-only visibility, and malformed response reporting replace retired map-preview cases."
+  }
+}

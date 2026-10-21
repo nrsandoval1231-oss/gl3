@@ -1,0 +1,51 @@
+{
+  "packet": "UI-2 documentation-only canonical UI reconciliation",
+  "base_sha": "a4d77d821ed229834b678b2dfb79c4d0f246dd8d",
+  "status": "PASS",
+  "scope": [
+    "AGENTS.md",
+    "docs/README.md",
+    "docs/architecture/overview.md",
+    "docs/design/BRAND_ASSETS.md",
+    "docs/design/BUILD_FOCUS_EXPERIENCE.md",
+    "docs/design/PURSUIT_WORKSPACE.md",
+    "docs/design/UI_CANON.md",
+    "docs/design/UI_MIGRATION_20261020.md",
+    "docs/design/archive/BUILD_FOCUS_EXPERIENCE_2026-10-01_SUPERSEDED.md",
+    "docs/design/brand.tokens.json",
+    "docs/design/references/canonical-ui-reference.json",
+    "docs/product/PRD.md"
+  ],
+  "validation": [
+    {
+      "command": "uv run --project backend python scripts/check_docs.py",
+      "result": "PASS: maintained documentation graph, 41 documents, 158 local targets, 4 anchors; copied visual reference SHA-256 verified"
+    },
+    {
+      "command": "git diff --check",
+      "result": "PASS for documentation changes; reported unrelated web/tests/workspace.spec.ts:750 trailing blank line from concurrent UI edits."
+    }
+  ],
+  "invariants": [
+    "PRD remains at 42 numbered requirements; requirement 31 keeps tier discoverability and filters while replacing only its navigation/layout presentation.",
+    "October 1 PRD decisions on cannabis evidence, title rules, and 300 kW floor remain unchanged.",
+    "October 1 implementation handoff is retained in docs/design/archive and its active path is a redirect notice.",
+    "No runtime, deployment, production-data, or backend-semantic claim is made."
+  ],
+  "runtime_final_proof": "NOT CLAIMED",
+  "concurrent_files_observed_outside_scope": [
+    "web/src/app/App.tsx",
+    "web/src/features/workspace/Workspace.tsx",
+    "web/src/styles/workspace.css",
+    "web/src/features/operations/OperationsInbox.tsx",
+    "web/public/brand/lockup-pursuits-v3.svg"
+  ],
+  "correction": "Signals is the entry to a shared grouped-source evidence browse, default Signal, with Signal/Prospect/Lead selector; preserves group members/context/counts, SHOW/REVIEW/HOLD, all PRD advanced filters and qualification-scoped CSV. Opportunities remains separate individual-need queue. Visual direction does not merge cohort units or weaken requirement 31.",
+  "reference_asset": {
+    "path": "docs/design/references/pursuit-workspace-v3-approved.png",
+    "sha256": "641d423aecea373be3824fc5b0f8bfeb99c281d2c02d3eafcf5154df410ba1d0",
+    "bytes": 71011,
+    "dimensions": "1265x712",
+    "fictional_sample_data": true
+  }
+}

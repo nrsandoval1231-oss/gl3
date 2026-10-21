@@ -5,7 +5,7 @@ Use one authority for each question. Historical reports remain evidence for thei
 | Topic | Authority | Supporting evidence |
 |---|---|---|
 | Product scope, tiers, and qualification | [PRD](product/PRD.md) | [Vertical lifecycle strategy](product/VERTICAL_LIFECYCLE_STRATEGY.md) |
-| UI and brand | [UI canon](design/UI_CANON.md) | [Pursuit Workspace contract](design/PURSUIT_WORKSPACE.md), [brand assets](design/BRAND_ASSETS.md) |
+| UI and brand | [October 20 UI canon](design/UI_CANON.md) | [Pursuit Workspace contract](design/PURSUIT_WORKSPACE.md), [brand assets](design/BRAND_ASSETS.md), [UI migration inventory](design/UI_MIGRATION_20261020.md) |
 | Architecture and data flow | [Architecture overview](architecture/overview.md) | [Data model](architecture/data-model.md) and focused architecture notes |
 | Source behavior and coverage | [Coverage](sources/coverage.md) | [Source notes](sources/) and [registry](../config/sources/registry.v1.json) |
 | Local setup and checks | [Repository README](../README.md) | [Local runtime](operations/local-runtime.md), [script guide](../scripts/README.md) |
@@ -21,3 +21,5 @@ The [committed inventory](../.agent/archive/AUDIT-20261020/DOCUMENTATION-INVENTO
 Do not delete historical narratives or receipts. Some ignored local receipts are unavailable in a clean checkout; the index identifies them as evidence referenced by dated reports, not as current links or replacements. Fifteen baseline entry-page Git blobs are preserved with prefix `pre-docs-repair-8163f13__`. Four superseded runbooks were shortened to notices in the follow-up; their pre-edit Git blobs use prefix `pre-docs-followup-20261020__`. The archive index records the source commits and notes that Windows checkout line endings may differ under `core.autocrlf=true`; working-copy byte identity is not claimed. The PRD and UI canon are unchanged. Earlier decision rows remain intact with one authorized October 20 news decision appended.
 
 The October 20 recovery handoff in PR #98 and production database/backup proposal in PR #97 were reviewed as open documentation proposals. Neither was merged by this packet. Use the consolidated authorities above for the current state. The [archive index](../.agent/archive/AUDIT-20261020/README.md) covers original state histories; archive files and immutable receipts remain evidence, not current status.
+
+The October 18 Pursuit Workspace and October 1 cinematic/map-first presentations are superseded. Their dated records remain historical; they do not create competing design authority.

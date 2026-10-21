@@ -1,24 +1,48 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { client, type WorkspaceFilters, type WorkspaceNeed, type WorkspacePage } from '../../api/client'
+import { client, OpportunityNeedUnavailableError, type OpportunityNeedScope, type WorkspaceFilters, type WorkspaceNeed, type WorkspacePage } from '../../api/client'
 import { LoginPage } from '../auth/LoginPage'
 import { projectTitle } from '../opportunities/projectCards'
 import { WorkspaceDetail, workspaceTabs, type WorkspaceTab } from './WorkspaceDetail'
 import { WorkspaceChanges } from './WorkspaceChanges'
+import { CommercialPursuits, type CommercialNavigation, defaultCommercialNavigation } from '../pursuits/CommercialPursuits'
+import { OperationsInbox } from '../operations/OperationsInbox'
+import { SignalsBrowse } from '../opportunities/SignalsBrowse'
 import '../../styles/workspace.css'
 
 const tabs = workspaceTabs
 type Tab = WorkspaceTab
 type WorkspaceDetail = import('../../api/client').Opportunity & Partial<Pick<WorkspaceNeed, 'commercial_disposition' | 'commercial_reason' | 'commercial_next_question' | 'commercial_next_action' | 'commercial_organization'>>
 const getParams = () => new URLSearchParams(location.search)
-function legacyUrl(view: string) { const p = getParams(); p.set('view', view); const need = p.get('need'); p.delete('need'); if (view === 'pursuits' && need) p.set('pursuitNeed', need); p.delete('section'); p.delete('offset'); return `/?${p}` }
+function commercialFromUrl(): CommercialNavigation {
+  const p = getParams(), value = p.get('disposition')
+  const disposition = (['ACTION NOW', 'RESEARCH', 'WATCH', 'REJECT'] as const).find(item => item === value) ?? defaultCommercialNavigation.disposition
+  const offset = Number(p.get('pursuitPage') ?? 0)
+  return { ...defaultCommercialNavigation, needId: p.get('pursuitNeed'), query: p.get('pursuitQuery') ?? '', disposition, offset: Number.isInteger(offset) && offset >= 0 ? offset : 0 }
+}
+function writeCommercial(params: URLSearchParams, next: CommercialNavigation) {
+  if (next.needId) params.set('pursuitNeed', next.needId); else params.delete('pursuitNeed')
+  if (next.offset) params.set('pursuitPage', String(next.offset)); else params.delete('pursuitPage')
+  if (next.query) params.set('pursuitQuery', next.query); else params.delete('pursuitQuery')
+  params.set('disposition', next.disposition)
+}
 function initialFilters(): WorkspaceFilters {
   const p = getParams()
-  const tier = p.get('tier')
+  const rawTier = p.get('tier') ?? p.get('level')
+  const tier = rawTier === 'Signals' ? 'Signal' : rawTier === 'Prospects' ? 'Prospect' : rawTier === 'Leads' ? 'Lead' : rawTier
   return { search: p.get('q') ?? '', tier: ['Signal', 'Prospect', 'Lead'].includes(tier || '') ? tier as WorkspaceFilters['tier'] : undefined,
     geography: p.get('geography') ?? '', industry: p.get('industry') ?? '', activity: p.get('activity') ?? '',
     timing: p.get('timing') === 'KNOWN' || p.get('timing') === 'UNKNOWN' ? p.get('timing') as 'KNOWN' | 'UNKNOWN' : undefined,
     mw_min: p.get('mw_min') ?? '', mw_max: p.get('mw_max') ?? '', disposition: p.get('disposition') ?? '',
     sort: (p.get('sort') as WorkspaceFilters['sort']) || 'priority', offset: Number(p.get('offset') || 0), cohort_token: p.get('cohort_token') || undefined }
+}
+function currentView(): 'opportunities' | 'pursuits' | 'ingestion' | 'signals' {
+  const params = getParams(), view = params.get('view')
+  if (location.pathname === '/environment' || view === 'environment') return params.get('mode') === 'pursuits' ? 'pursuits' : 'opportunities'
+  if (view === 'pursuits') return 'pursuits'
+  if (view === 'ingestion') return 'ingestion'
+  if (view === 'signals') return 'signals'
+  if (view === 'workspace') return 'opportunities'
+  return ['Signal', 'Signals', 'Prospect', 'Prospects', 'Lead', 'Leads'].includes(params.get('tier') ?? '') ? 'signals' : 'opportunities'
 }
 function workspaceRequestKey(filters: WorkspaceFilters) {
   const params = new URLSearchParams({ limit: '25' })
@@ -26,14 +50,20 @@ function workspaceRequestKey(filters: WorkspaceFilters) {
   return params.toString()
 }
 function writeUrl(filters: WorkspaceFilters, id: string | null, tab?: Tab, push = false) {
-  const p = new URLSearchParams({ view: 'workspace' })
-  for (const [key, value] of Object.entries(filters)) if (value !== undefined && value !== '') p.set(key === 'search' ? 'q' : key, String(value))
+  const signalView = currentView() === 'signals'
+  const p = signalView ? getParams() : new URLSearchParams({ view: 'workspace' })
+  if (signalView) { p.set('view', 'signals'); p.delete('need'); p.delete('section') }
+  else for (const [key, value] of Object.entries(filters)) if (value !== undefined && value !== '') p.set(key === 'search' ? 'q' : key, String(value))
   if (id) p.set('need', id)
   if (tab && tab !== 'Overview') p.set('section', tab.toLowerCase().replaceAll(' ', '-'))
-  const url = `${location.pathname}${p.size ? `?${p}` : ''}`
-  if (push) history.pushState(null, '', url); else history.replaceState(null, '', url)
+  const url = `/${p.size ? `?${p}` : ''}`
+  if (push) history.pushState({ ...history.state, workspaceSnapshot: null, workspaceDetail: Boolean(id) }, '', url); else history.replaceState(history.state, '', url)
 }
 export function WorkspaceHome() {
+  const [view, setView] = useState(currentView)
+  const [researchMounted, setResearchMounted] = useState(() => currentView() === 'pursuits')
+  const [signalScope, setSignalScope] = useState<OpportunityNeedScope | null>(null)
+  const [commercialNavigation, setCommercialNavigation] = useState<CommercialNavigation>(commercialFromUrl)
   const [authenticated, setAuthenticated] = useState<boolean | null>(null)
   const [filters, setFilters] = useState<WorkspaceFilters>(initialFilters)
   const [page, setPage] = useState<WorkspacePage | null>(null)
@@ -43,11 +73,14 @@ export function WorkspaceHome() {
   const [detailLoading, setDetailLoading] = useState(false)
   const [detailError, setDetailError] = useState('')
   const [detailIdentity, setDetailIdentity] = useState<{ id: string; revision: number } | null>(null)
-  const [tab, setTab] = useState<Tab>(() => tabs.find(t => t.toLowerCase().replaceAll(' ', '-') === getParams().get('section')) ?? 'Overview')
+  const [tab, setTab] = useState<Tab>(() => tabs.find(t => t.toLowerCase().replaceAll(' ', '-') === (getParams().get('section') ?? (getParams().get('mode') === 'action' ? 'next-steps' : null))) ?? 'Overview')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [revision, setRevision] = useState(0)
+  const [detailNavigation, setDetailNavigation] = useState(0)
   const selectionSequence = useRef(0)
+  const researchFocus = useRef<HTMLElement | null>(null)
+  const lastSelected = useRef<string | null>(null)
   const listSequence = useRef(0)
   const pageRef = useRef<{ page: WorkspacePage; request: string; revision: number } | null>(null)
   const requestKey = workspaceRequestKey(filters)
@@ -58,9 +91,29 @@ export function WorkspaceHome() {
     detailItem = pageCurrent ? selected : { ...selected, ...commercialPreview(undefined) }
   }
   const savedScroll = useRef({ list: 0, window: 0 })
+  const pendingRestore = useRef<{ key: string; list: number; window: number; focus: string | null } | null>(null)
+  const snapshotList = (focus = (document.activeElement as HTMLElement | null)?.closest<HTMLElement>('[data-need-row]')?.dataset.needRow ?? lastSelected.current) => {
+    const list = document.querySelector('.wh-list')
+    const snapshot = { list: list?.scrollTop ?? 0, window: window.scrollY, focus }
+    savedScroll.current = snapshot
+    history.replaceState({ ...history.state, workspaceSnapshot: snapshot }, '', location.href)
+  }
+  useEffect(() => {
+    const restore = pendingRestore.current
+    if (!restore || view !== 'opportunities' || !pageCurrent || restore.key !== requestKey) return
+    pendingRestore.current = null
+    const frame = requestAnimationFrame(() => {
+      if (workspaceRequestKey(initialFilters()) !== restore.key || currentView() !== 'opportunities') return
+      const list = document.querySelector('.wh-list')
+      if (restore.focus) document.querySelector<HTMLElement>(`[data-need-row="${CSS.escape(restore.focus)}"]`)?.focus({ preventScroll: true })
+      if (list && window.matchMedia('(min-width: 761px)').matches) list.scrollTop = restore.list
+      else window.scrollTo(0, restore.window)
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [pageCurrent, requestKey, view, detailNavigation])
   useEffect(() => { void client.session().then(value => setAuthenticated(value.authenticated)).catch(() => setAuthenticated(false)) }, [])
   useEffect(() => {
-    if (!authenticated) return
+    if (!authenticated || view !== 'opportunities') return
     const sequence = ++listSequence.current, c = new AbortController(); setLoading(true); setError('')
     client.workspace(filters, c.signal).then((value) => {
       if (c.signal.aborted || sequence !== listSequence.current) return
@@ -75,15 +128,18 @@ export function WorkspaceHome() {
       setLoading(false)
     }).catch((e: Error) => { if (!c.signal.aborted && sequence === listSequence.current) { setLoading(false); if (/cohort/i.test(e.message) && (filters.offset || filters.cohort_token)) { const next = { ...filters, offset: 0, cohort_token: undefined }; setFilters(next); writeUrl(next, selected?.id ?? null); setError('The opportunity list changed. Reloaded from the first page.') } else { setError(e.message); if (/session ended/i.test(e.message)) setAuthenticated(false) } } })
     return () => c.abort()
-  }, [JSON.stringify(filters), revision, authenticated])
+  }, [JSON.stringify(filters), revision, authenticated, view])
   useEffect(() => {
     const onPop = () => {
       const p = getParams(); let id = p.get('need')
+      ++selectionSequence.current; setDetailNavigation(value => value + 1)
+      setView(currentView())
+      if (currentView() === 'pursuits') { setResearchMounted(true); setCommercialNavigation(commercialFromUrl()); requestAnimationFrame(() => researchFocus.current?.focus()) }
       try { id ||= decodeURIComponent(location.hash.slice(1) || '') } catch { setDetailError('The selected power need link is malformed.'); id = '' }
-      const next = initialFilters(); setFilters(next)
-      setTab(tabs.find(t => t.toLowerCase().replaceAll(' ', '-') === p.get('section')) ?? 'Overview')
+      const next = initialFilters(); pendingRestore.current = null; setFilters(next)
+      setTab(tabs.find(t => t.toLowerCase().replaceAll(' ', '-') === (p.get('section') ?? (p.get('mode') === 'action' ? 'next-steps' : null))) ?? 'Overview')
       setDetailIdentity(null)
-      if (!id) { setSelected(null); setPendingNeedId(null); requestAnimationFrame(() => { const list = document.querySelector('.wh-list'); if (list && window.matchMedia('(min-width: 761px)').matches) list.scrollTop = savedScroll.current.list; else window.scrollTo(0, savedScroll.current.window) }); return }
+      if (!id) { ++selectionSequence.current; setDetailLoading(false); setSelected(null); setPendingNeedId(null); if (currentView() === 'opportunities') { const snapshot = history.state?.workspaceSnapshot ?? { ...savedScroll.current, focus: lastSelected.current }; pendingRestore.current = { ...snapshot, key: workspaceRequestKey(next) } } else requestAnimationFrame(() => { if (lastSelected.current) document.querySelector<HTMLElement>(`[data-opportunity-id="${CSS.escape(lastSelected.current)}"]`)?.focus() }); return }
       const row = page?.items.find(item => item.id === id)
       setSelected(row ?? null); setPendingNeedId(row ? null : id)
     }
@@ -92,29 +148,32 @@ export function WorkspaceHome() {
     if (initialId && !selected && !pendingNeedId) { const row = page?.items.find(item => item.id === initialId); setSelected(row ?? null); setPendingNeedId(row ? null : initialId) }
     return () => removeEventListener('popstate', onPop)
   }, [page?.cohort_token])
+  const activeNeedId = selected?.id ?? pendingNeedId
   useEffect(() => {
-    const needId = selected?.id ?? pendingNeedId
-    if (!needId || !authenticated) return
+    const needId = activeNeedId
+    if (!needId || !authenticated || (view === 'signals' && !signalScope)) return
     const sequence = ++selectionSequence.current, controller = new AbortController()
     setDetailLoading(true); setDetailError('')
-    void client.opportunityNeed(needId, undefined, controller.signal).then(value => {
-      if (sequence !== selectionSequence.current) return
+    void client.opportunityNeed(needId, view === 'signals' ? signalScope ?? undefined : undefined, controller.signal).then(value => {
+      if (controller.signal.aborted || sequence !== selectionSequence.current) return
       const currentPageRef = pageRef.current
       const row = currentPageRef?.request === workspaceRequestKey(filters) && currentPageRef.revision === revision
-        ? currentPageRef.page.items.find(item => item.id === value.id)
+        ? currentPageRef.page.items?.find(item => item.id === value.id)
         : undefined
       setSelected({ ...value, ...commercialPreview(row) })
       setDetailIdentity({ id: value.id, revision })
       setPendingNeedId(null)
       setDetailLoading(false)
-    }).catch((error: Error) => { if (!controller.signal.aborted && sequence === selectionSequence.current) { setDetailError(error.message); setDetailLoading(false) } })
+    }).catch((error: Error) => { if (!controller.signal.aborted && sequence === selectionSequence.current) { if (error instanceof OpportunityNeedUnavailableError) { setSelected(null); setPendingNeedId(null); writeUrl(filters, null) }; setDetailError(error.message); setDetailLoading(false) } })
     return () => controller.abort()
-  }, [selected?.id, pendingNeedId, authenticated, revision])
+  }, [activeNeedId, authenticated, revision, view, signalScope, detailNavigation])
   const visiblePage = pageCurrent ? page : null
   const items = visiblePage?.items ?? []
-  const change = (key: keyof WorkspaceFilters, value: string) => { const next = { ...filters, [key]: value || undefined, offset: 0, cohort_token: undefined }; setFilters(next); writeUrl(next, selected?.id ?? null) }
+  const change = (key: keyof WorkspaceFilters, value: string) => { snapshotList(); pendingRestore.current = null; const next = { ...filters, [key]: value || undefined, offset: 0, cohort_token: undefined }; setFilters(next); writeUrl(next, selected?.id ?? null, undefined, true) }
   const select = (item: WorkspaceNeed | null, targetTab: Tab = 'Overview') => {
-    if (item) { const list = document.querySelector('.wh-list'); savedScroll.current = { list: list?.scrollTop ?? 0, window: window.scrollY } }
+    if (!item && history.state?.workspaceDetail) { history.back(); return }
+    if (!item) { ++selectionSequence.current; setDetailLoading(false); setDetailError('') }
+    if (item) { lastSelected.current = item.id; snapshotList(item.id); pendingRestore.current = null }
     if (item && selected?.id === item.id && detailCurrent) {
       setTab(targetTab); writeUrl(filters, item.id, targetTab, true); return
     }
@@ -124,8 +183,27 @@ export function WorkspaceHome() {
     if (item && window.matchMedia('(max-width: 760px)').matches) { window.scrollTo(0, 0); requestAnimationFrame(() => document.querySelector<HTMLElement>('.wh-back')?.focus()) }
     if (!item) requestAnimationFrame(() => { const list = document.querySelector('.wh-list'); if (list && window.matchMedia('(min-width: 761px)').matches) list.scrollTop = savedScroll.current.list; else window.scrollTo(0, savedScroll.current.window); const focus = document.querySelector<HTMLElement>(`[data-need-row="${selected?.id ?? ''}"]`); focus?.focus() })
   }
-  const update = (next: WorkspaceFilters) => { setFilters(next); writeUrl(next, selected?.id ?? null) }
+  const update = (next: WorkspaceFilters) => { snapshotList(); pendingRestore.current = null; setFilters(next); writeUrl(next, selected?.id ?? null, undefined, true) }
+  const navigate = (nextView: 'opportunities' | 'pursuits' | 'ingestion' | 'signals') => {
+    if (nextView === 'signals' && view === 'signals') { ++selectionSequence.current; setSelected(null); setPendingNeedId(null); setDetailIdentity(null); setDetailLoading(false); setDetailError(''); dispatchEvent(new Event('gridlens:signals-reset')); return }
+    const researchNeed = nextView === 'pursuits' ? selected?.id ?? pendingNeedId ?? commercialNavigation.needId : null
+    if (nextView !== view) { ++selectionSequence.current; setSelected(null); setPendingNeedId(null); setDetailIdentity(null); setDetailLoading(false); setDetailError('') }
+    setView(nextView)
+    const params = new URLSearchParams(getParams())
+    if (nextView === 'opportunities') { params.set('view', 'workspace'); params.delete('source'); params.delete('vertical'); params.delete('pursuitNeed'); params.delete('need'); params.delete('section'); params.delete('tier') }
+    else if (nextView === 'signals') { params.set('view', 'signals'); params.set('tier', 'Signals'); params.delete('need'); params.delete('section') }
+    else params.set('view', nextView)
+    if (nextView === 'pursuits') {
+      setResearchMounted(true)
+      params.delete('need')
+      params.delete('section')
+      setCommercialNavigation(previous => ({ ...previous, needId: researchNeed }))
+      writeCommercial(params, { ...commercialNavigation, needId: researchNeed })
+    }
+    history.pushState(null, '', `/?${params}`)
+  }
   const openActiveNeed = (need: { id: string }) => {
+    lastSelected.current = need.id
     const row = visiblePage?.items.find(item => item.id === need.id)
     if (row) { select(row); return }
     setDetailIdentity(null); setSelected(null); setPendingNeedId(need.id); setTab('Overview'); writeUrl(filters, need.id, undefined, true)
@@ -133,20 +211,32 @@ export function WorkspaceHome() {
   const position = useMemo(() => (page?.offset ?? 0) + items.length, [page, items])
   if (authenticated === null) return <main className="loading" aria-live="polite">Loading your private workspace…</main>
   if (!authenticated) return <LoginPage onLogin={async password => { await client.login(password); setPage(null); setError(''); setSelected(null); setAuthenticated(true) }}/>
+  const header = <header className="wh-header"><a href="/?view=workspace" aria-label="GridLens home"><img src="/brand/lockup-pursuits-v3.svg" alt="GridLens"/></a><nav aria-label="Primary navigation"><button className={view === 'opportunities' ? 'active' : ''} onClick={() => { navigate('opportunities'); setFilters(value => ({ ...value, tier: undefined, offset: 0, cohort_token: undefined })) }}>Opportunities</button><button className={view === 'pursuits' ? 'active' : ''} onClick={() => navigate('pursuits')}>Research</button><button className={view === 'signals' ? 'active' : ''} onClick={() => navigate('signals')}>Signals</button><button className={view === 'ingestion' ? 'active' : ''} onClick={() => navigate('ingestion')}>Operations</button></nav>{view === 'opportunities' && <label className="wh-global-search"><span>Search</span><input aria-label="Search opportunities" value={filters.search ?? ''} onChange={e => change('search', e.target.value)}/></label>}<button className="wh-signout" onClick={() => void client.logout().then(() => location.reload())}>Sign out</button></header>
+  const updateCommercial = (next: CommercialNavigation, push = true) => { if (JSON.stringify(next) === JSON.stringify(commercialNavigation)) return; setCommercialNavigation(next); const params = new URLSearchParams(getParams()); params.set('view', 'pursuits'); writeCommercial(params, next); if (push) history.pushState(history.state, '', `/?${params}`); else history.replaceState(history.state, '', `/?${params}`) }
+  const researchHost = <main className="wh-single-view" hidden={view !== 'pursuits'}>{researchMounted && <><label>Search this page <input aria-label="Search commercial pursuits on this page" value={commercialNavigation.query} onChange={event => updateCommercial({ ...commercialNavigation, query: event.target.value }, false)}/></label><CommercialPursuits navigation={commercialNavigation} onNavigate={updateCommercial} onInvestigate={id => { researchFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null; const params = new URLSearchParams(getParams()); writeCommercial(params, commercialNavigation); params.set('view', 'workspace'); params.set('need', id); params.delete('section'); history.pushState({ ...history.state, workspaceDetail: true }, '', `/?${params}`); setView('opportunities'); setDetailIdentity(null); setSelected(null); setPendingNeedId(id); setTab('Overview') }}/></>}</main>
+  if (view === 'pursuits') return <div className="workspace-home">{header}{researchHost}</div>
+  if (view === 'ingestion') return <div className="workspace-home">{header}{researchHost}<main className="wh-single-view"><OperationsInbox/></main></div>
+  if (view === 'signals') return <div className="workspace-home">{header}{researchHost}<main className="wh-main"><div className="wh-layout"><SignalsBrowse onSelect={item => openActiveNeed(item)} onScope={scope => { setSignalScope(scope); if (!scope && !getParams().get('need') && !location.hash) { ++selectionSequence.current; setSelected(null); setPendingNeedId(null); setDetailIdentity(null); setDetailLoading(false) } }}/><WorkspaceDetail item={detailItem} pending={Boolean(pendingNeedId)} loading={detailLoading || Boolean(selected && !detailCurrent)} error={detailError} tab={tab} onTab={next => { setTab(next); if (selected) writeUrl(filters, selected.id, next) }} onBack={() => select(null)} onRetry={() => setRevision(value => value + 1)} onReadback={() => { setDetailIdentity(null); setSelected(null); setPendingNeedId(selected?.id ?? null); setRevision(value => value + 1) }} onTitleReady={() => setRevision(value => value + 1)}/></div></main></div>
   return <div className="workspace-home">
-    <header className="wh-header"><a href="/?view=workspace" aria-label="GridLens home"><img src="/brand/lockup-horizontal-navy.svg" alt="GridLens"/></a><nav aria-label="Primary navigation"><a className="active" href="/?view=workspace">Opportunities</a><a href={legacyUrl('pursuits')}>Research</a><a href="/?view=workspace&amp;tier=Signal">Signals</a><a href={legacyUrl('ingestion')}>Operations</a></nav><label className="wh-global-search"><span>Search</span><input aria-label="Search opportunities" value={filters.search ?? ''} onChange={e => change('search', e.target.value)}/></label><button className="wh-signout" onClick={() => void client.logout().then(() => location.reload())}>Sign out</button></header>
-    <section className="wh-briefbar"><h1>Power needs</h1><span>{pageCurrent ? `${visiblePage?.total ?? 0} filtered power needs` : 'Current results unavailable'}</span><small>Disposition counts ignore this filter · review counts appear in Material changes.</small>{(['action_now','research','watch','reject'] as const).map(v => <button key={v} className={filters.disposition === v.toUpperCase().replace('_',' ') ? 'chosen' : ''} onClick={() => change('disposition', filters.disposition === v.toUpperCase().replace('_',' ') ? '' : v.toUpperCase().replace('_',' '))}><strong>{pageCurrent ? visiblePage?.counts[v] ?? '—' : '—'}</strong> {v.replace('_',' ')}</button>)}</section>
-    <WorkspaceChanges onSelectActiveNeed={openActiveNeed}/>
-    <main className="wh-layout">
+    {header}
+    {researchHost}
+    <main className="wh-main">
+      <section className="wh-title-row"><div><p className="wh-kicker">Evidence-backed power work</p><h1>Your pursuits</h1><p>Review active needs, understand what changed, then take the next supported step.</p></div><span>{pageCurrent ? `${visiblePage?.total ?? 0} matching power needs` : 'Current results unavailable'}</span></section>
+      <section className="wh-briefing"><div className="wh-briefing-head"><div><p className="wh-kicker">Daily briefing</p><h2>What needs attention</h2></div><span>Review what changed and choose the next opportunity to pursue.</span></div><div className="wh-briefing-counts">{(['action_now','research','watch'] as const).map(v => <button key={v} onClick={() => change('disposition', filters.disposition === v.toUpperCase().replace('_',' ') ? '' : v.toUpperCase().replace('_',' '))}><span>{v.replace('_',' ')}</span><strong>{pageCurrent ? visiblePage?.counts[v] ?? '—' : '—'}</strong></button>)}<div className="wh-briefing-change"><WorkspaceChanges onSelectActiveNeed={openActiveNeed}/></div></div></section>
+      <div className="wh-layout">
       <section className={`wh-list ${selected ? 'wh-list-muted' : ''}`} aria-label="Opportunities">
-        <div className="wh-filters"><select aria-label="Tier" value={filters.tier ?? ''} onChange={e => change('tier', e.target.value)}><option value="">All tiers</option><option>Signal</option><option>Prospect</option><option>Lead</option></select><input aria-label="Geography (exact match)" title="Exact stored geography, for example Austin, TX" placeholder="Exact geography" value={filters.geography ?? ''} onChange={e => change('geography', e.target.value)}/><input aria-label="Industry (exact match)" title="Exact stored industry value" placeholder="Exact industry" value={filters.industry ?? ''} onChange={e => change('industry', e.target.value)}/><input aria-label="Activity (exact match)" title="Exact stored activity value" placeholder="Exact activity" value={filters.activity ?? ''} onChange={e => change('activity', e.target.value)}/><select aria-label="Timing" value={filters.timing ?? ''} onChange={e => change('timing', e.target.value)}><option value="">Timing</option><option>KNOWN</option><option>UNKNOWN</option></select><input aria-label="Minimum MW" placeholder="Min MW" value={filters.mw_min ?? ''} onChange={e => change('mw_min', e.target.value)}/><input aria-label="Maximum MW" placeholder="Max MW" value={filters.mw_max ?? ''} onChange={e => change('mw_max', e.target.value)}/><select aria-label="Sort" value={filters.sort ?? 'priority'} onChange={e => change('sort', e.target.value)}><option value="priority">Priority</option><option value="project">Project</option><option value="mw">MW</option><option value="start">Start (source text)</option><option value="updated">Updated</option></select></div>
+        <div className="wh-queue-heading"><div><p className="wh-kicker">Work queue</p><h2>Prioritized opportunities</h2></div><span>{pageCurrent ? `${visiblePage?.total ?? 0} records` : loading ? 'Refreshing…' : 'Unavailable'}</span></div>
+        <nav className="wh-disposition-tabs" aria-label="Filter by commercial disposition">{(['', 'ACTION NOW','RESEARCH','WATCH','REJECT'] as const).map(value => <button type="button" key={value || 'all'} aria-pressed={(filters.disposition ?? '') === value} className={(filters.disposition ?? '') === value ? 'selected' : ''} onClick={() => change('disposition', value)}>{value ? value.replace('_',' ').toLowerCase() : 'All'}</button>)}</nav>
+        <details className="wh-filter-disclosure"><summary>More filters</summary><div className="wh-filters"><select aria-label="Tier" value={filters.tier ?? ''} onChange={e => change('tier', e.target.value)}><option value="">All qualifications</option><option>Signal</option><option>Prospect</option><option>Lead</option></select><input aria-label="Geography (exact match)" title="Exact stored geography, for example Austin, TX" placeholder="Exact geography" value={filters.geography ?? ''} onChange={e => change('geography', e.target.value)}/><input aria-label="Industry (exact match)" title="Exact stored industry value" placeholder="Exact industry" value={filters.industry ?? ''} onChange={e => change('industry', e.target.value)}/><input aria-label="Activity (exact match)" title="Exact stored activity value" placeholder="Exact activity" value={filters.activity ?? ''} onChange={e => change('activity', e.target.value)}/><select aria-label="Timing" value={filters.timing ?? ''} onChange={e => change('timing', e.target.value)}><option value="">Any timing</option><option>KNOWN</option><option>UNKNOWN</option></select><input aria-label="Minimum MW" placeholder="Min MW" value={filters.mw_min ?? ''} onChange={e => change('mw_min', e.target.value)}/><input aria-label="Maximum MW" placeholder="Max MW" value={filters.mw_max ?? ''} onChange={e => change('mw_max', e.target.value)}/><select aria-label="Sort" value={filters.sort ?? 'priority'} onChange={e => change('sort', e.target.value)}><option value="priority">Priority</option><option value="project">Project</option><option value="mw">MW</option><option value="start">Start (source text)</option><option value="updated">Updated</option></select></div></details>
+        <details className="wh-export"><summary>Download CSV by qualification</summary><div>{(['Signal','Prospect','Lead'] as const).map(tier => <a key={tier} href={client.opportunityExportUrl(tier, filters.search ?? '', 'ALL', undefined, { geography: filters.geography ?? '', industry: filters.industry ?? '', activity: filters.activity ?? '', timing: filters.timing ?? '', mwMin: filters.mw_min ?? '', mwMax: filters.mw_max ?? '' })} download>{tier} CSV</a>)}</div></details>
         {error && <div role="alert" className="wh-error">{error} <button onClick={() => setRevision(x => x + 1)}>Retry</button></div>}
         {loading && <p role="status">Loading current power needs…</p>}
         {!loading && !error && items.length === 0 && <p className="wh-empty">No power needs match these filters.</p>}
-        <div className="wh-table-wrap"><table className="wh-table"><thead><tr><th>Project / location</th><th>MW</th><th>Application</th><th>Start · duration</th><th>Disposition</th><th>Next action</th></tr></thead><tbody>{items.map(item => { const title = projectTitle(item); return <tr key={item.id} className={selected?.id === item.id ? 'selected' : ''}><td data-label="Project / location"><button className="wh-project" data-need-row={item.id} onClick={() => select(item)}><strong>{title}</strong>{title !== item.name && <small>Source record: {item.name}</small>}<span>{item.location ?? 'Location unknown'} · {item.tier}</span>{item.rank_score != null && <small>Priority {item.rank_score}{item.rank_reasons?.length ? ` · ${item.rank_reasons.join('; ')}` : ''}</small>}</button></td><td data-label="MW">{item.required_mw ?? 'Unknown'}</td><td data-label="Application">{item.activity.replaceAll('-', ' ')}</td><td data-label="Start · duration">{item.start_window ?? 'Unknown'} · {item.duration ?? 'Unknown'}</td><td data-label="Disposition">{item.commercial_disposition}</td><td data-label="Next action"><button className="wh-action" title={item.commercial_next_action || item.commercial_next_question || 'Review evidence'} onClick={() => select(item, 'Next steps')}>{item.commercial_next_action || item.commercial_next_question || 'Review evidence'}</button></td></tr> })}</tbody></table></div>
+        <div className="wh-queue-list">{items.map(item => { const title = projectTitle(item); return <article className={`wh-queue-item ${selected?.id === item.id ? 'selected' : ''}`} key={item.id}><button className="wh-queue-main" data-need-row={item.id} onClick={() => select(item)}><span className="wh-queue-meta"><b>{item.tier}</b><span>{item.location ?? 'Location unknown'}</span><span>{item.activity.replaceAll('-', ' ')}</span></span><strong>{title}</strong>{title !== item.name && <small>Source record: {item.name}</small>}<span className="wh-queue-why">{item.commercial_reason || item.rationale || 'No investigation reason is available.'}</span>{item.rank_reasons?.length ? <small className="wh-priority-reason">Priority {item.rank_score ?? 'unavailable'} · {item.rank_reasons.join('; ')}</small> : null}</button><div className="wh-queue-action"><span>NEXT ACTION</span><button onClick={() => select(item, 'Next steps')}>{item.commercial_next_action || item.commercial_next_question || 'Review retained evidence'}</button><small>{item.required_mw ?? 'Power unknown'} · {item.start_window ?? 'Start unknown'} · {item.duration ?? 'Duration unknown'}</small></div></article> })}</div>
         <footer className="wh-paging"><span>Showing {items.length ? (visiblePage?.offset ?? 0) + 1 : 0}–{pageCurrent ? position : '—'} of {pageCurrent ? visiblePage?.total ?? '—' : '—'}</span><button disabled={!pageCurrent || !visiblePage?.offset} onClick={() => { if (visiblePage) update({ ...filters, offset: Math.max(0, visiblePage.offset - 25), cohort_token: visiblePage.cohort_token }) }}>Previous</button><button disabled={!pageCurrent || visiblePage?.next_offset == null} onClick={() => { if (visiblePage) update({ ...filters, offset: visiblePage.next_offset ?? 0, cohort_token: visiblePage.cohort_token }) }}>Next</button></footer>
       </section>
       <WorkspaceDetail item={detailItem} pending={Boolean(pendingNeedId)} loading={detailLoading || Boolean(selected && !detailCurrent)} error={detailError} tab={tab} onTab={next => { setTab(next); if (selected) writeUrl(filters, selected.id, next) }} onBack={() => select(null)} onRetry={() => setRevision(value => value + 1)} onReadback={() => { setDetailIdentity(null); setSelected(null); setPendingNeedId(selected?.id ?? null); setRevision(value => value + 1) }} onTitleReady={() => setRevision(value => value + 1)}/>
+      </div>
     </main>
   </div>
 }

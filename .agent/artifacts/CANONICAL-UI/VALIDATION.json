@@ -1,0 +1,123 @@
+{
+  "scope": "Canonical UI PR candidate; not parent product completion or deployment",
+  "started_utc": "2026-10-20T22:42:01Z",
+  "recorded_utc": "2026-10-21T00:02:01.264127+00:00",
+  "base_sha": "a4d77d821ed229834b678b2dfb79c4d0f246dd8d",
+  "backend": {
+    "unchanged_from_base": true,
+    "tests_passed": 2336,
+    "tests_skipped": 3,
+    "pytest_seconds": 624.94,
+    "gates": [
+      "dependency audit",
+      "Ruff",
+      "format",
+      "mypy",
+      "migrations twice",
+      "schema parity",
+      "full pytest"
+    ]
+  },
+  "frontend": {
+    "started_utc": "2026-10-21T00:00:18.646579+00:00",
+    "gates": [
+      {
+        "name": "audit",
+        "exit_code": 0,
+        "seconds": 1.08
+      },
+      {
+        "name": "typecheck",
+        "exit_code": 0,
+        "seconds": 2.56
+      },
+      {
+        "name": "build",
+        "exit_code": 0,
+        "seconds": 4.76
+      },
+      {
+        "name": "browser",
+        "exit_code": 0,
+        "seconds": 76.52
+      },
+      {
+        "name": "docs",
+        "exit_code": 0,
+        "seconds": 0.53
+      },
+      {
+        "name": "diff",
+        "exit_code": 0,
+        "seconds": 0.08
+      }
+    ],
+    "finished_utc": "2026-10-21T00:01:44.169515+00:00"
+  },
+  "browser_summary": "147 passed (1.3m)",
+  "runtime": {
+    "database": "dedicated loopback clone; 1619 retained needs; separate disposable test database",
+    "api_port": 8120,
+    "web_port": 5293,
+    "providers_disabled": true,
+    "ingestion_worker_started": false,
+    "desktop_visual_checked": true,
+    "mobile_width_px": 390,
+    "mobile_next_action_visible": true,
+    "mobile_horizontal_overflow": false
+  },
+  "preserved_failures": [
+    "repository gate stopped at Windows esbuild file lock; npm ci passed after stopping only owned Vite/esbuild",
+    "initial Vite restart used default API port; corrected to8120",
+    "intermediate full browser diagnostic stopped after repeated obsolete selectors",
+    "builder focused tests used wrong port env names; corrected runs recorded separately",
+    "initial shared browser-report collision; subsequent outputs isolated by owner"
+  ],
+  "logs": [
+    {
+      "path": ".artifacts/canonical-ui/gates/repository.log",
+      "sha256": "a49a299873ab8230384a305f56e4334e5bda37a05a76b945c5b00565d3f4e5ff"
+    },
+    {
+      "path": ".artifacts/canonical-ui/frontend-final/audit.log",
+      "sha256": "6d8c5c8f3d7684adb070417bd608d01ae90aa3dc26a65af03ffda4955f38d9a3"
+    },
+    {
+      "path": ".artifacts/canonical-ui/frontend-final/browser.log",
+      "sha256": "800eee77a1ad77ca6367a0b6c673e74361014177b21cdb98220c5bc7418e57af"
+    },
+    {
+      "path": ".artifacts/canonical-ui/frontend-final/build.log",
+      "sha256": "7867019481a5511403688bf76b88baf24374febe7389ae7973f10f7b72d29dfc"
+    },
+    {
+      "path": ".artifacts/canonical-ui/frontend-final/diff.log",
+      "sha256": "fd63d0f304f6215538a92e95ddf6a57aea9f15aac02396bd79baec2a2021d7bf"
+    },
+    {
+      "path": ".artifacts/canonical-ui/frontend-final/docs.log",
+      "sha256": "40436d6721dedc428adc38c946f54a2f355e546ee4113f46e10facf1548c8d05"
+    },
+    {
+      "path": ".artifacts/canonical-ui/frontend-final/typecheck.log",
+      "sha256": "2ed7bd9429f03c4125fd3cd1b8b752d8135892f09eb7ff8609ac5c3677b941b6"
+    }
+  ],
+  "accounting": {
+    "lane": "Luna builder; Terra bounded routing/parity specialist; Sol independent review required",
+    "planning_seconds": "UNKNOWN",
+    "build_seconds": "UNKNOWN",
+    "validation_seconds": "measured per gate in frontend receipt; backend pytest measured separately",
+    "audit_seconds": "recorded in external review receipt after freeze",
+    "repair_attempt_count": "UNKNOWN; bounded repairs and failed attempts retained in work graph and raw logs",
+    "tokens": "UNKNOWN",
+    "config_identity": "UNKNOWN; no configuration-load claim",
+    "elapsed_to_accepted": "UNKNOWN until independent acceptance"
+  },
+  "authority": {
+    "push_and_open_pr": true,
+    "merge": false,
+    "deploy": false
+  },
+  "review": "Required on frozen Git candidate; separate review receipt must identify exact commit"
+}

@@ -1,30 +1,27 @@
 # GridLens production UI canon
-**Owner-approved October 18, 2026: Direction B Pursuit Workspace with compact Daily Briefing.** Explicitly supersedes incompatible October 1 atmospheric-canvas, map-first, cinematic-motion, transforming-scene and previous browse/detail visual requirements, including conflicting visual clauses in AGENTS.md. Presentation changes only; [PRD](../product/PRD.md) evidence, qualification, data, authentication and commercial doctrine remain authoritative.
 
-## Locked identity
-Use existing authorized GridLens Aperture logo and wordmark assets in web/public/brand exactly. Preserve original proportions, spacing, geometry, metallic navy/silver identity. Never redraw, regenerate, approximate, tint or replace them. Preserve ABC Diatype direction with existing licensed fonts or appropriate readable sans fallbacks.
+**Owner-approved October 20, 2026: v3 execution-first Pursuit Workspace.** The approved visual reference is the committed [v3 prototype screenshot](references/pursuit-workspace-v3-approved.png); its [provenance and SHA-256](references/pursuit-workspace-v3-reference.json) are recorded alongside it. The standalone interactive prototype and notes remain in the companion artifact at `../.artifacts/velto-ui-exploration-20261020/v3/` (relative to this checkout); its records are fictional and its browser-tab state is not production data. This decision supersedes the October 18 Direction B layout and the October 1 map/cinematic visual direction. It changes presentation only. The [PRD](../product/PRD.md) remains authoritative for all 42 functional requirements, evidence, qualification, data, authentication, and commercial rules.
 
-| Color | Hex | Role |
-| --- | --- | --- |
-| Deep Current | #101F2D | Text/structure |
-| GridLens Navy | #17324A | Navigation/actions/selection |
-| Steel Blue | #395A75 | Secondary text/controls |
-| Atmosphere | #6F879D | Muted support with readable contrast |
-| Mist | #D5DEE5 | Borders |
-| Ice | #F3F6F7 | Subtle surfaces |
-| White | #FFFFFF | Workspace |
+## Visual identity
 
-No royal/electric/Signal Blue, neon cyan, unrelated accents, photos, decorative illustrations, hero banners, gradients, ornamental charts, permanent sidebar/rail, excessive cards/badges/icons/shadows or futuristic effects. Refined spacing, restrained borders, precise alignment, readable hierarchy; labels never rely only on color.
+Use the approved v3 application lockup [`web/public/brand/lockup-pursuits-v3.svg`](../../web/public/brand/lockup-pursuits-v3.svg). Preserve all original Aperture masters in `web/public/brand/`; this lockup is an application treatment, not a replacement for those source assets. Its rendered width is 156px at desktop, 134px at tablet, and 114px at phone, following the approved prototype proportions.
 
-## Interaction
-One compact horizontal header: original Aperture lockup, Opportunities, Research, Signals, Operations, global search, supported account controls. Opportunities is default. Preserve existing functional deep links.
-Immediately below: slim backend briefing for eligible active needs, Action Now, Research, Watch and supported material changes. Declare count unit/filter scope; clicking a metric opens that set. Unavailable metrics say unavailable. No giant KPI cards/repeated counts.
-Desktop: continuous sortable table 55–60%, contextual detail 40–45%. Columns project/location, activity-specific MW, application, start/duration, disposition, next action. Navy selection preserves list. Geography, industry, application, MW, tier, disposition, timing filters are independent. Full-cohort filtering, counts, sorting, pagination run on server; never claim a page-local result is complete.
-Detail: project/location, disposition/tier, load/timing, commercial fit/reason, key developments, buying organizations/authority, unknowns, next action. Concise hierarchy and progressive disclosure with working Overview, Evidence, Buying chain, Power gap, Timeline, Next steps, Unknowns where supported.
-Power gap: factual required temporary MW, confirmed suitable supply, evidence-supported unresolved gap, start, duration, fuel/operating constraints, source support/uncertainty. Show **Supply unknown** when unknown. Existing domain calculations only; no staircase chart, campus-capacity subtraction or rental inference from announced operating capacity.
-Signal/Prospect/Lead remains independent of commercial disposition, priority and workflow status. Signal can merit immediate investigation without becoming Lead. Preserve source links, publication/event/retrieval dates, claim provenance, historical records and supported verified/user-confirmed, reported, estimated/inferred/derived, conflicting, unknown, stale states. Never invent power, duration, buyer authority, contacts, fuel, confidence percentages or utility delays.
-Every button enters a working investigation, research, evidence, fact, note, status or history workflow. Confirm persisted saves. Preserve drafts and return context. No new CRM or autonomous outreach.
-Tablet adapts without microscopic text. Mobile: full-width list then focused detail/clear Back. Preserve keyboard focus, search/filters/selection/scroll, readable contrast, reduced motion. No horizontally overflowing dashboard cards.
+Use a soft silver `#E7EAED` page field, white rounded panels with 24px corners, navy ink, and restrained orange accents. Original brand palette values remain unchanged; the application-only additions are recorded in [`brand.tokens.json`](brand.tokens.json). Keep typography readable and contrasts accessible. Avoid permanent sidebars, charts, maps, photography, cinematic scenes, decorative gradients, and excessive badges or shadows.
 
-## Verification
-[Interaction contract](PURSUIT_WORKSPACE.md). Benchmark baseline/candidate list, detail, filter, sort, action with declared corpus/environment. Validate bounded responses, full counts, identity, auth, evidence, qualification, saved workflows, desktop/mobile/back/refresh/errors. Screenshots prove presentation only. Focused PR includes screenshots, tests, measurements, limitations. No unverified merge/deploy.
+## Workspace and interaction
+
+Preserve the existing horizontal navigation: **Opportunities**, **Research**, **Signals**, and **Operations**, with existing search and account controls. Apply the approved v3 visual treatment consistently while keeping each destination mapped to its supported workflow. Opportunities is the prioritized queue of individual power needs. Signals remains the entry to a shared grouped-source evidence browse, defaulting to Signal and offering a local qualification selector for **Signal, Prospect, and Lead**. Preserve grouped physical-project cards, member/source context, group/cohort counts, SHOW/REVIEW/HOLD decisions, and qualification-scoped CSV across that browse. Its advanced filters retain geography, industry, activity, timing, known MW, priority, and workflow status. Keep group counts distinct from individual need counts. Do not collapse this source-group workflow into the need-level Opportunities queue. The standalone prototype's **Saved** navigation and sample-workspace controls are illustrative and do not authorize a new production destination or fictional records.
+
+On Opportunities, retain a compact Daily Briefing above the main work surface. Its Action now, Research, and Watch counts are real server-backed disposition facets and clicking them filters the queue. Material changes use the supported persisted review/change workflow. Do not add follow-up-due or open-question metrics unless backed by real supported data; unavailable metrics must not be fabricated. Counts may overlap only where their underlying supported cohorts do, and must not be presented as additive totals.
+
+The main work surface has a prioritized opportunity queue on the left (about 55–60%) and a persistent contextual brief on the right (about 40–45%). Preserve the prototype's comfortable queue-row density. The queue supports horizontal disposition tabs (Action now, Research, Watch, All; Reject remains independently filterable), search, qualification filtering, and the existing supported sort options. Search and counts reflect the complete available cohort rather than only rendered rows. Show the specific activity, location, independent qualification stage, why now, and next action. Priority, disposition, pursuit status, and Signal/Prospect/Lead qualification remain separate concepts.
+
+The contextual brief starts with project, location, and power activity; a prominent next action; supported need, suitable supply, remaining gap, start, and duration with provenance; an explicit missing-evidence checklist; and expandable source evidence. Unknown supply never produces a numeric gap. Preserve source dates and distinguish reported, derived, and unknown facts. A Signal may merit a discovery action without implying a proposal-ready Lead.
+
+Next actions enter the corresponding existing research, evidence, fact-correction, note, status, or history workflow. Preserve each workflow's own validation and persisted readback, including supported follow-ups; do not impose the prototype's generic note/status form or its browser-tab-only saved state on production. Preparing an action does not record contact, and workflow updates do not automatically change qualification or disposition. Fictional prototype records are demonstration behavior, not production acceptance.
+
+At widths below 850px, stack queue and detail; on phone, selecting a record focuses the detail and Back restores the prior queue and filters. Keep controls labeled, keyboard focus visible, typed form state stable, and narrow layouts free of horizontal overflow. Respect reduced-motion preferences.
+
+## Product and acceptance boundary
+
+Presentation does not alter any PRD requirement, qualification gate, evidence rule, source coverage, workflow semantics, or release gate. Screenshots and the standalone prototype establish visual direction only. Local production-code checks and runtime evidence must be reported separately from live production deployment and acceptance. The applicable authenticated, persisted-record and deterministic/owner review gates remain required. This canon authorizes no deployment or production data action.
