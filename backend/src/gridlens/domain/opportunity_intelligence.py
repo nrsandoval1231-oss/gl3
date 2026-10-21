@@ -240,57 +240,29 @@ def _source_project_name(
 ) -> tuple[str | None, list[IntelligenceSource]]:
     """Use a project name only when a current retained source names it directly."""
 
-    f17_stack_sources = {
-        "f17-stack-city-claim",
-        "f17-stack-cec-filing",
-    }
-    retained_f17_stack = [source for source in sources if source.source_id in f17_stack_sources]
-    if retained_f17_stack:
-        # This compound label is assembled only from source-native aliases in
-        # the exact current CEC evidence version. The source must also anchor
-        # the relation to the physical project address; its generated title is
-        # never evidence for the label.
-        from gridlens.ingestion.adapters.retained_document import SOURCES
+    from gridlens.ingestion.adapters.retained_document import stack_project_alias
 
-        policy = SOURCES["f17-stack-cec-filing"]
-        for source in retained_f17_stack:
-            if (
-                source.source_id != "f17-stack-cec-filing"
-                or not source.retained_evidence_id
-                or source.content_hash != policy["sha256"]
-                or source.url != policy["url"]
-                or source.verification_status != "Current retained support"
-            ):
-                continue
-            passage = source.passage or ""
-            identity = re.search(
-                r"\b(?P<identifier>SVY02A)\s+Memorex\b.{0,100}?"
-                r"\b(?P<alias>Memorex Junction)\s+Operational Study\b",
-                passage,
-                re.I | re.S,
+    proof = stack_project_alias(item, sources)
+    if proof.status != "not_applicable":
+        if proof.status == "verified" and proof.evidence_id:
+            source = next(
+                (
+                    source
+                    for source in sources
+                    if source.reference == f"evidence:{proof.evidence_id}"
+                ),
+                None,
             )
-            owner_alias = re.search(
-                r"\bowner of the data center project,\s*a\.k\.a\.\s*.{0,40}?"
-                r"\bMemorex Junction\b",
-                passage,
-                re.I | re.S,
-            )
-            site = re.search(r"\b1200\s+Memorex\s+Drive\s+project\b", passage, re.I)
-            if not identity or not owner_alias or not site:
-                continue
-            value = f"{identity.group('identifier')} / {identity.group('alias')} data center"
-            support = [identity.group(0), owner_alias.group(0), site.group(0)]
-            return value, [
-                source.model_copy(
-                    update={
-                        "passage": quote,
-                        "verification_status": "Current CEC source-native project alias and site",
-                    }
-                )
-                for quote in support
-            ]
-        # An F17 item cannot fall through to generic “Project:” or generated-
-        # title matching when its exact retained alias proof is unavailable.
+            if source is not None:
+                return proof.value, [
+                    source.model_copy(
+                        update={
+                            "passage": quote,
+                            "verification_status": "Current source-native project alias and site",
+                        }
+                    )
+                    for quote in proof.quotes
+                ]
         return None, []
 
     def meaningful(value: str) -> bool:
@@ -302,38 +274,20 @@ def _source_project_name(
         )
 
     candidates: list[str] = []
+    from gridlens.ingestion.adapters.retained_permits import source_native_project_identity
+
     for source in sources:
         passage = source.passage or ""
-        if source.source_id == "texas-rrc-drilling-permits":
-            lease = re.search(r"(?mi)^lease:\s*(?P<value>[^\r\n]+)", passage)
-            well = re.search(r"(?mi)^well:\s*(?P<value>[^\r\n]+)", passage)
-            if lease and well:
-                value = f"{lease.group('value').strip()}, well {well.group('value').strip()}"
-                excerpt = f"{lease.group(0).strip()}\n{well.group(0).strip()}"
-                return value, [
-                    source.model_copy(
-                        update={
-                            "passage": excerpt,
-                            "verification_status": "Current RRC lease and well identity",
-                        }
-                    )
-                ]
-        if source.source_id == "austin-building-permits":
-            match = re.search(r"(?i)\bTXDOT\s+project\s*#\s*(?P<id>[A-Z0-9-]+)", passage)
-            if match:
-                value = f"TXDOT project # {match.group('id')}"
-                line = next(
-                    (line for line in passage.splitlines() if match.group(0) in line),
-                    match.group(0),
+        identity = source_native_project_identity(source.source_id or "", passage)
+        if identity:
+            return identity.value, [
+                source.model_copy(
+                    update={
+                        "passage": identity.quote,
+                        "verification_status": identity.verification_status,
+                    }
                 )
-                return value, [
-                    source.model_copy(
-                        update={
-                            "passage": line,
-                            "verification_status": "Current Austin permit project reference",
-                        }
-                    )
-                ]
+            ]
     for source in sources:
         passage = source.passage or ""
         narrative_name = re.search(
@@ -413,18 +367,19 @@ def _source_location(
 def _source_identifier(
     sources: list[IntelligenceSource],
 ) -> tuple[str | None, list[IntelligenceSource]]:
+    from gridlens.ingestion.adapters.retained_permits import source_record_identifier
+
     for source in sources:
-        if source.source_id in {"texas-rrc-drilling-permits", "austin-building-permits"}:
-            row = re.search(r"(?mi)^row:\s*(?P<value>[^\r\n]+)", source.passage or "")
-            if row:
-                return row.group("value").strip(), [
-                    source.model_copy(
-                        update={
-                            "passage": row.group(0).strip(),
-                            "verification_status": "Current source record identifier",
-                        }
-                    )
-                ]
+        identity = source_record_identifier(source.source_id or "", source.passage or "")
+        if identity:
+            return identity.value, [
+                source.model_copy(
+                    update={
+                        "passage": identity.quote,
+                        "verification_status": identity.verification_status,
+                    }
+                )
+            ]
         for pattern in (
             r"(?m)^Permit:\s*(?P<value>[A-Z0-9-]+)",
             r"(?m)^Permit number:\s*(?P<value>[A-Z0-9-]+)",

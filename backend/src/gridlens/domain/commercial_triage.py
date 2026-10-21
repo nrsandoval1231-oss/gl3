@@ -92,45 +92,10 @@ def _is_rental_intermediary(category: Any, organization: Any, reason: Any = "") 
 
 
 def _f17_stack_service_conflict(item: dict[str, Any]) -> bool:
-    """Require both exact, current retained STACK sources and their native site cues."""
-    location = re.sub(r"\s+", " ", str(item.get("location") or "")).casefold()
-    name = str(item.get("name") or "").casefold()
-    if "1200 memorex drive" not in location or "santa clara" not in location:
-        return False
-    if "svy02a" not in name or "memorex junction" not in name:
-        return False
+    """Apply the existing WATCH policy to adapter-verified source proof."""
+    from gridlens.ingestion.adapters.retained_document import stack_service_conflict
 
-    from gridlens.ingestion.adapters.retained_document import SOURCES
-
-    by_id = {
-        str(e.get("source_id") or ""): e
-        for e in item.get("evidence", [])
-        if e.get("assessment_current") is True
-    }
-    city = by_id.get("f17-stack-city-claim")
-    cec = by_id.get("f17-stack-cec-filing")
-    for source_id, evidence in (
-        ("f17-stack-city-claim", city),
-        ("f17-stack-cec-filing", cec),
-    ):
-        policy = SOURCES[source_id]
-        if (
-            evidence is None
-            or evidence.get("url") != policy["url"]
-            or evidence.get("content_hash") != policy["sha256"]
-            or not evidence.get("id")
-        ):
-            return False
-        text = re.sub(r"\s+", " ", str(evidence.get("abstract") or "")).casefold()
-        text = re.sub(r"(\d)\s*m\s*v\s*a\b", r"\1 mva", text)
-        if "1200 memorex drive" not in text or "santa clara" not in text:
-            return False
-        if source_id.endswith("city-claim"):
-            if not all(term in text for term in ("18 mva", "2028", "28 mva", "31 mva")):
-                return False
-        elif not all(term in text for term in ("draft", "table e1", "mva", "28", "31")):
-            return False
-    return True
+    return stack_service_conflict(item).status == "verified"
 
 
 class PriorityInputAccumulator:

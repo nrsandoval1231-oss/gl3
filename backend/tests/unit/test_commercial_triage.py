@@ -120,7 +120,9 @@ def test_f17_stack_watch_surfaces_attributed_conflict_and_verification_action():
     assert card["supply"] == record["supply"]
 
 
-@pytest.mark.parametrize("mutation", ["missing", "stale", "wrong_hash", "wrong_site"])
+@pytest.mark.parametrize(
+    "mutation", ["missing", "stale", "wrong_hash", "wrong_url", "wrong_site", "wrong_alias"]
+)
 def test_f17_stack_narrative_falls_back_without_exact_current_sources(mutation):
     record = _f17_stack_item()
     if mutation == "missing":
@@ -129,6 +131,10 @@ def test_f17_stack_narrative_falls_back_without_exact_current_sources(mutation):
         record["evidence"][1]["assessment_current"] = False
     elif mutation == "wrong_hash":
         record["evidence"][1]["content_hash"] = "0" * 64
+    elif mutation == "wrong_url":
+        record["evidence"][1]["url"] = "https://example.test/cec"
+    elif mutation == "wrong_alias":
+        record["name"] = "SVY02A / Another Project data center"
     else:
         record["location"] = "1200 Other Street, Santa Clara, CA"
 

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import hashlib
 import re
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -91,6 +93,126 @@ SOURCES: dict[str, dict[str, Any]] = {
 }
 MAX_BODY_BYTES = 80_000_000
 MAX_EXCERPT_CHARS = 80_000
+
+
+@dataclass(frozen=True)
+class StackProof:
+    """Source-owned outcome for the exact retained STACK service conflict."""
+
+    status: str
+
+
+@dataclass(frozen=True)
+class StackAliasProof:
+    """Verified source-native project alias and the exact supporting passages."""
+
+    status: str
+    value: str | None = None
+    evidence_id: str | None = None
+    quotes: tuple[str, ...] = ()
+
+
+def stack_service_conflict(item: Mapping[str, Any]) -> StackProof:
+    """Verify the two exact current retained sources and their Memorex site cues."""
+    location = re.sub(r"\s+", " ", str(item.get("location") or "")).casefold()
+    name = str(item.get("name") or "").casefold()
+    if "1200 memorex drive" not in location or "santa clara" not in location:
+        return StackProof("not_applicable")
+    if "svy02a" not in name or "memorex junction" not in name:
+        return StackProof("not_applicable")
+
+    by_id = {
+        str(e.get("source_id") or ""): e
+        for e in item.get("evidence", [])
+        if e.get("assessment_current") is True
+    }
+    for source_id in ("f17-stack-city-claim", "f17-stack-cec-filing"):
+        evidence = by_id.get(source_id)
+        policy = SOURCES[source_id]
+        if (
+            evidence is None
+            or evidence.get("url") != policy["url"]
+            or evidence.get("content_hash") != policy["sha256"]
+            or not evidence.get("id")
+        ):
+            return StackProof("handled_without_proof")
+        text = re.sub(r"\s+", " ", str(evidence.get("abstract") or "")).casefold()
+        text = re.sub(r"(\d)\s*m\s*v\s*a\b", r"\1 mva", text)
+        if not all(cue.casefold() in text for cue in policy["location_cues"]):
+            return StackProof("handled_without_proof")
+        required_terms = (
+            ("18 mva", "2028", "28 mva", "31 mva")
+            if source_id.endswith("city-claim")
+            else ("draft", "table e1", "mva", "28", "31")
+        )
+        if not all(term in text for term in required_terms):
+            return StackProof("handled_without_proof")
+    return StackProof("verified")
+
+
+def stack_project_alias(item: Mapping[str, Any], sources: Sequence[Any]) -> StackAliasProof:
+    """Resolve F17 alias applicability and proof from exact current CEC Evidence."""
+    stack_ids = {"f17-stack-city-claim", "f17-stack-cec-filing"}
+    evidence_rows = item.get("evidence", [])
+    has_stack_evidence = any(row.get("source_id") in stack_ids for row in evidence_rows)
+    stack_sources = [source for source in sources if source.source_id in stack_ids]
+    if not has_stack_evidence and not stack_sources:
+        return StackAliasProof("not_applicable")
+
+    policy = SOURCES["f17-stack-cec-filing"]
+    for source in stack_sources:
+        if (
+            source.source_id != "f17-stack-cec-filing"
+            or not source.retained_evidence_id
+            or source.content_hash != policy["sha256"]
+            or source.url != policy["url"]
+            or source.verification_status != "Current retained support"
+        ):
+            continue
+        if not source.reference.startswith("evidence:"):
+            continue
+        evidence_id = source.reference[len("evidence:") :]
+        evidence = next(
+            (
+                row
+                for row in evidence_rows
+                if str(row.get("id") or "") == evidence_id
+                and row.get("source_id") == "f17-stack-cec-filing"
+            ),
+            None,
+        )
+        if (
+            evidence is None
+            or evidence.get("assessment_current") is not True
+            or str(evidence.get("id") or "") != evidence_id
+            or source.retained_evidence_id != evidence_id
+            or evidence.get("content_hash") != policy["sha256"]
+            or evidence.get("url") != policy["url"]
+        ):
+            continue
+        passage = source.passage or ""
+        identity = re.search(
+            r"\b(?P<identifier>SVY02A)\s+Memorex\b.{0,100}?"
+            r"\b(?P<alias>Memorex Junction)\s+Operational Study\b",
+            passage,
+            re.I | re.S,
+        )
+        owner_alias = re.search(
+            r"\bowner of the data center project,\s*a\.k\.a\.\s*.{0,40}?"
+            r"\bMemorex Junction\b",
+            passage,
+            re.I | re.S,
+        )
+        site = re.search(r"\b1200\s+Memorex\s+Drive\s+project\b", passage, re.I)
+        if not identity or not owner_alias or not site:
+            continue
+        return StackAliasProof(
+            "verified",
+            f"{identity.group('identifier')} / {identity.group('alias')} data center",
+            evidence_id,
+            (identity.group(0), owner_alias.group(0), site.group(0)),
+        )
+    return StackAliasProof("handled_without_proof")
 
 
 def extract(source_id: str, root: Path) -> dict[str, Any]:

@@ -321,54 +321,20 @@ def extract_retained_permit_claims(
     """Parse two reviewed retained permit formats without generalizing attribution."""
     if as_of is None or as_of > today:
         return []
-    result: list[dict[str, Any]] = []
-    if source_id in {"fort-worth-development-permits", "fort-worth-permits"}:
-        # This adapter's work description can report facility scale. Keep it
-        # separate from total electrical demand and generator requirement.
-        from gridlens.ingestion.adapters.retained_permits import fields as permit_fields
+    from gridlens.ingestion.adapters.retained_permits import extract_retained_claims
 
-        parsed = permit_fields(source_id, text)
-        description = parsed.get("Work description")
-        if description:
-            match = re.search(r"(?<![\w.])(\d+(?:,\d{3})*(?:\.\d+)?)\s*MW\b", description[0], re.I)
-            if match and Decimal(match[1].replace(",", "")) > 0:
-                result.append(
-                    {
-                        "field": "facility_scale_mw",
-                        "value": format(Decimal(match[1].replace(",", "")).normalize(), "f"),
-                        "activity_key": activity_key,
-                        "as_of": as_of.isoformat(),
-                        "quote": description[1],
-                        "value_kind": "Reported facility scale",
-                    }
-                )
-    elif source_id == "boston-building-permits" and activity_key in {
-        "temporary-power",
-        "construction-power",
-        "electrical-construction",
-    }:
-        from gridlens.ingestion.adapters.retained_permits import fields as permit_fields
-
-        parsed = permit_fields(source_id, text)
-        comments = parsed.get("Comments")
-        if comments and re.search(r"\btemporary electrical work\b", comments[0], re.I):
-            match = re.search(
-                r"(?<!\d)(\d{2,4})\s*V\s*(\d{1,2})\s*Ph\b(?:[^\n]{0,80})?",
-                comments[0],
-                re.I,
-            )
-            if match:
-                result.append(
-                    {
-                        "field": "voltage",
-                        "value": f"{int(match[1])} V, {int(match[2])} phase",
-                        "activity_key": activity_key,
-                        "as_of": as_of.isoformat(),
-                        "quote": comments[1],
-                        "value_kind": "Permit-listed electrical constraint",
-                    }
-                )
-    return result
+    extraction = extract_retained_claims(source_id, text, activity_key=activity_key)
+    return [
+        {
+            "field": claim.field,
+            "value": claim.value,
+            "activity_key": activity_key,
+            "as_of": as_of.isoformat(),
+            "quote": claim.quote,
+            "value_kind": claim.value_kind,
+        }
+        for claim in extraction.claims
+    ]
 
 
 def unparsed_adverse_text(text: str, claims: list[dict]) -> str:

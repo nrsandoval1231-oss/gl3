@@ -1,4 +1,51 @@
-from gridlens.ingestion.adapters.retained_permits import chicago_contacts, facts
+from gridlens.ingestion.adapters.retained_permits import (
+    chicago_contacts,
+    facts,
+    source_native_project_identity,
+    source_record_identifier,
+)
+
+
+def test_source_native_project_identity_requires_exact_supported_format_and_quote():
+    rrc = "row: 0761171\nlease: HAUG-KIESCHNICK AC UNIT 33\nwell: 1H\n"
+    identity = source_native_project_identity("texas-rrc-drilling-permits", rrc)
+    assert identity is not None
+    assert identity.value == "HAUG-KIESCHNICK AC UNIT 33, well 1H"
+    assert identity.quote == "lease: HAUG-KIESCHNICK AC UNIT 33\nwell: 1H"
+    assert identity.quote in rrc
+    assert (
+        source_native_project_identity("publisher-rss", rrc) is None
+        and source_native_project_identity("texas-rrc-drilling-permits", "lease: ONLY\n") is None
+    )
+    assert (
+        source_native_project_identity("texas-rrc-drilling-permits", "lease: A\nwell:\nrow: 123\n")
+        is None
+    )
+    assert (
+        source_native_project_identity("texas-rrc-drilling-permits", "lease:   \nwell: 1H\n")
+        is None
+    )
+
+    austin = "description: Work for TXDOT project # 14-0914-04-362R.\n"
+    identity = source_native_project_identity("austin-building-permits", austin)
+    assert identity is not None
+    assert identity.value == "TXDOT project # 14-0914-04-362R"
+    assert identity.quote == austin.strip()
+    assert source_native_project_identity("austin-building-permits", "TXDOT project # ???") is None
+
+
+def test_source_record_identifier_is_limited_to_well_formed_supported_rows():
+    assert (
+        source_record_identifier("texas-rrc-drilling-permits", "row: 0761171\n").value == "0761171"
+    )
+    assert (
+        source_record_identifier("austin-building-permits", "row: 2026-068264 EP\n").value
+        == "2026-068264 EP"
+    )
+    assert source_record_identifier("publisher-rss", "row: 0761171\n") is None
+    assert source_record_identifier("austin-building-permits", "row: **bad**\n") is None
+    assert source_record_identifier("austin-building-permits", "row:\nlease: A\n") is None
+    assert source_record_identifier("austin-building-permits", "row:   \nlease: A\n") is None
 
 
 def test_source_boundary_duplicate_fields_and_unattributed_contacts():

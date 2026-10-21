@@ -6,11 +6,12 @@ from uuid import uuid4
 import pytest
 
 from gridlens.domain.opportunity_intelligence import (
+    _source,
     assemble_card,
     contact_projection,
     normalize_gap,
 )
-from gridlens.ingestion.adapters.retained_document import SOURCES
+from gridlens.ingestion.adapters.retained_document import SOURCES, stack_project_alias
 
 
 def item():
@@ -277,7 +278,7 @@ def test_f17_compound_project_name_requires_exact_current_source_alias_and_site_
         url=policy["url"],
         title="SVY02A / Memorex Junction data center — retained filing",
         content_hash=policy["sha256"],
-        retained_evidence_id=str(uuid4()),
+        retained_evidence_id=evidence["id"],
         assessment_current=True,
         abstract=(
             "The figures represented for SVY02A Memorex will be used in the Memorex Junction "
@@ -298,6 +299,15 @@ def test_f17_compound_project_name_requires_exact_current_source_alias_and_site_
     assert any("SVY02A Memorex" in source.passage for source in project.sources)
     assert any("a.k.a." in source.passage for source in project.sources)
 
+    normalized = _source(evidence)
+    assert stack_project_alias(record, [normalized]).status == "verified"
+    wrong_normalized_id = normalized.model_copy(
+        update={"retained_evidence_id": "mismatched-canonical-row"}
+    )
+    assert stack_project_alias(record, [wrong_normalized_id]).status == "handled_without_proof"
+    wrong_reference = normalized.model_copy(update={"reference": "evidence:mismatched-row"})
+    assert stack_project_alias(record, [wrong_reference]).status == "handled_without_proof"
+
     wrong_hash = deepcopy(record)
     wrong_hash["evidence"][0]["content_hash"] = "wrong-version"
     assert project_field(wrong_hash).value is None
@@ -307,6 +317,17 @@ def test_f17_compound_project_name_requires_exact_current_source_alias_and_site_
     wrong_source = deepcopy(record)
     wrong_source["evidence"][0]["source_id"] = "other-retained-source"
     assert project_field(wrong_source).value is None
+    for field, value in (
+        ("url", "https://example.test/cec"),
+        ("assessment_current", False),
+        ("abstract", "SVY02A Memorex Operational Study; owner alias at another site."),
+    ):
+        invalid = deepcopy(record)
+        invalid["evidence"][0][field] = value
+        assert project_field(invalid).value is None
+    no_retained_row_id = deepcopy(record)
+    no_retained_row_id["evidence"][0]["retained_evidence_id"] = None
+    assert project_field(no_retained_row_id).value == "SVY02A / Memorex Junction data center"
 
 
 def test_crusoe_project_name_remains_directly_source_native():
@@ -412,6 +433,65 @@ def test_source_specific_rrc_and_austin_names_keep_raw_record_identifier(
         "HAUG-KIESCHNICK AC UNIT 33" in project_quote and "well: 1H" in project_quote
     ) or project in project_quote
     assert identifier in fields["source_identifier"].sources[0].passage
+
+
+@pytest.mark.parametrize(
+    ("source_id", "abstract", "expected_identifier"),
+    [
+        (
+            "texas-rrc-drilling-permits",
+            "row: 0761171\nlease: HAUG-KIESCHNICK AC UNIT 33\n",
+            "0761171",
+        ),
+        (
+            "austin-building-permits",
+            "row: **bad**\ndescription: TXDOT project # ???\n",
+            None,
+        ),
+        (
+            "publisher-rss",
+            "row: 0761171\nlease: HAUG-KIESCHNICK AC UNIT 33\nwell: 1H\n",
+            None,
+        ),
+    ],
+)
+def test_source_native_project_names_and_row_ids_fail_closed(
+    source_id, abstract, expected_identifier
+):
+    record = item()
+    record["name"] = "Generic permit record"
+    record["supported_subject"] = None
+    record["evidence"][0].update(source_id=source_id, abstract=abstract)
+    fields = {
+        field.key: field
+        for field in assemble_card(
+            record, {}, {"disposition": "WATCH"}, [], research_enabled=True
+        ).fields
+    }
+    assert fields["project"].value is None
+    assert fields["source_identifier"].value == expected_identifier
+
+
+def test_source_native_project_name_and_row_id_require_current_evidence():
+    record = item()
+    record["name"] = "Generic permit record"
+    record["supported_subject"] = None
+    record["evidence"][0].update(
+        source_id="austin-building-permits",
+        abstract=(
+            "row: 2026-068264 EP\ndescription: Temporary service and construction power "
+            "for TXDOT project # 14-0914-04-362R.\n"
+        ),
+        assessment_current=False,
+    )
+    fields = {
+        field.key: field
+        for field in assemble_card(
+            record, {}, {"disposition": "WATCH"}, [], research_enabled=True
+        ).fields
+    }
+    assert fields["project"].value is None
+    assert fields["source_identifier"].value is None
 
 
 @pytest.mark.parametrize(

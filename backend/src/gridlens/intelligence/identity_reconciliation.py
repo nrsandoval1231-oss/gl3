@@ -283,7 +283,7 @@ def ensure_project_scoped_identity_links(session: Session, claim_ids: list[str])
         candidate = current_by_claim.get(claim_id)
         if candidate is None:
             continue
-        entity_specs: list[tuple[str, str, type[CompanyIdentity] | type[PersonIdentity]]] = [
+        entity_specs: list[tuple[EntityType, str, type[CompanyIdentity] | type[PersonIdentity]]] = [
             ("company", "project_organization", CompanyIdentity)
         ]
         if claim.person_name:
@@ -321,8 +321,34 @@ def ensure_project_scoped_identity_links(session: Session, claim_ids: list[str])
             existing = next(
                 (link for link in existing_links if link.entity_type == entity_type), None
             )
-            if existing and existing.source_evidence_id == source.id:
-                continue
+            if existing:
+                identity_id = (
+                    existing.company_identity_id
+                    if entity_type == "company"
+                    else existing.person_identity_id
+                )
+                try:
+                    linked_source = _validate_claim_evidence(
+                        session, claim, entity_type, existing.source_evidence_id
+                    )
+                except ValueError:
+                    linked_source = None
+                if (
+                    linked_source is not None
+                    and linked_source.content_hash == existing.source_version_hash
+                    and identity_id is not None
+                    and session.get(identity_model, identity_id) is not None
+                    and (
+                        existing.basis == "attributed_review"
+                        or (
+                            existing.source_evidence_id == source.id
+                            and existing.source_version_hash == source.content_hash
+                        )
+                    )
+                ):
+                    # Citation order cannot invalidate an explicitly reviewed
+                    # link whose own evidence basis is still current.
+                    continue
             if existing:
                 existing.state = "superseded"
                 existing.superseded_at = datetime.now(UTC)

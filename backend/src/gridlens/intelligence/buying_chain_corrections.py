@@ -307,6 +307,13 @@ def correction_view(row: BuyingChainCorrection) -> dict[str, Any]:
     }
 
 
+def _keeps_other_contact_kind(item: dict[str, Any], requested_kind: Any) -> bool:
+    return (
+        bool(requested_kind)
+        and str(item.get("kind", "")).casefold() != str(requested_kind).casefold()
+    )
+
+
 def overlay_corrections(
     session: Session,
     project_id: UUID,
@@ -381,8 +388,41 @@ def overlay_corrections(
             if "public_contact_value" in values:
                 contact_values["public_contact_value"] = values["public_contact_value"]
                 contact_values["contact_status"] = contact_status
-                if contact_status == "operator_report":
-                    kind = contact_values.get("public_contact_kind") or "reported"
+                requested_kind = contact_values.get("public_contact_kind")
+                if values["public_contact_value"] is None or (
+                    isinstance(values["public_contact_value"], str)
+                    and not values["public_contact_value"].strip()
+                ):
+                    # A clear uses the accumulated kind when one was previously
+                    # selected; with no kind, clearing the claim is the safe choice.
+                    candidate["public_contacts"] = [
+                        item
+                        for item in candidate.get("public_contacts", [])
+                        if _keeps_other_contact_kind(item, requested_kind)
+                    ]
+                    candidate["reported_contacts"] = [
+                        item
+                        for item in candidate.get("reported_contacts", [])
+                        if _keeps_other_contact_kind(item, requested_kind)
+                    ]
+                    if not requested_kind:
+                        contact_values.clear()
+                    else:
+                        contact_values["public_contact_value"] = None
+                elif contact_status == "operator_report":
+                    kind = requested_kind or "reported"
+                    # Without a supplied or previously selected kind, a report
+                    # cannot safely scope its replacement, so clear prior actions.
+                    candidate["public_contacts"] = [
+                        item
+                        for item in candidate.get("public_contacts", [])
+                        if _keeps_other_contact_kind(item, requested_kind)
+                    ]
+                    candidate["reported_contacts"] = [
+                        item
+                        for item in candidate.get("reported_contacts", [])
+                        if _keeps_other_contact_kind(item, requested_kind)
+                    ]
                     contact = {
                         "kind": kind,
                         "value": values["public_contact_value"],
@@ -390,13 +430,9 @@ def overlay_corrections(
                         "quote": "",
                         "operator_report": True,
                     }
-                    candidate["reported_contacts"] = [
-                        item
-                        for item in candidate.get("reported_contacts", [])
-                        if str(item.get("kind", "")).lower() != str(kind).lower()
-                    ] + [contact]
+                    candidate["reported_contacts"].append(contact)
                 elif values["public_contact_value"]:
-                    kind = contact_values.get("public_contact_kind") or "general"
+                    kind = requested_kind or "general"
                     cited_contact = next(
                         (
                             item
@@ -413,9 +449,14 @@ def overlay_corrections(
                     existing = [
                         item
                         for item in candidate.get("public_contacts", [])
-                        if str(item.get("kind", "")).lower() != str(kind).lower()
+                        if str(item.get("kind", "")).casefold() != str(kind).casefold()
                     ]
                     candidate["public_contacts"] = existing
+                    candidate["reported_contacts"] = [
+                        item
+                        for item in candidate.get("reported_contacts", [])
+                        if str(item.get("kind", "")).casefold() != str(kind).casefold()
+                    ]
                     if cited_contact:
                         existing.append(
                             {

@@ -425,6 +425,74 @@ def test_fort_worth_facility_total_is_typed_separately_from_activity_demand():
     assert not any(row["field"] in {"activity_load_mw", "facility_demand_mw"} for row in rows)
 
 
+@pytest.mark.parametrize(
+    "description",
+    [
+        "Install 2 MW emergency generator",
+        "2 MW backup generator for the data center",
+        "facility upgrade with a 2MW standby generator",
+        "Install turbine rated at 20 MW",
+        "Rent 20 MW generator equipment",
+        "Install 2 MW utility service feed to data center",
+        "Data center service capacity is 2 MW",
+    ],
+)
+def test_fort_worth_generator_and_equipment_ratings_are_not_facility_scale(description):
+    from gridlens.domain.project_research import extract_retained_permit_claims
+
+    rows = extract_retained_permit_claims(
+        "fort-worth-development-permits",
+        f"Work description: {description}",
+        activity_key="facility-expansion",
+        as_of=TODAY,
+        today=TODAY,
+    )
+    assert rows == []
+
+
+def test_fort_worth_mixed_facility_and_generator_selects_facility_value_only():
+    from gridlens.domain.project_research import extract_retained_permit_claims
+
+    rows = extract_retained_permit_claims(
+        "fort-worth-development-permits",
+        "Work description: 488,628 SF 196MW data center; install 2MW emergency generator",
+        activity_key="facility-expansion",
+        as_of=TODAY,
+        today=TODAY,
+    )
+    assert [(row["field"], row["value"]) for row in rows] == [("facility_scale_mw", "196")]
+
+
+def test_fort_worth_conflicting_facility_values_remain_conflicted():
+    from gridlens.domain.project_research import extract_retained_permit_claims
+
+    rows = extract_retained_permit_claims(
+        "fort-worth-development-permits",
+        "Work description: 196 MW data center; facility capacity is 210 MW",
+        activity_key="facility-expansion",
+        as_of=TODAY,
+        today=TODAY,
+    )
+    assert {row["value"] for row in rows} == {"196", "210"}
+    assert project_claim_state(rows, today=TODAY)["facility_scale_mw"]["status"] == "CONFLICT"
+
+
+def test_fort_worth_explicit_facility_capacity_is_reported_with_exact_quote():
+    from gridlens.domain.project_research import extract_retained_permit_claims
+
+    quote = "Work description: Facility capacity is 210 MW"
+    rows = extract_retained_permit_claims(
+        "fort-worth-development-permits",
+        quote,
+        activity_key="facility-expansion",
+        as_of=TODAY,
+        today=TODAY,
+    )
+    assert [(row["field"], row["value"], row["quote"]) for row in rows] == [
+        ("facility_scale_mw", "210", quote)
+    ]
+
+
 def test_boston_temporary_electrical_constraints_keep_voltage_without_computing_mw():
     from gridlens.domain.project_research import extract_retained_permit_claims
 
@@ -463,6 +531,26 @@ def test_retained_permit_claims_require_a_valid_source_date_and_current_value():
             "Work description: 196 MW data center",
             activity_key="facility-expansion",
             as_of=None,
+            today=TODAY,
+        )
+        == []
+    )
+    assert (
+        extract_retained_permit_claims(
+            "fort-worth-development-permits",
+            "Work description: 196 MW data center",
+            activity_key="facility-expansion",
+            as_of=date(2026, 10, 22),
+            today=TODAY,
+        )
+        == []
+    )
+    assert (
+        extract_retained_permit_claims(
+            "unreviewed-permit-source",
+            "Work description: 196 MW data center",
+            activity_key="facility-expansion",
+            as_of=TODAY,
             today=TODAY,
         )
         == []

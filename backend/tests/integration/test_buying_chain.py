@@ -166,6 +166,117 @@ def test_replay_is_idempotent_and_never_changes_tier(db):
         assert session.scalar(select(PowerNeed.tier)) == "Signal"
 
 
+def test_replay_preserves_reviewed_identity_link_on_second_current_citation(db):
+    first_url = "https://acme.example/company"
+    second_url = "https://acme.example/projects"
+    text = "Acme is the general contractor for Orion Data Center in Austin, TX."
+    documents = {
+        first_url: source(text, url=first_url),
+        second_url: source(text, url=second_url),
+    }
+    with db.begin() as session:
+        project = seed(session, external_id="reviewed-second", identity_key="reviewed-second")
+        result = enrich_buying_chain(
+            session,
+            project.id,
+            source_urls=[first_url, second_url],
+            fetcher=documents.__getitem__,
+            now=NOW,
+        )
+        candidate = next(item for item in result["candidates"] if item["organization"] == "Acme")
+        claim = session.get(BuyingChainClaim, candidate["id"])
+        assert claim is not None
+        cited_versions = [
+            session.get(BuyingChainEvidence, item["id"])
+            for item in candidate["evidence"]
+            if item["url"] in {first_url, second_url}
+        ]
+        assert len(cited_versions) == 2
+        auto_link = session.scalar(
+            select(BuyingChainIdentityLink).where(
+                BuyingChainIdentityLink.claim_id == claim.id,
+                BuyingChainIdentityLink.entity_type == "company",
+                BuyingChainIdentityLink.state == "current",
+            )
+        )
+        assert auto_link is not None
+        second_citation = next(item for item in cited_versions if item.url == second_url)
+        assert auto_link.source_evidence_id != second_citation.id
+
+        reviewed_identity = CompanyIdentity()
+        session.add(reviewed_identity)
+        session.flush()
+        reviewed_identity_id = reviewed_identity.id
+        reviewed_link = link_claim_to_identity(
+            session,
+            claim,
+            "company",
+            reviewed_identity.id,
+            second_citation,
+            "Operator reviewed the second current citation.",
+            reviewed_by="operator",
+        )
+        claim_id = claim.id
+        reviewed_link_id = reviewed_link.id
+        identities_before = sorted(str(row.id) for row in session.scalars(select(CompanyIdentity)))
+        links_before = [
+            (
+                row.id,
+                row.company_identity_id,
+                row.source_evidence_id,
+                row.source_version_hash,
+                row.state,
+                row.basis,
+                row.reviewed_by,
+                row.reason,
+                row.created_at,
+                row.superseded_at,
+            )
+            for row in session.scalars(
+                select(BuyingChainIdentityLink)
+                .where(BuyingChainIdentityLink.claim_id == claim_id)
+                .order_by(BuyingChainIdentityLink.created_at, BuyingChainIdentityLink.id)
+            )
+        ]
+
+        replay = enrich_buying_chain(
+            session,
+            project.id,
+            source_urls=[first_url, second_url],
+            fetcher=documents.__getitem__,
+            now=NOW + timedelta(minutes=2),
+        )
+        replayed = next(item for item in replay["candidates"] if item["id"] == claim_id)
+        assert replayed["company_identity_id"] == str(reviewed_identity_id)
+        assert current_claim_identity_links(session, {claim_id})[claim_id][
+            "company_identity_id"
+        ] == str(reviewed_identity_id)
+        assert replayed["evidence"]
+        identities_after = sorted(str(row.id) for row in session.scalars(select(CompanyIdentity)))
+        links_after = [
+            (
+                row.id,
+                row.company_identity_id,
+                row.source_evidence_id,
+                row.source_version_hash,
+                row.state,
+                row.basis,
+                row.reviewed_by,
+                row.reason,
+                row.created_at,
+                row.superseded_at,
+            )
+            for row in session.scalars(
+                select(BuyingChainIdentityLink)
+                .where(BuyingChainIdentityLink.claim_id == claim_id)
+                .order_by(BuyingChainIdentityLink.created_at, BuyingChainIdentityLink.id)
+            )
+        ]
+        assert identities_after == identities_before
+        assert links_after == links_before
+        assert any(row[0] == reviewed_link_id and row[4] == "current" for row in links_after)
+
+
 def test_global_company_identity_requires_current_cited_strong_identifier_and_keeps_claims(db):
     with db.begin() as session:
         project_a = seed(session)
@@ -1552,14 +1663,29 @@ def test_operator_report_replaces_same_kind_current_report_without_action():
         "category": "general_contractor",
         "organization_relationship": "DIRECT",
         "reason": "Current source supports the company.",
-        "public_contacts": [],
+        "public_contacts": [
+            {
+                "kind": "phone",
+                "value": "512-555-0100",
+                "source_url": URL,
+                "quote": "Call 512-555-0100 and email ops@example.com.",
+            },
+            {
+                "kind": "email",
+                "value": "ops@example.com",
+                "source_url": URL,
+                "quote": "Call 512-555-0100 and email ops@example.com.",
+            },
+        ],
         "reported_contacts": [{"kind": "phone", "value": "512-555-0100"}],
         "evidence": [
             {
                 "id": UUID("00000000-0000-0000-0000-000000000043"),
                 "current_support": True,
-                "supports": "project_organization",
-                "quote": "Acme is the project contractor.",
+                "supports": "public_contact",
+                "public_research_provenance": True,
+                "url": URL,
+                "quote": "Call 512-555-0100 and email ops@example.com.",
             }
         ],
         "stale": False,
@@ -1574,7 +1700,84 @@ def test_operator_report_replaces_same_kind_current_report_without_action():
             "operator_report": True,
         }
     ]
-    assert contact_projection({"candidates": [candidate]})[0].methods == []
+    assert [contact["value"] for contact in candidate["public_contacts"]] == ["ops@example.com"]
+    assert [
+        method["href"] for method in contact_projection({"candidates": [candidate]})[0].methods
+    ] == ["mailto:ops@example.com"]
+
+
+def test_null_contact_clear_is_scoped_by_kind_and_unscoped_clear_removes_all():
+    claim_id = UUID("00000000-0000-0000-0000-000000000050")
+    evidence_id = UUID("00000000-0000-0000-0000-000000000051")
+    row = SimpleNamespace(
+        id=UUID("00000000-0000-0000-0000-000000000052"),
+        claim_id=claim_id,
+        project_id=UUID("00000000-0000-0000-0000-000000000053"),
+        action="correct",
+        values={"public_contact_kind": "phone", "public_contact_value": None},
+        source_evidence_id=evidence_id,
+        source_version_hash="a" * 64,
+        created_at=NOW,
+        expected_version="old",
+        idempotency_key="clear-phone",
+        reason="Operator cleared an obsolete phone action.",
+        actor="operator",
+    )
+    base = {
+        "id": claim_id,
+        "fingerprint": "initial",
+        "organization": "Acme",
+        "organization_relationship": "DIRECT",
+        "public_contacts": [
+            {
+                "kind": "phone",
+                "value": "512-555-0100",
+                "source_url": URL,
+                "quote": "Call 512-555-0100 and email ops@example.com.",
+            },
+            {
+                "kind": "email",
+                "value": "ops@example.com",
+                "source_url": URL,
+                "quote": "Call 512-555-0100 and email ops@example.com.",
+            },
+        ],
+        "reported_contacts": [],
+        "evidence": [
+            {
+                "id": evidence_id,
+                "current_source_version_id": evidence_id,
+                "content_hash": "a" * 64,
+                "current_support": True,
+                "supports": "public_contact",
+                "public_research_provenance": True,
+                "url": URL,
+                "quote": "Call 512-555-0100 and email ops@example.com.",
+            }
+        ],
+        "stale": False,
+    }
+    scoped = deepcopy(base)
+    overlay_corrections(None, row.project_id, [scoped], False, decisions=[row])
+    assert [item["kind"] for item in scoped["public_contacts"]] == ["email"]
+    assert [
+        method["href"] for method in contact_projection({"candidates": [scoped]})[0].methods
+    ] == ["mailto:ops@example.com"]
+
+    unscoped = deepcopy(base)
+    unscoped_clear = SimpleNamespace(**vars(row))
+    unscoped_clear.id = UUID("00000000-0000-0000-0000-000000000054")
+    unscoped_clear.values = {"public_contact_value": None}
+    overlay_corrections(None, row.project_id, [unscoped], False, decisions=[unscoped_clear])
+    assert unscoped["public_contacts"] == []
+    assert contact_projection({"candidates": [unscoped]})[0].methods == []
+
+    blank = deepcopy(base)
+    blank_clear = SimpleNamespace(**vars(row))
+    blank_clear.id = UUID("00000000-0000-0000-0000-000000000055")
+    blank_clear.values = {"public_contact_kind": "phone", "public_contact_value": " "}
+    overlay_corrections(None, row.project_id, [blank], False, decisions=[blank_clear])
+    assert [item["kind"] for item in blank["public_contacts"]] == ["email"]
 
 
 def test_corrected_company_hides_old_identity_until_reviewed_rebind_and_keeps_rebind(db):
