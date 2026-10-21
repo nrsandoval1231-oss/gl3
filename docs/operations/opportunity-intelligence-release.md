@@ -41,6 +41,8 @@ Before freeze, actual retained evaluation passed 95/95 fields across all 16 case
 
 ## Candidate gates and operational limits
 
+The first F17 frozen candidate a482299 stopped at the dependency audit for pypdf 6.20.1. The replacement pins 6.21.1, the patched release for [CVE-2026-113786 / GHSA-5hx5-vpf9-5wcv](https://github.com/py-pdf/pypdf/security/advisories/GHSA-5hx5-vpf9-5wcv). The failed gate, CI and isolated database remain preserved; no audit waiver or unrelated dependency upgrade substitutes for fresh gates and original-document checks.
+
 Freeze source and explanatory documentation before `CI=true pwsh -NoProfile -File scripts/check.ps1`, using a fresh application database and a separate disposable `_test` database. Require locked dependency audits, Ruff/format/mypy, repeat migrations/schema drift, backend tests, web type/build, browser regression, exact-head GitHub CI and independent review. On the retained copy, verify authenticated actual cards/citations at desktop/tablet/mobile sizes, unauthenticated denial, replay, snapshots and PostgreSQL/API/web restart persistence. Bind every receipt to the exact SHA; earlier counts do not substitute.
 
 Migrations `0035_reconciled_identity` then `0036_buying_chain_corrections` are required before a separately authorized rollout. Validate additive migrations on a restored copy. Rollback may restore a compatible prior app while retaining additive tables/history; do not downgrade/drop schema or clear jobs, reservations, receipts or history.
