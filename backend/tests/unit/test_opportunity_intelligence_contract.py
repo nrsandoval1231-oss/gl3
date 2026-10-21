@@ -327,6 +327,58 @@ def test_crusoe_project_name_remains_directly_source_native():
     assert project.sources[0].passage == record["evidence"][0]["abstract"]
 
 
+def test_f17_commercial_reason_and_action_reach_visible_intelligence_projection():
+    record = item()
+    record["evidence"] = []
+    for source_id, abstract in (
+        (
+            "f17-stack-city-claim",
+            "At 1200 Memorex Drive in Santa Clara, STACK reports an 18 MVA cap through "
+            "2028, against earlier 28 MVA 2026 / 31 MVA 2027 schedule.",
+        ),
+        (
+            "f17-stack-cec-filing",
+            "At 1200 Memorex Drive in Santa Clara, the draft Table E1 available capacity "
+            "schedule (MVA) lists 28 and 31.",
+        ),
+    ):
+        policy = SOURCES[source_id]
+        record["evidence"].append(
+            {
+                "id": str(uuid4()),
+                "retained_evidence_id": str(uuid4()),
+                "source_id": source_id,
+                "title": "Retained source excerpt",
+                "url": policy["url"],
+                "abstract": abstract,
+                "content_hash": policy["sha256"],
+                "assessment_current": True,
+            }
+        )
+    reason = (
+        "STACK's city claim reports an earlier 28 MVA (2026) / 31 MVA (2027) schedule; "
+        "the separate CEC schedule is draft. Current service and temporary-power need UNKNOWN."
+    )
+    action = "Verify the current utility delivery schedule and temporary-power scope."
+    card = assemble_card(
+        record,
+        {},
+        {"disposition": "WATCH", "reason": reason, "next_action": action},
+        [],
+        research_enabled=False,
+    )
+    assessment = next(field for field in card.fields if field.key == "assessment")
+    assert assessment.value == reason
+    assert {source.source_id for source in assessment.sources} == {
+        "f17-stack-city-claim",
+        "f17-stack-cec-filing",
+    }
+    assert card.next_action == action
+    assert card.qualification == record["tier"]
+    assert card.disposition == "WATCH"
+    assert card.power_gap is None
+
+
 @pytest.mark.parametrize(
     ("source_id", "abstract", "project", "identifier"),
     [

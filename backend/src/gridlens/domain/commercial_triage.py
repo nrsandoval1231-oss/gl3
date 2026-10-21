@@ -91,6 +91,48 @@ def _is_rental_intermediary(category: Any, organization: Any, reason: Any = "") 
     )
 
 
+def _f17_stack_service_conflict(item: dict[str, Any]) -> bool:
+    """Require both exact, current retained STACK sources and their native site cues."""
+    location = re.sub(r"\s+", " ", str(item.get("location") or "")).casefold()
+    name = str(item.get("name") or "").casefold()
+    if "1200 memorex drive" not in location or "santa clara" not in location:
+        return False
+    if "svy02a" not in name or "memorex junction" not in name:
+        return False
+
+    from gridlens.ingestion.adapters.retained_document import SOURCES
+
+    by_id = {
+        str(e.get("source_id") or ""): e
+        for e in item.get("evidence", [])
+        if e.get("assessment_current") is True
+    }
+    city = by_id.get("f17-stack-city-claim")
+    cec = by_id.get("f17-stack-cec-filing")
+    for source_id, evidence in (
+        ("f17-stack-city-claim", city),
+        ("f17-stack-cec-filing", cec),
+    ):
+        policy = SOURCES[source_id]
+        if (
+            evidence is None
+            or evidence.get("url") != policy["url"]
+            or evidence.get("content_hash") != policy["sha256"]
+            or not evidence.get("id")
+        ):
+            return False
+        text = re.sub(r"\s+", " ", str(evidence.get("abstract") or "")).casefold()
+        text = re.sub(r"(\d)\s*m\s*v\s*a\b", r"\1 mva", text)
+        if "1200 memorex drive" not in text or "santa clara" not in text:
+            return False
+        if source_id.endswith("city-claim"):
+            if not all(term in text for term in ("18 mva", "2028", "28 mva", "31 mva")):
+                return False
+        elif not all(term in text for term in ("draft", "table e1", "mva", "28", "31")):
+            return False
+    return True
+
+
 class PriorityInputAccumulator:
     """Compact the exact text predicates used by canonical browse priority."""
 
@@ -709,6 +751,17 @@ def build_card(item: dict[str, Any], chain: dict[str, Any] | None, today: date) 
             "Wait for the cited next project milestone; current evidence does not "
             "support a stronger commercial action.",
         )
+    retained_stack_conflict = disposition == "WATCH" and _f17_stack_service_conflict(item)
+    if retained_stack_conflict:
+        reason = (
+            "STACK's June 24, 2024 city claim reports an earlier 28 MVA (2026) / "
+            "31 MVA (2027) schedule, and says SVP told STACK on March 14, 2024 "
+            "that service would be capped at 18 MVA or less until at least 2028 "
+            "at this Memorex site. The September 2021 draft Substation Agreement "
+            "is attached to STACK's February 2025 CEC filing. These are attributed "
+            "claims, not an adjudicated current-service determination; actual "
+            "temporary-power need remains UNKNOWN."
+        )
     if item.get("asset_type") == "data_center" and phase_specific_scope:
         question = (
             "Who is supplying temporary construction or commissioning power, and "
@@ -749,6 +802,12 @@ def build_card(item: dict[str, Any], chain: dict[str, Any] | None, today: date) 
         next_action = (
             "Call the cited public project contact to confirm stage, need-specific MW, "
             "timing, duration, and purchasing role."
+        )
+    elif retained_stack_conflict:
+        next_action = (
+            "Verify the current utility delivery schedule and any temporary-power "
+            "scope with the utility; use the dated STACK city claim and attached "
+            "draft Substation Agreement as the source history."
         )
     else:
         next_action = reason
