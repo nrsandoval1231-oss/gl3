@@ -61,7 +61,10 @@ test('legacy source-sector aliases canonicalize selection, request, and URL', as
   })
   const aliases = [
     ['manufacturing', 'industrial-and-manufacturing'],
+    ['Industrial%20%26%20manufacturing', 'industrial-and-manufacturing'],
     ['utilities', 'energy-and-utilities'],
+    ['Energy%20%26%20utilities', 'energy-and-utilities'],
+    ['Construction%20%26%20facilities', 'construction-and-facilities'],
     ['cannabis%20cultivation', 'cannabis'],
   ] as const
   for (const [legacy, canonical] of aliases) {

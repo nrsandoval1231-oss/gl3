@@ -8,6 +8,7 @@ const sectors = [
   ['healthcare', 'Healthcare'], ['cannabis', 'Cannabis'], ['mining', 'Mining'], ['infrastructure', 'Infrastructure'],
 ] as const
 const sectorAliases: Record<string, string> = {
+  ...Object.fromEntries(sectors.map(([id, label]) => [label.toLowerCase(), id])),
   'data centers': 'data-centers',
   utilities: 'energy-and-utilities', energy: 'energy-and-utilities',
   'oil & gas': 'oil-and-gas', 'oil and gas': 'oil-and-gas', oil: 'oil-and-gas',
