@@ -342,7 +342,12 @@ def assemble_card(
         research_field = {
             "required_mw": "activity_load_mw",
             "facility_scale": "facility_scale_mw",
+            "facility_demand": "facility_demand_mw",
             "voltage": "voltage",
+            "fuel": "fuel_availability",
+            "load_profile": "load_profile",
+            "procurement": "procurement_status",
+            "utility_obstacle": "utility_obstacle",
             "start": "activity_start",
             "stage": "phase",
             "supply_status": "supply_adequacy",
@@ -373,16 +378,23 @@ def assemble_card(
                 value += " MW (source-reported)"
             elif research_field == "facility_scale_mw":
                 value += " MW (reported facility scale)"
+            elif research_field == "facility_demand_mw":
+                value += " MW (source-reported facility demand)"
             refs = claim_sources
-            basis = (
-                "Current source descriptor of facility scale; it does not establish total "
-                "planned electrical demand, temporary-generation demand or qualification."
-                if research_field == "facility_scale_mw"
-                else (
-                    "Current source report; this does not establish temporary-generation demand "
-                    "or qualification."
+            if research_field == "facility_scale_mw":
+                basis = (
+                    "Current source descriptor of facility scale; it does not establish total "
+                    "planned electrical demand, temporary-generation demand or qualification."
                 )
-            )
+            elif research_field == "facility_demand_mw":
+                basis = (
+                    "Current exact-project electrical-demand report; it is separate from "
+                    "temporary activity demand and does not change qualification."
+                )
+            else:
+                basis = (
+                    "Current exact-project, activity-scoped source report; inspect the cited quote."
+                )
         if research.get("status") == "CONFLICT":
             refs = claim_sources
         conflict = conflict or (
@@ -502,7 +514,7 @@ def assemble_card(
         field_sources("demand"),
     )
     add("facility_scale", "Reported facility scale", "power", None, "load")
-    add("facility_demand", "Total planned facility demand", "power", None, "load")
+    add("facility_demand", "Total planned facility demand", "power", None, "facility_demand")
     add(
         "start", "Power needed", "power", item.get("start_window"), "timing", field_sources("start")
     )
@@ -537,11 +549,13 @@ def assemble_card(
     add("supply_status", "Supply adequacy", "power", None, "supply")
     for key, label, category in (
         ("energization", "Utility service status", "supply"),
-        ("fuel", "Fuel availability", "suitability"),
-        ("load_profile", "Load profile", "suitability"),
+        ("fuel", "Fuel availability", "fuel"),
+        ("load_profile", "Load profile", "load_profile"),
+        ("procurement", "Temporary-power procurement", "procurement"),
+        ("utility_obstacle", "Utility interconnection obstacle", "utility_obstacle"),
     ):
         add(key, label, "power", None, category)
-    add("voltage", "Voltage / electrical requirements", "power", None, "suitability")
+    add("voltage", "Voltage / electrical requirements", "power", None, "voltage")
     add(
         "assessment",
         "Why this matters",

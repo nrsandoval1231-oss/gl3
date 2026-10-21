@@ -44,6 +44,29 @@ def test_energization_alone_does_not_answer_sufficient_supply_question():
     assert not blocker_resolved("supply", card)
 
 
+def test_suitability_components_resolve_independently_and_complete_only_together():
+    card = {"research_state": {"voltage": field("480 V, 3 phase")}}
+    assert blocker_resolved("voltage", card)
+    assert not blocker_resolved("fuel", card)
+    assert not blocker_resolved("load_profile", card)
+    assert not blocker_resolved("suitability", card)
+    card["research_state"]["fuel_availability"] = field("available")
+    assert blocker_resolved("fuel", card)
+    assert not blocker_resolved("suitability", card)
+    card["research_state"]["load_profile"] = field("continuous")
+    assert blocker_resolved("suitability", card)
+    card["research_state"]["voltage"] = field(None, "CONFLICT")
+    assert not blocker_resolved("voltage", card)
+    assert not blocker_resolved("suitability", card)
+
+
+def test_facility_demand_resolves_only_from_its_exact_typed_report():
+    card = {"research_state": {"facility_scale_mw": field("196")}}
+    assert not blocker_resolved("facility_demand", card)
+    card["research_state"]["facility_demand_mw"] = field("12")
+    assert blocker_resolved("facility_demand", card)
+
+
 def test_conflict_resolution_requires_every_original_conflicting_field_supported():
     card = {"research_state": {"phase": field("construction_active")}}
     assert not blocker_resolved("conflict", card)
@@ -67,7 +90,7 @@ def test_reported_exact_load_excludes_answered_question_without_writing_power_ne
         "supply": "Unknown",
     }
     assert blocker_resolved("load", card)
-    assert [q["category"] for q in plan_questions(card)] == ["supply"]
+    assert [q["category"] for q in plan_questions(card)] == ["facility_demand", "supply"]
     assert card["required_mw"] is None
 
 

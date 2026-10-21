@@ -79,6 +79,62 @@ def test_reviewed_official_context_replay_preserves_evidence(research_db):
         assert session.scalar(select(func.count()).select_from(Evidence)) == before
 
 
+def test_current_research_path_resolves_exact_typed_electrical_fields(research_db):
+    factory, source, job_id = research_db
+    need_id = seed(factory, source, job_id)
+    text = (
+        "Orion Data Center at 811 Clayton Ln, Austin, TX construction is underway.\n"
+        "Orion Data Center facility electrical demand is 12 MW.\n"
+        "Orion Data Center construction temporary power fuel is available.\n"
+        "Orion Data Center construction temporary power voltage requirement is 480 V, 3 phase.\n"
+        "Orion Data Center construction load profile is continuous.\n"
+        "Orion Data Center construction temporary power procurement is delayed.\n"
+        "Orion Data Center construction utility interconnection is blocked."
+    )
+    with factory.begin() as session:
+        need = session.get(PowerNeed, need_id)
+        project = session.get(Project, need.project_id)
+        project.name = "Orion Data Center"
+        accepted = retain_research_document(
+            session,
+            project,
+            need,
+            PublicDocument(
+                "https://www.federalregister.gov/documents/orion/",
+                "Orion Data Center construction electrical status",
+                text,
+                date(2026, 10, 1),
+                datetime.now(UTC),
+                "public project update",
+            ),
+        )
+        assert accepted["disposition"] == "ACCEPTED", accepted.get("reason") or accepted
+        state = current_research_state(session, project.id, need.id)[str(need.id)]
+        assert state["facility_demand_mw"]["value"] == "12"
+        assert state["fuel_availability"]["value"] == "available"
+        assert state["voltage"]["value"] == "480 V, 3 phase"
+        assert state["load_profile"]["value"] == "continuous"
+        assert state["procurement_status"]["value"] == "delayed"
+        assert state["utility_obstacle"]["value"] == "blocked"
+        for field in (
+            "facility_demand_mw",
+            "fuel_availability",
+            "voltage",
+            "load_profile",
+            "procurement_status",
+            "utility_obstacle",
+        ):
+            claim = state[field]["claims"][0]
+            assert claim["evidence_hash"]
+            assert claim["quote"] in text
+            assert claim["evidence"]["id"] == claim["evidence_id"]
+        # Replacing the evidence version invalidates every prior typed report.
+        evidence = session.get(Evidence, accepted["evidence_id"])
+        evidence.abstract = text.replace("12 MW", "14 MW")
+        evidence.content_hash = "d" * 64
+        assert str(need.id) not in current_research_state(session, project.id, need.id)
+
+
 def test_excerpt_and_native_context_not_relabelled_complete(research_db):
     from dataclasses import replace
 

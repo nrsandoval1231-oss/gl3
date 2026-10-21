@@ -52,6 +52,76 @@ def test_explicit_dated_reports(text, field, value):
 
 
 @pytest.mark.parametrize(
+    "text,field,value",
+    [
+        ("Orion Data Center facility electrical demand is 12 MW.", "facility_demand_mw", "12"),
+        (
+            "Orion Data Center construction temporary power fuel is available.",
+            "fuel_availability",
+            "available",
+        ),
+        (
+            "Orion Data Center construction temporary power voltage requirement is 480 V, 3 phase.",
+            "voltage",
+            "480 V, 3 phase",
+        ),
+        (
+            "Orion Data Center construction load profile is continuous.",
+            "load_profile",
+            "continuous",
+        ),
+        (
+            "Orion Data Center construction temporary power procurement is delayed.",
+            "procurement_status",
+            "delayed",
+        ),
+        (
+            "Orion Data Center construction utility interconnection is blocked.",
+            "utility_obstacle",
+            "blocked",
+        ),
+    ],
+)
+def test_explicit_electrical_and_procurement_reports_are_typed(text, field, value):
+    row = next(c for c in claims(text) if c["field"] == field)
+    assert row["value"] == value
+    if field != "facility_demand_mw":
+        assert row["reported_activity"] == "construction"
+    assert row["quote"] == text
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Orion Data Center campus capacity is 196 MW.",
+        "Orion Data Center facility demand is expected to be 12 MW.",
+        "Orion Data Center construction fuel may be available.",
+        "Orion Data Center construction voltage is 480 V, 3 phase.",
+        "Orion Data Center construction load profile is usually continuous.",
+        "Orion Data Center construction temporary power procurement is not started.",
+        "Other Data Center construction utility interconnection is blocked.",
+    ],
+)
+def test_new_electrical_fields_reject_inference_ambiguity_and_wrong_scope(text):
+    assert claims(text) == []
+
+
+def test_new_field_conflicts_and_age_rules_keep_values_unknown():
+    rows = [
+        {"field": "facility_demand_mw", "value": "12", "as_of": TODAY.isoformat()},
+        {"field": "facility_demand_mw", "value": "14", "as_of": TODAY.isoformat()},
+        {"field": "fuel_availability", "value": "available", "as_of": TODAY.isoformat()},
+        {"field": "fuel_availability", "value": "unavailable", "as_of": TODAY.isoformat()},
+        {"field": "load_profile", "value": "continuous", "as_of": "2026-01-01"},
+    ]
+    state = project_claim_state(rows, today=TODAY)
+    assert state["facility_demand_mw"]["status"] == "CONFLICT"
+    assert state["fuel_availability"]["status"] == "CONFLICT"
+    assert state["load_profile"]["status"] == "UNKNOWN"
+    assert qualification_veto(state) is None
+
+
+@pytest.mark.parametrize(
     "text",
     [
         "Orion Data Center construction permit approved.",

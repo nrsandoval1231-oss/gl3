@@ -7,12 +7,17 @@ import json
 import re
 from typing import Any
 
-POLICY_VERSION = "autonomous-pursuit-research-v3"
+POLICY_VERSION = "autonomous-pursuit-research-v4"
 ACTIVE = ("QUEUED", "SEARCHING", "REVIEWING_EVIDENCE")
 ROUTES = {
     "identity": ("owner-projects", "official-company", "municipal-records"),
     "duration": ("contractor-schedules", "owner-updates", "utility-filings"),
     "suitability": ("engineering-drawings", "equipment-schedules", "public-bids"),
+    "fuel": ("fuel-supply-records", "owner-projects", "public-bids"),
+    "voltage": ("electrical-permits", "engineering-drawings", "equipment-schedules"),
+    "load_profile": ("engineering-drawings", "equipment-schedules", "public-bids"),
+    "procurement": ("public-bids", "owner-projects", "contractor-updates"),
+    "utility_obstacle": ("utility-filings", "interconnection-documents", "municipal-records"),
     "power_need": (
         "temporary-service-permits",
         "public-bids",
@@ -20,6 +25,7 @@ ROUTES = {
         "owner-projects",
         "public-web",
     ),
+    "facility_demand": ("owner-projects", "utility-filings", "regulatory-filings"),
     "phase": (
         "inspections",
         "active-permits",
@@ -73,9 +79,18 @@ QUESTIONS = {
     "identity": "Which source identifies the end-user owner/operator of this exact project?",
     "duration": "What dated evidence establishes this activity-specific power duration?",
     "suitability": "What source establishes fuel, voltage and load-profile constraints?",
+    "fuel": "What current source states whether fuel is available for this activity?",
+    "voltage": "What source gives the exact activity voltage and phase requirement?",
+    "load_profile": "What source states the electrical load profile for this activity?",
+    "procurement": "What source reports this activity's temporary-power procurement status?",
+    "utility_obstacle": "What source reports this activity's utility interconnection obstacle?",
     "power_need": (
         "Is a temporary-power requirement documented for this exact activity, "
         "separately from its supply adequacy?"
+    ),
+    "facility_demand": (
+        "What source states exact planned electrical demand for the whole facility, "
+        "separately from activity or campus capacity?"
     ),
     "phase": (
         "Is this project currently under construction, delayed, paused, completed, or cancelled?"
@@ -101,7 +116,25 @@ WHY = {
     "identity": "Identify the customer without treating a contractor as the end user.",
     "duration": "Establish the bounded bridge-power window without inferring from facility life.",
     "suitability": "Confirm deployment constraints without assuming fuel or voltage compatibility.",
+    "fuel": (
+        "Confirm fuel availability without inferring it from generator equipment or nearby "
+        "infrastructure."
+    ),
+    "voltage": "Confirm the activity's stated voltage and phase requirement.",
+    "load_profile": (
+        "Confirm the stated operating profile without inferring it from facility type."
+    ),
+    "procurement": (
+        "Establish a reported procurement milestone without treating a permit as procurement."
+    ),
+    "utility_obstacle": (
+        "Establish an explicit utility obstacle without inferring one from project stage."
+    ),
     "power_need": "Establish whether a real unresolved commercial power requirement exists.",
+    "facility_demand": (
+        "Distinguish stated facility electrical demand from capacity, generator ratings, "
+        "and temporary activity load."
+    ),
     "phase": "Determine whether this is an active commercial window or work to watch or reject.",
     "buyer": "Establish a reachable discovery-call path without assigning purchasing authority.",
     "timing": "Determine whether the supported activity falls in a useful power window.",
@@ -114,7 +147,13 @@ FRESHNESS_HOURS = {
     "identity": 168,
     "duration": 168,
     "suitability": 168,
+    "fuel": 168,
+    "voltage": 168,
+    "load_profile": 168,
+    "procurement": 168,
+    "utility_obstacle": 24,
     "power_need": 168,
+    "facility_demand": 168,
     "phase": 24,
     "buyer": 168,
     "timing": 72,
@@ -199,7 +238,18 @@ def blocker_resolved(category: str, card: dict, context: dict | None = None) -> 
     if category == "duration":
         return bool(card.get("duration"))
     if category == "suitability":
-        return False  # No canonical suitability contract yet; retain unresolved receipts.
+        return all(supported(field) for field in ("fuel_availability", "voltage", "load_profile"))
+    if category in {"fuel", "voltage", "load_profile", "procurement", "utility_obstacle"}:
+        fields = {
+            "fuel": ("fuel_availability",),
+            "voltage": ("voltage",),
+            "load_profile": ("load_profile",),
+            "procurement": ("procurement_status",),
+            "utility_obstacle": ("utility_obstacle",),
+        }[category]
+        return all(supported(field) for field in fields)
+    if category == "facility_demand":
+        return supported("facility_demand_mw")
     if category == "buyer":
         return any(
             c.get("value") and re.search(r"phone|telephone|email", str(c.get("kind", "")), re.I)
@@ -271,8 +321,19 @@ def plan_questions(
         categories.append("timing")
     if not card.get("required_mw"):
         categories.append("load")
+    if not blocker_resolved("facility_demand", card):
+        categories.append("facility_demand")
     if card.get("supply") in {None, "Unknown"}:
         categories.append("supply")
+    for category in (
+        "fuel",
+        "voltage",
+        "load_profile",
+        "procurement",
+        "utility_obstacle",
+    ):
+        if not blocker_resolved(category, card):
+            categories.append(category)
     if enrich and not card.get("duration"):
         categories.append("duration")
     if enrich:
@@ -284,12 +345,18 @@ def plan_questions(
                     "identity",
                     "power_need",
                     "load",
+                    "facility_demand",
                     "timing",
                     "buyer",
                     "supply",
                     "duration",
                     "commissioning",
                     "phase",
+                    "utility_obstacle",
+                    "procurement",
+                    "fuel",
+                    "voltage",
+                    "load_profile",
                 )
             )
         }
@@ -338,7 +405,16 @@ def targeted_queries(context: dict[str, Any], category: str) -> list[str]:
             "electrical specifications",
             "power procurement",
         ],
+        "fuel": ["fuel availability", "fuel supply for temporary power", "site fuel connection"],
+        "voltage": ["temporary power voltage phase", "electrical service voltage"],
+        "load_profile": ["electrical load profile", "hourly demand profile"],
+        "procurement": ["temporary power procurement", "power package bid award"],
+        "utility_obstacle": ["utility interconnection delay", "service upgrade obstacle"],
         "power_need": ["temporary power", "construction power package", "temporary service"],
+        "facility_demand": [
+            "planned facility electrical demand MW",
+            "facility load utility filing",
+        ],
         "phase": ["construction update", "inspection", "project status"],
         "buyer": [
             "electrical contractor project contact",
@@ -398,6 +474,12 @@ def targeted_query_plan(context: dict[str, Any], category: str) -> list[dict[str
             "energization-records",
         ],
         "load": ["activity-electrical-permits", "equipment-schedules", "commissioning-test-power"],
+        "facility_demand": ["owner-projects", "utility-filings", "regulatory-filings"],
+        "fuel": ["fuel-supply-records", "owner-projects", "public-bids"],
+        "voltage": ["electrical-permits", "engineering-drawings", "equipment-schedules"],
+        "load_profile": ["engineering-drawings", "equipment-schedules", "public-bids"],
+        "procurement": ["public-bids", "owner-projects", "contractor-updates"],
+        "utility_obstacle": ["utility-filings", "interconnection-documents", "municipal-records"],
     }.get(category, list(ROUTES[category][:3]))
     if context.get("stable_identifiers"):
         families[-1] = families[0]

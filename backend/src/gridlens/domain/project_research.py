@@ -7,7 +7,7 @@ from datetime import date, timedelta
 from decimal import Decimal
 from typing import Any
 
-VERSION = "project-research-claims-v3"
+VERSION = "project-research-claims-v4"
 FIELDS = (
     "phase",
     "permanent_service",
@@ -16,7 +16,12 @@ FIELDS = (
     "activity_load_mw",
     "activity_start",
     "facility_scale_mw",
+    "facility_demand_mw",
     "voltage",
+    "fuel_availability",
+    "load_profile",
+    "procurement_status",
+    "utility_obstacle",
 )
 _PHASES = (
     ("cancelled", r"(?:project|development|facility) (?:is |was |has been )?cancel(?:led|ed)"),
@@ -158,6 +163,24 @@ def extract_project_claims(
                 service + r"\s+(?:is |remains )(?:pending|delayed|unavailable)", predicate, re.I
             ):
                 add("permanent_service", "pending")
+            # Facility-level demand is exact-project but deliberately not
+            # activity-scoped; it remains distinct from temporary activity load.
+            facility_demand = re.fullmatch(
+                r"(?:planned )?facility (?:electrical )?demand is\s+(\d+(?:\.\d+)?)\s*(kW|MW)",
+                predicate,
+                re.I,
+            )
+            if (
+                facility_demand
+                and Decimal(facility_demand[1]) > 0
+                and not re.search(
+                    r"\b(?:campus|nameplate|capacity|generator|backup|temporary)\b", quote, re.I
+                )
+            ):
+                mw = Decimal(facility_demand[1]) / (
+                    1000 if facility_demand[2].casefold() == "kw" else 1
+                )
+                add("facility_demand_mw", format(mw.normalize(), "f"))
         scopes = _SCOPES.get(activity_key, (activity_key.replace("-", " "),))
         scope = next(
             (scope for scope in scopes if re.search(r"\b" + re.escape(scope) + r"\b", quote, re.I)),
@@ -216,6 +239,53 @@ def extract_project_claims(
                 if load and Decimal(load[1]) > 0:
                     mw = Decimal(load[1]) / (1000 if load[2].casefold() == "kw" else 1)
                     add("activity_load_mw", format(mw.normalize(), "f"), reported_activity=scope)
+            voltage = re.fullmatch(
+                re.escape(scope)
+                + r" (?:temporary power|electrical) voltage (?:requirement )?is\s+"
+                + r"(\d{2,4})\s*V,?\s*(\d)\s*(?:phase|ph)",
+                predicate,
+                re.I,
+            )
+            if voltage:
+                add(
+                    "voltage",
+                    f"{int(voltage[1])} V, {int(voltage[2])} phase",
+                    reported_activity=scope,
+                )
+            fuel = re.fullmatch(
+                re.escape(scope)
+                + r" (?:temporary power )?fuel (?:is |availability is )(available|unavailable)",
+                predicate,
+                re.I,
+            )
+            if fuel:
+                add("fuel_availability", fuel[1].casefold(), reported_activity=scope)
+            profile = re.fullmatch(
+                re.escape(scope)
+                + r" load profile is "
+                + r"(continuous|intermittent|peaking|cyclic|variable|constant|24/7)",
+                predicate,
+                re.I,
+            )
+            if profile:
+                add("load_profile", profile[1].casefold(), reported_activity=scope)
+            procurement = re.fullmatch(
+                re.escape(scope)
+                + r" temporary power procurement is "
+                + r"(underway|delayed|on hold|complete|not started)",
+                predicate,
+                re.I,
+            )
+            if procurement:
+                add("procurement_status", procurement[1].casefold(), reported_activity=scope)
+            obstacle = re.fullmatch(
+                re.escape(scope)
+                + r" utility interconnection is (pending|delayed|blocked|complete)",
+                predicate,
+                re.I,
+            )
+            if obstacle:
+                add("utility_obstacle", obstacle[1].casefold(), reported_activity=scope)
             start = re.fullmatch(
                 re.escape(scope)
                 + r" (?:starts|begins|is scheduled to (?:start|begin)) on (\d{4}-\d{2}-\d{2})",
@@ -400,9 +470,7 @@ def qualification_veto(fields: dict[str, dict]) -> str | None:
         "activity_load_mw",
         "activity_start",
     }
-    if any(
-        fields.get(field, {}).get("status") == "CONFLICT" for field in qualification_fields
-    ):
+    if any(fields.get(field, {}).get("status") == "CONFLICT" for field in qualification_fields):
         return "Current exact-activity public evidence has unresolved conflicting claims"
     phase = fields.get("phase", {})
     if phase.get("status") == "SUPPORTED" and phase.get("value") in {
