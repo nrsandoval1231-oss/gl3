@@ -1,0 +1,21 @@
+# PR #102 current acceptance packet
+
+**Source candidate:** [`6befa72`](https://github.com/nrsandoval1231-oss/gl3/commit/6befa723c156b11ddb838a4ec8fd9f41485bf51b). **Status:** implementation integrated; exact-candidate final gates and independent review pending. This summary is not a release/production approval.
+
+## Integrated work
+
+F1/F1G identity safeguards, F2A/F2B/F2C field work, F3/F3C project-scoped contacts and corrections, F4 dated schedule scenarios, and F5 workspace/snapshot integration are present. F3C composes sparse patches, supersedes identity links on material subject changes, removes old same-kind actions when replacement is not actionable, and recovers review against current evidence after stale correction history. Current focused receipts: F5 60 backend tests (`.artifacts/pr102/controller-f5-tests.json`); integrated F3C 46 backend/integration tests in 59.54s with exit 0 (`.artifacts/pr102/controller-f3c-final-focused.json`). These are focused receipts, not the final whole-pipeline result.
+
+## Retained-data evidence
+
+Baseline isolated copy: 1,620 projects, 1,620 needs, 18,016 evidence rows. The [curated independent manifest](../../../docs/operations/pr102-retained-manifest.json) has 14 cases and 79 labeled fields. Controller retained-v5-f5 comparison on implementation candidate `69c19f8` reports 79/79 exact field agreements, zero populated expected-null fields, and exact equality between curated and independent original `expected_fields`. This is bounded field-level proof only. The offline ten-category runner remains BLOCKED because three required categories have no reviewed case: site-specific utility constraint, conflicting power dates, and legitimate bridge-power potential.
+
+## F6C retrieval failure and recovery
+
+The bounded feed attempt is **PARTIAL_FAILED_BOUND**, not corpus acceptance. It completed 11 GETs (six direct collector plus five worker retrievals). A construction-timeout acquisition occurred before the five worker returns; whether its HTTP request was sent or completed is UNKNOWN. This exceeded the six-request ceiling. Activity was confined to a local copy: +33 observations and +34 evidence rows; projects/needs stayed at 1,620/1,620, there were zero new candidate Need IDs, and LogicalCalls stayed at 10. No paid inference was recorded. Five collector snapshots were later overwritten by worker snapshots; the earlier hashes remain, but original raw bodies were not preserved. Five offline replays were individually stable for observations/evidence/projects/needs/calls, while the helper aggregate reported an incorrect terminal status. These results are not source/category acceptance. A read-only scan across all 1,620 existing needs and 1,622 linked current evidence found none of the three missing categories. Root retains raw failure evidence outside Git. Cause is UNKNOWN; locks have cleared, so no current external-resource block is asserted. Do not repeat this acquisition route.
+
+## Operational and release gates
+
+Migrations `0035_reconciled_identity` then `0036_buying_chain_corrections` are required before deploying integrated code. The `OPPORTUNITY_ENRICHMENT_ENABLED=false` default applies only to new automatic expanded planning; it does not disable the UI. Live provider acceptance, inference cost, persisted runtime/restart proof, whole-pipeline controller checks, and independent review remain pending or UNKNOWN/BLOCKED. No merge, deployment, production mutation, or paid activation is authorized here.
+
+For current product behavior and rollout constraints, see the [release record](../../../docs/operations/opportunity-intelligence-release.md) and [architecture](../../../docs/architecture/OPPORTUNITY_INTELLIGENCE.md). The curated manifest is the only source-label artifact linked here; raw logs, raw source passages, private database URLs, and raw failure captures are not included.
