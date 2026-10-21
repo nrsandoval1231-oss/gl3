@@ -1,0 +1,16 @@
+============================= test session starts =============================
+platform win32 -- Python 3.11.16, pytest-9.1.1, pluggy-1.6.0
+rootdir: C:\Users\nrsan\Nucleus\02_Projects\GridLens\gl3-approved-intelligence-ui\backend
+configfile: pyproject.toml
+plugins: anyio-4.15.1
+collected 45 items
+
+backend\tests\unit\test_govinfo_pdf.py ...                               [  6%]
+backend\tests\unit\test_research_acquisition_boundary.py ............... [ 40%]
+.........                                                                [ 60%]
+backend\tests\unit\test_ocr_transcript.py ......                         [ 73%]
+backend\tests\unit\test_ocr_dormancy.py ....                             [ 82%]
+backend\tests\unit\test_ocr_public_boundary.py ....                      [ 91%]
+backend\tests\unit\test_govinfo_scan.py ....                             [100%]
+
+============================= 45 passed in 6.85s ==============================

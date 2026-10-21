@@ -185,6 +185,13 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 @media(max-width:1050px){.wh-metrics{grid-template-columns:repeat(5,minmax(0,1fr))}}@media(max-width:760px){.wh-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .wh-queue-heading:has(.wh-tools[open]){flex-wrap:wrap}.wh-queue-heading .wh-tools[open]{flex-basis:100%}.wh-queue-heading .wh-tool-content{position:static;width:100%;box-shadow:none}
 
+@media (min-width:1051px){
+  .wh-queue-heading{flex-wrap:wrap}
+  .wh-queue-heading>span{min-width:0;white-space:normal}
+  .wh-queue-heading .wh-sort{min-width:0}
+  .wh-queue-heading .wh-sort select{min-width:0}
+}
+
 .ic-research-action{display:contents}.ic-research-action button{margin-left:6px}.ic-research-action small{display:block;margin-top:4px}
 
 @media (min-width:761px) and (max-width:1050px){

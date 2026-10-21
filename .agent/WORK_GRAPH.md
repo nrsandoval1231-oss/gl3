@@ -12,6 +12,7 @@ Authority remains the owner request, PRD, Finish Contract, and approved UI canon
 | F12 restored browse recovery | Validated on prior candidate | Retained-only derived rebuild restored queue200; source tables, snapshots, jobs, and calls unchanged. |
 | F13 diagnosis recovery | Corrected | Initial broad-scan explanation rejected before edits; actual legacy path measured at 161 SQL/about 2.4s. |
 | F14 unfiltered legacy detail | Focused validation passed | 6979fa4; 21 focused tests/static checks; identical 65-field payload at 37 SQL/about 60-67ms. Scoped paths preserved. |
+| F15 latest-main composition | In progress | Merge parents `022dace6` and `b224bbbe`; resolved the sole `Workspace.tsx` conflict by retaining F14 selected-Need generation/readback guards and main mobile history focus guards. Focused gates and merge commit pending. |
 | Final frozen-candidate gates | READY / pending | Freeze the resulting implementation plus this handoff, then run mandatory full gates. Prior ff05491 results do not transfer. |
 | Persisted runtime/restart proof | Pending on final candidate | Repeat real authenticated queue/card/five-viewport/restart proof, exact payload and raw/snapshot/job/call comparisons. |
 | Independent review | Pending on final candidate | Sol reviews exact F14 integration plus final deterministic/runtime receipts; no parent completion while data gates remain blocked. |

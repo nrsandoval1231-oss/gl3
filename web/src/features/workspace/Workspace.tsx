@@ -102,6 +102,8 @@ export function WorkspaceHome() {
       selectedNeedContext.current = { needId, generation: selectedNeedContext.current.generation + 1 }
     }
   }
+  const historyFocusSequence = useRef(0)
+  const pendingHistoryFocus = useRef<{ id: string; sequence: number; focused: boolean; origin: Element | null } | null>(null)
   const researchFocus = useRef<HTMLElement | null>(null)
   const signalParams = useRef<URLSearchParams | null>(currentView() === 'signals' ? getParams() : null)
   const lastSelected = useRef<string | null>(null)
@@ -135,6 +137,37 @@ export function WorkspaceHome() {
     })
     return () => cancelAnimationFrame(frame)
   }, [pageCurrent, requestKey, view, detailNavigation])
+  useEffect(() => {
+    const focusBack = () => {
+      const pending = pendingHistoryFocus.current
+      if (!pending || (selected?.id ?? pendingNeedId) !== pending.id || view !== 'opportunities' || !window.matchMedia('(max-width: 1050px)').matches) return
+      if (getParams().get('need') !== pending.id) return
+      const sequence = pending.sequence
+      requestAnimationFrame(() => {
+        const current = pendingHistoryFocus.current
+        if (!current || current.sequence !== sequence || (selected?.id ?? pendingNeedId) !== pending.id || getParams().get('need') !== pending.id) return
+        const isCurrent = detailCurrent
+        if (!isCurrent && current.focused) return
+        const active = document.activeElement
+        if (!current.focused && active !== current.origin && active !== document.body && active instanceof HTMLElement && active.isConnected) {
+          pendingHistoryFocus.current = null
+          return
+        }
+        if (isCurrent && current.focused && active !== document.body && active instanceof HTMLElement && active.isConnected) {
+          pendingHistoryFocus.current = null
+          return
+        }
+        const back = document.querySelector<HTMLElement>('.wh-back')
+        back?.focus({ preventScroll: true })
+        if (document.activeElement === back) {
+          pendingHistoryFocus.current = isCurrent ? null : { ...current, focused: true }
+        }
+      })
+    }
+    focusBack()
+    window.addEventListener('resize', focusBack)
+    return () => window.removeEventListener('resize', focusBack)
+  }, [detailCurrent, detailNavigation, pendingNeedId, selected?.id, view])
   useEffect(() => { void client.session().then(value => setAuthenticated(value.authenticated)).catch(() => setAuthenticated(false)) }, [])
   useEffect(() => {
     if (!authenticated || view !== 'opportunities') return
@@ -157,6 +190,7 @@ export function WorkspaceHome() {
   useEffect(() => {
     const onPop = () => {
       const p = getParams(); let id = p.get('need')
+      pendingHistoryFocus.current = null
       ++selectionSequence.current; setDetailNavigation(value => value + 1)
       setView(currentView())
       if (currentView() === 'pursuits') { setResearchMounted(true); setCommercialNavigation(commercialFromUrl()); requestAnimationFrame(() => researchFocus.current?.focus()) }
@@ -166,6 +200,7 @@ export function WorkspaceHome() {
       setTab(workspaceTabFromParams(p))
       setDetailIdentity(null)
       if (!id) { ++selectionSequence.current; setDetailLoading(false); setSelected(null); setPendingNeedId(null); if (currentView() === 'opportunities') { const snapshot = history.state?.workspaceSnapshot ?? { ...savedScroll.current, focus: lastSelected.current }; pendingRestore.current = { ...snapshot, key: workspaceRequestKey(next) } } else requestAnimationFrame(() => { if (lastSelected.current) document.querySelector<HTMLElement>(`[data-opportunity-id="${CSS.escape(lastSelected.current)}"]`)?.focus() }); return }
+      if (currentView() === 'opportunities' && window.matchMedia('(max-width: 1050px)').matches) pendingHistoryFocus.current = { id, sequence: ++historyFocusSequence.current, focused: false, origin: document.activeElement }
       const row = page?.items.find(item => item.id === id)
       setSelected(row ?? null); setPendingNeedId(row ? null : id)
       // A history navigation can reselect the same Need while its selected ID
