@@ -16,7 +16,7 @@ from gridlens.intelligence.change_detection import (
     seed_material_state,
 )
 from gridlens.intelligence.lifecycle_service import refresh_lifecycle_projection
-from gridlens.intelligence.project_state import _conflict, project_state
+from gridlens.intelligence.project_state import _conflict, current_research_state, project_state
 from gridlens.intelligence.research_recommendation import recommend_from_context
 from gridlens.persistence.database import Base
 from gridlens.persistence.models import (
@@ -232,6 +232,105 @@ def test_state_keeps_unproven_fields_unknown_and_rejected_revision_is_not_curren
             "evidence_hash": evidence.content_hash,
         }
         assert project_state(session, project.id)["state"]["lifecycle"]["status"] == "UNKNOWN"
+
+
+def test_original_retained_permit_claims_are_version_bound_and_activity_scoped(db):
+    from gridlens.domain.project_research import VERSION as RESEARCH_VERSION
+
+    with db.begin() as session:
+        project, _, _ = seed(session)
+        rows = (
+            (
+                "fort-worth-development-permits",
+                "facility-expansion",
+                "Project: Edged Energy Outpost Building 2\n"
+                "Work description: 488,628 SF 196MW data center\n"
+                "Owner of record: not stated",
+                "Work description: 488,628 SF 196MW data center",
+            ),
+            (
+                "boston-building-permits",
+                "temporary-power",
+                "Permit number: ETS1870328\nDescription: Electrical\n"
+                "Comments: Provide temporary electrical work required to support Boss steel "
+                "Office trailer 100A 208v 1Ph $5000",
+                "Comments: Provide temporary electrical work required to support Boss steel "
+                "Office trailer 100A 208v 1Ph $5000",
+            ),
+        )
+        needs = []
+        for index, (source_id, activity, abstract, quote) in enumerate(rows):
+            session.add(
+                Source(
+                    id=source_id,
+                    publisher="Official permit office",
+                    endpoint=f"https://permits.example/{source_id}",
+                    family="construction-permits",
+                    geography="US",
+                    industries=[],
+                    retrieval_method="socrata-permits",
+                    health={},
+                )
+            )
+            session.flush()
+            need = PowerNeed(
+                project_id=project.id,
+                activity_key=activity,
+                tier="Signal",
+                rationale="retained permit fixture",
+                active=True,
+            )
+            session.add(need)
+            session.flush()
+            observation_hash = evidence_hash = f"permit-current-{index}"
+            observation = Observation(
+                source_id=source_id,
+                external_id=f"permit-{index}",
+                title="Official permit",
+                abstract=abstract,
+                url=f"https://permits.example/{source_id}/{index}",
+                published_at=date(2026, 10, 1),
+                content_hash=observation_hash,
+            )
+            session.add(observation)
+            session.flush()
+            evidence = Evidence(
+                observation_id=observation.id,
+                title=observation.title,
+                abstract=abstract,
+                url=observation.url,
+                content_hash=evidence_hash,
+                published_at=observation.published_at,
+                event_date=date(2026, 10, 1),
+                observed_at=NOW,
+            )
+            session.add_all(
+                [
+                    evidence,
+                    Interpretation(
+                        observation_id=observation.id,
+                        evaluator_version=RESEARCH_VERSION,
+                        content_hash=observation_hash,
+                        status="accepted",
+                        assessment={"evidence_hash": evidence_hash},
+                    ),
+                    NeedObservation(need_id=need.id, observation_id=observation.id),
+                ]
+            )
+            needs.append((need, evidence, quote))
+        session.flush()
+        state = current_research_state(session, project.id)
+        facility, electrical = needs
+        facility_claim = state[str(facility[0].id)]["facility_scale_mw"]
+        voltage_claim = state[str(electrical[0].id)]["voltage"]
+        assert facility_claim["status"] == "SUPPORTED"
+        assert facility_claim["value"] == "196"
+        assert facility_claim["claims"][0]["quote"] == facility[2]
+        assert voltage_claim["status"] == "SUPPORTED"
+        assert voltage_claim["value"] == "208 V, 1 phase"
+        assert voltage_claim["claims"][0]["quote"] == electrical[2]
+        assert state[str(facility[0].id)]["activity_load_mw"]["status"] == "UNKNOWN"
+        assert state[str(electrical[0].id)]["activity_load_mw"]["status"] == "UNKNOWN"
 
 
 def test_need_state_excludes_reassigned_and_supplemental_evidence(db):

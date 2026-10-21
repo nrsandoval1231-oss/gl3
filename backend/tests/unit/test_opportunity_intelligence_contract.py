@@ -185,6 +185,51 @@ def test_supported_public_load_uses_exact_claim_without_changing_signal_qualific
     assert next(f for f in card.fields if f.key == "required_mw").value is None
 
 
+def test_reported_facility_scale_and_source_native_identity_remain_separate():
+    record = item()
+    evidence = record["evidence"][0]
+    evidence["abstract"] = (
+        "Project: Edged Energy Outpost Building 2\n"
+        "Permit: PB26-11109\n"
+        "Work description: 488,628 SF 196MW data center"
+    )
+    record["name"] = "Permit PB26-11109"
+    record["research_state"] = {
+        "facility_scale_mw": {
+            "status": "SUPPORTED",
+            "value": "196",
+            "claims": [
+                {
+                    "evidence_id": evidence["id"],
+                    "evidence_hash": evidence["content_hash"],
+                    "quote": "Work description: 488,628 SF 196MW data center",
+                }
+            ],
+        }
+    }
+    card = assemble_card(record, {}, {"disposition": "WATCH"}, [], research_enabled=True)
+    fields = {field.key: field for field in card.fields}
+    assert fields["project"].value == "Edged Energy Outpost Building 2"
+    assert fields["source_identifier"].value == "PB26-11109"
+    assert fields["facility_scale"].value == "196 MW (reported facility scale)"
+    assert "not establish total planned electrical demand" in fields["facility_scale"].basis
+    assert fields["facility_demand"].value is None
+    assert fields["required_mw"].value is None
+    assert card.power_gap is None
+
+
+def test_generic_permit_name_is_not_presented_as_project_identity():
+    record = item()
+    record["name"] = "Boston permit ETS1870328"
+    record["evidence"][0]["abstract"] = (
+        "Permit number: ETS1870328\nComments: Replace existing ATS switch with new one."
+    )
+    card = assemble_card(record, {}, {"disposition": "WATCH"}, [], research_enabled=True)
+    fields = {field.key: field for field in card.fields}
+    assert fields["project"].value is None
+    assert fields["source_identifier"].value == "ETS1870328"
+
+
 def test_unrelated_operator_fact_cannot_ground_demand_and_missing_contacts_are_gaps():
     record = item()
     record["required_mw"] = "9 MW"

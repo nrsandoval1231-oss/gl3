@@ -84,6 +84,8 @@ LABELS = {
     "application_status": "Permit application status",
     "geocode_status": "Geocoding status (not permit lifecycle)",
     "owner_name": "Permit-listed owner",
+    "owner_of_record": "Permit-listed owner of record",
+    "work_description": "Permit work description",
     "report_start": "Weekly report period start",
     "report_end": "Weekly report period end (exclusive)",
     "layer_feature_count": "El Paso layer feature count (metadata)",
@@ -146,6 +148,11 @@ BOSTON_FIELDS = {
     "Address": "Boston permit site address",
     "City": "Boston permit city",
     "State": "Boston permit state",
+}
+FORT_WORTH_FIELDS = {
+    "Project": "Permit project name",
+    "Work description": "Permit work description",
+    "Owner of record": "Permit-listed owner of record",
 }
 CITY_MAPS = {
     "dallas-monthly-permits": {
@@ -225,6 +232,8 @@ def fields(source_id: str, text: str) -> dict[str, tuple[str, str]]:
         and source_id not in CITY_MAPS
         and source_id
         not in {
+            "fort-worth-development-permits",
+            "fort-worth-permits",
             GEORGIA,
             "houston-weekly-permits",
             "texas-rrc-drilling-permits",
@@ -238,6 +247,8 @@ def fields(source_id: str, text: str) -> dict[str, tuple[str, str]]:
         if source_id in MAPS
         else set(CITY_MAPS[source_id])
         if source_id in CITY_MAPS
+        else set(FORT_WORTH_FIELDS)
+        if source_id in {"fort-worth-development-permits", "fort-worth-permits"}
         else set(BOSTON_FIELDS)
         if source_id == "boston-building-permits"
         else set(LABELS)
@@ -263,6 +274,8 @@ def facts(source_id: str, text: str) -> list[dict[str, str]]:
     selected_labels = (
         CULTIVATION_FIELDS.items()
         if source_id == "ma-ccc-cultivation-applications"
+        else FORT_WORTH_FIELDS.items()
+        if source_id in {"fort-worth-development-permits", "fort-worth-permits"}
         else BOSTON_FIELDS.items()
         if source_id == "boston-building-permits"
         else LABELS.items()

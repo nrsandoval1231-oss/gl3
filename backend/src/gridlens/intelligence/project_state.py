@@ -16,6 +16,7 @@ from gridlens.domain.evaluation_clock import evaluation_now, evaluation_today
 from gridlens.domain.project_research import (
     VERSION,
     _project_claim_accumulator,
+    extract_retained_permit_claims,
     project_claim_state,
 )
 from gridlens.domain.signal_admission import admitted_from_source
@@ -109,6 +110,36 @@ def current_research_state(
     claims: dict[str, list[dict]] = defaultdict(list)
     for need, observation, evidence, interpretation in rows:
         assessment = interpretation.assessment or {}
+        current_version = bool(
+            interpretation.status == "accepted"
+            and observation.content_hash == evidence.content_hash == interpretation.content_hash
+            and assessment.get("evidence_hash", evidence.content_hash) == evidence.content_hash
+        )
+        if current_version and observation.source_id in {
+            "fort-worth-development-permits",
+            "fort-worth-permits",
+            "boston-building-permits",
+        }:
+            source_date = (
+                evidence.event_date or evidence.published_at or evidence.observed_at.date()
+            )
+            for claim in extract_retained_permit_claims(
+                observation.source_id,
+                evidence.abstract or "",
+                activity_key=need.activity_key,
+                as_of=source_date,
+                today=evaluation_today(date.today()),
+            ):
+                claims[str(need.id)].append(
+                    {
+                        **claim,
+                        "project_id": str(project.id),
+                        "need_id": str(need.id),
+                        "evidence_id": str(evidence.id),
+                        "evidence_hash": evidence.content_hash,
+                        "evidence": _provenance(evidence),
+                    }
+                )
         if not (
             interpretation.status == "accepted"
             and interpretation.evaluator_version == VERSION

@@ -231,6 +231,76 @@ def contact_projection(chain: dict) -> list[IntelligenceContact]:
     return result
 
 
+def _source_project_name(
+    item: dict, sources: list[IntelligenceSource]
+) -> tuple[str | None, list[IntelligenceSource]]:
+    """Use a project name only when a current retained source names it directly."""
+
+    def meaningful(value: str) -> bool:
+        clean = value.strip(" .,:;\t")
+        return bool(
+            clean
+            and not re.fullmatch(r"[A-Z]{0,6}[- ]?\d{4,}[A-Z]?", clean, re.I)
+            and not re.match(r"^(?:permit|case|application)(?:\s|#|number|$)", clean, re.I)
+        )
+
+    candidates = [str(item.get("supported_subject") or "").strip()]
+    for source in sources:
+        passage = source.passage or ""
+        patterns = (
+            r"(?m)^Project:\s*(?P<name>[^\r\n]+)",
+            r"(?m)^Facility:\s*(?P<name>[^\r\n]+)",
+            r"(?m)^Facility Name:\s*(?P<name>[^\r\n]+)",
+            r"\bunder the name\s+(?P<name>[^.\r\n]+)",
+        )
+        for pattern in patterns:
+            candidates.extend(
+                match.group("name").strip(" .,:;") for match in re.finditer(pattern, passage, re.I)
+            )
+    for candidate in candidates:
+        if not meaningful(candidate):
+            continue
+        supported = [
+            source.model_copy(
+                update={
+                    "passage": next(
+                        line
+                        for line in (source.passage or "").splitlines()
+                        if candidate.casefold() in line.casefold()
+                    ),
+                    "verification_status": "Current source-native project name",
+                }
+            )
+            for source in sources
+            if candidate.casefold() in (source.passage or "").casefold()
+        ]
+        if supported:
+            return candidate, supported
+    return None, []
+
+
+def _source_identifier(
+    sources: list[IntelligenceSource],
+) -> tuple[str | None, list[IntelligenceSource]]:
+    for source in sources:
+        for pattern in (
+            r"(?m)^Permit:\s*(?P<value>[A-Z0-9-]+)",
+            r"(?m)^Permit number:\s*(?P<value>[A-Z0-9-]+)",
+            r"(?m)^Application number:\s*(?P<value>[A-Z0-9-]+)",
+        ):
+            match = re.search(pattern, source.passage or "", re.I)
+            if match:
+                return match.group("value"), [
+                    source.model_copy(
+                        update={
+                            "passage": match.group(0),
+                            "verification_status": "Current source identifier",
+                        }
+                    )
+                ]
+    return None, []
+
+
 def assemble_card(
     item: dict, chain: dict, commercial: dict, questions: list[dict], *, research_enabled: bool
 ) -> IntelligenceCard:
@@ -271,6 +341,8 @@ def assemble_card(
         q = latest.get(category)
         research_field = {
             "required_mw": "activity_load_mw",
+            "facility_scale": "facility_scale_mw",
+            "voltage": "voltage",
             "start": "activity_start",
             "stage": "phase",
             "supply_status": "supply_adequacy",
@@ -299,10 +371,17 @@ def assemble_card(
             value = str(research["value"]).replace("_", " ")
             if research_field == "activity_load_mw":
                 value += " MW (source-reported)"
+            elif research_field == "facility_scale_mw":
+                value += " MW (reported facility scale)"
             refs = claim_sources
             basis = (
-                "Current source report; this does not establish "
-                "temporary-generation demand or qualification."
+                "Current source descriptor of facility scale; it does not establish total "
+                "planned electrical demand, temporary-generation demand or qualification."
+                if research_field == "facility_scale_mw"
+                else (
+                    "Current source report; this does not establish temporary-generation demand "
+                    "or qualification."
+                )
             )
         if research.get("status") == "CONFLICT":
             refs = claim_sources
@@ -355,13 +434,23 @@ def assemble_card(
         "identity",
         owner_refs,
     )
+    project_name, project_refs = _source_project_name(item, current)
+    identifier, identifier_refs = _source_identifier(current)
     add(
         "project",
         "Project",
         "identity",
-        item.get("supported_subject") or item.get("name"),
+        project_name,
         "identity",
-        current,
+        project_refs,
+    )
+    add(
+        "source_identifier",
+        "Permit / source identifier",
+        "identity",
+        identifier,
+        "identity",
+        identifier_refs,
     )
     add("location", "Facility location", "identity", item.get("location"), "identity", current)
     add("activity", "Power activity", "identity", item.get("activity"), "power_need", current)
@@ -412,6 +501,7 @@ def assemble_card(
         "load",
         field_sources("demand"),
     )
+    add("facility_scale", "Reported facility scale", "power", None, "load")
     add("facility_demand", "Total planned facility demand", "power", None, "load")
     add(
         "start", "Power needed", "power", item.get("start_window"), "timing", field_sources("start")
@@ -448,10 +538,10 @@ def assemble_card(
     for key, label, category in (
         ("energization", "Utility service status", "supply"),
         ("fuel", "Fuel availability", "suitability"),
-        ("voltage", "Voltage / electrical requirements", "suitability"),
         ("load_profile", "Load profile", "suitability"),
     ):
         add(key, label, "power", None, category)
+    add("voltage", "Voltage / electrical requirements", "power", None, "suitability")
     add(
         "assessment",
         "Why this matters",

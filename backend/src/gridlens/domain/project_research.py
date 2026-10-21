@@ -15,6 +15,8 @@ FIELDS = (
     "temporary_supply",
     "activity_load_mw",
     "activity_start",
+    "facility_scale_mw",
+    "voltage",
 )
 _PHASES = (
     ("cancelled", r"(?:project|development|facility) (?:is |was |has been )?cancel(?:led|ed)"),
@@ -242,6 +244,62 @@ def extract_project_claims(
     return result if len(result) <= 16 else []
 
 
+def extract_retained_permit_claims(
+    source_id: str, text: str, *, activity_key: str, as_of: date | None, today: date
+) -> list[dict[str, Any]]:
+    """Parse two reviewed retained permit formats without generalizing attribution."""
+    if as_of is None or as_of > today:
+        return []
+    result: list[dict[str, Any]] = []
+    if source_id in {"fort-worth-development-permits", "fort-worth-permits"}:
+        # This adapter's work description can report facility scale. Keep it
+        # separate from total electrical demand and generator requirement.
+        from gridlens.ingestion.adapters.retained_permits import fields as permit_fields
+
+        parsed = permit_fields(source_id, text)
+        description = parsed.get("Work description")
+        if description:
+            match = re.search(r"(?<![\w.])(\d+(?:,\d{3})*(?:\.\d+)?)\s*MW\b", description[0], re.I)
+            if match and Decimal(match[1].replace(",", "")) > 0:
+                result.append(
+                    {
+                        "field": "facility_scale_mw",
+                        "value": format(Decimal(match[1].replace(",", "")).normalize(), "f"),
+                        "activity_key": activity_key,
+                        "as_of": as_of.isoformat(),
+                        "quote": description[1],
+                        "value_kind": "Reported facility scale",
+                    }
+                )
+    elif source_id == "boston-building-permits" and activity_key in {
+        "temporary-power",
+        "construction-power",
+        "electrical-construction",
+    }:
+        from gridlens.ingestion.adapters.retained_permits import fields as permit_fields
+
+        parsed = permit_fields(source_id, text)
+        comments = parsed.get("Comments")
+        if comments and re.search(r"\btemporary electrical work\b", comments[0], re.I):
+            match = re.search(
+                r"(?<!\d)(\d{2,4})\s*V\s*(\d{1,2})\s*Ph\b(?:[^\n]{0,80})?",
+                comments[0],
+                re.I,
+            )
+            if match:
+                result.append(
+                    {
+                        "field": "voltage",
+                        "value": f"{int(match[1])} V, {int(match[2])} phase",
+                        "activity_key": activity_key,
+                        "as_of": as_of.isoformat(),
+                        "quote": comments[1],
+                        "value_kind": "Permit-listed electrical constraint",
+                    }
+                )
+    return result
+
+
 def unparsed_adverse_text(text: str, claims: list[dict]) -> str:
     """Remove only recognized adverse phrases, never the surrounding clause.
 
@@ -334,7 +392,17 @@ def project_claim_state(claims: list[dict], *, today: date) -> dict[str, dict]:
 
 
 def qualification_veto(fields: dict[str, dict]) -> str | None:
-    if any(value.get("status") == "CONFLICT" for value in fields.values()):
+    qualification_fields = {
+        "phase",
+        "permanent_service",
+        "supply_adequacy",
+        "temporary_supply",
+        "activity_load_mw",
+        "activity_start",
+    }
+    if any(
+        fields.get(field, {}).get("status") == "CONFLICT" for field in qualification_fields
+    ):
         return "Current exact-activity public evidence has unresolved conflicting claims"
     phase = fields.get("phase", {})
     if phase.get("status") == "SUPPORTED" and phase.get("value") in {

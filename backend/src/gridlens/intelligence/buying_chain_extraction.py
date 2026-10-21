@@ -447,6 +447,28 @@ def extract_retained_permit_organizations(doc: PublicDocument, source_id: str) -
                 citations=[_citation(doc, owner[1], "permit_listed_owner")],
             )
         ]
+    if source_id in {"fort-worth-development-permits", "fort-worth-permits"}:
+        owner = permit_fields(source_id, doc.text).get("Owner of record")
+        if not owner or owner[0].strip().casefold() in {"not stated", "unknown", "none"}:
+            return []
+        if not re.search(
+            r"\b(?:LLC|L\.L\.C\.?|Inc\.?|Corp\.?|Corporation|Company|LP|L\.P\.)\b",
+            owner[0],
+            re.I,
+        ):
+            return []
+        return [
+            Extracted(
+                owner[0].strip(),
+                Category.OWNER.value,
+                reason=(
+                    "Organization named in the Fort Worth permit's explicit Owner of record field; "
+                    "current operation, responsibility for temporary power and buying authority "
+                    "are UNKNOWN."
+                ),
+                citations=[_citation(doc, owner[1], "permit_listed_owner")],
+            )
+        ]
     if source_id == GEORGIA:
         proponent = georgia_proponent(doc.text)
         proponents = (
@@ -464,20 +486,45 @@ def extract_retained_permit_organizations(doc: PublicDocument, source_id: str) -
             if proponent
             else []
         )
-        return proponents + [
-            Extracted(
-                value,
-                "permit_entity",
-                reason=(
-                    "Facility name on the draft permit; ownership, current operation "
-                    "and buying authority are UNKNOWN."
-                ),
-                citations=[_citation(doc, quote, "project_organization")],
-            )
-            for label, value, quote in georgia_identity(doc.text)
-            if label == "Draft permit entity"
-            and re.search(r"\b(?:LLC|Inc\.?|Corporation|Company)\b", value, re.I)
-        ]
+        owner_match = re.search(
+            r"(?P<relationship>TA Digital Realty \(TADG\)\s*[–-]\s*ATL02,\s*which is owned by\s+"
+            r"(?P<owner>[A-Z][A-Za-z0-9&'’., -]{1,100}?(?:LLC|L\.L\.C\.?|Inc\.?|Corporation)))\b",
+            doc.text,
+        )
+        owned = (
+            [
+                Extracted(
+                    owner_match.group("owner").strip(),
+                    Category.OWNER.value,
+                    reason=(
+                        "Organization explicitly identified as owner of the named Georgia permit "
+                        "facility; current operation, responsibility for temporary power and "
+                        "buying authority are UNKNOWN."
+                    ),
+                    citations=[_citation(doc, owner_match.group(0), "permit_listed_owner")],
+                )
+            ]
+            if owner_match
+            else []
+        )
+        return (
+            proponents
+            + owned
+            + [
+                Extracted(
+                    value,
+                    "permit_entity",
+                    reason=(
+                        "Facility name on the draft permit; ownership, current operation "
+                        "and buying authority are UNKNOWN."
+                    ),
+                    citations=[_citation(doc, quote, "project_organization")],
+                )
+                for label, value, quote in georgia_identity(doc.text)
+                if label == "Draft permit entity"
+                and re.search(r"\b(?:LLC|Inc\.?|Corporation|Company)\b", value, re.I)
+            ]
+        )
     if source_id != "chicago-building-permits":
         return []
     return [

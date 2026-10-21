@@ -168,6 +168,19 @@ def test_same_clause_opposing_supply_reports_remain_conflict():
     assert project_claim_state(rows, today=TODAY)["supply_adequacy"]["status"] == "CONFLICT"
 
 
+def test_facility_scale_and_voltage_conflicts_do_not_change_qualification():
+    rows = [
+        {"field": "facility_scale_mw", "value": "196", "as_of": TODAY.isoformat()},
+        {"field": "facility_scale_mw", "value": "200", "as_of": TODAY.isoformat()},
+        {"field": "voltage", "value": "208 V, 1 phase", "as_of": TODAY.isoformat()},
+        {"field": "voltage", "value": "480 V, 3 phase", "as_of": TODAY.isoformat()},
+    ]
+    state = project_claim_state(rows, today=TODAY)
+    assert state["facility_scale_mw"]["status"] == "CONFLICT"
+    assert state["voltage"]["status"] == "CONFLICT"
+    assert qualification_veto(state) is None
+
+
 @pytest.mark.parametrize(
     "text",
     [
@@ -234,6 +247,79 @@ def test_explicit_old_as_of_and_numeric_site_reference_are_not_header_framing():
     )
     assert rows[0]["value"] == "cancelled"
     assert rows[0]["as_of"] == "2025-01-01"
+
+
+def test_fort_worth_facility_total_is_typed_separately_from_activity_demand():
+    from gridlens.domain.project_research import extract_retained_permit_claims
+
+    text = (
+        "Project: Edged Energy Outpost Building 2\n"
+        "Work description: 488,628 SF 196MW data center\n"
+        "Owner of record: not stated"
+    )
+    rows = extract_retained_permit_claims(
+        "fort-worth-development-permits",
+        text,
+        activity_key="facility-expansion",
+        as_of=TODAY,
+        today=TODAY,
+    )
+    assert [(row["field"], row["value"], row["quote"]) for row in rows] == [
+        ("facility_scale_mw", "196", "Work description: 488,628 SF 196MW data center")
+    ]
+    assert not any(row["field"] in {"activity_load_mw", "facility_demand_mw"} for row in rows)
+
+
+def test_boston_temporary_electrical_constraints_keep_voltage_without_computing_mw():
+    from gridlens.domain.project_research import extract_retained_permit_claims
+
+    text = (
+        "Description: Electrical\n"
+        "Comments: Provide temporary electrical work required to support Boss steel "
+        "Office trailer 100A 208v 1Ph $5000"
+    )
+    rows = extract_retained_permit_claims(
+        "boston-building-permits",
+        text,
+        activity_key="temporary-power",
+        as_of=TODAY,
+        today=TODAY,
+    )
+    assert [(row["field"], row["value"]) for row in rows] == [("voltage", "208 V, 1 phase")]
+    assert "100A 208v 1Ph" in rows[0]["quote"]
+    assert (
+        extract_retained_permit_claims(
+            "boston-building-permits",
+            text,
+            activity_key="facility-expansion",
+            as_of=TODAY,
+            today=TODAY,
+        )
+        == []
+    )
+
+
+def test_retained_permit_claims_require_a_valid_source_date_and_current_value():
+    from gridlens.domain.project_research import extract_retained_permit_claims
+
+    assert (
+        extract_retained_permit_claims(
+            "fort-worth-development-permits",
+            "Work description: 196 MW data center",
+            activity_key="facility-expansion",
+            as_of=None,
+            today=TODAY,
+        )
+        == []
+    )
+    stale = extract_retained_permit_claims(
+        "fort-worth-development-permits",
+        "Work description: 196 MW data center",
+        activity_key="facility-expansion",
+        as_of=date(2026, 1, 1),
+        today=TODAY,
+    )
+    assert project_claim_state(stale, today=TODAY)["facility_scale_mw"]["status"] == "UNKNOWN"
 
 
 @pytest.mark.parametrize(
