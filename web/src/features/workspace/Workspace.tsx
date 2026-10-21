@@ -211,6 +211,7 @@ export function WorkspaceHome() {
   const update = (next: WorkspaceFilters) => { snapshotList(); pendingRestore.current = null; setFilters(next); writeUrl(next, selected?.id ?? null, undefined, true) }
   const navigate = (nextView: 'opportunities' | 'pursuits' | 'ingestion' | 'signals') => {
     if (nextView === 'ingestion' && view === 'ingestion') return
+    if (nextView === 'opportunities' && view === 'opportunities') return
     if (nextView === 'signals' && view === 'signals') { ++selectionSequence.current; setSelected(null); setPendingNeedId(null); setDetailIdentity(null); setDetailLoading(false); setDetailError(''); dispatchEvent(new Event('gridlens:signals-reset')); return }
     const researchNeed = nextView === 'pursuits' ? selected?.id ?? pendingNeedId ?? commercialNavigation.needId : null
     if (nextView !== view) { ++selectionSequence.current; setSelected(null); setPendingNeedId(null); setDetailIdentity(null); setDetailLoading(false); setDetailError('') }

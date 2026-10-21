@@ -7,7 +7,16 @@ const sectors = [
   ['industrial-and-manufacturing', 'Industrial & manufacturing'], ['construction-and-facilities', 'Construction & facilities'],
   ['healthcare', 'Healthcare'], ['cannabis', 'Cannabis'], ['mining', 'Mining'], ['infrastructure', 'Infrastructure'],
 ] as const
-const sectorAliases: Record<string, string> = { 'oil & gas': 'oil-and-gas', 'oil and gas': 'oil-and-gas', oil: 'oil-and-gas', 'data centers': 'data-centers', healthcare: 'healthcare' }
+const sectorAliases: Record<string, string> = {
+  'data centers': 'data-centers',
+  utilities: 'energy-and-utilities', energy: 'energy-and-utilities',
+  'oil & gas': 'oil-and-gas', 'oil and gas': 'oil-and-gas', oil: 'oil-and-gas',
+  manufacturing: 'industrial-and-manufacturing', 'industrial facilities': 'industrial-and-manufacturing',
+  construction: 'construction-and-facilities', 'commercial construction': 'construction-and-facilities',
+  'commercial facilities': 'construction-and-facilities',
+  healthcare: 'healthcare', cannabis: 'cannabis', 'cannabis cultivation': 'cannabis',
+  mining: 'mining', infrastructure: 'infrastructure',
+}
 const canonicalSector = (value: string) => sectorAliases[value.trim().toLowerCase()] ?? value.trim().toLowerCase()
 const sourceLabel = (id: string) => {
   const acronyms: Record<string, string> = { ccc: 'CCC', dcd: 'DCD', eis: 'EIS', epd: 'EPD', ma: 'MA', mjbizdaily: 'MJBizDaily', nc: 'NC', ogj: 'OGJ', rrc: 'RRC' }

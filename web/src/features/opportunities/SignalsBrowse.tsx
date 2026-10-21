@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { client, OpportunityCohortChangedError, type Opportunity, type OpportunityBrowseFilters, type OpportunityNeedScope, type OpportunityPage } from '../../api/client'
-import { projectTitle, serverProjectCards, signalDecisionCards, signalDisplayDecision, type SignalDisplayDecision } from './projectCards'
+import { projectTitle, serverProjectCards, signalDisplayDecision, type SignalDisplayDecision } from './projectCards'
 
 const pageSize = 25
 type BrowseTier = 'Signal' | 'Prospect' | 'Lead'
@@ -91,7 +91,7 @@ export function SignalsBrowse({ onSelect, onScope, refreshKey = 0 }: { onSelect:
     return () => { controller.abort(); ++expansion.current }
   }, [search, decision, offset, scopeKey, refreshKey])
   const cards = useMemo(() => page ? serverProjectCards(page.items) : [], [page])
-  const visibleCards = useMemo(() => decision === 'ALL' ? cards : signalDecisionCards(cards, decision), [cards, decision])
+  const visibleCards = cards
   const change = (next: Partial<Pick<OpportunityBrowseFilters, 'geography'|'industry'|'activity'|'timing'|'mwStatus'|'mwMin'|'mwMax'|'prioritySegment'|'status'>>) => {
     const updated = { ...filters, ...next }
     if (JSON.stringify(updated) === JSON.stringify(filters)) return
