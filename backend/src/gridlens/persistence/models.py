@@ -725,6 +725,12 @@ class BuyingChainCorrection(Base):
     __tablename__ = "buying_chain_corrections"
     __table_args__ = (
         UniqueConstraint("claim_id", "idempotency_key", name="uq_buying_correction_idempotency"),
+        Index(
+            "ix_buying_correction_project_claim",
+            "project_id",
+            "claim_id",
+            "created_at",
+        ),
     )
     id: Mapped[UUID] = mapped_column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
     project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.id"))
