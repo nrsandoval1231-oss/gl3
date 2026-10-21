@@ -1,5 +1,5 @@
 {
-  "recorded_utc": "2026-10-21T15:16:50.712302+00:00",
+  "recorded_utc": "2026-10-21T15:49:35.112899+00:00",
   "base_dependency": "5ef5f3f29e94fffb071351b61e186d236d40068c",
   "scope": "Raw on-disk frontend source/test bytes used by controller validation; generated artifacts and secrets excluded",
   "sha256": {
@@ -83,9 +83,9 @@
     "web/src/styles/app.css": "11d77722499f23b69f737be548c27236dc068f251bbab3f1128e96b7a5d056f0",
     "web/src/styles/brand-tokens.css": "ead031e1afb9b728d8377d9cada61912116e69b2707cca2a025c557f1634983a",
     "web/src/styles/pursuits.css": "e3a797156cb7b37f35114237bfbd0d4f376e8bb62ffa98043175a6f88b00c7e7",
-    "web/src/styles/workspace.css": "11ddc0302dc486c7431953a9cb6caac18b6fef7ecda069750d14bf99d53a3f0a",
+    "web/src/styles/workspace.css": "fab927604e26ef306cbe92be75dee3899b7d70c17a48c1dc3a826010af27be03",
     "web/tests/README.md": "fab1a5a171faaa04138e33888e9998426865868fcb10a556b7debbf2d4f93f59",
-    "web/tests/approved_workspace.spec.ts": "b1be287781fc0e38fa16b3efddfee1382a7cbe42b770c077fa06ce347fa85f1b",
+    "web/tests/approved_workspace.spec.ts": "be56215a74fa86f845fd993b6bfbe36f8eb0c25f6247615d0b9f1d5fa38efe6a",
     "web/tests/auth.spec.ts": "89f75d7860873b59c41847b9adac16f2166a378f563d692ba0fd11f7c49d25dc",
     "web/tests/autonomous-research.spec.ts": "fcf257e0bbcf4e642b59429ac405601905fab8e487afba1c408baf46b4a34a21",
     "web/tests/briefs.spec.ts": "303e83c4912dd760c05e89a00252c6b763d2a44aa182db13c6e43922cb467c66",

@@ -1,5 +1,5 @@
 {
-  "started_utc": "2026-10-21T15:16:51.052593+00:00",
+  "started_utc": "2026-10-21T15:49:35.402714+00:00",
   "scope": "UI candidate on PR102 dependency; isolated API fixture database; providers disabled",
   "gates": [
     {
@@ -9,7 +9,7 @@
         "audit"
       ],
       "exit_code": 0,
-      "seconds": 1.55,
+      "seconds": 1.69,
       "log": "controller-audit.log"
     },
     {
@@ -20,7 +20,7 @@
         "typecheck"
       ],
       "exit_code": 0,
-      "seconds": 5.8,
+      "seconds": 4.24,
       "log": "controller-typecheck.log"
     },
     {
@@ -31,7 +31,7 @@
         "build"
       ],
       "exit_code": 0,
-      "seconds": 7.59,
+      "seconds": 6.78,
       "log": "controller-build.log"
     },
     {
@@ -44,7 +44,7 @@
         "--workers=2"
       ],
       "exit_code": 0,
-      "seconds": 109.82,
+      "seconds": 85.83,
       "log": "controller-browser.log"
     },
     {
@@ -54,7 +54,7 @@
         "scripts/check_docs.py"
       ],
       "exit_code": 0,
-      "seconds": 0.3,
+      "seconds": 0.36,
       "log": "controller-docs.log"
     },
     {
@@ -65,9 +65,9 @@
         "--check"
       ],
       "exit_code": 0,
-      "seconds": 0.16,
+      "seconds": 0.12,
       "log": "controller-diff.log"
     }
   ],
-  "finished_utc": "2026-10-21T15:18:56.275531+00:00"
+  "finished_utc": "2026-10-21T15:51:14.421262+00:00"
 }

@@ -92,6 +92,17 @@ test('approved intelligence dashboard preserves evidence, verified actions, sele
   expect(geometry.tabs.top).toBeGreaterThanOrEqual(751)
   expect(geometry.tabs.top).toBeLessThanOrEqual(781)
   expect(geometry.table.top).toBeLessThanOrEqual(875)
+  // Wider action labels model platform font metrics without changing production typography.
+  await page.addStyleTag({ content: '.wh-record-actions button { letter-spacing: 3px; }' })
+  const actionGeometry = await page.evaluate(() => {
+    const rect = (selector: string) => document.querySelector(selector)!.getBoundingClientRect()
+    return { actions: rect('.wh-record-actions').toJSON(), toolbar: rect('.wh-identity-toolbar').toJSON(), share: rect('.wh-share').toJSON(), workflow: rect('.wh-primary-action').toJSON(), metrics: rect('.wh-metrics').toJSON() }
+  })
+  expect(actionGeometry.actions.width).toBeGreaterThan(225)
+  expect(actionGeometry.share.top).toBeCloseTo(actionGeometry.workflow.top, 0)
+  expect(actionGeometry.share.right).toBeLessThanOrEqual(actionGeometry.workflow.left)
+  expect(actionGeometry.workflow.right).toBeLessThanOrEqual(1648)
+  expect(actionGeometry.metrics.top).toBeLessThanOrEqual(261)
   await page.locator('[data-need-row="need-a"]').click()
   await page.getByRole('button', { name: 'Evidence', exact: true }).click()
   await page.getByText('Source record', { exact: true }).click()

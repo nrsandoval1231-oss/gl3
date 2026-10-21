@@ -4,9 +4,20 @@
   "viewport": "1648x928",
   "samples": [
     {
-      "need": "d8e25c6b-c09f-4a77-aa3c-ac6cadecbfcc",
-      "clickToCardPaintMs": 253.6,
+      "need": "f15ef925-ad08-4dff-9194-a6b77c6fc5f5",
+      "clickToCardPaintMs": 313.1,
       "responseToObservedPaintMs": 105,
+      "apiGetCount": 3,
+      "paths": [
+        "/api/opportunities/needs/f15ef925-ad08-4dff-9194-a6b77c6fc5f5",
+        "/api/power-needs/f15ef925-ad08-4dff-9194-a6b77c6fc5f5/brief",
+        "/api/power-needs/f15ef925-ad08-4dff-9194-a6b77c6fc5f5/title"
+      ]
+    },
+    {
+      "need": "d8e25c6b-c09f-4a77-aa3c-ac6cadecbfcc",
+      "clickToCardPaintMs": 215.6,
+      "responseToObservedPaintMs": 62,
       "apiGetCount": 3,
       "paths": [
         "/api/opportunities/needs/d8e25c6b-c09f-4a77-aa3c-ac6cadecbfcc",
@@ -16,8 +27,8 @@
     },
     {
       "need": "1903ab34-713b-49cf-905a-f86e37208caf",
-      "clickToCardPaintMs": 198.3,
-      "responseToObservedPaintMs": 73,
+      "clickToCardPaintMs": 232.4,
+      "responseToObservedPaintMs": 77,
       "apiGetCount": 3,
       "paths": [
         "/api/opportunities/needs/1903ab34-713b-49cf-905a-f86e37208caf",
@@ -27,8 +38,8 @@
     },
     {
       "need": "b8add429-0aab-4109-baa7-1c23636873f8",
-      "clickToCardPaintMs": 186.9,
-      "responseToObservedPaintMs": 58,
+      "clickToCardPaintMs": 201.9,
+      "responseToObservedPaintMs": 69,
       "apiGetCount": 3,
       "paths": [
         "/api/opportunities/needs/b8add429-0aab-4109-baa7-1c23636873f8",
@@ -38,8 +49,8 @@
     },
     {
       "need": "d0549955-c920-4ef9-b1f7-d56934834c80",
-      "clickToCardPaintMs": 194.7,
-      "responseToObservedPaintMs": 75,
+      "clickToCardPaintMs": 262.3,
+      "responseToObservedPaintMs": 72,
       "apiGetCount": 3,
       "paths": [
         "/api/opportunities/needs/d0549955-c920-4ef9-b1f7-d56934834c80",
@@ -49,8 +60,8 @@
     },
     {
       "need": "2a7f9194-3934-4e28-823d-0367caeb4b0e",
-      "clickToCardPaintMs": 219.1,
-      "responseToObservedPaintMs": 71,
+      "clickToCardPaintMs": 216.4,
+      "responseToObservedPaintMs": 62,
       "apiGetCount": 3,
       "paths": [
         "/api/opportunities/needs/2a7f9194-3934-4e28-823d-0367caeb4b0e",
@@ -60,8 +71,8 @@
     },
     {
       "need": "d4dea904-7b4e-4e87-8c81-dc8efaf60b75",
-      "clickToCardPaintMs": 196.4,
-      "responseToObservedPaintMs": 77,
+      "clickToCardPaintMs": 165.1,
+      "responseToObservedPaintMs": 34,
       "apiGetCount": 3,
       "paths": [
         "/api/opportunities/needs/d4dea904-7b4e-4e87-8c81-dc8efaf60b75",
@@ -71,8 +82,8 @@
     },
     {
       "need": "3cb22eb7-923d-4b77-8d37-101c80102cfd",
-      "clickToCardPaintMs": 166.4,
-      "responseToObservedPaintMs": 42,
+      "clickToCardPaintMs": 304.6,
+      "responseToObservedPaintMs": 70,
       "apiGetCount": 3,
       "paths": [
         "/api/opportunities/needs/3cb22eb7-923d-4b77-8d37-101c80102cfd",
@@ -82,8 +93,8 @@
     },
     {
       "need": "520f5ae5-7de9-4f43-96c9-4a04804c196c",
-      "clickToCardPaintMs": 248.4,
-      "responseToObservedPaintMs": 42,
+      "clickToCardPaintMs": 255.1,
+      "responseToObservedPaintMs": 89,
       "apiGetCount": 3,
       "paths": [
         "/api/opportunities/needs/520f5ae5-7de9-4f43-96c9-4a04804c196c",
@@ -93,28 +104,17 @@
     },
     {
       "need": "56cc49dc-2e52-4d39-9230-0fad5b1a4e73",
-      "clickToCardPaintMs": 194.1,
-      "responseToObservedPaintMs": 75,
+      "clickToCardPaintMs": 222.4,
+      "responseToObservedPaintMs": 78,
       "apiGetCount": 3,
       "paths": [
         "/api/opportunities/needs/56cc49dc-2e52-4d39-9230-0fad5b1a4e73",
         "/api/power-needs/56cc49dc-2e52-4d39-9230-0fad5b1a4e73/brief",
         "/api/power-needs/56cc49dc-2e52-4d39-9230-0fad5b1a4e73/title"
       ]
-    },
-    {
-      "need": "b6cd1a8c-3b19-4a88-80ab-b8559c974538",
-      "clickToCardPaintMs": 188.1,
-      "responseToObservedPaintMs": 72,
-      "apiGetCount": 3,
-      "paths": [
-        "/api/opportunities/needs/b6cd1a8c-3b19-4a88-80ab-b8559c974538",
-        "/api/power-needs/b6cd1a8c-3b19-4a88-80ab-b8559c974538/brief",
-        "/api/power-needs/b6cd1a8c-3b19-4a88-80ab-b8559c974538/title"
-      ]
     }
   ],
-  "p50Ms": 196.4,
-  "p95Ms": 253.6,
+  "p50Ms": 232.4,
+  "p95Ms": 313.1,
   "renderTriggeredMutations": []
 }

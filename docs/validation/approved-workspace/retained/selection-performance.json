@@ -5,8 +5,8 @@
   "samples": [
     {
       "need": "2a133586-db46-46ef-8343-a658ca8004ab",
-      "clickToCardPaintMs": 2679,
-      "responseToObservedPaintMs": 91,
+      "clickToCardPaintMs": 3201,
+      "responseToObservedPaintMs": 105,
       "apiGetCount": 3,
       "paths": [
         "/api/opportunities/needs/2a133586-db46-46ef-8343-a658ca8004ab",
@@ -16,8 +16,8 @@
     },
     {
       "need": "91340a64-5650-4b7d-95b3-79a9ecd73247",
-      "clickToCardPaintMs": 2689.2,
-      "responseToObservedPaintMs": 65,
+      "clickToCardPaintMs": 2616,
+      "responseToObservedPaintMs": 76,
       "apiGetCount": 3,
       "paths": [
         "/api/opportunities/needs/91340a64-5650-4b7d-95b3-79a9ecd73247",
@@ -27,8 +27,8 @@
     },
     {
       "need": "e7b1b569-6fcd-4380-a730-25106d8d5e60",
-      "clickToCardPaintMs": 2728.1,
-      "responseToObservedPaintMs": 59,
+      "clickToCardPaintMs": 2748.4,
+      "responseToObservedPaintMs": 75,
       "apiGetCount": 3,
       "paths": [
         "/api/opportunities/needs/e7b1b569-6fcd-4380-a730-25106d8d5e60",
@@ -38,8 +38,8 @@
     },
     {
       "need": "727e6676-f55c-40b9-86f0-8f3e844b1ae5",
-      "clickToCardPaintMs": 2745.6,
-      "responseToObservedPaintMs": 70,
+      "clickToCardPaintMs": 2769,
+      "responseToObservedPaintMs": 64,
       "apiGetCount": 3,
       "paths": [
         "/api/opportunities/needs/727e6676-f55c-40b9-86f0-8f3e844b1ae5",
@@ -49,8 +49,8 @@
     },
     {
       "need": "d576b790-6574-4ea8-8c38-6a8c2dd11fb9",
-      "clickToCardPaintMs": 2664.4,
-      "responseToObservedPaintMs": 63,
+      "clickToCardPaintMs": 2958.9,
+      "responseToObservedPaintMs": 65,
       "apiGetCount": 3,
       "paths": [
         "/api/opportunities/needs/d576b790-6574-4ea8-8c38-6a8c2dd11fb9",
@@ -60,8 +60,8 @@
     },
     {
       "need": "7ae6889d-83e3-41f7-8b39-e51c2fdc4c7f",
-      "clickToCardPaintMs": 2768.3,
-      "responseToObservedPaintMs": 62,
+      "clickToCardPaintMs": 3013.3,
+      "responseToObservedPaintMs": 65,
       "apiGetCount": 3,
       "paths": [
         "/api/opportunities/needs/7ae6889d-83e3-41f7-8b39-e51c2fdc4c7f",
@@ -71,8 +71,8 @@
     },
     {
       "need": "2e19e4dc-2ac9-4486-a851-f1c54937b2be",
-      "clickToCardPaintMs": 2579.6,
-      "responseToObservedPaintMs": 71,
+      "clickToCardPaintMs": 2999.4,
+      "responseToObservedPaintMs": 76,
       "apiGetCount": 3,
       "paths": [
         "/api/opportunities/needs/2e19e4dc-2ac9-4486-a851-f1c54937b2be",
@@ -82,8 +82,8 @@
     },
     {
       "need": "80e644b6-d6f7-444f-bc5e-60610bc04972",
-      "clickToCardPaintMs": 2781.7,
-      "responseToObservedPaintMs": 67,
+      "clickToCardPaintMs": 2914.5,
+      "responseToObservedPaintMs": 77,
       "apiGetCount": 3,
       "paths": [
         "/api/opportunities/needs/80e644b6-d6f7-444f-bc5e-60610bc04972",
@@ -93,8 +93,8 @@
     },
     {
       "need": "39811d3b-bce3-4241-801b-e8491c83c72e",
-      "clickToCardPaintMs": 2650.6,
-      "responseToObservedPaintMs": 61,
+      "clickToCardPaintMs": 2950.3,
+      "responseToObservedPaintMs": 67,
       "apiGetCount": 3,
       "paths": [
         "/api/opportunities/needs/39811d3b-bce3-4241-801b-e8491c83c72e",
@@ -104,8 +104,8 @@
     },
     {
       "need": "3e0b24cc-2374-4cb7-a760-8d52810a2466",
-      "clickToCardPaintMs": 2764.1,
-      "responseToObservedPaintMs": 78,
+      "clickToCardPaintMs": 3000.8,
+      "responseToObservedPaintMs": 60,
       "apiGetCount": 3,
       "paths": [
         "/api/opportunities/needs/3e0b24cc-2374-4cb7-a760-8d52810a2466",
@@ -114,7 +114,7 @@
       ]
     }
   ],
-  "p50Ms": 2728.1,
-  "p95Ms": 2781.7,
+  "p50Ms": 2958.9,
+  "p95Ms": 3201,
   "renderTriggeredMutations": []
 }

@@ -10,7 +10,9 @@ UI3 review of05789b3 returned FIX for a combined record/citation count. A fresh 
 
 Sol's bounded PASS on9c03a52 resolved the count issue but retained a minor singular/plural caption finding. A narrow copy correction now uses stable count-label syntax; controller repeated all gates/runtime proof. That prior report is preserved under ignored review-9c03a52.
 
-Next direction VALIDATE: freeze final copy/evidence, then focused independent Sol exact-commit review under packets/APPROVED-UI-REVIEW.md. Ignored REVIEW.json/REVIEW.md and the delivery receipt record subsequent review/PR transitions without changing audited source. A focused stacked draft PR is authorized; merge/deploy are not.
+Sol accepted4b1ce5f with no findings; draft PR103 is published. Both GitHub runs then failed the browser geometry step (166 passed/one failed/one skip) while backend tests and web jobs passed. Terra confirmed a legacy action-width cap caused a38px toolbar wrap under wider font metrics. It removed the caps and added a reproducing width-stress regression without loosening geometry targets. Controller repeated all final gates (167 passes/one skip), the separate persisted case, captures, keyboard and measurements. See packets/APPROVED-UI-CI-GEOMETRY.md and docs/validation/approved-workspace/CI_GEOMETRY.md.
+
+Next direction VALIDATE: freeze repaired source/evidence, obtain fresh exact-commit Sol review, then update PR103 and require green remote CI. Ignored review/delivery receipts record subsequent transitions without changing audited source. Merge/deploy remain unauthorized.
 
 ASSET1 remains open: licensed ABC Diatype binaries and official wordmark master are absent. Owner images are available but contain no installable fonts. Existing SVG wordmark is an approximation; no exact brand parity or finished release claim is made. PR102 retained/live-provider gates and parent cloud/launch gates remain open.
 
