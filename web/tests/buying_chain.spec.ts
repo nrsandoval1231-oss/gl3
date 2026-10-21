@@ -373,6 +373,68 @@ test('workspace overview refresh removes superseded contact action and keeps the
   await expect(page.getByText(correctionNotice, { exact: true })).toBeVisible()
 })
 
+test('late correction response cannot reopen a different selected need', async ({ page }) => {
+  let beginPost!: () => void
+  let releasePost!: () => void
+  const postStarted = new Promise<void>((resolve) => { beginPost = resolve })
+  const postGate = new Promise<void>((resolve) => { releasePost = resolve })
+  const detailReads = { one: 0, two: 0 }
+  let corrected = false
+  await page.route(apiRoute, async (route) => {
+    const request = route.request()
+    const path = new URL(request.url()).pathname
+    if (path === '/api/auth/session') return route.fulfill({ json: { authenticated: true } })
+    if (path === '/api/opportunities/workspace/changes') return route.fulfill({ json: { items: [], counts: { discovered: 0, changed: 0, promoted: 0, closed: 0, review_exception: 0 }, total_unreviewed: 0, offset: 0, limit: 50, next_offset: null, evaluated_at: stamp, baseline_identity: '00000000-0000-4000-8000-000000000001', baseline_reviewed_at: null, first_use: true, token: 'a'.repeat(64), source_health_exceptions: [] } })
+    if (path === '/api/opportunities/workspace') return route.fulfill({ json: { items: [project('one'), project('two')], total: 2, counts: { action_now: 0, research: 2, watch: 0, reject: 0 }, offset: 0, limit: 25, next_offset: null, cohort_token: 'cohort-two' } })
+    const needMatch = path.match(/^\/api\/opportunities\/needs\/(one|two)$/)
+    if (needMatch) {
+      const id = needMatch[1] as 'one' | 'two'
+      detailReads[id] += 1
+      return route.fulfill({ json: project(id) })
+    }
+    if (path.includes('/buying-chain')) {
+      const projectId = path.includes('/two/') ? 'two' : 'one'
+      if (request.method() === 'POST') {
+        beginPost()
+        await postGate
+        corrected = true
+        const body = request.postDataJSON() as { values: Record<string, string> }
+        return route.fulfill({ json: { id: 'late-correction', version: 'v2', action: 'correct', values: body.values, reason: 'Current method is not supported', actor: 'operator', created_at: stamp, reported_contact: false } })
+      }
+      const value = chain(projectId)
+      const candidate = value.candidates![0]
+      candidate.correction_version = corrected ? 'v2' : 'v1'
+      candidate.correction_history = corrected ? [{ id: 'late-correction', action: 'correct', values: { public_contact_kind: 'phone', public_contact_value: '+1 312 555 0199' }, reason: 'Current method is not supported', created_at: stamp, reported_contact: false }] : []
+      candidate.public_contacts = []
+      return route.fulfill({ json: value })
+    }
+    if (path.includes('/power-needs/') && path.endsWith('/title')) return route.fulfill({ json: { status: 'disabled', result: null, citations: [] } })
+    if (path.includes('/power-needs/') && path.endsWith('/brief')) return route.fulfill({ json: { status: 'disabled', result: null, citations: [] } })
+    return route.fulfill({ json: [] })
+  })
+
+  await page.goto('/?view=workspace')
+  await page.locator('[data-need-row="one"]').click()
+  await page.getByRole('button', { name: 'Buying chain', exact: true }).click()
+  const buyingChain = page.getByRole('region', { name: 'Buying chain' })
+  await buyingChain.getByRole('button', { name: 'Correct or retract contact' }).click()
+  await buyingChain.getByLabel('Corrected contact value').fill('+1 312 555 0199')
+  await buyingChain.getByLabel('Current public-contact evidence').selectOption('contact-evidence')
+  await buyingChain.getByLabel('Reason', { exact: true }).fill('Current method is not supported')
+  await buyingChain.getByRole('button', { name: 'Save contact correction' }).click()
+  await postStarted
+
+  await page.locator('[data-need-row="two"]').click()
+  await expect(page.getByRole('heading', { name: 'Test facility two' })).toBeVisible()
+  await expect(page).toHaveURL(/need=two/)
+  const readsAfterSelectingTwo = detailReads.one
+  releasePost()
+  await expect(page.getByRole('heading', { name: 'Test facility two' })).toBeVisible()
+  await expect(page).toHaveURL(/need=two/)
+  await expect.poll(() => detailReads.one).toBe(readsAfterSelectingTwo)
+  await expect(page.getByText(/current public evidence did not confirm the replacement method/)).toHaveCount(0)
+})
+
 test('queued buying-chain job survives reload and polls to a truthful terminal state', async ({ page }) => {
   let reads = 0
   await shell(page, async (route) => {

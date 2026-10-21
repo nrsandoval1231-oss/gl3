@@ -42,11 +42,18 @@ function CorrectionControls({ projectId, candidate, onSaved, onCorrectionOutcome
   const [notice, setNotice] = useState('')
   const [error, setError] = useState('')
   const [pending, setPending] = useState<BuyingChainCorrectionBody | null>(null)
+  const mounted = useRef(true)
+  const liveContext = useRef({ projectId, candidateId: candidate.id })
+  liveContext.current = { projectId, candidateId: candidate.id }
+  useEffect(() => { mounted.current = true; return () => { mounted.current = false } }, [])
   const currentVersion = candidate.correction_version ?? candidate.fingerprint
   const publicSources = (candidate.evidence ?? []).filter((evidence) => evidence.supports === 'public_contact')
 
   async function save(action: 'correct' | 'retract') {
     if (busy || !currentVersion) return
+    const context = { projectId, candidateId: candidate.id }
+    const isCurrent = () => mounted.current && liveContext.current.projectId === context.projectId
+      && liveContext.current.candidateId === context.candidateId
     setBusy(true); setError(''); setNotice('')
     try {
       let body = pending
@@ -67,7 +74,9 @@ function CorrectionControls({ projectId, candidate, onSaved, onCorrectionOutcome
         setPending(body)
       }
       const saved = await client.correctBuyingChain(projectId, candidate.id, body)
+      if (!isCurrent()) return
       const readback = checkedResult(await client.buyingChain(projectId, undefined, true), projectId)
+      if (!isCurrent()) return
       const current = readback.candidates?.find((item) => item.id === candidate.id)
       const confirmed = current?.correction_history?.some((entry) => entry.id === saved.id)
       if (!current || !confirmed || current.correction_version !== saved.version || (action === 'retract' && !current.retracted)) {
@@ -80,8 +89,8 @@ function CorrectionControls({ projectId, candidate, onSaved, onCorrectionOutcome
       onCorrectionOutcome(outcome)
       setPending(null); setValue(''); setReason(''); setNotice(outcome)
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Contact correction failed. Reload project history before retrying.')
-    } finally { setBusy(false) }
+      if (isCurrent()) setError(cause instanceof Error ? cause.message : 'Contact correction failed. Reload project history before retrying.')
+    } finally { if (isCurrent()) setBusy(false) }
   }
 
   return <section className="buying-chain-correction" aria-label={`Contact correction for ${candidate.organization}`}>

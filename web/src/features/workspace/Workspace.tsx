@@ -91,6 +91,12 @@ export function WorkspaceHome() {
   const [changesRevision, setChangesRevision] = useState(0)
   const [signalsRevision, setSignalsRevision] = useState(0)
   const selectionSequence = useRef(0)
+  const selectedNeedContext = useRef<{ needId: string | null; generation: number }>({ needId: null, generation: 0 })
+  function updateSelectedNeedContext(needId: string | null) {
+    if (selectedNeedContext.current.needId !== needId) {
+      selectedNeedContext.current = { needId, generation: selectedNeedContext.current.generation + 1 }
+    }
+  }
   const researchFocus = useRef<HTMLElement | null>(null)
   const signalParams = useRef<URLSearchParams | null>(currentView() === 'signals' ? getParams() : null)
   const lastSelected = useRef<string | null>(null)
@@ -149,6 +155,7 @@ export function WorkspaceHome() {
       setView(currentView())
       if (currentView() === 'pursuits') { setResearchMounted(true); setCommercialNavigation(commercialFromUrl()); requestAnimationFrame(() => researchFocus.current?.focus()) }
       try { id ||= decodeURIComponent(location.hash.slice(1) || '') } catch { setDetailError('The selected power need link is malformed.'); id = '' }
+      updateSelectedNeedContext(id || null)
       const next = currentView() === 'opportunities' ? initialFilters() : filters; pendingRestore.current = null; if (currentView() === 'opportunities') setFilters(next); if (currentView() === 'signals') signalParams.current = getParams()
       setTab(workspaceTabFromParams(p))
       setDetailIdentity(null)
@@ -162,7 +169,7 @@ export function WorkspaceHome() {
     }
     addEventListener('popstate', onPop)
     let initialId = getParams().get('need'); try { initialId ||= decodeURIComponent(location.hash.slice(1) || '') } catch { setDetailError('The selected power need link is malformed.') }
-    if (initialId && !selected && !pendingNeedId) { const row = page?.items.find(item => item.id === initialId); setSelected(row ?? null); setPendingNeedId(row ? null : initialId) }
+    if (initialId && !selected && !pendingNeedId) { updateSelectedNeedContext(initialId); const row = page?.items.find(item => item.id === initialId); setSelected(row ?? null); setPendingNeedId(row ? null : initialId) }
     return () => removeEventListener('popstate', onPop)
   }, [page?.cohort_token])
   const activeNeedId = selected?.id ?? pendingNeedId
@@ -198,6 +205,7 @@ export function WorkspaceHome() {
   const change = (key: keyof WorkspaceFilters, value: string) => { snapshotList(); pendingRestore.current = null; const next = { ...filters, [key]: value || undefined, offset: 0, cohort_token: undefined }; setFilters(next); writeUrl(next, selected?.id ?? null, undefined, true) }
   const select = (item: WorkspaceNeed | null, targetTab: Tab = 'Overview') => {
     if (!item && history.state?.workspaceDetail) { history.back(); return }
+    updateSelectedNeedContext(item?.id ?? null)
     if (!item) { ++selectionSequence.current; setDetailLoading(false); setDetailError('') }
     if (item) { lastSelected.current = item.id; snapshotList(item.id); pendingRestore.current = null }
     if (!item || (correctionOutcome && correctionOutcome.needId !== item.id)) setCorrectionOutcome(null)
@@ -214,9 +222,9 @@ export function WorkspaceHome() {
   const navigate = (nextView: 'opportunities' | 'pursuits' | 'ingestion' | 'signals') => {
     if (nextView === 'ingestion' && view === 'ingestion') return
     if (nextView === 'opportunities' && view === 'opportunities') return
-    if (nextView === 'signals' && view === 'signals') { ++selectionSequence.current; setSelected(null); setPendingNeedId(null); setDetailIdentity(null); setDetailLoading(false); setDetailError(''); dispatchEvent(new Event('gridlens:signals-reset')); return }
+    if (nextView === 'signals' && view === 'signals') { updateSelectedNeedContext(null); ++selectionSequence.current; setSelected(null); setPendingNeedId(null); setDetailIdentity(null); setDetailLoading(false); setDetailError(''); dispatchEvent(new Event('gridlens:signals-reset')); return }
     const researchNeed = nextView === 'pursuits' ? selected?.id ?? pendingNeedId ?? commercialNavigation.needId : null
-    if (nextView !== view) { ++selectionSequence.current; setSelected(null); setPendingNeedId(null); setDetailIdentity(null); setDetailLoading(false); setDetailError('') }
+    if (nextView !== view) { updateSelectedNeedContext(null); ++selectionSequence.current; setSelected(null); setPendingNeedId(null); setDetailIdentity(null); setDetailLoading(false); setDetailError('') }
     setView(nextView)
     if (view === 'signals') signalParams.current = getParams()
     const params = nextView === 'opportunities' ? workspaceParams(filters)
@@ -234,17 +242,29 @@ export function WorkspaceHome() {
     lastSelected.current = need.id
     const row = visiblePage?.items.find(item => item.id === need.id)
     if (row) { select(row); return }
+    updateSelectedNeedContext(need.id)
     setDetailIdentity(null); setSelected(null); setPendingNeedId(need.id); setTab('Overview'); writeUrl(filters, need.id, undefined, true)
+  }
+  const readbackNeedId = selected?.id ?? null
+  const readbackGeneration = selectedNeedContext.current.generation
+  const handleReadback = (notice?: string) => {
+    if (!readbackNeedId || selected?.id !== readbackNeedId
+      || selectedNeedContext.current.needId !== readbackNeedId
+      || selectedNeedContext.current.generation !== readbackGeneration) return
+    if (notice) setCorrectionOutcome({ needId: readbackNeedId, message: notice })
+    setDetailIdentity(null); setSelected(null); setPendingNeedId(readbackNeedId)
+    setRevision(value => value + 1); setChangesRevision(value => value + 1)
+    if (view === 'signals') setSignalsRevision(value => value + 1)
   }
   const position = useMemo(() => (page?.offset ?? 0) + items.length, [page, items])
   if (authenticated === null) return <main className="loading" aria-live="polite">Loading your private workspace…</main>
-  if (!authenticated) return <LoginPage onLogin={async password => { await client.login(password); setPage(null); setError(''); setSelected(null); setAuthenticated(true) }}/>
+  if (!authenticated) return <LoginPage onLogin={async password => { await client.login(password); updateSelectedNeedContext(null); setPage(null); setError(''); setSelected(null); setAuthenticated(true) }}/>
   const header = <header className="wh-header"><a href="/?view=workspace" aria-label="GridLens home"><img src="/brand/lockup-pursuits-v3.svg" alt="GridLens"/></a><nav aria-label="Primary navigation"><button className={view === 'opportunities' ? 'active' : ''} onClick={() => navigate('opportunities')}>Opportunities</button><button className={view === 'pursuits' ? 'active' : ''} onClick={() => navigate('pursuits')}>Research</button><button className={view === 'signals' ? 'active' : ''} onClick={() => navigate('signals')}>Signals</button><button className={view === 'ingestion' ? 'active' : ''} onClick={() => navigate('ingestion')}>Operations</button></nav>{view === 'opportunities' && <label className="wh-global-search"><span>Search</span><input aria-label="Search opportunities" value={filters.search ?? ''} onChange={e => change('search', e.target.value)}/></label>}<button className="wh-signout" onClick={() => void client.logout().then(() => location.reload())}>Sign out</button></header>
   const updateCommercial = (next: CommercialNavigation, push = true) => { if (JSON.stringify(next) === JSON.stringify(commercialNavigation)) return; setCommercialNavigation(next); const params = new URLSearchParams(getParams()); params.set('view', 'pursuits'); writeCommercial(params, next); if (push) history.pushState(history.state, '', `/?${params}`); else history.replaceState(history.state, '', `/?${params}`) }
-  const researchHost = <main className="wh-single-view" hidden={view !== 'pursuits'}>{researchMounted && <><label>Search this page <input aria-label="Search commercial pursuits on this page" value={commercialNavigation.query} onChange={event => updateCommercial({ ...commercialNavigation, query: event.target.value }, false)}/></label><CommercialPursuits navigation={commercialNavigation} onNavigate={updateCommercial} onInvestigate={id => { researchFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null; const params = workspaceParams(filters); params.set('need', id); history.pushState({ ...history.state, workspaceDetail: true }, '', `/?${params}`); setView('opportunities'); setDetailIdentity(null); setSelected(null); setPendingNeedId(id); setTab('Overview') }}/></>}</main>
+  const researchHost = <main className="wh-single-view" hidden={view !== 'pursuits'}>{researchMounted && <><label>Search this page <input aria-label="Search commercial pursuits on this page" value={commercialNavigation.query} onChange={event => updateCommercial({ ...commercialNavigation, query: event.target.value }, false)}/></label><CommercialPursuits navigation={commercialNavigation} onNavigate={updateCommercial} onInvestigate={id => { researchFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null; updateSelectedNeedContext(id); const params = workspaceParams(filters); params.set('need', id); history.pushState({ ...history.state, workspaceDetail: true }, '', `/?${params}`); setView('opportunities'); setDetailIdentity(null); setSelected(null); setPendingNeedId(id); setTab('Overview') }}/></>}</main>
   if (view === 'pursuits') return <div className="workspace-home">{header}{researchHost}</div>
   if (view === 'ingestion') return <div className="workspace-home">{header}{researchHost}<main className="wh-single-view"><OperationsInbox/></main></div>
-  if (view === 'signals') return <div className="workspace-home">{header}{researchHost}<main className="wh-main"><div className="wh-layout"><SignalsBrowse refreshKey={signalsRevision} onSelect={item => openActiveNeed(item)} onScope={scope => { setSignalScope(scope); if (!scope && !getParams().get('need') && !location.hash) { ++selectionSequence.current; setSelected(null); setPendingNeedId(null); setDetailIdentity(null); setDetailLoading(false) } }}/><WorkspaceDetail item={detailItem} pending={Boolean(pendingNeedId)} loading={detailLoading || Boolean(selected && !detailCurrent)} error={detailError} tab={tab} correctionNotice={correctionOutcome?.needId === (selected?.id ?? pendingNeedId) ? correctionOutcome.message : undefined} onTab={next => { setTab(next); if (selected) writeUrl(filters, selected.id, next) }} onBack={() => select(null)} onRetry={() => setRevision(value => value + 1)} onReadback={notice => { if (notice && selected) setCorrectionOutcome({ needId: selected.id, message: notice }); setDetailIdentity(null); setSelected(null); setPendingNeedId(selected?.id ?? null); setRevision(value => value + 1); setChangesRevision(value => value + 1); setSignalsRevision(value => value + 1) }} onTitleReady={() => setRevision(value => value + 1)}/></div></main></div>
+  if (view === 'signals') return <div className="workspace-home">{header}{researchHost}<main className="wh-main"><div className="wh-layout"><SignalsBrowse refreshKey={signalsRevision} onSelect={item => openActiveNeed(item)} onScope={scope => { setSignalScope(scope); if (!scope && !getParams().get('need') && !location.hash) { updateSelectedNeedContext(null); ++selectionSequence.current; setSelected(null); setPendingNeedId(null); setDetailIdentity(null); setDetailLoading(false) } }}/><WorkspaceDetail item={detailItem} pending={Boolean(pendingNeedId)} loading={detailLoading || Boolean(selected && !detailCurrent)} error={detailError} tab={tab} correctionNotice={correctionOutcome?.needId === (selected?.id ?? pendingNeedId) ? correctionOutcome.message : undefined} onTab={next => { setTab(next); if (selected) writeUrl(filters, selected.id, next) }} onBack={() => select(null)} onRetry={() => setRevision(value => value + 1)} onReadback={handleReadback} onTitleReady={() => setRevision(value => value + 1)}/></div></main></div>
   return <div className="workspace-home">
     {header}
     {researchHost}
@@ -263,7 +283,7 @@ export function WorkspaceHome() {
         <div className="wh-queue-list">{items.map(item => { const title = projectTitle(item); return <article className={`wh-queue-item ${selected?.id === item.id ? 'selected' : ''}`} key={item.id}><button className="wh-queue-main" data-need-row={item.id} onClick={() => select(item)}><span className="wh-queue-meta"><b>{item.tier}</b><span className="wh-queue-disposition">{item.commercial_disposition ?? 'Disposition unavailable'}</span><span>{item.location ?? 'Location unknown'}</span><span>{item.activity.replaceAll('-', ' ')}</span></span><strong>{title}</strong>{title !== item.name && <small>Source record: {item.name}</small>}<span className="wh-queue-why">{item.commercial_reason || item.rationale || 'No investigation reason is available.'}</span>{item.rank_reasons?.length ? <small className="wh-priority-reason">Priority {item.rank_score ?? 'unavailable'} · {item.rank_reasons.join('; ')}</small> : null}</button><div className="wh-queue-action"><span>NEXT ACTION</span><button onClick={() => select(item, 'Next steps')}>{item.commercial_next_action || item.commercial_next_question || 'Review retained evidence'}</button><small>{item.required_mw ?? 'Power unknown'} · {item.start_window ?? 'Start unknown'} · {item.duration ?? 'Duration unknown'}</small></div></article> })}</div>
         <footer className="wh-paging"><span>Showing {items.length ? (visiblePage?.offset ?? 0) + 1 : 0}–{pageCurrent ? position : '—'} of {pageCurrent ? visiblePage?.total ?? '—' : '—'}</span><button disabled={!pageCurrent || !visiblePage?.offset} onClick={() => { if (visiblePage) update({ ...filters, offset: Math.max(0, visiblePage.offset - 25), cohort_token: visiblePage.cohort_token }) }}>Previous</button><button disabled={!pageCurrent || visiblePage?.next_offset == null} onClick={() => { if (visiblePage) update({ ...filters, offset: visiblePage.next_offset ?? 0, cohort_token: visiblePage.cohort_token }) }}>Next</button></footer>
       </section>
-      <WorkspaceDetail item={detailItem} pending={Boolean(pendingNeedId)} loading={detailLoading || Boolean(selected && !detailCurrent)} error={detailError} tab={tab} correctionNotice={correctionOutcome?.needId === (selected?.id ?? pendingNeedId) ? correctionOutcome.message : undefined} onTab={next => { setTab(next); if (selected) writeUrl(filters, selected.id, next) }} onBack={() => select(null)} onRetry={() => setRevision(value => value + 1)} onReadback={notice => { if (notice && selected) setCorrectionOutcome({ needId: selected.id, message: notice }); setDetailIdentity(null); setSelected(null); setPendingNeedId(selected?.id ?? null); setRevision(value => value + 1); setChangesRevision(value => value + 1) }} onTitleReady={() => setRevision(value => value + 1)}/>
+      <WorkspaceDetail item={detailItem} pending={Boolean(pendingNeedId)} loading={detailLoading || Boolean(selected && !detailCurrent)} error={detailError} tab={tab} correctionNotice={correctionOutcome?.needId === (selected?.id ?? pendingNeedId) ? correctionOutcome.message : undefined} onTab={next => { setTab(next); if (selected) writeUrl(filters, selected.id, next) }} onBack={() => select(null)} onRetry={() => setRevision(value => value + 1)} onReadback={handleReadback} onTitleReady={() => setRevision(value => value + 1)}/>
       </div>
     </main>
   </div>
