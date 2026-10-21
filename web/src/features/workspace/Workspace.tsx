@@ -72,6 +72,11 @@ export function WorkspaceHome() {
   const [view, setView] = useState(currentView)
   const [researchMounted, setResearchMounted] = useState(() => currentView() === 'pursuits')
   const [signalScope, setSignalScope] = useState<OpportunityNeedScope | null>(null)
+  const signalScopeRef = useRef<OpportunityNeedScope | null>(null)
+  function updateSignalScope(scope: OpportunityNeedScope | null) {
+    signalScopeRef.current = scope
+    setSignalScope(scope)
+  }
   const [commercialNavigation, setCommercialNavigation] = useState<CommercialNavigation>(() => currentView() === 'pursuits' ? commercialFromUrl() : defaultCommercialNavigation)
   const [authenticated, setAuthenticated] = useState<boolean | null>(null)
   const [filters, setFilters] = useState<WorkspaceFilters>(() => currentView() === 'opportunities' ? initialFilters() : { sort: 'priority', offset: 0 })
@@ -190,7 +195,7 @@ export function WorkspaceHome() {
       setDetailLoading(false)
     }).catch((error: Error) => { if (!controller.signal.aborted && sequence === selectionSequence.current) {
       if (error instanceof OpportunityCohortChangedError && view === 'signals') {
-        setDetailIdentity(null); setSelected(null); setPendingNeedId(needId); setSignalScope(null); setSignalsRevision(value => value + 1)
+        setDetailIdentity(null); setSelected(null); setPendingNeedId(needId); updateSignalScope(null); setSignalsRevision(value => value + 1)
         setDetailError('The Signal cohort changed. Refreshing the current results before reopening this need.')
       } else {
         if (error instanceof OpportunityNeedUnavailableError) { setSelected(null); setPendingNeedId(null); writeUrl(filters, null) }
@@ -247,14 +252,19 @@ export function WorkspaceHome() {
   }
   const readbackNeedId = selected?.id ?? null
   const readbackGeneration = selectedNeedContext.current.generation
+  const readbackSignalScope = signalScopeRef.current
   const handleReadback = (notice?: string) => {
     if (!readbackNeedId || selected?.id !== readbackNeedId
       || selectedNeedContext.current.needId !== readbackNeedId
-      || selectedNeedContext.current.generation !== readbackGeneration) return
+      || selectedNeedContext.current.generation !== readbackGeneration
+      || (view === 'signals' && signalScopeRef.current !== readbackSignalScope)) return
     if (notice) setCorrectionOutcome({ needId: readbackNeedId, message: notice })
+    if (view === 'signals') {
+      updateSignalScope(null)
+      setSignalsRevision(value => value + 1)
+    }
     setDetailIdentity(null); setSelected(null); setPendingNeedId(readbackNeedId)
     setRevision(value => value + 1); setChangesRevision(value => value + 1)
-    if (view === 'signals') setSignalsRevision(value => value + 1)
   }
   const position = useMemo(() => (page?.offset ?? 0) + items.length, [page, items])
   if (authenticated === null) return <main className="loading" aria-live="polite">Loading your private workspace…</main>
@@ -264,7 +274,7 @@ export function WorkspaceHome() {
   const researchHost = <main className="wh-single-view" hidden={view !== 'pursuits'}>{researchMounted && <><label>Search this page <input aria-label="Search commercial pursuits on this page" value={commercialNavigation.query} onChange={event => updateCommercial({ ...commercialNavigation, query: event.target.value }, false)}/></label><CommercialPursuits navigation={commercialNavigation} onNavigate={updateCommercial} onInvestigate={id => { researchFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null; updateSelectedNeedContext(id); const params = workspaceParams(filters); params.set('need', id); history.pushState({ ...history.state, workspaceDetail: true }, '', `/?${params}`); setView('opportunities'); setDetailIdentity(null); setSelected(null); setPendingNeedId(id); setTab('Overview') }}/></>}</main>
   if (view === 'pursuits') return <div className="workspace-home">{header}{researchHost}</div>
   if (view === 'ingestion') return <div className="workspace-home">{header}{researchHost}<main className="wh-single-view"><OperationsInbox/></main></div>
-  if (view === 'signals') return <div className="workspace-home">{header}{researchHost}<main className="wh-main"><div className="wh-layout"><SignalsBrowse refreshKey={signalsRevision} onSelect={item => openActiveNeed(item)} onScope={scope => { setSignalScope(scope); if (!scope && !getParams().get('need') && !location.hash) { updateSelectedNeedContext(null); ++selectionSequence.current; setSelected(null); setPendingNeedId(null); setDetailIdentity(null); setDetailLoading(false) } }}/><WorkspaceDetail item={detailItem} pending={Boolean(pendingNeedId)} loading={detailLoading || Boolean(selected && !detailCurrent)} error={detailError} tab={tab} correctionNotice={correctionOutcome?.needId === (selected?.id ?? pendingNeedId) ? correctionOutcome.message : undefined} onTab={next => { setTab(next); if (selected) writeUrl(filters, selected.id, next) }} onBack={() => select(null)} onRetry={() => setRevision(value => value + 1)} onReadback={handleReadback} onTitleReady={() => setRevision(value => value + 1)}/></div></main></div>
+  if (view === 'signals') return <div className="workspace-home">{header}{researchHost}<main className="wh-main"><div className="wh-layout"><SignalsBrowse refreshKey={signalsRevision} onSelect={item => openActiveNeed(item)} onScope={scope => { updateSignalScope(scope); if (!scope && !getParams().get('need') && !location.hash) { updateSelectedNeedContext(null); ++selectionSequence.current; setSelected(null); setPendingNeedId(null); setDetailIdentity(null); setDetailLoading(false) } }}/><WorkspaceDetail item={detailItem} pending={Boolean(pendingNeedId)} loading={detailLoading || Boolean(selected && !detailCurrent)} error={detailError} tab={tab} correctionNotice={correctionOutcome?.needId === (selected?.id ?? pendingNeedId) ? correctionOutcome.message : undefined} onTab={next => { setTab(next); if (selected) writeUrl(filters, selected.id, next) }} onBack={() => select(null)} onRetry={() => setRevision(value => value + 1)} onReadback={handleReadback} onTitleReady={() => setRevision(value => value + 1)}/></div></main></div>
   return <div className="workspace-home">
     {header}
     {researchHost}

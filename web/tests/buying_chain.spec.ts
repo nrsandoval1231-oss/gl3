@@ -87,7 +87,7 @@ test('buying chain exposes three separate relationships and retains evidence aft
   await expect(section.getByText('Person → project')).toBeVisible()
   await expect(section.getByText('Role-supported · project assignment unknown', { exact: true })).toBeVisible()
   await expect(section.getByText('Public business contact details unknown')).toBeVisible()
-  await section.getByText('Inspect relationship evidence (1)').click()
+  await section.getByText('Inspect relationship evidence (2)').click()
   await expect(section.getByText('Test Electrical is the electrical contractor.')).toBeVisible()
   await section.getByRole('button', { name: 'Enrich buying chain' }).click()
   await expect(section.getByRole('alert')).toContainText('Previously retained findings remain below')
@@ -271,9 +271,10 @@ test('a historical stale correction can be repaired using fresh evidence', async
   await section.getByLabel('Reason', { exact: true }).fill('Verified from current contact page')
   await section.getByRole('button', { name: 'Save contact correction' }).click()
   await expect.poll(() => saved).toBe(true)
-  await expect(section.getByText(/Contact correction confirmed against current public evidence/)).toBeVisible()
+  await expect(page.getByText(/Contact correction confirmed against current public evidence/)).toBeVisible()
   await expect(section.getByText('phone: +1 312 555 0199', { exact: false })).toBeVisible()
   await expect(section.getByText('phone: +1 312 555 0100', { exact: false })).toHaveCount(0)
+  await section.getByRole('button', { name: 'Correct or retract contact' }).click()
   await expect(section.getByRole('button', { name: 'Save contact correction' })).toBeEnabled()
 })
 
@@ -313,7 +314,7 @@ test('contact correction readback reports an unverified replacement without rest
   await section.getByLabel('Reason', { exact: true }).fill('Record reviewed value')
   await section.getByRole('button', { name: 'Save contact correction' }).click()
   await expect.poll(() => saved).toBe(true)
-  await expect(section.getByRole('status')).toContainText('current public evidence did not confirm')
+  await expect(page.getByText(/current public evidence did not confirm the replacement method/)).toBeVisible()
   await expect(section.getByText('phone: +1 312 555 0100', { exact: false })).toHaveCount(0)
   await expect(section.getByRole('link', { name: /Call|Email/ })).toHaveCount(0)
 })
@@ -421,6 +422,7 @@ test('late correction response cannot reopen a different selected need', async (
   await buyingChain.getByLabel('Corrected contact value').fill('+1 312 555 0199')
   await buyingChain.getByLabel('Current public-contact evidence').selectOption('contact-evidence')
   await buyingChain.getByLabel('Reason', { exact: true }).fill('Current method is not supported')
+  const postResponsePromise = page.waitForResponse((response) => response.request().method() === 'POST' && response.url().includes('/buying-chain/'))
   await buyingChain.getByRole('button', { name: 'Save contact correction' }).click()
   await postStarted
 
@@ -429,9 +431,80 @@ test('late correction response cannot reopen a different selected need', async (
   await expect(page).toHaveURL(/need=two/)
   const readsAfterSelectingTwo = detailReads.one
   releasePost()
+  const postResponse = await postResponsePromise
+  expect(postResponse.ok()).toBeTruthy()
+  await postResponse.finished()
+  await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())))
   await expect(page.getByRole('heading', { name: 'Test facility two' })).toBeVisible()
   await expect(page).toHaveURL(/need=two/)
   await expect.poll(() => detailReads.one).toBe(readsAfterSelectingTwo)
+  await expect(page.getByText(/current public evidence did not confirm the replacement method/)).toHaveCount(0)
+})
+
+test('late correction readback cannot reopen a need after navigating back', async ({ page }) => {
+  let beginReadback!: () => void
+  let releaseReadback!: () => void
+  const readbackStarted = new Promise<void>((resolve) => { beginReadback = resolve })
+  const readbackGate = new Promise<void>((resolve) => { releaseReadback = resolve })
+  let detailReads = 0
+  let corrected = false
+  await page.route(apiRoute, async (route) => {
+    const request = route.request()
+    const path = new URL(request.url()).pathname
+    if (path === '/api/auth/session') return route.fulfill({ json: { authenticated: true } })
+    if (path === '/api/opportunities/workspace/changes') return route.fulfill({ json: { items: [], counts: { discovered: 0, changed: 0, promoted: 0, closed: 0, review_exception: 0 }, total_unreviewed: 0, offset: 0, limit: 50, next_offset: null, evaluated_at: stamp, baseline_identity: '00000000-0000-4000-8000-000000000001', baseline_reviewed_at: null, first_use: true, token: 'a'.repeat(64), source_health_exceptions: [] } })
+    if (path === '/api/opportunities/workspace') return route.fulfill({ json: { items: [project('one')], total: 1, counts: { action_now: 0, research: 1, watch: 0, reject: 0 }, offset: 0, limit: 25, next_offset: null, cohort_token: 'cohort-one' } })
+    if (path === '/api/opportunities/needs/one') { detailReads += 1; return route.fulfill({ json: project('one') }) }
+    if (path.includes('/buying-chain')) {
+      if (request.method() === 'POST') {
+        corrected = true
+        const body = request.postDataJSON() as { values: Record<string, string> }
+        return route.fulfill({ json: { id: 'back-correction', version: 'v2', action: 'correct', values: body.values, reason: 'Current method is not supported', actor: 'operator', created_at: stamp, reported_contact: false } })
+      }
+      const url = new URL(request.url())
+      if (url.searchParams.get('history') === 'true') {
+        beginReadback()
+        await readbackGate
+      }
+      const value = chain('one')
+      const candidate = value.candidates![0]
+      candidate.correction_version = corrected ? 'v2' : 'v1'
+      candidate.correction_history = corrected ? [{ id: 'back-correction', action: 'correct', values: { public_contact_kind: 'phone', public_contact_value: '+1 312 555 0199' }, reason: 'Current method is not supported', created_at: stamp, reported_contact: false }] : []
+      candidate.public_contacts = []
+      return route.fulfill({ json: value })
+    }
+    if (path.includes('/power-needs/') && path.endsWith('/title')) return route.fulfill({ json: { status: 'disabled', result: null, citations: [] } })
+    if (path.includes('/power-needs/') && path.endsWith('/brief')) return route.fulfill({ json: { status: 'disabled', result: null, citations: [] } })
+    return route.fulfill({ json: [] })
+  })
+
+  await page.goto('/?view=workspace')
+  await page.locator('[data-need-row="one"]').click()
+  await page.getByRole('button', { name: 'Buying chain', exact: true }).click()
+  const buyingChain = page.getByRole('region', { name: 'Buying chain' })
+  await buyingChain.getByRole('button', { name: 'Correct or retract contact' }).click()
+  await buyingChain.getByLabel('Corrected contact value').fill('+1 312 555 0199')
+  await buyingChain.getByLabel('Current public-contact evidence').selectOption('contact-evidence')
+  await buyingChain.getByLabel('Reason', { exact: true }).fill('Current method is not supported')
+  const readbackResponsePromise = page.waitForResponse((response) => response.request().method() === 'GET'
+    && response.url().includes('/buying-chain') && new URL(response.url()).searchParams.get('history') === 'true')
+  await buyingChain.getByRole('button', { name: 'Save contact correction' }).click()
+  await readbackStarted
+
+  await page.getByRole('button', { name: /Back to power needs/ }).click()
+  await expect(page.getByRole('heading', { name: 'Your pursuits' })).toBeVisible()
+  await expect(page).not.toHaveURL(/need=one/)
+  const readsAfterBack = detailReads
+  releaseReadback()
+  const readbackResponse = await readbackResponsePromise
+  expect(readbackResponse.ok()).toBeTruthy()
+  expect(await readbackResponse.finished()).toBeNull()
+  const result = await readbackResponse.json() as BuyingChainResult
+  expect(result.candidates?.[0].correction_history?.[0].id).toBe('back-correction')
+  await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())))
+  await expect(page.getByRole('heading', { name: 'Your pursuits' })).toBeVisible()
+  await expect(page).not.toHaveURL(/need=one/)
+  expect(detailReads).toBe(readsAfterBack)
   await expect(page.getByText(/current public evidence did not confirm the replacement method/)).toHaveCount(0)
 })
 
