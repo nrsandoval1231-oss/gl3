@@ -34,7 +34,9 @@ export function WorkspaceDetail({ item, pending, loading, error, tab, onTab, onB
   const [brief, setBrief] = useState<Brief | null>(null)
   const [briefBusy, setBriefBusy] = useState(false)
   const [briefError, setBriefError] = useState('')
+  const [briefPollRevision, setBriefPollRevision] = useState(0)
   const activeBriefNeedId = useRef<string | null>(null)
+  const briefRequestSequence = useRef(0)
   const [titleState, setTitleState] = useState<PowerNeedTitle | null>(null)
   const [titleBusyNeedId, setTitleBusyNeedId] = useState<string | null>(null)
   const [titleStatusBusyNeedId, setTitleStatusBusyNeedId] = useState<string | null>(null)
@@ -47,30 +49,33 @@ export function WorkspaceDetail({ item, pending, loading, error, tab, onTab, onB
   useEffect(() => { onTitleReadyRef.current = onTitleReady }, [onTitleReady])
   useEffect(() => {
     const id = item?.id
+    const sequence = ++briefRequestSequence.current
     activeBriefNeedId.current = id ?? null
     setBrief(null)
+    setBriefBusy(false)
     setBriefError('')
     if (!id) return
     let cancelled = false
-    void client.brief(id).then(value => { if (!cancelled && activeBriefNeedId.current === id) setBrief(value) })
-      .catch((cause: unknown) => { if (!cancelled) setBriefError(cause instanceof Error ? cause.message : 'Brief status is unavailable.') })
+    void client.brief(id).then(value => { if (!cancelled && briefRequestSequence.current === sequence && activeBriefNeedId.current === id) setBrief(value) })
+      .catch((cause: unknown) => { if (!cancelled && briefRequestSequence.current === sequence && activeBriefNeedId.current === id) setBriefError(cause instanceof Error ? cause.message : 'Brief status is unavailable.') })
     return () => { cancelled = true }
   }, [item?.id])
   useEffect(() => {
     if (!item?.id || brief?.status !== 'pending') return
     const id = item.id
+    const sequence = briefRequestSequence.current
     let cancelled = false
     let timer = 0
     const poll = () => { timer = window.setTimeout(() => {
       void client.brief(id).then(value => {
-        if (cancelled || activeBriefNeedId.current !== id) return
+        if (cancelled || briefRequestSequence.current !== sequence || activeBriefNeedId.current !== id) return
         setBrief(value)
         if (value.status === 'pending') poll()
-      }).catch((cause: unknown) => { if (!cancelled) setBriefError(cause instanceof Error ? cause.message : 'Brief status is unavailable.') })
+      }).catch((cause: unknown) => { if (!cancelled && briefRequestSequence.current === sequence && activeBriefNeedId.current === id) setBriefError(cause instanceof Error ? cause.message : 'Brief status is unavailable.') })
     }, 1600) }
     poll()
     return () => { cancelled = true; window.clearTimeout(timer) }
-  }, [item?.id, brief?.status])
+  }, [item?.id, brief?.status, briefPollRevision])
   useEffect(() => {
     const id = item?.id
     const sequence = ++titleRequestSequence.current
@@ -169,13 +174,14 @@ export function WorkspaceDetail({ item, pending, loading, error, tab, onTab, onB
   async function requestBrief() {
     if (!item) return
     const id = item.id
+    const sequence = ++briefRequestSequence.current
     setBriefBusy(true); setBriefError('')
     try {
       const value = await client.requestBrief(id)
-      if (activeBriefNeedId.current === id) setBrief(value)
+      if (briefRequestSequence.current === sequence && activeBriefNeedId.current === id) setBrief(value)
     } catch (cause) {
-      if (activeBriefNeedId.current === id) setBriefError(cause instanceof Error ? cause.message : 'GridLens could not request a brief.')
-    } finally { if (activeBriefNeedId.current === id) setBriefBusy(false) }
+      if (briefRequestSequence.current === sequence && activeBriefNeedId.current === id) setBriefError(cause instanceof Error ? cause.message : 'GridLens could not request a brief.')
+    } finally { if (briefRequestSequence.current === sequence && activeBriefNeedId.current === id) setBriefBusy(false) }
   }
   const briefContent = brief?.result as { event_summary?: { text: string; evidence_id: string }[]; commercial_hypothesis?: { text: string; evidence_id: string }; unknowns?: string[]; next_step?: string } | null
   const briefStatements = [...(briefContent?.event_summary ?? []), ...(briefContent?.commercial_hypothesis ? [briefContent.commercial_hypothesis] : [])]
@@ -293,6 +299,7 @@ export function WorkspaceDetail({ item, pending, loading, error, tab, onTab, onB
         <section className="wh-panel wh-brief-panel" aria-label="Concise evidence brief">
           <div className="wh-briefing-head"><div><p className="wh-kicker">AI-assisted · source cited</p><h3>Concise evidence brief</h3></div><span>{brief?.status === 'pending' ? 'Generation pending' : brief?.status === 'stale' ? 'Stale evidence' : brief?.status === 'failed' ? 'Latest request failed' : brief?.generated_at ? `Generated ${new Date(brief.generated_at).toLocaleString()}` : 'Not generated'}</span></div>
           {brief?.status === 'pending' && <p role="status">Generating from retained public evidence…</p>}{briefError && <p role="alert">{briefError}</p>}
+          {brief?.status === 'pending' && briefError && <button type="button" onClick={() => { setBriefError(''); setBriefPollRevision(value => value + 1) }}>Retry brief status</button>}
           {brief?.error && <p role="status">The last request could not produce a new brief. Any displayed brief is the last successfully generated version.</p>}{brief?.stale && <p role="status">Source evidence or brief settings changed after generation. This cached text is stale.</p>}
           {brief?.question_context === 'different_question' && <p role="status">This saved answer was prepared for a different question. Review the exact-question result in Research.</p>}
           {briefStatements.map((statement, i) => { const citation = brief?.citations?.find(entry => entry.evidence_id === statement.evidence_id); return <p key={`${statement.evidence_id}-${i}`}>{statement.text} {citation && <a href={citation.url} target="_blank" rel="noreferrer">[{citation.title}]</a>}</p> })}

@@ -9,7 +9,7 @@ const categories = [
   ['review_exception', 'Review exception'],
 ] as const
 
-export function WorkspaceChanges({ onSelectActiveNeed }: { onSelectActiveNeed: (need: WorkspaceChangeNeed) => void }) {
+export function WorkspaceChanges({ onSelectActiveNeed, revision }: { onSelectActiveNeed: (need: WorkspaceChangeNeed) => void; revision: number }) {
   const [offset, setOffset] = useState(0)
   const [reload, setReload] = useState(0)
   const [result, setResult] = useState<WorkspaceChanges | null>(null)
@@ -20,17 +20,22 @@ export function WorkspaceChanges({ onSelectActiveNeed }: { onSelectActiveNeed: (
   const [history, setHistory] = useState<WorkspaceHistoricalNeed | null>(null)
   const [historyError, setHistoryError] = useState('')
   const historySequence = useRef(0)
+  const lastRevision = useRef(revision)
 
   useEffect(() => {
     const controller = new AbortController()
+    const revisionChanged = lastRevision.current !== revision
+    const requestOffset = revisionChanged ? 0 : offset
+    lastRevision.current = revision
+    if (revisionChanged && offset !== 0) setOffset(0)
     setLoading(true); setError(''); setResult(null)
-    void client.workspaceChanges(50, offset, controller.signal).then(value => {
+    void client.workspaceChanges(50, requestOffset, controller.signal).then(value => {
       if (!controller.signal.aborted) setResult(value)
     }).catch((failure: Error) => {
       if (!controller.signal.aborted) setError(failure.message)
     }).finally(() => { if (!controller.signal.aborted) setLoading(false) })
     return () => controller.abort()
-  }, [offset, reload])
+  }, [offset, reload, revision])
 
   useEffect(() => {
     if (!historyNeedId) { setHistory(null); setHistoryError(''); return }
@@ -54,10 +59,10 @@ export function WorkspaceChanges({ onSelectActiveNeed }: { onSelectActiveNeed: (
         limit: result.limit,
         offset: result.offset,
       })
+      setOffset(0)
       setReload(value => value + 1)
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : 'Could not mark the displayed changes reviewed.')
-      setReload(value => value + 1)
     } finally { setReviewing(false) }
   }
 

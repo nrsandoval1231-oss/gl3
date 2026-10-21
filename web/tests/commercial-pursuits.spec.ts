@@ -263,14 +263,29 @@ test('commercial queue filters backend states, exposes UNKNOWN, and saves target
 test('source health operations disclosure keeps readable contrast in the commercial workspace', async ({ page }) => {
   await useCommercialFixture(page)
   await page.route('**/api/health', (route) => route.fulfill({ json: { sources: [], backlog: 0, pending_interpretations: 0 } }))
+  await page.route('**/api/ingestion?*', (route) => route.fulfill({ json: { items: [], total: 0, limit: 25, offset: 0 } }))
+  await page.route('**/api/intelligence/operations', (route) => route.fulfill({ json: {
+    sources: [],
+    queue: { by_kind_status: {}, oldest_queued_at: null, retried_jobs_30d: 0, failed_after_three_attempts_30d: 0 },
+    providers: {
+      utc_day: { date: '2026-10-21', timezone: 'UTC', calls: 0, known_cost_usd: null, reserved_cost_usd: null, reserved_known_subtotal_usd: 0, unknown_cost_calls: 0, daily_budget_status: 'UNKNOWN', daily_budget_rows: [], daily_budget_limits_usd: { global: 0 }, daily_budget_limits_calls: { global: 0 } },
+      configured: {}, enabled: {}, by_provider: [], reserved_cost_usd: null, reserved_known_subtotal_usd: 0, known_cost_usd: null, known_cost_calls: 0, unknown_cost_calls_all_time: 0, total_cost_status: 'UNKNOWN', detail_rows_30d: 0, detail_truncated: false, outstanding_uncertain_calls_all_time: 0, uncertain_calls: 0, accepted: null, accepted_reason: 'No measured calls.',
+    },
+    questions: { outcomes_30d: {} }, material_changes_30d: null, reviewed_signals: null, independent_leads: null, backup: 'UNKNOWN', restore: 'UNKNOWN', last_verified_restore_at: null, last_reported_restore_at: null, operational_receipt: {},
+    commercial_review_receipt: { status: 'UNKNOWN', reported_case_count: null, decision_counts: null, reviewer: null, reviewed_at: null, sample_sha256: null, context_sha256: null, cases: [], independent_labels: 'UNKNOWN', quality_verification: 'UNKNOWN', acceptance: 'UNKNOWN' },
+    owner_review_notes_30d: 0,
+  } }))
   await page.goto('/?view=ingestion')
 
   const panel = page.locator('.wh-panel').filter({ has: page.getByRole('heading', { name: 'Source health' }) })
   await expect(panel.getByRole('heading', { name: 'Source health' })).toBeVisible()
   const operations = panel.locator('.intelligence-operations')
   await expect(operations.locator('summary')).toBeVisible()
-  await operations.locator('summary').click()
   await expect(operations.locator('p').first()).toContainText('Read-only status for saved jobs')
+  expect(await contrastRatio(operations.locator('summary'))).toBeGreaterThanOrEqual(4.5)
+  expect(await contrastRatio(operations.locator('p').first())).toBeGreaterThanOrEqual(4.5)
+  await operations.locator('summary').click()
+  await expect(operations.getByText('No queue rows were found in the bounded window.', { exact: true })).toBeVisible()
   expect(await contrastRatio(operations.locator('summary'))).toBeGreaterThanOrEqual(4.5)
   expect(await contrastRatio(operations.locator('p').first())).toBeGreaterThanOrEqual(4.5)
 })

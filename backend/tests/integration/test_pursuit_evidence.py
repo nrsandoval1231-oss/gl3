@@ -415,6 +415,100 @@ def test_retained_buying_chain_job_reads_and_cites_its_fifth_current_document(
         )
 
 
+def test_retained_buying_chain_failed_digest_has_one_durable_replacement(research_db):
+    from gridlens.intelligence.buying_chain import (
+        enqueue_retained_buying_chain_research,
+        retained_buying_chain_backfill,
+    )
+
+    factory, source, _job_id = research_db
+    with factory.begin() as session:
+        project = Project(
+            source_id=source["id"],
+            external_id="retained-retry-test",
+            name="Synthetic Retained Retry Project",
+            location="Austin, TX",
+            identity_key="synthetic-retained-retry-project",
+        )
+        session.add(project)
+        session.flush()
+        need = PowerNeed(
+            project_id=project.id,
+            activity_key="construction",
+            tier="Signal",
+            rationale="Synthetic retry test need",
+            supply="Unknown",
+        )
+        session.add(need)
+        session.flush()
+        observation = Observation(
+            source_id=source["id"],
+            external_id="retained-retry-observation",
+            title="Synthetic retained retry evidence",
+            url="https://example.test/retained-retry",
+            abstract="Synthetic project construction evidence in Austin, TX.",
+            content_hash="retained-retry-hash",
+        )
+        session.add(observation)
+        session.flush()
+        evidence = Evidence(
+            observation_id=observation.id,
+            title=observation.title,
+            url=observation.url,
+            abstract=observation.abstract,
+            content_hash=observation.content_hash,
+            observed_at=datetime.now(UTC),
+        )
+        session.add(evidence)
+        session.add(NeedObservation(observation_id=observation.id, need_id=need.id))
+        session.add(
+            Interpretation(
+                observation_id=observation.id,
+                content_hash=observation.content_hash,
+                status="accepted",
+                evaluator_version="research-policy-v1",
+                assessment={
+                    "decision": "accepted",
+                    "evidence_hash": observation.content_hash,
+                    "project_identity_key": project.identity_key,
+                    "admission_status": "supplemental",
+                },
+            )
+        )
+        session.flush()
+
+        initial = enqueue_retained_buying_chain_research(
+            session, project.id, evidence.id, evidence.content_hash
+        )
+        assert initial is not None and initial.status == "queued"
+        assert (
+            enqueue_retained_buying_chain_research(
+                session, project.id, evidence.id, evidence.content_hash
+            )
+            is initial
+        )
+        initial.status = "failed"
+        initial.attempts = 5
+
+        replacement = enqueue_retained_buying_chain_research(
+            session, project.id, evidence.id, evidence.content_hash
+        )
+        assert replacement is not None and replacement.id != initial.id
+        assert replacement.status == "queued" and replacement.attempts == 0
+        assert retained_buying_chain_backfill(session, limit=1, enqueue=True)["queued_count"] == 1
+        replacement.status = "failed"
+        replacement.attempts = 5
+
+        exhausted = enqueue_retained_buying_chain_research(
+            session, project.id, evidence.id, evidence.content_hash
+        )
+        assert exhausted is not None and exhausted.status == "failed"
+        assert exhausted.id in {initial.id, replacement.id}
+        result = retained_buying_chain_backfill(session, limit=1, enqueue=True)
+        assert result["queued_count"] == 0
+        assert result["candidates"][0]["job_status"] == "failed"
+
+
 def seed(factory, source, job_id):
     with factory.begin() as session:
         process_records(

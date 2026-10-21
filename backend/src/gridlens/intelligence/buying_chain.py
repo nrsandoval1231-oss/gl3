@@ -366,15 +366,28 @@ def enqueue_retained_buying_chain_research(
             Job.checkpoint.contains(request_digest),
         )
         .order_by(Job.created_at.desc(), Job.id.desc())
-        .limit(1)
     ).all()
-    if prior_jobs:
+    matching_jobs = []
+    for prior_job in prior_jobs:
         try:
-            prior_checkpoint = json.loads(prior_jobs[0].checkpoint or "{}")
+            prior_checkpoint = json.loads(prior_job.checkpoint or "{}")
         except (TypeError, ValueError):
             prior_checkpoint = {}
         if prior_checkpoint.get("request_digest") == request_digest:
-            return prior_jobs[0]
+            matching_jobs.append(prior_job)
+    if matching_jobs:
+        # Active/successful work remains idempotent. Permit one replacement job
+        # after a failed row, but count every historical row for this exact digest
+        # so repeated ingestion cannot reset the queue's per-row attempt ceiling.
+        reusable = next(
+            (job for job in matching_jobs if job.status in {"queued", "running", "succeeded"}),
+            None,
+        )
+        if reusable is not None:
+            return reusable
+        latest = matching_jobs[0]
+        if latest.status != "failed" or len(matching_jobs) >= 2:
+            return latest
     job = Job(
         source_id=project.source_id,
         kind=BUYING_CHAIN_JOB_KIND,
@@ -422,6 +435,8 @@ def retained_buying_chain_backfill(
         query = query.where(Project.id > after_project_id)
     projects = session.scalars(query).all()
     candidates: list[dict[str, Any]] = []
+    queued_count = 0
+    now = datetime.now(UTC)
     for project in projects:
         evidence = next(iter(_retained(session, project)), None)
         if evidence is None:
@@ -444,6 +459,18 @@ def retained_buying_chain_backfill(
             if enqueue
             else None
         )
+        if job is not None and job.attempts < 5 and job.available_at is not None:
+            available_at = job.available_at
+            if available_at.tzinfo is None:
+                available_at = available_at.replace(tzinfo=UTC)
+            lease_until = job.lease_until
+            if lease_until is not None and lease_until.tzinfo is None:
+                lease_until = lease_until.replace(tzinfo=UTC)
+            if available_at <= now and (
+                job.status == "queued"
+                or (job.status == "running" and lease_until is not None and lease_until < now)
+            ):
+                queued_count += 1
         candidates.append(
             {
                 "project_id": str(project.id),
@@ -457,7 +484,7 @@ def retained_buying_chain_backfill(
     return {
         "scanned_projects": len(projects),
         "candidate_count": len(candidates),
-        "queued_count": sum(bool(row["job_id"]) for row in candidates) if enqueue else 0,
+        "queued_count": queued_count if enqueue else 0,
         "next_after_project_id": str(projects[-1].id) if projects else None,
         "candidates": candidates,
     }

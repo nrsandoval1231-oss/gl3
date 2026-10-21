@@ -9,12 +9,13 @@ const decisions: (SignalDisplayDecision | 'ALL')[] = ['ALL', 'SHOW', 'REVIEW', '
 function paramsFromUrl() {
   const params = new URLSearchParams(location.search)
   const valid = (value: string | null) => value === 'KNOWN' || value === 'UNKNOWN' ? value : ''
-  const tier: BrowseTier = ['Prospect', 'Prospects'].includes(params.get('tier') ?? '') ? 'Prospect' : ['Lead', 'Leads'].includes(params.get('tier') ?? '') ? 'Lead' : 'Signal'
+  const tierParam = params.get('tier') ?? params.get('level')
+  const tier: BrowseTier = ['Prospect', 'Prospects'].includes(tierParam ?? '') ? 'Prospect' : ['Lead', 'Leads'].includes(tierParam ?? '') ? 'Lead' : 'Signal'
   return {
     tier,
     search: params.get('q') ?? '', decision: (tier === 'Signal' && decisions.includes(params.get('decision') as SignalDisplayDecision | 'ALL') ? params.get('decision') : 'ALL') as SignalDisplayDecision | 'ALL',
-    offset: Math.max(0, Number(params.get('offset') ?? 0) || 0),
-    filters: { geography: params.get('geography') ?? '', industry: params.get('industry') ?? '', activity: params.get('activity') ?? '', timing: valid(params.get('timing')), mwStatus: valid(params.get('mw_status')), mwMin: params.get('mw_min') ?? '', mwMax: params.get('mw_max') ?? '', prioritySegment: params.get('priority_segment') ?? '', status: params.get('status') ?? '' } as OpportunityBrowseFilters,
+    offset: Math.max(0, Number(params.get('offset') ?? params.get('records') ?? 0) || 0),
+    filters: { geography: params.get('geography') ?? '', industry: params.get('industry') ?? params.get('lens') ?? '', activity: params.get('activity') ?? '', timing: valid(params.get('timing')), mwStatus: valid(params.get('mw_status')), mwMin: params.get('mw_min') ?? '', mwMax: params.get('mw_max') ?? '', prioritySegment: params.get('priority_segment') ?? '', status: params.get('status') ?? '' } as OpportunityBrowseFilters,
   }
 }
 function writeUrl(search: string, decision: SignalDisplayDecision | 'ALL', offset: number, filters: OpportunityBrowseFilters, replace = false, tier = paramsFromUrl().tier) {
@@ -24,7 +25,7 @@ function writeUrl(search: string, decision: SignalDisplayDecision | 'ALL', offse
   if (replace) history.replaceState(history.state, '', `/?${params}`); else history.pushState(null, '', `/?${params}`)
 }
 
-export function SignalsBrowse({ onSelect, onScope }: { onSelect: (item: Opportunity) => void; onScope: (scope: OpportunityNeedScope | null) => void }) {
+export function SignalsBrowse({ onSelect, onScope, refreshKey = 0 }: { onSelect: (item: Opportunity) => void; onScope: (scope: OpportunityNeedScope | null) => void; refreshKey?: number }) {
   const initial = paramsFromUrl()
   const [tier, setTier] = useState<BrowseTier>(initial.tier)
   const [search, setSearch] = useState(initial.search)
@@ -39,6 +40,7 @@ export function SignalsBrowse({ onSelect, onScope }: { onSelect: (item: Opportun
   const expansion = useRef(0)
   const pendingGroup = useRef<string | null>(null)
   const cohort = useRef<{ key: string; token: string } | null>(null)
+  const lastRefreshKey = useRef(refreshKey)
   const scopeKey = JSON.stringify([tier, search, decision, filters])
   useEffect(() => {
     const restore = () => { const value = paramsFromUrl(); setTier(value.tier); setSearch(value.search); setDecision(value.decision); setFilters(value.filters); setOffset(value.offset) }
@@ -53,6 +55,17 @@ export function SignalsBrowse({ onSelect, onScope }: { onSelect: (item: Opportun
   useEffect(() => {
     const params = new URLSearchParams(location.search)
     if (tier !== 'Signal' && params.has('decision') && params.get('decision') !== 'ALL') { params.set('decision', 'ALL'); history.replaceState(history.state, '', `/?${params}`) }
+    const refreshed = lastRefreshKey.current !== refreshKey
+    lastRefreshKey.current = refreshKey
+    if (refreshed) {
+      cohort.current = null
+      setExpanded({})
+      onScope(null)
+      if (offset !== 0) {
+        setPage(null); setOffset(0); writeUrl(search, decision, 0, filters, true, tier)
+        return
+      }
+    }
     const controller = new AbortController(), id = ++request.current
     ++expansion.current; onScope(null); setExpanded({}); setPage(null); setLoading(true); setError('')
     void (async () => {
@@ -76,7 +89,7 @@ export function SignalsBrowse({ onSelect, onScope }: { onSelect: (item: Opportun
       }
     })
     return () => { controller.abort(); ++expansion.current }
-  }, [search, decision, offset, scopeKey])
+  }, [search, decision, offset, scopeKey, refreshKey])
   const cards = useMemo(() => page ? serverProjectCards(page.items) : [], [page])
   const visibleCards = useMemo(() => decision === 'ALL' ? cards : signalDecisionCards(cards, decision), [cards, decision])
   const change = (next: Partial<Pick<OpportunityBrowseFilters, 'geography'|'industry'|'activity'|'timing'|'mwStatus'|'mwMin'|'mwMax'|'prioritySegment'|'status'>>) => {

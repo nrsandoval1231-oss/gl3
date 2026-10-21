@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { client, OpportunityNeedUnavailableError, type OpportunityNeedScope, type WorkspaceFilters, type WorkspaceNeed, type WorkspacePage } from '../../api/client'
+import { client, OpportunityCohortChangedError, OpportunityNeedUnavailableError, type OpportunityNeedScope, type WorkspaceFilters, type WorkspaceNeed, type WorkspacePage } from '../../api/client'
 import { LoginPage } from '../auth/LoginPage'
 import { projectTitle } from '../opportunities/projectCards'
 import { WorkspaceDetail, workspaceTabs, type WorkspaceTab } from './WorkspaceDetail'
@@ -30,14 +30,19 @@ function initialFilters(): WorkspaceFilters {
   const rawTier = p.get('tier') ?? p.get('level')
   const tier = rawTier === 'Signals' ? 'Signal' : rawTier === 'Prospects' ? 'Prospect' : rawTier === 'Leads' ? 'Lead' : rawTier
   return { search: p.get('q') ?? '', tier: ['Signal', 'Prospect', 'Lead'].includes(tier || '') ? tier as WorkspaceFilters['tier'] : undefined,
-    geography: p.get('geography') ?? '', industry: p.get('industry') ?? '', activity: p.get('activity') ?? '',
+    geography: p.get('geography') ?? '', industry: p.get('industry') ?? p.get('lens') ?? '', activity: p.get('activity') ?? '',
     timing: p.get('timing') === 'KNOWN' || p.get('timing') === 'UNKNOWN' ? p.get('timing') as 'KNOWN' | 'UNKNOWN' : undefined,
     mw_min: p.get('mw_min') ?? '', mw_max: p.get('mw_max') ?? '', disposition: p.get('disposition') ?? '',
     sort: (p.get('sort') as WorkspaceFilters['sort']) || 'priority', offset: Number(p.get('offset') || 0), cohort_token: p.get('cohort_token') || undefined }
 }
+function workspaceTabFromParams(params: URLSearchParams): Tab {
+  const legacy: Record<string, string> = { evidence: 'evidence', buyers: 'buying-chain', power: 'power-gap', action: 'next-steps' }
+  const section = params.get('section') ?? legacy[params.get('mode') ?? '']
+  return tabs.find(tab => tab.toLowerCase().replaceAll(' ', '-') === section) ?? 'Overview'
+}
 function currentView(): 'opportunities' | 'pursuits' | 'ingestion' | 'signals' {
   const params = getParams(), view = params.get('view')
-  if (location.pathname === '/environment' || view === 'environment') return params.get('mode') === 'pursuits' ? 'pursuits' : 'opportunities'
+  if (location.pathname === '/environment' || view === 'environment') return params.get('mode') === 'pursuits' ? 'pursuits' : params.get('mode') === 'browse' ? 'signals' : 'opportunities'
   if (view === 'pursuits') return 'pursuits'
   if (view === 'ingestion') return 'ingestion'
   if (view === 'signals') return 'signals'
@@ -77,11 +82,13 @@ export function WorkspaceHome() {
   const [detailLoading, setDetailLoading] = useState(false)
   const [detailError, setDetailError] = useState('')
   const [detailIdentity, setDetailIdentity] = useState<{ id: string; revision: number } | null>(null)
-  const [tab, setTab] = useState<Tab>(() => tabs.find(t => t.toLowerCase().replaceAll(' ', '-') === (getParams().get('section') ?? (getParams().get('mode') === 'action' ? 'next-steps' : null))) ?? 'Overview')
+  const [tab, setTab] = useState<Tab>(() => workspaceTabFromParams(getParams()))
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [revision, setRevision] = useState(0)
   const [detailNavigation, setDetailNavigation] = useState(0)
+  const [changesRevision, setChangesRevision] = useState(0)
+  const [signalsRevision, setSignalsRevision] = useState(0)
   const selectionSequence = useRef(0)
   const researchFocus = useRef<HTMLElement | null>(null)
   const signalParams = useRef<URLSearchParams | null>(currentView() === 'signals' ? getParams() : null)
@@ -142,11 +149,15 @@ export function WorkspaceHome() {
       if (currentView() === 'pursuits') { setResearchMounted(true); setCommercialNavigation(commercialFromUrl()); requestAnimationFrame(() => researchFocus.current?.focus()) }
       try { id ||= decodeURIComponent(location.hash.slice(1) || '') } catch { setDetailError('The selected power need link is malformed.'); id = '' }
       const next = currentView() === 'opportunities' ? initialFilters() : filters; pendingRestore.current = null; if (currentView() === 'opportunities') setFilters(next); if (currentView() === 'signals') signalParams.current = getParams()
-      setTab(tabs.find(t => t.toLowerCase().replaceAll(' ', '-') === (p.get('section') ?? (p.get('mode') === 'action' ? 'next-steps' : null))) ?? 'Overview')
+      setTab(workspaceTabFromParams(p))
       setDetailIdentity(null)
       if (!id) { ++selectionSequence.current; setDetailLoading(false); setSelected(null); setPendingNeedId(null); if (currentView() === 'opportunities') { const snapshot = history.state?.workspaceSnapshot ?? { ...savedScroll.current, focus: lastSelected.current }; pendingRestore.current = { ...snapshot, key: workspaceRequestKey(next) } } else requestAnimationFrame(() => { if (lastSelected.current) document.querySelector<HTMLElement>(`[data-opportunity-id="${CSS.escape(lastSelected.current)}"]`)?.focus() }); return }
       const row = page?.items.find(item => item.id === id)
       setSelected(row ?? null); setPendingNeedId(row ? null : id)
+      // A history navigation can reselect the same Need while its selected ID
+      // stays unchanged. Refresh identity so a cleared detailIdentity cannot
+      // leave the detail panel loading forever.
+      setRevision(value => value + 1)
     }
     addEventListener('popstate', onPop)
     let initialId = getParams().get('need'); try { initialId ||= decodeURIComponent(location.hash.slice(1) || '') } catch { setDetailError('The selected power need link is malformed.') }
@@ -169,7 +180,16 @@ export function WorkspaceHome() {
       setDetailIdentity({ id: value.id, revision })
       setPendingNeedId(null)
       setDetailLoading(false)
-    }).catch((error: Error) => { if (!controller.signal.aborted && sequence === selectionSequence.current) { if (error instanceof OpportunityNeedUnavailableError) { setSelected(null); setPendingNeedId(null); writeUrl(filters, null) }; setDetailError(error.message); setDetailLoading(false) } })
+    }).catch((error: Error) => { if (!controller.signal.aborted && sequence === selectionSequence.current) {
+      if (error instanceof OpportunityCohortChangedError && view === 'signals') {
+        setDetailIdentity(null); setSelected(null); setPendingNeedId(needId); setSignalScope(null); setSignalsRevision(value => value + 1)
+        setDetailError('The Signal cohort changed. Refreshing the current results before reopening this need.')
+      } else {
+        if (error instanceof OpportunityNeedUnavailableError) { setSelected(null); setPendingNeedId(null); writeUrl(filters, null) }
+        setDetailError(error.message)
+      }
+      setDetailLoading(false)
+    } })
     return () => controller.abort()
   }, [activeNeedId, authenticated, revision, view, signalScope, detailNavigation])
   const visiblePage = pageCurrent ? page : null
@@ -190,6 +210,7 @@ export function WorkspaceHome() {
   }
   const update = (next: WorkspaceFilters) => { snapshotList(); pendingRestore.current = null; setFilters(next); writeUrl(next, selected?.id ?? null, undefined, true) }
   const navigate = (nextView: 'opportunities' | 'pursuits' | 'ingestion' | 'signals') => {
+    if (nextView === 'ingestion' && view === 'ingestion') return
     if (nextView === 'signals' && view === 'signals') { ++selectionSequence.current; setSelected(null); setPendingNeedId(null); setDetailIdentity(null); setDetailLoading(false); setDetailError(''); dispatchEvent(new Event('gridlens:signals-reset')); return }
     const researchNeed = nextView === 'pursuits' ? selected?.id ?? pendingNeedId ?? commercialNavigation.needId : null
     if (nextView !== view) { ++selectionSequence.current; setSelected(null); setPendingNeedId(null); setDetailIdentity(null); setDetailLoading(false); setDetailError('') }
@@ -220,13 +241,13 @@ export function WorkspaceHome() {
   const researchHost = <main className="wh-single-view" hidden={view !== 'pursuits'}>{researchMounted && <><label>Search this page <input aria-label="Search commercial pursuits on this page" value={commercialNavigation.query} onChange={event => updateCommercial({ ...commercialNavigation, query: event.target.value }, false)}/></label><CommercialPursuits navigation={commercialNavigation} onNavigate={updateCommercial} onInvestigate={id => { researchFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null; const params = workspaceParams(filters); params.set('need', id); history.pushState({ ...history.state, workspaceDetail: true }, '', `/?${params}`); setView('opportunities'); setDetailIdentity(null); setSelected(null); setPendingNeedId(id); setTab('Overview') }}/></>}</main>
   if (view === 'pursuits') return <div className="workspace-home">{header}{researchHost}</div>
   if (view === 'ingestion') return <div className="workspace-home">{header}{researchHost}<main className="wh-single-view"><OperationsInbox/></main></div>
-  if (view === 'signals') return <div className="workspace-home">{header}{researchHost}<main className="wh-main"><div className="wh-layout"><SignalsBrowse onSelect={item => openActiveNeed(item)} onScope={scope => { setSignalScope(scope); if (!scope && !getParams().get('need') && !location.hash) { ++selectionSequence.current; setSelected(null); setPendingNeedId(null); setDetailIdentity(null); setDetailLoading(false) } }}/><WorkspaceDetail item={detailItem} pending={Boolean(pendingNeedId)} loading={detailLoading || Boolean(selected && !detailCurrent)} error={detailError} tab={tab} onTab={next => { setTab(next); if (selected) writeUrl(filters, selected.id, next) }} onBack={() => select(null)} onRetry={() => setRevision(value => value + 1)} onReadback={() => { setDetailIdentity(null); setSelected(null); setPendingNeedId(selected?.id ?? null); setRevision(value => value + 1) }} onTitleReady={() => setRevision(value => value + 1)}/></div></main></div>
+  if (view === 'signals') return <div className="workspace-home">{header}{researchHost}<main className="wh-main"><div className="wh-layout"><SignalsBrowse refreshKey={signalsRevision} onSelect={item => openActiveNeed(item)} onScope={scope => { setSignalScope(scope); if (!scope && !getParams().get('need') && !location.hash) { ++selectionSequence.current; setSelected(null); setPendingNeedId(null); setDetailIdentity(null); setDetailLoading(false) } }}/><WorkspaceDetail item={detailItem} pending={Boolean(pendingNeedId)} loading={detailLoading || Boolean(selected && !detailCurrent)} error={detailError} tab={tab} onTab={next => { setTab(next); if (selected) writeUrl(filters, selected.id, next) }} onBack={() => select(null)} onRetry={() => setRevision(value => value + 1)} onReadback={() => { setSignalScope(null); setDetailIdentity(null); setSelected(null); setPendingNeedId(selected?.id ?? null); setRevision(value => value + 1); setChangesRevision(value => value + 1); setSignalsRevision(value => value + 1) }} onTitleReady={() => setRevision(value => value + 1)}/></div></main></div>
   return <div className="workspace-home">
     {header}
     {researchHost}
     <main className="wh-main">
       <section className="wh-title-row"><div><p className="wh-kicker">Evidence-backed power work</p><h1>Your pursuits</h1><p>Review active needs, understand what changed, then take the next supported step.</p></div><span>{pageCurrent ? `${visiblePage?.total ?? 0} matching power needs` : 'Current results unavailable'}</span></section>
-      <section className="wh-briefing"><div className="wh-briefing-head"><div><p className="wh-kicker">Daily briefing</p><h2>What needs attention</h2></div><span>Review what changed and choose the next opportunity to pursue.</span></div><div className="wh-briefing-counts">{(['action_now','research','watch'] as const).map(v => <button key={v} onClick={() => change('disposition', filters.disposition === v.toUpperCase().replace('_',' ') ? '' : v.toUpperCase().replace('_',' '))}><span>{v.replace('_',' ')}</span><strong>{pageCurrent ? visiblePage?.counts[v] ?? '—' : '—'}</strong></button>)}<div className="wh-briefing-change"><WorkspaceChanges onSelectActiveNeed={openActiveNeed}/></div></div></section>
+      <section className="wh-briefing"><div className="wh-briefing-head"><div><p className="wh-kicker">Daily briefing</p><h2>What needs attention</h2></div><span>Review what changed and choose the next opportunity to pursue.</span></div><p className="wh-briefing-scope">Disposition counts include the other active filters and ignore the selected disposition.</p><div className="wh-briefing-counts">{(['action_now','research','watch'] as const).map(v => <button key={v} onClick={() => change('disposition', filters.disposition === v.toUpperCase().replace('_',' ') ? '' : v.toUpperCase().replace('_',' '))}><span>{v.replace('_',' ')}</span><strong>{pageCurrent ? visiblePage?.counts[v] ?? '—' : '—'}</strong></button>)}<div className="wh-briefing-change"><WorkspaceChanges onSelectActiveNeed={openActiveNeed} revision={changesRevision}/></div></div></section>
       <div className="wh-layout">
       <section className={`wh-list ${selected ? 'wh-list-muted' : ''}`} aria-label="Opportunities">
         <div className="wh-queue-heading"><div><p className="wh-kicker">Work queue</p><h2>Prioritized opportunities</h2></div><span>{pageCurrent ? `${visiblePage?.total ?? 0} records` : loading ? 'Refreshing…' : 'Unavailable'}</span></div>
@@ -236,10 +257,10 @@ export function WorkspaceHome() {
         {error && <div role="alert" className="wh-error">{error} <button onClick={() => setRevision(x => x + 1)}>Retry</button></div>}
         {loading && <p role="status">Loading current power needs…</p>}
         {!loading && !error && items.length === 0 && <p className="wh-empty">No power needs match these filters.</p>}
-        <div className="wh-queue-list">{items.map(item => { const title = projectTitle(item); return <article className={`wh-queue-item ${selected?.id === item.id ? 'selected' : ''}`} key={item.id}><button className="wh-queue-main" data-need-row={item.id} onClick={() => select(item)}><span className="wh-queue-meta"><b>{item.tier}</b><span>{item.location ?? 'Location unknown'}</span><span>{item.activity.replaceAll('-', ' ')}</span></span><strong>{title}</strong>{title !== item.name && <small>Source record: {item.name}</small>}<span className="wh-queue-why">{item.commercial_reason || item.rationale || 'No investigation reason is available.'}</span>{item.rank_reasons?.length ? <small className="wh-priority-reason">Priority {item.rank_score ?? 'unavailable'} · {item.rank_reasons.join('; ')}</small> : null}</button><div className="wh-queue-action"><span>NEXT ACTION</span><button onClick={() => select(item, 'Next steps')}>{item.commercial_next_action || item.commercial_next_question || 'Review retained evidence'}</button><small>{item.required_mw ?? 'Power unknown'} · {item.start_window ?? 'Start unknown'} · {item.duration ?? 'Duration unknown'}</small></div></article> })}</div>
+        <div className="wh-queue-list">{items.map(item => { const title = projectTitle(item); return <article className={`wh-queue-item ${selected?.id === item.id ? 'selected' : ''}`} key={item.id}><button className="wh-queue-main" data-need-row={item.id} onClick={() => select(item)}><span className="wh-queue-meta"><b>{item.tier}</b><span className="wh-queue-disposition">{item.commercial_disposition ?? 'Disposition unavailable'}</span><span>{item.location ?? 'Location unknown'}</span><span>{item.activity.replaceAll('-', ' ')}</span></span><strong>{title}</strong>{title !== item.name && <small>Source record: {item.name}</small>}<span className="wh-queue-why">{item.commercial_reason || item.rationale || 'No investigation reason is available.'}</span>{item.rank_reasons?.length ? <small className="wh-priority-reason">Priority {item.rank_score ?? 'unavailable'} · {item.rank_reasons.join('; ')}</small> : null}</button><div className="wh-queue-action"><span>NEXT ACTION</span><button onClick={() => select(item, 'Next steps')}>{item.commercial_next_action || item.commercial_next_question || 'Review retained evidence'}</button><small>{item.required_mw ?? 'Power unknown'} · {item.start_window ?? 'Start unknown'} · {item.duration ?? 'Duration unknown'}</small></div></article> })}</div>
         <footer className="wh-paging"><span>Showing {items.length ? (visiblePage?.offset ?? 0) + 1 : 0}–{pageCurrent ? position : '—'} of {pageCurrent ? visiblePage?.total ?? '—' : '—'}</span><button disabled={!pageCurrent || !visiblePage?.offset} onClick={() => { if (visiblePage) update({ ...filters, offset: Math.max(0, visiblePage.offset - 25), cohort_token: visiblePage.cohort_token }) }}>Previous</button><button disabled={!pageCurrent || visiblePage?.next_offset == null} onClick={() => { if (visiblePage) update({ ...filters, offset: visiblePage.next_offset ?? 0, cohort_token: visiblePage.cohort_token }) }}>Next</button></footer>
       </section>
-      <WorkspaceDetail item={detailItem} pending={Boolean(pendingNeedId)} loading={detailLoading || Boolean(selected && !detailCurrent)} error={detailError} tab={tab} onTab={next => { setTab(next); if (selected) writeUrl(filters, selected.id, next) }} onBack={() => select(null)} onRetry={() => setRevision(value => value + 1)} onReadback={() => { setDetailIdentity(null); setSelected(null); setPendingNeedId(selected?.id ?? null); setRevision(value => value + 1) }} onTitleReady={() => setRevision(value => value + 1)}/>
+      <WorkspaceDetail item={detailItem} pending={Boolean(pendingNeedId)} loading={detailLoading || Boolean(selected && !detailCurrent)} error={detailError} tab={tab} onTab={next => { setTab(next); if (selected) writeUrl(filters, selected.id, next) }} onBack={() => select(null)} onRetry={() => setRevision(value => value + 1)} onReadback={() => { setDetailIdentity(null); setSelected(null); setPendingNeedId(selected?.id ?? null); setRevision(value => value + 1) ; setChangesRevision(value => value + 1) }} onTitleReady={() => setRevision(value => value + 1)}/>
       </div>
     </main>
   </div>

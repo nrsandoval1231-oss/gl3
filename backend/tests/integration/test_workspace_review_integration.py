@@ -349,6 +349,10 @@ def test_call_fact_journal_shows_assertion_changes_and_historical_need(runtime):
     assert corrected["confirmed_at"]
     assert corrected["before_state"]["value"] == {"mw": "10"}
     assert corrected["after_state"]["value"] == {"mw": "12"}
+    assert corrected["before_state"]["effective_from"] == (now - timedelta(days=1)).isoformat()
+    assert corrected["after_state"]["effective_from"] == now.isoformat()
+    assert corrected["before_state"]["effective_until"] is None
+    assert corrected["after_state"]["effective_until"] is None
     assert corrected["before_version"] == 1
     assert corrected["after_version"] == 3
     assert corrected["needs"][0]["id"] == str(need_id)
@@ -365,6 +369,109 @@ def test_call_fact_journal_shows_assertion_changes_and_historical_need(runtime):
     assert current_history.status_code == 409
     missing = client.get("/api/opportunities/needs/00000000-0000-0000-0000-000000000001/history")
     assert missing.status_code == 404
+
+
+@pytest.mark.parametrize("changed_field", ["effective_from", "effective_until", None])
+def test_date_only_fact_correction_is_material_only_when_effective_window_changes(
+    runtime, changed_field
+):
+    client, factory, project_id, need_ids, _observation_id = runtime
+    need_id = need_ids[0]
+    fact_id, corrected_id = uuid4(), uuid4()
+    now = datetime.now(UTC)
+    old_start, old_until = now - timedelta(days=2), now + timedelta(days=2)
+    new_start = old_start + timedelta(hours=1) if changed_field == "effective_from" else old_start
+    new_until = old_until - timedelta(hours=1) if changed_field == "effective_until" else old_until
+    with factory.begin() as session:
+        session.add_all(
+            [
+                CallFactVersion(
+                    id=fact_id,
+                    need_id=need_id,
+                    project_id=project_id,
+                    client_id=uuid4(),
+                    activity_key="construction",
+                    facility_scope="Synthetic City",
+                    fact_type="timing",
+                    value={"start_date": "2027-01-01"},
+                    reporter_name="Synthetic contact",
+                    confirmation_channel="customer_call",
+                    confirmed_at=now - timedelta(days=1),
+                    effective_from=old_start,
+                    effective_until=old_until,
+                    content_hash="a" * 64,
+                    recorded_by="synthetic-test",
+                    predecessor_id=None,
+                    source_reference=None,
+                ),
+                CallFactVersion(
+                    id=corrected_id,
+                    need_id=need_id,
+                    project_id=project_id,
+                    client_id=uuid4(),
+                    activity_key="construction",
+                    facility_scope="Synthetic City",
+                    fact_type="timing",
+                    value={"start_date": "2027-01-01"},
+                    reporter_name="Synthetic contact",
+                    confirmation_channel="customer_call",
+                    confirmed_at=now,
+                    effective_from=new_start,
+                    effective_until=new_until,
+                    content_hash="b" * 64,
+                    recorded_by="synthetic-test",
+                    predecessor_id=fact_id,
+                    source_reference=None,
+                ),
+            ]
+        )
+        session.flush()
+        session.add_all(
+            [
+                CallFactDecision(
+                    need_id=need_id,
+                    fact_version_id=fact_id,
+                    version=1,
+                    client_id=uuid4(),
+                    decision="accepted",
+                    expected_version=0,
+                    reason="Synthetic accepted assertion",
+                    content_hash="c" * 64,
+                    actor="synthetic operator",
+                    created_at=now - timedelta(days=1),
+                ),
+                CallFactDecision(
+                    need_id=need_id,
+                    fact_version_id=corrected_id,
+                    version=2,
+                    client_id=uuid4(),
+                    decision="corrected",
+                    expected_version=1,
+                    reason="Synthetic timing correction",
+                    content_hash="d" * 64,
+                    actor="synthetic operator",
+                    created_at=now,
+                ),
+            ]
+        )
+
+    response = client.get("/api/opportunities/workspace/changes?limit=50")
+    assert response.status_code == 200, response.text
+    corrected_items = [
+        item
+        for item in response.json()["items"]
+        if item.get("decision") == "corrected" and item["fact_version_id"] == str(corrected_id)
+    ]
+    if changed_field:
+        assert len(corrected_items) == 1
+        correction = corrected_items[0]
+        assert correction["event_key"].startswith("fact:")
+        assert correction["before_state"]["effective_from"] == old_start.isoformat()
+        assert correction["after_state"]["effective_from"] == new_start.isoformat()
+        assert correction["before_state"]["effective_until"] == old_until.isoformat()
+        assert correction["after_state"]["effective_until"] == new_until.isoformat()
+    else:
+        assert corrected_items == []
 
 
 def test_review_rejects_changed_page_and_cross_origin(runtime):

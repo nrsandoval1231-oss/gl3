@@ -162,6 +162,14 @@ def _fact_rows(session: Session) -> Sequence[Row[tuple[CallFactDecision, CallFac
     ).all()
 
 
+def _effective_date_iso(value: datetime | None) -> str | None:
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=UTC)
+    return value.astimezone(UTC).isoformat()
+
+
 def _fact_projections(session: Session, acknowledged: set[str]) -> list[dict]:
     rows = _fact_rows(session)
     rows = sorted(rows, key=lambda row: row[0].version)
@@ -186,7 +194,12 @@ def _fact_projections(session: Session, acknowledged: set[str]) -> list[dict]:
                 before_fact is not None
                 and prior is not None
                 and prior.decision in _ACCEPTED_ASSERTIONS
-                and (before_fact.fact_type != fact.fact_type or before_fact.value != fact.value)
+                and (
+                    before_fact.fact_type != fact.fact_type
+                    or before_fact.value != fact.value
+                    or before_fact.effective_from != fact.effective_from
+                    or before_fact.effective_until != fact.effective_until
+                )
             )
             if is_change and prior is not None:
                 before_version = prior.version
@@ -200,16 +213,17 @@ def _fact_projections(session: Session, acknowledged: set[str]) -> list[dict]:
             after_version = decision.version
 
         if is_change and f"fact:{decision.id}" not in acknowledged:
-            before_value = (
-                {"fact_type": before_fact.fact_type, "value": before_fact.value}
-                if before_fact is not None
-                else None
-            )
-            after_value = (
-                {"fact_type": fact.fact_type, "value": fact.value}
-                if decision.decision != "retracted"
-                else None
-            )
+
+            def fact_state(version: CallFactVersion) -> dict:
+                return {
+                    "fact_type": version.fact_type,
+                    "value": version.value,
+                    "effective_from": _effective_date_iso(version.effective_from),
+                    "effective_until": _effective_date_iso(version.effective_until),
+                }
+
+            before_value = fact_state(before_fact) if before_fact is not None else None
+            after_value = fact_state(fact) if decision.decision != "retracted" else None
             projections.append(
                 {
                     "event_key": f"fact:{decision.id}",
