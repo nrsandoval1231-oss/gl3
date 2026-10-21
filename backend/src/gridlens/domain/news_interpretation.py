@@ -272,10 +272,16 @@ def _site_location(text: str) -> str | None:
             is None
         )
 
-    def city_precedes_facility(city_match: re.Match[str]) -> bool:
-        if facility_match is None or city_match.end() > facility_match.start():
+    def grounded_place_precedes_facility(place_match: re.Match[str]) -> bool:
+        if facility_match is None or place_match.end() > facility_match.start():
             return False
-        between = text[city_match.end() : facility_match.start()]
+        between = text[place_match.end() : facility_match.start()]
+        if re.search(
+            r"\b(?:developers?|customers?|clients?|buyers?|partners?|contractors?|suppliers?|investors?)\b",
+            between,
+            re.I,
+        ):
+            return False
         return bool(
             not between.strip()
             or re.fullmatch(r"\s+(?:[A-Za-z0-9]+(?:-[A-Za-z0-9]+)?\s+)?", between)
@@ -286,17 +292,16 @@ def _site_location(text: str) -> str | None:
     state_coreference = bool(
         facility_match
         and re.search(
-            r"\b(?:in|within)\s+the\s+state\b",
+            r"^\s*(?:in|within)\s+the\s+state\b",
             text[facility_match.end() :],
             re.I,
         )
         and len(named_states) == 1
+        and named_states[0].end() <= facility_match.start()
     )
 
-    # Prefer an explicit state attached to the project. A unique named state
-    # may also ground a later explicit "in the state" reference. Skip states
-    # attached to customer clauses unless a later site/facility phrase resets
-    # the relation.
+    # Prefer an explicit state attached to the project. Skip states attached
+    # to customer clauses unless a later site/facility phrase resets the relation.
     for state in named_states:
         before = text[max(0, state.start() - 10) : state.start()]
         city_before = text[max(0, state.start() - 40) : state.start()]
@@ -307,12 +312,7 @@ def _site_location(text: str) -> str | None:
                 city_before,
             )
         )
-        coreferenced = bool(
-            state_coreference and facility_match and state.end() <= facility_match.start()
-        )
-        if (not direct and not coreferenced) or has_non_site_party_clause_without_site_reset(
-            state.start()
-        ):
+        if not direct or has_non_site_party_clause_without_site_reset(state.start()):
             continue
 
         for city, city_state in sorted(
@@ -326,7 +326,7 @@ def _site_location(text: str) -> str | None:
             ):
                 continue
             project_linked = False
-            if city_precedes_facility(city_match):
+            if grounded_place_precedes_facility(city_match):
                 project_linked = True
             elif facility_match and city_match.start() >= facility_match.end():
                 prefix = text[facility_match.end() : city_match.start()]
@@ -365,7 +365,7 @@ def _site_location(text: str) -> str | None:
             )
             and not has_non_site_party_clause_without_site_reset(city_match.start())
         )
-        before_facility = city_precedes_facility(city_match)
+        before_facility = grounded_place_precedes_facility(city_match)
         if re.search(
             r"\b(?:in|at|near)\s*$", before, re.I
         ) and not has_non_site_party_clause_without_site_reset(city_match.start()):
@@ -377,11 +377,12 @@ def _site_location(text: str) -> str | None:
     # do not infer the site from a nearby developer or customer state.
     if facility_match:
         for state in _STATE_RE.finditer(text):
-            if (
-                state.end() <= facility_match.start()
-                and not text[state.end() : facility_match.start()].strip()
-            ):
+            if state.end() <= facility_match.start() and grounded_place_precedes_facility(state):
                 return state.group(1)
+    # A unique named state can ground an explicit coreference attached
+    # immediately to the facility, after direct city and state sites win.
+    if state_coreference and len(named_states) == 1:
+        return named_states[0].group(1)
     embedded = re.search(
         rf"\b([A-Z][\w.'-]*(?:\s+[A-Z][\w.'-]*){{0,2}})\s+"
         rf"(?:data cent(?:er|re)|campus|plant|facility|site|hotel|shipyard),\s*({_STATES})\b",

@@ -164,6 +164,10 @@ def test_project_linked_city_precedes_nearby_developer_or_customer_state() -> No
             "Atlas builds a factory for customers in California at its site in Phoenix, Arizona",
             "Phoenix, Arizona",
         ),
+        (
+            "California developer Atlas builds a factory in Austin with partners in the state",
+            "Austin, Texas",
+        ),
         ("Atlas builds Phoenix data center in Arizona", "Phoenix, Arizona"),
         ("Atlas builds Austin's first large liquid-cooled data center", "Austin, Texas"),
     ]
@@ -192,6 +196,11 @@ def test_domestic_city_site_precedes_foreign_partner_location() -> None:
     )
     assert foreign_site.decision == "rejected"
     assert foreign_site.location is None
+
+
+def test_state_modifier_attached_to_facility_is_a_grounded_site() -> None:
+    result = assess_news("Atlas builds Texas battery factory", None)
+    assert (result.decision, result.tier, result.location) == ("accepted", "Signal", "Texas")
 
 
 def test_site_name_words_are_not_activity_and_claim_spans_must_differ() -> None:
