@@ -194,7 +194,7 @@ def contact_projection(chain: dict) -> list[IntelligenceContact]:
                     and e.get("url") == contact.get("source_url")
                     and e.get("quote") == contact.get("quote")
                     and value
-                    and value in str(e.get("quote", ""))
+                    and value.casefold() in str(e.get("quote", "")).casefold()
                 ),
                 None,
             )

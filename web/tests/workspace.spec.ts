@@ -1270,7 +1270,12 @@ for (const width of [1280, 390]) {
           { supply_id: 'utility-service', start_date: '2027-01-15', end_date: '2027-02-01', mw_min: '4', mw_max: '5', state: 'committed', suitability: 'suitable', source_kind: 'utility_grid', service_ready_date: '2027-01-15', date_basis: 'Utility service letter', basis: 'Committed service', source_reference: 'utility-letter-1' },
           { supply_id: 'future-grid-option', start_date: '2027-03-01', end_date: '2027-04-01', mw_min: '4', mw_max: '5', state: 'proposed', suitability: 'suitable', source_kind: 'utility_grid', service_ready_date: '2027-03-15', date_basis: 'Draft utility schedule', basis: 'Proposed service', source_reference: null },
         ],
-        segments: [{ phase_id: 'commissioning', start_date: '2027-01-01', end_date: '2027-02-01', demand_min_mw: '10', demand_max_mw: '12', demand_basis: 'Owner-described package', supply_min_mw: null, supply_max_mw: null, residual_min_mw: null, residual_max_mw: null, supply_ids: [], unresolved_supply_ids: [], supply_basis: [], unresolved_reason: 'Other supply is unknown', scenario: 'base' }],
+        segments: [
+          { phase_id: 'commissioning', start_date: '2027-01-01', end_date: '2027-02-01', demand_min_mw: '10', demand_max_mw: '12', demand_basis: 'Owner-described package', supply_min_mw: null, supply_max_mw: null, residual_min_mw: null, residual_max_mw: null, supply_ids: [], unresolved_supply_ids: [], supply_basis: [], unresolved_reason: 'Other supply is unknown', scenario: 'base' },
+          { phase_id: 'future phase', start_date: '2027-03-01', end_date: '2027-03-15', demand_min_mw: '10', demand_max_mw: '12', demand_basis: 'Owner-described package', supply_min_mw: '0', supply_max_mw: '0', residual_min_mw: '10', residual_max_mw: '12', supply_ids: [], unresolved_supply_ids: [], supply_basis: [], unresolved_reason: null, scenario: 'base' },
+          { phase_id: 'future phase', start_date: '2027-03-15', end_date: '2027-04-01', demand_min_mw: '10', demand_max_mw: '12', demand_basis: 'Owner-described package', supply_min_mw: '0', supply_max_mw: '0', residual_min_mw: '10', residual_max_mw: '12', supply_ids: [], unresolved_supply_ids: [], supply_basis: [], unresolved_reason: null, scenario: 'base' },
+          { phase_id: 'future phase', start_date: '2027-03-15', end_date: '2027-04-01', demand_min_mw: '10', demand_max_mw: '12', demand_basis: 'Owner-described package', supply_min_mw: '4', supply_max_mw: '5', residual_min_mw: '5', residual_max_mw: '8', supply_ids: ['future-grid-option'], unresolved_supply_ids: [], supply_basis: ['future-grid-option: Proposed service (Draft utility schedule)'], unresolved_reason: null, scenario: 'alternative' },
+        ],
       },
     }
     await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
@@ -1294,6 +1299,8 @@ for (const width of [1280, 390]) {
     const schedule = page.getByRole('region', { name: 'Reported phased power schedule' })
     await expect(schedule.getByText('Reported grid energization: 2027-01-15')).toBeVisible()
     await expect(schedule.getByText(/scenario date, not committed service/)).toBeVisible()
+    await expect(schedule.getByRole('row').filter({ hasText: '2027-03-01 to 2027-03-15' }).filter({ hasText: 'current reported' })).toContainText('10–12 MW scenario')
+    await expect(schedule.getByRole('row').filter({ hasText: '2027-03-15 to 2027-04-01' }).filter({ hasText: 'proposed / hypothetical' })).toContainText('5–8 MW scenario')
     await schedule.getByText('Schedule attribution and source').click()
     await expect(schedule.getByText(/reported by A. Operator, Example Owner · Project Engineer/)).toBeVisible()
     await page.getByRole('button', { name: 'Evidence', exact: true }).click()

@@ -31,6 +31,7 @@ EDITABLE = {
     "public_contact_kind",
     "public_contact_value",
 }
+REQUIRED_TEXT_FIELDS = {"organization"}
 ALLOWED_VALUES = {
     "category": {
         "electrical_contractor",
@@ -119,6 +120,10 @@ def correct_buying_chain_claim(
         raise ValueError("Retraction cannot include replacement values")
     if set(values) - EDITABLE:
         raise ValueError("Correction contains unsupported fields")
+    for key in REQUIRED_TEXT_FIELDS & values.keys():
+        value = values[key]
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError(f"Corrected value for {key} must be a non-empty string")
     for key, allowed in ALLOWED_VALUES.items():
         if key in values and values[key] not in allowed:
             raise ValueError(f"Unsupported correction value for {key}")
@@ -400,7 +405,8 @@ def overlay_corrections(
                             and item.get("supports") == "public_contact"
                             and item.get("current_support")
                             and item.get("public_research_provenance")
-                            and values["public_contact_value"] in str(item.get("quote", ""))
+                            and values["public_contact_value"].casefold()
+                            in str(item.get("quote", "")).casefold()
                         ),
                         None,
                     )
@@ -417,6 +423,7 @@ def overlay_corrections(
                                 "value": values["public_contact_value"],
                                 "source_url": cited_contact.get("url", ""),
                                 "quote": cited_contact.get("quote", ""),
+                                "observed_at": cited_contact.get("observed_at"),
                                 "operator_report": False,
                             }
                         )

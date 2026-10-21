@@ -301,6 +301,8 @@ def project_schedule(facts: list[dict[str, Any]]) -> PowerScheduleProjection | N
                 date.fromisoformat(supply["start_date"]),
                 date.fromisoformat(supply["end_date"]),
             )
+            if supply.get("service_ready_date"):
+                ss = max(ss, date.fromisoformat(supply["service_ready_date"]))
             if ss < end and se > start:
                 boundaries.update((max(start, ss), min(end, se)))
         points = sorted(boundaries)
@@ -308,7 +310,13 @@ def project_schedule(facts: list[dict[str, Any]]) -> PowerScheduleProjection | N
             active = [
                 s
                 for s in value["supplies"]
-                if date.fromisoformat(s["start_date"]) <= left
+                if max(
+                    date.fromisoformat(s["start_date"]),
+                    date.fromisoformat(s["service_ready_date"])
+                    if s.get("service_ready_date")
+                    else date.fromisoformat(s["start_date"]),
+                )
+                <= left
                 and date.fromisoformat(s["end_date"]) >= right
             ]
             known = [

@@ -104,6 +104,65 @@ def test_alternatives_add_committed_supply_and_remain_independent():
     ]
 
 
+def test_proposed_supply_activates_only_on_service_ready_date():
+    value = schedule()
+    value["phases"][0].update(start_date="2027-03-01", end_date="2027-04-01")
+    value["supplies"] = [
+        {
+            "supply_id": "future-grid-option",
+            "start_date": "2027-03-01",
+            "end_date": "2027-04-01",
+            "mw_min": "4",
+            "mw_max": "5",
+            "state": "proposed",
+            "suitability": "suitable",
+            "source_kind": "utility_grid",
+            "service_ready_date": "2027-03-15",
+            "date_basis": "Draft utility schedule",
+            "basis": "Proposed service",
+        }
+    ]
+    result = project_schedule([{"value": validate_fact("power_schedule", value)}])
+    base = [segment for segment in result.segments if segment.scenario == "base"]
+    assert [(s.start_date, s.end_date, s.residual_min_mw) for s in base] == [
+        ("2027-03-01", "2027-03-15", "10"),
+        ("2027-03-15", "2027-04-01", "10"),
+    ]
+    alternatives = [segment for segment in result.segments if segment.scenario == "alternative"]
+    assert [(s.start_date, s.end_date, s.supply_ids) for s in alternatives] == [
+        ("2027-03-15", "2027-04-01", ["future-grid-option"]),
+    ]
+    assert alternatives[0].residual_min_mw == "5"
+
+
+@pytest.mark.parametrize("state", ["proposed", "hypothetical"])
+@pytest.mark.parametrize("ready_date", ["2027-03-15", "2027-03-20", "2027-04-10"])
+def test_stored_schedule_does_not_activate_supply_ready_after_its_window(state, ready_date):
+    value = schedule()
+    value["phases"][0].update(start_date="2027-03-01", end_date="2027-04-01")
+    value["supplies"] = [
+        {
+            "supply_id": "late-grid-option",
+            "start_date": "2027-03-01",
+            "end_date": "2027-03-15",
+            "mw_min": "4",
+            "mw_max": "5",
+            "state": state,
+            "suitability": "suitable",
+            "service_ready_date": ready_date,
+            "date_basis": "Stored draft schedule",
+            "basis": "Hypothetical service",
+        }
+    ]
+    # Project directly to cover previously accepted data that predates stricter validation.
+    result = project_schedule([{"value": value}])
+    alternatives = [segment for segment in result.segments if segment.scenario == "alternative"]
+    assert alternatives == []
+    base = [segment for segment in result.segments if segment.scenario == "base"]
+    assert all(not segment.supply_ids for segment in base)
+    assert all(segment.residual_min_mw == "10" for segment in base)
+
+
 @pytest.mark.parametrize(
     "coverage,suitability",
     [("partial", "suitable"), ("confirmed_complete", "unknown")],

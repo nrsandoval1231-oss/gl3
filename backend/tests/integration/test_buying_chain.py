@@ -1160,6 +1160,137 @@ def test_authenticated_correction_is_append_only_versioned_and_overlays_only_one
     assert other_candidate["category"] == "general_contractor"
 
 
+def test_correction_rejects_null_required_organization_without_persisted_effects(db, monkeypatch):
+    api = import_module("gridlens.api.app")
+    monkeypatch.setattr(api, "SessionLocal", db)
+    with db.begin() as session:
+        project = seed(session, external_id="correction-null-organization")
+        observation = session.scalar(
+            select(Observation).where(Observation.external_id == "correction-null-organization")
+        )
+        interpretation = session.scalar(
+            select(Interpretation).where(Interpretation.observation_id == observation.id)
+        )
+        interpretation.assessment = {
+            **interpretation.assessment,
+            "project_identity_key": project.identity_key,
+        }
+        result = enrich_buying_chain(
+            session,
+            project.id,
+            fetcher=lambda url: source(
+                "Acme is the general contractor for Orion Data Center in Austin, TX."
+            ),
+            now=NOW,
+        )
+        candidate = result["candidates"][0]
+        evidence = candidate["evidence"][0]
+        project_id, claim_id = project.id, candidate["id"]
+        correction_count = session.scalar(select(func.count()).select_from(BuyingChainCorrection))
+    client = TestClient(api.app)
+    client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
+    path = f"/api/projects/{project_id}/buying-chain/{claim_id}/corrections"
+    headers = {"origin": "http://testserver"}
+    for index, organization in enumerate((None, "   ")):
+        invalid = {
+            "expected_version": candidate["fingerprint"],
+            "idempotency_key": f"organization-null-{index:04d}",
+            "action": "correct",
+            "values": {"organization": organization},
+            "source_evidence_id": str(evidence["id"]),
+            "source_hash": evidence["content_hash"],
+            "reason": "Attempted to clear the required organization.",
+        }
+        response = client.post(path, headers=headers, json=invalid)
+        assert response.status_code == 422, response.text
+    readback = client.get(f"/api/projects/{project_id}/buying-chain")
+    assert readback.status_code == 200, readback.text
+    unchanged = next(item for item in readback.json()["candidates"] if item["id"] == str(claim_id))
+    assert unchanged["organization"] == "Acme"
+    assert unchanged["correction_version"] == candidate["fingerprint"]
+    with db.begin() as session:
+        assert (
+            session.scalar(select(func.count()).select_from(BuyingChainCorrection))
+            == correction_count
+        )
+
+
+def test_mixed_case_public_contact_correction_survives_current_cited_readback(db, monkeypatch):
+    api = import_module("gridlens.api.app")
+    monkeypatch.setattr(api, "SessionLocal", db)
+    with db.begin() as session:
+        project = seed(session, external_id="correction-casefold-contact")
+        observation = session.scalar(
+            select(Observation).where(Observation.external_id == "correction-casefold-contact")
+        )
+        interpretation = session.scalar(
+            select(Interpretation).where(Interpretation.observation_id == observation.id)
+        )
+        interpretation.assessment = {
+            **interpretation.assessment,
+            "project_identity_key": project.identity_key,
+        }
+        result = enrich_buying_chain(
+            session,
+            project.id,
+            fetcher=lambda url: source(
+                "Acme is the general contractor for Orion Data Center in Austin, TX. "
+                "Alice Smith is Project Director at Acme; "
+                "Alice Smith email: Alice.Smith@Example.com."
+            ),
+            now=NOW,
+        )
+        candidate = next(
+            item for item in result["candidates"] if item["person_name"] == "Alice Smith"
+        )
+        evidence = next(
+            item for item in candidate["evidence"] if item.get("supports") == "public_contact"
+        )
+        assert evidence["current_support"] is True
+        assert evidence["public_research_provenance"] is True
+        project_id, claim_id = project.id, candidate["id"]
+    client = TestClient(api.app)
+    client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
+    path = f"/api/projects/{project_id}/buying-chain/{claim_id}/corrections"
+    corrected = client.post(
+        path,
+        headers={"origin": "http://testserver"},
+        json={
+            "expected_version": candidate["fingerprint"],
+            "idempotency_key": "contact-casefold-0001",
+            "action": "correct",
+            "values": {
+                "title": None,
+                "public_contact_kind": "email",
+                "public_contact_value": "ALICE.SMITH@EXAMPLE.COM",
+            },
+            "source_evidence_id": str(evidence["id"]),
+            "source_hash": evidence["content_hash"],
+            "reason": "Corrected the case of the cited current public email.",
+        },
+    )
+    assert corrected.status_code == 200, corrected.text
+    readback = client.get(f"/api/projects/{project_id}/buying-chain")
+    assert readback.status_code == 200, readback.text
+    current = next(item for item in readback.json()["candidates"] if item["id"] == str(claim_id))
+    assert current["title"] is None
+    assert len(current["public_contacts"]) == 1
+    contact = current["public_contacts"][0]
+    assert contact["kind"] == "email"
+    assert contact["value"] == "ALICE.SMITH@EXAMPLE.COM"
+    assert contact["source_url"] == URL
+    assert contact["quote"] == "Alice Smith email: Alice.Smith@Example.com."
+    assert datetime.fromisoformat(contact["observed_at"]) == evidence["observed_at"]
+    assert current["organization_relationship"] == "DIRECT", current
+    with db() as session:
+        live_chain = buying_chain_view(session, project_id)
+    projected = next(
+        contact for contact in contact_projection(live_chain) if contact.claim_id == str(claim_id)
+    )
+    methods = projected.methods
+    assert methods[0]["href"] == "mailto:ALICE.SMITH@EXAMPLE.COM"
+
+
 def test_identity_link_correction_api_returns_typed_reference_and_replays(db, monkeypatch):
     api = import_module("gridlens.api.app")
     monkeypatch.setattr(api, "SessionLocal", db)
@@ -1358,6 +1489,7 @@ def test_sparse_corrections_compose_and_corrected_contact_replaces_actionable_me
             "value": "512-555-0199",
             "source_url": "https://news.example/new",
             "quote": second_quote,
+            "observed_at": None,
             "operator_report": False,
         }
     ]
