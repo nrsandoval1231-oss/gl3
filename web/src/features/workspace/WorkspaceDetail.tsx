@@ -140,6 +140,7 @@ export function WorkspaceDetail({ item, pending, loading, error, tab, onTab, onB
   }, [tab, item?.id])
   if (!item) {
     return <aside className={`wh-detail ${pending || loading ? 'wh-detail-loading' : 'wh-empty-detail'}`} aria-label="Opportunity detail">
+      {(pending || loading || error) && <button type="button" className="wh-back" aria-label="Back to power needs" onClick={onBack}>Opportunities</button>}
       <p>{pending || loading ? 'Loading verified opportunity detail…' : 'Select an opportunity to review its evidence and next action.'}</p>
       {error && <p role="alert">{error} <button onClick={onRetry}>Retry</button></p>}
     </aside>

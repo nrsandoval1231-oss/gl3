@@ -210,9 +210,90 @@ test('mobile history Back keeps the selected shell through delayed readback and 
   await expect(page).toHaveURL(/need=need-b/)
   await expect(page.locator('.wh-detail-loading')).toBeVisible()
   await expect(page.locator('.wh-list')).toBeHidden()
+  const pendingBack = page.getByRole('button', { name: /Back to power needs/ })
+  await expect(pendingBack).toBeVisible()
+  await expect(pendingBack).toBeEnabled()
   releaseSecondB()
   await expect(page.getByRole('heading', { name: 'JLC project' })).toBeVisible()
   await expect(page.getByRole('button', { name: /Back to power needs/ })).toBeFocused()
+})
+
+test('mobile Back can leave a held history readback and late response cannot restore it', async ({ page }) => {
+  const needA = { ...need, id: 'need-a', project_id: 'project-a', name: 'ACS project' }
+  const needB = { ...need, id: 'need-b', project_id: 'project-b', name: 'JLC project' }
+  let bReads = 0
+  let releaseSecondB!: () => void
+  let signalSecondB!: () => void
+  let finishSecondB!: () => void
+  const secondBStarted = new Promise<void>(resolve => { signalSecondB = resolve })
+  const secondBResponse = new Promise<void>(resolve => { releaseSecondB = resolve })
+  const secondBFinished = new Promise<void>(resolve => { finishSecondB = resolve })
+  await page.setViewportSize({ width: 1280, height: 844 })
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response([needA, needB]) }))
+  await page.route('**/api/opportunities/needs/need-a*', route => route.fulfill({ json: needA }))
+  await page.route('**/api/opportunities/needs/need-b*', async route => {
+    bReads += 1
+    if (bReads === 2) {
+      signalSecondB()
+      await secondBResponse
+      try { await route.fulfill({ json: needB }) } catch { /* The selected-detail request is expected to be aborted by Back. */ }
+      finishSecondB()
+      return
+    }
+    await route.fulfill({ json: needB })
+  })
+  await page.goto('/?view=workspace')
+  await page.locator('[data-need-row="need-b"]').click()
+  await expect(page.getByRole('heading', { name: 'JLC project' })).toBeVisible()
+  await page.locator('[data-need-row="need-a"]').click()
+  await expect(page.getByRole('heading', { name: 'ACS project' })).toBeVisible()
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.getByRole('button', { name: /Back to power needs/ }).click()
+  await secondBStarted
+  const pendingBack = page.getByRole('button', { name: /Back to power needs/ })
+  await expect(pendingBack).toBeVisible()
+  await expect(pendingBack).toBeEnabled()
+  await pendingBack.click()
+  await expect(page).toHaveURL(/view=workspace/)
+  await expect(page).not.toHaveURL(/need=need-b/)
+  await expect(page.locator('.wh-list')).toBeVisible()
+  releaseSecondB()
+  await secondBFinished
+  await expect(page).not.toHaveURL(/need=need-b/)
+  await expect(page.getByRole('heading', { name: 'JLC project' })).toHaveCount(0)
+  await expect(page.locator('.wh-list')).toBeVisible()
+})
+
+test('mobile failed history readback keeps Retry and Back available', async ({ page }) => {
+  const needA = { ...need, id: 'need-a', project_id: 'project-a', name: 'ACS project' }
+  const needB = { ...need, id: 'need-b', project_id: 'project-b', name: 'JLC project' }
+  let bReads = 0
+  await page.setViewportSize({ width: 1280, height: 844 })
+  await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+  await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response([needA, needB]) }))
+  await page.route('**/api/opportunities/needs/need-a*', route => route.fulfill({ json: needA }))
+  await page.route('**/api/opportunities/needs/need-b*', route => {
+    bReads += 1
+    return bReads === 2
+      ? route.fulfill({ status: 503, json: { detail: 'selected detail temporarily unavailable' } })
+      : route.fulfill({ json: needB })
+  })
+  await page.goto('/?view=workspace')
+  await page.locator('[data-need-row="need-b"]').click()
+  await expect(page.getByRole('heading', { name: 'JLC project' })).toBeVisible()
+  await page.locator('[data-need-row="need-a"]').click()
+  await expect(page.getByRole('heading', { name: 'ACS project' })).toBeVisible()
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.getByRole('button', { name: /Back to power needs/ }).click()
+  await expect(page.getByRole('alert')).toContainText('could not complete this request (503)')
+  await expect(page.getByRole('button', { name: 'Retry' })).toBeVisible()
+  const errorBack = page.getByRole('button', { name: /Back to power needs/ })
+  await expect(errorBack).toBeVisible()
+  await expect(errorBack).toBeEnabled()
+  await errorBack.click()
+  await expect(page).not.toHaveURL(/need=need-b/)
+  await expect(page.locator('.wh-list')).toBeVisible()
 })
 
 test('mobile selected detail starts at the next action with the compact header', async ({ page }) => {

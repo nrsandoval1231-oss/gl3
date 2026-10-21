@@ -1,2 +1,4 @@
+warning: in the working copy of 'backend/uv.lock', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'docs/validation/approved-workspace/NAVIGATION_RELEASE_FIX.md', LF will be replaced by CRLF the next time Git touches it
 warning: in the working copy of 'web/src/features/workspace/Workspace.tsx', LF will be replaced by CRLF the next time Git touches it
 warning: in the working copy of 'web/tests/workspace.spec.ts', LF will be replaced by CRLF the next time Git touches it

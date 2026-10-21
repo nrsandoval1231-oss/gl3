@@ -1,43 +1,43 @@
 {
-  "started_utc": "2026-10-21T17:43:43.318270+00:00",
+  "started_utc": "2026-10-21T18:01:51.011601+00:00",
   "scope": "Mobile selected-history loading/focus correction; isolated API fixture database; no production writes or providers",
   "gates": [
     {
       "name": "audit",
       "exit_code": 0,
-      "seconds": 1.15,
+      "seconds": 1.03,
       "log": "audit.log"
     },
     {
       "name": "typecheck",
       "exit_code": 0,
-      "seconds": 3.05,
+      "seconds": 3.3,
       "log": "typecheck.log"
     },
     {
       "name": "build",
       "exit_code": 0,
-      "seconds": 4.26,
+      "seconds": 4.46,
       "log": "build.log"
     },
     {
       "name": "browser",
       "exit_code": 0,
-      "seconds": 83.09,
+      "seconds": 105.62,
       "log": "browser.log"
     },
     {
       "name": "docs",
       "exit_code": 0,
-      "seconds": 0.35,
+      "seconds": 0.51,
       "log": "docs.log"
     },
     {
       "name": "diff",
       "exit_code": 0,
-      "seconds": 0.15,
+      "seconds": 0.24,
       "log": "diff.log"
     }
   ],
-  "finished_utc": "2026-10-21T17:45:15.380178+00:00"
+  "finished_utc": "2026-10-21T18:03:46.164007+00:00"
 }

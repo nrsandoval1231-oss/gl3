@@ -1,7 +1,7 @@
 {
-  "utc": "2026-10-21T17:46:00.161318+00:00",
+  "utc": "2026-10-21T18:05:06.719459+00:00",
   "base_sha": "cf440a2bab7f7c1a63ffc98dce229e6ee73f671c",
-  "scope": "Raw frontend source and test bytes validated by navigation gates",
+  "scope": "Raw frontend source and test bytes validated by revised navigation gates",
   "sha256": {
     "web/README.md": "cb7f61c1ae1513d67fc388157926688efb443f74ae567a3851fa778095fadd7b",
     "web/index.html": "a8155c1c937fe793fc5d76ad14c4052efbde5c4f7685e22740e22ee2cc84bf2e",
@@ -72,9 +72,9 @@
     "web/src/features/pursuits/commercialDrafts.ts": "7fb3269bd625cb283b71504858973e5b2e37feac1b34c8c7c6b88d4574078cda",
     "web/src/features/sources/README.md": "27ac1eefdcabce261997d498f4e1e8fdb63b3ddd987f04a8599da7b688124076",
     "web/src/features/workspace/IntelligenceCard.tsx": "d37d252610e157e03d9e8969336d5a0a0de1b795690aad81230604b657ef7a8d",
-    "web/src/features/workspace/Workspace.tsx": "eb39762c6f994c7ba0bf6384a778ab045f6b5d02552a1870cfb013923aec01d9",
+    "web/src/features/workspace/Workspace.tsx": "09242cff4b74d555ac4b28a237fd6cf2d12749098ac608ad5c70cfcb59e6a96f",
     "web/src/features/workspace/WorkspaceChanges.tsx": "d2ac2d6823ef43f190a7707e4521826c815f0d3021cc604432fe9c288dbc6a12",
-    "web/src/features/workspace/WorkspaceDetail.tsx": "1e5a394345d7400612f58fe87c2d6a4f21f268dbec5a098b19ad36656809ff73",
+    "web/src/features/workspace/WorkspaceDetail.tsx": "5b5632fb9c091b2a2e7e44d2b65e22571296b3d4cb649cc882a01a2e069c914f",
     "web/src/features/workspace/intelligence-card.css": "9dd5f889a5870add3ef8c10a62a37c7d24d5ea544ba00a643baad096675fd9b9",
     "web/src/main.tsx": "f4dd9a3a34373bf0503f71d2b490fb221f6998534aa531cb14060bbe652fdcc2",
     "web/src/state/README.md": "1461f4afd7d50c71da9c1f5a0984683a9b6e132470dd1b2d14e5ccf3dfdfdffb",
@@ -102,7 +102,7 @@
     "web/tests/pursuits.spec.ts": "14f4592788a666c94131aabcb64995a1c00f15ed2ee15bc6b7f63b9b750abfd7",
     "web/tests/source-listing-review.spec.ts": "5dc5b9d461e3824ffa1324d65fd6644753c261a8b7b9705b41ad3eec9b455f42",
     "web/tests/verticals.spec.ts": "029a941355da15c5b3d4f0f50dcece45171220092629afbb1af5c79318103470",
-    "web/tests/workspace.spec.ts": "8da0912b21bf5eae5c5680c6351a1d37fa0c16a4d4b9b429a84f1e9b642385f9",
+    "web/tests/workspace.spec.ts": "d0505941dbab9464bb3d6de121354fa37f22810b6215744f0225ea7b47ed8efb",
     "web/tsconfig.json": "8e040fb54505f870a21c315f6aab974e0382259069a5e63aefd8f5fe8dfa11e6",
     "web/vite.config.ts": "cd49a9cdfdfac323b5e89d01e1f778da67616ccfc757a13ff8549f255eb36304"
   }
