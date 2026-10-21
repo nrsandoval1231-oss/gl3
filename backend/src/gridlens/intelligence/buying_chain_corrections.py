@@ -74,6 +74,8 @@ def correct_buying_chain_claim(
     identity_type: str | None = None,
     identity_id: UUID | None = None,
 ) -> BuyingChainCorrection:
+    if action == "retract" and (identity_type is not None or identity_id is not None):
+        raise ValueError("Retractions cannot include an identity reference")
     claim = session.scalar(
         select(BuyingChainClaim)
         .where(

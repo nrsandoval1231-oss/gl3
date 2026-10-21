@@ -4187,6 +4187,30 @@
             "format": "uuid",
             "title": "Id"
           },
+          "company_identity_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Company Identity Id"
+          },
+          "person_identity_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Person Identity Id"
+          },
           "organization": {
             "type": "string",
             "title": "Organization"

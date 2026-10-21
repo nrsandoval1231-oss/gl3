@@ -2225,9 +2225,20 @@ def _attach_identity_ids(session: Session, views: list[dict]) -> None:
     for correction in corrections:
         by_correction_claim[correction.claim_id].append(correction)
     seen: set[tuple[UUID, str]] = set()
+    identity_supports = {
+        "company": {"project_organization"},
+        "person": {"organization_person_role", "person_project_assignment"},
+    }
     for link in links:
         key = (link.claim_id, link.entity_type)
         if key in seen:
+            continue
+        seen.add(key)
+        supported_by = identity_supports.get(link.entity_type)
+        identity_value = (
+            link.company_identity_id if link.entity_type == "company" else link.person_identity_id
+        )
+        if not supported_by or identity_value is None:
             continue
         candidate = by_claim[link.claim_id]
         invalidated = False
@@ -2255,9 +2266,7 @@ def _attach_identity_ids(session: Session, views: list[dict]) -> None:
             ):
                 invalidated = False
                 explicit_rebind = (str(reference["id"]), str(correction.source_evidence_id))
-        identity_id = str(
-            link.company_identity_id if link.entity_type == "company" else link.person_identity_id
-        )
+        identity_id = str(identity_value)
         if invalidated or (
             explicit_rebind is not None
             and (
@@ -2271,11 +2280,11 @@ def _attach_identity_ids(session: Session, views: list[dict]) -> None:
             and str(item.get("current_source_version_id")) == str(link.source_evidence_id)
             and item.get("content_hash") == link.source_version_hash
             and item.get("current_support")
+            and item.get("supports") in supported_by
             for item in candidate["evidence"]
         ):
             continue
         candidate[f"{link.entity_type}_identity_id"] = identity_id
-        seen.add(key)
 
 
 def _permit_summaries(

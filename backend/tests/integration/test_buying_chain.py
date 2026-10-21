@@ -40,6 +40,7 @@ from gridlens.persistence.models import (
     Interpretation,
     NeedObservation,
     Observation,
+    PersonIdentity,
     PowerNeed,
     Project,
     Source,
@@ -1238,6 +1239,12 @@ def test_authenticated_correction_is_append_only_versioned_and_overlays_only_one
         ).status_code
         == 422
     )
+    unsupported_readback = client.get(f"/api/projects/{project_id}/buying-chain")
+    assert unsupported_readback.status_code == 200, unsupported_readback.text
+    unsupported_candidate = next(
+        item for item in unsupported_readback.json()["candidates"] if item["id"] == str(claim_id)
+    )
+    assert unsupported_candidate["company_identity_id"] == str(candidate["company_identity_id"])
     with db.begin() as session:
         session.add(
             BuyingChainEvidence(
@@ -1257,6 +1264,8 @@ def test_authenticated_correction_is_append_only_versioned_and_overlays_only_one
     stale_item = next(item for item in stale_history["candidates"] if item["id"] == str(claim_id))
     assert stale_item["correction_stale"] is True
     assert stale_item["category"] == "general_contractor"
+    stale_current = client.get(f"/api/projects/{project_id}/buying-chain").json()
+    assert all(item["id"] != str(claim_id) for item in stale_current["candidates"])
     report = {
         "expected_version": response.json()["id"],
         "idempotency_key": "correction-test-003",
@@ -1564,31 +1573,35 @@ def test_identity_link_correction_api_returns_typed_reference_and_replays(db, mo
     api = import_module("gridlens.api.app")
     monkeypatch.setattr(api, "SessionLocal", db)
     with db.begin() as session:
-        project = seed(session, external_id="identity-api", identity_key="identity-api")
-        observed = session.scalar(
-            select(Observation).where(Observation.external_id == "identity-api")
-        )
-        interpretation = session.scalar(
-            select(Interpretation).where(Interpretation.observation_id == observed.id)
-        )
-        interpretation.assessment = {
-            **interpretation.assessment,
-            "project_identity_key": project.identity_key,
-        }
-        result = enrich_buying_chain(
-            session,
-            project.id,
-            fetcher=lambda url: source(
-                "Acme is the general contractor for Orion Data Center in Austin, TX."
-            ),
-            now=NOW,
-        )
-        candidate = result["candidates"][0]
+        projects = [
+            seed(session, external_id="identity-api-a", identity_key="identity-api-a"),
+            seed(session, external_id="identity-api-b", identity_key="identity-api-b"),
+        ]
+        candidates = []
+        for project, external_id in zip(
+            projects, ("identity-api-a", "identity-api-b"), strict=True
+        ):
+            observed = session.scalar(
+                select(Observation).where(Observation.external_id == external_id)
+            )
+            interpretation = session.scalar(
+                select(Interpretation).where(Interpretation.observation_id == observed.id)
+            )
+            interpretation.assessment = {
+                **interpretation.assessment,
+                "project_identity_key": project.identity_key,
+            }
+            result = enrich_buying_chain(
+                session,
+                project.id,
+                fetcher=lambda url: source(
+                    "Acme is the general contractor for Orion Data Center in Austin, TX."
+                ),
+                now=NOW,
+            )
+            candidates.append(result["candidates"][0])
+        candidate = candidates[0]
         evidence = candidate["evidence"][0]
-        identity = CompanyIdentity()
-        session.add(identity)
-        session.flush()
-        identity_id = identity.id
         payload = {
             "expected_version": candidate["fingerprint"],
             "idempotency_key": "identity-api-link-001",
@@ -1598,12 +1611,32 @@ def test_identity_link_correction_api_returns_typed_reference_and_replays(db, mo
             "source_hash": evidence["content_hash"],
             "reason": "Reviewed the company identity against current evidence.",
             "identity_type": "company",
-            "identity_id": str(identity_id),
         }
-        project_id, claim_id = project.id, candidate["id"]
     client = TestClient(api.app)
     client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
+    project_id, other_project_id = (project.id for project in projects)
+    claim_id, other_claim_id = candidates[0]["id"], candidates[1]["id"]
     path = f"/api/projects/{project_id}/buying-chain/{claim_id}/corrections"
+    source_readback = client.get(f"/api/projects/{other_project_id}/buying-chain")
+    assert source_readback.status_code == 200, source_readback.text
+    source_candidate = next(
+        item for item in source_readback.json()["candidates"] if item["id"] == str(other_claim_id)
+    )
+    identity_id = source_candidate["company_identity_id"]
+    assert identity_id is not None
+    assert identity_id != str(candidates[0]["company_identity_id"])
+    payload["identity_id"] = identity_id
+    source_evidence = next(
+        item for item in candidates[0]["evidence"] if item.get("supports") == "project_organization"
+    )
+    payload["source_evidence_id"] = str(source_evidence["id"])
+    payload["source_hash"] = source_evidence["content_hash"]
+    original = client.get(f"/api/projects/{project_id}/buying-chain")
+    assert original.status_code == 200, original.text
+    original_candidate = next(
+        item for item in original.json()["candidates"] if item["id"] == str(claim_id)
+    )
+    assert original_candidate["company_identity_id"] == str(candidates[0]["company_identity_id"])
     response = client.post(path, headers={"origin": "http://testserver"}, json=payload)
     assert response.status_code == 200, response.text
     assert response.json()["values"]["identity_reference"] == {
@@ -1613,6 +1646,13 @@ def test_identity_link_correction_api_returns_typed_reference_and_replays(db, mo
     replay = client.post(path, headers={"origin": "http://testserver"}, json=payload)
     assert replay.status_code == 200, replay.text
     assert replay.json()["id"] == response.json()["id"]
+    rebound_readback = client.get(f"/api/projects/{project_id}/buying-chain")
+    assert rebound_readback.status_code == 200, rebound_readback.text
+    rebound_candidate = next(
+        item for item in rebound_readback.json()["candidates"] if item["id"] == str(claim_id)
+    )
+    assert rebound_candidate["company_identity_id"] == identity_id
+    assert rebound_candidate["person_identity_id"] is None
     history = client.get(f"/api/projects/{project_id}/buying-chain?history=true").json()[
         "candidates"
     ]
@@ -1641,6 +1681,175 @@ def test_identity_link_correction_api_returns_typed_reference_and_replays(db, mo
             )
         )
         assert len(corrections) == 1
+
+
+def test_retraction_rejects_identity_fields_without_changing_any_state(db, monkeypatch):
+    api = import_module("gridlens.api.app")
+    monkeypatch.setattr(api, "SessionLocal", db)
+    with db.begin() as session:
+        project = seed(session, external_id="retract-identity")
+        observation = session.scalar(
+            select(Observation).where(Observation.external_id == "retract-identity")
+        )
+        interpretation = session.scalar(
+            select(Interpretation).where(Interpretation.observation_id == observation.id)
+        )
+        interpretation.assessment = {
+            **interpretation.assessment,
+            "project_identity_key": project.identity_key,
+        }
+        result = enrich_buying_chain(
+            session,
+            project.id,
+            fetcher=lambda url: source(
+                "Acme is the general contractor for Orion Data Center in Austin, TX. "
+                "Alice Smith is Project Director at Acme."
+            ),
+            now=NOW,
+        )
+        company_candidate = next(item for item in result["candidates"] if not item["person_name"])
+        claim_id = company_candidate["id"]
+        company_identity = CompanyIdentity()
+        person_identity = PersonIdentity()
+        session.add_all([company_identity, person_identity])
+        session.flush()
+        correction_count = session.scalar(select(func.count()).select_from(BuyingChainCorrection))
+        before_links = [
+            (
+                link.id,
+                link.claim_id,
+                link.entity_type,
+                link.company_identity_id,
+                link.person_identity_id,
+                link.source_evidence_id,
+                link.source_version_hash,
+                link.state,
+                link.basis,
+                link.reviewed_by,
+                link.superseded_at,
+            )
+            for link in session.scalars(
+                select(BuyingChainIdentityLink).order_by(BuyingChainIdentityLink.id)
+            )
+        ]
+        company_identity_ids = sorted(
+            str(item.id) for item in session.scalars(select(CompanyIdentity))
+        )
+        person_identity_ids = sorted(
+            str(item.id) for item in session.scalars(select(PersonIdentity))
+        )
+        project_id = project.id
+    client = TestClient(api.app)
+    client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
+    path = f"/api/projects/{project_id}/buying-chain/{claim_id}/corrections"
+    invalid_identity_fields = [
+        {"identity_type": "company", "identity_id": str(company_identity.id)},
+        {"identity_type": "person", "identity_id": str(person_identity.id)},
+        {"identity_type": "company"},
+        {"identity_id": str(company_identity.id)},
+    ]
+    for index, identity_fields in enumerate(invalid_identity_fields):
+        response = client.post(
+            path,
+            headers={"origin": "http://testserver"},
+            json={
+                "expected_version": company_candidate["fingerprint"],
+                "idempotency_key": f"retract-identity-{index:03d}",
+                "action": "retract",
+                "reason": "Withdraw the relationship without changing its identity.",
+                "reported_contact": True,
+                **identity_fields,
+            },
+        )
+        assert response.status_code == 422, response.text
+    current = client.get(f"/api/projects/{project_id}/buying-chain")
+    assert current.status_code == 200, current.text
+    still_present = next(
+        item for item in current.json()["candidates"] if item["id"] == str(claim_id)
+    )
+    assert still_present["retracted"] is False
+    assert still_present["company_identity_id"] == str(company_candidate["company_identity_id"])
+    with db.begin() as session:
+        assert (
+            session.scalar(select(func.count()).select_from(BuyingChainCorrection))
+            == correction_count
+        )
+        after_links = [
+            (
+                link.id,
+                link.claim_id,
+                link.entity_type,
+                link.company_identity_id,
+                link.person_identity_id,
+                link.source_evidence_id,
+                link.source_version_hash,
+                link.state,
+                link.basis,
+                link.reviewed_by,
+                link.superseded_at,
+            )
+            for link in session.scalars(
+                select(BuyingChainIdentityLink).order_by(BuyingChainIdentityLink.id)
+            )
+        ]
+        assert after_links == before_links
+        assert (
+            sorted(str(item.id) for item in session.scalars(select(CompanyIdentity)))
+            == company_identity_ids
+        )
+        assert (
+            sorted(str(item.id) for item in session.scalars(select(PersonIdentity)))
+            == person_identity_ids
+        )
+
+
+def test_buying_chain_api_hides_identity_link_with_unsupported_citation(db, monkeypatch):
+    api = import_module("gridlens.api.app")
+    monkeypatch.setattr(api, "SessionLocal", db)
+    with db.begin() as session:
+        project = seed(session, external_id="unsupported-identity-readback")
+        observation = session.scalar(
+            select(Observation).where(Observation.external_id == "unsupported-identity-readback")
+        )
+        interpretation = session.scalar(
+            select(Interpretation).where(Interpretation.observation_id == observation.id)
+        )
+        interpretation.assessment = {
+            **interpretation.assessment,
+            "project_identity_key": project.identity_key,
+        }
+        result = enrich_buying_chain(
+            session,
+            project.id,
+            fetcher=lambda url: source(
+                "Acme is the general contractor for Orion Data Center in Austin, TX."
+            ),
+            now=NOW,
+        )
+        candidate = result["candidates"][0]
+        claim = session.get(BuyingChainClaim, candidate["id"])
+        assert claim is not None
+        assert candidate["company_identity_id"]
+        claim.citations = [
+            {
+                **citation,
+                "supports": (
+                    "organization_category"
+                    if citation["supports"] == "project_organization"
+                    else citation["supports"]
+                ),
+            }
+            for citation in claim.citations
+        ]
+        project_id, claim_id = project.id, claim.id
+    client = TestClient(api.app)
+    client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
+    response = client.get(f"/api/projects/{project_id}/buying-chain")
+    assert response.status_code == 200, response.text
+    readback = next(item for item in response.json()["candidates"] if item["id"] == str(claim_id))
+    assert readback["stale"] is False
+    assert readback["company_identity_id"] is None
+    assert readback["person_identity_id"] is None
 
 
 def test_sparse_corrections_compose_and_corrected_contact_replaces_actionable_method():

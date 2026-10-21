@@ -52,6 +52,8 @@ class PublicContactOut(BaseModel):
 
 class BuyingCandidateOut(BaseModel):
     id: UUID
+    company_identity_id: UUID | None = None
+    person_identity_id: UUID | None = None
     organization: str
     person_name: str | None
     title: str | None

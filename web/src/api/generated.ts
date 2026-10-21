@@ -1052,6 +1052,10 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            /** Company Identity Id */
+            company_identity_id?: string | null;
+            /** Person Identity Id */
+            person_identity_id?: string | null;
             /** Organization */
             organization: string;
             /** Person Name */
