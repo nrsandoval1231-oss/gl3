@@ -7,6 +7,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from gridlens.domain.opportunity_intelligence import IntelligenceCard
+
 POLICY_VERSION = "power-pursuits-v1"
 SOURCES = (
     "austin-building-permits",
@@ -223,6 +225,7 @@ class AutonomousResearchOut(BaseModel):
 
 class AutonomousResearchBody(BaseModel):
     force: bool = False
+    complete_intelligence: bool = False
 
 
 class CommercialTriageFact(BaseModel):
@@ -281,6 +284,8 @@ class CommercialTriageOperatorFactRef(BaseModel):
 
 
 class CommercialTriageCard(BaseModel):
+    owner_organizations: list[str] = Field(default_factory=list)
+    intelligence_card: IntelligenceCard | None = None
     research_state: dict = Field(default_factory=dict)
     id: UUID
     project_id: UUID

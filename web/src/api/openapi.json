@@ -3781,6 +3781,56 @@
           }
         }
       }
+    },
+    "/api/opportunity-intelligence": {
+      "get": {
+        "summary": "Opportunity Intelligence Batch",
+        "description": "Current aggregate from persisted evidence, at most twenty exact needs.",
+        "operationId": "opportunity_intelligence_batch_api_opportunity_intelligence_get",
+        "parameters": [
+          {
+            "name": "need_ids",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "minItems": 1,
+              "maxItems": 20,
+              "title": "Need Ids"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/IntelligenceCard"
+                  },
+                  "title": "Response Opportunity Intelligence Batch Api Opportunity Intelligence Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -3790,6 +3840,11 @@
           "force": {
             "type": "boolean",
             "title": "Force",
+            "default": false
+          },
+          "complete_intelligence": {
+            "type": "boolean",
+            "title": "Complete Intelligence",
             "default": false
           }
         },
@@ -5459,6 +5514,23 @@
       },
       "CommercialTriageCard": {
         "properties": {
+          "owner_organizations": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Owner Organizations"
+          },
+          "intelligence_card": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IntelligenceCard"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "research_state": {
             "additionalProperties": true,
             "type": "object",
@@ -7259,6 +7331,304 @@
         ],
         "title": "IngestionPageOut"
       },
+      "IntelligenceCard": {
+        "properties": {
+          "policy_version": {
+            "type": "string",
+            "title": "Policy Version",
+            "default": "opportunity-intelligence-v1"
+          },
+          "need_id": {
+            "type": "string",
+            "title": "Need Id"
+          },
+          "project_id": {
+            "type": "string",
+            "title": "Project Id"
+          },
+          "input_fingerprint": {
+            "type": "string",
+            "title": "Input Fingerprint"
+          },
+          "qualification": {
+            "type": "string",
+            "title": "Qualification"
+          },
+          "disposition": {
+            "type": "string",
+            "title": "Disposition"
+          },
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/IntelligenceField"
+            },
+            "type": "array",
+            "title": "Fields"
+          },
+          "contacts": {
+            "items": {
+              "$ref": "#/components/schemas/IntelligenceContact"
+            },
+            "type": "array",
+            "title": "Contacts"
+          },
+          "next_contact_path": {
+            "type": "string",
+            "title": "Next Contact Path"
+          },
+          "next_action": {
+            "type": "string",
+            "title": "Next Action"
+          },
+          "research_gaps": {
+            "items": {
+              "$ref": "#/components/schemas/IntelligenceField"
+            },
+            "type": "array",
+            "title": "Research Gaps"
+          },
+          "completeness": {
+            "additionalProperties": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "string"
+                }
+              ]
+            },
+            "type": "object",
+            "title": "Completeness"
+          },
+          "last_intelligence_update": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Intelligence Update"
+          },
+          "power_gap": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Power Gap"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/IntelligenceSource"
+            },
+            "type": "array",
+            "title": "Evidence"
+          },
+          "research_enabled": {
+            "type": "boolean",
+            "title": "Research Enabled"
+          }
+        },
+        "type": "object",
+        "required": [
+          "need_id",
+          "project_id",
+          "input_fingerprint",
+          "qualification",
+          "disposition",
+          "fields",
+          "contacts",
+          "next_contact_path",
+          "next_action",
+          "research_gaps",
+          "completeness",
+          "evidence",
+          "research_enabled"
+        ],
+        "title": "IntelligenceCard"
+      },
+      "IntelligenceContact": {
+        "properties": {
+          "claim_id": {
+            "type": "string",
+            "title": "Claim Id"
+          },
+          "company": {
+            "type": "string",
+            "title": "Company"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          },
+          "role": {
+            "type": "string",
+            "title": "Role"
+          },
+          "responsibility": {
+            "type": "string",
+            "enum": [
+              "Verified project responsibility",
+              "Verified organizational responsibility",
+              "Inferred likely role",
+              "General company contact path"
+            ],
+            "title": "Responsibility"
+          },
+          "purchasing_authority": {
+            "type": "string",
+            "title": "Purchasing Authority",
+            "default": "Requires confirmation for this power package"
+          },
+          "methods": {
+            "items": {
+              "additionalProperties": {
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Methods"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/IntelligenceSource"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "verified_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Verified At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "claim_id",
+          "company",
+          "role",
+          "responsibility"
+        ],
+        "title": "IntelligenceContact"
+      },
+      "IntelligenceField": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "section": {
+            "type": "string",
+            "enum": [
+              "identity",
+              "power",
+              "commercial"
+            ],
+            "title": "Section"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "Verified",
+              "Evidence-supported estimate",
+              "Research in progress",
+              "Not publicly available",
+              "Not applicable",
+              "Conflicting evidence"
+            ],
+            "title": "Status"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          },
+          "basis": {
+            "type": "string",
+            "title": "Basis"
+          },
+          "sources": {
+            "items": {
+              "$ref": "#/components/schemas/IntelligenceSource"
+            },
+            "type": "array",
+            "title": "Sources"
+          },
+          "research_category": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Research Category"
+          },
+          "research_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Research Status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "label",
+          "section",
+          "status",
+          "basis"
+        ],
+        "title": "IntelligenceField"
+      },
       "IntelligenceHistoryOut": {
         "properties": {
           "job_id": {
@@ -7689,6 +8059,100 @@
           "owner_review_notes_30d"
         ],
         "title": "IntelligenceOperationsOut"
+      },
+      "IntelligenceSource": {
+        "properties": {
+          "reference": {
+            "type": "string",
+            "title": "Reference"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Url"
+          },
+          "source_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Date"
+          },
+          "retained_evidence_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Retained Evidence Id"
+          },
+          "content_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Content Hash"
+          },
+          "passage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Passage"
+          },
+          "extraction_method": {
+            "type": "string",
+            "title": "Extraction Method"
+          },
+          "verification_status": {
+            "type": "string",
+            "title": "Verification Status"
+          },
+          "assessed_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assessed At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "reference",
+          "title",
+          "extraction_method",
+          "verification_status"
+        ],
+        "title": "IntelligenceSource"
       },
       "IntelligenceTaskOut": {
         "properties": {
@@ -8222,6 +8686,16 @@
       },
       "OpportunityOut": {
         "properties": {
+          "intelligence_card": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IntelligenceCard"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "id": {
             "type": "string",
             "format": "uuid",
@@ -9760,6 +10234,16 @@
       },
       "PursuitWorkspaceItemOut": {
         "properties": {
+          "intelligence_card": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/IntelligenceCard"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "id": {
             "type": "string",
             "format": "uuid",

@@ -25,6 +25,7 @@ This page summarizes defaults defined by `backend/src/gridlens/settings.py`. Tha
 | `BRIEFS_DAILY_REQUEST_LIMIT` | `8` | Daily brief request cap; this cap does not by itself authorize provider use. |
 | `PURSUITS_DAILY_FETCH_LIMIT` / `PURSUITS_DAILY_MODEL_LIMIT` | `160` / `8` | Pursuit research fetch and model caps; provider and research feature gates remain separate. |
 | `AUTONOMOUS_RESEARCH_ENABLED` | `true` | Research planner feature default; public buying-chain research separately defaults false and provider keys/cost configuration still matter. Verify all gates before starting a worker. |
+| `OPPORTUNITY_ENRICHMENT_ENABLED` | `false` | Opt-in expanded gap planning, including actionable opportunities. Existing research/provider/budget gates still apply; implementing this flag is not activation authority. |
 | `BUYING_CHAIN_PUBLIC_RESEARCH_ENABLED` | `false` | Public buying-chain research disabled. |
 | `INTELLIGENCE_OCR_ENABLED` | `false` | OCR path disabled. |
 | `NTFY_URL` / `NTFY_TOKEN` | empty | No alert destination or token configured by default. |

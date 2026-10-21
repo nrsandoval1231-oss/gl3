@@ -938,3 +938,43 @@ test('Power gap shows only backend-qualified ranges and keeps null or conflicted
   await expect(page.getByText('Supply unknown or no supported remaining gap is available for this need.')).toBeVisible()
   await expect(page.locator('.wh-detail-head [role="status"]')).toHaveCount(1)
 })
+
+for (const width of [1280, 390]) {
+  test(`unified intelligence card preserves evidence, verified actions and research at ${width}px`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 })
+    const source = { reference: 'evidence:test', title: 'Official project notice', url: 'https://example.test/project', source_date: '2026-10-20', retained_evidence_id: 'test', content_hash: 'a'.repeat(64), passage: 'Example Owner is developing the site.', extraction_method: 'Official notice', verification_status: 'Current retained support' }
+    const card = {
+      policy_version: 'opportunity-intelligence-v1', need_id: need.id, project_id: need.project_id,
+      input_fingerprint: 'a'.repeat(64), qualification: 'Signal', disposition: 'RESEARCH',
+      fields: [{ key: 'customer', label: 'Customer / end user', section: 'identity', value: 'Example Owner', status: 'Verified', basis: 'Current owner relationship.', sources: [source] }],
+      contacts: [{ claim_id: 'party', company: 'Example Owner', name: null, title: null, role: 'owner developer', responsibility: 'General company contact path', purchasing_authority: 'Requires confirmation for this power package', methods: [{ kind: 'phone', value: '+1 512 555 0100', href: 'tel:+15125550100', source_url: source.url }], sources: [source] }],
+      next_contact_path: 'Confirm power procurement with the company office.', next_action: 'Verify the activity-specific power window.',
+      research_gaps: [{ key: 'start', label: 'Power needed', section: 'power', value: null, status: 'Research in progress', basis: 'No supported date yet.', research_category: 'timing', research_status: 'NOT_SCHEDULED', sources: [] }],
+      completeness: { supported: 1, total: 2, percent: 50, basis: 'Independent of qualification' },
+      last_intelligence_update: '2026-10-20T10:00:00Z', power_gap: null, evidence: [source], research_enabled: true,
+    }
+    await page.route('**/api/auth/session', route => route.fulfill({ json: { authenticated: true } }))
+    await page.route('**/api/opportunities/workspace?*', route => route.fulfill({ json: response() }))
+    await page.route('**/api/opportunities/needs/need-a*', route => route.fulfill({ json: { ...need, intelligence_card: card } }))
+    await page.route('**/api/power-needs/*/title', route => route.fulfill({ json: { status: 'disabled', result: null, citations: [] } }))
+    await page.route('**/api/power-needs/*/brief', route => route.fulfill({ json: { status: 'disabled', result: null, citations: [] } }))
+    let researchBody: unknown
+    await page.route('**/api/commercial/triage/need-a/autonomous-research', route => { researchBody = route.request().postDataJSON(); return route.fulfill({ json: { items: [{ id: 'queued' }] } }) })
+    await page.goto('/?view=workspace&need=need-a')
+    const panel = page.getByRole('region', { name: 'Commercial intelligence card', exact: true })
+    await expect(panel).toBeVisible()
+    await expect(panel.getByText('Example Owner', { exact: true }).first()).toBeVisible()
+    await expect(panel.getByRole('link', { name: 'Call +1 512 555 0100' })).toHaveAttribute('href', 'tel:+15125550100')
+    await expect(panel.locator('a[href^="mailto:"]')).toHaveCount(0)
+    await expect(panel.getByText('Research completeness is separate from Signal qualification.')).toBeVisible()
+    await panel.getByRole('button', { name: 'Research missing information' }).click()
+    await expect.poll(() => researchBody).toEqual({ force: false, complete_intelligence: true })
+    await expect(panel.getByRole('status')).toContainText('Targeted research queued')
+    await panel.locator('.ic-evidence summary').click()
+    await expect(panel.locator('.ic-evidence')).toContainText('evidence:test')
+    expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width)
+    await page.screenshot({ path: testInfo.outputPath(`intelligence-card-${width}.png`), fullPage: true })
+    await page.getByRole('button', { name: /Back to power needs/ }).click()
+    await expect(page.getByRole('heading', { name: 'Your pursuits' })).toBeVisible()
+  })
+}

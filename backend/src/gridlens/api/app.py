@@ -39,6 +39,7 @@ from gridlens.domain.commercial_triage import (
     grouped_need_groups,
 )
 from gridlens.domain.evaluation_clock import evaluate_at, evaluation_now
+from gridlens.domain.opportunity_intelligence import IntelligenceCard
 from gridlens.domain.pursuits import (
     AutonomousResearchBody,
     AutonomousResearchOut,
@@ -177,6 +178,7 @@ class LifecycleEventOut(BaseModel):
 
 
 class OpportunityOut(BaseModel):
+    intelligence_card: IntelligenceCard | None = None
     id: UUID
     project_id: UUID
     name: str
@@ -2670,7 +2672,16 @@ def opportunity_need_detail(
                     "priority_label": _opportunity_priority_label(candidate),
                     "workflow_status": candidate.get("workflow_status", "UNKNOWN"),
                 }
-            details = opportunity_projection(session, selected_need_ids={need_id})
+            chains: dict = {}
+            details = opportunity_projection(
+                session,
+                selected_need_ids={need_id},
+                buying_chain_results=chains,
+                include_operator_fact_refs=True,
+            )
+            from gridlens.intelligence.opportunity_intelligence import attach_cards
+
+            attach_cards(session, details, chains)
             if not details:
                 raise HTTPException(404, "Opportunity not found")
             detail = _bounded_opportunity_payload(details)[0]
@@ -2717,7 +2728,16 @@ def opportunity_need_detail(
         if summary is None:
             raise HTTPException(404, "Opportunity is outside the requested filtered cohort")
         _preflight_opportunity_details(session, [summary])
-        items = opportunity_projection(session, selected_need_ids={need_id})
+        chains = {}
+        items = opportunity_projection(
+            session,
+            selected_need_ids={need_id},
+            buying_chain_results=chains,
+            include_operator_fact_refs=True,
+        )
+        from gridlens.intelligence.opportunity_intelligence import attach_cards
+
+        attach_cards(session, items, chains)
         if not items:
             raise HTTPException(404, "Opportunity not found")
         detail = _bounded_opportunity_payload(items)[0]
@@ -3867,6 +3887,29 @@ def opportunity_projection(
                     if effective["tier"] == "Prospect"
                     else "Confirm activity power needs, timing, duration, and service plan."
                 ),
+                "power_field_provenance": {
+                    "demand": effective.get("demand_quote")
+                    or (current_assessment or {}).get("demand_quote"),
+                    "start": next(
+                        (
+                            assessment.get("start_quote")
+                            for assessment in current_assessments
+                            if assessment.get("start_window") == effective.get("start_window")
+                            and assessment.get("start_quote")
+                        ),
+                        None,
+                    ),
+                    "duration": next(
+                        (
+                            assessment.get("duration_quote")
+                            for assessment in current_assessments
+                            if assessment.get("duration") == effective.get("duration")
+                            and assessment.get("duration_quote")
+                        ),
+                        None,
+                    ),
+                    "supply": (effective.get("qualified_remaining_gap") or {}).get("basis_quote"),
+                },
                 "research_state": research_state,
                 # Internal raw-card proof; absence of current authority is not clearance.
                 "qualification_conflict": effective.get("qualification_conflict", False)
@@ -3989,6 +4032,10 @@ def opportunity_projection(
                         "fact_version_id": str(fact.id),
                         "content_hash": fact.content_hash,
                         "authority": "User-confirmed",
+                        "fact_type": fact.fact_type,
+                        "source_reference": fact.source_reference,
+                        "confirmed_at": fact.confirmed_at,
+                        "value": fact.value,
                     }
                     for fact in sorted(
                         accepted_facts,
@@ -5606,14 +5653,19 @@ def autonomous_research_status(need_id: UUID):
 )
 def request_autonomous_research(need_id: UUID, body: AutonomousResearchBody, request: Request):
     require_same_origin(request)
+    if body.complete_intelligence and not settings.autonomous_research_enabled:
+        raise HTTPException(409, "Research execution is disabled")
     from gridlens.intelligence.pursuit_questions import question_view, schedule_questions
 
     with SessionLocal.begin() as session:
-        cards = _commercial_triage_cards(session, 50)
-        card = next((card for card in cards if str(card["id"]) == str(need_id)), None)
+        from gridlens.intelligence.commercial_evaluation import evaluate_target
+
+        card = evaluate_target(session, need_id)
         if card is None:
             raise HTTPException(409, "Power need is not in the current commercial cohort")
-        rows = schedule_questions(session, [card], force=body.force, origin="manual")
+        rows = schedule_questions(
+            session, [card], force=body.force, origin="manual", enrich=body.complete_intelligence
+        )
         return {"items": [question_view(row) for row in rows]}
 
 
@@ -6162,3 +6214,33 @@ def commercial_research_status(need_id: UUID, question: str = Query(..., min_len
             "citations": [],
             "error": None,
         }
+
+
+@app.get(
+    "/api/opportunity-intelligence",
+    response_model=list[IntelligenceCard],
+    dependencies=[Depends(require_session)],
+)
+def opportunity_intelligence_batch(
+    need_ids: Annotated[list[UUID], Query(min_length=1, max_length=20)],
+):
+    """Current aggregate from persisted evidence, at most twenty exact needs."""
+    from gridlens.intelligence.opportunity_intelligence import attach_cards
+
+    with SessionLocal() as session:
+        _begin_consistent_read(session)
+        summaries = opportunity_projection(
+            session, selected_need_ids=set(need_ids), summary_only=True
+        )
+        _preflight_opportunity_details(session, summaries)
+        chains: dict = {}
+        items = opportunity_projection(
+            session,
+            selected_need_ids=set(need_ids),
+            buying_chain_results=chains,
+            include_operator_fact_refs=True,
+        )
+        _bounded_opportunity_payload(items)
+        attach_cards(session, items, chains)
+        _bounded_opportunity_payload(items)
+        return [item["intelligence_card"] for item in items]

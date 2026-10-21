@@ -1,3 +1,4 @@
+import { IntelligenceCard } from "./IntelligenceCard"
 import type { Opportunity, WorkspaceNeed } from '../../api/client'
 import { client, type Brief, type BuyingChainResult, type PowerNeedTitle } from '../../api/client'
 import { useEffect, useRef, useState } from 'react'
@@ -191,6 +192,7 @@ export function WorkspaceDetail({ item, pending, loading, error, tab, onTab, onB
     <div className="wh-detail-head">
       <span>{item.tier} · {item.commercial_disposition ?? 'Disposition unavailable'}</span>
       <h2>{displayTitle}</h2>
+      {item.intelligence_card?.fields.find(field => field.key === 'customer')?.value && <p className="ic-customer-heading">{item.intelligence_card.fields.find(field => field.key === 'customer')?.value}</p>}
       <p>{item.location ?? 'Location unknown'} · {item.activity}</p>
       {item.tier === 'Signal' && item.commercial_size_status === 'unknown' && <p className="wh-integrity"><strong>Activity size unknown.</strong> Retained for investigation; the 300 kW minimum is inclusive.</p>}
       {item.signal_evidence_state === 'planning_application_withdrawn' && <p className="wh-integrity"><strong>Planning application withdrawn · historical Signal.</strong> Current project viability is unknown.</p>}
@@ -199,12 +201,13 @@ export function WorkspaceDetail({ item, pending, loading, error, tab, onTab, onB
       {item.group_total_filtered && item.group_total_filtered > 1 && <p className="wh-group-context">Part of a group with {item.group_total_filtered} retained records. Each record and its evidence remain separate and available.</p>}
       <section className="wh-next-action-featured" aria-label="Next action"><div><p className="wh-kicker">Next supported step</p><strong>{item.commercial_next_action || item.next_action || 'Review the retained evidence.'}</strong><p>{item.commercial_next_question || 'Open the evidence and confirm the unresolved project details.'}</p></div><button type="button" onClick={() => onTab('Next steps')}>Open next steps</button></section>
       <details className="wh-source-context"><summary>Source title and organization</summary>{displayTitle !== item.name && <p>Source record: {item.name}</p>}{company && <p>Source-supported organization: {company}{companyRole ? ` · ${companyRole}` : ''}. Listed role does not verify purchasing authority.</p>}</details>
-      <div className="wh-facts">
+      {!item.intelligence_card && <div className="wh-facts">
         <span>Required power<strong>{item.required_mw ?? 'Unknown'}</strong><small>{factEvidenceState(item, 'demand')}</small></span>
         <span>Start<strong>{item.start_window ?? 'Unknown'}</strong><small>{factEvidenceState(item, 'start')}</small></span>
         <span>Duration<strong>{item.duration ?? 'Unknown'}</strong><small>{factEvidenceState(item, 'duration')}</small></span>
         <span>Suitable supply<strong>{item.supply ?? 'Unknown'}</strong><small>{factEvidenceState(item, 'supply')}</small></span>
       </div>
+      }
       {hasConflict(item.conflict_state) && <p role="status">Evidence conflict state: {item.conflict_state}. Review retained source claims before acting.</p>}
     </div>
     <section className="wh-title-enrichment" aria-label="Evidence-grounded title">
@@ -249,7 +252,8 @@ export function WorkspaceDetail({ item, pending, loading, error, tab, onTab, onB
     <div className="wh-detail-content">
       {loading && <p role="status">Loading verified detail…</p>}
       {error && <p role="alert">{error} <button onClick={onRetry}>Retry</button></p>}
-      {tab === 'Overview' && <>
+      {tab === 'Overview' && item.intelligence_card && <IntelligenceCard key={item.id} card={item.intelligence_card} onReadback={onReadback} onReview={() => onTab('Next steps')} />}
+      {tab === 'Overview' && !item.intelligence_card && <>
         <details className="wh-provenance-disclosure"><summary>Decision and evidence diagnostics</summary>
           {item.signal_admission_origin && <p>Signal admission origin: {item.signal_admission_origin}</p>}
           {item.signal_evidence_state && <p>Signal evidence state: {item.signal_evidence_state.replaceAll('_', ' ')}</p>}
