@@ -1,5 +1,5 @@
 {
-  "recorded_utc": "2026-10-21T14:38:30.870082+00:00",
+  "recorded_utc": "2026-10-21T15:01:12.602831+00:00",
   "base_dependency": "5ef5f3f29e94fffb071351b61e186d236d40068c",
   "scope": "Raw on-disk frontend source/test bytes used by controller validation; generated artifacts and secrets excluded",
   "sha256": {
@@ -74,7 +74,7 @@
     "web/src/features/workspace/IntelligenceCard.tsx": "d37d252610e157e03d9e8969336d5a0a0de1b795690aad81230604b657ef7a8d",
     "web/src/features/workspace/Workspace.tsx": "3e166263828d8fac4fbb85e9d4b3a2252716e8684b32bdc8e0452fd351814fe7",
     "web/src/features/workspace/WorkspaceChanges.tsx": "d2ac2d6823ef43f190a7707e4521826c815f0d3021cc604432fe9c288dbc6a12",
-    "web/src/features/workspace/WorkspaceDetail.tsx": "dadd3922de99124b7219b9361950645d6b6fa76742a2a2606dd0ab64de4fdad6",
+    "web/src/features/workspace/WorkspaceDetail.tsx": "451926f92f3d0586c163497fa9212fd4b4e6735d7cefb5e57a8fbc1eef232ea2",
     "web/src/features/workspace/intelligence-card.css": "9dd5f889a5870add3ef8c10a62a37c7d24d5ea544ba00a643baad096675fd9b9",
     "web/src/main.tsx": "f4dd9a3a34373bf0503f71d2b490fb221f6998534aa531cb14060bbe652fdcc2",
     "web/src/state/README.md": "1461f4afd7d50c71da9c1f5a0984683a9b6e132470dd1b2d14e5ccf3dfdfdffb",
@@ -85,7 +85,7 @@
     "web/src/styles/pursuits.css": "e3a797156cb7b37f35114237bfbd0d4f376e8bb62ffa98043175a6f88b00c7e7",
     "web/src/styles/workspace.css": "11ddc0302dc486c7431953a9cb6caac18b6fef7ecda069750d14bf99d53a3f0a",
     "web/tests/README.md": "fab1a5a171faaa04138e33888e9998426865868fcb10a556b7debbf2d4f93f59",
-    "web/tests/approved_workspace.spec.ts": "de86aa5d7a5bc2bb0382a5c9f09b85882ce2133a21d8c566c016520bd81a27f2",
+    "web/tests/approved_workspace.spec.ts": "cd7c211654d4ee34dc16d4c7ab8cbfaa779598501726d2ee28745e72e14f6a61",
     "web/tests/auth.spec.ts": "89f75d7860873b59c41847b9adac16f2166a378f563d692ba0fd11f7c49d25dc",
     "web/tests/autonomous-research.spec.ts": "fcf257e0bbcf4e642b59429ac405601905fab8e487afba1c408baf46b4a34a21",
     "web/tests/briefs.spec.ts": "303e83c4912dd760c05e89a00252c6b763d2a44aa182db13c6e43922cb467c66",

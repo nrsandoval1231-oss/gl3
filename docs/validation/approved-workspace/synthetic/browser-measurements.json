@@ -7,7 +7,7 @@
         "width": 1648,
         "height": 928
       },
-      "navigationToCardMs": 282,
+      "navigationToCardMs": 406,
       "geometry": {
         "width": 1648,
         "scrollWidth": 1648,
@@ -161,7 +161,7 @@
         "width": 1440,
         "height": 900
       },
-      "navigationToCardMs": 233,
+      "navigationToCardMs": 290,
       "geometry": {
         "width": 1440,
         "scrollWidth": 1440,
@@ -315,7 +315,7 @@
         "width": 1280,
         "height": 800
       },
-      "navigationToCardMs": 142,
+      "navigationToCardMs": 299,
       "geometry": {
         "width": 1280,
         "scrollWidth": 1280,
@@ -469,7 +469,7 @@
         "width": 768,
         "height": 1024
       },
-      "navigationToCardMs": 148,
+      "navigationToCardMs": 301,
       "geometry": {
         "width": 768,
         "scrollWidth": 768,
@@ -499,7 +499,7 @@
             "x": 0,
             "y": 93,
             "width": 768,
-            "height": 1819.515625
+            "height": 1836.90625
           },
           ".wh-detail-head": {
             "x": 13,
@@ -559,11 +559,11 @@
             "x": 13,
             "y": 1250.640625,
             "width": 742,
-            "height": 46.484375
+            "height": 63.875
           },
           ".wh-evidence-table": {
             "x": 13,
-            "y": 1307.125,
+            "y": 1324.515625,
             "width": 742,
             "height": 186.5625
           },
@@ -623,7 +623,7 @@
         "width": 390,
         "height": 844
       },
-      "navigationToCardMs": 148,
+      "navigationToCardMs": 285,
       "geometry": {
         "width": 390,
         "scrollWidth": 390,

@@ -1,11 +1,11 @@
 {
   "scope": "One-time existing authenticated persisted browser regression on fresh synthetic fixture only",
   "profile": {
-    "need_id": "b8add429-0aab-4109-baa7-1c23636873f8",
-    "project_id": "6918116a-0cd5-426a-bdcc-cd39c2c3a2ca",
-    "name": "Synthetic 8"
+    "need_id": "1903ab34-713b-49cf-905a-f86e37208caf",
+    "project_id": "173e4ed2-2ee6-4b98-adf5-366cde3daefa",
+    "name": "Synthetic 7"
   },
-  "started_utc": "2026-10-21T14:38:24.236577+00:00",
+  "started_utc": "2026-10-21T15:00:59.934160+00:00",
   "exit_code": 0,
-  "finished_utc": "2026-10-21T14:38:28.486542+00:00"
+  "finished_utc": "2026-10-21T15:01:06.447338+00:00"
 }

@@ -20,7 +20,7 @@ The primary comparison uses ACS Data Center Phase I Substation, an actual API re
 
 ## Validation
 
-- Final controller frontend run: **167 passed, one gated skip**, 75.99 seconds. [Raw results](controller-browser.log), [all controller gates](controller-gates.json).
+- Final controller frontend run: **167 passed, one gated skip**, 110.19 seconds. [Raw results](controller-browser.log), [all controller gates](controller-gates.json).
 - The gated persisted case ran separately on a fresh isolated synthetic record: **one passed**. It proves authenticated fact acceptance, real status readback, lost-response retry with the same request and no duplicate event, and unchanged qualification. [Receipt](persisted-browser.json), [raw result](persisted-browser.log).
 - Unchanged intelligence projection: **19 targeted backend tests passed**, including authenticated bounded reads, constant batch query scaling, verified-contact provenance and no facility-load-to-gap conversion. [Raw result](backend-projection-tests-utf8.log).
 - Typecheck, production build, dependency audit, documentation links and diff checks passed. No separate frontend lint command is configured.
@@ -35,10 +35,10 @@ Ten sequential desktop selections per local development runtime measured click t
 
 | Runtime | Median | p95 / maximum | Per selection |
 |---|---:|---:|---|
-| 12 synthetic persisted needs | 148.3 ms | 215.6 ms | Three GETs: detail, title status, brief status |
-| 1,619 active historical records | 1,633.6 ms | 1,813.9 ms | Three GETs: detail, title status, brief status |
+| 12 synthetic persisted needs | 202.0 ms | 241.5 ms | Three GETs: detail, title status, brief status |
+| 1,619 active historical records | 3,280.3 ms | 3,612.9 ms | Three GETs: detail, title status, brief status |
 
-[Synthetic samples](synthetic/selection-performance.json) · [Historical samples](retained/selection-performance.json). No rendering mutations occurred. [Before](render-ledger-final-before.json) and [after](render-ledger-final-after.json) counts are identical: synthetic jobs/logical calls remain 0/0; historical counts remain 872/10, with no new jobs or logical calls. The backup hash is unchanged. No worker or inference provider ran.
+[Synthetic samples](synthetic/selection-performance.json) · [Historical samples](retained/selection-performance.json). Selected-response headers through observed paint ranged43-105ms for fixtures and57-80ms for the historical snapshot. Most elapsed selection time preceded that response. Host load was uncontrolled; earlier historical observations were faster, so these measurements establish no production SLO or causal performance comparison. No rendering mutations occurred. [Before](render-ledger-final-before.json) and [after](render-ledger-final-after.json) counts are identical: synthetic jobs/logical calls remain 0/0; historical counts remain 872/10, with no new jobs or logical calls. The backup hash is unchanged. No worker or inference provider ran.
 
 ## Open acceptance dependencies
 
@@ -49,3 +49,5 @@ These records have no supported facility-wide demand or reliable utility energiz
 Earlier failed runs remain in local evidence: first 126 passed/39 failed/one skip; later 165 passed/one failed/one skip before the relocated warning assertion was corrected. Persisted-case failures exposed stale selectors and a mock cohort token; a partially written fixture was inspected and preserved before a fresh record was used. Backend tests first failed on non-UTF8 fixture encoding, then passed unchanged in a new UTF8 database. An obsolete ingestion fixture runner made source reads across a Windows process boundary; it was stopped and its separate mixed database excluded. Current UI proof uses direct fixtures and the separate historical backup (1,620 needs/18,016 evidence; 1,619 active entries).
 
 No production data was mutated. The parent Finish Contract and PR102's retained/live-provider gates remain open. This evidence authorizes neither merge nor deployment.
+
+The first independent review of05789b3 returned FIX for combining a retained record with its projection citation in one record count. The corrected caption separates retained records from intelligence-card citations and states that citations may refer to the listed records; filter options no longer sum them. The focused regression exercises both views of the same document, filtering and drill-down. The prior raw report is retained under .agent/artifacts/APPROVED-UI/review-05789b3. The new frozen commit requires its own independent verdict.
