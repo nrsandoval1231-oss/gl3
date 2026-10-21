@@ -1,6 +1,6 @@
 # Opportunity intelligence architecture
 
-**Current as of 2026-10-21:** integrated source candidate [`ceecc66`](https://github.com/nrsandoval1231-oss/gl3/commit/ceecc66738234d48fba842ed23bdb47b0d249d4f). F1–F5, F3C backend corrections, and the parent aggregate refresh repair are integrated. Final controller pipeline, runtime proof, and independent review remain pending; this document is not release or production authority.
+**Current as of 2026-10-21:** PR102 and approved PR103 are merged upstream. The follow-up integration preserves the approved workspace and places reported power scheduling in its existing Commercial Assessment tab. Focused browser validation passed 62/62; typecheck and build passed. Final exact-candidate controller gates, runtime proof, and independent review remain pending; this document is not release or production authority.
 
 ## Ownership and evidence
 
@@ -27,7 +27,7 @@ Supply summaries retain explicit source kind, ready date/date basis, state, suit
 
 ## Required schema, rollout, and rollback
 
-F5 adds no migration; the integrated application requires migration `0035_reconciled_identity` followed by `0036_buying_chain_corrections`. Before any separately authorized rollout, validate a restored isolated database, apply migrations through head (`uv run alembic upgrade head` from `backend`), verify the revision, then deploy the exact accepted API/web/worker candidate. Do not run integrated code against a schema earlier than `0036`.
+The integrated application requires migration `0035_reconciled_identity` followed by `0036_buying_chain_corrections`. Before any separately authorized rollout, validate a restored isolated database, apply migrations through head (`uv run alembic upgrade head` from `backend`), verify the revision, then deploy the exact accepted API/web/worker candidate. Do not run integrated code against a schema earlier than `0036`.
 
 Rollback may restore a compatible application while retaining additive tables and correction history. Do not downgrade/drop them or clear jobs, receipts, ledger reservations, or history as a rollback shortcut. Feature-flag or application rollback does not cancel already authorized work.
 

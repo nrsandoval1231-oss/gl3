@@ -1,3 +1,5 @@
+> Historical October 20 migration. The October 21 [UI canon](UI_CANON.md) supersedes its presentation decisions. Original dated content follows unchanged.
+
 # UI authority migration inventory — October 20, 2026
 
 The approved v3 reference screenshot is committed at [`pursuit-workspace-v3-approved.png`](references/pursuit-workspace-v3-approved.png), with source and SHA-256 in [`pursuit-workspace-v3-reference.json`](references/pursuit-workspace-v3-reference.json) and [`references/README.md`](references/README.md). The interactive prototype remains at `../.artifacts/velto-ui-exploration-20261020/v3/` (relative to this checkout). [`UI_CANON.md`](UI_CANON.md) is the sole active presentation authority. [`PURSUIT_WORKSPACE.md`](PURSUIT_WORKSPACE.md) records the interaction contract. [`BRAND_ASSETS.md`](BRAND_ASSETS.md) and `brand.tokens.json` document the application lockup and additive application tokens.

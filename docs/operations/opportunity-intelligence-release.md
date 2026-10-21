@@ -1,6 +1,6 @@
 # Opportunity intelligence release and acceptance record
 
-**Current implementation candidate:** [`ceecc66`](https://github.com/nrsandoval1231-oss/gl3/commit/ceecc66738234d48fba842ed23bdb47b0d249d4f). **Status: implementation integrated; final release gates pending.** This record does not authorize merge, production changes, paid activation, or deployment. The concise evidence packet is [ACCEPTANCE.md](../../.agent/artifacts/PR102-FINISH/ACCEPTANCE.md).
+**Current status:** PR102 and approved PR103 are merged upstream; the remaining work is a follow-up integration checkpoint built on approved main `cf440a2`. F8 focused browser checks passed 62/62, with typecheck/build passing. Exact-candidate full gates, persisted runtime proof, and independent review remain pending. This record does not authorize production changes, paid activation, or deployment. The concise evidence packet is [ACCEPTANCE.md](../../.agent/artifacts/PR102-FINISH/ACCEPTANCE.md).
 
 ## Implemented behavior
 

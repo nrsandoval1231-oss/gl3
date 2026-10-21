@@ -354,7 +354,7 @@ test('workspace overview refresh removes superseded contact action and keeps the
     return route.fulfill({ json: [] })
   })
   await page.goto('/?view=workspace')
-  await expect(page.getByRole('heading', { name: 'Your pursuits' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Opportunity Intelligence' })).toBeVisible()
   await page.locator('[data-need-row="one"]').click()
   const overview = page.getByRole('region', { name: 'Commercial intelligence card', exact: true })
   await expect(overview.getByRole('link', { name: 'Call +1 312 555 0100' })).toHaveAttribute('href', 'tel:+13125550100')
@@ -492,7 +492,7 @@ test('late correction readback cannot reopen a need after navigating back', asyn
   await readbackStarted
 
   await page.getByRole('button', { name: /Back to power needs/ }).click()
-  await expect(page.getByRole('heading', { name: 'Your pursuits' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Opportunity Intelligence' })).toBeVisible()
   await expect(page).not.toHaveURL(/need=one/)
   const readsAfterBack = detailReads
   releaseReadback()
@@ -502,7 +502,7 @@ test('late correction readback cannot reopen a need after navigating back', asyn
   const result = await readbackResponse.json() as BuyingChainResult
   expect(result.candidates?.[0].correction_history?.[0].id).toBe('back-correction')
   await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())))
-  await expect(page.getByRole('heading', { name: 'Your pursuits' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Opportunity Intelligence' })).toBeVisible()
   await expect(page).not.toHaveURL(/need=one/)
   expect(detailReads).toBe(readsAfterBack)
   await expect(page.getByText(/current public evidence did not confirm the replacement method/)).toHaveCount(0)

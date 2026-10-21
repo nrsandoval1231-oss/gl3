@@ -1,0 +1,11 @@
+# Platform toolbar geometry correction
+
+Published candidate `4b1ce5f0b33782c72e9fc5f791a8cd9bab7749bd` passed local gates and bounded independent review. Both [pull-request CI](https://github.com/nrsandoval1231-oss/gl3/actions/runs/39626046924) and [push CI](https://github.com/nrsandoval1231-oss/gl3/actions/runs/39625999911) passed web jobs and backend checks/tests but failed the browser geometry assertion: metric top288.296875px exceeded261px, compared with250.296875px locally. Browser result:166 passed, one failed, one gated skip.
+
+The actual CI trace showed stacked Share/Update workflow controls. Inherited240px/225px `.wh-record-actions` caps forced the second button onto another line when platform font metrics widened the labels, shifting the content38px. A local controlled3px button letter-spacing variation reproduced the same failure before the repair. This is test-only width stress; production font declarations are unchanged.
+
+The repair removes those legacy caps, retaining flex wrapping, readable labels and responsive styles. The focused test requires action width greater than225px, aligned non-overlapping buttons within the viewport, and metric top no greater than261px. The original primary geometry tolerances remain unchanged. No text shrinking, overflow concealment, fixed hero height or backend change is involved.
+
+Builder proof: the pre-fix stress failed, the post-fix focused suite passed56 tests, and the final width assertion passed separately. Controller proof:167 frontend regressions passed/one gated skip; the separate real persisted workflow passed; typecheck/build/audit/docs/diff passed. Both real-API viewport matrices, keyboard checks, selection measurements and unchanged render counters were refreshed. The [manifest](frontend-manifest.json) binds repaired frontend bytes. Native primary geometry remains unchanged; see [landmarks](VISUAL_DISCREPANCIES.md).
+
+Raw failed GitHub log, downloaded trace/error context, local pre-fix stress trace and builder completion remain under ignored `.artifacts/approved-ui/`. Current controller proof is retained alongside this report. Fresh independent review must bind the repaired commit, and remote CI must pass before any green-PR claim. Exact brand acceptance and release authority remain open.

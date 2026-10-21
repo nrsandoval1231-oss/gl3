@@ -1,0 +1,38 @@
+{
+  "scope": "Actual isolated synthetic API; native keyboard events and accessible pressed state; not an assistive technology user study",
+  "checks": [
+    {
+      "viewport": {
+        "width": 1648,
+        "height": 928
+      },
+      "keyboardSelection": true,
+      "researchGapPressedState": true,
+      "backRestoresRowFocus": true,
+      "accountKeyboardDisclosure": true,
+      "accountWithinViewport": true
+    },
+    {
+      "viewport": {
+        "width": 768,
+        "height": 1024
+      },
+      "keyboardSelection": true,
+      "researchGapPressedState": true,
+      "backRestoresRowFocus": true,
+      "accountKeyboardDisclosure": true,
+      "accountWithinViewport": true
+    },
+    {
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "keyboardSelection": true,
+      "researchGapPressedState": true,
+      "backRestoresRowFocus": true,
+      "accountKeyboardDisclosure": true,
+      "accountWithinViewport": true
+    }
+  ]
+}
