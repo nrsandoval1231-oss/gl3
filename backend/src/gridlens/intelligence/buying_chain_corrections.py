@@ -134,6 +134,16 @@ def correct_buying_chain_claim(
             raise ValueError("Correction must include a field, identity reference, or retraction")
     if (identity_type is None) != (identity_id is None):
         raise ValueError("Identity type and ID must be supplied together")
+    if reported_contact and action == "correct" and source_evidence_id is None:
+        if set(values) - {"public_contact_kind", "public_contact_value"}:
+            raise ValueError(
+                "Source-free operator reports may only replace or clear contact details"
+            )
+        if "public_contact_value" not in values:
+            raise ValueError("Operator contact report must replace or clear a contact value")
+        contact_value = values["public_contact_value"]
+        if contact_value is not None and not isinstance(contact_value, str):
+            raise ValueError("Operator contact value must be text or an explicit clear")
     source = None
     candidate: dict[str, Any] | None = None
     if source_evidence_id:

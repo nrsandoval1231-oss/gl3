@@ -166,6 +166,32 @@ def test_replay_is_idempotent_and_never_changes_tier(db):
         assert session.scalar(select(PowerNeed.tier)) == "Signal"
 
 
+def test_project_scoped_identity_refresh_reuses_batched_candidate_views(db, monkeypatch):
+    import gridlens.intelligence.identity_reconciliation as identity_reconciliation
+
+    with db.begin() as session:
+        project = seed(session, external_id="identity-batched")
+        result = enrich_buying_chain(
+            session,
+            project.id,
+            fetcher=lambda url: source(
+                "Acme is the general contractor for Orion Data Center in Austin, TX. "
+                "Alice Smith is Project Director at Acme."
+            ),
+            now=NOW,
+        )
+        claim_ids = [str(item["id"]) for item in result["candidates"]]
+        assert claim_ids
+        single_view_calls = []
+        monkeypatch.setattr(
+            identity_reconciliation,
+            "buying_chain_view",
+            lambda *args, **kwargs: single_view_calls.append((args, kwargs)),
+        )
+        ensure_project_scoped_identity_links(session, claim_ids)
+        assert single_view_calls == []
+
+
 def test_replay_preserves_reviewed_identity_link_on_second_current_citation(db):
     first_url = "https://acme.example/company"
     second_url = "https://acme.example/projects"
@@ -1254,6 +1280,7 @@ def test_authenticated_correction_is_append_only_versioned_and_overlays_only_one
         "idempotency_key": "correction-test-004",
         "action": "retract",
         "reason": "Operator withdrew the relationship.",
+        "reported_contact": True,
     }
     retracted = client.post(path, headers={"origin": "http://testserver"}, json=retract)
     assert retracted.status_code == 200, retracted.text
@@ -1324,6 +1351,118 @@ def test_correction_rejects_null_required_organization_without_persisted_effects
             session.scalar(select(func.count()).select_from(BuyingChainCorrection))
             == correction_count
         )
+
+
+def test_source_free_contact_report_cannot_smuggle_other_corrections(db, monkeypatch):
+    api = import_module("gridlens.api.app")
+    monkeypatch.setattr(api, "SessionLocal", db)
+    with db.begin() as session:
+        project = seed(session, external_id="contact-report-boundary")
+        observation = session.scalar(
+            select(Observation).where(Observation.external_id == "contact-report-boundary")
+        )
+        interpretation = session.scalar(
+            select(Interpretation).where(Interpretation.observation_id == observation.id)
+        )
+        interpretation.assessment = {
+            **interpretation.assessment,
+            "project_identity_key": project.identity_key,
+        }
+        result = enrich_buying_chain(
+            session,
+            project.id,
+            fetcher=lambda url: source(
+                "Acme is the general contractor for Orion Data Center in Austin, TX."
+            ),
+            now=NOW,
+        )
+        candidate = result["candidates"][0]
+        project_id, claim_id = project.id, candidate["id"]
+        correction_count = session.scalar(select(func.count()).select_from(BuyingChainCorrection))
+    client = TestClient(api.app)
+    client.cookies.set("gridlens_session", token_for(int(datetime.now(UTC).timestamp()) + 300))
+    path = f"/api/projects/{project_id}/buying-chain/{claim_id}/corrections"
+    headers = {"origin": "http://testserver"}
+    invalid_values = [
+        {"category": "electrical_contractor"},
+        {"title": "New buyer title"},
+        {"organization_relationship": "DIRECT"},
+        {"person_project_relationship": "ROLE_SUPPORTED"},
+        {
+            "public_contact_kind": "phone",
+            "public_contact_value": "+1-512-555-0100",
+            "title": "Buyer",
+        },
+    ]
+    for index, values in enumerate(invalid_values):
+        response = client.post(
+            path,
+            headers=headers,
+            json={
+                "expected_version": candidate["fingerprint"],
+                "idempotency_key": f"contact-report-boundary-{index}",
+                "action": "correct",
+                "values": values,
+                "reason": "Operator reported a contact during a call.",
+                "reported_contact": True,
+            },
+        )
+        assert response.status_code == 422, response.text
+    readback = client.get(f"/api/projects/{project_id}/buying-chain")
+    assert readback.status_code == 200, readback.text
+    unchanged = next(item for item in readback.json()["candidates"] if item["id"] == str(claim_id))
+    assert unchanged["correction_version"] == candidate["fingerprint"]
+    assert unchanged["organization"] == "Acme"
+    assert unchanged["title"] == candidate["title"]
+    with db() as session:
+        assert (
+            session.scalar(select(func.count()).select_from(BuyingChainCorrection))
+            == correction_count
+        )
+
+    reported = client.post(
+        path,
+        headers=headers,
+        json={
+            "expected_version": candidate["fingerprint"],
+            "idempotency_key": "contact-report-boundary-replacement",
+            "action": "correct",
+            "values": {"public_contact_kind": "phone", "public_contact_value": "+1-512-555-0100"},
+            "reason": "Operator reported a contact during a call.",
+            "reported_contact": True,
+        },
+    )
+    assert reported.status_code == 200, reported.text
+    after_report = next(
+        item
+        for item in client.get(f"/api/projects/{project_id}/buying-chain?history=true").json()[
+            "candidates"
+        ]
+        if item["id"] == str(claim_id)
+    )
+    assert after_report["reported_contacts"][0]["operator_report"] is True
+    assert all(contact["operator_report"] is False for contact in after_report["public_contacts"])
+    cleared = client.post(
+        path,
+        headers=headers,
+        json={
+            "expected_version": reported.json()["id"],
+            "idempotency_key": "contact-report-boundary-clear",
+            "action": "correct",
+            "values": {"public_contact_kind": "phone", "public_contact_value": "   "},
+            "reason": "Operator cleared the reported phone number.",
+            "reported_contact": True,
+        },
+    )
+    assert cleared.status_code == 200, cleared.text
+    after_clear = next(
+        item
+        for item in client.get(f"/api/projects/{project_id}/buying-chain?history=true").json()[
+            "candidates"
+        ]
+        if item["id"] == str(claim_id)
+    )
+    assert after_clear["reported_contacts"] == []
 
 
 def test_mixed_case_public_contact_correction_survives_current_cited_readback(db, monkeypatch):
@@ -1400,6 +1539,25 @@ def test_mixed_case_public_contact_correction_survives_current_cited_readback(db
     )
     methods = projected.methods
     assert methods[0]["href"] == "mailto:ALICE.SMITH@EXAMPLE.COM"
+    mixed_report = client.post(
+        path,
+        headers={"origin": "http://testserver"},
+        json={
+            "expected_version": corrected.json()["id"],
+            "idempotency_key": "contact-casefold-mixed-report",
+            "action": "correct",
+            "values": {
+                "title": None,
+                "public_contact_kind": "phone",
+                "public_contact_value": "555-0100",
+            },
+            "source_evidence_id": str(evidence["id"]),
+            "source_hash": evidence["content_hash"],
+            "reason": "Cleared a stale title and recorded a phone from the operator.",
+            "reported_contact": True,
+        },
+    )
+    assert mixed_report.status_code == 200, mixed_report.text
 
 
 def test_identity_link_correction_api_returns_typed_reference_and_replays(db, monkeypatch):

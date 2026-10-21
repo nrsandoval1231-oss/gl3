@@ -67,7 +67,12 @@ def _typed_subject_binding(
 
 
 def _validate_claim_evidence(
-    session: Session, claim: BuyingChainClaim, entity_type: EntityType, evidence_id: UUID
+    session: Session,
+    claim: BuyingChainClaim,
+    entity_type: EntityType,
+    evidence_id: UUID,
+    *,
+    current_candidate: dict[str, Any] | None = None,
 ) -> BuyingChainEvidence:
     row = session.get(BuyingChainEvidence, evidence_id)
     if row is None:
@@ -89,14 +94,16 @@ def _validate_claim_evidence(
     )
     if citation is None:
         raise ValueError("identity evidence must be cited by this claim for the entity type")
-    current = next(
-        (
-            item
-            for item in buying_chain_view(session, claim.project_id)["candidates"]
-            if item["id"] == claim.id
-        ),
-        None,
-    )
+    current = current_candidate
+    if current is None:
+        current = next(
+            (
+                item
+                for item in buying_chain_view(session, claim.project_id)["candidates"]
+                if item["id"] == claim.id
+            ),
+            None,
+        )
     if (
         current is None
         or current["stale"]
@@ -329,7 +336,11 @@ def ensure_project_scoped_identity_links(session: Session, claim_ids: list[str])
                 )
                 try:
                     linked_source = _validate_claim_evidence(
-                        session, claim, entity_type, existing.source_evidence_id
+                        session,
+                        claim,
+                        entity_type,
+                        existing.source_evidence_id,
+                        current_candidate=candidate,
                     )
                 except ValueError:
                     linked_source = None
