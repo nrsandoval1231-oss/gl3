@@ -139,7 +139,7 @@ export function WorkspaceDetail({ item, pending, loading, error, tab, onTab, onB
     return () => observer.disconnect()
   }, [tab, item?.id])
   if (!item) {
-    return <aside className="wh-detail wh-empty-detail" aria-label="Opportunity detail">
+    return <aside className={`wh-detail ${pending || loading ? 'wh-detail-loading' : 'wh-empty-detail'}`} aria-label="Opportunity detail">
       <p>{pending || loading ? 'Loading verified opportunity detail…' : 'Select an opportunity to review its evidence and next action.'}</p>
       {error && <p role="alert">{error} <button onClick={onRetry}>Retry</button></p>}
     </aside>

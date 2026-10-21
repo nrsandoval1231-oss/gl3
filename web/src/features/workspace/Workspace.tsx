@@ -90,6 +90,8 @@ export function WorkspaceHome() {
   const [changesRevision, setChangesRevision] = useState(0)
   const [signalsRevision, setSignalsRevision] = useState(0)
   const selectionSequence = useRef(0)
+  const historyFocusSequence = useRef(0)
+  const pendingHistoryFocus = useRef<{ id: string; sequence: number } | null>(null)
   const researchFocus = useRef<HTMLElement | null>(null)
   const signalParams = useRef<URLSearchParams | null>(currentView() === 'signals' ? getParams() : null)
   const lastSelected = useRef<string | null>(null)
@@ -123,6 +125,22 @@ export function WorkspaceHome() {
     })
     return () => cancelAnimationFrame(frame)
   }, [pageCurrent, requestKey, view, detailNavigation])
+  useEffect(() => {
+    const focusBack = () => {
+      const pending = pendingHistoryFocus.current
+      if (!pending || !detailCurrent || selected?.id !== pending.id || view !== 'opportunities' || !window.matchMedia('(max-width: 1050px)').matches) return
+      if (getParams().get('need') !== pending.id) return
+      const sequence = pending.sequence
+      requestAnimationFrame(() => {
+        if (pendingHistoryFocus.current?.sequence !== sequence || selected?.id !== pending.id || !detailCurrent || getParams().get('need') !== pending.id) return
+        document.querySelector<HTMLElement>('.wh-back')?.focus({ preventScroll: true })
+        if (pendingHistoryFocus.current?.sequence === sequence) pendingHistoryFocus.current = null
+      })
+    }
+    focusBack()
+    window.addEventListener('resize', focusBack)
+    return () => window.removeEventListener('resize', focusBack)
+  }, [detailCurrent, detailNavigation, selected?.id, view])
   useEffect(() => { void client.session().then(value => setAuthenticated(value.authenticated)).catch(() => setAuthenticated(false)) }, [])
   useEffect(() => {
     if (!authenticated || view !== 'opportunities') return
@@ -145,6 +163,7 @@ export function WorkspaceHome() {
   useEffect(() => {
     const onPop = () => {
       const p = getParams(); let id = p.get('need')
+      pendingHistoryFocus.current = null
       ++selectionSequence.current; setDetailNavigation(value => value + 1)
       setView(currentView())
       if (currentView() === 'pursuits') { setResearchMounted(true); setCommercialNavigation(commercialFromUrl()); requestAnimationFrame(() => researchFocus.current?.focus()) }
@@ -153,6 +172,7 @@ export function WorkspaceHome() {
       setTab(workspaceTabFromParams(p))
       setDetailIdentity(null)
       if (!id) { ++selectionSequence.current; setDetailLoading(false); setSelected(null); setPendingNeedId(null); if (currentView() === 'opportunities') { const snapshot = history.state?.workspaceSnapshot ?? { ...savedScroll.current, focus: lastSelected.current }; pendingRestore.current = { ...snapshot, key: workspaceRequestKey(next) } } else requestAnimationFrame(() => { if (lastSelected.current) document.querySelector<HTMLElement>(`[data-opportunity-id="${CSS.escape(lastSelected.current)}"]`)?.focus() }); return }
+      if (currentView() === 'opportunities') pendingHistoryFocus.current = { id, sequence: ++historyFocusSequence.current }
       const row = page?.items.find(item => item.id === id)
       setSelected(row ?? null); setPendingNeedId(row ? null : id)
       // A history navigation can reselect the same Need while its selected ID

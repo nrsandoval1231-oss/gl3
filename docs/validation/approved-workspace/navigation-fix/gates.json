@@ -1,0 +1,43 @@
+{
+  "started_utc": "2026-10-21T17:43:43.318270+00:00",
+  "scope": "Mobile selected-history loading/focus correction; isolated API fixture database; no production writes or providers",
+  "gates": [
+    {
+      "name": "audit",
+      "exit_code": 0,
+      "seconds": 1.15,
+      "log": "audit.log"
+    },
+    {
+      "name": "typecheck",
+      "exit_code": 0,
+      "seconds": 3.05,
+      "log": "typecheck.log"
+    },
+    {
+      "name": "build",
+      "exit_code": 0,
+      "seconds": 4.26,
+      "log": "build.log"
+    },
+    {
+      "name": "browser",
+      "exit_code": 0,
+      "seconds": 83.09,
+      "log": "browser.log"
+    },
+    {
+      "name": "docs",
+      "exit_code": 0,
+      "seconds": 0.35,
+      "log": "docs.log"
+    },
+    {
+      "name": "diff",
+      "exit_code": 0,
+      "seconds": 0.15,
+      "log": "diff.log"
+    }
+  ],
+  "finished_utc": "2026-10-21T17:45:15.380178+00:00"
+}
