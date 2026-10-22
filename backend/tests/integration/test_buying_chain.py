@@ -1386,6 +1386,10 @@ def test_authenticated_correction_is_append_only_versioned_and_overlays_only_one
     stale_item = next(item for item in stale_history["candidates"] if item["id"] == str(claim_id))
     assert stale_item["correction_stale"] is True
     assert stale_item["category"] == "general_contractor"
+    assert len(stale_item["correction_history"]) == 1
+    replay_after_stale = client.post(path, headers={"origin": "http://testserver"}, json=payload)
+    assert replay_after_stale.status_code == 200, replay_after_stale.text
+    assert replay_after_stale.json()["id"] == response.json()["id"]
     stale_current = client.get(f"/api/projects/{project_id}/buying-chain").json()
     assert all(item["id"] != str(claim_id) for item in stale_current["candidates"])
     report = {
@@ -1397,31 +1401,70 @@ def test_authenticated_correction_is_append_only_versioned_and_overlays_only_one
         "reported_contact": True,
     }
     reported = client.post(path, headers={"origin": "http://testserver"}, json=report)
-    assert reported.status_code == 200, reported.text
-    reported_candidate = client.get(f"/api/projects/{project_id}/buying-chain?history=true").json()[
-        "candidates"
-    ]
-    report_item = next(item for item in reported_candidate if item["id"] == str(claim_id))
-    # The earlier cited correction is stale after the source version changed.
-    assert report_item["category"] == "general_contractor"
-    assert report_item["reported_contacts"][0]["value"] == "+1-512-555-0100"
-    assert all(contact["value"] != "+1-512-555-0100" for contact in report_item["public_contacts"])
+    assert reported.status_code == 409, reported.text
     retract = {
-        "expected_version": reported.json()["id"],
+        "expected_version": response.json()["id"],
         "idempotency_key": "correction-test-004",
         "action": "retract",
         "reason": "Operator withdrew the relationship.",
         "reported_contact": True,
     }
     retracted = client.post(path, headers={"origin": "http://testserver"}, json=retract)
-    assert retracted.status_code == 200, retracted.text
+    assert retracted.status_code == 409, retracted.text
     assert all(
         item["id"] != str(claim_id)
         for item in client.get(f"/api/projects/{project_id}/buying-chain").json()["candidates"]
     )
     history = client.get(f"/api/projects/{project_id}/buying-chain?history=true").json()
     edited_history = next(item for item in history["candidates"] if item["id"] == str(claim_id))
-    assert len(edited_history["correction_history"]) == 3
+    assert edited_history["category"] == "general_contractor"
+    assert edited_history["correction_version"] == response.json()["id"]
+    assert len(edited_history["correction_history"]) == 1
+
+    import gridlens.intelligence.buying_chain_corrections as corrections
+
+    original_view = corrections.buying_chain_view
+
+    def stale_chain_with_current_citation(session, selected_project_id, **kwargs):
+        result = original_view(session, selected_project_id, **kwargs)
+        item = next(
+            candidate for candidate in result["candidates"] if str(candidate["id"]) == str(claim_id)
+        )
+        item["correction_stale"] = True
+        item["stale"] = False
+        current_citation = next(
+            item for item in item["evidence"] if str(item["id"]) == str(evidence["id"])
+        )
+        current_citation.update(
+            current_source_version_id=evidence["id"],
+            content_hash=evidence["content_hash"],
+            current_support=True,
+        )
+        return result
+
+    monkeypatch.setattr(corrections, "buying_chain_view", stale_chain_with_current_citation)
+    current_cited = {
+        "expected_version": response.json()["id"],
+        "idempotency_key": "correction-after-stale-chain",
+        "action": "correct",
+        "values": {"category": "electrical_contractor"},
+        "source_evidence_id": str(evidence["id"]),
+        "source_hash": evidence["content_hash"],
+        "reason": "Attempted a current-cited correction after stale history.",
+    }
+    blocked_current_cited = client.post(
+        path, headers={"origin": "http://testserver"}, json=current_cited
+    )
+    assert blocked_current_cited.status_code == 409, blocked_current_cited.text
+    with db() as session:
+        assert (
+            session.scalar(
+                select(func.count())
+                .select_from(BuyingChainCorrection)
+                .where(BuyingChainCorrection.claim_id == claim_id)
+            )
+            == 1
+        )
     other = client.get(f"/api/projects/{project_b.id}/buying-chain").json()
     other_candidate = next(
         item for item in other["candidates"] if item["id"] == str(b["candidates"][0]["id"])
@@ -1564,6 +1607,39 @@ def test_source_free_contact_report_cannot_smuggle_other_corrections(db, monkeyp
         },
     )
     assert reported.status_code == 200, reported.text
+    replayed_report = client.post(
+        path,
+        headers=headers,
+        json={
+            "expected_version": candidate["fingerprint"],
+            "idempotency_key": "contact-report-boundary-replacement",
+            "action": "correct",
+            "values": {
+                "public_contact_kind": "phone",
+                "public_contact_value": "+1-512-555-0100",
+            },
+            "reason": "Operator reported a contact during a call.",
+            "reported_contact": True,
+        },
+    )
+    assert replayed_report.status_code == 200, replayed_report.text
+    assert replayed_report.json()["id"] == reported.json()["id"]
+    changed_report_flag = client.post(
+        path,
+        headers=headers,
+        json={
+            "expected_version": candidate["fingerprint"],
+            "idempotency_key": "contact-report-boundary-replacement",
+            "action": "correct",
+            "values": {
+                "public_contact_kind": "phone",
+                "public_contact_value": "+1-512-555-0100",
+            },
+            "reason": "Operator reported a contact during a call.",
+            "reported_contact": False,
+        },
+    )
+    assert changed_report_flag.status_code == 422, changed_report_flag.text
     after_report = next(
         item
         for item in client.get(f"/api/projects/{project_id}/buying-chain?history=true").json()[
@@ -1594,6 +1670,45 @@ def test_source_free_contact_report_cannot_smuggle_other_corrections(db, monkeyp
         if item["id"] == str(claim_id)
     )
     assert after_clear["reported_contacts"] == []
+    assert after_clear["correction_history"][-1]["reported_contact"] is True
+    assert after_clear["correction_history"][-1]["values"]["contact_status"] == ("operator_report")
+    null_clear = client.post(
+        path,
+        headers=headers,
+        json={
+            "expected_version": cleared.json()["id"],
+            "idempotency_key": "contact-report-boundary-null-clear",
+            "action": "correct",
+            "values": {"public_contact_kind": "phone", "public_contact_value": None},
+            "reason": "Operator explicitly cleared the reported phone number.",
+            "reported_contact": True,
+        },
+    )
+    assert null_clear.status_code == 200, null_clear.text
+    assert null_clear.json()["reported_contact"] is True
+    retraction = client.post(
+        path,
+        headers=headers,
+        json={
+            "expected_version": null_clear.json()["id"],
+            "idempotency_key": "contact-report-boundary-retract",
+            "action": "retract",
+            "reason": "Operator reported withdrawal of the relationship.",
+            "reported_contact": True,
+        },
+    )
+    assert retraction.status_code == 200, retraction.text
+    assert retraction.json()["reported_contact"] is True
+    history_after_retraction = next(
+        item
+        for item in client.get(f"/api/projects/{project_id}/buying-chain?history=true").json()[
+            "candidates"
+        ]
+        if item["id"] == str(claim_id)
+    )
+    retract_decision = history_after_retraction["correction_history"][-1]
+    assert retract_decision["reported_contact"] is True
+    assert retract_decision["values"]["contact_status"] == "operator_report"
 
 
 def test_mixed_case_public_contact_correction_survives_current_cited_readback(db, monkeypatch):
@@ -2065,6 +2180,7 @@ def test_sparse_corrections_compose_and_corrected_contact_replaces_actionable_me
         ],
         "stale": False,
     }
+    base_candidate = deepcopy(candidate)
     changed_subject = deepcopy(candidate)
     overlay_corrections(
         None,
@@ -2095,6 +2211,45 @@ def test_sparse_corrections_compose_and_corrected_contact_replaces_actionable_me
     ]
     methods = contact_projection({"candidates": [candidate]})[0].methods
     assert [method["href"] for method in methods] == ["tel:5125550199"]
+
+    stale_subject_to_contact = deepcopy(base_candidate)
+    stale_subject_to_contact["evidence"][0]["current_support"] = False
+    stale_subject_to_contact["evidence"][0]["current_source_version_id"] = UUID(
+        "00000000-0000-0000-0000-000000000099"
+    )
+    overlay_corrections(
+        None,
+        UUID("00000000-0000-0000-0000-000000000030"),
+        [stale_subject_to_contact],
+        True,
+        decisions=corrections[:2],
+    )
+    assert stale_subject_to_contact["organization"] == "Acme"
+    assert stale_subject_to_contact["correction_stale"] is True
+    assert stale_subject_to_contact["correction_version"] == str(corrections[1].id)
+    assert [item["value"] for item in stale_subject_to_contact["public_contacts"]] == [
+        "512-555-0100"
+    ]
+    assert len(stale_subject_to_contact["correction_history"]) == 2
+
+    stale_retraction = SimpleNamespace(**vars(corrections[1]))
+    stale_retraction.id = UUID("00000000-0000-0000-0000-000000000025")
+    stale_retraction.action = "retract"
+    stale_retraction.values = {"contact_status": "operator_report"}
+    stale_subject_to_retraction = deepcopy(base_candidate)
+    stale_subject_to_retraction["evidence"][0]["current_support"] = False
+    overlay_corrections(
+        None,
+        UUID("00000000-0000-0000-0000-000000000030"),
+        [stale_subject_to_retraction],
+        True,
+        decisions=[corrections[0], stale_retraction],
+    )
+    assert stale_subject_to_retraction["organization"] == "Acme"
+    assert stale_subject_to_retraction.get("retracted", False) is False
+    assert stale_subject_to_retraction["correction_stale"] is True
+    assert stale_subject_to_retraction["correction_version"] == str(stale_retraction.id)
+    assert len(stale_subject_to_retraction["correction_history"]) == 2
 
     unsupported = deepcopy(candidate)
     unsupported["public_contacts"] = [

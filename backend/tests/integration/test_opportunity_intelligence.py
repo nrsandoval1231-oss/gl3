@@ -198,6 +198,7 @@ def test_old_retained_boston_voltage_remains_dated_and_hash_bound_on_authenticat
                         "evidence_hash": observation.content_hash,
                         "project_identity_key": project.identity_key,
                         "power_activity": need.activity_key,
+                        "location": project.location,
                     },
                 ),
                 NeedObservation(need_id=need.id, observation_id=observation.id),

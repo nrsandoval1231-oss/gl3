@@ -87,7 +87,7 @@ def correct_buying_chain_claim(
     if claim is None:
         raise LookupError("Buying-chain claim not found in project")
     stored_values = dict(values)
-    if reported_contact and stored_values.get("public_contact_value"):
+    if reported_contact:
         stored_values["contact_status"] = "operator_report"
     if identity_id is not None and identity_type is not None:
         stored_values["identity_reference"] = {"type": identity_type, "id": str(identity_id)}
@@ -108,6 +108,14 @@ def correct_buying_chain_claim(
         ):
             raise ValueError("Idempotency key was already used for a different correction")
         return prior
+    current = buying_chain_view(session, project_id, history=True)
+    candidate = next(
+        (item for item in current["candidates"] if str(item["id"]) == str(claim_id)), None
+    )
+    if candidate is not None and candidate.get("correction_stale"):
+        raise RuntimeError(
+            "Correction history is stale; restore current cited evidence before adding decisions"
+        )
     latest = session.scalar(
         select(BuyingChainCorrection)
         .where(BuyingChainCorrection.claim_id == claim_id)
@@ -147,15 +155,10 @@ def correct_buying_chain_claim(
         if contact_value is not None and not isinstance(contact_value, str):
             raise ValueError("Operator contact value must be text or an explicit clear")
     source = None
-    candidate: dict[str, Any] | None = None
     if source_evidence_id:
         source = session.get(BuyingChainEvidence, source_evidence_id)
         if source is None or source.project_id != project_id or source_hash != source.content_hash:
             raise ValueError("Source evidence ID and hash must match this project")
-        current = buying_chain_view(session, project_id)
-        candidate = next(
-            (item for item in current["candidates"] if str(item["id"]) == str(claim_id)), None
-        )
         evidence = next(
             (
                 item
@@ -200,17 +203,6 @@ def correct_buying_chain_claim(
         from gridlens.intelligence.identity_reconciliation import link_claim_to_identity
 
     current_candidate = candidate
-    if current_candidate is None and any(
-        field in values for field in ("organization", "person_name")
-    ):
-        current_candidate = next(
-            (
-                item
-                for item in buying_chain_view(session, project_id)["candidates"]
-                if str(item["id"]) == str(claim_id)
-            ),
-            None,
-        )
     changed_identity_types = {
         entity_type
         for field, entity_type in (("organization", "company"), ("person_name", "person"))
@@ -371,7 +363,7 @@ def overlay_corrections(
             )
             if not cited:
                 candidate["correction_stale"] = True
-                continue
+                break
             if row.action == "retract":
                 candidate["retracted"] = True
                 candidate["public_contacts"] = []
