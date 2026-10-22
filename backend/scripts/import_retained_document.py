@@ -5,10 +5,11 @@ from __future__ import annotations
 import argparse
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from sqlalchemy import select
 from sqlalchemy.engine import make_url
+from sqlalchemy.orm import Session
 
 from gridlens.ingestion.adapters.retained_document import SOURCES, extract
 from gridlens.ingestion.registry import load_registry
@@ -43,6 +44,39 @@ def assert_isolated_database(url: str) -> str:
     return database
 
 
+def _admit_retained_job(
+    session: Session, source_id: str, job_id: UUID, worker_id: str, now: datetime
+) -> None:
+    # A durable Source row serializes admissions even when no active Job row
+    # exists yet. The queue uses this same per-source lock before its Job check.
+    row = session.scalar(select(Source).where(Source.id == source_id).with_for_update())
+    if row is None or row.registry_enabled or row.retrieval_method != "retained-document":
+        raise ValueError("Retained source is missing, enabled, or registry-mismatched")
+    active = session.scalar(
+        select(Job.id)
+        .where(
+            Job.source_id == source_id,
+            Job.kind == "retained_import",
+            Job.status.in_(["queued", "running"]),
+        )
+        .with_for_update()
+    )
+    if active:
+        raise ValueError("A retained import for this source is already active")
+    session.add(
+        Job(
+            id=job_id,
+            source_id=source_id,
+            kind="retained_import",
+            status="running",
+            attempts=1,
+            lease_owner=worker_id,
+            fence=1,
+            lease_until=now + timedelta(minutes=10),
+        )
+    )
+
+
 def run(source_id: str, root: Path) -> dict[str, int | str]:
     # Guard before registry sync or any other database access that can write.
     database_name = assert_isolated_database(settings.database_url)
@@ -56,32 +90,7 @@ def run(source_id: str, root: Path) -> dict[str, int | str]:
     job_id = uuid4()
     now = datetime.now(UTC)
     with SessionLocal.begin() as session:
-        row = session.get(Source, source_id)
-        if row is None or row.registry_enabled or row.retrieval_method != "retained-document":
-            raise ValueError("Retained source is missing, enabled, or registry-mismatched")
-        active = session.scalar(
-            select(Job.id)
-            .where(
-                Job.source_id == source_id,
-                Job.kind == "retained_import",
-                Job.status.in_(["queued", "running"]),
-            )
-            .with_for_update()
-        )
-        if active:
-            raise ValueError("A retained import for this source is already active")
-        session.add(
-            Job(
-                id=job_id,
-                source_id=source_id,
-                kind="retained_import",
-                status="running",
-                attempts=1,
-                lease_owner=worker_id,
-                fence=1,
-                lease_until=now + timedelta(minutes=10),
-            )
-        )
+        _admit_retained_job(session, source_id, job_id, worker_id, now)
     try:
         with SessionLocal.begin() as session:
             counts = process_records(

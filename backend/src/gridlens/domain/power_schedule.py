@@ -210,7 +210,10 @@ def validate_schedule(value: dict[str, Any]) -> dict[str, Any]:
                     "committed supply requires a service-ready date no later than start"
                 )
         elif ready is not None:
-            ready = _date(ready, "service-ready date").isoformat()
+            ready_date = _date(ready, "service-ready date")
+            if ready_date >= end:
+                raise ValueError("service-ready date must precede supply end")
+            ready = ready_date.isoformat()
         source_ref = supply.get("source_reference")
         if source_ref is not None:
             source_ref = _text(source_ref, "supply source reference", 500)

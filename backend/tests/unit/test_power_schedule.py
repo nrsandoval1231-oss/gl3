@@ -163,6 +163,15 @@ def test_stored_schedule_does_not_activate_supply_ready_after_its_window(state, 
     assert all(segment.residual_min_mw == "10" for segment in base)
 
 
+@pytest.mark.parametrize("state", ["operating", "proposed", "hypothetical"])
+@pytest.mark.parametrize("ready_date", ["2027-02-01", "2027-02-02"])
+def test_new_schedule_rejects_readiness_on_or_after_supply_end(state, ready_date):
+    value = schedule()
+    value["supplies"][1].update(state=state, service_ready_date=ready_date)
+    with pytest.raises(ValueError, match="service-ready date must precede supply end"):
+        validate_fact("power_schedule", value)
+
+
 @pytest.mark.parametrize(
     "coverage,suitability",
     [("partial", "suitable"), ("confirmed_complete", "unknown")],

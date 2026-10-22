@@ -1923,6 +1923,36 @@ def test_source_free_contact_report_cannot_smuggle_other_corrections(db, monkeyp
     retract_decision = history_after_retraction["correction_history"][-1]
     assert retract_decision["reported_contact"] is True
     assert retract_decision["values"]["contact_status"] == "operator_report"
+    reported_after_retraction = client.post(
+        path,
+        headers=headers,
+        json={
+            "expected_version": retraction.json()["id"],
+            "idempotency_key": "contact-report-boundary-after-retract",
+            "action": "correct",
+            "values": {"public_contact_kind": "phone", "public_contact_value": "+1-512-555-0199"},
+            "reason": "Operator reported a contact after the relationship was withdrawn.",
+            "reported_contact": True,
+        },
+    )
+    assert reported_after_retraction.status_code == 200, reported_after_retraction.text
+    after_contact_on_retracted_claim = next(
+        item
+        for item in client.get(f"/api/projects/{project_id}/buying-chain?history=true").json()[
+            "candidates"
+        ]
+        if item["id"] == str(claim_id)
+    )
+    assert after_contact_on_retracted_claim["retracted"] is True
+    assert after_contact_on_retracted_claim["reported_contacts"][0]["value"] == "+1-512-555-0199"
+    current_after_contact_on_retracted_claim = client.get(
+        f"/api/projects/{project_id}/buying-chain"
+    )
+    assert current_after_contact_on_retracted_claim.status_code == 200
+    assert all(
+        item["id"] != str(claim_id)
+        for item in current_after_contact_on_retracted_claim.json()["candidates"]
+    )
 
 
 def test_mixed_case_public_contact_correction_survives_current_cited_readback(db, monkeypatch):
@@ -2494,6 +2524,58 @@ def test_sparse_corrections_compose_and_corrected_contact_replaces_actionable_me
     assert contact_projection({"candidates": [unsupported]})[0].methods == []
 
 
+def test_contact_only_decision_does_not_clear_retraction():
+    claim_id = UUID("00000000-0000-0000-0000-000000000050")
+    project_id = UUID("00000000-0000-0000-0000-000000000051")
+    retract_id = UUID("00000000-0000-0000-0000-000000000052")
+    report_id = UUID("00000000-0000-0000-0000-000000000053")
+    retract = SimpleNamespace(
+        id=retract_id,
+        claim_id=claim_id,
+        project_id=project_id,
+        action="retract",
+        values={},
+        source_evidence_id=None,
+        source_version_hash=None,
+        expected_version="initial",
+        created_at=NOW,
+        idempotency_key="retract",
+        reason="Relationship withdrawn",
+        actor="operator",
+    )
+    report = SimpleNamespace(
+        id=report_id,
+        claim_id=claim_id,
+        project_id=project_id,
+        action="correct",
+        values={
+            "public_contact_kind": "phone",
+            "public_contact_value": "512-555-0199",
+            "contact_status": "operator_report",
+        },
+        source_evidence_id=None,
+        source_version_hash=None,
+        expected_version=str(retract_id),
+        created_at=NOW + timedelta(seconds=1),
+        idempotency_key="contact-after-retract",
+        reason="Contact supplied after withdrawal",
+        actor="operator",
+    )
+    candidate = {
+        "id": claim_id,
+        "fingerprint": "initial",
+        "organization": "Acme",
+        "public_contacts": [],
+        "reported_contacts": [],
+        "evidence": [],
+    }
+
+    overlay_corrections(None, project_id, [candidate], False, decisions=[retract, report])
+
+    assert candidate["retracted"] is True
+    assert candidate["reported_contacts"][0]["value"] == "512-555-0199"
+
+
 def test_operator_report_replaces_same_kind_current_report_without_action():
     claim_id = UUID("00000000-0000-0000-0000-000000000040")
     row = SimpleNamespace(
@@ -3056,6 +3138,140 @@ def test_title_correction_binds_current_title_to_the_cited_person(
             candidate=candidate,
             source=source,
             values={"title": requested_title},
+        )
+        is expected
+    )
+
+
+@pytest.mark.parametrize(
+    (
+        "organization_excerpt",
+        "cited_organization_quote",
+        "organization_project_id",
+        "organization_current",
+        "expected",
+    ),
+    [
+        (
+            "Acme is the general contractor for Orion Data Center in Austin, TX.",
+            "Acme is the general contractor for Orion Data Center in Austin, TX.",
+            UUID("00000000-0000-0000-0000-000000000030"),
+            True,
+            True,
+        ),
+        (
+            "Acme is the general contractor for Orion Data Center in Austin, TX.",
+            "Acme is the general contractor for Orion Data Center in Austin, TX.",
+            UUID("00000000-0000-0000-0000-000000000099"),
+            True,
+            False,
+        ),
+        (
+            "Beta is the general contractor for Orion Data Center in Austin, TX.",
+            "Beta is the general contractor for Orion Data Center in Austin, TX.",
+            UUID("00000000-0000-0000-0000-000000000030"),
+            True,
+            False,
+        ),
+        (
+            "Acme is the general contractor for Orion Data Center in Austin, TX.",
+            "Acme is the general contractor for Orion Data Center in Austin, TX.",
+            UUID("00000000-0000-0000-0000-000000000030"),
+            False,
+            False,
+        ),
+        (
+            "Beta is the general contractor for Orion Data Center in Austin, TX. "
+            "Acme is the general contractor for Orion Data Center in Austin, TX.",
+            "Beta is the general contractor for Orion Data Center in Austin, TX.",
+            UUID("00000000-0000-0000-0000-000000000030"),
+            True,
+            False,
+        ),
+    ],
+)
+def test_title_correction_reuses_only_current_same_project_organization_support(
+    organization_excerpt,
+    cited_organization_quote,
+    organization_project_id,
+    organization_current,
+    expected,
+):
+    project_id = UUID("00000000-0000-0000-0000-000000000030")
+    roster_source_id = UUID("00000000-0000-0000-0000-000000000031")
+    organization_source_id = UUID("00000000-0000-0000-0000-000000000032")
+    roster_quote = "Alice Smith, President"
+    project = SimpleNamespace(
+        id=project_id,
+        name="Orion Data Center",
+        location="Austin, TX",
+        identity_facts={},
+        source_id="news",
+    )
+    roster_source = SimpleNamespace(
+        id=roster_source_id,
+        retained_evidence_id=None,
+        url="https://acme.com/team",
+        title="Acme team",
+        excerpt=roster_quote,
+        published_at=None,
+        observed_at=NOW,
+        extraction_location="team page",
+        content_hash="c" * 64,
+    )
+    organization_source = SimpleNamespace(
+        id=organization_source_id,
+        project_id=organization_project_id,
+        retained_evidence_id=None,
+        url="https://news.example/orion",
+        title="Orion Data Center project team",
+        excerpt=organization_excerpt,
+        published_at=date(2026, 10, 20),
+        observed_at=NOW,
+        extraction_location="project team",
+        content_hash="d" * 64,
+    )
+    candidate = {
+        "organization": "Acme",
+        "person_name": "Alice Smith",
+        "title": None,
+        "evidence": [
+            {
+                "id": roster_source_id,
+                "current_source_version_id": roster_source_id,
+                "content_hash": roster_source.content_hash,
+                "current_support": True,
+                "url": roster_source.url,
+                "quote": roster_quote,
+                "supports": "organization_person_role",
+            },
+            {
+                "id": organization_source_id,
+                "current_source_version_id": organization_source_id,
+                "content_hash": organization_source.content_hash,
+                "current_support": organization_current,
+                "url": organization_source.url,
+                "quote": cited_organization_quote,
+                "supports": "project_organization",
+            },
+        ],
+    }
+
+    class Session:
+        def get(self, _model, key):
+            if key == project_id:
+                return project
+            if key == organization_source_id:
+                return organization_source
+            return None
+
+    assert (
+        _has_current_semantic_support(
+            session=Session(),
+            project_id=project_id,
+            candidate=candidate,
+            source=roster_source,
+            values={"title": "President"},
         )
         is expected
     )

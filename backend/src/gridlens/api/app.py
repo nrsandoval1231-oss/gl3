@@ -4074,8 +4074,8 @@ def opportunity_projection(
                     fact.need_id == need.id
                     and fact.project_id == need.project_id
                     and fact.activity_key == need.activity_key
-                    and fact.facility_scope.strip().casefold()
-                    == (project.location or "").strip().casefold()
+                    and " ".join(fact.facility_scope.split()).casefold()
+                    == " ".join((project.location or "").split()).casefold()
                 )
             ]
             if accepted_facts:

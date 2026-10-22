@@ -114,39 +114,62 @@ def _has_current_semantic_support(
     project = session.get(Project, project_id)
     if project is None:
         return False
-    structured: tuple[dict[str, Any], ...] = ()
-    retained_source_id = None
     from gridlens.ingestion.adapters.retained_document import SOURCES
 
-    if source.retained_evidence_id is not None:
-        retained = session.get(Evidence, source.retained_evidence_id)
-        observation = session.get(Observation, retained.observation_id) if retained else None
-        if retained is not None and observation is not None:
-            retained_source_id = observation.source_id
-            if retained_source_id in SOURCES:
-                structured = (
-                    {
-                        "f17_retained": {
-                            "source_id": retained_source_id,
-                            "evidence_content_hash": retained.content_hash,
-                            "project_name": project.name,
-                            "project_location": project.location,
-                            "retained_document": (retained.provenance or {}).get(
-                                "retained_document"
-                            ),
-                        }
-                    },
-                )
-    doc = PublicDocument(
-        url=source.url,
-        title=source.title,
-        text=source.excerpt,
-        published_at=source.published_at,
-        observed_at=source.observed_at,
-        extraction_location=source.extraction_location,
-        structured=structured,
-        retained_version=source.content_hash,
-    )
+    def current_document(evidence_source: BuyingChainEvidence) -> tuple[PublicDocument, str | None]:
+        structured: tuple[dict[str, Any], ...] = ()
+        retained_source_id = None
+        if evidence_source.retained_evidence_id is not None:
+            retained = session.get(Evidence, evidence_source.retained_evidence_id)
+            observation = session.get(Observation, retained.observation_id) if retained else None
+            if retained is not None and observation is not None:
+                retained_source_id = observation.source_id
+                if retained_source_id in SOURCES:
+                    structured = (
+                        {
+                            "f17_retained": {
+                                "source_id": retained_source_id,
+                                "evidence_content_hash": retained.content_hash,
+                                "project_name": project.name,
+                                "project_location": project.location,
+                                "retained_document": (retained.provenance or {}).get(
+                                    "retained_document"
+                                ),
+                            }
+                        },
+                    )
+        return (
+            PublicDocument(
+                url=evidence_source.url,
+                title=evidence_source.title,
+                text=evidence_source.excerpt,
+                published_at=evidence_source.published_at,
+                observed_at=evidence_source.observed_at,
+                extraction_location=evidence_source.extraction_location,
+                structured=structured,
+                retained_version=evidence_source.content_hash,
+            ),
+            retained_source_id,
+        )
+
+    def document_organizations(
+        evidence_doc: PublicDocument, evidence_retained_source_id: str | None
+    ) -> list[Any]:
+        if evidence_retained_source_id in SOURCES:
+            return extract_retained_permit_organizations(evidence_doc, evidence_retained_source_id)
+        if evidence_retained_source_id is not None:
+            return [
+                *extract_retained_permit_organizations(evidence_doc, evidence_retained_source_id),
+                *extract_organizations(evidence_doc, project),
+            ]
+        if (
+            project.source_id == "houston-weekly-permits"
+            and "/ibi_apps/WFServlet.ibfs" in evidence_doc.url
+        ):
+            return extract_retained_permit_organizations(evidence_doc, project.source_id)
+        return extract_organizations(evidence_doc, project)
+
+    doc, retained_source_id = current_document(source)
     current_citations = {
         (str(item.get("quote", "")), str(item.get("supports", "")))
         for item in candidate.get("evidence", [])
@@ -195,23 +218,63 @@ def _has_current_semantic_support(
     for field in revalidate:
         if field not in requested:
             requested[field] = candidate.get(field)
-    if retained_source_id in SOURCES:
-        extracted_organizations = extract_retained_permit_organizations(doc, retained_source_id)
-    elif retained_source_id is not None:
-        extracted_organizations = [
-            *extract_retained_permit_organizations(doc, retained_source_id),
-            *extract_organizations(doc, project),
-        ]
-    elif project.source_id == "houston-weekly-permits" and "/ibi_apps/WFServlet.ibfs" in doc.url:
-        extracted_organizations = extract_retained_permit_organizations(doc, project.source_id)
-    else:
-        extracted_organizations = extract_organizations(doc, project)
+    extracted_organizations = document_organizations(doc, retained_source_id)
     organizations = [
         item
         for item in extracted_organizations
         if organization_key(item.organization)
         == organization_key(str(effective_organization or ""))
     ]
+    if "title" in requested and not organizations:
+        # An official current roster may cite only the person's role. Reuse the
+        # claim's own current project-organization evidence to bind that role to
+        # the effective company; never infer a company from the roster itself.
+        for citation in candidate.get("evidence", []):
+            if (
+                citation.get("supports") != "project_organization"
+                or not citation.get("current_support")
+                or str(citation.get("id")) != str(citation.get("current_source_version_id"))
+            ):
+                continue
+            try:
+                evidence_id = UUID(str(citation.get("id")))
+            except (TypeError, ValueError):
+                continue
+            if evidence_id == source.id:
+                continue
+            organization_source = session.get(BuyingChainEvidence, evidence_id)
+            if (
+                organization_source is None
+                or organization_source.project_id != project_id
+                or organization_source.id != evidence_id
+                or organization_source.content_hash != citation.get("content_hash")
+                or organization_source.url != citation.get("url")
+                or str(citation.get("quote", "")) not in organization_source.excerpt
+            ):
+                continue
+            organization_doc, organization_retained_source_id = current_document(
+                organization_source
+            )
+            cited_pair = (
+                str(citation.get("quote", "")),
+                str(citation.get("supports", "")),
+            )
+            matched_organizations = [
+                item
+                for item in document_organizations(
+                    organization_doc, organization_retained_source_id
+                )
+                if organization_key(item.organization)
+                == organization_key(str(effective_organization or ""))
+                and any(
+                    (str(item_citation.get("quote", "")), str(item_citation.get("supports", "")))
+                    == cited_pair
+                    for item_citation in item.citations
+                )
+            ]
+            organizations.extend(matched_organizations)
+            if organizations:
+                break
     people = extract_people(doc, organizations, project, project_scoped=True, today=date.today())
     if effective_person:
         people = [
@@ -629,8 +692,12 @@ def overlay_corrections(
                 contact_values.clear()
                 continue
 
-            candidate["retracted"] = False
             values = dict(row.values)
+            restores_relationship = any(key in values for key in _SEMANTIC_FIELDS)
+            if not candidate.get("retracted") or (
+                row.source_evidence_id is not None and cited and restores_relationship
+            ):
+                candidate["retracted"] = False
             contact_status = values.pop("contact_status", None)
             subject_changed = any(
                 key in values and values[key] != candidate.get(key)

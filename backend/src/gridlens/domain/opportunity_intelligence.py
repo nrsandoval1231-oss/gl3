@@ -586,8 +586,8 @@ def assemble_card(
         and fact.get("activity_key") == item.get("activity")
         and bool(str(item.get("location") or "").strip())
         and bool(str(fact.get("facility_scope") or "").strip())
-        and str(fact.get("facility_scope") or "").strip().casefold()
-        == str(item.get("location") or "").strip().casefold()
+        and " ".join(str(fact.get("facility_scope") or "").split()).casefold()
+        == " ".join(str(item.get("location") or "").split()).casefold()
     ]
     schedule = project_schedule(schedule_facts)
 

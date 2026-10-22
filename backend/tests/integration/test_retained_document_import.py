@@ -5,6 +5,8 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import json
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from uuid import uuid4
@@ -235,6 +237,60 @@ def test_f17_role_extraction_rejects_wrong_retained_body_hash():
         ),
     )
     assert extract_retained_permit_organizations(doc, source_id) == []
+
+
+def test_concurrent_retained_job_admission_serializes_on_source_row(retained_db):
+    factory, _definitions, _synthetic_text = retained_db
+    source_id = "f17-stack-city-claim"
+    first_admitted = threading.Event()
+    release_first = threading.Event()
+    second_started = threading.Event()
+    second_finished = threading.Event()
+    now = datetime.now(UTC)
+
+    def first() -> None:
+        with factory.begin() as session:
+            import_retained_document._admit_retained_job(
+                session, source_id, uuid4(), "first-importer", now
+            )
+            session.flush()
+            first_admitted.set()
+            assert release_first.wait(10)
+
+    def second() -> str:
+        second_started.set()
+        try:
+            with factory.begin() as session:
+                import_retained_document._admit_retained_job(
+                    session, source_id, uuid4(), "second-importer", now
+                )
+                session.flush()
+        except ValueError as exc:
+            second_finished.set()
+            return str(exc)
+        second_finished.set()
+        return "admitted duplicate"
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        first_future = pool.submit(first)
+        try:
+            assert first_admitted.wait(10)
+            second_future = pool.submit(second)
+            assert second_started.wait(10)
+            assert not second_finished.wait(0.25), "Second admission bypassed the Source lock"
+        finally:
+            release_first.set()
+        first_future.result(timeout=10)
+        assert (
+            second_future.result(timeout=10)
+            == "A retained import for this source is already active"
+        )
+    with factory.begin() as session:
+        jobs = session.scalars(
+            select(Job).where(Job.source_id == source_id, Job.kind == "retained_import")
+        ).all()
+        assert len(jobs) == 1
+        assert jobs[0].status == "running"
 
 
 def test_three_retained_documents_project_two_sites_and_replay_idempotently(retained_db, tmp_path):

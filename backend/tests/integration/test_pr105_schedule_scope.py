@@ -3,12 +3,17 @@
 from datetime import UTC, datetime, timedelta
 from uuid import UUID, uuid4
 
+import pytest
+
 from gridlens.domain.call_facts import validate_fact
 
 pytest_plugins = ["test_call_fact_workflow_integration"]
 
 
-def test_schedule_refs_require_current_project_activity_and_facility_binding(runtime, monkeypatch):
+@pytest.mark.parametrize("location", ["Test City", "  Test  \n City  "])
+def test_schedule_refs_require_current_project_activity_and_facility_binding(
+    runtime, monkeypatch, location
+):
     from gridlens.settings import settings
 
     monkeypatch.setattr(settings, "saved_browse_enabled", False)
@@ -187,6 +192,9 @@ def test_schedule_refs_require_current_project_activity_and_facility_binding(run
         headers=headers,
     )
     assert accepted.status_code == 200, accepted.text
+
+    with factory.begin() as session:
+        session.get(Project, project_id).location = location
 
     matching = client.get(f"/api/opportunity-intelligence?need_ids={need_id}")
     assert matching.status_code == 200, matching.text
