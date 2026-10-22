@@ -106,6 +106,72 @@ test('account deep links reload profile and filters remain server-side', async (
   await expect(page.locator('.wh-tools')).toHaveAttribute('open', '')
 })
 
+test('primary account pages are server driven and preserve cohort and history', async ({ page }) => {
+  const rows = Array.from({ length: 26 }, (_, index) => ({ ...accountRow, id: `need-${index + 1}`, project_id: `project-${index + 1}`, company_identity_id: `company-${index + 1}`, account_name: `Company ${String(index + 1).padStart(2, '0')}` }))
+  const queries: URLSearchParams[] = []
+  await page.route(url => url.pathname.startsWith('/api/'), async route => {
+    const url = new URL(route.request().url())
+    if (url.pathname === '/api/auth/session') return route.fulfill({ json: { authenticated: true } })
+    if (url.pathname === '/api/opportunities/workspace') {
+      const params = url.searchParams, offset = Number(params.get('offset') ?? 0)
+      queries.push(new URLSearchParams(params))
+      return route.fulfill({ json: { items: rows.slice(offset, offset + 25), total: rows.length, counts: { action_now: 0, research: rows.length, watch: 0, reject: 0 }, offset, limit: 25, next_offset: offset + 25 < rows.length ? offset + 25 : null, cohort_token: 'fixed-account-cohort', count_unit: 'company accounts', changes_available: false } })
+    }
+    if (url.pathname === '/api/opportunities/workspace/changes') return route.fulfill({ json: { items: [], counts: { discovered: 0, changed: 0, promoted: 0, closed: 0, review_exception: 0 }, total_unreviewed: 0, offset: 0, limit: 50, next_offset: null, baseline_identity: 'test', token: 'test', source_health_exceptions: [] } })
+    if (url.pathname.endsWith('/unresolved')) return route.fulfill({ json: { items: [], total: 0, limit: 25, offset: 0 } })
+    if (url.pathname.endsWith('/projects')) return route.fulfill({ json: { items: [], total: 0, limit: 25, offset: 0 } })
+    return route.fulfill({ json: [] })
+  })
+  await page.goto('/?view=workspace')
+  await expect(page.locator('.ci-account-list button')).toHaveCount(25)
+  const pager = page.getByRole('navigation', { name: 'Customer account pages' })
+  await expect(pager).toContainText('Accounts 1–25 of 26')
+  await pager.getByRole('button', { name: 'Next' }).click()
+  await expect(page).toHaveURL(/offset=25/)
+  await expect(page).toHaveURL(/cohort_token=fixed-account-cohort/)
+  await expect(page.locator('.ci-account-list button')).toHaveCount(1)
+  expect(queries.at(-1)?.get('offset')).toBe('25')
+  expect(queries.at(-1)?.get('cohort_token')).toBe('fixed-account-cohort')
+  await page.goBack()
+  await expect(page.locator('.ci-account-list button')).toHaveCount(25)
+  await page.goForward()
+  await expect(page.locator('.ci-account-list button')).toHaveCount(1)
+  await page.getByLabel('Search opportunities').fill('Company')
+  await expect.poll(() => queries.at(-1)?.get('search')).toBe('Company')
+  expect(queries.at(-1)?.get('offset')).toBe('0')
+  expect(queries.at(-1)?.get('cohort_token')).toBeNull()
+})
+
+test('primary account pager resets a stale cohort on 409', async ({ page }) => {
+  const rows = Array.from({ length: 26 }, (_, index) => ({ ...accountRow, id: `need-${index + 1}`, project_id: `project-${index + 1}`, company_identity_id: `company-${index + 1}`, account_name: `Company ${String(index + 1).padStart(2, '0')}` }))
+  const queries: URLSearchParams[] = []
+  await page.route(url => url.pathname.startsWith('/api/'), async route => {
+    const url = new URL(route.request().url())
+    if (url.pathname === '/api/auth/session') return route.fulfill({ json: { authenticated: true } })
+    if (url.pathname === '/api/opportunities/workspace') {
+      const params = url.searchParams, offset = Number(params.get('offset') ?? 0)
+      queries.push(new URLSearchParams(params))
+      if (offset === 25) return route.fulfill({ status: 409, json: { detail: 'cohort expired' } })
+      return route.fulfill({ json: { items: rows.slice(offset, offset + 25), total: rows.length, counts: { action_now: 0, research: rows.length, watch: 0, reject: 0 }, offset, limit: 25, next_offset: 25, cohort_token: 'fresh-account-cohort', count_unit: 'company accounts', changes_available: false } })
+    }
+    if (url.pathname === '/api/opportunities/workspace/changes') return route.fulfill({ json: { items: [], counts: { discovered: 0, changed: 0, promoted: 0, closed: 0, review_exception: 0 }, total_unreviewed: 0, offset: 0, limit: 50, next_offset: null, baseline_identity: 'test', token: 'test', source_health_exceptions: [] } })
+    if (url.pathname.endsWith('/unresolved')) return route.fulfill({ json: { items: [], total: 0, limit: 25, offset: 0 } })
+    if (url.pathname.endsWith('/projects')) return route.fulfill({ json: { items: [], total: 0, limit: 25, offset: 0 } })
+    return route.fulfill({ json: [] })
+  })
+  await page.goto('/?view=workspace&account=company-1')
+  await expect(page.getByRole('heading', { name: 'Company 01' })).toBeVisible()
+  await page.getByRole('navigation', { name: 'Customer account pages' }).getByRole('button', { name: 'Next' }).click()
+  await expect.poll(() => queries.length).toBe(3)
+  await expect.poll(() => new URL(page.url()).searchParams.get('offset')).toBe('0')
+  await expect.poll(() => new URL(page.url()).searchParams.get('cohort_token')).toBeNull()
+  await expect(page).toHaveURL(/account=company-1/)
+  await expect(page.getByRole('heading', { name: 'Company 01' })).toBeVisible()
+  expect(queries[1].get('cohort_token')).toBe('fresh-account-cohort')
+  expect(queries[2].get('offset')).toBe('0')
+  expect(queries[2].get('cohort_token')).toBeNull()
+})
+
 test('expired workspace cohort restarts pagination and keeps the selected account profile', async ({ page }) => {
   let requests = 0
   await page.route(url => url.pathname.startsWith('/api/'), async route => {
@@ -152,6 +218,30 @@ test('account project errors expose an explicit retry without changing the accou
   unavailable = false
   await page.getByRole('alert').getByRole('button', { name: 'Retry' }).click()
   await expect(page.getByRole('heading', { name: 'Northstar Compute' })).toBeVisible()
+  expect(attempts).toBeGreaterThanOrEqual(2)
+})
+
+test('unresolved customer project failures remain visible and retry successfully', async ({ page }) => {
+  let attempts = 0
+  let unavailable = true
+  await page.route(url => url.pathname.startsWith('/api/'), async route => {
+    const url = new URL(route.request().url())
+    if (url.pathname === '/api/auth/session') return route.fulfill({ json: { authenticated: true } })
+    if (url.pathname === '/api/opportunities/workspace') return route.fulfill({ json: accountWorkspace(url.searchParams, []) })
+    if (url.pathname === '/api/opportunities/workspace/changes') return route.fulfill({ json: { items: [], counts: { discovered: 0, changed: 0, promoted: 0, closed: 0, review_exception: 0 }, total_unreviewed: 0, offset: 0, limit: 50, next_offset: null, baseline_identity: 'test', token: 'test', source_health_exceptions: [] } })
+    if (url.pathname.endsWith('/unresolved')) {
+      attempts += 1
+      if (unavailable) return route.fulfill({ status: 503, json: { detail: 'temporarily unavailable' } })
+      return route.fulfill({ json: { items: [], total: 0, limit: 25, offset: 0 } })
+    }
+    return route.fulfill({ json: [] })
+  })
+  await page.goto('/?view=workspace')
+  await page.locator('.ci-unresolved summary').click()
+  await expect(page.locator('.ci-unresolved')).toContainText('Unresolved customer projects could not be loaded')
+  unavailable = false
+  await page.locator('.ci-unresolved').getByRole('button', { name: 'Retry' }).click()
+  await expect(page.locator('.ci-unresolved')).toContainText('(0)')
   expect(attempts).toBeGreaterThanOrEqual(2)
 })
 

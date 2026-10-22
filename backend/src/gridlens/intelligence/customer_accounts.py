@@ -369,6 +369,18 @@ def record_rrc_operator_membership(
             # Source refresh cannot silently undo attributed human review. A
             # newly asserted, different operator remains visibly conflicted.
             if retracted_version.operator_number != operator.operator_number:
+                replayed_conflict = session.scalar(
+                    select(CompanyProjectMembership.id).where(
+                        CompanyProjectMembership.project_id == project.id,
+                        CompanyProjectMembership.source_id == source_id,
+                        CompanyProjectMembership.role == "asset_operator",
+                        CompanyProjectMembership.state == "conflicted",
+                        CompanyProjectMembership.company_identity_id == identity.id,
+                        CompanyProjectMembership.source_version_hash == evidence.content_hash,
+                    )
+                )
+                if replayed_conflict:
+                    return
                 session.add(
                     CompanyProjectMembership(
                         company_identity_id=identity.id,

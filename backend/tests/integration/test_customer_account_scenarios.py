@@ -557,6 +557,69 @@ def test_same_name_accounts_conflicts_shared_document_and_generation_refresh(sce
         )
 
 
+def test_retracted_operator_conflict_replay_is_idempotent(scenario_db):
+    with scenario_db.begin() as session:
+        project, _need, _observation, _evidence, identity = _project(
+            session, "replay-retracted", operator_number="910001"
+        )
+        membership = session.scalar(
+            select(CompanyProjectMembership).where(
+                CompanyProjectMembership.project_id == project.id,
+                CompanyProjectMembership.state == "current",
+            )
+        )
+        correction = retract_customer_membership(
+            session,
+            membership_id=membership.id,
+            expected_version=0,
+            idempotency_key="replay-retracted-a",
+            reason="Synthetic acceptance correction",
+            actor="scenario-test-operator",
+        )
+        conflict_evidence = _rrc_version(
+            session, project, "910002", "Changed Operator LLC", "conflict-b"
+        )
+        conflict_identity = session.scalar(
+            select(CompanyIdentity).where(CompanyIdentity.rrc_operator_number == "910002")
+        )
+        assert identity is not None and conflict_identity is not None
+        assert session.get(CompanyProjectMembershipCorrection, correction.id) is not None
+
+    with scenario_db.begin() as session:
+        project = session.get(Project, project.id)
+        evidence = session.get(Evidence, conflict_evidence.id)
+        observation = session.get(Observation, evidence.observation_id)
+        record_rrc_operator_membership(
+            session,
+            project=project,
+            observation=observation,
+            evidence=evidence,
+            source_id=project.source_id,
+            record={"abstract": evidence.abstract},
+        )
+        memberships = session.scalars(
+            select(CompanyProjectMembership).where(
+                CompanyProjectMembership.project_id == project.id,
+                CompanyProjectMembership.role == "asset_operator",
+            )
+        ).all()
+        assert sum(row.state == "conflicted" for row in memberships) == 1
+        assert sum(row.state == "current" for row in memberships) == 0
+        assert sum(row.state == "retracted" for row in memberships) == 1
+        assert session.get(CompanyProjectMembershipCorrection, correction.id) is not None
+
+        _rrc_version(session, project, "910003", "Later Operator LLC", "conflict-c")
+        assert (
+            session.scalar(
+                select(func.count()).where(
+                    CompanyProjectMembership.project_id == project.id,
+                    CompanyProjectMembership.state == "conflicted",
+                )
+            )
+            == 2
+        )
+
+
 def test_need_detail_has_current_unambiguous_associated_account(scenario_db, monkeypatch):
     from gridlens.api import app as api
 

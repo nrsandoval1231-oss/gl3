@@ -9,7 +9,7 @@ const formatEvidenceDate = (value: string | null | undefined) => {
   return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString()
 }
 
-export function CustomerAccountsQueue({ page, filters, onNeed }: { page: WorkspacePage | null; filters: WorkspaceFilters; onNeed: (needId: string) => void }) {
+export function CustomerAccountsQueue({ page, filters, onNeed, onPage, pagingAvailable }: { page: WorkspacePage | null; filters: WorkspaceFilters; onNeed: (needId: string) => void; onPage: (offset: number, cohortToken: string | undefined) => void; pagingAvailable: boolean }) {
   const rows = page?.items ?? []
   const accounts = rows.filter((row): row is AccountRow => Boolean(row.company_identity_id))
   const [accountId, setAccountId] = useState(() => new URLSearchParams(location.search).get('account') ?? '')
@@ -72,11 +72,13 @@ export function CustomerAccountsQueue({ page, filters, onNeed }: { page: Workspa
     const params = new URLSearchParams(location.search); if (offset) params.set('need_offset', String(offset)); else params.delete('need_offset')
     history.pushState(history.state, '', `${location.pathname}?${params}`); setNeedOffset(offset)
   }
+  const accountPaging = <nav className="ci-paging" aria-label="Customer account pages"><span>Accounts {page ? pageNeeds(page.offset, accounts.length) : '—'} of {page?.total ?? '—'}</span><button type="button" disabled={!pagingAvailable || !page?.offset} onClick={() => { if (page) onPage(Math.max(0, page.offset - page.limit), page.cohort_token) }}>Previous</button><button type="button" disabled={!pagingAvailable || page?.next_offset == null} onClick={() => { if (page?.next_offset != null) onPage(page.next_offset, page.cohort_token) }}>Next</button></nav>
 
   return <section className="ci-accounts" aria-label="Customer accounts">
     {accountId ? <>
       <button type="button" className="ci-back" onClick={closeAccount}>← All accounts</button>
       <h2>{selected?.account_name ?? account?.name ?? selected?.commercial_organization ?? 'Customer account'}</h2>
+      {accountPaging}
       <p className="ci-account-summary">{bestNeed?.industry ?? 'Industry not established'} · {bestNeed?.location ?? selected?.location ?? 'Location not established'}</p>
       <p className="ci-account-summary">{account?.project_count ?? selected?.project_count ?? '—'} projects · {account?.need_count ?? selected?.need_count ?? '—'} power needs · {account?.supporting_evidence_count ?? selected?.supporting_evidence_count ?? 0} supporting evidence items</p>
       {displayAliases(account?.name ?? selected?.account_name, account?.aliases ?? selected?.account_aliases).length > 0 && <p className="ci-account-summary">Also known as: {displayAliases(account?.name ?? selected?.account_name, account?.aliases ?? selected?.account_aliases).join(', ')}</p>}
@@ -106,6 +108,7 @@ export function CustomerAccountsQueue({ page, filters, onNeed }: { page: Workspa
         <span>{account.asset_type?.replaceAll('_', ' ') ?? 'Industry not established'} · {account.tier} · {[account.required_mw ? `${account.required_mw} MW` : '', account.start_window, account.commercial_disposition].filter(Boolean).join(' · ') || 'Needs confirmation'}</span>
         <span>{account.commercial_next_action ?? 'Research needed'}</span>
       </button>)}</div>
+      {accountPaging}
       <details className="ci-unresolved" open={unresolvedOpen} onToggle={event => setUnresolvedOpen(event.currentTarget.open)}>
         <summary>Projects needing customer research{unresolved ? ` (${unresolved.total})` : ''}</summary>
         {unresolvedItems.map(project => <article key={project.project_id}><strong>{project.project_name}</strong><span>{project.location ?? 'Location not established'} · {project.role}</span><span className="ci-customer-review">Customer needs confirmation</span><p>{project.reason}</p>{project.need_id && !project.no_eligible_need ? <button type="button" onClick={() => onNeed(project.need_id!)}>Review this power need</button> : <a href={`/?view=pursuits&pursuitQuery=${encodeURIComponent(project.organization)}`}>Research {project.organization}</a>}</article>)}
